@@ -175,6 +175,9 @@ func (s *Store) MintTemporary(p Principal, expiry time.Time) (Credentials, error
 	if !restorableSource(p) {
 		return Credentials{}, &MintError{Principal: Render(p), Problem: InvalidSessionSource}
 	}
+	if !restorableIssue(p) {
+		return Credentials{}, &MintError{Principal: Render(p), Problem: InvalidIssueTime}
+	}
 	utc, problem, ok := sessionExpiry(expiry)
 	if !ok {
 		return Credentials{}, &MintError{Principal: Render(p), Problem: problem}
@@ -318,6 +321,18 @@ func restorableSource(p Principal) bool {
 	case FromAssumeRole:
 	}
 	return true
+}
+
+// restorableIssue reports whether p, if an assumed role with attributes,
+// has an issue time Export can write, so a snapshot of the store always
+// saves.
+func restorableIssue(p Principal) bool {
+	role, ok := p.(AssumedRole)
+	if !ok || role.Attributes == nil {
+		return true
+	}
+	_, err := role.Attributes.Issued.MarshalText()
+	return err == nil
 }
 
 // sessionExpiry returns expiry in UTC, the form the store holds and Export

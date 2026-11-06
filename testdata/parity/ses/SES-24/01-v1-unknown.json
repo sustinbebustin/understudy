@@ -1,0 +1,33 @@
+{
+  "step": "01-v1-unknown",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164235Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "32"]
+        ],
+        "body": "Action=FooBar&Version=2010-12-01"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:35 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "307"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "ad7f8788-a8b0-4d45-9953-f2793defafa0"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://webservices.amazon.com/AWSFault/2005-15-09\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>InvalidAction</Code>\n    <Message>Could not find operation FooBar for version 2010-12-01</Message>\n  </Error>\n  <RequestId>ad7f8788-a8b0-4d45-9953-f2793defafa0</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

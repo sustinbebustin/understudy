@@ -1,0 +1,34 @@
+{
+  "step": "02-101",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValue) when calling the GetIdentityVerificationAttributes operation: Can only get verification attributes for up to 100 identities at a time.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,AN,b,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ses.get-identity-verification-attributes"],
+          ["X-Amz-Date", "20261103T164214Z"],
+          ["amz-sdk-invocation-id", "a16d4d61-d7b7-458d-8ad0-c4adfd7f49b9"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "4691"]
+        ],
+        "body": "Action=GetIdentityVerificationAttributes&Version=2010-12-01&Identities.member.1=us1103-x1%40example.com&Identities.member.2=us1103-x2%40example.com&Identities.member.3=us1103-x3%40example.com&Identities.member.4=us1103-x4%40example.com&Identities.member.5=us1103-x5%40example.com&Identities.member.6=us1103-x6%40example.com&Identities.member.7=us1103-x7%40example.com&Identities.member.8=us1103-x8%40example.com&Identities.member.9=us1103-x9%40example.com&Identities.member.10=us1103-x10%40example.com&Identities.member.11=us1103-x11%40example.com&Identities.member.12=us1103-x12%40example.com&Identities.member.13=us1103-x13%40example.com&Identities.member.14=us1103-x14%40example.com&Identities.member.15=us1103-x15%40example.com&Identities.member.16=us1103-x16%40example.com&Identities.member.17=us1103-x17%40example.com&Identities.member.18=us1103-x18%40example.com&Identities.member.19=us1103-x19%40example.com&Identities.member.20=us1103-x20%40example.com&Identities.member.21=us1103-x21%40example.com&Identities.member.22=us1103-x22%40example.com&Identities.member.23=us1103-x23%40example.com&Identities.member.24=us1103-x24%40example.com&Identities.member.25=us1103-x25%40example.com&Identities.member.26=us1103-x26%40example.com&Identities.member.27=us1103-x27%40example.com&Identities.member.28=us1103-x28%40example.com&Identities.member.29=us1103-x29%40example.com&Identities.member.30=us1103-x30%40example.com&Identities.member.31=us1103-x31%40example.com&Identities.member.32=us1103-x32%40example.com&Identities.member.33=us1103-x33%40example.com&Identities.member.34=us1103-x34%40example.com&Identities.member.35=us1103-x35%40example.com&Identities.member.36=us1103-x36%40example.com&Identities.member.37=us1103-x37%40example.com&Identities.member.38=us1103-x38%40example.com&Identities.member.39=us1103-x39%40example.com&Identities.member.40=us1103-x40%40example.com&Identities.member.41=us1103-x41%40example.com&Identities.member.42=us1103-x42%40example.com&Identities.member.43=us1103-x43%40example.com&Identities.member.44=us1103-x44%40example.com&Identities.member.45=us1103-x45%40example.com&Identities.member.46=us1103-x46%40example.com&Identities.member.47=us1103-x47%40example.com&Identities.member.48=us1103-x48%40example.com&Identities.member.49=us1103-x49%40example.com&Identities.member.50=us1103-x50%40example.com&Identities.member.51=us1103-x51%40example.com&Identities.member.52=us1103-x52%40example.com&Identities.member.53=us1103-x53%40example.com&Identities.member.54=us1103-x54%40example.com&Identities.member.55=us1103-x55%40example.com&Identities.member.56=us1103-x56%40example.com&Identities.member.57=us1103-x57%40example.com&Identities.member.58=us1103-x58%40example.com&Identities.member.59=us1103-x59%40example.com&Identities.member.60=us1103-x60%40example.com&Identities.member.61=us1103-x61%40example.com&Identities.member.62=us1103-x62%40example.com&Identities.member.63=us1103-x63%40example.com&Identities.member.64=us1103-x64%40example.com&Identities.member.65=us1103-x65%40example.com&Identities.member.66=us1103-x66%40example.com&Identities.member.67=us1103-x67%40example.com&Identities.member.68=us1103-x68%40example.com&Identities.member.69=us1103-x69%40example.com&Identities.member.70=us1103-x70%40example.com&Identities.member.71=us1103-x71%40example.com&Identities.member.72=us1103-x72%40example.com&Identities.member.73=us1103-x73%40example.com&Identities.member.74=us1103-x74%40example.com&Identities.member.75=us1103-x75%40example.com&Identities.member.76=us1103-x76%40example.com&Identities.member.77=us1103-x77%40example.com&Identities.member.78=us1103-x78%40example.com&Identities.member.79=us1103-x79%40example.com&Identities.member.80=us1103-x80%40example.com&Identities.member.81=us1103-x81%40example.com&Identities.member.82=us1103-x82%40example.com&Identities.member.83=us1103-x83%40example.com&Identities.member.84=us1103-x84%40example.com&Identities.member.85=us1103-x85%40example.com&Identities.member.86=us1103-x86%40example.com&Identities.member.87=us1103-x87%40example.com&Identities.member.88=us1103-x88%40example.com&Identities.member.89=us1103-x89%40example.com&Identities.member.90=us1103-x90%40example.com&Identities.member.91=us1103-x91%40example.com&Identities.member.92=us1103-x92%40example.com&Identities.member.93=us1103-x93%40example.com&Identities.member.94=us1103-x94%40example.com&Identities.member.95=us1103-x95%40example.com&Identities.member.96=us1103-x96%40example.com&Identities.member.97=us1103-x97%40example.com&Identities.member.98=us1103-x98%40example.com&Identities.member.99=us1103-x99%40example.com&Identities.member.100=us1103-x100%40example.com&Identities.member.101=us1103-x101%40example.com"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:14 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "324"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "6b624b2e-306d-41e8-b990-b2930583b818"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>InvalidParameterValue</Code>\n    <Message>Can only get verification attributes for up to 100 identities at a time.</Message>\n  </Error>\n  <RequestId>6b624b2e-306d-41e8-b990-b2930583b818</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

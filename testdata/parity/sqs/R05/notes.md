@@ -7,7 +7,7 @@
 
 ## Expected
 
-Understudy paths are under /home/austin/dev/local-aws-stack. Understudy values come from replaying r05.sh against a local understudy. RedriveAllowPolicy was set on the DLQ by set-queue-attributes (01-set-rap-on-dlq), not at create.
+Understudy paths are repo-relative. Understudy values come from replaying r05.sh against a local understudy. RedriveAllowPolicy was set on the DLQ by set-queue-attributes (01-set-rap-on-dlq), not at create.
 
 - SQS RedrivePolicy bytes (01-get-a): matches (compact, `deadLetterTargetArn` first, `maxReceiveCount` a number: `{"deadLetterTargetArn":"...","maxReceiveCount":3}` from input `{"maxReceiveCount": 3, "deadLetterTargetArn": "..."}`).
 - SQS RedriveAllowPolicy bytes (01-get-dlq): matches (compact `{"redrivePermission":"byQueue","sourceQueueArns":["..."]}`).

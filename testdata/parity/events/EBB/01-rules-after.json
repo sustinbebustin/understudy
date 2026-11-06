@@ -1,0 +1,33 @@
+{
+  "step": "01-rules-after",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.ListRules"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,Z,g,AN,C cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.list-rules"],
+          ["X-Amz-Date", "20261103T163536Z"],
+          ["amz-sdk-invocation-id", "d8b96723-73e4-4c5e-a8af-c6c4528f386e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "29"]
+        ],
+        "body": "{\"EventBusName\": \"us1103-d1\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "d42b58db-4016-476d-9859-5de168fb2e93"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "190"],
+          ["Date", "Tue, 03 Nov 2026 16:35:36 GMT"]
+        ],
+        "body": "{\"Rules\":[{\"Arn\":\"arn:aws:events:us-east-2:123456789012:rule/us1103-d1/us1103-d1r\",\"EventBusName\":\"us1103-d1\",\"EventPattern\":\"{\\\"source\\\":[\\\"rec\\\"]}\",\"Name\":\"us1103-d1r\",\"State\":\"ENABLED\"}]}"
+      }
+    }
+  ]
+}

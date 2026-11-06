@@ -4,6 +4,7 @@ package awsquery
 
 import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // IdentityComplexError returns the identity of aws.protocoltests.query#ComplexError.
@@ -16,6 +17,14 @@ func ErrComplexError() *awserr.Error {
 	return &awserr.Error{ID: IdentityComplexError(), Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of aws.protocoltests.query#ComplexError.
+func (*ComplexError) ErrorIdentity() awserr.Identity { return IdentityComplexError() }
+
+// ErrComplexErrorMembers returns a ComplexError error carrying v's members; the shape carries no message.
+func ErrComplexErrorMembers(v ComplexError) *awserr.Error {
+	return awserr.WithMembers(&v, "", awserr.Modeled{})
+}
+
 // IdentityCustomCodeError returns the identity of aws.protocoltests.query#CustomCodeError.
 func IdentityCustomCodeError() awserr.Identity {
 	return awserr.Identity{Shape: "aws.protocoltests.query#CustomCodeError", JSONType: "CustomCodeError", QueryCode: "Customized", Status: 400, QueryModeStatus: 402, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -25,6 +34,9 @@ func IdentityCustomCodeError() awserr.Identity {
 func ErrCustomCodeError(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityCustomCodeError(), Message: message, Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of aws.protocoltests.query#CustomCodeError.
+func (*CustomCodeError) ErrorIdentity() awserr.Identity { return IdentityCustomCodeError() }
 
 // IdentityInvalidAction returns the identity of com.amazon.coral.service#InvalidAction.
 func IdentityInvalidAction() awserr.Identity {
@@ -36,6 +48,9 @@ func ErrInvalidAction(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidAction(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#InvalidAction.
+func (*InvalidAction) ErrorIdentity() awserr.Identity { return IdentityInvalidAction() }
+
 // IdentityInvalidGreeting returns the identity of aws.protocoltests.query#InvalidGreeting.
 func IdentityInvalidGreeting() awserr.Identity {
 	return awserr.Identity{Shape: "aws.protocoltests.query#InvalidGreeting", JSONType: "InvalidGreeting", QueryCode: "InvalidGreeting", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -46,6 +61,9 @@ func ErrInvalidGreeting(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidGreeting(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of aws.protocoltests.query#InvalidGreeting.
+func (*InvalidGreeting) ErrorIdentity() awserr.Identity { return IdentityInvalidGreeting() }
+
 // IdentityValidationException returns the identity of com.amazon.coral.validate#ValidationException.
 func IdentityValidationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.validate#ValidationException", JSONType: "ValidationException", QueryCode: "ValidationError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -54,6 +72,29 @@ func IdentityValidationException() awserr.Identity {
 // ErrValidationException returns a ValidationException error with message.
 func ErrValidationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityValidationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.validate#ValidationException.
+func (*ValidationException) ErrorIdentity() awserr.Identity { return IdentityValidationException() }
+
+// NewErrorMembers returns a new, empty value of error shape id, to decode
+// a fault rule's members into, or false for a shape this package does not
+// generate a decoder for.
+func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	switch id {
+	case "aws.protocoltests.query#ComplexError":
+		return new(ComplexError), true
+	case "aws.protocoltests.query#CustomCodeError":
+		return new(CustomCodeError), true
+	case "com.amazon.coral.service#InvalidAction":
+		return new(InvalidAction), true
+	case "aws.protocoltests.query#InvalidGreeting":
+		return new(InvalidGreeting), true
+	case "com.amazon.coral.validate#ValidationException":
+		return new(ValidationException), true
+	default:
+		return nil, false
+	}
 }
 
 // UnknownOperationError returns the identity this service answers for an

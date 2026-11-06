@@ -1,0 +1,35 @@
+{
+  "step": "14-no-permission-dlq",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: The provided execution role does not have permissions to call SendMessage on SQS\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/us1103-ldl-vb/configuration",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,g,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.update-function-configuration"],
+          ["X-Amz-Date", "20261103T165411Z"],
+          ["amz-sdk-invocation-id", "a4ea9072-c858-4ef7-80e7-80d79411615c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "88"]
+        ],
+        "body": "{\"DeadLetterConfig\": {\"TargetArn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-ldl-dlq\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:54:11 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "108"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "e149da52-2a29-483d-830c-24764d524b41"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"The provided execution role does not have permissions to call SendMessage on SQS\"}"
+      }
+    }
+  ]
+}

@@ -3,6 +3,8 @@ package outbox
 import (
 	"fmt"
 	"maps"
+	"math"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -16,8 +18,16 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 1
+// stateVersion is the schema version of State in snapshot sections. 2: an
+// event bus entry keeps a forwarded event's envelope (forwardedRecord). 3:
+// a Lambda delivery keeps its sender (senderRecord) and a queue target its
+// trace header. 4: a request keeps the aws:SourceAccount its delivery sends
+// (sourceAccount), which an earlier entry left implied, so an earlier
+// section is refused rather than restored without it (ADR 0009). A
+// Scheduler entry's principal and invocation (requestRecord.As,
+// Invocation) are absent from every other entry, so they need no new
+// version.
+const stateVersion = 4
 
 // State is the outbox of one account and region, the scope of the targets
 // its deliveries land in: every accepted delivery not yet delivered,
@@ -105,11 +115,42 @@ type causeRecord struct {
 }
 
 type requestRecord struct {
-	Source    string             `json:"source"`
-	Mechanism delivery.Mechanism `json:"mechanism"`
-	Target    targetRecord       `json:"target"`
-	Policy    policyRecord       `json:"policy"`
-	DLQ       string             `json:"dlq,omitempty"`
+	Source        string             `json:"source"`
+	SourceAccount aws.AccountID      `json:"sourceAccount,omitzero"`
+	Mechanism     delivery.Mechanism `json:"mechanism"`
+	Target        targetRecord       `json:"target"`
+	Policy        policyRecord       `json:"policy"`
+	DLQ           string             `json:"dlq,omitempty"`
+	Sender        *senderRecord      `json:"sender,omitempty"`
+	// As and Invocation are a Scheduler delivery's (scheduler.md 14.4.2,
+	// 14.4.4); absent for every other, so earlier entries load unchanged.
+	As         *executionRoleRecord `json:"as,omitempty"`
+	Invocation *invocationRecord    `json:"invocation,omitempty"`
+}
+
+// executionRoleRecord is the persisted form of a delivery.ExecutionRole,
+// the one delivery.Principal.
+type executionRoleRecord struct {
+	Role    string `json:"role"`
+	RoleID  string `json:"roleId,omitempty"`
+	Session string `json:"session,omitempty"`
+}
+
+// invocationRecord is the persisted form of a delivery.SchedulerInvocation.
+type invocationRecord struct {
+	Schedule    string                   `json:"schedule"`
+	TargetARN   string                   `json:"targetArn"`
+	Scheduled   time.Time                `json:"scheduled"`
+	ExecutionID string                   `json:"executionId"`
+	Template    string                   `json:"template"`
+	OnPermanent delivery.PermanentErrors `json:"onPermanent"`
+	Key         string                   `json:"key,omitempty"`
+}
+
+// senderRecord is the persisted form of a delivery.LambdaSender.
+type senderRecord struct {
+	Role    string                 `json:"role"`
+	Carries delivery.LambdaPayload `json:"carries"`
 }
 
 // targetRecord is the persisted form of a delivery.Target.
@@ -118,11 +159,12 @@ type requestRecord struct {
 type targetRecord interface{ isTargetRecord() }
 
 type sqsQueueRecord struct {
-	Queue      string            `json:"queue"`
-	Body       string            `json:"body"`
-	Attributes []attributeRecord `json:"attributes,omitempty"`
-	GroupID    string            `json:"groupId,omitempty"`
-	DedupID    string            `json:"dedupId,omitempty"`
+	Queue       string            `json:"queue"`
+	Body        string            `json:"body"`
+	Attributes  []attributeRecord `json:"attributes,omitempty"`
+	GroupID     string            `json:"groupId,omitempty"`
+	DedupID     string            `json:"dedupId,omitempty"`
+	TraceHeader string            `json:"traceHeader,omitempty"`
 }
 
 type lambdaFunctionRecord struct {
@@ -139,9 +181,80 @@ type snsTopicRecord struct {
 	Attributes []attributeRecord `json:"attributes,omitempty"`
 }
 
+type eventBusRecord struct {
+	Bus     string             `json:"bus"`
+	Entries []eventEntryRecord `json:"entries"`
+}
+
+type eventEntryRecord struct {
+	Source     string           `json:"source"`
+	DetailType string           `json:"detailType"`
+	Detail     string           `json:"detail"`
+	Resources  []string         `json:"resources,omitempty"`
+	Forwarded  *forwardedRecord `json:"forwarded,omitempty"`
+}
+
+// forwardedRecord is the persisted form of a delivery.Forwarded.
+type forwardedRecord struct {
+	ID      string    `json:"id"`
+	Account string    `json:"account"`
+	Region  string    `json:"region"`
+	Time    time.Time `json:"time"`
+}
+
+// eventEntryRecordOf returns the persisted form of e.
+func eventEntryRecordOf(e delivery.EventEntry) eventEntryRecord {
+	r := eventEntryRecord{Source: e.Source, DetailType: e.DetailType, Detail: e.Detail, Resources: e.Resources}
+	if f := e.Forwarded; f != nil {
+		r.Forwarded = &forwardedRecord{ID: f.ID, Account: f.Account, Region: f.Region, Time: f.Time}
+	}
+	return r
+}
+
+// eventEntryOf returns the entry r persists.
+func eventEntryOf(r eventEntryRecord) delivery.EventEntry {
+	e := delivery.EventEntry{Source: r.Source, DetailType: r.DetailType, Detail: r.Detail, Resources: r.Resources}
+	if f := r.Forwarded; f != nil {
+		e.Forwarded = &delivery.Forwarded{ID: f.ID, Account: f.Account, Region: f.Region, Time: f.Time}
+	}
+	return e
+}
+
+type stateMachineRecord struct {
+	Machine string `json:"machine"`
+	Input   string `json:"input"`
+	Name    string `json:"name"`
+}
+
+type s3ObjectRecord struct {
+	Bucket string `json:"bucket"`
+	Key    string `json:"key"`
+	Body   []byte `json:"body"`
+}
+
+// httpEndpointRecord's HTTPKind is required: a record without it decodes
+// to the zero kind, which Enqueue's checks refuse. It cannot be named
+// "kind", the member that names the record's variant.
+type httpEndpointRecord struct {
+	URL                  string             `json:"url"`
+	HTTPKind             delivery.HTTPKind  `json:"httpKind"`
+	Headers              []httpHeaderRecord `json:"headers,omitempty"`
+	Body                 []byte             `json:"body"`
+	DeadLetterAttributes []attributeRecord  `json:"deadLetterAttributes,omitempty"`
+}
+
+type httpHeaderRecord struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 func (sqsQueueRecord) isTargetRecord()       {}
 func (lambdaFunctionRecord) isTargetRecord() {}
 func (snsTopicRecord) isTargetRecord()       {}
+func (eventBusRecord) isTargetRecord()       {}
+func (s3ObjectRecord) isTargetRecord()       {}
+func (httpEndpointRecord) isTargetRecord()   {}
+func (stateMachineRecord) isTargetRecord()   {}
 
 type attributeRecord struct {
 	Name  string               `json:"name"`
@@ -188,10 +301,48 @@ type s3NotificationRecord struct{}
 
 type noneRecord struct{}
 
+// snsHTTPRecord is an SNSHTTP policy, its delay targets in whole
+// milliseconds. Every member is required, so each is a pointer that a
+// decoded record must set; policyOf refuses a record that lacks one.
+type snsHTTPRecord struct {
+	NoDelay              *int                      `json:"noDelay"`
+	MinDelay             *int                      `json:"minDelay"`
+	Backoff              *int                      `json:"backoff"`
+	MaxDelay             *int                      `json:"maxDelay"`
+	MinDelayTargetMillis *int64                    `json:"minDelayTargetMillis"`
+	MaxDelayTargetMillis *int64                    `json:"maxDelayTargetMillis"`
+	BackoffFunction      *delivery.BackoffFunction `json:"backoffFunction"`
+	MaxReceivesPerSecond *int                      `json:"maxReceivesPerSecond"`
+}
+
+// missing names the first member r lacks, "" when it has every one.
+func (r snsHTTPRecord) missing() string {
+	members := []struct {
+		name string
+		set  bool
+	}{
+		{"noDelay", r.NoDelay != nil},
+		{"minDelay", r.MinDelay != nil},
+		{"backoff", r.Backoff != nil},
+		{"maxDelay", r.MaxDelay != nil},
+		{"minDelayTargetMillis", r.MinDelayTargetMillis != nil},
+		{"maxDelayTargetMillis", r.MaxDelayTargetMillis != nil},
+		{"backoffFunction", r.BackoffFunction != nil},
+		{"maxReceivesPerSecond", r.MaxReceivesPerSecond != nil},
+	}
+	for _, m := range members {
+		if !m.set {
+			return m.name
+		}
+	}
+	return ""
+}
+
 func (snsManagedRecord) isPolicyRecord()     {}
 func (eventBridgeRecord) isPolicyRecord()    {}
 func (s3NotificationRecord) isPolicyRecord() {}
 func (noneRecord) isPolicyRecord()           {}
+func (snsHTTPRecord) isPolicyRecord()        {}
 
 // recordOf returns the persisted form of e. A nil target or policy, which
 // Enqueue never accepts, is written as null and refused on load.
@@ -199,10 +350,11 @@ func recordOf(e *Entry) entryRecord {
 	req := e.Request
 	r := entryRecord{
 		Request: requestRecord{
-			Source:    req.Source.String(),
-			Mechanism: req.Mechanism,
-			Target:    targetRecordOf(req.Target),
-			Policy:    policyRecordOf(req.Policy),
+			Source:        req.Source.String(),
+			SourceAccount: req.SourceAccount,
+			Mechanism:     req.Mechanism,
+			Target:        targetRecordOf(req.Target),
+			Policy:        policyRecordOf(req.Policy),
 		},
 		Attempt:  e.Attempt,
 		NextAt:   e.NextAt,
@@ -213,6 +365,23 @@ func recordOf(e *Entry) entryRecord {
 	}
 	if req.DLQ != nil {
 		r.Request.DLQ = req.DLQ.String()
+	}
+	if s := req.Sender; s != nil {
+		r.Request.Sender = &senderRecord{Role: s.Role.String(), Carries: s.Carries}
+	}
+	switch p := req.As.(type) {
+	case delivery.ExecutionRole:
+		r.Request.As = &executionRoleRecord{Role: p.Role.String(), RoleID: p.RoleID, Session: p.Session}
+	case nil:
+	}
+	if inv := req.Invocation; inv != nil {
+		r.Request.Invocation = &invocationRecord{
+			Schedule: inv.ScheduleARN.String(), TargetARN: inv.TargetARN, Scheduled: inv.Scheduled,
+			ExecutionID: inv.ExecutionID, Template: inv.Template, OnPermanent: inv.OnPermanent,
+		}
+		if inv.Key != nil {
+			r.Request.Invocation.Key = inv.Key.String()
+		}
 	}
 	return r
 }
@@ -267,9 +436,13 @@ func requestOf(r *requestRecord) (delivery.Request, *RequestError) {
 	}
 	policy, ok := policyOf(r.Policy)
 	if !ok {
-		return delivery.Request{}, &RequestError{Field: "Policy", Reason: "is missing"}
+		reason := "is missing"
+		if h, isHTTP := r.Policy.(snsHTTPRecord); isHTTP {
+			reason = "is an sns-http policy without its required member " + h.missing()
+		}
+		return delivery.Request{}, &RequestError{Field: "Policy", Reason: reason}
 	}
-	req := delivery.Request{Source: source, Mechanism: r.Mechanism, Target: target, Policy: policy}
+	req := delivery.Request{Source: source, SourceAccount: r.SourceAccount, Mechanism: r.Mechanism, Target: target, Policy: policy}
 	if r.DLQ != "" {
 		dlq, err := parseARN("DLQ", r.DLQ)
 		if err != nil {
@@ -277,7 +450,48 @@ func requestOf(r *requestRecord) (delivery.Request, *RequestError) {
 		}
 		req.DLQ = &dlq
 	}
+	if s := r.Sender; s != nil {
+		role, err := parseARN("Sender.Role", s.Role)
+		if err != nil {
+			return delivery.Request{}, err
+		}
+		req.Sender = &delivery.LambdaSender{Role: role, Carries: s.Carries}
+	}
+	if as := r.As; as != nil {
+		role, err := parseARN("As.Role", as.Role)
+		if err != nil {
+			return delivery.Request{}, err
+		}
+		req.As = delivery.ExecutionRole{Role: role, RoleID: as.RoleID, Session: as.Session}
+	}
+	if inv := r.Invocation; inv != nil {
+		got, err := invocationOf(inv)
+		if err != nil {
+			return delivery.Request{}, err
+		}
+		req.Invocation = got
+	}
 	return req, nil
+}
+
+// invocationOf returns the delivery.SchedulerInvocation r persists.
+func invocationOf(r *invocationRecord) (*delivery.SchedulerInvocation, *RequestError) {
+	schedule, err := parseARN("Invocation.ScheduleARN", r.Schedule)
+	if err != nil {
+		return nil, err
+	}
+	inv := &delivery.SchedulerInvocation{
+		ScheduleARN: schedule, TargetARN: r.TargetARN, Scheduled: r.Scheduled,
+		ExecutionID: r.ExecutionID, Template: r.Template, OnPermanent: r.OnPermanent,
+	}
+	if r.Key != "" {
+		key, err := parseARN("Invocation.Key", r.Key)
+		if err != nil {
+			return nil, err
+		}
+		inv.Key = &key
+	}
+	return inv, nil
 }
 
 func parseARN(field, s string) (aws.ARN, *RequestError) {
@@ -291,11 +505,32 @@ func parseARN(field, s string) (aws.ARN, *RequestError) {
 func targetRecordOf(t delivery.Target) targetRecord {
 	switch t := t.(type) {
 	case delivery.SQSQueue:
-		return sqsQueueRecord{Queue: t.ARN.String(), Body: t.Body, Attributes: attributeRecordsOf(t.Attributes), GroupID: t.GroupID, DedupID: t.DedupID}
+		return sqsQueueRecord{
+			Queue: t.ARN.String(), Body: t.Body, Attributes: attributeRecordsOf(t.Attributes), GroupID: t.GroupID, DedupID: t.DedupID, TraceHeader: t.TraceHeader,
+		}
 	case delivery.LambdaFunction:
 		return lambdaFunctionRecord{Function: t.ARN.String(), Qualifier: t.Qualifier, Event: t.Event, Invocation: t.Invocation}
 	case delivery.SNSTopic:
 		return snsTopicRecord{Topic: t.ARN.String(), Message: t.Message, Subject: t.Subject, Attributes: attributeRecordsOf(t.Attributes)}
+	case delivery.EventBus:
+		entries := make([]eventEntryRecord, len(t.Entries))
+		for i, e := range t.Entries {
+			entries[i] = eventEntryRecordOf(e)
+		}
+		return eventBusRecord{Bus: t.ARN.String(), Entries: entries}
+	case delivery.StateMachine:
+		return stateMachineRecord{Machine: t.ARN.String(), Input: t.Input, Name: t.Name}
+	case delivery.S3Object:
+		return s3ObjectRecord{Bucket: t.Bucket, Key: t.Key, Body: t.Body}
+	case delivery.HTTPEndpoint:
+		var headers []httpHeaderRecord
+		for _, h := range t.Headers {
+			headers = append(headers, httpHeaderRecord(h))
+		}
+		return httpEndpointRecord{
+			URL: t.URL.String(), HTTPKind: t.Kind, Headers: headers, Body: t.Body,
+			DeadLetterAttributes: attributeRecordsOf(t.DeadLetterAttributes),
+		}
 	}
 	return nil
 }
@@ -311,7 +546,7 @@ func targetOf(r targetRecord) (delivery.Target, *RequestError) {
 		if err != nil {
 			return nil, err
 		}
-		return delivery.SQSQueue{ARN: queue, Body: r.Body, Attributes: attrs, GroupID: r.GroupID, DedupID: r.DedupID}, nil
+		return delivery.SQSQueue{ARN: queue, Body: r.Body, Attributes: attrs, GroupID: r.GroupID, DedupID: r.DedupID, TraceHeader: r.TraceHeader}, nil
 	case lambdaFunctionRecord:
 		function, err := parseARN("Target.ARN", r.Function)
 		if err != nil {
@@ -328,8 +563,44 @@ func targetOf(r targetRecord) (delivery.Target, *RequestError) {
 			return nil, err
 		}
 		return delivery.SNSTopic{ARN: topic, Message: r.Message, Subject: r.Subject, Attributes: attrs}, nil
+	case eventBusRecord:
+		bus, err := parseARN("Target.ARN", r.Bus)
+		if err != nil {
+			return nil, err
+		}
+		entries := make([]delivery.EventEntry, len(r.Entries))
+		for i, e := range r.Entries {
+			entries[i] = eventEntryOf(e)
+		}
+		return delivery.EventBus{ARN: bus, Entries: entries}, nil
+	case stateMachineRecord:
+		machine, err := parseARN("Target.ARN", r.Machine)
+		if err != nil {
+			return nil, err
+		}
+		return delivery.StateMachine{ARN: machine, Input: r.Input, Name: r.Name}, nil
+	case s3ObjectRecord:
+		return delivery.S3Object{Bucket: r.Bucket, Key: r.Key, Body: r.Body}, nil
+	case httpEndpointRecord:
+		return httpEndpointOf(r)
 	}
 	return nil, &RequestError{Field: "Target", Reason: "is missing"}
+}
+
+func httpEndpointOf(r httpEndpointRecord) (delivery.Target, *RequestError) {
+	u, err := url.Parse(r.URL)
+	if err != nil {
+		return nil, &RequestError{Field: "Target.URL", Reason: "is not a URL", Err: err}
+	}
+	var headers []delivery.HTTPHeader
+	for _, h := range r.Headers {
+		headers = append(headers, delivery.HTTPHeader(h))
+	}
+	attrs, rerr := attributesOf(r.DeadLetterAttributes)
+	if rerr != nil {
+		return nil, rerr
+	}
+	return delivery.HTTPEndpoint{URL: *u, Kind: r.HTTPKind, Headers: headers, Body: r.Body, DeadLetterAttributes: attrs}, nil
 }
 
 // attributeRecordsOf returns the persisted form of attrs; nil for none.
@@ -386,23 +657,54 @@ func policyRecordOf(p delivery.RetryPolicy) policyRecord {
 		return s3NotificationRecord{}
 	case delivery.None:
 		return noneRecord{}
+	case delivery.SNSHTTP:
+		minMillis, maxMillis := p.MinDelayTarget.Milliseconds(), p.MaxDelayTarget.Milliseconds()
+		return snsHTTPRecord{
+			NoDelay: &p.NoDelay, MinDelay: &p.MinDelay, Backoff: &p.Backoff, MaxDelay: &p.MaxDelay,
+			MinDelayTargetMillis: &minMillis, MaxDelayTargetMillis: &maxMillis,
+			BackoffFunction: &p.BackoffFunction, MaxReceivesPerSecond: &p.MaxReceivesPerSecond,
+		}
 	}
 	return nil
 }
 
-// policyOf returns the retry policy r persists; false for a nil record.
+// policyOf returns the retry policy r persists; false for a nil record and
+// for an sns-http record that lacks a member.
 func policyOf(r policyRecord) (delivery.RetryPolicy, bool) {
 	switch r := r.(type) {
 	case snsManagedRecord:
 		return delivery.SNSManaged{}, true
 	case eventBridgeRecord:
-		return delivery.EventBridgeTarget{MaxAge: time.Duration(r.MaxAgeMillis) * time.Millisecond, MaxAttempts: r.MaxAttempts}, true
+		return delivery.EventBridgeTarget{MaxAge: millis(r.MaxAgeMillis), MaxAttempts: r.MaxAttempts}, true
 	case s3NotificationRecord:
 		return delivery.S3Notification{}, true
 	case noneRecord:
 		return delivery.None{}, true
+	case snsHTTPRecord:
+		if r.missing() != "" {
+			return nil, false
+		}
+		return delivery.SNSHTTP{
+			NoDelay: *r.NoDelay, MinDelay: *r.MinDelay, Backoff: *r.Backoff, MaxDelay: *r.MaxDelay,
+			MinDelayTarget: millis(*r.MinDelayTargetMillis), MaxDelayTarget: millis(*r.MaxDelayTargetMillis),
+			BackoffFunction: *r.BackoffFunction, MaxReceivesPerSecond: *r.MaxReceivesPerSecond,
+		}, true
 	}
 	return nil, false
+}
+
+// millis is ms milliseconds, saturated at the bounds of time.Duration, so
+// an edited record's out-of-range value stays out of range for the checks
+// rather than wrapping into it.
+func millis(ms int64) time.Duration {
+	const most = int64(math.MaxInt64 / time.Millisecond)
+	switch {
+	case ms > most:
+		return math.MaxInt64
+	case ms < -most:
+		return math.MinInt64
+	}
+	return time.Duration(ms) * time.Millisecond
 }
 
 // CodecError is a value the State codec was handed that is not a *State.
@@ -469,6 +771,10 @@ func unions() (jsonx.Codec, error) {
 		jsonx.Variant[targetRecord, sqsQueueRecord]("sqs-queue"),
 		jsonx.Variant[targetRecord, lambdaFunctionRecord]("lambda-function"),
 		jsonx.Variant[targetRecord, snsTopicRecord]("sns-topic"),
+		jsonx.Variant[targetRecord, eventBusRecord]("event-bus"),
+		jsonx.Variant[targetRecord, s3ObjectRecord]("s3-object"),
+		jsonx.Variant[targetRecord, httpEndpointRecord]("http-endpoint"),
+		jsonx.Variant[targetRecord, stateMachineRecord]("state-machine"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, err
@@ -478,6 +784,7 @@ func unions() (jsonx.Codec, error) {
 		jsonx.Variant[policyRecord, eventBridgeRecord]("eventbridge-target"),
 		jsonx.Variant[policyRecord, s3NotificationRecord]("s3-notification"),
 		jsonx.Variant[policyRecord, noneRecord]("none"),
+		jsonx.Variant[policyRecord, snsHTTPRecord]("sns-http"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, err

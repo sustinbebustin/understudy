@@ -15,6 +15,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -73,6 +74,11 @@ type Options struct {
 	// Token, when set, is the bearer token every call on the main listener
 	// must carry.
 	Token string
+	// UISecret is this run's web UI session secret (ADR 0020). A call a web
+	// page makes passes refuseBrowser only when it carries this value in
+	// admin.UISessionHeader and is same-origin; empty means no session, so
+	// every such call is refused as before.
+	UISecret string
 	// Version and ModelPin are reported by the health endpoint.
 	Version  string
 	ModelPin string
@@ -85,6 +91,11 @@ type Options struct {
 	ImagePuller   ImagePuller
 	TTLSweeper    TTLSweeper
 	Subscriptions SubscriptionTokens
+	// SES answers GET and DELETE /ses/messages; nil answers them
+	// unavailable.
+	SES SESMessages
+	// IAM answers POST /iam/evaluate; nil answers it unavailable.
+	IAM IAMEvaluator
 	// Components reports Docker and DynamoDB Local for health; nil leaves
 	// them out.
 	Components Components
@@ -172,10 +183,11 @@ func (h *Handler) SetReady(listener netip.AddrPort) { h.listener.Store(&listener
 // SetNotReady reports that the main listener no longer accepts.
 func (h *Handler) SetNotReady() { h.listener.Store(nil) }
 
-// ServeHTTP serves the main listener: a call a web page made is refused,
-// and every call needs the bearer token when one is configured.
+// ServeHTTP serves the main listener: a call a web page made is refused
+// unless it is the UI's own, and every call needs the bearer token when one
+// is configured.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if aerr := refuseBrowser(r); aerr != nil {
+	if aerr := h.refuseBrowser(r); aerr != nil {
 		h.failStatus(w, r, http.StatusForbidden, aerr)
 		return
 	}
@@ -214,16 +226,29 @@ func (h *Handler) Container() http.Handler {
 // CLI, admin.Client and HTTP tools send neither, and no admin endpoint
 // serves a page. Sec-Fetch-Site "none" is a navigation the user started,
 // such as a GET URL typed into the address bar, and passes.
-func refuseBrowser(r *http.Request) *admin.Error {
+//
+// The one other pass is the web UI's own call (ADR 0020): same-origin, with
+// at most one Origin, the request's own, and this run's UI secret, which no
+// other page can learn or send. The custom header needs a preflight
+// cross-origin, and no preflight is approved.
+func (h *Handler) refuseBrowser(r *http.Request) *admin.Error {
 	site := r.Header.Get("Sec-Fetch-Site")
 	origin := r.Header.Values("Origin")
 	if (site == "" || site == "none") && len(origin) == 0 {
 		return nil
 	}
+	if h.uiSession(r) && slices.Equal(r.Header.Values("Sec-Fetch-Site"), []string{"same-origin"}) && ownOrigin(r, origin) {
+		return nil
+	}
+	hint := "call it with the understudy CLI, admin.Client or an HTTP client such as curl, which send neither header"
+	if len(r.Header.Values(admin.UISessionHeader)) > 0 {
+		hint = "the web UI's calls pass only from the page at " + uiPath + " opened from the URL serve printed, which carries this run's session secret; " +
+			"a restart draws a new secret, so open the URL the running serve printed"
+	}
 	return &admin.Error{
 		Code:    admin.InvalidRequest,
 		Message: fmt.Sprintf("the admin API does not answer calls a web page makes (Origin %q, Sec-Fetch-Site %q); nothing was changed", strings.Join(origin, ", "), site),
-		Hint:    "call it with the understudy CLI, admin.Client or an HTTP client such as curl, which send neither header",
+		Hint:    hint,
 	}
 }
 
@@ -262,21 +287,26 @@ func routes() []route {
 		{method: http.MethodDelete, path: []string{"faults"}, serve: (*Handler).faultClear},
 		{method: http.MethodPut, path: []string{"faults", "{id}"}, serve: (*Handler).faultPut},
 		{method: http.MethodDelete, path: []string{"faults", "{id}"}, serve: (*Handler).faultDelete},
-		{method: http.MethodGet, path: []string{"journal", "events"}, params: append(filterParams(), admin.ParamLimit, admin.ParamCursor), serve: (*Handler).journalEvents},
+		{method: http.MethodGet, path: []string{"journal", "events"}, params: append(filterParams(), admin.ParamLimit, admin.ParamCursor, admin.ParamTail), serve: (*Handler).journalEvents},
 		{method: http.MethodGet, path: []string{"journal", "stream"}, params: append(filterParams(), admin.ParamAfter), waits: true, serve: (*Handler).journalStream},
 		{method: http.MethodGet, path: []string{"journal", "traces"}, params: traceParams, serve: (*Handler).journalTrace},
 		{method: http.MethodGet, path: []string{"journal", "traces", "{event}"}, params: traceParams, serve: (*Handler).journalTrace},
+		{method: http.MethodGet, path: []string{"snapshots"}, serve: (*Handler).snapshotList},
 		{method: http.MethodPost, path: []string{"snapshots"}, params: []string{pGzip, pJournal}, serve: (*Handler).snapshotSave},
 		{method: http.MethodPut, path: []string{"snapshots"}, serve: (*Handler).snapshotLoad},
 		{method: http.MethodGet, path: []string{"resources"}, params: []string{"service", "account", "region"}, serve: (*Handler).resources},
 		{method: http.MethodGet, path: []string{"coverage"}, params: []string{"format"}, serve: (*Handler).coverage},
 		{method: http.MethodGet, path: []string{"iam", "usage"}, params: []string{"principal", "service"}, serve: (*Handler).iamUsage},
 		{method: http.MethodGet, path: []string{"iam", "policy"}, params: []string{"principal"}, serve: (*Handler).iamPolicy},
+		{method: http.MethodPost, path: []string{"iam", "evaluate"}, serve: (*Handler).iamEvaluate},
 		{method: http.MethodGet, path: []string{"settle"}, params: []string{"timeout"}, waits: true, serve: (*Handler).settle},
+		{method: http.MethodGet, path: []string{"ui", "session"}, serve: (*Handler).uiSessionState},
 		{method: http.MethodPost, path: []string{"lambda", "functions", "{function}", "hot-reload"}, serve: (*Handler).hotReload},
 		{method: http.MethodPost, path: []string{"lambda", "images", "pull"}, serve: (*Handler).imagePull},
 		{method: http.MethodPost, path: []string{"dynamodb", "ttl-sweep"}, serve: (*Handler).ttlSweep},
 		{method: http.MethodGet, path: []string{"sns", "subscriptions", "{arn}", "token"}, serve: (*Handler).subscriptionToken},
+		{method: http.MethodGet, path: []string{"ses", "messages"}, params: append(sesFilterParams(), admin.ParamLimit, admin.ParamCursor), serve: (*Handler).sesMessages},
+		{method: http.MethodDelete, path: []string{"ses", "messages"}, params: sesFilterParams(), serve: (*Handler).sesMessagesClear},
 	}
 }
 
@@ -363,7 +393,8 @@ func (h *Handler) notFound(w http.ResponseWriter, r *http.Request, path string, 
 const encodeFailure = `{"error":{"code":"internal","message":"the response did not encode; the server log has the cause"}}` + "\n"
 
 // reply writes v as JSON with status. It does not escape <, > and &, so a
-// hint such as "Bearer <token>" reads as written.
+// hint such as "Bearer <token>" reads as written. A HEAD answer carries the
+// GET answer's headers, Content-Length included, and no body.
 func (h *Handler) reply(w http.ResponseWriter, r *http.Request, status int, v any) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -376,7 +407,11 @@ func (h *Handler) reply(w http.ResponseWriter, r *http.Request, status int, v an
 		buf.WriteString(encodeFailure)
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", strconv.Itoa(buf.Len()))
 	w.WriteHeader(status)
+	if r.Method == http.MethodHead {
+		return
+	}
 	if _, err := w.Write(buf.Bytes()); err != nil {
 		h.log.LogAttrs(r.Context(), slog.LevelDebug, "admin response not written; the client went away", slog.String("error", err.Error()))
 	}

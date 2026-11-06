@@ -1,0 +1,33 @@
+{
+  "step": "01-mismatch",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,b,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-function"],
+          ["X-Amz-Date", "20261103T170955Z"],
+          ["amz-sdk-invocation-id", "758c43ba-b0fb-4b17-8043-6961deb0fe5e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "1086"]
+        ],
+        "body": "{\"FunctionName\": \"us1103-ldl-mm\", \"Runtime\": \"python3.13\", \"Role\": \"arn:aws:iam::123456789012:role/us1103-ldl-role\", \"Handler\": \"app.handler\", \"Layers\": [\"arn:aws:lambda:us-east-2:123456789012:layer:us1103-ldl-x:2\"], \"Architectures\": [\"x86_64\"], \"Code\": {\"ZipFile\": \"UEsDBBQAAAAIAIOEY12nZZ+m9gEAAFQEAAAGAAAAYXBwLnB5hVNNa+MwEL3nVwxzshbjhoW9GHrItl1SCEkJgaUnI6xxq40y8kpyNiXkvy+Sm9St2a4PtjUfb94bzehda12AX95yDtbn4F98DkHvaDJR1MCzZGXIZbQnDjnUlgMdgignAAA7qwiuIfmKJwoZRgsK0A1or9kHyTWdc5WugwAynmBpmRJC6zSHLFYvVLdrfXbEFI0lvGaho98d+VBpheW5fiH/+OrNkSes8YOa93ZLw8RXS9V0XAdtuZKOc8BYMIou4isTJyESpG7A+oJ4r53lXuGP2f2iWi2r9d3Nan2LAiSrf4qNvrOAm54BguZeW3lh7aT2BHeHmtrIKUOjDCjyQbOMBmikNp0jvLDqO38NmFLxP1CaA3E8SvMJlLH8RM59Aja46BpzwAMK+AJfp9PpGM0bonaAlbqbjFm88gGUxxy+CTGGYMvvpFHoHL/NzjA0dXYUiq2RmiE5Rym15cboepim+2Uwyuys+gh2xEYbwhJsS5zhlW3D1RmjCIeAonAkVSZyiGvQpdgeqvg5X51GBFoZnv2Y9BH9i6+iE8u4jUX8zQFtG4fUWxdIZdYXRvugtOuZoBDjJUDiPZZw3JYfp3groLEOtnEWM3yYbebxOhe31eL++3q2fqzOpofHzXy1TCdx6iVcaNotlrBxHfWCo9z4OU3+AlBLAQIUAxQAAAAIAIOEY12nZZ+m9gEAAFQEAAAGAAAAAAAAAAAAAAC0gQAAAABhcHAucHlQSwUGAAAAAAEAAQA0AAAAGgIAAAAA\"}}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 17:09:56 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1532"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "50d0a5ce-9d4b-473a-8942-b181c86c1857"]
+        ],
+        "body": "{\"Description\":\"\",\"TracingConfig\":{\"Mode\":\"PassThrough\"},\"VpcConfig\":null,\"DurableConfig\":null,\"SigningJobArn\":null,\"SnapStart\":{\"OptimizationStatus\":\"Off\",\"ApplyOn\":\"None\"},\"RevisionId\":\"2c91c2c6-58c9-4084-bbd2-e3b13b4c53a9\",\"LastModified\":\"2026-11-03T17:09:56.246+0000\",\"FunctionName\":\"us1103-ldl-mm\",\"Runtime\":\"python3.13\",\"Version\":\"$LATEST\",\"PackageType\":\"Zip\",\"LastUpdateStatus\":null,\"Layers\":[{\"SigningProfileVersionArn\":null,\"CodeSize\":112,\"UncompressedCodeSize\":2,\"SigningJobArn\":null,\"Arn\":\"arn:aws:lambda:us-east-2:123456789012:layer:us1103-ldl-x:2\"}],\"TenancyConfig\":null,\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-mm\",\"KMSKeyArn\":null,\"MemorySize\":128,\"ImageConfigResponse\":null,\"LastUpdateStatusReason\":null,\"CapacityProviderConfig\":null,\"DeadLetterConfig\":null,\"Timeout\":3,\"ConfigSha256\":null,\"Handler\":\"app.handler\",\"CodeSha256\":\"iBzzNmgrNufyQiEq3D4gnLUnWIgK/ddmWktKTLJO7Vw=\",\"Role\":\"arn:aws:iam::123456789012:role/us1103-ldl-role\",\"SigningProfileVersionArn\":null,\"MasterArn\":null,\"RuntimeVersionConfig\":{\"Error\":null,\"RuntimeVersionArn\":\"arn:aws:lambda:us-east-2::runtime:a57ada4e55c073ec92cc8770cbeb247827d22095fbfa8de3509923cb9ce48bd1\"},\"CodeSize\":612,\"State\":\"Pending\",\"StateReason\":\"The function is being created.\",\"LoggingConfig\":{\"LogFormat\":\"Text\",\"ApplicationLogLevel\":null,\"LogGroup\":\"/aws/lambda/us1103-ldl-mm\",\"SystemLogLevel\":null},\"Environment\":null,\"EphemeralStorage\":{\"Size\":512},\"StateReasonCode\":\"Creating\",\"LastUpdateStatusReasonCode\":null,\"Architectures\":[\"x86_64\"]}"
+      }
+    }
+  ]
+}

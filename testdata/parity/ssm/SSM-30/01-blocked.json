@@ -1,0 +1,35 @@
+{
+  "step": "01-blocked",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "ssm.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163933Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSSM.PutParameter"],
+          ["Content-Length", "74"]
+        ],
+        "body": "{\"Name\":\"/us1103/ssm/c30\",\"Type\":\"String\",\"Value\":\"v101\",\"Overwrite\":true}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:39:33 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "330"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "afd543bb-4546-47f0-b40f-876f7d946b94"]
+        ],
+        "body": "{\"__type\":\"ParameterMaxVersionLimitExceeded\",\"message\":\"You attempted to create a new version of us1103/ssm/c30 by calling the PutParameter API with the overwrite flag. Version 1, the oldest version, can’t be deleted because it has a label associated with it. Move the label to another version of the parameter, and try again.\"}"
+      }
+    }
+  ]
+}

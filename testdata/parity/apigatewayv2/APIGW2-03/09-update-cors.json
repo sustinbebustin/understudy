@@ -1,0 +1,37 @@
+{
+  "step": "09-update-cors",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PATCH",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/9ackjmy7v7",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,Z,g,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.update-api"],
+          ["X-Amz-Date", "20261103T164332Z"],
+          ["amz-sdk-invocation-id", "88fc9197-0a99-4e02-9e5c-22997e978b26"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "203"]
+        ],
+        "body": "{\"corsConfiguration\": {\"allowOrigins\": [\"https://A.example\"], \"allowMethods\": [\"get\", \"post\"], \"allowHeaders\": [\"Content-Type\", \"X-Up\"], \"exposeHeaders\": [\"X-E\"], \"maxAge\": 0, \"allowCredentials\": false}}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:33 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "673"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "7b8b43ff-f253-4c0d-8be7-7858cac7f1e4"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amz-apigw-id", "GRdQWH2XCYcEfLA="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f34-2f4b366670ead7ae5fd2e7de"]
+        ],
+        "body": "{\n  \"apiId\" : \"9ackjmy7v7\",\n  \"name\" : \"us1103-gw-def\",\n  \"protocolType\" : \"HTTP\",\n  \"ipAddressType\" : \"ipv4\",\n  \"routeSelectionExpression\" : \"$request.method $request.path\",\n  \"apiKeySelectionExpression\" : \"$request.header.x-api-key\",\n  \"apiEndpoint\" : \"https://9ackjmy7v7.execute-api.us-east-2.amazonaws.com\",\n  \"createdDate\" : \"2026-11-03T16:43:26Z\",\n  \"tags\" : {\n    \"k\" : \"v\"\n  },\n  \"corsConfiguration\" : {\n    \"allowOrigins\" : [ \"https://a.example\" ],\n    \"allowCredentials\" : false,\n    \"exposeHeaders\" : [ \"x-e\" ],\n    \"maxAge\" : 0,\n    \"allowMethods\" : [ \"GET\", \"POST\" ],\n    \"allowHeaders\" : [ \"content-type\", \"x-up\" ]\n  },\n  \"disableExecuteApiEndpoint\" : false\n}"
+      }
+    }
+  ]
+}

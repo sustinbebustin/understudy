@@ -1,0 +1,1 @@
+* Could not resolve host: 0000000000.execute-api.us-east-2.amazonaws.com

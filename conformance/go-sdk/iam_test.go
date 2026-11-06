@@ -30,7 +30,7 @@ func TestIAMRoles(t *testing.T) {
 	ctx := t.Context()
 	client := iam.NewFromConfig(awsCfg)
 	acct := account(t)
-	roleName := name("role")
+	roleName := name(t, "role")
 	path := "/conformance/"
 
 	created, err := client.CreateRole(ctx, &iam.CreateRoleInput{
@@ -73,7 +73,7 @@ func TestIAMRoles(t *testing.T) {
 	})
 
 	t.Run("GetRole missing", func(t *testing.T) {
-		missing := name("missing")
+		missing := name(t, "missing")
 		_, err := client.GetRole(ctx, &iam.GetRoleInput{RoleName: aws.String(missing)})
 		errAs[*types.NoSuchEntityException](t, err, "GetRole of a missing role")
 		wantStatus(t, err, "GetRole of a missing role", 404)
@@ -204,7 +204,7 @@ func TestIAMManagedPolicies(t *testing.T) {
 	ctx := t.Context()
 	client := iam.NewFromConfig(awsCfg)
 	acct := account(t)
-	policyName := name("policy")
+	policyName := name(t, "policy")
 	path := "/conformance/"
 
 	created, err := client.CreatePolicy(ctx, &iam.CreatePolicyInput{
@@ -235,7 +235,7 @@ func TestIAMManagedPolicies(t *testing.T) {
 	})
 
 	t.Run("CreatePolicy malformed document", func(t *testing.T) {
-		_, err := client.CreatePolicy(ctx, &iam.CreatePolicyInput{PolicyName: aws.String(name("bad")), PolicyDocument: aws.String("this is not json")})
+		_, err := client.CreatePolicy(ctx, &iam.CreatePolicyInput{PolicyName: aws.String(name(t, "bad")), PolicyDocument: aws.String("this is not json")})
 		errAs[*types.MalformedPolicyDocumentException](t, err, "CreatePolicy with a non-JSON document")
 		wantStatus(t, err, "CreatePolicy with a non-JSON document", 400)
 	})
@@ -321,7 +321,7 @@ func TestIAMManagedPolicies(t *testing.T) {
 	})
 
 	t.Run("attachments", func(t *testing.T) {
-		roleName := name("attach-role")
+		roleName := name(t, "attach-role")
 		_, err := client.CreateRole(ctx, &iam.CreateRoleInput{RoleName: aws.String(roleName), AssumeRolePolicyDocument: aws.String(lambdaTrustPolicy)})
 		ok(t, err, "CreateRole")
 		t.Cleanup(func() { deleteRoleFully(client, roleName) })
@@ -341,7 +341,7 @@ func TestIAMManagedPolicies(t *testing.T) {
 		errAs[*types.DeleteConflictException](t, err, "DeletePolicy while attached")
 		_, err = client.DetachRolePolicy(ctx, &iam.DetachRolePolicyInput{RoleName: aws.String(roleName), PolicyArn: aws.String(arn)})
 		ok(t, err, "DetachRolePolicy")
-		_, err = client.AttachRolePolicy(ctx, &iam.AttachRolePolicyInput{RoleName: aws.String(roleName), PolicyArn: aws.String("arn:aws:iam::" + acct + ":policy/" + name("missing"))})
+		_, err = client.AttachRolePolicy(ctx, &iam.AttachRolePolicyInput{RoleName: aws.String(roleName), PolicyArn: aws.String("arn:aws:iam::" + acct + ":policy/" + name(t, "missing"))})
 		errAs[*types.NoSuchEntityException](t, err, "AttachRolePolicy of a missing policy")
 	})
 
@@ -367,9 +367,9 @@ func TestIAMInstanceProfiles(t *testing.T) {
 	ctx := t.Context()
 	client := iam.NewFromConfig(awsCfg)
 	acct := account(t)
-	profileName := name("profile")
-	roleName := name("profile-role")
-	other := name("profile-role2")
+	profileName := name(t, "profile")
+	roleName := name(t, "profile-role")
+	other := name(t, "profile-role2")
 	for _, r := range []string{roleName, other} {
 		_, err := client.CreateRole(ctx, &iam.CreateRoleInput{RoleName: aws.String(r), AssumeRolePolicyDocument: aws.String(ec2TrustPolicy)})
 		ok(t, err, "CreateRole "+r)
@@ -449,7 +449,7 @@ func TestIAMUsers(t *testing.T) {
 	ctx := t.Context()
 	client := iam.NewFromConfig(awsCfg)
 	acct := account(t)
-	userName := name("user")
+	userName := name(t, "user")
 	path := "/conformance/"
 
 	created, err := client.CreateUser(ctx, &iam.CreateUserInput{
@@ -475,7 +475,7 @@ func TestIAMUsers(t *testing.T) {
 		if aws.ToString(got.User.Arn) != aws.ToString(u.Arn) || !hasTag(got.User.Tags, "team", "platform") {
 			t.Errorf("GetUser = %+v", got.User)
 		}
-		missing := name("nobody")
+		missing := name(t, "nobody")
 		_, err = client.GetUser(ctx, &iam.GetUserInput{UserName: aws.String(missing)})
 		errAs[*types.NoSuchEntityException](t, err, "GetUser of a missing user")
 		wantMessage(t, err, "GetUser of a missing user", "The user with name "+missing+" cannot be found.")
@@ -569,11 +569,20 @@ func TestIAMUsers(t *testing.T) {
 			t.Errorf("GetCallerIdentity with the user's key = {Arn %q, UserId %q, Account %q}, want the user's ARN, id and account",
 				aws.ToString(id.Arn), aws.ToString(id.UserId), aws.ToString(id.Account))
 		}
+		// sts:GetCallerIdentity is the call documented to need no
+		// permission (iam-enforcement-surfaces.md 5.1); iam:GetUser on
+		// oneself is not, so the user gets it before the signed call and
+		// loses it after.
+		selfRead := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"iam:GetUser","Resource":"` + aws.ToString(u.Arn) + `"}]}`
+		_, err = client.PutUserPolicy(ctx, &iam.PutUserPolicyInput{UserName: aws.String(userName), PolicyName: aws.String("self-read"), PolicyDocument: aws.String(selfRead)})
+		ok(t, err, "PutUserPolicy self-read")
 		self, err := iam.NewFromConfig(cfg).GetUser(ctx, &iam.GetUserInput{})
 		ok(t, err, "GetUser without UserName, signed by the user")
 		if aws.ToString(self.User.UserName) != userName {
 			t.Errorf("GetUser without UserName = %q, want %q", aws.ToString(self.User.UserName), userName)
 		}
+		_, err = client.DeleteUserPolicy(ctx, &iam.DeleteUserPolicyInput{UserName: aws.String(userName), PolicyName: aws.String("self-read")})
+		ok(t, err, "DeleteUserPolicy self-read")
 
 		list, err := client.ListAccessKeys(ctx, &iam.ListAccessKeysInput{UserName: aws.String(userName)})
 		ok(t, err, "ListAccessKeys")
@@ -594,7 +603,7 @@ func TestIAMUsers(t *testing.T) {
 	})
 
 	t.Run("UpdateUser and DeleteUser", func(t *testing.T) {
-		renamed := name("renamed")
+		renamed := name(t, "renamed")
 		_, err := client.UpdateUser(ctx, &iam.UpdateUserInput{UserName: aws.String(userName), NewUserName: aws.String(renamed)})
 		ok(t, err, "UpdateUser")
 		got, err := client.GetUser(ctx, &iam.GetUserInput{UserName: aws.String(renamed)})

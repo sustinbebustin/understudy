@@ -308,10 +308,11 @@ const eventTime = "2006-01-02T15:04:05.000000000Z07:00"
 // summary is an event's detail in brief, one line per kind: an API call
 // names its operation and outcome, and when it failed the error; a
 // delivery its path, ends, attempt and outcome; an invocation its function
-// and outcome; a fault hit its rule and the call it hit. A detail the CLI
-// cannot read, such as a kind newer than it, is printed compact and cut,
-// pointing at --output json. requestID is the id of a call that failed,
-// which 'journal trace --request-id' takes.
+// and outcome; a fault hit its rule and the call it hit; an admin action
+// its op and what it changed. A detail the CLI cannot read, such as a kind
+// newer than it, is printed compact and cut, pointing at --output json.
+// requestID is the id of a call that failed, which 'journal trace
+// --request-id' takes.
 func summary(e *admin.JournalEvent) (text, requestID string) {
 	var ok bool
 	switch e.Kind {
@@ -335,6 +336,8 @@ func summary(e *admin.JournalEvent) (text, requestID string) {
 		text, ok = unclaimedSummary(e.Detail)
 	case "gap":
 		text, ok = gapSummary(e.Detail)
+	case "admin-action":
+		text, ok = adminActionSummary(e.Detail)
 	}
 	if ok {
 		return text, requestID
@@ -355,11 +358,13 @@ func decodeDetail[T any](detail json.RawMessage) (T, bool) {
 
 // deliverySummary is a delivery attempt in brief: "sns-to-sqs t1 -> q1
 // attempt 1 delivered", with the next attempt's time, the dead-letter
-// queue or the reason it was dropped.
+// queue or the reason it was dropped or refused. An HTTP delivery, which
+// has no target ARN, is shown going to its endpoint's host:port.
 func deliverySummary(detail json.RawMessage) (string, bool) {
 	d, ok := decodeDetail[struct {
 		From      string `json:"from"`
 		To        string `json:"to"`
+		Endpoint  string `json:"endpoint"`
 		Mechanism string `json:"mechanism"`
 		Attempt   int    `json:"attempt"`
 		Outcome   struct {
@@ -373,7 +378,11 @@ func deliverySummary(detail json.RawMessage) (string, bool) {
 	if !ok || d.Mechanism == "" || d.Outcome.Kind == "" {
 		return "", false
 	}
-	text := fmt.Sprintf("%s %s -> %s attempt %d %s", d.Mechanism, shortARN(d.From), shortARN(d.To), d.Attempt, d.Outcome.Kind)
+	to := shortARN(d.To)
+	if d.To == "" && d.Endpoint != "" {
+		to = d.Endpoint
+	}
+	text := fmt.Sprintf("%s %s -> %s attempt %d %s", d.Mechanism, shortARN(d.From), to, d.Attempt, d.Outcome.Kind)
 	switch {
 	case d.Outcome.Rule != "":
 		text += " by " + d.Outcome.Rule
@@ -460,13 +469,78 @@ func (m clockMode) String() string {
 	return m.Kind
 }
 
-// clockChangeSummary is the clock's move from one mode to another.
+// clockChangeSummary is the clock's move from one mode to another, led by
+// the op that moved it when the event names one: "advance: frozen at A ->
+// frozen at B".
 func clockChangeSummary(detail json.RawMessage) (string, bool) {
 	d, ok := decodeDetail[struct {
+		Op   string    `json:"op"`
 		From clockMode `json:"from"`
 		To   clockMode `json:"to"`
 	}](detail)
-	return d.From.String() + " -> " + d.To.String(), ok && d.To.Kind != ""
+	text := d.From.String() + " -> " + d.To.String()
+	if d.Op != "" {
+		text = d.Op + ": " + text
+	}
+	return text, ok && d.To.Kind != ""
+}
+
+// adminActionSummary is a state-changing admin call in brief: its op and
+// what it changed, such as "reset sqs; every account; every region; clock
+// restored" or "fault rule orders-throttle added".
+func adminActionSummary(detail json.RawMessage) (string, bool) {
+	d, ok := decodeDetail[struct {
+		Op       string   `json:"op"`
+		Services []string `json:"services"`
+		Accounts []string `json:"accounts"`
+		Regions  []string `json:"regions"`
+		Clock    bool     `json:"clock"`
+		Faults   int      `json:"faults"`
+		Path     string   `json:"path"`
+		Rule     string   `json:"rule"`
+		Rules    []string `json:"rules"`
+	}](detail)
+	if !ok {
+		return "", false
+	}
+	switch d.Op {
+	case "reset":
+		parts := []string{"reset no services", "every account", "every region"}
+		if len(d.Services) > 0 {
+			parts[0] = "reset " + strings.Join(d.Services, ", ")
+		}
+		if len(d.Accounts) > 0 {
+			parts[1] = "accounts " + strings.Join(d.Accounts, ", ")
+		}
+		if len(d.Regions) > 0 {
+			parts[2] = "regions " + strings.Join(d.Regions, ", ")
+		}
+		if d.Clock {
+			parts = append(parts, "clock restored")
+		}
+		if d.Faults > 0 {
+			parts = append(parts, fmt.Sprintf("%d fault rule(s) removed", d.Faults))
+		}
+		return strings.Join(parts, "; "), true
+	case "snapshot-save":
+		if d.Path == "" {
+			return "snapshot saved to the response", true
+		}
+		return "snapshot saved to " + d.Path, true
+	case "snapshot-load":
+		if d.Path == "" {
+			return "snapshot loaded from the request", true
+		}
+		return "snapshot loaded from " + d.Path, true
+	case "fault-rule-added":
+		return "fault rule " + d.Rule + " added", d.Rule != ""
+	case "fault-rule-removed":
+		if len(d.Rules) == 0 {
+			return "no fault rules to remove", true
+		}
+		return "fault rule(s) " + strings.Join(d.Rules, ", ") + " removed", true
+	}
+	return "", false
 }
 
 // advisorySummary is an advisory's name and its text, in full.

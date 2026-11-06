@@ -1,0 +1,33 @@
+{
+  "step": "21-get-retention",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NoSuchObjectLockConfiguration) when calling the GetObjectRetention operation: The specified object does not have a ObjectLock configuration",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/r21?retention",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,Z,E,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-object-retention"],
+          ["X-Amz-Date", "20261103T034315Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "f8fca02e-0696-4703-a6fd-785b35db9116"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "EZT0E4ZB3XH7SCBF"],
+          ["x-amz-id-2", "8cidAJfJgEr3u8DDqR2XBvnOkztFSetZlCcxjrGkm1BliJE2OpHvnHoO+d/3jpFq3N0dJTXXmvQ="],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:43:15 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchObjectLockConfiguration</Code><Message>The specified object does not have a ObjectLock configuration</Message><RequestId>EZT0E4ZB3XH7SCBF</RequestId><HostId>8cidAJfJgEr3u8DDqR2XBvnOkztFSetZlCcxjrGkm1BliJE2OpHvnHoO+d/3jpFq3N0dJTXXmvQ=</HostId></Error>"
+      }
+    }
+  ]
+}

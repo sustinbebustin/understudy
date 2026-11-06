@@ -101,9 +101,11 @@ func TestListRulesByPrefixAndPage(t *testing.T) {
 	})
 }
 
-// Only the default bus exists: it is described and listed by name or ARN;
-// any other bus is not found.
-func TestDefaultBusOnly(t *testing.T) {
+// The default bus exists in every scope: it is described and listed by
+// name or ARN, and a bus never created is not found. Another account's or
+// region's bus is not one understudy manages for the caller
+// (eventbridge-buses.md 10.1).
+func TestDefaultBusIsDescribedByNameOrARN(t *testing.T) {
 	run(t, func(h *harness) {
 		const busARN = "arn:aws:events:us-east-1:000000000000:event-bus/default"
 		for _, name := range []*string{nil, new("default"), new(busARN)} {
@@ -121,9 +123,9 @@ func TestDefaultBusOnly(t *testing.T) {
 			{"arn:aws:events:eu-west-1:000000000000:event-bus/default", "000000000000", "eu-west-1"},
 		} {
 			_, err = call(h, eventbridgeapi.OpDescribeRule, &eventbridgeapi.DescribeRuleInput{Name: "r", EventBusName: new(foreign.bus)})
-			wantError(t, err, "NotImplemented", "understudy manages rules, targets and buses only on the caller's own default event bus, and "+
+			wantError(t, err, "NotImplemented", "understudy manages rules, targets and buses only on the caller's own event buses, and "+
 				foreign.bus+" belongs to account "+foreign.account+" in "+foreign.region+
-				". Call with that account's credentials in that region, or name the bus 'default'. "+
+				". Call with that account's credentials in that region. "+
 				"Run 'understudy coverage --service eventbridge' for what is supported.")
 		}
 		if n := len(must(h, eventbridgeapi.OpListEventBuses, &eventbridgeapi.ListEventBusesInput{}).EventBuses); n != 1 {
@@ -135,8 +137,9 @@ func TestDefaultBusOnly(t *testing.T) {
 	})
 }
 
-// Tags address rules by ARN; a missing rule is not found and the bus takes
-// no tags here.
+// Tags address rules by ARN; a missing rule is not found. The default bus
+// takes tags too (eventbridge-buses.md 5.5, 10.8.24, third-party-recorded
+// localstack@8b9a79f tests/aws/services/events/test_events_tags.snapshot.json:L248-L297).
 func TestTagsAddressRulesByARN(t *testing.T) {
 	run(t, func(h *harness) {
 		_, err := call(h, eventbridgeapi.OpListTagsForResource, &eventbridgeapi.ListTagsForResourceInput{ResourceARN: ruleARN + "missing"})
@@ -144,8 +147,8 @@ func TestTagsAddressRulesByARN(t *testing.T) {
 		_, err = call(h, eventbridgeapi.OpTagResource, &eventbridgeapi.TagResourceInput{
 			ResourceARN: "arn:aws:events:us-east-1:000000000000:event-bus/default", Tags: []eventbridgeapi.Tag{{Key: "k", Value: "v"}},
 		})
-		if err == nil || err.ID.JSONType != "NotImplemented" {
-			t.Errorf("tagging the bus = %v, want NotImplemented", err)
+		if err != nil {
+			t.Errorf("tagging the default bus = %v, want success", err)
 		}
 	})
 }

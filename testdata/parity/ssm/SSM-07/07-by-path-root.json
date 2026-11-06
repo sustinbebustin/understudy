@@ -1,0 +1,36 @@
+{
+  "step": "07-by-path-root",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "ssm.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163612Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSSM.GetParametersByPath"],
+          ["Content-Length", "28"]
+        ],
+        "body": "{\"Path\":\"/\",\"MaxResults\":10}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:12 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "197"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "f3bfa493-cd8e-4d17-8c8b-4f23ddf16984"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"Parameters\":[{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103-root\",\"DataType\":\"text\",\"LastModifiedDate\":1.79372376872E9,\"Name\":\"us1103-root\",\"Type\":\"String\",\"Value\":\"v\",\"Version\":1}]}"
+      }
+    }
+  ]
+}

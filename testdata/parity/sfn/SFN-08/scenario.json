@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "item": "SFN-08",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "sfn/SFN-08/03-bad-role-arn.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sfn/SFN-08/04-bad-machine-name.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sfn/SFN-08/05-two-errors.json",
+      "compare": "all"
+    }
+  ]
+}

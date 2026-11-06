@@ -1,0 +1,35 @@
+{
+  "step": "02-no-leading-slash",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "ssm.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163715Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSSM.GetParametersByPath"],
+          ["Content-Length", "25"]
+        ],
+        "body": "{\"Path\":\"us1103/ssm/p19\"}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:15 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "488"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "abbeaf51-2340-47b1-b0a7-f96c89f47aed"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"The parameter doesn't meet the parameter name requirements. The parameter name must begin with a forward slash \\\"/\\\". It can't be prefixed with \\\\\\\"aws\\\\\\\" or \\\\\\\"ssm\\\\\\\" (case-insensitive). It must use only letters, numbers, or the following symbols: . (period), - (hyphen), _ (underscore). Special characters are not allowed. All sub-paths, if specified, must use the forward slash symbol \\\"/\\\". Valid example: /get/parameters2-/by1./path0_.\"}"
+      }
+    }
+  ]
+}

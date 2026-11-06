@@ -1,0 +1,39 @@
+{
+  "step": "07-upload-part-copy",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the UploadPartCopy operation: The provided encryption parameters did not match the ones used originally.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/t7p?partNumber=1&uploadId=mCb6ko.N0I9mx4vZJdos1KCGWKsH2gXMJYeXUVP.TdFiI9pooozMNkJHgK3vyFRnlcwlKQ8kNXK3AzabZGnvwBXeVlu5Y7WbatISCO4tX9rHIOExEQSZLVpfLyHlNX6DeO82Dx2l4sWOSe8HfubkGrm3CjlxTzPIrW5gkX1lJXW_qJ.1jhaXHn0Fq.Qm6JDG",
+        "headers": [
+          ["x-amz-copy-source", "us1103-ssec/c1"],
+          ["x-amz-copy-source-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-copy-source-server-side-encryption-customer-key", "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA="],
+          ["x-amz-copy-source-server-side-encryption-customer-key-MD5", "dT1y7SEiqn6YCJ3QeqwoIw=="],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,g,E,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.upload-part-copy"],
+          ["X-Amz-Date", "20261103T033956Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "866a86cb-9035-4c4e-b741-d56f3eeef669"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "ZQHHTM0WPY51Y07A"],
+          ["x-amz-id-2", "y/2JelZ4W2UslSGlLkPV2OhB3dJ6Wp95aLPgN4pakIVvVE2HH6kjlaZKZ6lGLdPY61UkHP7MaJ4HgJpZfiLqD2dss52JiyE4"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:56 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<Error><Code>InvalidRequest</Code><Message>The provided encryption parameters did not match the ones used originally.</Message><RequestId>ZQHHTM0WPY51Y07A</RequestId><HostId>y/2JelZ4W2UslSGlLkPV2OhB3dJ6Wp95aLPgN4pakIVvVE2HH6kjlaZKZ6lGLdPY61UkHP7MaJ4HgJpZfiLqD2dss52JiyE4</HostId></Error>"
+      }
+    }
+  ]
+}

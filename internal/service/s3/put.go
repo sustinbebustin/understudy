@@ -62,7 +62,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
 	pre, err := read(ctx, s, c, a, func(b *Bucket) (preWrite, *awserr.Error) {
-		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl)
+		return prepareWrite(b, in.Key, req.cond, req.sse, req.acl, req.lock, writeCallOf(c, "s3:PutObject"))
 	})
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 		return nil, err
 	}
 	etag := hex.EncodeToString(got.md5)
-	if enc.KMS != nil {
+	if opaqueETag(enc) {
 		etag = string(s.k.IDs().ETag())
 	}
 	obj := &Object{
@@ -87,6 +87,7 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 		Tags:         req.tags,
 		StorageClass: req.class,
 		Encryption:   enc,
+		Lock:         req.lock.explicit,
 	}
 	committed, err := s.commitWrite(ctx, c, a, in.Key, req.cond, obj, notify.CreatedPut)
 	if err != nil {
@@ -94,9 +95,10 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 	}
 	out := &s3api.PutObjectOutput{ETag: new(quote(etag)), ChecksumType: new(s3api.ChecksumTypeFullObject), VersionId: committed.reported}
 	putObjectOutputFields(out).set(membersOf(obj.Checksum))
-	h := enc.headers()
+	h := encryptionHeaders(enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
-	if enc.KMS != nil && in.SSEKMSEncryptionContext != nil {
+	out.SSECustomerAlgorithm, out.SSECustomerKeyMD5 = customerEcho(customerOf(pre.sse))
+	if isKMS(enc) && in.SSEKMSEncryptionContext != nil {
 		out.SSEKMSEncryptionContext = in.SSEKMSEncryptionContext
 	}
 	return out, nil
@@ -110,6 +112,7 @@ type putRequest struct {
 	cond    writeCondition
 	sse     sseRequest
 	acl     objectACL
+	lock    lockRequest
 	body    upload
 }
 
@@ -142,6 +145,13 @@ func (a objectACL) check(b *Bucket) *awserr.Error {
 // readPut runs the checks of a PutObject that need neither the bucket nor
 // the body.
 func readPut(c *kernel.Call, secrets *identity.Store, in *s3api.PutObjectInput) (putRequest, *awserr.Error) {
+	explicit, err := objectLockHeaders{
+		mode: in.ObjectLockMode, retainUntil: in.ObjectLockRetainUntilDate, legalHold: in.ObjectLockLegalHoldStatus,
+		eventHold: in.ObjectLockEventHold, eventHoldDays: in.ObjectLockEventHoldDurationDays, eventHoldYears: in.ObjectLockEventHoldDurationYears,
+	}.parse(c.Admitted())
+	if err != nil {
+		return putRequest{}, err
+	}
 	if err := checkKey(in.Key); err != nil {
 		return putRequest{}, err
 	}
@@ -170,10 +180,11 @@ func readPut(c *kernel.Call, secrets *identity.Store, in *s3api.PutObjectInput) 
 			contentEncoding: in.ContentEncoding, contentLanguage: in.ContentLanguage, expires: in.Expires, websiteRedirect: in.WebsiteRedirectLocation,
 		},
 		tags: tags, class: class, cond: cond, body: body,
-		acl: writeACL(in.ACL, in.GrantFullControl, in.GrantRead, in.GrantReadACP, in.GrantWriteACP),
+		acl:  writeACL(in.ACL, in.GrantFullControl, in.GrantRead, in.GrantReadACP, in.GrantWriteACP),
+		lock: lockRequest{explicit: explicit, undeclared: !body.integrityDeclared()},
 		sse: sseRequest{
 			algorithm: in.ServerSideEncryption, keyID: in.SSEKMSKeyId, context: in.SSEKMSEncryptionContext, bucketKey: in.BucketKeyEnabled,
-			customer: in.SSECustomerAlgorithm != nil || in.SSECustomerKey != nil,
+			customer: customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5},
 		},
 	}, nil
 }
@@ -186,14 +197,18 @@ type preWrite struct {
 }
 
 // prepareWrite judges a write against its bucket before the body is read:
-// its ACL, the encryption it resolves to and its condition, which is
-// judged again at commit.
-func prepareWrite(b *Bucket, key string, cond writeCondition, r sseRequest, acl objectACL) (preWrite, *awserr.Error) {
+// its ACL, the encryption it resolves to, its Object Lock settings
+// (s3-ssec-object-lock.md 11.3) and its condition, which is judged again
+// at commit. w is the call, which SSE-C needs over https.
+func prepareWrite(b *Bucket, key string, cond writeCondition, r sseRequest, acl objectACL, lock lockRequest, w writeCall) (preWrite, *awserr.Error) {
 	if err := acl.check(b); err != nil {
 		return preWrite{}, err
 	}
-	choice, err := resolveSSE(r, b, objectResource(b.Name, key).String())
+	choice, err := resolveSSE(r, b, key, w)
 	if err != nil {
+		return preWrite{}, err
+	}
+	if err := lock.check(b); err != nil {
 		return preWrite{}, err
 	}
 	if err := checkWrite(cond, key, currentValidator(b, key)); err != nil {
@@ -240,13 +255,15 @@ func (s *Service) commitOwned(ctx context.Context, c *kernel.Call, a access, obj
 // addVersion adds obj as key's newest version. The condition was judged
 // before the body was read; judged again here, a failure means another
 // write or delete landed in between, which S3 answers with 409
-// ConditionalRequestConflict (s3.md 5.10).
+// ConditionalRequestConflict (s3.md 5.10). obj.Lock holds the write's
+// explicit lock settings; the version takes them with the bucket's default
+// retention dated at the commit (lockedAt).
 func (s *Service) addVersion(key string, cond writeCondition, obj *Object, action notify.CreatedAction) objectWrite[committed] {
 	return func(b *Bucket, w objectTx) (committed, []blob.Ref, *awserr.Error) {
 		if err := checkWrite(cond, key, currentValidator(b, key)); err != nil {
 			return committed{}, nil, errConditionalConflict(cond, key)
 		}
-		v := s.newVersion(b, b.nextSeq(), w.now, obj)
+		v := s.newVersion(b, b.nextSeq(), w.now, lockedAt(b, obj, w.now))
 		released := b.Objects.add(key, v)
 		s.commitObject(w, b, event{key: key, versionID: v.ID, change: notify.Created{Action: action, Size: obj.Size, ETag: obj.ETag}})
 		return committed{version: v, reported: writtenVersion(b, v.ID)}, blobsOf(released), nil
@@ -517,6 +534,23 @@ func (u upload) verify(got received, decoder *awschunked.Reader, payload hash.Ha
 		}
 	}
 	return verifyDeclared(u.checksum, got.sum, trailerValue)
+}
+
+// integrityDeclared reports whether the write states its bytes' integrity
+// the way an Object Lock retention needs (s3-ssec-object-lock.md 6.3):
+// Content-MD5, or an x-amz-checksum-* header or trailer. A signed payload
+// hash does not count (S3SOL-14 14-retention-signed-sha256, recorded
+// 2026-11-03).
+func (u upload) integrityDeclared() bool {
+	if u.md5 != nil {
+		return true
+	}
+	switch u.checksum.(type) {
+	case headerChecksum, trailerChecksum:
+		return true
+	case noChecksum:
+	}
+	return false
 }
 
 // openBody opens a write's body; an input built without one has none.

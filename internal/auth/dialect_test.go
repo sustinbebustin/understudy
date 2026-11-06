@@ -124,6 +124,29 @@ func TestS3DialectRequestTimeTooSkewed(t *testing.T) {
 	}
 }
 
+// S3 answers a presigned URL dated more than 15 minutes ahead of its clock
+// with AccessDenied "Request is not yet valid", the request time in epoch
+// milliseconds, the URL's expiry from its X-Amz-Date and the server time,
+// in that order (testdata/parity/s3/R18/01-presign-date-16min-future.json).
+// A header-signed request ahead of the window stays RequestTimeTooSkewed.
+func TestS3DialectPresignedURLNotYetValid(t *testing.T) {
+	v := s3Vocabulary(t)
+	q, req := docPresigned(t, nil)
+	wall := docTime.Add(-16 * time.Minute)
+	err := auth.VerifyPresignedSince(q, req, docSecret, wall, clock.FromWire(q.Time), clock.FromWire(wall), v)
+	if err == nil || err.ID != v.Expired || err.Message != "Request is not yet valid" {
+		t.Fatalf("VerifyPresignedSince = %#v; want AccessDenied \"Request is not yet valid\"", err)
+	}
+	want := []awserr.Field{
+		{Name: "X-Amz-Date", Value: "1369353600000"},
+		{Name: "Expires", Value: "2013-05-25T00:00:00Z"},
+		{Name: "ServerTime", Value: "2013-05-23T23:44:00Z"},
+	}
+	if !reflect.DeepEqual(err.Fields, want) {
+		t.Errorf("elements %#v, want %#v", err.Fields, want)
+	}
+}
+
 // S3 answers an expired presigned URL with AccessDenied, the URL's lifetime
 // (SigV4 only), its expiry and the server time on the emulator clock (REC
 // test_s3_presigned_url_expired[s3v4] and [s3]).
@@ -140,6 +163,28 @@ func TestS3DialectExpiredPresignedURL(t *testing.T) {
 			{Name: "X-Amz-Expires", Value: "86400"},
 			{Name: "Expires", Value: "2013-05-25T00:00:00Z"},
 			{Name: "ServerTime", Value: "2013-05-25T01:00:00Z"},
+		}
+		if !reflect.DeepEqual(err.Fields, want) {
+			t.Errorf("elements %#v, want %#v", err.Fields, want)
+		}
+	})
+	// X-Amz-Expires=0 has expired by its own X-Amz-Date, which Expires
+	// repeats (testdata/parity/s3/R18/01-presign-expires-0.json).
+	t.Run("SigV4 X-Amz-Expires=0", func(t *testing.T) {
+		r := serverRequest(t, http.MethodGet, "/test.txt?"+docPresignQuery(map[string]string{"X-Amz-Expires": "0"}), "examplebucket.s3.amazonaws.com", nil)
+		a, perr := auth.Parse(r, aws.KnownRegions())
+		q, ok := a.(auth.SigV4Query)
+		if perr != nil || !ok {
+			t.Fatalf("Parse = %#v, %#v; want SigV4Query", a, perr)
+		}
+		err := auth.VerifyPresignedSince(q, auth.Normalize(r, auth.Unread{}), docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(docTime), v)
+		if err == nil || err.ID != v.Expired || err.Message != "Request has expired" {
+			t.Fatalf("VerifyPresignedSince = %#v; want Expired", err)
+		}
+		want := []awserr.Field{
+			{Name: "X-Amz-Expires", Value: "0"},
+			{Name: "Expires", Value: "2013-05-24T00:00:00Z"},
+			{Name: "ServerTime", Value: "2013-05-24T00:00:00Z"},
 		}
 		if !reflect.DeepEqual(err.Fields, want) {
 			t.Errorf("elements %#v, want %#v", err.Fields, want)
@@ -226,6 +271,25 @@ func TestVerifyPresignedRefusesUnsignedAmzHeaders(t *testing.T) {
 		}
 		if err.Fields != nil {
 			t.Errorf("elements %#v, want none: Coral has no HeadersNotSigned member", err.Fields)
+		}
+	})
+	// S3 names only the SSE-C algorithm when all three SSE-C headers are
+	// unsigned: the key and its MD5 need not be signed (S3SOL-09
+	// 09-presign-unsigned-ssec, recorded 2026-11-03; s3-ssec-object-lock.md 3.10).
+	t.Run("S3 SSE-C key and MD5 need not be signed", func(t *testing.T) {
+		v := s3Vocabulary(t)
+		q, req := docPresigned(t, map[string]string{
+			"X-Amz-Server-Side-Encryption-Customer-Algorithm": "AES256",
+			"X-Amz-Server-Side-Encryption-Customer-Key":       "a2V5",
+			"X-Amz-Server-Side-Encryption-Customer-Key-MD5":   "bWQ1",
+		})
+		err := auth.VerifyPresignedSince(q, req, docSecret, docTime, clock.FromWire(q.Time), clock.FromWire(docTime), v)
+		if err == nil || err.ID != v.HeadersNotSigned || err.Message != msg {
+			t.Fatalf("VerifyPresignedSince =%#v; want HeadersNotSigned %q", err, msg)
+		}
+		want := []awserr.Field{{Name: "HeadersNotSigned", Value: "x-amz-server-side-encryption-customer-algorithm"}}
+		if !reflect.DeepEqual(err.Fields, want) {
+			t.Errorf("elements %#v, want %#v", err.Fields, want)
 		}
 	})
 	t.Run("non-amz header need not be signed", func(t *testing.T) {

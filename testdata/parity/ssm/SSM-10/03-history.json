@@ -1,0 +1,36 @@
+{
+  "step": "03-history",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParameterHistory"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,C,E,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameter-history"],
+          ["X-Amz-Date", "20261103T163625Z"],
+          ["amz-sdk-invocation-id", "8ccbfaa1-ea04-4f9b-9698-389de0ad7065"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "27"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/f10\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:25 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "1142"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "3cf014cd-dccf-43db-96dd-c398e3d202da"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"Parameters\":[{\"AllowedPattern\":\"^v.*\",\"DataType\":\"text\",\"Description\":\"d\",\"KeyId\":\"alias/aws/ssm\",\"Labels\":[],\"LastModifiedDate\":1.793723784147E9,\"LastModifiedUser\":\"arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005\",\"Name\":\"/us1103/ssm/f10\",\"Policies\":[],\"Tier\":\"Standard\",\"Type\":\"SecureString\",\"Value\":\"AQICAHh9At0PS8ma4uprZw5hmXu622d09HkYPVT8hL5gpjK97AH4pAg4ifMTDuWNCMhbLzE6AAAAYDBeBgkqhkiG9w0BBwagUTBPAgEAMEoGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMHkib7C6uFNV38TxZAgEQgB0bpoSiMxZmCd9BdER1PdfgB0wteWp2/pQXA7hAxg==\",\"Version\":1},{\"AllowedPattern\":\"^v.*\",\"DataType\":\"text\",\"Description\":\"d\",\"KeyId\":\"alias/aws/ssm\",\"Labels\":[],\"LastModifiedDate\":1.793723784724E9,\"LastModifiedUser\":\"arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005\",\"Name\":\"/us1103/ssm/f10\",\"Policies\":[],\"Tier\":\"Standard\",\"Type\":\"SecureString\",\"Value\":\"AQICAHh9At0PS8ma4uprZw5hmXu622d09HkYPVT8hL5gpjK97AG8VOg4+im6S/M9FrHGCn58AAAAYDBeBgkqhkiG9w0BBwagUTBPAgEAMEoGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMNjlgiAAKsIByoVusAgEQgB0b6oE2kArqzUN2G/ez75BnXDi6qMDXSSyth9HkFg==\",\"Version\":2}]}"
+      }
+    }
+  ]
+}

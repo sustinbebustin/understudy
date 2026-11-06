@@ -6,57 +6,57 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-var schemaNestedWithNamespace = smithy.Schema{ID: "aws.protocoltests.restxml.xmlns#NestedWithNamespace", Type: smithy.TypeStructure}
+var schemaNestedWithNamespace = smithy.Schema{ID: "aws.protocoltests.restxml.xmlns#NestedWithNamespace", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNestedWithNamespace_attrField}}
 
-var memberNestedWithNamespace_attrField = smithy.Member{Name: "attrField", Index: 0, XMLName: "xsi:someName", XMLAttribute: true}
+var memberNestedWithNamespace_attrField = smithy.Member{Name: "attrField", Index: 0, Target: &schemaSmithyString, XMLName: "xsi:someName", XMLAttribute: true}
 
-var schemaSimpleScalarPropertiesInput = smithy.Schema{ID: "aws.protocoltests.restxml.xmlns#SimpleScalarPropertiesRequest", Type: smithy.TypeStructure}
+var schemaSimpleScalarPropertiesInput = smithy.Schema{ID: "aws.protocoltests.restxml.xmlns#SimpleScalarPropertiesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSimpleScalarPropertiesInput_foo, &memberSimpleScalarPropertiesInput_stringValue, &memberSimpleScalarPropertiesInput_trueBooleanValue, &memberSimpleScalarPropertiesInput_falseBooleanValue, &memberSimpleScalarPropertiesInput_byteValue, &memberSimpleScalarPropertiesInput_shortValue, &memberSimpleScalarPropertiesInput_integerValue, &memberSimpleScalarPropertiesInput_longValue, &memberSimpleScalarPropertiesInput_floatValue, &memberSimpleScalarPropertiesInput_Nested, &memberSimpleScalarPropertiesInput_doubleValue}}
 
-var memberSimpleScalarPropertiesInput_foo = smithy.Member{Name: "foo", Index: 0, HTTP: smithy.HTTPHeader{Name: "X-Foo"}}
+var memberSimpleScalarPropertiesInput_foo = smithy.Member{Name: "foo", Index: 0, Target: &schemaSmithyString, HTTP: smithy.HTTPHeader{Name: "X-Foo"}}
 
-var memberSimpleScalarPropertiesInput_stringValue = smithy.Member{Name: "stringValue", Index: 1}
+var memberSimpleScalarPropertiesInput_stringValue = smithy.Member{Name: "stringValue", Index: 1, Target: &schemaSmithyString}
 
-var memberSimpleScalarPropertiesInput_trueBooleanValue = smithy.Member{Name: "trueBooleanValue", Index: 2}
+var memberSimpleScalarPropertiesInput_trueBooleanValue = smithy.Member{Name: "trueBooleanValue", Index: 2, Target: &schemaSmithyBoolean}
 
-var memberSimpleScalarPropertiesInput_falseBooleanValue = smithy.Member{Name: "falseBooleanValue", Index: 3}
+var memberSimpleScalarPropertiesInput_falseBooleanValue = smithy.Member{Name: "falseBooleanValue", Index: 3, Target: &schemaSmithyBoolean}
 
-var memberSimpleScalarPropertiesInput_byteValue = smithy.Member{Name: "byteValue", Index: 4}
+var memberSimpleScalarPropertiesInput_byteValue = smithy.Member{Name: "byteValue", Index: 4, Target: &schemaSmithyByte}
 
-var memberSimpleScalarPropertiesInput_shortValue = smithy.Member{Name: "shortValue", Index: 5}
+var memberSimpleScalarPropertiesInput_shortValue = smithy.Member{Name: "shortValue", Index: 5, Target: &schemaSmithyShort}
 
-var memberSimpleScalarPropertiesInput_integerValue = smithy.Member{Name: "integerValue", Index: 6}
+var memberSimpleScalarPropertiesInput_integerValue = smithy.Member{Name: "integerValue", Index: 6, Target: &schemaSmithyInteger}
 
-var memberSimpleScalarPropertiesInput_longValue = smithy.Member{Name: "longValue", Index: 7}
+var memberSimpleScalarPropertiesInput_longValue = smithy.Member{Name: "longValue", Index: 7, Target: &schemaSmithyLong}
 
-var memberSimpleScalarPropertiesInput_floatValue = smithy.Member{Name: "floatValue", Index: 8}
+var memberSimpleScalarPropertiesInput_floatValue = smithy.Member{Name: "floatValue", Index: 8, Target: &schemaSmithyFloat}
 
-var memberSimpleScalarPropertiesInput_Nested = smithy.Member{Name: "Nested", Index: 9, XMLNamespace: &smithy.XMLNamespace{URI: "https://example.com", Prefix: "xsi"}}
+var memberSimpleScalarPropertiesInput_Nested = smithy.Member{Name: "Nested", Index: 9, Target: &schemaNestedWithNamespace, XMLNamespace: &smithy.XMLNamespace{URI: "https://example.com", Prefix: "xsi"}}
 
-var memberSimpleScalarPropertiesInput_doubleValue = smithy.Member{Name: "doubleValue", Index: 10, XMLName: "DoubleDribble"}
+var memberSimpleScalarPropertiesInput_doubleValue = smithy.Member{Name: "doubleValue", Index: 10, Target: &schemaSmithyDouble, XMLName: "DoubleDribble"}
 
-var schemaSimpleScalarPropertiesOutput = smithy.Schema{ID: "aws.protocoltests.restxml.xmlns#SimpleScalarPropertiesResponse", Type: smithy.TypeStructure}
+var schemaSimpleScalarPropertiesOutput = smithy.Schema{ID: "aws.protocoltests.restxml.xmlns#SimpleScalarPropertiesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSimpleScalarPropertiesOutput_foo, &memberSimpleScalarPropertiesOutput_stringValue, &memberSimpleScalarPropertiesOutput_trueBooleanValue, &memberSimpleScalarPropertiesOutput_falseBooleanValue, &memberSimpleScalarPropertiesOutput_byteValue, &memberSimpleScalarPropertiesOutput_shortValue, &memberSimpleScalarPropertiesOutput_integerValue, &memberSimpleScalarPropertiesOutput_longValue, &memberSimpleScalarPropertiesOutput_floatValue, &memberSimpleScalarPropertiesOutput_Nested, &memberSimpleScalarPropertiesOutput_doubleValue}}
 
-var memberSimpleScalarPropertiesOutput_foo = smithy.Member{Name: "foo", Index: 0, HTTP: smithy.HTTPHeader{Name: "X-Foo"}}
+var memberSimpleScalarPropertiesOutput_foo = smithy.Member{Name: "foo", Index: 0, Target: &schemaSmithyString, HTTP: smithy.HTTPHeader{Name: "X-Foo"}}
 
-var memberSimpleScalarPropertiesOutput_stringValue = smithy.Member{Name: "stringValue", Index: 1}
+var memberSimpleScalarPropertiesOutput_stringValue = smithy.Member{Name: "stringValue", Index: 1, Target: &schemaSmithyString}
 
-var memberSimpleScalarPropertiesOutput_trueBooleanValue = smithy.Member{Name: "trueBooleanValue", Index: 2}
+var memberSimpleScalarPropertiesOutput_trueBooleanValue = smithy.Member{Name: "trueBooleanValue", Index: 2, Target: &schemaSmithyBoolean}
 
-var memberSimpleScalarPropertiesOutput_falseBooleanValue = smithy.Member{Name: "falseBooleanValue", Index: 3}
+var memberSimpleScalarPropertiesOutput_falseBooleanValue = smithy.Member{Name: "falseBooleanValue", Index: 3, Target: &schemaSmithyBoolean}
 
-var memberSimpleScalarPropertiesOutput_byteValue = smithy.Member{Name: "byteValue", Index: 4}
+var memberSimpleScalarPropertiesOutput_byteValue = smithy.Member{Name: "byteValue", Index: 4, Target: &schemaSmithyByte}
 
-var memberSimpleScalarPropertiesOutput_shortValue = smithy.Member{Name: "shortValue", Index: 5}
+var memberSimpleScalarPropertiesOutput_shortValue = smithy.Member{Name: "shortValue", Index: 5, Target: &schemaSmithyShort}
 
-var memberSimpleScalarPropertiesOutput_integerValue = smithy.Member{Name: "integerValue", Index: 6}
+var memberSimpleScalarPropertiesOutput_integerValue = smithy.Member{Name: "integerValue", Index: 6, Target: &schemaSmithyInteger}
 
-var memberSimpleScalarPropertiesOutput_longValue = smithy.Member{Name: "longValue", Index: 7}
+var memberSimpleScalarPropertiesOutput_longValue = smithy.Member{Name: "longValue", Index: 7, Target: &schemaSmithyLong}
 
-var memberSimpleScalarPropertiesOutput_floatValue = smithy.Member{Name: "floatValue", Index: 8}
+var memberSimpleScalarPropertiesOutput_floatValue = smithy.Member{Name: "floatValue", Index: 8, Target: &schemaSmithyFloat}
 
-var memberSimpleScalarPropertiesOutput_Nested = smithy.Member{Name: "Nested", Index: 9, XMLNamespace: &smithy.XMLNamespace{URI: "https://example.com", Prefix: "xsi"}}
+var memberSimpleScalarPropertiesOutput_Nested = smithy.Member{Name: "Nested", Index: 9, Target: &schemaNestedWithNamespace, XMLNamespace: &smithy.XMLNamespace{URI: "https://example.com", Prefix: "xsi"}}
 
-var memberSimpleScalarPropertiesOutput_doubleValue = smithy.Member{Name: "doubleValue", Index: 10, XMLName: "DoubleDribble"}
+var memberSimpleScalarPropertiesOutput_doubleValue = smithy.Member{Name: "doubleValue", Index: 10, Target: &schemaSmithyDouble, XMLName: "DoubleDribble"}
 
 var schemaSmithyBoolean = smithy.Schema{ID: "smithy.api#Boolean", Type: smithy.TypeBoolean}
 
@@ -74,37 +74,6 @@ var schemaSmithyShort = smithy.Schema{ID: "smithy.api#Short", Type: smithy.TypeS
 
 var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.TypeString}
 
-var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberValidationException_message = smithy.Member{Name: "message", Index: 0}
-
-func init() {
-	memberNestedWithNamespace_attrField.Target = &schemaSmithyString
-	schemaNestedWithNamespace.Members = []*smithy.Member{&memberNestedWithNamespace_attrField}
-	memberSimpleScalarPropertiesInput_foo.Target = &schemaSmithyString
-	memberSimpleScalarPropertiesInput_stringValue.Target = &schemaSmithyString
-	memberSimpleScalarPropertiesInput_trueBooleanValue.Target = &schemaSmithyBoolean
-	memberSimpleScalarPropertiesInput_falseBooleanValue.Target = &schemaSmithyBoolean
-	memberSimpleScalarPropertiesInput_byteValue.Target = &schemaSmithyByte
-	memberSimpleScalarPropertiesInput_shortValue.Target = &schemaSmithyShort
-	memberSimpleScalarPropertiesInput_integerValue.Target = &schemaSmithyInteger
-	memberSimpleScalarPropertiesInput_longValue.Target = &schemaSmithyLong
-	memberSimpleScalarPropertiesInput_floatValue.Target = &schemaSmithyFloat
-	memberSimpleScalarPropertiesInput_Nested.Target = &schemaNestedWithNamespace
-	memberSimpleScalarPropertiesInput_doubleValue.Target = &schemaSmithyDouble
-	schemaSimpleScalarPropertiesInput.Members = []*smithy.Member{&memberSimpleScalarPropertiesInput_foo, &memberSimpleScalarPropertiesInput_stringValue, &memberSimpleScalarPropertiesInput_trueBooleanValue, &memberSimpleScalarPropertiesInput_falseBooleanValue, &memberSimpleScalarPropertiesInput_byteValue, &memberSimpleScalarPropertiesInput_shortValue, &memberSimpleScalarPropertiesInput_integerValue, &memberSimpleScalarPropertiesInput_longValue, &memberSimpleScalarPropertiesInput_floatValue, &memberSimpleScalarPropertiesInput_Nested, &memberSimpleScalarPropertiesInput_doubleValue}
-	memberSimpleScalarPropertiesOutput_foo.Target = &schemaSmithyString
-	memberSimpleScalarPropertiesOutput_stringValue.Target = &schemaSmithyString
-	memberSimpleScalarPropertiesOutput_trueBooleanValue.Target = &schemaSmithyBoolean
-	memberSimpleScalarPropertiesOutput_falseBooleanValue.Target = &schemaSmithyBoolean
-	memberSimpleScalarPropertiesOutput_byteValue.Target = &schemaSmithyByte
-	memberSimpleScalarPropertiesOutput_shortValue.Target = &schemaSmithyShort
-	memberSimpleScalarPropertiesOutput_integerValue.Target = &schemaSmithyInteger
-	memberSimpleScalarPropertiesOutput_longValue.Target = &schemaSmithyLong
-	memberSimpleScalarPropertiesOutput_floatValue.Target = &schemaSmithyFloat
-	memberSimpleScalarPropertiesOutput_Nested.Target = &schemaNestedWithNamespace
-	memberSimpleScalarPropertiesOutput_doubleValue.Target = &schemaSmithyDouble
-	schemaSimpleScalarPropertiesOutput.Members = []*smithy.Member{&memberSimpleScalarPropertiesOutput_foo, &memberSimpleScalarPropertiesOutput_stringValue, &memberSimpleScalarPropertiesOutput_trueBooleanValue, &memberSimpleScalarPropertiesOutput_falseBooleanValue, &memberSimpleScalarPropertiesOutput_byteValue, &memberSimpleScalarPropertiesOutput_shortValue, &memberSimpleScalarPropertiesOutput_integerValue, &memberSimpleScalarPropertiesOutput_longValue, &memberSimpleScalarPropertiesOutput_floatValue, &memberSimpleScalarPropertiesOutput_Nested, &memberSimpleScalarPropertiesOutput_doubleValue}
-	memberValidationException_message.Target = &schemaSmithyString
-	schemaValidationException.Members = []*smithy.Member{&memberValidationException_message}
-}
+var memberValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}

@@ -1,0 +1,35 @@
+{
+  "step": "03-arn-without-star",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidLoggingConfiguration) when calling the CreateStateMachine operation: Invalid Logging Configuration: Log Group ARN must be provided with '*' qualifier.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.CreateStateMachine"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,b,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.create-state-machine"],
+          ["X-Amz-Date", "20261103T163755Z"],
+          ["amz-sdk-invocation-id", "3033f833-656e-47ea-aa67-b6b37033912b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "358"]
+        ],
+        "body": "{\"name\": \"us1103-nostar\", \"definition\": \"{\\\"StartAt\\\":\\\"P\\\",\\\"States\\\":{\\\"P\\\":{\\\"Type\\\":\\\"Pass\\\",\\\"End\\\":true}}}\", \"roleArn\": \"arn:aws:iam::123456789012:role/us1103-sfn\", \"loggingConfiguration\": {\"level\": \"ALL\", \"destinations\": [{\"cloudWatchLogsLogGroup\": {\"logGroupArn\": \"arn:aws:logs:us-east-2:123456789012:log-group:/aws/vendedlogs/states/us1103-log\"}}]}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "6a3b35a6-bc4c-4266-88cc-1f3a7925cb18"],
+          ["Date", "Tue, 03 Nov 2026 16:37:55 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "169"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.swf.service.v2.model#InvalidLoggingConfiguration\",\"message\":\"Invalid Logging Configuration: Log Group ARN must be provided with '*' qualifier.\"}"
+      }
+    }
+  ]
+}

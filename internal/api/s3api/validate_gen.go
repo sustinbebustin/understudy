@@ -333,21 +333,6 @@ func (v *CopyObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
 		}
 	}
-	if v.ObjectLockMode != nil {
-		if !(*v.ObjectLockMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockMode"), Value: awserr.RenderedText{Text: string(*v.ObjectLockMode)}, Constraint: awserr.Enum{Values: []string{"GOVERNANCE", "COMPLIANCE"}}})
-		}
-	}
-	if v.ObjectLockLegalHoldStatus != nil {
-		if !(*v.ObjectLockLegalHoldStatus).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockLegalHoldStatus"), Value: awserr.RenderedText{Text: string(*v.ObjectLockLegalHoldStatus)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
-	if v.ObjectLockEventHold != nil {
-		if !(*v.ObjectLockEventHold).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockEventHold"), Value: awserr.RenderedText{Text: string(*v.ObjectLockEventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
 }
 
 func (v *CreateBucketConfiguration) validate(path awserr.Path, out *[]awserr.Violation) {
@@ -479,21 +464,6 @@ func (v *CreateMultipartUploadInput) validate(path awserr.Path, out *[]awserr.Vi
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
 		}
 	}
-	if v.ObjectLockMode != nil {
-		if !(*v.ObjectLockMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockMode"), Value: awserr.RenderedText{Text: string(*v.ObjectLockMode)}, Constraint: awserr.Enum{Values: []string{"GOVERNANCE", "COMPLIANCE"}}})
-		}
-	}
-	if v.ObjectLockLegalHoldStatus != nil {
-		if !(*v.ObjectLockLegalHoldStatus).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockLegalHoldStatus"), Value: awserr.RenderedText{Text: string(*v.ObjectLockLegalHoldStatus)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
-	if v.ObjectLockEventHold != nil {
-		if !(*v.ObjectLockEventHold).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockEventHold"), Value: awserr.RenderedText{Text: string(*v.ObjectLockEventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
 	if v.ChecksumAlgorithm != nil {
 		if !(*v.ChecksumAlgorithm).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "checksumAlgorithm"), Value: awserr.RenderedText{Text: string(*v.ChecksumAlgorithm)}, Constraint: awserr.Enum{Values: []string{"CRC32", "CRC32C", "SHA1", "SHA256", "CRC64NVME", "SHA512", "MD5", "XXHASH64", "XXHASH3", "XXHASH128"}}})
@@ -526,14 +496,6 @@ func (v *CreateSessionInput) validate(path awserr.Path, out *[]awserr.Violation)
 	if v.ServerSideEncryption != nil {
 		if !(*v.ServerSideEncryption).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "serverSideEncryption"), Value: awserr.RenderedText{Text: string(*v.ServerSideEncryption)}, Constraint: awserr.Enum{Values: []string{"AES256", "aws:fsx", "aws:backup", "aws:kms", "aws:kms:dsse"}}})
-		}
-	}
-}
-
-func (v *DefaultRetention) validate(path awserr.Path, out *[]awserr.Violation) {
-	if v.Mode != nil {
-		if !(*v.Mode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "mode"), Value: awserr.RenderedText{Text: string(*v.Mode)}, Constraint: awserr.Enum{Values: []string{"GOVERNANCE", "COMPLIANCE"}}})
 		}
 	}
 }
@@ -1348,11 +1310,6 @@ func (v *GetObjectAnnotationInput) validate(path awserr.Path, out *[]awserr.Viol
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
 		}
 	}
-	if v.ChecksumMode != nil {
-		if !(*v.ChecksumMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "checksumMode"), Value: awserr.RenderedText{Text: string(*v.ChecksumMode)}, Constraint: awserr.Enum{Values: []string{"ENABLED"}}})
-		}
-	}
 }
 
 // Validate reports the constraint violations of v in AWS's order; nil
@@ -1413,11 +1370,6 @@ func (v *GetObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.RequestPayer != nil {
 		if !(*v.RequestPayer).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
-		}
-	}
-	if v.ChecksumMode != nil {
-		if !(*v.ChecksumMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "checksumMode"), Value: awserr.RenderedText{Text: string(*v.ChecksumMode)}, Constraint: awserr.Enum{Values: []string{"ENABLED"}}})
 		}
 	}
 }
@@ -1621,11 +1573,6 @@ func (v *HeadObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.RequestPayer != nil {
 		if !(*v.RequestPayer).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
-		}
-	}
-	if v.ChecksumMode != nil {
-		if !(*v.ChecksumMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "checksumMode"), Value: awserr.RenderedText{Text: string(*v.ChecksumMode)}, Constraint: awserr.Enum{Values: []string{"ENABLED"}}})
 		}
 	}
 }
@@ -2308,36 +2255,6 @@ func (v *ObjectLockConfiguration) validate(path awserr.Path, out *[]awserr.Viola
 			*out = append(*out, awserr.Violation{Path: at(path, "objectLockEnabled"), Value: awserr.RenderedText{Text: string(*v.ObjectLockEnabled)}, Constraint: awserr.Enum{Values: []string{"Enabled"}}})
 		}
 	}
-	if v.Rule != nil {
-		v.Rule.validate(at(path, "rule"), out)
-	}
-}
-
-func (v *ObjectLockLegalHold) validate(path awserr.Path, out *[]awserr.Violation) {
-	if v.Status != nil {
-		if !(*v.Status).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "status"), Value: awserr.RenderedText{Text: string(*v.Status)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
-}
-
-func (v *ObjectLockRetention) validate(path awserr.Path, out *[]awserr.Violation) {
-	if v.Mode != nil {
-		if !(*v.Mode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "mode"), Value: awserr.RenderedText{Text: string(*v.Mode)}, Constraint: awserr.Enum{Values: []string{"GOVERNANCE", "COMPLIANCE"}}})
-		}
-	}
-	if v.EventHold != nil {
-		if !(*v.EventHold).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "eventHold"), Value: awserr.RenderedText{Text: string(*v.EventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
-}
-
-func (v *ObjectLockRule) validate(path awserr.Path, out *[]awserr.Violation) {
-	if v.DefaultRetention != nil {
-		v.DefaultRetention.validate(at(path, "defaultRetention"), out)
-	}
 }
 
 func (v *OutputLocation) validate(path awserr.Path, out *[]awserr.Violation) {
@@ -2939,21 +2856,6 @@ func (v *PutObjectInput) validate(path awserr.Path, out *[]awserr.Violation) {
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
 		}
 	}
-	if v.ObjectLockMode != nil {
-		if !(*v.ObjectLockMode).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockMode"), Value: awserr.RenderedText{Text: string(*v.ObjectLockMode)}, Constraint: awserr.Enum{Values: []string{"GOVERNANCE", "COMPLIANCE"}}})
-		}
-	}
-	if v.ObjectLockLegalHoldStatus != nil {
-		if !(*v.ObjectLockLegalHoldStatus).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockLegalHoldStatus"), Value: awserr.RenderedText{Text: string(*v.ObjectLockLegalHoldStatus)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
-	if v.ObjectLockEventHold != nil {
-		if !(*v.ObjectLockEventHold).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "objectLockEventHold"), Value: awserr.RenderedText{Text: string(*v.ObjectLockEventHold)}, Constraint: awserr.Enum{Values: []string{"ON", "OFF"}}})
-		}
-	}
 }
 
 // Validate reports the constraint violations of v in AWS's order; nil
@@ -2974,9 +2876,6 @@ func (v *PutObjectLegalHoldInput) validate(path awserr.Path, out *[]awserr.Viola
 		if utf8.RuneCountInString(v.Key) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "key"), Value: awserr.RenderedText{Text: v.Key}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-	}
-	if v.LegalHold != nil {
-		v.LegalHold.validate(at(path, "legalHold"), out)
 	}
 	if v.RequestPayer != nil {
 		if !(*v.RequestPayer).Known() {
@@ -3035,9 +2934,6 @@ func (v *PutObjectRetentionInput) validate(path awserr.Path, out *[]awserr.Viola
 		if utf8.RuneCountInString(v.Key) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "key"), Value: awserr.RenderedText{Text: v.Key}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-	}
-	if v.Retention != nil {
-		v.Retention.validate(at(path, "retention"), out)
 	}
 	if v.RequestPayer != nil {
 		if !(*v.RequestPayer).Known() {
@@ -3906,6 +3802,9 @@ const (
 	styleMissingParameter
 	// styleSNSParameter is SNS's hand text for the first violation.
 	styleSNSParameter
+	// styleFixed is the rule's reason as the whole message: a text the
+	// service sends whatever failed, such as S3's MalformedXML text.
+	styleFixed
 )
 
 // validationRule is one dev.understudy#validationError rule.
@@ -3929,6 +3828,12 @@ type validationPolicy struct {
 	paths     []validationPath
 	operation []validationRule
 	service   []validationRule
+	// root, when set, heads the path of a Coral-styled violation whose
+	// first segment is not one of unrooted, the input's URI labels
+	// (dev.understudy#validationInputRoot): API Gateway names a body member
+	// updateRestApiInput.patchOperations.1.member.op but a label statusCode.
+	root     string
+	unrooted []string
 }
 
 // render returns the error AWS sends for vs, or nil when vs is empty.
@@ -3951,26 +3856,39 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 		msg = "The request must contain the parameter " + params[0] + "."
 	case styleSNSParameter:
 		msg = "Invalid parameter: " + params[0] + " Reason: " + first.reason
+	case styleFixed:
+		msg = first.reason
 	case styleCoral:
-		msg = coralUnder(id, vs, rules)
+		msg = p.coralUnder(id, vs, rules)
 	default:
 		// The generator emits only the styles above; an unknown one renders
 		// as AWS's common grammar rather than an empty message.
-		msg = coralUnder(id, vs, rules)
+		msg = p.coralUnder(id, vs, rules)
 	}
 	return &awserr.Error{ID: id, Message: msg, Origin: awserr.Validation{Violations: vs}}
 }
 
 // coralUnder renders, as one Coral message, every violation whose rule is
-// Coral-styled and names the code id.
-func coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
+// Coral-styled and names the code id, each path under the policy's root
+// when it has one.
+func (p *validationPolicy) coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
 	var same []awserr.Violation
 	for i, v := range vs {
 		if rules[i].style == styleCoral && rules[i].id().Shape == id.Shape {
-			same = append(same, v)
+			same = append(same, p.rooted(v))
 		}
 	}
 	return awserr.CoralMessage(same)
+}
+
+// rooted is v with its path under the policy's root, unless the policy has
+// none or v's path starts at a URI label.
+func (p *validationPolicy) rooted(v awserr.Violation) awserr.Violation {
+	if p.root == "" || len(v.Path) > 0 && slices.Contains(p.unrooted, v.Path[0]) {
+		return v
+	}
+	v.Path = append(awserr.Path{p.root}, v.Path...)
+	return v
 }
 
 // resolve returns the rule that answers v and the parameter name a hand
@@ -5654,7 +5572,7 @@ var policyPutBucketEncryption = validationPolicy{
 		{segments: []string{"contentMD5"}, param: "ContentMD5"},
 		{segments: []string{"checksumAlgorithm"}, param: "ChecksumAlgorithm"},
 		{segments: []string{"serverSideEncryptionConfiguration"}, param: "ServerSideEncryptionConfiguration"},
-		{segments: []string{"serverSideEncryptionConfiguration", "rules"}, param: "Rules"},
+		{segments: []string{"serverSideEncryptionConfiguration", "rules"}, param: "Rules", rules: []validationRule{{kinds: kindRequired, id: IdentityMalformedXML, style: styleFixed, reason: "The XML you provided was not well-formed or did not validate against our published schema"}}},
 		{segments: []string{"serverSideEncryptionConfiguration", "rules", "*", "member"}, param: "Rules"},
 		{segments: []string{"serverSideEncryptionConfiguration", "rules", "*", "member", "applyServerSideEncryptionByDefault"}, param: "ApplyServerSideEncryptionByDefault"},
 		{segments: []string{"serverSideEncryptionConfiguration", "rules", "*", "member", "applyServerSideEncryptionByDefault", "sSEAlgorithm"}, param: "SSEAlgorithm"},

@@ -211,14 +211,17 @@ func (s *Service) createdLocation(c *kernel.Call, cr creation) string {
 
 // newBucket is a new bucket with AWS's defaults (s3.md 4.1): ownership
 // controls with the requested rule, every public access block flag on,
-// the SSE-S3 default encryption, and, with Object Lock, versioning on.
+// the SSE-S3 default encryption, SSE-C writes blocked outside me-south-1
+// and me-central-1 (s3-ssec-object-lock.md 4.1), and, with Object Lock,
+// versioning on.
 func newBucket(cr creation, h Home) *Bucket {
 	b := &Bucket{
-		Name:     cr.name,
-		Home:     h,
-		Location: cr.location,
-		Grants:   cr.grants,
-		Tags:     cr.tags,
+		Name:              cr.name,
+		Home:              h,
+		Location:          cr.location,
+		Grants:            cr.grants,
+		Tags:              cr.tags,
+		BlockedEncryption: newBucketBlock(h.Region),
 		Ownership: &s3api.OwnershipControls{
 			Rules: []s3api.OwnershipControlsRule{{ObjectOwnership: cr.owner}},
 		},

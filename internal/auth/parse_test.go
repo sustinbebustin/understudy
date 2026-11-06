@@ -190,7 +190,6 @@ func TestParseErrors(t *testing.T) {
 		{"presign bad scope date", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Credential": url.QueryEscape(strings.Replace(docCredential, "20130524", "b", 1))}), nil, invalid(auth.QueryV4, auth.InvalidScopeDate)},
 		{"X-Amz-Expires not a number", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Expires": "1h"}), nil, invalid(auth.QueryV4, auth.Malformed)},
 		{"X-Amz-Expires -1", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Expires": "-1"}), nil, invalid(auth.QueryV4, auth.Malformed)},
-		{"X-Amz-Expires 0", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Expires": "0"}), nil, invalid(auth.QueryV4, auth.Malformed)},
 		{"X-Amz-Expires 604801", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Expires": "604801"}), nil, invalid(auth.QueryV4, auth.Malformed)},
 		// These overflow time.Duration if converted before the bound check.
 		{"X-Amz-Expires 9223372037", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Expires": "9223372037"}), nil, invalid(auth.QueryV4, auth.Malformed)},
@@ -266,11 +265,14 @@ func TestParsePresignTexts(t *testing.T) {
 	}
 }
 
+// X-Amz-Expires=0 parses: S3 answers it as expired, not as malformed
+// (testdata/parity/s3/R18/01-presign-expires-0.json).
 func TestParseExpiresBounds(t *testing.T) {
 	for _, tc := range []struct {
 		value string
 		want  time.Duration
 	}{
+		{"0", 0},
 		{"1", time.Second},
 		{"604800", 7 * 24 * time.Hour},
 	} {

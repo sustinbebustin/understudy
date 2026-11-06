@@ -1,0 +1,36 @@
+{
+  "step": "15-complete",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidPart) when calling the CompleteMultipartUpload operation: One or more of the specified parts could not be found.  The part may not have been uploaded, or the specified entity tag may not match the part's entity tag.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/m15?uploadId=YI68bxlVsKnOEdbCBzEkFitCFLF7LsUWAGbkm824jp7NvVQOnzz4sBXjEIEGRA1GxHWRRXwgfRrOCbbe4Zo.gEm..2K9YzmzSc8YL6BXJLA8CpYvtjpymKA.QbW3dgdCfQUcp_4avS6KpClx5nFDJIQWk35r1SKBboZR8ISAzCFSwsGgBGhEwwPwmgLOI.Ri",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,g,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.complete-multipart-upload"],
+          ["X-Amz-Date", "20261103T034049Z"],
+          ["X-Amz-Content-SHA256", "87257c07eed4c00c0279d269679d1a896fe25efda415894cecfef0c9980a6142"],
+          ["amz-sdk-invocation-id", "8354e653-ef91-448e-bfa5-d7c0b7cf9820"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "146"]
+        ],
+        "body": "<CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><PartNumber>1</PartNumber><ETag /></Part></CompleteMultipartUpload>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "TJQCSG09E8QHPJVG"],
+          ["x-amz-id-2", "XnybvFb62Nb5ObBL7Lsqkg79iRvJzZewVy6V3Hy6ZhdILKz/MJITHJQb+eyjw561YOfL3Mc81wqzEmsxl0LzuEgip4Auv9YL"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:50 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<Error><Code>InvalidPart</Code><Message>One or more of the specified parts could not be found.  The part may not have been uploaded, or the specified entity tag may not match the part's entity tag.</Message><UploadId>YI68bxlVsKnOEdbCBzEkFitCFLF7LsUWAGbkm824jp7NvVQOnzz4sBXjEIEGRA1GxHWRRXwgfRrOCbbe4Zo.gEm..2K9YzmzSc8YL6BXJLA8CpYvtjpymKA.QbW3dgdCfQUcp_4avS6KpClx5nFDJIQWk35r1SKBboZR8ISAzCFSwsGgBGhEwwPwmgLOI.Ri</UploadId><PartNumber>1</PartNumber><ETag></ETag><RequestId>TJQCSG09E8QHPJVG</RequestId><HostId>XnybvFb62Nb5ObBL7Lsqkg79iRvJzZewVy6V3Hy6ZhdILKz/MJITHJQb+eyjw561YOfL3Mc81wqzEmsxl0LzuEgip4Auv9YL</HostId></Error>"
+      }
+    }
+  ]
+}

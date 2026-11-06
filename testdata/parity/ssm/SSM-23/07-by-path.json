@@ -1,0 +1,36 @@
+{
+  "step": "07-by-path",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the GetParametersByPath operation: The parameter doesn't meet the parameter name requirements. The parameter name must begin with a forward slash \"/\". It can't be prefixed with \\\"aws\\\" or \\\"ssm\\\" (case-insensitive). It must use only letters, numbers, or the following symbols: . (period), - (hyphen), _ (underscore). Special characters are not allowed. All sub-paths, if specified, must use the forward slash symbol \"/\". Valid example: /get/parameters2-/by1./path0_.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParametersByPath"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,g,C,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameters-by-path"],
+          ["X-Amz-Date", "20261103T163748Z"],
+          ["amz-sdk-invocation-id", "e66a89da-784f-4082-8abb-11772c59c74b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "65"]
+        ],
+        "body": "{\"Path\": \"/aws/reference/secretsmanager\", \"WithDecryption\": true}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:48 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "488"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "8f126935-353d-4dd0-b6e6-82ed9de1397e"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"The parameter doesn't meet the parameter name requirements. The parameter name must begin with a forward slash \\\"/\\\". It can't be prefixed with \\\\\\\"aws\\\\\\\" or \\\\\\\"ssm\\\\\\\" (case-insensitive). It must use only letters, numbers, or the following symbols: . (period), - (hyphen), _ (underscore). Special characters are not allowed. All sub-paths, if specified, must use the forward slash symbol \\\"/\\\". Valid example: /get/parameters2-/by1./path0_.\"}"
+      }
+    }
+  ]
+}

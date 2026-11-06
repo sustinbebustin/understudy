@@ -1,0 +1,30 @@
+{
+  "golden": 14,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/scenarios/test_base_scenarios.snapshot.json:L1484",
+  "test": "test_map_state_retry (get_execution_history)",
+  "validated": "2023-07-18",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/scenarios/statemachines/map_state_retry.json5",
+  "definition": {"StartAt": "StartState", "States": {"StartState": {"Type": "Pass", "Result": [1], "ResultPath": "$.arr", "Next": "MapState"}, "MapState": {"Type": "Map", "ResultPath": null, "InputPath": "$.arr", "MaxConcurrency": 1, "ItemProcessor": {"ProcessorConfig": {"Mode": "INLINE"}, "StartAt": "HandleItemFail", "States": {"HandleItemFail": {"Type": "Fail", "Error": "HandleItemFailError", "Cause": "HandleItemFailCause"}}}, "Retry": [{"ErrorEquals": ["HandleItemFailError"], "MaxAttempts": 2}], "Next": "Final"}, "Final": {"Type": "Pass", "End": true}}},
+  "input": {},
+  "advance": 4,
+  "history": [
+    {"executionStartedEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "roleArn": "snf_role_arn"}, "id": 1, "previousEventId": 0, "timestamp": "timestamp", "type": "ExecutionStarted"},
+    {"id": 2, "previousEventId": 0, "stateEnteredEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "name": "StartState"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": 3, "previousEventId": 2, "stateExitedEventDetails": {"name": "StartState", "output": {"arr": [1]}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"id": 4, "previousEventId": 3, "stateEnteredEventDetails": {"input": {"arr": [1]}, "inputDetails": {"truncated": false}, "name": "MapState"}, "timestamp": "timestamp", "type": "MapStateEntered"},
+    {"id": 5, "mapStateStartedEventDetails": {"length": 1}, "previousEventId": 4, "timestamp": "timestamp", "type": "MapStateStarted"},
+    {"id": 6, "mapIterationStartedEventDetails": {"index": 0, "name": "MapState"}, "previousEventId": 5, "timestamp": "timestamp", "type": "MapIterationStarted"},
+    {"id": 7, "previousEventId": 6, "stateEnteredEventDetails": {"input": "1", "inputDetails": {"truncated": false}, "name": "HandleItemFail"}, "timestamp": "timestamp", "type": "FailStateEntered"},
+    {"id": 8, "mapIterationFailedEventDetails": {"index": 0, "name": "MapState"}, "previousEventId": 7, "timestamp": "timestamp", "type": "MapIterationFailed"},
+    {"id": 9, "mapStateStartedEventDetails": {"length": 1}, "previousEventId": 7, "timestamp": "timestamp", "type": "MapStateStarted"},
+    {"id": 10, "mapIterationStartedEventDetails": {"index": 0, "name": "MapState"}, "previousEventId": 9, "timestamp": "timestamp", "type": "MapIterationStarted"},
+    {"id": 11, "previousEventId": 10, "stateEnteredEventDetails": {"input": "1", "inputDetails": {"truncated": false}, "name": "HandleItemFail"}, "timestamp": "timestamp", "type": "FailStateEntered"},
+    {"id": 12, "mapIterationFailedEventDetails": {"index": 0, "name": "MapState"}, "previousEventId": 11, "timestamp": "timestamp", "type": "MapIterationFailed"},
+    {"id": 13, "mapStateStartedEventDetails": {"length": 1}, "previousEventId": 11, "timestamp": "timestamp", "type": "MapStateStarted"},
+    {"id": 14, "mapIterationStartedEventDetails": {"index": 0, "name": "MapState"}, "previousEventId": 13, "timestamp": "timestamp", "type": "MapIterationStarted"},
+    {"id": 15, "previousEventId": 14, "stateEnteredEventDetails": {"input": "1", "inputDetails": {"truncated": false}, "name": "HandleItemFail"}, "timestamp": "timestamp", "type": "FailStateEntered"},
+    {"id": 16, "mapIterationFailedEventDetails": {"index": 0, "name": "MapState"}, "previousEventId": 15, "timestamp": "timestamp", "type": "MapIterationFailed"},
+    {"id": 17, "previousEventId": 15, "timestamp": "timestamp", "type": "MapStateFailed"},
+    {"executionFailedEventDetails": {"cause": "HandleItemFailCause", "error": "HandleItemFailError"}, "id": 18, "previousEventId": 17, "timestamp": "timestamp", "type": "ExecutionFailed"}
+  ]
+}

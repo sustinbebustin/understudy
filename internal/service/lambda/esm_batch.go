@@ -128,8 +128,8 @@ func windowOpen(m *Mapping, h *held, now clock.Instant) (clock.Instant, bool) {
 	return closes, now.Before(closes)
 }
 
-// lambdaService is the service principal an event source mapping invokes
-// its function as.
+// lambdaService is Lambda's service principal: an event source mapping
+// invokes its function as it, and Lambda looks a destination up as it.
 const lambdaService = "lambda.amazonaws.com"
 
 // invoke runs the function synchronously on pl's batch through Invoke, as
@@ -142,7 +142,7 @@ const lambdaService = "lambda.amazonaws.com"
 func (p *pollers) invoke(ctx context.Context, c *kernel.Call, pl *poller, m *Mapping, t target, sqs kernel.Target) {
 	h := &pl.held
 	batch := h.batch
-	h.batch, h.opened = esm.Batch{}, clock.Instant{}
+	h.batch, h.opened = esm.QueueBatch{}, clock.Instant{}
 	cause, links := p.causes(ctx, c, pl, sqs, &batch)
 	fn := kernel.Target{Scope: pl.scope, As: kernel.AsPlatform{Name: lambdaService}, Via: ref.LambdaESM, Resume: cause, Links: links}
 	out, err := kernel.Invoke(ctx, p.x.k, c, lambdaapi.OpInvoke, fn, &lambdaapi.InvokeInput{
@@ -173,7 +173,7 @@ func (p *pollers) invoke(ctx context.Context, c *kernel.Call, pl *poller, m *Map
 // oldest first, as its links. When the queue cannot say, the cause is
 // zero, so the invocation hangs from the poll; the lookup failure is
 // logged and the batch still runs.
-func (p *pollers) causes(ctx context.Context, c *kernel.Call, pl *poller, target kernel.Target, batch *esm.Batch) (ref.Cause, []ref.EventID) {
+func (p *pollers) causes(ctx context.Context, c *kernel.Call, pl *poller, target kernel.Target, batch *esm.QueueBatch) (ref.Cause, []ref.EventID) {
 	records := batch.Records()
 	handles := make([]string, len(records))
 	for i := range records {

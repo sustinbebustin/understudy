@@ -45,11 +45,23 @@ func emitService(ir *ServiceIR) ([]byte, error) {
 	if ir.QueryCompatible {
 		f.p("\tQueryCompatible: true,")
 	}
+	if ir.ResponseCRC32 {
+		f.p("\tResponseCRC32: true,")
+	}
 	if env := ir.QueryErrorEnvelope; env != (registry.QueryErrorEnvelope{}) {
 		f.p("\tQueryErrorEnvelope: registry.QueryErrorEnvelope{Namespace: %t, Detail: %t},", env.Namespace, env.Detail)
 	}
 	if e := ir.MalformedRequest; e != nil {
 		f.p("\tMalformedRequestError: Identity%s(),", e.Shape.GoName)
+	}
+	if d := ir.Denial; d != nil {
+		// The label is written as its spelling, so a generated package
+		// needs no evidence import (an untyped constant).
+		f.p("\tDenial: registry.Denial{Identity: Identity%s(), Label: %s},", d.Error.Shape.GoName, goString(string(d.Label)))
+	}
+	f.p("\tNewErrorMembers: NewErrorMembers,")
+	if len(ir.Vocabularies) > 0 {
+		f.p("\tGenericErrors: GenericErrors,")
 	}
 	f.p("}\n")
 	vars := make([]string, len(ir.Operations))

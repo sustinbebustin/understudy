@@ -1,0 +1,30 @@
+{
+  "step": "02-signed",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://hl9cpb8a0a.execute-api.us-east-2.amazonaws.com/iam",
+        "headers": [
+          ["Host", "hl9cpb8a0a.execute-api.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164920Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:49:20 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "3530"],
+          ["Connection", "keep-alive"],
+          ["Apigw-Requestid", "GReGsh6WiYcEMmg="]
+        ],
+        "body": "{\"version\": \"2.0\", \"routeKey\": \"GET /iam\", \"rawPath\": \"/iam\", \"rawQueryString\": \"\", \"headers\": {\"accept\": \"*/*\", \"authorization\": \"AWS4-HMAC-SHA256 Credential=ASIAREDACTED/20261103/us-east-2/execute-api/aws4_request, SignedHeaders=host;x-amz-date;x-amz-security-token, Signature=REDACTED\", \"content-length\": \"0\", \"host\": \"hl9cpb8a0a.execute-api.us-east-2.amazonaws.com\", \"user-agent\": \"curl/8.23.0\", \"x-amz-date\": \"20261103T164920Z\", \"x-amz-security-token\": \"REDACTED\", \"x-amzn-trace-id\": \"Root=1-6aea1090-59fc4fac06999b4649337396\", \"x-forwarded-for\": \"198.51.100.2\", \"x-forwarded-port\": \"443\", \"x-forwarded-proto\": \"https\"}, \"requestContext\": {\"accountId\": \"123456789012\", \"apiId\": \"hl9cpb8a0a\", \"authorizer\": {\"iam\": {\"accessKey\": \"ASIAREDACTED\", \"accountId\": \"123456789012\", \"callerId\": \"AROARZPUZDIKAAAAAAAEA:00000000-0000-0000-0000-000000000005\", \"cognitoIdentity\": null, \"principalOrgId\": \"aws:PrincipalOrgID\", \"userArn\": \"arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005\", \"userId\": \"AROARZPUZDIKAAAAAAAEA:00000000-0000-0000-0000-000000000005\"}}, \"domainName\": \"hl9cpb8a0a.execute-api.us-east-2.amazonaws.com\", \"domainPrefix\": \"hl9cpb8a0a\", \"http\": {\"method\": \"GET\", \"path\": \"/iam\", \"protocol\": \"HTTP/1.1\", \"sourceIp\": \"198.51.100.2\", \"userAgent\": \"curl/8.23.0\"}, \"requestId\": \"GReGsh6WiYcEMmg=\", \"routeKey\": \"GET /iam\", \"stage\": \"$default\", \"time\": \"03/Nov/2026:16:49:20 +0000\", \"timeEpoch\": 1793724560754}, \"isBase64Encoded\": false}"
+      }
+    }
+  ]
+}

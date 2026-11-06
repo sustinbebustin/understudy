@@ -1,0 +1,37 @@
+{
+  "step": "22-11-create-deployment",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the CreateDeployment operation: User: arn:aws:sts::123456789012:assumed-role/us1103-apigw1-caller/gw22 is not authorized to perform: apigateway:POST on resource: arn:aws:apigateway:us-east-2::/restapis/iqia6sj0ff/deployments because no identity-based policy allows the apigateway:POST action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/deployments",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,Z,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.create-deployment"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T164934Z"],
+          ["amz-sdk-invocation-id", "6fb136ec-01d5-4d40-838d-cfc77b7efeed"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "19"]
+        ],
+        "body": "{\"stageName\": \"s1\"}"
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:49:34 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "274"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "30a6d6b8-a0f8-45fb-a35d-5590e6bb0c86"],
+          ["x-amzn-ErrorType", "AccessDeniedException"],
+          ["x-amz-apigw-id", "GReI2JNmCYcEdQg="]
+        ],
+        "body": "{\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-apigw1-caller/gw22 is not authorized to perform: apigateway:POST on resource: arn:aws:apigateway:us-east-2::/restapis/iqia6sj0ff/deployments because no identity-based policy allows the apigateway:POST action\"}\n"
+      }
+    }
+  ]
+}

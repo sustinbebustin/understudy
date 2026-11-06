@@ -5,6 +5,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -23,6 +24,14 @@ func (t topicRef) arn() aws.ARN {
 		Account:   t.scope.Account.String(),
 		Resource:  t.name,
 	}
+}
+
+// deliveryFrom is a delivery from the topic, before its mechanism and
+// target are set: SNS's retry policy, and the topic's account as the
+// aws:SourceAccount every call of it sends (switch
+// sns.delivery.source-account, deliverySourceAccount).
+func (t topicRef) deliveryFrom() delivery.Request {
+	return delivery.Request{Source: t.arn(), SourceAccount: t.scope.Account, Policy: delivery.SNSManaged{}}
 }
 
 // fifo reports a FIFO topic, whose name ends in .fifo.

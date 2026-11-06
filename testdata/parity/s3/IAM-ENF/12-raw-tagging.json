@@ -1,0 +1,32 @@
+{
+  "step": "12-raw-tagging",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-enf-b.s3.us-east-2.amazonaws.com/?tagging",
+        "headers": [
+          ["Host", "us1103-enf-b.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T034517Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "FTTNM8YVJBPK6KCG"],
+          ["x-amz-id-2", "lDbZKQevpHvhgFRViQzsMmgmLu7/9T5P7+1H8nsnNuU9XI3HBgaT9+s0zkl9gqogyrxusezeZ9d9gS2rBYr0L99DlOYbiiGL"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:45:17 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: s3:GetBucketTagging on resource: \"arn:aws:s3:::us1103-enf-b\" because no identity-based policy allows the s3:GetBucketTagging action</Message><RequestId>FTTNM8YVJBPK6KCG</RequestId><HostId>lDbZKQevpHvhgFRViQzsMmgmLu7/9T5P7+1H8nsnNuU9XI3HBgaT9+s0zkl9gqogyrxusezeZ9d9gS2rBYr0L99DlOYbiiGL</HostId></Error>"
+      }
+    }
+  ]
+}

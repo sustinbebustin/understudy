@@ -1,0 +1,32 @@
+{
+  "step": "06-tags-schedule-arn",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the ListTagsForResource operation: 1 validation error detected: Value 'arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-x' at 'resourceArn' failed to satisfy constraint: Member must satisfy regular expression pattern: arn:aws[a-z-]*:scheduler:[a-z0-9\\-]+:\\d{12}:schedule-group\\/[0-9a-zA-Z-_.]+",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/tags/arn%3Aaws%3Ascheduler%3Aus-east-2%3A123456789012%3Aschedule%2Fdefault%2Fus1103-x",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,Z,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.list-tags-for-resource"],
+          ["X-Amz-Date", "20261103T163812Z"],
+          ["amz-sdk-invocation-id", "ef317a17-2c9f-4027-920c-873ca6fa9882"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "2d894673-d327-48f6-9e49-df5e7cb0593f"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "291"],
+          ["Date", "Tue, 03 Nov 2026 16:38:12 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"1 validation error detected: Value 'arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-x' at 'resourceArn' failed to satisfy constraint: Member must satisfy regular expression pattern: arn:aws[a-z-]*:scheduler:[a-z0-9\\\\-]+:\\\\d{12}:schedule-group\\\\/[0-9a-zA-Z-_.]+\"}"
+      }
+    }
+  ]
+}

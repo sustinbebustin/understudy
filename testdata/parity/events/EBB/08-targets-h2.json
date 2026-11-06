@@ -1,0 +1,33 @@
+{
+  "step": "08-targets-h2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutTargets"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,b,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-targets"],
+          ["X-Amz-Date", "20261103T163641Z"],
+          ["amz-sdk-invocation-id", "e7d0b4aa-31a8-4fc2-be0b-b41099661a12"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "278"]
+        ],
+        "body": "{\"Rule\": \"us1103-h2r\", \"EventBusName\": \"us1103-h2\", \"Targets\": [{\"Id\": \"q2\", \"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-q2\"}, {\"Id\": \"h3\", \"Arn\": \"arn:aws:events:us-east-2:123456789012:event-bus/us1103-h3\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-ebb-events\"}]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "8b4c40ee-f8a7-4ee6-bc9c-1d659ae6f682"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "41"],
+          ["Date", "Tue, 03 Nov 2026 16:36:41 GMT"]
+        ],
+        "body": "{\"FailedEntries\":[],\"FailedEntryCount\":0}"
+      }
+    }
+  ]
+}

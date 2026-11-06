@@ -67,6 +67,17 @@ func importRules() []importRule {
 		// Keyset pagination for listings. Its client-side checker,
 		// internal/paging/pagingtest, is for test files, which are exempt.
 		"internal/paging",
+		// The payload format 2.0 event and response of function URLs and
+		// API Gateway HTTP APIs.
+		"internal/httpevent",
+		// Resource-policy providers implement authz.PolicyProvider, and
+		// function URLs and API Gateway check a resource policy with
+		// authz.CheckResource (iam-enforcement-surfaces.md 12.2).
+		"internal/authz",
+		// The stream log DynamoDB Streams, Kinesis and Lambda's stream
+		// poller share (dynamodb-streams.md 11.1, ADR 0014 amendment of
+		// 2026-10-26).
+		"internal/shardlog",
 	}
 	return []importRule{
 		// Leaves.
@@ -95,24 +106,54 @@ func importRules() []importRule {
 		{"internal/topology", []string{"internal/docker"}},
 		{"internal/docker/dockertest", []string{"internal/docker"}},
 		{"internal/delivery", []string{"internal/aws", "internal/ref"}},
+		// The shared stream log: pure, keyed by stream ARN, with instants of
+		// the emulator clock's type and the wait key its appends wake
+		// (dynamodb-streams.md 11.1; ARCHITECTURE.md 2).
+		{"internal/shardlog", []string{"internal/aws", "internal/clock", "internal/store"}},
+		// The payload format 2.0 builders function URLs and API Gateway
+		// share (ARCHITECTURE.md 14.7).
+		{"internal/httpevent", nil},
+		// The only outbound dialer; its deadline is wall time from the
+		// emulator clock (ADR 0006, ADR 0015 amendment).
+		{"internal/egress", []string{"internal/clock"}},
 		{"internal/protocol/smithy", []string{"internal/protocol/smithy/document"}},
 
 		// Vocabulary and platform.
 		{"internal/awserr", []string{"internal/ref", "internal/evidence", "internal/protocol/smithy/..."}},
-		{"internal/registry", []string{"internal/awserr", "internal/protocol/smithy/...", "internal/ref", "internal/aws"}},
+		// Service.Denial carries the evidence.Label of its identity
+		// (iam-enforcement-surfaces.md 12.3).
+		{"internal/registry", []string{"internal/awserr", "internal/protocol/smithy/...", "internal/ref", "internal/aws", "internal/evidence"}},
 		// ADR 0007 amendment and ARCHITECTURE.md 10: Delivery events carry a delivery.Mechanism.
 		{"internal/journal", []string{"internal/ref", "internal/aws", "internal/clock", "internal/ids", "internal/delivery"}},
 		// Rules export as JSON through the jsonx tagged-union convention.
 		{"internal/fault", []string{"internal/ref", "internal/aws", "internal/awserr", "internal/protocol/smithy/...", "internal/ids", "internal/delivery", "internal/protocol/jsonx"}},
 		// Recorder entries carry registry.IAMAction.
 		{"internal/access", []string{"internal/ref", "internal/aws", "internal/policydoc", "internal/registry"}},
+		// The authorization vocabulary: providers return policydoc documents
+		// for aws.ARN targets, and a resource request names a
+		// registry.IAMAction. The multi-policy decision takes an
+		// identity.Principal, the request context reads the emulator clock,
+		// and Switches registers the evaluation switches
+		// (iam-evaluation.md 12.1, 12.3).
+		{"internal/authz", []string{
+			"internal/aws", "internal/policydoc", "internal/registry", "internal/identity", "internal/clock",
+			"internal/fidelity", "internal/evidence",
+		}},
 		{"internal/identity", []string{"internal/aws", "internal/ids", "internal/clock"}},
 		{"internal/auth", []string{"internal/aws", "internal/awserr", "internal/clock", "internal/ref"}},
 		{"internal/kernel", kernel},
 		{"internal/kernel/kerneltest", append(slices.Clone(kernel), "internal/kernel")},
+		// The kernel.Authorizer of iam.enforce advise and enforce: it reads a
+		// call, decides each pair with authz, journals advisories through
+		// kernel.Call.Record and renders denials as awserr errors
+		// (iam-enforcement-surfaces.md 12.1).
+		{"internal/enforce", []string{
+			"internal/kernel", "internal/authz", "internal/policydoc", "internal/identity", "internal/journal",
+			"internal/registry", "internal/aws", "internal/awserr", "internal/clock", "internal/ref",
+		}},
 		{"internal/outbox", []string{
 			"internal/kernel", "internal/delivery", "internal/journal", "internal/store", "internal/clock",
-			"internal/api/...", // attempts call the generated SendMessage, Invoke and Publish ops
+			"internal/api/...", // attempts call the generated SendMessage, Invoke, Publish, PutEvents, StartExecution and PutObject ops
 			// Entries live in Partitioned[aws.Scope, State], Enqueue takes a
 			// ref.Cause and returns an ids.DeliveryID, and Stateful exports
 			// through jsonx (ARCHITECTURE.md 13).
@@ -121,11 +162,20 @@ func importRules() []importRule {
 			// (QueueDoesNotExist) are told apart by their awserr identity.
 			"internal/fault", "internal/awserr",
 			// Access advisories call access.Advise with the target's stored
-			// policydoc.Document and the registry.IAMAction of the attempt.
-			"internal/access", "internal/policydoc", "internal/registry",
+			// policydoc.Document and the registry.IAMAction of the attempt;
+			// PolicySource is authz.PolicyProvider.
+			"internal/access", "internal/policydoc", "internal/registry", "internal/authz",
+			// HTTPEndpoint attempts go out through the one outbound dialer
+			// (ADR 0015 amendment).
+			"internal/egress",
 		}},
-		// The manifest records JournalNext as a ref.EventID.
-		{"internal/snapshot", []string{"internal/store", "internal/blob", "internal/protocol/jsonx", "internal/clock", "internal/ids", "internal/ref"}},
+		// The closed normalizer set snapshot and the parity replayer share
+		// (ARCHITECTURE.md 12, 19): minted access keys decode through ids,
+		// scope keys through store.
+		{"internal/normalize", []string{"internal/ids", "internal/store"}},
+		// The manifest records JournalNext as a ref.EventID; the scalar and
+		// text masks are the shared normalizer set.
+		{"internal/snapshot", []string{"internal/store", "internal/blob", "internal/protocol/jsonx", "internal/clock", "internal/ids", "internal/ref", "internal/normalize"}},
 		// The report keys suites and services by ref.ProtocolID and
 		// ref.ServiceID, writes its sums in the jsonx tagged-union
 		// convention and reads overlay files with the jsonx decoder.
@@ -150,6 +200,29 @@ func importRules() []importRule {
 		// The raw S3 Control tag operations read and write their XML
 		// bodies with xmlw and stamp x-amz-id-2 as the restXml codec does.
 		{"internal/service/s3", append(slices.Clone(service), "internal/protocol/xmlw", "internal/protocol/restxml")},
+		// IAM serves AWS managed policies from the shipped catalogue (ADR
+		// 0016, amendment "managed policies").
+		{"internal/service/iam", append(slices.Clone(service), "internal/policycatalogue")},
+		// The States Language engine is pure (stepfunctions-asl.md 15.2): JSON
+		// values are documents, persisted sums use jsonx (ARCHITECTURE.md 13).
+		// Never the kernel, clock, ids or store the service row allows; the
+		// service hands it times, draws and events.
+		{"internal/service/sfn/asl/...", []string{"internal/service/sfn/asl/...", "internal/protocol/smithy/document", "internal/protocol/jsonx"}},
+		// SES is journal-only: nothing is ever sent, so it gets the service
+		// rule and nothing more, in particular never internal/egress (ses.md
+		// 11.8); net/smtp is a depguard deny in .golangci.yml.
+		{"internal/service/ses", service},
+		// Scheduler gets the service rule and nothing more: it reads roles
+		// through IAM's internal ResolveRole and reaches its targets through
+		// the outbox, both by kernel.Invoke, never by import (scheduler.md
+		// 14.4, 14.14.5).
+		{"internal/service/scheduler", service},
+
+		// The AWS managed policy catalogue: the embedded data files import
+		// nothing, and the typed catalogue reads them and checks names and
+		// paths with the aws leaf (ADR 0016, amendment "managed policies").
+		{"third_party/aws-managed-policies", nil},
+		{"internal/policycatalogue", []string{"internal/aws", "third_party/aws-managed-policies"}},
 
 		// Front door, composition root and tools.
 		{"internal/edge", []string{
@@ -165,16 +238,27 @@ func importRules() []importRule {
 			// (ARCHITECTURE.md 4.1 rule 1); admin imports nothing in the
 			// repository.
 			"admin",
+			// Kinesis's CBOR refusal is written in CBOR, so the AWS SDK for
+			// Java can parse it (kinesis.md 13.4 item 2, 13.9).
+			"internal/protocol/cbor",
 		}},
 		{"internal/server", []string{"internal/...", "admin"}},
+		// The web UI's static files and session secret: standard library
+		// only; the admin handler checks the secret (ADR 0020).
+		{"internal/server/ui", nil},
 		{"internal/server/admin", []string{
 			"admin", "internal/kernel", "internal/journal", "internal/snapshot", "internal/fault", "internal/clock",
 			"internal/access", "internal/registry", "internal/coverage", "internal/aws", "internal/ref", "internal/awserr",
 			"internal/ids", "internal/store", "internal/blob", "internal/policydoc", "internal/identity", "internal/protocol/jsonx",
+			// POST /iam/evaluate asks the enforce.Authorizer and renders its
+			// authz outcomes.
+			"internal/enforce", "internal/authz",
 		}},
 		// Config parses and validates the default account and the regions
-		// through aws, and carries the fault rules to preload as fault.Rule.
-		{"internal/config", []string{"internal/aws", "internal/fault"}},
+		// through aws, carries the fault rules to preload as fault.Rule, and
+		// parses sns.httpDelivery.allow with egress at load, so a bad entry
+		// stops serve (ADR 0015 amendment).
+		{"internal/config", []string{"internal/aws", "internal/fault", "internal/egress"}},
 		// Docker-tagged tests reach the daemon serve would use, resolved by
 		// config; only test files import it.
 		{"internal/config/configtest", []string{"internal/config", "internal/docker"}},
@@ -194,6 +278,10 @@ func importRules() []importRule {
 		// The -service flag is a ref.ServiceID, a leaf codegen imports too.
 		{"internal/cmd/gen", []string{"internal/codegen", "internal/ref"}},
 		{"internal/cmd/vendor", nil},
+		// The catalogue generator writes policycatalogue's format under the
+		// data package's file names, splits ARNs with the aws leaf and
+		// checks every document with policydoc.
+		{"internal/cmd/managedpolicies", []string{"internal/policycatalogue", "internal/policydoc", "internal/aws", "third_party/aws-managed-policies"}},
 		// The golden fixture is generated like internal/api/..., so it
 		// mirrors that row; serdetest holds the serde test doubles, and
 		// validationpolicy is the policy runtime codegen embeds and copies.
@@ -211,10 +299,11 @@ func importRules() []importRule {
 		// from the case vocabulary in internal/protocoltest/gen (case.go).
 		{"internal/protocoltest/gen/...", []string{"internal/protocoltest/gen", "internal/protocol/smithy/...", "internal/awserr", "internal/registry", "internal/kernel", "internal/aws", "internal/ref"}},
 		{"internal/smoke", nil},
-		// The parity replayer shares snapshot's normalizer set and reports
-		// fixtures by evidence label, so it may import only those two
-		// (ARCHITECTURE.md 2, 19).
-		{"internal/parity", []string{"internal/snapshot", "internal/evidence"}},
+		// The parity replayer shares snapshot's normalizer set, now
+		// internal/normalize, and may import only it; its tests drive
+		// internal/server, and coverage reads its baseline.json without
+		// importing it (ARCHITECTURE.md 2, 19).
+		{"internal/parity", []string{"internal/normalize"}},
 		// Docker-tagged checks of the release image; no runtime code.
 		{"internal/distribution", nil},
 	}
@@ -262,6 +351,16 @@ var _ = fmt.Sprint
 import (
 	_ "example.com/m/internal/service/sns"
 	_ "example.com/m/internal/service/sqs/attrs"
+)
+`,
+		// The States Language engine never reaches the kernel, though the
+		// service row around it would allow it.
+		"internal/service/sfn/asl/asl.go": `package asl
+
+import (
+	_ "example.com/m/internal/kernel"
+	_ "example.com/m/internal/protocol/smithy/document"
+	_ "example.com/m/internal/service/sfn/asl/jsonpath"
 )
 `,
 		// The base of a "/..." row follows that row.
@@ -313,6 +412,7 @@ import _ "example.com/m/internal/journal"
 		"internal/aws imports internal/journal, which ARCHITECTURE.md section 2 does not allow; it may import nothing in the repository",
 		"internal/aws imports internal/kernel, which ARCHITECTURE.md section 2 does not allow; it may import nothing in the repository",
 		"internal/newpkg has no row in the import table of internal/ref/deps_test.go; add one that mirrors ARCHITECTURE.md section 2",
+		"internal/service/sfn/asl imports internal/kernel, which ARCHITECTURE.md section 2 does not allow; it may import internal/service/sfn/asl/..., internal/protocol/smithy/document, internal/protocol/jsonx",
 		"internal/service/sqs imports internal/service/sns, which ARCHITECTURE.md section 2 does not allow; a service reaches another through kernel.Invoke with the generated Op",
 	}
 	if !slices.Equal(got, want) {
@@ -321,13 +421,13 @@ import _ "example.com/m/internal/journal"
 }
 
 // importViolations parses the import specs of every non-test Go file in the
-// packages under root's internal, admin, understudytest and cmd trees and
-// returns one message per disallowed edge, sorted. Packages are paths
-// relative to root; directories named testdata or starting with . or _ are
-// skipped, as the go tool does.
+// packages under root's internal, admin, understudytest, cmd and
+// third_party trees and returns one message per disallowed edge, sorted.
+// Packages are paths relative to root; directories named testdata or
+// starting with . or _ are skipped, as the go tool does.
 func importViolations(root, module string, rules []importRule) ([]string, error) {
 	imports := map[string]map[string]bool{}
-	for _, top := range []string{"internal", "admin", "understudytest", "cmd"} {
+	for _, top := range []string{"internal", "admin", "understudytest", "cmd", "third_party"} {
 		err := filepath.WalkDir(filepath.Join(root, top), func(path string, d fs.DirEntry, err error) error {
 			switch {
 			case os.IsNotExist(err):

@@ -7,7 +7,7 @@
 
 ## Expected
 
-Compared against understudy built from /home/austin/dev/local-aws-stack on 2026-10-14, replaying a copy of r17.sh through scripts/sealed (account 123456789012). Paths are repo-relative.
+Compared against understudy built on 2026-10-14, replaying a copy of r17.sh through scripts/sealed (account 123456789012). Paths are repo-relative.
 
 NOTE: AWS refused 01-config-full (queue ObjectCreated:* overlaps lambda ObjectCreated:Put), so the unversioned bucket kept config "ps" (prefix a, suffix .txt): no SNS or Lambda events, no lat-* events, and only the 'a b/ü+1.txt' put from that bucket. understudy refused it too, so both runs hold the same configuration.
 

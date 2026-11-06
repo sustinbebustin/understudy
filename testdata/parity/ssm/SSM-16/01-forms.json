@@ -1,0 +1,36 @@
+{
+  "step": "01-forms",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.LabelParameterVersion"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,g,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.label-parameter-version"],
+          ["X-Amz-Date", "20261103T163654Z"],
+          ["amz-sdk-invocation-id", "002d298c-deda-48df-8e75-05c528350e57"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "108"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/l16\", \"ParameterVersion\": 1, \"Labels\": [\"1abc\", \"awsx\", \"SSMy\", \"a:b\", \"a/b\", \"ok-1\"]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:54 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "73"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "7fc48649-7f85-418b-9de2-c1c4cc87b2ac"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"InvalidLabels\":[\"a/b\",\"1abc\",\"awsx\",\"a:b\",\"SSMy\"],\"ParameterVersion\":1}"
+      }
+    }
+  ]
+}

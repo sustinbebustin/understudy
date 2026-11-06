@@ -1,0 +1,6 @@
+{
+  "service": "com.amazonaws.dynamodbstreams#DynamoDBStreams_20120810",
+  "package": "dynamodbstreamsapi",
+  "model": "dynamodb-streams",
+  "iamPrefix": "dynamodb"
+}

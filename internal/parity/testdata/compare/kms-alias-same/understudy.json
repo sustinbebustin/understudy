@@ -1,0 +1,19 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an answer to kms/KMS-alias/01-duplicate that differs only in what is not compared or is normalized: another request id and Date, no Cache-Control, Expires or Pragma",
+  "exchanges": [
+    {
+      "response": {
+        "status": 400,
+        "headers": [
+          ["X-Amzn-Requestid", "5e0e8a8e-2d55-4a63-8d6e-7f3a1c1b9e01"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Date", "Mon, 26 Oct 2026 09:00:00 GMT"],
+          ["Content-Length", "147"]
+        ],
+        "body": "{\"__type\":\"AlreadyExistsException\",\"message\":\"An alias with the name arn:aws:kms:us-east-2:123456789012:alias/usr-rec-20261014-dup already exists\"}"
+      }
+    }
+  ]
+}

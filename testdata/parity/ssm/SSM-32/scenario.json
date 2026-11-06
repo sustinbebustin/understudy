@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "item": "SSM-32",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "curl",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/n32",
+        "Type": "String",
+        "Value": "v"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-32/01-by-path.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-32/02-describe.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-32/03-history.json",
+      "compare": "all"
+    }
+  ]
+}

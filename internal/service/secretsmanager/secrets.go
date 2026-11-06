@@ -58,6 +58,20 @@ func (s *Service) findUsable(c *kernel.Call, id string) (secretRef, Secret, *aws
 	return r, sec, nil
 }
 
+// createTarget is the secret a CreateSecret of name addresses: the one the
+// name holds, else the ARN createSecret gives the new secret.
+func (s *Service) createTarget(c *kernel.Call, name string) aws.ARN {
+	scope := c.Scope()
+	type found struct {
+		sec Secret
+		ok  bool
+	}
+	if f := readState(s, scope, func(st *State) found { sec, ok := st.Secrets[name]; return found{sec, ok} }); f.ok {
+		return f.sec.arn(scope)
+	}
+	return secretARN(scope, name, newSuffix(c.ID()))
+}
+
 func (s *Service) createSecret(ctx context.Context, c *kernel.Call, in *secretsmanagerapi.CreateSecretInput) (*secretsmanagerapi.CreateSecretOutput, *awserr.Error) {
 	if len(in.AddReplicaRegions) > 0 {
 		return nil, errUnsupported("replication (AddReplicaRegions)")

@@ -48,6 +48,8 @@ type config struct {
 	seed        uint64
 	journalFile string
 	log         *slog.Logger
+	authorizer  kernel.Authorizer
+	deliver     kernel.DeliverSink
 }
 
 // Option adjusts Run.
@@ -78,6 +80,17 @@ func JournalFile(path string) Option {
 // Log sends the kernel's diagnostics to l; by default they are discarded.
 func Log(l *slog.Logger) Option {
 	return func(c *config) { c.log = l }
+}
+
+// Authorizer sets kernel.Options.Authorizer; without it the kernel has none.
+func Authorizer(a kernel.Authorizer) Option {
+	return func(c *config) { c.authorizer = a }
+}
+
+// Deliver sets kernel.Options.Deliver, so a test sees the deliveries
+// Tx.Deliver produces; without it a write that delivers fails Internal.
+func Deliver(sink kernel.DeliverSink) Option {
+	return func(c *config) { c.deliver = sink }
 }
 
 // Run runs fn inside a synctest bubble against a running kernel: a frozen
@@ -139,7 +152,7 @@ func build(t *testing.T, cfg config) *K {
 	idStore := identity.New(src, aws.DefaultAccount())
 	k, err := kernel.New(kernel.Options{
 		Registry: reg, Clock: clk, Timers: timers, IDs: src, Journal: j,
-		Faults: faults, Access: rec, Identity: idStore, Log: cfg.log, Strict: true,
+		Faults: faults, Access: rec, Identity: idStore, Authorizer: cfg.authorizer, Deliver: cfg.deliver, Log: cfg.log, Strict: true,
 	})
 	if err != nil {
 		t.Fatal(err)

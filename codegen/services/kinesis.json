@@ -1,0 +1,29 @@
+{
+  "service": "com.amazonaws.kinesis#Kinesis_20131202",
+  "package": "kinesisapi",
+  "model": "kinesis",
+  "iamPrefix": "kinesis",
+  "boundOperations": [
+    "AddTagsToStream",
+    "CreateStream",
+    "DecreaseStreamRetentionPeriod",
+    "DeleteStream",
+    "DescribeLimits",
+    "DescribeStream",
+    "DescribeStreamSummary",
+    "DisableEnhancedMonitoring",
+    "EnableEnhancedMonitoring",
+    "GetRecords",
+    "GetShardIterator",
+    "IncreaseStreamRetentionPeriod",
+    "ListShards",
+    "ListStreams",
+    "ListTagsForResource",
+    "ListTagsForStream",
+    "PutRecord",
+    "PutRecords",
+    "RemoveTagsFromStream",
+    "TagResource",
+    "UntagResource"
+  ]
+}

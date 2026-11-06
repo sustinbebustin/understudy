@@ -1,0 +1,33 @@
+{
+  "step": "implicit-s3api",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDenied) when calling the ListBuckets operation: User: arn:aws:sts::123456789012:assumed-role/us1103-eval-none/none is not authorized to perform: s3:ListAllMyBuckets because no identity-based policy allows the s3:ListAllMyBuckets action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://s3.us-east-2.amazonaws.com/",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,C,g,b,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.list-buckets"],
+          ["X-Amz-Date", "20261103T031943Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "592f2426-fef1-493c-a4ab-02175b14ab47"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "EHRJ10MC4FXXSVZ7"],
+          ["x-amz-id-2", "f+BmKggEaX9XrOlkr7Wa6oEe6t783NylluBJiVdzsuxJS6xX1DHZiTthmoaNLVQhYD9BIHMh1aR471zB4syIlFcXBm12LMD1"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:19:42 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>User: arn:aws:sts::123456789012:assumed-role/us1103-eval-none/none is not authorized to perform: s3:ListAllMyBuckets because no identity-based policy allows the s3:ListAllMyBuckets action</Message><RequestId>EHRJ10MC4FXXSVZ7</RequestId><HostId>f+BmKggEaX9XrOlkr7Wa6oEe6t783NylluBJiVdzsuxJS6xX1DHZiTthmoaNLVQhYD9BIHMh1aR471zB4syIlFcXBm12LMD1</HostId></Error>"
+      }
+    }
+  ]
+}

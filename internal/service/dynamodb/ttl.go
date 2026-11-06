@@ -43,12 +43,16 @@ import (
 // running clock. The sweep's calls run through the pipeline as
 // dynamodb.amazonaws.com, with Origin Internal{Via: DynamoDBTTL} and the
 // timer's due instant; an update's read-back is part of the write's own
-// handling and reaches Local directly (readExpiry).
+// handling and reaches Local directly (readExpiry). TTL deletes are
+// DynamoDB's own service deletions (dynamodb-local.md 5.1), which no
+// policy grants, so the sweep runs as the platform (kernel.AsPlatform): it
+// is neither authorized nor access-recorded, and no generated policy lists
+// its actions.
 
 // ttlTimer is the kind of the sweep timers.
 const ttlTimer kernel.TimerKind = "dynamodb.ttl"
 
-// ttlPrincipal is the service principal TTL deletes run as; AWS's stream
+// ttlPrincipal is the platform principal TTL deletes run as; AWS's stream
 // records name it in userIdentity (dynamodb-local.md 5.1).
 const ttlPrincipal = "dynamodb.amazonaws.com"
 
@@ -303,7 +307,7 @@ func (s *Service) onSweep(c *kernel.Call, key clock.TimerKey, due clock.Instant)
 func (s *Service) sweep(ctx context.Context, parent *kernel.Call, k tableKey, attribute string, due clock.Instant) (int, error) {
 	x := invoker{s: s, parent: parent, target: kernel.Target{
 		Scope: k.scope, Via: ref.DynamoDBTTL, At: due,
-		As: kernel.AsService{Name: ttlPrincipal, Source: tableARN(k.scope, k.table)},
+		As: kernel.AsPlatform{Name: ttlPrincipal},
 	}}
 	var described dynamodbapi.DescribeTableOutput
 	if err := x.describe(ctx, k.table, &described); err != nil {

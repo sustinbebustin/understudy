@@ -9,183 +9,187 @@ import (
 
 var schemaAPIErrorListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#APIErrorListType", Type: smithy.TypeList}
 
-var memberAPIErrorListType_member = smithy.Member{Name: "member", Index: 0}
+var memberAPIErrorListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaAPIErrorType}
 
 var schemaAPIErrorType = smithy.Schema{ID: "com.amazonaws.secretsmanager#APIErrorType", Type: smithy.TypeStructure}
 
-var memberAPIErrorType_SecretId = smithy.Member{Name: "SecretId", Index: 0}
+var memberAPIErrorType_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType}
 
-var memberAPIErrorType_ErrorCode = smithy.Member{Name: "ErrorCode", Index: 1}
+var memberAPIErrorType_ErrorCode = smithy.Member{Name: "ErrorCode", Index: 1, Target: &schemaErrorCode}
 
-var memberAPIErrorType_Message = smithy.Member{Name: "Message", Index: 2}
+var memberAPIErrorType_Message = smithy.Member{Name: "Message", Index: 2, Target: &schemaErrorMessage}
 
-var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaAccessDeniedException = smithy.Schema{ID: "com.amazonaws.secretsmanager#AccessDeniedException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessDeniedException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
+var memberAccessDeniedException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString}
 
-var schemaAddReplicaRegionListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#AddReplicaRegionListType", Type: smithy.TypeList}
+var schemaAddReplicaRegionListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#AddReplicaRegionListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberAddReplicaRegionListType_member}}
 
-var memberAddReplicaRegionListType_member = smithy.Member{Name: "member", Index: 0}
+var memberAddReplicaRegionListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicaRegionType}
 
 var schemaAutomaticallyRotateAfterDaysType = smithy.Schema{ID: "com.amazonaws.secretsmanager#AutomaticallyRotateAfterDaysType", Type: smithy.TypeLong}
 
 var schemaBatchGetSecretValueInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#BatchGetSecretValueRequest", Type: smithy.TypeStructure}
 
-var memberBatchGetSecretValueInput_SecretIdList = smithy.Member{Name: "SecretIdList", Index: 0}
+var memberBatchGetSecretValueInput_SecretIdList = smithy.Member{Name: "SecretIdList", Index: 0, Target: &schemaSecretIdListType}
 
-var memberBatchGetSecretValueInput_Filters = smithy.Member{Name: "Filters", Index: 1}
+var memberBatchGetSecretValueInput_Filters = smithy.Member{Name: "Filters", Index: 1, Target: &schemaFiltersListType}
 
-var memberBatchGetSecretValueInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2}
+var memberBatchGetSecretValueInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2, Target: &schemaMaxResultsBatchType}
 
-var memberBatchGetSecretValueInput_NextToken = smithy.Member{Name: "NextToken", Index: 3}
+var memberBatchGetSecretValueInput_NextToken = smithy.Member{Name: "NextToken", Index: 3, Target: &schemaNextTokenType}
 
 var schemaBatchGetSecretValueOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#BatchGetSecretValueResponse", Type: smithy.TypeStructure}
 
-var memberBatchGetSecretValueOutput_SecretValues = smithy.Member{Name: "SecretValues", Index: 0}
+var memberBatchGetSecretValueOutput_SecretValues = smithy.Member{Name: "SecretValues", Index: 0, Target: &schemaSecretValuesType}
 
-var memberBatchGetSecretValueOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1}
+var memberBatchGetSecretValueOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextTokenType}
 
-var memberBatchGetSecretValueOutput_Errors = smithy.Member{Name: "Errors", Index: 2}
+var memberBatchGetSecretValueOutput_Errors = smithy.Member{Name: "Errors", Index: 2, Target: &schemaAPIErrorListType}
 
 var schemaBooleanType = smithy.Schema{ID: "com.amazonaws.secretsmanager#BooleanType", Type: smithy.TypeBoolean}
 
 var schemaCancelRotateSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#CancelRotateSecretRequest", Type: smithy.TypeStructure}
 
-var memberCancelRotateSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberCancelRotateSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
 var schemaCancelRotateSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#CancelRotateSecretResponse", Type: smithy.TypeStructure}
 
-var memberCancelRotateSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberCancelRotateSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberCancelRotateSecretOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberCancelRotateSecretOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
-var memberCancelRotateSecretOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2}
+var memberCancelRotateSecretOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2, Target: &schemaSecretVersionIdType}
 
 var schemaClientRequestTokenType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ClientRequestTokenType", Type: smithy.TypeString}
 
-var schemaCreateSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#CreateSecretRequest", Type: smithy.TypeStructure}
+var schemaCoralServiceAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCoralServiceAccessDeniedException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberCreateSecretInput_Name = smithy.Member{Name: "Name", Index: 0, Required: true}
+var memberCoralServiceAccessDeniedException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var memberCreateSecretInput_ClientRequestToken = smithy.Member{Name: "ClientRequestToken", Index: 1}
+var schemaCreateSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#CreateSecretRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateSecretInput_Name, &memberCreateSecretInput_ClientRequestToken, &memberCreateSecretInput_Description, &memberCreateSecretInput_KmsKeyId, &memberCreateSecretInput_SecretBinary, &memberCreateSecretInput_SecretString, &memberCreateSecretInput_Tags, &memberCreateSecretInput_AddReplicaRegions, &memberCreateSecretInput_ForceOverwriteReplicaSecret, &memberCreateSecretInput_Type}}
 
-var memberCreateSecretInput_Description = smithy.Member{Name: "Description", Index: 2}
+var memberCreateSecretInput_Name = smithy.Member{Name: "Name", Index: 0, Target: &schemaNameType, Required: true}
 
-var memberCreateSecretInput_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 3}
+var memberCreateSecretInput_ClientRequestToken = smithy.Member{Name: "ClientRequestToken", Index: 1, Target: &schemaClientRequestTokenType}
 
-var memberCreateSecretInput_SecretBinary = smithy.Member{Name: "SecretBinary", Index: 4, Sensitive: true}
+var memberCreateSecretInput_Description = smithy.Member{Name: "Description", Index: 2, Target: &schemaDescriptionType}
 
-var memberCreateSecretInput_SecretString = smithy.Member{Name: "SecretString", Index: 5, Sensitive: true}
+var memberCreateSecretInput_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 3, Target: &schemaKmsKeyIdType}
 
-var memberCreateSecretInput_Tags = smithy.Member{Name: "Tags", Index: 6}
+var memberCreateSecretInput_SecretBinary = smithy.Member{Name: "SecretBinary", Index: 4, Target: &schemaSecretBinaryType, Sensitive: true}
 
-var memberCreateSecretInput_AddReplicaRegions = smithy.Member{Name: "AddReplicaRegions", Index: 7}
+var memberCreateSecretInput_SecretString = smithy.Member{Name: "SecretString", Index: 5, Target: &schemaSecretStringType, Sensitive: true}
 
-var memberCreateSecretInput_ForceOverwriteReplicaSecret = smithy.Member{Name: "ForceOverwriteReplicaSecret", Index: 8, Default: document.Bool(false)}
+var memberCreateSecretInput_Tags = smithy.Member{Name: "Tags", Index: 6, Target: &schemaTagListType}
 
-var memberCreateSecretInput_Type = smithy.Member{Name: "Type", Index: 9}
+var memberCreateSecretInput_AddReplicaRegions = smithy.Member{Name: "AddReplicaRegions", Index: 7, Target: &schemaAddReplicaRegionListType}
 
-var schemaCreateSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#CreateSecretResponse", Type: smithy.TypeStructure}
+var memberCreateSecretInput_ForceOverwriteReplicaSecret = smithy.Member{Name: "ForceOverwriteReplicaSecret", Index: 8, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberCreateSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberCreateSecretInput_Type = smithy.Member{Name: "Type", Index: 9, Target: &schemaMedeaTypeType}
 
-var memberCreateSecretOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var schemaCreateSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#CreateSecretResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateSecretOutput_ARN, &memberCreateSecretOutput_Name, &memberCreateSecretOutput_VersionId, &memberCreateSecretOutput_ReplicationStatus}}
 
-var memberCreateSecretOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2}
+var memberCreateSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberCreateSecretOutput_ReplicationStatus = smithy.Member{Name: "ReplicationStatus", Index: 3}
+var memberCreateSecretOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
+
+var memberCreateSecretOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2, Target: &schemaSecretVersionIdType}
+
+var memberCreateSecretOutput_ReplicationStatus = smithy.Member{Name: "ReplicationStatus", Index: 3, Target: &schemaReplicationStatusListType}
 
 var schemaCreatedDateType = smithy.Schema{ID: "com.amazonaws.secretsmanager#CreatedDateType", Type: smithy.TypeTimestamp}
 
-var schemaDecryptionFailure = smithy.Schema{ID: "com.amazonaws.secretsmanager#DecryptionFailure", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaDecryptionFailure = smithy.Schema{ID: "com.amazonaws.secretsmanager#DecryptionFailure", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDecryptionFailure_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberDecryptionFailure_Message = smithy.Member{Name: "Message", Index: 0}
+var memberDecryptionFailure_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaDeleteResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DeleteResourcePolicyRequest", Type: smithy.TypeStructure}
+var schemaDeleteResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DeleteResourcePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteResourcePolicyInput_SecretId}}
 
-var memberDeleteResourcePolicyInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberDeleteResourcePolicyInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var schemaDeleteResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DeleteResourcePolicyResponse", Type: smithy.TypeStructure}
+var schemaDeleteResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DeleteResourcePolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteResourcePolicyOutput_ARN, &memberDeleteResourcePolicyOutput_Name}}
 
-var memberDeleteResourcePolicyOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberDeleteResourcePolicyOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberDeleteResourcePolicyOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberDeleteResourcePolicyOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaNameType}
 
-var schemaDeleteSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DeleteSecretRequest", Type: smithy.TypeStructure}
+var schemaDeleteSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DeleteSecretRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteSecretInput_SecretId, &memberDeleteSecretInput_RecoveryWindowInDays, &memberDeleteSecretInput_ForceDeleteWithoutRecovery}}
 
-var memberDeleteSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberDeleteSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberDeleteSecretInput_RecoveryWindowInDays = smithy.Member{Name: "RecoveryWindowInDays", Index: 1}
+var memberDeleteSecretInput_RecoveryWindowInDays = smithy.Member{Name: "RecoveryWindowInDays", Index: 1, Target: &schemaRecoveryWindowInDaysType}
 
-var memberDeleteSecretInput_ForceDeleteWithoutRecovery = smithy.Member{Name: "ForceDeleteWithoutRecovery", Index: 2}
+var memberDeleteSecretInput_ForceDeleteWithoutRecovery = smithy.Member{Name: "ForceDeleteWithoutRecovery", Index: 2, Target: &schemaBooleanType}
 
-var schemaDeleteSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DeleteSecretResponse", Type: smithy.TypeStructure}
+var schemaDeleteSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DeleteSecretResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteSecretOutput_ARN, &memberDeleteSecretOutput_Name, &memberDeleteSecretOutput_DeletionDate}}
 
-var memberDeleteSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberDeleteSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberDeleteSecretOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberDeleteSecretOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
-var memberDeleteSecretOutput_DeletionDate = smithy.Member{Name: "DeletionDate", Index: 2}
+var memberDeleteSecretOutput_DeletionDate = smithy.Member{Name: "DeletionDate", Index: 2, Target: &schemaDeletionDateType}
 
 var schemaDeletedDateType = smithy.Schema{ID: "com.amazonaws.secretsmanager#DeletedDateType", Type: smithy.TypeTimestamp}
 
 var schemaDeletionDateType = smithy.Schema{ID: "com.amazonaws.secretsmanager#DeletionDateType", Type: smithy.TypeTimestamp}
 
-var schemaDescribeSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DescribeSecretRequest", Type: smithy.TypeStructure}
+var schemaDescribeSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DescribeSecretRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeSecretInput_SecretId}}
 
-var memberDescribeSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberDescribeSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var schemaDescribeSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DescribeSecretResponse", Type: smithy.TypeStructure}
+var schemaDescribeSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#DescribeSecretResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeSecretOutput_ARN, &memberDescribeSecretOutput_Name, &memberDescribeSecretOutput_Type, &memberDescribeSecretOutput_Description, &memberDescribeSecretOutput_KmsKeyId, &memberDescribeSecretOutput_RotationEnabled, &memberDescribeSecretOutput_RotationLambdaARN, &memberDescribeSecretOutput_RotationRules, &memberDescribeSecretOutput_ExternalSecretRotationMetadata, &memberDescribeSecretOutput_ExternalSecretRotationRoleArn, &memberDescribeSecretOutput_LastRotatedDate, &memberDescribeSecretOutput_LastChangedDate, &memberDescribeSecretOutput_LastAccessedDate, &memberDescribeSecretOutput_DeletedDate, &memberDescribeSecretOutput_NextRotationDate, &memberDescribeSecretOutput_Tags, &memberDescribeSecretOutput_VersionIdsToStages, &memberDescribeSecretOutput_OwningService, &memberDescribeSecretOutput_CreatedDate, &memberDescribeSecretOutput_PrimaryRegion, &memberDescribeSecretOutput_ReplicationStatus}}
 
-var memberDescribeSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberDescribeSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberDescribeSecretOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberDescribeSecretOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
-var memberDescribeSecretOutput_Type = smithy.Member{Name: "Type", Index: 2}
+var memberDescribeSecretOutput_Type = smithy.Member{Name: "Type", Index: 2, Target: &schemaMedeaTypeType}
 
-var memberDescribeSecretOutput_Description = smithy.Member{Name: "Description", Index: 3}
+var memberDescribeSecretOutput_Description = smithy.Member{Name: "Description", Index: 3, Target: &schemaDescriptionType}
 
-var memberDescribeSecretOutput_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 4}
+var memberDescribeSecretOutput_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 4, Target: &schemaKmsKeyIdType}
 
-var memberDescribeSecretOutput_RotationEnabled = smithy.Member{Name: "RotationEnabled", Index: 5}
+var memberDescribeSecretOutput_RotationEnabled = smithy.Member{Name: "RotationEnabled", Index: 5, Target: &schemaRotationEnabledType}
 
-var memberDescribeSecretOutput_RotationLambdaARN = smithy.Member{Name: "RotationLambdaARN", Index: 6}
+var memberDescribeSecretOutput_RotationLambdaARN = smithy.Member{Name: "RotationLambdaARN", Index: 6, Target: &schemaRotationLambdaARNType}
 
-var memberDescribeSecretOutput_RotationRules = smithy.Member{Name: "RotationRules", Index: 7}
+var memberDescribeSecretOutput_RotationRules = smithy.Member{Name: "RotationRules", Index: 7, Target: &schemaRotationRulesType}
 
-var memberDescribeSecretOutput_ExternalSecretRotationMetadata = smithy.Member{Name: "ExternalSecretRotationMetadata", Index: 8}
+var memberDescribeSecretOutput_ExternalSecretRotationMetadata = smithy.Member{Name: "ExternalSecretRotationMetadata", Index: 8, Target: &schemaExternalSecretRotationMetadataType}
 
-var memberDescribeSecretOutput_ExternalSecretRotationRoleArn = smithy.Member{Name: "ExternalSecretRotationRoleArn", Index: 9}
+var memberDescribeSecretOutput_ExternalSecretRotationRoleArn = smithy.Member{Name: "ExternalSecretRotationRoleArn", Index: 9, Target: &schemaRoleARNType}
 
-var memberDescribeSecretOutput_LastRotatedDate = smithy.Member{Name: "LastRotatedDate", Index: 10}
+var memberDescribeSecretOutput_LastRotatedDate = smithy.Member{Name: "LastRotatedDate", Index: 10, Target: &schemaLastRotatedDateType}
 
-var memberDescribeSecretOutput_LastChangedDate = smithy.Member{Name: "LastChangedDate", Index: 11}
+var memberDescribeSecretOutput_LastChangedDate = smithy.Member{Name: "LastChangedDate", Index: 11, Target: &schemaLastChangedDateType}
 
-var memberDescribeSecretOutput_LastAccessedDate = smithy.Member{Name: "LastAccessedDate", Index: 12}
+var memberDescribeSecretOutput_LastAccessedDate = smithy.Member{Name: "LastAccessedDate", Index: 12, Target: &schemaLastAccessedDateType}
 
-var memberDescribeSecretOutput_DeletedDate = smithy.Member{Name: "DeletedDate", Index: 13}
+var memberDescribeSecretOutput_DeletedDate = smithy.Member{Name: "DeletedDate", Index: 13, Target: &schemaDeletedDateType}
 
-var memberDescribeSecretOutput_NextRotationDate = smithy.Member{Name: "NextRotationDate", Index: 14}
+var memberDescribeSecretOutput_NextRotationDate = smithy.Member{Name: "NextRotationDate", Index: 14, Target: &schemaNextRotationDateType}
 
-var memberDescribeSecretOutput_Tags = smithy.Member{Name: "Tags", Index: 15}
+var memberDescribeSecretOutput_Tags = smithy.Member{Name: "Tags", Index: 15, Target: &schemaTagListType}
 
-var memberDescribeSecretOutput_VersionIdsToStages = smithy.Member{Name: "VersionIdsToStages", Index: 16}
+var memberDescribeSecretOutput_VersionIdsToStages = smithy.Member{Name: "VersionIdsToStages", Index: 16, Target: &schemaSecretVersionsToStagesMapType}
 
-var memberDescribeSecretOutput_OwningService = smithy.Member{Name: "OwningService", Index: 17}
+var memberDescribeSecretOutput_OwningService = smithy.Member{Name: "OwningService", Index: 17, Target: &schemaOwningServiceType}
 
-var memberDescribeSecretOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 18}
+var memberDescribeSecretOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 18, Target: &schemaTimestampType}
 
-var memberDescribeSecretOutput_PrimaryRegion = smithy.Member{Name: "PrimaryRegion", Index: 19}
+var memberDescribeSecretOutput_PrimaryRegion = smithy.Member{Name: "PrimaryRegion", Index: 19, Target: &schemaRegionType}
 
-var memberDescribeSecretOutput_ReplicationStatus = smithy.Member{Name: "ReplicationStatus", Index: 20}
+var memberDescribeSecretOutput_ReplicationStatus = smithy.Member{Name: "ReplicationStatus", Index: 20, Target: &schemaReplicationStatusListType}
 
 var schemaDescriptionType = smithy.Schema{ID: "com.amazonaws.secretsmanager#DescriptionType", Type: smithy.TypeString}
 
 var schemaDurationType = smithy.Schema{ID: "com.amazonaws.secretsmanager#DurationType", Type: smithy.TypeString}
 
-var schemaEncryptionFailure = smithy.Schema{ID: "com.amazonaws.secretsmanager#EncryptionFailure", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaEncryptionFailure = smithy.Schema{ID: "com.amazonaws.secretsmanager#EncryptionFailure", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEncryptionFailure_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberEncryptionFailure_Message = smithy.Member{Name: "Message", Index: 0}
+var memberEncryptionFailure_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
 var schemaErrorCode = smithy.Schema{ID: "com.amazonaws.secretsmanager#ErrorCode", Type: smithy.TypeString}
 
@@ -201,133 +205,133 @@ var schemaExcludePunctuationType = smithy.Schema{ID: "com.amazonaws.secretsmanag
 
 var schemaExcludeUppercaseType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ExcludeUppercaseType", Type: smithy.TypeBoolean}
 
-var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExpiredTokenException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaExternalSecretRotationMetadataItem = smithy.Schema{ID: "com.amazonaws.secretsmanager#ExternalSecretRotationMetadataItem", Type: smithy.TypeStructure}
+var schemaExternalSecretRotationMetadataItem = smithy.Schema{ID: "com.amazonaws.secretsmanager#ExternalSecretRotationMetadataItem", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExternalSecretRotationMetadataItem_Key, &memberExternalSecretRotationMetadataItem_Value}}
 
-var memberExternalSecretRotationMetadataItem_Key = smithy.Member{Name: "Key", Index: 0}
+var memberExternalSecretRotationMetadataItem_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaExternalSecretRotationMetadataItemKeyType}
 
-var memberExternalSecretRotationMetadataItem_Value = smithy.Member{Name: "Value", Index: 1}
+var memberExternalSecretRotationMetadataItem_Value = smithy.Member{Name: "Value", Index: 1, Target: &schemaExternalSecretRotationMetadataItemValueType}
 
 var schemaExternalSecretRotationMetadataItemKeyType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ExternalSecretRotationMetadataItemKeyType", Type: smithy.TypeString}
 
 var schemaExternalSecretRotationMetadataItemValueType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ExternalSecretRotationMetadataItemValueType", Type: smithy.TypeString}
 
-var schemaExternalSecretRotationMetadataType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ExternalSecretRotationMetadataType", Type: smithy.TypeList}
+var schemaExternalSecretRotationMetadataType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ExternalSecretRotationMetadataType", Type: smithy.TypeList, Members: []*smithy.Member{&memberExternalSecretRotationMetadataType_member}}
 
-var memberExternalSecretRotationMetadataType_member = smithy.Member{Name: "member", Index: 0}
+var memberExternalSecretRotationMetadataType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaExternalSecretRotationMetadataItem}
 
-var schemaFilter = smithy.Schema{ID: "com.amazonaws.secretsmanager#Filter", Type: smithy.TypeStructure}
+var schemaFilter = smithy.Schema{ID: "com.amazonaws.secretsmanager#Filter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFilter_Key, &memberFilter_Values}}
 
-var memberFilter_Key = smithy.Member{Name: "Key", Index: 0}
+var memberFilter_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaFilterNameStringType}
 
-var memberFilter_Values = smithy.Member{Name: "Values", Index: 1}
+var memberFilter_Values = smithy.Member{Name: "Values", Index: 1, Target: &schemaFilterValuesStringList}
 
 var schemaFilterNameStringType = smithy.Schema{ID: "com.amazonaws.secretsmanager#FilterNameStringType", Type: smithy.TypeEnum}
 
 var schemaFilterValueStringType = smithy.Schema{ID: "com.amazonaws.secretsmanager#FilterValueStringType", Type: smithy.TypeString}
 
-var schemaFilterValuesStringList = smithy.Schema{ID: "com.amazonaws.secretsmanager#FilterValuesStringList", Type: smithy.TypeList}
+var schemaFilterValuesStringList = smithy.Schema{ID: "com.amazonaws.secretsmanager#FilterValuesStringList", Type: smithy.TypeList, Members: []*smithy.Member{&memberFilterValuesStringList_member}}
 
-var memberFilterValuesStringList_member = smithy.Member{Name: "member", Index: 0}
+var memberFilterValuesStringList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFilterValueStringType}
 
-var schemaFiltersListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#FiltersListType", Type: smithy.TypeList}
+var schemaFiltersListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#FiltersListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberFiltersListType_member}}
 
-var memberFiltersListType_member = smithy.Member{Name: "member", Index: 0}
+var memberFiltersListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaFilter}
 
 var schemaGetRandomPasswordInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetRandomPasswordRequest", Type: smithy.TypeStructure}
 
-var memberGetRandomPasswordInput_PasswordLength = smithy.Member{Name: "PasswordLength", Index: 0}
+var memberGetRandomPasswordInput_PasswordLength = smithy.Member{Name: "PasswordLength", Index: 0, Target: &schemaPasswordLengthType}
 
-var memberGetRandomPasswordInput_ExcludeCharacters = smithy.Member{Name: "ExcludeCharacters", Index: 1}
+var memberGetRandomPasswordInput_ExcludeCharacters = smithy.Member{Name: "ExcludeCharacters", Index: 1, Target: &schemaExcludeCharactersType}
 
-var memberGetRandomPasswordInput_ExcludeNumbers = smithy.Member{Name: "ExcludeNumbers", Index: 2}
+var memberGetRandomPasswordInput_ExcludeNumbers = smithy.Member{Name: "ExcludeNumbers", Index: 2, Target: &schemaExcludeNumbersType}
 
-var memberGetRandomPasswordInput_ExcludePunctuation = smithy.Member{Name: "ExcludePunctuation", Index: 3}
+var memberGetRandomPasswordInput_ExcludePunctuation = smithy.Member{Name: "ExcludePunctuation", Index: 3, Target: &schemaExcludePunctuationType}
 
-var memberGetRandomPasswordInput_ExcludeUppercase = smithy.Member{Name: "ExcludeUppercase", Index: 4}
+var memberGetRandomPasswordInput_ExcludeUppercase = smithy.Member{Name: "ExcludeUppercase", Index: 4, Target: &schemaExcludeUppercaseType}
 
-var memberGetRandomPasswordInput_ExcludeLowercase = smithy.Member{Name: "ExcludeLowercase", Index: 5}
+var memberGetRandomPasswordInput_ExcludeLowercase = smithy.Member{Name: "ExcludeLowercase", Index: 5, Target: &schemaExcludeLowercaseType}
 
-var memberGetRandomPasswordInput_IncludeSpace = smithy.Member{Name: "IncludeSpace", Index: 6}
+var memberGetRandomPasswordInput_IncludeSpace = smithy.Member{Name: "IncludeSpace", Index: 6, Target: &schemaIncludeSpaceType}
 
-var memberGetRandomPasswordInput_RequireEachIncludedType = smithy.Member{Name: "RequireEachIncludedType", Index: 7}
+var memberGetRandomPasswordInput_RequireEachIncludedType = smithy.Member{Name: "RequireEachIncludedType", Index: 7, Target: &schemaRequireEachIncludedTypeType}
 
 var schemaGetRandomPasswordOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetRandomPasswordResponse", Type: smithy.TypeStructure}
 
-var memberGetRandomPasswordOutput_RandomPassword = smithy.Member{Name: "RandomPassword", Index: 0, Sensitive: true}
+var memberGetRandomPasswordOutput_RandomPassword = smithy.Member{Name: "RandomPassword", Index: 0, Target: &schemaRandomPasswordType, Sensitive: true}
 
-var schemaGetResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetResourcePolicyRequest", Type: smithy.TypeStructure}
+var schemaGetResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetResourcePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetResourcePolicyInput_SecretId}}
 
-var memberGetResourcePolicyInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberGetResourcePolicyInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var schemaGetResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetResourcePolicyResponse", Type: smithy.TypeStructure}
+var schemaGetResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetResourcePolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetResourcePolicyOutput_ARN, &memberGetResourcePolicyOutput_Name, &memberGetResourcePolicyOutput_ResourcePolicy}}
 
-var memberGetResourcePolicyOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberGetResourcePolicyOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberGetResourcePolicyOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberGetResourcePolicyOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaNameType}
 
-var memberGetResourcePolicyOutput_ResourcePolicy = smithy.Member{Name: "ResourcePolicy", Index: 2}
+var memberGetResourcePolicyOutput_ResourcePolicy = smithy.Member{Name: "ResourcePolicy", Index: 2, Target: &schemaNonEmptyResourcePolicyType}
 
-var schemaGetSecretValueInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetSecretValueRequest", Type: smithy.TypeStructure}
+var schemaGetSecretValueInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetSecretValueRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSecretValueInput_SecretId, &memberGetSecretValueInput_VersionId, &memberGetSecretValueInput_VersionStage}}
 
-var memberGetSecretValueInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberGetSecretValueInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberGetSecretValueInput_VersionId = smithy.Member{Name: "VersionId", Index: 1}
+var memberGetSecretValueInput_VersionId = smithy.Member{Name: "VersionId", Index: 1, Target: &schemaSecretVersionIdType}
 
-var memberGetSecretValueInput_VersionStage = smithy.Member{Name: "VersionStage", Index: 2}
+var memberGetSecretValueInput_VersionStage = smithy.Member{Name: "VersionStage", Index: 2, Target: &schemaSecretVersionStageType}
 
-var schemaGetSecretValueOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetSecretValueResponse", Type: smithy.TypeStructure}
+var schemaGetSecretValueOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#GetSecretValueResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetSecretValueOutput_ARN, &memberGetSecretValueOutput_Name, &memberGetSecretValueOutput_VersionId, &memberGetSecretValueOutput_SecretBinary, &memberGetSecretValueOutput_SecretString, &memberGetSecretValueOutput_VersionStages, &memberGetSecretValueOutput_CreatedDate}}
 
-var memberGetSecretValueOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberGetSecretValueOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberGetSecretValueOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberGetSecretValueOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
-var memberGetSecretValueOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2}
+var memberGetSecretValueOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2, Target: &schemaSecretVersionIdType}
 
-var memberGetSecretValueOutput_SecretBinary = smithy.Member{Name: "SecretBinary", Index: 3, Sensitive: true}
+var memberGetSecretValueOutput_SecretBinary = smithy.Member{Name: "SecretBinary", Index: 3, Target: &schemaSecretBinaryType, Sensitive: true}
 
-var memberGetSecretValueOutput_SecretString = smithy.Member{Name: "SecretString", Index: 4, Sensitive: true}
+var memberGetSecretValueOutput_SecretString = smithy.Member{Name: "SecretString", Index: 4, Target: &schemaSecretStringType, Sensitive: true}
 
-var memberGetSecretValueOutput_VersionStages = smithy.Member{Name: "VersionStages", Index: 5}
+var memberGetSecretValueOutput_VersionStages = smithy.Member{Name: "VersionStages", Index: 5, Target: &schemaSecretVersionStagesType}
 
-var memberGetSecretValueOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 6}
+var memberGetSecretValueOutput_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 6, Target: &schemaCreatedDateType}
 
 var schemaIncludeSpaceType = smithy.Schema{ID: "com.amazonaws.secretsmanager#IncludeSpaceType", Type: smithy.TypeBoolean}
 
-var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignatureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIncompleteSignatureException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0}
+var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
+var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInternalFailure_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
 
-var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0}
+var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInternalServiceError = smithy.Schema{ID: "com.amazonaws.secretsmanager#InternalServiceError", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault}}
+var schemaInternalServiceError = smithy.Schema{ID: "com.amazonaws.secretsmanager#InternalServiceError", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInternalServiceError_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault}}
 
-var memberInternalServiceError_Message = smithy.Member{Name: "Message", Index: 0}
+var memberInternalServiceError_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaInvalidNextTokenException = smithy.Schema{ID: "com.amazonaws.secretsmanager#InvalidNextTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaInvalidNextTokenException = smithy.Schema{ID: "com.amazonaws.secretsmanager#InvalidNextTokenException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidNextTokenException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberInvalidNextTokenException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberInvalidNextTokenException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaInvalidParameterException = smithy.Schema{ID: "com.amazonaws.secretsmanager#InvalidParameterException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaInvalidParameterException = smithy.Schema{ID: "com.amazonaws.secretsmanager#InvalidParameterException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidParameterException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberInvalidParameterException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberInvalidParameterException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaInvalidRequestException = smithy.Schema{ID: "com.amazonaws.secretsmanager#InvalidRequestException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaInvalidRequestException = smithy.Schema{ID: "com.amazonaws.secretsmanager#InvalidRequestException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidRequestException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberInvalidRequestException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberInvalidRequestException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaInvalidSignatureException = smithy.Schema{ID: "com.amazon.coral.service#InvalidSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidSignatureException = smithy.Schema{ID: "com.amazon.coral.service#InvalidSignatureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidSignatureException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidSignatureException_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaKmsKeyIdListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#KmsKeyIdListType", Type: smithy.TypeList}
+var schemaKmsKeyIdListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#KmsKeyIdListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberKmsKeyIdListType_member}}
 
-var memberKmsKeyIdListType_member = smithy.Member{Name: "member", Index: 0}
+var memberKmsKeyIdListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaKmsKeyIdType}
 
 var schemaKmsKeyIdType = smithy.Schema{ID: "com.amazonaws.secretsmanager#KmsKeyIdType", Type: smithy.TypeString}
 
@@ -337,53 +341,53 @@ var schemaLastChangedDateType = smithy.Schema{ID: "com.amazonaws.secretsmanager#
 
 var schemaLastRotatedDateType = smithy.Schema{ID: "com.amazonaws.secretsmanager#LastRotatedDateType", Type: smithy.TypeTimestamp}
 
-var schemaLimitExceededException = smithy.Schema{ID: "com.amazonaws.secretsmanager#LimitExceededException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaLimitExceededException = smithy.Schema{ID: "com.amazonaws.secretsmanager#LimitExceededException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberLimitExceededException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberLimitExceededException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberLimitExceededException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaListSecretVersionIdsInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ListSecretVersionIdsRequest", Type: smithy.TypeStructure}
+var schemaListSecretVersionIdsInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ListSecretVersionIdsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSecretVersionIdsInput_SecretId, &memberListSecretVersionIdsInput_MaxResults, &memberListSecretVersionIdsInput_NextToken, &memberListSecretVersionIdsInput_IncludeDeprecated}}
 
-var memberListSecretVersionIdsInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberListSecretVersionIdsInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberListSecretVersionIdsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1}
+var memberListSecretVersionIdsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schemaMaxResultsType}
 
-var memberListSecretVersionIdsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2}
+var memberListSecretVersionIdsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, Target: &schemaNextTokenType}
 
-var memberListSecretVersionIdsInput_IncludeDeprecated = smithy.Member{Name: "IncludeDeprecated", Index: 3}
+var memberListSecretVersionIdsInput_IncludeDeprecated = smithy.Member{Name: "IncludeDeprecated", Index: 3, Target: &schemaBooleanType}
 
-var schemaListSecretVersionIdsOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ListSecretVersionIdsResponse", Type: smithy.TypeStructure}
+var schemaListSecretVersionIdsOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ListSecretVersionIdsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSecretVersionIdsOutput_Versions, &memberListSecretVersionIdsOutput_NextToken, &memberListSecretVersionIdsOutput_ARN, &memberListSecretVersionIdsOutput_Name}}
 
-var memberListSecretVersionIdsOutput_Versions = smithy.Member{Name: "Versions", Index: 0}
+var memberListSecretVersionIdsOutput_Versions = smithy.Member{Name: "Versions", Index: 0, Target: &schemaSecretVersionsListType}
 
-var memberListSecretVersionIdsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1}
+var memberListSecretVersionIdsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextTokenType}
 
-var memberListSecretVersionIdsOutput_ARN = smithy.Member{Name: "ARN", Index: 2}
+var memberListSecretVersionIdsOutput_ARN = smithy.Member{Name: "ARN", Index: 2, Target: &schemaSecretARNType}
 
-var memberListSecretVersionIdsOutput_Name = smithy.Member{Name: "Name", Index: 3}
+var memberListSecretVersionIdsOutput_Name = smithy.Member{Name: "Name", Index: 3, Target: &schemaSecretNameType}
 
-var schemaListSecretsInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ListSecretsRequest", Type: smithy.TypeStructure}
+var schemaListSecretsInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ListSecretsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSecretsInput_IncludePlannedDeletion, &memberListSecretsInput_MaxResults, &memberListSecretsInput_NextToken, &memberListSecretsInput_Filters, &memberListSecretsInput_SortOrder, &memberListSecretsInput_SortBy}}
 
-var memberListSecretsInput_IncludePlannedDeletion = smithy.Member{Name: "IncludePlannedDeletion", Index: 0}
+var memberListSecretsInput_IncludePlannedDeletion = smithy.Member{Name: "IncludePlannedDeletion", Index: 0, Target: &schemaBooleanType}
 
-var memberListSecretsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1}
+var memberListSecretsInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schemaMaxResultsType}
 
-var memberListSecretsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2}
+var memberListSecretsInput_NextToken = smithy.Member{Name: "NextToken", Index: 2, Target: &schemaNextTokenType}
 
-var memberListSecretsInput_Filters = smithy.Member{Name: "Filters", Index: 3}
+var memberListSecretsInput_Filters = smithy.Member{Name: "Filters", Index: 3, Target: &schemaFiltersListType}
 
-var memberListSecretsInput_SortOrder = smithy.Member{Name: "SortOrder", Index: 4}
+var memberListSecretsInput_SortOrder = smithy.Member{Name: "SortOrder", Index: 4, Target: &schemaSortOrderType}
 
-var memberListSecretsInput_SortBy = smithy.Member{Name: "SortBy", Index: 5}
+var memberListSecretsInput_SortBy = smithy.Member{Name: "SortBy", Index: 5, Target: &schemaSortByType}
 
-var schemaListSecretsOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ListSecretsResponse", Type: smithy.TypeStructure}
+var schemaListSecretsOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ListSecretsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListSecretsOutput_SecretList, &memberListSecretsOutput_NextToken}}
 
-var memberListSecretsOutput_SecretList = smithy.Member{Name: "SecretList", Index: 0}
+var memberListSecretsOutput_SecretList = smithy.Member{Name: "SecretList", Index: 0, Target: &schemaSecretListType}
 
-var memberListSecretsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1}
+var memberListSecretsOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaNextTokenType}
 
-var schemaMalformedPolicyDocumentException = smithy.Schema{ID: "com.amazonaws.secretsmanager#MalformedPolicyDocumentException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaMalformedPolicyDocumentException = smithy.Schema{ID: "com.amazonaws.secretsmanager#MalformedPolicyDocumentException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMalformedPolicyDocumentException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberMalformedPolicyDocumentException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberMalformedPolicyDocumentException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
 var schemaMaxResultsBatchType = smithy.Schema{ID: "com.amazonaws.secretsmanager#MaxResultsBatchType", Type: smithy.TypeInteger}
 
@@ -391,9 +395,9 @@ var schemaMaxResultsType = smithy.Schema{ID: "com.amazonaws.secretsmanager#MaxRe
 
 var schemaMedeaTypeType = smithy.Schema{ID: "com.amazonaws.secretsmanager#MedeaTypeType", Type: smithy.TypeString}
 
-var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationTokenException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMissingAuthenticationTokenException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0}
+var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaNameType = smithy.Schema{ID: "com.amazonaws.secretsmanager#NameType", Type: smithy.TypeString}
 
@@ -403,59 +407,59 @@ var schemaNextTokenType = smithy.Schema{ID: "com.amazonaws.secretsmanager#NextTo
 
 var schemaNonEmptyResourcePolicyType = smithy.Schema{ID: "com.amazonaws.secretsmanager#NonEmptyResourcePolicyType", Type: smithy.TypeString}
 
-var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
+var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNotImplemented_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
 
-var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0}
+var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaOwningServiceType = smithy.Schema{ID: "com.amazonaws.secretsmanager#OwningServiceType", Type: smithy.TypeString}
 
 var schemaPasswordLengthType = smithy.Schema{ID: "com.amazonaws.secretsmanager#PasswordLengthType", Type: smithy.TypeLong}
 
-var schemaPreconditionNotMetException = smithy.Schema{ID: "com.amazonaws.secretsmanager#PreconditionNotMetException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaPreconditionNotMetException = smithy.Schema{ID: "com.amazonaws.secretsmanager#PreconditionNotMetException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPreconditionNotMetException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberPreconditionNotMetException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberPreconditionNotMetException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaPublicPolicyException = smithy.Schema{ID: "com.amazonaws.secretsmanager#PublicPolicyException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaPublicPolicyException = smithy.Schema{ID: "com.amazonaws.secretsmanager#PublicPolicyException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPublicPolicyException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberPublicPolicyException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberPublicPolicyException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaPutResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#PutResourcePolicyRequest", Type: smithy.TypeStructure}
+var schemaPutResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#PutResourcePolicyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutResourcePolicyInput_SecretId, &memberPutResourcePolicyInput_ResourcePolicy, &memberPutResourcePolicyInput_BlockPublicPolicy}}
 
-var memberPutResourcePolicyInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberPutResourcePolicyInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberPutResourcePolicyInput_ResourcePolicy = smithy.Member{Name: "ResourcePolicy", Index: 1, Required: true}
+var memberPutResourcePolicyInput_ResourcePolicy = smithy.Member{Name: "ResourcePolicy", Index: 1, Target: &schemaNonEmptyResourcePolicyType, Required: true}
 
-var memberPutResourcePolicyInput_BlockPublicPolicy = smithy.Member{Name: "BlockPublicPolicy", Index: 2}
+var memberPutResourcePolicyInput_BlockPublicPolicy = smithy.Member{Name: "BlockPublicPolicy", Index: 2, Target: &schemaBooleanType}
 
-var schemaPutResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#PutResourcePolicyResponse", Type: smithy.TypeStructure}
+var schemaPutResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#PutResourcePolicyResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutResourcePolicyOutput_ARN, &memberPutResourcePolicyOutput_Name}}
 
-var memberPutResourcePolicyOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberPutResourcePolicyOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberPutResourcePolicyOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberPutResourcePolicyOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaNameType}
 
-var schemaPutSecretValueInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#PutSecretValueRequest", Type: smithy.TypeStructure}
+var schemaPutSecretValueInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#PutSecretValueRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutSecretValueInput_SecretId, &memberPutSecretValueInput_ClientRequestToken, &memberPutSecretValueInput_SecretBinary, &memberPutSecretValueInput_SecretString, &memberPutSecretValueInput_VersionStages, &memberPutSecretValueInput_RotationToken}}
 
-var memberPutSecretValueInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberPutSecretValueInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberPutSecretValueInput_ClientRequestToken = smithy.Member{Name: "ClientRequestToken", Index: 1}
+var memberPutSecretValueInput_ClientRequestToken = smithy.Member{Name: "ClientRequestToken", Index: 1, Target: &schemaClientRequestTokenType}
 
-var memberPutSecretValueInput_SecretBinary = smithy.Member{Name: "SecretBinary", Index: 2, Sensitive: true}
+var memberPutSecretValueInput_SecretBinary = smithy.Member{Name: "SecretBinary", Index: 2, Target: &schemaSecretBinaryType, Sensitive: true}
 
-var memberPutSecretValueInput_SecretString = smithy.Member{Name: "SecretString", Index: 3, Sensitive: true}
+var memberPutSecretValueInput_SecretString = smithy.Member{Name: "SecretString", Index: 3, Target: &schemaSecretStringType, Sensitive: true}
 
-var memberPutSecretValueInput_VersionStages = smithy.Member{Name: "VersionStages", Index: 4}
+var memberPutSecretValueInput_VersionStages = smithy.Member{Name: "VersionStages", Index: 4, Target: &schemaSecretVersionStagesType}
 
-var memberPutSecretValueInput_RotationToken = smithy.Member{Name: "RotationToken", Index: 5, Sensitive: true}
+var memberPutSecretValueInput_RotationToken = smithy.Member{Name: "RotationToken", Index: 5, Target: &schemaRotationTokenType, Sensitive: true}
 
-var schemaPutSecretValueOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#PutSecretValueResponse", Type: smithy.TypeStructure}
+var schemaPutSecretValueOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#PutSecretValueResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutSecretValueOutput_ARN, &memberPutSecretValueOutput_Name, &memberPutSecretValueOutput_VersionId, &memberPutSecretValueOutput_VersionStages}}
 
-var memberPutSecretValueOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberPutSecretValueOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberPutSecretValueOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberPutSecretValueOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
-var memberPutSecretValueOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2}
+var memberPutSecretValueOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2, Target: &schemaSecretVersionIdType}
 
-var memberPutSecretValueOutput_VersionStages = smithy.Member{Name: "VersionStages", Index: 3}
+var memberPutSecretValueOutput_VersionStages = smithy.Member{Name: "VersionStages", Index: 3, Target: &schemaSecretVersionStagesType}
 
 var schemaRandomPasswordType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RandomPasswordType", Type: smithy.TypeString, Sensitive: true}
 
@@ -465,117 +469,117 @@ var schemaRegionType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RegionTyp
 
 var schemaRemoveRegionsFromReplicationInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RemoveRegionsFromReplicationRequest", Type: smithy.TypeStructure}
 
-var memberRemoveRegionsFromReplicationInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberRemoveRegionsFromReplicationInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberRemoveRegionsFromReplicationInput_RemoveReplicaRegions = smithy.Member{Name: "RemoveReplicaRegions", Index: 1, Required: true}
+var memberRemoveRegionsFromReplicationInput_RemoveReplicaRegions = smithy.Member{Name: "RemoveReplicaRegions", Index: 1, Target: &schemaRemoveReplicaRegionListType, Required: true}
 
 var schemaRemoveRegionsFromReplicationOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RemoveRegionsFromReplicationResponse", Type: smithy.TypeStructure}
 
-var memberRemoveRegionsFromReplicationOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberRemoveRegionsFromReplicationOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberRemoveRegionsFromReplicationOutput_ReplicationStatus = smithy.Member{Name: "ReplicationStatus", Index: 1}
+var memberRemoveRegionsFromReplicationOutput_ReplicationStatus = smithy.Member{Name: "ReplicationStatus", Index: 1, Target: &schemaReplicationStatusListType}
 
 var schemaRemoveReplicaRegionListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RemoveReplicaRegionListType", Type: smithy.TypeList}
 
-var memberRemoveReplicaRegionListType_member = smithy.Member{Name: "member", Index: 0}
+var memberRemoveReplicaRegionListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaRegionType}
 
-var schemaReplicaRegionType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicaRegionType", Type: smithy.TypeStructure}
+var schemaReplicaRegionType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicaRegionType", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicaRegionType_Region, &memberReplicaRegionType_KmsKeyId}}
 
-var memberReplicaRegionType_Region = smithy.Member{Name: "Region", Index: 0}
+var memberReplicaRegionType_Region = smithy.Member{Name: "Region", Index: 0, Target: &schemaRegionType}
 
-var memberReplicaRegionType_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 1}
+var memberReplicaRegionType_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 1, Target: &schemaKmsKeyIdType}
 
 var schemaReplicateSecretToRegionsInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicateSecretToRegionsRequest", Type: smithy.TypeStructure}
 
-var memberReplicateSecretToRegionsInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberReplicateSecretToRegionsInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberReplicateSecretToRegionsInput_AddReplicaRegions = smithy.Member{Name: "AddReplicaRegions", Index: 1, Required: true}
+var memberReplicateSecretToRegionsInput_AddReplicaRegions = smithy.Member{Name: "AddReplicaRegions", Index: 1, Target: &schemaAddReplicaRegionListType, Required: true}
 
-var memberReplicateSecretToRegionsInput_ForceOverwriteReplicaSecret = smithy.Member{Name: "ForceOverwriteReplicaSecret", Index: 2, Default: document.Bool(false)}
+var memberReplicateSecretToRegionsInput_ForceOverwriteReplicaSecret = smithy.Member{Name: "ForceOverwriteReplicaSecret", Index: 2, Target: &schemaBooleanType, Default: document.Bool(false)}
 
 var schemaReplicateSecretToRegionsOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicateSecretToRegionsResponse", Type: smithy.TypeStructure}
 
-var memberReplicateSecretToRegionsOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberReplicateSecretToRegionsOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberReplicateSecretToRegionsOutput_ReplicationStatus = smithy.Member{Name: "ReplicationStatus", Index: 1}
+var memberReplicateSecretToRegionsOutput_ReplicationStatus = smithy.Member{Name: "ReplicationStatus", Index: 1, Target: &schemaReplicationStatusListType}
 
-var schemaReplicationStatusListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicationStatusListType", Type: smithy.TypeList}
+var schemaReplicationStatusListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicationStatusListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberReplicationStatusListType_member}}
 
-var memberReplicationStatusListType_member = smithy.Member{Name: "member", Index: 0}
+var memberReplicationStatusListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaReplicationStatusType}
 
-var schemaReplicationStatusType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicationStatusType", Type: smithy.TypeStructure}
+var schemaReplicationStatusType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ReplicationStatusType", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReplicationStatusType_Region, &memberReplicationStatusType_KmsKeyId, &memberReplicationStatusType_Status, &memberReplicationStatusType_StatusMessage, &memberReplicationStatusType_LastAccessedDate}}
 
-var memberReplicationStatusType_Region = smithy.Member{Name: "Region", Index: 0}
+var memberReplicationStatusType_Region = smithy.Member{Name: "Region", Index: 0, Target: &schemaRegionType}
 
-var memberReplicationStatusType_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 1}
+var memberReplicationStatusType_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 1, Target: &schemaKmsKeyIdType}
 
-var memberReplicationStatusType_Status = smithy.Member{Name: "Status", Index: 2}
+var memberReplicationStatusType_Status = smithy.Member{Name: "Status", Index: 2, Target: &schemaStatusType}
 
-var memberReplicationStatusType_StatusMessage = smithy.Member{Name: "StatusMessage", Index: 3}
+var memberReplicationStatusType_StatusMessage = smithy.Member{Name: "StatusMessage", Index: 3, Target: &schemaStatusMessageType}
 
-var memberReplicationStatusType_LastAccessedDate = smithy.Member{Name: "LastAccessedDate", Index: 4}
+var memberReplicationStatusType_LastAccessedDate = smithy.Member{Name: "LastAccessedDate", Index: 4, Target: &schemaLastAccessedDateType}
 
-var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
+var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRequestEntityTooLargeException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
 
-var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0}
+var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaRequireEachIncludedTypeType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RequireEachIncludedTypeType", Type: smithy.TypeBoolean}
 
-var schemaResourceExistsException = smithy.Schema{ID: "com.amazonaws.secretsmanager#ResourceExistsException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaResourceExistsException = smithy.Schema{ID: "com.amazonaws.secretsmanager#ResourceExistsException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResourceExistsException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberResourceExistsException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberResourceExistsException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaResourceNotFoundException = smithy.Schema{ID: "com.amazonaws.secretsmanager#ResourceNotFoundException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaResourceNotFoundException = smithy.Schema{ID: "com.amazonaws.secretsmanager#ResourceNotFoundException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResourceNotFoundException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberResourceNotFoundException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberResourceNotFoundException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaErrorMessage}
 
-var schemaRestoreSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RestoreSecretRequest", Type: smithy.TypeStructure}
+var schemaRestoreSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RestoreSecretRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRestoreSecretInput_SecretId}}
 
-var memberRestoreSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberRestoreSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var schemaRestoreSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RestoreSecretResponse", Type: smithy.TypeStructure}
+var schemaRestoreSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RestoreSecretResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRestoreSecretOutput_ARN, &memberRestoreSecretOutput_Name}}
 
-var memberRestoreSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberRestoreSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberRestoreSecretOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberRestoreSecretOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
 var schemaRoleARNType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RoleARNType", Type: smithy.TypeString}
 
 var schemaRotateSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RotateSecretRequest", Type: smithy.TypeStructure}
 
-var memberRotateSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberRotateSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberRotateSecretInput_ClientRequestToken = smithy.Member{Name: "ClientRequestToken", Index: 1}
+var memberRotateSecretInput_ClientRequestToken = smithy.Member{Name: "ClientRequestToken", Index: 1, Target: &schemaClientRequestTokenType}
 
-var memberRotateSecretInput_RotationLambdaARN = smithy.Member{Name: "RotationLambdaARN", Index: 2}
+var memberRotateSecretInput_RotationLambdaARN = smithy.Member{Name: "RotationLambdaARN", Index: 2, Target: &schemaRotationLambdaARNType}
 
-var memberRotateSecretInput_RotationRules = smithy.Member{Name: "RotationRules", Index: 3}
+var memberRotateSecretInput_RotationRules = smithy.Member{Name: "RotationRules", Index: 3, Target: &schemaRotationRulesType}
 
-var memberRotateSecretInput_ExternalSecretRotationMetadata = smithy.Member{Name: "ExternalSecretRotationMetadata", Index: 4}
+var memberRotateSecretInput_ExternalSecretRotationMetadata = smithy.Member{Name: "ExternalSecretRotationMetadata", Index: 4, Target: &schemaExternalSecretRotationMetadataType}
 
-var memberRotateSecretInput_ExternalSecretRotationRoleArn = smithy.Member{Name: "ExternalSecretRotationRoleArn", Index: 5}
+var memberRotateSecretInput_ExternalSecretRotationRoleArn = smithy.Member{Name: "ExternalSecretRotationRoleArn", Index: 5, Target: &schemaRoleARNType}
 
-var memberRotateSecretInput_RotateImmediately = smithy.Member{Name: "RotateImmediately", Index: 6}
+var memberRotateSecretInput_RotateImmediately = smithy.Member{Name: "RotateImmediately", Index: 6, Target: &schemaBooleanType}
 
 var schemaRotateSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#RotateSecretResponse", Type: smithy.TypeStructure}
 
-var memberRotateSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberRotateSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberRotateSecretOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberRotateSecretOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
-var memberRotateSecretOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2}
+var memberRotateSecretOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2, Target: &schemaSecretVersionIdType}
 
 var schemaRotationEnabledType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RotationEnabledType", Type: smithy.TypeBoolean}
 
 var schemaRotationLambdaARNType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RotationLambdaARNType", Type: smithy.TypeString}
 
-var schemaRotationRulesType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RotationRulesType", Type: smithy.TypeStructure}
+var schemaRotationRulesType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RotationRulesType", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRotationRulesType_AutomaticallyAfterDays, &memberRotationRulesType_Duration, &memberRotationRulesType_ScheduleExpression}}
 
-var memberRotationRulesType_AutomaticallyAfterDays = smithy.Member{Name: "AutomaticallyAfterDays", Index: 0}
+var memberRotationRulesType_AutomaticallyAfterDays = smithy.Member{Name: "AutomaticallyAfterDays", Index: 0, Target: &schemaAutomaticallyRotateAfterDaysType}
 
-var memberRotationRulesType_Duration = smithy.Member{Name: "Duration", Index: 1}
+var memberRotationRulesType_Duration = smithy.Member{Name: "Duration", Index: 1, Target: &schemaDurationType}
 
-var memberRotationRulesType_ScheduleExpression = smithy.Member{Name: "ScheduleExpression", Index: 2}
+var memberRotationRulesType_ScheduleExpression = smithy.Member{Name: "ScheduleExpression", Index: 2, Target: &schemaScheduleExpressionType}
 
 var schemaRotationTokenType = smithy.Schema{ID: "com.amazonaws.secretsmanager#RotationTokenType", Type: smithy.TypeString, Sensitive: true}
 
@@ -587,55 +591,55 @@ var schemaSecretBinaryType = smithy.Schema{ID: "com.amazonaws.secretsmanager#Sec
 
 var schemaSecretIdListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretIdListType", Type: smithy.TypeList}
 
-var memberSecretIdListType_member = smithy.Member{Name: "member", Index: 0}
+var memberSecretIdListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSecretIdType}
 
 var schemaSecretIdType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretIdType", Type: smithy.TypeString}
 
-var schemaSecretListEntry = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretListEntry", Type: smithy.TypeStructure}
+var schemaSecretListEntry = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretListEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSecretListEntry_ARN, &memberSecretListEntry_Name, &memberSecretListEntry_Type, &memberSecretListEntry_Description, &memberSecretListEntry_KmsKeyId, &memberSecretListEntry_RotationEnabled, &memberSecretListEntry_RotationLambdaARN, &memberSecretListEntry_RotationRules, &memberSecretListEntry_ExternalSecretRotationMetadata, &memberSecretListEntry_ExternalSecretRotationRoleArn, &memberSecretListEntry_LastRotatedDate, &memberSecretListEntry_LastChangedDate, &memberSecretListEntry_LastAccessedDate, &memberSecretListEntry_DeletedDate, &memberSecretListEntry_NextRotationDate, &memberSecretListEntry_Tags, &memberSecretListEntry_SecretVersionsToStages, &memberSecretListEntry_OwningService, &memberSecretListEntry_CreatedDate, &memberSecretListEntry_PrimaryRegion}}
 
-var memberSecretListEntry_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberSecretListEntry_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberSecretListEntry_Name = smithy.Member{Name: "Name", Index: 1}
+var memberSecretListEntry_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
-var memberSecretListEntry_Type = smithy.Member{Name: "Type", Index: 2}
+var memberSecretListEntry_Type = smithy.Member{Name: "Type", Index: 2, Target: &schemaMedeaTypeType}
 
-var memberSecretListEntry_Description = smithy.Member{Name: "Description", Index: 3}
+var memberSecretListEntry_Description = smithy.Member{Name: "Description", Index: 3, Target: &schemaDescriptionType}
 
-var memberSecretListEntry_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 4}
+var memberSecretListEntry_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 4, Target: &schemaKmsKeyIdType}
 
-var memberSecretListEntry_RotationEnabled = smithy.Member{Name: "RotationEnabled", Index: 5}
+var memberSecretListEntry_RotationEnabled = smithy.Member{Name: "RotationEnabled", Index: 5, Target: &schemaRotationEnabledType}
 
-var memberSecretListEntry_RotationLambdaARN = smithy.Member{Name: "RotationLambdaARN", Index: 6}
+var memberSecretListEntry_RotationLambdaARN = smithy.Member{Name: "RotationLambdaARN", Index: 6, Target: &schemaRotationLambdaARNType}
 
-var memberSecretListEntry_RotationRules = smithy.Member{Name: "RotationRules", Index: 7}
+var memberSecretListEntry_RotationRules = smithy.Member{Name: "RotationRules", Index: 7, Target: &schemaRotationRulesType}
 
-var memberSecretListEntry_ExternalSecretRotationMetadata = smithy.Member{Name: "ExternalSecretRotationMetadata", Index: 8}
+var memberSecretListEntry_ExternalSecretRotationMetadata = smithy.Member{Name: "ExternalSecretRotationMetadata", Index: 8, Target: &schemaExternalSecretRotationMetadataType}
 
-var memberSecretListEntry_ExternalSecretRotationRoleArn = smithy.Member{Name: "ExternalSecretRotationRoleArn", Index: 9}
+var memberSecretListEntry_ExternalSecretRotationRoleArn = smithy.Member{Name: "ExternalSecretRotationRoleArn", Index: 9, Target: &schemaRoleARNType}
 
-var memberSecretListEntry_LastRotatedDate = smithy.Member{Name: "LastRotatedDate", Index: 10}
+var memberSecretListEntry_LastRotatedDate = smithy.Member{Name: "LastRotatedDate", Index: 10, Target: &schemaLastRotatedDateType}
 
-var memberSecretListEntry_LastChangedDate = smithy.Member{Name: "LastChangedDate", Index: 11}
+var memberSecretListEntry_LastChangedDate = smithy.Member{Name: "LastChangedDate", Index: 11, Target: &schemaLastChangedDateType}
 
-var memberSecretListEntry_LastAccessedDate = smithy.Member{Name: "LastAccessedDate", Index: 12}
+var memberSecretListEntry_LastAccessedDate = smithy.Member{Name: "LastAccessedDate", Index: 12, Target: &schemaLastAccessedDateType}
 
-var memberSecretListEntry_DeletedDate = smithy.Member{Name: "DeletedDate", Index: 13}
+var memberSecretListEntry_DeletedDate = smithy.Member{Name: "DeletedDate", Index: 13, Target: &schemaDeletedDateType}
 
-var memberSecretListEntry_NextRotationDate = smithy.Member{Name: "NextRotationDate", Index: 14}
+var memberSecretListEntry_NextRotationDate = smithy.Member{Name: "NextRotationDate", Index: 14, Target: &schemaNextRotationDateType}
 
-var memberSecretListEntry_Tags = smithy.Member{Name: "Tags", Index: 15}
+var memberSecretListEntry_Tags = smithy.Member{Name: "Tags", Index: 15, Target: &schemaTagListType}
 
-var memberSecretListEntry_SecretVersionsToStages = smithy.Member{Name: "SecretVersionsToStages", Index: 16}
+var memberSecretListEntry_SecretVersionsToStages = smithy.Member{Name: "SecretVersionsToStages", Index: 16, Target: &schemaSecretVersionsToStagesMapType}
 
-var memberSecretListEntry_OwningService = smithy.Member{Name: "OwningService", Index: 17}
+var memberSecretListEntry_OwningService = smithy.Member{Name: "OwningService", Index: 17, Target: &schemaOwningServiceType}
 
-var memberSecretListEntry_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 18}
+var memberSecretListEntry_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 18, Target: &schemaTimestampType}
 
-var memberSecretListEntry_PrimaryRegion = smithy.Member{Name: "PrimaryRegion", Index: 19}
+var memberSecretListEntry_PrimaryRegion = smithy.Member{Name: "PrimaryRegion", Index: 19, Target: &schemaRegionType}
 
-var schemaSecretListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretListType", Type: smithy.TypeList}
+var schemaSecretListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberSecretListType_member}}
 
-var memberSecretListType_member = smithy.Member{Name: "member", Index: 0}
+var memberSecretListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSecretListEntry}
 
 var schemaSecretNameType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretNameType", Type: smithy.TypeString}
 
@@ -643,57 +647,57 @@ var schemaSecretStringType = smithy.Schema{ID: "com.amazonaws.secretsmanager#Sec
 
 var schemaSecretValueEntry = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretValueEntry", Type: smithy.TypeStructure}
 
-var memberSecretValueEntry_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberSecretValueEntry_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberSecretValueEntry_Name = smithy.Member{Name: "Name", Index: 1}
+var memberSecretValueEntry_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
-var memberSecretValueEntry_VersionId = smithy.Member{Name: "VersionId", Index: 2}
+var memberSecretValueEntry_VersionId = smithy.Member{Name: "VersionId", Index: 2, Target: &schemaSecretVersionIdType}
 
-var memberSecretValueEntry_SecretBinary = smithy.Member{Name: "SecretBinary", Index: 3, Sensitive: true}
+var memberSecretValueEntry_SecretBinary = smithy.Member{Name: "SecretBinary", Index: 3, Target: &schemaSecretBinaryType, Sensitive: true}
 
-var memberSecretValueEntry_SecretString = smithy.Member{Name: "SecretString", Index: 4, Sensitive: true}
+var memberSecretValueEntry_SecretString = smithy.Member{Name: "SecretString", Index: 4, Target: &schemaSecretStringType, Sensitive: true}
 
-var memberSecretValueEntry_VersionStages = smithy.Member{Name: "VersionStages", Index: 5}
+var memberSecretValueEntry_VersionStages = smithy.Member{Name: "VersionStages", Index: 5, Target: &schemaSecretVersionStagesType}
 
-var memberSecretValueEntry_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 6}
+var memberSecretValueEntry_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 6, Target: &schemaCreatedDateType}
 
 var schemaSecretValuesType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretValuesType", Type: smithy.TypeList}
 
-var memberSecretValuesType_member = smithy.Member{Name: "member", Index: 0}
+var memberSecretValuesType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSecretValueEntry}
 
 var schemaSecretVersionIdType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretVersionIdType", Type: smithy.TypeString}
 
 var schemaSecretVersionStageType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretVersionStageType", Type: smithy.TypeString}
 
-var schemaSecretVersionStagesType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretVersionStagesType", Type: smithy.TypeList}
+var schemaSecretVersionStagesType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretVersionStagesType", Type: smithy.TypeList, Members: []*smithy.Member{&memberSecretVersionStagesType_member}}
 
-var memberSecretVersionStagesType_member = smithy.Member{Name: "member", Index: 0}
+var memberSecretVersionStagesType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSecretVersionStageType}
 
-var schemaSecretVersionsListEntry = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretVersionsListEntry", Type: smithy.TypeStructure}
+var schemaSecretVersionsListEntry = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretVersionsListEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSecretVersionsListEntry_VersionId, &memberSecretVersionsListEntry_VersionStages, &memberSecretVersionsListEntry_LastAccessedDate, &memberSecretVersionsListEntry_CreatedDate, &memberSecretVersionsListEntry_KmsKeyIds}}
 
-var memberSecretVersionsListEntry_VersionId = smithy.Member{Name: "VersionId", Index: 0}
+var memberSecretVersionsListEntry_VersionId = smithy.Member{Name: "VersionId", Index: 0, Target: &schemaSecretVersionIdType}
 
-var memberSecretVersionsListEntry_VersionStages = smithy.Member{Name: "VersionStages", Index: 1}
+var memberSecretVersionsListEntry_VersionStages = smithy.Member{Name: "VersionStages", Index: 1, Target: &schemaSecretVersionStagesType}
 
-var memberSecretVersionsListEntry_LastAccessedDate = smithy.Member{Name: "LastAccessedDate", Index: 2}
+var memberSecretVersionsListEntry_LastAccessedDate = smithy.Member{Name: "LastAccessedDate", Index: 2, Target: &schemaLastAccessedDateType}
 
-var memberSecretVersionsListEntry_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 3}
+var memberSecretVersionsListEntry_CreatedDate = smithy.Member{Name: "CreatedDate", Index: 3, Target: &schemaCreatedDateType}
 
-var memberSecretVersionsListEntry_KmsKeyIds = smithy.Member{Name: "KmsKeyIds", Index: 4}
+var memberSecretVersionsListEntry_KmsKeyIds = smithy.Member{Name: "KmsKeyIds", Index: 4, Target: &schemaKmsKeyIdListType}
 
-var schemaSecretVersionsListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretVersionsListType", Type: smithy.TypeList}
+var schemaSecretVersionsListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretVersionsListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberSecretVersionsListType_member}}
 
-var memberSecretVersionsListType_member = smithy.Member{Name: "member", Index: 0}
+var memberSecretVersionsListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSecretVersionsListEntry}
 
-var schemaSecretVersionsToStagesMapType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretVersionsToStagesMapType", Type: smithy.TypeMap}
+var schemaSecretVersionsToStagesMapType = smithy.Schema{ID: "com.amazonaws.secretsmanager#SecretVersionsToStagesMapType", Type: smithy.TypeMap, Members: []*smithy.Member{&memberSecretVersionsToStagesMapType_key, &memberSecretVersionsToStagesMapType_value}}
 
-var memberSecretVersionsToStagesMapType_key = smithy.Member{Name: "key", Index: 0}
+var memberSecretVersionsToStagesMapType_key = smithy.Member{Name: "key", Index: 0, Target: &schemaSecretVersionIdType}
 
-var memberSecretVersionsToStagesMapType_value = smithy.Member{Name: "value", Index: 1}
+var memberSecretVersionsToStagesMapType_value = smithy.Member{Name: "value", Index: 1, Target: &schemaSecretVersionStagesType}
 
-var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSerializationException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString}
 
 var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.TypeString}
 
@@ -709,472 +713,118 @@ var schemaStatusType = smithy.Schema{ID: "com.amazonaws.secretsmanager#StatusTyp
 
 var schemaStopReplicationToReplicaInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#StopReplicationToReplicaRequest", Type: smithy.TypeStructure}
 
-var memberStopReplicationToReplicaInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberStopReplicationToReplicaInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
 var schemaStopReplicationToReplicaOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#StopReplicationToReplicaResponse", Type: smithy.TypeStructure}
 
-var memberStopReplicationToReplicaOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberStopReplicationToReplicaOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var schemaTag = smithy.Schema{ID: "com.amazonaws.secretsmanager#Tag", Type: smithy.TypeStructure}
+var schemaTag = smithy.Schema{ID: "com.amazonaws.secretsmanager#Tag", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTag_Key, &memberTag_Value}}
 
-var memberTag_Key = smithy.Member{Name: "Key", Index: 0}
+var memberTag_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaTagKeyType}
 
-var memberTag_Value = smithy.Member{Name: "Value", Index: 1}
+var memberTag_Value = smithy.Member{Name: "Value", Index: 1, Target: &schemaTagValueType}
 
-var schemaTagKeyListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#TagKeyListType", Type: smithy.TypeList}
+var schemaTagKeyListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#TagKeyListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberTagKeyListType_member}}
 
-var memberTagKeyListType_member = smithy.Member{Name: "member", Index: 0}
+var memberTagKeyListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTagKeyType}
 
 var schemaTagKeyType = smithy.Schema{ID: "com.amazonaws.secretsmanager#TagKeyType", Type: smithy.TypeString}
 
-var schemaTagListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#TagListType", Type: smithy.TypeList}
+var schemaTagListType = smithy.Schema{ID: "com.amazonaws.secretsmanager#TagListType", Type: smithy.TypeList, Members: []*smithy.Member{&memberTagListType_member}}
 
-var memberTagListType_member = smithy.Member{Name: "member", Index: 0}
+var memberTagListType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTag}
 
-var schemaTagResourceInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#TagResourceRequest", Type: smithy.TypeStructure}
+var schemaTagResourceInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#TagResourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagResourceInput_SecretId, &memberTagResourceInput_Tags}}
 
-var memberTagResourceInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberTagResourceInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberTagResourceInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: true}
+var memberTagResourceInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagListType, Required: true}
 
 var schemaTagValueType = smithy.Schema{ID: "com.amazonaws.secretsmanager#TagValueType", Type: smithy.TypeString}
 
-var schemaThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberThrottlingException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0}
+var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaTimestampType = smithy.Schema{ID: "com.amazonaws.secretsmanager#TimestampType", Type: smithy.TypeTimestamp}
 
-var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnknownOperationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnrecognizedClientException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaUntagResourceInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#UntagResourceRequest", Type: smithy.TypeStructure}
+var schemaUntagResourceInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#UntagResourceRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagResourceInput_SecretId, &memberUntagResourceInput_TagKeys}}
 
-var memberUntagResourceInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberUntagResourceInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberUntagResourceInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true}
+var memberUntagResourceInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schemaTagKeyListType, Required: true}
 
-var schemaUpdateSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#UpdateSecretRequest", Type: smithy.TypeStructure}
+var schemaUpdateSecretInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#UpdateSecretRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateSecretInput_SecretId, &memberUpdateSecretInput_ClientRequestToken, &memberUpdateSecretInput_Description, &memberUpdateSecretInput_KmsKeyId, &memberUpdateSecretInput_SecretBinary, &memberUpdateSecretInput_SecretString, &memberUpdateSecretInput_Type}}
 
-var memberUpdateSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberUpdateSecretInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberUpdateSecretInput_ClientRequestToken = smithy.Member{Name: "ClientRequestToken", Index: 1}
+var memberUpdateSecretInput_ClientRequestToken = smithy.Member{Name: "ClientRequestToken", Index: 1, Target: &schemaClientRequestTokenType}
 
-var memberUpdateSecretInput_Description = smithy.Member{Name: "Description", Index: 2}
+var memberUpdateSecretInput_Description = smithy.Member{Name: "Description", Index: 2, Target: &schemaDescriptionType}
 
-var memberUpdateSecretInput_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 3}
+var memberUpdateSecretInput_KmsKeyId = smithy.Member{Name: "KmsKeyId", Index: 3, Target: &schemaKmsKeyIdType}
 
-var memberUpdateSecretInput_SecretBinary = smithy.Member{Name: "SecretBinary", Index: 4, Sensitive: true}
+var memberUpdateSecretInput_SecretBinary = smithy.Member{Name: "SecretBinary", Index: 4, Target: &schemaSecretBinaryType, Sensitive: true}
 
-var memberUpdateSecretInput_SecretString = smithy.Member{Name: "SecretString", Index: 5, Sensitive: true}
+var memberUpdateSecretInput_SecretString = smithy.Member{Name: "SecretString", Index: 5, Target: &schemaSecretStringType, Sensitive: true}
 
-var memberUpdateSecretInput_Type = smithy.Member{Name: "Type", Index: 6}
+var memberUpdateSecretInput_Type = smithy.Member{Name: "Type", Index: 6, Target: &schemaMedeaTypeType}
 
-var schemaUpdateSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#UpdateSecretResponse", Type: smithy.TypeStructure}
+var schemaUpdateSecretOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#UpdateSecretResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateSecretOutput_ARN, &memberUpdateSecretOutput_Name, &memberUpdateSecretOutput_VersionId}}
 
-var memberUpdateSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberUpdateSecretOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberUpdateSecretOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberUpdateSecretOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
-var memberUpdateSecretOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2}
+var memberUpdateSecretOutput_VersionId = smithy.Member{Name: "VersionId", Index: 2, Target: &schemaSecretVersionIdType}
 
-var schemaUpdateSecretVersionStageInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#UpdateSecretVersionStageRequest", Type: smithy.TypeStructure}
+var schemaUpdateSecretVersionStageInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#UpdateSecretVersionStageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateSecretVersionStageInput_SecretId, &memberUpdateSecretVersionStageInput_VersionStage, &memberUpdateSecretVersionStageInput_RemoveFromVersionId, &memberUpdateSecretVersionStageInput_MoveToVersionId}}
 
-var memberUpdateSecretVersionStageInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Required: true}
+var memberUpdateSecretVersionStageInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType, Required: true}
 
-var memberUpdateSecretVersionStageInput_VersionStage = smithy.Member{Name: "VersionStage", Index: 1, Required: true}
+var memberUpdateSecretVersionStageInput_VersionStage = smithy.Member{Name: "VersionStage", Index: 1, Target: &schemaSecretVersionStageType, Required: true}
 
-var memberUpdateSecretVersionStageInput_RemoveFromVersionId = smithy.Member{Name: "RemoveFromVersionId", Index: 2}
+var memberUpdateSecretVersionStageInput_RemoveFromVersionId = smithy.Member{Name: "RemoveFromVersionId", Index: 2, Target: &schemaSecretVersionIdType}
 
-var memberUpdateSecretVersionStageInput_MoveToVersionId = smithy.Member{Name: "MoveToVersionId", Index: 3}
+var memberUpdateSecretVersionStageInput_MoveToVersionId = smithy.Member{Name: "MoveToVersionId", Index: 3, Target: &schemaSecretVersionIdType}
 
-var schemaUpdateSecretVersionStageOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#UpdateSecretVersionStageResponse", Type: smithy.TypeStructure}
+var schemaUpdateSecretVersionStageOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#UpdateSecretVersionStageResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateSecretVersionStageOutput_ARN, &memberUpdateSecretVersionStageOutput_Name}}
 
-var memberUpdateSecretVersionStageOutput_ARN = smithy.Member{Name: "ARN", Index: 0}
+var memberUpdateSecretVersionStageOutput_ARN = smithy.Member{Name: "ARN", Index: 0, Target: &schemaSecretARNType}
 
-var memberUpdateSecretVersionStageOutput_Name = smithy.Member{Name: "Name", Index: 1}
+var memberUpdateSecretVersionStageOutput_Name = smithy.Member{Name: "Name", Index: 1, Target: &schemaSecretNameType}
 
 var schemaValidateResourcePolicyInput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidateResourcePolicyRequest", Type: smithy.TypeStructure}
 
-var memberValidateResourcePolicyInput_SecretId = smithy.Member{Name: "SecretId", Index: 0}
+var memberValidateResourcePolicyInput_SecretId = smithy.Member{Name: "SecretId", Index: 0, Target: &schemaSecretIdType}
 
-var memberValidateResourcePolicyInput_ResourcePolicy = smithy.Member{Name: "ResourcePolicy", Index: 1, Required: true}
+var memberValidateResourcePolicyInput_ResourcePolicy = smithy.Member{Name: "ResourcePolicy", Index: 1, Target: &schemaNonEmptyResourcePolicyType, Required: true}
 
 var schemaValidateResourcePolicyOutput = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidateResourcePolicyResponse", Type: smithy.TypeStructure}
 
-var memberValidateResourcePolicyOutput_PolicyValidationPassed = smithy.Member{Name: "PolicyValidationPassed", Index: 0, Default: document.Bool(false)}
+var memberValidateResourcePolicyOutput_PolicyValidationPassed = smithy.Member{Name: "PolicyValidationPassed", Index: 0, Target: &schemaBooleanType, Default: document.Bool(false)}
 
-var memberValidateResourcePolicyOutput_ValidationErrors = smithy.Member{Name: "ValidationErrors", Index: 1}
+var memberValidateResourcePolicyOutput_ValidationErrors = smithy.Member{Name: "ValidationErrors", Index: 1, Target: &schemaValidationErrorsType}
 
 var schemaValidationErrorsEntry = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidationErrorsEntry", Type: smithy.TypeStructure}
 
-var memberValidationErrorsEntry_CheckName = smithy.Member{Name: "CheckName", Index: 0}
+var memberValidationErrorsEntry_CheckName = smithy.Member{Name: "CheckName", Index: 0, Target: &schemaNameType}
 
-var memberValidationErrorsEntry_ErrorMessage = smithy.Member{Name: "ErrorMessage", Index: 1}
+var memberValidationErrorsEntry_ErrorMessage = smithy.Member{Name: "ErrorMessage", Index: 1, Target: &schemaErrorMessage}
 
 var schemaValidationErrorsType = smithy.Schema{ID: "com.amazonaws.secretsmanager#ValidationErrorsType", Type: smithy.TypeList}
 
-var memberValidationErrorsType_member = smithy.Member{Name: "member", Index: 0}
+var memberValidationErrorsType_member = smithy.Member{Name: "member", Index: 0, Target: &schemaValidationErrorsEntry}
 
-var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberValidationException_message = smithy.Member{Name: "message", Index: 0}
-
-func init() {
-	memberAPIErrorListType_member.Target = &schemaAPIErrorType
-	schemaAPIErrorListType.Members = []*smithy.Member{&memberAPIErrorListType_member}
-	memberAPIErrorType_SecretId.Target = &schemaSecretIdType
-	memberAPIErrorType_ErrorCode.Target = &schemaErrorCode
-	memberAPIErrorType_Message.Target = &schemaErrorMessage
-	schemaAPIErrorType.Members = []*smithy.Member{&memberAPIErrorType_SecretId, &memberAPIErrorType_ErrorCode, &memberAPIErrorType_Message}
-	memberAccessDeniedException_message.Target = &schemaSmithyString
-	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
-	memberAddReplicaRegionListType_member.Target = &schemaReplicaRegionType
-	schemaAddReplicaRegionListType.Members = []*smithy.Member{&memberAddReplicaRegionListType_member}
-	memberBatchGetSecretValueInput_SecretIdList.Target = &schemaSecretIdListType
-	memberBatchGetSecretValueInput_Filters.Target = &schemaFiltersListType
-	memberBatchGetSecretValueInput_MaxResults.Target = &schemaMaxResultsBatchType
-	memberBatchGetSecretValueInput_NextToken.Target = &schemaNextTokenType
-	schemaBatchGetSecretValueInput.Members = []*smithy.Member{&memberBatchGetSecretValueInput_SecretIdList, &memberBatchGetSecretValueInput_Filters, &memberBatchGetSecretValueInput_MaxResults, &memberBatchGetSecretValueInput_NextToken}
-	memberBatchGetSecretValueOutput_SecretValues.Target = &schemaSecretValuesType
-	memberBatchGetSecretValueOutput_NextToken.Target = &schemaNextTokenType
-	memberBatchGetSecretValueOutput_Errors.Target = &schemaAPIErrorListType
-	schemaBatchGetSecretValueOutput.Members = []*smithy.Member{&memberBatchGetSecretValueOutput_SecretValues, &memberBatchGetSecretValueOutput_NextToken, &memberBatchGetSecretValueOutput_Errors}
-	memberCancelRotateSecretInput_SecretId.Target = &schemaSecretIdType
-	schemaCancelRotateSecretInput.Members = []*smithy.Member{&memberCancelRotateSecretInput_SecretId}
-	memberCancelRotateSecretOutput_ARN.Target = &schemaSecretARNType
-	memberCancelRotateSecretOutput_Name.Target = &schemaSecretNameType
-	memberCancelRotateSecretOutput_VersionId.Target = &schemaSecretVersionIdType
-	schemaCancelRotateSecretOutput.Members = []*smithy.Member{&memberCancelRotateSecretOutput_ARN, &memberCancelRotateSecretOutput_Name, &memberCancelRotateSecretOutput_VersionId}
-	memberCreateSecretInput_Name.Target = &schemaNameType
-	memberCreateSecretInput_ClientRequestToken.Target = &schemaClientRequestTokenType
-	memberCreateSecretInput_Description.Target = &schemaDescriptionType
-	memberCreateSecretInput_KmsKeyId.Target = &schemaKmsKeyIdType
-	memberCreateSecretInput_SecretBinary.Target = &schemaSecretBinaryType
-	memberCreateSecretInput_SecretString.Target = &schemaSecretStringType
-	memberCreateSecretInput_Tags.Target = &schemaTagListType
-	memberCreateSecretInput_AddReplicaRegions.Target = &schemaAddReplicaRegionListType
-	memberCreateSecretInput_ForceOverwriteReplicaSecret.Target = &schemaBooleanType
-	memberCreateSecretInput_Type.Target = &schemaMedeaTypeType
-	schemaCreateSecretInput.Members = []*smithy.Member{&memberCreateSecretInput_Name, &memberCreateSecretInput_ClientRequestToken, &memberCreateSecretInput_Description, &memberCreateSecretInput_KmsKeyId, &memberCreateSecretInput_SecretBinary, &memberCreateSecretInput_SecretString, &memberCreateSecretInput_Tags, &memberCreateSecretInput_AddReplicaRegions, &memberCreateSecretInput_ForceOverwriteReplicaSecret, &memberCreateSecretInput_Type}
-	memberCreateSecretOutput_ARN.Target = &schemaSecretARNType
-	memberCreateSecretOutput_Name.Target = &schemaSecretNameType
-	memberCreateSecretOutput_VersionId.Target = &schemaSecretVersionIdType
-	memberCreateSecretOutput_ReplicationStatus.Target = &schemaReplicationStatusListType
-	schemaCreateSecretOutput.Members = []*smithy.Member{&memberCreateSecretOutput_ARN, &memberCreateSecretOutput_Name, &memberCreateSecretOutput_VersionId, &memberCreateSecretOutput_ReplicationStatus}
-	memberDecryptionFailure_Message.Target = &schemaErrorMessage
-	schemaDecryptionFailure.Members = []*smithy.Member{&memberDecryptionFailure_Message}
-	memberDeleteResourcePolicyInput_SecretId.Target = &schemaSecretIdType
-	schemaDeleteResourcePolicyInput.Members = []*smithy.Member{&memberDeleteResourcePolicyInput_SecretId}
-	memberDeleteResourcePolicyOutput_ARN.Target = &schemaSecretARNType
-	memberDeleteResourcePolicyOutput_Name.Target = &schemaNameType
-	schemaDeleteResourcePolicyOutput.Members = []*smithy.Member{&memberDeleteResourcePolicyOutput_ARN, &memberDeleteResourcePolicyOutput_Name}
-	memberDeleteSecretInput_SecretId.Target = &schemaSecretIdType
-	memberDeleteSecretInput_RecoveryWindowInDays.Target = &schemaRecoveryWindowInDaysType
-	memberDeleteSecretInput_ForceDeleteWithoutRecovery.Target = &schemaBooleanType
-	schemaDeleteSecretInput.Members = []*smithy.Member{&memberDeleteSecretInput_SecretId, &memberDeleteSecretInput_RecoveryWindowInDays, &memberDeleteSecretInput_ForceDeleteWithoutRecovery}
-	memberDeleteSecretOutput_ARN.Target = &schemaSecretARNType
-	memberDeleteSecretOutput_Name.Target = &schemaSecretNameType
-	memberDeleteSecretOutput_DeletionDate.Target = &schemaDeletionDateType
-	schemaDeleteSecretOutput.Members = []*smithy.Member{&memberDeleteSecretOutput_ARN, &memberDeleteSecretOutput_Name, &memberDeleteSecretOutput_DeletionDate}
-	memberDescribeSecretInput_SecretId.Target = &schemaSecretIdType
-	schemaDescribeSecretInput.Members = []*smithy.Member{&memberDescribeSecretInput_SecretId}
-	memberDescribeSecretOutput_ARN.Target = &schemaSecretARNType
-	memberDescribeSecretOutput_Name.Target = &schemaSecretNameType
-	memberDescribeSecretOutput_Type.Target = &schemaMedeaTypeType
-	memberDescribeSecretOutput_Description.Target = &schemaDescriptionType
-	memberDescribeSecretOutput_KmsKeyId.Target = &schemaKmsKeyIdType
-	memberDescribeSecretOutput_RotationEnabled.Target = &schemaRotationEnabledType
-	memberDescribeSecretOutput_RotationLambdaARN.Target = &schemaRotationLambdaARNType
-	memberDescribeSecretOutput_RotationRules.Target = &schemaRotationRulesType
-	memberDescribeSecretOutput_ExternalSecretRotationMetadata.Target = &schemaExternalSecretRotationMetadataType
-	memberDescribeSecretOutput_ExternalSecretRotationRoleArn.Target = &schemaRoleARNType
-	memberDescribeSecretOutput_LastRotatedDate.Target = &schemaLastRotatedDateType
-	memberDescribeSecretOutput_LastChangedDate.Target = &schemaLastChangedDateType
-	memberDescribeSecretOutput_LastAccessedDate.Target = &schemaLastAccessedDateType
-	memberDescribeSecretOutput_DeletedDate.Target = &schemaDeletedDateType
-	memberDescribeSecretOutput_NextRotationDate.Target = &schemaNextRotationDateType
-	memberDescribeSecretOutput_Tags.Target = &schemaTagListType
-	memberDescribeSecretOutput_VersionIdsToStages.Target = &schemaSecretVersionsToStagesMapType
-	memberDescribeSecretOutput_OwningService.Target = &schemaOwningServiceType
-	memberDescribeSecretOutput_CreatedDate.Target = &schemaTimestampType
-	memberDescribeSecretOutput_PrimaryRegion.Target = &schemaRegionType
-	memberDescribeSecretOutput_ReplicationStatus.Target = &schemaReplicationStatusListType
-	schemaDescribeSecretOutput.Members = []*smithy.Member{&memberDescribeSecretOutput_ARN, &memberDescribeSecretOutput_Name, &memberDescribeSecretOutput_Type, &memberDescribeSecretOutput_Description, &memberDescribeSecretOutput_KmsKeyId, &memberDescribeSecretOutput_RotationEnabled, &memberDescribeSecretOutput_RotationLambdaARN, &memberDescribeSecretOutput_RotationRules, &memberDescribeSecretOutput_ExternalSecretRotationMetadata, &memberDescribeSecretOutput_ExternalSecretRotationRoleArn, &memberDescribeSecretOutput_LastRotatedDate, &memberDescribeSecretOutput_LastChangedDate, &memberDescribeSecretOutput_LastAccessedDate, &memberDescribeSecretOutput_DeletedDate, &memberDescribeSecretOutput_NextRotationDate, &memberDescribeSecretOutput_Tags, &memberDescribeSecretOutput_VersionIdsToStages, &memberDescribeSecretOutput_OwningService, &memberDescribeSecretOutput_CreatedDate, &memberDescribeSecretOutput_PrimaryRegion, &memberDescribeSecretOutput_ReplicationStatus}
-	memberEncryptionFailure_Message.Target = &schemaErrorMessage
-	schemaEncryptionFailure.Members = []*smithy.Member{&memberEncryptionFailure_Message}
-	memberExpiredTokenException_message.Target = &schemaSmithyString
-	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
-	memberExternalSecretRotationMetadataItem_Key.Target = &schemaExternalSecretRotationMetadataItemKeyType
-	memberExternalSecretRotationMetadataItem_Value.Target = &schemaExternalSecretRotationMetadataItemValueType
-	schemaExternalSecretRotationMetadataItem.Members = []*smithy.Member{&memberExternalSecretRotationMetadataItem_Key, &memberExternalSecretRotationMetadataItem_Value}
-	memberExternalSecretRotationMetadataType_member.Target = &schemaExternalSecretRotationMetadataItem
-	schemaExternalSecretRotationMetadataType.Members = []*smithy.Member{&memberExternalSecretRotationMetadataType_member}
-	memberFilter_Key.Target = &schemaFilterNameStringType
-	memberFilter_Values.Target = &schemaFilterValuesStringList
-	schemaFilter.Members = []*smithy.Member{&memberFilter_Key, &memberFilter_Values}
-	memberFilterValuesStringList_member.Target = &schemaFilterValueStringType
-	schemaFilterValuesStringList.Members = []*smithy.Member{&memberFilterValuesStringList_member}
-	memberFiltersListType_member.Target = &schemaFilter
-	schemaFiltersListType.Members = []*smithy.Member{&memberFiltersListType_member}
-	memberGetRandomPasswordInput_PasswordLength.Target = &schemaPasswordLengthType
-	memberGetRandomPasswordInput_ExcludeCharacters.Target = &schemaExcludeCharactersType
-	memberGetRandomPasswordInput_ExcludeNumbers.Target = &schemaExcludeNumbersType
-	memberGetRandomPasswordInput_ExcludePunctuation.Target = &schemaExcludePunctuationType
-	memberGetRandomPasswordInput_ExcludeUppercase.Target = &schemaExcludeUppercaseType
-	memberGetRandomPasswordInput_ExcludeLowercase.Target = &schemaExcludeLowercaseType
-	memberGetRandomPasswordInput_IncludeSpace.Target = &schemaIncludeSpaceType
-	memberGetRandomPasswordInput_RequireEachIncludedType.Target = &schemaRequireEachIncludedTypeType
-	schemaGetRandomPasswordInput.Members = []*smithy.Member{&memberGetRandomPasswordInput_PasswordLength, &memberGetRandomPasswordInput_ExcludeCharacters, &memberGetRandomPasswordInput_ExcludeNumbers, &memberGetRandomPasswordInput_ExcludePunctuation, &memberGetRandomPasswordInput_ExcludeUppercase, &memberGetRandomPasswordInput_ExcludeLowercase, &memberGetRandomPasswordInput_IncludeSpace, &memberGetRandomPasswordInput_RequireEachIncludedType}
-	memberGetRandomPasswordOutput_RandomPassword.Target = &schemaRandomPasswordType
-	schemaGetRandomPasswordOutput.Members = []*smithy.Member{&memberGetRandomPasswordOutput_RandomPassword}
-	memberGetResourcePolicyInput_SecretId.Target = &schemaSecretIdType
-	schemaGetResourcePolicyInput.Members = []*smithy.Member{&memberGetResourcePolicyInput_SecretId}
-	memberGetResourcePolicyOutput_ARN.Target = &schemaSecretARNType
-	memberGetResourcePolicyOutput_Name.Target = &schemaNameType
-	memberGetResourcePolicyOutput_ResourcePolicy.Target = &schemaNonEmptyResourcePolicyType
-	schemaGetResourcePolicyOutput.Members = []*smithy.Member{&memberGetResourcePolicyOutput_ARN, &memberGetResourcePolicyOutput_Name, &memberGetResourcePolicyOutput_ResourcePolicy}
-	memberGetSecretValueInput_SecretId.Target = &schemaSecretIdType
-	memberGetSecretValueInput_VersionId.Target = &schemaSecretVersionIdType
-	memberGetSecretValueInput_VersionStage.Target = &schemaSecretVersionStageType
-	schemaGetSecretValueInput.Members = []*smithy.Member{&memberGetSecretValueInput_SecretId, &memberGetSecretValueInput_VersionId, &memberGetSecretValueInput_VersionStage}
-	memberGetSecretValueOutput_ARN.Target = &schemaSecretARNType
-	memberGetSecretValueOutput_Name.Target = &schemaSecretNameType
-	memberGetSecretValueOutput_VersionId.Target = &schemaSecretVersionIdType
-	memberGetSecretValueOutput_SecretBinary.Target = &schemaSecretBinaryType
-	memberGetSecretValueOutput_SecretString.Target = &schemaSecretStringType
-	memberGetSecretValueOutput_VersionStages.Target = &schemaSecretVersionStagesType
-	memberGetSecretValueOutput_CreatedDate.Target = &schemaCreatedDateType
-	schemaGetSecretValueOutput.Members = []*smithy.Member{&memberGetSecretValueOutput_ARN, &memberGetSecretValueOutput_Name, &memberGetSecretValueOutput_VersionId, &memberGetSecretValueOutput_SecretBinary, &memberGetSecretValueOutput_SecretString, &memberGetSecretValueOutput_VersionStages, &memberGetSecretValueOutput_CreatedDate}
-	memberIncompleteSignatureException_message.Target = &schemaSmithyString
-	schemaIncompleteSignatureException.Members = []*smithy.Member{&memberIncompleteSignatureException_message}
-	memberInternalFailure_message.Target = &schemaSmithyString
-	schemaInternalFailure.Members = []*smithy.Member{&memberInternalFailure_message}
-	memberInternalServiceError_Message.Target = &schemaErrorMessage
-	schemaInternalServiceError.Members = []*smithy.Member{&memberInternalServiceError_Message}
-	memberInvalidNextTokenException_Message.Target = &schemaErrorMessage
-	schemaInvalidNextTokenException.Members = []*smithy.Member{&memberInvalidNextTokenException_Message}
-	memberInvalidParameterException_Message.Target = &schemaErrorMessage
-	schemaInvalidParameterException.Members = []*smithy.Member{&memberInvalidParameterException_Message}
-	memberInvalidRequestException_Message.Target = &schemaErrorMessage
-	schemaInvalidRequestException.Members = []*smithy.Member{&memberInvalidRequestException_Message}
-	memberInvalidSignatureException_message.Target = &schemaSmithyString
-	schemaInvalidSignatureException.Members = []*smithy.Member{&memberInvalidSignatureException_message}
-	memberKmsKeyIdListType_member.Target = &schemaKmsKeyIdType
-	schemaKmsKeyIdListType.Members = []*smithy.Member{&memberKmsKeyIdListType_member}
-	memberLimitExceededException_Message.Target = &schemaErrorMessage
-	schemaLimitExceededException.Members = []*smithy.Member{&memberLimitExceededException_Message}
-	memberListSecretVersionIdsInput_SecretId.Target = &schemaSecretIdType
-	memberListSecretVersionIdsInput_MaxResults.Target = &schemaMaxResultsType
-	memberListSecretVersionIdsInput_NextToken.Target = &schemaNextTokenType
-	memberListSecretVersionIdsInput_IncludeDeprecated.Target = &schemaBooleanType
-	schemaListSecretVersionIdsInput.Members = []*smithy.Member{&memberListSecretVersionIdsInput_SecretId, &memberListSecretVersionIdsInput_MaxResults, &memberListSecretVersionIdsInput_NextToken, &memberListSecretVersionIdsInput_IncludeDeprecated}
-	memberListSecretVersionIdsOutput_Versions.Target = &schemaSecretVersionsListType
-	memberListSecretVersionIdsOutput_NextToken.Target = &schemaNextTokenType
-	memberListSecretVersionIdsOutput_ARN.Target = &schemaSecretARNType
-	memberListSecretVersionIdsOutput_Name.Target = &schemaSecretNameType
-	schemaListSecretVersionIdsOutput.Members = []*smithy.Member{&memberListSecretVersionIdsOutput_Versions, &memberListSecretVersionIdsOutput_NextToken, &memberListSecretVersionIdsOutput_ARN, &memberListSecretVersionIdsOutput_Name}
-	memberListSecretsInput_IncludePlannedDeletion.Target = &schemaBooleanType
-	memberListSecretsInput_MaxResults.Target = &schemaMaxResultsType
-	memberListSecretsInput_NextToken.Target = &schemaNextTokenType
-	memberListSecretsInput_Filters.Target = &schemaFiltersListType
-	memberListSecretsInput_SortOrder.Target = &schemaSortOrderType
-	memberListSecretsInput_SortBy.Target = &schemaSortByType
-	schemaListSecretsInput.Members = []*smithy.Member{&memberListSecretsInput_IncludePlannedDeletion, &memberListSecretsInput_MaxResults, &memberListSecretsInput_NextToken, &memberListSecretsInput_Filters, &memberListSecretsInput_SortOrder, &memberListSecretsInput_SortBy}
-	memberListSecretsOutput_SecretList.Target = &schemaSecretListType
-	memberListSecretsOutput_NextToken.Target = &schemaNextTokenType
-	schemaListSecretsOutput.Members = []*smithy.Member{&memberListSecretsOutput_SecretList, &memberListSecretsOutput_NextToken}
-	memberMalformedPolicyDocumentException_Message.Target = &schemaErrorMessage
-	schemaMalformedPolicyDocumentException.Members = []*smithy.Member{&memberMalformedPolicyDocumentException_Message}
-	memberMissingAuthenticationTokenException_message.Target = &schemaSmithyString
-	schemaMissingAuthenticationTokenException.Members = []*smithy.Member{&memberMissingAuthenticationTokenException_message}
-	memberNotImplemented_message.Target = &schemaSmithyString
-	schemaNotImplemented.Members = []*smithy.Member{&memberNotImplemented_message}
-	memberPreconditionNotMetException_Message.Target = &schemaErrorMessage
-	schemaPreconditionNotMetException.Members = []*smithy.Member{&memberPreconditionNotMetException_Message}
-	memberPublicPolicyException_Message.Target = &schemaErrorMessage
-	schemaPublicPolicyException.Members = []*smithy.Member{&memberPublicPolicyException_Message}
-	memberPutResourcePolicyInput_SecretId.Target = &schemaSecretIdType
-	memberPutResourcePolicyInput_ResourcePolicy.Target = &schemaNonEmptyResourcePolicyType
-	memberPutResourcePolicyInput_BlockPublicPolicy.Target = &schemaBooleanType
-	schemaPutResourcePolicyInput.Members = []*smithy.Member{&memberPutResourcePolicyInput_SecretId, &memberPutResourcePolicyInput_ResourcePolicy, &memberPutResourcePolicyInput_BlockPublicPolicy}
-	memberPutResourcePolicyOutput_ARN.Target = &schemaSecretARNType
-	memberPutResourcePolicyOutput_Name.Target = &schemaNameType
-	schemaPutResourcePolicyOutput.Members = []*smithy.Member{&memberPutResourcePolicyOutput_ARN, &memberPutResourcePolicyOutput_Name}
-	memberPutSecretValueInput_SecretId.Target = &schemaSecretIdType
-	memberPutSecretValueInput_ClientRequestToken.Target = &schemaClientRequestTokenType
-	memberPutSecretValueInput_SecretBinary.Target = &schemaSecretBinaryType
-	memberPutSecretValueInput_SecretString.Target = &schemaSecretStringType
-	memberPutSecretValueInput_VersionStages.Target = &schemaSecretVersionStagesType
-	memberPutSecretValueInput_RotationToken.Target = &schemaRotationTokenType
-	schemaPutSecretValueInput.Members = []*smithy.Member{&memberPutSecretValueInput_SecretId, &memberPutSecretValueInput_ClientRequestToken, &memberPutSecretValueInput_SecretBinary, &memberPutSecretValueInput_SecretString, &memberPutSecretValueInput_VersionStages, &memberPutSecretValueInput_RotationToken}
-	memberPutSecretValueOutput_ARN.Target = &schemaSecretARNType
-	memberPutSecretValueOutput_Name.Target = &schemaSecretNameType
-	memberPutSecretValueOutput_VersionId.Target = &schemaSecretVersionIdType
-	memberPutSecretValueOutput_VersionStages.Target = &schemaSecretVersionStagesType
-	schemaPutSecretValueOutput.Members = []*smithy.Member{&memberPutSecretValueOutput_ARN, &memberPutSecretValueOutput_Name, &memberPutSecretValueOutput_VersionId, &memberPutSecretValueOutput_VersionStages}
-	memberRemoveRegionsFromReplicationInput_SecretId.Target = &schemaSecretIdType
-	memberRemoveRegionsFromReplicationInput_RemoveReplicaRegions.Target = &schemaRemoveReplicaRegionListType
-	schemaRemoveRegionsFromReplicationInput.Members = []*smithy.Member{&memberRemoveRegionsFromReplicationInput_SecretId, &memberRemoveRegionsFromReplicationInput_RemoveReplicaRegions}
-	memberRemoveRegionsFromReplicationOutput_ARN.Target = &schemaSecretARNType
-	memberRemoveRegionsFromReplicationOutput_ReplicationStatus.Target = &schemaReplicationStatusListType
-	schemaRemoveRegionsFromReplicationOutput.Members = []*smithy.Member{&memberRemoveRegionsFromReplicationOutput_ARN, &memberRemoveRegionsFromReplicationOutput_ReplicationStatus}
-	memberRemoveReplicaRegionListType_member.Target = &schemaRegionType
-	schemaRemoveReplicaRegionListType.Members = []*smithy.Member{&memberRemoveReplicaRegionListType_member}
-	memberReplicaRegionType_Region.Target = &schemaRegionType
-	memberReplicaRegionType_KmsKeyId.Target = &schemaKmsKeyIdType
-	schemaReplicaRegionType.Members = []*smithy.Member{&memberReplicaRegionType_Region, &memberReplicaRegionType_KmsKeyId}
-	memberReplicateSecretToRegionsInput_SecretId.Target = &schemaSecretIdType
-	memberReplicateSecretToRegionsInput_AddReplicaRegions.Target = &schemaAddReplicaRegionListType
-	memberReplicateSecretToRegionsInput_ForceOverwriteReplicaSecret.Target = &schemaBooleanType
-	schemaReplicateSecretToRegionsInput.Members = []*smithy.Member{&memberReplicateSecretToRegionsInput_SecretId, &memberReplicateSecretToRegionsInput_AddReplicaRegions, &memberReplicateSecretToRegionsInput_ForceOverwriteReplicaSecret}
-	memberReplicateSecretToRegionsOutput_ARN.Target = &schemaSecretARNType
-	memberReplicateSecretToRegionsOutput_ReplicationStatus.Target = &schemaReplicationStatusListType
-	schemaReplicateSecretToRegionsOutput.Members = []*smithy.Member{&memberReplicateSecretToRegionsOutput_ARN, &memberReplicateSecretToRegionsOutput_ReplicationStatus}
-	memberReplicationStatusListType_member.Target = &schemaReplicationStatusType
-	schemaReplicationStatusListType.Members = []*smithy.Member{&memberReplicationStatusListType_member}
-	memberReplicationStatusType_Region.Target = &schemaRegionType
-	memberReplicationStatusType_KmsKeyId.Target = &schemaKmsKeyIdType
-	memberReplicationStatusType_Status.Target = &schemaStatusType
-	memberReplicationStatusType_StatusMessage.Target = &schemaStatusMessageType
-	memberReplicationStatusType_LastAccessedDate.Target = &schemaLastAccessedDateType
-	schemaReplicationStatusType.Members = []*smithy.Member{&memberReplicationStatusType_Region, &memberReplicationStatusType_KmsKeyId, &memberReplicationStatusType_Status, &memberReplicationStatusType_StatusMessage, &memberReplicationStatusType_LastAccessedDate}
-	memberRequestEntityTooLargeException_message.Target = &schemaSmithyString
-	schemaRequestEntityTooLargeException.Members = []*smithy.Member{&memberRequestEntityTooLargeException_message}
-	memberResourceExistsException_Message.Target = &schemaErrorMessage
-	schemaResourceExistsException.Members = []*smithy.Member{&memberResourceExistsException_Message}
-	memberResourceNotFoundException_Message.Target = &schemaErrorMessage
-	schemaResourceNotFoundException.Members = []*smithy.Member{&memberResourceNotFoundException_Message}
-	memberRestoreSecretInput_SecretId.Target = &schemaSecretIdType
-	schemaRestoreSecretInput.Members = []*smithy.Member{&memberRestoreSecretInput_SecretId}
-	memberRestoreSecretOutput_ARN.Target = &schemaSecretARNType
-	memberRestoreSecretOutput_Name.Target = &schemaSecretNameType
-	schemaRestoreSecretOutput.Members = []*smithy.Member{&memberRestoreSecretOutput_ARN, &memberRestoreSecretOutput_Name}
-	memberRotateSecretInput_SecretId.Target = &schemaSecretIdType
-	memberRotateSecretInput_ClientRequestToken.Target = &schemaClientRequestTokenType
-	memberRotateSecretInput_RotationLambdaARN.Target = &schemaRotationLambdaARNType
-	memberRotateSecretInput_RotationRules.Target = &schemaRotationRulesType
-	memberRotateSecretInput_ExternalSecretRotationMetadata.Target = &schemaExternalSecretRotationMetadataType
-	memberRotateSecretInput_ExternalSecretRotationRoleArn.Target = &schemaRoleARNType
-	memberRotateSecretInput_RotateImmediately.Target = &schemaBooleanType
-	schemaRotateSecretInput.Members = []*smithy.Member{&memberRotateSecretInput_SecretId, &memberRotateSecretInput_ClientRequestToken, &memberRotateSecretInput_RotationLambdaARN, &memberRotateSecretInput_RotationRules, &memberRotateSecretInput_ExternalSecretRotationMetadata, &memberRotateSecretInput_ExternalSecretRotationRoleArn, &memberRotateSecretInput_RotateImmediately}
-	memberRotateSecretOutput_ARN.Target = &schemaSecretARNType
-	memberRotateSecretOutput_Name.Target = &schemaSecretNameType
-	memberRotateSecretOutput_VersionId.Target = &schemaSecretVersionIdType
-	schemaRotateSecretOutput.Members = []*smithy.Member{&memberRotateSecretOutput_ARN, &memberRotateSecretOutput_Name, &memberRotateSecretOutput_VersionId}
-	memberRotationRulesType_AutomaticallyAfterDays.Target = &schemaAutomaticallyRotateAfterDaysType
-	memberRotationRulesType_Duration.Target = &schemaDurationType
-	memberRotationRulesType_ScheduleExpression.Target = &schemaScheduleExpressionType
-	schemaRotationRulesType.Members = []*smithy.Member{&memberRotationRulesType_AutomaticallyAfterDays, &memberRotationRulesType_Duration, &memberRotationRulesType_ScheduleExpression}
-	memberSecretIdListType_member.Target = &schemaSecretIdType
-	schemaSecretIdListType.Members = []*smithy.Member{&memberSecretIdListType_member}
-	memberSecretListEntry_ARN.Target = &schemaSecretARNType
-	memberSecretListEntry_Name.Target = &schemaSecretNameType
-	memberSecretListEntry_Type.Target = &schemaMedeaTypeType
-	memberSecretListEntry_Description.Target = &schemaDescriptionType
-	memberSecretListEntry_KmsKeyId.Target = &schemaKmsKeyIdType
-	memberSecretListEntry_RotationEnabled.Target = &schemaRotationEnabledType
-	memberSecretListEntry_RotationLambdaARN.Target = &schemaRotationLambdaARNType
-	memberSecretListEntry_RotationRules.Target = &schemaRotationRulesType
-	memberSecretListEntry_ExternalSecretRotationMetadata.Target = &schemaExternalSecretRotationMetadataType
-	memberSecretListEntry_ExternalSecretRotationRoleArn.Target = &schemaRoleARNType
-	memberSecretListEntry_LastRotatedDate.Target = &schemaLastRotatedDateType
-	memberSecretListEntry_LastChangedDate.Target = &schemaLastChangedDateType
-	memberSecretListEntry_LastAccessedDate.Target = &schemaLastAccessedDateType
-	memberSecretListEntry_DeletedDate.Target = &schemaDeletedDateType
-	memberSecretListEntry_NextRotationDate.Target = &schemaNextRotationDateType
-	memberSecretListEntry_Tags.Target = &schemaTagListType
-	memberSecretListEntry_SecretVersionsToStages.Target = &schemaSecretVersionsToStagesMapType
-	memberSecretListEntry_OwningService.Target = &schemaOwningServiceType
-	memberSecretListEntry_CreatedDate.Target = &schemaTimestampType
-	memberSecretListEntry_PrimaryRegion.Target = &schemaRegionType
-	schemaSecretListEntry.Members = []*smithy.Member{&memberSecretListEntry_ARN, &memberSecretListEntry_Name, &memberSecretListEntry_Type, &memberSecretListEntry_Description, &memberSecretListEntry_KmsKeyId, &memberSecretListEntry_RotationEnabled, &memberSecretListEntry_RotationLambdaARN, &memberSecretListEntry_RotationRules, &memberSecretListEntry_ExternalSecretRotationMetadata, &memberSecretListEntry_ExternalSecretRotationRoleArn, &memberSecretListEntry_LastRotatedDate, &memberSecretListEntry_LastChangedDate, &memberSecretListEntry_LastAccessedDate, &memberSecretListEntry_DeletedDate, &memberSecretListEntry_NextRotationDate, &memberSecretListEntry_Tags, &memberSecretListEntry_SecretVersionsToStages, &memberSecretListEntry_OwningService, &memberSecretListEntry_CreatedDate, &memberSecretListEntry_PrimaryRegion}
-	memberSecretListType_member.Target = &schemaSecretListEntry
-	schemaSecretListType.Members = []*smithy.Member{&memberSecretListType_member}
-	memberSecretValueEntry_ARN.Target = &schemaSecretARNType
-	memberSecretValueEntry_Name.Target = &schemaSecretNameType
-	memberSecretValueEntry_VersionId.Target = &schemaSecretVersionIdType
-	memberSecretValueEntry_SecretBinary.Target = &schemaSecretBinaryType
-	memberSecretValueEntry_SecretString.Target = &schemaSecretStringType
-	memberSecretValueEntry_VersionStages.Target = &schemaSecretVersionStagesType
-	memberSecretValueEntry_CreatedDate.Target = &schemaCreatedDateType
-	schemaSecretValueEntry.Members = []*smithy.Member{&memberSecretValueEntry_ARN, &memberSecretValueEntry_Name, &memberSecretValueEntry_VersionId, &memberSecretValueEntry_SecretBinary, &memberSecretValueEntry_SecretString, &memberSecretValueEntry_VersionStages, &memberSecretValueEntry_CreatedDate}
-	memberSecretValuesType_member.Target = &schemaSecretValueEntry
-	schemaSecretValuesType.Members = []*smithy.Member{&memberSecretValuesType_member}
-	memberSecretVersionStagesType_member.Target = &schemaSecretVersionStageType
-	schemaSecretVersionStagesType.Members = []*smithy.Member{&memberSecretVersionStagesType_member}
-	memberSecretVersionsListEntry_VersionId.Target = &schemaSecretVersionIdType
-	memberSecretVersionsListEntry_VersionStages.Target = &schemaSecretVersionStagesType
-	memberSecretVersionsListEntry_LastAccessedDate.Target = &schemaLastAccessedDateType
-	memberSecretVersionsListEntry_CreatedDate.Target = &schemaCreatedDateType
-	memberSecretVersionsListEntry_KmsKeyIds.Target = &schemaKmsKeyIdListType
-	schemaSecretVersionsListEntry.Members = []*smithy.Member{&memberSecretVersionsListEntry_VersionId, &memberSecretVersionsListEntry_VersionStages, &memberSecretVersionsListEntry_LastAccessedDate, &memberSecretVersionsListEntry_CreatedDate, &memberSecretVersionsListEntry_KmsKeyIds}
-	memberSecretVersionsListType_member.Target = &schemaSecretVersionsListEntry
-	schemaSecretVersionsListType.Members = []*smithy.Member{&memberSecretVersionsListType_member}
-	memberSecretVersionsToStagesMapType_key.Target = &schemaSecretVersionIdType
-	memberSecretVersionsToStagesMapType_value.Target = &schemaSecretVersionStagesType
-	schemaSecretVersionsToStagesMapType.Members = []*smithy.Member{&memberSecretVersionsToStagesMapType_key, &memberSecretVersionsToStagesMapType_value}
-	memberSerializationException_Message.Target = &schemaSmithyString
-	schemaSerializationException.Members = []*smithy.Member{&memberSerializationException_Message}
-	memberStopReplicationToReplicaInput_SecretId.Target = &schemaSecretIdType
-	schemaStopReplicationToReplicaInput.Members = []*smithy.Member{&memberStopReplicationToReplicaInput_SecretId}
-	memberStopReplicationToReplicaOutput_ARN.Target = &schemaSecretARNType
-	schemaStopReplicationToReplicaOutput.Members = []*smithy.Member{&memberStopReplicationToReplicaOutput_ARN}
-	memberTag_Key.Target = &schemaTagKeyType
-	memberTag_Value.Target = &schemaTagValueType
-	schemaTag.Members = []*smithy.Member{&memberTag_Key, &memberTag_Value}
-	memberTagKeyListType_member.Target = &schemaTagKeyType
-	schemaTagKeyListType.Members = []*smithy.Member{&memberTagKeyListType_member}
-	memberTagListType_member.Target = &schemaTag
-	schemaTagListType.Members = []*smithy.Member{&memberTagListType_member}
-	memberTagResourceInput_SecretId.Target = &schemaSecretIdType
-	memberTagResourceInput_Tags.Target = &schemaTagListType
-	schemaTagResourceInput.Members = []*smithy.Member{&memberTagResourceInput_SecretId, &memberTagResourceInput_Tags}
-	memberThrottlingException_message.Target = &schemaSmithyString
-	schemaThrottlingException.Members = []*smithy.Member{&memberThrottlingException_message}
-	memberUnknownOperationException_message.Target = &schemaSmithyString
-	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
-	memberUnrecognizedClientException_message.Target = &schemaSmithyString
-	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
-	memberUntagResourceInput_SecretId.Target = &schemaSecretIdType
-	memberUntagResourceInput_TagKeys.Target = &schemaTagKeyListType
-	schemaUntagResourceInput.Members = []*smithy.Member{&memberUntagResourceInput_SecretId, &memberUntagResourceInput_TagKeys}
-	memberUpdateSecretInput_SecretId.Target = &schemaSecretIdType
-	memberUpdateSecretInput_ClientRequestToken.Target = &schemaClientRequestTokenType
-	memberUpdateSecretInput_Description.Target = &schemaDescriptionType
-	memberUpdateSecretInput_KmsKeyId.Target = &schemaKmsKeyIdType
-	memberUpdateSecretInput_SecretBinary.Target = &schemaSecretBinaryType
-	memberUpdateSecretInput_SecretString.Target = &schemaSecretStringType
-	memberUpdateSecretInput_Type.Target = &schemaMedeaTypeType
-	schemaUpdateSecretInput.Members = []*smithy.Member{&memberUpdateSecretInput_SecretId, &memberUpdateSecretInput_ClientRequestToken, &memberUpdateSecretInput_Description, &memberUpdateSecretInput_KmsKeyId, &memberUpdateSecretInput_SecretBinary, &memberUpdateSecretInput_SecretString, &memberUpdateSecretInput_Type}
-	memberUpdateSecretOutput_ARN.Target = &schemaSecretARNType
-	memberUpdateSecretOutput_Name.Target = &schemaSecretNameType
-	memberUpdateSecretOutput_VersionId.Target = &schemaSecretVersionIdType
-	schemaUpdateSecretOutput.Members = []*smithy.Member{&memberUpdateSecretOutput_ARN, &memberUpdateSecretOutput_Name, &memberUpdateSecretOutput_VersionId}
-	memberUpdateSecretVersionStageInput_SecretId.Target = &schemaSecretIdType
-	memberUpdateSecretVersionStageInput_VersionStage.Target = &schemaSecretVersionStageType
-	memberUpdateSecretVersionStageInput_RemoveFromVersionId.Target = &schemaSecretVersionIdType
-	memberUpdateSecretVersionStageInput_MoveToVersionId.Target = &schemaSecretVersionIdType
-	schemaUpdateSecretVersionStageInput.Members = []*smithy.Member{&memberUpdateSecretVersionStageInput_SecretId, &memberUpdateSecretVersionStageInput_VersionStage, &memberUpdateSecretVersionStageInput_RemoveFromVersionId, &memberUpdateSecretVersionStageInput_MoveToVersionId}
-	memberUpdateSecretVersionStageOutput_ARN.Target = &schemaSecretARNType
-	memberUpdateSecretVersionStageOutput_Name.Target = &schemaSecretNameType
-	schemaUpdateSecretVersionStageOutput.Members = []*smithy.Member{&memberUpdateSecretVersionStageOutput_ARN, &memberUpdateSecretVersionStageOutput_Name}
-	memberValidateResourcePolicyInput_SecretId.Target = &schemaSecretIdType
-	memberValidateResourcePolicyInput_ResourcePolicy.Target = &schemaNonEmptyResourcePolicyType
-	schemaValidateResourcePolicyInput.Members = []*smithy.Member{&memberValidateResourcePolicyInput_SecretId, &memberValidateResourcePolicyInput_ResourcePolicy}
-	memberValidateResourcePolicyOutput_PolicyValidationPassed.Target = &schemaBooleanType
-	memberValidateResourcePolicyOutput_ValidationErrors.Target = &schemaValidationErrorsType
-	schemaValidateResourcePolicyOutput.Members = []*smithy.Member{&memberValidateResourcePolicyOutput_PolicyValidationPassed, &memberValidateResourcePolicyOutput_ValidationErrors}
-	memberValidationErrorsEntry_CheckName.Target = &schemaNameType
-	memberValidationErrorsEntry_ErrorMessage.Target = &schemaErrorMessage
-	schemaValidationErrorsEntry.Members = []*smithy.Member{&memberValidationErrorsEntry_CheckName, &memberValidationErrorsEntry_ErrorMessage}
-	memberValidationErrorsType_member.Target = &schemaValidationErrorsEntry
-	schemaValidationErrorsType.Members = []*smithy.Member{&memberValidationErrorsType_member}
-	memberValidationException_message.Target = &schemaSmithyString
-	schemaValidationException.Members = []*smithy.Member{&memberValidationException_message}
-}
+var memberValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}

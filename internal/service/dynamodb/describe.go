@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -40,15 +41,52 @@ type shimmed struct {
 	// under renames the member holding the description: an UpdateTable
 	// answered from Local's DescribeTable moves Table to TableDescription.
 	under string
+	// stream replaces Local's LatestStreamArn and LatestStreamLabel with
+	// understudy's (dynamodb-streams.md 11.1 item 6); nil keeps Local's.
+	stream *streamMembers
+	// seen, when set, receives what Local's description says of the
+	// stream the call enables, before stream replaces it.
+	seen *localStreamSeen
+}
+
+// localStreamSeen is what the feed needs from Local's description of a
+// table whose stream a call enabled: the label of Local's stream, which
+// names it in Local's ARN form, and the table's key schema, which
+// DescribeStream reports.
+type localStreamSeen struct {
+	label string
+	keys  []dynamodbstreamsapi.KeySchemaElement
+}
+
+// read takes Local's LatestStreamLabel and KeySchema from desc.
+func (l *localStreamSeen) read(desc document.Map) {
+	if label, ok := member(desc, "LatestStreamLabel").(document.String); ok {
+		l.label = string(label)
+	}
+	keys, isList := member(desc, "KeySchema").(document.List)
+	if !isList {
+		return
+	}
+	for _, k := range keys {
+		m, isMap := k.(document.Map)
+		if !isMap {
+			continue
+		}
+		name, named := member(m, "AttributeName").(document.String)
+		kind, typed := member(m, "KeyType").(document.String)
+		if named && typed {
+			l.keys = append(l.keys, dynamodbstreamsapi.KeySchemaElement{AttributeName: string(name), KeyType: dynamodbstreamsapi.KeyType(kind)})
+		}
+	}
 }
 
 // described is how the description of name in scope is completed.
 func (s *Service) described(scope aws.Scope, name string, status dynamodbapi.TableStatus) *shimmed {
-	t, ok := s.lookup(scope, tableName(name))
-	if !ok {
-		return &shimmed{status: status}
+	d := &shimmed{status: status, stream: s.latestStream(scope, tableName(name))}
+	if t, ok := s.lookup(scope, tableName(name)); ok {
+		d.table = &t
 	}
-	return &shimmed{table: &t, status: status}
+	return d
 }
 
 // describeTable forwards DescribeTable and completes the description.
@@ -102,6 +140,13 @@ func (d *shimmed) patch(desc document.Map) document.Map {
 		indexStatus = dynamodbapi.IndexStatusCreating
 	}
 	patchIndexes(desc, t, indexStatus)
+	if d.seen != nil {
+		d.seen.read(desc)
+	}
+	if d.stream != nil {
+		desc = setMember(desc, "LatestStreamArn", document.String(d.stream.arn))
+		desc = setMember(desc, "LatestStreamLabel", document.String(d.stream.label))
+	}
 	if t == nil {
 		return desc
 	}

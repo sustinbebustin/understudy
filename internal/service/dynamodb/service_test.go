@@ -104,7 +104,7 @@ func TestOperationsLocalLacksNeverReachIt(t *testing.T) {
 // TestEveryOperationLocalServesIsBound: the forwarded operations are
 // bound, with Full or a Partial naming Local's gap, and so are the
 // operations the shims answer; those whose answers carry LatestStreamLabel
-// list Local's labels as a deviation.
+// no longer list Local's labels as a deviation.
 func TestEveryOperationLocalServesIsBound(t *testing.T) {
 	run(t, func(h *harness) {
 		forwarded := []string{
@@ -128,10 +128,11 @@ func TestEveryOperationLocalServesIsBound(t *testing.T) {
 			if ok && partial && slices.Contains(forwarded, op.ID.Name) && !strings.HasPrefix(p.Note, "aws-differs: dynamodb-local: ") {
 				h.Errorf("%s: partial note %q does not say how Local differs", op.ID.Name, p.Note)
 			}
-			// ADR 0009 amendment: Local's stream labels change across a
-			// snapshot load or reset, listed where answers carry them.
-			if slices.Contains(labelled, op.ID.Name) && (!partial || !strings.Contains(p.Note, "LatestStreamLabel is minted by DynamoDB Local")) {
-				h.Errorf("%s: coverage %#v does not list the stream-label deviation", op.ID.Name, bound.Coverage)
+			// Snapshots keep stream labels, so the deviation the ADR 0009
+			// amendment listed where answers carry them is retired
+			// (dynamodb-streams.md 11.1 item 7).
+			if slices.Contains(labelled, op.ID.Name) && partial && strings.Contains(p.Note, "stream labels") {
+				h.Errorf("%s: coverage %#v still lists the retired stream-label deviation", op.ID.Name, bound.Coverage)
 			}
 		}
 	})
@@ -291,9 +292,12 @@ func TestTableARNOfAnotherScopeIsNotFound(t *testing.T) {
 
 // TestFaultNotesNameInjectableShapes: every fault rule a coverage note
 // offers ("inject X or Y with a fault rule") is one the fault store
-// accepts for that operation.
+// accepts for that operation. A shape is a capitalized name or a full id;
+// the transactional operations' offer of a rule with members ("inject it
+// with a fault rule whose members ...") is checked by
+// TestTransactionRulesCountTheRequestItems.
 func TestFaultNotesNameInjectableShapes(t *testing.T) {
-	offer := regexp.MustCompile(`inject ([A-Za-z.#]+(?: or [A-Za-z.#]+)*) with a fault rule`)
+	offer := regexp.MustCompile(`inject ((?:[A-Z]|com\.)[A-Za-z.#]*(?: or (?:[A-Z]|com\.)[A-Za-z.#]*)*) with a fault rule`)
 	run(t, func(h *harness) {
 		checked := 0
 		for _, op := range dynamodbapi.Service().Operations {

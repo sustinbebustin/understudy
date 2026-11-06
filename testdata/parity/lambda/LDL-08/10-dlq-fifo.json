@@ -1,0 +1,35 @@
+{
+  "step": "10-dlq-fifo",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: Invalid dead letter queue ARN: FIFO SQS queue is not supported for dead letter configuration\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions/us1103-ldl-v/configuration",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,g,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.update-function-configuration"],
+          ["X-Amz-Date", "20261103T165348Z"],
+          ["amz-sdk-invocation-id", "5e7f3b99-4b75-4585-9f08-d33d244ab7ce"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "91"]
+        ],
+        "body": "{\"DeadLetterConfig\": {\"TargetArn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-ldl-f.fifo\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:53:48 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "120"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "ebcb695e-d7e0-4464-a14c-f8fff5e8d68a"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"Invalid dead letter queue ARN: FIFO SQS queue is not supported for dead letter configuration\"}"
+      }
+    }
+  ]
+}

@@ -6,8 +6,15 @@
       "traits": {
         "dev.understudy#errorNamespace": "com.amazonaws.dynamodb.v20120810",
         "dev.understudy#throttleError": "com.amazonaws.dynamodb#ThrottlingException",
+        "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/dynamodb/IAM-ENF/04-describe.json: an IAM denial answers 400 with __type com.amazon.coral.service#AccessDeniedException (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch dynamodb.denial.type)",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#denialError"]
+          },
           {
             "label": "aws-recorded",
             "source": "testdata/parity/dynamodb/R04/07-ttl-missing-table.json",
@@ -26,6 +33,16 @@
             "covers": ["dev.understudy#validationError"]
           }
         ]
+      }
+    },
+    "com.amazon.coral.service#AccessDeniedException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#statusOverride": 400,
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html: AccessDeniedException is listed under HTTP status code 400 (docs/research/iam-enforcement-surfaces.md#32-per-service-identity)"
+        }
       }
     }
   }

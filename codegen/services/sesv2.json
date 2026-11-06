@@ -1,0 +1,23 @@
+{
+  "service": "com.amazonaws.sesv2#SimpleEmailService_v2",
+  "package": "sesv2api",
+  "model": "sesv2",
+  "iamPrefix": "ses",
+  "sdkService": "sesv2",
+  "boundOperations": [
+    "CreateEmailIdentity",
+    "CreateEmailTemplate",
+    "DeleteEmailIdentity",
+    "DeleteEmailTemplate",
+    "GetAccount",
+    "GetEmailIdentity",
+    "GetEmailTemplate",
+    "ListEmailIdentities",
+    "ListEmailTemplates",
+    "ListTagsForResource",
+    "SendEmail",
+    "TagResource",
+    "UntagResource",
+    "UpdateEmailTemplate"
+  ]
+}

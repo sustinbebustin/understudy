@@ -1,0 +1,37 @@
+{
+  "step": "06-http-proxy-integration",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/9ackjmy7v7/integrations",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,g,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-integration"],
+          ["X-Amz-Date", "20261103T164331Z"],
+          ["amz-sdk-invocation-id", "2bf715ba-1280-478e-a94a-2a32ce3f5228"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "133"]
+        ],
+        "body": "{\"integrationMethod\": \"ANY\", \"integrationType\": \"HTTP_PROXY\", \"integrationUri\": \"https://example.com\", \"payloadFormatVersion\": \"1.0\"}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:31 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "204"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "c3975f38-3b1a-4383-a80c-5422945772dc"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amz-apigw-id", "GRdQEFLzCYcEWKQ="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f33-7f0f18e4362c7a571c3f384b"]
+        ],
+        "body": "{\"integrationId\":\"n2n6zwi\",\"integrationType\":\"HTTP_PROXY\",\"integrationMethod\":\"ANY\",\"integrationUri\":\"https://example.com\",\"connectionType\":\"INTERNET\",\"timeoutInMillis\":30000,\"payloadFormatVersion\":\"1.0\"}"
+      }
+    }
+  ]
+}

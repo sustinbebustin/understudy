@@ -1,0 +1,32 @@
+{
+  "step": "03-get-after-update-3",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/zp95paqot5",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,Z,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.get-rest-api"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T163711Z"],
+          ["amz-sdk-invocation-id", "c3654eb7-fd9f-439a-9edf-0054674c30d8"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:37:11 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "312"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "9cd4d843-e0d7-4df9-9363-ec734c982847"],
+          ["x-amz-apigw-id", "GRcUyI-UCYcEbnA="]
+        ],
+        "body": "{\"apiKeySource\":\"HEADER\",\"apiStatus\":\"AVAILABLE\",\"createdDate\":1793723819,\"description\":\"d\",\"disableExecuteApiEndpoint\":false,\"endpointConfiguration\":{\"ipAddressType\":\"ipv4\",\"types\":[\"REGIONAL\"]},\"id\":\"zp95paqot5\",\"name\":\"us1103-apigw1-status\",\"rootResourceId\":\"xkrbe1s3k0\",\"securityPolicy\":\"TLS_1_0\",\"tags\":{}}\n"
+      }
+    }
+  ]
+}

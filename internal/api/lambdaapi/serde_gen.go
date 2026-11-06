@@ -16,7 +16,7 @@ func (v *AccessDeniedException) Serialize(s smithy.Serializer) { v.serialize(s, 
 func (v *AccessDeniedException) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaAccessDeniedException)
 	if v.Message != nil {
-		s.WriteString(&memberAccessDeniedException_message, *v.Message)
+		s.WriteString(&memberAccessDeniedException_Message, *v.Message)
 	}
 	s.CloseStruct()
 }
@@ -1398,6 +1398,17 @@ func (v *ContextStartedDetails) serialize(s smithy.Serializer, m *smithy.Member)
 func (v *ContextSucceededDetails) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaContextSucceededDetails)
 	v.Result.serialize(s, &memberContextSucceededDetails_Result)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
+func (v *CoralServiceAccessDeniedException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *CoralServiceAccessDeniedException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaCoralServiceAccessDeniedException)
+	if v.Message != nil {
+		s.WriteString(&memberCoralServiceAccessDeniedException_message, *v.Message)
+	}
 	s.CloseStruct()
 }
 
@@ -3264,7 +3275,11 @@ func (v *Event) serialize(s smithy.Serializer, m *smithy.Member) {
 	if v.SubType != nil {
 		s.WriteString(&memberEvent_SubType, *v.SubType)
 	}
-	s.WriteInt32(&memberEvent_EventId, v.EventId)
+	if v.EventId != nil {
+		s.WriteInt32(&memberEvent_EventId, *v.EventId)
+	} else {
+		s.WriteInt32(&memberEvent_EventId, int32(1))
+	}
 	if v.Id != nil {
 		s.WriteString(&memberEvent_Id, *v.Id)
 	}
@@ -4512,7 +4527,7 @@ func (v *GetDurableExecutionInput) deserialize(d smithy.Deserializer) error {
 		return err
 	}
 	v.missing = 1<<1 - 1
-	v.IncludeExecutionData = true
+	v.IncludeExecutionData = new(true)
 	for {
 		m, ok, err := d.ReadStructMember()
 		if err != nil {
@@ -4534,7 +4549,7 @@ func (v *GetDurableExecutionInput) deserialize(d smithy.Deserializer) error {
 			if err != nil {
 				return err
 			}
-			v.IncludeExecutionData = x
+			v.IncludeExecutionData = &x
 		default:
 			return fmt.Errorf("lambdaapi: structure com.amazonaws.lambda#GetDurableExecutionRequest has no member %q; the codec returned a member of another shape", m.Name)
 		}

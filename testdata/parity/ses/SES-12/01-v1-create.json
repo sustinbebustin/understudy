@@ -1,0 +1,33 @@
+{
+  "step": "01-v1-create",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,Z,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ses.verify-email-identity"],
+          ["X-Amz-Date", "20261103T164219Z"],
+          ["amz-sdk-invocation-id", "7a421a23-dbe6-4979-9e77-85b0ba0486f5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "82"]
+        ],
+        "body": "Action=VerifyEmailIdentity&Version=2010-12-01&EmailAddress=us1103-v1%40example.com"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:20 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "248"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "b07d7180-d9cf-4c20-92b6-e760c49b1b9f"]
+        ],
+        "body": "<VerifyEmailIdentityResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <VerifyEmailIdentityResult/>\n  <ResponseMetadata>\n    <RequestId>b07d7180-d9cf-4c20-92b6-e760c49b1b9f</RequestId>\n  </ResponseMetadata>\n</VerifyEmailIdentityResponse>\n"
+      }
+    }
+  ]
+}

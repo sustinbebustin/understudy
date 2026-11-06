@@ -7,7 +7,7 @@
 
 ## Expected
 
-Compared against backlog R08 + Part 1 hypotheses and understudy at the time of writing (paths relative to /home/austin/dev/local-aws-stack).
+Compared against backlog R08 + Part 1 hypotheses and understudy at the time of writing (paths are repo-relative).
 
 Step 1 (header form, hello):
 - PutObject accepts x-amz-checksum-{xxhash64,xxhash3,xxhash128,sha512,md5} with the 1.4.1/1.4.3 values: matches (200, header echoed, x-amz-checksum-type FULL_OBJECT; 01-put-header-*.http)

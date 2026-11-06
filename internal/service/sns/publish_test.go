@@ -81,6 +81,8 @@ func TestPublishFansOutInSubscriptionOrder(t *testing.T) {
 				}
 			case delivery.SNSTopic:
 				target = tg.ARN.String()
+			case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
+				h.Errorf("delivery %d has target %T; these subscriptions are a queue, a queue and a function", i, tg)
 			}
 			if target != wantTargets[i] || d.Request.Source.String() != topic {
 				h.Errorf("delivery %d goes %s -> %s, want %s -> %s", i, d.Request.Source, target, topic, wantTargets[i])
@@ -345,18 +347,6 @@ func TestMessageStructureJSONPicksTheProtocolEntry(t *testing.T) {
 		h.settle()
 		if n := len(h.sent.all()); n != 1 {
 			h.Errorf("SQS received %d messages, want only the first publish's: a refused publish delivers nothing", n)
-		}
-	})
-}
-
-func TestPendingAndHTTPSubscriptionsReceiveNothing(t *testing.T) {
-	run(t, func(h *harness) {
-		topic := h.topic("events", nil)
-		h.subscribe(topic, "https", "https://127.0.0.1:9443/hook", nil)
-		h.subscribe(topic, "email", "a@example.com", nil)
-		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
-		if n := len(h.sink.all()); n != 0 {
-			h.Errorf("outbox took %d deliveries for pending subscriptions, want 0", n)
 		}
 	})
 }

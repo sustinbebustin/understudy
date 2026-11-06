@@ -1,0 +1,16 @@
+# AWS Managed Policy Reference Guide
+
+- [What are AWS managed policies?](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/about-managed-policy-reference.md)
+
+## [AWS managed policies](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/policy-list.md)
+
+- [ExampleAdminAccess](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/ExampleAdminAccess.md): About the AWS managed policy: ExampleAdminAccess
+- [ExampleDataScientist](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/ExampleDataScientist.md): About the AWS managed policy: ExampleDataScientist
+- [ExampleQueueReader](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/ExampleQueueReader.md): About the AWS managed policy: ExampleQueueReader
+- [ExampleServiceLinkedRolePolicy](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/ExampleServiceLinkedRolePolicy.md): About the AWS managed policy: ExampleServiceLinkedRolePolicy
+
+## Full content
+
+A synthetic fixture: the single-file guide below holds every policy listed above.
+
+- [Complete guide (single file)](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/full.md)

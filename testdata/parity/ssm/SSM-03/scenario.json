@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "item": "SSM-03",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "curl",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/e3",
+        "Type": "String",
+        "Value": "v"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-03/01-exists.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-03/02-tags-overwrite-existing.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-03/03-tags-overwrite-new.json",
+      "compare": "all"
+    }
+  ]
+}

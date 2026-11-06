@@ -14,14 +14,14 @@ import (
 
 // bindUsers binds the user control plane.
 func (s *Service) bindUsers(b iamapi.Binder) {
-	b.CreateUser(s.createUser, registry.Partial{Note: "as PermissionsBoundary, " + unknownAWSManaged})
-	b.GetUser(s.getUser, registry.Partial{Note: "without UserName, a root caller gets its root identity with the Unix epoch as CreateDate, since account creation is not tracked"})
-	b.UpdateUser(s.updateUser, registry.Partial{Note: "access keys minted before a rename or a path change still resolve to the user's old name and path"})
-	b.DeleteUser(s.deleteUser, registry.Full{})
+	b.CreateUser(s.createUser, registry.Partial{Note: "as PermissionsBoundary, " + catalogueMembership})
+	b.GetUser(s.getUser, registry.Partial{Note: withResolved("without UserName, a root caller gets its root identity with the Unix epoch as CreateDate, since account creation is not tracked")})
+	b.UpdateUser(s.updateUser, registry.Partial{Note: withResolved("access keys minted before a rename or a path change still resolve to the user's old name and path, so under iam.enforce they are denied as a user IAM does not hold")})
+	b.DeleteUser(s.deleteUser, resolvedPartial())
 	b.ListUsers(s.listUsers, registry.Full{})
-	b.PutUserPermissionsBoundary(s.putUserPermissionsBoundary, registry.Partial{Note: boundaryNote})
-	b.DeleteUserPermissionsBoundary(s.deleteUserPermissionsBoundary, registry.Full{})
-	b.ListGroupsForUser(s.listGroupsForUser, registry.Partial{Note: "groups are not implemented, so a user belongs to none"})
+	b.PutUserPermissionsBoundary(s.putUserPermissionsBoundary, registry.Partial{Note: withResolved(boundaryNote)})
+	b.DeleteUserPermissionsBoundary(s.deleteUserPermissionsBoundary, resolvedPartial())
+	b.ListGroupsForUser(s.listGroupsForUser, registry.Partial{Note: withResolved("groups are not implemented, so a user belongs to none")})
 }
 
 // user finds a user by name.
@@ -80,12 +80,16 @@ func (s *Service) createUser(_ context.Context, c *kernel.Call, in *iamapi.Creat
 	if in.PermissionsBoundary != nil {
 		u.Boundary = *in.PermissionsBoundary
 	}
+	bound, err := s.lookup(u.Boundary)
+	if err != nil {
+		return nil, err
+	}
 	out, err := kernel.Write(c, s.cells, account, func(st *State, now clock.Instant, _ *kernel.Tx) (iamapi.User, *awserr.Error) {
 		if _, ok := st.Users[key(u.Name)]; ok {
 			return iamapi.User{}, errUserExists(u.Name)
 		}
 		if u.Boundary != "" {
-			if err := st.boundary(account, u.Boundary); err != nil {
+			if err := st.boundary(account, u.Boundary, bound); err != nil {
 				return iamapi.User{}, err
 			}
 		}
@@ -126,6 +130,9 @@ func (s *Service) getUser(_ context.Context, c *kernel.Call, in *iamapi.GetUserI
 // changeUser applies change to the named user under the account's cell
 // and touches it.
 func (s *Service) changeUser(c *kernel.Call, name string, change func(st *State, u User) (User, *awserr.Error)) *awserr.Error {
+	if err := s.userExists(c, name); err != nil {
+		return err
+	}
 	account := c.Scope().Account
 	u, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (User, *awserr.Error) {
 		u, err := st.user(name)
@@ -148,6 +155,9 @@ func (s *Service) changeUser(c *kernel.Call, name string, change func(st *State,
 // updateUser renames a user or moves it to a new path.
 func (s *Service) updateUser(_ context.Context, c *kernel.Call, in *iamapi.UpdateUserInput) (*iamapi.UpdateUserOutput, *awserr.Error) {
 	if err := checkPath("newPath", in.NewPath); err != nil {
+		return nil, err
+	}
+	if err := s.userExists(c, in.UserName); err != nil {
 		return nil, err
 	}
 	account := c.Scope().Account
@@ -182,6 +192,9 @@ func (s *Service) updateUser(_ context.Context, c *kernel.Call, in *iamapi.Updat
 // so attached policies, inline policies and access keys each refuse the
 // delete.
 func (s *Service) deleteUser(_ context.Context, c *kernel.Call, in *iamapi.DeleteUserInput) (*iamapi.DeleteUserOutput, *awserr.Error) {
+	if err := s.userExists(c, in.UserName); err != nil {
+		return nil, err
+	}
 	account := c.Scope().Account
 	u, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (User, *awserr.Error) {
 		u, err := st.user(in.UserName)
@@ -223,9 +236,13 @@ func (s *Service) listUsers(_ context.Context, c *kernel.Call, in *iamapi.ListUs
 }
 
 func (s *Service) putUserPermissionsBoundary(_ context.Context, c *kernel.Call, in *iamapi.PutUserPermissionsBoundaryInput) (*iamapi.PutUserPermissionsBoundaryOutput, *awserr.Error) {
+	bound, err := s.lookup(in.PermissionsBoundary)
+	if err != nil {
+		return nil, err
+	}
 	account := c.Scope().Account
 	return unit[iamapi.PutUserPermissionsBoundaryOutput](s.changeUser(c, in.UserName, func(st *State, u User) (User, *awserr.Error) {
-		if err := st.boundary(account, in.PermissionsBoundary); err != nil {
+		if err := st.boundary(account, in.PermissionsBoundary, bound); err != nil {
 			return User{}, err
 		}
 		u.Boundary = in.PermissionsBoundary

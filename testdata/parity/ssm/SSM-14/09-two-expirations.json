@@ -1,0 +1,36 @@
+{
+  "step": "09-two-expirations",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (IncompatiblePolicyException) when calling the PutParameter operation: There can be only one expiration policy",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.PutParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,E,g,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.put-parameter"],
+          ["X-Amz-Date", "20261103T163647Z"],
+          ["amz-sdk-invocation-id", "b2fa916e-6eec-4096-b352-bec2f0801c4e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "308"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/p14b\", \"Value\": \"z\", \"Type\": \"String\", \"Overwrite\": true, \"Policies\": \"[{\\\"Type\\\":\\\"Expiration\\\",\\\"Version\\\":\\\"1.0\\\",\\\"Attributes\\\":{\\\"Timestamp\\\":\\\"2030-01-01T00:00:00.000Z\\\"}},{\\\"Type\\\":\\\"Expiration\\\",\\\"Version\\\":\\\"1.0\\\",\\\"Attributes\\\":{\\\"Timestamp\\\":\\\"2031-01-01T00:00:00.000Z\\\"}}]\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:47 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "92"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "261a6e33-37bc-4fab-8e0e-9f70f3e39f07"]
+        ],
+        "body": "{\"__type\":\"IncompatiblePolicyException\",\"message\":\"There can be only one expiration policy\"}"
+      }
+    }
+  ]
+}

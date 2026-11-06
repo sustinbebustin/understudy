@@ -1,0 +1,32 @@
+{
+  "step": "12-delete-after-expiry",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/e12?versionId=i7pvIYE_Db8Z9jzhOV...B8qVTOAaE.P",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,g,E,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.delete-object"],
+          ["X-Amz-Date", "20261103T034043Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "426b438a-f0dd-4571-9a02-7c6b184efd36"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 204,
+        "headers": [
+          ["x-amz-id-2", "3bCRSNKtwK41CzsIO5guoGrSjdlOBhqvJVthViWJ3kQ175ny0Osgp76rl8lb1vdNL12NJTbKHW0GZC8G4jBR4ePuWbcNjrhc"],
+          ["x-amz-request-id", "50KZ1H721DT02A0H"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:40:44 GMT"],
+          ["x-amz-version-id", "i7pvIYE_Db8Z9jzhOV...B8qVTOAaE.P"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

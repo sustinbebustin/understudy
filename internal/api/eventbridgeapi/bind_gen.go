@@ -142,6 +142,9 @@ var OpPutPermission = kernel.NewOp[PutPermissionInput, PutPermissionOutput](&des
 // OpPutRule is the typed handle on PutRule.
 var OpPutRule = kernel.NewOp[PutRuleInput, PutRuleOutput](&descPutRule)
 
+// OpPutServiceEventInternal is the typed handle on PutServiceEventInternal.
+var OpPutServiceEventInternal = kernel.NewOp[PutServiceEventInternalInput, PutServiceEventInternalOutput](&descPutServiceEventInternal)
+
 // OpPutTargets is the typed handle on PutTargets.
 var OpPutTargets = kernel.NewOp[PutTargetsInput, PutTargetsOutput](&descPutTargets)
 
@@ -407,6 +410,11 @@ func (b Binder) PutPermission(h kernel.Handler[PutPermissionInput, PutPermission
 // PutRule binds the handler of PutRule.
 func (b Binder) PutRule(h kernel.Handler[PutRuleInput, PutRuleOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
 	kernel.Bind(b.b, OpPutRule, h, cov, opts...)
+}
+
+// PutServiceEventInternal binds the handler of PutServiceEventInternal.
+func (b Binder) PutServiceEventInternal(h kernel.Handler[PutServiceEventInternalInput, PutServiceEventInternalOutput], cov registry.BindCoverage, opts ...kernel.BindOption) {
+	kernel.Bind(b.b, OpPutServiceEventInternal, h, cov, opts...)
 }
 
 // PutTargets binds the handler of PutTargets.

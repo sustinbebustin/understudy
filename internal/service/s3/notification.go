@@ -34,8 +34,17 @@ func (s *Service) bindNotification(b s3api.Binder) {
 	put := func(in *s3api.PutBucketNotificationConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
-	b.PutBucketNotificationConfiguration(s.putNotification, registry.Partial{Note: "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions"}, touches(put))
+	b.PutBucketNotificationConfiguration(s.putNotification, registry.Partial{Note: notificationNote}, touches(put))
 }
+
+// notificationNote is PutBucketNotificationConfiguration's coverage note.
+// AWS refuses a destination whose policy does not admit S3 at validation
+// (iam-enforcement-surfaces.md 8.3); understudy checks no policy there, so
+// under iam.enforce=enforce the refusal comes at each delivery instead.
+const notificationNote = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
+	"destination validation checks existence and refuses FIFO queues and topics, not permissions, where AWS refuses a destination whose policy does not admit S3; " +
+	"under iam.enforce=enforce such a destination refuses each notification, which is dropped (s3.notification.delivery-denied); " +
+	"s3:ObjectRetention:Put is stored but sends nothing"
 
 // notificationPut is a configuration that passed admission and its own
 // checks, with the home of the bucket it is for.
@@ -75,7 +84,7 @@ func (s *Service) putNotification(ctx context.Context, c *kernel.Call, in *s3api
 	cfg := put.cfg
 	validate := in.SkipDestinationValidation == nil || !*in.SkipDestinationValidation
 	if validate {
-		if err := s.checkDestinations(ctx, c, in.Bucket, &cfg); err != nil {
+		if err := s.checkDestinations(ctx, c, &cfg); err != nil {
 			return nil, inRegion(err, put.home)
 		}
 	}
@@ -153,7 +162,7 @@ type unvalidated struct {
 // exist or is a FIFO queue or topic, which S3 does not deliver to (s3.md
 // 13.1). understudy enforces no IAM, so the permission half of AWS's check
 // is not made.
-func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, bucket string, cfg *notify.Config) *awserr.Error {
+func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, cfg *notify.Config) *awserr.Error {
 	var failed []unvalidated
 	for i := range cfg.Rules {
 		r := &cfg.Rules[i]
@@ -161,7 +170,7 @@ func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, bucket 
 			failed = append(failed, fifo)
 			continue
 		}
-		exists, err := s.destinationExists(ctx, c, bucket, r)
+		exists, err := s.destinationExists(ctx, c, r)
 		if err != nil {
 			return err
 		}
@@ -212,15 +221,22 @@ func fifoOf(r *notify.Rule) (unvalidated, bool) {
 }
 
 // destinationExists looks the destination up in its own account and
-// region as S3's service principal. Only the destination service's
-// not-found answer means "does not exist"; any other failure (an injected
-// fault, an emulator bug) is the call's InternalError.
-func (s *Service) destinationExists(ctx context.Context, c *kernel.Call, bucket string, r *notify.Rule) (bool, *awserr.Error) {
+// region as S3's service principal. AWS validates a destination by sending
+// it a test message (iam-enforcement-surfaces.md 8.3), which needs the same
+// grant as a delivery, so it adds no requirement beyond the delivery's
+// action. This lookup is not that message, so it runs as the platform: it
+// is not access-recorded, and GET /iam/policy's resourcePolicies for the
+// notification name only the delivery's action. Step 8 never asks about a
+// platform call, so under enforcement the destination's policy must be
+// checked for the test message explicitly (12.4). Only the destination
+// service's not-found answer means "does not exist"; any other failure (an
+// injected fault, an emulator bug) is the call's InternalError.
+func (s *Service) destinationExists(ctx context.Context, c *kernel.Call, r *notify.Rule) (bool, *awserr.Error) {
 	scope, serr := aws.ScopeOf(r.ARN)
 	if serr != nil {
 		return false, nil
 	}
-	t := kernel.Target{Scope: scope, As: kernel.AsService{Name: "s3.amazonaws.com", Source: bucketARN(bucket)}, Via: ref.S3Notification}
+	t := kernel.Target{Scope: scope, As: kernel.AsPlatform{Name: "s3.amazonaws.com"}, Via: ref.S3Notification}
 	var (
 		err      *awserr.Error
 		notFound awserr.Identity
@@ -290,7 +306,7 @@ func principalID(p identity.Principal) string {
 
 // notifyBucket is b as its notifications name it.
 func notifyBucket(b *Bucket) notify.Bucket {
-	return notify.Bucket{Name: b.Name, ARN: bucketARN(b.Name), Owner: canonicalID(b.Home.OwnerAccount)}
+	return notify.Bucket{Name: b.Name, ARN: bucketARN(b.Name), Owner: canonicalID(b.Home.OwnerAccount), Account: b.Home.OwnerAccount}
 }
 
 // event is an object change that event notifications report: the object

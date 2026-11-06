@@ -7,7 +7,7 @@
 
 ## Expected
 
-Compared against understudy built from /home/austin/dev/local-aws-stack on 2026-10-14, replayed with scripts/sealed (default `lambda.stateTransitions: final`, and again with `clock` on a frozen clock for the transient states). Wire-only for every Lambda response: AWS serialises unset members as explicit `null` (VpcConfig, Layers, KMSKeyArn, StartingPosition, ...); understudy omits them; SDKs read both as unset.
+Compared against understudy built on 2026-10-14, replayed with scripts/sealed (default `lambda.stateTransitions: final`, and again with `clock` on a frozen clock for the transient states). Wire-only for every Lambda response: AWS serialises unset members as explicit `null` (VpcConfig, Layers, KMSKeyArn, StartingPosition, ...); understudy omits them; SDKs read both as unset.
 
 - 00 create-function env key "A": matches (400, x-amzn-ErrorType ValidationException, {"message":"1 validation error detected: Value at 'environment.variables' failed to satisfy constraint: Map keys must satisfy constraint: [Member must satisfy regular expression pattern: [a-zA-Z]([a-zA-Z0-9_])+]"}, no Type)
 - 01 create-function response: matches with `lambda.stateTransitions: clock` (201, State Pending, StateReason "The function is being created.", StateReasonCode Creating, Environment {"Variables":{"AB":"1"}}); default `final` answers State Active, LastUpdateStatus Successful by design (docs/ARCHITECTURE.md 9)

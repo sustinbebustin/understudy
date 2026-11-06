@@ -1,0 +1,38 @@
+{
+  "step": "24-over-range",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutObjectRetention operation: Event hold duration must be at most 36500 days.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/e24?retention",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,W,E,AN,b,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-retention"],
+          ["x-amz-checksum-crc64nvme", "1jdpujURpxM="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034326Z"],
+          ["X-Amz-Content-SHA256", "bc3ccad57a5ff2b5ee72c111ce3942ae7523e2fb4cf4c8fa2383f4816a4502ff"],
+          ["amz-sdk-invocation-id", "3875d07e-8b38-4e10-a5db-e3495194eafd"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "176"]
+        ],
+        "body": "<Retention xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Mode>GOVERNANCE</Mode><EventHold>ON</EventHold><EventHoldDuration><Days>36501</Days></EventHoldDuration></Retention>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "C0GBW5BC1ACGCYTQ"],
+          ["x-amz-id-2", "8Xo0nz64hFe8moL5Es3ykfiXbtc85bHccAySrJPQxARIMaNtOeUwdbjE8YvyCSErOtIVY5se+ELqNS/NX/szSQ5yT6OAX3Tq"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:43:25 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Event hold duration must be at most 36500 days.</Message><ArgumentName>Days</ArgumentName><ArgumentValue>36501</ArgumentValue><RequestId>C0GBW5BC1ACGCYTQ</RequestId><HostId>8Xo0nz64hFe8moL5Es3ykfiXbtc85bHccAySrJPQxARIMaNtOeUwdbjE8YvyCSErOtIVY5se+ELqNS/NX/szSQ5yT6OAX3Tq</HostId></Error>"
+      }
+    }
+  ]
+}

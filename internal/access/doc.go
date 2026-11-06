@@ -1,7 +1,8 @@
 // Package access records which IAM actions each principal used, renders
 // least-privilege policies from that record, and advises whether a stored
 // resource policy would let AWS make a delivery (ARCHITECTURE.md 16, 17
-// and 19). understudy records access but never enforces it.
+// and 19). It records under every iam.enforce mode and decides nothing:
+// enforcement is internal/enforce, over internal/authz.
 //
 // The kernel calls Recorder.Record once per call with the Principal the
 // call's principal mode resolved to, the IAM prefix of the operation's
@@ -9,7 +10,8 @@
 // secondaries its input declared, or every action of its service when its
 // binding declares none, and the operation's actions of other services);
 // Policy and ResourceRequirements answer GET /iam/policy, Usage answers
-// GET /iam/usage, and the delivery engine calls Advise before each attempt.
+// GET /iam/usage, and under iam.enforce off the delivery engine calls
+// AdviseWith before each attempt.
 // ParsePrincipal reads the principal a request names.
 //
 // A Principal is the IAM ARN of a root user, user or role, or a service
@@ -25,7 +27,8 @@
 //
 //   - Mode mirrors kernel.PrincipalMode, which this package cannot import,
 //     plus Direct for a principal's own requests. AsService carries the
-//     delivery source, which ResourceRequirements reports; the principal
+//     delivery source and the aws:SourceAccount it sends, which
+//     ResourceRequirements reports; the principal
 //     itself is the Entry's Principal in every mode, a ServicePrincipal
 //     exactly when the mode is AsService.
 //   - Record refuses an Entry without a Principal, Mode, Outcome, Service or
@@ -39,14 +42,25 @@
 //     with call and failure counts and the first and last instants, rather
 //     than every Entry, so a long session costs memory in proportion to the
 //     variety of its calls; Usage returns these aggregates.
-//   - Record pairs every action of an Entry with every touched resource of
-//     the action's own service (STS actions with IAM roles), so
-//     CopyObject's s3:GetObject also covers the destination; the record
-//     cannot tell which action needed which resource. An action of the
-//     Entry's Service with no touched resource of that service is granted
-//     on "*"; one of another service with none, such as iam:PassRole on a
-//     CreateFunction that passed no role, is dropped, since the call did
-//     not use it.
+//   - Record keeps an Entry's Pairs when it has them: the kernel pairs each
+//     action with the resources it applies to, so CopyObject's s3:GetObject
+//     covers its source alone (iam-enforcement-surfaces.md 12.6). Without
+//     Pairs, every action is paired with every touched resource of the
+//     action's own service (STS actions with IAM roles). Either way, an
+//     action of the Entry's Service with no resource of that service is
+//     granted on "*"; one of another service with none, such as
+//     iam:PassRole on a CreateFunction that passed no role, is dropped,
+//     since the call did not use it.
+//   - Policy leaves out sts:GetCallerIdentity, which needs no permission
+//     (iam-enforcement-surfaces.md 5.1); Usage still lists its calls.
+//   - Policy renders a resource whose id understudy minted as MintedPattern,
+//     the narrowest wildcard matching every AWS-form id of its type, so the
+//     document carries over to a run that mints other ids; Usage keeps the
+//     exact ARN. It also leaves an action out of every statement but an
+//     unconditional one on "*" that grants it, and out of a statement on
+//     an exact ARN that an unconditional MintedPattern statement granting
+//     it matches, dropping a statement left with no action; recording is
+//     unchanged, failed calls included.
 //   - An S3 object (arn:aws:s3:::<bucket>/<key>) is recorded as its
 //     bucket's objects (BucketObjects), which Usage reports and Policy
 //     grants as arn:aws:s3:::<bucket>/*: a run that writes a key per

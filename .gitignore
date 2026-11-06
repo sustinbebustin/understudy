@@ -10,6 +10,9 @@ __pycache__/
 /.build/
 /bin/
 /dist/
+# The web UI's build is committed, since the binary embeds it; this keeps a
+# global "dist" ignore from hiding it.
+!/internal/server/ui/dist/
 # scripts/sealed's Terraform config and plugin cache (it also ignores itself)
 /.cache/
 /understudy

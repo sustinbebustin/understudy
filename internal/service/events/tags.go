@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"slices"
 	"strings"
@@ -17,19 +18,20 @@ import (
 // maxTags is how many tags a resource may have (API_TagResource).
 const maxTags = 50
 
-// bindTags binds the tag operations, which address rules by ARN.
+// bindTags binds the tag operations, which address buses and rules by ARN
+// (eventbridge-buses.md 5.5).
 func (s *Service) bindTags(b eventbridgeapi.Binder) {
-	const note = "rules only; the default bus takes no tags"
-	b.TagResource(s.tagResource, registry.Partial{Note: note},
-		taggedRule(func(in *eventbridgeapi.TagResourceInput) string { return in.ResourceARN }))
-	b.UntagResource(s.untagResource, registry.Partial{Note: note},
-		taggedRule(func(in *eventbridgeapi.UntagResourceInput) string { return in.ResourceARN }))
-	b.ListTagsForResource(s.listTagsForResource, registry.Partial{Note: note},
-		taggedRule(func(in *eventbridgeapi.ListTagsForResourceInput) string { return in.ResourceARN }))
+	b.TagResource(s.tagResource, registry.Full{},
+		taggedResource(func(in *eventbridgeapi.TagResourceInput) string { return in.ResourceARN }))
+	b.UntagResource(s.untagResource, registry.Full{},
+		taggedResource(func(in *eventbridgeapi.UntagResourceInput) string { return in.ResourceARN }))
+	b.ListTagsForResource(s.listTagsForResource, registry.Full{},
+		taggedResource(func(in *eventbridgeapi.ListTagsForResourceInput) string { return in.ResourceARN }))
 }
 
-// taggedRule names the resource a tag call addresses when its ARN parses.
-func taggedRule[In any](arn func(*In) string) kernel.BindOption {
+// taggedResource names the resource a tag call addresses when its ARN
+// parses.
+func taggedResource[In any](arn func(*In) string) kernel.BindOption {
 	return kernel.WithResources(func(_ *kernel.Call, in *In) []aws.ARN {
 		a, err := aws.ParseARN(arn(in))
 		if err != nil {
@@ -39,26 +41,51 @@ func taggedRule[In any](arn func(*In) string) kernel.BindOption {
 	})
 }
 
-// taggableRule resolves a tag call's ResourceARN to a rule of the caller's
-// default bus. A bus ARN is refused as not implemented; a rule in another
-// account or region, like a missing one, is not found.
-func taggableRule(c *kernel.Call, resource string) (ruleRef, *awserr.Error) {
+// taggable is the resource a tag call's ResourceARN names in the caller's
+// scope: a bus or a rule.
+//
+//sumtype:decl
+type taggable interface{ isTaggable() }
+
+// busTags is the bus name of the caller's scope, the default bus included.
+type busTags struct{ name string }
+
+// ruleTags is a rule of the caller's scope, on any of its buses.
+type ruleTags struct{ rule ruleRef }
+
+func (busTags) isTaggable()  {}
+func (ruleTags) isTaggable() {}
+
+// errNilTaggable is the cause of a tag call on a taggable that is nil, a
+// bug in whatever built it.
+var errNilTaggable = errors.New("events: the tagged resource is nil, so no tags were read or changed; parseTaggable builds every taggable")
+
+// parseTaggable reads a tag call's ResourceARN: an event-bus/<name> or a
+// rule ARN of either form (eventbridge-buses.md 5.2). A bus or rule of
+// another account or region is not found by the texts of a missing one,
+// which is inferred: AWS's answer to tagging another scope's resource is
+// unrecorded, and a bus policy can grant another account only PutEvents,
+// PutRule and PutTargets (eventbridge-buses.md 4.4). Any other ARN is not
+// valid.
+func parseTaggable(c *kernel.Call, resource string) (taggable, *awserr.Error) {
 	arn, err := aws.ParseARN(resource)
 	if err != nil || arn.Service != "events" {
-		return ruleRef{}, errInvalidParameter("ResourceARN")
+		return nil, errInvalidParameter("ResourceARN")
 	}
-	if strings.HasPrefix(arn.Resource, "event-bus/") {
-		return ruleRef{}, errBusTags()
+	if name, isBus := strings.CutPrefix(arn.Resource, "event-bus/"); isBus && name != "" {
+		if at, err := aws.ScopeOf(arn); err != nil || at != c.Scope() {
+			return nil, errBusNotFound(name)
+		}
+		return busTags{name: name}, nil
 	}
-	name, ok := strings.CutPrefix(arn.Resource, "rule/")
+	r, ok := parseRuleARN(resource)
 	if !ok {
-		return ruleRef{}, errInvalidParameter("ResourceARN")
+		return nil, errInvalidParameter("ResourceARN")
 	}
-	r := ruleRef{scope: c.Scope(), name: name}
-	if strings.Contains(name, "/") || arn != r.arn() {
-		return ruleRef{}, errRuleNotFound(name)
+	if r.scope != c.Scope() {
+		return nil, errRuleNotFound(r.name, r.bus)
 	}
-	return r, nil
+	return ruleTags{rule: r}, nil
 }
 
 func (s *Service) tagResource(_ context.Context, c *kernel.Call, in *eventbridgeapi.TagResourceInput) (*eventbridgeapi.TagResourceOutput, *awserr.Error) {
@@ -85,49 +112,102 @@ func (s *Service) untagResource(_ context.Context, c *kernel.Call, in *eventbrid
 	return &eventbridgeapi.UntagResourceOutput{}, nil
 }
 
-// updateTags applies change to a copy of the rule's tags and stores it,
-// unless the copy holds more than maxTags.
+// updateTags applies change to a copy of the resource's tags and stores it,
+// unless the copy holds more than maxTags or equals the tags it had. The
+// first change to the default bus's tags materializes it
+// (eventbridge-buses.md 10.2.2). A tag call changes no bus's
+// LastModifiedTime, which is inferred.
 func (s *Service) updateTags(c *kernel.Call, resource string, change func(tags map[string]string)) *awserr.Error {
-	r, err := taggableRule(c, resource)
+	res, err := parseTaggable(c, resource)
 	if err != nil {
 		return err
 	}
-	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
-		rule, ok := st.Rules[r.name]
-		if !ok {
-			return struct{}{}, errRuleNotFound(r.name)
+	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		changed, err := st.retag(res, change, c.Admitted())
+		if err == nil && !changed {
+			tx.Unchanged()
 		}
-		tags := maps.Clone(rule.Tags)
-		if tags == nil {
-			tags = map[string]string{}
-		}
-		change(tags)
-		if len(tags) > maxTags {
-			return struct{}{}, errTooManyTags(len(tags))
-		}
-		rule.Tags = tags
-		if len(tags) == 0 {
-			rule.Tags = nil
-		}
-		st.Rules[r.name] = rule
-		return struct{}{}, nil
+		return struct{}{}, err
 	})
 	return err
 }
 
-// listTagsForResource lists the rule's tags by key.
+// retag applies change to a copy of res's tags and, when that changes them,
+// stores it as a write admitted at at; it reports whether it did.
+func (s *State) retag(res taggable, change func(map[string]string), at clock.Instant) (bool, *awserr.Error) {
+	switch r := res.(type) {
+	case busTags:
+		bus, ok := s.bus(r.name, at)
+		if !ok {
+			return false, errBusNotFound(r.name)
+		}
+		tags, err := changedTags(bus.Tags, change)
+		if err != nil || maps.Equal(tags, bus.Tags) {
+			return false, err
+		}
+		bus.Tags = tags
+		s.setBus(bus, at)
+		return true, nil
+	case ruleTags:
+		rule, ok := s.rule(r.rule.bus, r.rule.name)
+		if !ok {
+			return false, errRuleNotFound(r.rule.name, r.rule.bus)
+		}
+		tags, err := changedTags(rule.Tags, change)
+		if err != nil || maps.Equal(tags, rule.Tags) {
+			return false, err
+		}
+		rule.Tags = tags
+		s.setRule(r.rule.bus, rule)
+		s.used(at)
+		return true, nil
+	}
+	return false, awserr.Internalf(errNilTaggable)
+}
+
+// changedTags is tags with change applied to a copy, nil when it leaves
+// none; more than maxTags is refused.
+func changedTags(tags map[string]string, change func(map[string]string)) (map[string]string, *awserr.Error) {
+	out := maps.Clone(tags)
+	if out == nil {
+		out = map[string]string{}
+	}
+	change(out)
+	if len(out) > maxTags {
+		return nil, errTooManyTags(len(out))
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	return out, nil
+}
+
+// listTagsForResource lists the resource's tags by key.
 func (s *Service) listTagsForResource(_ context.Context, c *kernel.Call, in *eventbridgeapi.ListTagsForResourceInput) (*eventbridgeapi.ListTagsForResourceOutput, *awserr.Error) {
-	r, err := taggableRule(c, in.ResourceARN)
+	res, err := parseTaggable(c, in.ResourceARN)
 	if err != nil {
 		return nil, err
 	}
-	rule, ok := s.rule(r)
-	if !ok {
-		return nil, errRuleNotFound(r.name)
+	var tags map[string]string
+	switch r := res.(type) {
+	case busTags:
+		bus, ok := s.lookupBus(c.Scope(), r.name, c.Admitted())
+		if !ok {
+			return nil, errBusNotFound(r.name)
+		}
+		tags = bus.Tags
+	case ruleTags:
+		rule, ok := s.rule(r.rule)
+		if !ok {
+			return nil, errRuleNotFound(r.rule.name, r.rule.bus)
+		}
+		tags = rule.Tags
+	default:
+		return nil, awserr.Internalf(errNilTaggable)
 	}
-	tags := make([]eventbridgeapi.Tag, 0, len(rule.Tags))
-	for _, k := range slices.Sorted(maps.Keys(rule.Tags)) {
-		tags = append(tags, eventbridgeapi.Tag{Key: k, Value: rule.Tags[k]})
+	out := make([]eventbridgeapi.Tag, 0, len(tags))
+	for _, k := range slices.Sorted(maps.Keys(tags)) {
+		out = append(out, eventbridgeapi.Tag{Key: k, Value: tags[k]})
 	}
-	return &eventbridgeapi.ListTagsForResourceOutput{Tags: tags}, nil
+	return &eventbridgeapi.ListTagsForResourceOutput{Tags: out}, nil
 }

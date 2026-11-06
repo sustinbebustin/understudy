@@ -1,0 +1,36 @@
+{
+  "step": "05-describe-table",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.DescribeTable"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,P,g,Z,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.describe-table"],
+          ["X-Amz-Date", "20261103T163703Z"],
+          ["amz-sdk-invocation-id", "b54d97d6-6a3a-4299-8b20-13078c7bfc33"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "31"]
+        ],
+        "body": "{\"TableName\": \"us1103-ddbs-st\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:03 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "990"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "84K8GSSORFBD5PK2U7OQLLL793VV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2982659289"]
+        ],
+        "body": "{\"Table\":{\"AttributeDefinitions\":[{\"AttributeName\":\"pk\",\"AttributeType\":\"S\"}],\"BillingModeSummary\":{\"BillingMode\":\"PAY_PER_REQUEST\",\"LastUpdateToPayPerRequestDateTime\":1.793723765068E9},\"CreationDateTime\":1.793723765068E9,\"DeletionProtectionEnabled\":false,\"ItemCount\":0,\"KeySchema\":[{\"AttributeName\":\"pk\",\"KeyType\":\"HASH\"}],\"LatestStreamArn\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs-st/stream/2026-11-03T16:36:05.068\",\"LatestStreamLabel\":\"2026-11-03T16:36:05.068\",\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":0,\"WriteCapacityUnits\":0},\"TableArn\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs-st\",\"TableId\":\"08858af9-ba2b-4a72-af8d-73df35ac90cf\",\"TableName\":\"us1103-ddbs-st\",\"TableSizeBytes\":0,\"TableStatus\":\"ACTIVE\",\"TableThroughputModeSummary\":{\"LastUpdateToPayPerRequestDateTime\":1.793723765068E9,\"TableThroughputMode\":\"PAY_PER_REQUEST\"},\"WarmThroughput\":{\"ReadUnitsPerSecond\":12000,\"Status\":\"ACTIVE\",\"WriteUnitsPerSecond\":4000}}}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "step": "14-s3-bucket",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NoSuchBucket) when calling the ListObjectsV2 operation: The specified bucket does not exist",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-enf-missing.s3.us-east-2.amazonaws.com/?list-type=2&encoding-type=url",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,C,Z,E,g,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.list-objects-v2"],
+          ["X-Amz-Date", "20261103T034523Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "97ccc535-342b-4695-b0a1-5b9b51c8d2ad"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "4EEJQHHYRWNK9V28"],
+          ["x-amz-id-2", "TSQi14RfePATwzRvAWzraP72Okdr0m3VnC8wsnZgZnlWqxbP22ojcz5PgiWmVQuZIWHMVQcIbasAsnFSn95T0qmHBJrhnBbB"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:45:22 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><BucketName>us1103-enf-missing</BucketName><RequestId>4EEJQHHYRWNK9V28</RequestId><HostId>TSQi14RfePATwzRvAWzraP72Okdr0m3VnC8wsnZgZnlWqxbP22ojcz5PgiWmVQuZIWHMVQcIbasAsnFSn95T0qmHBJrhnBbB</HostId></Error>"
+      }
+    }
+  ]
+}

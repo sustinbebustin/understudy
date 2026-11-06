@@ -78,13 +78,22 @@ func (w *workload) run(t *testing.T) {
 		{"kms", w.kms},
 		{"s3", w.s3},
 		{"dynamodb", w.dynamodb},
+		{"dynamodb streams", w.dynamodbStreams},
+		{"kinesis", w.kinesis},
 		{"iam", w.iam},
 		{"sts", w.sts},
 		{"lambda", w.lambda},
+		{"api gateway http api", w.apigatewayv2},
+		{"api gateway rest api", w.apigateway},
 		{"logs", w.logs},
 		{"secrets manager", w.secrets},
+		{"ssm", w.ssm},
 		{"eventbridge", w.events},
 		{"cloudwatch", w.cloudwatch},
+		{"step functions", w.stepFunctions},
+		{"ses", w.ses},
+		{"sesv2", w.sesv2},
+		{"scheduler", w.scheduler},
 		{"iam policy", w.policy},
 		{"coverage", w.coverage},
 	}
@@ -326,6 +335,57 @@ func (w *workload) dynamodb(t *testing.T) {
 	}
 }
 
+// dynamodbStreams lists streams under the dynamodb signing name (ADR 0019):
+// none, since no table has a stream, when DynamoDB Local can run, else the
+// same 501 as DynamoDB, which serves the stream log.
+func (w *workload) dynamodbStreams(t *testing.T) {
+	t.Helper()
+	resp := awsJSON(t, w.emu, "1.0", "dynamodb", "DynamoDBStreams_20120810.ListStreams", `{}`)
+	if w.dynamoDB {
+		must(t, "ListStreams", resp, http.StatusOK)
+		if resp.body != `{"Streams":[]}` {
+			t.Fatalf(`ListStreams = %s, want {"Streams":[]}`, resp.body)
+		}
+		return
+	}
+	must(t, "ListStreams", resp, http.StatusNotImplemented)
+	if !strings.Contains(resp.body, "which needs Docker") {
+		t.Fatalf("ListStreams with Docker disabled = %s, want the 501 saying DynamoDB Local needs Docker", resp.body)
+	}
+}
+
+// kinesis creates a one-shard stream over awsJson1_1, puts a record and
+// reads it back from TRIM_HORIZON (kinesis.md 5.1, 5.4, 5.5).
+func (w *workload) kinesis(t *testing.T) {
+	t.Helper()
+	must(t, "CreateStream", awsJSON(t, w.emu, "1.1", "kinesis", "Kinesis_20131202.CreateStream", `{"StreamName":"smoke","ShardCount":1}`), http.StatusOK)
+	data := base64.StdEncoding.EncodeToString([]byte("hello"))
+	var put struct {
+		ShardID        string `json:"ShardId"`
+		SequenceNumber string
+	}
+	decode(t, "PutRecord", must(t, "PutRecord", awsJSON(t, w.emu, "1.1", "kinesis", "Kinesis_20131202.PutRecord",
+		`{"StreamName":"smoke","PartitionKey":"k","Data":"`+data+`"}`), http.StatusOK).body, &put)
+	if put.ShardID != "shardId-000000000000" || put.SequenceNumber == "" {
+		t.Fatalf("PutRecord = %+v", put)
+	}
+	var it struct{ ShardIterator string }
+	decode(t, "GetShardIterator", must(t, "GetShardIterator", awsJSON(t, w.emu, "1.1", "kinesis", "Kinesis_20131202.GetShardIterator",
+		`{"StreamName":"smoke","ShardId":"shardId-000000000000","ShardIteratorType":"TRIM_HORIZON"}`), http.StatusOK).body, &it)
+	var got struct {
+		Records []struct {
+			Data, PartitionKey, SequenceNumber string
+		}
+		NextShardIterator string
+	}
+	decode(t, "GetRecords", must(t, "GetRecords", awsJSON(t, w.emu, "1.1", "kinesis", "Kinesis_20131202.GetRecords",
+		`{"ShardIterator":"`+it.ShardIterator+`"}`), http.StatusOK).body, &got)
+	if len(got.Records) != 1 || got.Records[0].Data != data || got.Records[0].PartitionKey != "k" ||
+		got.Records[0].SequenceNumber != put.SequenceNumber || got.NextShardIterator == "" {
+		t.Fatalf("GetRecords = %+v, want the one record put", got)
+	}
+}
+
 // iam creates the function's role over awsQuery.
 func (w *workload) iam(t *testing.T) {
 	t.Helper()
@@ -425,6 +485,104 @@ func (w *workload) lambda(t *testing.T) {
 	w.instance = containerInstance(t, ran.Container)
 }
 
+// apigatewayv2 builds an HTTP API over restJson1, signed for apigateway: a
+// Lambda proxy integration of payload format 2.0 to the function, a
+// GET /hello route and a $default stage that deploys automatically; it
+// lets API Gateway invoke the function, then sends GET /hello through the
+// path fallback. With Docker the function answers the 2.0 event it got;
+// without, the answer is 501 naming Docker.
+func (w *workload) apigatewayv2(t *testing.T) {
+	t.Helper()
+	call := func(what, path, body string, v any) {
+		t.Helper()
+		got := must(t, what, send(t, w.emu, request{
+			path: path, service: "apigateway", header: map[string]string{"Content-Type": "application/json"}, body: []byte(body),
+		}), http.StatusCreated)
+		decode(t, what, got.body, v)
+	}
+	var api struct {
+		APIID string `json:"apiId"`
+	}
+	call("CreateApi", "/v2/apis", `{"name":"smoke","protocolType":"HTTP"}`, &api)
+	var integration struct {
+		IntegrationID string `json:"integrationId"`
+	}
+	call("CreateIntegration", "/v2/apis/"+api.APIID+"/integrations",
+		`{"integrationType":"AWS_PROXY","integrationUri":"arn:aws:lambda:`+region+`:`+account+`:function:`+function+`","payloadFormatVersion":"2.0"}`, &integration)
+	var created struct{ RouteKey string }
+	call("CreateRoute", "/v2/apis/"+api.APIID+"/routes", `{"routeKey":"GET /hello","target":"integrations/`+integration.IntegrationID+`"}`, &created)
+	var stage struct{ DeploymentID string }
+	call("CreateStage", "/v2/apis/"+api.APIID+"/stages", `{"stageName":"$default","autoDeploy":true}`, &stage)
+	if api.APIID == "" || created.RouteKey != "GET /hello" || stage.DeploymentID == "" {
+		t.Fatalf("CreateApi id %q, CreateRoute key %q, CreateStage deployment %q; want an id, GET /hello and the automatic deployment", api.APIID, created.RouteKey, stage.DeploymentID)
+	}
+	permission := `{"StatementId":"apigateway","Action":"lambda:InvokeFunction","Principal":"apigateway.amazonaws.com",` +
+		`"SourceArn":"arn:aws:execute-api:` + region + `:` + account + `:` + api.APIID + `/*/*"}`
+	must(t, "AddPermission", send(t, w.emu, request{
+		path: "/2015-03-31/functions/" + function + "/policy", service: "lambda",
+		header: map[string]string{"Content-Type": "application/json"}, body: []byte(permission),
+	}), http.StatusCreated)
+	invoked := send(t, w.emu, request{method: http.MethodGet, path: "/_understudy/execute-api/" + api.APIID + "/hello"})
+	if !w.invoke {
+		if invoked.status != http.StatusNotImplemented || !strings.Contains(invoked.body, "Docker") {
+			t.Fatalf("GET /hello without Docker = %d %s, want 501 naming Docker", invoked.status, invoked.body)
+		}
+		return
+	}
+	if invoked.status != http.StatusOK || !strings.Contains(invoked.body, `"routeKey":"GET /hello"`) || invoked.header.Get("Apigw-Requestid") == "" {
+		t.Fatalf("GET /hello = %d %v %s, want the function's echo of the GET /hello event with an apigw-requestid", invoked.status, invoked.header, invoked.body)
+	}
+}
+
+// apigateway builds a REST API over restJson1, signed for apigateway: GET
+// on the root resource by a Lambda proxy integration to the function and a
+// deployment to stage s; it lets API Gateway invoke the function, then
+// sends GET /s/ through the path fallback. With Docker the function runs
+// and answers its echo, which is no proxy response, so API Gateway answers
+// the recorded 502 (apigateway-rest.md 5.2), which it gives only after
+// invoking; without Docker the answer is 501 naming Docker.
+func (w *workload) apigateway(t *testing.T) {
+	t.Helper()
+	call := func(what, method, path, body string, v any) {
+		t.Helper()
+		got := must(t, what, send(t, w.emu, request{
+			method: method, path: path, service: "apigateway", header: map[string]string{"Content-Type": "application/json"}, body: []byte(body),
+		}), http.StatusCreated)
+		decode(t, what, got.body, v)
+	}
+	var api struct {
+		ID             string `json:"id"`
+		RootResourceID string `json:"rootResourceId"`
+	}
+	call("CreateRestApi", http.MethodPost, "/restapis", `{"name":"smoke"}`, &api)
+	if api.ID == "" || api.RootResourceID == "" {
+		t.Fatalf("CreateRestApi answered id %q, root resource %q; want both", api.ID, api.RootResourceID)
+	}
+	method := "/restapis/" + api.ID + "/resources/" + api.RootResourceID + "/methods/GET"
+	var ignored struct{}
+	call("PutMethod", http.MethodPut, method, `{"authorizationType":"NONE"}`, &ignored)
+	call("PutIntegration", http.MethodPut, method+"/integration", `{"type":"AWS_PROXY","httpMethod":"POST",`+
+		`"uri":"arn:aws:apigateway:`+region+`:lambda:path/2015-03-31/functions/arn:aws:lambda:`+region+`:`+account+`:function:`+function+`/invocations"}`, &ignored)
+	var deployment struct{ ID string }
+	call("CreateDeployment", http.MethodPost, "/restapis/"+api.ID+"/deployments", `{"stageName":"s"}`, &deployment)
+	permission := `{"StatementId":"apigateway-rest","Action":"lambda:InvokeFunction","Principal":"apigateway.amazonaws.com",` +
+		`"SourceArn":"arn:aws:execute-api:` + region + `:` + account + `:` + api.ID + `/*/*"}`
+	must(t, "AddPermission", send(t, w.emu, request{
+		path: "/2015-03-31/functions/" + function + "/policy", service: "lambda",
+		header: map[string]string{"Content-Type": "application/json"}, body: []byte(permission),
+	}), http.StatusCreated)
+	invoked := send(t, w.emu, request{method: http.MethodGet, path: "/_understudy/execute-api/" + api.ID + "/s/"})
+	if !w.invoke {
+		if invoked.status != http.StatusNotImplemented || !strings.Contains(invoked.body, "Docker") {
+			t.Fatalf("GET /s/ without Docker = %d %s, want 501 naming Docker", invoked.status, invoked.body)
+		}
+		return
+	}
+	if invoked.status != http.StatusBadGateway || invoked.body != `{"message": "Internal server error"}` || invoked.header.Get("X-Amz-Apigw-Id") == "" {
+		t.Fatalf("GET /s/ = %d %v %s, want the 502 a non-proxy output gets, with an x-amz-apigw-id", invoked.status, invoked.header, invoked.body)
+	}
+}
+
 // logs writes a log event over awsJson1_1.
 func (w *workload) logs(t *testing.T) {
 	t.Helper()
@@ -446,6 +604,17 @@ func (w *workload) secrets(t *testing.T) {
 	decode(t, "GetSecretValue", must(t, "GetSecretValue", awsJSON(t, w.emu, "1.1", "secretsmanager", "secretsmanager.GetSecretValue", `{"SecretId":"smoke"}`), http.StatusOK).body, &got)
 	if got.Name != "smoke" || got.SecretString != "s3cret" {
 		t.Fatalf("GetSecretValue = %+v", got)
+	}
+}
+
+// ssm stores a String parameter and reads it back over awsJson1_1.
+func (w *workload) ssm(t *testing.T) {
+	t.Helper()
+	must(t, "PutParameter", awsJSON(t, w.emu, "1.1", "ssm", "AmazonSSM.PutParameter", `{"Name":"/smoke/a","Type":"String","Value":"v"}`), http.StatusOK)
+	var got struct{ Parameter struct{ Name, Value string } }
+	decode(t, "GetParameter", must(t, "GetParameter", awsJSON(t, w.emu, "1.1", "ssm", "AmazonSSM.GetParameter", `{"Name":"/smoke/a"}`), http.StatusOK).body, &got)
+	if got.Parameter.Name != "/smoke/a" || got.Parameter.Value != "v" {
+		t.Fatalf("GetParameter = %+v", got.Parameter)
 	}
 }
 
@@ -509,6 +678,104 @@ func (w *workload) cloudwatch(t *testing.T) {
 	}
 }
 
+// stepFunctions creates a Pass state machine over awsJson1_0 and lists it.
+func (w *workload) stepFunctions(t *testing.T) {
+	t.Helper()
+	must(t, "CreateStateMachine", awsJSON(t, w.emu, "1.0", "states", "AWSStepFunctions.CreateStateMachine",
+		`{"name":"smoke","roleArn":"arn:aws:iam::`+account+`:role/smoke","definition":"{\"StartAt\":\"P\",\"States\":{\"P\":{\"Type\":\"Pass\",\"End\":true}}}"}`), http.StatusOK)
+	var list struct {
+		StateMachines []struct{ Name, StateMachineArn string }
+	}
+	decode(t, "ListStateMachines", must(t, "ListStateMachines", awsJSON(t, w.emu, "1.0", "states", "AWSStepFunctions.ListStateMachines", `{}`), http.StatusOK).body, &list)
+	if len(list.StateMachines) != 1 || list.StateMachines[0].StateMachineArn != "arn:aws:states:"+region+":"+account+":stateMachine:smoke" {
+		t.Fatalf("ListStateMachines = %+v, want the smoke machine", list)
+	}
+}
+
+// ses verifies an email identity over awsQuery and reads it back Pending,
+// keyed by the address as sent (ses.md 5.2, 9.1).
+func (w *workload) ses(t *testing.T) {
+	t.Helper()
+	const addr = "smoke@example.com"
+	must(t, "VerifyEmailIdentity", awsQuery(t, w.emu, "ses", "VerifyEmailIdentity", "2010-12-01", url.Values{"EmailAddress": {addr}}), http.StatusOK)
+	attrs := must(t, "GetIdentityVerificationAttributes", awsQuery(t, w.emu, "ses", "GetIdentityVerificationAttributes", "2010-12-01", url.Values{
+		"Identities.member.1": {addr},
+	}), http.StatusOK)
+	if element(t, attrs.body, "key") != addr || element(t, attrs.body, "VerificationStatus") != "Pending" {
+		t.Fatalf("GetIdentityVerificationAttributes = %s, want %s Pending", attrs.body, addr)
+	}
+}
+
+// sesv2 creates a domain identity over restJson1, a REST request signed
+// ses that rule 8 routes to sesv2 (ADR 0019), and reads it back PENDING
+// with three DKIM tokens (ses.md 5.4).
+func (w *workload) sesv2(t *testing.T) {
+	t.Helper()
+	const domain = "smoke.example"
+	must(t, "CreateEmailIdentity", send(t, w.emu, request{
+		path: "/v2/email/identities", service: "ses",
+		header: map[string]string{"Content-Type": "application/json"}, body: []byte(`{"EmailIdentity":"` + domain + `"}`),
+	}), http.StatusOK)
+	got := must(t, "GetEmailIdentity", send(t, w.emu, request{
+		method: http.MethodGet, path: "/v2/email/identities/" + domain, service: "ses",
+	}), http.StatusOK)
+	var identity struct {
+		VerificationStatus string
+		DkimAttributes     struct{ Tokens []string }
+	}
+	decode(t, "GetEmailIdentity", got.body, &identity)
+	if identity.VerificationStatus != "PENDING" || len(identity.DkimAttributes.Tokens) != 3 {
+		t.Fatalf("GetEmailIdentity = %s, want PENDING with three DKIM tokens", got.body)
+	}
+}
+
+// scheduler creates a rate schedule with an SQS target over restJson1,
+// reads it back with the defaults AWS fills (scheduler.md 4.2), deletes it
+// and reads it gone, then lists the schedule groups. Its queue is its own,
+// so the SNS step's queue holds no invocation.
+func (w *workload) scheduler(t *testing.T) {
+	t.Helper()
+	const queue = "smoke-schedule"
+	must(t, "CreateQueue", awsJSON(t, w.emu, "1.0", "sqs", "AmazonSQS.CreateQueue", `{"QueueName":"`+queue+`"}`), http.StatusOK)
+	rest := func(method, body string) response {
+		return send(t, w.emu, request{
+			method: method, path: "/schedules/smoke", service: "scheduler",
+			header: map[string]string{"Content-Type": "application/json"}, body: []byte(body),
+		})
+	}
+	var created struct{ ScheduleArn string }
+	body := `{"ScheduleExpression":"rate(1 hour)","FlexibleTimeWindow":{"Mode":"OFF"},` +
+		`"Target":{"Arn":"arn:aws:sqs:` + region + `:` + account + `:` + queue + `","RoleArn":"` + w.roleARN + `","Input":"hello <aws.scheduler.attempt-number>"}}`
+	decode(t, "CreateSchedule", must(t, "CreateSchedule", rest(http.MethodPost, body), http.StatusOK).body, &created)
+	if created.ScheduleArn != "arn:aws:scheduler:"+region+":"+account+":schedule/default/smoke" {
+		t.Fatalf("CreateSchedule ScheduleArn = %q", created.ScheduleArn)
+	}
+	var got struct {
+		GroupName, ActionAfterCompletion string
+		Target                           struct {
+			RetryPolicy struct{ MaximumEventAgeInSeconds, MaximumRetryAttempts int }
+		}
+	}
+	decode(t, "GetSchedule", must(t, "GetSchedule", rest(http.MethodGet, ""), http.StatusOK).body, &got)
+	if got.GroupName != "default" || got.ActionAfterCompletion != "NONE" ||
+		got.Target.RetryPolicy.MaximumEventAgeInSeconds != 86400 || got.Target.RetryPolicy.MaximumRetryAttempts != 185 {
+		t.Fatalf("GetSchedule = %+v, want group default, NONE and retry 86400/185", got)
+	}
+	must(t, "DeleteSchedule", rest(http.MethodDelete, ""), http.StatusOK)
+	must(t, "GetSchedule after delete", rest(http.MethodGet, ""), http.StatusNotFound)
+	var groups struct {
+		ScheduleGroups []struct{ Name, State string }
+	}
+	listed := send(t, w.emu, request{method: http.MethodGet, path: "/schedule-groups", service: "scheduler"})
+	decode(t, "ListScheduleGroups", must(t, "ListScheduleGroups", listed, http.StatusOK).body, &groups)
+	for _, g := range groups.ScheduleGroups {
+		if g.Name == "default" && g.State == "ACTIVE" {
+			return
+		}
+	}
+	t.Fatalf("ListScheduleGroups = %+v, want the default group ACTIVE (scheduler.md 3.1)", groups.ScheduleGroups)
+}
+
 // policy asks the CLI for the smoke principal's least-privilege policy,
 // which carries the KMS action S3 called on its behalf for the SSE-KMS
 // put, grants s3:PutObject on the bucket's objects and iam:PassRole on the
@@ -557,9 +824,13 @@ func (w *workload) policy(t *testing.T) {
 }
 
 // coverage reads the coverage report's three numbers: protocol compliance,
-// operations per service and evidence.
+// operations per service and evidence, for every service health lists.
 func (w *workload) coverage(t *testing.T) {
 	t.Helper()
+	var health struct {
+		Services map[string]json.RawMessage
+	}
+	decode(t, "health", must(t, "health", send(t, w.emu, request{method: http.MethodGet, path: "/_understudy/v1/health"}), http.StatusOK).body, &health)
 	var report struct {
 		Protocols []struct {
 			Protocol string
@@ -579,7 +850,8 @@ func (w *workload) coverage(t *testing.T) {
 	for _, s := range report.Services {
 		operations += len(s.Operations)
 	}
-	if passed == 0 || len(report.Services) != 12 || operations == 0 || len(report.Switches) == 0 {
-		t.Fatalf("coverage: %d protocol cases passed, %d services with %d operations, %d switches; want all three numbers", passed, len(report.Services), operations, len(report.Switches))
+	if passed == 0 || len(health.Services) == 0 || len(report.Services) != len(health.Services) || operations == 0 || len(report.Switches) == 0 {
+		t.Fatalf("coverage: %d protocol cases passed, %d services (health lists %d) with %d operations, %d switches; want all three numbers for every service",
+			passed, len(report.Services), len(health.Services), operations, len(report.Switches))
 	}
 }

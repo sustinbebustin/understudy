@@ -1,0 +1,39 @@
+{
+  "step": "01-get-upper",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-ckmode.s3.us-east-2.amazonaws.com/k",
+        "headers": [
+          ["x-amz-checksum-mode", "ENABLED"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,Z,AN,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-object"],
+          ["X-Amz-Date", "20261103T033931Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "2e45a69c-d548-4214-b33c-12761d35a144"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "lfYWbw3xFQblu+kT6BedUwS+14fOrLZc04+sJiuZFwjThfblfjfwEzh9cWAjlKUPIwvZ3MaprGhf7EyXLyBEYcYzZ6kLo1nX"],
+          ["x-amz-request-id", "0VY1X44EQ5NNDHK2"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:39:32 GMT"],
+          ["Last-Modified", "Tue, 03 Nov 2026 03:39:32 GMT"],
+          ["ETag", "\"781e5e245d69b566979b86e28d23f2c7\""],
+          ["x-amz-checksum-crc64nvme", "Ffmx7kz9nB0="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Accept-Ranges", "bytes"],
+          ["Content-Type", "binary/octet-stream"],
+          ["Content-Length", "10"]
+        ],
+        "body": "0123456789"
+      }
+    }
+  ]
+}

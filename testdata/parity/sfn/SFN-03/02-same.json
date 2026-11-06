@@ -1,0 +1,34 @@
+{
+  "step": "02-same",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.StartExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.start-execution"],
+          ["X-Amz-Date", "20261103T163642Z"],
+          ["amz-sdk-invocation-id", "41dcf963-2808-439e-875a-e2f63ac258e7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "130"]
+        ],
+        "body": "{\"stateMachineArn\": \"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-wait\", \"name\": \"us1103-idem\", \"input\": \"{\\\"a\\\":1}\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "0bcb7c20-bbd1-4d89-8b81-7909a16de359"],
+          ["Date", "Tue, 03 Nov 2026 16:36:42 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "119"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"executionArn\":\"arn:aws:states:us-east-2:123456789012:execution:us1103-wait:us1103-idem\",\"startDate\":1.793723802122E9}"
+      }
+    }
+  ]
+}

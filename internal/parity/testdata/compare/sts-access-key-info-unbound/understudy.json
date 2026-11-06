@@ -1,0 +1,16 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an unbound operation's 501 answer to sts/R15/06-get-access-key-info-deleted, which AWS answers 200 (its notes: differs)",
+  "exchanges": [
+    {
+      "response": {
+        "status": 501,
+        "headers": [
+          ["Content-Type", "text/xml"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\"><Error><Type>Sender</Type><Code>NotImplemented</Code><Message>sts.GetAccessKeyInfo is not implemented.</Message></Error><RequestId>1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f</RequestId></ErrorResponse>"
+      }
+    }
+  ]
+}

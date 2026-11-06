@@ -1,0 +1,37 @@
+{
+  "step": "09-delete-active-deployment",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the DeleteDeployment operation: Active stages pointing to this deployment must be moved or deleted",
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/un8cw1i7c9/deployments/m7zack",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.delete-deployment"],
+          ["X-Amz-Date", "20261103T164426Z"],
+          ["amz-sdk-invocation-id", "963af69f-e76c-47b2-a665-adce69fb6e7e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:44:26 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "80"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "bbcea51a-4196-43ff-9d75-f0d4e5f135fb"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdYsEiUCYcELpw="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f6a-3a2b3e5421bba8f11d0c424f"]
+        ],
+        "body": "{\"message\":\"Active stages pointing to this deployment must be moved or deleted\"}"
+      }
+    }
+  ]
+}

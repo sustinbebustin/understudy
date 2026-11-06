@@ -51,17 +51,25 @@ There is one file per service, named after it, so that one person can own and fi
 | File | Service |
 |---|---|
 | `s3_test.go` | S3 |
+| `s3_lock_test.go`, `s3_lock_ops_test.go` | S3 Object Lock and SSE-C |
 | `sqs_test.go` | SQS |
 | `sns_test.go` | SNS |
+| `sns_http_test.go`, `sns_http_impl_test.go` | SNS delivery to an http endpoint: an `httptest` receiver the test starts, on a loopback port `run.sh` lists in `sns.httpDelivery.allow` |
 | `lambda_test.go` | Lambda |
+| `lambda_layers_test.go` | Lambda layers and asynchronous invocation destinations |
 | `dynamodb_test.go` | DynamoDB |
+| `dynamodbstreams_test.go` | DynamoDB Streams |
+| `kinesis_test.go` | Kinesis Data Streams |
 | `cloudwatchlogs_test.go` | CloudWatch Logs |
 | `secretsmanager_test.go` | Secrets Manager |
 | `kms_test.go` | KMS |
 | `iam_test.go` | IAM |
 | `sts_test.go` | STS |
 | `eventbridge_test.go` | EventBridge |
+| `eventbridge_accounts_test.go` | EventBridge between two accounts, the second selected by a 12-digit access key |
 | `cloudwatch_test.go` | CloudWatch metrics and alarms |
+| `apigatewayv2_test.go` | API Gateway HTTP APIs: the control plane and Lambda proxy invocations through the execute-api path fallback |
+| `apigateway_test.go` | API Gateway REST APIs: the control plane and its recorded refusals, a MOCK method and Lambda proxy invocations through the execute-api path fallback |
 
 `main_test.go` holds the shared setup and helpers:
 
@@ -86,4 +94,4 @@ Each test creates uniquely named resources and deletes them when it ends, so tes
   - event notifications to SQS.
 - SQS: MD5 validation of bodies and attributes, FIFO queues, long polling, visibility, and dead-letter queues and redrive.
 - Lambda: Invoke (RequestResponse, Event and DryRun), function URLs and SQS event source mappings, all in real containers.
-- EventBridge: scheduled rules on a running clock. `TestEventBridgeSchedule` waits about a minute for a `rate(1 minute)` rule to fire.
+- EventBridge: custom buses with their rules, policies and event bus targets, within one account and between two; scheduled rules on a running clock. `TestEventBridgeSchedule` waits about a minute for a `rate(1 minute)` rule to fire.

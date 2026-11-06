@@ -18,10 +18,10 @@ import (
 // bindAccessKeys binds the access keys of users. The identity store mints
 // each key, so a request signed with it runs as the user.
 func (s *Service) bindAccessKeys(b iamapi.Binder) {
-	b.CreateAccessKey(s.createAccessKey, registry.Partial{Note: "only for IAM users: root user access keys are not managed, so a root caller must name a user"})
-	b.ListAccessKeys(s.listAccessKeys, registry.Partial{Note: "root user access keys are not managed, so a root caller that names no user lists none"})
-	b.UpdateAccessKey(s.updateAccessKey, registry.StoredOnly{Note: "an Inactive key still authenticates, since understudy does not enforce IAM"})
-	b.DeleteAccessKey(s.deleteAccessKey, registry.Full{})
+	b.CreateAccessKey(s.createAccessKey, registry.Partial{Note: withResolved("only for IAM users: root user access keys are not managed, so a root caller must name a user")})
+	b.ListAccessKeys(s.listAccessKeys, registry.Partial{Note: withResolved("root user access keys are not managed, so a root caller that names no user lists none")})
+	b.UpdateAccessKey(s.updateAccessKey, registry.StoredOnly{Note: withResolved("an Inactive key still authenticates under every iam.enforce mode and --sigv4 setting, since understudy does not check a key's status, where AWS rejects the key: under off a call it signs is served; under advise and enforce it runs as the user, whose policies are evaluated, so under enforce it is served whenever they allow it")})
+	b.DeleteAccessKey(s.deleteAccessKey, resolvedPartial())
 }
 
 // accessKeyIndex finds a user's access key by id.
@@ -48,6 +48,9 @@ func (s *Service) createAccessKey(_ context.Context, c *kernel.Call, in *iamapi.
 		return nil, errRootAccessKeys()
 	case namedUser:
 		name = who.name
+	}
+	if err := s.userExists(c, name); err != nil {
+		return nil, err
 	}
 	account := c.Scope().Account
 	type created struct {
@@ -148,6 +151,9 @@ func (s *Service) changeAccessKey(c *kernel.Call, userName *string, id string, c
 		return errNoSuchAccessKey(id)
 	case namedUser:
 		name = who.name
+	}
+	if err := s.userExists(c, name); err != nil {
+		return err
 	}
 	account := c.Scope().Account
 	u, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (User, *awserr.Error) {

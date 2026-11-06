@@ -1,0 +1,16 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an answer to sts/R15/06-assume-ok whose Expiration is epoch seconds instead of ISO 8601: masks keep the format, so it still differs",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Content-Type", "text/xml"]
+        ],
+        "body": "<AssumeRoleResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\"><AssumeRoleResult><AssumedRoleUser><AssumedRoleId>AROARZPUZDIKAAAAAAAHA:rec</AssumedRoleId><Arn>arn:aws:sts::123456789012:assumed-role/usr-rec-20261014-trust/rec</Arn></AssumedRoleUser><Credentials><AccessKeyId>ASIAREDACTED</AccessKeyId><SecretAccessKey>REDACTED</SecretAccessKey><SessionToken>REDACTED</SessionToken><Expiration>1791991272</Expiration></Credentials><PackedPolicySize>21</PackedPolicySize><SessionTokenSize>888</SessionTokenSize><SessionTokenUtilization>21</SessionTokenUtilization></AssumeRoleResult><ResponseMetadata><RequestId>eb14de1e-89b2-447d-8836-9ac7a692f6e9</RequestId></ResponseMetadata></AssumeRoleResponse>"
+      }
+    }
+  ]
+}

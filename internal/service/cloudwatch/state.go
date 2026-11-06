@@ -47,16 +47,44 @@ type Alarm struct {
 	ConfigUpdated  clock.Instant                     `json:"configUpdated"`
 	State          AlarmState                        `json:"state"`
 	Tags           map[string]string                 `json:"tags,omitempty"`
+	// Created is when PutMetricAlarm created the alarm, from which warm-up
+	// counts (cloudwatch-alarms.md 2.4); zero in a snapshot written before
+	// evaluation existed.
+	Created clock.Instant `json:"created,omitzero"`
+	// WarmedUp is set once warm-up has ended, which it does only once
+	// (cloudwatch-alarms.md 2.4).
+	WarmedUp bool `json:"warmedUp,omitempty"`
+	// MetricID is the generated id of the configuration's metric in Lambda
+	// and EventBridge payloads, new on each PutMetricAlarm
+	// (cloudwatch.alarm.events.metric-id).
+	MetricID string `json:"metricId,omitempty"`
 }
 
-// AlarmState is an alarm's state as PutMetricAlarm created it or
-// SetAlarmState last set it; understudy never evaluates an alarm.
+// History is the alarm history of one account and region by alarm name,
+// kept apart from State because it outlives the alarm and is pruned at 30
+// days on the emulator clock (cloudwatch-alarms.md 8.1, 12.3).
+type History struct {
+	Items map[string][]HistoryItem `json:"items"`
+}
+
+// HistoryItem is one StateUpdate item: when it was written and its
+// HistorySummary and HistoryData (cloudwatch-alarms.md 8.2).
+type HistoryItem struct {
+	At      clock.Instant `json:"at"`
+	Summary string        `json:"summary"`
+	Data    string        `json:"data"`
+}
+
+// AlarmState is an alarm's state as PutMetricAlarm created it, or as the
+// last evaluation transition or SetAlarmState set it.
 type AlarmState struct {
 	Value      cloudwatchapi.StateValue `json:"value"`
 	Reason     string                   `json:"reason"`
 	ReasonData *string                  `json:"reasonData,omitempty"`
-	// Updated is the last state change or SetAlarmState; Transitioned the
-	// last change of Value.
+	// Updated and Transitioned are both the last change of Value; they are
+	// kept apart because AWS documents Updated as also moving with
+	// EvaluationState, which understudy never reports (cloudwatch-alarms.md
+	// 2.2).
 	Updated      clock.Instant `json:"updated"`
 	Transitioned clock.Instant `json:"transitioned"`
 }

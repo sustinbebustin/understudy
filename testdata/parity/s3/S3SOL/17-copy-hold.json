@@ -1,0 +1,37 @@
+{
+  "step": "17-copy-hold",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the CopyObject operation: Bucket is missing ObjectLockConfiguration",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-nolock.s3.us-east-2.amazonaws.com/l17",
+        "headers": [
+          ["x-amz-copy-source", "us1103-nolock/n1"],
+          ["x-amz-object-lock-legal-hold", "ON"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,g,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.copy-object"],
+          ["X-Amz-Date", "20261103T034056Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "c4c0641b-59fe-42d3-a17f-bb99b12942e7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "5RW7ZEJVAC49NJG0"],
+          ["x-amz-id-2", "JtsMOXCy5ZifaIk0GWsB+AZ82sHQ1ANtIMsEdTgMPzmFuwWGR2Cv9EH6Zy18Oq2F3+JmE8NSI+q2oe4++NcHASSgkyrKLflx"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:56 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<Error><Code>InvalidRequest</Code><Message>Bucket is missing ObjectLockConfiguration</Message><RequestId>5RW7ZEJVAC49NJG0</RequestId><HostId>JtsMOXCy5ZifaIk0GWsB+AZ82sHQ1ANtIMsEdTgMPzmFuwWGR2Cv9EH6Zy18Oq2F3+JmE8NSI+q2oe4++NcHASSgkyrKLflx</HostId></Error>"
+      }
+    }
+  ]
+}

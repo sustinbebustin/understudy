@@ -1,0 +1,38 @@
+{
+  "step": "13-days-0",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutObjectLockConfiguration operation: Default retention period must be a positive integer value.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock-y.s3.us-east-2.amazonaws.com/?object-lock",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,W,Z,AN,b,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-lock-configuration"],
+          ["x-amz-checksum-crc64nvme", "zpAwytqMu04="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034044Z"],
+          ["X-Amz-Content-SHA256", "0a784a3f1ca611ec6bb681ece54b7daa65a4d24e91ba5908628e3580d8ede0dd"],
+          ["amz-sdk-invocation-id", "d92b1ebf-3177-427b-afc5-d572d2904a8c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "232"]
+        ],
+        "body": "<ObjectLockConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><ObjectLockEnabled>Enabled</ObjectLockEnabled><Rule><DefaultRetention><Mode>GOVERNANCE</Mode><Days>0</Days></DefaultRetention></Rule></ObjectLockConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "C59PXKYV89JBAXHM"],
+          ["x-amz-id-2", "YWEJjXH4BC/VKcLT6Pr20IJXUcXldY+Ylbmz2kFd+JM8KT7x0UfywGHJ5eHrfWTIjCK720QIPUX1b5xzkPMqkrG+0gr6ptcs"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:44 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Default retention period must be a positive integer value.</Message><ArgumentName>Days</ArgumentName><ArgumentValue>0</ArgumentValue><RequestId>C59PXKYV89JBAXHM</RequestId><HostId>YWEJjXH4BC/VKcLT6Pr20IJXUcXldY+Ylbmz2kFd+JM8KT7x0UfywGHJ5eHrfWTIjCK720QIPUX1b5xzkPMqkrG+0gr6ptcs</HostId></Error>"
+      }
+    }
+  ]
+}

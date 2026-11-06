@@ -27,13 +27,18 @@
 //     DynamoDB sending (T7). It is journaled as Unclaimed, since no
 //     operation was named.
 //   - A request signed for a service understudy does not emulate (ec2,
-//     rds, kinesis) is 501 NotImplemented, outside every SDK's retry set,
+//     rds, firehose) is 501 NotImplemented, outside every SDK's retry set,
 //     naming the service and the emulated ones. Since no codec claimed it,
 //     its envelope is the one its shape names: rpcv2Cbor by Smithy-Protocol,
 //     awsJson by X-Amz-Target, awsQuery by a form or a GET with Action,
 //     restJson1 by a JSON body, else restXml, whose body a JSON client still
 //     keeps as the message. Client-facing reasons drop the ARCHITECTURE.md
 //     4.1 rule numbers, which the journal keeps.
+//   - An X-Amz-Target naming an operation of a service understudy does not
+//     emulate but whose SDKs sign for one it does (DynamoDB Streams, signed
+//     for dynamodb) is claimed by rule 6 and answered with an unbound
+//     operation's 501 NotImplemented, naming the operation, so DynamoDB never
+//     answers it as its own unknown operation. It is journaled as Unclaimed.
 //   - A path under /_localstack/, LocalStack's reserved prefix, is claimed
 //     under rule 1 before S3, which would answer it as the bucket
 //     "_localstack" that no bucket name can be: 404 in the admin API's JSON
@@ -41,6 +46,23 @@
 //     health --wait, so a migrated health check says what to call instead.
 //     It is journaled as Unclaimed. A bare /health is a valid bucket path
 //     and stays S3's.
+//   - API Gateway's execute-api data plane is claimed before every rule
+//     that reads credentials, so S3 never answers it as a virtual-hosted
+//     bucket: its hosts under rule 2 on every listener, its path fallback
+//     /_understudy/execute-api/ under rule 1 on the main listener. Both
+//     forms go to the raw apigatewayv2.InvokeApi operation when it is
+//     registered; without it they answer 501 in API Gateway's
+//     {"message": ...} shape, journaled as Unclaimed. The browser defences
+//     refuse neither form, as any page may call one on AWS.
+//   - Every answer on the function URL and execute-api path fallbacks
+//     carries exactly one Content-Security-Policy: sandbox, over any the
+//     function or the edge set (sandbox.go), since those pages share the
+//     admin API's origin; the host forms are origins of their own, as on
+//     AWS, and their answers pass as written (ADR 0020).
+//   - Several services may share a signing name (ADR 0019). Rule 8 tries
+//     the route tables of the name's REST services in registration order,
+//     and a request none matches is the first one's unknown operation.
+//     Lambda keeps its own case, so its decline texts stay as they were.
 //   - Each request is logged at Debug (method, operation, status, latency,
 //     request id). A not-emulated service, an unclaimed request, a call to
 //     an unimplemented operation and a call to an operation the vendored
@@ -79,7 +101,10 @@
 //     Both answer in the claimed operation's words: Options.OperationAuth
 //     for an operation whose front end refuses otherwise than its service
 //     (a function URL's 403), else Options.ServiceAuth for S3, whose
-//     identities no protocol family holds, else the protocol family's.
+//     identities no protocol family holds, else Options.ProtocolAuth for a
+//     service that answers one protocol otherwise than its family (SQS
+//     over JSON refuses a skewed request with 403), else the protocol
+//     family's.
 //     A presigned SigV4 request's x-amz-* query parameters reach the
 //     call's headers as if sent (auth.HoistedHeader). Rule 8 routes by
 //     signing name, which unreadable credentials do not yield, so it sends

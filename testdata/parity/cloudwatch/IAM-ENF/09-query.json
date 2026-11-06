@@ -1,0 +1,32 @@
+{
+  "step": "09-query",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://monitoring.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "monitoring.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T034511Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "40"]
+        ],
+        "body": "Action=DescribeAlarms&Version=2010-08-01"
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["x-amzn-RequestId", "84c55f3a-38f9-4f0a-98c7-8c77b3966527"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "510"],
+          ["Date", "Tue, 03 Nov 2026 03:45:11 GMT"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://monitoring.amazonaws.com/doc/2010-08-01/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>AccessDenied</Code>\n    <Message>User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: cloudwatch:DescribeAlarms on resource: arn:aws:cloudwatch:us-east-2:123456789012:alarm:* because no identity-based policy allows the cloudwatch:DescribeAlarms action</Message>\n  </Error>\n  <RequestId>84c55f3a-38f9-4f0a-98c7-8c77b3966527</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

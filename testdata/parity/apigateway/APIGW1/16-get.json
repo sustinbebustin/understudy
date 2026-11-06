@@ -1,0 +1,22 @@
+{
+  "step": "16-get",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:46:08 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1591"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "593b33b3-6ab1-4861-8fba-4ff640914bca"],
+          ["x-amz-apigw-id", "GRdoqENBCYcEuUw="],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0fd0-46b81a3245fd19c82fed097f;Parent=3cbfb05abc3607eb;Sampled=0;Lineage=1:3c3b1068:0"]
+        ],
+        "body": "{\"resource\": \"/px\", \"path\": \"/px\", \"httpMethod\": \"GET\", \"headers\": {\"Accept\": \"*/*\", \"Host\": \"iqia6sj0ff.execute-api.us-east-2.amazonaws.com\", \"User-Agent\": \"curl/8.23.0\", \"X-Amzn-Trace-Id\": \"Root=1-6aea0fd0-46b81a3245fd19c82fed097f\", \"X-Forwarded-For\": \"198.51.100.2\", \"X-Forwarded-Port\": \"443\", \"X-Forwarded-Proto\": \"https\"}, \"multiValueHeaders\": {\"Accept\": [\"*/*\"], \"Host\": [\"iqia6sj0ff.execute-api.us-east-2.amazonaws.com\"], \"User-Agent\": [\"curl/8.23.0\"], \"X-Amzn-Trace-Id\": [\"Root=1-6aea0fd0-46b81a3245fd19c82fed097f\"], \"X-Forwarded-For\": [\"198.51.100.2\"], \"X-Forwarded-Port\": [\"443\"], \"X-Forwarded-Proto\": [\"https\"]}, \"queryStringParameters\": null, \"multiValueQueryStringParameters\": null, \"pathParameters\": null, \"stageVariables\": null, \"requestContext\": {\"resourceId\": \"f85iwy\", \"resourcePath\": \"/px\", \"httpMethod\": \"GET\", \"extendedRequestId\": \"GRdoqENBCYcEuUw=\", \"requestTime\": \"03/Nov/2026:16:46:08 +0000\", \"path\": \"/s1/px\", \"accountId\": \"123456789012\", \"protocol\": \"HTTP/1.1\", \"stage\": \"s1\", \"domainPrefix\": \"iqia6sj0ff\", \"requestTimeEpoch\": 1793724368550, \"requestId\": \"593b33b3-6ab1-4861-8fba-4ff640914bca\", \"identity\": {\"cognitoIdentityPoolId\": null, \"accountId\": null, \"cognitoIdentityId\": null, \"caller\": null, \"sourceIp\": \"198.51.100.2\", \"principalOrgId\": null, \"accessKey\": null, \"cognitoAuthenticationType\": null, \"cognitoAuthenticationProvider\": null, \"userArn\": null, \"userAgent\": \"curl/8.23.0\", \"user\": null}, \"domainName\": \"iqia6sj0ff.execute-api.us-east-2.amazonaws.com\", \"deploymentId\": \"6z87hi\", \"apiId\": \"iqia6sj0ff\"}, \"body\": null, \"isBase64Encoded\": false}"
+      }
+    }
+  ]
+}

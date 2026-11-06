@@ -1,0 +1,35 @@
+{
+  "step": "02-model",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/models",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,E,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.create-model"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T163656Z"],
+          ["amz-sdk-invocation-id", "fc0e8f85-fb71-49e1-8b04-9af6660bd635"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "129"]
+        ],
+        "body": "{\"name\": \"M1\", \"schema\": \"{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"a\\\":{\\\"type\\\":\\\"string\\\"}}}\", \"contentType\": \"application/json\"}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:36:56 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "139"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "2f59eaa7-d70c-4457-aaa1-a107b484851c"],
+          ["x-amz-apigw-id", "GRcSXI34CYcEb7Q="]
+        ],
+        "body": "{\"contentType\":\"application/json\",\"id\":\"pj8mdn\",\"name\":\"M1\",\"schema\":\"{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"a\\\":{\\\"type\\\":\\\"string\\\"}}}\"}\n"
+      }
+    }
+  ]
+}

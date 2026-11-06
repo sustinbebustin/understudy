@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
 )
 
@@ -46,6 +47,10 @@ type (
 		Role    *roleRecord   `json:"role,omitempty"`
 		Session string        `json:"session,omitempty"`
 		Source  *sourceRecord `json:"source,omitempty"`
+		// Attributes are an assumed role's SessionAttributes. A record
+		// without them, as every record written before they existed, reads
+		// as nil, so the format version did not change.
+		Attributes *attributesRecord `json:"attributes,omitempty"`
 	}
 	// roleRecord is RoleRef's persisted form, kept apart so the format does
 	// not follow the domain type's field names.
@@ -58,6 +63,20 @@ type (
 		Kind     string `json:"kind"`
 		Function string `json:"function,omitempty"`
 		Env      EnvID  `json:"env,omitempty"`
+	}
+	// attributesRecord is SessionAttributes' persisted form, each field
+	// left out when empty.
+	attributesRecord struct {
+		Policy            string        `json:"policy,omitempty"`
+		PolicyARNs        []string      `json:"policyArns,omitempty"`
+		Tags              []tagRecord   `json:"tags,omitempty"`
+		TransitiveTagKeys []string      `json:"transitiveTagKeys,omitempty"`
+		SourceIdentity    string        `json:"sourceIdentity,omitempty"`
+		Issued            clock.Instant `json:"issued,omitzero"`
+	}
+	tagRecord struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
 	}
 )
 
@@ -178,8 +197,9 @@ func exportPrincipal(p Principal) principalRecord {
 	case AssumedRole:
 		return principalRecord{
 			Kind: kindAssumedRole, Account: p.Account, Session: p.Session,
-			Role:   &roleRecord{Name: p.Role.Name, Path: p.Role.Path, ID: p.Role.ID},
-			Source: exportSource(p.Source),
+			Role:       &roleRecord{Name: p.Role.Name, Path: p.Role.Path, ID: p.Role.ID},
+			Source:     exportSource(p.Source),
+			Attributes: exportAttributes(p.Attributes),
 		}
 	case ServicePrincipal, Anonymous:
 		// The mint methods refuse these, so the store never holds one.
@@ -195,6 +215,34 @@ func exportSource(src SessionSource) *sourceRecord {
 		return &sourceRecord{Kind: kindExecEnv, Function: src.Function.String(), Env: src.Env}
 	}
 	return &sourceRecord{}
+}
+
+func exportAttributes(a *SessionAttributes) *attributesRecord {
+	if a == nil {
+		return nil
+	}
+	var tags []tagRecord
+	for _, t := range a.Tags {
+		tags = append(tags, tagRecord(t))
+	}
+	return &attributesRecord{
+		Policy: a.Policy, PolicyARNs: a.PolicyARNs, Tags: tags, TransitiveTagKeys: a.TransitiveTagKeys,
+		SourceIdentity: a.SourceIdentity, Issued: a.Issued,
+	}
+}
+
+func importAttributes(r *attributesRecord) *SessionAttributes {
+	if r == nil {
+		return nil
+	}
+	var tags []SessionTag
+	for _, t := range r.Tags {
+		tags = append(tags, SessionTag(t))
+	}
+	return &SessionAttributes{
+		Policy: r.Policy, PolicyARNs: r.PolicyARNs, Tags: tags, TransitiveTagKeys: r.TransitiveTagKeys,
+		SourceIdentity: r.SourceIdentity, Issued: r.Issued,
+	}
 }
 
 // importKey admits only what the mint methods can produce: an AKIA key for
@@ -262,14 +310,15 @@ func importPrincipal(r principalRecord) (Principal, error) {
 	}
 	path, name, id := field{"path", r.Path != ""}, field{"name", r.Name != ""}, field{"id", r.ID != ""}
 	role, session, source := field{"role", r.Role != nil}, field{"session", r.Session != ""}, field{"source", r.Source != nil}
+	attributes := field{"attributes", r.Attributes != nil}
 	switch r.Kind {
 	case kindRoot:
-		if err := strayFields("principal", r.Kind, path, name, id, role, session, source); err != nil {
+		if err := strayFields("principal", r.Kind, path, name, id, role, session, source, attributes); err != nil {
 			return nil, err
 		}
 		return Root{Account: r.Account}, nil
 	case kindUser:
-		if err := strayFields("principal", r.Kind, role, session, source); err != nil {
+		if err := strayFields("principal", r.Kind, role, session, source, attributes); err != nil {
 			return nil, err
 		}
 		return User{Account: r.Account, Path: r.Path, Name: r.Name, ID: r.ID}, nil
@@ -286,7 +335,7 @@ func importPrincipal(r principalRecord) (Principal, error) {
 		}
 		return AssumedRole{
 			Account: r.Account, Role: RoleRef{Name: r.Role.Name, Path: r.Role.Path, ID: r.Role.ID},
-			Session: r.Session, Source: src,
+			Session: r.Session, Source: src, Attributes: importAttributes(r.Attributes),
 		}, nil
 	}
 	return nil, fmt.Errorf("principal kind %q is not %s, %s or %s", r.Kind, kindRoot, kindUser, kindAssumedRole)

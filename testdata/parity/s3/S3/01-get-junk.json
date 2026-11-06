@@ -1,0 +1,35 @@
+{
+  "step": "01-get-junk",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the GetObject operation: Value for x-amz-checksum-mode header is invalid.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-ckmode.s3.us-east-2.amazonaws.com/k",
+        "headers": [
+          ["x-amz-checksum-mode", "junk"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,Z,E,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-object"],
+          ["X-Amz-Date", "20261103T033933Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "8cc5f71f-a210-4b8b-8dcf-7edd6f21b3ff"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amz-request-id", "58JT1NXKTA2ACAKC"],
+          ["x-amz-id-2", "5kC2SZAUuGqRhiAgRutgwh83k/JnBYm2w18RHtXcmG39PEwzU6AGw3EzVsRxD9KznL1kxwJTxNclxLGLnd9HWu2X2vD1YQNA"],
+          ["Date", "Tue, 03 Nov 2026 03:39:33 GMT"],
+          ["Content-Type", "application/xml"],
+          ["Server", "AmazonS3"],
+          ["Transfer-Encoding", "chunked"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Value for x-amz-checksum-mode header is invalid.</Message><RequestId>58JT1NXKTA2ACAKC</RequestId><HostId>5kC2SZAUuGqRhiAgRutgwh83k/JnBYm2w18RHtXcmG39PEwzU6AGw3EzVsRxD9KznL1kxwJTxNclxLGLnd9HWu2X2vD1YQNA</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -725,12 +725,20 @@ func TestSourcesAgree(t *testing.T) {
 	})
 }
 
-// topKeys are the valid top-level keys of the configuration file.
+// topKeys are the valid top-level keys of the configuration file. A
+// setting with a dotted key, such as sns.httpDelivery.allow, is written
+// nested under its section, which is the top-level key.
 func topKeys() []string {
-	sections := []string{"accounts", "regions", "s3", "lambda", "sqs", "iam", "dynamodb", "journal", "faults"}
+	sections := []string{"accounts", "regions", "s3", "lambda", "sqs", "sns", "ses", "iam", "dynamodb", "journal", "faults"}
 	keys := make([]string, 0, len(sections)+len(config.Settings()))
 	keys = append(keys, sections...)
 	for _, s := range config.Settings() {
+		if section, _, dotted := strings.Cut(s.Key, "."); dotted {
+			if !slices.Contains(keys, section) {
+				keys = append(keys, section)
+			}
+			continue
+		}
 		keys = append(keys, s.Key)
 	}
 	return keys

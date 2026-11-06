@@ -1,0 +1,20 @@
+{
+  "step": "12-tie-c",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 499,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:23 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "17"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "8f5b92c7-c4c6-4e09-93c9-93097f71fffe"],
+          ["x-amz-apigw-id", "GRdFkEFviYcEdbQ="]
+        ],
+        "body": "{\"picked\": \"499\"}"
+      }
+    }
+  ]
+}

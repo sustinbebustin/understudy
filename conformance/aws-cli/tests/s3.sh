@@ -123,7 +123,7 @@ test_s3_cp_upload_and_download_round_trip() {
 
 test_s3_cp_stdin_and_stdout() {
   mkbucket
-  printf 'from stdin' | aws s3 cp - "s3://$BUCKET/stdin.txt" >/dev/null
+  printf 'from stdin' | AWS_CONFIG_FILE=$(ue_cli_config) aws s3 cp - "s3://$BUCKET/stdin.txt" >/dev/null
   aws_ok s3 cp "s3://$BUCKET/stdin.txt" -
   assert_eq 'from stdin' "$AWS_OUT" 'object body on stdout'
 }
@@ -1418,8 +1418,7 @@ test_virtual_hosted_style_addressing() {
   mkbucket
   put_obj vh.txt 'virtual hosted'
   local cfg port
-  cfg=$(mktemp "$UE_TMP/awsconfig.XXXXXX")
-  printf '[default]\ns3 =\n    addressing_style = virtual\n' >"$cfg"
+  cfg=$(ue_cli_config 'addressing_style = virtual')
   port=${AWS_ENDPOINT_URL##*:}
   AWS_CONFIG_FILE=$cfg AWS_ENDPOINT_URL="http://localhost:$port" aws_ok s3 cp "s3://$BUCKET/vh.txt" -
   assert_eq 'virtual hosted' "$AWS_OUT"
@@ -1429,8 +1428,7 @@ test_virtual_hosted_style_addressing() {
 test_virtual_hosted_style_listing_and_put() {
   mkbucket
   local cfg port src="$UE_TMP/vhput.txt"
-  cfg=$(mktemp "$UE_TMP/awsconfig.XXXXXX")
-  printf '[default]\ns3 =\n    addressing_style = virtual\n' >"$cfg"
+  cfg=$(ue_cli_config 'addressing_style = virtual')
   port=${AWS_ENDPOINT_URL##*:}
   printf 'put through the bucket host' >"$src"
   AWS_CONFIG_FILE=$cfg AWS_ENDPOINT_URL="http://localhost:$port" aws_ok s3 cp "$src" "s3://$BUCKET/dir/put.txt"
@@ -1561,4 +1559,88 @@ test_notification_malformed_queue_arn() {
   aws_error InvalidArgument 400 s3api put-bucket-notification-configuration --bucket "$BUCKET" --notification-configuration \
     '{"QueueConfigurations":[{"QueueArn":"not-an-arn","Events":["s3:ObjectCreated:*"]}]}'
   aws_error_message_contains 'The ARN could not be parsed'
+}
+
+# Object Lock and SSE-C. Arbiter: docs/research/s3-ssec-object-lock.md. Recorded
+# texts cite LocalStack's AWS-validated snapshots (localstack@8b9a79f, validated
+# 2026-02-21) by file and line; behavior AWS has not been recorded doing follows
+# the fidelity switch understudy declares, read from its coverage report. The
+# tests use GOVERNANCE retention only.
+
+# switch_value NAME: the value the running understudy declares for the switch.
+switch_value() {
+  curl -fsS "${UE_ADMIN_URL:?UE_ADMIN_URL unset}/coverage" | jq -r --arg n "$1" '.switches[] | select(.name == $n) | .value'
+}
+
+LOCKED_TEXT='Access Denied because object protected by object lock.'
+
+test_object_lock_governance_delete_needs_bypass() {
+  mkbucket --object-lock-enabled-for-bucket
+  local until version
+  until=$(date -u -d '+1 hour' +%Y-%m-%dT%H:%M:%SZ)
+  put_obj gov v --object-lock-mode GOVERNANCE --object-lock-retain-until-date "$until"
+  version=$(jqv '.VersionId')
+  # test_s3.snapshot.json L9623: HEAD reports the mode and the date.
+  aws_ok s3api head-object --bucket "$BUCKET" --key gov --version-id "$version"
+  assert_jq '.ObjectLockMode' GOVERNANCE
+  assert_jq '.ObjectLockRetainUntilDate | sub("\\.[0-9]+"; "") | sub("\\+00:00$"; "Z")' "$until" 'retain-until date'
+  # L9639, then L9649 with the bypass header.
+  aws_error AccessDenied 403 s3api delete-object --bucket "$BUCKET" --key gov --version-id "$version"
+  aws_error_message_contains "$LOCKED_TEXT"
+  aws_ok s3api delete-object --bucket "$BUCKET" --key gov --version-id "$version" --bypass-governance-retention
+}
+
+test_object_lock_legal_hold_on_and_off() {
+  mkbucket --object-lock-enabled-for-bucket
+  local version
+  put_obj held v
+  version=$(jqv '.VersionId')
+  # L9919: never set.
+  aws_error NoSuchObjectLockConfiguration 404 s3api get-object-legal-hold --bucket "$BUCKET" --key held --version-id "$version"
+  aws_ok s3api put-object-legal-hold --bucket "$BUCKET" --key held --version-id "$version" --legal-hold Status=ON
+  # L9950.
+  aws_ok s3api get-object-legal-hold --bucket "$BUCKET" --key held --version-id "$version"
+  assert_jq '.LegalHold.Status' ON
+  # L10044: the bypass never lifts a hold.
+  aws_error AccessDenied 403 s3api delete-object --bucket "$BUCKET" --key held --version-id "$version" --bypass-governance-retention
+  aws_error_message_contains "$LOCKED_TEXT"
+  aws_ok s3api put-object-legal-hold --bucket "$BUCKET" --key held --version-id "$version" --legal-hold Status=OFF
+  assert_eq 404-and-OFF "$(switch_value s3.object-lock.cleared-reads)" 'switch s3.object-lock.cleared-reads'
+  aws_ok s3api get-object-legal-hold --bucket "$BUCKET" --key held --version-id "$version"
+  assert_jq '.LegalHold.Status' OFF
+  aws_ok s3api delete-object --bucket "$BUCKET" --key held --version-id "$version"
+}
+
+test_object_lock_default_retention_is_echoed_and_applied() {
+  mkbucket --object-lock-enabled-for-bucket
+  aws_ok s3api put-object-lock-configuration --bucket "$BUCKET" --object-lock-configuration \
+    '{"ObjectLockEnabled":"Enabled","Rule":{"DefaultRetention":{"Mode":"GOVERNANCE","Days":1}}}'
+  # test_s3_api.snapshot.json L2486: the rule is echoed.
+  aws_ok s3api get-object-lock-configuration --bucket "$BUCKET"
+  assert_jq '.ObjectLockConfiguration.Rule.DefaultRetention | [.Mode, .Days, .Years] | tostring' '["GOVERNANCE",1,null]'
+  # The CLI sends a checksum, so the default applies (testdata/parity/s3/R12/notes.md step 11).
+  put_obj k v
+  aws_ok s3api head-object --bucket "$BUCKET" --key k
+  assert_jq '.ObjectLockMode' GOVERNANCE
+  assert_jq_match '.ObjectLockRetainUntilDate' '^[0-9]{4}-'
+}
+
+test_object_lock_bypass_header_without_object_lock() {
+  mkbucket
+  put_obj k v
+  # test_s3_api.snapshot.json L3535.
+  aws_error InvalidArgument 400 s3api delete-object --bucket "$BUCKET" --key k --bypass-governance-retention
+  aws_error_message_contains 'x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets.'
+}
+
+test_sse_c_over_plain_http_is_refused() {
+  mkbucket
+  aws_ok s3api put-bucket-encryption --bucket "$BUCKET" --server-side-encryption-configuration \
+    '{"Rules":[{"BlockedEncryptionTypes":{"EncryptionType":["NONE"]}}]}'
+  assert_eq refused "$(switch_value s3.sse-c.plain-http)" 'switch s3.sse-c.plain-http'
+  # The CLI base64-encodes the 32-byte key and adds its MD5 (s3-ssec-object-lock.md 3.12).
+  # testdata/parity/s3/S3SOL/02-put-http.json (3.9).
+  aws_error InvalidArgument 400 s3api put-object --bucket "$BUCKET" --key k --body "$(empty_file)" \
+    --sse-customer-algorithm AES256 --sse-customer-key 1234567890abcdef1234567890abcdef
+  aws_error_message_contains 'Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection.'
 }

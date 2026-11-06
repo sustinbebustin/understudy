@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
@@ -81,7 +82,61 @@ func (b *builder) member(owner *ShapeIR, src *Shape, m *Member, index int) (*Mem
 		}
 		mem.Streaming = true
 	}
+	kind, err := defaultKind(mem)
+	if err != nil {
+		return nil, failf(StageEffective, subject, "%w", err)
+	}
+	mem.DefaultKind = kind
 	return mem, nil
+}
+
+// defaultKind classifies m's modeled default by how its Go field holds it
+// (smithy-protocol-tests.md 10.4, 14.2). A default that cannot be told
+// zero or not, or that the target's type takes none of, fails.
+func defaultKind(m *MemberIR) (DefaultKind, error) {
+	if m.Default == nil || m.Streaming || m.Owner.Type != smithy.TypeStructure {
+		return DefaultNone, nil
+	}
+	text := strings.TrimSpace(string(m.Default))
+	// scalar is the kind of a scalar default: plain when it is the Go zero
+	// value, a pointer otherwise.
+	scalar := func(zero bool) DefaultKind {
+		if zero {
+			return DefaultZero
+		}
+		return DefaultPointer
+	}
+	switch t := m.Target.Type; t {
+	case smithy.TypeList, smithy.TypeMap, smithy.TypeDocument, smithy.TypeBlob, smithy.TypeBigInteger:
+		return DefaultNil, nil
+	case smithy.TypeTimestamp, smithy.TypeBigDecimal:
+		// Neither Go zero value is a model value: the zero time.Time is
+		// 0001-01-01, not the epoch (smithy-protocol-tests.md 10.2), and the
+		// zero BigDecimal is the empty text.
+		return DefaultPointer, nil
+	case smithy.TypeBoolean:
+		if text != "true" && text != "false" {
+			return DefaultNone, fmt.Errorf("default %s on a boolean member is not true or false", text)
+		}
+		return scalar(text == "false"), nil
+	case smithy.TypeByte, smithy.TypeShort, smithy.TypeInteger, smithy.TypeLong, smithy.TypeFloat,
+		smithy.TypeDouble, smithy.TypeIntEnum:
+		n, err := strconv.ParseFloat(text, 64)
+		if err != nil {
+			return DefaultNone, fmt.Errorf("default %s on a %s member is not a number", text, t)
+		}
+		return scalar(n == 0), nil
+	case smithy.TypeString, smithy.TypeEnum:
+		var s string
+		if err := json.Unmarshal(m.Default, &s); err != nil {
+			return DefaultNone, fmt.Errorf("default %s on a %s member is not a string", text, t)
+		}
+		return scalar(s == ""), nil
+	case smithy.TypeStructure, smithy.TypeUnion, smithy.TypeUnit:
+		return DefaultNone, fmt.Errorf("default %s on a %s member: a %s takes no default (Smithy's default trait)", text, t, t)
+	default:
+		return DefaultNone, fmt.Errorf("default %s on a %s member is not classified by this generator", text, t)
+	}
 }
 
 // queryKey is a member's awsQuery key segment: its xmlName, else its name

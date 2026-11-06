@@ -27,6 +27,10 @@ type Catalogue interface {
 	// not know; validation also reads it to check that match.services names
 	// known services.
 	Throttle(svc ref.ServiceID) awserr.Identity
+	// NewMembers returns a new, empty generated value of error shape for
+	// op's service, to decode a rule's members into through the shape's
+	// generated deserializer, or false when the service has none for it.
+	NewMembers(op ref.OperationID, shape smithy.ShapeID) (awserr.DecodableMembers, bool)
 }
 
 // RuleError reports a rule that cannot be added. No rule was added or
@@ -91,15 +95,22 @@ func statusOKOperations() []ref.OperationID {
 
 // resolved holds the identities a valid rule's action injects: per matched
 // operation for the shape-carrying actions, per matched service for
-// Throttle, and neither for Latency and DropDelivery.
+// Throttle, and neither for Latency, DropDelivery and the HTTP actions. An
+// error action with members also has what a hit needs per operation, and
+// minItems, the fewest transaction items a call it matches has: its number
+// of cancellation reasons, 0 for any other rule.
 type resolved struct {
 	byOp      map[ref.OperationID]awserr.Identity
 	byService map[ref.ServiceID]awserr.Identity
+	members   map[ref.OperationID]memberPlan
+	minItems  int
 }
 
 // identity returns what the rule injects into the call in, or false when the
 // call is outside what the rule resolved. Latency and DropDelivery inject
-// no error and apply to every call with the zero identity.
+// no error and apply to every call with the zero identity; the HTTP
+// actions likewise, but to sns-to-http attempts only, so an attempt of
+// another mechanism the rule also lists spends none of its budget.
 func (r resolved) identity(a Action, in MatchInput) (id awserr.Identity, ok bool) {
 	switch a.(type) {
 	case Error, AfterCommit, StatusOKError:
@@ -108,6 +119,8 @@ func (r resolved) identity(a Action, in MatchInput) (id awserr.Identity, ok bool
 		id, ok = r.byService[in.Service]
 	case Latency, DropDelivery:
 		ok = true
+	case HTTPStatus, HTTPTimeout:
+		ok = in.Mechanism == delivery.SNSToHTTP
 	}
 	return id, ok
 }
@@ -158,9 +171,13 @@ func checkShape(r Rule) *RuleError {
 	case !r.Phase.valid():
 		return reject(r, "phase", `%d is not a phase; set "phase" to request or delivery`, uint8(r.Phase))
 	case r.Action == nil:
-		return reject(r, "action", "is missing; give one of error, throttle, latency, after-commit, status-ok-error and drop-delivery")
+		return reject(r, "action", "is missing; give one of error, throttle, latency, after-commit, status-ok-error, drop-delivery, http-status and http-timeout")
 	case r.Trigger == nil:
 		return reject(r, "trigger", "is missing; give one of always, next-n and probability")
+	case isHTTPAction(r.Action) && r.Phase != Delivery:
+		// Before the match checks: an HTTP rule always lists sns-to-http,
+		// so the phase is what to change.
+		return reject(r, "phase", "the %s action runs in the delivery phase", actionKind(r.Action))
 	case r.Phase == Request && len(r.Match.Mechanisms) > 0:
 		return reject(r, "match.mechanisms", "apply to the delivery phase only; in the request phase match operations")
 	case r.Phase == Delivery && len(r.Match.Operations) > 0:
@@ -181,6 +198,36 @@ func checkShape(r Rule) *RuleError {
 		if a.Wall <= 0 {
 			return reject(r, "action.wall", "is %s; a latency must be positive", a.Wall)
 		}
+	case HTTPStatus:
+		if a.Status < 100 || a.Status > 599 {
+			return reject(r, "action.status", "is %d; an HTTP status is 100 to 599", a.Status)
+		}
+		return checkHTTPMatch(r)
+	case HTTPTimeout:
+		return checkHTTPMatch(r)
+	}
+	return nil
+}
+
+// isHTTPAction reports whether a answers an HTTP delivery attempt.
+func isHTTPAction(a Action) bool {
+	switch a.(type) {
+	case HTTPStatus, HTTPTimeout:
+		return true
+	case Error, Throttle, Latency, AfterCommit, StatusOKError, DropDelivery:
+	}
+	return false
+}
+
+// checkHTTPMatch refuses an HTTP action's match that no sns-to-http
+// attempt meets: an HTTP endpoint lands in no service, and the action
+// answers sns-to-http attempts only.
+func checkHTTPMatch(r Rule) *RuleError {
+	if len(r.Match.Services) > 0 {
+		return reject(r, "match.services", "an HTTP delivery lands in no service, so a rule with match.services could never match it; select it with match.mechanisms %s", delivery.SNSToHTTP)
+	}
+	if !slices.Contains(r.Match.Mechanisms, delivery.SNSToHTTP) {
+		return reject(r, "match.mechanisms", "the %s action applies to %s deliveries only, which match.mechanisms does not list", actionKind(r.Action), delivery.SNSToHTTP)
 	}
 	return nil
 }
@@ -235,7 +282,13 @@ func checkMechanisms(r Rule) *RuleError {
 		if _, err := mech.MarshalText(); err != nil {
 			return reject(r, "match.mechanisms", "%s", err)
 		}
-		if target := mech.Target(); len(r.Match.Services) > 0 && !slices.Contains(r.Match.Services, target) {
+		target := mech.Target()
+		switch {
+		case len(r.Match.Services) == 0:
+		case target == "":
+			return reject(r, "match.mechanisms", "%s delivers to an HTTP endpoint, which lands in no service, so a rule with match.services could never match it; "+
+				"leave match.services empty to select it", mech)
+		case !slices.Contains(r.Match.Services, target):
 			return reject(r, "match.mechanisms", "%s delivers to service %s, which match.services does not list, so the rule could never match; "+
 				"in the delivery phase match.services names the target", mech, target)
 		}
@@ -244,27 +297,20 @@ func checkMechanisms(r Rule) *RuleError {
 }
 
 // checkDeliveryTarget rejects svc in a delivery-phase match.services when no
-// mechanism delivers to it, pointing to the mechanisms that deliver from it
-// when it is a source; a mechanism's wire name is "<source>-to-<target>".
+// mechanism delivers to it, listing the services some mechanism delivers to.
 func checkDeliveryTarget(r Rule, svc ref.ServiceID) *RuleError {
-	var targets, from []string
+	var targets []string
 	for _, m := range delivery.Mechanisms() {
 		if m.Target() == svc {
 			return nil
 		}
-		if t := string(m.Target()); !slices.Contains(targets, t) {
+		// An HTTP endpoint lands in no service, so it names no target.
+		if t := string(m.Target()); t != "" && !slices.Contains(targets, t) {
 			targets = append(targets, t)
 		}
-		if name := m.String(); strings.HasPrefix(name, string(svc)+"-to-") {
-			from = append(from, name)
-		}
 	}
-	e := reject(r, "match.services", "no delivery lands in %s, so the rule could never match; in the delivery phase match.services names the target, one of %s",
+	return reject(r, "match.services", "no delivery lands in %s, so the rule could never match; in the delivery phase match.services names the target, one of %s",
 		svc, orList(targets))
-	if len(from) > 0 {
-		e.Reason += fmt.Sprintf("; to select deliveries from %s use match.mechanisms %s", svc, orList(from))
-	}
-	return e
 }
 
 // orList joins items as "a, b or c".
@@ -293,19 +339,9 @@ func checkTrigger(r Rule) *RuleError {
 func resolveAction(cat Catalogue, r Rule) (resolved, *RuleError) {
 	switch a := r.Action.(type) {
 	case Error:
-		res, err := resolveShape(cat, r, a.Shape)
-		if err != nil || a.Message == "" {
-			return res, err
-		}
-		for _, op := range slices.SortedFunc(maps.Keys(res.byOp), compareOps) {
-			if res.byOp[op].MessageKey == awserr.NoMessage {
-				return resolved{}, reject(r, "action.message", "%s has no message member, so %s never sends a message with it; leave action.message empty",
-					res.byOp[op].Shape, op)
-			}
-		}
-		return res, nil
+		return resolveError(cat, r, a)
 	case AfterCommit:
-		return resolveShape(cat, r, a.Shape)
+		return resolveAfterCommit(cat, r, a)
 	case StatusOKError:
 		for _, op := range r.Match.Operations {
 			if !slices.Contains(statusOKOperations(), op) {
@@ -315,11 +351,54 @@ func resolveAction(cat Catalogue, r Rule) (resolved, *RuleError) {
 		return resolveShape(cat, r, a.Shape)
 	case Throttle:
 		return resolveThrottle(cat, r)
-	case Latency, DropDelivery:
+	case Latency, DropDelivery, HTTPStatus, HTTPTimeout:
 		return resolved{}, nil
 	default:
 		return resolved{}, reject(r, "action", "is an action this version does not know")
 	}
+}
+
+// resolveError resolves an error action's shape, then checks its message
+// and members against each matched operation in order.
+func resolveError(cat Catalogue, r Rule, a Error) (resolved, *RuleError) {
+	res, err := resolveShape(cat, r, a.Shape)
+	if err != nil {
+		return res, err
+	}
+	ops := slices.SortedFunc(maps.Keys(res.byOp), compareOps)
+	for _, op := range ops {
+		if a.Message != "" && res.byOp[op].MessageKey == awserr.NoMessage {
+			return resolved{}, reject(r, "action.message", "%s has no message member, so %s never sends a message with it; leave action.message empty",
+				res.byOp[op].Shape, op)
+		}
+	}
+	res.members = make(map[ref.OperationID]memberPlan, len(ops))
+	for _, op := range ops {
+		plan, err := checkMembers(cat, r, a, op, res.byOp[op])
+		if err != nil {
+			return resolved{}, err
+		}
+		res.members[op] = plan
+	}
+	res.minItems = reasonCount(a)
+	return res, nil
+}
+
+// resolveAfterCommit resolves an after-commit action's shape. A cancelled
+// transaction changed nothing (smithy-protocol-tests.md 12.2), so
+// TransactionCanceledException never follows a commit.
+func resolveAfterCommit(cat Catalogue, r Rule, a AfterCommit) (resolved, *RuleError) {
+	res, err := resolveShape(cat, r, a.Shape)
+	if err != nil {
+		return res, err
+	}
+	for _, op := range slices.SortedFunc(maps.Keys(res.byOp), compareOps) {
+		if res.byOp[op].Shape == transactionCanceled {
+			return resolved{}, reject(r, "action.shape", "%s means the transaction changed nothing, so AWS never sends it after a commit; "+
+				"inject it with an error action whose members set CancellationReasons", transactionCanceled)
+		}
+	}
+	return res, nil
 }
 
 // resolveShape finds shape among the errors of every matched operation.

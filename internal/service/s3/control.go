@@ -39,15 +39,21 @@ func (s *Service) bindControl(b s3api.Binder) {
 	b.UntagResource(s.untagResource, registry.Full{})
 }
 
-// controlCall reads the bucket an S3 Control tag request names and touches
-// it, as touches does for the modeled bucket operations, so the journal,
-// the access recorder and fault rules see the bucket.
-func controlCall(c *kernel.Call, r *http.Request) (access, *awserr.Error) {
+// controlCall reads the bucket an S3 Control tag request names and asks
+// about action on it. kernel.Authorize touches the bucket, as touches does
+// for the modeled bucket operations, so the journal, the access recorder
+// and fault rules see it. The operations are raw bindings, which kernel
+// step 8 skips (ARCHITECTURE.md 4), so the handler asks itself, before the
+// bucket is looked up: a missing bucket is denied first, as switch
+// iam.enforce.missing-resource sets (iam-enforcement-surfaces.md 5.3).
+func controlCall(ctx context.Context, c *kernel.Call, r *http.Request, action string) (access, *awserr.Error) {
 	a, err := controlAccess(r)
 	if err != nil {
 		return access{}, err
 	}
-	c.Touch(bucketARN(a.name))
+	if err := kernel.Authorize(ctx, c, s3Action(action), bucketARN(a.name), nil); err != nil {
+		return access{}, err
+	}
 	return a, nil
 }
 
@@ -87,7 +93,7 @@ func bucketOfARN(s string) (string, bool) {
 // listTagsForResource answers the bucket's tag set as a
 // ListTagsForResourceResult; a bucket without tags answers an empty list.
 func (s *Service) listTagsForResource(ctx context.Context, c *kernel.Call, r *http.Request, w http.ResponseWriter) *awserr.Error {
-	a, err := controlCall(c, r)
+	a, err := controlCall(ctx, c, r, "ListTagsForResource")
 	if err != nil {
 		return err
 	}
@@ -128,7 +134,7 @@ func (s *Service) listTagsForResource(ctx context.Context, c *kernel.Call, r *ht
 // tagResource adds tags to the bucket's set, replacing the values of keys
 // it already has.
 func (s *Service) tagResource(ctx context.Context, c *kernel.Call, r *http.Request, w http.ResponseWriter) *awserr.Error {
-	a, err := controlCall(c, r)
+	a, err := controlCall(ctx, c, r, "TagResource")
 	if err != nil {
 		return err
 	}
@@ -172,7 +178,7 @@ func upsertTag(tags []s3api.Tag, t s3api.Tag) []s3api.Tag {
 
 // untagResource removes the tagKeys query values from the bucket's set.
 func (s *Service) untagResource(ctx context.Context, c *kernel.Call, r *http.Request, w http.ResponseWriter) *awserr.Error {
-	a, err := controlCall(c, r)
+	a, err := controlCall(ctx, c, r, "UntagResource")
 	if err != nil {
 		return err
 	}

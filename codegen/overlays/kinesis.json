@@ -1,0 +1,43 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.kinesis#Kinesis_20131202": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.kinesis#ProvisionedThroughputExceededException",
+        "dev.understudy#denialError": "com.amazonaws.kinesis#AccessDeniedException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Kinesis denial; the model's own AccessDeniedException is taken; UNVERIFIED until recording IAM-ENF-36",
+            "covers": ["dev.understudy#denialError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/kinesis.md#137-fault-injection: one service-wide throttle identity is wrong for the control plane, so this takes the note's recommended data-plane identity ProvisionedThroughputExceededException (PutRecord, PutRecords, GetRecords, GetShardIterator) and leaves control-plane fault rules to name LimitExceededException explicitly; the control-plane code is UNVERIFIED until recording KIN-23",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/kinesis.md#133-limits-and-validation: the constraint-failure identity is UNVERIFIED, so generated validators answer the Coral ValidationException until recording KIN-07 settles it against InvalidArgumentException",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.kinesis#GetRecordsInput$Limit": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.kinesis#InvalidArgumentException", "constraints": ["range"]},
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html: Limit \"If you specify a value that is greater than 10,000, GetRecords throws InvalidArgumentException\" (kinesis.md 5.5); the Coral text is understudy's, UNVERIFIED until recording KIN-07",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    }
+  }
+}

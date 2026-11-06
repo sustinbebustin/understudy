@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"mime"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/protocoltest"
 	"github.com/sustinbebustin/understudy/internal/protocoltest/gen"
 	"github.com/sustinbebustin/understudy/internal/ref"
@@ -188,11 +191,9 @@ func (b *bench) runMalformed(ctx context.Context, c *gen.MalformedCase) error {
 	return nil
 }
 
-// responseRequests returns, per operation, a request that reaches it: the
-// operation's first request case that is not skipped, which a server is
-// known to accept, else one built from the protocol's framing and the
-// operation's HTTP binding.
-func responseRequests(s *gen.Suite, skips protocoltest.Skips) map[*registry.Operation]wireRequest {
+// caseRequests returns, per operation, its first request case that is not
+// skipped, which a server is known to accept.
+func caseRequests(s *gen.Suite, skips protocoltest.Skips) map[*registry.Operation]wireRequest {
 	out := map[*registry.Operation]wireRequest{}
 	for i := range s.Requests {
 		c := &s.Requests[i]
@@ -201,41 +202,103 @@ func responseRequests(s *gen.Suite, skips protocoltest.Skips) map[*registry.Oper
 			out[c.Operation] = requestOf(c)
 		}
 	}
-	for _, op := range s.Service.Operations {
-		if _, ok := out[op]; !ok {
-			out[op] = minimalRequest(op)
-		}
-	}
 	return out
 }
 
+// responseRequest is the request op's response cases send: its request
+// case from caseRequests, else minimalRequest's.
+func responseRequest(cases map[*registry.Operation]wireRequest, op *registry.Operation) (wireRequest, error) {
+	if r, ok := cases[op]; ok {
+		return r, nil
+	}
+	return minimalRequest(op)
+}
+
 // minimalRequest is the smallest request naming op over its service's
-// first protocol, with an empty input.
-func minimalRequest(op *registry.Operation) wireRequest {
+// first protocol whose input passes required-member validation, so the
+// handler is entered (smithy-protocol-tests.md 10.6, 14.6). It fails when
+// the input requires more than smallestInput fills, or a structure outside
+// an awsJson body, the one body it writes.
+func minimalRequest(op *registry.Operation) (wireRequest, error) {
 	svc := op.Service
-	switch p := svc.Protocols[0]; p {
+	p := svc.Protocols[0]
+	in, err := smallestInput(op, op.Input, "")
+	if err != nil {
+		return wireRequest{}, err
+	}
+	if len(in) > 0 && p != ref.AWSJSON10 && p != ref.AWSJSON11 {
+		return wireRequest{}, fmt.Errorf("the bench has no request for %s: its input requires %s, and minimalRequest writes a required structure only in an awsJson body, not in %s; add a request case for the operation or teach minimalRequest the protocol",
+			op.ID, strings.Join(slices.Sorted(maps.Keys(in)), ", "), p)
+	}
+	switch p {
 	case ref.AWSJSON10, ref.AWSJSON11:
+		body, err := json.Marshal(in)
+		if err != nil {
+			return wireRequest{}, fmt.Errorf("encoding the minimal input of %s: %w", op.ID, err)
+		}
 		version := strings.TrimPrefix(string(p), "awsjson")
-		return wireRequest{method: http.MethodPost, uri: "/", body: "{}", headers: map[string]string{
+		return wireRequest{method: http.MethodPost, uri: "/", body: string(body), headers: map[string]string{
 			"Content-Type": "application/x-amz-json-" + version[:1] + "." + version[2:],
 			"X-Amz-Target": svc.JSONTargetPrefix + "." + op.ID.Name,
-		}}
+		}}, nil
 	case ref.AWSQuery:
 		return wireRequest{
 			method: http.MethodPost, uri: "/",
 			body:    url.Values{"Action": {op.ID.Name}, "Version": {svc.QueryVersion}}.Encode(),
 			headers: map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
-		}
+		}, nil
 	case ref.RPCv2CBOR:
 		return wireRequest{
 			method: http.MethodPost, uri: "/service/" + svc.Shape.Name() + "/operation/" + op.ID.Name,
 			headers: map[string]string{"Smithy-Protocol": "rpc-v2-cbor", "Content-Type": "application/cbor", "Accept": "application/cbor"},
-		}
+		}, nil
 	case ref.RESTJSON1, ref.RESTXML, ref.Raw:
-		return restRequest(op)
+		return restRequest(op), nil
 	default:
-		return restRequest(op)
+		return restRequest(op), nil
 	}
+}
+
+// smallestInput is the smallest value of structure s, at member path
+// ("" for the input itself), that passes required-member validation, as
+// awsJson writes it: each required member without a default is an empty
+// structure but for its own required members, recursively. A member the
+// server defaults needs no value (smithy-protocol-tests.md 10.2), and
+// restRequest fills a REST label. A required member of any other kind
+// fails, since the bench does not choose values for the handler
+// (smithy-protocol-tests.md 14.6).
+func smallestInput(op *registry.Operation, s *smithy.Schema, path string) (map[string]any, error) {
+	out := map[string]any{}
+	if s == nil {
+		return out, nil
+	}
+	for _, m := range s.Members {
+		_, label := m.HTTP.(smithy.HTTPLabel)
+		if !m.Required || hasDefault(m) || label {
+			continue
+		}
+		at := m.Name
+		if path != "" {
+			at = path + "." + m.Name
+		}
+		if m.Target.Type != smithy.TypeStructure {
+			return nil, fmt.Errorf("the bench has no request for %s: its input member %s is a required %s without a default, and minimalRequest fills only required structures (smithy-protocol-tests.md 14.6); add a request case for the operation or teach minimalRequest the member",
+				op.ID, at, m.Target.Type)
+		}
+		v, err := smallestInput(op, m.Target, at)
+		if err != nil {
+			return nil, err
+		}
+		out[m.Name] = v
+	}
+	return out, nil
+}
+
+// hasDefault reports whether m has a modeled default; an explicit null
+// default removes one (smithy.Member.Default).
+func hasDefault(m *smithy.Member) bool {
+	_, null := m.Default.(document.Null)
+	return m.Default != nil && !null
 }
 
 // restRequest fills op's URI pattern with placeholder labels and its

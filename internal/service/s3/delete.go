@@ -21,12 +21,20 @@ const (
 	versionIDChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._"
 )
 
+// deleteNote is the coverage note of DeleteObject and DeleteObjects: the
+// governanceBypass seam evaluates no IAM action (s3-ssec-object-lock.md
+// 11.1).
+const deleteNote = "no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention"
+
 // deletion is what one key's delete asks for.
 type deletion struct {
 	key       string
 	versionID *string
 	// ifMatch is If-Match, or a DeleteObjects entry's ETag.
 	ifMatch *string
+	// bypass is whether the request lifts GOVERNANCE retention on the
+	// version, decided by governanceBypass before the bucket's write.
+	bypass bool
 }
 
 // deleted is what one key's delete did (s3.md 8.1).
@@ -43,11 +51,17 @@ func (s *Service) deleteObject(ctx context.Context, c *kernel.Call, in *s3api.De
 	case in.IfMatchSize != nil:
 		return nil, withField(s3api.ErrNotImplemented(notImplementedHeader), "Header", "x-amz-if-match-size")
 	}
-	d := deletion{key: in.Key, versionID: in.VersionId, ifMatch: in.IfMatch}
+	d := deletion{
+		key: in.Key, versionID: in.VersionId, ifMatch: in.IfMatch,
+		bypass: s.governanceBypass(c, in.BypassGovernanceRetention, objectResource(in.Bucket, in.Key)),
+	}
 	if err := checkVersionID(d.versionID); err != nil {
 		return nil, err
 	}
 	got, _, err := writeObjects(ctx, s, c, at(in.Bucket, in.ExpectedBucketOwner), func(b *Bucket, w objectTx) (deleted, []blob.Ref, *awserr.Error) {
+		if err := checkBypassHeader(b, in.BypassGovernanceRetention); err != nil {
+			return deleted{}, nil, err
+		}
 		return s.deleteOne(b, d, w)
 	})
 	if err != nil {
@@ -65,11 +79,17 @@ func (s *Service) deleteObjects(ctx context.Context, c *kernel.Call, in *s3api.D
 		return nil, errMalformedXML()
 	}
 	quiet := in.Delete.Quiet != nil && *in.Delete.Quiet
+	bypass := s.entryBypasses(c, in)
 	got, _, err := writeObjects(ctx, s, c, at(in.Bucket, in.ExpectedBucketOwner), func(b *Bucket, w objectTx) (*s3api.DeleteObjectsOutput, []blob.Ref, *awserr.Error) {
+		if err := checkBypassHeader(b, in.BypassGovernanceRetention); err != nil {
+			return nil, nil, err
+		}
 		out := &s3api.DeleteObjectsOutput{}
 		var released []blob.Ref
-		for _, o := range in.Delete.Objects {
-			got, refs, err := s.deleteEntry(b, o, w)
+		for i, o := range in.Delete.Objects {
+			// A version Object Lock protects is an entry's AccessDenied, in
+			// Quiet mode too (LocalStack test_s3.snapshot.json L10054).
+			got, refs, err := s.deleteEntry(b, o, bypass[i], w)
 			if err != nil {
 				out.Errors = append(out.Errors, s3api.Error{Key: new(o.Key), VersionId: o.VersionId, Code: new(err.ID.QueryCode), Message: new(err.Message)})
 				continue
@@ -95,13 +115,24 @@ func (s *Service) deleteObjects(ctx context.Context, c *kernel.Call, in *s3api.D
 	return got, err
 }
 
+// entryBypasses is each DeleteObjects entry's governanceBypass, in entry
+// order, decided per object before the bucket's write
+// (s3-ssec-object-lock.md 11).
+func (s *Service) entryBypasses(c *kernel.Call, in *s3api.DeleteObjectsInput) []bool {
+	bypass := make([]bool, len(in.Delete.Objects))
+	for i, o := range in.Delete.Objects {
+		bypass[i] = s.governanceBypass(c, in.BypassGovernanceRetention, objectResource(in.Bucket, o.Key))
+	}
+	return bypass
+}
+
 // deleteEntry deletes one entry of a DeleteObjects; its error goes into
 // the response's Error list instead of failing the request (s3.md 8.2). A
 // version id naming no version of the key is NoSuchVersion whatever the
 // bucket's versioning, where DeleteObject answers InvalidArgument (LocalStack
 // aws_validated test_delete_objects, step delete-object-wrong-version-id);
 // only "null" on a bucket never versioned falls through to deleteOne.
-func (s *Service) deleteEntry(b *Bucket, o s3api.ObjectIdentifier, w objectTx) (deleted, []blob.Ref, *awserr.Error) {
+func (s *Service) deleteEntry(b *Bucket, o s3api.ObjectIdentifier, bypass bool, w objectTx) (deleted, []blob.Ref, *awserr.Error) {
 	switch {
 	case o.LastModifiedTime != nil:
 		return deleted{}, nil, withField(s3api.ErrNotImplemented(notImplementedHeader), "Header", "LastModifiedTime")
@@ -111,7 +142,7 @@ func (s *Service) deleteEntry(b *Bucket, o s3api.ObjectIdentifier, w objectTx) (
 	if err := checkVersionID(o.VersionId); err != nil {
 		return deleted{}, nil, err
 	}
-	d := deletion{key: o.Key, versionID: o.VersionId, ifMatch: o.ETag}
+	d := deletion{key: o.Key, versionID: o.VersionId, ifMatch: o.ETag, bypass: bypass}
 	if o.VersionId != nil {
 		if _, ok := b.Objects.version(o.Key, *o.VersionId); !ok && (*o.VersionId != nullVersion || b.versioning() != unversioned) {
 			return deleted{}, nil, errNoSuchVersion(o.Key, *o.VersionId)
@@ -123,7 +154,10 @@ func (s *Service) deleteEntry(b *Bucket, o s3api.ObjectIdentifier, w objectTx) (
 // deleteOne applies s3.md 8.1 to one key inside the bucket's write: a
 // version id removes that version for good; without one, an unversioned
 // bucket drops the object, and a versioned one gains a delete marker (a
-// null one while suspended, which replaces the null version).
+// null one while suspended, which replaces the null version). Object Lock
+// judges only the version id case: a bucket with Object Lock stays
+// versioning Enabled (errVersioningLocked), so a delete without one always
+// adds a minted marker and removes nothing (s3-ssec-object-lock.md 7.1).
 func (s *Service) deleteOne(b *Bucket, d deletion, w objectTx) (deleted, []blob.Ref, *awserr.Error) {
 	if d.ifMatch != nil {
 		if err := checkDeleteMatch(b, d.key, *d.ifMatch); err != nil {
@@ -131,7 +165,7 @@ func (s *Service) deleteOne(b *Bucket, d deletion, w objectTx) (deleted, []blob.
 		}
 	}
 	if d.versionID != nil {
-		return s.deleteVersion(b, d.key, *d.versionID, w)
+		return s.deleteVersion(b, d.key, *d.versionID, d.bypass, w)
 	}
 	if b.versioning() == unversioned {
 		removed, ok := b.Objects.remove(d.key, nullVersion)
@@ -149,18 +183,27 @@ func (s *Service) deleteOne(b *Bucket, d deletion, w objectTx) (deleted, []blob.
 // deleteVersion removes version id of key for good. An id naming none of
 // an existing key's versions is InvalidArgument; on a key with no versions
 // it deletes nothing with 204 (LocalStack aws_validated
-// test_delete_object_versioned, step delete-with-bad-version).
-func (s *Service) deleteVersion(b *Bucket, key, id string, w objectTx) (deleted, []blob.Ref, *awserr.Error) {
+// test_delete_object_versioned, step delete-with-bad-version). An object
+// version Object Lock protects is refused before anything changes
+// (ObjectLock.checkDelete, with bypass); a delete marker has no lock
+// state, so it always goes (s3-ssec-object-lock.md 7.1).
+func (s *Service) deleteVersion(b *Bucket, key, id string, bypass bool, w objectTx) (deleted, []blob.Ref, *awserr.Error) {
 	if b.versioning() == unversioned && id != nullVersion {
 		return deleted{}, nil, errInvalidVersionID(id)
 	}
-	removed, ok := b.Objects.remove(key, id)
+	v, ok := b.Objects.version(key, id)
 	if !ok {
 		if _, has := b.Objects.current(key); has {
 			return deleted{}, nil, errInvalidVersionID(id)
 		}
 		return deleted{versionID: &id}, nil, nil
 	}
+	if !v.marker() {
+		if err := v.Object.Lock.checkDelete(w.now, bypass); err != nil {
+			return deleted{}, nil, err
+		}
+	}
+	removed, _ := b.Objects.remove(key, id)
 	s.commitObject(w, b, event{key: key, versionID: removed.ID, change: notify.Removed{Action: notify.RemovedDelete}})
 	return deleted{versionID: &id, marker: removed.marker()}, blobsOf(&removed), nil
 }

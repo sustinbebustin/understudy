@@ -1,0 +1,37 @@
+{
+  "step": "16-copy-locked-source",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock-y.s3.us-east-2.amazonaws.com/c16",
+        "headers": [
+          ["x-amz-copy-source", "us1103-olock/d12"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,E,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.copy-object"],
+          ["X-Amz-Date", "20261103T034051Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "c856d71e-e453-4825-9032-7057fc0c307d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "OCrwAOrvS46VOD8SY697tglPU4uW+m6Fe5CPqBI/UdLRn9e6Wz/Unp44KMruMWz/9mlRCUsoVwtBfriKYyuXQL6sejo/wVyH"],
+          ["x-amz-request-id", "3YJJWSGWWSJ9ESHE"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:40:52 GMT"],
+          ["x-amz-copy-source-version-id", "xOL7bZoibeUOVEG4hRMGJirplxvRS635"],
+          ["x-amz-version-id", "w2gAO_.qX.NXlYE5FnP1LdibqxADZ4fO"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Content-Length", "315"],
+          ["Content-Type", "application/xml"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CopyObjectResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LastModified>2026-11-03T03:40:52.000Z</LastModified><ETag>\"781e5e245d69b566979b86e28d23f2c7\"</ETag><ChecksumCRC64NVME>Ffmx7kz9nB0=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CopyObjectResult>"
+      }
+    }
+  ]
+}

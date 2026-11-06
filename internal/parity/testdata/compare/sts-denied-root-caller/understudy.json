@@ -1,0 +1,18 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an answer to sts/R15/06-assume-denied from the replay caller, the masked account's root (ADR 0012), unindented, with another request id: the caller and request id are normalized, whitespace between elements is not compared",
+  "exchanges": [
+    {
+      "response": {
+        "status": 403,
+        "headers": [
+          ["X-Amzn-Requestid", "7d1f3c52-8a0b-4e6f-9c2d-1b3a5e7f9d10"],
+          ["Content-Type", "text/xml"],
+          ["Date", "Mon, 26 Oct 2026 09:00:00 GMT"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://sts.amazonaws.com/doc/2011-06-15/\"><Error><Type>Sender</Type><Code>AccessDenied</Code><Message>User: arn:aws:iam::123456789012:root is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::123456789012:role/usr-rec-20261014-deny</Message></Error><RequestId>7d1f3c52-8a0b-4e6f-9c2d-1b3a5e7f9d10</RequestId></ErrorResponse>"
+      }
+    }
+  ]
+}

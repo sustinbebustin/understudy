@@ -1,0 +1,39 @@
+{
+  "step": "03-get",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/c1",
+        "headers": [
+          ["Host", "us1103-ssec.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T033950Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amz-request-id", "JRV5K6NDHK8AAQ0E"],
+          ["x-amz-id-2", "93SSzqPd16AGGUKCgzEaYm1v9pCWoNH7JCgv1oSPGjemx7PuW/FrsnSM3YdTyK77CdI3kgDOil0r07gN3ExGL2wwPph5amSy"],
+          ["Content-Length", "10"],
+          ["Accept-Ranges", "bytes"],
+          ["Date", "Tue, 03 Nov 2026 03:39:50 GMT"],
+          ["Server", "AmazonS3"],
+          ["Last-Modified", "Tue, 03 Nov 2026 03:39:43 GMT"],
+          ["ETag", "\"98709c745e0c635a8b444cc8e5aa5e23\""],
+          ["Content-Type", "binary/octet-stream"],
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="]
+        ],
+        "body": "0123456789"
+      }
+    }
+  ]
+}

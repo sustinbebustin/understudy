@@ -24,20 +24,20 @@ type ComplexNestedErrorData struct {
 
 // Defaults is smithy.protocoltests.rpcv2Cbor#Defaults.
 type Defaults struct {
-	DefaultString    string
-	DefaultBoolean   bool
+	DefaultString    *string
+	DefaultBoolean   *bool
 	DefaultList      []string
-	DefaultTimestamp time.Time
+	DefaultTimestamp *time.Time
 	DefaultBlob      []byte
-	DefaultByte      int8
-	DefaultShort     int16
-	DefaultInteger   int32
-	DefaultLong      int64
-	DefaultFloat     float32
-	DefaultDouble    float64
+	DefaultByte      *int8
+	DefaultShort     *int16
+	DefaultInteger   *int32
+	DefaultLong      *int64
+	DefaultFloat     *float32
+	DefaultDouble    *float64
 	DefaultMap       map[string]string
-	DefaultEnum      TestEnum
-	DefaultIntEnum   TestIntEnum
+	DefaultEnum      *TestEnum
+	DefaultIntEnum   *TestIntEnum
 	EmptyString      string
 	FalseBoolean     bool
 	EmptyBlob        []byte
@@ -172,26 +172,26 @@ type NoInputOutputOutput struct{}
 type OperationWithDefaultsInput struct {
 	Defaults               *Defaults
 	ClientOptionalDefaults *ClientOptionalDefaults
-	TopLevelDefault        string
+	TopLevelDefault        *string
 	OtherTopLevelDefault   int32
 }
 
 // OperationWithDefaultsOutput is the output of OperationWithDefaults, smithy.protocoltests.rpcv2Cbor#OperationWithDefaultsOutput.
 type OperationWithDefaultsOutput struct {
-	DefaultString    string
-	DefaultBoolean   bool
+	DefaultString    *string
+	DefaultBoolean   *bool
 	DefaultList      []string
-	DefaultTimestamp time.Time
+	DefaultTimestamp *time.Time
 	DefaultBlob      []byte
-	DefaultByte      int8
-	DefaultShort     int16
-	DefaultInteger   int32
-	DefaultLong      int64
-	DefaultFloat     float32
-	DefaultDouble    float64
+	DefaultByte      *int8
+	DefaultShort     *int16
+	DefaultInteger   *int32
+	DefaultLong      *int64
+	DefaultFloat     *float32
+	DefaultDouble    *float64
 	DefaultMap       map[string]string
-	DefaultEnum      TestEnum
-	DefaultIntEnum   TestIntEnum
+	DefaultEnum      *TestEnum
+	DefaultIntEnum   *TestIntEnum
 	EmptyString      string
 	FalseBoolean     bool
 	EmptyBlob        []byte

@@ -4,10 +4,12 @@ Thanks for helping. This file covers the setup, the rules every change follows, 
 
 ## Setup
 
-- Go 1.27, [golangci-lint](https://golangci-lint.run) 2.14 and [just](https://just.systems) for the core gate.
+- Go 1.27, [golangci-lint](https://golangci-lint.run) 2.15 and [just](https://just.systems) for the core gate.
 - [uv](https://docs.astral.sh/uv/), which runs `scripts/sealed`.
 - Docker, for Lambda, DynamoDB Local and the `-tags docker` tests.
 - For the conformance suites: the AWS CLI v2, Terraform 1.16 or later, Python 3.14 (through uv), [Bun](https://bun.sh), `jq` and `curl`.
+- For the Testcontainers modules (`just testcontainers`): Node 24 and Bun.
+- For the web UI in `ui/`: Bun 1.4.3 exactly, which `just ui` checks for.
 
 ```sh
 just verify
@@ -17,18 +19,18 @@ just verify
 
 ## Rules
 
-- **Dependencies are an allow-list.** The main module depends only on the modules in the table in ADR 0016 (amendment 2026-10-14): none at runtime, and `pgregory.net/rapid`, `github.com/google/go-cmp`, `github.com/cespare/xxhash/v2` and `github.com/zeebo/xxh3` in tests. Behaviour that is AWS's behaviour is written in-repo; a library may only be its test oracle. A new dependency meets the ADR's criteria and adds a row to its table and to `depguard` in `.golangci.yml`; refused candidates are listed there too. The conformance suites are separate modules with their own manifests and may use the AWS SDKs.
+- **Dependencies are an allow-list.** The main module depends only on the modules in the table in ADR 0016 (amendment 2026-10-14): none at runtime, and `pgregory.net/rapid`, `github.com/google/go-cmp`, `github.com/cespare/xxhash/v2` and `github.com/zeebo/xxh3` in tests. Behaviour that is AWS's behaviour is written in-repo; a library may only be its test oracle. A new dependency meets the ADR's criteria and adds a row to its table and to `depguard` in `.golangci.yml`; refused candidates are listed there too. The conformance suites are separate modules with their own manifests and may use the AWS SDKs. So is the Go Testcontainers module, `testcontainers/go`, whose allow-list is the ADR 0016 amendment of 2026-10-26, mirrored by `depguard` in its own `.golangci.yml`.
 - **Never call real AWS.** Run the AWS CLI, Terraform, SDK scripts and conformance suites through `scripts/sealed` (`just aws ...`, `just tf ...`). It strips inherited `AWS_*` settings, uses dummy credentials, never reads `~/.aws`, and refuses any endpoint that is not loopback.
 - **AWS is the arbiter.** Tests assert what AWS does, as the research in `docs/research/` documents it, never what understudy happens to do. Cite the research next to a non-obvious expectation as `<note>.md <section>`, for example `(sqs.md 6.1)`: the file name of a note under `docs/research/` and the number of its section heading. Cite the architecture as `ARCHITECTURE.md <section>` and decisions as `ADR <number>`. Data shown outside the source tree, such as a `fidelity.Switch` `Ref`, uses the repo-relative path and an anchor (`docs/research/sqs.md#6.1`). Where a note is the only source of an AWS value, quote the value too. When AWS's behavior is unknown, say so in the code and in the coverage note rather than guessing silently.
 - **Nothing is silently faked.** An operation that is not implemented stays unbound and answers 501. An operation that stores a setting without acting on it is marked stored-only. A deviation from AWS is a named fidelity switch or a coverage note.
-- **Generated code is checked in** and carries a `// Code generated ... DO NOT EDIT.` header. Change the generator or its inputs, then run `just generate`; never edit generated files.
+- **Generated code is checked in** and carries a `// Code generated ... DO NOT EDIT.` header. Change the generator or its inputs, then run `just generate`; never edit generated files. The data files of `third_party/aws-managed-policies` are generator output too, without the header: `just generate` runs `go run ./internal/cmd/managedpolicies -verify` on them, and only the maintainer's networked `-fetch` or the offline `go run ./internal/cmd/managedpolicies -pack`, which rewrites `policies.json.gz` from `policies.json` and `LICENSE`, writes them.
 - **Design.** Read `docs/ARCHITECTURE.md` and `docs/adr/` before a change that crosses packages. Prefer sum types over boolean flags, return typed errors as values, parse at boundaries, and keep packages small around one domain type. `internal/ref/deps_test.go` enforces which packages may import which.
 - **Time.** Code outside `internal/clock` and the build tools under `cmd/` and `internal/cmd/` never calls `time.Now`, `time.Sleep` or timers; the linter refuses them. Anything AWS times runs on the emulator clock. Tests use `testing/synctest` or the emulator clock. Wall-clock waits are for what a bubble cannot hold: a deadline on an external process (`internal/smoke` drives the built binary) and a check that a goroutine is blocked on a mutex, which synctest does not count as durably blocked (`internal/blob/sync_internal_test.go`, ADR 0005).
 - **Commits** follow the conventional form already in the history: `feat: ...`, `fix: ...`, `docs: ...`.
 
 ## Adding an operation
 
-Every operation of the twelve services already has generated types, serialization, validation and a binder method, so adding one needs no generator run.
+Every operation of each vendored model (`codegen/services/`, `internal/api/<service>api`), served services and not-yet-served ones alike, already has generated types, serialization, validation and a binder method, so adding one needs no generator run unless the service lists `boundOperations` (step 3).
 
 1. **Read the research.** Find the operation in `docs/research/<service>.md`: its errors, limits and edge cases. If something you need is not there, record what you found and where.
 2. **Write the handler** in the service package, next to its resource family:
@@ -52,11 +54,13 @@ Every operation of the twelve services already has generated types, serializatio
 
    ```go
    b.ListQueueTags(s.listQueueTags, registry.Full{})
-   b.AddPermission(s.addPermission, registry.StoredOnly{Note: "statements are stored in the queue's Policy attribute and not enforced"})
+   b.EnableKeyRotation(s.enableKeyRotation, registry.StoredOnly{Note: "the rotation status and period are stored and reported; key material is never rotated"})
    b.CreateSecret(s.createSecret, registry.Partial{Note: "AddReplicaRegions (replication) answers NotImplemented"})
    ```
 
    The note is what `understudy coverage` and `docs/coverage.md` show users. Bind options add a typed validator (`kernel.WithValidator`), a check (`kernel.WithCheck`) or the ARNs the call touches (`kernel.WithResources`), which fault rules, the journal and the access recorder use.
+
+   If `codegen/services/<service>.json` has a `boundOperations` list, add the operation's name to it, keeping it sorted, and run `just generate`: the schemas of operations it leaves out are generated without members (ADR 0001), and `internal/server` tests fail until the list matches what the kernel binds.
 4. **Constraints the model lacks.** If AWS enforces a limit or an error the Smithy model does not declare, add an entry to `codegen/overlays/<service>.json` with its `dev.understudy#evidence` (label and source), then `just generate`. Limits that depend on state belong in the handler.
 5. **Unsettled behavior.** Where the research leaves a choice open, make it a `fidelity.Switch` with its evidence label and research reference, and return its `Entry()` from the service's `Switches` method.
 6. **Test it** through the kernel, in a `kerneltest` bubble, so timers and long polls run on the emulator clock with no sleeps:
@@ -96,7 +100,7 @@ A new service is a larger change; open an issue first so the depth and the resea
 
    This produces `internal/api/<service>api/`. `go run ./internal/cmd/gen -all -check` reports drift without writing.
 4. **Write the service package** in `internal/service/<service>/`. `internal/service/sts` is the smallest complete example: `New(kernel.ServiceDeps, Options)` binds the operations, and the service implements `kernel.Stateful` (export, import, reset, re-arming timers, listing resources) so snapshots, reset and `understudy resources` work.
-5. **Wire it** in `internal/server/wire.go`: construct it, add it to the stateful set, and register its descriptor with its throttle and unknown-operation errors.
+5. **Wire it** in `internal/server/wire.go`: add one row to the wiring table, `wiredServices`, with its descriptor, its throttle and unknown-operation errors, and its constructor. The registry, the stateful set, the startup checks and the resource-policy lookup read that row.
 6. **Prove it** with service tests, a request in `internal/smoke`, conformance cases per SDK and Terraform, and the coverage page.
 
 A new wire protocol needs an ADR; the protocol compliance corpus already carries its cases.
@@ -107,14 +111,19 @@ A new wire protocol needs an ADR; the protocol compliance corpus already carries
 |---|---|---|
 | Unit and service tests | `just test` | Service semantics on the emulator clock through `kernel.Invoke`; property tests for engines and codecs; generator golden tests; the examples in AWS's models |
 | Protocol compliance | `go test -race -run TestCorpus ./internal/protocoltest` | Codecs and error writers against Smithy's official compliance corpus, as a ratchet over `internal/protocoltest/baseline.json` |
+| Parity replay | `go test -race ./internal/parity` | Real AWS exchanges under `testdata/parity` replayed against an in-process server, as a ratchet over `internal/parity/baseline.json` ([testdata/README.md](testdata/README.md#replay-scenarios)) |
 | Docker integration | `just test-docker` | Lambda execution, DynamoDB Local, container networking, the image |
 | Smoke | `just smoke` | The built binary serves one request per service, over HTTP and TLS |
 | Budgets | `just budgets` | Binary size, startup time, idle memory, build and lint time stay under their ceilings |
 | Generated code | `go run ./internal/cmd/gen -all -check` | Regenerating from the vendored inputs reproduces what is committed; CI runs `just generate-check`, which also fails on any uncommitted change |
 | Coverage page | `just coverage-check` | `docs/coverage.md` matches the binary |
+| Web UI | `just ui-check` | The UI's `bun test` passes, and `ui/src/labels.gen.ts` and the embedded build in `internal/server/ui/dist` are what `just ui` produces from the Go enumerations and `ui/`; after changing either, run `just ui` and commit both |
 | Conformance | `conformance/<suite>/run.sh` | Real clients against a real server; see below |
+| Testcontainers modules | `just testcontainers` | The Go, Python and Node modules start the image from `just image`, pass their own lint, and drive it with real clients; each module's `testcontainers/<language>/run.sh` runs one |
 
 When a fix makes a protocol compliance case pass, record it with `just protocoltest-baseline`. A case understudy cannot pass yet goes in `internal/protocoltest/skips.json` with its reason; the ratchet fails if a passing case regresses or the baseline would shrink.
+
+The parity ratchet fails when a replayed step's outcome or a claim's result changes, naming the step. Once the change is intended, record it with `just parity-baseline` and regenerate the coverage page with `just coverage-check`. A step that newly differs from its recording is a finding: fix understudy or the research, never the scenario.
 
 ## Conformance suites
 

@@ -1903,6 +1903,22 @@ type PutRuleOutput struct {
 	RuleArn *string
 }
 
+// PutServiceEventInternalInput is the input of PutServiceEventInternal, com.amazonaws.eventbridge#PutServiceEventInternalRequest.
+type PutServiceEventInternalInput struct {
+	Source     string
+	DetailType string
+	Detail     string
+	Resources  []string
+	// missing has a bit set per required member Deserialize did not
+	// find, so Validate tells absent from zero. Values built in Go
+	// leave it zero; Validate then treats a nil required list, map,
+	// union, blob, document or big integer as missing.
+	missing uint64
+}
+
+// PutServiceEventInternalOutput is the empty output of PutServiceEventInternal.
+type PutServiceEventInternalOutput struct{}
+
 // PutTargetsInput is the input of PutTargets, com.amazonaws.eventbridge#PutTargetsRequest.
 type PutTargetsInput struct {
 	Rule         string

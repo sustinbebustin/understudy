@@ -1,0 +1,35 @@
+{
+  "step": "05-with-qualifier-configs",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,AN,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T163736Z"],
+          ["amz-sdk-invocation-id", "e318a8a2-6085-48c3-9394-6fc84094a141"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "191"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-ldl-dest\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "b0b393b1-3953-5cf9-8129-f0d52943f392"],
+          ["Date", "Tue, 03 Nov 2026 16:37:36 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1316"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA2A:awslambda_158_20261103163705621\",\"ApproximateFirstReceiveTimestamp\":\"1793723856573\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793723825667\",\"AWSTraceHeader\":\"Root=1-6aea0db1-538554d4181d73ad64746e2c;Parent=11d3b0022fd66b2a;Sampled=0;Lineage=1:c27d29a3:0\"},\"Body\":\"{\\\"version\\\":\\\"1.0\\\",\\\"timestamp\\\":\\\"2026-11-03T16:37:05.621Z\\\",\\\"requestContext\\\":{\\\"requestId\\\":\\\"16ba5ffe-0c01-4ec4-91fb-15c940a44f3d\\\",\\\"functionArn\\\":\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-q:live\\\",\\\"condition\\\":\\\"Success\\\",\\\"approximateInvokeCount\\\":1},\\\"requestPayload\\\":{\\\"mode\\\":\\\"via-alias\\\"},\\\"responseContext\\\":{\\\"statusCode\\\":200,\\\"executedVersion\\\":\\\"1\\\"},\\\"responsePayload\\\":{\\\"ok\\\": true, \\\"mode\\\": \\\"via-alias\\\"}}\",\"MD5OfBody\":\"58e9737ff8112eb56d0473d5e9c0ec15\",\"MessageId\":\"6956de83-7ac9-4e72-96f6-07781172cdf7\",\"ReceiptHandle\":\"AQEBaQIpXM8Tfktze7fBIeZa1693T9J7YzhOPyA/+bUkeEl0W8wODQZmanKdn8E/xwMYC6HL1KsRcyPnqlNtc7AFq5yVoAZH22R/xXt+Udr9Hykoo3t4NDNiV+bNiSs1dfDM6NwBgLW5l18orEoLuBhFWVmmVmzoFyrr+80eAaO6nbHzL2d6hEZtW3jjLVTcX1XGNQ0973cewsgbx+zZq6QvRHxfqKU5Q/g2OnB5U8d2KvPpCwM6amBXtIcy4vQBiRjo9NiwQjfD3iiaCkgOu+BTdUBB0B2ndymSI6oDKyqpkNBNp7mC2+FEh3dR9Klfk//9CQdGjrVkda1PnL3afO03EsZ6/v/MjnEHPqIR2bzkxRjYCQlIdZj4DuIRJCUg9MJba5Y9lNpKDYoIEb1wAbRfRA==\"}]}"
+      }
+    }
+  ]
+}

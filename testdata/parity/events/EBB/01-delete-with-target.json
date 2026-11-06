@@ -1,0 +1,35 @@
+{
+  "step": "01-delete-with-target",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the DeleteEventBus operation: EventBus can't be deleted since it has rules.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.DeleteEventBus"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,b,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.delete-event-bus"],
+          ["X-Amz-Date", "20261103T163538Z"],
+          ["amz-sdk-invocation-id", "1b3ae6e9-d934-415f-8327-2763e3c7c82c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "21"]
+        ],
+        "body": "{\"Name\": \"us1103-d2\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "24c0e406-b226-46ab-8074-8c1e41e4b808"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "90"],
+          ["Date", "Tue, 03 Nov 2026 16:35:38 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"EventBus can't be deleted since it has rules.\"}"
+      }
+    }
+  ]
+}

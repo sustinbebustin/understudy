@@ -100,6 +100,23 @@ func shimOnly(in *dynamodbapi.UpdateTableInput) bool {
 	return owned && !others
 }
 
+// checkStreamChange refuses an UpdateTable stream change whose view type
+// contradicts StreamEnabled, in AWS's words and before the table's stream
+// is looked at: AWS answered these on a table with a stream and on one
+// without (aws-recorded, dynamodb-streams.md 5.1:
+// testdata/parity/dynamodb/DDBS-06/03-enable-without-view-type.json,
+// 05-disable-with-view-type.json), where Local checks the stream first.
+func checkStreamChange(spec *dynamodbapi.StreamSpecification) *awserr.Error {
+	switch {
+	case spec == nil:
+	case spec.StreamEnabled && spec.StreamViewType == nil:
+		return dynamodbapi.ErrValidationException("One or more parameter values were invalid: If stream is being enabled then UpdateViewType is required")
+	case !spec.StreamEnabled && spec.StreamViewType != nil:
+		return dynamodbapi.ErrValidationException("One or more parameter values were invalid: If stream is being disabled, then UpdateViewType must not be specified")
+	}
+	return nil
+}
+
 // updateTable applies an UpdateTable. Local holds the table's schema and
 // throughput, the shim the members it owns: an update of only those is
 // answered here with Local's description, which Local would refuse; any
@@ -113,6 +130,9 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	name := tableName(in.TableName)
 	a := tableAnswer(in.TableName)
 	if err := preForward(c); err != nil {
+		return kernel.RawResponse{}, err
+	}
+	if err := checkStreamChange(in.StreamSpecification); err != nil {
 		return kernel.RawResponse{}, err
 	}
 	if err := inScope(c.Scope(), []string{in.TableName}, a); err != nil {
@@ -131,7 +151,21 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	// The answer and the record carry the same instant, c's admission, so
 	// the UpdateTable answer and the next DescribeTable agree.
 	next := current.updated(in, c.Admitted(), sse)
-	a.shim = &shimmed{table: &next, status: dynamodbapi.TableStatusUpdating}
+	a.shim = &shimmed{table: &next, status: dynamodbapi.TableStatusUpdating, stream: s.latestStream(c.Scope(), name)}
+	change := streamChangeOf(in.StreamSpecification)
+	var minted Stream
+	if e, ok := change.(streamEnabled); ok {
+		minted = s.mint(c.Scope(), name, e.viewType, c.Admitted())
+		a.shim.stream = minted.members(c.Scope())
+		a.shim.seen = &localStreamSeen{}
+	}
+	if _, disabling := change.(streamDisabled); disabling {
+		release, cerr := s.closingStream(ctx, c, name)
+		if cerr != nil {
+			return kernel.RawResponse{}, cerr
+		}
+		defer release()
+	}
 	var resp kernel.RawResponse
 	if shimOnly(in) {
 		a.shim.under = "TableDescription"
@@ -142,9 +176,21 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	if err != nil || resp.Status != http.StatusOK {
 		return resp, err
 	}
-	_, err = s.alter(c, name, dynamodbapi.ErrResourceNotFoundException(awsNotFound(name)), func(t *Table, _ clock.Instant) *awserr.Error {
-		*t = t.updated(in, c.Admitted(), sse)
-		return nil
+	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+		t, ok := st.Tables[name]
+		if !ok {
+			return struct{}{}, dynamodbapi.ErrResourceNotFoundException(awsNotFound(name))
+		}
+		st.Tables[name] = t.updated(in, c.Admitted(), sse)
+		switch change.(type) {
+		case streamEnabled:
+			minted.adopt(a.shim.seen)
+			st.Streams = append(st.Streams, minted)
+		case streamDisabled:
+			st.disableStream(name, c.Admitted())
+		case streamKept:
+		}
+		return struct{}{}, nil
 	})
 	return resp, err
 }
@@ -227,9 +273,9 @@ const (
 // bindShims binds the operations the shims answer without Local: tags,
 // time to live and continuous backups.
 func (s *Service) bindShims(b dynamodbapi.Binder) {
-	b.TagResourceRaw(answered(s, s.tagResource), registry.Full{}, taggedTable(func(in *dynamodbapi.TagResourceInput) string { return in.ResourceArn }))
-	b.UntagResourceRaw(answered(s, s.untagResource), registry.Full{}, taggedTable(func(in *dynamodbapi.UntagResourceInput) string { return in.ResourceArn }))
-	b.ListTagsOfResourceRaw(answered(s, s.listTags), registry.Full{}, taggedTable(func(in *dynamodbapi.ListTagsOfResourceInput) string { return in.ResourceArn }))
+	b.TagResourceRaw(answered(s, s.tagResource), notes(streamTagsNote), taggedTable(func(in *dynamodbapi.TagResourceInput) string { return in.ResourceArn }))
+	b.UntagResourceRaw(answered(s, s.untagResource), notes(streamTagsNote), taggedTable(func(in *dynamodbapi.UntagResourceInput) string { return in.ResourceArn }))
+	b.ListTagsOfResourceRaw(answered(s, s.listTags), notes(streamTagsNote), taggedTable(func(in *dynamodbapi.ListTagsOfResourceInput) string { return in.ResourceArn }))
 	b.UpdateTimeToLiveRaw(answered(s, s.updateTimeToLive), registry.Partial{Note: ttlNote},
 		tables(named(func(in *dynamodbapi.UpdateTimeToLiveInput) string { return in.TableName })))
 	b.DescribeTimeToLiveRaw(answered(s, s.describeTimeToLive), registry.Partial{Note: ttlNote},

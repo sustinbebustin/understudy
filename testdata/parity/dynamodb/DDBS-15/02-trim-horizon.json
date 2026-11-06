@@ -1,0 +1,34 @@
+{
+  "step": "02-trim-horizon",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "streams.dynamodb.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261104T224823Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDBStreams_20120810.GetRecords"],
+          ["Content-Length", "20"]
+        ],
+        "body": "{\"ShardIterator\":\"\"}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "I10LJ339JNKS5Q6IFALBM5OUMFVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "174234725"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "92"],
+          ["Date", "Wed, 04 Nov 2026 22:48:23 GMT"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"Invalid ShardIterator\"}"
+      }
+    }
+  ]
+}

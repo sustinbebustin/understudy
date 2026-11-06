@@ -1,0 +1,33 @@
+{
+  "step": "D-list",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,C,E,Z,b,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.list-subscriptions-by-topic"],
+          ["X-Amz-Date", "20261103T170934Z"],
+          ["amz-sdk-invocation-id", "8927b6d9-e64c-4773-a9e9-2303fae23c4f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "118"]
+        ],
+        "body": "Action=ListSubscriptionsByTopic&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-snsh-d"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "75be7f76-24c1-5772-9f8f-1c12334f8179"],
+          ["Date", "Tue, 03 Nov 2026 17:09:34 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "1173"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<ListSubscriptionsByTopicResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <ListSubscriptionsByTopicResult>\n    <Subscriptions>\n      <member>\n        <Owner>123456789012</Owner>\n        <Protocol>https</Protocol>\n        <Endpoint>https://vz3psz4tmkxmxkgmjauplxjx5e0onbnf.lambda-url.us-east-2.on.aws/auto/restore</Endpoint>\n        <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:us1103-snsh-d:5ab3db84-8c58-4967-b8e5-d717e86fb4a1</SubscriptionArn>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:us1103-snsh-d</TopicArn>\n      </member>\n      <member>\n        <Owner>123456789012</Owner>\n        <Protocol>https</Protocol>\n        <Endpoint>https://vz3psz4tmkxmxkgmjauplxjx5e0onbnf.lambda-url.us-east-2.on.aws/hold/b</Endpoint>\n        <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:us1103-snsh-d:99995afd-6429-4770-8f37-af360236dc56</SubscriptionArn>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:us1103-snsh-d</TopicArn>\n      </member>\n    </Subscriptions>\n  </ListSubscriptionsByTopicResult>\n  <ResponseMetadata>\n    <RequestId>75be7f76-24c1-5772-9f8f-1c12334f8179</RequestId>\n  </ResponseMetadata>\n</ListSubscriptionsByTopicResponse>\n"
+      }
+    }
+  ]
+}

@@ -19,16 +19,16 @@ const defaultMaxSessionDuration = 3600
 
 // bindRoles binds the role control plane and the internal ResolveRole.
 func (s *Service) bindRoles(b iamapi.Binder) {
-	stored := registry.StoredOnly{Note: "the trust policy is validated and stored, not enforced"}
-	b.CreateRole(s.createRole, registry.Partial{Note: stored.Note + "; as PermissionsBoundary, " + unknownAWSManaged})
-	b.GetRole(s.getRole, registry.Full{})
-	b.UpdateRole(s.updateRole, registry.Full{})
-	b.UpdateRoleDescription(s.updateRoleDescription, registry.Full{})
-	b.UpdateAssumeRolePolicy(s.updateAssumeRolePolicy, stored)
-	b.DeleteRole(s.deleteRole, registry.Full{})
+	const trust = "the trust policy is validated and stored, evaluated by AssumeRole under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce"
+	b.CreateRole(s.createRole, registry.Partial{Note: trust + "; as PermissionsBoundary, " + catalogueMembership})
+	b.GetRole(s.getRole, resolvedPartial(), kernel.AuthorizedInHandler())
+	b.UpdateRole(s.updateRole, resolvedPartial())
+	b.UpdateRoleDescription(s.updateRoleDescription, resolvedPartial())
+	b.UpdateAssumeRolePolicy(s.updateAssumeRolePolicy, registry.Partial{Note: withResolved(trust)})
+	b.DeleteRole(s.deleteRole, resolvedPartial())
 	b.ListRoles(s.listRoles, registry.Full{})
-	b.PutRolePermissionsBoundary(s.putRolePermissionsBoundary, registry.Partial{Note: boundaryNote})
-	b.DeleteRolePermissionsBoundary(s.deleteRolePermissionsBoundary, registry.Full{})
+	b.PutRolePermissionsBoundary(s.putRolePermissionsBoundary, registry.Partial{Note: withResolved(boundaryNote)})
+	b.DeleteRolePermissionsBoundary(s.deleteRolePermissionsBoundary, resolvedPartial())
 	b.ResolveRole(s.resolveRole, registry.Full{})
 }
 
@@ -43,18 +43,21 @@ func (st *State) role(name string) (Role, *awserr.Error) {
 
 // boundaryNote is the coverage note of PutRolePermissionsBoundary and
 // PutUserPermissionsBoundary.
-const boundaryNote = "the boundary is stored, not enforced; " + unknownAWSManaged
+const boundaryNote = "the boundary is stored, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " + catalogueMembership
 
-// boundary checks a permissions boundary ARN: an AWS managed policy,
-// existing or not (unknownAWSManaged), or a customer managed one of the
-// account.
-func (st *State) boundary(account aws.AccountID, arn string) *awserr.Error {
-	ref, ok := parsePolicyARN(arn)
-	if !ok {
+// boundary checks a permissions boundary ARN, which named resolved among
+// the AWS managed policies: a catalogued AWS managed policy or a customer
+// managed one of the account.
+func (st *State) boundary(account aws.AccountID, arn string, named awsPolicy) *awserr.Error {
+	if _, ok := parsePolicyARN(arn); !ok {
 		return errInvalidPolicyARN(arn)
 	}
-	if ref.awsManaged() {
+	switch named.(type) {
+	case catalogued:
 		return nil
+	case uncatalogued:
+		return errNoSuchBoundary(arn)
+	case notAWSManaged:
 	}
 	if _, _, err := st.localPolicy(account, arn); err != nil {
 		return errNoSuchBoundary(arn)
@@ -90,12 +93,16 @@ func (s *Service) createRole(_ context.Context, c *kernel.Call, in *iamapi.Creat
 	if in.PermissionsBoundary != nil {
 		r.Boundary = *in.PermissionsBoundary
 	}
+	bound, err := s.lookup(r.Boundary)
+	if err != nil {
+		return nil, err
+	}
 	out, err := kernel.Write(c, s.cells, account, func(st *State, now clock.Instant, _ *kernel.Tx) (iamapi.Role, *awserr.Error) {
 		if _, ok := st.Roles[key(r.Name)]; ok {
 			return iamapi.Role{}, errRoleExists(r.Name)
 		}
 		if r.Boundary != "" {
-			if err := st.boundary(account, r.Boundary); err != nil {
+			if err := st.boundary(account, r.Boundary, bound); err != nil {
 				return iamapi.Role{}, err
 			}
 		}
@@ -117,19 +124,39 @@ func (s *Service) createRole(_ context.Context, c *kernel.Call, in *iamapi.Creat
 	return &iamapi.CreateRoleOutput{Role: out}, nil
 }
 
-func (s *Service) getRole(_ context.Context, c *kernel.Call, in *iamapi.GetRoleInput) (*iamapi.GetRoleOutput, *awserr.Error) {
+// iamAction is the IAM action of that name.
+func iamAction(name string) registry.IAMAction {
+	return registry.IAMAction{Prefix: "iam", Name: name}
+}
+
+// getRole reads the role, then authorizes iam:GetRole on its ARN, which
+// only the read learns: the path is part of it. Its binding leaves
+// iam:GetRole to it (kernel.AuthorizedInHandler), so this is the call's
+// only question about it.
+//
+// A missing role answers NoSuchEntity before any authorization, as switch
+// iam.enforce.missing-resource.by-name states: deny-first, the default of
+// iam.enforce.missing-resource (iam-enforcement-surfaces.md 12.8), whose
+// AWS behavior is unverified (5.3, IAM-ENF-14), needs the ARN of a role
+// that does not exist, whose path the request does not carry.
+func (s *Service) getRole(ctx context.Context, c *kernel.Call, in *iamapi.GetRoleInput) (*iamapi.GetRoleOutput, *awserr.Error) {
 	account := c.Scope().Account
 	r, err := view(s, account, func(st *State) (Role, *awserr.Error) { return st.role(in.RoleName) })
 	if err != nil {
 		return nil, err
 	}
-	c.Touch(roleARN(account, r.Path, r.Name))
+	if err := kernel.Authorize(ctx, c, iamAction("GetRole"), roleARN(account, r.Path, r.Name), nil); err != nil {
+		return nil, err
+	}
 	return &iamapi.GetRoleOutput{Role: apiRoleDetail(account, r)}, nil
 }
 
 // changeRole applies change to the named role under the account's cell
 // and touches it.
 func (s *Service) changeRole(c *kernel.Call, name string, change func(st *State, r Role) (Role, *awserr.Error)) (Role, *awserr.Error) {
+	if err := s.roleExists(c, name); err != nil {
+		return Role{}, err
+	}
 	account := c.Scope().Account
 	r, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (Role, *awserr.Error) {
 		r, err := st.role(name)
@@ -185,9 +212,13 @@ func (s *Service) updateAssumeRolePolicy(_ context.Context, c *kernel.Call, in *
 }
 
 func (s *Service) putRolePermissionsBoundary(_ context.Context, c *kernel.Call, in *iamapi.PutRolePermissionsBoundaryInput) (*iamapi.PutRolePermissionsBoundaryOutput, *awserr.Error) {
+	bound, err := s.lookup(in.PermissionsBoundary)
+	if err != nil {
+		return nil, err
+	}
 	account := c.Scope().Account
-	_, err := s.changeRole(c, in.RoleName, func(st *State, r Role) (Role, *awserr.Error) {
-		if err := st.boundary(account, in.PermissionsBoundary); err != nil {
+	_, err = s.changeRole(c, in.RoleName, func(st *State, r Role) (Role, *awserr.Error) {
+		if err := st.boundary(account, in.PermissionsBoundary, bound); err != nil {
 			return Role{}, err
 		}
 		r.Boundary = in.PermissionsBoundary
@@ -208,6 +239,9 @@ func (s *Service) deleteRolePermissionsBoundary(_ context.Context, c *kernel.Cal
 // itself, so instance profile membership, attached policies and inline
 // policies each refuse the delete, checked in moto's order.
 func (s *Service) deleteRole(_ context.Context, c *kernel.Call, in *iamapi.DeleteRoleInput) (*iamapi.DeleteRoleOutput, *awserr.Error) {
+	if err := s.roleExists(c, in.RoleName); err != nil {
+		return nil, err
+	}
 	account := c.Scope().Account
 	r, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (Role, *awserr.Error) {
 		r, err := st.role(in.RoleName)

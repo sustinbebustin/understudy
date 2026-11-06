@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"sync"
 
 	"github.com/sustinbebustin/understudy/internal/docker"
@@ -17,6 +18,10 @@ type Options struct {
 	Ownership docker.Ownership
 	// Test adds the understudy.dev/test=1 label; only test harnesses set it.
 	Test bool
+	// ExtraLabels are added to every container's labels (the dockerLabels
+	// setting, testcontainers.md 9.3); New refuses a key starting with
+	// docker.ReservedPrefix.
+	ExtraLabels map[string]string
 	// Topology decides the addresses, extra hosts and network function
 	// containers get, and whether code is bind-mounted or copied.
 	Topology topology.Topology
@@ -39,6 +44,7 @@ type Launcher struct {
 	client       *docker.Client
 	ownership    docker.Ownership
 	test         bool
+	extraLabels  map[string]string
 	addrs        topology.Addresses
 	endpointPort uint16
 	log          *slog.Logger
@@ -66,12 +72,16 @@ type tracked struct {
 
 // New validates opts. A topology the launcher cannot serve returns its
 // *topology.UnsupportedError; an incomplete ownership its
-// *docker.OwnershipError.
+// *docker.OwnershipError; an extra label under docker.ReservedPrefix its
+// *docker.ReservedLabelError.
 func New(client *docker.Client, opts Options) (*Launcher, error) {
 	if client == nil {
 		return nil, errors.New("launcher: Docker client is nil")
 	}
 	if err := opts.Ownership.Validate(); err != nil {
+		return nil, err
+	}
+	if err := docker.CheckExtra(opts.ExtraLabels); err != nil {
 		return nil, err
 	}
 	if opts.Topology == nil {
@@ -92,6 +102,7 @@ func New(client *docker.Client, opts Options) (*Launcher, error) {
 		client:       client,
 		ownership:    opts.Ownership,
 		test:         opts.Test,
+		extraLabels:  maps.Clone(opts.ExtraLabels),
 		addrs:        addrs,
 		delivery:     deliveryFor(opts.Topology),
 		endpointPort: opts.EndpointPort,
@@ -121,7 +132,8 @@ func (l *Launcher) Start(ctx context.Context, spec Spec, slot Slot) (Container, 
 			Region:     spec.Function.Region.String(),
 			Generation: spec.Generation,
 		},
-		Test: l.test,
+		Test:  l.test,
+		Extra: l.extraLabels,
 	}.Map()
 	if err != nil {
 		return Container{}, err
@@ -210,13 +222,13 @@ func (l *Launcher) fallBackToCopy(ctx context.Context, spec Spec, refused error)
 		slog.String("dir", dir), slog.String("error", refused.Error()))
 }
 
-// prepare copies code when bind mounts are unavailable, registers the
-// container for exit watching and starts it.
+// prepare copies code and layers when bind mounts are unavailable,
+// registers the container for exit watching and starts it.
 func (l *Launcher) prepare(ctx context.Context, c Container, spec Spec, d delivery) error {
 	if code, ok := spec.Code.(ZipCode); ok {
 		if _, copyCode := d.(tarCopy); copyCode {
-			if err := l.copyCode(ctx, c.ID, code.Dir); err != nil {
-				return fmt.Errorf("launch %s: copy code: %w", c.Name, err)
+			if err := l.copyTrees(ctx, c, code); err != nil {
+				return err
 			}
 		}
 	}
@@ -228,6 +240,21 @@ func (l *Launcher) prepare(ctx context.Context, c Container, spec Spec, d delive
 	}
 	if err := l.markStarted(c.ID); err != nil {
 		return fmt.Errorf("launch %s: watch for exit: %w", c.Name, err)
+	}
+	return nil
+}
+
+// copyTrees copies the code to /var/task and then, when the function has
+// layers, their merged tree to /opt.
+func (l *Launcher) copyTrees(ctx context.Context, c Container, code ZipCode) error {
+	if err := l.copyCode(ctx, c.ID, code.Dir); err != nil {
+		return fmt.Errorf("launch %s: copy code: %w", c.Name, err)
+	}
+	if code.Opt == "" {
+		return nil
+	}
+	if err := l.copyOpt(ctx, c.ID, code.Opt); err != nil {
+		return fmt.Errorf("launch %s: copy layers to /opt: %w", c.Name, err)
 	}
 	return nil
 }

@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "item": "SSM-26",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/r26",
+        "Type": "String",
+        "Value": "v1",
+        "Tags": [
+          {
+            "Key": "k",
+            "Value": "v"
+          }
+        ]
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/r26",
+        "Type": "String",
+        "Value": "v2",
+        "Overwrite": true
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "DeleteParameter",
+      "input": {
+        "Name": "/us1103/ssm/r26"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-26/01-recreate-now.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-26/02-history.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-26/03-tags.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-26/04-recreate-after-30s.json",
+      "compare": "all",
+      "advance": "30s"
+    }
+  ]
+}

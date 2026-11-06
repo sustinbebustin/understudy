@@ -1,0 +1,33 @@
+{
+  "step": "02-v1-raw",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164253Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "181"]
+        ],
+        "body": "Action=SendEmail&Version=2010-12-01&Source=us1103-me%40example.com&Destination.ToAddresses.member.1=success%40simulator.amazonses.com&Message.Subject.Data=s&Message.Body.Text.Data=b"
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:53 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "433"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "fab0ed69-a358-4efc-b04c-c10a88711cbd"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>AccessDenied</Code>\n    <Message>User 'arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf' is not authorized to perform 'ses:SendEmail' on resource 'arn:aws:ses:us-east-2:123456789012:identity/us1103-me@example.com'</Message>\n  </Error>\n  <RequestId>fab0ed69-a358-4efc-b04c-c10a88711cbd</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

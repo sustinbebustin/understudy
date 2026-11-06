@@ -13,7 +13,7 @@ type APIErrorType struct {
 	Message   *string
 }
 
-// AccessDeniedException is the error com.amazon.coral.service#AccessDeniedException.
+// AccessDeniedException is the error com.amazonaws.secretsmanager#AccessDeniedException.
 type AccessDeniedException struct {
 	Message *string
 }
@@ -48,6 +48,11 @@ type CancelRotateSecretOutput struct {
 	ARN       *string
 	Name      *string
 	VersionId *string
+}
+
+// CoralServiceAccessDeniedException is the error com.amazon.coral.service#AccessDeniedException.
+type CoralServiceAccessDeniedException struct {
+	Message *string
 }
 
 // CreateSecretInput is the input of CreateSecret, com.amazonaws.secretsmanager#CreateSecretRequest.

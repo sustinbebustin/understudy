@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "item": "SES-04",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ses/SES-04/v1-empty-source.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-04/v1-verify-bad.json",
+      "compare": "all"
+    }
+  ]
+}

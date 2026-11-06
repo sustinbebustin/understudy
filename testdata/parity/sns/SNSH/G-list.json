@@ -1,0 +1,33 @@
+{
+  "step": "G-list",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,C,b,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.list-subscriptions-by-topic"],
+          ["X-Amz-Date", "20261103T171532Z"],
+          ["amz-sdk-invocation-id", "4cbded24-394f-40ea-9f84-becf636c03ba"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "118"]
+        ],
+        "body": "Action=ListSubscriptionsByTopic&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-snsh-g"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "0e4e8828-cd57-51e9-aca0-eb4cd5a3e205"],
+          ["Date", "Tue, 03 Nov 2026 17:15:32 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "703"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<ListSubscriptionsByTopicResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <ListSubscriptionsByTopicResult>\n    <Subscriptions>\n      <member>\n        <Owner>123456789012</Owner>\n        <Protocol>https</Protocol>\n        <Endpoint>https://snsuser:****@vz3psz4tmkxmxkgmjauplxjx5e0onbnf.lambda-url.us-east-2.on.aws/auth/auto</Endpoint>\n        <SubscriptionArn>PendingConfirmation</SubscriptionArn>\n        <TopicArn>arn:aws:sns:us-east-2:123456789012:us1103-snsh-g</TopicArn>\n      </member>\n    </Subscriptions>\n  </ListSubscriptionsByTopicResult>\n  <ResponseMetadata>\n    <RequestId>0e4e8828-cd57-51e9-aca0-eb4cd5a3e205</RequestId>\n  </ResponseMetadata>\n</ListSubscriptionsByTopicResponse>\n"
+      }
+    }
+  ]
+}

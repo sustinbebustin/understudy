@@ -56,36 +56,51 @@ func checkPartNumber(n int32) *awserr.Error {
 
 // partTarget is what a part write learns of its upload before it reads
 // the body: how its parts are checksummed and how its object is
-// encrypted, which the part's response reports.
+// encrypted, which the part's response reports, with the SSE-C key the
+// part sent for an SSE-C upload.
 type partTarget struct {
 	mode checksumMode
 	enc  Encryption
+	key  *customerKey
 }
 
 // partETag is the ETag of a part of an upload encrypted as enc, whose
-// bytes have the MD5 md5Hex: that MD5, or for SSE-KMS a random 128-bit
-// value, which is not the MD5 of the bytes (REC test_s3_multipart_upload_sse
-// step multi-sse-upload-part; s3.md 5.3).
+// bytes have the MD5 md5Hex: that MD5, or for SSE-KMS and SSE-C a random
+// 128-bit value, which is not the MD5 of the bytes (REC
+// test_s3_multipart_upload_sse step multi-sse-upload-part; s3.md 5.3;
+// s3-ssec-object-lock.md 3.4).
 func (s *Service) partETag(enc Encryption, md5Hex string) string {
-	if enc.KMS != nil {
+	if opaqueETag(enc) {
 		return string(s.k.IDs().ETag())
 	}
 	return md5Hex
 }
 
 // readTarget reads the upload a part write addresses: NoSuchUpload when
-// the id names no upload in progress for key.
-func (s *Service) readTarget(ctx context.Context, c *kernel.Call, a access, id, key string) (partTarget, *awserr.Error) {
+// the id names no upload in progress for key; then the part's SSE-C trio
+// h is judged against the upload (checkCustomerPart), and a part whose
+// body declares no integrity (undeclared, never set by UploadPartCopy,
+// which has no body) is refused under Object Lock (errPartNeedsIntegrity).
+func (s *Service) readTarget(ctx context.Context, c *kernel.Call, a access, id, key string, h customerHeaders, undeclared bool) (partTarget, *awserr.Error) {
 	return read(ctx, s, c, a, func(b *Bucket) (partTarget, *awserr.Error) {
 		u, err := b.Uploads.find(id, key)
 		if err != nil {
 			return partTarget{}, err
 		}
+		// A part names s3:PutObject, the IAM action of UploadPart and
+		// UploadPartCopy alike (inferred: S3SOL-01 recorded no part).
+		k, err := checkCustomerPart(u.Encryption, h, b, key, writeCallOf(c, "s3:PutObject"))
+		if err != nil {
+			return partTarget{}, err
+		}
+		if undeclared && needsIntegrity(b.ObjectLock, u.Lock) {
+			return partTarget{}, errPartNeedsIntegrity()
+		}
 		m, merr := u.Checksum.mode()
 		if merr != nil {
 			return partTarget{}, awserr.Internalf(merr)
 		}
-		return partTarget{mode: m, enc: u.Encryption}, nil
+		return partTarget{mode: m, enc: u.Encryption, key: k}, nil
 	})
 }
 
@@ -101,9 +116,6 @@ func (s *Service) uploadPart(ctx context.Context, c *kernel.Call, in *s3api.Uplo
 	if err := checkPartNumber(in.PartNumber); err != nil {
 		return nil, err
 	}
-	if customerKeyed(in.SSECustomerAlgorithm, in.SSECustomerKey, in.SSECustomerKeyMD5) {
-		return nil, errSSECNotApplicable()
-	}
 	// UploadPart models no Content-Encoding, so it is read from the call to
 	// tell an aws-chunked body as PutObject does.
 	var encoding *string
@@ -115,7 +127,7 @@ func (s *Service) uploadPart(ctx context.Context, c *kernel.Call, in *s3api.Uplo
 		return nil, err
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
-	t, err := s.readTarget(ctx, c, a, in.UploadId, in.Key)
+	t, err := s.readTarget(ctx, c, a, in.UploadId, in.Key, customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5}, !u.integrityDeclared())
 	if err != nil {
 		return nil, err
 	}
@@ -135,8 +147,9 @@ func (s *Service) uploadPart(ctx context.Context, c *kernel.Call, in *s3api.Uplo
 	}
 	out := &s3api.UploadPartOutput{ETag: new(quote(p.ETag))}
 	uploadPartOutputFields(out).set(uploadedPartChecksum(t.mode, u.checksum, got.sum, p))
-	h := t.enc.headers()
+	h := encryptionHeaders(t.enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
+	out.SSECustomerAlgorithm, out.SSECustomerKeyMD5 = customerEcho(t.key)
 	return out, nil
 }
 
@@ -183,10 +196,16 @@ func (s *Service) commitPart(ctx context.Context, c *kernel.Call, a access, id, 
 // part-number-marker (s3.md 9.2): NextPartNumberMarker is the last part
 // listed, 0 when none is. A zero max-parts lists nothing and is not
 // truncated, as the other listings do, so a paginator cannot loop on it
-// (UNVERIFIED: AWS's answer is unrecorded).
-func listParts(in *s3api.ListPartsInput, b *Bucket) (*s3api.ListPartsOutput, *awserr.Error) {
+// (UNVERIFIED: AWS's answer is unrecorded). SSE-C headers are needed only
+// on an SSE-C upload with a checksum algorithm, and sent over scheme they
+// are judged (checkCustomerList).
+func listParts(in *s3api.ListPartsInput, b *Bucket, scheme string) (*s3api.ListPartsOutput, *awserr.Error) {
 	u, err := b.Uploads.find(in.UploadId, in.Key)
 	if err != nil {
+		return nil, err
+	}
+	customer := customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5}
+	if err := checkCustomerList(u, customer, scheme); err != nil {
 		return nil, err
 	}
 	m, merr := u.Checksum.mode()

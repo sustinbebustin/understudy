@@ -285,19 +285,23 @@ func sdkEnv(endpoint, sdk, region, accessKey string) envResult {
 	pathStyle := "unless *.localhost resolves here ('understudy doctor' checks)"
 	goNote := "Go: S3 path-style addressing has no variable; set o.UsePathStyle = true in s3.NewFromConfig " + pathStyle
 	jsNote := "JS: S3 path-style addressing has no variable; pass forcePathStyle: true to S3Client " + pathStyle
-	tfNote := "Terraform: set s3_use_path_style = true and skip_requesting_account_id = true in the aws provider " + pathStyle
+	tfNote := "Terraform: set s3_use_path_style = true, skip_credentials_validation = true and skip_requesting_account_id = true in the aws provider " + pathStyle
 	if isIPLiteral(endpoint) {
 		// The S3 endpoint rules of the SDKs address an IP-literal endpoint
 		// path style, since <bucket>.<IP> is no host name. Terraform's S3
 		// Control bucket tag reads go to <account>.<IP>, which never
-		// resolves (s3.md finding 1), so only skipping the account id
-		// lookup avoids them.
+		// resolves (s3.md finding 1), so only a provider with no account id
+		// avoids them. With credential validation on, the provider takes the
+		// account from sts:GetCallerIdentity and never consults
+		// skip_requesting_account_id, so it needs both skip settings
+		// (tf-messaging.md 1.1).
 		virtualHosted := "virtual-hosted <bucket>.localhost addressing needs a localhost endpoint and *.localhost resolving here ('understudy doctor' checks)"
 		goNote = "Go: the SDK addresses S3 path style at an IP-literal endpoint without o.UsePathStyle; " + virtualHosted
 		jsNote = "JS: the SDK addresses S3 path style at an IP-literal endpoint without forcePathStyle; " + virtualHosted
-		tfNote = "Terraform: skip_requesting_account_id = true is required in the aws provider at an IP-literal endpoint: " +
-			"it reads S3 bucket tags through S3 Control at <account>.<endpoint host>, which cannot resolve for an IP address; " +
-			"a host-name endpoint such as localhost, where *.localhost resolves, does not need it; " +
+		tfNote = "Terraform: skip_credentials_validation = true and skip_requesting_account_id = true are required in the aws provider at an IP-literal endpoint: " +
+			"it reads S3 bucket tags through S3 Control at <account>.<endpoint host>, which cannot resolve for an IP address, " +
+			"and with credential validation on it takes the account from sts:GetCallerIdentity whatever skip_requesting_account_id says; " +
+			"a host-name endpoint such as localhost, where *.localhost resolves, needs neither; " +
 			"s3_use_path_style = true is optional here, since the provider addresses S3 path style at an IP-literal endpoint"
 	}
 	notes := map[string]string{

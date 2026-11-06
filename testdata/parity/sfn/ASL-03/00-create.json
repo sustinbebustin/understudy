@@ -1,0 +1,34 @@
+{
+  "step": "00-create",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.CreateStateMachine"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,AN,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.create-state-machine"],
+          ["X-Amz-Date", "20261103T164657Z"],
+          ["amz-sdk-invocation-id", "29a1501f-4cfb-4500-b611-e9d618366919"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "202"]
+        ],
+        "body": "{\"name\": \"us1103-rp\", \"definition\": \"{\\\"StartAt\\\":\\\"A\\\",\\\"States\\\":{\\\"A\\\":{\\\"Type\\\":\\\"Pass\\\",\\\"Result\\\":1,\\\"ResultPath\\\":\\\"$.x\\\",\\\"End\\\":true}}}\", \"roleArn\": \"arn:aws:iam::123456789012:role/us1103-sfn\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "e6ddb134-9aab-4f91-9dc0-da77ba6c733d"],
+          ["Date", "Tue, 03 Nov 2026 16:46:58 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "111"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"creationDate\":1.793724418E9,\"stateMachineArn\":\"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-rp\"}"
+      }
+    }
+  ]
+}

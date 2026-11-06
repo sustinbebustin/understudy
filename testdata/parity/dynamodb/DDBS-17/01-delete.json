@@ -1,0 +1,36 @@
+{
+  "step": "01-delete",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.DeleteTable"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,E,AN,Z,P cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.delete-table"],
+          ["X-Amz-Date", "20261103T164104Z"],
+          ["amz-sdk-invocation-id", "20e7abb6-6301-4eda-bde4-7b43b7f8f9cc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "32"]
+        ],
+        "body": "{\"TableName\": \"us1103-ddbs-del\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:41:04 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "831"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "I31IUPEFLGFLBOBE40MLJ2796RVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2767407459"]
+        ],
+        "body": "{\"TableDescription\":{\"BillingModeSummary\":{\"BillingMode\":\"PAY_PER_REQUEST\",\"LastUpdateToPayPerRequestDateTime\":1.793724032177E9},\"DeletionProtectionEnabled\":false,\"ItemCount\":0,\"LatestStreamArn\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs-del/stream/2026-11-03T16:40:32.177\",\"LatestStreamLabel\":\"2026-11-03T16:40:32.177\",\"ProvisionedThroughput\":{\"NumberOfDecreasesToday\":0,\"ReadCapacityUnits\":0,\"WriteCapacityUnits\":0},\"StreamSpecification\":{\"StreamEnabled\":true,\"StreamViewType\":\"NEW_IMAGE\"},\"TableArn\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs-del\",\"TableId\":\"d99a9d82-86ea-4a92-8274-4d9ad9629597\",\"TableName\":\"us1103-ddbs-del\",\"TableSizeBytes\":0,\"TableStatus\":\"DELETING\",\"TableThroughputModeSummary\":{\"LastUpdateToPayPerRequestDateTime\":1.793724032177E9,\"TableThroughputMode\":\"PAY_PER_REQUEST\"}}}"
+      }
+    }
+  ]
+}

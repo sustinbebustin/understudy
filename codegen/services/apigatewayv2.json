@@ -1,0 +1,90 @@
+{
+  "service": "com.amazonaws.apigatewayv2#ApiGatewayV2",
+  "package": "apigatewayv2api",
+  "model": "apigatewayv2",
+  "iamPrefix": "apigateway",
+  "sdkService": "apigatewayv2",
+  "rawOperations": [
+    {"name": "InvokeApi", "iam": []}
+  ],
+  "iamPrimary": [
+    {
+      "operation": "CreateDomainName",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /v2/domainnames; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "CreateStage",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /v2/apis/{ApiId}/stages; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "CreateVpcLink",
+      "action": "apigateway:POST",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is POST /v2/vpclinks; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "DeleteDomainName",
+      "action": "apigateway:DELETE",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is DELETE /v2/domainnames/{DomainName}; the other listed action gates optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "ImportApi",
+      "action": "apigateway:PUT",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is PUT /v2/apis; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "ReimportApi",
+      "action": "apigateway:PUT",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is PUT /v2/apis/{ApiId}; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    },
+    {
+      "operation": "TagResource",
+      "action": "apigateway:PATCH",
+      "reason": "AWS denies TagResource as apigateway:PATCH on the tagged resource (testdata/parity/apigatewayv2/APIGW2-15/14-tag-resource.json, recorded 2026-11-03; apigateway-http.md 8.1), as the tagging docs say: 'To update the tags for a resource, the user must have PATCH permissions for that resource' (https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-tagging-iam-policy.html)"
+    },
+    {
+      "operation": "UntagResource",
+      "action": "apigateway:PATCH",
+      "reason": "AWS denies UntagResource as apigateway:PATCH on the tagged resource (testdata/parity/apigatewayv2/APIGW2-15/15-untag-resource.json, recorded 2026-11-03; apigateway-http.md 8.1)"
+    },
+    {
+      "operation": "UpdateDomainName",
+      "action": "apigateway:PATCH",
+      "reason": "management calls are authorized as apigateway:<HTTP method> on the resource ARN, and this one is PATCH /v2/domainnames/{DomainName}; the other listed actions gate optional settings (https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-create-and-manage-api.html)"
+    }
+  ],
+  "boundOperations": [
+    "CreateApi",
+    "CreateDeployment",
+    "CreateIntegration",
+    "CreateRoute",
+    "CreateStage",
+    "DeleteAccessLogSettings",
+    "DeleteApi",
+    "DeleteCorsConfiguration",
+    "DeleteDeployment",
+    "DeleteIntegration",
+    "DeleteRoute",
+    "DeleteRouteSettings",
+    "DeleteStage",
+    "GetApi",
+    "GetApis",
+    "GetDeployment",
+    "GetDeployments",
+    "GetIntegration",
+    "GetIntegrations",
+    "GetRoute",
+    "GetRoutes",
+    "GetStage",
+    "GetStages",
+    "GetTags",
+    "TagResource",
+    "UntagResource",
+    "UpdateApi",
+    "UpdateDeployment",
+    "UpdateIntegration",
+    "UpdateRoute",
+    "UpdateStage"
+  ]
+}

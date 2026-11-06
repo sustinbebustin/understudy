@@ -1,0 +1,30 @@
+{
+  "step": "03-domain",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://email.us-east-2.amazonaws.com/v2/email/identities/us1103.example.org",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164225Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:25 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "797"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "4cfdba98-d820-4c96-9928-e72bcad74691"]
+        ],
+        "body": "{\"ConfigurationSetName\":null,\"DkimAttributes\":{\"CurrentSigningKeyLength\":\"RSA_2048_BIT\",\"LastKeyGenerationTimestamp\":1.79372414535E9,\"NextSigningKeyLength\":\"RSA_2048_BIT\",\"SigningAttributesOrigin\":\"AWS_SES\",\"SigningEnabled\":true,\"SigningHostedZone\":\"dkim.amazonses.com\",\"Status\":\"PENDING\",\"Tokens\":[\"3xrs2fceorio55jhnhudc7ecwjkx3ylw\",\"x5srfsxsxpvy7ubmsbadktv7or2kzxkn\",\"c4nlvyg2yps45wxp4trsfixwof2afsy2\"]},\"FeedbackForwardingStatus\":true,\"IdentityType\":\"DOMAIN\",\"MailFromAttributes\":{\"BehaviorOnMxFailure\":\"USE_DEFAULT_VALUE\",\"MailFromDomain\":null,\"MailFromDomainStatus\":null},\"Policies\":{},\"Tags\":[],\"VdmAttributes\":null,\"VerificationInfo\":{\"ErrorType\":null,\"LastCheckedTimestamp\":null,\"LastSuccessTimestamp\":null,\"SOARecord\":null},\"VerificationStatus\":\"PENDING\",\"VerifiedForSendingStatus\":false}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "02-sync-on-standard",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (StateMachineTypeNotSupported) when calling the StartSyncExecution operation: This operation is not supported by this type of state machine",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sync-states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.StartSyncExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,b,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.start-sync-execution"],
+          ["X-Amz-Date", "20261103T164227Z"],
+          ["amz-sdk-invocation-id", "16536196-3a3b-4ab6-a998-dff0b9f58279"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "85"]
+        ],
+        "body": "{\"stateMachineArn\": \"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-pass\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "a403a46a-342c-4e22-8b93-d91f229ee9ff"],
+          ["Date", "Tue, 03 Nov 2026 16:42:28 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "150"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.swf.service.v2.model#StateMachineTypeNotSupported\",\"message\":\"This operation is not supported by this type of state machine\"}"
+      }
+    }
+  ]
+}

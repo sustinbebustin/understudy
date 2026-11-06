@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -67,11 +68,91 @@ type DeadLettered struct{ DLQ aws.ARN }
 // Dropped is a message abandoned for Reason with no dead-letter queue.
 type Dropped struct{ Reason string }
 
+// Refused is an attempt understudy chose not to make, such as an outbound
+// request its egress rules refuse (sns-http-delivery.md 7.3). AWS would
+// have made it, so it is never retried, dead-lettered or reported as an
+// AWS-shaped failure.
+type Refused struct{ Reason string }
+
 func (Delivered) isDeliveryOutcome()    {}
 func (Filtered) isDeliveryOutcome()     {}
 func (Retrying) isDeliveryOutcome()     {}
 func (DeadLettered) isDeliveryOutcome() {}
 func (Dropped) isDeliveryOutcome()      {}
+func (Refused) isDeliveryOutcome()      {}
+
+// HTTPClass is how an HTTP delivery attempt's answer is classed
+// (sns.http.status-classes, sns-http-delivery.md 6.1).
+type HTTPClass uint8
+
+// HTTPClass values.
+const (
+	// HTTPSuccess is a 2xx answer.
+	HTTPSuccess HTTPClass = iota + 1
+	// HTTPRetryable is a 429 or 5xx answer, or a failed or timed-out
+	// exchange.
+	HTTPRetryable
+	// HTTPPermanent is any other status.
+	HTTPPermanent
+	// HTTPRefused is a request egress refused, or one with no client.
+	HTTPRefused
+)
+
+// String returns the class's name, such as "retryable".
+func (c HTTPClass) String() string {
+	switch c {
+	case HTTPSuccess:
+		return "success"
+	case HTTPRetryable:
+		return "retryable"
+	case HTTPPermanent:
+		return "permanent"
+	case HTTPRefused:
+		return "refused"
+	default:
+		return fmt.Sprintf("HTTPClass(%d)", uint8(c))
+	}
+}
+
+// HTTPClassError reports text that names no HTTP class.
+type HTTPClassError struct {
+	Text string
+}
+
+func (e *HTTPClassError) Error() string {
+	return fmt.Sprintf("%q names no HTTP class; known names are success, retryable, permanent and refused", e.Text)
+}
+
+// ParseHTTPClass returns the HTTPClass named s, compared exactly.
+func ParseHTTPClass(s string) (HTTPClass, error) {
+	for c := HTTPSuccess; c.valid(); c++ {
+		if c.String() == s {
+			return c, nil
+		}
+	}
+	return 0, &HTTPClassError{Text: s}
+}
+
+// MarshalText encodes the class's name.
+func (c HTTPClass) MarshalText() ([]byte, error) {
+	if !c.valid() {
+		return nil, &HTTPClassError{Text: c.String()}
+	}
+	return []byte(c.String()), nil
+}
+
+// UnmarshalText decodes a class's name.
+func (c *HTTPClass) UnmarshalText(text []byte) error {
+	parsed, err := ParseHTTPClass(string(text))
+	if err != nil {
+		return err
+	}
+	*c = parsed
+	return nil
+}
+
+// valid reports whether c is one of the declared classes.
+func (c HTTPClass) valid() bool { return c >= HTTPSuccess && c <= HTTPRefused }
 
 // InvocationOutcome is how one function invocation ended.
 //
@@ -136,6 +217,45 @@ const (
 	// while understudy was not running, or before a loaded snapshot's
 	// time, were skipped rather than delivered in a burst.
 	AdvisoryScheduleFiresSkipped
+	// AdvisoryRecordResponseOmitted: an asynchronous invocation record left
+	// out a function response that is not JSON, whose rendering AWS has not
+	// been recorded (lambda-destinations-layers.md 11.4).
+	AdvisoryRecordResponseOmitted
+	// AdvisoryAsyncEventAbandoned: a queued asynchronous invocation was
+	// dropped with no record and no dead letter because its function or
+	// qualifier was deleted while it waited (lambda-destinations-layers.md
+	// 11.3.4).
+	AdvisoryAsyncEventAbandoned
+	// AdvisoryAccessDenied: under iam.enforce=enforce, a call denied by IAM
+	// evaluation, with the policy that decided it.
+	AdvisoryAccessDenied
+	// AdvisoryAccessWouldDeny: under iam.enforce=advise, a call AWS would
+	// deny that understudy served anyway.
+	AdvisoryAccessWouldDeny
+	// AdvisoryAccessUnevaluated: under iam.enforce=advise, a call understudy
+	// could not evaluate, such as against a stored policy it cannot read,
+	// served anyway.
+	AdvisoryAccessUnevaluated
+	// AdvisoryConditionKeyUnsupplied: a condition key AWS would send with a
+	// call that understudy cannot compute, evaluated as absent.
+	AdvisoryConditionKeyUnsupplied
+	// AdvisoryCheckNotRun: a call AWS refuses when a check understudy does
+	// not run fails, such as S3 Block Public Access on a public bucket
+	// policy or KMS's key-policy lockout check, served unchecked under every
+	// iam.enforce mode.
+	AdvisoryCheckNotRun
+	// AdvisoryAlarmActionNotRun: a metric alarm action understudy cannot
+	// run (EC2, Auto Scaling, Systems Manager, investigation), journaled
+	// instead of run (cloudwatch-alarms.md 12.7).
+	AdvisoryAlarmActionNotRun
+	// AdvisoryAlarmNotEvaluated: a metric alarm of a kind understudy cannot
+	// evaluate, stored and never evaluated (cloudwatch-alarms.md 12.7).
+	AdvisoryAlarmNotEvaluated
+
+	// endAdvisoryKind follows the last value and is no advisory kind:
+	// ParseAdvisoryKind, MarshalText and the AdvisoryKindError text count
+	// up to it, so a new kind is one line above it plus its String case.
+	endAdvisoryKind
 )
 
 // String returns the wire name, such as "policy-would-deny".
@@ -153,6 +273,24 @@ func (k AdvisoryKind) String() string {
 		return "filter-undecided"
 	case AdvisoryScheduleFiresSkipped:
 		return "schedule-fires-skipped"
+	case AdvisoryRecordResponseOmitted:
+		return "record-response-omitted"
+	case AdvisoryAsyncEventAbandoned:
+		return "async-event-abandoned"
+	case AdvisoryAccessDenied:
+		return "access-denied"
+	case AdvisoryAccessWouldDeny:
+		return "access-would-deny"
+	case AdvisoryAccessUnevaluated:
+		return "access-unevaluated"
+	case AdvisoryConditionKeyUnsupplied:
+		return "condition-key-unsupplied"
+	case AdvisoryCheckNotRun:
+		return "check-not-run"
+	case AdvisoryAlarmActionNotRun:
+		return "alarm-action-not-run"
+	case AdvisoryAlarmNotEvaluated:
+		return "alarm-not-evaluated"
 	default:
 		return fmt.Sprintf("AdvisoryKind(%d)", uint8(k))
 	}
@@ -164,12 +302,22 @@ type AdvisoryKindError struct {
 }
 
 func (e *AdvisoryKindError) Error() string {
-	return fmt.Sprintf("%q names no advisory kind; known names are policy-would-deny, unminted-credentials, shadowed-code-update, cross-region-served, filter-undecided and schedule-fires-skipped", e.Text)
+	return fmt.Sprintf("%q names no advisory kind; known names are %s", e.Text, knownAdvisoryKinds())
+}
+
+// knownAdvisoryKinds lists every AdvisoryKind's wire name in value order,
+// the last after "and".
+func knownAdvisoryKinds() string {
+	names := make([]string, 0, endAdvisoryKind-AdvisoryPolicyWouldDeny)
+	for k := AdvisoryPolicyWouldDeny; k < endAdvisoryKind; k++ {
+		names = append(names, k.String())
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }
 
 // ParseAdvisoryKind returns the AdvisoryKind whose wire name is s.
 func ParseAdvisoryKind(s string) (AdvisoryKind, error) {
-	for k := AdvisoryPolicyWouldDeny; k <= AdvisoryScheduleFiresSkipped; k++ {
+	for k := AdvisoryPolicyWouldDeny; k < endAdvisoryKind; k++ {
 		if k.String() == s {
 			return k, nil
 		}
@@ -179,7 +327,7 @@ func ParseAdvisoryKind(s string) (AdvisoryKind, error) {
 
 // MarshalText encodes the wire name.
 func (k AdvisoryKind) MarshalText() ([]byte, error) {
-	if k < AdvisoryPolicyWouldDeny || k > AdvisoryScheduleFiresSkipped {
+	if k < AdvisoryPolicyWouldDeny || k >= endAdvisoryKind {
 		return nil, &AdvisoryKindError{Text: k.String()}
 	}
 	return []byte(k.String()), nil
@@ -314,7 +462,7 @@ func ResultOf(d Detail) (Result, bool) {
 		switch d.Outcome.(type) {
 		case Delivered, Filtered:
 			return ResultOK, true
-		case Retrying, DeadLettered, Dropped:
+		case Retrying, DeadLettered, Dropped, Refused:
 			return ResultError, true
 		}
 		return 0, false
@@ -328,7 +476,7 @@ func ResultOf(d Detail) (Result, bool) {
 		return 0, false
 	case Unclaimed:
 		return ResultError, true
-	case TimerFired, StateChange, FaultInjected, ClockChanged, Advisory, Gap:
+	case TimerFired, StateChange, FaultInjected, ClockChanged, Advisory, Gap, AdminAction:
 		return 0, false
 	}
 	return 0, false

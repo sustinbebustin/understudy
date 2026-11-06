@@ -1,0 +1,33 @@
+{
+  "step": "07-update-one-side",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2019-09-25/functions/us1103-ldl-v/event-invoke-config",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,AN,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.update-function-event-invoke-config"],
+          ["X-Amz-Date", "20261103T165345Z"],
+          ["amz-sdk-invocation-id", "26c9bf61-f42b-42fd-abf0-c895e6746427"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "108"]
+        ],
+        "body": "{\"DestinationConfig\": {\"OnFailure\": {\"Destination\": \"arn:aws:sns:us-east-2:123456789012:us1103-ldl-topic\"}}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:53:46 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "387"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "db9ee73c-6fee-4422-87cc-2650df5f7604"]
+        ],
+        "body": "{\"DestinationConfig\":{\"OnFailure\":{\"Destination\":\"arn:aws:sns:us-east-2:123456789012:us1103-ldl-topic\"},\"OnSuccess\":{\"Destination\":\"arn:aws:sqs:us-east-2:123456789012:us1103-ldl-dest\"}},\"FunctionArn\":\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-v:$LATEST\",\"LastModified\":1.793724826218E9,\"MaximumEventAgeInSeconds\":null,\"MaximumRetryAttempts\":null,\"ProvisionedConfig\":null}"
+      }
+    }
+  ]
+}

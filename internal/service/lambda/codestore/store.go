@@ -110,6 +110,8 @@ type Store struct {
 
 	mu    sync.Mutex
 	trees map[Digest]*tree
+	// merged counts the references to each merged layer tree, by its Key.
+	merged map[Digest]int
 }
 
 type tree struct {
@@ -117,9 +119,10 @@ type tree struct {
 	size int64
 }
 
-// Open prepares dir (created when missing) as a store. Trees left by an
-// earlier process are removed: they are derived from packages the Lambda
-// state keeps, which re-adds them, and nothing references them yet.
+// Open prepares dir (created when missing) as a store. Trees and merged
+// layer trees left by an earlier process are removed: they are derived from
+// packages the Lambda state keeps, which re-adds them, and nothing
+// references them yet.
 func Open(dir string) (*Store, error) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
@@ -132,7 +135,7 @@ func Open(dir string) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("code store: open %s: %w", abs, err)
 	}
-	for _, d := range []string{treesDir, tmpDir} {
+	for _, d := range []string{treesDir, mergedDir, tmpDir} {
 		if err := root.RemoveAll(d); err != nil {
 			return nil, errors.Join(fmt.Errorf("code store: clear %s: %w", filepath.Join(abs, d), err), root.Close())
 		}
@@ -140,7 +143,7 @@ func Open(dir string) (*Store, error) {
 			return nil, errors.Join(fmt.Errorf("code store: create %s: %w", filepath.Join(abs, d), err), root.Close())
 		}
 	}
-	return &Store{root: root, dir: abs, trees: map[Digest]*tree{}}, nil
+	return &Store{root: root, dir: abs, trees: map[Digest]*tree{}, merged: map[Digest]int{}}, nil
 }
 
 // Close releases the store's directory handle. Trees stay on disk until

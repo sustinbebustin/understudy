@@ -57,6 +57,27 @@ func (b *builder) operations() error {
 	return b.nameShapes()
 }
 
+// wiring copies the config's Wiring after checking that each bound
+// operation is a modeled or internal operation of the service: a raw one has
+// no schemas to wire.
+func (b *builder) wiring() error {
+	b.ir.Wiring = b.cfg.Wiring
+	bound, ok := b.cfg.Wiring.(WireBound)
+	if !ok {
+		return nil
+	}
+	for _, name := range bound.Operations {
+		i := slices.IndexFunc(b.ir.Operations, func(o *OperationIR) bool { return o.Name == name })
+		switch {
+		case i < 0:
+			return failf(StageIR, b.configName(), "boundOperations names %s, which the model has no operation for; correct the name or remove it", name)
+		case !b.ir.Operations[i].HasIO():
+			return failf(StageIR, b.configName(), "boundOperations names %s, a raw operation, which has no schemas to wire; remove it", name)
+		}
+	}
+	return nil
+}
+
 // iamActions fills each modeled operation's IAM actions from the Service
 // Reference table, primary first. Internal operations are never
 // access-recorded and get none; raw ones state theirs in codegen/services.
@@ -73,7 +94,10 @@ func (b *builder) iamActions() error {
 		if o.Kind != registry.Modeled {
 			continue
 		}
-		row, ok := b.iam.entry(b.ir.IAMPrefix, o.Name)
+		row, ok, err := b.iam.entry(b.ir.IAMPrefix, b.cfg.SDKService, o.Name)
+		if err != nil {
+			return failf(StageIR, string(o.ID), "%w", err)
+		}
 		if !ok {
 			return failf(StageIR, string(o.ID), "the Service Reference table has no %s entry for this operation; re-run go run ./internal/cmd/vendor -service-reference", b.ir.IAMPrefix)
 		}
@@ -212,7 +236,7 @@ func (b *builder) streams(id smithy.ShapeID) bool {
 
 // nameShapes gives every shape without a Go name one, and schema variables.
 func (b *builder) nameShapes() error {
-	reserved := []string{"Service", "Binder", "NewBinder", "ThrottleError", "UnknownOperationError", "MalformedRequestError", "GenericErrors"}
+	reserved := []string{"Service", "Binder", "NewBinder", "ThrottleError", "DenialError", "UnknownOperationError", "MalformedRequestError", "GenericErrors"}
 	for _, r := range reserved {
 		b.goNames[r] = "reserved"
 	}

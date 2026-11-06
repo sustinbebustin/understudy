@@ -1,0 +1,6 @@
+{
+  "name": "understudy-ui",
+  "private": true,
+  "type": "module",
+  "description": "The understudy web UI, built with bun into internal/server/ui/dist; no dependencies (ADR 0016)"
+}

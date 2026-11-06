@@ -1,0 +1,37 @@
+{
+  "step": "explicit-resource",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDenied) when calling the GetQueueAttributes operation: User: arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005 is not authorized to perform: sqs:getqueueattributes on resource: arn:aws:sqs:us-east-2:123456789012:us1103-eval-star with an explicit deny in a resource-based policy",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.GetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,Z,E,AN,AC,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes"],
+          ["X-Amz-Date", "20261103T032020Z"],
+          ["amz-sdk-invocation-id", "b008dd3b-6300-4b3e-8174-21e8e14fd699"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "113"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-eval-star\", \"AttributeNames\": [\"QueueArn\"]}"
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["x-amzn-RequestId", "0534b5b0-bd55-56ad-86f5-d6d3e860514a"],
+          ["x-amzn-query-error", "AccessDenied;Sender"],
+          ["Connection", "close"],
+          ["Date", "Tue, 03 Nov 2026 03:20:21 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "342"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005 is not authorized to perform: sqs:getqueueattributes on resource: arn:aws:sqs:us-east-2:123456789012:us1103-eval-star with an explicit deny in a resource-based policy\"}"
+      }
+    }
+  ]
+}

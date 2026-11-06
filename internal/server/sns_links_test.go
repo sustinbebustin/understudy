@@ -176,10 +176,11 @@ func TestSNSLinksWorkThroughTheEdge(t *testing.T) {
 	}
 
 	// The queue owner subscribed its own queue, which sets
-	// AuthenticateOnUnsubscribe, so the unsigned link is refused and the
-	// subscription stays.
-	if status, body := get(t, n.UnsubscribeURL); status != http.StatusBadRequest || !strings.Contains(body, "AuthenticateOnUnsubscribe") {
-		t.Fatalf("UnsubscribeURL %s = %d %s, want 400 naming AuthenticateOnUnsubscribe", n.UnsubscribeURL, status, body)
+	// AuthenticateOnUnsubscribe, so the unsigned link is refused with the
+	// 403 AuthorizationError SNSH-14 recorded (sns-http-delivery.md 2.4) and
+	// the subscription stays.
+	if status, body := get(t, n.UnsubscribeURL); status != http.StatusForbidden || !strings.Contains(body, "This subscription may only be deleted by an authorized user.") {
+		t.Fatalf("UnsubscribeURL %s = %d %s, want 403 AuthorizationError", n.UnsubscribeURL, status, body)
 	}
 	mustSNS(t, endpoint, url.Values{"Action": {"GetSubscriptionAttributes"}, "SubscriptionArn": {sub}})
 

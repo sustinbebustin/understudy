@@ -1,5 +1,6 @@
 // Package kms implements AWS KMS for symmetric encryption keys: keys,
-// aliases, key policies (stored, not enforced), rotation status, tags,
+// aliases, key policies (stored, and evaluated under iam.enforce advise and
+// enforce), rotation status, tags,
 // scheduled deletion on the emulator clock, and Encrypt, Decrypt, ReEncrypt,
 // GenerateDataKey and GenerateDataKeyWithoutPlaintext with real AES-256-GCM.
 // Key material always comes from crypto/rand, even in a seeded run.

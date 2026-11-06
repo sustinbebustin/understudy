@@ -2,6 +2,7 @@ package secretsmanager
 
 import (
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/evidence"
@@ -40,29 +41,53 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	b.CreateSecret(s.createSecret, registry.Partial{Note: "AddReplicaRegions (replication) answers NotImplemented"},
 		kernel.WithCheck(func(in *secretsmanagerapi.CreateSecretInput) *awserr.Error {
 			return firstError(requireToken(in.ClientRequestToken), checkName(in.Name), checkValue(in.SecretString, in.SecretBinary))
+		}),
+		// secretsmanager:TagResource only for a secret created with tags,
+		// secretsmanager:ReplicateSecretToRegions only with replica regions:
+		// each applies when its member is sent (iam-enforcement-surfaces.md
+		// 10.2, 10.4).
+		kernel.WithActions(func(_ *kernel.Call, in *secretsmanagerapi.CreateSecretInput) []registry.IAMAction {
+			var out []registry.IAMAction
+			if len(in.Tags) > 0 {
+				out = append(out, registry.IAMAction{Prefix: "secretsmanager", Name: "TagResource"})
+			}
+			if len(in.AddReplicaRegions) > 0 {
+				out = append(out, registry.IAMAction{Prefix: "secretsmanager", Name: "ReplicateSecretToRegions"})
+			}
+			return out
+		}),
+		// Authorized at step 8 on the secret the call creates (the
+		// Service Authorization Reference lists the Secret resource type
+		// for CreateSecret and TagResource): its suffix is drawn from the
+		// request id (newSuffix), so the ARN is known before the handler;
+		// a name that exists names that secret.
+		kernel.WithResources(func(c *kernel.Call, in *secretsmanagerapi.CreateSecretInput) []aws.ARN {
+			return []aws.ARN{s.createTarget(c, in.Name)}
 		}))
-	b.DescribeSecret(s.describeSecret, registry.Full{})
+	named := registry.Partial{Note: resolvedFirst}
+	b.DescribeSecret(s.describeSecret, named)
 	b.ListSecrets(s.listSecrets, registry.Full{})
-	b.UpdateSecret(s.updateSecret, registry.Full{},
+	b.UpdateSecret(s.updateSecret, named,
 		kernel.WithCheck(func(in *secretsmanagerapi.UpdateSecretInput) *awserr.Error {
 			return firstError(requireToken(in.ClientRequestToken), checkValue(in.SecretString, in.SecretBinary))
 		}))
-	b.DeleteSecret(s.deleteSecret, registry.Full{}, kernel.WithCheck(checkDelete))
-	b.RestoreSecret(s.restoreSecret, registry.Full{})
+	b.DeleteSecret(s.deleteSecret, named, kernel.WithCheck(checkDelete))
+	b.RestoreSecret(s.restoreSecret, named)
 
-	b.PutSecretValue(s.putSecretValue, registry.Partial{Note: "RotationToken is accepted and ignored: rotation is not implemented"},
+	b.PutSecretValue(s.putSecretValue, registry.Partial{Note: "RotationToken is accepted and ignored: rotation is not implemented; " + resolvedFirst},
 		kernel.WithCheck(func(in *secretsmanagerapi.PutSecretValueInput) *awserr.Error {
 			return firstError(requireToken(in.ClientRequestToken), checkValue(in.SecretString, in.SecretBinary))
 		}))
-	b.GetSecretValue(s.getSecretValue, registry.Full{})
-	b.ListSecretVersionIds(s.listSecretVersionIDs, registry.Full{})
-	b.UpdateSecretVersionStage(s.updateSecretVersionStage, registry.Full{})
+	b.GetSecretValue(s.getSecretValue, named)
+	b.ListSecretVersionIds(s.listSecretVersionIDs, named)
+	b.UpdateSecretVersionStage(s.updateSecretVersionStage, named)
 
-	b.TagResource(s.tagResource, registry.Full{})
-	b.UntagResource(s.untagResource, registry.Full{})
-	b.PutResourcePolicy(s.putResourcePolicy, registry.StoredOnly{Note: "the policy is parsed and stored verbatim, not enforced; BlockPublicPolicy is not evaluated"})
-	b.GetResourcePolicy(s.getResourcePolicy, registry.Full{})
-	b.DeleteResourcePolicy(s.deleteResourcePolicy, registry.Full{})
+	b.TagResource(s.tagResource, named)
+	b.UntagResource(s.untagResource, named)
+	b.PutResourcePolicy(s.putResourcePolicy, registry.Partial{Note: "the policy is parsed and stored verbatim, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; BlockPublicPolicy is not evaluated under any mode, so a broad policy sent with BlockPublicPolicy true is stored where AWS answers PublicPolicyException, and each put sending it true journals a check-not-run advisory; " + resolvedFirst})
+	b.GetResourcePolicy(s.getResourcePolicy, named)
+	b.DeleteResourcePolicy(s.deleteResourcePolicy, named)
+	s.declareAuthorization(d.Binder)
 	return s
 }
 
@@ -111,32 +136,50 @@ func firstError(errs ...*awserr.Error) *awserr.Error {
 	return nil
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence.
-func (*Service) Switches() []fidelity.Entry {
+// Switches lists the behaviors chosen without AWS-recorded evidence, with
+// the status of a denial (iam-enforcement-surfaces.md 12.8;
+// third-party-recorded for a denial that is not IAM's) and the operations
+// that answer a missing secret before authorization (resolvedFirst).
+func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
+		authz.RecordedSwitch("secretsmanager.denial.status", "AccessDeniedException 400, body key Message", "3.2", "IAM-ENF-06", authz.SessionUnreplayed,
+			s.k.Bindings().AuthorizedOps(secretsmanagerapi.Service())),
+		authz.ResolveFirstSwitch("secretsmanager", s.k.Bindings().ResolvedFirstOps(secretsmanagerapi.Service())),
 		fidelity.Switch[string]{
-			Name:  "secretsmanager.list-secrets.filter-combination",
-			Value: "and-across-filters,or-across-values",
-			Label: evidence.Inferred,
-			Ref:   "docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts",
+			Name:    "secretsmanager.list-secrets.filter-combination",
+			Value:   "and-across-filters,or-across-values",
+			Label:   evidence.Inferred,
+			Ref:     "docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts",
+			Ops:     []string{"secretsmanager.ListSecrets"},
+			Settles: fidelity.NoScenario{Reason: "unrecorded: no recording calls ListSecrets"},
 		}.Entry(),
 		fidelity.Switch[string]{
-			Name:  "secretsmanager.list-secrets.all-filter-match",
-			Value: "any-word,word-prefix",
-			Label: evidence.Inferred,
-			Ref:   "https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html",
+			Name:    "secretsmanager.list-secrets.all-filter-match",
+			Value:   "any-word,word-prefix",
+			Label:   evidence.Inferred,
+			Ref:     "https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html",
+			Ops:     []string{"secretsmanager.ListSecrets"},
+			Settles: fidelity.NoScenario{Reason: "unrecorded: no recording calls ListSecrets"},
 		}.Entry(),
 		fidelity.Switch[string]{
+			// GetSecretValue sets the date; the others report it.
 			Name:  "secretsmanager.last-accessed-date.granularity",
 			Value: "day",
 			Label: evidence.AWSDoc,
 			Ref:   "docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts",
+			Ops: []string{
+				"secretsmanager.GetSecretValue", "secretsmanager.DescribeSecret", "secretsmanager.ListSecrets",
+				"secretsmanager.ListSecretVersionIds",
+			},
+			Settles: fidelity.NoScenario{Reason: "unrecorded: no recording reads a LastAccessedDate"},
 		}.Entry(),
 		fidelity.Switch[string]{
-			Name:  "secretsmanager.restore.not-scheduled",
-			Value: "no-op",
-			Label: evidence.Inferred,
-			Ref:   "docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven",
+			Name:    "secretsmanager.restore.not-scheduled",
+			Value:   "no-op",
+			Label:   evidence.Inferred,
+			Ref:     "docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven",
+			Ops:     []string{"secretsmanager.RestoreSecret"},
+			Settles: fidelity.NoScenario{Reason: "secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet"},
 		}.Entry(),
 	}
 }

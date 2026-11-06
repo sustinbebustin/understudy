@@ -1,0 +1,31 @@
+{
+  "golden": 11,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/scenarios/test_base_scenarios.snapshot.json:L19649",
+  "test": "test_parallel_state[PARALLEL_STATE] (get_execution_history)",
+  "validated": "2024-09-12",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/scenarios/statemachines/parallel_state.json5",
+  "definition": {"StartAt": "LoadInput", "States": {"LoadInput": {"Type": "Pass", "Result": [1, 2, 3, 4], "Next": "ParallelState"}, "ParallelState": {"Type": "Parallel", "End": true, "Branches": [{"StartAt": "Branch1", "States": {"Branch1": {"Type": "Pass", "End": true}}}, {"StartAt": "Branch21", "States": {"Branch21": {"Type": "Pass", "Next": "Branch22"}, "Branch22": {"Type": "Pass", "End": true}}}, {"StartAt": "Branch31", "States": {"Branch31": {"Type": "Pass", "Next": "Branch32"}, "Branch32": {"Type": "Pass", "Next": "Branch33"}, "Branch33": {"Type": "Pass", "End": true}}}]}}},
+  "input": {},
+  "parallel": true,
+  "history": [
+    {"executionStartedEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "roleArn": "snf_role_arn"}, "id": 1, "previousEventId": 0, "timestamp": "timestamp", "type": "ExecutionStarted"},
+    {"id": 2, "previousEventId": 0, "stateEnteredEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "name": "LoadInput"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": 3, "previousEventId": 2, "stateExitedEventDetails": {"name": "LoadInput", "output": "[1,2,3,4]", "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"id": 4, "previousEventId": 3, "stateEnteredEventDetails": {"input": "[1,2,3,4]", "inputDetails": {"truncated": false}, "name": "ParallelState"}, "timestamp": "timestamp", "type": "ParallelStateEntered"},
+    {"id": 5, "previousEventId": 4, "timestamp": "timestamp", "type": "ParallelStateStarted"},
+    {"id": [0], "previousEventId": 0, "stateEnteredEventDetails": {"input": "[1,2,3,4]", "inputDetails": {"truncated": false}, "name": "Branch1"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": [0], "previousEventId": 0, "stateEnteredEventDetails": {"input": "[1,2,3,4]", "inputDetails": {"truncated": false}, "name": "Branch21"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": [0], "previousEventId": 0, "stateEnteredEventDetails": {"input": "[1,2,3,4]", "inputDetails": {"truncated": false}, "name": "Branch22"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": [0], "previousEventId": 0, "stateEnteredEventDetails": {"input": "[1,2,3,4]", "inputDetails": {"truncated": false}, "name": "Branch31"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": [0], "previousEventId": 0, "stateEnteredEventDetails": {"input": "[1,2,3,4]", "inputDetails": {"truncated": false}, "name": "Branch32"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": [0], "previousEventId": 0, "stateEnteredEventDetails": {"input": "[1,2,3,4]", "inputDetails": {"truncated": false}, "name": "Branch33"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": [0], "previousEventId": 0, "stateExitedEventDetails": {"name": "Branch1", "output": "[1,2,3,4]", "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"id": [0], "previousEventId": 0, "stateExitedEventDetails": {"name": "Branch21", "output": "[1,2,3,4]", "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"id": [0], "previousEventId": 0, "stateExitedEventDetails": {"name": "Branch22", "output": "[1,2,3,4]", "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"id": [0], "previousEventId": 0, "stateExitedEventDetails": {"name": "Branch31", "output": "[1,2,3,4]", "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"id": [0], "previousEventId": 0, "stateExitedEventDetails": {"name": "Branch32", "output": "[1,2,3,4]", "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"id": [0], "previousEventId": 0, "stateExitedEventDetails": {"name": "Branch33", "output": "[1,2,3,4]", "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"id": 19, "previousEventId": 17, "stateExitedEventDetails": {"name": "ParallelState", "output": "[[1,2,3,4],[1,2,3,4],[1,2,3,4]]", "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "ParallelStateExited"},
+    {"executionSucceededEventDetails": {"output": "[[1,2,3,4],[1,2,3,4],[1,2,3,4]]", "outputDetails": {"truncated": false}}, "id": 20, "previousEventId": 19, "timestamp": "timestamp", "type": "ExecutionSucceeded"}
+  ]
+}

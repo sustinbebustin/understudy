@@ -35,6 +35,15 @@ func (h *Handler) journalEvents(w http.ResponseWriter, r *http.Request, _ []stri
 		h.fail(w, r, err)
 		return
 	}
+	tail, err := tailParam(v)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	if tail > 0 {
+		h.ok(w, r, page{Events: nonNil(h.o.Kernel.Journal().Tail(f, tail))})
+		return
+	}
 	if f.Limit, err = limitParam(v, admin.ParamLimit); err != nil {
 		h.fail(w, r, err)
 		return
@@ -239,6 +248,33 @@ func limitParam(v url.Values, name string) (int, *admin.Error) {
 			Code: admin.InvalidRequest, Field: name,
 			Message: fmt.Sprintf("%s=%q is not a page size", name, s),
 			Hint:    fmt.Sprintf("pass a positive count, or leave %s out for pages of %d", name, journal.DefaultLimit),
+		}
+	}
+	return n, nil
+}
+
+// tailParam reads tail, the count of newest events GET /journal/events
+// answers in one page; 0 when it is absent. It takes a positive count, as
+// limit does, and refuses limit and cursor beside it, which page from the
+// oldest event instead.
+func tailParam(v url.Values) (int, *admin.Error) {
+	s := v.Get(admin.ParamTail)
+	if s == "" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n <= 0 {
+		return 0, &admin.Error{
+			Code: admin.InvalidRequest, Field: admin.ParamTail,
+			Message: fmt.Sprintf("%s=%q is not a count of events", admin.ParamTail, s),
+			Hint:    "pass a positive count of the newest events to answer",
+		}
+	}
+	if v.Get(admin.ParamLimit) != "" || v.Get(admin.ParamCursor) != "" {
+		return 0, &admin.Error{
+			Code: admin.InvalidRequest, Field: admin.ParamTail,
+			Message: fmt.Sprintf("%s cannot be combined with %s or %s: it answers the newest events in one page, while they page from the oldest", admin.ParamTail, admin.ParamLimit, admin.ParamCursor),
+			Hint:    "send " + admin.ParamTail + " alone with the filters, or page with " + admin.ParamLimit + " and " + admin.ParamCursor + " without it",
 		}
 	}
 	return n, nil

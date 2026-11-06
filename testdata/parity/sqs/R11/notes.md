@@ -7,7 +7,7 @@
 
 ## Expected
 
-Understudy paths are under /home/austin/dev/local-aws-stack. Understudy values come from replaying r11.sh against a local understudy.
+Understudy paths are repo-relative. Understudy values come from replaying r11.sh against a local understudy.
 
 - 01 GetQueueUrl missing, with and without x-amzn-query-mode: matches (400, `x-amzn-query-error: AWS.SimpleQueueService.NonExistentQueue;Sender` both times, `{"__type":"com.amazonaws.sqs#QueueDoesNotExist","message":"The specified queue does not exist."}`).
 - 02 ReceiveMessage MaxNumberOfMessages 0 / 11, WaitTimeSeconds 21: message and query-error match; `__type` differs: AWS `com.amazon.coral.service#InvalidParameterValueException`, understudy `com.amazonaws.sqs#InvalidParameterValueException` (codegen/overlays/sqs.json:54-63).

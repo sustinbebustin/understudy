@@ -18,7 +18,13 @@ import (
 // and returns the refusal it answers.
 func putErrorRule(k *kerneltest.K, op, shape string) *admin.Error {
 	k.Helper()
-	rule := `{"phase": "request", "match": {"operations": ["` + op + `"]}, "action": {"kind": "error", "shape": "` + shape + `"}, "trigger": {"kind": "always"}}`
+	return putShapeRule(k, "error", op, shape)
+}
+
+// putShapeRule is putErrorRule for any action kind that injects a shape.
+func putShapeRule(k *kerneltest.K, kind, op, shape string) *admin.Error {
+	k.Helper()
+	rule := `{"phase": "request", "match": {"operations": ["` + op + `"]}, "action": {"kind": "` + kind + `", "shape": "` + shape + `"}, "trigger": {"kind": "always"}}`
 	req := httptest.NewRequestWithContext(k.Context(), http.MethodPut, admin.Prefix+"/faults/f1", strings.NewReader(rule))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -58,6 +64,33 @@ func TestAmbiguousShapeListsFullIDs(t *testing.T) {
 		if e.Code != admin.InvalidRequest || e.Field != "action.shape" || !slices.Equal(e.Known, want) ||
 			e.Message != `fault rule rejected, no rule was added or changed: action.shape: "ThrottlingException" names 2 different errors dynamodb.GetItem sends; write the full shape id` {
 			k.Errorf("PUT a rule injecting ThrottlingException on GetItem = %+v; want invalid_request on action.shape with known %v", e, want)
+		}
+	}, kerneltest.Services(dynamodbapi.Service()))
+}
+
+// AWS sends TransactionCanceledException with CancellationReasons, one per
+// item (smithy-protocol-tests.md 12.2; the model's
+// com.amazonaws.dynamodb#TransactionCanceledException), so an error rule
+// injecting it without them is refused, by short name or full id, saying
+// how to set them; and a cancelled transaction changed nothing, so an
+// after-commit rule injecting it is refused too (smithy-protocol-tests.md
+// 14.9).
+func TestTransactionCanceledRuleIsRefused(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		withoutReasons := `com.amazonaws.dynamodb#TransactionCanceledException always carries CancellationReasons on AWS, one per item of the transaction in item order; ` +
+			`set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item"}]}`
+		afterCommit := "com.amazonaws.dynamodb#TransactionCanceledException means the transaction changed nothing, so AWS never sends it after a commit; " +
+			"inject it with an error action whose members set CancellationReasons"
+		for _, c := range []struct{ kind, op, shape, field, reason string }{
+			{"error", "dynamodb.TransactWriteItems", "TransactionCanceledException", "action.members", withoutReasons},
+			{"error", "dynamodb.TransactGetItems", "com.amazonaws.dynamodb#TransactionCanceledException", "action.members", withoutReasons},
+			{"after-commit", "dynamodb.ExecuteTransaction", "TransactionCanceledException", "action.shape", afterCommit},
+		} {
+			e := putShapeRule(k, c.kind, c.op, c.shape)
+			want := "fault rule rejected, no rule was added or changed: " + c.field + ": " + c.reason
+			if e.Code != admin.InvalidRequest || e.Field != c.field || e.Message != want {
+				k.Errorf("PUT a %s rule injecting %s on %s = %+v; want invalid_request on %s: %q", c.kind, c.shape, c.op, e, c.field, want)
+			}
 		}
 	}, kerneltest.Services(dynamodbapi.Service()))
 }

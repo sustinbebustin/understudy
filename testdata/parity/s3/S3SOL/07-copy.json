@@ -1,0 +1,39 @@
+{
+  "step": "07-copy",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the CopyObject operation: The provided encryption parameters did not match the ones used originally.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/t7",
+        "headers": [
+          ["x-amz-copy-source", "us1103-ssec/c1"],
+          ["x-amz-copy-source-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-copy-source-server-side-encryption-customer-key", "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA="],
+          ["x-amz-copy-source-server-side-encryption-customer-key-MD5", "dT1y7SEiqn6YCJ3QeqwoIw=="],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,g,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.copy-object"],
+          ["X-Amz-Date", "20261103T033955Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "8a1378ff-9080-4c29-86d4-10eca816bc2a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "KXE8CDQQ2B0JC5RE"],
+          ["x-amz-id-2", "X6Q+ZHCIIDA9MTU/+aGZFPdK4efw08WERmxOuh+yWwoNGaX60XNENTRqTewgOiBMqN2m8gGi9k9JgMuW+HxOuGtHbxqupkhS"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:54 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<Error><Code>InvalidRequest</Code><Message>The provided encryption parameters did not match the ones used originally.</Message><RequestId>KXE8CDQQ2B0JC5RE</RequestId><HostId>X6Q+ZHCIIDA9MTU/+aGZFPdK4efw08WERmxOuh+yWwoNGaX60XNENTRqTewgOiBMqN2m8gGi9k9JgMuW+HxOuGtHbxqupkhS</HostId></Error>"
+      }
+    }
+  ]
+}

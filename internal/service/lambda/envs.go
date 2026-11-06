@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"maps"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -62,10 +63,11 @@ type generations struct {
 type slot struct {
 	id    identity.EnvID
 	creds launcher.Credentials
-	// tree is the CodeSha256 of the extracted package the slot's
-	// environments mount, held from mint to revocation; empty for an
-	// overlay or an image.
-	tree string
+	// trees are the code store trees the slot's environments mount, held
+	// from mint to revocation: the extracted package (none for an overlay
+	// or an image) and the merged tree of the version's layers (none
+	// without layers).
+	trees []treeKey
 	// running is the cause in-function calls link to while an invocation
 	// runs; nil while the slot is free.
 	running *ref.Cause
@@ -84,9 +86,10 @@ type slot struct {
 // so exec must never go back.
 type versionSlots struct {
 	gen generations
-	// tree is the package the generation's environments mount, incarnation
+	// trees are the trees the generation's environments mount, incarnation
 	// the function's Incarnation it was started for.
-	tree, incarnation string
+	trees       []treeKey
+	incarnation string
 	// live is false before the first lease and after a drop: the next
 	// lease starts a new execution generation.
 	live  bool
@@ -95,10 +98,11 @@ type versionSlots struct {
 
 // leaseFor is what an invocation asks of its function version's slots.
 type leaseFor struct {
-	code, overlay     uint64
-	tree, incarnation string
-	role              aws.ARN
-	cause             ref.Cause
+	code, overlay uint64
+	trees         []treeKey
+	incarnation   string
+	role          aws.ARN
+	cause         ref.Cause
 }
 
 // environments keeps the slots of every function version. Its lock is a
@@ -121,7 +125,7 @@ func newEnvironments(store *identity.Store, clk *clock.Clock, trees *codeTrees) 
 
 // lease takes a free slot of v's current generation for an invocation,
 // minting a new one when every slot is busy. A code or overlay generation,
-// package or incarnation other than the last one seen, or the first lease
+// trees or incarnation other than the last one seen, or the first lease
 // after a drop, starts a new execution generation, whose number lease
 // returns, and retires the older slots. The incarnation tells a function
 // deleted and created again apart, whose generations start over.
@@ -133,10 +137,10 @@ func (e *environments) lease(v fnVersion, w leaseFor) (*slot, uint64, error) {
 		vs = &versionSlots{}
 		e.versions[v] = vs
 	}
-	if !vs.live || vs.gen.code != w.code || vs.gen.overlay != w.overlay || vs.tree != w.tree || vs.incarnation != w.incarnation {
+	if !vs.live || vs.gen.code != w.code || vs.gen.overlay != w.overlay || !slices.Equal(vs.trees, w.trees) || vs.incarnation != w.incarnation {
 		e.retireLocked(vs)
 		vs.gen = generations{code: w.code, overlay: w.overlay, exec: vs.gen.exec + 1}
-		vs.tree, vs.incarnation, vs.live = w.tree, w.incarnation, true
+		vs.trees, vs.incarnation, vs.live = w.trees, w.incarnation, true
 	}
 	for _, s := range vs.slots {
 		if s.running == nil {
@@ -144,7 +148,7 @@ func (e *environments) lease(v fnVersion, w leaseFor) (*slot, uint64, error) {
 			return s, vs.gen.exec, nil
 		}
 	}
-	s, err := e.mintLocked(v, w.role, vs.tree)
+	s, err := e.mintLocked(v, w.role, vs.trees)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -221,15 +225,15 @@ func (e *environments) retireLocked(vs *versionSlots) {
 func (e *environments) revokeLocked(s *slot) {
 	e.identity.Revoke(string(s.creds.AccessKeyID))
 	delete(e.byID, s.id)
-	if s.tree != "" {
-		e.trees.unhold(s.tree)
+	for _, t := range s.trees {
+		e.trees.unhold(t)
 	}
 }
 
 // mintLocked mints a new slot's credentials: a session of the function's
 // execution role whose source names the environment, so a call made with
-// them resolves to it. The slot holds tree. Callers hold e.mu.
-func (e *environments) mintLocked(v fnVersion, role aws.ARN, tree string) (*slot, error) {
+// them resolves to it. The slot holds trees. Callers hold e.mu.
+func (e *environments) mintLocked(v fnVersion, role aws.ARN, trees []treeKey) (*slot, error) {
 	roleRef, account, err := parseRole(role)
 	if err != nil {
 		return nil, err
@@ -249,10 +253,10 @@ func (e *environments) mintLocked(v fnVersion, role aws.ARN, tree string) (*slot
 	if tmp, ok := creds.Lifetime.(identity.Temporary); ok {
 		token = tmp.SessionToken
 	}
-	s := &slot{id: id, tree: tree, creds: launcher.Credentials{AccessKeyID: creds.AccessKeyID, SecretAccessKey: creds.SecretAccessKey, SessionToken: token}}
+	s := &slot{id: id, trees: trees, creds: launcher.Credentials{AccessKeyID: creds.AccessKeyID, SecretAccessKey: creds.SecretAccessKey, SessionToken: token}}
 	e.byID[id] = s
-	if tree != "" {
-		e.trees.hold(tree)
+	for _, t := range trees {
+		e.trees.hold(t)
 	}
 	return s, nil
 }
@@ -285,8 +289,8 @@ func parseRole(role aws.ARN) (identity.RoleRef, aws.AccountID, error) {
 // spec is the container spec of t's environments for slot s in execution
 // generation gen: the function's configuration, its runtime's pinned base
 // image or the image digest its last deployment recorded, its code (the
-// hot-reload overlay's directory when one is active) and the slot's
-// credentials.
+// hot-reload overlay's directory when one is active), the merged tree of
+// its layers and the slot's credentials.
 func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, overlayDir string) (launcher.Spec, error) {
 	cfg := t.version.Config
 	arch, err := launcher.ParseArchitecture(cfg.Architecture)
@@ -312,13 +316,9 @@ func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, ov
 		if spec.Image, err = x.resolveImage(ctx, arch, img.Ref()); err != nil {
 			return launcher.Spec{}, err
 		}
-		dir := overlayDir
-		if dir == "" {
-			if dir, err = x.trees.dir(ctx, code); err != nil {
-				return launcher.Spec{}, err
-			}
+		if spec.Code, err = x.zipCode(ctx, code, cfg, overlayDir); err != nil {
+			return launcher.Spec{}, err
 		}
-		spec.Code = launcher.ZipCode{Dir: dir, Handler: cfg.Handler}
 	case ImageCode:
 		if spec.Image, err = x.pinnedImage(ctx, code, arch); err != nil {
 			return launcher.Spec{}, err
@@ -330,6 +330,26 @@ func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, ov
 		spec.Code = image
 	}
 	return spec, nil
+}
+
+// zipCode is how a zip function's code and layers reach its container:
+// the overlay's directory or the package's extracted tree at /var/task,
+// and the merged tree of cfg's layers, in order, at /opt
+// (lambda-destinations-layers.md 8.1, 11.5).
+func (x *Execution) zipCode(ctx context.Context, code ZipCode, cfg Config, overlayDir string) (launcher.ZipCode, error) {
+	out := launcher.ZipCode{Dir: overlayDir, Handler: cfg.Handler}
+	var err error
+	if out.Dir == "" {
+		if out.Dir, err = x.trees.dir(ctx, code); err != nil {
+			return launcher.ZipCode{}, err
+		}
+	}
+	if len(cfg.Layers) > 0 {
+		if out.Opt, err = x.trees.opt(ctx, cfg.Layers); err != nil {
+			return launcher.ZipCode{}, err
+		}
+	}
+	return out, nil
 }
 
 // functionEnvironment is the function's Environment.Variables over the
@@ -467,19 +487,44 @@ func pinnedRuntimes() []string {
 	return out
 }
 
-// codeTrees extracts each zip package once into the code store, the
-// read-only /var/task of every environment running it, and gives a tree
-// back once no slot holds it.
+// treeKey names a code store tree environments mount.
+//
+//sumtype:decl
+type treeKey interface{ isTreeKey() }
+
+// packageTree is a zip package's extracted tree, the read-only /var/task,
+// by the package's CodeSha256.
+type packageTree string
+
+// layersTree is the merged tree of a function's layers, the read-only
+// /opt, by the layers' CodeSha256s in order joined by commas, which
+// standard base64 never holds.
+type layersTree string
+
+func (packageTree) isTreeKey() {}
+func (layersTree) isTreeKey()  {}
+
+// layersKey names the merged tree of layers.
+func layersKey(layers []LayerRef) layersTree {
+	shas := make([]string, len(layers))
+	for i, l := range layers {
+		shas[i] = l.Sha256
+	}
+	return layersTree(strings.Join(shas, ","))
+}
+
+// codeTrees builds each tree environments mount once in the code store,
+// a zip package's extraction or the merged tree of a function's layers,
+// and gives a tree back once no slot holds it.
 type codeTrees struct {
 	store *codestore.Store
 	blobs *blob.Store
 	log   *slog.Logger
 
 	mu    sync.Mutex
-	trees map[string]*codeTree // by CodeSha256
-	// holds counts the slots whose environments mount a tree, by
-	// CodeSha256.
-	holds map[string]int
+	trees map[treeKey]*codeTree
+	// holds counts the slots whose environments mount a tree.
+	holds map[treeKey]int
 	// releases are the trees being given back. closed is set at Close
 	// before they are waited for: an unhold after it, of an invocation
 	// shutdown did not wait for, starts no release of its own.
@@ -487,107 +532,174 @@ type codeTrees struct {
 	closed   bool
 }
 
-// codeTree is one package's extraction; done closes when it ends.
+// codeTree is one tree's build; done closes when it ends.
 type codeTree struct {
 	done chan struct{}
-	code codestore.Code
-	err  error
+	// digest is the code store's name for the tree: a package's CodeSha256,
+	// or a merged tree's Key.
+	digest codestore.Digest
+	dir    string
+	err    error
 }
 
 func newCodeTrees(store *codestore.Store, blobs *blob.Store, log *slog.Logger) *codeTrees {
-	return &codeTrees{store: store, blobs: blobs, log: log, trees: map[string]*codeTree{}, holds: map[string]int{}}
+	return &codeTrees{store: store, blobs: blobs, log: log, trees: map[treeKey]*codeTree{}, holds: map[treeKey]int{}}
 }
 
-// hold counts one more slot mounting the tree of sha.
-func (c *codeTrees) hold(sha string) {
+// hold counts one more slot mounting the tree key names.
+func (c *codeTrees) hold(key treeKey) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.holds[sha]++
+	c.holds[key]++
 }
 
-// unhold counts one slot less mounting the tree of sha and, with the last
-// one, gives the tree back to the code store in the background.
-func (c *codeTrees) unhold(sha string) {
+// unhold counts one slot less mounting the tree key names and, with the
+// last one, gives the tree back to the code store in the background.
+func (c *codeTrees) unhold(key treeKey) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closed {
 		return
 	}
-	c.holds[sha]--
-	if c.holds[sha] > 0 {
+	c.holds[key]--
+	if c.holds[key] > 0 {
 		return
 	}
-	delete(c.holds, sha)
-	t, ok := c.trees[sha]
+	delete(c.holds, key)
+	t, ok := c.trees[key]
 	if !ok {
 		return
 	}
 	select {
 	case <-t.done:
 	default:
-		// Only a holder extracts, so no extraction runs once the last one
-		// is gone; were one running, release gives its tree back at Close.
+		// Only a holder builds, so no build runs once the last one is
+		// gone; were one running, release gives its tree back at Close.
 		return
 	}
-	delete(c.trees, sha)
+	delete(c.trees, key)
 	if t.err != nil {
 		return
 	}
 	c.releases.Go(func() {
-		if err := c.store.Release(t.code.Sha256); err != nil {
-			c.log.Warn("removing an extracted Lambda code package no function runs any more failed; it stays on disk until restart",
-				slog.String("code_sha256", sha), slog.String("error", err.Error()))
+		if err := c.giveBack(key, t); err != nil {
+			c.log.Warn("removing a Lambda code tree no function runs any more failed; it stays on disk until restart",
+				slog.String("tree", t.dir), slog.String("error", err.Error()))
 		}
 	})
 }
 
-// dir returns the extracted tree of z, extracting it on first use; callers
-// asking at once share one extraction, and a failed one is retried by the
-// next caller. The extraction does not end with the request of the caller
+// giveBack drops the code store reference the build of t took.
+func (c *codeTrees) giveBack(key treeKey, t *codeTree) error {
+	switch key.(type) {
+	case packageTree:
+		return c.store.Release(t.digest)
+	case layersTree:
+		return c.store.ReleaseMerged(t.digest)
+	}
+	return fmt.Errorf("code tree %v has a key of no known kind", key)
+}
+
+// dir returns the extracted tree of z, extracting it on first use.
+func (c *codeTrees) dir(ctx context.Context, z ZipCode) (string, error) {
+	return c.get(ctx, packageTree(z.Sha256), func(ctx context.Context) (codestore.Digest, string, error) {
+		code, err := c.extract(ctx, z.Sha256, z.Blob)
+		return code.Sha256, code.Dir, err
+	})
+}
+
+// opt returns the merged tree of layers, in order, building it on first
+// use.
+func (c *codeTrees) opt(ctx context.Context, layers []LayerRef) (string, error) {
+	return c.get(ctx, layersKey(layers), func(ctx context.Context) (codestore.Digest, string, error) {
+		m, err := c.merge(ctx, layers)
+		return m.Key, m.Dir, err
+	})
+}
+
+// get returns the tree key names, building it with build on first use;
+// callers asking at once share one build, and a failed one is retried by
+// the next caller. The build does not end with the request of the caller
 // that started it, whose cancellation would fail the others sharing it;
 // the package size caps bound it.
-func (c *codeTrees) dir(ctx context.Context, z ZipCode) (string, error) {
+func (c *codeTrees) get(ctx context.Context, key treeKey, build func(context.Context) (codestore.Digest, string, error)) (string, error) {
 	c.mu.Lock()
-	t, ok := c.trees[z.Sha256]
+	t, ok := c.trees[key]
 	if !ok {
 		t = &codeTree{done: make(chan struct{})}
-		c.trees[z.Sha256] = t
+		c.trees[key] = t
 	}
 	c.mu.Unlock()
 	if !ok {
-		t.code, t.err = c.extract(context.WithoutCancel(ctx), z)
+		t.digest, t.dir, t.err = build(context.WithoutCancel(ctx))
 		if t.err != nil {
 			c.mu.Lock()
-			delete(c.trees, z.Sha256)
+			delete(c.trees, key)
 			c.mu.Unlock()
 		}
 		close(t.done)
 	}
 	select {
 	case <-t.done:
-		return t.code.Dir, t.err
+		return t.dir, t.err
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
 }
 
-func (c *codeTrees) extract(ctx context.Context, z ZipCode) (codestore.Code, error) {
+func (c *codeTrees) extract(ctx context.Context, sha string, archive blob.Ref) (codestore.Code, error) {
 	if c.blobs == nil {
 		return codestore.Code{}, errors.New("the Lambda service has no blob store holding function packages")
 	}
-	r, err := c.blobs.Open(z.Blob)
+	r, err := c.blobs.Open(archive)
 	if err != nil {
-		return codestore.Code{}, fmt.Errorf("open the package with CodeSha256 %s: %w", z.Sha256, err)
+		return codestore.Code{}, fmt.Errorf("open the package with CodeSha256 %s: %w", sha, err)
 	}
 	defer func() { _ = r.Close() }()
 	code, err := c.store.PutZip(ctx, r, codestore.Options{})
 	if err != nil {
-		return codestore.Code{}, fmt.Errorf("extract the package with CodeSha256 %s: %w", z.Sha256, err)
+		return codestore.Code{}, fmt.Errorf("extract the package with CodeSha256 %s: %w", sha, err)
 	}
 	return code, nil
 }
 
-// release gives every extracted tree back to the code store, at Close.
+// merge extracts each layer's archive, merges the trees in order into one
+// (lambda-destinations-layers.md 8.1) and gives the extractions back: the
+// merged tree is a copy.
+func (c *codeTrees) merge(ctx context.Context, layers []LayerRef) (codestore.Merged, error) {
+	digests := make([]codestore.Digest, 0, len(layers))
+	var err error
+	for _, l := range layers {
+		code, xerr := c.extract(ctx, l.Sha256, l.Blob)
+		if xerr != nil {
+			err = fmt.Errorf("layer %s: %w", l.ARN, xerr)
+			break
+		}
+		digests = append(digests, code.Sha256)
+	}
+	var m codestore.Merged
+	if err == nil {
+		m, err = c.store.Merge(ctx, digests)
+		if conflict, ok := errors.AsType[*codestore.MergeConflictError](err); ok {
+			err = fmt.Errorf("%w (layer %d is %s); what AWS does with such layers is unrecorded, so understudy runs no function with them: "+
+				"change one of the layers so that the path is a file in both or a directory in both", err, conflict.Layer, layers[conflict.Layer].ARN)
+		}
+	}
+	var released error
+	for _, d := range digests {
+		released = errors.Join(released, c.store.Release(d))
+	}
+	if err != nil {
+		return codestore.Merged{}, errors.Join(err, released)
+	}
+	if released != nil {
+		c.log.WarnContext(ctx, "removing the extracted layer archives of a merged /opt failed; they stay on disk until restart",
+			slog.String("tree", m.Dir), slog.String("error", released.Error()))
+	}
+	return m, nil
+}
+
+// release gives every tree back to the code store, at Close.
 func (c *codeTrees) release() error {
 	// Every releases.Go ran under c.mu before closed was set, so it is
 	// ordered before the Wait.
@@ -598,17 +710,17 @@ func (c *codeTrees) release() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var errs []error
-	for sha, t := range c.trees {
+	for key, t := range c.trees {
 		select {
 		case <-t.done:
 			if t.err == nil {
-				errs = append(errs, c.store.Release(t.code.Sha256))
+				errs = append(errs, c.giveBack(key, t))
 			}
 		default:
-			// An extraction still running releases nothing; its caller
-			// holds the reference until the store closes.
+			// A build still running releases nothing; its caller holds the
+			// reference until the store closes.
 		}
-		delete(c.trees, sha)
+		delete(c.trees, key)
 	}
 	clear(c.holds)
 	return errors.Join(errs...)

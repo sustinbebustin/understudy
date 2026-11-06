@@ -1,0 +1,35 @@
+{
+  "step": "04-universal-capital",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: Invalid RequestJson provided. Reason The api SendMessage is not valid for the service aws-sdk:sqs.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-u3",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,Z,g,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163743Z"],
+          ["amz-sdk-invocation-id", "069568a3-4ade-4bae-8eec-2ee2946059d1"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "290"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"rate(1 hour)\", \"State\": \"DISABLED\", \"Target\": {\"Arn\": \"arn:aws:scheduler:::aws-sdk:sqs:SendMessage\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\", \"Input\": \"{}\"}, \"ClientToken\": \"5d3c5f7b-8bd1-4199-9cb3-0261f7e3be98\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "831b28c8-4028-44f1-9b63-ff9a31cfad58"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "112"],
+          ["Date", "Tue, 03 Nov 2026 16:37:43 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"Invalid RequestJson provided. Reason The api SendMessage is not valid for the service aws-sdk:sqs.\"}"
+      }
+    }
+  ]
+}

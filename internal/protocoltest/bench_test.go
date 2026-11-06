@@ -270,11 +270,7 @@ func (e *echo) handler(ht reflect.Type) reflect.Value {
 			}
 			return []reflect.Value{v, reflect.Zero(errType)}
 		case gen.Error:
-			err, problem := modeledError(o)
-			if problem != nil {
-				return fail(awserr.Internalf(problem))
-			}
-			return fail(err)
+			return fail(modeledError(o))
 		}
 		return fail(awserr.Internalf(fmt.Errorf("unknown case outcome %T", outcome)))
 	})

@@ -72,9 +72,11 @@ func New(seed *uint64, source *ids.Source, cat Catalogue) *Store {
 // Add validates r and makes it active, returning its id: r.ID, or a minted
 // one when r.ID is empty. A rule with the id of an active rule replaces it in
 // place, with its hits and stream restarted. The store keeps its own copy of
-// r, so later changes to r's slices do not reach the active rule.
+// r, so later changes to r's slices and members do not reach the active
+// rule.
 func (s *Store) Add(r Rule) (ref.RuleID, *RuleError) {
 	r.Match = r.Match.clone()
+	r.Action = cloneAction(r.Action)
 	res, err := resolve(s.cat, r)
 	if err != nil {
 		return "", err
@@ -117,6 +119,7 @@ func (s *Store) List() []Active {
 	for i, e := range s.rules {
 		r := e.rule
 		r.Match = r.Match.clone()
+		r.Action = cloneAction(r.Action)
 		out[i] = Active{Rule: r, Hits: e.hits}
 	}
 	return out
@@ -124,11 +127,23 @@ func (s *Store) List() []Active {
 
 // Clear deactivates every rule and returns how many there were.
 func (s *Store) Clear() int {
+	return len(s.RemoveAll())
+}
+
+// RemoveAll deactivates every rule and returns their ids in evaluation
+// order, nil when there were none.
+func (s *Store) RemoveAll() []ref.RuleID {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	n := len(s.rules)
+	if len(s.rules) == 0 {
+		return nil
+	}
+	removed := make([]ref.RuleID, 0, len(s.rules))
+	for _, e := range s.rules {
+		removed = append(removed, e.rule.ID)
+	}
 	s.rules = nil
-	return n
+	return removed
 }
 
 // Evaluate applies the active rules that belong to hook h to the call in.
@@ -137,8 +152,15 @@ func (s *Store) Clear() int {
 // firing is a hit: it advances the rule's count, spends one unit of a NextN
 // budget and is reported in the Decision. A rule of another hook is skipped
 // untouched, so an AfterCommit budget is spent only at AfterHandler, after
-// the handler succeeded. Calls with Origin Internal{Via: Snapshot} never
-// match.
+// the handler succeeded. A TransactionCanceledException rule giving k
+// cancellation reasons matches only a call of at least k items
+// (in.Items), and a call it does not match spends no hit and draws nothing
+// (smithy-protocol-tests.md 14.9). Calls with Origin Internal{Via:
+// Snapshot} never match.
+//
+// Under the store's lock, building an error with members calls the
+// catalogue's NewMembers, which reads the immutable registry and takes no
+// lock.
 func (s *Store) Evaluate(h Hook, in MatchInput) Decision {
 	if o, ok := in.Origin.(ref.Internal); ok && o.Via == ref.Snapshot {
 		return None{}
@@ -209,7 +231,7 @@ func (s *Store) evaluateFrom(start int, h Hook, in MatchInput) Decision {
 			continue
 		}
 		id, ok := e.resolved.identity(e.rule.Action, in)
-		if !ok || !e.fires() {
+		if !ok || in.Items < e.resolved.minItems || !e.fires() {
 			continue
 		}
 		e.hits++
@@ -232,6 +254,9 @@ func (s *Store) evaluateFrom(start int, h Hook, in MatchInput) Decision {
 func (s *Store) decide(e *entry, id awserr.Identity, inj Injection, next int, h Hook, in MatchInput) Decision {
 	switch a := e.rule.Action.(type) {
 	case Error:
+		if a.Members != nil {
+			return Fail{Err: injectMembers(s.cat, in.Op, id, inj.Rule, a, e.resolved.members[in.Op], in.Items), Injection: inj}
+		}
 		return Fail{Err: injectedError(id, inj.Rule, a.Message), Injection: inj}
 	case Throttle:
 		return Fail{Err: injectedError(id, inj.Rule, ""), Injection: inj}
@@ -243,6 +268,10 @@ func (s *Store) decide(e *entry, id awserr.Identity, inj Injection, next int, h 
 		return Delay{Wall: a.Wall, Then: s.evaluateFrom(next, h, in), Injection: inj}
 	case DropDelivery:
 		return Drop{Injection: inj}
+	case HTTPStatus:
+		return RespondHTTP{Status: a.Status, Injection: inj}
+	case HTTPTimeout:
+		return TimeOutHTTP{Injection: inj}
 	default:
 		return None{}
 	}

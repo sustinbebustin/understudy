@@ -1,0 +1,35 @@
+{
+  "step": "03-e13",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: Invalid Schedule Expression at(2030-01-01T00:00:00.000).",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-e13",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,E,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163707Z"],
+          ["amz-sdk-invocation-id", "20aeea59-0495-4dfa-8454-9c838fc4f07b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "292"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"at(2030-01-01T00:00:00.000)\", \"State\": \"DISABLED\", \"Target\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-sch\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\"}, \"ClientToken\": \"97d3c538-2804-46fd-9339-78ae0bf5a577\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "895bbf85-33a3-4fbc-a5b6-0b11ffcd473c"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "70"],
+          ["Date", "Tue, 03 Nov 2026 16:37:07 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"Invalid Schedule Expression at(2030-01-01T00:00:00.000).\"}"
+      }
+    }
+  ]
+}

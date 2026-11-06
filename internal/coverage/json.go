@@ -3,13 +3,19 @@ package coverage
 import (
 	"fmt"
 
+	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 )
 
 // codec writes and reads a report, its sums in the tagged-union
 // convention: a status is {"kind": "full"} or {"kind": "partial",
 // "note": ...}, the overlays {"kind": "read", "entries": [...]} or
-// {"kind": "not-carried"}.
+// {"kind": "not-carried"}, a switch's settles {"kind": "scenario", "step":
+// "sqs/R01#03-recv-after-6s"} or {"kind": "none", "reason": ...}, the
+// parity evidence {"kind": "read", "scenarios": [...]} or {"kind":
+// "not-carried"}, and within it a step's outcome, a claim's target and its
+// result as internal/parity/baseline.json spells them, so ParseParity
+// reads that file with the same codec.
 func codec() (jsonx.Codec, error) {
 	statuses, err := jsonx.NewUnion("coverage.Status",
 		jsonx.Variant[Status, Full]("full"),
@@ -27,7 +33,57 @@ func codec() (jsonx.Codec, error) {
 	if err != nil {
 		return jsonx.Codec{}, err
 	}
-	return jsonx.NewCodec(statuses, overlays), nil
+	settles, err := jsonx.NewUnion("fidelity.Settles",
+		jsonx.Variant[fidelity.Settles, fidelity.SettledBy]("scenario"),
+		jsonx.Variant[fidelity.Settles, fidelity.NoScenario]("none"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, err
+	}
+	parity, err := jsonx.NewUnion("coverage.Parity",
+		jsonx.Variant[Parity, ParityRead]("read"),
+		jsonx.Variant[Parity, ParityNotCarried]("not-carried"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, err
+	}
+	baseline, err := parityCodec()
+	if err != nil {
+		return jsonx.Codec{}, err
+	}
+	return jsonx.NewCodec(append([]jsonx.Sum{statuses, overlays, settles, parity}, baseline...)...), nil
+}
+
+// parityCodec is the sums of internal/parity/baseline.json: a step's
+// outcome, a claim's target and a claim's result.
+func parityCodec() ([]jsonx.Sum, error) {
+	outcomes, err := jsonx.NewUnion("coverage.ParityOutcome",
+		jsonx.Variant[ParityOutcome, StepMatch]("match"),
+		jsonx.Variant[ParityOutcome, StepDiffers]("differs"),
+		jsonx.Variant[ParityOutcome, StepReconstructed]("reconstructed"),
+		jsonx.Variant[ParityOutcome, StepSkipped]("skipped"),
+		jsonx.Variant[ParityOutcome, StepPending]("pending"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	targets, err := jsonx.NewUnion("coverage.ClaimTarget",
+		jsonx.Variant[ClaimTarget, TargetSwitch]("switch"),
+		jsonx.Variant[ClaimTarget, TargetOverlay]("overlay"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	results, err := jsonx.NewUnion("coverage.ClaimResult",
+		jsonx.Variant[ClaimResult, ClaimSettled]("settled"),
+		jsonx.Variant[ClaimResult, ClaimInsensitive]("insensitive"),
+		jsonx.Variant[ClaimResult, ClaimContradicted]("contradicted"),
+		jsonx.Variant[ClaimResult, ClaimOpen]("open"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return []jsonx.Sum{outcomes, targets, results}, nil
 }
 
 // JSON returns the report as JSON, members sorted by name.

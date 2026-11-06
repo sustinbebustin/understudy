@@ -253,6 +253,56 @@ func TestSigV4VerifyRefusesInEachFamilysWords(t *testing.T) {
 	wantAnswer(t, "STS with an unknown key", query(t, unknown, endpoint, "sts", url.Values{"Action": {"GetCallerIdentity"}, "Version": {"2011-06-15"}}), 403, "InvalidClientTokenId")
 }
 
+// A request signed 16 minutes ago is refused in each service's recorded
+// words: SQS over JSON with 403 (testdata/parity/sqs/R18/03-sqs-json-skew-16min.json),
+// DynamoDB with 400 (testdata/parity/dynamodb/R18/03-dynamodb-skew-16min.json),
+// both InvalidSignatureException "Signature expired: ...", and SQS's
+// x-amzn-query-error SignatureDoesNotMatch;Sender. A presigned S3 URL dated
+// 16 minutes ahead is AccessDenied "Request is not yet valid"
+// (testdata/parity/s3/R18/01-presign-date-16min-future.json).
+func TestSigV4VerifyRefusesSkewAsRecorded(t *testing.T) {
+	_, endpoint, _ := sigv4Server(t, server.Config{SigV4: server.SigV4Verify})
+	expired := regexp.MustCompile(`^\{"__type":"com\.amazon\.coral\.service#InvalidSignatureException","message":"Signature expired: \d{8}T\d{6}Z is now earlier than \d{8}T\d{6}Z \(\d{8}T\d{6}Z - 15 min\.\)"\}$`)
+	for _, c := range []struct {
+		service, target, queryError string
+		status                      int
+	}{
+		{"sqs", "AmazonSQS.ListQueues", "SignatureDoesNotMatch;Sender", http.StatusForbidden},
+		{"dynamodb", "DynamoDB_20120810.ListTables", "", http.StatusBadRequest},
+	} {
+		req := newRequest(t, http.MethodPost, endpoint+"/", "{}")
+		req.Header.Set("Content-Type", "application/x-amz-json-1.0")
+		req.Header.Set("X-Amz-Target", c.target)
+		auth.Sign(req, []byte("{}"), dummy.scoped(c.service), time.Now().Add(-16*time.Minute))
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(res.Body)
+		if cerr := res.Body.Close(); err == nil {
+			err = cerr
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != c.status || !expired.Match(body) || res.Header.Get("X-Amzn-Query-Error") != c.queryError {
+			t.Errorf("%s signed 16 minutes ago = %d %q, x-amzn-query-error %q; want %d, the recorded body and %q",
+				c.service, res.StatusCode, body, res.Header.Get("X-Amzn-Query-Error"), c.status, c.queryError)
+		}
+	}
+
+	if got := s3Call(t, dummy, http.MethodPut, endpoint+"/ahead", ""); got.status != http.StatusOK {
+		t.Fatalf("CreateBucket = %d %s", got.status, got.body)
+	}
+	req := newRequest(t, http.MethodGet, endpoint+"/ahead/key", "")
+	auth.Presign(req, dummy.scoped("s3"), time.Hour, time.Now().Add(16*time.Minute))
+	ahead := fetch(t, req.URL.String(), nil)
+	wantAnswer(t, "a presigned URL dated 16 minutes ahead", ahead, 403, "<Code>AccessDenied</Code>")
+	if !regexp.MustCompile(`<Message>Request is not yet valid</Message><X-Amz-Date>\d+</X-Amz-Date><Expires>[^<]+</Expires><ServerTime>[^<]+</ServerTime><RequestId>`).MatchString(ahead.body) {
+		t.Errorf("the not-yet-valid answer lacks the recorded elements in order: %s", ahead.body)
+	}
+}
+
 // journalText is every event the journal holds, as the admin API serves
 // them.
 func journalText(t *testing.T, c *admin.Client) string {
@@ -574,7 +624,8 @@ func fetch(t *testing.T, target string, header http.Header) reply {
 // presigned URL is served until the emulator clock passes its expiry, then
 // refused with S3's AccessDenied "Request has expired" and its elements; a
 // tampered URL is SignatureDoesNotMatch, a missing parameter or an
-// X-Amz-Expires outside 1..604800 AuthorizationQueryParametersError, and an
+// X-Amz-Expires over 604800 AuthorizationQueryParametersError, X-Amz-Expires=0
+// expired at once (testdata/parity/s3/R18/01-presign-expires-0.json), and an
 // unsigned x-amz-* header AccessDenied (s3.md 12).
 func TestSigV4VerifyExpiresPresignedURLsOnTheClock(t *testing.T) {
 	c, endpoint, _ := sigv4Server(t, server.Config{SigV4: server.SigV4Verify})
@@ -596,9 +647,12 @@ func TestSigV4VerifyExpiresPresignedURLsOnTheClock(t *testing.T) {
 	wantAnswer(t, "a tampered presigned URL", fetch(t, tampered, nil), 403, "<Code>SignatureDoesNotMatch</Code>")
 	missing := regexp.MustCompile(`&X-Amz-Signature=[0-9a-f]+`).ReplaceAllString(v4, "")
 	wantAnswer(t, "a presigned URL without X-Amz-Signature", fetch(t, missing, nil), 400, "<Code>AuthorizationQueryParametersError</Code>")
-	for _, expires := range []string{"0", "604801"} {
-		outOfRange := regexp.MustCompile(`X-Amz-Expires=\d+`).ReplaceAllString(v4, "X-Amz-Expires="+expires)
-		wantAnswer(t, "X-Amz-Expires="+expires, fetch(t, outOfRange, nil), 400, "<Code>AuthorizationQueryParametersError</Code>")
+	outOfRange := regexp.MustCompile(`X-Amz-Expires=\d+`).ReplaceAllString(v4, "X-Amz-Expires=604801")
+	wantAnswer(t, "X-Amz-Expires=604801", fetch(t, outOfRange, nil), 400, "<Code>AuthorizationQueryParametersError</Code>")
+	zero := fetch(t, presignedGet(t, dummy, endpoint+"/presigned/key", 0), nil)
+	wantAnswer(t, "X-Amz-Expires=0", zero, 403, "<Code>AccessDenied</Code>")
+	if !regexp.MustCompile(`<Message>Request has expired</Message><X-Amz-Expires>0</X-Amz-Expires><Expires>[^<]+</Expires><ServerTime>[^<]+</ServerTime><RequestId>`).MatchString(zero.body) {
+		t.Errorf("the X-Amz-Expires=0 answer lacks the recorded elements in order: %s", zero.body)
 	}
 	unsigned := fetch(t, v4, http.Header{"X-Amz-Meta-Extra": {"1"}})
 	wantAnswer(t, "an unsigned x-amz-* header", unsigned, 403, "<Code>AccessDenied</Code>")

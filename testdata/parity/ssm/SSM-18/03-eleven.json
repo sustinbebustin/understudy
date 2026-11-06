@@ -1,0 +1,36 @@
+{
+  "step": "03-eleven",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the GetParameters operation: 1 validation error detected: Value '[/us1103/ssm/g18-1, /us1103/ssm/g18-2, /us1103/ssm/g18-3, /us1103/ssm/g18-4, /us1103/ssm/g18-5, /us1103/ssm/g18-6, /us1103/ssm/g18-7, /us1103/ssm/g18-8, /us1103/ssm/g18-9, /us1103/ssm/g18-10, /us1103/ssm/g18-11]' at 'names' failed to satisfy constraint: Member must have length less than or equal to 10",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParameters"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,AN,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameters"],
+          ["X-Amz-Date", "20261103T163705Z"],
+          ["amz-sdk-invocation-id", "53618035-d4c6-43f7-8be2-0392ac230ac2"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "244"]
+        ],
+        "body": "{\"Names\": [\"/us1103/ssm/g18-1\", \"/us1103/ssm/g18-2\", \"/us1103/ssm/g18-3\", \"/us1103/ssm/g18-4\", \"/us1103/ssm/g18-5\", \"/us1103/ssm/g18-6\", \"/us1103/ssm/g18-7\", \"/us1103/ssm/g18-8\", \"/us1103/ssm/g18-9\", \"/us1103/ssm/g18-10\", \"/us1103/ssm/g18-11\"]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:05 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "383"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "04e3b690-1602-4aa7-a941-2e420d80255b"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"1 validation error detected: Value '[/us1103/ssm/g18-1, /us1103/ssm/g18-2, /us1103/ssm/g18-3, /us1103/ssm/g18-4, /us1103/ssm/g18-5, /us1103/ssm/g18-6, /us1103/ssm/g18-7, /us1103/ssm/g18-8, /us1103/ssm/g18-9, /us1103/ssm/g18-10, /us1103/ssm/g18-11]' at 'names' failed to satisfy constraint: Member must have length less than or equal to 10\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "03-past-cron-dates",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: The schedule expression cron(0 0 1 1 ? 2021), with StartDate 2020-01-01T00:00 and EndDate 2020-06-01T00:00, is invalid because it will never schedule an invocation.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-e92",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,g,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163720Z"],
+          ["amz-sdk-invocation-id", "bc01db52-c247-4cb8-bd9c-da3202b16745"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "333"]
+        ],
+        "body": "{\"EndDate\": 1590969600, \"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"cron(0 0 1 1 ? 2021)\", \"StartDate\": 1577836800, \"State\": \"DISABLED\", \"Target\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-sch\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\"}, \"ClientToken\": \"fe22be90-8956-4e05-869f-c31d3918d330\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "9f1c575c-e597-4508-a445-79fc7237e866"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "178"],
+          ["Date", "Tue, 03 Nov 2026 16:37:20 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"The schedule expression cron(0 0 1 1 ? 2021), with StartDate 2020-01-01T00:00 and EndDate 2020-06-01T00:00, is invalid because it will never schedule an invocation.\"}"
+      }
+    }
+  ]
+}

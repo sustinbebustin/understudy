@@ -1,0 +1,32 @@
+{
+  "step": "10-03-group-delete-denied",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the DeleteScheduleGroup operation: User: arn:aws:iam::123456789012:user/us1103-sch-caller is not authorized to perform: scheduler:DeleteSchedule on resource: arn:aws:scheduler:us-east-2:123456789012:schedule/us1103-sch-g10/* with an explicit deny in an identity-based policy",
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedule-groups/us1103-sch-g10?clientToken=5ecaf7d0-98d3-43cf-9e25-a6ad990017ba",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,E,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.delete-schedule-group"],
+          ["X-Amz-Date", "20261103T175948Z"],
+          ["amz-sdk-invocation-id", "1bb1e120-0844-4988-aadb-3f55fea55ba0"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["x-amzn-RequestId", "e5bba7af-d37d-413a-82b4-960e7e2a541b"],
+          ["x-amzn-ErrorType", "AccessDeniedException:http://internal.amazon.com/coral/com.amazon.coral.service/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "253"],
+          ["Date", "Tue, 03 Nov 2026 17:59:49 GMT"]
+        ],
+        "body": "{\"Message\":\"User: arn:aws:iam::123456789012:user/us1103-sch-caller is not authorized to perform: scheduler:DeleteSchedule on resource: arn:aws:scheduler:us-east-2:123456789012:schedule/us1103-sch-g10/* with an explicit deny in an identity-based policy\"}"
+      }
+    }
+  ]
+}

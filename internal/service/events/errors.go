@@ -15,22 +15,103 @@ import (
 // overlay's validationError identity is the code clients key on
 // (tf-compute.md 4.3).
 
-func errRuleNotFound(name string) *awserr.Error {
-	return eventbridgeapi.ErrResourceNotFoundException("Rule " + name + " does not exist on EventBus " + defaultBus + ".")
+// errRuleNotFound quotes the rule's bus by name, the default bus included
+// (eventbridge-buses.md 5.4).
+func errRuleNotFound(rule, bus string) *awserr.Error {
+	return eventbridgeapi.ErrResourceNotFoundException("Rule " + rule + " does not exist on EventBus " + bus + ".")
 }
 
 func errBusNotFound(name string) *awserr.Error {
 	return eventbridgeapi.ErrResourceNotFoundException("Event bus " + name + " does not exist.")
 }
 
+// errBusExists is third-party-recorded (eventbridge-buses.md 3.1), and
+// AWS-recorded for the name default (EBB-02).
+func errBusExists(name string) *awserr.Error {
+	return eventbridgeapi.ErrResourceAlreadyExistsException("Event bus " + name + " already exists.")
+}
+
+// errDeleteDefaultBus is third-party-recorded (eventbridge-buses.md 3.5).
+func errDeleteDefaultBus() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Cannot delete event bus " + defaultBus + ".")
+}
+
+// errAWSBusName and errSlashInBusName are AWS-recorded (eventbridge-buses.md
+// 2.2, EBB-02).
+func errAWSBusName() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("EventBus name starting with '" + reservedSourcePrefix + "' is not valid.")
+}
+
+func errSlashInBusName() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Event bus name must not contain '/'.")
+}
+
+// errTooManyBuses is inferred: the model declares LimitExceededException for
+// CreateEventBus, and the recorded target-limit text is assumed to be shared
+// (eventbridge-buses.md 7, EBB-02).
+func errTooManyBuses() *awserr.Error {
+	return eventbridgeapi.ErrLimitExceededException("The requested resource exceeds the maximum number allowed.")
+}
+
+// errBusHasRules is AWS-recorded (eventbridge-buses.md 3.5, EBB-01; the
+// events.delete-bus.with-rules switch).
+func errBusHasRules() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("EventBus can't be deleted since it has rules.")
+}
+
+// errPartnerBus is understudy's own answer to CreateEventBus with an
+// EventSourceName: partner buses are out of scope, and a plain custom bus in
+// its place would fake one (eventbridge-buses.md 10.7).
+func errPartnerBus() *awserr.Error {
+	return eventbridgeapi.ErrNotImplemented("understudy does not implement partner event buses, so CreateEventBus with EventSourceName created nothing. " +
+		"Create a custom bus without EventSourceName, or run 'understudy coverage --service eventbridge' for what is supported.")
+}
+
 // errForeignBus is understudy's own answer to a control-plane call on
-// another account's or region's default bus: that bus exists, so "does not
+// another account's or region's bus: that bus may exist, so "does not
 // exist" would mislead, and understudy does not manage it for this caller.
 func errForeignBus(bus aws.ARN) *awserr.Error {
-	return eventbridgeapi.ErrNotImplemented("understudy manages rules, targets and buses only on the caller's own default event bus, and " +
+	return eventbridgeapi.ErrNotImplemented("understudy manages rules, targets and buses only on the caller's own event buses, and " +
 		bus.String() + " belongs to account " + bus.Account + " in " + bus.Region +
-		". Call with that account's credentials in that region, or name the bus 'default'. " +
+		". Call with that account's credentials in that region. " +
 		"Run 'understudy coverage --service eventbridge' for what is supported.")
+}
+
+// errStatementNotFound is third-party-recorded (eventbridge-buses.md 4.3).
+func errStatementNotFound() *awserr.Error {
+	return eventbridgeapi.ErrResourceNotFoundException("Statement with the provided id does not exist.")
+}
+
+// errPolicyTooLong, errPolicyWithStatement, errPermissionAction and
+// errConditionPrincipal are AWS-recorded (eventbridge-buses.md 4.1, EBB-06).
+func errPolicyTooLong() *awserr.Error {
+	return eventbridgeapi.ErrPolicyLengthExceededException("Policy size would be larger than the maximum allowed.")
+}
+
+func errPolicyWithStatement() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Action, Principal, StatementId and Condition could not be combined with Policy parameter.")
+}
+
+func errPermissionAction() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Provided value in parameter 'action' is not supported.")
+}
+
+func errConditionPrincipal() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Value of the parameter 'principal' must be '*' when the parameter 'condition' is set.")
+}
+
+// errPermissionIncomplete is inferred: the PutPermission page states that a
+// Policy is sent instead of the statement members, and AWS's text for
+// neither is unrecorded (eventbridge-buses.md 4.1). It follows
+// errNoPatternOrSchedule's form.
+func errPermissionIncomplete() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Parameter(s) Action, Principal and StatementId must be specified when Policy is not.")
+}
+
+// errScheduleOnCustomBus is AWS-recorded
+// (testdata/parity/events/R14/04-custom-bus-schedule.json).
+func errScheduleOnCustomBus() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("ScheduleExpression is supported only on the default event bus.")
 }
 
 // errNoPatternOrSchedule carries moto's text; AWS's is unrecorded.
@@ -74,19 +155,13 @@ func errFIFONeedsGroup(targetID string) *awserr.Error {
 // errInvalidParameter follows the recorded "Parameter ScheduleExpression is
 // not valid." and "Parameter Event is not valid."; for the other
 // parameters it names (DeadLetterConfig.Arn, Input, InputPath,
-// InputPathsMap, NextToken, ResourceARN) the text is inferred.
+// InputPathsMap, NextToken, Policy, ResourceARN) the text is inferred.
 func errInvalidParameter(name string) *awserr.Error {
 	return eventbridgeapi.ErrValidationException("Parameter " + name + " is not valid.")
 }
 
 func errEntriesTooLarge() *awserr.Error {
 	return eventbridgeapi.ErrValidationException("Total size of the entries in the request is over the limit.")
-}
-
-// errBusTags is understudy's own answer: the default bus takes no tags here,
-// and accepting them without storing them would fail silently.
-func errBusTags() *awserr.Error {
-	return eventbridgeapi.ErrNotImplemented("understudy keeps tags on rules only, not on event buses. Run 'understudy coverage --service eventbridge' for what is supported.")
 }
 
 // The PutEvents per-entry failures (secrets-logs-events-alarms.md 4.7):
@@ -131,11 +206,12 @@ func errTooManyTags(n int) *awserr.Error {
 const codeNotImplemented = "NotImplemented"
 
 // msgForeignRegionBus is understudy's PutEvents per-entry failure for an
-// event sent, by ARN, to the default bus of another region: that bus
-// exists, so dropping the event as AWS drops one for a missing bus would
-// fail silently, and AWS's answer is unrecorded.
+// event sent, by ARN, to a bus of another region: that bus may exist, so
+// dropping the event as AWS drops one for a missing bus would fail
+// silently, and AWS's answer is unrecorded (eventbridge-buses.md 6.1,
+// EBB-10).
 func msgForeignRegionBus(scope aws.Scope, bus aws.ARN) string {
-	return "understudy sends PutEvents entries to default event buses in the caller's region (" + scope.Region.String() +
+	return "understudy sends PutEvents entries to event buses in the caller's region (" + scope.Region.String() +
 		"), and " + bus.String() + " is in " + bus.Region + "; the event was not sent. " +
 		"Call PutEvents in " + bus.Region + ", or run 'understudy coverage --service eventbridge' for what is supported."
 }
@@ -146,9 +222,43 @@ func msgForeignRegionBus(scope aws.Scope, bus aws.ARN) string {
 // fail, or the parameters be ignored, silently.
 func msgUnsupportedTarget(scope aws.Scope, arn string) string {
 	return "understudy delivers EventBridge targets to Lambda functions, SQS queues and SNS topics in the rule's region (" + scope.Region.String() +
-		"), in an account it serves, and " + arn + " is none of them; the target was not added. " +
+		") and to event buses in any region, in an account it serves, and " + arn + " is none of them; the target was not added. " +
 		"Run 'understudy coverage --service eventbridge' for what is supported."
 }
+
+// errCrossAccountRole and errCrossAccountInput are inferred: AWS requires a
+// RoleArn on every cross-account event bus target created after 2023-03-02
+// (eb-cross-account.html; events.bus-target.cross-account-role) and takes no
+// input form on one (API_PutTargets), and its refusal texts are unrecorded
+// (eventbridge-buses.md 6.3, EBB-09). The first follows errFIFONeedsGroup's
+// form, the second is the PutTargets page's sentence.
+func errCrossAccountRole(targetID string) *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Parameter(s) RoleArn must be specified for target: " + targetID + ".")
+}
+
+func errCrossAccountInput() *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Input, InputPath, and InputTransformer are not available with PutTarget if the target is an event bus of a different AWS account.")
+}
+
+// errBusTargetInput is AWS-recorded: an input form on an event bus target of
+// the rule's account refuses the whole call (eventbridge-buses.md 6.2,
+// EBB-08).
+func errBusTargetInput(targetID string) *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Modifying the input for target " + targetID + " is not supported.")
+}
+
+// msgSecondHop is the journal's reason for a bus target of a rule that
+// matched an event which reached its bus through an event bus target: AWS
+// sends such an event to no further bus (eb-cross-account.html,
+// eventbridge-buses.md 6.5, 10.4.13).
+const msgSecondHop = "the event reached this bus through an event bus target, and EventBridge does not forward it to another bus (eb-cross-account.html); it was not sent"
+
+// msgStoredBusTargetInput is the journal's reason for an event bus target
+// stored with an input form, which PutTargets never stores (errBusTargetInput,
+// errCrossAccountInput), so it comes from an edited snapshot.
+const msgStoredBusTargetInput = "the event bus target has an Input, InputPath or InputTransformer, which understudy does not implement on an event bus target " +
+	"and PutTargets does not store, so it came from an edited snapshot; the event was not sent. " +
+	"Remove the target with RemoveTargets and add it again with PutTargets"
 
 func msgUnsupportedParameters(members []string) string {
 	return "understudy does not implement " + strings.Join(members, ", ") +

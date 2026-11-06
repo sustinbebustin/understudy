@@ -1,0 +1,35 @@
+{
+  "step": "26-bad-trust",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the CreateFunction operation: The role defined for the function cannot be assumed by Lambda.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2015-03-31/functions",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,AN,g,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.create-function"],
+          ["X-Amz-Date", "20261103T042715Z"],
+          ["amz-sdk-invocation-id", "4543dcc8-a44b-4238-9670-522f28201076"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "383"]
+        ],
+        "body": "{\"FunctionName\": \"us1103-enf-fn3\", \"Runtime\": \"python3.13\", \"Role\": \"arn:aws:iam::123456789012:role/us1103-enf-none\", \"Handler\": \"fn.handler\", \"Code\": {\"ZipFile\": \"UEsDBBQAAAAIAPEcY11BJUN/NgAAADwAAAAFAAAAZm4ucHlLSU1TyEjMS8lJLdJILUvNK9FRSM7PK0mtKNG04lJQUFAoKMrMK4FIaYIFilJLSovyFKpruQBQSwECFAMUAAAACADxHGNdQSVDfzYAAAA8AAAABQAAAAAAAAAAAAAAtIEAAAAAZm4ucHlQSwUGAAAAAAEAAQAzAAAAWQAAAAAA\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 04:27:15 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "90"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "1a240bc8-d2fe-4a6b-821c-bc811be9d945"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"The role defined for the function cannot be assumed by Lambda.\"}"
+      }
+    }
+  ]
+}

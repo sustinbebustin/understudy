@@ -163,6 +163,8 @@ func faultRule() *rapid.Generator[admin.FaultRule] {
 		rapid.Map(shape, func(s string) admin.FaultAction { return admin.AfterCommit{Shape: s} }),
 		rapid.Map(shape, func(s string) admin.FaultAction { return admin.StatusOKError{Shape: s} }),
 		rapid.Just[admin.FaultAction](admin.DropDelivery{}),
+		rapid.Map(rapid.IntRange(100, 599), func(n int) admin.FaultAction { return admin.HTTPStatus{Status: n} }),
+		rapid.Just[admin.FaultAction](admin.HTTPTimeout{}),
 	)
 	trigger := rapid.OneOf(
 		rapid.Just[admin.FaultTrigger](admin.Always{}),
@@ -243,6 +245,30 @@ func TestFaultRuleRefusesIncompleteRules(t *testing.T) {
 		if !errors.As(err, &form) || form.Field != field {
 			t.Errorf("decoding %s = %v, want a FaultFormError on %s", body, err, field)
 		}
+	}
+}
+
+// JSON null members are none in both directions: an InjectError whose
+// Members is null encodes without members, as "members": null decodes.
+func TestNullMembersAreNone(t *testing.T) {
+	data, err := json.Marshal(admin.FaultRule{
+		Phase:   admin.RequestPhase,
+		Match:   admin.FaultMatch{Operations: []string{"dynamodb.PutItem"}},
+		Action:  admin.InjectError{Shape: "ConditionalCheckFailedException", Members: json.RawMessage(" null ")},
+		Trigger: admin.Always{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "members") {
+		t.Errorf("encoded %s; want no members", data)
+	}
+	var got admin.FaultRule
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("decoding %s: %v", data, err)
+	}
+	if e, ok := got.Action.(admin.InjectError); !ok || e.Members != nil {
+		t.Errorf("decoded action %#v; want an InjectError without members", got.Action)
 	}
 }
 

@@ -22,6 +22,7 @@ func (d *draft) applySections(s fileSections, name string) *Error {
 		func() *Error { return d.applyRegions(s.Regions, name+": regions") },
 		func() *Error { return d.applyS3(s.S3, name+": s3") },
 		func() *Error { return d.applyLambda(s.Lambda, name+": lambda") },
+		func() *Error { return d.applySES(s.SES, name+": ses") },
 		func() *Error { return d.applyDynamoDB(s.DynamoDB, name+": dynamodb") },
 		func() *Error { return d.applyJournal(s.Journal, name+": journal") },
 		func() *Error { return d.applyFaults(s.Faults, name+": faults") },
@@ -30,12 +31,6 @@ func (d *draft) applySections(s fileSections, name string) *Error {
 		steps = append(steps, func() *Error {
 			return choose(*s.SQS.QueueDeletedRecently, name+": sqs.queueDeletedRecently",
 				map[string]DeletedRecently{"ignore": DeletedRecentlyIgnore, "enforce": DeletedRecentlyEnforce}, &d.cfg.SQS.DeletedRecently)
-		})
-	}
-	if s.IAM != nil && s.IAM.AssumeRole != nil {
-		steps = append(steps, func() *Error {
-			return choose(*s.IAM.AssumeRole, name+": iam.assumeRole",
-				map[string]AssumeRole{"strict": AssumeRoleStrict, "lenient": AssumeRoleLenient}, &d.cfg.IAM.AssumeRole)
 		})
 	}
 	for _, step := range steps {

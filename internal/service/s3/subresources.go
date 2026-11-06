@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -92,7 +93,7 @@ func (s *Service) bindACL(b s3api.Binder) {
 		return &s3api.GetBucketAclOutput{Owner: &s3api.Owner{ID: new(canonicalID(b.Home.OwnerAccount))}, Grants: b.Grants}, nil
 	}), stored("the access control list is"), touches(get))
 	put := func(in *s3api.PutBucketAclInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutBucketAcl(writer[s3api.PutBucketAclInput, s3api.PutBucketAclOutput](s, put, putACL), stored("the access control list is"), touches(put),
+	b.PutBucketAcl(s.putBucketACL, registry.StoredOnly{Note: publicACLNote}, touches(put),
 		kernel.WithCheck(checkACLRequest))
 }
 
@@ -221,28 +222,30 @@ const (
 )
 
 func (s *Service) bindPolicy(b s3api.Binder) {
+	// iam-enforcement-surfaces.md 12.7.
+	evaluated := registry.Partial{Note: "the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated, and Block Public Access is not applied (PutPublicAccessBlock)"}
+	put := func(in *s3api.PutBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
+	putNote := registry.Partial{Note: "the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated; " +
+		"BlockPublicPolicy is not checked under any iam.enforce mode, so a public policy put while it is true is stored where AWS answers 403 AccessDenied, and each put while it is true journals a check-not-run advisory"}
 	get := func(in *s3api.GetBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetBucketPolicy(reader(s, get, func(_ *s3api.GetBucketPolicyInput, b *Bucket) (*s3api.GetBucketPolicyOutput, *awserr.Error) {
 		if b.Policy == "" {
 			return nil, notConfigured(s3api.NotConfiguredGetBucketPolicy(noSuchBucketPolicyMessage), b)
 		}
 		return &s3api.GetBucketPolicyOutput{Policy: new(b.Policy)}, nil
-	}), stored("the policy is"), touches(get))
-	put := func(in *s3api.PutBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutBucketPolicy(writer[s3api.PutBucketPolicyInput, s3api.PutBucketPolicyOutput](s, put, func(in *s3api.PutBucketPolicyInput, b *Bucket) *awserr.Error {
-		b.Policy = in.Policy
-		return nil
-	}), stored("the policy is"), touches(put),
+	}), evaluated, touches(get))
+	b.PutBucketPolicy(s.putBucketPolicy, putNote, touches(put),
 		kernel.WithCheck(func(in *s3api.PutBucketPolicyInput) *awserr.Error { return checkPolicy(in.Policy) }))
 	del := func(in *s3api.DeleteBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketPolicy(writer[s3api.DeleteBucketPolicyInput, s3api.DeleteBucketPolicyOutput](s, del, func(_ *s3api.DeleteBucketPolicyInput, b *Bucket) *awserr.Error {
 		b.Policy = ""
 		return nil
-	}), stored("the policy is"), touches(del))
+	}), evaluated, touches(del))
 }
 
 // checkPolicy checks a bucket policy's form only: a JSON object with a
-// Statement. understudy stores policies and evaluates none.
+// Statement. A policy that does not parse is stored and, under iam.enforce,
+// makes the bucket's calls unevaluable (iam-enforcement-surfaces.md 12.10).
 func checkPolicy(doc string) *awserr.Error {
 	trimmed := bytes.TrimSpace([]byte(doc))
 	if len(trimmed) == 0 || trimmed[0] != '{' || !json.Valid(trimmed) {
@@ -523,32 +526,55 @@ func (s *Service) bindReplication(b s3api.Binder) {
 func (s *Service) bindEncryption(b s3api.Binder) {
 	get := func(in *s3api.GetBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetBucketEncryption(reader(s, get, func(_ *s3api.GetBucketEncryptionInput, b *Bucket) (*s3api.GetBucketEncryptionOutput, *awserr.Error) {
-		if b.Encryption == nil {
-			return s3api.NotConfiguredGetBucketEncryption(), nil
-		}
-		return &s3api.GetBucketEncryptionOutput{ServerSideEncryptionConfiguration: b.Encryption}, nil
-	}), stored("the default encryption rule is"), touches(get))
+		return &s3api.GetBucketEncryptionOutput{ServerSideEncryptionConfiguration: encryptionRead(b)}, nil
+	}), registry.Full{}, touches(get))
 	put := func(in *s3api.PutBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketEncryption(writer[s3api.PutBucketEncryptionInput, s3api.PutBucketEncryptionOutput](s, put, func(in *s3api.PutBucketEncryptionInput, b *Bucket) *awserr.Error {
-		b.Encryption = &in.ServerSideEncryptionConfiguration
+		// The rule is kept without BlockedEncryptionTypes, which the bucket
+		// holds apart; a rule that omits it, the empty rule included, puts
+		// the block back to a new bucket's (blockedEncryptionOf; S3SOL-10,
+		// S3SOL-11).
+		rule := in.ServerSideEncryptionConfiguration.Rules[0]
+		block, err := blockedEncryptionOf(rule, b.Home.Region)
+		if err != nil {
+			return err
+		}
+		b.BlockedEncryption = block
+		rule.BlockedEncryptionTypes = nil
+		b.Encryption = &s3api.ServerSideEncryptionConfiguration{Rules: []s3api.ServerSideEncryptionRule{rule}}
 		return nil
-	}), stored("the default encryption rule is"), touches(put), kernel.WithCheck(checkEncryption))
+	}), registry.Full{}, touches(put), kernel.WithCheck(checkEncryption))
 	del := func(in *s3api.DeleteBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketEncryption(writer[s3api.DeleteBucketEncryptionInput, s3api.DeleteBucketEncryptionOutput](s, del, func(_ *s3api.DeleteBucketEncryptionInput, b *Bucket) *awserr.Error {
+		// The SSE-C block goes back to a new bucket's: SSE-C blocked after
+		// NONE in us-east-2 (s3-ssec-object-lock.md 4.2; S3SOL-11
+		// 11-get-after-delete, recorded 2026-11-03), NONE in me-south-1 and
+		// me-central-1 (inferred from 4.1).
 		b.Encryption = nil
+		b.BlockedEncryption = newBucketBlock(b.Home.Region)
 		return nil
-	}), stored("the default encryption rule is"), touches(del))
+	}), registry.Full{}, touches(del))
 }
 
-// checkEncryption checks a default encryption configuration: exactly one
-// rule with a default, and a KMS key only for the KMS algorithms (s3.md
-// 4.2.2).
+// checkEncryption checks a default encryption configuration (s3.md 4.2.2):
+// exactly one rule, which may hold neither a default nor a
+// BlockedEncryptionTypes (API_PutBucketEncryption Example 4 sends the block
+// alone; S3SOL-10 10-put-empty-rule, recorded 2026-11-03, an empty rule), a
+// block that blockedEncryptionOf reads, and a KMS key only for the KMS
+// algorithms.
 func checkEncryption(in *s3api.PutBucketEncryptionInput) *awserr.Error {
 	rules := in.ServerSideEncryptionConfiguration.Rules
-	if len(rules) != 1 || rules[0].ApplyServerSideEncryptionByDefault == nil {
+	if len(rules) != 1 {
 		return errMalformedXML()
 	}
-	d := rules[0].ApplyServerSideEncryptionByDefault
+	rule := rules[0]
+	if _, err := blockedEncryptionOf(rule, aws.DefaultRegion()); err != nil {
+		return err
+	}
+	d := rule.ApplyServerSideEncryptionByDefault
+	if d == nil {
+		return nil
+	}
 	kms := d.SSEAlgorithm == s3api.ServerSideEncryptionAwsKms || d.SSEAlgorithm == s3api.ServerSideEncryptionAwsKmsDsse
 	if d.KMSMasterKeyID != nil && !kms {
 		return withField(s3api.ErrInvalidArgument("a KMSMasterKeyID is not applicable if the default sse algorithm is not aws:kms or aws:kms:dsse"),
@@ -564,20 +590,28 @@ func (s *Service) bindObjectLock(b s3api.Binder) {
 			return nil, notConfigured(s3api.NotConfiguredGetObjectLockConfiguration(noSuchObjectLockMessage), b)
 		}
 		return &s3api.GetObjectLockConfigurationOutput{ObjectLockConfiguration: b.ObjectLock}, nil
-	}), stored("the Object Lock configuration is"), touches(get))
+	}), registry.Full{}, touches(get))
 	put := func(in *s3api.PutObjectLockConfigurationInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
+	// The rule's default retention applies to versions written afterwards
+	// (lockOnWrite); existing versions keep theirs (s3-ssec-object-lock.md
+	// 5.3). The x-amz-bucket-object-lock-token header is not read.
 	b.PutObjectLockConfiguration(writer[s3api.PutObjectLockConfigurationInput, s3api.PutObjectLockConfigurationOutput](s, put, func(in *s3api.PutObjectLockConfigurationInput, b *Bucket) *awserr.Error {
 		if b.versioning() != versionsEnabled {
 			return errObjectLockNeedsVersioning()
 		}
 		b.ObjectLock = in.ObjectLockConfiguration
 		return nil
-	}), stored("the Object Lock configuration is"), touches(put), kernel.WithCheck(checkObjectLock))
+	}), registry.Partial{Note: "DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored"}, touches(put), kernel.WithCheck(checkObjectLock))
 }
 
-// checkObjectLock checks an Object Lock configuration (s3.md 4.2.10): it
-// is enabled, and a default retention names a mode and exactly one of
-// Days and Years.
+// checkObjectLock checks an Object Lock configuration (s3.md 4.2.10;
+// s3-ssec-object-lock.md 5.2): it is enabled; DefaultEventHold is refused
+// with understudy's 501 before the retention is judged, since under
+// variable retention a rule of a mode and DefaultEventHold alone may be
+// valid (6.9, 11.3, 11.7); a default retention names a known mode and
+// exactly one of Days and Years, else MalformedXML (LocalStack
+// test_s3_api.snapshot.json L2521-L2581). Days must be 1 to 36,500 and
+// Years 1 to 100 (checkRetentionPeriod).
 func checkObjectLock(in *s3api.PutObjectLockConfigurationInput) *awserr.Error {
 	cfg := in.ObjectLockConfiguration
 	if cfg == nil || cfg.ObjectLockEnabled == nil || *cfg.ObjectLockEnabled != s3api.ObjectLockEnabledEnabled {
@@ -587,8 +621,31 @@ func checkObjectLock(in *s3api.PutObjectLockConfigurationInput) *awserr.Error {
 		return nil
 	}
 	d := cfg.Rule.DefaultRetention
+	if d != nil && d.DefaultEventHold != nil {
+		return errEventHold("DefaultEventHold")
+	}
 	if d == nil || d.Mode == nil || (d.Days == nil) == (d.Years == nil) {
 		return errMalformedXML()
+	}
+	if _, ok := retentionModeTexts.value(string(*d.Mode)); !ok {
+		return errMalformedXML()
+	}
+	if d.Days != nil {
+		return checkRetentionPeriod("Days", *d.Days, 36500)
+	}
+	return checkRetentionPeriod("Years", *d.Years, 100)
+}
+
+// checkRetentionPeriod refuses a default retention period, named name,
+// below 1 or above most, with InvalidArgument naming it and echoing the
+// value (s3-ssec-object-lock.md 5.2; S3SOL-13 13-days-0, 13-days-36501,
+// 13-years-101, recorded 2026-11-03; Years below 1 is inferred from Days).
+func checkRetentionPeriod(name string, v, most int32) *awserr.Error {
+	switch {
+	case v < 1:
+		return errInvalidArgument("Default retention period must be a positive integer value.", name, strconv.Itoa(int(v)))
+	case v > most:
+		return errInvalidArgument("Default retention period too large.", name, strconv.Itoa(int(v)))
 	}
 	return nil
 }
@@ -639,7 +696,7 @@ func (s *Service) bindPublicAccessBlock(b s3api.Binder) {
 	b.PutPublicAccessBlock(writer[s3api.PutPublicAccessBlockInput, s3api.PutPublicAccessBlockOutput](s, put, func(in *s3api.PutPublicAccessBlockInput, b *Bucket) *awserr.Error {
 		b.PublicAccessBlock = publicAccessBlock(in.PublicAccessBlockConfiguration)
 		return nil
-	}), stored("the public access block is"), touches(put),
+	}), registry.StoredOnly{Note: blockPublicAccessNote}, touches(put),
 		kernel.WithCheck(func(in *s3api.PutPublicAccessBlockInput) *awserr.Error {
 			if c := in.PublicAccessBlockConfiguration; c.BlockPublicAcls == nil && c.IgnorePublicAcls == nil && c.BlockPublicPolicy == nil && c.RestrictPublicBuckets == nil {
 				return errInvalidRequest("Must specify at least one configuration.")
@@ -652,6 +709,12 @@ func (s *Service) bindPublicAccessBlock(b s3api.Binder) {
 		return nil
 	}), stored("the public access block is"), touches(del))
 }
+
+// blockPublicAccessNote is PutPublicAccessBlock's coverage note; why
+// neither flag is applied is in publicaccess.go.
+const blockPublicAccessNote = "the public access block is stored and echoed; not applied under any iam.enforce mode, " +
+	"where AWS refuses PutBucketPolicy with a public policy while BlockPublicPolicy is true and a public ACL while BlockPublicAcls is true; " +
+	"PutBucketPolicy while BlockPublicPolicy is true, and PutBucketAcl granting AllUsers or AuthenticatedUsers while BlockPublicAcls is true, journal a check-not-run advisory"
 
 // publicAccessBlock is the stored form of a put: every flag present, an
 // absent one false, as Terraform reads all four back (tf-storage.md 2.6).

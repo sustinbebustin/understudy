@@ -1,0 +1,38 @@
+{
+  "step": "13-years-101",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutObjectLockConfiguration operation: Default retention period too large.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock-y.s3.us-east-2.amazonaws.com/?object-lock",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,g,W,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-lock-configuration"],
+          ["x-amz-checksum-crc64nvme", "Y5HZ6oQJVxw="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034045Z"],
+          ["X-Amz-Content-SHA256", "75c873d3b7453470648f14197976aa8cd858d03bc47795c8480de710efca1c23"],
+          ["amz-sdk-invocation-id", "ea306981-c779-4f4c-ae94-5605420380aa"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "236"]
+        ],
+        "body": "<ObjectLockConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><ObjectLockEnabled>Enabled</ObjectLockEnabled><Rule><DefaultRetention><Mode>GOVERNANCE</Mode><Years>101</Years></DefaultRetention></Rule></ObjectLockConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "0CX5B5FY6N6YS9WC"],
+          ["x-amz-id-2", "/+3m9/3P9ufeO944K3s6/8T3Uku9EtYrjZsWa+ntLsgBcheLUIZcBUT6S2gOrJh1agRyeppU20u55XZ4XtFdKhX4mmyT3syt"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:44 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Default retention period too large.</Message><ArgumentName>Years</ArgumentName><ArgumentValue>101</ArgumentValue><RequestId>0CX5B5FY6N6YS9WC</RequestId><HostId>/+3m9/3P9ufeO944K3s6/8T3Uku9EtYrjZsWa+ntLsgBcheLUIZcBUT6S2gOrJh1agRyeppU20u55XZ4XtFdKhX4mmyT3syt</HostId></Error>"
+      }
+    }
+  ]
+}

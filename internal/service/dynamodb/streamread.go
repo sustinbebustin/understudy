@@ -1,0 +1,392 @@
+package dynamodb
+
+import (
+	"context"
+	"errors"
+	"maps"
+	"time"
+
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/shardlog"
+)
+
+// The read side of the stream log: DescribeStream, GetShardIterator and
+// GetRecords (dynamodb-streams.md 11.4; contract 5.4, 5.5).
+
+// describeStreamMax is DescribeStream's largest Limit ("The upper limit is
+// 100", dynamodb-streams.md 6.2).
+const describeStreamMax = 100
+
+// iteratorTTL is a shard iterator's lifetime: "A shard iterator expires 15
+// minutes after it is returned to the requester" (dynamodb-streams.md 4.4,
+// aws-doc), each NextShardIterator from its own issue (aws-recorded,
+// DDBS-04).
+const iteratorTTL = 15 * time.Minute
+
+// getRecordsMax is GetRecords' largest Limit and its default
+// (dynamodb-streams.md 6.4).
+const getRecordsMax = 1000
+
+// pageBytes is the most record data one GetRecords page holds: "up to 1 MB
+// of data", counted in SizeBytes (dynamodb-streams.md 6.4, aws-doc).
+const pageBytes = 1 << 20
+
+// Texts of the read errors, AWS's as recorded (dynamodb-streams.md 4.4,
+// 6.5: DDBS-01, DDBS-02, DDBS-04, DDBS-15); the trimmed text is the model's
+// documentation of TrimmedDataAccessException (3.3; inferred: DDBS-15 saw
+// AWS remove a closed shard whole instead, 5.5, so its text is unrecorded).
+const (
+	textSequenceNotAllowed = "One or more parameter values were invalid: SequenceNumber should not be passed for this iterator type"
+	textSequenceMissing    = "One or more parameter values were invalid: SequenceNumber cannot be null"
+	textInvalidSequence    = "Invalid SequenceNumber for the shard"
+	textStreamMissing      = "Requested resource not found: Stream does not exist"
+	textShardMissing       = "Requested resource not found: Shard does not exist"
+	textInvalidIterator    = "Invalid ShardIterator"
+	textExpiredIterator    = "Shard iterator has expired"
+	textTrimmed            = "The data you are trying to access has been trimmed."
+)
+
+// streamByARN is the stream of scope whose ARN is arn.
+func (st *State) streamByARN(scope aws.Scope, arn string) (Stream, bool) {
+	for _, s := range st.Streams {
+		if s.arn(scope) == arn {
+			return s, true
+		}
+	}
+	return Stream{}, false
+}
+
+// streamsWrite runs fn on scope's state under the cell's lock after
+// State.expire, as a write at the commit instant, so every Streams answer
+// sees the stream lifetimes as of the instant it is given. fn reports
+// whether it changed the state, and must change nothing when it returns an
+// error; the cell keeps its revision when neither fn nor expire changed
+// anything. fn's error is the answer, and what expire did is committed
+// with it.
+func streamsWrite[T any](c *kernel.Call, s *Service, scope aws.Scope, fn func(st *State, now clock.Instant) (T, bool, *awserr.Error)) (T, *awserr.Error) {
+	type result struct {
+		out T
+		err *awserr.Error
+	}
+	r, werr := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, tx *kernel.Tx) (result, *awserr.Error) {
+		expired := st.expire(now)
+		out, changed, err := fn(st, now)
+		if !expired && !changed {
+			tx.Unchanged()
+		}
+		return result{out: out, err: err}, nil
+	})
+	if werr != nil {
+		var zero T
+		return zero, werr
+	}
+	return r.out, r.err
+}
+
+func (s *Streams) describeStream(ctx context.Context, c *kernel.Call, in *dynamodbstreamsapi.DescribeStreamInput) (*dynamodbstreamsapi.DescribeStreamOutput, *awserr.Error) {
+	if err := s.svc.serving(ctx, c); err != nil {
+		return nil, err
+	}
+	if in.Limit != nil && *in.Limit > describeStreamMax {
+		// DynamoDB Local's text, observed (dynamodb-streams.md 6.5; DDBS-02).
+		return nil, dynamodbstreamsapi.ErrValidationException("One or more parameter values were invalid: Limit cannot be greater than the maximum: 100")
+	}
+	scope := c.Scope()
+	if _, ok := s.svc.cells.Lookup(scope); !ok {
+		return nil, errStreamNotFound(in.StreamArn)
+	}
+	d, err := streamsWrite(c, s.svc, scope, func(st *State, _ clock.Instant) (*dynamodbstreamsapi.StreamDescription, bool, *awserr.Error) {
+		x, ok := st.streamByARN(scope, in.StreamArn)
+		if !ok {
+			return nil, false, errStreamNotFound(in.StreamArn)
+		}
+		return x.description(scope, in), false, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &dynamodbstreamsapi.DescribeStreamOutput{StreamDescription: d}, nil
+}
+
+// errStreamNotFound is DescribeStream's answer for a stream that does not
+// exist: the recorded text (third-party-recorded, STREAMS-SNAP:L90-L104;
+// dynamodb-streams.md 6.2).
+func errStreamNotFound(arn string) *awserr.Error {
+	return dynamodbstreamsapi.ErrResourceNotFoundException("Requested resource not found: Stream: " + arn + " not found")
+}
+
+// description is s's StreamDescription for in, read under the cell's lock.
+// The one shard is listed unless ExclusiveStartShardId names it or the
+// filter asks for its children, which it never has; an
+// ExclusiveStartShardId naming no shard lists every shard (DynamoDB Local's
+// answers, observed, dynamodb-streams.md 5.6).
+func (s Stream) description(scope aws.Scope, in *dynamodbstreamsapi.DescribeStreamInput) *dynamodbstreamsapi.StreamDescription {
+	status := dynamodbstreamsapi.StreamStatusEnabled
+	if !s.Enabled {
+		status = dynamodbstreamsapi.StreamStatusDisabled
+	}
+	view := dynamodbstreamsapi.StreamViewType(s.ViewType)
+	created := s.Label.Wire()
+	shard := s.log.shard
+	r := &dynamodbstreamsapi.SequenceNumberRange{}
+	switch rg := shard.Range().(type) {
+	case shardlog.Open:
+		r.StartingSequenceNumber = new(string(rg.Start))
+	case shardlog.Closed:
+		r.StartingSequenceNumber, r.EndingSequenceNumber = new(string(rg.Start)), new(string(rg.End))
+	}
+	id := shard.Info().ID
+	shards := []dynamodbstreamsapi.Shard{{ShardId: new(id), SequenceNumberRange: r}}
+	children := in.ShardFilter != nil && in.ShardFilter.Type != nil && *in.ShardFilter.Type == dynamodbstreamsapi.ShardFilterTypeChildShards
+	if children || (in.ExclusiveStartShardId != nil && *in.ExclusiveStartShardId == id) {
+		shards = []dynamodbstreamsapi.Shard{}
+	}
+	return &dynamodbstreamsapi.StreamDescription{
+		StreamArn: new(s.arn(scope)), StreamLabel: new(s.label()), StreamStatus: &status, StreamViewType: &view,
+		CreationRequestDateTime: &created, TableName: new(s.Table), KeySchema: s.log.keys, Shards: shards,
+	}
+}
+
+// position is the shard position GetShardIterator's type and number name,
+// checked in DynamoDB Local's order with AWS's texts (dynamodb-streams.md
+// 6.3, 6.5).
+func position(in *dynamodbstreamsapi.GetShardIteratorInput) (shardlog.Position, *awserr.Error) {
+	switch in.ShardIteratorType {
+	case dynamodbstreamsapi.ShardIteratorTypeTrimHorizon, dynamodbstreamsapi.ShardIteratorTypeLatest:
+		if in.SequenceNumber != nil {
+			return nil, dynamodbstreamsapi.ErrValidationException(textSequenceNotAllowed)
+		}
+		if in.ShardIteratorType == dynamodbstreamsapi.ShardIteratorTypeLatest {
+			return shardlog.Latest{}, nil
+		}
+		return shardlog.TrimHorizon{}, nil
+	case dynamodbstreamsapi.ShardIteratorTypeAtSequenceNumber, dynamodbstreamsapi.ShardIteratorTypeAfterSequenceNumber:
+	}
+	if in.SequenceNumber == nil {
+		return nil, dynamodbstreamsapi.ErrValidationException(textSequenceMissing)
+	}
+	seq, err := shardlog.ParseSeq(*in.SequenceNumber)
+	if err != nil {
+		return nil, dynamodbstreamsapi.ErrValidationException(textInvalidSequence)
+	}
+	if in.ShardIteratorType == dynamodbstreamsapi.ShardIteratorTypeAtSequenceNumber {
+		return shardlog.At{Seq: seq}, nil
+	}
+	return shardlog.After{Seq: seq}, nil
+}
+
+func (s *Streams) getShardIterator(ctx context.Context, c *kernel.Call, in *dynamodbstreamsapi.GetShardIteratorInput) (*dynamodbstreamsapi.GetShardIteratorOutput, *awserr.Error) {
+	if err := s.svc.serving(ctx, c); err != nil {
+		return nil, err
+	}
+	pos, aerr := position(in)
+	if aerr != nil {
+		return nil, aerr
+	}
+	scope := c.Scope()
+	if _, ok := s.svc.cells.Lookup(scope); !ok {
+		return nil, dynamodbstreamsapi.ErrResourceNotFoundException(textStreamMissing)
+	}
+	return streamsWrite(c, s.svc, scope, func(st *State, now clock.Instant) (*dynamodbstreamsapi.GetShardIteratorOutput, bool, *awserr.Error) {
+		x, ok := st.streamByARN(scope, in.StreamArn)
+		if !ok {
+			return nil, false, dynamodbstreamsapi.ErrResourceNotFoundException(textStreamMissing)
+		}
+		shard := x.log.shard
+		if in.ShardId != shard.Info().ID {
+			return nil, false, dynamodbstreamsapi.ErrResourceNotFoundException(textShardMissing)
+		}
+		// Pinned, so an iterator whose next record is trimmed before it is
+		// used answers TrimmedDataAccessException (dynamodb-streams.md 5.5).
+		pos = shard.Pin(pos)
+		if _, _, err := shard.Read(pos, 1, 1, recordSize); err != nil {
+			return nil, false, readError(err)
+		}
+		arn, err := aws.ParseARN(in.StreamArn)
+		if err != nil {
+			return nil, false, awserr.Internalf(err)
+		}
+		drawn := st.IteratorKey == nil
+		token := st.codec(s.svc).Encode(shardlog.Iterator{Stream: arn, Created: x.Label, Shard: shard.Info().ID, Pos: pos, Issued: now})
+		return &dynamodbstreamsapi.GetShardIteratorOutput{ShardIterator: new(string(token))}, drawn, nil
+	})
+}
+
+// codec is the scope's iterator codec, its key drawn on first use from the
+// seeded id streams (contract 3).
+func (st *State) codec(s *Service) shardlog.Codec {
+	if st.IteratorKey == nil {
+		st.IteratorKey = s.kernel.IDs().StreamIteratorKey()
+	}
+	return shardlog.NewCodec(st.IteratorKey, shardlog.ARNPrefixed{})
+}
+
+func recordSize(r streamRecord) int { return int(r.SizeBytes) }
+
+// readError is a shard read's refusal as GetShardIterator and GetRecords
+// answer it.
+func readError(err error) *awserr.Error {
+	if _, ok := errors.AsType[*shardlog.TrimmedError](err); ok {
+		return dynamodbstreamsapi.ErrTrimmedDataAccessException(textTrimmed)
+	}
+	return awserr.Internalf(err)
+}
+
+func (s *Streams) getRecords(ctx context.Context, c *kernel.Call, in *dynamodbstreamsapi.GetRecordsInput) (*dynamodbstreamsapi.GetRecordsOutput, *awserr.Error) {
+	if err := s.svc.serving(ctx, c); err != nil {
+		return nil, err
+	}
+	limit := getRecordsMax
+	if in.Limit != nil {
+		if *in.Limit > getRecordsMax {
+			// DynamoDB Local's text, observed (dynamodb-streams.md 6.5; DDBS-02).
+			return nil, dynamodbstreamsapi.ErrValidationException("One or more parameter values were invalid: Limit should be less than or equal to 1000")
+		}
+		limit = int(*in.Limit)
+	}
+	scope := c.Scope()
+	if _, ok := s.svc.cells.Lookup(scope); !ok {
+		// No iterator was ever issued in the scope.
+		return nil, dynamodbstreamsapi.ErrValidationException(textInvalidIterator)
+	}
+	// A write for the commit instant: an iterator's age is judged on the
+	// clock as it reads, as GetShardIterator issues it on the clock as it
+	// writes.
+	created := creationOf(c)
+	return streamsWrite(c, s.svc, scope, func(st *State, now clock.Instant) (*dynamodbstreamsapi.GetRecordsOutput, bool, *awserr.Error) {
+		return st.records(scope, in.ShardIterator, limit, now, s.svc.iteratorReuse, created)
+	})
+}
+
+// creationTime is how a GetRecords answer writes a record's
+// ApproximateCreationDateTime.
+type creationTime uint8
+
+const (
+	// creationWire floors the arrival to the second, as the wire form is
+	// (dynamodb-streams.md 7.3).
+	creationWire creationTime = iota
+	// creationExact keeps the stored arrival. An event source mapping's
+	// read is answered in process and never serialized; the poller measures
+	// record age and retention from the arrival (spec 8a poller, inferred,
+	// ESMS-09) and floors the time itself in the event it sends.
+	creationExact
+)
+
+// creationOf is creationExact for an event source mapping's read and
+// creationWire for any other caller.
+func creationOf(c *kernel.Call) creationTime {
+	if o, ok := c.Origin().(ref.Internal); ok && o.Via == ref.LambdaESM {
+		return creationExact
+	}
+	return creationWire
+}
+
+// records reads the page token names, as of now: up to limit records and
+// pageBytes of SizeBytes, the first record always, and a NextShardIterator
+// unless the page exhausts a closed shard (dynamodb-streams.md 6.4). Under
+// IteratorSingleUse a token reads once: records remembers it until it
+// expires, and reports that as a change of the state.
+func (st *State) records(scope aws.Scope, token string, limit int, now clock.Instant, reuse IteratorReuse, created creationTime) (*dynamodbstreamsapi.GetRecordsOutput, bool, *awserr.Error) {
+	if st.IteratorKey == nil {
+		return nil, false, dynamodbstreamsapi.ErrValidationException(textInvalidIterator)
+	}
+	codec := shardlog.NewCodec(st.IteratorKey, shardlog.ARNPrefixed{})
+	it, err := codec.Decode([]byte(token), now, iteratorTTL)
+	if err != nil {
+		if _, expired := errors.AsType[*shardlog.ExpiredError](err); expired {
+			return nil, false, dynamodbstreamsapi.ErrExpiredIteratorException(textExpiredIterator)
+		}
+		return nil, false, dynamodbstreamsapi.ErrValidationException(textInvalidIterator)
+	}
+	x, ok := st.streamByARN(scope, it.Stream.String())
+	if !ok || x.Label.Compare(it.Created) != 0 || x.log.shard.Info().ID != it.Shard {
+		return nil, false, dynamodbstreamsapi.ErrResourceNotFoundException(textStreamMissing)
+	}
+	singleUse := reuse == IteratorSingleUse
+	if _, used := st.usedIterators[token]; singleUse && used {
+		// dynamodb.streams.iterator-reuse single-use, the alternative to
+		// AWS's recorded allowed (DDBS-04): a second read is refused as an
+		// expired iterator.
+		return nil, false, dynamodbstreamsapi.ErrExpiredIteratorException(textExpiredIterator)
+	}
+	shard := x.log.shard
+	entries, next, err := shard.Read(it.Pos, limit, pageBytes, recordSize)
+	if err != nil {
+		return nil, false, readError(err)
+	}
+	out := &dynamodbstreamsapi.GetRecordsOutput{Records: make([]dynamodbstreamsapi.Record, 0, len(entries))}
+	for _, e := range entries {
+		r, err := x.record(scope, e, created)
+		if err != nil {
+			return nil, false, awserr.Internalf(err)
+		}
+		out.Records = append(out.Records, r)
+	}
+	if singleUse {
+		if st.usedIterators == nil {
+			st.usedIterators = map[string]clock.Instant{}
+		}
+		st.usedIterators[token] = it.Issued
+	}
+	if !shard.Exhausted(next) {
+		it.Pos, it.Issued = next, now
+		out.NextShardIterator = new(string(codec.Encode(it)))
+	}
+	return out, singleUse, nil
+}
+
+// forgetUsed drops the used iterators that have expired as of now, which
+// Decode refuses on its own, and reports whether there were any.
+func (st *State) forgetUsed(now clock.Instant) bool {
+	n := len(st.usedIterators)
+	maps.DeleteFunc(st.usedIterators, func(_ string, issued clock.Instant) bool {
+		return issued.Add(iteratorTTL).Compare(now) <= 0
+	})
+	return len(st.usedIterators) != n
+}
+
+// record is e as GetRecords answers it (dynamodb-streams.md 7.1): the
+// images Local wrote, the stream's region and view type, the arrival as
+// created says (floored to the second on the wire, 7.3), eventVersion 1.1
+// (third-party-recorded, DDB-SNAP:L761).
+func (s Stream) record(scope aws.Scope, e shardlog.Entry[streamRecord], created creationTime) (dynamodbstreamsapi.Record, error) {
+	v := e.Value
+	d := &dynamodbstreamsapi.StreamRecord{SequenceNumber: new(string(e.Seq)), SizeBytes: new(v.SizeBytes)}
+	at := e.Arrival.Wire().UTC()
+	if created == creationWire {
+		at = at.Truncate(time.Second)
+	}
+	view := dynamodbstreamsapi.StreamViewType(s.ViewType)
+	d.ApproximateCreationDateTime, d.StreamViewType = &at, &view
+	var err error
+	if d.Keys, err = v.Keys.typed(); err != nil {
+		return dynamodbstreamsapi.Record{}, err
+	}
+	if v.NewImage != nil {
+		if d.NewImage, err = v.NewImage.typed(); err != nil {
+			return dynamodbstreamsapi.Record{}, err
+		}
+	}
+	if v.OldImage != nil {
+		if d.OldImage, err = v.OldImage.typed(); err != nil {
+			return dynamodbstreamsapi.Record{}, err
+		}
+	}
+	name := dynamodbstreamsapi.OperationType(v.EventName)
+	r := dynamodbstreamsapi.Record{
+		EventID: new(v.EventID), EventName: &name, EventVersion: new("1.1"), EventSource: new("aws:dynamodb"),
+		AwsRegion: new(scope.Region.String()), Dynamodb: d,
+	}
+	if v.TTL {
+		// A TTL delete's userIdentity (dynamodb-streams.md 7.5, aws-doc;
+		// GetRecords casing per the model).
+		r.UserIdentity = &dynamodbstreamsapi.Identity{PrincipalId: new("dynamodb.amazonaws.com"), Type: new("Service")}
+	}
+	return r, nil
+}

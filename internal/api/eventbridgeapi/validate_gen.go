@@ -2522,6 +2522,37 @@ func (v *PutRuleInput) validate(path awserr.Path, out *[]awserr.Violation) {
 
 // Validate reports the constraint violations of v in AWS's order; nil
 // means v satisfies every generated constraint.
+func (v *PutServiceEventInternalInput) Validate() []awserr.Violation {
+	var out []awserr.Violation
+	v.validate(nil, &out)
+	return out
+}
+
+func (v *PutServiceEventInternalInput) validate(path awserr.Path, out *[]awserr.Violation) {
+	if v.missing&(1<<0) != 0 {
+		*out = append(*out, awserr.Violation{Path: at(path, "source"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	}
+	if v.missing&(1<<1) != 0 {
+		*out = append(*out, awserr.Violation{Path: at(path, "detailType"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	}
+	if v.missing&(1<<2) != 0 {
+		*out = append(*out, awserr.Violation{Path: at(path, "detail"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
+	}
+	if v.Resources != nil {
+		for i2, e2 := range v.Resources {
+			p2 := at(at(path, "resources"), strconv.Itoa(i2+1), "member")
+			if utf8.RuneCountInString(e2) > 2048 {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 2048}})
+			}
+			if utf8.RuneCountInString(e2) < 0 {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 0}})
+			}
+		}
+	}
+}
+
+// Validate reports the constraint violations of v in AWS's order; nil
+// means v satisfies every generated constraint.
 func (v *PutTargetsInput) Validate() []awserr.Violation {
 	var out []awserr.Violation
 	v.validate(nil, &out)
@@ -3596,6 +3627,9 @@ const (
 	styleMissingParameter
 	// styleSNSParameter is SNS's hand text for the first violation.
 	styleSNSParameter
+	// styleFixed is the rule's reason as the whole message: a text the
+	// service sends whatever failed, such as S3's MalformedXML text.
+	styleFixed
 )
 
 // validationRule is one dev.understudy#validationError rule.
@@ -3619,6 +3653,12 @@ type validationPolicy struct {
 	paths     []validationPath
 	operation []validationRule
 	service   []validationRule
+	// root, when set, heads the path of a Coral-styled violation whose
+	// first segment is not one of unrooted, the input's URI labels
+	// (dev.understudy#validationInputRoot): API Gateway names a body member
+	// updateRestApiInput.patchOperations.1.member.op but a label statusCode.
+	root     string
+	unrooted []string
 }
 
 // render returns the error AWS sends for vs, or nil when vs is empty.
@@ -3641,26 +3681,39 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 		msg = "The request must contain the parameter " + params[0] + "."
 	case styleSNSParameter:
 		msg = "Invalid parameter: " + params[0] + " Reason: " + first.reason
+	case styleFixed:
+		msg = first.reason
 	case styleCoral:
-		msg = coralUnder(id, vs, rules)
+		msg = p.coralUnder(id, vs, rules)
 	default:
 		// The generator emits only the styles above; an unknown one renders
 		// as AWS's common grammar rather than an empty message.
-		msg = coralUnder(id, vs, rules)
+		msg = p.coralUnder(id, vs, rules)
 	}
 	return &awserr.Error{ID: id, Message: msg, Origin: awserr.Validation{Violations: vs}}
 }
 
 // coralUnder renders, as one Coral message, every violation whose rule is
-// Coral-styled and names the code id.
-func coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
+// Coral-styled and names the code id, each path under the policy's root
+// when it has one.
+func (p *validationPolicy) coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
 	var same []awserr.Violation
 	for i, v := range vs {
 		if rules[i].style == styleCoral && rules[i].id().Shape == id.Shape {
-			same = append(same, v)
+			same = append(same, p.rooted(v))
 		}
 	}
 	return awserr.CoralMessage(same)
+}
+
+// rooted is v with its path under the policy's root, unless the policy has
+// none or v's path starts at a URI label.
+func (p *validationPolicy) rooted(v awserr.Violation) awserr.Violation {
+	if p.root == "" || len(v.Path) > 0 && slices.Contains(p.unrooted, v.Path[0]) {
+		return v
+	}
+	v.Path = append(awserr.Path{p.root}, v.Path...)
+	return v
 }
 
 // resolve returns the rule that answers v and the parameter name a hand
@@ -4537,6 +4590,24 @@ var policyPutRule = validationPolicy{
 // when vs is empty.
 func (*PutRuleInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 	return policyPutRule.render(vs)
+}
+
+var policyPutServiceEventInternal = validationPolicy{
+	paths: []validationPath{
+		{segments: []string{"source"}, param: "Source"},
+		{segments: []string{"detailType"}, param: "DetailType"},
+		{segments: []string{"detail"}, param: "Detail"},
+		{segments: []string{"resources"}, param: "Resources"},
+		{segments: []string{"resources", "*", "member"}, param: "Resources"},
+	},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+}
+
+// ValidationError returns the error PutServiceEventInternal answers for vs, the
+// violations of the generated and the hand-written validators, or nil
+// when vs is empty.
+func (*PutServiceEventInternalInput) ValidationError(vs []awserr.Violation) *awserr.Error {
+	return policyPutServiceEventInternal.render(vs)
 }
 
 var policyPutTargets = validationPolicy{

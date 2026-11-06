@@ -67,6 +67,9 @@ type Options struct {
 	// error of the write that produced it.
 	Deliver DeliverSink
 	Linker  Linker
+	// Authorizer decides authorization at pipeline step 8 and in Authorize;
+	// nil turns authorization off (iam.enforce off).
+	Authorizer Authorizer
 	// Log receives kernel diagnostics; nil discards them.
 	Log *slog.Logger
 	// Strict turns a zero-valued required timestamp in an output into an
@@ -100,8 +103,10 @@ type Kernel struct {
 	waiters  *store.Waiters
 	deliver  DeliverSink
 	linker   Linker
-	log      *slog.Logger
-	strict   bool
+	// authorizer is nil when authorization is off.
+	authorizer Authorizer
+	log        *slog.Logger
+	strict     bool
 
 	bindings *Bindings
 	work     *tracker
@@ -139,23 +144,24 @@ func New(o Options) (*Kernel, error) {
 		log = slog.New(slog.DiscardHandler)
 	}
 	k := &Kernel{
-		reg:      o.Registry,
-		clock:    o.Clock,
-		timers:   o.Timers,
-		ids:      o.IDs,
-		journal:  o.Journal,
-		faults:   o.Faults,
-		access:   o.Access,
-		identity: o.Identity,
-		gate:     gate,
-		waiters:  &store.Waiters{},
-		deliver:  o.Deliver,
-		linker:   o.Linker,
-		log:      log,
-		strict:   o.Strict,
-		bindings: newBindings(o.Registry),
-		work:     newTracker(),
-		cancels:  map[*context.CancelFunc]struct{}{},
+		reg:        o.Registry,
+		clock:      o.Clock,
+		timers:     o.Timers,
+		ids:        o.IDs,
+		journal:    o.Journal,
+		faults:     o.Faults,
+		access:     o.Access,
+		identity:   o.Identity,
+		gate:       gate,
+		waiters:    &store.Waiters{},
+		deliver:    o.Deliver,
+		linker:     o.Linker,
+		authorizer: o.Authorizer,
+		log:        log,
+		strict:     o.Strict,
+		bindings:   newBindings(o.Registry),
+		work:       newTracker(),
+		cancels:    map[*context.CancelFunc]struct{}{},
 	}
 	if err := o.Timers.attach(k); err != nil {
 		return nil, err

@@ -1,0 +1,33 @@
+{
+  "step": "06-delete-default",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the DeleteScheduleGroup operation: This operation cannot be performed on schedule group default.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedule-groups/default?clientToken=62745202-8d04-4432-8891-c43899781b4f",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,g,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.delete-schedule-group"],
+          ["X-Amz-Date", "20261103T163813Z"],
+          ["amz-sdk-invocation-id", "77da4a43-266f-4b9c-96e2-e962d766cf36"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "3f72d803-94de-4a48-8ea6-250803d15aaf"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "75"],
+          ["Date", "Tue, 03 Nov 2026 16:38:13 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"This operation cannot be performed on schedule group default.\"}"
+      }
+    }
+  ]
+}

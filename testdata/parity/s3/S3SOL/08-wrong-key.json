@@ -1,0 +1,39 @@
+{
+  "step": "08-wrong-key",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the CompleteMultipartUpload operation: The object was stored using a form of Server Side Encryption. Correct SSE-C request parameters are required for this request when specifying checksums for each part.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/m8b?uploadId=wKldXgHnvehMTfN9ChIkZ_jHNoREo7oT8TcWNc8vluo0S51WCrGQHR.veSA4PmZsFNhQ7CVj49W9pTck2NITP8wRo4G9anc3RmnsLg4k2juorjv4px6zdZpiPNEOGtHZCc3eBLtQFs1VrDMxpZcKJCXMZUp1NihcO4GDObEZOW9OzuMRBEncpE_d3xK4PmBi",
+        "headers": [
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key", "ZmVkY2JhOTg3NjU0MzIxMGZlZGNiYTk4NzY1NDMyMTA="],
+          ["x-amz-server-side-encryption-customer-key-MD5", "dT1y7SEiqn6YCJ3QeqwoIw=="],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,g,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.complete-multipart-upload"],
+          ["X-Amz-Date", "20261103T034001Z"],
+          ["X-Amz-Content-SHA256", "60c6e2d2e1c5cd02a8aa0b4b313e06ce487d980c819ecb31d2e7c63aa27470c1"],
+          ["amz-sdk-invocation-id", "c7b2f00b-2c6b-43d2-95ae-d03e594174ae"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "224"]
+        ],
+        "body": "<CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><PartNumber>1</PartNumber><ETag>\"ef1451d79df6ae03ff951ffbea707f92\"</ETag><ChecksumCRC32>poTHxg==</ChecksumCRC32></Part></CompleteMultipartUpload>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "K8M18VHJ6F4MAVHC"],
+          ["x-amz-id-2", "dIIk4Sn/wNPID1ff65gmxU7giB/imsAY/HihdEJjA+yMcqQQRWlVtAgVs5YXkctBz9XPWAjxttj/bCHqTBYQRnfkB4EDymyY"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:00 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<Error><Code>InvalidRequest</Code><Message>The object was stored using a form of Server Side Encryption. Correct SSE-C request parameters are required for this request when specifying checksums for each part.</Message><RequestId>K8M18VHJ6F4MAVHC</RequestId><HostId>dIIk4Sn/wNPID1ff65gmxU7giB/imsAY/HihdEJjA+yMcqQQRWlVtAgVs5YXkctBz9XPWAjxttj/bCHqTBYQRnfkB4EDymyY</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -66,7 +66,21 @@ An operation understudy does not implement fails fast, in AWS's error format, an
 An error occurred (NotImplemented) when calling the GetRandomPassword operation: understudy does not implement secretsmanager.GetRandomPassword. Run 'understudy coverage --service secretsmanager' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=secretsmanager.GetRandomPassword
 ```
 
-A call to a service understudy does not emulate at all, such as ECS, fails the same way and names the twelve it does.
+A call to a service understudy does not emulate at all, such as ECS, fails the same way and names the services it does.
+
+An API Gateway endpoint, `http://<api-id>.execute-api.us-east-1.localhost:4566/...` or its path form `http://localhost:4566/_understudy/execute-api/<api-id>/...`, is API Gateway's ([apigateway.md](apigateway.md)), never an S3 bucket, so an id no API holds gets API Gateway's answer. The path form also carries `Content-Security-Policy: sandbox`, so a page served there cannot script understudy's own origin:
+
+```text
+$ curl -i http://localhost:4566/_understudy/execute-api/abc123/prod/pets
+HTTP/1.1 403 Forbidden
+Apigw-Requestid: B7x29V9wL-kunWE=
+Content-Security-Policy: sandbox
+Content-Type: application/json
+Date: Tue, 27 Oct 2026 02:24:50 GMT
+Content-Length: 23
+
+{"message":"Forbidden"}
+```
 
 ## Start over
 

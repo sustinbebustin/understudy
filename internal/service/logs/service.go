@@ -2,6 +2,7 @@ package logs
 
 import (
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -86,13 +87,38 @@ func unmasking(unmask bool) []registry.IAMAction {
 
 // expiryRule is how retention removes events: deterministically at
 // timestamp plus the retention period on the emulator clock, where AWS
-// deletes them lazily, typically within 72 hours after.
+// deletes them lazily, typically within 72 hours after. The rule decides
+// which events the reads return, which PutLogEvents refuses as expired and
+// what a shorter PutRetentionPolicy drops at once.
 func expiryRule() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "logs.retention.expiry",
-		Value: "at-expiry",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/secrets-logs-events-alarms.md#32-retention",
+		Name:    "logs.retention.expiry",
+		Value:   "at-expiry",
+		Label:   evidence.AWSDoc,
+		Ref:     "docs/research/secrets-logs-events-alarms.md#32-retention",
+		Ops:     []string{"logs.PutLogEvents", "logs.PutRetentionPolicy", "logs.GetLogEvents", "logs.FilterLogEvents"},
+		Settles: fidelity.NoScenario{Reason: "AWS deletes expired events lazily, typically within 72 hours, so no recording pins the instant"},
+	}
+}
+
+// outdatedAuthzHeader is the header AWS adds when a log-group:<name>:*
+// statement allows a group-level action: x-amzn-log-group-authz: outdated,
+// AWS signalling that this form of authorizing group actions is deprecated
+// (secrets-logs-events-alarms.md 3.10; IAM-ENF-42). understudy allows the
+// action as AWS does but does not send the header, since the evaluator does
+// not report which form matched. Ops are the group-level actions IAM-ENF-42
+// recorded; the header on the other group-level actions is unrecorded.
+func outdatedAuthzHeader() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:   "logs.authz.outdated-header",
+		Value:  "not-sent",
+		Label:  evidence.Inferred,
+		Ref:    "docs/research/secrets-logs-events-alarms.md#310-authorization-resources",
+		Record: "IAM-ENF-42",
+		Ops:    []string{"logs.CreateLogGroup", "logs.DeleteLogGroup", "logs.DescribeLogStreams", "logs.FilterLogEvents", "logs.PutRetentionPolicy"},
+		Settles: fidelity.NoScenario{Reason: "AWS contradicts it: IAM-ENF-42 recorded the header x-amzn-log-group-authz: outdated on these actions " +
+			"when only a log-group:<name>:* statement allowed them; understudy omits it until the evaluator reports the matched form, " +
+			"and the replay signs as the account's root, which no statement form decides"},
 	}
 }
 
@@ -102,24 +128,55 @@ func expiryRule() fidelity.Switch[string] {
 // Terraform provider's acceptance tests read back from AWS.
 func deliveryRetention() fidelity.Switch[int32] {
 	return fidelity.Switch[int32]{
-		Name:  "logs.delivery.retention-days",
-		Value: 2,
-		Label: evidence.AWSDoc,
-		Ref:   "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html",
+		Name:    "logs.delivery.retention-days",
+		Value:   2,
+		Label:   evidence.AWSDoc,
+		Ref:     "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html",
+		Ops:     []string{"logs.CreateLogGroup", "logs.DescribeLogGroups"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording creates a DELIVERY-class log group"},
 	}
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence: the
-// filter-pattern questions logsfilter leaves open, the retention rule and
-// the DELIVERY class's fixed retention.
+// filter-pattern questions logsfilter leaves open, with the label,
+// operations and settling step filterSwitches states for each, the
+// retention rule, the DELIVERY class's fixed retention and the status of a
+// denial (iam-enforcement-surfaces.md 12.8; third-party-recorded for a
+// denial that is not IAM's).
 func (s *Service) Switches() []fidelity.Entry {
 	switches := s.filter.Switches()
-	out := make([]fidelity.Entry, 0, 2+len(switches))
-	out = append(out, expiryRule().Entry(), deliveryRetention().Entry())
+	table := filterSwitches()
+	out := make([]fidelity.Entry, 0, 4+len(switches))
+	out = append(out, expiryRule().Entry(), deliveryRetention().Entry(), outdatedAuthzHeader().Entry(),
+		authz.RecordedSwitch("logs.denial.status", "AccessDeniedException 400", "3.2", "IAM-ENF-07", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(logsapi.Service())))
 	for _, sw := range switches {
+		m := table[sw.Name]
 		out = append(out, fidelity.Switch[string]{
-			Name: sw.Name, Value: sw.Value, Label: evidence.Inferred, Ref: sw.Ref, Record: sw.Record,
+			Name: sw.Name, Value: sw.Value, Label: m.label, Ref: sw.Ref, Record: sw.Record, Ops: m.ops, Settles: m.settles,
 		}.Entry())
 	}
 	return out
+}
+
+// filterSwitch is what Logs states about one of logsfilter's switches:
+// what backs its value, the operations it governs and what settles it.
+type filterSwitch struct {
+	label   evidence.Label
+	ops     []string
+	settles fidelity.Settles
+}
+
+// filterSwitches holds the filterSwitch of every logsfilter switch by
+// name. A name it lacks gets no label, operations or settles, which the
+// coverage checks refuse. FilterLogEvents is the one bound operation that
+// takes a filter pattern.
+func filterSwitches() map[string]filterSwitch {
+	ops := []string{"logs.FilterLogEvents"}
+	r10 := func(step string) fidelity.Settles {
+		return fidelity.NoScenario{Reason: "logs/R10/" + step + ".json is recorded; no scenario replays logs/R10 yet"}
+	}
+	return map[string]filterSwitch{
+		"logs.filter.term-boundary":         {evidence.Inferred, ops, r10("03-filter-01")},
+		"logs.filter.delimited-field-count": {evidence.Inferred, ops, r10("03-filter-11")},
+	}
 }

@@ -1,0 +1,31 @@
+{
+  "step": "02-preflight-other-origin",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "OPTIONS",
+        "url": "https://hl9cpb8a0a.execute-api.us-east-2.amazonaws.com/any",
+        "headers": [
+          ["Host", "hl9cpb8a0a.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Origin", "https://b.example"],
+          ["Access-Control-Request-Method", "POST"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:49:58 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "917"],
+          ["Connection", "keep-alive"],
+          ["Apigw-Requestid", "GReMogxDiYcEPXg="]
+        ],
+        "body": "{\"version\": \"2.0\", \"routeKey\": \"ANY /any\", \"rawPath\": \"/any\", \"rawQueryString\": \"\", \"headers\": {\"accept\": \"*/*\", \"access-control-request-method\": \"POST\", \"content-length\": \"0\", \"host\": \"hl9cpb8a0a.execute-api.us-east-2.amazonaws.com\", \"origin\": \"https://b.example\", \"user-agent\": \"curl/8.23.0\", \"x-amzn-trace-id\": \"Root=1-6aea10b6-31c4cf600f8476a74c456f88\", \"x-forwarded-for\": \"198.51.100.2\", \"x-forwarded-port\": \"443\", \"x-forwarded-proto\": \"https\"}, \"requestContext\": {\"accountId\": \"123456789012\", \"apiId\": \"hl9cpb8a0a\", \"domainName\": \"hl9cpb8a0a.execute-api.us-east-2.amazonaws.com\", \"domainPrefix\": \"hl9cpb8a0a\", \"http\": {\"method\": \"OPTIONS\", \"path\": \"/any\", \"protocol\": \"HTTP/1.1\", \"sourceIp\": \"198.51.100.2\", \"userAgent\": \"curl/8.23.0\"}, \"requestId\": \"GReMogxDiYcEPXg=\", \"routeKey\": \"ANY /any\", \"stage\": \"$default\", \"time\": \"03/Nov/2026:16:49:58 +0000\", \"timeEpoch\": 1793724598721}, \"isBase64Encoded\": false}"
+      }
+    }
+  ]
+}

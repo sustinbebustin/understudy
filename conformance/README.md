@@ -10,6 +10,8 @@ Suites that check understudy from the outside, each a separate module or project
 | `aws-cli/` | the AWS CLI | `conformance/aws-cli/run.sh` |
 | `terraform/` | Terraform: apply, a no-change plan, an update, destroy | `conformance/terraform/run.sh` |
 | `e2e-pipeline/` | the event-driven pipeline end to end | `conformance/e2e-pipeline/run.sh` |
+| `patterns/` | serverless-patterns as their READMEs run them, through Terraform | `conformance/patterns/run.sh` |
+| `iam-loop/` | the aws-cli and go-sdk suites as an IAM user: record under `--iam-enforce advise`, attach the rendered policies, re-run under `enforce` | `conformance/iam-loop/run.sh` |
 
 ## DynamoDB
 
@@ -29,7 +31,7 @@ With any other value, `run.sh` exits 2 and runs nothing. `run.sh` clears serve's
 | Suite | CI runs it under | Why |
 |---|---|---|
 | `python-boto3/` | `verify` (its default) | boto3's signer on every request, plus the tests that take the `sigv4_verify` fixture and skip without it. |
-| `aws-cli/` | `parse`, and again under `verify` | The most S3 request shapes of any suite: `aws s3 cp` single-part, multipart and from stdin, `s3 presign`, `s3 sync`, virtual-hosted addressing and the `s3api` calls. The CLI signs with its own copy of botocore (the classic transfer client, not CRT), so this run adds request shapes rather than a new signer. |
+| `aws-cli/` | `parse`, and again under `verify` | The most S3 request shapes of any suite: `aws s3 cp` single-part, multipart and from stdin, `s3 presign`, `s3 sync`, virtual-hosted addressing and the `s3api` calls. The CLI signs with its own copy of botocore, and the `aws s3` transfer tests run a second time under the CRT transfer client, which signs with the AWS Common Runtime's aws-c-auth, a signer no other suite uses (`aws-cli/README.md`). |
 | `terraform/` | `parse`, and again under `verify` | The Terraform AWS provider signs with aws-sdk-go-v2, a signer written apart from botocore, across every service the suite applies. |
 | `js-sdk-v3/` | `parse`, and again under `verify` | The JavaScript SDK signs with `@smithy/signature-v4`, a third signer. Two STS tests need `parse` and skip under `verify`, so both runs are needed. |
 | `go-sdk/`, `e2e-pipeline/` | `parse` (the default) | Both sign with aws-sdk-go-v2, whose verify run is terraform's; either takes `SIGV4=verify` when run by hand. |

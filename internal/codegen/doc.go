@@ -45,16 +45,24 @@
 //     the primary, since the Service Reference's mapping has gaps.
 //   - overlays/common.json lists each protocol family's generic vocabulary
 //     under its defaults shape's errors, and every real service speaking the
-//     family gets GenericErrors(f) in errors_gen.go. awserr.Catalogue stays
-//     the runtime copy the edge and the kernel use before a service is
-//     known; a test in internal/api checks the two agree for all twelve
-//     services. The Query family sets no malformedRequestError: no recording
-//     shows what a Query service sends, so the awsquery codec's fallback
-//     applies.
+//     family gets GenericErrors(f) in errors_gen.go, which its descriptor
+//     carries for the fault catalogue. awserr.Catalogue stays the runtime
+//     copy used where no service vocabulary is at hand; a test in
+//     internal/api checks the two agree for every generated service except
+//     the status corrections a service overlay makes (DynamoDB's 400
+//     AccessDeniedException), which it lists. The Query family sets no
+//     malformedRequestError: no recording shows what a Query service sends,
+//     so the awsquery codec's fallback applies.
 //   - codegen/services/<svc>.json names its model's directory in
 //     third_party/api-models-aws/UPSTREAM.json ("model"). An overlay
 //     operation without internalOperation fails generation, since no
 //     service would reach it.
+//   - codegen/services/<svc>.json may list the operations the kernel binds
+//     ("boundOperations"); schema_gen.go then gives members only to the
+//     error shapes and those operations' closures (ADR 0001 amendment
+//     2026-11-02). It is stated rather than derived because the bound set
+//     exists only once internal/server, which imports the generated
+//     packages, wires the services; a server test ties the two.
 //   - dev.understudy#queryKeyAlias is emitted as smithy.Member.QueryKeyAlias,
 //     which the awsQuery decoder applies; an alias naming a key other than
 //     the member's own fails generation.
@@ -63,7 +71,8 @@
 // {label, source, validated?} object or a list of them each naming the
 // traits it "covers"; validationError is one rule or a list tried in order,
 // a rule being {code, style: coral | parameter | missingParameter |
-// snsParameter, constraints, reason, enumPolicy} or {enumPolicy} alone, or
+// snsParameter | fixed, constraints, reason, enumPolicy} or {enumPolicy}
+// alone (fixed sends the reason as the whole message), or
 // at member level {patternPolicy: handler}, which leaves the member's
 // pattern to the handler so its own error text answers;
 // queryKeyAlias is {key, decode: receive | ignore}; unknownOperationError is

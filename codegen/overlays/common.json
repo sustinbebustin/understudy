@@ -323,6 +323,29 @@
         }
       }
     },
+    "com.amazon.coral.service#AccessDenied": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "dev.understudy#jsonType": "AccessDeniedException",
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/troubleshooting-access-denied.html: 'An error occurred (AccessDenied) when calling the SendMessage operation', the Query code of an IAM denial (docs/research/iam-enforcement-surfaces.md#32-per-service-identity)",
+            "covers": ["smithy.api#error"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: 403 follows the recorded STS AccessDenied (testdata/parity/sts/R15/06-assume-denied.json), and the JSON __type com.amazon.coral.service#AccessDeniedException is the generic JSON identity's; both UNVERIFIED for the services that answer a denial with this shape until recordings IAM-ENF-01, IAM-ENF-02, IAM-ENF-09, IAM-ENF-10 and IAM-ENF-38",
+            "covers": ["smithy.api#httpError", "dev.understudy#jsonType"]
+          }
+        ]
+      }
+    },
     "com.amazon.coral.service#InternalFailure": {
       "type": "structure",
       "members": {

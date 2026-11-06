@@ -1,0 +1,22 @@
+{
+  "step": "17-escape",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:46:44 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "102"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "1c69caae-c578-40f9-a264-01b6ea329dce"],
+          ["x-amz-apigw-id", "GRduNGltiYcEEPg="],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0ff4-7c0b773e63c0c998268f008f;Parent=1497dc053ac66dc8;Sampled=0;Lineage=1:3c3b1068:0"]
+        ],
+        "body": "{\"e\": \"\\\"/\\\\<>&\\té€~\", \"u\": \"%22%2F%5C%3C%3E%26%09%C3%A9%E2%82%AC%7E\", \"b\": \"Ii9cPD4mCcOp4oKsfg==\"}"
+      }
+    }
+  ]
+}

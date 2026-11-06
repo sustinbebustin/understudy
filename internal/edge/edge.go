@@ -48,6 +48,11 @@ type Options struct {
 	// ahead of ServiceAuth: Lambda's InvokeFunctionUrl, whose function URL
 	// front end refuses with 403.
 	OperationAuth map[ref.OperationID]auth.Vocabulary
+	// ProtocolAuth is the auth vocabulary of a service over one protocol
+	// where it differs from the protocol family's, used in both modes after
+	// OperationAuth and ServiceAuth: SQS over awsJson1_0, which refuses a
+	// skewed request with 403 where DynamoDB answers 400.
+	ProtocolAuth map[ServiceProtocol]auth.Vocabulary
 	// Regions is the table credential-scope regions are validated against.
 	Regions aws.Regions
 	// Codecs are the wire protocols, by the id each registers under.
@@ -92,8 +97,36 @@ type Options struct {
 	// package), which the descriptors do not carry; nil or false means the
 	// generic identity.
 	UnknownOperationError func(svc ref.ServiceID, f awserr.Family) (awserr.Identity, bool)
+	// LegacyQuery lists the JSON services AWS also serves over the legacy
+	// Query protocol, which understudy does not (SSM, ssm-parameters.md
+	// 2.3). A POST signed for one of them that carries no X-Amz-Target and
+	// either an Action query parameter or a form body answers 501
+	// NotImplemented naming the legacy Query protocol, journaled Unclaimed
+	// (ARCHITECTURE.md 4.1 rule 8).
+	LegacyQuery []ref.ServiceID
+	// ExecuteAPI lists the execute-api fronts in registration order, HTTP
+	// APIs then REST APIs: a request goes to the raw operation of the one
+	// whose owner holds the API id, an id none holds to the first
+	// registered one's, and an id several hold is answered 500 as an
+	// understudy bug (ADR 0019). nil keeps the raw apigatewayv2.InvokeApi
+	// serving both forms when registered.
+	ExecuteAPI []ExecuteAPIService
 	// Log receives edge diagnostics; nil discards them.
 	Log *slog.Logger
+}
+
+// ExecuteAPIOwner is a service that serves execute-api requests for the
+// API ids it holds.
+type ExecuteAPIOwner interface {
+	// OwnsExecuteAPI reports whether any account holds an API with id.
+	OwnsExecuteAPI(apiID string) bool
+}
+
+// ExecuteAPIService is one execute-api front: its raw operation and the
+// owner that says which API ids it serves.
+type ExecuteAPIService struct {
+	Op    ref.OperationID
+	Owner ExecuteAPIOwner
 }
 
 // Handler is the front door: pipeline steps 1 to 5 and 13 of
@@ -227,6 +260,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a, parseErr := auth.Parse(r, h.opts.Regions)
 	rt := h.claim(r, a, parseErr)
 	target = routed(rt)
+	x.w = imposePolicy(x.w, policyOf(rt))
 	if h.refusedPage(ctx, x, rt) {
 		return
 	}
@@ -277,24 +311,37 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.dispatchRaw(ctx, x, toRaw{op: rt.op}, a, parseErr)
 	case toService:
 		h.answerForService(ctx, x, rt.svc, rt.reasons)
+	case legacyQuery:
+		h.legacyQuery(ctx, x, rt)
 	case notEmulated:
 		h.notEmulated(ctx, x, rt)
+	case misscoped:
+		h.misscoped(ctx, x, rt)
 	case unclaimed:
 		h.unclaimed(ctx, x, rt.reasons)
 	case toLocalStack:
 		h.localStack(ctx, x, rt.reasons)
+	case toExecuteAPI:
+		h.executeAPI(ctx, x, rt.reasons)
+	case executeAPIClaimedTwice:
+		h.executeAPIClaimedTwice(ctx, x, rt)
+	case kinesisCBOR:
+		h.answerKinesisCBOR(ctx, x, rt.reasons)
+	case http2Preface:
+		h.answerHTTP2Preface(ctx, x, rt.reasons)
 	}
 }
 
 // refusedPage answers, and reports, a request routed to the AWS APIs that
 // the listener's PagePolicy refuses as a web page's on another site. The
 // admin API applies its own stricter rule, and links understudy hands out
-// are opened from any page by design.
+// and the execute-api data plane, which any page may call on AWS, are
+// opened from any page by design.
 func (h *Handler) refusedPage(ctx context.Context, x *exchange, rt route) bool {
 	switch rt.(type) {
-	case toAdmin, toLink:
+	case toAdmin, toLink, toExecuteAPI, executeAPIClaimedTwice:
 		return false
-	case toOperation, toUnknown, toRaw, toService, notEmulated, unclaimed, toLocalStack:
+	case toOperation, toUnknown, toRaw, toService, legacyQuery, notEmulated, misscoped, unclaimed, toLocalStack, kinesisCBOR, http2Preface:
 	}
 	why, refused := h.crossSitePage(x.r)
 	if !refused {
@@ -311,6 +358,11 @@ func (h *Handler) refusedPage(ctx context.Context, x *exchange, rt route) bool {
 // only health and clock from it.
 func (h *Handler) serveAdmin(ctx context.Context, x *exchange) {
 	if why, refused := crossSiteAdmin(x.r); refused {
+		if isUIPath(requestPath(x.r)) {
+			h.log.LogAttrs(ctx, slog.LevelWarn, "refused a cross-site request for the web UI", slog.String("reason", why), slog.String("request_id", string(x.id)))
+			h.write(ctx, x, refuseCrossSiteUI(why))
+			return
+		}
 		h.log.LogAttrs(ctx, slog.LevelWarn, "refused a cross-site admin call", slog.String("reason", why), slog.String("request_id", string(x.id)))
 		h.write(ctx, x, refuseCrossSite(why))
 		return

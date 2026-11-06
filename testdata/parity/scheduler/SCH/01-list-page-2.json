@@ -1,0 +1,29 @@
+{
+  "step": "01-list-page-2",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules?MaxResults=1&NamePrefix=us1103-s&NextToken=AAMA9kFRSURBSGkzemU2V1ZudTVBenpIVlZBWFU1NjZJZWxTekRmbEpMUFYyY1pQRzM4eUhRSEJOZE02cU1ORXozYmhmeHp4TXRBQUFBQUFmakI4QmdrcWhraUc5dzBCQndhZ2J6QnRBZ0VBTUdnR0NTcUdTSWIzRFFFSEFUQWVCZ2xnaGtnQlpRTUVBUzR3RVFRTXVCbDg3VmVSLXh3NzVhenZBZ0VRZ0R2ejhtbVhuZDd5Xzh0NEtsazMwVG9SYlpONzRXc3JMT2NfcGQzdFFqMkozZXF5UDNfSjFqMzlrcmVHU09qUmFFNjQ4cWZoR1hyNDBJMlY1Uc0IqAGeJskaSgarSQmicUMfcvxeb4_ll9yljHk6lhZUM-vLe4qv1mdmp_hfZlEAlZOYmAHP7ZoH2JqX__imCISN",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.list-schedules"],
+          ["X-Amz-Date", "20261103T163651Z"],
+          ["amz-sdk-invocation-id", "d0a0fea7-6911-4db8-b474-ac0efd90b312"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "36950ded-6d9a-467f-a466-e32dbccf720f"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "724"],
+          ["Date", "Tue, 03 Nov 2026 16:36:51 GMT"]
+        ],
+        "body": "{\"NextToken\":\"AAMA9kFRSURBSGkzemU2V1ZudTVBenpIVlZBWFU1NjZJZWxTekRmbEpMUFYyY1pQRzM4eUhRRjhNRklmMUZRUFVpajF4bXU0eVIxSEFBQUFmakI4QmdrcWhraUc5dzBCQndhZ2J6QnRBZ0VBTUdnR0NTcUdTSWIzRFFFSEFUQWVCZ2xnaGtnQlpRTUVBUzR3RVFRTVExNDdZam1EOUlGcVA0cjVBZ0VRZ0R2ZEtRN1VrdzRLUXdhQVJPbUx6T1JIZ19na3NfcmtJY3p3X3dwWjQzOHVUSjBKS2pnaTJLcGVUbGxDY0MyMi1KUkYxUE04UkE1R0g4eXd4d__nbjkDX_8vc61-cF7RBoGrw6a2BMiFP64imV6bxeO0GvODEUt8BtPWJQjRCpd4nuFcoJEo63ru2xpRMNM2xD_w\",\"Schedules\":[{\"Arn\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-s3\",\"CreationDate\":1.793723808205E9,\"GroupName\":\"default\",\"LastModificationDate\":1.793723808205E9,\"Name\":\"us1103-s3\",\"State\":\"ENABLED\",\"Target\":{\"Arn\":\"arn:aws:sqs:us-east-2:123456789012:us1103-sch\"}}]}"
+      }
+    }
+  ]
+}

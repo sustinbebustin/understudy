@@ -1,0 +1,32 @@
+{
+  "step": "09-events-without-source",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://hl9cpb8a0a.execute-api.us-east-2.amazonaws.com/events",
+        "headers": [
+          ["Host", "hl9cpb8a0a.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Length", "7"],
+          ["Content-Type", "application/x-www-form-urlencoded"]
+        ],
+        "body": "{\"a\":1}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:50:52 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "25"],
+          ["Connection", "keep-alive"],
+          ["apigw-requestid", "GReVCgFfiYcEPMA="]
+        ],
+        "body": "{\"message\":\"Bad Request\"}"
+      }
+    }
+  ]
+}

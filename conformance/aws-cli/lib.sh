@@ -30,11 +30,51 @@ ue_require_sealed
 
 # new_name PREFIX -> PREFIX-<8 random hex digits>: lowercase [a-z0-9-], unique
 # per call and per run, so tests never collide on a long-lived emulator.
+#
+# With CONFORMANCE_NAME_SEED set, the digits are instead a function of the
+# seed, the test (UE_TEST, which run-suite.sh sets), PREFIX and how many
+# names of PREFIX the test drew before, so two runs with one seed create the
+# same names: the IAM loop's second run (conformance/iam-loop) must touch the
+# resources the policy rendered from its first run names.
 new_name() {
-  printf '%s-%s' "$1" "$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  if [ -z "${CONFORMANCE_NAME_SEED:-}" ]; then
+    printf '%s-%s' "$1" "$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+    return
+  fi
+  : "${UE_TEST:?new_name: CONFORMANCE_NAME_SEED needs UE_TEST (run through run-suite.sh)}"
+  : "${UE_TMP:?new_name: CONFORMANCE_NAME_SEED needs UE_TMP (run through run-suite.sh)}"
+  # The count lives in a file: new_name runs in command substitutions, whose
+  # variables do not outlive them.
+  local counter n
+  counter="$UE_TMP/names.$(printf '%s/%s' "$UE_TEST" "$1" | sha256sum | cut -c1-16)"
+  n=$(cat "$counter" 2>/dev/null || echo 0)
+  echo $((n + 1)) >"$counter"
+  printf '%s-%s' "$1" "$(printf '%s/%s/%s/%s' "$CONFORMANCE_NAME_SEED" "$UE_TEST" "$1" "$n" | sha256sum | cut -c1-8)"
 }
 
 # Running the CLI
+
+# ue_cli_config [SETTING ...]: print the path of an AWS CLI config file whose
+# default profile's s3 section holds each SETTING ("name = value") and, when
+# UE_TRANSFER_CLIENT is set (classic or crt), preferred_transfer_client, which
+# the CLI reads from no environment variable. With nothing to hold it prints
+# /dev/null, the sealed default. The file names no endpoint and no
+# credentials; those stay sealed in the environment.
+# shellcheck disable=SC2120 # tests pass settings (tests/s3.sh)
+ue_cli_config() {
+  local settings=("$@") cfg
+  if [ -n "${UE_TRANSFER_CLIENT:-}" ]; then
+    settings+=("preferred_transfer_client = $UE_TRANSFER_CLIENT")
+  fi
+  if [ "${#settings[@]}" -eq 0 ]; then
+    printf '/dev/null'
+    return
+  fi
+  cfg=$(mktemp "${UE_TMP:?UE_TMP unset}/awsconfig.XXXXXX")
+  printf '[default]\ns3 =\n' >"$cfg"
+  printf '    %s\n' "${settings[@]}" >>"$cfg"
+  printf '%s' "$cfg"
+}
 
 # aws_run ARGS...: run the CLI with --debug and record the outcome in
 #   AWS_RC      exit status
@@ -42,12 +82,19 @@ new_name() {
 #   AWS_ERR     path of the file holding stderr (including the debug log)
 #   AWS_STATUS  HTTP status of the last request the CLI sent, or empty
 #   AWS_CMD     the command line, for failure messages
-# It never fails the test; use aws_ok or aws_error for that.
+# It never fails the test; use aws_ok or aws_error for that. The CLI runs
+# under UE_TRANSFER_CLIENT (ue_cli_config); a call that brings its own
+# AWS_CONFIG_FILE builds it with ue_cli_config, so the client still applies.
 aws_run() {
   AWS_CMD="aws $*"
   AWS_ERR=$(mktemp "${UE_TMP:?UE_TMP unset}/err.XXXXXX")
   AWS_RC=0
-  AWS_OUT=$(aws "$@" --debug 2>"$AWS_ERR") || AWS_RC=$?
+  local cfg=${AWS_CONFIG_FILE:-}
+  if [ "$cfg" = /dev/null ]; then
+    # shellcheck disable=SC2119 # no settings: the transfer client alone
+    cfg=$(ue_cli_config)
+  fi
+  AWS_OUT=$(AWS_CONFIG_FILE=$cfg aws "$@" --debug 2>"$AWS_ERR") || AWS_RC=$?
   AWS_STATUS=$(sed -nE 's/.*"(GET|POST|PUT|DELETE|HEAD|PATCH) [^"]*" ([0-9]{3}) .*/\2/p' "$AWS_ERR" | tail -n 1)
 }
 
@@ -254,8 +301,28 @@ PY
 # Trust policy documents.
 LAMBDA_TRUST='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
 
-# make_role NAME: create an IAM role Lambda and others can use; print its ARN.
+# make_role NAME [TRUST]: create an IAM role with trust policy TRUST
+# (default $LAMBDA_TRUST, one Lambda and others can use); print its ARN.
+#
+# With CONFORMANCE_ROLE_POLICY_DIR set and a file NAME.arns in it (one
+# managed policy ARN per line), the account root then attaches each of those
+# policies to the role: the IAM loop's second run (conformance/iam-loop)
+# gives each role the policy rendered from its first run, under
+# iam.enforce=enforce.
 make_role() {
-  aws_ok iam create-role --role-name "$1" --assume-role-policy-document "$LAMBDA_TRUST" --output json
-  jqv '.Role.Arn'
+  local arn arns policy_arn
+  aws_ok iam create-role --role-name "$1" --assume-role-policy-document "${2:-$LAMBDA_TRUST}" --output json
+  arn=$(jqv '.Role.Arn')
+  if [ -n "${CONFORMANCE_ROLE_POLICY_DIR:-}" ] && [ -f "$CONFORMANCE_ROLE_POLICY_DIR/$1.arns" ]; then
+    mapfile -t arns <"$CONFORMANCE_ROLE_POLICY_DIR/$1.arns"
+    # The dummy key test is the default account's root (ADR 0012).
+    (
+      export AWS_ACCESS_KEY_ID=test
+      for policy_arn in "${arns[@]}"; do
+        [ -n "$policy_arn" ] || continue
+        aws_ok iam attach-role-policy --role-name "$1" --policy-arn "$policy_arn"
+      done
+    )
+  fi
+  printf '%s\n' "$arn"
 }

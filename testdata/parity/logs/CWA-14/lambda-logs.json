@@ -1,0 +1,35 @@
+{
+  "step": "lambda-logs",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the FilterLogEvents operation: The specified log group does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,E,AD,AC,C,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261103T031604Z"],
+          ["amz-sdk-invocation-id", "1abed962-e90b-481f-8c2b-304af8de1bac"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "73"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/us1103-cwa\", \"filterPattern\": \"\\\"ev-off\\\"\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "fced49ef-cdde-4c40-80f9-ee1611690b8f"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "90"],
+          ["Date", "Tue, 03 Nov 2026 03:16:04 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ResourceNotFoundException\",\"message\":\"The specified log group does not exist.\"}"
+      }
+    }
+  ]
+}

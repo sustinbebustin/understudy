@@ -7,7 +7,7 @@
 
 ## Expected
 
-Understudy paths are under /home/austin/dev/local-aws-stack. Understudy values come from replaying r11.sh against a local understudy.
+Understudy paths are repo-relative. Understudy values come from replaying r11.sh against a local understudy.
 
 - 01 GetQueueUrl missing, with and without x-amzn-query-mode: matches (400, `x-amzn-query-error: AWS.SimpleQueueService.NonExistentQueue;Sender` both times, `{"__type":"com.amazonaws.sqs#QueueDoesNotExist","message":"The specified queue does not exist."}`).
 - 02 ReceiveMessage MaxNumberOfMessages 0 / 11, WaitTimeSeconds 21: message and query-error match; `__type` differs: AWS `com.amazon.coral.service#InvalidParameterValueException`, understudy `com.amazonaws.sqs#InvalidParameterValueException` (codegen/overlays/sqs.json:54-63).
@@ -30,7 +30,13 @@ Understudy paths are under /home/austin/dev/local-aws-stack. Understudy values c
 - 05 Query with Accept: application/json, success and error: differs: AWS answers Content-Type application/json, `{"GetQueueUrlResponse":{"GetQueueUrlResult":{"QueueUrl":"..."},"ResponseMetadata":{"RequestId":"..."}}}` and `{"Error":{"Code":"AWS.SimpleQueueService.NonExistentQueue","Message":"The specified queue does not exist for this wsdl version.","Type":"Sender"},"RequestId":"..."}`; understudy ignores Accept and answers text/xml (internal/protocol/awsquery/codec.go:126, 159).
 - 06 DynamoDB unknown target: body matches; AWS adds x-amz-crc32, understudy omits it on this error.
 - 06 DynamoDB duplicate member: differs: AWS 400 `{"__type":"com.amazon.coral.service#SerializationException","Message":"Duplicate key found in payload"}`; understudy decodes last-wins and forwards (ResourceNotFoundException for the second name) (internal/protocol/awsjson/deserializer.go:90).
-- 07 Streams signing name: n/a for understudy (DynamoDB Streams not emulated; 501 NotImplemented); AWS accepts `dynamodb` (200 `{"Streams":[]}`) and rejects `streams.dynamodb` with InvalidSignatureException "Credential should be scoped to correct service: 'dynamodb'. ".
+- 07 Streams signing name (re-recorded 2026-11-03 with the request body): matches. AWS accepts `dynamodb` (200 `{"Streams":[]}`) and rejects `streams.dynamodb` with 400 InvalidSignatureException "Credential should be scoped to correct service: 'dynamodb'. "; understudy answers the same (internal/edge/claim.go refusedScope; internal/edge/unclaimed_test.go, internal/service/dynamodb/streams_test.go).
+
+## Replay (internal/parity)
+
+`scenario.json` replays `07-streams-signed-streams.dynamodb`, signed for its recorded scope `streams.dynamodb` (the step's `signing`; the capture's `Authorization` names `Credential=.../streams.dynamodb/aws4_request`, which the fixture drops). It matches.
+
+Left out: `07-streams-signed-dynamodb`. ListStreams needs DynamoDB, and the replay runs without Docker and so with DynamoDB, and DynamoDB Streams with it, turned off: understudy answers 501 for the disabled service. `internal/service/dynamodb/streams_test.go` covers the 200 instead.
 - x Query SendMessage without Version (x-query-sendmessage-no-version): differs: AWS 200 SendMessageResponse; understudy 404 `<UnknownOperationException/>` because the Query claim needs Version to find the service (internal/protocol/awsquery/claim.go:71-80). With Version, understudy answers 200.
 - x SendMessage 11 attributes: matches ("Number of message attributes [11] exceeds the allowed maximum [10]."), `__type` aside.
 - x attribute name 257 chars: differs: AWS "Message (user) attribute name must be shorter than 256 bytes."; understudy moto's character-rule text (internal/service/sqs/messages.go:124-125, validAttributeName length check at :160).

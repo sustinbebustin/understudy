@@ -57,11 +57,36 @@ func (b *builder) shapeTraits(ir *ShapeIR, s *Shape) error {
 		ir.XMLNamespace = &ns
 	}
 	if s.Type == smithy.TypeEnum || s.Type == smithy.TypeIntEnum {
-		return b.enumValues(ir, s)
+		if err := b.enumValues(ir, s); err != nil {
+			return err
+		}
+		return enumOrder(ir, s)
 	}
 	if raw, ok := s.Traits[traitEnum]; ok && s.Type == smithy.TypeString {
 		return legacyEnum(ir, raw)
 	}
+	return nil
+}
+
+// enumOrder reads dev.understudy#enumOrder, which must list every value of
+// the enum once.
+func enumOrder(ir *ShapeIR, s *Shape) error {
+	raw, ok := s.Traits[utEnumOrder]
+	if !ok {
+		return nil
+	}
+	order, err := parseEnumOrder(raw)
+	if err != nil {
+		return failf(StageIR, string(s.ID), "%s: %w", utEnumOrder, err)
+	}
+	values := make([]string, len(ir.Enum))
+	for i, e := range ir.Enum {
+		values[i] = e.Value
+	}
+	if !slices.Equal(slices.Sorted(slices.Values(order)), slices.Sorted(slices.Values(values))) {
+		return failf(StageIR, string(s.ID), "%s %q is not a permutation of the enum's values %q", utEnumOrder, order, values)
+	}
+	ir.EnumOrder = order
 	return nil
 }
 
@@ -198,8 +223,11 @@ func (s *ShapeIR) fieldKinds() error {
 }
 
 // valueField reports whether a member is a plain Go value: required,
-// defaulted or alwaysEmit scalars and structures. Collections, unions,
-// documents, blobs, big integers and streams use nil for absent instead.
+// zero-defaulted or alwaysEmit scalars, and required structures. A scalar
+// whose default is not its Go zero value is a pointer whatever else holds,
+// so unset stays apart from an explicit zero (smithy-protocol-tests.md
+// 14.2). Collections, unions, documents, blobs, big integers and streams
+// use nil for absent instead.
 func valueField(m *MemberIR) bool {
 	switch {
 	case m.Streaming:
@@ -210,7 +238,9 @@ func valueField(m *MemberIR) bool {
 		return false
 	case m.Target.Type == smithy.TypeStructure:
 		return m.Required
+	case m.DefaultKind == DefaultPointer:
+		return false
 	default:
-		return m.Required || m.Default != nil || m.AlwaysEmit
+		return m.Required || m.DefaultKind == DefaultZero || m.AlwaysEmit
 	}
 }

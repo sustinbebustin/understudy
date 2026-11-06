@@ -245,19 +245,33 @@ type failCond struct {
 	fails, constraint string
 }
 
+// enumLits are an enum's values as Go string literals, in the order an
+// enum violation lists them: dev.understudy#enumOrder's, else the model's.
+func enumLits(t *ShapeIR) []string {
+	if t.EnumOrder != nil {
+		vals := make([]string, len(t.EnumOrder))
+		for i, e := range t.EnumOrder {
+			vals[i] = goString(e)
+		}
+		return vals
+	}
+	vals := make([]string, len(t.Enum))
+	for i, e := range t.Enum {
+		vals[i] = goString(e.Value)
+		if t.Type == smithy.TypeIntEnum {
+			vals[i] = goString(strconv.FormatInt(e.Number, 10))
+		}
+	}
+	return vals
+}
+
 // conds lists the constraints of member m on value x in AWS's order: enum,
 // pattern, length (maximum before minimum), range (minimum first).
 func (v *validator) conds(m *MemberIR, x string) ([]failCond, error) {
 	t := m.Target
 	var out []failCond
 	if (t.Type == smithy.TypeEnum || t.Type == smithy.TypeIntEnum) && m.EnumPolicy == EnumClosed {
-		vals := make([]string, len(t.Enum))
-		for i, e := range t.Enum {
-			vals[i] = goString(e.Value)
-			if t.Type == smithy.TypeIntEnum {
-				vals[i] = goString(strconv.FormatInt(e.Number, 10))
-			}
-		}
+		vals := enumLits(t)
 		recv := x
 		if strings.HasPrefix(x, "*") {
 			recv = "(" + x + ")"
@@ -397,12 +411,8 @@ func (v *validator) mapEntries(h *MemberIR, x, path string, depth int) error {
 // any element the loop header ranges over (as e) fails one
 // (error-matrix.md 4, style B).
 func (v *validator) rollUp(h, m *MemberIR, x, path, loop, e string, depth int, scope string) error {
-	value := e
-	sparse := m.Owner.Sparse && pointerable(m.Target)
-	if sparse {
-		value = "*" + e
-	}
-	cs, err := v.conds(m, value)
+	sparse := nullElem(m)
+	cs, err := v.conds(m, elemValue(m, e))
 	if err != nil || len(cs) == 0 {
 		return err
 	}
@@ -438,14 +448,10 @@ func (v *validator) elem(m *MemberIR, e, path string, depth int, direct bool) er
 	if !direct {
 		check = v.nested
 	}
-	if m.Owner.Sparse && pointerable(m.Target) {
+	if nullElem(m) {
 		ind := strings.Repeat("\t", depth)
 		v.f.p("%sif %s != nil {", ind, e)
-		x := e
-		if !m.Target.IsStruct() {
-			x = "*" + e
-		}
-		if err := check(m, x, path, depth+1); err != nil {
+		if err := check(m, elemValue(m, e), path, depth+1); err != nil {
 			return err
 		}
 		v.f.p("%s}", ind)
@@ -602,11 +608,7 @@ func (v *validator) renderFunc(t *ShapeIR) {
 	// elemText renders one element or value e; ok is false for a shape AWS
 	// renders with no text v knows (structures, blobs), which become "".
 	elemText := func(m *MemberIR, e string) (string, bool) {
-		x := e
-		if m.Owner.Sparse && pointerable(m.Target) && !m.Target.IsStruct() {
-			x = "*" + e
-		}
-		r := v.rendered(m, x)
+		r := v.rendered(m, elemValue(m, e))
 		if after, ok := strings.CutPrefix(r, "awserr.RenderedText{Text: "); ok {
 			return strings.TrimSuffix(after, "}"), true
 		}
@@ -614,7 +616,7 @@ func (v *validator) renderFunc(t *ShapeIR) {
 	}
 	// nullable guards a sparse collection's nil element, rendered null.
 	nullable := func(m *MemberIR, e, ind string) {
-		if m.Owner.Sparse && pointerable(m.Target) {
+		if nullElem(m) {
 			f.p("%sif %s == nil {", ind, e)
 			f.p("%s\tparts = append(parts, \"null\")", ind)
 			f.p("%s\tcontinue", ind)

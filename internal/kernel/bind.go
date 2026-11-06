@@ -20,32 +20,62 @@ type Binder struct {
 }
 
 // BindOption adjusts one binding: WithValidator, WithCheck, WithResources,
-// WithActions and WithoutSecondaryActions build them.
+// WithResourcesFor, WithItemCount, WithActions, WithoutSecondaryActions,
+// WithConditionKeys, RefuseConditionKeys, AuthorizedInHandler,
+// NeverAuthorized and AuthorizedAfterResolve build them.
 type BindOption interface {
 	// apply adds the option to cfg, the *bindConfig of the operation's input
 	// type, and reports false when the option is for another input type.
 	apply(cfg any) bool
 }
 
-// bindConfig is what the options of one binding add to it.
-type bindConfig[In any] struct {
-	validators []func(*In) []awserr.Violation
-	checks     []func(*In) *awserr.Error
-	resources  []func(*Call, *In) []aws.ARN
-	actions    []func(*Call, *In) []registry.IAMAction
+// bindConfig is what the options of one binding add to it. It is not
+// generic: an input type's struct is its own GC shape, so code generic
+// over In is compiled once per operation, which cost about 8 MiB of the
+// binary (ADR 0001's binary budget). Its functions take the input as any
+// instead, erased where each option is built over the pointer type *In,
+// whose shape every input shares; they run only on an input of type In,
+// which the binding checks first.
+type bindConfig struct {
+	// in is the (*In)(nil) of the binding's input type: the token an
+	// option's matches, and what %T names in its errors.
+	in         any
+	validators []func(any) []awserr.Violation
+	checks     []func(any) *awserr.Error
+	resources  []func(*Call, any) []aws.ARN
+	actions    []func(*Call, any) []registry.IAMAction
+	erased     erasedConfig
+	// count is the last WithItemCount; nil without one.
+	count func(any) int
+	// authorization is the last AuthorizedInHandler, NeverAuthorized or
+	// AuthorizedAfterResolve; atStep8 without one.
+	authorization authorization
+	// refused are every RefuseConditionKeys option's keys.
+	refused []string
+}
+
+// erasedConfig is what WithResourcesFor and WithConditionKeys add: what the
+// binding hands on to step 8 and the access record as is.
+type erasedConfig struct {
+	scoped []scopedResources
+	keys   []func(*Call, any) ConditionKeys
+}
+
+func (e erasedConfig) clone() erasedConfig {
+	return erasedConfig{scoped: slices.Clone(e.scoped), keys: slices.Clone(e.keys)}
 }
 
 // validate runs step 7 over in: the generated validator and the typed
 // validators, rendered by the generated policy, then the checks.
-func (cfg *bindConfig[In]) validate(in *In) *awserr.Error {
+func (cfg *bindConfig) validate(in any) *awserr.Error {
 	var vs []awserr.Violation
-	if g, ok := any(in).(interface{ Validate() []awserr.Violation }); ok {
+	if g, ok := in.(interface{ Validate() []awserr.Violation }); ok {
 		vs = g.Validate()
 	}
 	for _, v := range cfg.validators {
 		vs = append(vs, v(in)...)
 	}
-	if err := Validate[In](vs); err != nil {
+	if err := validateAs(cfg.in, vs); err != nil {
 		return err
 	}
 	for _, check := range cfg.checks {
@@ -58,7 +88,7 @@ func (cfg *bindConfig[In]) validate(in *In) *awserr.Error {
 
 // resolve returns the resources the input in addresses, from every
 // WithResources option.
-func (cfg *bindConfig[In]) resolve(c *Call, in *In) []aws.ARN {
+func (cfg *bindConfig) resolve(c *Call, in any) []aws.ARN {
 	arns := make([]aws.ARN, 0, len(cfg.resources))
 	for _, r := range cfg.resources {
 		arns = append(arns, r(c, in)...)
@@ -66,34 +96,112 @@ func (cfg *bindConfig[In]) resolve(c *Call, in *In) []aws.ARN {
 	return arns
 }
 
-type validatorOption[In any] func(*In) []awserr.Violation
-
-func (o validatorOption[In]) apply(cfg any) bool {
-	c, ok := cfg.(*bindConfig[In])
-	if ok {
-		c.validators = append(c.validators, o)
-	}
-	return ok
+// typedOption is a WithValidator, WithCheck, WithResources,
+// WithResourcesFor, WithItemCount, WithActions or WithConditionKeys option,
+// erased where it is built: in is the (*In)(nil) of its input type, and add
+// adds it to a bindConfig of that type.
+type typedOption struct {
+	in  any
+	add func(cfg *bindConfig)
 }
 
-type checkOption[In any] func(*In) *awserr.Error
-
-func (o checkOption[In]) apply(cfg any) bool {
-	c, ok := cfg.(*bindConfig[In])
-	if ok {
-		c.checks = append(c.checks, o)
+func (o typedOption) apply(cfg any) bool {
+	c, ok := cfg.(*bindConfig)
+	if !ok || c.in != o.in {
+		return false
 	}
-	return ok
+	o.add(c)
+	return true
 }
 
-type resourcesOption[In any] func(*Call, *In) []aws.ARN
+// The ...Of functions build the typed options over P, the input's pointer
+// type *In. Every pointer type shares one GC shape under an any
+// constraint, so each is compiled once, not per input type. A function
+// they erase meets only an input of type P (configured checks it first);
+// another input gets the zero answer.
 
-func (o resourcesOption[In]) apply(cfg any) bool {
-	c, ok := cfg.(*bindConfig[In])
-	if ok {
-		c.resources = append(c.resources, o)
+func validatorOf[P any](v func(P) []awserr.Violation) BindOption {
+	var token P
+	f := func(in any) []awserr.Violation {
+		typed, ok := in.(P)
+		if !ok {
+			return nil
+		}
+		return v(typed)
 	}
-	return ok
+	return typedOption{in: token, add: func(c *bindConfig) { c.validators = append(c.validators, f) }}
+}
+
+func checkOf[P any](check func(P) *awserr.Error) BindOption {
+	var token P
+	f := func(in any) *awserr.Error {
+		typed, ok := in.(P)
+		if !ok {
+			return nil
+		}
+		return check(typed)
+	}
+	return typedOption{in: token, add: func(c *bindConfig) { c.checks = append(c.checks, f) }}
+}
+
+func resourcesOf[P any](resolve func(*Call, P) []aws.ARN) BindOption {
+	var token P
+	f := func(c *Call, in any) []aws.ARN {
+		typed, ok := in.(P)
+		if !ok {
+			return nil
+		}
+		return resolve(c, typed)
+	}
+	return typedOption{in: token, add: func(c *bindConfig) { c.resources = append(c.resources, f) }}
+}
+
+func countOf[P any](count func(P) int) BindOption {
+	var token P
+	f := func(in any) int {
+		typed, ok := in.(P)
+		if !ok {
+			return 0
+		}
+		return count(typed)
+	}
+	return typedOption{in: token, add: func(c *bindConfig) { c.count = f }}
+}
+
+func actionsOf[P any](declare func(*Call, P) []registry.IAMAction) BindOption {
+	var token P
+	f := func(c *Call, in any) []registry.IAMAction {
+		typed, ok := in.(P)
+		if !ok {
+			return nil
+		}
+		return declare(c, typed)
+	}
+	return typedOption{in: token, add: func(c *bindConfig) { c.actions = append(c.actions, f) }}
+}
+
+func scopedOf[P any](actions []registry.IAMAction, resolve func(*Call, P) []aws.ARN) BindOption {
+	var token P
+	s := scopedResources{actions: slices.Clone(actions), resolve: func(c *Call, in any) []aws.ARN {
+		typed, ok := in.(P)
+		if !ok {
+			return nil
+		}
+		return resolve(c, typed)
+	}}
+	return typedOption{in: token, add: func(c *bindConfig) { c.erased.scoped = append(c.erased.scoped, s) }}
+}
+
+func keysOf[P any](supply func(*Call, P) ConditionKeys) BindOption {
+	var token P
+	f := func(c *Call, in any) ConditionKeys {
+		typed, ok := in.(P)
+		if !ok {
+			return nil
+		}
+		return supply(c, typed)
+	}
+	return typedOption{in: token, add: func(c *bindConfig) { c.erased.keys = append(c.erased.keys, f) }}
 }
 
 // WithValidator adds a stateless, typed validator that runs at pipeline
@@ -101,7 +209,7 @@ func (o resourcesOption[In]) apply(cfg any) bool {
 // hand-owned limit texts keep the Coral check order. Its violations are
 // rendered by the operation's generated policy.
 func WithValidator[In any](v func(*In) []awserr.Violation) BindOption {
-	return validatorOption[In](v)
+	return validatorOf[*In](v)
 }
 
 // WithCheck adds a stateless, typed check that runs at step 7 after every
@@ -110,7 +218,7 @@ func WithValidator[In any](v func(*In) []awserr.Violation) BindOption {
 // overlay reason template carries yet. Prefer WithValidator whenever the
 // policy renders the answer.
 func WithCheck[In any](check func(*In) *awserr.Error) BindOption {
-	return checkOption[In](check)
+	return checkOf[*In](check)
 }
 
 // WithResources names the resources a call's input addresses, so
@@ -119,15 +227,39 @@ func WithCheck[In any](check func(*In) *awserr.Error) BindOption {
 // an input that names no resolvable resource returns nothing, and the
 // handler answers it as usual.
 func WithResources[In any](resolve func(c *Call, in *In) []aws.ARN) BindOption {
-	return resourcesOption[In](resolve)
+	return resourcesOf[*In](resolve)
+}
+
+// WithItemCount names how many items a transactional call's input carries
+// (DynamoDB TransactItems, TransactStatements), so a fault rule's per-item
+// members line up with them: once the input is valid, the kernel sets
+// fault.MatchInput.Items from it for the call's request-phase rules.
+// Without the option Items is 0; with several, the last one applies.
+func WithItemCount[In any](count func(*In) int) BindOption {
+	return countOf[*In](count)
 }
 
 // Bind binds h as op's handler with the coverage the bind site states.
 // Mistakes (op bound twice, op outside the binder's service or the registry,
 // an option of another input type) are kept for Kernel.BindErr.
 func Bind[In, Out any](b *Binder, op Op[In, Out], h Handler[In, Out], cov registry.BindCoverage, opts ...BindOption) {
-	desc := op.desc
-	b.bind(desc, cov, typedBinding[In](b, desc, opts, func(ctx context.Context, c *Call, in *In, _ Wire) (any, *awserr.Error) {
+	bindHandler(b, op.desc, newInput[In], func(ctx context.Context, c *Call, in *In) (any, *awserr.Error) {
+		out, err := h(ctx, c, in)
+		if out == nil {
+			// A nil *Out is a nil output, not a non-nil any holding it.
+			return nil, err
+		}
+		return out, err
+	}, cov, opts)
+}
+
+// newInput returns a new *In to decode into.
+func newInput[In any]() any { return new(In) }
+
+// bindHandler is Bind over the input's pointer type P, its output erased,
+// so its body is compiled once rather than per operation.
+func bindHandler[P any](b *Binder, desc *registry.Operation, newIn func() any, h func(context.Context, *Call, P) (any, *awserr.Error), cov registry.BindCoverage, opts []BindOption) {
+	b.bind(desc, cov, typedBinding(b, desc, opts, newIn, func(ctx context.Context, c *Call, in P, _ Wire) (any, *awserr.Error) {
 		out, err := h(ctx, c, in)
 		switch {
 		case err != nil && out != nil:
@@ -146,7 +278,12 @@ func Bind[In, Out any](b *Binder, op Op[In, Out], h Handler[In, Out], cov regist
 // input is decoded and validated like any other; the handler answers with
 // the bytes to send, which the call's output carries as a *RawOutput.
 func BindRaw[In any](b *Binder, op Op[In, RawOutput], h RawHandler[In], cov registry.BindCoverage, opts ...BindOption) {
-	bnd := typedBinding[In](b, op.desc, opts, func(ctx context.Context, c *Call, in *In, w Wire) (any, *awserr.Error) {
+	bindRaw(b, op.desc, newInput[In], h, cov, opts)
+}
+
+// bindRaw is BindRaw over the input's pointer type P.
+func bindRaw[P any](b *Binder, desc *registry.Operation, newIn func() any, h func(context.Context, *Call, P, Wire) (RawResponse, *awserr.Error), cov registry.BindCoverage, opts []BindOption) {
+	bnd := typedBinding(b, desc, opts, newIn, func(ctx context.Context, c *Call, in P, w Wire) (any, *awserr.Error) {
 		resp, err := h(ctx, c, in, w)
 		if err != nil {
 			return nil, err
@@ -154,7 +291,7 @@ func BindRaw[In any](b *Binder, op Op[In, RawOutput], h RawHandler[In], cov regi
 		return &RawOutput{Response: resp}, nil
 	})
 	bnd.passthrough = true
-	b.bind(op.desc, cov, bnd)
+	b.bind(desc, cov, bnd)
 }
 
 // BindRawHTTP binds the handler of a raw operation, which owns the HTTP body
@@ -178,35 +315,73 @@ func BindRawHTTP(b *Binder, op *registry.Operation, h RawHTTPHandler, cov regist
 		},
 		validate:  func(any) *awserr.Error { return nil },
 		resources: func(*Call, any) []aws.ARN { return nil },
+		items:     func(any) int { return 0 },
 		redact:    func(any) ([]byte, error) { return nil, nil },
 	})
 }
 
-// typedBinding builds the type-erased binding of an operation whose input is
-// In: decode target, validators and checks, resource resolution, declared
-// actions, redaction and the handler adapter.
-func typedBinding[In any](b *Binder, desc *registry.Operation, opts []BindOption, run func(ctx context.Context, c *Call, in *In, w Wire) (any, *awserr.Error)) *binding {
+// typedBinding builds the type-erased binding of an operation whose input
+// type is P, a *In: decode target, validators and checks, resource
+// resolution, declared actions, redaction and the handler adapter.
+func typedBinding[P any](b *Binder, desc *registry.Operation, opts []BindOption, newIn func() any, run func(ctx context.Context, c *Call, in P, w Wire) (any, *awserr.Error)) *binding {
 	var id ref.OperationID
 	if desc != nil {
 		id = desc.ID
 	}
-	return configured(b, id, bindConfig[In]{}, opts, run)
+	var token P
+	t := inputType{
+		newInput: newIn,
+		is: func(in any) bool {
+			_, ok := in.(P)
+			return ok
+		},
+		redact: func(in any) ([]byte, error) {
+			if r, ok := in.(interface{ Redact() P }); ok {
+				return json.Marshal(r.Redact())
+			}
+			return json.Marshal(in)
+		},
+		run: func(ctx context.Context, c *Call, in any, w Wire) (any, *awserr.Error) {
+			typed, ok := in.(P)
+			if !ok {
+				return nil, awserr.Internalf(&InputTypeError{Op: id, Got: fmt.Sprintf("%T", in), Want: fmt.Sprintf("%T", token)})
+			}
+			return run(ctx, c, typed, w)
+		},
+	}
+	return configured(b, id, bindConfig{in: token}, opts, t)
+}
+
+// inputType is what a binding does with its input that depends on the
+// input's type, erased by typedBinding.
+type inputType struct {
+	newInput func() any
+	// is reports whether in is of the input type.
+	is     func(in any) bool
+	redact func(in any) ([]byte, error)
+	// run calls the handler; an input of another type is an Internal error.
+	run func(ctx context.Context, c *Call, in any, w Wire) (any, *awserr.Error)
 }
 
 // clone returns a copy of cfg whose option lists share no backing array
 // with cfg's, so extending one leaves the other as it was.
-func (cfg *bindConfig[In]) clone() bindConfig[In] {
-	return bindConfig[In]{
-		validators: slices.Clone(cfg.validators),
-		checks:     slices.Clone(cfg.checks),
-		resources:  slices.Clone(cfg.resources),
-		actions:    slices.Clone(cfg.actions),
+func (cfg *bindConfig) clone() bindConfig {
+	return bindConfig{
+		in:            cfg.in,
+		validators:    slices.Clone(cfg.validators),
+		checks:        slices.Clone(cfg.checks),
+		resources:     slices.Clone(cfg.resources),
+		actions:       slices.Clone(cfg.actions),
+		erased:        cfg.erased.clone(),
+		count:         cfg.count,
+		authorization: cfg.authorization,
+		refused:       slices.Clone(cfg.refused),
 	}
 }
 
 // configured builds the binding of base extended with opts; its extend
 // builds the same binding extended again, for Declare.
-func configured[In any](b *Binder, id ref.OperationID, base bindConfig[In], opts []BindOption, run func(ctx context.Context, c *Call, in *In, w Wire) (any, *awserr.Error)) *binding {
+func configured(b *Binder, id ref.OperationID, base bindConfig, opts []BindOption, t inputType) *binding {
 	cfg := base.clone()
 	for _, o := range opts {
 		if !o.apply(&cfg) {
@@ -214,43 +389,39 @@ func configured[In any](b *Binder, id ref.OperationID, base bindConfig[In], opts
 		}
 	}
 	bnd := &binding{
-		newInput: func() any { return new(In) },
+		newInput: t.newInput,
 		validate: func(in any) *awserr.Error {
-			typed, ok := in.(*In)
-			if !ok {
-				return awserr.Internalf(&InputTypeError{Op: id, Got: fmt.Sprintf("%T", in), Want: fmt.Sprintf("%T", (*In)(nil))})
+			if !t.is(in) {
+				return awserr.Internalf(&InputTypeError{Op: id, Got: fmt.Sprintf("%T", in), Want: fmt.Sprintf("%T", cfg.in)})
 			}
-			return cfg.validate(typed)
+			return cfg.validate(in)
 		},
 		resources: func(c *Call, in any) []aws.ARN {
-			typed, ok := in.(*In)
-			if !ok {
+			if !t.is(in) {
 				return nil
 			}
-			return cfg.resolve(c, typed)
+			return cfg.resolve(c, in)
 		},
-		redact: func(in any) ([]byte, error) {
-			if r, ok := in.(interface{ Redact() *In }); ok {
-				return json.Marshal(r.Redact())
+		items: func(in any) int {
+			if !t.is(in) || cfg.count == nil {
+				return 0
 			}
-			return json.Marshal(in)
+			return cfg.count(in)
 		},
-		run: func(ctx context.Context, c *Call, in any, w Wire) (any, *awserr.Error) {
-			typed, ok := in.(*In)
-			if !ok {
-				return nil, awserr.Internalf(&InputTypeError{Op: id, Got: fmt.Sprintf("%T", in), Want: fmt.Sprintf("%T", (*In)(nil))})
-			}
-			return run(ctx, c, typed, w)
-		},
-		extend: func(more []BindOption) *binding { return configured(b, id, cfg, more, run) },
+		keys:          cfg.erased.keys,
+		scoped:        cfg.erased.scoped,
+		redact:        t.redact,
+		run:           t.run,
+		extend:        func(more []BindOption) *binding { return configured(b, id, cfg, more, t) },
+		authorization: cfg.authorization,
+		refused:       cfg.refused,
 	}
 	if len(cfg.actions) > 0 {
 		bnd.actions = func(c *Call, in any) []registry.IAMAction {
-			typed, ok := in.(*In)
-			if !ok {
+			if !t.is(in) {
 				return nil
 			}
-			return cfg.declare(c, typed)
+			return cfg.declare(c, in)
 		}
 	}
 	return bnd
@@ -295,6 +466,17 @@ type binding struct {
 	validate func(in any) *awserr.Error
 	// resources names what a valid input addresses (WithResources).
 	resources func(c *Call, in any) []aws.ARN
+	// items counts a valid input's transaction items (WithItemCount); 0
+	// without the option.
+	items func(in any) int
+	// keys supply the request condition keys of a valid input
+	// (WithConditionKeys); nil without the option and for raw HTTP
+	// bindings.
+	keys []func(c *Call, in any) ConditionKeys
+	// scoped name, for a valid input, the resources each named action
+	// applies to (WithResourcesFor); nil without the option and for raw HTTP
+	// bindings.
+	scoped []scopedResources
 	// actions are the IAM actions a valid input declares used besides the
 	// primary (WithActions, WithoutSecondaryActions); nil when the binding
 	// declares none, so its calls record the operation's whole list.
@@ -304,6 +486,26 @@ type binding struct {
 	// extend returns the binding with more options (Declare); nil for raw
 	// HTTP bindings, which take none.
 	extend func(opts []BindOption) *binding
+	// authorization is what step 8 asks about the binding's calls
+	// (AuthorizedInHandler, NeverAuthorized, AuthorizedAfterResolve).
+	authorization authorization
+	// refused are the condition keys step 8 passes as AuthzQuery.Refused
+	// (RefuseConditionKeys); nil without the option and for raw HTTP
+	// bindings.
+	refused []string
+}
+
+// scoping resolves the binding's WithResourcesFor options for the valid
+// input in: the resources each named action applies to, and all of them to
+// touch; nil without the option.
+func (bnd *binding) scoping(c *Call, in any) (scoping, []aws.ARN) {
+	return scope(bnd.scoped, c, in)
+}
+
+// conditionKeys returns the request condition keys the binding's
+// WithConditionKeys options supply for the valid input in; nil without one.
+func (bnd *binding) conditionKeys(c *Call, in any) ConditionKeys {
+	return conditionKeys(bnd.keys, c, in)
 }
 
 // Bindings is a kernel's binding table, indexed by service and
@@ -403,8 +605,9 @@ const (
 	NoCoverage
 	// NotRaw is a BindRawHTTP of an operation not of kind raw.
 	NotRaw
-	// OptionType is a WithValidator, WithCheck, WithResources or
-	// WithActions option for another input type than the operation's.
+	// OptionType is a WithValidator, WithCheck, WithResources,
+	// WithResourcesFor, WithItemCount, WithActions or WithConditionKeys
+	// option for another input type than the operation's.
 	OptionType
 	// DeclaredUnbound is a Declare for an operation not bound yet, so no
 	// binding takes its options.
@@ -437,7 +640,7 @@ func (e *BindError) Error() string {
 	case NotRaw:
 		why = "BindRawHTTP binds only operations of kind raw"
 	case OptionType:
-		why = "a WithValidator, WithCheck, WithResources or WithActions option is for another input type than the operation's"
+		why = "a WithValidator, WithCheck, WithResources, WithResourcesFor, WithItemCount, WithActions or WithConditionKeys option is for another input type than the operation's; build it for the operation's input"
 	case DeclaredUnbound:
 		why = "Declare names an operation that is not bound, so its options are not applied; call Declare after the operation's bind site"
 	case DeclaredRaw:

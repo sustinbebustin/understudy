@@ -1,0 +1,36 @@
+{
+  "step": "02",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "dynamodb.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163653Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDB_20120810.TransactWriteItems"],
+          ["Content-Length", "166"]
+        ],
+        "body": "{\"TransactItems\":[{\"Update\":{\"TableName\":\"us1103-proto-tx\",\"Key\":{\"pk\":{\"S\":\"hot\"}},\"UpdateExpression\":\"ADD n :one\",\"ExpressionAttributeValues\":{\":one\":{\"N\":\"1\"}}}}]}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:53 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "2"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-requestid", "KVRO0DT48DHIAGAK5JK946C62JVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "2745614147"]
+        ],
+        "body": "{}"
+      }
+    }
+  ]
+}

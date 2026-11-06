@@ -1,0 +1,29 @@
+{
+  "step": "06-stage-case",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://zabnr6djc4.execute-api.us-east-2.amazonaws.com/PROD/x",
+        "headers": [
+          ["Host", "zabnr6djc4.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "reason": "Not Found",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:44:56 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "23"],
+          ["Connection", "keep-alive"],
+          ["apigw-requestid", "GRddchJXiYcEMdg="]
+        ],
+        "body": "{\"message\":\"Not Found\"}"
+      }
+    }
+  ]
+}

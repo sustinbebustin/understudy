@@ -1,0 +1,35 @@
+{
+  "step": "01-receive",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,b,E,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T164428Z"],
+          ["amz-sdk-invocation-id", "a9c873b1-da3c-40c6-a4b6-44331bc8120b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "128"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-ssm-ev\", \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "6b4d8393-7001-5e2d-9cab-e0f761adcb99"],
+          ["Date", "Tue, 03 Nov 2026 16:44:28 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "965"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"{\\\"version\\\":\\\"0\\\",\\\"id\\\":\\\"949815ce-983a-2582-4be1-2aad4fe42cea\\\",\\\"detail-type\\\":\\\"Parameter Store Change\\\",\\\"source\\\":\\\"aws.ssm\\\",\\\"account\\\":\\\"123456789012\\\",\\\"time\\\":\\\"2026-11-03T16:43:26Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[\\\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/e31\\\"],\\\"detail\\\":{\\\"name\\\":\\\"/us1103/ssm/e31\\\",\\\"description\\\":\\\"d\\\",\\\"type\\\":\\\"String\\\",\\\"operation\\\":\\\"Update\\\"}}\",\"MD5OfBody\":\"4e6208dba1c22c0e0d6a8d6953cf2f0c\",\"MessageId\":\"62c35ef0-152d-4f9b-aaf7-79bbed1ea9d1\",\"ReceiptHandle\":\"AQEB0vsQwlvpha5aBlGCuKsy7O6u9Kw8fIzCHGUqdHQxzCXg7+Y0KoCjcpIFc+4ImFiLaXABV3tzfITxaOBgAhEXCfSOU1aOTbxuSGWU/OCsmvpgbbbvxponvIFrHcoDNeqnWtbxwnFqH1ZvqwtMzQWyCSbS7aNUJuGaYKTVSFGESgt/r3PRdJZ6BHYHjVnGcbA1pq2Hdd5GuX2S3XIfwFvQccUSa81WCzdFNto0uXWxqQbIM7zWJQ+AgKhgfxET+lJ2Kqd4BecVukv5ubpLzVC9id/WD5vCqLiyekdEyT5P93cWMpWKLJgMgEpksxx/uKFMBUCrQA8ThR0gk7WxGpC+iKoTS16xD241f6EBn9EosFDHNG1gdPUo7Cuxej0sfQKWGOb9nBVBCESPzKoQtoa6Ug==\"}]}"
+      }
+    }
+  ]
+}

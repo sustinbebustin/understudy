@@ -1,0 +1,36 @@
+{
+  "step": "03-label",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ParameterNotFound) when calling the LabelParameterVersion operation: Parameter /us1103/ssm/missing not found.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.LabelParameterVersion"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.label-parameter-version"],
+          ["X-Amz-Date", "20261103T163553Z"],
+          ["amz-sdk-invocation-id", "ed8ba620-7844-4320-944a-35b3c8d04347"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "49"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/missing\", \"Labels\": [\"l1\"]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:35:53 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "83"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "f6742dab-6057-4740-b20d-01dd58797a62"]
+        ],
+        "body": "{\"__type\":\"ParameterNotFound\",\"message\":\"Parameter /us1103/ssm/missing not found.\"}"
+      }
+    }
+  ]
+}

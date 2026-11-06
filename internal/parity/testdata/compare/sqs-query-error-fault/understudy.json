@@ -1,0 +1,17 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "the error of compare/sqs-query-error/aws.json with the fault half of x-amzn-query-error changed",
+  "exchanges": [
+    {
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-query-error", "InvalidParameterValue;Receiver"],
+          ["Content-Type", "application/x-amz-json-1.0"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Value x for parameter ReceiptHandle is invalid.\"}"
+      }
+    }
+  ]
+}

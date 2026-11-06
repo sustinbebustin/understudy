@@ -1,0 +1,6 @@
+{
+  "service": "com.amazonaws.scheduler#AWSChronosService",
+  "package": "schedulerapi",
+  "model": "scheduler",
+  "iamPrefix": "scheduler"
+}

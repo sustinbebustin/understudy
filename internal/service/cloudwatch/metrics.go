@@ -33,6 +33,9 @@ func (s *Service) bindMetrics(b cloudwatchapi.Binder) {
 	b.GetMetricData(s.getMetricData,
 		registry.Partial{Note: "MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored"},
 		kernel.WithCheck(checkGetMetricData))
+	b.GetMetricStatistics(s.getMetricStatistics,
+		registry.Partial{Note: "Statistics only: ExtendedStatistics answers 501; points are kept until reset, not aged out by resolution"},
+		kernel.WithCheck(checkGetMetricStatistics))
 	b.ListMetrics(s.listMetrics,
 		registry.Partial{Note: "no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more"})
 }

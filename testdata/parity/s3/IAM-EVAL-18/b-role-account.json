@@ -1,0 +1,34 @@
+{
+  "step": "b-role-account",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDenied) when calling the ListObjectsV2 operation: User: arn:aws:sts::123456789012:assumed-role/us1103-eval-np/np is not authorized to perform: s3:ListBucket on resource: \"arn:aws:s3:::us1103-eval-np-123456789012\" with an explicit deny in a resource-based policy",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-eval-np-123456789012.s3.us-east-2.amazonaws.com/?list-type=2&encoding-type=url",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,g,C,AN,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.list-objects-v2"],
+          ["X-Amz-Date", "20261103T031720Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "e0ce5051-4eac-46bb-b648-f2a02263d525"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["x-amz-bucket-region", "us-east-2"],
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "Y1D0BAASC7F14FWQ"],
+          ["x-amz-id-2", "6N+FCPzvrmU4sG4xzujK9KEejUgg9q/H5n1JpLtVclOZ5E6H0EEPxmhRH5Uj+svKMKnrurn/9L4hMrOFAXUd8Kskg3dr0ig7"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:17:19 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>User: arn:aws:sts::123456789012:assumed-role/us1103-eval-np/np is not authorized to perform: s3:ListBucket on resource: \"arn:aws:s3:::us1103-eval-np-123456789012\" with an explicit deny in a resource-based policy</Message><RequestId>Y1D0BAASC7F14FWQ</RequestId><HostId>6N+FCPzvrmU4sG4xzujK9KEejUgg9q/H5n1JpLtVclOZ5E6H0EEPxmhRH5Uj+svKMKnrurn/9L4hMrOFAXUd8Kskg3dr0ig7</HostId></Error>"
+      }
+    }
+  ]
+}

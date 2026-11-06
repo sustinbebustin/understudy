@@ -13,15 +13,18 @@ import (
 // reads an archived object too, and the codec sends its errors without a
 // body.
 func (s *Service) headObject(ctx context.Context, c *kernel.Call, in *s3api.HeadObjectInput) (*s3api.HeadObjectOutput, *awserr.Error) {
-	got, err := s.readObject(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), readRequest{
-		key: in.Key, versionID: in.VersionId, method: http.MethodHead, rangeSpec: in.Range, partNumber: in.PartNumber,
-		conds: readConditions{ifMatch: in.IfMatch, ifNoneMatch: in.IfNoneMatch, ifModifiedSince: in.IfModifiedSince, ifUnmodifiedSince: in.IfUnmodifiedSince},
-	})
+	withChecksum, err := parseChecksumMode(in.ChecksumMode)
 	if err != nil {
 		return nil, err
 	}
-	if customerKeyed(in.SSECustomerAlgorithm, in.SSECustomerKey, in.SSECustomerKeyMD5) {
-		return nil, errSSECNotApplicable()
+	got, err := s.readObject(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), readRequest{
+		key: in.Key, versionID: in.VersionId, method: http.MethodHead, rangeSpec: in.Range, partNumber: in.PartNumber,
+		conds:    readConditions{ifMatch: in.IfMatch, ifNoneMatch: in.IfNoneMatch, ifModifiedSince: in.IfModifiedSince, ifUnmodifiedSince: in.IfUnmodifiedSince},
+		customer: customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5},
+		scheme:   c.Endpoint().Scheme,
+	})
+	if err != nil {
+		return nil, missingKey(ctx, c, in.Bucket, err)
 	}
-	return headOf(got, in.ChecksumMode), nil
+	return headOf(got, withChecksum), nil
 }

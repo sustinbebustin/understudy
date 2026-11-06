@@ -1,0 +1,34 @@
+{
+  "step": "01-at-old-sequence",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "streams.dynamodb.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261104T224822Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDBStreams_20120810.GetShardIterator"],
+          ["Content-Length", "238"]
+        ],
+        "body": "{\"StreamArn\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs/stream/2026-11-03T16:35:17.650\",\"ShardId\":\"shardId-00000001793723721237-7672acf5\",\"ShardIteratorType\":\"AT_SEQUENCE_NUMBER\",\"SequenceNumber\":\"12100000714580876880150\"}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["x-amzn-RequestId", "8IKHB7P91S4JU37H3B6O56P3RRVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "79315230"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "134"],
+          ["Date", "Wed, 04 Nov 2026 22:48:22 GMT"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.dynamodb.v20120810#ResourceNotFoundException\",\"message\":\"Requested resource not found: Shard does not exist\"}"
+      }
+    }
+  ]
+}

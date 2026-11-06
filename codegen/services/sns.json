@@ -7,5 +7,26 @@
     {"name": "ConfirmSubscriptionLink", "iam": ["sns:ConfirmSubscription"]},
     {"name": "SigningCert", "iam": []},
     {"name": "UnsubscribeLink", "iam": ["sns:Unsubscribe"]}
+  ],
+  "boundOperations": [
+    "AddPermission",
+    "ConfirmSubscription",
+    "CreateTopic",
+    "DeleteTopic",
+    "GetSubscriptionAttributes",
+    "GetTopicAttributes",
+    "ListSubscriptions",
+    "ListSubscriptionsByTopic",
+    "ListTagsForResource",
+    "ListTopics",
+    "Publish",
+    "PublishBatch",
+    "RemovePermission",
+    "SetSubscriptionAttributes",
+    "SetTopicAttributes",
+    "Subscribe",
+    "TagResource",
+    "Unsubscribe",
+    "UntagResource"
   ]
 }

@@ -48,6 +48,32 @@ Lambda and DynamoDB Local run on the Docker Engine `--docker` names, else `DOCKE
 
 A daemon on another host, such as a docker:dind CI service, is detected when the first container is needed: functions reach understudy at its own address on the daemon's network, so understudy must run on that network ([CI guide](guide/ci.md#docker-in-docker)). `understudy doctor` reports the daemon, its transport and the topology.
 
+`--docker-labels` (`UNDERSTUDY_DOCKER_LABELS`, file key `dockerLabels`) adds labels to every container understudy creates, function environments and DynamoDB Local, beside understudy's own `understudy.dev/` labels. `serve` creates no Docker network. The value is a JSON object of string values; the file takes the object itself or a string holding its text, and the source that sets it replaces the others whole. It is how a Testcontainers module that runs understudy in a container hands over the session's reaper labels, such as `{"org.testcontainers.session-id":"<id>"}`, so Ryuk also removes the containers understudy started when the test process dies. Keys under `understudy.dev/` are refused (`label key "understudy.dev/managed" is reserved for understudy's own labels; choose a key outside understudy.dev/`), so the sweeps and `understudy cleanup`, which select only those labels, remove what they did before.
+
+## Outbound HTTP delivery
+
+understudy makes no outbound HTTP request unless a setting allows it. `--sns-http-delivery-allow` (`UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW`, file key `sns.httpDelivery.allow`) lists the hosts SNS delivers `http` and `https` subscriptions to. It is empty by default: such a subscription stays pending and receives nothing, and each delivery is journaled as `refused`, with the entry that would allow it. [SNS HTTP delivery](guide/sns-http.md) walks through a receiver, retries and signature validation.
+
+Each entry is `host:port`. The host is `localhost`, an IPv4 literal, a bracketed IPv6 literal such as `[::1]`, or a DNS name; the port is 1 to 65535, or `*` for any port, meant for a test receiver on an ephemeral port. There are no host wildcards and no address ranges. The flag and the variable take the entries comma-separated, untrimmed; the file takes a JSON array, nested in its `sns` section:
+
+```json
+{"sns": {"httpDelivery": {"allow": ["127.0.0.1:*", "receiver:8080"]}}}
+```
+
+The source that sets the list replaces the others whole. A malformed entry, or one naming a host understudy never reaches, stops `serve` with exit code 2, naming the entry by its index from 0.
+
+A subscription's URL is allowed when its host, lowercased and without a trailing dot, equals an entry's host, and its port (80 for `http` and 443 for `https` when the URL names none) equals the entry's port or the entry's port is `*`; the scheme does not matter. The address is checked again once the name resolves, and the address checked is the one dialed:
+
+- A `localhost` entry reaches only loopback.
+- An IP literal entry reaches that address.
+- A DNS-name entry reaches any address but loopback, which only `localhost` or an IP literal entry lists. Private addresses (RFC 1918 and IPv6 ULA) are allowed, so a compose service such as `receiver:8080` or a Kubernetes service such as `receiver.default.svc.cluster.local:8080` can be listed by name.
+
+Whatever the list says, understudy never delivers to a name under an AWS domain (in the URL or anywhere in its CNAME chain), to the instance metadata and ECS credentials addresses, to any link-local, unspecified or multicast address, to its own listeners (main, TLS, container and each Runtime API) or to a `tcp://` Docker Engine. The Engine's host is resolved once, when `serve` starts; if it does not resolve then, `serve` logs a warning and cannot refuse the Engine's addresses, so do not list a name that resolves to the Engine. A delivery uses no proxy, follows no redirect, speaks HTTP/1.1 and gives up after 15 seconds.
+
+`--sns-http-delivery-ca-bundle` (`UNDERSTUDY_SNS_HTTP_DELIVERY_CA_BUNDLE`, file key `sns.httpDelivery.caBundle`) names a PEM file of CA certificates an `https` endpoint may chain to, beside the system roots; certificate verification is never skipped. The file is read at start, and one that cannot be read, holds no certificate or holds one that does not parse stops `serve`.
+
+While `--tls` serves, the `SubscribeURL`, `UnsubscribeURL` and `SigningCertURL` an HTTP delivery carries are on `https://localhost:<TLS port>`; otherwise they are on the address the calling client used, unless that address is an AWS name, in which case they are on `localhost` at the port the client used. They never name an AWS host.
+
 ## Exit codes
 
 `serve` exits 2 when it refuses a flag, variable or file setting, and 1 when it fails after loading them, such as a port already in use. Every CLI command shares one table, which `understudy --help` prints:
@@ -111,9 +137,24 @@ This is what `understudy serve --help` prints under Flags. A test keeps it in st
   --sigv4 MODE
       signature checking: parse (default) reads credentials only; verify refuses a bad signature, an unknown key, a missing or expired session token, and expires presigned URLs on the emulator clock
       variable UNDERSTUDY_SIGV4, file key "sigv4"
+  --iam-enforce MODE
+      IAM enforcement: off (default) records which actions each principal uses and enforces nothing; advise evaluates every call and journals an advisory for each denial AWS would issue, answering as off does; enforce answers those denials
+      variable UNDERSTUDY_IAM_ENFORCE, file key "enforce" in the "iam" section
+  --iam-assume-role MODE
+      AssumeRole of a role IAM does not hold: strict (default) refuses it with AccessDenied, as AWS does; lenient mints a session for any well-formed role ARN. Under iam.enforce enforce such a role is denied at authorization whatever this says
+      variable UNDERSTUDY_IAM_ASSUME_ROLE, file key "assumeRole" in the "iam" section
+  --sns-http-delivery-allow HOST:PORT,...
+      hosts SNS delivers http and https subscriptions to, as comma-separated host:port entries: the host localhost, an IP literal ([v6] for IPv6) or a DNS name, the port 1-65535 or * (default none: nothing is delivered). AWS hosts, link-local and metadata addresses and understudy's own listeners are refused whatever the list says
+      variable UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW, file key "httpDelivery.allow" in the "sns" section
+  --sns-http-delivery-ca-bundle FILE
+      PEM file of CA certificates an https subscription endpoint may chain to, beside the system roots (default none)
+      variable UNDERSTUDY_SNS_HTTP_DELIVERY_CA_BUNDLE, file key "httpDelivery.caBundle" in the "sns" section
   --docker URL
       Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)
       variable UNDERSTUDY_DOCKER, file key "docker"
+  --docker-labels JSON
+      labels added to every container understudy creates, function environments and DynamoDB Local, as a JSON object of string values, such as {"org.testcontainers.session-id":"<id>"} so a Testcontainers reaper also removes them; keys under understudy.dev/ are understudy's own and refused (default none)
+      variable UNDERSTUDY_DOCKER_LABELS, file key "dockerLabels"
   --ready-file FILE
       file to write {"endpoint", "pid"} to once listening
       variable UNDERSTUDY_READY_FILE, file key "readyFile"
@@ -142,7 +183,9 @@ setting has one; any key may be left out:
       "hotReload": [{"function": "worker", "dir": "/abs/path/to/build", "account": "000000000000", "region": "us-east-1"}]
     },
     "sqs": {"queueDeletedRecently": "ignore"},
-    "iam": {"assumeRole": "strict"},
+    "sns": {"httpDelivery": {"allow": ["127.0.0.1:8080"]}},
+    "ses": {"verifiedIdentities": ["sender@example.com", "example.org", "*@example.net"], "productionAccess": false},
+    "iam": {"assumeRole": "strict", "enforce": "off"},
     "dynamodb": {"enabled": true, "memoryLimit": 1073741824},
     "journal": {"capacity": 100000, "maxBytes": 134217728, "file": "/abs/path/to/journal.ndjson"},
     "faults": [{"id": "orders-throttle", "phase": "request", "match": {"operations": ["sqs.SendMessage"]},
@@ -158,7 +201,11 @@ setting has one; any key may be left out:
   lambda.hotReload           functions whose code is read from a host directory; account and
                              region may be left out
   sqs.queueDeletedRecently   ignore or enforce
-  iam.assumeRole             strict or lenient
+  ses.verifiedIdentities     SES identities that start verified when created, in any account
+                             and region: exact addresses (case-sensitive), domains, and
+                             "*@domain" for every address of a domain, subdomains excluded
+  ses.productionAccess       true takes every account and region out of the SES sandbox:
+                             any recipient, the production quota; senders are still checked
   dynamodb.enabled           true, or false to turn DynamoDB off so DynamoDB Local is never
                              pulled; on, it is pulled on first use and runs under Amazon's
                              licence terms

@@ -126,7 +126,7 @@ func TestLandedWriteKeepsItsBody(t *testing.T) {
 		_, cerr = s.commitOwned(k.Context(), f.call(s3api.OpPutObject), at("landed", nil), put, delivering(s.addVersion("k", unconditional{}, put, notify.CreatedPut)))
 		wantInternal(k.T, "put", cerr)
 
-		src, serr := s.readSource(blobs, copySource{bucket: "landed", key: "src"}, nil, readConditions{}, k.Clock.Now().Wire())
+		src, serr := s.readSource(blobs, copySource{bucket: "landed", key: "src"}, nil, readConditions{}, customerHeaders{}, "http", k.Clock.Now().Wire())
 		f.must(serr)
 		cp := *src.version.Object
 		_, cerr = s.commitOwned(k.Context(), f.call(s3api.OpCopyObject), at("landed", nil), &cp, delivering(s.addVersion("copy", unconditional{}, &cp, notify.CreatedCopy)))

@@ -1,6 +1,6 @@
 // Package sns implements Amazon SNS: topics, subscriptions, Publish and
-// PublishBatch, and delivery to SQS and Lambda through the outbox
-// (ARCHITECTURE.md 16, ADR 0015).
+// PublishBatch, and delivery to SQS, Lambda and http and https endpoints
+// through the outbox (ARCHITECTURE.md 16, ADR 0015).
 //
 // State is one cell per account and region holding its topics by name and
 // the RSA key its notifications are signed with. A topic keeps its
@@ -18,7 +18,12 @@
 //     ConfirmSubscriptionLink?Action=ConfirmSubscription&TopicArn=<arn>&Token=<token>.
 //     The query keeps AWS's shape, so code that reads SubscriptionArn out
 //     of the URL works. The links carry no credentials, so the ARN alone
-//     says which account and region they act in.
+//     says which account and region they act in. An http or https
+//     delivery's links are on the TLS listener, https://localhost:<port>,
+//     while one serves, so the AWS validators' https and .pem checks can
+//     pass (sns-http-delivery.md 5.6, 8.3), and else on the client's host,
+//     or on localhost at the client's port when that host is an AWS name,
+//     which an exposed listener or an S3 base domain can answer (8.8).
 //   - Confirmation. An sqs or lambda endpoint is confirmed at Subscribe
 //     when its ARN's account is the topic owner's or the caller's; every
 //     other subscription is pending with a 288-hex-character token that
@@ -27,10 +32,12 @@
 //     of its topic drops it, so no timer is needed. A pending sqs
 //     subscription's queue gets a signed SubscriptionConfirmation; a FIFO
 //     queue gets it with the subscription id as message group and its
-//     MessageId as deduplication id, which no recording shows. Other
-//     pending endpoints get their token through the admin API. http,
-//     https, email and email-json subscriptions receive nothing, confirmed
-//     or not, and Subscribe and Publish say so in their coverage notes.
+//     MessageId as deduplication id, which no recording shows. An http or
+//     https endpoint gets its SubscriptionConfirmation when
+//     sns.httpDelivery.allow lists its host and port. Other pending
+//     endpoints get their token through the admin API. email and
+//     email-json subscriptions receive nothing, confirmed or not, and
+//     Subscribe and Publish say so in their coverage notes.
 //   - Filter policy quota. A Subscribe whose FilterPolicy would pass the
 //     topic's 200 still creates the subscription, without the policy, and
 //     answers FilterPolicyLimitExceeded, as AWS documents (sns.md 3.1).

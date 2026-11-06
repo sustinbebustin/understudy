@@ -1,0 +1,42 @@
+{
+  "step": "17-unversioned-mode",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the PutObject operation: Bucket is missing ObjectLockConfiguration",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/l17",
+        "headers": [
+          ["x-amz-object-lock-mode", "GOVERNANCE"],
+          ["x-amz-object-lock-retain-until-date", "2026-11-03T04:40:54Z"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/W,AN,b,E,g,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "10"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034055Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "c4ef4f28-1913-4843-bf2a-0682f88d355b"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "XYW9HSCCCHWKRJA5"],
+          ["x-amz-id-2", "qLX8mmF/1kVo7Oqj8h3cy10qo9TeUGZ4OCCdc3qNmBOwIdiFFflJjPOB6/8wbLKo+7nx/djhpLW/l5R689BS1PRwvTThOUvd"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:55 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Bucket is missing ObjectLockConfiguration</Message><RequestId>XYW9HSCCCHWKRJA5</RequestId><HostId>qLX8mmF/1kVo7Oqj8h3cy10qo9TeUGZ4OCCdc3qNmBOwIdiFFflJjPOB6/8wbLKo+7nx/djhpLW/l5R689BS1PRwvTThOUvd</HostId></Error>"
+      }
+    }
+  ]
+}

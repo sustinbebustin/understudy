@@ -1,5 +1,7 @@
-# Release configuration. Nothing here publishes: the GitHub release is
-# disabled and the images are built but never pushed.
+# Release configuration. Publishing is off until the maintainer turns it on
+# (docs/release-runbook.md): the GitHub release is disabled, the images are
+# pushed only when dockers_v2 is enabled outside snapshot, and the Homebrew
+# cask upload is skipped.
 version: 2
 
 project_name: understudy
@@ -15,6 +17,27 @@ builds:
     flags: [-trimpath]
     ldflags:
       - -s -w -X main.version={{ .Version }}
+
+# Optional signing: the darwin binaries ship unsigned, and the cask removes
+# the quarantine attribute instead (homebrew_casks hooks below). If the
+# maintainer ever joins the Apple Developer Program and adds the five
+# MACOS_* repository secrets, this step signs them with the Developer ID
+# certificate and has Apple notarize them, with quill on the Linux runner,
+# before archiving. Without MACOS_SIGN_P12 it is skipped, as in the snapshot
+# dry run. docs/release-runbook.md "macOS and Gatekeeper" has the steps.
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      ids: [understudy]
+      sign:
+        certificate: "{{ .Env.MACOS_SIGN_P12 }}"
+        password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
+      notarize:
+        issuer_id: "{{ .Env.MACOS_NOTARY_ISSUER_ID }}"
+        key_id: "{{ .Env.MACOS_NOTARY_KEY_ID }}"
+        key: "{{ .Env.MACOS_NOTARY_KEY }}"
+        wait: true
+        timeout: 20m
 
 archives:
   - id: understudy
@@ -33,18 +56,27 @@ checksum:
 # describe: the Dockerfile's release target copies it from the build context
 # instead of compiling again.
 #
-# dockers_v2 has no skip_push: outside snapshot mode it builds and pushes in
-# one step. It is therefore disabled unless the run is a snapshot, which
-# builds one image per platform into the local daemon and pushes nothing.
+# dockers_v2 has no skip_push. Outside snapshot it runs one
+# `docker buildx build --platform linux/amd64,linux/arm64 --push` per image
+# and tag, so the registry gets one multi-arch manifest list. In snapshot it
+# builds one image per platform into the local daemon and pushes nothing,
+# because buildx cannot --load a manifest list. It is disabled outside
+# snapshot until the maintainer enables publishing.
+#
+# sbom is off: the attestation (`--attest=type=sbom`) runs BuildKit's
+# scanner image, an input the release does not otherwise pull, and the
+# archive SBOMs (`sboms`) need syft. Either is the maintainer's decision.
 dockers_v2:
   - id: understudy
     ids: [understudy]
     dockerfile: Dockerfile
     images:
       - ghcr.io/sustinbebustin/understudy
+    # A prerelease does not move latest: GoReleaser drops a tag that renders
+    # empty, as the cask's skip_upload: auto skips a prerelease.
     tags:
       - "{{ .Version }}"
-      - latest
+      - "{{ if not .Prerelease }}latest{{ end }}"
     platforms:
       - linux/amd64
       - linux/arm64
@@ -55,7 +87,40 @@ dockers_v2:
       VERSION: "{{ .Version }}"
     flags:
       - --target=release
+    sbom: "false"
     disable: "{{ not .IsSnapshot }}"
+
+# A cask, not a formula: `brews` is deprecated in GoReleaser v2.18. The cask
+# is always written to dist/homebrew/Casks and never committed to the tap
+# while skip_upload is "true". Its URLs point at the GitHub release, so the
+# upload is turned on in the same change that enables the release: a token
+# alone must not publish a cask whose downloads do not exist. The URL is
+# spelled out because the GitHub release is disabled, so GoReleaser has no
+# release to derive it from.
+homebrew_casks:
+  - name: understudy
+    ids: [understudy]
+    binaries: [understudy]
+    description: Local AWS emulator for testing event-driven systems
+    homepage: https://github.com/sustinbebustin/understudy
+    url:
+      template: "https://github.com/sustinbebustin/understudy/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    repository:
+      owner: sustinbebustin
+      name: homebrew-tap
+      token: '{{ envOrDefault "HOMEBREW_TAP_TOKEN" "" }}'
+    skip_upload: "true"
+    # Homebrew quarantines what a cask downloads, and Gatekeeper refuses a
+    # quarantined binary Apple has not notarized. Removing the attribute
+    # after install trusts the binary on the strength of the HTTPS download
+    # and the cask's sha256, as Homebrew formulae and LocalStack's lstk cask
+    # do. Harmless if the binary is ever notarized.
+    hooks:
+      post:
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/understudy"]
+          end
 
 changelog:
   disable: true

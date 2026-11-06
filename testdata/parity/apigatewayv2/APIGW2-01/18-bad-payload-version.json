@@ -1,0 +1,39 @@
+{
+  "step": "18-bad-payload-version",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the CreateIntegration operation: Unsupported PayloadFormatVersion: 3.0",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/integrations",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,AN,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-integration"],
+          ["X-Amz-Date", "20261103T164317Z"],
+          ["amz-sdk-invocation-id", "3c1d75a9-921d-444d-874e-14568fee40b3"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "141"]
+        ],
+        "body": "{\"integrationType\": \"AWS_PROXY\", \"integrationUri\": \"arn:aws:lambda:us-east-2:123456789012:function:us1103-gw\", \"payloadFormatVersion\": \"3.0\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:18 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "51"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "b9a24f44-4e2b-42df-8deb-76d15a4bf3b0"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdOAE0SiYcEfGA="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f25-1b80807a7a1c592c30e36b89"]
+        ],
+        "body": "{\"message\":\"Unsupported PayloadFormatVersion: 3.0\"}"
+      }
+    }
+  ]
+}

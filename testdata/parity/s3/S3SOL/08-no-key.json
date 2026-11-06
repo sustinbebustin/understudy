@@ -1,0 +1,36 @@
+{
+  "step": "08-no-key",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the CompleteMultipartUpload operation: The object was stored using a form of Server Side Encryption. Correct SSE-C request parameters are required for this request when specifying checksums for each part.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/m8a?uploadId=rZ6TvA2W9dUzqZwriRdh5xjKwPBUHibBr3jdVacPHWuyZEryVIxFtV9TMX1WAcog4iS6q_4V6BchsxhJj0pePS9VHW2G1kJ.e0AFZ4Ncs9gD6IsAky7CHwq_ac8nzBqzUaNnYfCHm4pkGpswsSM.qEU6hzwT46YcrHHhn8mXIMZkpe3PyMbZGqR.Cdj1.uWI",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,AN,Z,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.complete-multipart-upload"],
+          ["X-Amz-Date", "20261103T033959Z"],
+          ["X-Amz-Content-SHA256", "c3de396cf22e512264ecc4680929d535485ddb9efc16f43591a6ccdf036c2a37"],
+          ["amz-sdk-invocation-id", "6d1ae114-45fe-483b-9d3c-559e72743067"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "224"]
+        ],
+        "body": "<CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><PartNumber>1</PartNumber><ETag>\"b199c5b5c815a40b4e27b5bafb3f0dab\"</ETag><ChecksumCRC32>poTHxg==</ChecksumCRC32></Part></CompleteMultipartUpload>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "QW374NP09N50DT74"],
+          ["x-amz-id-2", "ZXCMHOgbXnej0+YpFx6kZZVJcx/a+COxZu1teXTBd5KYN68c7uvmYh6HJGJvendUDMTikVuApeEJmNmYv/SQTnbDwI/1Q0mT"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:59 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<Error><Code>InvalidRequest</Code><Message>The object was stored using a form of Server Side Encryption. Correct SSE-C request parameters are required for this request when specifying checksums for each part.</Message><RequestId>QW374NP09N50DT74</RequestId><HostId>ZXCMHOgbXnej0+YpFx6kZZVJcx/a+COxZu1teXTBd5KYN68c7uvmYh6HJGJvendUDMTikVuApeEJmNmYv/SQTnbDwI/1Q0mT</HostId></Error>"
+      }
+    }
+  ]
+}

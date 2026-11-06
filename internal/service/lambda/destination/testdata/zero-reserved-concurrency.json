@@ -1,0 +1,1 @@
+{"version":"1.0","timestamp":"2026-10-26T09:05:07.123Z","requestContext":{"requestId":"0f0e0d0c-0b0a-4908-8706-050403020100","functionArn":"arn:aws:lambda:us-east-1:111111111111:function:destination-fn:$LATEST","condition":"ZeroReservedConcurrency","approximateInvokeCount":0},"requestPayload":{}}

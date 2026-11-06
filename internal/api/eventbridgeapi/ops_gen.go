@@ -593,10 +593,22 @@ var descPutRule = registry.Operation{
 	SuccessCode: 200,
 }
 
+var descPutServiceEventInternal = registry.Operation{
+	Service:     &service,
+	ID:          ref.OperationID{Service: "eventbridge", Name: "PutServiceEventInternal"},
+	Ordinal:     45,
+	Kind:        registry.Internal,
+	Shape:       "com.amazonaws.eventbridge#PutServiceEventInternal",
+	Input:       &schemaPutServiceEventInternalInput,
+	Output:      &schemaSmithyUnit,
+	Errors:      []awserr.Identity{IdentityInternalException(), IdentityValidationException()},
+	SuccessCode: 200,
+}
+
 var descPutTargets = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "PutTargets"},
-	Ordinal:     45,
+	Ordinal:     46,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#PutTargets",
 	Input:       &schemaPutTargetsInput,
@@ -609,7 +621,7 @@ var descPutTargets = registry.Operation{
 var descRemovePermission = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "RemovePermission"},
-	Ordinal:     46,
+	Ordinal:     47,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#RemovePermission",
 	Input:       &schemaRemovePermissionInput,
@@ -622,7 +634,7 @@ var descRemovePermission = registry.Operation{
 var descRemoveTargets = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "RemoveTargets"},
-	Ordinal:     47,
+	Ordinal:     48,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#RemoveTargets",
 	Input:       &schemaRemoveTargetsInput,
@@ -635,7 +647,7 @@ var descRemoveTargets = registry.Operation{
 var descStartReplay = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "StartReplay"},
-	Ordinal:     48,
+	Ordinal:     49,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#StartReplay",
 	Input:       &schemaStartReplayInput,
@@ -648,7 +660,7 @@ var descStartReplay = registry.Operation{
 var descTagResource = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "TagResource"},
-	Ordinal:     49,
+	Ordinal:     50,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#TagResource",
 	Input:       &schemaTagResourceInput,
@@ -661,7 +673,7 @@ var descTagResource = registry.Operation{
 var descTestEventPattern = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "TestEventPattern"},
-	Ordinal:     50,
+	Ordinal:     51,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#TestEventPattern",
 	Input:       &schemaTestEventPatternInput,
@@ -674,7 +686,7 @@ var descTestEventPattern = registry.Operation{
 var descUntagResource = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "UntagResource"},
-	Ordinal:     51,
+	Ordinal:     52,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#UntagResource",
 	Input:       &schemaUntagResourceInput,
@@ -687,7 +699,7 @@ var descUntagResource = registry.Operation{
 var descUpdateApiDestination = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "UpdateApiDestination"},
-	Ordinal:     52,
+	Ordinal:     53,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#UpdateApiDestination",
 	Input:       &schemaUpdateApiDestinationInput,
@@ -700,7 +712,7 @@ var descUpdateApiDestination = registry.Operation{
 var descUpdateArchive = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "UpdateArchive"},
-	Ordinal:     53,
+	Ordinal:     54,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#UpdateArchive",
 	Input:       &schemaUpdateArchiveInput,
@@ -713,7 +725,7 @@ var descUpdateArchive = registry.Operation{
 var descUpdateConnection = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "UpdateConnection"},
-	Ordinal:     54,
+	Ordinal:     55,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#UpdateConnection",
 	Input:       &schemaUpdateConnectionInput,
@@ -726,7 +738,7 @@ var descUpdateConnection = registry.Operation{
 var descUpdateEndpoint = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "UpdateEndpoint"},
-	Ordinal:     55,
+	Ordinal:     56,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#UpdateEndpoint",
 	Input:       &schemaUpdateEndpointInput,
@@ -739,7 +751,7 @@ var descUpdateEndpoint = registry.Operation{
 var descUpdateEventBus = registry.Operation{
 	Service:     &service,
 	ID:          ref.OperationID{Service: "eventbridge", Name: "UpdateEventBus"},
-	Ordinal:     56,
+	Ordinal:     57,
 	Kind:        registry.Modeled,
 	Shape:       "com.amazonaws.eventbridge#UpdateEventBus",
 	Input:       &schemaUpdateEventBusInput,

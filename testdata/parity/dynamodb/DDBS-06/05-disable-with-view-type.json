@@ -1,0 +1,37 @@
+{
+  "step": "05-disable-with-view-type",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the UpdateTable operation: One or more parameter values were invalid: If stream is being disabled, then UpdateViewType must not be specified",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.UpdateTable"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/P,g,Z,AN,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.update-table"],
+          ["X-Amz-Date", "20261103T163706Z"],
+          ["amz-sdk-invocation-id", "70872dbc-3f56-4c68-b1dc-9ed111a7bac1"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "111"]
+        ],
+        "body": "{\"TableName\": \"us1103-ddbs-st\", \"StreamSpecification\": {\"StreamEnabled\": false, \"StreamViewType\": \"KEYS_ONLY\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:06 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "184"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "5K443AF5F107LEU9UUGDPR7TM3VV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "4004572599"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.validate#ValidationException\",\"message\":\"One or more parameter values were invalid: If stream is being disabled, then UpdateViewType must not be specified\"}"
+      }
+    }
+  ]
+}

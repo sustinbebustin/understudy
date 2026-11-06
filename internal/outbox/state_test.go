@@ -110,11 +110,19 @@ func genTarget() *rapid.Generator[delivery.Target] {
 	return rapid.OneOf(
 		rapid.Custom(func(t *rapid.T) delivery.Target {
 			return delivery.SQSQueue{
-				ARN:        genARN("sqs").Draw(t, "queue"),
-				Body:       rapid.String().Draw(t, "body"),
-				Attributes: genAttributes().Draw(t, "attributes"),
-				GroupID:    rapid.StringMatching(`[a-z]{0,4}`).Draw(t, "group"),
-				DedupID:    rapid.StringMatching(`[a-z]{0,4}`).Draw(t, "dedup"),
+				ARN:         genARN("sqs").Draw(t, "queue"),
+				Body:        rapid.String().Draw(t, "body"),
+				Attributes:  genAttributes().Draw(t, "attributes"),
+				GroupID:     rapid.StringMatching(`[a-z]{0,4}`).Draw(t, "group"),
+				DedupID:     rapid.StringMatching(`[a-z]{0,4}`).Draw(t, "dedup"),
+				TraceHeader: rapid.StringMatching(`(Root=1-[0-9a-f]{8}-[0-9a-f]{24};Sampled=[01])?`).Draw(t, "traceHeader"),
+			}
+		}),
+		rapid.Custom(func(t *rapid.T) delivery.Target {
+			return delivery.S3Object{
+				Bucket: rapid.StringMatching(`[a-z0-9][a-z0-9.-]{2,20}`).Draw(t, "bucket"),
+				Key:    rapid.StringMatching(`aws/lambda/async/[a-z]{1,8}/[0-9/T.-]{1,20}`).Draw(t, "key"),
+				Body:   rapid.SliceOfN(rapid.Byte(), 1, 16).Draw(t, "body"),
 			}
 		}),
 		rapid.Custom(func(t *rapid.T) delivery.Target {
@@ -133,7 +141,38 @@ func genTarget() *rapid.Generator[delivery.Target] {
 				Subject:    rapid.StringMatching(`[A-Za-z ]{0,10}`).Draw(t, "subject"),
 			}
 		}),
+		rapid.Custom(func(t *rapid.T) delivery.Target {
+			// An event bus target forwards one matched event with its
+			// envelope (eventbridge-buses.md 10.4.12). Its Detail is a JSON
+			// object: AWS refuses any other as MalformedDetail
+			// (secrets-logs-events-alarms.md 4.7), so no leading zeros.
+			bus := genARN("events").Draw(t, "bus")
+			bus.Resource = "event-bus/" + bus.Resource
+			entry := delivery.EventEntry{
+				Source:     rapid.StringMatching(`[a-z.]{1,10}`).Draw(t, "source"),
+				DetailType: rapid.StringMatching(`[A-Za-z ]{1,10}`).Draw(t, "detailType"),
+				Detail:     rapid.StringMatching(`\{"n":(0|[1-9][0-9]{0,2})\}`).Draw(t, "detail"),
+				Forwarded:  genForwarded().Draw(t, "forwarded"),
+			}
+			if n := rapid.IntRange(0, 2).Draw(t, "resources"); n > 0 {
+				entry.Resources = rapid.SliceOfN(rapid.StringMatching(`arn:aws:s3:::[a-z]{1,8}`), n, n).Draw(t, "resource")
+			}
+			return delivery.EventBus{ARN: bus, Entries: []delivery.EventEntry{entry}}
+		}),
 	)
+}
+
+// genForwarded draws the envelope of a forwarded event, its time in UTC as
+// a snapshot reads one back.
+func genForwarded() *rapid.Generator[*delivery.Forwarded] {
+	return rapid.Custom(func(t *rapid.T) *delivery.Forwarded {
+		return &delivery.Forwarded{
+			ID:      rapid.StringMatching(`[0-9a-f]{8}-[0-9a-f]{4}`).Draw(t, "eventID"),
+			Account: rapid.StringMatching(`[0-9]{12}`).Draw(t, "sender"),
+			Region:  rapid.SampledFrom([]string{"us-east-1", "eu-west-2"}).Draw(t, "origin"),
+			Time:    time.Unix(rapid.Int64Range(0, 4e9).Draw(t, "time"), rapid.Int64Range(0, 999).Draw(t, "ms")*int64(time.Millisecond)).UTC(),
+		}
+	})
 }
 
 func genPolicy() *rapid.Generator[delivery.RetryPolicy] {
@@ -151,25 +190,54 @@ func genPolicy() *rapid.Generator[delivery.RetryPolicy] {
 }
 
 // genEntry draws an entry Enqueue would accept: its mechanism is one that
-// delivers to the service of its target.
+// delivers to the service of its target. A Lambda delivery comes from a
+// function, runs as its execution role carrying a record or, to a queue or
+// topic, a dead letter, and has no retry, dead-letter queue or forwarded
+// event (lambda-destinations-layers.md 4.6, 5.1, 11.3).
 func genEntry() *rapid.Generator[Entry] {
 	return rapid.Custom(func(t *rapid.T) Entry {
 		at := clock.FromWire(time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC))
-		var dlq *aws.ARN
-		if rapid.Bool().Draw(t, "dlq") {
-			a := genARN("sqs").Draw(t, "dlqARN")
-			dlq = &a
-		}
 		target := genTarget().Draw(t, "target")
+		req := delivery.Request{
+			Source:    genARN("sns").Draw(t, "source"),
+			Mechanism: genMechanismInto(target).Draw(t, "mechanism"),
+			Target:    target,
+		}
+		via := req.Mechanism.Via()
+		if via == ref.LambdaDestination || via == ref.LambdaESM {
+			req.Source = genARN("lambda").Draw(t, "function")
+			req.Source.Resource = "function:" + req.Source.Resource
+			req.Policy = delivery.None{}
+			carries := []delivery.LambdaPayload{delivery.DestinationRecord}
+			switch tg := target.(type) {
+			case delivery.SQSQueue, delivery.SNSTopic:
+				// An event source mapping sends on-failure records only
+				// (lambda-stream-sources.md 5.6), from the mapping's ARN.
+				if via == ref.LambdaESM {
+					req.Source.Resource = "event-source-mapping:" + req.Source.Resource
+					break
+				}
+				carries = append(carries, delivery.DeadLetter)
+			case delivery.EventBus:
+				for i := range tg.Entries {
+					tg.Entries[i].Forwarded = nil
+				}
+				req.Target = tg
+			case delivery.LambdaFunction, delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
+			}
+			role := genARN("iam").Draw(t, "role")
+			role.Region, role.Resource = "", "role/"+rapid.StringMatching(`([a-z]{1,8}/)?`).Draw(t, "path")+role.Resource
+			req.Sender = &delivery.LambdaSender{Role: role, Carries: rapid.SampledFrom(carries).Draw(t, "carries")}
+		} else {
+			req.Policy = genPolicy().Draw(t, "policy")
+			if rapid.Bool().Draw(t, "dlq") {
+				a := genARN("sqs").Draw(t, "dlqARN")
+				req.DLQ = &a
+			}
+		}
 		return Entry{
-			ID: ids.DeliveryID(rapid.StringMatching(`[0-9a-f]{8}`).Draw(t, "id")),
-			Request: delivery.Request{
-				Source:    genARN("sns").Draw(t, "source"),
-				Mechanism: genMechanismInto(target).Draw(t, "mechanism"),
-				Target:    target,
-				Policy:    genPolicy().Draw(t, "policy"),
-				DLQ:       dlq,
-			},
+			ID:       ids.DeliveryID(rapid.StringMatching(`[0-9a-f]{8}`).Draw(t, "id")),
+			Request:  req,
 			Attempt:  rapid.IntRange(0, 100).Draw(t, "attempt"),
 			NextAt:   at.Add(time.Duration(rapid.IntRange(0, 1e6).Draw(t, "next")) * time.Millisecond),
 			Cause:    ref.Cause{Parent: ref.EventID(rapid.Uint64Range(0, 1e6).Draw(t, "parent")), Trace: ref.EventID(rapid.Uint64Range(0, 1e6).Draw(t, "trace"))},
@@ -180,14 +248,64 @@ func genEntry() *rapid.Generator[Entry] {
 	})
 }
 
-// genMechanismInto draws a mechanism that delivers to target's service.
+// genMechanismInto draws a mechanism that delivers to target's service. A
+// mechanism names its target by registry service ID, which for EventBridge
+// is not its ARN namespace (internal/ref/ref.go). An S3 object is the
+// target of lambda-to-s3 alone. The Scheduler mechanisms are left out:
+// they need Request.As and Request.Invocation (checkScheduler), whose
+// round trip scheduler_state_impl_test.go covers.
 func genMechanismInto(target delivery.Target) *rapid.Generator[delivery.Mechanism] {
-	arn, _ := targetARN(target)
+	service := "s3"
+	if arn, ok := targetARN(target); ok {
+		service = arn.Service
+	}
+	if service == "events" {
+		service = "eventbridge"
+	}
 	var into []delivery.Mechanism
 	for _, m := range delivery.Mechanisms() {
-		if string(m.Target()) == arn.Service {
+		if string(m.Target()) == service && m.Via() != ref.SchedulerTarget {
 			into = append(into, m)
 		}
 	}
 	return rapid.SampledFrom(into)
+}
+
+// A Lambda delivery's record keeps its sender, the execution role and what
+// it carries by wire name, and a queue target its trace header; neither key
+// is written when there is nothing to keep.
+func TestLambdaEntryRecordWireShape(t *testing.T) {
+	c := codec()
+	role := aws.ARN{Partition: "aws", Service: "iam", Account: "000000000000", Resource: "role/worker"}
+	queue := aws.ARN{Partition: "aws", Service: "sqs", Region: "us-east-1", Account: "000000000000", Resource: "records"}
+	fn := aws.ARN{Partition: "aws", Service: "lambda", Region: "us-east-1", Account: "000000000000", Resource: "function:worker"}
+	at := clock.FromWire(time.Date(2026, 10, 26, 0, 0, 0, 0, time.UTC))
+	st := newState(aws.Scope{})
+	st.Entries["d-1"] = Entry{ID: "d-1", Accepted: at, NextAt: at, Request: delivery.Request{
+		Source: fn, Mechanism: delivery.LambdaToSQS, Policy: delivery.None{},
+		Target: delivery.SQSQueue{ARN: queue, Body: "{}", TraceHeader: "Root=1-5759e988-bd862e3fe1be46a994272793"},
+		Sender: &delivery.LambdaSender{Role: role, Carries: delivery.DeadLetter},
+	}}
+	st.Entries["d-2"] = Entry{ID: "d-2", Accepted: at, NextAt: at, Request: delivery.Request{
+		Source:    aws.ARN{Partition: "aws", Service: "sns", Region: "us-east-1", Account: "000000000000", Resource: "orders"},
+		Mechanism: delivery.SNSToSQS, Policy: delivery.SNSManaged{}, Target: delivery.SQSQueue{ARN: queue, Body: "{}"},
+	}}
+	data, err := c.Marshal(&st)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	for _, want := range []string{
+		`"sender":{"carries":"dead-letter","role":"arn:aws:iam::000000000000:role/worker"}`,
+		`"traceHeader":"Root=1-5759e988-bd862e3fe1be46a994272793"`,
+	} {
+		if !bytes.Contains(data, []byte(want)) {
+			t.Errorf("snapshot\n%s\ndoes not hold %s", data, want)
+		}
+	}
+	if n := bytes.Count(data, []byte(`"sender"`)); n != 1 {
+		t.Errorf("snapshot holds %d senders, want d-1's alone:\n%s", n, data)
+	}
+	if n := bytes.Count(data, []byte(`"traceHeader"`)); n != 1 {
+		t.Errorf("snapshot holds %d trace headers, want d-1's alone:\n%s", n, data)
+	}
 }

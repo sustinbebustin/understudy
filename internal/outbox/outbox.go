@@ -7,12 +7,13 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -23,12 +24,9 @@ const TimerAttempt kernel.TimerKind = "outbox.attempt"
 
 // PolicySource reads the stored resource policy of a delivery target: an
 // SQS queue's Policy attribute, a function's permissions, a topic's Policy.
-type PolicySource interface {
-	// ResourcePolicy returns target's stored policy, nil when it has none.
-	// ok is false when target does not exist, which skips the advisory: the
-	// attempt then fails on its own.
-	ResourcePolicy(target aws.ARN) (doc *policydoc.Document, ok bool)
-}
+// A target it does not find (ok false) skips the advisory: the attempt then
+// fails on its own.
+type PolicySource = authz.PolicyProvider
 
 // Options configures Bind. A nil field disables its stage.
 type Options struct {
@@ -36,6 +34,9 @@ type Options struct {
 	Faults kernel.FaultStage
 	// Policies supplies target policies for the access advisory.
 	Policies PolicySource
+	// Egress sends HTTPEndpoint deliveries; nil refuses each one, which is
+	// the default until a producer enables outbound delivery.
+	Egress *egress.Client
 }
 
 // Outbox is the delivery engine: the kernel's DeliverSink and a Stateful
@@ -56,11 +57,14 @@ type engine struct {
 	attempt  kernel.HandledKind
 	faults   kernel.FaultStage
 	policies PolicySource
+	egress   *egress.Client
 	// seq is the last Entry.Seq handed out; Import raises it past every
 	// loaded entry's.
 	seq atomic.Uint64
 	// ready runs the attempts onAttempt hands over in firing order.
 	ready sequencer
+	// pace spaces the attempts of throttled SNS HTTP subscriptions.
+	pace pacer
 }
 
 // The outbox is the kernel's delivery sink and is snapshotted like a
@@ -96,6 +100,7 @@ func (o *Outbox) Bind(k *kernel.Kernel, opts Options) error {
 		cells:    store.NewPartitioned(k.Gate(), codec(), newState),
 		faults:   opts.Faults,
 		policies: opts.Policies,
+		egress:   opts.Egress,
 	}
 	e.attempt = k.Timers().Handle(TimerAttempt, e.onAttempt)
 	o.e.Store(e)
@@ -197,44 +202,349 @@ func (e *RequestError) problem() string {
 	return p
 }
 
-// checkRequest returns the scope of req's target, or why the outbox cannot
-// attempt req.
+// checkRequest returns the scope req's delivery lands in, or why the
+// outbox cannot attempt req.
 func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 	if !slices.Contains(delivery.Mechanisms(), req.Mechanism) {
 		return aws.Scope{}, &RequestError{Field: "Mechanism", Reason: "is not a declared mechanism"}
 	}
-	target, ok := targetARN(req.Target)
-	if !ok {
-		return aws.Scope{}, &RequestError{Field: "Target", Reason: "is nil"}
-	}
-	if string(req.Mechanism.Target()) != target.Service {
-		return aws.Scope{}, &RequestError{Field: "Target.ARN", Reason: fmt.Sprintf("%s is not a %s resource, which %s delivers to", target, req.Mechanism.Target(), req.Mechanism)}
-	}
-	if f, ok := req.Target.(delivery.LambdaFunction); ok && f.Invocation != delivery.InvocationEvent && f.Invocation != delivery.InvocationRequestResponse {
-		return aws.Scope{}, &RequestError{Field: "Target.Invocation", Reason: "is neither Event nor RequestResponse"}
-	}
-	if err := checkPolicy(req.Policy); err != nil {
+	in, field, err := checkTarget(req)
+	if err != nil {
 		return aws.Scope{}, err
 	}
-	if req.DLQ != nil {
-		if req.DLQ.Service != "sqs" {
-			return aws.Scope{}, &RequestError{Field: "DLQ", Reason: fmt.Sprintf("%s is not an SQS queue", req.DLQ)}
-		}
-		if _, err := scopeOf(*req.DLQ); err != nil {
-			return aws.Scope{}, &RequestError{Field: "DLQ", Reason: unservedScope, Err: err}
-		}
+	if err := checkPrincipal(req); err != nil {
+		return aws.Scope{}, err
 	}
-	scope, err := scopeOf(target)
-	if err != nil {
-		return aws.Scope{}, &RequestError{Field: "Target.ARN", Reason: unservedScope, Err: err}
+	if err := checkPolicy(req.Mechanism, req.Policy); err != nil {
+		return aws.Scope{}, err
+	}
+	if err := checkSender(req); err != nil {
+		return aws.Scope{}, err
+	}
+	if err := checkDLQ(req); err != nil {
+		return aws.Scope{}, err
+	}
+	scope, serr := scopeOf(in)
+	if serr != nil {
+		return aws.Scope{}, &RequestError{Field: field, Reason: unservedScope, Err: serr}
 	}
 	return scope, nil
+}
+
+// checkPrincipal checks req's principal and invocation. Both are set for
+// the Scheduler mechanisms, which run as the schedule's execution role and
+// render each attempt's payload from the invocation (scheduler.md 14.4.2,
+// 14.4.4); a Scheduler delivery has no Lambda sender. An events-to-events
+// delivery may run as the event bus target's RoleArn
+// (iam-enforcement-surfaces.md 8.4) and has no invocation. Every other
+// mechanism has neither.
+func checkPrincipal(req delivery.Request) *RequestError {
+	m := req.Mechanism
+	if m.Via() != ref.SchedulerTarget {
+		switch {
+		case req.As != nil && m != delivery.EventsToEvents:
+			return &RequestError{Field: "As", Reason: "is set, but only the Scheduler mechanisms and events-to-events run as a principal they name, and this delivery is " + m.String()}
+		case req.Invocation != nil:
+			return &RequestError{Field: "Invocation", Reason: "is set, but only the Scheduler mechanisms render their payload from a schedule invocation, and this delivery is " + m.String()}
+		}
+		return checkRole(req.As)
+	}
+	switch {
+	case req.Invocation == nil:
+		return &RequestError{Field: "Invocation", Reason: "is nil, but a " + m.String() + " delivery renders each attempt's payload from its schedule invocation"}
+	case req.Sender != nil:
+		return &RequestError{Field: "Sender", Reason: "is set, but a " + m.String() + " delivery runs as Request.As, the schedule's execution role"}
+	case req.As == nil:
+		return &RequestError{Field: "As", Reason: "is nil, but a " + m.String() + " delivery runs as the schedule's execution role"}
+	}
+	return checkRole(req.As)
+}
+
+// checkRole checks that as, when it is a role session, names an IAM role.
+func checkRole(as delivery.Principal) *RequestError {
+	switch as := as.(type) {
+	case delivery.ExecutionRole:
+		name, isRole := strings.CutPrefix(as.Role.Resource, "role/")
+		if _, err := aws.ParseAccountID(as.Role.Account); as.Role.Service != "iam" || !isRole || name == "" || err != nil {
+			return &RequestError{Field: "As.Role", Reason: fmt.Sprintf("%s is not an IAM role, arn:<partition>:iam::<account>:role/<path><name>", as.Role)}
+		}
+	case nil:
+	}
+	return nil
+}
+
+// checkSender checks req's sender: set for the Lambda mechanisms, which
+// deliver an asynchronous invocation's record or dead letter as the
+// function's execution role (lambda-destinations-layers.md 2.5, 11.3.2),
+// and for the ESM mechanisms, which send an event source mapping's
+// on-failure record as that role (lambda-stream-sources.md 5.6); nil for
+// every other mechanism. A dead letter goes to a queue or topic only (5.1),
+// and Lambda neither retries nor dead-letters its own deliveries: a failed
+// one is counted in a metric (4.6, 5.4).
+func checkSender(req delivery.Request) *RequestError {
+	m, s := req.Mechanism, req.Sender
+	lambda := m.Via() == ref.LambdaDestination || m.Via() == ref.LambdaESM
+	switch {
+	case !lambda && s == nil:
+		return nil
+	case !lambda:
+		return &RequestError{Field: "Sender", Reason: "is set, but only the Lambda mechanisms run as an execution role, and this delivery is " + m.String()}
+	case s == nil:
+		return &RequestError{Field: "Sender", Reason: "is nil, but a " + m.String() + " delivery runs as the function's execution role"}
+	}
+	name, isRole := strings.CutPrefix(s.Role.Resource, "role/")
+	if _, err := aws.ParseAccountID(s.Role.Account); s.Role.Service != "iam" || !isRole || name == "" || err != nil {
+		return &RequestError{Field: "Sender.Role", Reason: fmt.Sprintf("%s is not an IAM role, arn:<partition>:iam::<account>:role/<path><name>", s.Role)}
+	}
+	if _, err := s.Carries.MarshalText(); err != nil {
+		return &RequestError{Field: "Sender.Carries", Reason: "is not a declared Lambda delivery payload", Err: err}
+	}
+	switch req.Target.(type) {
+	case delivery.SQSQueue, delivery.SNSTopic:
+	case delivery.LambdaFunction, delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
+		if s.Carries == delivery.DeadLetter {
+			return &RequestError{Field: "Sender.Carries", Reason: "is a dead letter, which goes to an SQS queue or SNS topic only (lambda-destinations-layers.md 5.1), not to this " + m.String() + " target"}
+		}
+	}
+	if req.DLQ != nil {
+		return &RequestError{Field: "DLQ", Reason: "is set, but Lambda dead-letters none of its own deliveries: a failed one counts in " + s.Carries.Metric() + " (lambda-destinations-layers.md 4.6, 5.4)"}
+	}
+	if _, ok := req.Policy.(delivery.None); !ok {
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is %T, but a Lambda delivery makes one attempt, delivery.None (lambda-destinations-layers.md 4.6, 5.4)", req.Policy)}
+	}
+	return nil
+}
+
+// checkDLQ checks req's dead-letter queue, if it has one: an SQS queue in
+// a scope understudy serves, for a target whose dead letter has a known
+// form. An event bus target's dead letter is the forwarded event, as for
+// any EventBridge target (eb-rule-dlq.html, iam-enforcement-surfaces.md
+// 8.4); no research gives the form of an S3Object dead letter or of an
+// EventBus one under another mechanism, so those refuse a queue until
+// their producer researches it. An HTTP control message, a
+// SubscriptionConfirmation or UnsubscribeConfirmation, never goes to one
+// (sns.http.control-dlq, sns-http-delivery.md 6.5, 8.2).
+func checkDLQ(req delivery.Request) *RequestError {
+	if req.DLQ == nil {
+		return nil
+	}
+	switch t := req.Target.(type) {
+	case delivery.EventBus:
+		// A Scheduler bus target's dead letter is its payload
+		// (scheduler.md 14.5.3).
+		if req.Mechanism != delivery.EventsToEvents && req.Mechanism != delivery.SchedulerToEvents {
+			return &RequestError{Field: "DLQ", Reason: "is set, but an EventBus delivery under " + req.Mechanism.String() + " has no dead-letter format yet; only " + delivery.EventsToEvents.String() + " and " + delivery.SchedulerToEvents.String() + " have one"}
+		}
+	case delivery.S3Object:
+		return &RequestError{Field: "DLQ", Reason: "is set, but an S3Object delivery has no dead-letter format yet"}
+	case delivery.HTTPEndpoint:
+		// An undeclared kind is checkTarget's refusal.
+		if t.Kind == delivery.HTTPSubscriptionConfirmation || t.Kind == delivery.HTTPUnsubscribeConfirmation {
+			return &RequestError{Field: "DLQ", Reason: "control messages never go to a dead-letter queue (sns.http.control-dlq)"}
+		}
+	case delivery.SQSQueue, delivery.LambdaFunction, delivery.SNSTopic, delivery.StateMachine:
+	}
+	if req.DLQ.Service != "sqs" {
+		return &RequestError{Field: "DLQ", Reason: fmt.Sprintf("%s is not an SQS queue", req.DLQ)}
+	}
+	if _, err := scopeOf(*req.DLQ); err != nil {
+		return &RequestError{Field: "DLQ", Reason: unservedScope, Err: err}
+	}
+	return nil
+}
+
+// checkTarget checks req's target, and that req's mechanism delivers to
+// its kind, and returns the ARN whose account and region the delivery
+// lands in with the request field that names it: the target's own ARN, or
+// the source's for a target that names none (an S3 object, an HTTP
+// endpoint).
+func checkTarget(req delivery.Request) (aws.ARN, string, *RequestError) {
+	m := req.Mechanism
+	if _, isHTTP := req.Target.(delivery.HTTPEndpoint); m.Target() == "" && !isHTTP && req.Target != nil {
+		// A mechanism that lands in no service delivers to an HTTP endpoint
+		// and nothing else.
+		return aws.ARN{}, "", &RequestError{Field: "Target", Reason: fmt.Sprintf("is a %T target, which %s does not deliver to; it delivers to a delivery.HTTPEndpoint only", req.Target, m)}
+	}
+	switch t := req.Target.(type) {
+	case delivery.SQSQueue:
+		return arnTarget(m, t.ARN)
+	case delivery.SNSTopic:
+		return arnTarget(m, t.ARN)
+	case delivery.LambdaFunction:
+		if _, _, err := arnTarget(m, t.ARN); err != nil {
+			return aws.ARN{}, "", err
+		}
+		if t.Invocation != delivery.InvocationEvent && t.Invocation != delivery.InvocationRequestResponse {
+			return aws.ARN{}, "", &RequestError{Field: "Target.Invocation", Reason: "is neither Event nor RequestResponse"}
+		}
+		return t.ARN, "Target.ARN", nil
+	case delivery.EventBus:
+		if err := checkEventBus(t); err != nil {
+			return aws.ARN{}, "", err
+		}
+		if err := checkForwarding(m, t.Entries[0]); err != nil {
+			return aws.ARN{}, "", err
+		}
+		return t.ARN, "Target.ARN", nil
+	case delivery.StateMachine:
+		if err := deliversTo(m, "StateMachine", "sfn"); err != nil {
+			return aws.ARN{}, "", err
+		}
+		return t.ARN, "Target.ARN", checkStateMachine(t)
+	case delivery.S3Object:
+		if err := deliversTo(m, "S3Object", "s3"); err != nil {
+			return aws.ARN{}, "", err
+		}
+		return req.Source, "Source", checkS3Object(t)
+	case delivery.HTTPEndpoint:
+		if err := deliversTo(m, "HTTPEndpoint", ""); err != nil {
+			return aws.ARN{}, "", err
+		}
+		if !t.Kind.Valid() {
+			return aws.ARN{}, "", &RequestError{Field: "Target.Kind", Reason: fmt.Sprintf("is %v; an HTTP delivery carries a Notification, a SubscriptionConfirmation or an UnsubscribeConfirmation", t.Kind)}
+		}
+		return req.Source, "Source", checkHTTPEndpoint(t)
+	}
+	return aws.ARN{}, "", &RequestError{Field: "Target", Reason: "is nil"}
+}
+
+// checkEventBus checks that t names an event bus and holds one entry.
+// PutEvents takes up to 10 and fails each on its own
+// (https://docs.aws.amazon.com/eventbridge/latest/APIReference/API_PutEvents.html),
+// but a retry of the call would put the entries that succeeded again, so a
+// producer enqueues one delivery per entry and each is retried or dropped
+// by its own entry's code (entryError).
+func checkEventBus(t delivery.EventBus) *RequestError {
+	name, isBus := strings.CutPrefix(t.ARN.Resource, "event-bus/")
+	if t.ARN.Service != "events" || !isBus || name == "" {
+		return &RequestError{Field: "Target.ARN", Reason: t.ARN.String() + " is not an event bus, arn:<partition>:events:<region>:<account>:event-bus/<name>"}
+	}
+	if n := len(t.Entries); n != 1 {
+		return &RequestError{Field: "Target.Entries", Reason: fmt.Sprintf("has %d entries; an EventBus delivery carries exactly 1, so a retry puts no entry twice", n)}
+	}
+	return nil
+}
+
+// checkStateMachine checks that t names a state machine, or one of its
+// versions or aliases, and an execution name. StartExecution takes all
+// three ARN forms and a name of 1 to 80 characters
+// (https://docs.aws.amazon.com/step-functions/latest/apireference/API_StartExecution.html);
+// the producer chooses the name, so an empty one is the producer's
+// mistake.
+func checkStateMachine(t delivery.StateMachine) *RequestError {
+	rest, isMachine := strings.CutPrefix(t.ARN.Resource, "stateMachine:")
+	name, qualifier, qualified := strings.Cut(rest, ":")
+	if t.ARN.Service != "states" || !isMachine || name == "" || qualified && (qualifier == "" || strings.Contains(qualifier, ":")) {
+		return &RequestError{Field: "Target.ARN", Reason: t.ARN.String() + " is not a state machine, arn:<partition>:states:<region>:<account>:stateMachine:<name>[:<version or alias>]"}
+	}
+	if t.Name == "" {
+		return &RequestError{Field: "Target.Name", Reason: "is empty; StartExecution's execution name is 1 to 80 characters"}
+	}
+	return nil
+}
+
+// checkForwarding checks that m delivers the EventBus entry e. Only
+// events-to-events, an event bus target's delivery, forwards an event that
+// was already put, and it forwards nothing else: its entry carries the
+// event's envelope (eventbridge-buses.md 10.4.12), whose detail is one
+// JSON object (MalformedDetail, secrets-logs-events-alarms.md 4.7). The
+// envelope is checked before the mechanism, so a Forwarded under another
+// mechanism is named as such rather than as a target m does not deliver to.
+func checkForwarding(m delivery.Mechanism, e delivery.EventEntry) *RequestError {
+	forwards := m == delivery.EventsToEvents
+	switch {
+	case forwards && e.Forwarded == nil:
+		return &RequestError{Field: "Target.Entries[0].Forwarded", Reason: "is nil, but an " + m.String() + " delivery forwards an event that was already put, with its id, account, region and time"}
+	case !forwards && e.Forwarded != nil:
+		return &RequestError{Field: "Target.Entries[0].Forwarded", Reason: "is set, but only " + delivery.EventsToEvents.String() + " forwards an event, and this delivery is " + m.String()}
+	}
+	if err := deliversTo(m, "EventBus", "eventbridge"); err != nil {
+		return err
+	}
+	if forwards {
+		if _, err := e.Envelope(); err != nil {
+			return &RequestError{Field: "Target.Entries[0].Detail", Reason: "is not the detail of a forwarded event", Err: err}
+		}
+	}
+	return nil
+}
+
+// checkS3Object checks that t names a bucket and a key.
+func checkS3Object(t delivery.S3Object) *RequestError {
+	if t.Bucket == "" {
+		return &RequestError{Field: "Target.Bucket", Reason: "is empty"}
+	}
+	if t.Key == "" {
+		return &RequestError{Field: "Target.Key", Reason: "is empty"}
+	}
+	return nil
+}
+
+// checkHTTPEndpoint checks that t's URL is http or https and names a host,
+// and that no header of t frames the message.
+func checkHTTPEndpoint(t delivery.HTTPEndpoint) *RequestError {
+	if t.URL.Scheme != "http" && t.URL.Scheme != "https" {
+		return &RequestError{Field: "Target.URL", Reason: fmt.Sprintf("has the scheme %q; an HTTP endpoint is http or https", t.URL.Scheme)}
+	}
+	if t.URL.Hostname() == "" {
+		return &RequestError{Field: "Target.URL", Reason: "names no host"}
+	}
+	for i, h := range t.Headers {
+		if framingHeader(h.Name) {
+			return &RequestError{Field: fmt.Sprintf("Target.Headers[%d]", i), Reason: fmt.Sprintf("is %q, which frames the request; egress writes it", h.Name)}
+		}
+	}
+	return nil
+}
+
+// framingHeader reports whether name, in any case, is a header egress
+// writes to frame the request or its connection. Headers keep the case the
+// producer gives (sns-http-delivery.md 3.2), so net/http would send such a
+// header beside its own, and two Content-Length values, or Content-Length
+// with Transfer-Encoding, leave the receiver to guess where the body ends.
+func framingHeader(name string) bool {
+	for _, f := range []string{"Host", "Content-Length", "Transfer-Encoding", "Connection", "Trailer", "TE"} {
+		if strings.EqualFold(name, f) {
+			return true
+		}
+	}
+	return false
+}
+
+// arnTarget checks that m delivers to the service of target, an ARN a
+// target names.
+func arnTarget(m delivery.Mechanism, target aws.ARN) (aws.ARN, string, *RequestError) {
+	if string(m.Target()) != target.Service {
+		return aws.ARN{}, "", &RequestError{Field: "Target.ARN", Reason: fmt.Sprintf("%s is not a %s resource, which %s delivers to", target, m.Target(), m)}
+	}
+	return target, "Target.ARN", nil
+}
+
+// deliversTo checks that m delivers to a target of kind, which lands in
+// the service into ("" for an HTTP endpoint, which lands in none).
+func deliversTo(m delivery.Mechanism, kind string, into ref.ServiceID) *RequestError {
+	if m.Target() == into {
+		return nil
+	}
+	return &RequestError{Field: "Target", Reason: "is an " + kind + " target, which " + m.String() + " does not deliver to"}
 }
 
 // unservedScope is the RequestError reason of an ARN scopeOf refuses.
 const unservedScope = "names no account and region understudy serves"
 
-func checkPolicy(p delivery.RetryPolicy) *RequestError {
+// checkPolicy checks that p is a policy the outbox schedules, within its
+// bounds, and that an sns-to-http delivery, and only one, retries under
+// SNSHTTP.
+func checkPolicy(m delivery.Mechanism, p delivery.RetryPolicy) *RequestError {
+	if p == nil {
+		return &RequestError{Field: "Policy", Reason: "is nil"}
+	}
+	switch _, isHTTP := p.(delivery.SNSHTTP); {
+	case isHTTP && m != delivery.SNSToHTTP:
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP, an SNS http or https subscription's delivery policy, which %s deliveries do not retry under", m)}
+	case !isHTTP && m == delivery.SNSToHTTP:
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is %T; %s deliveries retry under delivery.SNSHTTP, the subscription's resolved delivery policy", p, m)}
+	}
 	switch p := p.(type) {
 	case delivery.SNSManaged, delivery.S3Notification, delivery.None:
 		return nil
@@ -244,11 +554,36 @@ func checkPolicy(p delivery.RetryPolicy) *RequestError {
 				p.MaxAge, p.MaxAttempts, minEventAge, maxEventAge, maxEventRetries)}
 		}
 		return nil
+	case delivery.SNSHTTP:
+		return checkSNSHTTP(p)
 	}
-	return &RequestError{Field: "Policy", Reason: "is nil"}
+	return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is %T, a policy the outbox does not schedule", p)}
 }
 
-// targetARN returns the resource a target names.
+// checkSNSHTTP checks p against the documented bounds
+// (sns-http-delivery.md 6.7, aws-doc): every phase count at least 0 and
+// numRetries, their sum, at most 100; minDelayTarget from 1 s up to
+// maxDelayTarget, which is at most 3600 s; maxReceivesPerSecond not below
+// 0, 0 being no throttling; and a declared backoff function.
+func checkSNSHTTP(p delivery.SNSHTTP) *RequestError {
+	counts := []int{p.NoDelay, p.MinDelay, p.Backoff, p.MaxDelay}
+	switch {
+	case slices.ContainsFunc(counts, func(n int) bool { return n < 0 || n > maxHTTPRetries }) || p.Retries() > maxHTTPRetries:
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP with the retry counts NoDelay %d, MinDelay %d, Backoff %d and MaxDelay %d; each is at least 0 and their sum, numRetries, at most %d",
+			p.NoDelay, p.MinDelay, p.Backoff, p.MaxDelay, maxHTTPRetries)}
+	case p.MinDelayTarget < minHTTPDelayTarget || p.MinDelayTarget > p.MaxDelayTarget || p.MaxDelayTarget > maxHTTPDelayTarget:
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP with MinDelayTarget %v and MaxDelayTarget %v; minDelayTarget is %v up to maxDelayTarget, which is at most %v",
+			p.MinDelayTarget, p.MaxDelayTarget, minHTTPDelayTarget, maxHTTPDelayTarget)}
+	case p.MaxReceivesPerSecond < 0:
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP with MaxReceivesPerSecond %d; it is at least 0, 0 being no throttling", p.MaxReceivesPerSecond)}
+	case !p.BackoffFunction.Valid():
+		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP with BackoffFunction %v, which is not linear, arithmetic, geometric or exponential", p.BackoffFunction)}
+	}
+	return nil
+}
+
+// targetARN returns the ARN a target names; false for one that names none:
+// an S3 object, an HTTP endpoint or a nil target.
 func targetARN(t delivery.Target) (aws.ARN, bool) {
 	switch t := t.(type) {
 	case delivery.SQSQueue:
@@ -257,8 +592,29 @@ func targetARN(t delivery.Target) (aws.ARN, bool) {
 		return t.ARN, true
 	case delivery.SNSTopic:
 		return t.ARN, true
+	case delivery.EventBus:
+		return t.ARN, true
+	case delivery.StateMachine:
+		return t.ARN, true
+	case delivery.S3Object, delivery.HTTPEndpoint:
+		return aws.ARN{}, false
 	}
 	return aws.ARN{}, false
+}
+
+// deliveredTo is the resource a delivery of req lands in: the journal's
+// To, and what the fault rules and the access advisory match. It is the
+// ARN the target names, an S3 object's ARN in the source's partition, or
+// the zero ARN for an HTTP endpoint, which journal.Delivery.Endpoint names
+// instead.
+func deliveredTo(req delivery.Request) aws.ARN {
+	if target, ok := targetARN(req.Target); ok {
+		return target
+	}
+	if o, ok := req.Target.(delivery.S3Object); ok {
+		return aws.ARN{Partition: req.Source.Partition, Service: "s3", Resource: o.Bucket + "/" + o.Key}
+	}
+	return aws.ARN{}
 }
 
 // scopeError is why an ARN names no account and region understudy serves.

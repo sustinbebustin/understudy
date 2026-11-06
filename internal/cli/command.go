@@ -192,6 +192,21 @@ func durationVar(fs *flag.FlagSet, p *time.Duration, name string, def time.Durat
 	}, def, usage)
 }
 
+// timeVar registers an RFC 3339 time flag such as --since
+// 2026-01-01T00:00:00Z; unset, it is the zero time.
+func timeVar(fs *flag.FlagSet, p *time.Time, name, usage string) {
+	typedVar(fs, &typedValue[time.Time]{
+		name: name, placeholder: "TIME", want: "an RFC 3339 time such as 2026-01-01T00:00:00Z", dst: p,
+		parse: func(s string) (time.Time, error) { return time.Parse(time.RFC3339, s) },
+		format: func(t time.Time) string {
+			if t.IsZero() {
+				return ""
+			}
+			return t.Format(time.RFC3339Nano)
+		},
+	}, time.Time{}, usage)
+}
+
 // intVar registers a whole-number flag such as --limit 100.
 func intVar(fs *flag.FlagSet, p *int, name string, def int, usage string) {
 	typedVar(fs, &typedValue[int]{

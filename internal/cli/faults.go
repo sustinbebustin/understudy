@@ -21,13 +21,15 @@ func faultsCmd() *command {
 			[]string{"understudy faults list", "understudy faults list --output json"},
 			func(*flag.FlagSet) action { return runFaultsList }),
 		leaf("add", "Add a rule, or replace the rule with its id",
-			"faults add [--id ID] [--service S] [--operation O] [--resource GLOB] [--account A] [--region R] [--origin any|external|internal] [--phase request|delivery] "+
-				"(--error SHAPE | --throttle | --latency D | --after-commit SHAPE | --status-ok SHAPE | --drop) [--next N | --probability P]",
+			"faults add [--id ID] [--service S] [--operation O] [--resource GLOB] [--account A] [--region R] [--origin any|external|internal] [--phase request|delivery] [--mechanism M] "+
+				"(--error SHAPE [--message TEXT] [--members JSON] | --throttle | --latency D | --after-commit SHAPE | --status-ok SHAPE | --drop | --http-status CODE | --http-timeout) [--next N | --probability P]",
 			[]string{
 				"understudy faults add --operation sqs.SendMessage --throttle --next 3",
 				"understudy faults add --id slow-s3 --service s3 --latency 2s",
 				"understudy faults add --operation sqs.ReceiveMessage --error QueueDoesNotExist --probability 0.1",
+				`understudy faults add --operation dynamodb.TransactWriteItems --error TransactionCanceledException --members '{"CancellationReasons":[{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item"}]}' --next 1`,
 				"understudy faults add --phase delivery --mechanism sns-to-sqs --drop --next 1",
+				"understudy faults add --phase delivery --mechanism sns-to-http --http-status 503 --next 1",
 			},
 			faultsAdd),
 		leaf("remove", "Remove the rule with an id", "faults remove ID",
@@ -132,6 +134,10 @@ func describeAction(a admin.FaultAction) string {
 		return "status-ok " + a.Shape
 	case admin.DropDelivery:
 		return "drop"
+	case admin.HTTPStatus:
+		return "http-status " + strconv.Itoa(a.Status)
+	case admin.HTTPTimeout:
+		return "http-timeout"
 	}
 	return "none"
 }
@@ -176,9 +182,10 @@ func describeMatch(m *admin.FaultMatch) string {
 type faultFlags struct {
 	id, resource, origin, phase              string
 	errShape, message, afterCommit, statusOK string
-	throttle, drop                           bool
+	members                                  string
+	throttle, drop, httpTimeout              bool
 	latency                                  time.Duration
-	next                                     int
+	next, httpStatus                         int
 	probability                              float64
 	services, operations, mechanisms         stringList
 	accounts, regions                        stringList
@@ -200,11 +207,17 @@ func faultsAdd(fs *flag.FlagSet) action {
 	fs.StringVar(&f.phase, "phase", "request", "hook point: request or delivery")
 	fs.StringVar(&f.errShape, "error", "", "fail the call with this error shape, one the operation really sends")
 	fs.StringVar(&f.message, "message", "", "message of the --error (default one naming the rule)")
+	fs.StringVar(&f.members, "members", "", `members of the --error shape beyond its message, as a JSON object, such as '{"CancellationReasons": [{"Code": "TransactionConflict"}]}'`)
 	fs.BoolVar(&f.throttle, "throttle", false, "fail the call with the service's throttling error")
 	durationVar(fs, &f.latency, "latency", 0, "delay the call by this much wall time")
 	fs.StringVar(&f.afterCommit, "after-commit", "", "let the call take effect, then answer with this error shape")
 	fs.StringVar(&f.statusOK, "status-ok", "", "answer 200 with this error shape in the body, as S3 does for some operations")
 	fs.BoolVar(&f.drop, "drop", false, "discard a delivery attempt (delivery phase)")
+	typedVar(fs, &typedValue[int]{
+		name: "http-status", placeholder: "CODE", want: "an HTTP status such as 503", dst: &f.httpStatus,
+		parse: strconv.Atoi, format: strconv.Itoa,
+	}, 0, "answer an sns-to-http delivery attempt with this HTTP status, 100 to 599, without contacting the endpoint (delivery phase)")
+	fs.BoolVar(&f.httpTimeout, "http-timeout", false, "end an sns-to-http delivery attempt as a timed-out exchange without contacting the endpoint (delivery phase)")
 	intVar(fs, &f.next, "next", 0, "fire on the next N matching calls, then remove the rule")
 	fractionVar(fs, &f.probability, "probability", "fire on each matching call with this probability, between 0 and 1")
 	return func(ctx context.Context, r *runner, args []string) error {
@@ -246,7 +259,7 @@ func operationForm(ops []string) error {
 func (f *faultFlags) rule() (admin.FaultRule, error) {
 	var actions []admin.FaultAction
 	if f.errShape != "" {
-		actions = append(actions, admin.InjectError{Shape: f.errShape, Message: f.message})
+		actions = append(actions, admin.InjectError{Shape: f.errShape, Message: f.message, Members: json.RawMessage(f.members)})
 	}
 	if f.throttle {
 		actions = append(actions, admin.Throttle{})
@@ -266,11 +279,18 @@ func (f *faultFlags) rule() (admin.FaultRule, error) {
 	if f.drop {
 		actions = append(actions, admin.DropDelivery{})
 	}
-	if len(actions) != 1 {
-		return admin.FaultRule{}, &usageError{msg: fmt.Sprintf("takes exactly one action of --error, --throttle, --latency, --after-commit, --status-ok and --drop; got %d", len(actions))}
+	// The server refuses a status outside 100 to 599, naming the range.
+	if f.set["http-status"] {
+		actions = append(actions, admin.HTTPStatus{Status: f.httpStatus})
 	}
-	if f.message != "" && f.errShape == "" {
-		return admin.FaultRule{}, &usageError{msg: "--message goes with --error"}
+	if f.httpTimeout {
+		actions = append(actions, admin.HTTPTimeout{})
+	}
+	if len(actions) != 1 {
+		return admin.FaultRule{}, &usageError{msg: fmt.Sprintf("takes exactly one action of --error, --throttle, --latency, --after-commit, --status-ok, --drop, --http-status and --http-timeout; got %d", len(actions))}
+	}
+	if err := f.errorParts(); err != nil {
+		return admin.FaultRule{}, err
 	}
 	if err := operationForm(f.operations); err != nil {
 		return admin.FaultRule{}, err
@@ -303,6 +323,26 @@ func (f *faultFlags) rule() (admin.FaultRule, error) {
 		Action:  actions[0],
 		Trigger: trigger,
 	}, nil
+}
+
+// errorParts checks --message and --members, which go with --error only.
+func (f *faultFlags) errorParts() error {
+	switch {
+	case f.message != "" && f.errShape == "":
+		return &usageError{msg: "--message goes with --error"}
+	case f.members != "" && f.errShape == "":
+		return &usageError{msg: "--members goes with --error"}
+	case f.members != "" && !jsonObject(f.members):
+		return &usageError{msg: fmt.Sprintf(`--members %q is not a JSON object, such as '{"CancellationReasons": [{"Code": "TransactionConflict"}]}'`, f.members)}
+	}
+	return nil
+}
+
+// jsonObject reports whether s is one JSON object, as --members takes;
+// the server checks its members against the --error shape.
+func jsonObject(s string) bool {
+	var obj map[string]json.RawMessage
+	return json.Unmarshal([]byte(s), &obj) == nil && obj != nil
 }
 
 // shapeFlag is the flag of the action that names an error shape, which the

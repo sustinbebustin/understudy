@@ -186,7 +186,7 @@ func specHash(spec launcher.Spec) [32]byte {
 	e.strings(strconv.FormatUint(spec.Generation, 10), spec.Image, string(spec.Architecture))
 	switch c := spec.Code.(type) {
 	case launcher.ZipCode:
-		e.strings("zip", c.Dir, c.Handler)
+		e.strings("zip", c.Dir, c.Handler, c.Opt)
 	case launcher.ImageCode:
 		e.strings("image")
 		e.list(c.EntryPoint)

@@ -1,0 +1,35 @@
+{
+  "step": "03-e09",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: Invalid Schedule Expression rate(0 minutes).",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-e9",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,b,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163705Z"],
+          ["amz-sdk-invocation-id", "c799c31f-078c-49b1-aeb9-ec1421565022"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "280"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"rate(0 minutes)\", \"State\": \"DISABLED\", \"Target\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-sch\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\"}, \"ClientToken\": \"2b7ea10a-b096-44f9-add3-4929c4af090b\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "e0aabbab-8ba0-4282-aa19-7e83aa8bed21"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "58"],
+          ["Date", "Tue, 03 Nov 2026 16:37:05 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"Invalid Schedule Expression rate(0 minutes).\"}"
+      }
+    }
+  ]
+}

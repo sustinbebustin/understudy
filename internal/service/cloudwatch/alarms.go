@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/service/cloudwatch/alarm"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -20,28 +21,42 @@ import (
 // default.
 const defaultMaxRecords = 50
 
-// initialReason is the StateReason of a new alarm (AWS-recorded).
-const initialReason = "Unchecked: Initial alarm creation"
+// The StateReason of a new alarm, and of a new alarm with a
+// WarmUpConfiguration (AWS-recorded; CWA-22).
+const (
+	initialReason = "Unchecked: Initial alarm creation"
+	warmUpReason  = "Alarm is in Warm-Up"
+)
 
 // bindAlarms binds the metric alarm operations.
 func (s *Service) bindAlarms(b cloudwatchapi.Binder) {
 	b.PutMetricAlarm(s.putMetricAlarm,
-		registry.Partial{Note: "stored and echoed; alarms are never evaluated, so their state changes only through SetAlarmState, and their actions never run"},
+		registry.Partial{Note: "alarms on a Statistic with a sliding window are evaluated on the emulator clock; alarms on an ExtendedStatistic, Metrics, a ThresholdMetricId or EvaluationCriteria, or with a WallClockWindow, are stored and never evaluated; SNS and Lambda actions run, and EC2, Auto Scaling, Systems Manager and investigation actions are journaled and never run; EvaluationState is never reported"},
 		kernel.WithCheck(checkPutMetricAlarm),
-		alarmsNamed(func(in *cloudwatchapi.PutMetricAlarmInput) []string { return []string{in.AlarmName} }))
+		alarmsNamed(func(in *cloudwatchapi.PutMetricAlarmInput) []string { return []string{in.AlarmName} }),
+		// cloudwatch:TagResource only for an alarm created with tags: a tag
+		// action on a create applies when tags are sent
+		// (iam-enforcement-surfaces.md 10.2, 10.4).
+		kernel.WithActions(func(_ *kernel.Call, in *cloudwatchapi.PutMetricAlarmInput) []registry.IAMAction {
+			if len(in.Tags) == 0 {
+				return nil
+			}
+			return []registry.IAMAction{{Prefix: "cloudwatch", Name: "TagResource"}}
+		}))
 	b.DescribeAlarms(s.describeAlarms,
 		registry.Partial{Note: "metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing"},
 		kernel.WithCheck(checkDescribeAlarms))
+	b.DescribeAlarmsForMetric(s.describeAlarmsForMetric, registry.Full{})
+	b.DescribeAlarmHistory(s.describeAlarmHistory,
+		registry.Partial{Note: "StateUpdate items only, kept 30 days on the emulator clock and after the alarm is deleted; ConfigurationUpdate and Action items are never recorded, and AlarmContributorId selects nothing"})
 	b.DeleteAlarms(s.deleteAlarms, registry.Full{},
 		alarmsNamed(func(in *cloudwatchapi.DeleteAlarmsInput) []string { return in.AlarmNames }))
-	b.EnableAlarmActions(s.enableAlarmActions,
-		registry.StoredOnly{Note: "ActionsEnabled is stored and echoed; alarm actions never run"},
+	b.EnableAlarmActions(s.enableAlarmActions, registry.Full{},
 		alarmsNamed(func(in *cloudwatchapi.EnableAlarmActionsInput) []string { return in.AlarmNames }))
-	b.DisableAlarmActions(s.disableAlarmActions,
-		registry.StoredOnly{Note: "ActionsEnabled is stored and echoed; alarm actions never run"},
+	b.DisableAlarmActions(s.disableAlarmActions, registry.Full{},
 		alarmsNamed(func(in *cloudwatchapi.DisableAlarmActionsInput) []string { return in.AlarmNames }))
 	b.SetAlarmState(s.setAlarmState,
-		registry.Partial{Note: "the state is set and echoed; no action runs and no evaluation follows"},
+		registry.Partial{Note: "the state is set and its actions run when it changes; the next evaluation re-derives it, except on alarms that are never evaluated (see PutMetricAlarm)"},
 		kernel.WithValidator(validateSetAlarmState),
 		kernel.WithCheck(checkSetAlarmState),
 		alarmsNamed(func(in *cloudwatchapi.SetAlarmStateInput) []string { return []string{in.AlarmName} }))
@@ -82,26 +97,52 @@ func alarmsNamed[In any](namesOf func(*In) []string) kernel.BindOption {
 }
 
 // putMetricAlarm creates an alarm in its initial state or replaces the
-// configuration of an existing one, which keeps its state and tags: AWS
-// ignores Tags on an update.
-func (s *Service) putMetricAlarm(_ context.Context, c *kernel.Call, in *cloudwatchapi.PutMetricAlarmInput) (*cloudwatchapi.PutMetricAlarmOutput, *awserr.Error) {
+// configuration of an existing one, which keeps its state, creation
+// instant and tags: AWS ignores Tags on an update. Either way the next
+// evaluation is armed at the next boundary, with no evaluation now
+// (cloudwatch-alarms.md 3.1), or, for an alarm understudy cannot evaluate,
+// disarmed with an Advisory naming why (cloudwatch-alarms.md 12.7).
+func (s *Service) putMetricAlarm(ctx context.Context, c *kernel.Call, in *cloudwatchapi.PutMetricAlarmInput) (*cloudwatchapi.PutMetricAlarmOutput, *awserr.Error) {
 	cfg := *in
 	cfg.Tags, cfg.ActionsEnabled = nil, nil
 	enabled := in.ActionsEnabled == nil || *in.ActionsEnabled
 	tags := tagMap(nil, in.Tags)
 	initial := initialStateValue(in)
-	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+	eval, notEvaluable := alarm.ConfigOf(&cfg)
+	ref := named(c, in.AlarmName)
+	// Set in the write, as Write answers its zero result when an effect
+	// fails after the commit, and the event of a committed change is sent
+	// either way.
+	var queued *queuedEvent
+	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		a, ok := st.Alarms[in.AlarmName]
-		if !ok {
+		var previous *Alarm
+		if ok {
+			previous = new(a)
+		} else {
+			reason := initialReason
+			if in.WarmUpConfiguration != nil {
+				reason = warmUpReason
+			}
 			a = Alarm{
-				State: AlarmState{Value: initial, Reason: initialReason, Updated: now, Transitioned: now},
-				Tags:  tags,
+				State:   AlarmState{Value: initial, Reason: reason, Updated: now, Transitioned: now},
+				Tags:    tags,
+				Created: now,
 			}
 		}
+		// A new metric id per configuration (cloudwatch.alarm.events.metric-id).
 		a.Config, a.ActionsEnabled, a.ConfigUpdated = cfg, enabled, now
+		a.MetricID = alarm.MetricID(ref.arn().String(), now.Wire(), a.MetricID)
 		st.Alarms[in.AlarmName] = a
+		s.armEvaluation(tx, ref, &eval, notEvaluable, now)
+		event := configChangeEvent(alarm.ConfigCreate, ref, &a, nil)
+		if previous != nil {
+			event = configChangeEvent(alarm.ConfigUpdate, ref, &a, previous)
+		}
+		queued = s.pushEvent(c, clock.Instant{}, event)
 		return struct{}{}, nil
 	})
+	s.flushEvents(ctx, queued)
 	if err != nil {
 		return nil, err
 	}
@@ -170,6 +211,54 @@ func describes(in *cloudwatchapi.DescribeAlarmsInput, name string, a *Alarm) boo
 			func(action string) bool { return strings.HasPrefix(action, *in.ActionPrefix) })
 	}
 	return true
+}
+
+// describeAlarmsForMetric lists, by name, the scope's alarms on exactly the
+// named metric, narrowed by the filters sent and rendered as DescribeAlarms
+// renders them. MetricAlarms is always a list and CompositeAlarms is never
+// sent (cloudwatch-alarms.md 9.4).
+func (s *Service) describeAlarmsForMetric(_ context.Context, c *kernel.Call, in *cloudwatchapi.DescribeAlarmsForMetricInput) (*cloudwatchapi.DescribeAlarmsForMetricOutput, *awserr.Error) {
+	out := &cloudwatchapi.DescribeAlarmsForMetricOutput{MetricAlarms: []cloudwatchapi.MetricAlarm{}}
+	scope := c.Scope()
+	cell, ok := s.cells.Lookup(scope)
+	if !ok {
+		return out, nil
+	}
+	out.MetricAlarms = append(out.MetricAlarms, store.Read(cell, func(st *State) []cloudwatchapi.MetricAlarm {
+		var sel []cloudwatchapi.MetricAlarm
+		for _, name := range slices.Sorted(maps.Keys(st.Alarms)) {
+			a := st.Alarms[name]
+			if onMetric(in, &a.Config) {
+				sel = append(sel, renderAlarm(alarmRef{scope: scope, name: name}, &a))
+			}
+		}
+		return sel
+	})...)
+	return out, nil
+}
+
+// onMetric reports whether an alarm is a standard alarm on exactly the
+// input's namespace, metric name and dimension set, in any order, that each
+// filter sent matches. Alarms on Metrics or EvaluationCriteria are never on
+// a metric: AWS returns "only standard alarms that are based on the
+// specified metric" (cloudwatch-alarms.md 9.4).
+func onMetric(in *cloudwatchapi.DescribeAlarmsForMetricInput, cfg *cloudwatchapi.PutMetricAlarmInput) bool {
+	switch {
+	case len(cfg.Metrics) > 0 || cfg.EvaluationCriteria != nil:
+		return false
+	case cfg.Namespace == nil || *cfg.Namespace != in.Namespace || cfg.MetricName == nil || *cfg.MetricName != in.MetricName:
+		return false
+	case !slices.Equal(sortedDimensions(cfg.Dimensions), sortedDimensions(in.Dimensions)):
+		return false
+	}
+	return filterMatches(in.Statistic, cfg.Statistic) && filterMatches(in.ExtendedStatistic, cfg.ExtendedStatistic) &&
+		filterMatches(in.Period, cfg.Period) && filterMatches(in.Unit, cfg.Unit)
+}
+
+// filterMatches reports whether an optional filter is absent or equals the
+// alarm's value, which must then be set.
+func filterMatches[T comparable](filter, have *T) bool {
+	return filter == nil || have != nil && *have == *filter
 }
 
 // renderAlarm is the MetricAlarm DescribeAlarms returns: the configuration
@@ -241,54 +330,69 @@ func echoQueries(qs []cloudwatchapi.MetricDataQuery) []cloudwatchapi.MetricDataQ
 	return out
 }
 
-// deleteAlarms deletes the named alarms with their tags. Names that match
+// deleteAlarms deletes the named alarms with their tags and evaluation
+// timers; their history stays (cloudwatch-alarms.md 8.1). Names that match
 // no alarm are skipped, as AWS documents, so deleting a missing alarm
 // succeeds (wire-cbor.md 3.5).
-func (s *Service) deleteAlarms(_ context.Context, c *kernel.Call, in *cloudwatchapi.DeleteAlarmsInput) (*cloudwatchapi.DeleteAlarmsOutput, *awserr.Error) {
-	err := s.eachAlarm(c, in.AlarmNames, func(st *State, name string, _ Alarm) {
+func (s *Service) deleteAlarms(ctx context.Context, c *kernel.Call, in *cloudwatchapi.DeleteAlarmsInput) (*cloudwatchapi.DeleteAlarmsOutput, *awserr.Error) {
+	var last *queuedEvent
+	err := s.eachAlarm(c, in.AlarmNames, func(st *State, name string, a Alarm, _ clock.Instant, tx *kernel.Tx) {
 		delete(st.Alarms, name)
+		ref := named(c, name)
+		tx.Disarm(s.evaluation, ref.arn().String())
+		last = s.pushEvent(c, clock.Instant{}, configChangeEvent(alarm.ConfigDelete, ref, &a, nil))
 	})
+	s.flushEvents(ctx, last)
 	if err != nil {
 		return nil, err
 	}
 	return &cloudwatchapi.DeleteAlarmsOutput{}, nil
 }
 
-func (s *Service) enableAlarmActions(_ context.Context, c *kernel.Call, in *cloudwatchapi.EnableAlarmActionsInput) (*cloudwatchapi.EnableAlarmActionsOutput, *awserr.Error) {
-	if err := s.setActionsEnabled(c, in.AlarmNames, true); err != nil {
+func (s *Service) enableAlarmActions(ctx context.Context, c *kernel.Call, in *cloudwatchapi.EnableAlarmActionsInput) (*cloudwatchapi.EnableAlarmActionsOutput, *awserr.Error) {
+	if err := s.setActionsEnabled(ctx, c, in.AlarmNames, true); err != nil {
 		return nil, err
 	}
 	return &cloudwatchapi.EnableAlarmActionsOutput{}, nil
 }
 
-func (s *Service) disableAlarmActions(_ context.Context, c *kernel.Call, in *cloudwatchapi.DisableAlarmActionsInput) (*cloudwatchapi.DisableAlarmActionsOutput, *awserr.Error) {
-	if err := s.setActionsEnabled(c, in.AlarmNames, false); err != nil {
+func (s *Service) disableAlarmActions(ctx context.Context, c *kernel.Call, in *cloudwatchapi.DisableAlarmActionsInput) (*cloudwatchapi.DisableAlarmActionsOutput, *awserr.Error) {
+	if err := s.setActionsEnabled(ctx, c, in.AlarmNames, false); err != nil {
 		return nil, err
 	}
 	return &cloudwatchapi.DisableAlarmActionsOutput{}, nil
 }
 
-// setActionsEnabled sets ActionsEnabled on the named alarms; names that
-// match no alarm are skipped, as DeleteAlarms skips them (inferred: the
-// documentation is silent).
-func (s *Service) setActionsEnabled(c *kernel.Call, names []string, enabled bool) *awserr.Error {
-	return s.eachAlarm(c, names, func(st *State, name string, a Alarm) {
-		a.ActionsEnabled = enabled
+// setActionsEnabled sets ActionsEnabled on the named alarms as a
+// configuration update: AlarmConfigurationUpdatedTimestamp moves and an
+// "update" configuration change event is sent, with the metric id kept
+// (CWA-14 recorded DisableAlarmActions; EnableAlarmActions is inferred to
+// match, and whether setting the value an alarm already has is an update
+// is unrecorded). Names that match no alarm are skipped, as DeleteAlarms
+// skips them (inferred: the documentation is silent).
+func (s *Service) setActionsEnabled(ctx context.Context, c *kernel.Call, names []string, enabled bool) *awserr.Error {
+	var last *queuedEvent
+	err := s.eachAlarm(c, names, func(st *State, name string, a Alarm, now clock.Instant, _ *kernel.Tx) {
+		previous := a
+		a.ActionsEnabled, a.ConfigUpdated = enabled, now
 		st.Alarms[name] = a
+		last = s.pushEvent(c, clock.Instant{}, configChangeEvent(alarm.ConfigUpdate, named(c, name), &a, &previous))
 	})
+	s.flushEvents(ctx, last)
+	return err
 }
 
 // eachAlarm runs fn on every named alarm that exists, under the scope's
-// lock.
-func (s *Service) eachAlarm(c *kernel.Call, names []string, fn func(st *State, name string, a Alarm)) *awserr.Error {
+// lock, at the write's instant now.
+func (s *Service) eachAlarm(c *kernel.Call, names []string, fn func(st *State, name string, a Alarm, now clock.Instant, tx *kernel.Tx)) *awserr.Error {
 	if _, ok := s.cells.Lookup(c.Scope()); !ok {
 		return nil
 	}
-	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		found := false
 		for _, name := range names {
 			if a, ok := st.Alarms[name]; ok {
-				fn(st, name, a)
+				fn(st, name, a, now, tx)
 				found = true
 			}
 		}
@@ -300,25 +404,38 @@ func (s *Service) eachAlarm(c *kernel.Call, names []string, fn func(st *State, n
 	return err
 }
 
-// setAlarmState sets an alarm's state and reason. Only a change of value
-// moves StateTransitionedTimestamp.
-func (s *Service) setAlarmState(_ context.Context, c *kernel.Call, in *cloudwatchapi.SetAlarmStateInput) (*cloudwatchapi.SetAlarmStateOutput, *awserr.Error) {
+// setAlarmState sets an alarm's state and reason; the timer is untouched,
+// so the next evaluation re-derives the state (cloudwatch-alarms.md 2.3).
+// A change of value is a transition: both timestamps move, and it journals
+// the StateChange, writes a history item, runs actions and sends the event.
+// To the same value nothing changes, the reason and data included
+// (cloudwatch.alarm.set-same-state, CWA-17).
+func (s *Service) setAlarmState(ctx context.Context, c *kernel.Call, in *cloudwatchapi.SetAlarmStateInput) (*cloudwatchapi.SetAlarmStateOutput, *awserr.Error) {
 	if _, ok := s.cells.Lookup(c.Scope()); !ok {
 		return nil, errAlarmNotFound()
 	}
-	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+	ref := named(c, in.AlarmName)
+	// Set in the write, as Write answers its zero result when an effect
+	// fails after the commit, and a committed transition is finished
+	// either way.
+	var done *changed
+	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		a, ok := st.Alarms[in.AlarmName]
 		if !ok {
 			return struct{}{}, errAlarmNotFound()
 		}
-		next := AlarmState{Value: in.StateValue, Reason: in.StateReason, ReasonData: in.StateReasonData, Updated: now, Transitioned: a.State.Transitioned}
-		if in.StateValue != a.State.Value {
-			next.Transitioned = now
+		if in.StateValue == a.State.Value {
+			tx.Unchanged()
+			return struct{}{}, nil
 		}
-		a.State = next
+		next := AlarmState{Value: in.StateValue, Reason: in.StateReason, ReasonData: in.StateReasonData, Updated: now, Transitioned: now}
+		done = new(s.transition(tx, ref, &a, next, c, false))
 		st.Alarms[in.AlarmName] = a
 		return struct{}{}, nil
 	})
+	if done != nil {
+		s.flushEvents(ctx, s.finishTransition(ctx, c, ref, done, clock.Instant{}))
+	}
 	if err != nil {
 		return nil, err
 	}

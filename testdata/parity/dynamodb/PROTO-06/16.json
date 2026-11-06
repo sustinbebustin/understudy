@@ -1,0 +1,36 @@
+{
+  "step": "16",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "dynamodb.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163653Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDB_20120810.TransactWriteItems"],
+          ["Content-Length", "166"]
+        ],
+        "body": "{\"TransactItems\":[{\"Update\":{\"TableName\":\"us1103-proto-tx\",\"Key\":{\"pk\":{\"S\":\"hot\"}},\"UpdateExpression\":\"ADD n :one\",\"ExpressionAttributeValues\":{\":one\":{\"N\":\"1\"}}}}]}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:53 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "289"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-requestid", "Q37L8NALPMQDF5NCNRJ4JTGKMFVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "3929850612"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.dynamodb.v20120810#TransactionCanceledException\",\"CancellationReasons\":[{\"Code\":\"TransactionConflict\",\"Message\":\"Transaction is ongoing for the item\"}],\"Message\":\"Transaction cancelled, please refer cancellation reasons for specific reasons [TransactionConflict]\"}"
+      }
+    }
+  ]
+}

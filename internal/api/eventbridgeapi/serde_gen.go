@@ -5072,6 +5072,67 @@ func (v *PutRuleOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 
 // Deserialize reads v from d. Absent members stay absent; Validate
 // reports missing required ones.
+func (v *PutServiceEventInternalInput) Deserialize(d smithy.Deserializer) error {
+	return v.deserialize(d)
+}
+
+func (v *PutServiceEventInternalInput) deserialize(d smithy.Deserializer) error {
+	if err := d.ReadStruct(&schemaPutServiceEventInternalInput); err != nil {
+		return err
+	}
+	v.missing = 1<<3 - 1
+	for {
+		m, ok, err := d.ReadStructMember()
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		switch m {
+		case &memberPutServiceEventInternalInput_Source:
+			x, err := d.ReadString(&memberPutServiceEventInternalInput_Source)
+			if err != nil {
+				return err
+			}
+			v.Source = x
+			v.missing &^= 1 << 0
+		case &memberPutServiceEventInternalInput_DetailType:
+			x, err := d.ReadString(&memberPutServiceEventInternalInput_DetailType)
+			if err != nil {
+				return err
+			}
+			v.DetailType = x
+			v.missing &^= 1 << 1
+		case &memberPutServiceEventInternalInput_Detail:
+			x, err := d.ReadString(&memberPutServiceEventInternalInput_Detail)
+			if err != nil {
+				return err
+			}
+			v.Detail = x
+			v.missing &^= 1 << 2
+		case &memberPutServiceEventInternalInput_Resources:
+			x, err := deserializeEventResourceList(d, &memberPutServiceEventInternalInput_Resources)
+			if err != nil {
+				return err
+			}
+			v.Resources = x
+		default:
+			return fmt.Errorf("eventbridgeapi: structure com.amazonaws.eventbridge#PutServiceEventInternalRequest has no member %q; the codec returned a member of another shape", m.Name)
+		}
+	}
+}
+
+// Serialize writes v through s.
+func (v *PutServiceEventInternalOutput) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *PutServiceEventInternalOutput) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaSmithyUnit)
+	s.CloseStruct()
+}
+
+// Deserialize reads v from d. Absent members stay absent; Validate
+// reports missing required ones.
 func (v *PutTargetsInput) Deserialize(d smithy.Deserializer) error { return v.deserialize(d) }
 
 func (v *PutTargetsInput) deserialize(d smithy.Deserializer) error {

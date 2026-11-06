@@ -1,0 +1,38 @@
+{
+  "step": "01-copy-source-only",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-ssec-blk.s3.us-east-2.amazonaws.com/c2",
+        "headers": [
+          ["x-amz-copy-source", "us1103-ssec/c1"],
+          ["x-amz-copy-source-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-copy-source-server-side-encryption-customer-key", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="],
+          ["x-amz-copy-source-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,E,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.copy-object"],
+          ["X-Amz-Date", "20261103T033949Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "32712b24-be41-4ce4-9932-8e453ce221b4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "a2tHrVy8TAb/cmcxGCvV8aC9NeuGasW+Vq46OD+zK4AEbRFnyG70GQ4Gzz9rI1fWKmzPeL6tCdmmCW15moePvZQbWF7BtwYd"],
+          ["x-amz-request-id", "55116J9V9AC8J2XA"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:39:50 GMT"],
+          ["x-amz-server-side-encryption", "AES256"],
+          ["Content-Length", "315"],
+          ["Content-Type", "application/xml"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<CopyObjectResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><LastModified>2026-11-03T03:39:50.000Z</LastModified><ETag>\"781e5e245d69b566979b86e28d23f2c7\"</ETag><ChecksumCRC64NVME>Ffmx7kz9nB0=</ChecksumCRC64NVME><ChecksumType>FULL_OBJECT</ChecksumType></CopyObjectResult>"
+      }
+    }
+  ]
+}

@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"maps"
 	"slices"
-	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -44,6 +43,9 @@ type Config struct {
 	Image     *ImageSettings `json:"image,omitempty"`
 	SnapStart string         `json:"snapStart"`
 	Logging   Logging        `json:"logging"`
+	// Layers are the layer versions as resolved when attached, in the order
+	// given; nil when the function has none.
+	Layers []LayerRef `json:"layers,omitempty"`
 }
 
 // Vpc is a VPC attachment, stored and echoed.
@@ -133,8 +135,10 @@ type configUpdate struct {
 
 // apply sets what u carries. Each structure replaces the setting whole, as
 // AWS does: Environment.Variables {} clears the environment, an empty
-// DeadLetterConfig.TargetArn the queue, an empty ImageConfig the overrides
-// and empty VPC lists the attachment (lambda-api.md 6.2).
+// ImageConfig the overrides and empty VPC lists the attachment
+// (lambda-api.md 6.2). DeadLetterConfig is the exception: {"TargetArn": ""}
+// clears the queue, but {} leaves it in place
+// (lambda-destinations-layers.md 5.1, 11.5).
 func (c *Config) apply(u configUpdate) {
 	set(&c.Timeout, u.Timeout)
 	set(&c.MemorySize, u.MemorySize)
@@ -146,7 +150,7 @@ func (c *Config) apply(u configUpdate) {
 		}
 	}
 	if u.DeadLetter != nil {
-		c.DeadLetterTarget = deref(u.DeadLetter.TargetArn)
+		set(&c.DeadLetterTarget, u.DeadLetter.TargetArn)
 	}
 	if u.Tracing != nil && u.Tracing.Mode != nil {
 		c.TracingMode = string(*u.Tracing.Mode)
@@ -234,6 +238,7 @@ func (c *Config) clone() Config {
 	out := *c
 	out.Environment = maps.Clone(c.Environment)
 	out.FileSystems = slices.Clone(c.FileSystems)
+	out.Layers = slices.Clone(c.Layers)
 	if c.Vpc != nil {
 		v := *c.Vpc
 		v.SubnetIDs, v.SecurityGroupIDs = slices.Clone(v.SubnetIDs), slices.Clone(v.SecurityGroupIDs)
@@ -304,6 +309,11 @@ func renderConfig(scope aws.Scope, f *Function, v *Version, arn string, rows lis
 	}
 	for _, fs := range c.FileSystems {
 		out.FileSystemConfigs = append(out.FileSystemConfigs, lambdaapi.FileSystemConfig{Arn: fs.ARN, LocalMountPath: fs.MountPath})
+	}
+	// Layers in stored order, no key without any, and never a signing ARN
+	// (lambda-destinations-layers.md 7.2, 11.8).
+	for _, l := range c.Layers {
+		out.Layers = append(out.Layers, lambdaapi.Layer{Arn: new(l.ARN), CodeSize: l.CodeSize})
 	}
 	if !rows {
 		sv := renderStatus(v.Status)
@@ -421,7 +431,10 @@ func deref[T any](p *T) T {
 // invoke path.
 
 func (s *Service) bindEventInvokeConfigs(b lambdaapi.Binder) {
-	const note = "asynchronous invocations apply MaximumRetryAttempts and MaximumEventAgeInSeconds; DestinationConfig is stored and echoed, but no destination receives anything"
+	// Asynchronous invocations apply MaximumRetryAttempts,
+	// MaximumEventAgeInSeconds and DestinationConfig (async.go); the gaps
+	// are lambda-destinations-layers.md 11.1's.
+	const note = "the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried"
 	b.PutFunctionEventInvokeConfig(s.putEventInvokeConfig, partial(note))
 	b.UpdateFunctionEventInvokeConfig(s.updateEventInvokeConfig, partial(note))
 	b.GetFunctionEventInvokeConfig(s.getEventInvokeConfig, full())
@@ -444,12 +457,12 @@ type eventInvokeInput struct {
 	dest         *lambdaapi.DestinationConfig
 }
 
-func (s *Service) putEventInvokeConfig(_ context.Context, c *kernel.Call, in *lambdaapi.PutFunctionEventInvokeConfigInput) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
-	return s.storeEventInvoke(c, in.FunctionName, in.Qualifier, eventInvokeInput{in.MaximumRetryAttempts, in.MaximumEventAgeInSeconds, in.DestinationConfig}, true)
+func (s *Service) putEventInvokeConfig(ctx context.Context, c *kernel.Call, in *lambdaapi.PutFunctionEventInvokeConfigInput) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
+	return s.storeEventInvoke(ctx, c, in.FunctionName, in.Qualifier, eventInvokeInput{in.MaximumRetryAttempts, in.MaximumEventAgeInSeconds, in.DestinationConfig}, true)
 }
 
-func (s *Service) updateEventInvokeConfig(_ context.Context, c *kernel.Call, in *lambdaapi.UpdateFunctionEventInvokeConfigInput) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
-	return s.storeEventInvoke(c, in.FunctionName, in.Qualifier, eventInvokeInput{in.MaximumRetryAttempts, in.MaximumEventAgeInSeconds, in.DestinationConfig}, false)
+func (s *Service) updateEventInvokeConfig(ctx context.Context, c *kernel.Call, in *lambdaapi.UpdateFunctionEventInvokeConfigInput) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
+	return s.storeEventInvoke(ctx, c, in.FunctionName, in.Qualifier, eventInvokeInput{in.MaximumRetryAttempts, in.MaximumEventAgeInSeconds, in.DestinationConfig}, false)
 }
 
 // eventInvokeNotFound is the answer for a configuration that is not
@@ -460,8 +473,11 @@ func (r functionRef) eventInvokeNotFound() *awserr.Error {
 }
 
 // storeEventInvoke stores a configuration: replaced whole by Put, merged
-// by Update into one that must exist (lambda-api.md 7.7).
-func (s *Service) storeEventInvoke(c *kernel.Call, name string, qualifier *string, in eventInvokeInput, replace bool) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
+// by Update into one that must exist (lambda-api.md 7.7). The function is
+// checked first, then each destination (checkDestinations); the write
+// checks the function and its own scope's destination functions again,
+// since they may change while other services are asked about the rest.
+func (s *Service) storeEventInvoke(ctx context.Context, c *kernel.Call, name string, qualifier *string, in eventInvokeInput, replace bool) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
 	ref, err := parseFunctionRef(c, name, qualifier)
 	if err != nil {
 		return nil, err
@@ -469,26 +485,28 @@ func (s *Service) storeEventInvoke(c *kernel.Call, name string, qualifier *strin
 	if in.retries == nil && in.age == nil && in.dest == nil {
 		return nil, errEventInvokeNoSettings()
 	}
+	if _, err := view(s, ref.scope, func(st *State) (EventInvokeConfig, *awserr.Error) { return st.eventInvokeBase(ref, replace) }); err != nil {
+		return nil, err
+	}
+	var dests []configuredDestination
+	if in.dest != nil {
+		if dests, err = s.checkDestinations(ctx, c, ref, in.dest); err != nil {
+			return nil, err
+		}
+	}
 	out, err := write(s, c, ref.scope, func(st *State, now clock.Instant, _ *kernel.Tx) (lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
-		f, _, err := st.lookup(ref)
+		cfg, err := st.eventInvokeBase(ref, replace)
 		if err != nil {
-			return lambdaapi.FunctionEventInvokeConfig{}, errEventInvokeFunctionMissing()
+			return lambdaapi.FunctionEventInvokeConfig{}, err
 		}
-		cfg, stored := f.EventInvoke[ref.eventInvokeKey()]
-		switch {
-		case replace:
-			cfg = EventInvokeConfig{}
-		case !stored:
-			return lambdaapi.FunctionEventInvokeConfig{}, ref.eventInvokeNotFound()
-		}
-		if in.dest != nil {
-			if err := st.checkDestinations(ref, in.dest); err != nil {
+		for _, d := range dests {
+			if err := st.recheckDestination(ref, d); err != nil {
 				return lambdaapi.FunctionEventInvokeConfig{}, err
 			}
 		}
 		cfg = cfg.with(in, replace)
 		cfg.Modified = now
-		f = f.clone()
+		f := st.Functions[ref.name].clone()
 		if f.EventInvoke == nil {
 			f.EventInvoke = map[string]EventInvokeConfig{}
 		}
@@ -503,6 +521,24 @@ func (s *Service) storeEventInvoke(c *kernel.Call, name string, qualifier *strin
 	return &out, nil
 }
 
+// eventInvokeBase is the configuration a Put or Update starts from:
+// nothing for Put, which replaces it whole, and for Update the stored one,
+// which must exist. The function and its qualifier must exist for both.
+func (st *State) eventInvokeBase(ref functionRef, replace bool) (EventInvokeConfig, *awserr.Error) {
+	f, _, err := st.lookup(ref)
+	if err != nil {
+		return EventInvokeConfig{}, errEventInvokeFunctionMissing()
+	}
+	cfg, stored := f.EventInvoke[ref.eventInvokeKey()]
+	switch {
+	case replace:
+		return EventInvokeConfig{}, nil
+	case !stored:
+		return EventInvokeConfig{}, ref.eventInvokeNotFound()
+	}
+	return cfg, nil
+}
+
 // with returns cfg updated with the settings that in carries; with
 // replace, a setting that in leaves out is removed.
 func (cfg EventInvokeConfig) with(in eventInvokeInput, replace bool) EventInvokeConfig {
@@ -513,10 +549,21 @@ func (cfg EventInvokeConfig) with(in eventInvokeInput, replace bool) EventInvoke
 		cfg.MaximumEventAgeInSeconds = in.age
 	}
 	switch {
-	case in.dest != nil:
-		cfg.OnSuccess, cfg.OnFailure = destinations(in.dest)
-	case replace:
+	case replace && in.dest == nil:
 		cfg.OnSuccess, cfg.OnFailure = "", ""
+	case replace:
+		cfg.OnSuccess, cfg.OnFailure = destinations(in.dest)
+	case in.dest != nil:
+		// Update merges per side: a side the request leaves out stays as
+		// stored (aws-recorded, lambda-destinations-layers.md 2.1: LDL-08
+		// 07 and 08).
+		success, failure := destinations(in.dest)
+		if in.dest.OnSuccess != nil {
+			cfg.OnSuccess = success
+		}
+		if in.dest.OnFailure != nil {
+			cfg.OnFailure = failure
+		}
 	}
 	return cfg
 }
@@ -531,40 +578,6 @@ func destinations(d *lambdaapi.DestinationConfig) (success, failure string) {
 		failure = deref(d.OnFailure.Destination)
 	}
 	return success, failure
-}
-
-// checkDestinations refuses a destination that is the function itself, a
-// function that does not exist, or a service Lambda does not deliver to
-// (S3 is an on-failure destination only).
-func (st *State) checkDestinations(ref functionRef, d *lambdaapi.DestinationConfig) *awserr.Error {
-	success, failure := destinations(d)
-	for _, side := range []struct {
-		arn       string
-		onFailure bool
-	}{{success, false}, {failure, true}} {
-		if side.arn == "" {
-			continue
-		}
-		a, err := aws.ParseARN(side.arn)
-		switch {
-		case err != nil:
-			return errDestinationConfig(success, failure)
-		case a.Service == "lambda":
-			target, ok := strings.CutPrefix(a.Resource, "function:")
-			if !ok {
-				return errDestinationConfig(success, failure)
-			}
-			if name, _, _ := strings.Cut(target, ":"); name == ref.name {
-				return errDestinationSelf()
-			} else if _, ok := st.Functions[name]; !ok {
-				return errDestinationMissing(side.arn)
-			}
-		case a.Service == "sqs", a.Service == "sns", a.Service == "events", a.Service == "s3" && side.onFailure:
-		default:
-			return errDestinationConfig(success, failure)
-		}
-	}
-	return nil
 }
 
 // renderEventInvoke reports a configuration: FunctionArn qualified, with

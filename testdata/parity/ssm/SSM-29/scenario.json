@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "item": "SSM-29",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "us1103-a29",
+        "Type": "String",
+        "Value": "v"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-29/01-other-account.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-29/02-other-region.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-29/03-document-arn.json",
+      "compare": "all"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Terraform
 
-The Terraform AWS provider reads `AWS_ENDPOINT_URL`, so a configuration written for AWS applies to understudy with two provider settings. The goal for every resource type understudy supports: `apply` succeeds, a second `plan` shows no changes, and `destroy` leaves nothing behind. [conformance/terraform](../../conformance/terraform/) checks exactly that for each service with provider 6.68.0.
+The Terraform AWS provider reads `AWS_ENDPOINT_URL`, so a configuration written for AWS applies to understudy with three provider settings. The goal for every resource type understudy supports: `apply` succeeds, a second `plan` shows no changes, and `destroy` leaves nothing behind. [conformance/terraform](../../conformance/terraform/) checks exactly that for each service with provider 6.68.0.
 
 ## Provider
 
@@ -16,12 +16,13 @@ terraform {
 
 # The endpoint and credentials come from 'understudy env'.
 provider "aws" {
-  s3_use_path_style          = true
-  skip_requesting_account_id = true
+  s3_use_path_style           = true
+  skip_credentials_validation = true
+  skip_requesting_account_id  = true
 }
 ```
 
-`skip_requesting_account_id = true` is required at the `http://127.0.0.1:4566` endpoint `understudy env` prints: with an account id, the provider reads S3 bucket tags through S3 Control at `<account>.<endpoint host>`, which cannot resolve for an IP address, and the refresh fails. `s3_use_path_style` is optional there, since the provider addresses S3 path style at an IP address anyway. The provider's startup `sts:GetCallerIdentity` needs no skip setting: understudy answers it with the account the access key selects. If `*.localhost` names resolve on your machine (`understudy doctor` says) and you set `AWS_ENDPOINT_URL=http://localhost:4566` yourself, neither setting is needed.
+Both skip settings are required at the `http://127.0.0.1:4566` endpoint `understudy env` prints: with an account id, the provider reads S3 bucket tags through S3 Control at `<account>.<endpoint host>`, which cannot resolve for an IP address, and the refresh fails. The provider has no account id only with both: with credential validation on, it takes the account from its startup `sts:GetCallerIdentity`, which understudy answers with the account the access key selects, whatever `skip_requesting_account_id` says. With `skip_requesting_account_id` alone, the configuration below fails at its bucket with `dial tcp: lookup 000000000000.127.0.0.1: no such host`. `s3_use_path_style` is optional there, since the provider addresses S3 path style at an IP address anyway. If `*.localhost` names resolve on your machine (`understudy doctor` says) and you set `AWS_ENDPOINT_URL=http://localhost:4566` yourself, none of these settings is needed.
 
 ## Apply, plan, destroy
 
@@ -106,5 +107,8 @@ eval "$(understudy env --sdk terraform --account 100000000001)"
 ## Known gaps
 
 - `terraform import` of an SQS queue fails: the provider accepts only `https://sqs.<region>.<host>/...` queue URLs, and understudy's are `http://localhost:4566/...`. Create, read and destroy work.
-- Resource types outside the twelve services fail with the 501 the provider receives for their first call.
+- Resource types outside the emulated services fail with the 501 the provider receives for their first call.
+- `aws_ses_domain_identity_verification` waits up to 45 minutes and fails unless its domain is listed in `ses.verifiedIdentities`, since understudy never checks DNS ([SES](ses-email.md#terraforms-45-minute-wait)).
+- Without an account id, the provider writes an API Gateway API's `execution_arn` as `arn:aws:execute-api:us-east-1::<api-id>`, so a Lambda permission built from it never matches; build the source ARN from `data.aws_caller_identity` ([API Gateway](apigateway.md#terraform)). A stage's `invoke_url` names `amazonaws.com`; call an HTTP API at `api_endpoint` and a REST API at its local invoke URL ([Calling a REST API](apigateway.md#calling-a-rest-api)).
+- An `aws_apigatewayv2_api` with `body` fails to apply: the provider creates the API, then imports the OpenAPI definition with `ReimportApi`, which answers 501. The API is left tainted, and `destroy` removes it.
 - Deleted KMS keys stay listed in `PendingDeletion` until their deletion window passes on the [emulator clock](clock.md), as on AWS.

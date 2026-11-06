@@ -49,14 +49,18 @@ func runCorpus(t *testing.T, skips protocoltest.Skips) []protocoltest.Result {
 	for _, cs := range corpusServices() {
 		s := cs.suite()
 		b := newBench(t, cs, s.Service)
-		reqs := responseRequests(&s, skips)
+		reqs := caseRequests(&s, skips)
 		for i := range s.Requests {
 			c := &s.Requests[i]
 			result(protocoltest.Key{Protocol: c.Protocol, Kind: protocoltest.Request, ID: c.ID}, b.runRequest(ctx, c))
 		}
 		for i := range s.Responses {
 			c := &s.Responses[i]
-			result(protocoltest.Key{Protocol: c.Protocol, Kind: protocoltest.Response, ID: c.ID}, b.runResponse(ctx, c, reqs[c.Operation]))
+			req, err := responseRequest(reqs, c.Operation)
+			if err == nil {
+				err = b.runResponse(ctx, c, req)
+			}
+			result(protocoltest.Key{Protocol: c.Protocol, Kind: protocoltest.Response, ID: c.ID}, err)
 		}
 		for i := range s.Malformed {
 			c := &s.Malformed[i]

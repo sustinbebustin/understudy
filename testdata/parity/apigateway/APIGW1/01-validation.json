@@ -1,0 +1,35 @@
+{
+  "step": "01-validation",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis",
+        "headers": [
+          ["Host", "apigateway.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163649Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "application/json"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "65"]
+        ],
+        "body": "{\"name\":\"us1103-bad\",\"endpointConfiguration\":{\"types\":[\"WRONG\"]}}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:36:49 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "237"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "d4fdcd71-524c-40fe-9c63-6a1b9c6ce247"],
+          ["x-amzn-ErrorType", "ValidationException"],
+          ["x-amz-apigw-id", "GRcRXKEjiYcEc5A="]
+        ],
+        "body": "{\"message\":\"1 validation error detected: Value '[WRONG]' at 'createRestApiInput.endpointConfiguration.types' failed to satisfy constraint: Member must satisfy constraint: [Member must satisfy enum value set: [PRIVATE, EDGE, REGIONAL]]\"}\n"
+      }
+    }
+  ]
+}

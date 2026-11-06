@@ -9,4 +9,7 @@
 !admin
 !cmd
 !internal
+!third_party/aws-managed-policies
 **/testdata
+# The catalogue's reviewable source; the binary embeds policies.json.gz.
+third_party/aws-managed-policies/policies.json

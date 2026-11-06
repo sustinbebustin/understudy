@@ -38,6 +38,10 @@ const (
 	// IAM and STS rules. A "/" in a name would change the path its ARN reads
 	// back as.
 	MalformedName
+	// InvalidIssueTime: an assumed role whose Attributes.Issued has no RFC
+	// 3339 form in UTC: its year is outside 0 to 9999. A snapshot could not
+	// save it.
+	InvalidIssueTime
 )
 
 // MintError reports credentials the store refused to mint. No key was
@@ -74,6 +78,8 @@ func (p MintProblem) reason() string {
 		return `a user's or role's path must be empty, "/", or printable ASCII other than space between a leading and a trailing "/", at most 512 characters, such as "/service-role/"`
 	case MalformedName:
 		return "a user or role name must be 1 to 64, and a session name 2 to 64, of letters, digits and _+=,.@-, as IAM and STS require"
+	case InvalidIssueTime:
+		return "the session's issue time has no RFC 3339 form in UTC; use a time whose UTC year is between 0 and 9999"
 	}
 	return fmt.Sprintf("unknown problem %d", uint8(p))
 }

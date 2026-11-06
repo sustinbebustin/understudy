@@ -1,0 +1,22 @@
+{
+  "step": "16-query",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:46:09 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "1680"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "3d6c5b1e-ac7d-47fd-b7dc-72a5e019c0d8"],
+          ["x-amz-apigw-id", "GRdozFoaiYcEFFg="],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0fd1-0364b2a7672a1bbf3375e691;Parent=33d20a8f2b29ae99;Sampled=0;Lineage=1:3c3b1068:0"]
+        ],
+        "body": "{\"resource\": \"/px\", \"path\": \"/px\", \"httpMethod\": \"GET\", \"headers\": {\"Accept\": \"*/*\", \"Host\": \"iqia6sj0ff.execute-api.us-east-2.amazonaws.com\", \"User-Agent\": \"curl/8.23.0\", \"X-Amzn-Trace-Id\": \"Root=1-6aea0fd1-0364b2a7672a1bbf3375e691\", \"X-Forwarded-For\": \"198.51.100.2\", \"X-Forwarded-Port\": \"443\", \"X-Forwarded-Proto\": \"https\"}, \"multiValueHeaders\": {\"Accept\": [\"*/*\"], \"Host\": [\"iqia6sj0ff.execute-api.us-east-2.amazonaws.com\"], \"User-Agent\": [\"curl/8.23.0\"], \"X-Amzn-Trace-Id\": [\"Root=1-6aea0fd1-0364b2a7672a1bbf3375e691\"], \"X-Forwarded-For\": [\"198.51.100.2\"], \"X-Forwarded-Port\": [\"443\"], \"X-Forwarded-Proto\": [\"https\"]}, \"queryStringParameters\": {\"a\": \"2\", \"b\": \"\", \"c\": \"\", \"d\": \"x+y z\"}, \"multiValueQueryStringParameters\": {\"a\": [\"1\", \"2\"], \"b\": [\"\"], \"c\": [\"\"], \"d\": [\"x+y z\"]}, \"pathParameters\": null, \"stageVariables\": null, \"requestContext\": {\"resourceId\": \"f85iwy\", \"resourcePath\": \"/px\", \"httpMethod\": \"GET\", \"extendedRequestId\": \"GRdozFoaiYcEFFg=\", \"requestTime\": \"03/Nov/2026:16:46:09 +0000\", \"path\": \"/s1/px\", \"accountId\": \"123456789012\", \"protocol\": \"HTTP/1.1\", \"stage\": \"s1\", \"domainPrefix\": \"iqia6sj0ff\", \"requestTimeEpoch\": 1793724369415, \"requestId\": \"3d6c5b1e-ac7d-47fd-b7dc-72a5e019c0d8\", \"identity\": {\"cognitoIdentityPoolId\": null, \"accountId\": null, \"cognitoIdentityId\": null, \"caller\": null, \"sourceIp\": \"198.51.100.2\", \"principalOrgId\": null, \"accessKey\": null, \"cognitoAuthenticationType\": null, \"cognitoAuthenticationProvider\": null, \"userArn\": null, \"userAgent\": \"curl/8.23.0\", \"user\": null}, \"domainName\": \"iqia6sj0ff.execute-api.us-east-2.amazonaws.com\", \"deploymentId\": \"6z87hi\", \"apiId\": \"iqia6sj0ff\"}, \"body\": null, \"isBase64Encoded\": false}"
+      }
+    }
+  ]
+}

@@ -7,7 +7,7 @@
 
 ## Expected
 
-Understudy paths are under /home/austin/dev/local-aws-stack. Move-task data is from std-06-*/fifo-06-* (r02b.sh); the r02.sh step 6 did not run.
+Understudy paths are repo-relative. Move-task data is from std-06-*/fifo-06-* (r02b.sh); the r02.sh step 6 did not run.
 
 - move happens at the receive attempt that exceeds maxReceiveCount (std-03-m*, fifo-03-m1-recv3): matches (message gone from source on the 3rd receive; FIFO's 3rd receive returns the next message of the group instead; internal/service/sqs/receive.go:212).
 - DLQ MessageId same as source (std-04-*, fifo-04-*): matches.

@@ -75,7 +75,11 @@ linters:
     govet:
       enable-all: true
       disable: [fieldalignment, shadow]
-    exhaustive: { default-signifies-exhaustive: false }
+    exhaustive:
+      default-signifies-exhaustive: false
+      # A closed set's unexported end sentinel (endVia, endMechanism, ...)
+      # follows its last value and is no member, so no switch names it.
+      ignore-constants: ['\.end[A-Z][A-Za-z]*$']
     gochecksumtype: { default-signifies-exhaustive: false }
     godox: { keywords: [TODO, FIXME, HACK, XXX] }
     nolintlint: { require-explanation: true, require-specific: true }
@@ -118,6 +122,9 @@ linters:
           list-mode: strict
           files: ["!$test"]
           allow: [$gostd, github.com/sustinbebustin/understudy]
+          deny:
+            - pkg: net/smtp
+              desc: understudy never sends mail; SES is journal-only (docs/research/ses.md 11.8, ADR 0015)
         tests:
           list-mode: strict
           files: ["$test"]
@@ -139,6 +146,8 @@ linters:
           msg: return an error to main
         - pattern: ^panic$
           msg: return an error value
+        - pattern: ^dynamodbapi\.ErrTransactionCanceledException$
+          msg: AWS always sends it with CancellationReasons, one per item (smithy-protocol-tests.md 12.2, 14.14); use ErrTransactionCanceledExceptionMembers
     gomoddirectives: { replace-allow-list: [] }
   exclusions:
     generated: strict

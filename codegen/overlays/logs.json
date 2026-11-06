@@ -5,8 +5,15 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazonaws.cloudwatchlogs#ThrottlingException",
+        "dev.understudy#denialError": "com.amazonaws.cloudwatchlogs#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException"},
         "dev.understudy#evidence": [
+          {
+            "label": "third-party-recorded",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDeniedException answers 400 for a non-IAM denial (PutSubscriptionFilter with another account's Lambda ARN, https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/logs/test_logs_subscription_filters.snapshot.json#L157-L165, 3.2); the status of an IAM denial falls under switch logs.denial.status (12.8) until recording IAM-ENF-07",
+            "validated": "2026-02-06",
+            "covers": ["dev.understudy#denialError"]
+          },
           {
             "label": "inferred",
             "source": "docs/research/error-matrix.md#57-cloudwatch-logs-json-11",

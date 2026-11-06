@@ -1,0 +1,11 @@
+# Synthetic robots.txt in the layout of docs.aws.amazon.com's: one group for
+# every user agent, a sitemap, path rules none of which covers the guide, and a
+# crawl delay. The delay differs from the recorded 5 seconds so a test can
+# tell it was read.
+User-agent: *
+Sitemap: https://docs.aws.amazon.com/sitemap_index.xml
+Disallow: /AmazonExampleLegacy/2006-03-01/
+Disallow: /forms/
+Disallow: /search/
+Disallow: /ask-docs/
+Crawl-delay: 3

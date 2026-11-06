@@ -63,7 +63,7 @@ func TestKMSCreateAndDescribeKey(t *testing.T) {
 		t.Errorf("CreationDate %v, DeletionDate %v; want a creation date and no deletion date", m.CreationDate, m.DeletionDate)
 	}
 
-	alias := "alias/" + name("describe")
+	alias := "alias/" + name(t, "describe")
 	_, err = client.CreateAlias(ctx, &kms.CreateAliasInput{AliasName: aws.String(alias), TargetKeyId: m.KeyId})
 	ok(t, err, "CreateAlias")
 	t.Cleanup(func() {
@@ -336,7 +336,7 @@ func TestKMSPoliciesAliasesTags(t *testing.T) {
 	})
 
 	t.Run("aliases", func(t *testing.T) {
-		alias := "alias/" + name("alias")
+		alias := "alias/" + name(t, "alias")
 		_, err := client.CreateAlias(ctx, &kms.CreateAliasInput{AliasName: aws.String(alias), TargetKeyId: key.KeyId})
 		ok(t, err, "CreateAlias")
 		aliasArn := "arn:aws:kms:" + region() + ":" + acct + ":" + alias
@@ -349,7 +349,7 @@ func TestKMSPoliciesAliasesTags(t *testing.T) {
 		}
 		_, err = client.CreateAlias(ctx, &kms.CreateAliasInput{AliasName: aws.String(alias), TargetKeyId: other.KeyId})
 		errAs[*types.AlreadyExistsException](t, err, "CreateAlias of an existing alias")
-		_, err = client.CreateAlias(ctx, &kms.CreateAliasInput{AliasName: aws.String(name("noprefix")), TargetKeyId: key.KeyId})
+		_, err = client.CreateAlias(ctx, &kms.CreateAliasInput{AliasName: aws.String(name(t, "noprefix")), TargetKeyId: key.KeyId})
 		apiErr(t, err, "CreateAlias without alias/", "ValidationException")
 		wantMessage(t, err, "CreateAlias without alias/", `Alias must start with the prefix "alias/". Please see https://docs.aws.amazon.com/kms/latest/developerguide/kms-alias.html`)
 

@@ -134,20 +134,35 @@ type DocumentEncoder func() DocumentWriter
 // value replaces it. A misuse by generated code is a *UsageError; a
 // document doc fails to write returns the writer's error.
 func Encode(op *registry.Operation, out smithy.Serializable, status int, hasDocument func(*smithy.Schema) bool, doc DocumentEncoder) (Encoded, error) {
-	s := &serializer{doc: doc, hasDocument: hasDocument, header: http.Header{}, bound: map[string]bool{}, status: status, body: NoBody{}}
+	return EncodeTimestamps(op, out, status, hasDocument, doc, FormatTimestamp)
+}
+
+// HeaderTimestamp writes a timestamp member bound to a header in format f:
+// the member's timestampFormat trait, http-date without one.
+// FormatTimestamp is Smithy's form; a protocol dialect may write a format
+// its own way, as S3 writes date-time with milliseconds always.
+type HeaderTimestamp func(t time.Time, f smithy.TimestampFormat) string
+
+// EncodeTimestamps is Encode with header timestamps written by stamp.
+func EncodeTimestamps(op *registry.Operation, out smithy.Serializable, status int, hasDocument func(*smithy.Schema) bool, doc DocumentEncoder, stamp HeaderTimestamp) (Encoded, error) {
+	s := newSerializer(status, hasDocument, doc, stamp)
 	if op.Output != nil && op.Output.Type == smithy.TypeStructure {
 		out.Serialize(s)
 	}
-	if s.err == nil && s.depth != 0 {
-		s.fail("Serialize", "a structure, list or map was left open")
-	}
-	if s.err != nil {
-		return Encoded{}, s.err
-	}
-	if s.status == 0 {
-		s.status = http.StatusOK
-	}
-	return Encoded{Status: s.status, Header: s.header, Body: s.body}, nil
+	return s.encoded()
+}
+
+// EncodeStructure is Encode for a structure that is not an operation's
+// output: the value an error carries, whose header members go out as
+// headers and the rest as the document (smithy-protocol-tests.md 11.2).
+func EncodeStructure(v smithy.Serializable, status int, hasDocument func(*smithy.Schema) bool, doc DocumentEncoder) (Encoded, error) {
+	s := newSerializer(status, hasDocument, doc, FormatTimestamp)
+	v.Serialize(s)
+	return s.encoded()
+}
+
+func newSerializer(status int, hasDocument func(*smithy.Schema) bool, doc DocumentEncoder, stamp HeaderTimestamp) *serializer {
+	return &serializer{doc: doc, hasDocument: hasDocument, stamp: stamp, header: http.Header{}, bound: map[string]bool{}, status: status, body: NoBody{}}
 }
 
 // route is where writes inside the current top-level member go.
@@ -165,6 +180,7 @@ const (
 type serializer struct {
 	doc         DocumentEncoder
 	hasDocument func(*smithy.Schema) bool
+	stamp       HeaderTimestamp
 	header      http.Header
 	// bound holds the canonical names of headers an httpHeader member
 	// wrote; a prefix-header entry never overwrites one.
@@ -324,7 +340,7 @@ func (s *serializer) WriteBigDecimal(m *smithy.Member, v smithy.BigDecimal) {
 }
 
 func (s *serializer) WriteTimestamp(m *smithy.Member, v time.Time) {
-	s.value(m, func() string { return FormatTimestamp(v, TimestampFormat(m, smithy.HTTPDate)) },
+	s.value(m, func() string { return s.stamp(v, TimestampFormat(m, smithy.HTTPDate)) },
 		func(w smithy.Serializer) { w.WriteTimestamp(m, v) })
 }
 
@@ -358,6 +374,20 @@ func (s *serializer) WriteBody(m *smithy.Member, b smithy.BodySource) {
 		}
 	}
 	s.fail("WriteBody", "only a top-level @streaming payload member is written as a body")
+}
+
+// encoded is the split value, once Serialize has returned.
+func (s *serializer) encoded() (Encoded, error) {
+	if s.err == nil && s.depth != 0 {
+		s.fail("Serialize", "a structure, list or map was left open")
+	}
+	if s.err != nil {
+		return Encoded{}, s.err
+	}
+	if s.status == 0 {
+		s.status = http.StatusOK
+	}
+	return Encoded{Status: s.status, Header: s.header, Body: s.body}, nil
 }
 
 // payload reports whether m is the top-level payload member, written as

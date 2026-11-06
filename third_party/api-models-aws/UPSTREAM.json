@@ -1,7 +1,7 @@
 {
   "repository": "https://github.com/aws/api-models-aws",
   "commit": "1cfdfb4bb9ea858e65623e66d73af04bec353201",
-  "retrieved": "2026-10-08",
+  "retrieved": "2026-10-26",
   "license": "Apache-2.0",
   "legal": [
     {
@@ -18,6 +18,20 @@
     }
   ],
   "files": [
+    {
+      "dir": "api-gateway",
+      "path": "models/api-gateway/service/2015-07-09/api-gateway-2015-07-09.json",
+      "bytes": 524837,
+      "gitBlobSha1": "32a74d5f99cdd6f5f1770dd8d327da84d7c13578",
+      "sha256": "e049f523d0119459a800b6d749503f8f79d4b321c0226fc6c40ab8172fcca13c"
+    },
+    {
+      "dir": "apigatewayv2",
+      "path": "models/apigatewayv2/service/2018-11-29/apigatewayv2-2018-11-29.json",
+      "bytes": 672995,
+      "gitBlobSha1": "05eeb0c0645d8b6ddff3c3a9f1c15ae17d3fdc05",
+      "sha256": "423a8e8562ca06a12ee6c90f8d0b39ae05e184354de4d83c74d8118d9179fcc4"
+    },
     {
       "dir": "cloudwatch",
       "path": "models/cloudwatch/service/2010-08-01/cloudwatch-2010-08-01.json",
@@ -40,6 +54,13 @@
       "sha256": "09ed07d716c40d1c8641f1641a380029a6b41cf412110aaca1d9c6db030d25ac"
     },
     {
+      "dir": "dynamodb-streams",
+      "path": "models/dynamodb-streams/service/2012-08-10/dynamodb-streams-2012-08-10.json",
+      "bytes": 99367,
+      "gitBlobSha1": "4dcc7ddb5006c62323f88bab332e085135c177e1",
+      "sha256": "3633993d4ef8b4cf785f7efb3c2e5636ad3fdf91a1911ea6112e83729b2c8921"
+    },
+    {
       "dir": "eventbridge",
       "path": "models/eventbridge/service/2015-10-07/eventbridge-2015-10-07.json",
       "bytes": 446265,
@@ -52,6 +73,13 @@
       "bytes": 1168554,
       "gitBlobSha1": "f5f522bc4f531b7b20ef1f3c6a88e9cdc6e7d40b",
       "sha256": "c1f74d3eda269e4fa2f00b57d57ed19c0e0a6d7fc7c70d4e351e319d178430f9"
+    },
+    {
+      "dir": "kinesis",
+      "path": "models/kinesis/service/2013-12-02/kinesis-2013-12-02.json",
+      "bytes": 782024,
+      "gitBlobSha1": "88b43235b92c432e80272858089f7c89a83eaf3f",
+      "sha256": "156f6bde03b979d270b23bb55b0d0b8307b4e4c780febd3a0749f50c4c2b766b"
     },
     {
       "dir": "kms",
@@ -75,11 +103,39 @@
       "sha256": "73e4f75747396176053a0fcc910261cf670c7e133c1cebcfffefa703fad3ce68"
     },
     {
+      "dir": "scheduler",
+      "path": "models/scheduler/service/2021-06-30/scheduler-2021-06-30.json",
+      "bytes": 124558,
+      "gitBlobSha1": "523ea72f89aeca670a3f09ae0aa487558f1bc266",
+      "sha256": "7917c15f45862b8579b6d798cd9d884a0c9251d267b50f4892bca4d5e8d42ad9"
+    },
+    {
       "dir": "secrets-manager",
       "path": "models/secrets-manager/service/2017-10-17/secrets-manager-2017-10-17.json",
       "bytes": 276931,
       "gitBlobSha1": "69aaef3dc1ca895974bcf7b438b7aa39872e1cae",
       "sha256": "2738bd8ded2b25834c71089cf71232738972d78befa80fa168ea476978ac8604"
+    },
+    {
+      "dir": "ses",
+      "path": "models/ses/service/2010-12-01/ses-2010-12-01.json",
+      "bytes": 431675,
+      "gitBlobSha1": "bf46c031cbdd8aac1f809c79b4d093de5d585ad6",
+      "sha256": "eb061a201fd24d227bc701e9a188146c1ccf39faae04fef37df2110bfbd152d3"
+    },
+    {
+      "dir": "sesv2",
+      "path": "models/sesv2/service/2019-09-27/sesv2-2019-09-27.json",
+      "bytes": 797640,
+      "gitBlobSha1": "684fa3e3d6c487b25b123dc32642652f5149df28",
+      "sha256": "d8e51ff823818f27896140be48c48034b55a20139979e984e919bbe62e0f3464"
+    },
+    {
+      "dir": "sfn",
+      "path": "models/sfn/service/2016-11-23/sfn-2016-11-23.json",
+      "bytes": 370149,
+      "gitBlobSha1": "1a30c7df27ebcce00591fd3d441dd56ca0166ca8",
+      "sha256": "52645ab239427382a05d917d984c1d9fa6c7f2cbd93de794189c6513c7468a79"
     },
     {
       "dir": "sns",
@@ -94,6 +150,13 @@
       "bytes": 272518,
       "gitBlobSha1": "613990f5a76786a4f7e1d90980e299be85779fef",
       "sha256": "f34a7d2560fb9776206fb35958b8d0fc5f17d33f377bb7512d55a34a8c0c78f0"
+    },
+    {
+      "dir": "ssm",
+      "path": "models/ssm/service/2014-11-06/ssm-2014-11-06.json",
+      "bytes": 1429184,
+      "gitBlobSha1": "d28d01a47f69485b54397a9752e5e2a3b48f1fd2",
+      "sha256": "5549e422a36d3330bc5fb3177fa2be6b0325376f05b85dfd1ae37d30cb9ba523"
     },
     {
       "dir": "sts",

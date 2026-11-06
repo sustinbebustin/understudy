@@ -29,11 +29,24 @@ func createTopic(t *testing.T, topicName string, attrs map[string]string) string
 	return aws.ToString(out.TopicArn)
 }
 
-// subscribeQueue subscribes a new queue to the topic and returns the
-// queue URL and the subscription ARN.
+// allowTopicDelivery sets the topic's policy so service may publish to it
+// for source; AWS refuses a delivery the topic's policy does not allow
+// (iam-enforcement-surfaces.md 7.2, 8.1, 8.4).
+func allowTopicDelivery(t *testing.T, topicArn, service, source string) {
+	t.Helper()
+	_, err := sns.NewFromConfig(awsCfg).SetTopicAttributes(t.Context(), &sns.SetTopicAttributesInput{
+		TopicArn: aws.String(topicArn), AttributeName: aws.String("Policy"), AttributeValue: aws.String(deliveryPolicy(t, service, "sns:Publish", topicArn, source)),
+	})
+	ok(t, err, "SetTopicAttributes Policy for "+service)
+}
+
+// subscribeQueue subscribes a new queue to the topic, after letting SNS
+// deliver from the topic to it, and returns the queue URL and the
+// subscription ARN.
 func subscribeQueue(t *testing.T, topicArn, queueName string, queueAttrs, subAttrs map[string]string) (string, string) {
 	t.Helper()
 	queueURL := createQueue(t, queueName, queueAttrs)
+	allowQueueDelivery(t, queueURL, "sns.amazonaws.com", topicArn)
 	out, err := sns.NewFromConfig(awsCfg).Subscribe(t.Context(), &sns.SubscribeInput{
 		TopicArn: aws.String(topicArn), Protocol: aws.String("sqs"), Endpoint: aws.String(queueArn(t, queueURL)),
 		Attributes: subAttrs, ReturnSubscriptionArn: true,
@@ -59,7 +72,7 @@ func TestSNSTopics(t *testing.T) {
 	ctx := t.Context()
 	client := sns.NewFromConfig(awsCfg)
 	acct := account(t)
-	topicName := name("topic")
+	topicName := name(t, "topic")
 	topicArn := createTopic(t, topicName, nil)
 	if want := "arn:aws:sns:" + region() + ":" + acct + ":" + topicName; topicArn != want {
 		t.Errorf("TopicArn = %q, want %q", topicArn, want)
@@ -74,7 +87,7 @@ func TestSNSTopics(t *testing.T) {
 		_, err = client.CreateTopic(ctx, &sns.CreateTopicInput{Name: aws.String(topicName), Attributes: map[string]string{"DisplayName": "different"}})
 		errAs[*types.InvalidParameterException](t, err, "CreateTopic of an existing name with different attributes")
 		wantMessage(t, err, "CreateTopic of an existing name with different attributes", "Invalid parameter: Attributes Reason: Topic already exists with different attributes")
-		for _, bad := range []string{"bad name", name("std") + ".fifo", strings.Repeat("a", 257)} {
+		for _, bad := range []string{"bad name", name(t, "std") + ".fifo", strings.Repeat("a", 257)} {
 			_, err = client.CreateTopic(ctx, &sns.CreateTopicInput{Name: aws.String(bad)})
 			e := typedErr[*types.InvalidParameterException](t, err, "CreateTopic named "+bad)
 			if e.ErrorCode() != "InvalidParameter" {
@@ -139,7 +152,7 @@ func TestSNSTopics(t *testing.T) {
 	})
 
 	t.Run("missing topic", func(t *testing.T) {
-		missing := "arn:aws:sns:" + region() + ":" + acct + ":" + name("missing")
+		missing := "arn:aws:sns:" + region() + ":" + acct + ":" + name(t, "missing")
 		_, err := client.GetTopicAttributes(ctx, &sns.GetTopicAttributesInput{TopicArn: aws.String(missing)})
 		e := typedErr[*types.NotFoundException](t, err, "GetTopicAttributes of a missing topic")
 		if e.ErrorCode() != "NotFound" {
@@ -212,13 +225,13 @@ func TestSNSTopics(t *testing.T) {
 	})
 
 	t.Run("FIFO topic attributes", func(t *testing.T) {
-		fifoArn := createTopic(t, name("fifo")+".fifo", map[string]string{"FifoTopic": "true"})
+		fifoArn := createTopic(t, name(t, "fifo")+".fifo", map[string]string{"FifoTopic": "true"})
 		out, err := client.GetTopicAttributes(ctx, &sns.GetTopicAttributesInput{TopicArn: aws.String(fifoArn)})
 		ok(t, err, "GetTopicAttributes")
 		if out.Attributes["FifoTopic"] != "true" || out.Attributes["ContentBasedDeduplication"] != "false" {
 			t.Errorf("FIFO topic FifoTopic %q, ContentBasedDeduplication %q; want true, false", out.Attributes["FifoTopic"], out.Attributes["ContentBasedDeduplication"])
 		}
-		_, err = client.CreateTopic(ctx, &sns.CreateTopicInput{Name: aws.String(name("nosuffix")), Attributes: map[string]string{"FifoTopic": "true"}})
+		_, err = client.CreateTopic(ctx, &sns.CreateTopicInput{Name: aws.String(name(t, "nosuffix")), Attributes: map[string]string{"FifoTopic": "true"}})
 		errAs[*types.InvalidParameterException](t, err, "CreateTopic FifoTopic without .fifo")
 		wantMessage(t, err, "CreateTopic FifoTopic without .fifo", "Invalid parameter: Topic Name")
 	})
@@ -229,8 +242,8 @@ func TestSNSSubscriptions(t *testing.T) {
 	ctx := t.Context()
 	client := sns.NewFromConfig(awsCfg)
 	acct := account(t)
-	topicArn := createTopic(t, name("subs"), nil)
-	queueURL, subArn := subscribeQueue(t, topicArn, name("subs-q"), nil, nil)
+	topicArn := createTopic(t, name(t, "subs"), nil)
+	queueURL, subArn := subscribeQueue(t, topicArn, name(t, "subs-q"), nil, nil)
 	qarn := queueArn(t, queueURL)
 
 	if !strings.HasPrefix(subArn, topicArn+":") {
@@ -273,10 +286,10 @@ func TestSNSSubscriptions(t *testing.T) {
 		_, err = client.Subscribe(ctx, &sns.SubscribeInput{TopicArn: aws.String(topicArn), Protocol: aws.String("sqs"), Endpoint: aws.String(queueURL)})
 		errAs[*types.InvalidParameterException](t, err, "Subscribe sqs with a queue URL")
 		wantMessage(t, err, "Subscribe sqs with a queue URL", "Invalid parameter: SQS endpoint ARN")
-		_, err = client.Subscribe(ctx, &sns.SubscribeInput{TopicArn: aws.String("arn:aws:sns:" + region() + ":" + acct + ":" + name("missing")), Protocol: aws.String("sqs"), Endpoint: aws.String(qarn)})
+		_, err = client.Subscribe(ctx, &sns.SubscribeInput{TopicArn: aws.String("arn:aws:sns:" + region() + ":" + acct + ":" + name(t, "missing")), Protocol: aws.String("sqs"), Endpoint: aws.String(qarn)})
 		errAs[*types.NotFoundException](t, err, "Subscribe to a missing topic")
 		wantMessage(t, err, "Subscribe to a missing topic", "Topic does not exist")
-		fifoQ := createQueue(t, name("fifo-sub")+".fifo", map[string]string{"FifoQueue": "true"})
+		fifoQ := createQueue(t, name(t, "fifo-sub")+".fifo", map[string]string{"FifoQueue": "true"})
 		_, err = client.Subscribe(ctx, &sns.SubscribeInput{TopicArn: aws.String(topicArn), Protocol: aws.String("sqs"), Endpoint: aws.String(queueArn(t, fifoQ))})
 		errAs[*types.InvalidParameterException](t, err, "Subscribe a FIFO queue to a standard topic")
 		wantMessage(t, err, "Subscribe a FIFO queue to a standard topic", "Invalid parameter: Invalid parameter: Endpoint Reason: FIFO SQS Queues can not be subscribed to standard SNS topics")
@@ -364,7 +377,7 @@ func TestSNSSubscriptions(t *testing.T) {
 	})
 
 	t.Run("Unsubscribe", func(t *testing.T) {
-		_, otherSub := subscribeQueue(t, topicArn, name("unsub-q"), nil, nil)
+		_, otherSub := subscribeQueue(t, topicArn, name(t, "unsub-q"), nil, nil)
 		_, err := client.Unsubscribe(ctx, &sns.UnsubscribeInput{SubscriptionArn: aws.String(otherSub)})
 		ok(t, err, "Unsubscribe")
 		_, err = client.Unsubscribe(ctx, &sns.UnsubscribeInput{SubscriptionArn: aws.String(otherSub)})
@@ -386,9 +399,9 @@ func TestSNSPublishToSQS(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sns.NewFromConfig(awsCfg)
-	topicArn := createTopic(t, name("publish"), nil)
-	envQueue, envSub := subscribeQueue(t, topicArn, name("envelope-q"), nil, nil)
-	rawQueue, _ := subscribeQueue(t, topicArn, name("raw-q"), nil, map[string]string{"RawMessageDelivery": "true"})
+	topicArn := createTopic(t, name(t, "publish"), nil)
+	envQueue, envSub := subscribeQueue(t, topicArn, name(t, "envelope-q"), nil, nil)
+	rawQueue, _ := subscribeQueue(t, topicArn, name(t, "raw-q"), nil, map[string]string{"RawMessageDelivery": "true"})
 
 	pub, err := client.Publish(ctx, &sns.PublishInput{
 		TopicArn: aws.String(topicArn), Message: aws.String("Hello world!"), Subject: aws.String("Testing publish"),
@@ -509,12 +522,12 @@ func TestSNSFilterPolicies(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sns.NewFromConfig(awsCfg)
-	topicArn := createTopic(t, name("filter"), nil)
-	attrQueue, attrSub := subscribeQueue(t, topicArn, name("filter-attr"), nil, map[string]string{
+	topicArn := createTopic(t, name(t, "filter"), nil)
+	attrQueue, attrSub := subscribeQueue(t, topicArn, name(t, "filter-attr"), nil, map[string]string{
 		"RawMessageDelivery": "true",
 		"FilterPolicy":       `{"store":["example_corp"],"price":[{"numeric":[">",100]}]}`,
 	})
-	bodyQueue, _ := subscribeQueue(t, topicArn, name("filter-body"), nil, map[string]string{
+	bodyQueue, _ := subscribeQueue(t, topicArn, name(t, "filter-body"), nil, map[string]string{
 		"RawMessageDelivery": "true",
 		"FilterPolicyScope":  "MessageBody",
 		"FilterPolicy":       `{"detail":{"status":[{"prefix":"run"}],"region":[{"anything-but":"eu-west-1"}]}}`,
@@ -582,8 +595,8 @@ func TestSNSPublishBatch(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sns.NewFromConfig(awsCfg)
-	topicArn := createTopic(t, name("batch"), nil)
-	queueURL, _ := subscribeQueue(t, topicArn, name("batch-q"), nil, map[string]string{"RawMessageDelivery": "true"})
+	topicArn := createTopic(t, name(t, "batch"), nil)
+	queueURL, _ := subscribeQueue(t, topicArn, name(t, "batch-q"), nil, map[string]string{"RawMessageDelivery": "true"})
 
 	out, err := client.PublishBatch(ctx, &sns.PublishBatchInput{TopicArn: aws.String(topicArn), PublishBatchRequestEntries: []types.PublishBatchRequestEntry{
 		{Id: aws.String("one"), Message: aws.String("first")}, {Id: aws.String("two"), Message: aws.String("second")},
@@ -634,8 +647,8 @@ func TestSNSFifo(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sns.NewFromConfig(awsCfg)
-	topicArn := createTopic(t, name("fifo")+".fifo", map[string]string{"FifoTopic": "true"})
-	queueURL, _ := subscribeQueue(t, topicArn, name("fifo-q")+".fifo", map[string]string{"FifoQueue": "true"}, nil)
+	topicArn := createTopic(t, name(t, "fifo")+".fifo", map[string]string{"FifoTopic": "true"})
+	queueURL, _ := subscribeQueue(t, topicArn, name(t, "fifo-q")+".fifo", map[string]string{"FifoQueue": "true"}, nil)
 
 	_, err := client.Publish(ctx, &sns.PublishInput{TopicArn: aws.String(topicArn), Message: aws.String("x"), MessageDeduplicationId: aws.String("d")})
 	errAs[*types.InvalidParameterException](t, err, "FIFO Publish without MessageGroupId")
@@ -679,9 +692,12 @@ func TestSNSSubscriptionRedrive(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := sns.NewFromConfig(awsCfg)
-	topicArn := createTopic(t, name("redrive"), nil)
-	dlqURL := createQueue(t, name("redrive-dlq"), nil)
-	targetURL, subArn := subscribeQueue(t, topicArn, name("redrive-target"), nil, map[string]string{"RawMessageDelivery": "true"})
+	topicArn := createTopic(t, name(t, "redrive"), nil)
+	dlqURL := createQueue(t, name(t, "redrive-dlq"), nil)
+	// SNS sends to a subscription's dead-letter queue only when the queue's
+	// policy allows sns.amazonaws.com (sns.md 7.4; iam-enforcement-surfaces.md 7.1, 8.2).
+	allowQueueDelivery(t, dlqURL, "sns.amazonaws.com", topicArn)
+	targetURL, subArn := subscribeQueue(t, topicArn, name(t, "redrive-target"), nil, map[string]string{"RawMessageDelivery": "true"})
 	_, err := client.SetSubscriptionAttributes(ctx, &sns.SetSubscriptionAttributesInput{
 		SubscriptionArn: aws.String(subArn), AttributeName: aws.String("RedrivePolicy"),
 		AttributeValue: aws.String(`{"deadLetterTargetArn":"` + queueArn(t, dlqURL) + `"}`),
@@ -705,9 +721,9 @@ func TestSNSSubscriptionRedrive(t *testing.T) {
 func TestSNSToLambda(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	resultURL := createQueue(t, name("sns-lambda-result"), nil)
-	fn := deployFunction(t, name("sns-fn"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
-	topicArn := createTopic(t, name("sns-lambda"), nil)
+	resultURL := createQueue(t, name(t, "sns-lambda-result"), nil)
+	fn := deployFunction(t, name(t, "sns-fn"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
+	topicArn := createTopic(t, name(t, "sns-lambda"), nil)
 	_, err := lambda.NewFromConfig(awsCfg).AddPermission(ctx, &lambda.AddPermissionInput{
 		FunctionName: fn.FunctionName, StatementId: aws.String("sns"), Action: aws.String("lambda:InvokeFunction"),
 		Principal: aws.String("sns.amazonaws.com"), SourceArn: aws.String(topicArn),

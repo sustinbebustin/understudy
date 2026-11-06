@@ -13,31 +13,42 @@ import (
 )
 
 // emitSchema writes schema_gen.go: one immutable smithy.Schema per shape and
-// one smithy.Member per member, linked in init because shapes may refer to
-// each other in cycles a variable initializer cannot express.
+// one smithy.Member per member, linked statically: a member's Target and a
+// schema's Members are fields of the variables' literals, so the linker lays
+// the graph out as data rather than as init code. A recursive shape is the
+// exception: a variable initializer cannot reach its own variable, so its
+// Members are assigned in init. A shape wiredShapes leaves out gets no
+// Members; its member variables are still declared, with their Targets, for
+// the serde code the linker drops.
 func emitSchema(ir *ServiceIR) ([]byte, error) {
 	f := newFile(ir, "schema_gen.go")
 	f.use("smithy")
+	shapes := slices.DeleteFunc(sortedShapes(ir), func(s *ShapeIR) bool { return s.Unit })
+	wired := wiredShapes(ir, shapes)
+	recursive := recursiveShapes(shapes, wired)
 	var links []string
-	for _, s := range sortedShapes(ir) {
-		if s.Unit {
-			continue
-		}
-		f.p("var %s = smithy.Schema{%s}\n", s.SchemaVar, f.schemaFields(s))
-		if len(s.Members) == 0 {
-			continue
-		}
+	for _, s := range shapes {
 		vars := make([]string, len(s.Members))
 		for i, m := range s.Members {
+			vars[i] = "&" + m.Var
+		}
+		members := ""
+		if len(vars) > 0 && wired[s] {
+			members = "[]*smithy.Member{" + strings.Join(vars, ", ") + "}"
+		}
+		static := members
+		if recursive[s] && members != "" {
+			links = append(links, s.SchemaVar+".Members = "+members)
+			static = ""
+		}
+		f.p("var %s = smithy.Schema{%s}\n", s.SchemaVar, f.schemaFields(s, static))
+		for _, m := range s.Members {
 			fields, err := f.memberFields(m)
 			if err != nil {
 				return nil, err
 			}
 			f.p("var %s = smithy.Member{%s}\n", m.Var, fields)
-			vars[i] = "&" + m.Var
-			links = append(links, fmt.Sprintf("%s.Target = &%s", m.Var, m.Target.SchemaVar))
 		}
-		links = append(links, fmt.Sprintf("%s.Members = []*smithy.Member{%s}", s.SchemaVar, strings.Join(vars, ", ")))
 	}
 	if len(links) > 0 {
 		f.p("func init() {")
@@ -49,8 +60,126 @@ func emitSchema(ir *ServiceIR) ([]byte, error) {
 	return f.bytes()
 }
 
-func (f *file) schemaFields(s *ShapeIR) string {
+// wiredShapes reports the shapes whose schemas carry their members: every
+// shape under WireAll. Under WireBound, the shapes the error shapes and the
+// bound operations' inputs and outputs reach, which are all a request to a
+// bound operation decodes or encodes; an unbound operation answers 501
+// before it reads its input, and coverage reads only schema IDs. One reader
+// precedes that 501: signature verification of a service that checks
+// payloads looks one level into the input for a @streaming member
+// (edge.streamsInput, restxml Codec.BodyLimit), so an unbound input with a
+// member targeting a @streaming shape keeps its own members; their targets
+// carry Streaming in their literals.
+func wiredShapes(ir *ServiceIR, shapes []*ShapeIR) map[*ShapeIR]bool {
+	wired := map[*ShapeIR]bool{}
+	bound, ok := ir.Wiring.(WireBound)
+	if !ok {
+		for _, s := range shapes {
+			wired[s] = true
+		}
+		return wired
+	}
+	var walk func(s *ShapeIR)
+	walk = func(s *ShapeIR) {
+		if wired[s] {
+			return
+		}
+		wired[s] = true
+		for _, m := range s.Members {
+			walk(m.Target)
+		}
+	}
+	for _, s := range shapes {
+		if s.Error != nil {
+			walk(s)
+		}
+	}
+	isBound := func(o *OperationIR) bool { return slices.Contains(bound.Operations, o.Name) }
+	for _, o := range ir.Operations {
+		if o.HasIO() && isBound(o) {
+			walk(o.Input)
+			walk(o.Output)
+		}
+	}
+	// After every walk: walk stops at a wired shape, so an input marked
+	// before a bound closure reached it would leave its targets unwired.
+	streams := func(m *MemberIR) bool { return m.Target.Streaming }
+	for _, o := range ir.Operations {
+		if o.HasIO() && !isBound(o) && slices.ContainsFunc(o.Input.Members, streams) {
+			wired[o.Input] = true
+		}
+	}
+	return wired
+}
+
+// recursiveShapes reports the wired shapes on a cycle of the schema graph,
+// whose edges run from a wired shape to its members' targets: the shapes of
+// a strongly connected component (Tarjan) with more than one shape, and the
+// shapes that target themselves. Every cycle runs only through such shapes,
+// so leaving their Members out of the literals leaves no initialization
+// cycle.
+func recursiveShapes(shapes []*ShapeIR, wired map[*ShapeIR]bool) map[*ShapeIR]bool {
+	t := &tarjan{wired: wired, index: map[*ShapeIR]int{}, low: map[*ShapeIR]int{}, onStack: map[*ShapeIR]bool{}, out: map[*ShapeIR]bool{}}
+	for _, s := range shapes {
+		if _, seen := t.index[s]; !seen {
+			t.visit(s)
+		}
+	}
+	return t.out
+}
+
+// tarjan is the state of recursiveShapes' walk.
+type tarjan struct {
+	wired   map[*ShapeIR]bool
+	index   map[*ShapeIR]int
+	low     map[*ShapeIR]int
+	onStack map[*ShapeIR]bool
+	stack   []*ShapeIR
+	out     map[*ShapeIR]bool
+}
+
+func (t *tarjan) visit(s *ShapeIR) {
+	t.index[s], t.low[s] = len(t.index), len(t.index)
+	t.stack = append(t.stack, s)
+	t.onStack[s] = true
+	if t.wired[s] {
+		for _, m := range s.Members {
+			t.edge(s, m.Target)
+		}
+	}
+	if t.low[s] != t.index[s] {
+		return
+	}
+	i := slices.Index(t.stack, s)
+	component := t.stack[i:]
+	t.stack = t.stack[:i]
+	for _, c := range component {
+		t.onStack[c] = false
+		if len(component) > 1 {
+			t.out[c] = true
+		}
+	}
+}
+
+func (t *tarjan) edge(from, to *ShapeIR) {
+	if to == from {
+		t.out[from] = true
+	}
+	if _, seen := t.index[to]; !seen {
+		t.visit(to)
+		t.low[from] = min(t.low[from], t.low[to])
+	} else if t.onStack[to] {
+		t.low[from] = min(t.low[from], t.index[to])
+	}
+}
+
+// schemaFields is the literal of s's smithy.Schema; members is the literal
+// of its Members, empty to leave them out.
+func (f *file) schemaFields(s *ShapeIR, members string) string {
 	parts := []string{"ID: " + goString(string(s.ID)), "Type: smithy." + typeConst(s.Type)}
+	if members != "" {
+		parts = append(parts, "Members: "+members)
+	}
 	if s.XMLName != "" {
 		parts = append(parts, "XMLName: "+goString(s.XMLName))
 	}
@@ -87,7 +216,7 @@ func (f *file) schemaFields(s *ShapeIR) string {
 }
 
 func (f *file) memberFields(m *MemberIR) (string, error) {
-	parts := []string{"Name: " + goString(m.Name), fmt.Sprintf("Index: %d", m.Index)}
+	parts := []string{"Name: " + goString(m.Name), fmt.Sprintf("Index: %d", m.Index), "Target: &" + m.Target.SchemaVar}
 	if m.Required {
 		parts = append(parts, "Required: true")
 	}

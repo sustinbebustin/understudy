@@ -1,0 +1,35 @@
+{
+  "step": "01-get-denied",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "ssm.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164150Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSSM.GetParameter"],
+          ["Content-Length", "28"]
+        ],
+        "body": "{\"Name\":\"/us1103/ssm/p35/a\"}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:41:50 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "300"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "8e96d0bd-4f65-4b2e-8574-1211c1ea3aec"]
+        ],
+        "body": "{\"__type\":\"AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-ssm-p35/ssm is not authorized to perform: ssm:GetParameter on resource: arn:aws:ssm:us-east-2:123456789012:parameter/us1103/ssm/p35/a because no identity-based policy allows the ssm:GetParameter action\"}"
+      }
+    }
+  ]
+}

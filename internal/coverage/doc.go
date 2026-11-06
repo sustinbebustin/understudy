@@ -1,6 +1,7 @@
 // Package coverage builds the coverage report, in JSON and Markdown, from a
 // kernel's bindings, the protocol-test baseline and skip list, the fidelity
-// switches and the overlay evidence (ARCHITECTURE.md 3.4).
+// switches, the overlay evidence and the parity replay baseline
+// (ARCHITECTURE.md 3.4, 19).
 //
 // The report states protocol compliance, operation coverage and evidence as
 // three separate measures and never adds them together.
@@ -21,4 +22,13 @@
 //   - The JSON form writes the report's sums in the tagged-union convention
 //     of internal/protocol/jsonx, so ParseJSON reads back what JSON wrote
 //     and a client can rebuild the Markdown from it.
+//   - The evidence column needs both the overlay files and
+//     internal/parity/baseline.json (`--parity`), which the binary does not
+//     carry either, so a running server's page leaves it out. ParseParity
+//     reads the baseline itself, since coverage does not import
+//     internal/parity.
+//   - A switch or overlay item with several settles entries is contradicted
+//     when any of them is, since the recording that differs is a finding;
+//     else aws-recorded when one is settled. An overlay item without covers
+//     backs every trait of its entry, so any entry on its shape names it.
 package coverage

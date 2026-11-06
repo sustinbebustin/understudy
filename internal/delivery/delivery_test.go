@@ -101,6 +101,24 @@ func TestMechanismVia(t *testing.T) {
 		delivery.EventsToLambda: ref.EventsTarget,
 		delivery.EventsToSQS:    ref.EventsTarget,
 		delivery.EventsToSNS:    ref.EventsTarget,
+		delivery.EventsToEvents: ref.EventsTarget,
+		delivery.SNSToHTTP:      ref.SNSDelivery,
+		delivery.LambdaToSQS:    ref.LambdaDestination,
+		delivery.LambdaToSNS:    ref.LambdaDestination,
+		delivery.LambdaToLambda: ref.LambdaDestination,
+		delivery.LambdaToEvents: ref.LambdaDestination,
+		delivery.LambdaToS3:     ref.LambdaDestination,
+		delivery.ESMToSQS:       ref.LambdaESM,
+		delivery.ESMToSNS:       ref.LambdaESM,
+		// cloudwatch-alarms.md 12.4.
+		delivery.CloudWatchToSNS:    ref.CloudWatchAlarm,
+		delivery.CloudWatchToLambda: ref.CloudWatchAlarm,
+		// scheduler.md 14.4.3.
+		delivery.SchedulerToLambda: ref.SchedulerTarget,
+		delivery.SchedulerToSQS:    ref.SchedulerTarget,
+		delivery.SchedulerToEvents: ref.SchedulerTarget,
+		delivery.SchedulerToSNS:    ref.SchedulerTarget,
+		delivery.SchedulerToStates: ref.SchedulerTarget,
 	}
 	for _, m := range delivery.Mechanisms() {
 		if got := m.Via(); got != want[m] {
@@ -119,8 +137,32 @@ func TestMechanismTarget(t *testing.T) {
 		delivery.EventsToLambda: "lambda",
 		delivery.EventsToSQS:    "sqs",
 		delivery.EventsToSNS:    "sns",
+		delivery.EventsToEvents: "eventbridge",
+		// An HTTP endpoint lands in no service.
+		delivery.SNSToHTTP:      "",
+		delivery.LambdaToSQS:    "sqs",
+		delivery.LambdaToSNS:    "sns",
+		delivery.LambdaToLambda: "lambda",
+		delivery.LambdaToEvents: "eventbridge",
+		delivery.LambdaToS3:     "s3",
+		delivery.ESMToSQS:       "sqs",
+		delivery.ESMToSNS:       "sns",
+		// cloudwatch-alarms.md 7.2.
+		delivery.CloudWatchToSNS:    "sns",
+		delivery.CloudWatchToLambda: "lambda",
+		// scheduler.md 6.4.
+		delivery.SchedulerToLambda: "lambda",
+		delivery.SchedulerToSQS:    "sqs",
+		delivery.SchedulerToEvents: "eventbridge",
+		delivery.SchedulerToSNS:    "sns",
+		// The sfn service's registry ID, the aws-sdk service a dead
+		// letter's TARGET_ARN names (scheduler.md 6.2, 7.2).
+		delivery.SchedulerToStates: "sfn",
 	}
 	for _, m := range delivery.Mechanisms() {
+		if _, listed := want[m]; !listed {
+			t.Errorf("%v has no expected target", m)
+		}
 		if got := m.Target(); got != want[m] {
 			t.Errorf("%v.Target() = %q, want %q", m, got, want[m])
 		}

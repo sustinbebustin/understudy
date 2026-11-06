@@ -22,7 +22,8 @@
 # Environments (pyproject.toml dependency groups):
 #   modern        the current boto3: every test file.
 #   legacy-query  botocore 1.34.89, the last release that speaks the Query
-#                 protocol to SQS: test_sqs.py only.
+#                 protocol to SQS: test_sqs.py only. Positional test paths
+#                 reach it only when they are in test_sqs.py.
 #
 # Each environment's pytest output is kept in the work directory as
 # test-<group>.log; the run ends with a summary on stderr: the totals over
@@ -158,9 +159,54 @@ skips="$work/skips"
 overall=0
 total_passed=0 total_failed=0 total_skipped=0
 for group in $groups; do
+	args=("$@")
 	case "$group" in
 	modern) targets=(tests) ;;
-	legacy-query) targets=(tests/test_sqs.py) ;;
+	legacy-query)
+		# This environment exists to exercise SQS's legacy Query protocol:
+		# botocore 1.34.89 is the last release that speaks it to SQS
+		# (sqs.md 2.2), and it predates members other files send, such as
+		# Lambda's InvokedViaFunctionUrl, so it runs test_sqs.py only. A
+		# positional test path for another file is dropped here; when
+		# positional paths are given and none is in test_sqs.py, the
+		# environment is skipped. The value of an option given as the next
+		# argument (--deselect tests/test_x.py::t) stays with its option.
+		targets=(tests/test_sqs.py)
+		args=()
+		named=0 kept=0
+		valued=" -k -m -p -c -o -r -W --deselect --ignore --ignore-glob --rootdir --confcutdir --basetemp --junitxml --junit-xml --maxfail --tb --timeout --durations --log-level --log-file "
+		given=("$@")
+		i=0
+		while [ "$i" -lt "${#given[@]}" ]; do
+			arg="${given[$i]}"
+			i=$((i + 1))
+			case "$valued" in
+			*" $arg "*)
+				args+=("$arg")
+				if [ "$i" -lt "${#given[@]}" ]; then
+					args+=("${given[$i]}")
+					i=$((i + 1))
+				fi
+				continue
+				;;
+			esac
+			case "${arg#./}" in
+			-*) args+=("$arg") ;;
+			tests | tests/) named=1 kept=1 ;;
+			*test_sqs.py | *test_sqs.py::*)
+				named=1 kept=1
+				args+=("$arg")
+				targets=()
+				;;
+			tests/* | *.py | *.py::*) named=1 ;;
+			*) args+=("$arg") ;;
+			esac
+		done
+		if [ "$named" -eq 1 ] && [ "$kept" -eq 0 ]; then
+			echo "run.sh: skipping the '$group' environment: it runs only tests/test_sqs.py, and no path given is in it" >&2
+			continue
+		fi
+		;;
 	*)
 		echo "run.sh: unknown group '$group' in SUITE_GROUPS (modern, legacy-query)" >&2
 		exit 2
@@ -173,7 +219,7 @@ for group in $groups; do
 	(cd -- "$here" && CONFORMANCE_SIGV4="$sigv4" PYTHONDONTWRITEBYTECODE=1 \
 		"$repo/scripts/sealed" --endpoint "$endpoint" \
 		env -u VIRTUAL_ENV uv run --frozen --no-default-groups --group "$group" \
-		pytest -p no:cacheprovider -ra "${targets[@]}" "$@") 2>&1 | tee "$work/test-$group.log"
+		pytest -p no:cacheprovider -ra "${targets[@]}" "${args[@]}") 2>&1 | tee "$work/test-$group.log"
 	status=$?
 	set -e
 	if [ "$status" -ne 0 ]; then

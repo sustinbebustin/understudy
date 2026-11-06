@@ -7,7 +7,7 @@
 
 ## Expected
 
-Understudy paths are relative to /home/austin/dev/local-aws-stack. Byte-level XML notes are listed last.
+Understudy paths are repo-relative. Byte-level XML notes are listed last.
 
 Step 1, ranges on `0123456789`:
 - multi `bytes=0-1,4-5`: matches (AWS 200, whole body; get.go:173 ignores a range with a comma)
@@ -61,7 +61,7 @@ Step 10, wrong Content-MD5 and wrong x-amz-checksum-crc32:
 
 Step 11, Object Lock default retention, PUT without Content-MD5 or checksum:
 - put-object-lock-configuration: matches (200, empty body)
-- PUT without checksum: differs: AWS 400 InvalidRequest "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters"; understudy does not enforce Object Lock on PutObject and stores the object (docs/coverage.md:899 "no SSE-C or Object Lock")
+- PUT without checksum: matches (400 InvalidRequest "Content-MD5 OR x-amz-checksum- HTTP header is required for Put Object requests with Object Lock parameters"; internal/service/s3/objectlock.go:126-134 lockRequest.check, switch s3.object-lock.checksum-scope)
 
 Step 12, lifecycle (switch `s3.lifecycle.rule-limits`):
 - Transition Days 7 to STANDARD_IA: differs: AWS 200 (accepted, `x-amz-transition-default-minimum-object-size: all_storage_classes_128K`); understudy refuses with InvalidArgument "'Days' in Transition action must be greater than or equal to 30 for storageClass 'STANDARD_IA'" (subresources.go:437-439)

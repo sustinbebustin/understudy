@@ -31,8 +31,12 @@ type AsCaller struct{}
 type AsExecutionRole struct{}
 
 // AsService is a delivery a service principal makes from Source, gated by
-// the target's resource policy.
-type AsService struct{ Source aws.ARN }
+// the target's resource policy. SourceAccount is the aws:SourceAccount the
+// delivery sends, zero when it sends none (iam-enforcement-surfaces.md 8.1).
+type AsService struct {
+	Source        aws.ARN
+	SourceAccount aws.AccountID
+}
 
 func (Direct) isMode()          {}
 func (AsCaller) isMode()        {}
@@ -56,7 +60,7 @@ func (Failed) isOutcome()    {}
 
 // Entry is one call: the IAM actions it used and every resource it
 // touched. Record pairs each action with the touched resources of its own
-// service.
+// service, unless Pairs names the pairs the call needed.
 type Entry struct {
 	// Principal is a ServicePrincipal when Mode is AsService and an Identity
 	// otherwise; a role session is its Role (see Principal).
@@ -69,9 +73,25 @@ type Entry struct {
 	Service   string
 	Actions   []registry.IAMAction
 	Resources []aws.ARN
-	Outcome   Outcome
+	// Pairs, when non-nil, are the (action, resource) pairs the call needed
+	// and replace the pairing of Actions with Resources, so CopyObject's
+	// s3:GetObject covers its source alone (iam-enforcement-surfaces.md
+	// 12.6); an S3 object is folded into its BucketObjects as for
+	// Resources.
+	Pairs   []Pair
+	Outcome Outcome
 	// At is the call's admission instant in emulator time.
 	At time.Time
+}
+
+// Pair is one action on one scope; Resource is OnResource or AnyResource.
+type Pair struct {
+	Action   registry.IAMAction
+	Resource Scope
+	// PassedToService is the iam:PassedToService an iam:PassRole call sent,
+	// such as "states.amazonaws.com"; "" when it sent none. A policy grants
+	// the pass on that condition (iam-enforcement-surfaces.md 12.6).
+	PassedToService string
 }
 
 // EntryProblem is why Record refused an Entry.
@@ -98,6 +118,9 @@ const (
 	// service, without which an action of another service could not be
 	// told from the operation's own.
 	EntryNoService
+	// EntryNoPairScope is a Pair without a Resource, which no policy
+	// statement could name.
+	EntryNoPairScope
 )
 
 // EntryError is an Entry Record refused; nothing of it was recorded.
@@ -129,6 +152,8 @@ func (e *EntryError) Error() string {
 		problem = "an action has an empty Prefix or Name, so no policy could grant it; take the actions from the operation's registry descriptor"
 	case EntryNoService:
 		problem = "it has no Service; set the IAM prefix of the operation's service (registry.Service.IAMPrefix)"
+	case EntryNoPairScope:
+		problem = "a Pair has no Resource; set OnResource for the resource the action needed, or AnyResource for none"
 	default:
 		problem = fmt.Sprintf("problem %d", uint8(e.Problem))
 	}
@@ -139,13 +164,16 @@ func (e *EntryError) Error() string {
 // Use aggregates the calls of one principal, in one mode, of one action on
 // one resource.
 type Use struct {
-	Principal   Principal
-	Mode        Mode
-	Action      registry.IAMAction
-	Resource    Scope
-	Calls       int // every call, failures included
-	Failures    int
-	First, Last time.Time
+	Principal Principal
+	Mode      Mode
+	Action    registry.IAMAction
+	Resource  Scope
+	// PassedToService is the Pair's: uses of iam:PassRole that pass a role
+	// to different services are kept apart.
+	PassedToService string
+	Calls           int // every call, failures included
+	Failures        int
+	First, Last     time.Time
 }
 
 // Scope is what a Use's action was called on.
@@ -250,6 +278,10 @@ type Requirement struct {
 	Principal ServicePrincipal
 	Action    registry.IAMAction
 	Source    aws.ARN
+	// SourceAccount is the aws:SourceAccount the delivery sends, zero when
+	// it sends none, so the statement carries exactly the keys AWS sends
+	// (iam-enforcement-surfaces.md 12.6).
+	SourceAccount aws.AccountID
 }
 
 // Recorder records which IAM actions each principal used. The zero value is
@@ -267,6 +299,7 @@ type useKey struct {
 	mode      Mode
 	action    registry.IAMAction
 	resource  Scope
+	passedTo  string
 }
 
 // Record adds a call. It refuses, with an *EntryError and recording
@@ -296,7 +329,7 @@ func (r *Recorder) Record(e Entry) error {
 	for _, k := range useKeys(principal, e) {
 		u, ok := r.uses[k]
 		if !ok {
-			u = &Use{Principal: principal, Mode: e.Mode, Action: k.action, Resource: k.resource, First: e.At, Last: e.At}
+			u = &Use{Principal: principal, Mode: e.Mode, Action: k.action, Resource: k.resource, PassedToService: k.passedTo, First: e.At, Last: e.At}
 			r.uses[k] = u
 		}
 		u.Calls++
@@ -313,17 +346,31 @@ func (r *Recorder) Record(e Entry) error {
 	return nil
 }
 
-// useKeys returns the distinct uses of e by principal, in order. An Entry is
-// one call, so a use it names twice (CopyObject onto its own source, or a
-// repeated action) counts once.
+// useKeys returns the distinct uses of e by principal, in order: e's Pairs
+// when it has them, else each action paired with the touched resources of
+// its service. An Entry is one call, so a use it names twice (CopyObject
+// onto its own source, or a repeated action) counts once.
 func useKeys(principal Principal, e Entry) []useKey {
 	var out []useKey
+	add := func(action registry.IAMAction, res Scope, passedTo string) {
+		k := useKey{principal: principal, mode: e.Mode, action: action, resource: res, passedTo: passedTo}
+		if !slices.Contains(out, k) {
+			out = append(out, k)
+		}
+	}
+	if e.Pairs != nil {
+		for _, p := range e.Pairs {
+			res := p.Resource
+			if on, ok := res.(OnResource); ok {
+				res = scopeOf(on.ARN)
+			}
+			add(p.Action, res, p.PassedToService)
+		}
+		return out
+	}
 	for _, action := range e.Actions {
 		for _, res := range scopesFor(action, e.Service, e.Resources) {
-			k := useKey{principal: principal, mode: e.Mode, action: action, resource: res}
-			if !slices.Contains(out, k) {
-				out = append(out, k)
-			}
+			add(action, res, "")
 		}
 	}
 	return out
@@ -359,8 +406,12 @@ func checkEntry(e Entry) error {
 	if service != delivery {
 		return refuse(EntryModeMismatch)
 	}
-	if slices.ContainsFunc(e.Actions, func(a registry.IAMAction) bool { return a.Prefix == "" || a.Name == "" }) {
+	invalid := func(a registry.IAMAction) bool { return a.Prefix == "" || a.Name == "" }
+	if slices.ContainsFunc(e.Actions, invalid) || slices.ContainsFunc(e.Pairs, func(p Pair) bool { return invalid(p.Action) }) {
 		return refuse(EntryInvalidAction)
+	}
+	if slices.ContainsFunc(e.Pairs, func(p Pair) bool { return p.Resource == nil }) {
+		return refuse(EntryNoPairScope)
 	}
 	return nil
 }
@@ -381,6 +432,7 @@ func (r *Recorder) Usage(f Filter) []Use {
 			cmp.Compare(a.Principal.String(), b.Principal.String()),
 			cmp.Compare(a.Action.String(), b.Action.String()),
 			cmp.Compare(scopeText(a.Resource), scopeText(b.Resource)),
+			cmp.Compare(a.PassedToService, b.PassedToService),
 			cmp.Compare(modeRank(a.Mode), modeRank(b.Mode)),
 			cmp.Compare(modeSource(a.Mode), modeSource(b.Mode)),
 		)
@@ -390,37 +442,138 @@ func (r *Recorder) Usage(f Filter) []Use {
 
 // Policy returns the least-privilege identity policy for principal
 // (ARCHITECTURE.md 17): one Allow statement per (service, resource) with the
-// exact resource ARN, arn:aws:s3:::<bucket>/* for the objects of a bucket,
-// or "*" for an action of its operation's service without a resource of
-// that service, listing every action used there in any mode, failed calls
-// included. A Role's policy covers every session of the role. ok is false
-// when principal is nil or has no recorded use: there is no policy to
+// exact resource ARN, the MintedPattern of a resource whose id understudy
+// minted (so N minted keys under the same actions give one statement),
+// arn:aws:s3:::<bucket>/* for the objects of a bucket, or "*" for an action
+// of its operation's service without a resource of that service, listing
+// every action used there in any mode, failed calls included. An action
+// the document grants on "*" without a condition is left out of every
+// other statement, an action it grants without a condition on a minted
+// pattern is left out of a statement on an exact ARN the pattern matches,
+// and a statement left with no action is dropped: the document allows the
+// same pairs and is smaller, while the record itself is unchanged.
+// sts:GetCallerIdentity is left out: it needs no permission
+// and no policy can deny it (iam-enforcement-surfaces.md 5.1, 12.6). A
+// Role's policy covers every session of the role. ok is false when
+// principal is nil or has no recorded use but those: there is no policy to
 // write, and IAM rejects one without statements.
 func (r *Recorder) Policy(principal Identity) (doc policydoc.Document, ok bool) {
 	if principal == nil {
 		return policydoc.Document{}, false
 	}
-	type group struct{ service, resource string }
-	actions := map[group][]string{}
-	uses := r.Usage(Filter{Principal: principal})
-	for i := range uses {
-		u := &uses[i]
-		g := group{service: u.Action.Prefix, resource: scopeText(u.Resource)}
-		actions[g] = append(actions[g], u.Action.String())
+	gs := groupUses(r.Usage(Filter{Principal: principal}))
+	onStar := map[string]bool{}
+	for g, as := range gs.actions {
+		if g.resource == "*" && g.passedTo == "" {
+			for _, a := range as {
+				onStar[a] = true
+			}
+		}
 	}
-	grants := make([]policydoc.Grant, 0, len(actions))
-	for g, as := range actions {
-		grants = append(grants, policydoc.Grant{Actions: as, Resources: []string{g.resource}})
+	onPattern := patternCover(gs.patterns)
+	grants := make([]policydoc.Grant, 0, len(gs.actions))
+	for g, as := range gs.actions {
+		if g.resource != "*" || g.passedTo != "" {
+			as = slices.DeleteFunc(as, func(a string) bool { return onStar[a] })
+		}
+		if on, ok := gs.exact[g]; ok {
+			as = slices.DeleteFunc(as, func(a string) bool { return onPattern(a, on) })
+		}
+		if len(as) == 0 {
+			continue
+		}
+		grants = append(grants, policydoc.Grant{Actions: as, Resources: []string{g.resource}, Condition: passedToCondition(g.passedTo)})
 	}
 	return policydoc.Render(grants)
 }
 
+// policyGroup is what Policy groups a use's action by: one statement each.
+type policyGroup struct{ service, resource, passedTo string }
+
+// policyGroups are the actions of each policyGroup, the ARN of each group
+// on one exact resource, and a grant per action used without a condition
+// on a minted pattern.
+type policyGroups struct {
+	actions  map[policyGroup][]string
+	exact    map[policyGroup]aws.ARN
+	patterns []policydoc.Grant
+}
+
+// groupUses groups uses for Policy, leaving out the actions that need no
+// permission.
+func groupUses(uses []Use) policyGroups {
+	gs := policyGroups{actions: map[policyGroup][]string{}, exact: map[policyGroup]aws.ARN{}}
+	for i := range uses {
+		u := &uses[i]
+		if needsNoPermission(u.Action) {
+			continue
+		}
+		g := policyGroup{service: u.Action.Prefix, resource: renderedScope(u.Mode, u.Resource), passedTo: u.PassedToService}
+		gs.actions[g] = append(gs.actions[g], u.Action.String())
+		on, isOn := u.Resource.(OnResource)
+		if !isOn {
+			continue
+		}
+		if _, minted := MintedPattern(u.Mode, on.ARN); !minted {
+			gs.exact[g] = on.ARN
+		} else if g.passedTo == "" {
+			gs.patterns = append(gs.patterns, policydoc.Grant{Actions: []string{u.Action.String()}, Resources: []string{g.resource}})
+		}
+	}
+	return gs
+}
+
+// patternCover reports whether patterns, grants on minted patterns without
+// a condition, allow an action on an exact resource.
+func patternCover(patterns []policydoc.Grant) func(action string, on aws.ARN) bool {
+	doc, ok := policydoc.Render(patterns)
+	return func(action string, on aws.ARN) bool {
+		if !ok {
+			return false
+		}
+		_, allowed := policydoc.Allows(doc, policydoc.Query{Action: action, Resource: on.String()}).(policydoc.Allowed)
+		return allowed
+	}
+}
+
+// renderedScope is the Resource text Policy renders and groups a use by:
+// MintedPattern of a minted resource, scopeText otherwise.
+func renderedScope(mode Mode, s Scope) string {
+	if on, ok := s.(OnResource); ok {
+		if pattern, minted := MintedPattern(mode, on.ARN); minted {
+			return pattern
+		}
+	}
+	return scopeText(s)
+}
+
+// passedToCondition is the Condition of a grant of iam:PassRole to
+// service: StringEquals on iam:PassedToService (iam-enforcement-surfaces.md
+// 12.6); none for "".
+func passedToCondition(service string) policydoc.Condition {
+	if service == "" {
+		return nil
+	}
+	return policydoc.Condition{{
+		Operator: policydoc.Operator{Test: policydoc.StringEquals},
+		Key:      "iam:PassedToService",
+		Values:   []policydoc.Value{policydoc.StringValue(service)},
+	}}
+}
+
+// needsNoPermission reports whether Policy leaves action out:
+// sts:GetCallerIdentity.
+func needsNoPermission(action registry.IAMAction) bool {
+	return action == registry.IAMAction{Prefix: "sts", Name: "GetCallerIdentity"}
+}
+
 // ResourceRequirements returns the resource-policy statements the recorded
 // deliveries f selects would need in AWS, one per (target, service
-// principal, action, source), sorted by target, principal, action and
-// source. f.Principal selects a service principal. A delivery recorded
-// without a target of its action's service is left out: no resource policy
-// gates it.
+// principal, action, source, source account), sorted by target, principal,
+// action, source and source account: deliveries that differ only in the
+// aws:SourceAccount they send need separate statements. f.Principal selects
+// a service principal. A delivery recorded without a target of its
+// action's service is left out: no resource policy gates it.
 func (r *Recorder) ResourceRequirements(f Filter) []Requirement {
 	var out []Requirement
 	uses := r.Usage(f)
@@ -430,7 +583,7 @@ func (r *Recorder) ResourceRequirements(f Filter) []Requirement {
 		service, byService := u.Principal.(ServicePrincipal)
 		target, onResource := u.Resource.(OnResource)
 		if delivery && byService && onResource {
-			out = append(out, Requirement{Target: target.ARN, Principal: service, Action: u.Action, Source: s.Source})
+			out = append(out, Requirement{Target: target.ARN, Principal: service, Action: u.Action, Source: s.Source, SourceAccount: s.SourceAccount})
 		}
 	}
 	slices.SortFunc(out, func(a, b Requirement) int {
@@ -439,6 +592,7 @@ func (r *Recorder) ResourceRequirements(f Filter) []Requirement {
 			cmp.Compare(a.Principal.Name, b.Principal.Name),
 			cmp.Compare(a.Action.String(), b.Action.String()),
 			cmp.Compare(a.Source.String(), b.Source.String()),
+			cmp.Compare(a.SourceAccount.String(), b.SourceAccount.String()),
 		)
 	})
 	return out
@@ -467,10 +621,11 @@ func modeRank(m Mode) int {
 	}
 }
 
-// modeSource is the delivery source of an AsService mode, "" otherwise.
+// modeSource is the delivery source of an AsService mode, then the source
+// account it sends; "" otherwise.
 func modeSource(m Mode) string {
 	if s, ok := m.(AsService); ok {
-		return s.Source.String()
+		return s.Source.String() + " " + s.SourceAccount.String()
 	}
 	return ""
 }

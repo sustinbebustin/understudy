@@ -2,6 +2,7 @@ package filterpolicy
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/evidence"
@@ -129,14 +130,61 @@ func attribute(v delivery.AttributeValue) ruler.Attribute {
 
 // Switches lists the filter policy behaviors chosen without AWS-recorded
 // evidence, each with the record-backlog item that settles it
-// (matching-engines.md 3, 8 and 10).
+// (matching-engines.md 3, 8 and 10), and the label, operations and
+// settling step switchTable states for it.
 func Switches() []fidelity.Entry {
 	meta := ruler.Switches(ruler.SNS{})
+	table := switchTable()
 	out := make([]fidelity.Entry, 0, len(meta))
 	for _, sw := range meta {
+		m := table[sw.Name]
 		out = append(out, fidelity.Switch[string]{
-			Name: sw.Name, Value: sw.Value, Label: evidence.Inferred, Ref: sw.Ref, Record: sw.Record,
+			Name: sw.Name, Value: sw.Value, Label: m.label, Ref: sw.Ref, Record: sw.Record, Ops: m.ops, Settles: m.settles,
 		}.Entry())
 	}
 	return out
+}
+
+// switchMeta is what SNS states about one of Ruler's SNS profile switches:
+// what backs its value, the operations it governs and what settles it.
+type switchMeta struct {
+	label   evidence.Label
+	ops     []string
+	settles fidelity.Settles
+}
+
+// switchTable holds the switchMeta of every SNS profile switch by name. A
+// name it lacks gets no label, operations or settles, which the coverage
+// checks refuse. Subscribe and SetSubscriptionAttributes compile a policy,
+// so the switches that accept or refuse one govern them; Publish and
+// PublishBatch match it, so the switches that decide a match govern those.
+func switchTable() map[string]switchMeta {
+	compile := []string{"sns.Subscribe", "sns.SetSubscriptionAttributes"}
+	match := []string{"sns.Publish", "sns.PublishBatch"}
+	r09 := func(steps string) fidelity.Settles {
+		return fidelity.NoScenario{Reason: "recorded in sns/R09 (" + steps + "); no scenario replays sns/R09 yet"}
+	}
+	return map[string]switchMeta{
+		"sns.filter-policy.exists-true-empty-value": {evidence.Inferred, match, r09("H2-body")},
+		"sns.filter-policy.empty-input":             {evidence.Inferred, match, r09("T06, H1-attr, H1-body")},
+		"sns.filter-policy.bare-number":             {evidence.Inferred, match, r09("T01 to T03, H6")},
+		"sns.filter-policy.malformed-or":            {evidence.Inferred, compile, r09("H10-01-subscribe to H10-06-subscribe")},
+		"sns.filter-policy.exactly-operator":        {evidence.Inferred, compile, r09("H7b-07-subscribe")},
+		"sns.filter-policy.anything-but-suffix":     {evidence.Inferred, compile, r09("T07-subscribe, H7b-01-subscribe")},
+		"sns.filter-policy.anything-but-list-forms": {
+			evidence.Inferred, compile,
+			fidelity.NoScenario{Reason: "sns/R09/H7b-06-subscribe.json records the prefix list only; the suffix and wildcard lists are unrecorded"},
+		},
+		"sns.filter-policy.ignore-case-forms": {evidence.Inferred, compile, r09("H7b-03-subscribe to H7b-05-subscribe")},
+		"sns.filter-policy.key-counting":      {evidence.Inferred, compile, r09("T12-subscribe, H3-c-subscribe, H3-d-subscribe")},
+		"sns.filter-policy.wildcard-points":   {evidence.Inferred, compile, r09("H11-10-single-subscribe and the other H11 subscribes")},
+		"sns.filter-policy.limit-order": {
+			evidence.Inferred, compile,
+			fidelity.NoScenario{Reason: "unrecorded: sns/R09/T13-subscribe.json breaks one limit only, so it shows no check order"},
+		},
+		"sns.filter-policy.number-attribute-type": {evidence.Inferred, match, r09("T19a, T19b")},
+		"sns.filter-policy.numeric-range":         {evidence.Inferred, slices.Concat(compile, match), r09("T15, H5")},
+		"sns.filter-policy.anything-but-arrays":   {evidence.Inferred, match, r09("T08, H4")},
+		"sns.filter-policy.array-consistency":     {evidence.Inferred, match, r09("T14")},
+	}
 }

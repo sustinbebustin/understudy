@@ -203,6 +203,7 @@ func genDeliveryOutcome(text *rapid.Generator[string]) *rapid.Generator[Delivery
 		rapid.Custom(func(t *rapid.T) DeliveryOutcome { return Retrying{Next: genInstant().Draw(t, "next")} }),
 		rapid.Custom(func(t *rapid.T) DeliveryOutcome { return DeadLettered{DLQ: genARN().Draw(t, "dlq")} }),
 		rapid.Custom(func(t *rapid.T) DeliveryOutcome { return Dropped{Reason: text.Draw(t, "reason")} }),
+		rapid.Custom(func(t *rapid.T) DeliveryOutcome { return Refused{Reason: text.Draw(t, "reason")} }),
 	)
 }
 
@@ -276,6 +277,21 @@ func genAPICall(text *rapid.Generator[string], outcome *rapid.Generator[Outcome]
 	})
 }
 
+// genHTTPExchange draws an HTTP attempt's exchange or none: a status of 0
+// (no answer came) or 100 to 599, any class, a duration of 0 or more.
+func genHTTPExchange() *rapid.Generator[*HTTPExchange] {
+	return rapid.OneOf(
+		rapid.Just[*HTTPExchange](nil),
+		rapid.Custom(func(t *rapid.T) *HTTPExchange {
+			return &HTTPExchange{
+				Status:   rapid.OneOf(rapid.Just(0), rapid.IntRange(100, 599)).Draw(t, "status"),
+				Class:    rapid.SampledFrom([]HTTPClass{HTTPSuccess, HTTPRetryable, HTTPPermanent, HTTPRefused}).Draw(t, "class"),
+				Duration: time.Duration(rapid.Int64Range(0, int64(time.Minute)).Draw(t, "duration")),
+			}
+		}),
+	)
+}
+
 // genDetail draws any Detail variant, as decoding would produce it.
 func genDetail() *rapid.Generator[Detail] { return genDetailOf(genText()) }
 
@@ -285,14 +301,17 @@ func genDetailOf(text *rapid.Generator[string]) *rapid.Generator[Detail] {
 		rapid.Custom(func(t *rapid.T) Detail { return genAPICall(text, genOutcomeOf(text)).Draw(t, "call") }),
 		rapid.Custom(func(t *rapid.T) Detail {
 			return Delivery{
-				From: genARN().Draw(t, "from"),
-				To:   genARN().Draw(t, "to"),
+				From:     genARN().Draw(t, "from"),
+				To:       genARN().Draw(t, "to"),
+				Endpoint: rapid.OneOf(rapid.Just(""), text).Draw(t, "endpoint"),
 				Mechanism: rapid.SampledFrom([]delivery.Mechanism{
 					delivery.SNSToSQS, delivery.SNSToLambda, delivery.S3ToSQS, delivery.S3ToSNS,
 					delivery.S3ToLambda, delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS,
+					delivery.SNSToHTTP, delivery.ESMToSQS, delivery.ESMToSNS,
 				}).Draw(t, "mechanism"),
 				Attempt: rapid.IntRange(1, 100).Draw(t, "attempt"),
 				Outcome: genDeliveryOutcome(text).Draw(t, "outcome"),
+				HTTP:    genHTTPExchange().Draw(t, "http"),
 			}
 		}),
 		rapid.Custom(func(t *rapid.T) Detail {
@@ -317,11 +336,13 @@ func genDetailOf(text *rapid.Generator[string]) *rapid.Generator[Detail] {
 			return FaultInjected{Rule: ref.RuleID(text.Draw(t, "rule")), Hit: rapid.IntRange(1, 9).Draw(t, "hit"), Of: rapid.IntRange(0, 9).Draw(t, "of")}
 		}),
 		rapid.Custom(func(t *rapid.T) Detail {
-			return ClockChanged{From: genMode().Draw(t, "from"), To: genMode().Draw(t, "to")}
+			// Op 0 is a clock change an earlier build wrote, without op.
+			op := ClockOp(rapid.Uint8Range(0, uint8(ClockRestore)).Draw(t, "op"))
+			return ClockChanged{From: genMode().Draw(t, "from"), To: genMode().Draw(t, "to"), Op: op}
 		}),
 		rapid.Custom(func(t *rapid.T) Detail {
 			return Advisory{
-				Kind:     rapid.SampledFrom([]AdvisoryKind{AdvisoryPolicyWouldDeny, AdvisoryUnmintedCredentials, AdvisoryShadowedCodeUpdate, AdvisoryCrossRegionServed, AdvisoryFilterUndecided, AdvisoryScheduleFiresSkipped}).Draw(t, "kind"),
+				Kind:     rapid.SampledFrom([]AdvisoryKind{AdvisoryPolicyWouldDeny, AdvisoryUnmintedCredentials, AdvisoryShadowedCodeUpdate, AdvisoryCrossRegionServed, AdvisoryFilterUndecided, AdvisoryScheduleFiresSkipped, AdvisoryRecordResponseOmitted, AdvisoryAsyncEventAbandoned}).Draw(t, "kind"),
 				Resource: genARN().Draw(t, "resource"),
 				Text:     text.Draw(t, "text"),
 			}
@@ -335,6 +356,32 @@ func genDetailOf(text *rapid.Generator[string]) *rapid.Generator[Detail] {
 			}
 		}),
 		rapid.Custom(func(t *rapid.T) Detail { return Gap{Missed: rapid.Uint64().Draw(t, "missed")} }),
+		rapid.Custom(func(t *rapid.T) Detail { return AdminAction{Op: genAdminOp(text).Draw(t, "op")} }),
+	)
+}
+
+// genAdminOp draws any AdminOp variant, as decoding would produce it: empty
+// lists as nil.
+func genAdminOp(text *rapid.Generator[string]) *rapid.Generator[AdminOp] {
+	names := func(t *rapid.T, label string) []string { return nilIfEmpty(rapid.SliceOfN(text, 0, 3).Draw(t, label)) }
+	path := rapid.OneOf(rapid.Just(""), text)
+	rule := rapid.Map(text, func(s string) ref.RuleID { return ref.RuleID(s) })
+	return rapid.OneOf(
+		rapid.Custom(func(t *rapid.T) AdminOp {
+			return Reset{
+				Services: names(t, "services"),
+				Accounts: names(t, "accounts"),
+				Regions:  names(t, "regions"),
+				Clock:    rapid.Bool().Draw(t, "clock"),
+				Faults:   rapid.IntRange(0, 50).Draw(t, "faults"),
+			}
+		}),
+		rapid.Custom(func(t *rapid.T) AdminOp { return SnapshotSave{Path: path.Draw(t, "path")} }),
+		rapid.Custom(func(t *rapid.T) AdminOp { return SnapshotLoad{Path: path.Draw(t, "path")} }),
+		rapid.Custom(func(t *rapid.T) AdminOp { return FaultRuleAdded{Rule: rule.Draw(t, "rule")} }),
+		rapid.Custom(func(t *rapid.T) AdminOp {
+			return FaultRuleRemoved{Rules: nilIfEmpty(rapid.SliceOfN(rule, 0, 3).Draw(t, "rules"))}
+		}),
 	)
 }
 

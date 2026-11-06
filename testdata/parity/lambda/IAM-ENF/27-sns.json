@@ -1,0 +1,35 @@
+{
+  "step": "27-sns",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the PutFunctionEventInvokeConfig operation: The function execution role does not have permissions to call Publish on arn:aws:sns:us-east-2:123456789012:us1103-enf-t\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2019-09-25/functions/us1103-enf-fn/event-invoke-config",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,Z,b,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.put-function-event-invoke-config"],
+          ["X-Amz-Date", "20261103T042719Z"],
+          ["amz-sdk-invocation-id", "b93658e7-7585-4c19-bb57-92209abcb124"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "104"]
+        ],
+        "body": "{\"DestinationConfig\": {\"OnSuccess\": {\"Destination\": \"arn:aws:sns:us-east-2:123456789012:us1103-enf-t\"}}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 04:27:19 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "148"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "1bb64257-a523-4864-aa2f-7558b1a86a31"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"The function execution role does not have permissions to call Publish on arn:aws:sns:us-east-2:123456789012:us1103-enf-t\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "step": "06-sqs-receive",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://hl9cpb8a0a.execute-api.us-east-2.amazonaws.com/sqs-receive",
+        "headers": [
+          ["Host", "hl9cpb8a0a.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:50:52 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "868"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "446531ba-839e-5515-add5-52de90b295fa"],
+          ["apigw-requestid", "GReU9inZiYcEPMg="]
+        ],
+        "body": "<?xml version=\"1.0\"?><ReceiveMessageResponse xmlns=\"http://queue.amazonaws.com/doc/2012-11-05/\"><ReceiveMessageResult><Message><MessageId>66078514-8894-4e06-afc4-2d8947aa0cbd</MessageId><ReceiptHandle>AQEBwF1JgX1iQEcd4CV4WbmEFPgtUew6kQImnAtmMa8ZkXyN5/dxJ7LzSgrQsYkY7W3Qns1p3NjSL6hhkF4HK+2XSosmkgBW6WPYlF4gc1SLooccDiezWZveiQkH1OB/eWp3hKv0BcxXXHqnWPbhJfedDNAFm/ZfHSmRF+dTs0nUlRhU0EgJP25z/zctdBSp6bd04U4fgnS/YO3XFBR1fTZ1RaSlXlG6hMteq6sFV98Lo4dkHFSNLH16VV0/f4TzljhQRGiBKJSzPHqrRRdkts3c4PZW8GE9zTI3lsEHKDR/PPCGF2KkeCHwXiZYRh6SkKa1Pnq07UjR6LL5wxPxexv8dsOpSRVcYWmRaIzagHQ/6Ocs2XDt/T4gfHD1YBMY3NMKw3ZHkUyzedUhgbNQAUDLSA==</ReceiptHandle><MD5OfBody>bb6cb5c68df4652941caf652a366f2d8</MD5OfBody><Body>{&quot;a&quot;:1}</Body></Message></ReceiveMessageResult><ResponseMetadata><RequestId>446531ba-839e-5515-add5-52de90b295fa</RequestId></ResponseMetadata></ReceiveMessageResponse>"
+      }
+    }
+  ]
+}

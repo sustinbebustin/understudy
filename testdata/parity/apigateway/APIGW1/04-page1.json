@@ -1,0 +1,31 @@
+{
+  "step": "04-page1",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/resources?limit=2",
+        "headers": [
+          ["Host", "apigateway.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163753Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "application/json"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:37:53 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "199"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "6430c7b2-1329-4cc5-9a3c-d932129d13ca"],
+          ["x-amz-apigw-id", "GRcbRKttCYcEc5A="]
+        ],
+        "body": "{\"item\":[{\"id\":\"38d5rj\",\"parentId\":\"tz0skq9gak\",\"path\":\"/id6\",\"pathPart\":\"id6\"},{\"id\":\"9opujs\",\"parentId\":\"tz0skq9gak\",\"path\":\"/zeta\",\"pathPart\":\"zeta\"}],\"limit\":2,\"position\":\"aWQ9UzlvcHVqcw%3D%3D\"}\n"
+      }
+    }
+  ]
+}

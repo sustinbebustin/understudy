@@ -1,0 +1,32 @@
+{
+  "step": "08-storage-lens-group",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AC,AN,AD,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#iam.create-policy"],
+          ["X-Amz-Date", "20261103T031216Z"],
+          ["amz-sdk-invocation-id", "78891d3e-0049-44a0-9c9b-d00341358110"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "327"]
+        ],
+        "body": "Action=CreatePolicy&Version=2010-05-08&PolicyName=us1103-eval-s3rg-08-storage-lens-group&PolicyDocument=%7B%22Version%22%3A%222012-10-17%22%2C%22Statement%22%3A%5B%7B%22Effect%22%3A%22Allow%22%2C%22Action%22%3A%22s3%3A%2A%22%2C%22Resource%22%3A%22arn%3Aaws%3As3%3Aus-east-2%3A123456789012%3Astorage-lens-group%2F%2A%22%7D%5D%7D"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:12:16 GMT"],
+          ["x-amzn-RequestId", "f72b335f-0a37-45ab-9735-c0dd4a7e7194"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "811"]
+        ],
+        "body": "<CreatePolicyResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <CreatePolicyResult>\n    <Policy>\n      <PermissionsBoundaryUsageCount>0</PermissionsBoundaryUsageCount>\n      <Path>/</Path>\n      <UpdateDate>2026-11-03T03:12:16Z</UpdateDate>\n      <DefaultVersionId>v1</DefaultVersionId>\n      <PolicyId>ANPARZPUZDIKAAAAAAAVA</PolicyId>\n      <IsAttachable>true</IsAttachable>\n      <PolicyName>us1103-eval-s3rg-08-storage-lens-group</PolicyName>\n      <AttachmentCount>0</AttachmentCount>\n      <Arn>arn:aws:iam::123456789012:policy/us1103-eval-s3rg-08-storage-lens-group</Arn>\n      <CreateDate>2026-11-03T03:12:16Z</CreateDate>\n    </Policy>\n  </CreatePolicyResult>\n  <ResponseMetadata>\n    <RequestId>f72b335f-0a37-45ab-9735-c0dd4a7e7194</RequestId>\n  </ResponseMetadata>\n</CreatePolicyResponse>\n"
+      }
+    }
+  ]
+}

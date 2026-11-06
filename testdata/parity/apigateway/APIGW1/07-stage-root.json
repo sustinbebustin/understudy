@@ -1,0 +1,22 @@
+{
+  "step": "07-stage-root",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:39:10 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "42"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "f344b30f-ae5f-4d96-bc0d-7e71e60236e4"],
+          ["x-amzn-ErrorType", "MissingAuthenticationTokenException"],
+          ["x-amz-apigw-id", "GRcnZHDrCYcEpHQ="]
+        ],
+        "body": "{\"message\":\"Missing Authentication Token\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "step": "10-bad-method",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the CreateRoute operation: The provided route key is not formatted properly for HTTP protocol. Format should be \"[HTTP METHOD] /[RESOURCE PATH]\" or \"$default\"",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/routes",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,Z,g,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-route"],
+          ["X-Amz-Date", "20261103T164312Z"],
+          ["amz-sdk-invocation-id", "a77d6ac5-49d7-44fc-bc11-cccc56abe203"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "24"]
+        ],
+        "body": "{\"routeKey\": \"FETCH /x\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:12 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "149"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "84fa723e-53ab-4187-913f-cda77c0eed4d"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdNLFv_CYcEjEA="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f20-6dc566ae7537fee53473a22d"]
+        ],
+        "body": "{\"message\":\"The provided route key is not formatted properly for HTTP protocol. Format should be \\\"[HTTP METHOD] /[RESOURCE PATH]\\\" or \\\"$default\\\"\"}"
+      }
+    }
+  ]
+}

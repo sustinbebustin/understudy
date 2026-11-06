@@ -21,6 +21,9 @@ var service = registry.Service{
 	Protocols:             []ref.ProtocolID{ref.AWSJSON11},
 	JSONTargetPrefix:      "secretsmanager",
 	MalformedRequestError: IdentitySerializationException(),
+	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "third-party-recorded"},
+	NewErrorMembers:       NewErrorMembers,
+	GenericErrors:         GenericErrors,
 }
 
 // The operations point back at the service, so the list is linked once

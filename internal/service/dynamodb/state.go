@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -16,8 +18,16 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshots, and of the
-// item sections of ExportLate.
-const stateVersion = 3
+// item sections of ExportLate. Version 4 adds the scope's streams and its
+// iterator key (ADR 0009 amendment of 2026-10-27). A version 3 section is
+// migrated on import:
+// it is a version 4 section without streams, whose item sections are
+// written the same way (Service.Import).
+const stateVersion = 4
+
+// stateVersionNoStreams is the version before streams were saved, which
+// Import and ImportLate still read.
+const stateVersionNoStreams = 3
 
 // stateCodec is the snapshot codec of State, with the Billing sum in the
 // tagged-union form. A table jsonx refuses is a bug in this file; the codec
@@ -64,6 +74,19 @@ func (e *MissingBillingError) Error() string {
 type State struct {
 	// Tables is keyed by table name as created.
 	Tables map[string]Table `json:"tables"`
+	// Streams are the streams minted in the scope, oldest first, with their
+	// records. A load keeps their labels and records and maps each enabled
+	// one to its table's new stream in Local (Service.Import).
+	Streams streamList `json:"streams,omitempty"`
+	// IteratorKey signs the scope's shard iterators; drawn on the first
+	// GetShardIterator. Saved, so an iterator issued before a save reads
+	// after a load until it expires (ADR 0009 amendment of 2026-10-27).
+	IteratorKey []byte `json:"iteratorKey,omitempty"`
+	// usedIterators are the shard iterators GetRecords has read with, each
+	// with its issue instant, kept until it expires; filled only under
+	// IteratorSingleUse. Not saved: after a load, an iterator read before
+	// the save reads once more.
+	usedIterators map[string]clock.Instant
 }
 
 func newState(aws.Scope) State { return State{Tables: map[string]Table{}} }
@@ -112,9 +135,61 @@ func (s *Service) Export() ([]store.Section, error) {
 	return s.cells.Export(store.ScopeKeys(), stateVersion)
 }
 
-// Import loads sections written by Export of this schema version.
+// Import loads sections written by Export of this schema version or of
+// version 3, and maps the streams of the tables ImportLate re-created in
+// Local (relink). A section that does not decode is left for the cells'
+// import to refuse.
 func (s *Service) Import(ss []store.Section) error {
-	return s.cells.Import(store.ScopeKeys(), stateVersion, ss)
+	relinks := s.takeRelinks()
+	now := s.kernel.Clock().Now()
+	out := make([]store.Section, 0, len(ss))
+	for _, sec := range ss {
+		if sec.Version == stateVersionNoStreams {
+			sec.Version = stateVersion
+		}
+		if sec.Version == stateVersion {
+			sec = s.relinked(sec, relinks, now)
+		}
+		out = append(out, sec)
+	}
+	return s.cells.Import(store.ScopeKeys(), stateVersion, out)
+}
+
+// relinked is sec with relinks applied to the tables of its scope; sec
+// unchanged when it names no scope relinks has, or does not decode.
+func (s *Service) relinked(sec store.Section, relinks map[tableKey]relink, now clock.Instant) store.Section {
+	enc, ok := strings.CutSuffix(sec.Path, ".json")
+	if !ok {
+		return sec
+	}
+	scope, err := store.ScopeKeys().Decode(enc)
+	if err != nil {
+		return sec
+	}
+	var tables []string
+	for k := range relinks {
+		if k.scope == scope {
+			tables = append(tables, k.table)
+		}
+	}
+	if len(tables) == 0 {
+		return sec
+	}
+	codec := stateCodec()
+	st := newState(scope)
+	if err := codec.Unmarshal(sec.Data, &st); err != nil {
+		return sec
+	}
+	slices.Sort(tables)
+	for _, t := range tables {
+		st.relink(scope, t, relinks[tableKey{scope: scope, table: t}], now, s.sequencer())
+	}
+	data, err := codec.Marshal(&st)
+	if err != nil {
+		return sec
+	}
+	sec.Data = data
+	return sec
 }
 
 // Reset drops the scopes rs covers. The tables stay in Local; deleting
@@ -146,6 +221,12 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 // Scopes returns the accounts and regions that hold a state cell.
 func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
 
-// Switches lists no behaviors: every deviation is Local's, listed in
-// coverage.
-func (*Service) Switches() []fidelity.Entry { return nil }
+// Switches lists the identity of a denial, which understudy answers before
+// forwarding (iam-enforcement-surfaces.md 12.1, 12.8); every other
+// deviation is Local's, listed in coverage.
+func (s *Service) Switches() []fidelity.Entry {
+	return []fidelity.Entry{
+		authz.RecordedSwitch("dynamodb.denial.type", "__type com.amazon.coral.service#AccessDeniedException, 400", "3.2", "IAM-ENF-04", authz.SessionUnreplayed,
+			s.kernel.Bindings().AuthorizedOps(dynamodbapi.Service())),
+	}
+}

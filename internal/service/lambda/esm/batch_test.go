@@ -21,7 +21,7 @@ import (
 func TestBatchProperties(t *testing.T) {
 	queue := queueARN(t, "arn:aws:sqs:us-east-1:000000000000:q")
 	rapid.Check(t, func(t *rapid.T) {
-		var b esm.Batch
+		var b esm.QueueBatch
 		var added []string
 		bodies := rapid.SliceOfN(rapid.IntRange(0, 1<<20), 1, 30).Draw(t, "bodySizes")
 		for i, n := range bodies {
@@ -63,7 +63,7 @@ func TestBatchProperties(t *testing.T) {
 // as it was.
 func TestBatchRefusesPastLimit(t *testing.T) {
 	queue := queueARN(t, "arn:aws:sqs:us-east-1:000000000000:q")
-	var b esm.Batch
+	var b esm.QueueBatch
 	body := strings.Repeat("a", 1<<20)
 	for i := range 5 {
 		if ok, err := b.Add(esm.NewRecord(&sqsapi.Message{MessageId: new(strings.Repeat("i", i+1)), Body: new(body)}, queue)); err != nil || !ok {
@@ -80,7 +80,7 @@ func TestBatchRefusesPastLimit(t *testing.T) {
 }
 
 func TestEmptyBatchEvent(t *testing.T) {
-	var b esm.Batch
+	var b esm.QueueBatch
 	if got := string(b.Event()); got != `{"Records":[]}` || b.Size() != len(got) {
 		t.Fatalf("empty batch event = %s (size %d)", got, b.Size())
 	}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/journal"
 )
 
 func (h *Handler) clockState(w http.ResponseWriter, r *http.Request, _ []string) {
@@ -27,8 +28,12 @@ func (h *Handler) state() admin.ClockState {
 	return s
 }
 
-// clockChange applies one ClockOp. Mode changes are journaled as
-// ClockChanged; advances answer the timers they fired.
+// clockChange applies one ClockOp and journals it as a ClockChanged naming
+// the op. Advances answer the timers they fired, and their ClockChanged is
+// recorded once the advance returns, after every event those timers
+// recorded. Each event's From and To come from the clock's lock, but the
+// append follows it, so concurrent clock calls can journal their changes
+// in another order than they applied them.
 func (h *Handler) clockChange(w http.ResponseWriter, r *http.Request, _ []string) {
 	data, aerr := readBody(w, r, "clock op")
 	if aerr != nil {
@@ -45,31 +50,33 @@ func (h *Handler) clockChange(w http.ResponseWriter, r *http.Request, _ []string
 		return
 	}
 	c := h.o.Kernel.Clock()
+	ctx := r.Context()
 	var fired []clock.TimerKey
 	switch op := op.(type) {
 	case admin.Freeze:
 		m := c.Freeze()
-		h.journalClock(r.Context(), m.From, m.To)
+		h.journalClock(ctx, journal.ClockFreeze, m.From, m.To)
 	case admin.Resume:
 		m, err := c.Resume()
 		if err != nil {
 			h.fail(w, r, &admin.Error{Code: admin.Conflict, Message: err.Error(), Hint: resetClockHint})
 			return
 		}
-		h.journalClock(r.Context(), m.From, m.To)
+		h.journalClock(ctx, journal.ClockResume, m.From, m.To)
 	case admin.Scale:
 		m, err := c.Scale(op.Factor)
 		if err != nil {
 			h.fail(w, r, &admin.Error{Code: admin.InvalidRequest, Field: "factor", Message: err.Error()})
 			return
 		}
-		h.journalClock(r.Context(), m.From, m.To)
+		h.journalClock(ctx, journal.ClockScale, m.From, m.To)
 	case admin.Advance:
 		adv, err := c.Advance(op.By)
 		if err != nil {
 			h.fail(w, r, moveError("by", err))
 			return
 		}
+		h.journalClock(ctx, journal.ClockAdvance, adv.Modes.From, adv.Modes.To)
 		fired = adv.Fired
 	case admin.Set:
 		adv, err := c.AdvanceTo(clock.FromWire(op.To))
@@ -77,6 +84,7 @@ func (h *Handler) clockChange(w http.ResponseWriter, r *http.Request, _ []string
 			h.fail(w, r, moveError("to", err))
 			return
 		}
+		h.journalClock(ctx, journal.ClockSet, adv.Modes.From, adv.Modes.To)
 		fired = adv.Fired
 	}
 	out := admin.ClockResult{Clock: h.state()}

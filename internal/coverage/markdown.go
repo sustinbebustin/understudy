@@ -7,10 +7,16 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/evidence"
+	"github.com/sustinbebustin/understudy/internal/fidelity"
+	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
 // Markdown renders the report as docs/coverage.md: the three measures in
-// their own sections, never added together.
+// their own sections, never added together. With the parity baseline and
+// the overlay files read, every operation also shows its evidence, each
+// switch and overlay evidence item the label its recording gives it, and
+// the switches and overlay items a recording settles are listed for
+// retirement.
 func (r Report) Markdown() []byte {
 	var b strings.Builder
 	b.WriteString("# Coverage\n\n")
@@ -22,7 +28,19 @@ func (r Report) Markdown() []byte {
 	r.writeServices(&b)
 	r.writeSwitches(&b)
 	r.writeOverlays(&b)
+	if r.showsEvidence() {
+		r.writeRetirement(&b)
+	}
 	return []byte(b.String())
+}
+
+// showsEvidence reports whether the page shows the evidence column: only
+// with both the parity baseline and the overlay files, without which an
+// operation's claims are incomplete.
+func (r Report) showsEvidence() bool {
+	_, parity := r.Parity.(ParityRead)
+	_, overlays := r.Overlays.(OverlaysRead)
+	return parity && overlays
 }
 
 func (r Report) writeProtocols(b *strings.Builder) {
@@ -116,6 +134,17 @@ func (r Report) writeServices(b *strings.Builder) {
 	b.WriteString("Every operation of each service's model, with what its handler states: full, stored-only " +
 		"(accepted, stored and echoed, with no runtime effect), partial (implemented with named gaps) or unbound " +
 		"(answers 501 NotImplemented). Internal and raw operations are not in the models and are listed apart.\n\n")
+	if r.showsEvidence() {
+		b.WriteString("Evidence is the weakest claim attributed to the operation, and how many of its claims carry that label. " +
+			"A claim is an overlay evidence item whose shape is the operation, its input, its output or one of its errors; " +
+			"a fidelity switch whose Ops list the operation; or a recorded step that `internal/parity` replays against it. " +
+			"Labels, weakest first: contradicted (<fixture>), when the replay differs from AWS; inferred; sdk-source; aws-doc; " +
+			"third-party-recorded; aws-recorded, written aws-recorded (<fixture>) when the replay matches AWS and, for a switch " +
+			"or overlay entry it settles, fails once the settled field is changed. unassessed: no claim. " +
+			"An unbound operation's only claims are recorded steps replayed against it, since the switches and overlay items " +
+			"describe behavior it does not have. Overlay items on a service shape apply to every operation of the service and " +
+			"are attributed to none; the Overlay entries table shows their labels.\n\n")
+	}
 	table(b, []string{"Service", "Operations", "Full", "Stored only", "Partial", "Unbound", "Internal", "Raw"}, len(r.Services), func(i int) []string {
 		s := r.Services[i]
 		n := counts(s.Operations)
@@ -123,28 +152,43 @@ func (r Report) writeServices(b *strings.Builder) {
 	})
 	for _, s := range r.Services {
 		fmt.Fprintf(b, "\n### %s\n\n", s.Service)
-		operations(b, s.Operations)
+		r.operations(b, s.Service, s.Operations)
 		if len(s.Internal) > 0 {
 			b.WriteString("\nInternal operations:\n\n")
-			operations(b, s.Internal)
+			r.operations(b, s.Service, s.Internal)
 		}
 		if len(s.Raw) > 0 {
 			b.WriteString("\nRaw operations:\n\n")
-			operations(b, s.Raw)
+			r.operations(b, s.Service, s.Raw)
 		}
 	}
 }
 
-func operations(b *strings.Builder, ops []Operation) {
-	table(b, []string{"Operation", "Status", "Note"}, len(ops), func(i int) []string {
-		return []string{ops[i].Name, StatusName(ops[i].Status), note(ops[i].Status)}
+// operations writes the table of ops, operations of service svc, with each
+// one's evidence when the page shows it.
+func (r Report) operations(b *strings.Builder, svc ref.ServiceID, ops []Operation) {
+	if !r.showsEvidence() {
+		table(b, []string{"Operation", "Status", "Note"}, len(ops), func(i int) []string {
+			return []string{ops[i].Name, StatusName(ops[i].Status), note(ops[i].Status)}
+		})
+		return
+	}
+	table(b, []string{"Operation", "Status", "Evidence", "Note"}, len(ops), func(i int) []string {
+		return []string{ops[i].Name, StatusName(ops[i].Status), r.OperationEvidence(svc, ops[i].Name).String(), note(ops[i].Status)}
 	})
 }
 
 func (r Report) writeSwitches(b *strings.Builder) {
 	b.WriteString("\n## Evidence\n\n### Fidelity switches\n\n")
-	b.WriteString("Behaviors chosen without AWS-recorded evidence, with the research they rest on and the " +
-		"record-backlog item that settles them.\n\n")
+	if r.showsEvidence() {
+		b.WriteString("Behaviors chosen without AWS-recorded evidence, with the research they rest on and the " +
+			"parity scenario step that settles them, or why none does. The count and order follow the label the " +
+			"code states; the Label column shows the recording's verdict where a replayed step settles or " +
+			"contradicts the switch.\n\n")
+	} else {
+		b.WriteString("Behaviors chosen without AWS-recorded evidence, with the research they rest on and the " +
+			"record-backlog item that settles them.\n\n")
+	}
 	if len(r.Switches) == 0 {
 		b.WriteString("No wired service declares a switch.\n")
 		return
@@ -156,14 +200,61 @@ func (r Report) writeSwitches(b *strings.Builder) {
 	b.WriteString(byLabel(len(r.Switches), "switch", "switches", labels))
 	table(b, []string{"Switch", "Value", "Label", "Reference", "Settled by"}, len(r.Switches), func(i int) []string {
 		s := r.Switches[i]
-		return []string{code(s.Name), code(s.Value), string(s.Label), s.Ref, s.Record}
+		if !r.showsEvidence() {
+			return []string{code(s.Name), code(s.Value), string(s.Label), s.Ref, s.Record}
+		}
+		return []string{code(s.Name), code(s.Value), ClaimLabelText(labelOf(r.switchSettlement(s), s.Label)), s.Ref, settledBy(s)}
+	})
+}
+
+// settledBy is a switch's Settled by cell: the scenario step that settles
+// it, why none exists, or else its record-backlog item.
+func settledBy(s Switch) string {
+	switch st := s.Settles.(type) {
+	case fidelity.SettledBy:
+		return st.Step.String()
+	case fidelity.NoScenario:
+		return "none: " + st.Reason
+	}
+	return s.Record
+}
+
+// writeRetirement lists the switches and overlay items a recording settles
+// while their code label is below aws-recorded.
+func (r Report) writeRetirement(b *strings.Builder) {
+	b.WriteString("\n### Settled by recording, pending retirement\n\n")
+	b.WriteString("Switches and overlay evidence items whose recorded step matches AWS and fails once the settled field " +
+		"is changed, while the code still labels them below aws-recorded. Each is ready to retire: fix its label or " +
+		"remove the switch, with a test that cites the fixture (docs/recording-kit.md 6).\n\n")
+	list := r.PendingRetirement()
+	if len(list) == 0 {
+		b.WriteString("None.\n")
+		return
+	}
+	table(b, []string{"Switch or shape", "Code label", "Fixture", "Field"}, len(list), func(i int) []string {
+		var name string
+		switch s := list[i].Source.(type) {
+		case FromSwitch:
+			name = s.Name
+		case FromOverlay:
+			name = s.Shape
+		case FromStep:
+			name = s.Scenario + "#" + s.Step
+		}
+		return []string{code(name), string(list[i].Code), list[i].Fixture, list[i].Field}
 	})
 }
 
 func (r Report) writeOverlays(b *strings.Builder) {
 	b.WriteString("\n### Overlay entries\n\n")
-	b.WriteString("Corrections to the vendored models in `codegen/overlays`, one row per evidence item, " +
-		"strongest evidence first.\n\n")
+	if r.showsEvidence() {
+		b.WriteString("Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count " +
+			"and order, strongest evidence first, follow the label the overlay states; the Label column shows the " +
+			"recording's verdict where a replayed step settles or contradicts the item.\n\n")
+	} else {
+		b.WriteString("Corrections to the vendored models in `codegen/overlays`, one row per evidence item, " +
+			"strongest evidence first.\n\n")
+	}
 	switch o := r.Overlays.(type) {
 	case OverlaysNotCarried:
 		b.WriteString("This report was built by a running server, which does not carry the overlay files; " +
@@ -182,7 +273,11 @@ func (r Report) writeOverlays(b *strings.Builder) {
 			if e.Validated != "" {
 				source += " (validated " + e.Validated + ")"
 			}
-			return []string{string(e.Label), e.File, code(e.Shape), strings.Join(e.Covers, ", "), source}
+			label := string(e.Label)
+			if r.showsEvidence() {
+				label = ClaimLabelText(labelOf(r.overlaySettlement(e), e.Label))
+			}
+			return []string{label, e.File, code(e.Shape), strings.Join(e.Covers, ", "), source}
 		})
 	}
 }

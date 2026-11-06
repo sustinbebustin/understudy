@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "item": "ASL-14",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "sfn/ASL-14/05-history.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sfn/ASL-14/06-describe.json",
+      "compare": "all"
+    }
+  ]
+}

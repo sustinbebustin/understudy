@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
 // startWait bounds how long a call waits for Local to start (ARCHITECTURE.md
@@ -41,6 +42,18 @@ func (s *Service) ready(ctx context.Context) (*url.URL, *awserr.Error) {
 		return nil, errLocalUnavailable("reach DynamoDB Local", errStopped)
 	}
 	return endpoint, nil
+}
+
+// serving runs the checks a forwarded call gets on a DynamoDB Streams call
+// and starts Local, so Streams answers DynamoDB's 501 while DynamoDB is
+// turned off (the stream log is fed from Local) and is otherwise served as
+// DynamoDB is.
+func (s *Service) serving(ctx context.Context, c *kernel.Call) *awserr.Error {
+	if err := preForward(c); err != nil {
+		return err
+	}
+	_, err := s.ready(ctx)
+	return err
 }
 
 // errStopped is a Local that stopped between Start and the forward, as at

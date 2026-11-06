@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -8,9 +9,11 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 	"github.com/sustinbebustin/understudy/internal/service/s3"
+	"github.com/sustinbebustin/understudy/internal/service/ses"
 	"github.com/sustinbebustin/understudy/internal/service/sqs"
 	"github.com/sustinbebustin/understudy/internal/service/sts"
 )
@@ -27,6 +30,10 @@ type Config struct {
 	// AdminToken, when set, is the bearer token every admin call on the
 	// main listener must carry. It guards the admin API only.
 	AdminToken string
+	// UISecret is the web UI session secret (ADR 0020); empty draws one
+	// with ui.NewSecret when New wires the server. The banner prints it in
+	// the fragment of the UI's URL.
+	UISecret string
 	// Exposure is what makes a non-loopback Listen safe without a token;
 	// nil is TokenRequired.
 	Exposure Exposure
@@ -48,6 +55,8 @@ type Config struct {
 	// SigV4 is how request signatures are checked (sigv4); the zero value
 	// is SigV4ParseOnly.
 	SigV4 SigV4Mode
+	// IAMEnforce is iam.enforce; the zero value is IAMEnforceOff.
+	IAMEnforce IAMEnforce
 	// StaticKeys are access keys from configuration (accounts.keys), each
 	// its account's root, with the secret it signs with. New refuses a key
 	// listed twice or with an empty secret.
@@ -70,6 +79,12 @@ type Config struct {
 	// Docker is where the Docker Engine is; nil is DockerSocket at the
 	// default socket.
 	Docker Docker
+	// DockerLabels are added to every container serve creates, the Lambda
+	// launcher's function containers and DynamoDB Local; serve creates no
+	// network (dockerLabels, testcontainers.md 9.3). New refuses a key
+	// starting with understudy.dev/ (docker.ReservedPrefix) as a
+	// *SettingError, with Docker enabled or not.
+	DockerLabels map[string]string
 	// DynamoDB is whether the DynamoDB service runs; nil is
 	// DynamoDBEnabled.
 	DynamoDB DynamoDB
@@ -89,8 +104,17 @@ type Config struct {
 	// S3BaseDomains are the hosts virtual-hosted S3 addresses end in; nil
 	// is localhost and s3.localhost.
 	S3BaseDomains []string
-	LogFormat     LogFormat
-	LogLevel      slog.Level
+	// SNSHTTPDelivery is SNS HTTP delivery's outbound settings
+	// (sns.httpDelivery.*); the zero value allows no host.
+	SNSHTTPDelivery SNSHTTPDelivery
+	// SESVerifiedIdentities is ses.verifiedIdentities: identities that
+	// start verified when they are created; the zero value lists none.
+	SESVerifiedIdentities SESVerifiedIdentities
+	// SESProductionAccess is ses.productionAccess: true takes every
+	// account and Region out of the SES sandbox.
+	SESProductionAccess bool
+	LogFormat           LogFormat
+	LogLevel            slog.Level
 	// ReadyFile, when set, receives {"endpoint", "pid"} once the listeners
 	// accept, plus "tlsEndpoint" with the TLS listener, and is removed at
 	// shutdown.
@@ -104,6 +128,18 @@ type Config struct {
 	Version string
 	// LogOutput receives the logs and the banner; nil means stderr.
 	LogOutput io.Writer
+}
+
+// SNSHTTPDelivery is where SNS may deliver http and https subscriptions
+// (sns-http-delivery.md 7). Whatever Allow lists, egress refuses AWS hosts,
+// link-local and metadata addresses, understudy's own listeners and a
+// tcp:// Docker Engine.
+type SNSHTTPDelivery struct {
+	// Allow is sns.httpDelivery.allow; the zero AllowList allows nothing.
+	Allow egress.AllowList
+	// CABundle are the certificates an https endpoint may chain to beside
+	// the system roots (sns.httpDelivery.caBundle).
+	CABundle []*x509.Certificate
 }
 
 // SettingError is a setting New refuses as it applies it, after the
@@ -147,6 +183,21 @@ const (
 	// signature does not verify, and expires presigned URLs on the
 	// emulator clock (ADR 0012 pre-tag review amendment).
 	SigV4Verify
+)
+
+// IAMEnforce is the iam.enforce mode (iam-enforcement-surfaces.md 12.1).
+type IAMEnforce uint8
+
+// IAMEnforce values; the zero value is IAMEnforceOff.
+const (
+	// IAMEnforceOff records which actions each principal uses and enforces
+	// nothing.
+	IAMEnforceOff IAMEnforce = iota
+	// IAMEnforceAdvise evaluates every call and journals an advisory for
+	// each denial AWS would issue, answering as IAMEnforceOff does.
+	IAMEnforceAdvise
+	// IAMEnforceEnforce answers those denials.
+	IAMEnforceEnforce
 )
 
 // StaticKey is an access key from configuration: the root of Account,
@@ -404,6 +455,9 @@ type (
 	S3CrossRegion = s3.CrossRegion
 	// STSAssumeRole is iam.assumeRole.
 	STSAssumeRole = sts.RoleCheck
+	// SESVerifiedIdentities is ses.verifiedIdentities, re-exported for the
+	// CLI as the switch types are.
+	SESVerifiedIdentities = ses.VerifiedIdentities
 )
 
 // Switch values, each the service's own constant.

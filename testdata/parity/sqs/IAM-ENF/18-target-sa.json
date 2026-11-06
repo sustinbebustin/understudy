@@ -1,0 +1,35 @@
+{
+  "step": "18-target-sa",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,AN,g,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T035251Z"],
+          ["amz-sdk-invocation-id", "2ed585d8-2429-439d-96ae-42b46f2373e4"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "101"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-enf-sq\", \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "1fc400f8-13ab-5f5b-8bd5-639b4f78b2f6"],
+          ["Date", "Tue, 03 Nov 2026 03:52:51 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "570"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Body\":\"sourceaccount-1\",\"MD5OfBody\":\"9fd4fa8d86b88adf7416d70a00cfdbd7\",\"MessageId\":\"34ecd5c8-8179-46a2-af1f-3f04bcc2eb30\",\"ReceiptHandle\":\"AQEB2eYZgSHQ0oR6vFreZ8aKfIstYbnXrhrdxXfSjI7yI2xWEC2kZUszcu8eFiWOvdHPLcD/yGGKf/nRNkULYvCZTk65FRJ6J2ABg5S9+4BCyxTMadRnoC/IuS9CdACDwjUfmVvhleW00323Yc0pd9qIgKOKnt2giSIyJx3NciZL0Ku4BpdkoHTOvw/5EZ01KcZHNuw/3BR/zMynCxF6ZNYtl5i82UBW6b+9iTgKXMh6qmL3Q99taqfP9gdwYcfAvinHKWVDAVdrV527prU1EjmoV3S2R1ICWZYs8TQeAbp5m9BHaugw2eO7r5gmQlBw0kWRn+eI1BIrRS4hyao9TJ8Ay3L1aEfQKhRxwSJiDxkAdJHDpFl9FKeCSvTDyg4f7SW36M4zvqoNs9QR+f8hnVGRUQ==\"}]}"
+      }
+    }
+  ]
+}

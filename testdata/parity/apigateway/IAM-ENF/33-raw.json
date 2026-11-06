@@ -1,0 +1,31 @@
+{
+  "step": "33-raw",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis",
+        "headers": [
+          ["Host", "apigateway.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T033952Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:39:52 GMT"],
+          ["Content-Type", "application/vnd.error+json"],
+          ["Content-Length", "291"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "a2231ff3-55a1-4d0f-a410-249334495e21"],
+          ["x-amz-apigw-id", "GPqddKtaiYcEdxw="]
+        ],
+        "body": "{\"logref\":\"a2231ff3-55a1-4d0f-a410-249334495e21\",\"message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: apigateway:GET on resource: arn:aws:apigateway:us-east-2::/restapis because no identity-based policy allows the apigateway:GET action\"}\n"
+      }
+    }
+  ]
+}

@@ -69,16 +69,26 @@ func streamsInput(op *registry.Operation) bool {
 	return false
 }
 
+// ServiceProtocol names a service spoken over one protocol, the key of
+// Options.ProtocolAuth.
+type ServiceProtocol struct {
+	Service  ref.ServiceID
+	Protocol ref.ProtocolID
+}
+
 // vocabulary is the auth vocabulary of op spoken over protocol p: the
 // operation's own when Options.OperationAuth has one, else its service's
-// when Options.ServiceAuth has one, else p's family's, else the JSON
-// family's.
+// when Options.ServiceAuth has one, else its service's over p when
+// Options.ProtocolAuth has one, else p's family's, else the JSON family's.
 func (h *Handler) vocabulary(op *registry.Operation, p ref.ProtocolID) auth.Vocabulary {
 	if v, ok := h.opts.OperationAuth[op.ID]; ok {
 		return v
 	}
 	if sa, ok := h.opts.ServiceAuth[op.Service.ID]; ok {
 		return sa.Vocabulary
+	}
+	if v, ok := h.opts.ProtocolAuth[ServiceProtocol{Service: op.Service.ID, Protocol: p}]; ok {
+		return v
 	}
 	family, ok := awserr.FamilyOf(p)
 	if !ok {

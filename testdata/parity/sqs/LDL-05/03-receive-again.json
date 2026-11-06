@@ -1,0 +1,35 @@
+{
+  "step": "03-receive-again",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,b,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T164553Z"],
+          ["amz-sdk-invocation-id", "68c3b5e6-fb3a-4fb2-a014-7f5437e7b2fe"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "190"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-ldl-sns\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "1ba149a5-173c-5c2a-a36e-2ac1053dc406"],
+          ["Date", "Tue, 03 Nov 2026 16:45:53 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "2473"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROA3TYMO3BGDHJFBHT75:AWS-CLOUDCAST\",\"ApproximateFirstReceiveTimestamp\":\"1793724353708\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793724312455\",\"AWSTraceHeader\":\"Root=1-6aea0f97-1b6dedc1052ddf130789d3d2;Parent=4a6cd6ec8f873e7d;Sampled=0;Lineage=1:8e85df97:0\"},\"Body\":\"{\\n  \\\"Type\\\" : \\\"Notification\\\",\\n  \\\"MessageId\\\" : \\\"e4676e2b-28a4-5671-9222-0d4f397c2058\\\",\\n  \\\"TopicArn\\\" : \\\"arn:aws:sns:us-east-2:123456789012:us1103-ldl-topic\\\",\\n  \\\"Message\\\" : \\\"{\\\\\\\"version\\\\\\\":\\\\\\\"1.0\\\\\\\",\\\\\\\"timestamp\\\\\\\":\\\\\\\"2026-11-03T16:45:12.400Z\\\\\\\",\\\\\\\"requestContext\\\\\\\":{\\\\\\\"requestId\\\\\\\":\\\\\\\"7531380e-b95c-4c6e-a3cc-661c946fdd50\\\\\\\",\\\\\\\"functionArn\\\\\\\":\\\\\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-s:$LATEST\\\\\\\",\\\\\\\"condition\\\\\\\":\\\\\\\"Success\\\\\\\",\\\\\\\"approximateInvokeCount\\\\\\\":1},\\\\\\\"responseContext\\\\\\\":{\\\\\\\"statusCode\\\\\\\":200,\\\\\\\"executedVersion\\\\\\\":\\\\\\\"$LATEST\\\\\\\"},\\\\\\\"deliveryError\\\\\\\":{\\\\\\\"statusCode\\\\\\\":413,\\\\\\\"errorCode\\\\\\\":\\\\\\\"RequestEntityTooLargeException\\\\\\\",\\\\\\\"errorMessage\\\\\\\":\\\\\\\"The total destination payload is too large. RequestPayload size: 300026 bytes, ResponsePayload size: 26 bytes\\\\\\\"}}\\\",\\n  \\\"Timestamp\\\" : \\\"2026-11-03T16:45:12.430Z\\\",\\n  \\\"SignatureVersion\\\" : \\\"1\\\",\\n  \\\"Signature\\\" : \\\"oXMCJZlMWebrKzJx310B4vTe5snNvAbKU61A8oyYHuB8c+pNQegPR0/jFlqz1rOeRtWIRA5sUzB/eWY5KWlE4+KicmVP19QBC2fsPBge+py2VKzTpPXhR8dK9M00X18KjsPM7NyvXDIwfy3j0WByqn+KHyGqaNqDT2oSX+ccqOUkq/DHE+XoD/F1irtp473q7JhFbArLIseeSMwHmlw90LfxobOal4qgg1PZ0sTAv71mhE51mOFz94tl6snbhP5zGhQezIoiRBzWefRT/y/5ObzJ16xCZqG83HnzEvMGAcqD6VtQnmrwyA8dEilD2KJiMBkmpuzi4DKLdSmCvYiplA==\\\",\\n  \\\"SigningCertURL\\\" : \\\"https://sns.us-east-2.amazonaws.com/SimpleNotificationService-1e59c4574facfe41babdb2d652f8ebef.pem\\\",\\n  \\\"UnsubscribeURL\\\" : \\\"https://sns.us-east-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-2:123456789012:us1103-ldl-topic:d3e15472-5c22-497a-b3bb-796bc30e183c\\\"\\n}\",\"MD5OfBody\":\"bb45180d1b5eb756f25822dfe12c458c\",\"MessageId\":\"fbd47de7-420d-4209-afee-d2b38ab3969e\",\"ReceiptHandle\":\"AQEBxtZdxVcNezu2SFgMB9Js8c6eIq5g/9CzyXJNrg3kv2rb1m00p+ZfgAGk6YEU1nG5PWmcx0smWQmgvBidHJ+sR0hJ5qw7hZRWdOuXH7k51QecZez3Mur8pM/LujVqCR4y8QDLpFA/v21e6/f1ATHO/s2XLlhI2bXFmSJViJXfW6eO8VAlD4NU2AuBmVq1wKBQrSsBAMygqOhIspyVb3PcJQ1muspS8uMhZHyS6jQKhDey5TJtDCX/I7fSXO0w1rrMCF4i42fDARfWS/X+nag6APOu3oSBHELqGUbPBJzDuSJyo9gXiTI77Guvgh37c0cRT9wxt9Js+hnd1tIMiDB6I6g3Ff+d5RmpyWyqsMeMcODaUh++O7DM3YT1Sr38vSL/tWLrHKMxrEDKLF720tue1A==\"}]}"
+      }
+    }
+  ]
+}

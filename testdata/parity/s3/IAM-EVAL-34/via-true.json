@@ -1,0 +1,42 @@
+{
+  "step": "via-true",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:sts::123456789012:assumed-role/us1103-eval-via/vv is not authorized to perform: kms:GenerateDataKey on resource: arn:aws:kms:us-east-2:123456789012:key/e962f3e0-e791-4b09-a1a5-018e6f94f99f with an explicit deny in a resource-based policy",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-eval-via-123456789012.s3.us-east-2.amazonaws.com/k",
+        "headers": [
+          ["x-amz-server-side-encryption", "aws:kms"],
+          ["x-amz-server-side-encryption-aws-kms-key-id", "arn:aws:kms:us-east-2:123456789012:key/e962f3e0-e791-4b09-a1a5-018e6f94f99f"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,W,g,AN,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "0"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T164538Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "c854be00-0e8a-4298-8964-dc6f1e8e141c"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "02XTS407Q3W7NHAZ"],
+          ["x-amz-id-2", "o9w7+HKmdA5Qfq/u9KLKd9bXOQl8g/H+AcmeERWZvtrGM5PGiUgjOHMvx6YsFFJxna9SgNe0nyyNoBdtx+7SituaJ8To8z1i"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 16:45:37 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>User: arn:aws:sts::123456789012:assumed-role/us1103-eval-via/vv is not authorized to perform: kms:GenerateDataKey on resource: arn:aws:kms:us-east-2:123456789012:key/e962f3e0-e791-4b09-a1a5-018e6f94f99f with an explicit deny in a resource-based policy</Message><RequestId>02XTS407Q3W7NHAZ</RequestId><HostId>o9w7+HKmdA5Qfq/u9KLKd9bXOQl8g/H+AcmeERWZvtrGM5PGiUgjOHMvx6YsFFJxna9SgNe0nyyNoBdtx+7SituaJ8To8z1i</HostId></Error>"
+      }
+    }
+  ]
+}

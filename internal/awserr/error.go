@@ -1,6 +1,7 @@
 package awserr
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
@@ -23,6 +24,129 @@ type Error struct {
 	// Headers are extra response headers: Retry-After, x-amz-bucket-region.
 	Headers []Header
 	Origin  Origin
+	// members is the generated value of the error's shape, for members
+	// beyond the message; only WithMembers sets it, with ID from the
+	// value's own identity. Code that later sets ID to another shape
+	// detaches it (see value), so ID and the value never disagree.
+	members Members
+}
+
+// Members is a generated error structure: the value an Error carries for
+// members beyond its message. Every generated error type implements it on
+// its pointer.
+type Members interface {
+	smithy.Serializable
+	// ErrorIdentity returns the identity of the value's error shape, the
+	// value the generated Identity<X> function returns.
+	ErrorIdentity() Identity
+}
+
+// DecodableMembers is a generated error structure that also decodes, so a
+// fault rule's members can be read into it. Only the packages that
+// generate a deserializer for the shape return one (the generated
+// NewErrorMembers).
+type DecodableMembers interface {
+	Members
+	smithy.Deserializable
+}
+
+// errNoMembers is the cause WithMembers reports for a nil value.
+var errNoMembers = errors.New("awserr: WithMembers was given a nil value, so the error has no shape; " +
+	"build it with the generated Err<X>Members constructor of the error shape")
+
+// WithMembers returns the error of v's shape carrying v, with message as
+// its text and origin as its origin. Its ID is v's ErrorIdentity, and a
+// later ID of another shape detaches v, so the two never disagree on the
+// wire. Codecs write the message under the identity's
+// MessageKey, never v's own message member (smithy-protocol-tests.md
+// 14.7). A nil v is a bug, answered as an Internal error.
+func WithMembers(v Members, message string, origin Origin) *Error {
+	if v == nil {
+		return Internalf(errNoMembers)
+	}
+	return &Error{ID: v.ErrorIdentity(), Message: message, Origin: origin, members: v}
+}
+
+// Members returns the generated value e carries, or nil when it carries
+// none.
+func (e *Error) Members() Members {
+	return e.value()
+}
+
+// WireMembers returns the value e carries as a codec writes it after its
+// envelope: every member but the message member, which the codec writes
+// itself from MessageFor under ID.MessageKey, so the message has one
+// source (smithy-protocol-tests.md 14.7). It reports false when e carries
+// no value.
+func (e *Error) WireMembers() (smithy.Serializable, bool) {
+	v := e.value()
+	if v == nil {
+		return nil, false
+	}
+	return withoutMessage{v: v}, true
+}
+
+// withoutMessage serializes an error value without its message member.
+type withoutMessage struct{ v Members }
+
+func (w withoutMessage) Serialize(s smithy.Serializer) {
+	w.v.Serialize(&messageFilter{Serializer: s})
+}
+
+// messageFilter forwards every write except the error structure's message
+// member: the string member named message or Message, the members the
+// generator derives MessageKey from (internal/codegen/ir_errors.go).
+type messageFilter struct {
+	smithy.Serializer
+	// depth counts the open containers; 1 is the error structure itself.
+	depth int
+}
+
+func (f *messageFilter) WriteStruct(m *smithy.Member, s *smithy.Schema) {
+	f.depth++
+	f.Serializer.WriteStruct(m, s)
+}
+
+func (f *messageFilter) CloseStruct() {
+	f.depth--
+	f.Serializer.CloseStruct()
+}
+
+func (f *messageFilter) WriteUnion(m *smithy.Member, s *smithy.Schema) {
+	f.depth++
+	f.Serializer.WriteUnion(m, s)
+}
+
+func (f *messageFilter) CloseUnion() {
+	f.depth--
+	f.Serializer.CloseUnion()
+}
+
+func (f *messageFilter) WriteList(m *smithy.Member, n int) {
+	f.depth++
+	f.Serializer.WriteList(m, n)
+}
+
+func (f *messageFilter) CloseList() {
+	f.depth--
+	f.Serializer.CloseList()
+}
+
+func (f *messageFilter) WriteMap(m *smithy.Member, n int) {
+	f.depth++
+	f.Serializer.WriteMap(m, n)
+}
+
+func (f *messageFilter) CloseMap() {
+	f.depth--
+	f.Serializer.CloseMap()
+}
+
+func (f *messageFilter) WriteString(m *smithy.Member, v string) {
+	if f.depth == 1 && m != nil && (m.Name == "message" || m.Name == "Message") {
+		return
+	}
+	f.Serializer.WriteString(m, v)
 }
 
 // Identity is everything a codec needs to render an error on any protocol.
@@ -119,6 +243,19 @@ func (e *Error) AsError() error {
 	return &BoundaryError{Err: e}
 }
 
+// value is the value e carries while it is of e's shape. Setting ID to
+// another shape turns the error into that shape, as the S3 auth mapping
+// does, and the value's members belong to the shape it was built for, so
+// from then on e carries none and renders as the new shape's message-only
+// error. A change of ID that keeps the shape, such as its status, keeps
+// the value.
+func (e *Error) value() Members {
+	if e.members == nil || e.members.ErrorIdentity().Shape != e.ID.Shape {
+		return nil
+	}
+	return e.members
+}
+
 // BoundaryError is an Error carried through an error-typed boundary. AsError
 // builds it with a non-nil Err; one built by hand without it still reports
 // itself instead of panicking.
@@ -169,6 +306,10 @@ type Unimplemented struct{ Op ref.OperationID }
 // Injected is an error a fault injection rule produced.
 type Injected struct{ Rule ref.RuleID }
 
+// Denial is an authorization refusal: pipeline step 8 or kernel.Authorize
+// (iam-enforcement-surfaces.md 12.1).
+type Denial struct{}
+
 // Internal is a bug: rendered as 500 InternalFailure; Cause is journaled and
 // logged, never sent.
 type Internal struct{ Cause error }
@@ -178,6 +319,7 @@ func (Generic) isOrigin()       {}
 func (Validation) isOrigin()    {}
 func (Unimplemented) isOrigin() {}
 func (Injected) isOrigin()      {}
+func (Denial) isOrigin()        {}
 func (Internal) isOrigin()      {}
 
 // Internalf wraps a bug as a 500 InternalFailure whose cause stays inside the

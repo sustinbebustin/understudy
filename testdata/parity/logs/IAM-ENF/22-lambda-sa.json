@@ -1,0 +1,137 @@
+{
+  "step": "22-lambda-sa",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,C,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261103T041056Z"],
+          ["amz-sdk-invocation-id", "0c2a55c7-3629-4bde-a448-a6400ca155e5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "83"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/us1103-enf-fn\", \"filterPattern\": \"\\\"sourceaccount\\\"\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "5fa48063-3880-4f43-9c4b-6185324a946d"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "478"],
+          ["Date", "Tue, 03 Nov 2026 04:10:57 GMT"]
+        ],
+        "body": "{\"events\":[],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCp6_ahhlYlU4qGaS1O-WgXQxMql60NCrAkKjNN7jZxe5ytevXF0vwykAis1mBN6l8j1T7eBSb2sM0HKfxH_W1GMYgwhGhE-hF_jASK5AbGnV7X8TVS3_PzfM-UQdWLsmPa9y2Ma2umXEtJE-Q_b2GKtEjgF7-gGcXGrIyLpl-HJFCXfLBXrbTmTy0q-uQTX6vINuXpEoLqVIxF37FGso3d1TgyQTLZz-0kmRdGx2U-fgVuqpoF3sezd4B29raNdKEPm1gu6evbI7gYjH1F9unOXw0-7mGzScqhtXhEVEisIOQ\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,C,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261103T041057Z"],
+          ["amz-sdk-invocation-id", "d1801b97-562c-4433-aa90-dd6f83739181"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "442"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/us1103-enf-fn\", \"filterPattern\": \"\\\"sourceaccount\\\"\", \"nextToken\": \"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCp6_ahhlYlU4qGaS1O-WgXQxMql60NCrAkKjNN7jZxe5ytevXF0vwykAis1mBN6l8j1T7eBSb2sM0HKfxH_W1GMYgwhGhE-hF_jASK5AbGnV7X8TVS3_PzfM-UQdWLsmPa9y2Ma2umXEtJE-Q_b2GKtEjgF7-gGcXGrIyLpl-HJFCXfLBXrbTmTy0q-uQTX6vINuXpEoLqVIxF37FGso3d1TgyQTLZz-0kmRdGx2U-fgVuqpoF3sezd4B29raNdKEPm1gu6evbI7gYjH1F9unOXw0-7mGzScqhtXhEVEisIOQ\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "0a5596fa-452a-4eb5-a4b0-24ba0f57ec94"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "478"],
+          ["Date", "Tue, 03 Nov 2026 04:10:57 GMT"]
+        ],
+        "body": "{\"events\":[],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCrRuVlDnNyV1a4H2o-MiprKbH4HutZNsgnStXSIomYISlEsmw5rNeWO8p8sXiwHD3Qyj6qEx95LaXk_uRLmSXjCzWbt0-GI6-Yyimyl8tFvk2hQxJQk-H5YXQQ12Y8EbqIf2Ypz-FjsTvsOH4o3vnmIaLMKyZLv3JnzpxfgKnfTaYa2QylE9HBGTFSCyc619krM343wzkwroM30lXGpRFkyKMXOzISeaHDrCVrcGpdZg6vjk1pq6cAHVFLOuPhnznUZFC58PIlmzegQZdFv_8q1B8aLMP_P3MJue0Ex34RAGg\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,C,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261103T041057Z"],
+          ["amz-sdk-invocation-id", "5e178b98-6139-4aba-8555-8c11a552c355"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "442"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/us1103-enf-fn\", \"filterPattern\": \"\\\"sourceaccount\\\"\", \"nextToken\": \"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCrRuVlDnNyV1a4H2o-MiprKbH4HutZNsgnStXSIomYISlEsmw5rNeWO8p8sXiwHD3Qyj6qEx95LaXk_uRLmSXjCzWbt0-GI6-Yyimyl8tFvk2hQxJQk-H5YXQQ12Y8EbqIf2Ypz-FjsTvsOH4o3vnmIaLMKyZLv3JnzpxfgKnfTaYa2QylE9HBGTFSCyc619krM343wzkwroM30lXGpRFkyKMXOzISeaHDrCVrcGpdZg6vjk1pq6cAHVFLOuPhnznUZFC58PIlmzegQZdFv_8q1B8aLMP_P3MJue0Ex34RAGg\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "8c8c324e-3dff-49d7-81d8-16176ab7a1a9"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "478"],
+          ["Date", "Tue, 03 Nov 2026 04:10:57 GMT"]
+        ],
+        "body": "{\"events\":[],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCqk0SrXstmnoMG_rVroiqYOLVvdbuBJz4k7KdGyvuy_c5CjyLe6hjCDjHwaVNnj4vcxaYQbvCAOhDZyoiCHLkwh5G3XRMoy8CIvDq3jXhDBaYubbOWhu0_zl5mnSt9s1ENsk4vlqc6uT-apu66AaINMTxfrahuI_7DGt618KxxVxZoeorFt6_VlS8jm0aFGJzJGudgT017vAD--HxnKOMWy0aR7ZgsLehObZlYvqof75hvprWP42P3f55NByf4VioiQuCMizN_nWYtV9qk92oFKbR69zJvswui2eYLjvA16ew\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,C,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261103T041057Z"],
+          ["amz-sdk-invocation-id", "8d5b4447-7cb8-4847-b334-b664081ff0dc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "442"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/us1103-enf-fn\", \"filterPattern\": \"\\\"sourceaccount\\\"\", \"nextToken\": \"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCqk0SrXstmnoMG_rVroiqYOLVvdbuBJz4k7KdGyvuy_c5CjyLe6hjCDjHwaVNnj4vcxaYQbvCAOhDZyoiCHLkwh5G3XRMoy8CIvDq3jXhDBaYubbOWhu0_zl5mnSt9s1ENsk4vlqc6uT-apu66AaINMTxfrahuI_7DGt618KxxVxZoeorFt6_VlS8jm0aFGJzJGudgT017vAD--HxnKOMWy0aR7ZgsLehObZlYvqof75hvprWP42P3f55NByf4VioiQuCMizN_nWYtV9qk92oFKbR69zJvswui2eYLjvA16ew\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "6269e7c2-c69d-4346-b5cb-fba5e670fe46"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "2267"],
+          ["Date", "Tue, 03 Nov 2026 04:10:58 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"40000355405197391070867696116160216660677242667776016386\",\"ingestionTime\":1793677975466,\"logStreamName\":\"2026/11/03/[$LATEST]2c5cfad3844b439a882e9627333d7c6f\",\"message\":\"{'Records': [{'EventSource': 'aws:sns', 'EventVersion': '1.0', 'EventSubscriptionArn': 'arn:aws:sns:us-east-2:123456789012:us1103-enf-t:9de0c4fd-e7b6-4ad5-96eb-b8799c2b7873', 'Sns': {'Type': 'Notification', 'MessageId': '99e5a970-e7f9-5339-9146-ca13bb2b641e', 'TopicArn': 'arn:aws:sns:us-east-2:123456789012:us1103-enf-t', 'Message': 'sourceaccount-1', 'Timestamp': '2026-11-03T03:52:50.941Z', 'SignatureVersion': '1', 'Signature': 'By59sVH3kEvY146e/zouYE6flEIhttak9R5Lj4dYzOh3vpX6VSr1EMFYIEMiGTKBjP0rD8NoJUqc7SZTigDTuEKVgw0mJLS/D9syUQvrpj8uNuguWcdH7Up1yVIXeXncsQnnTO3VGf85M6tcC2YYgppumKKAb5vPwwrLg4E/SyPEQvoLpn85JkavG2jHQQXhmDO3pxgUtVq2aZq87o3raQMuQ1yIHzwEUR2u43hwDAVSx9fGrAzhpc4xomoki6Vmr/r1tFrY52a5T4DZogXu5XJT7VoCQErO/zw4vB6WsNzFNiEkpwfiUzT2yWNIQcQVxPnR9bMaj8Igb/z4xd77AA==', 'SigningCertUrl': 'https://sns.us-east-2.amazonaws.com/SimpleNotificationService-1e59c4574facfe41babdb2d652f8ebef.pem', 'Subject': None, 'UnsubscribeUrl': 'https://sns.us-east-2.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-2:123456789012:us1103-enf-t:9de0c4fd-e7b6-4ad5-96eb-b8799c2b7873', 'MessageAttributes': {}}}]}\\n\",\"timestamp\":1793677971256},{\"eventId\":\"40000378262145475598043110659510438442138245875277824002\",\"ingestionTime\":1793678996695,\"logStreamName\":\"2026/11/03/[$LATEST]5ad7ffdf7cc34801aff0238201409ef7\",\"message\":\"{'version': '0', 'id': '4ce77fbd-2e8d-95e9-f6de-fd4c8c4dcc0d', 'detail-type': 't', 'source': 'us1103.enf', 'account': '123456789012', 'time': '2026-11-03T04:09:55Z', 'region': 'us-east-2', 'resources': [], 'detail': {'case': 'sourceaccount'}}\\n\",\"timestamp\":1793678996197}],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCpORqnyZQtiHkSGq1JQiu2mhNxCk67vHLq2jB98X8Cy0t15J7Ayh7y1xzd08nz5441R05n6oBeukwmZ0SxyZNZ8FjYfQ-i7OFj5WH4jTgVJlHH2sXvqSdNS-IEU3RQRlQatQvxX8-2eegy7xvRekSmdTIoWwZNstDP564P2FDGwOxt6Da6sTcA0KmWxlsBVa9b4Xhv7bMRdkiaGFPOdKsXBsuKfB4y_nai0nLLxGI6hD4leMZT10LMal4lxs9HB6wjB-Qyzx7ZGMrqjTIEWpBfjnPHH16bqE1sv-ME2jv4sDQ\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,C,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261103T041058Z"],
+          ["amz-sdk-invocation-id", "8fc7593f-d6f2-4632-805e-108febf3921a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "442"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/us1103-enf-fn\", \"filterPattern\": \"\\\"sourceaccount\\\"\", \"nextToken\": \"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCpORqnyZQtiHkSGq1JQiu2mhNxCk67vHLq2jB98X8Cy0t15J7Ayh7y1xzd08nz5441R05n6oBeukwmZ0SxyZNZ8FjYfQ-i7OFj5WH4jTgVJlHH2sXvqSdNS-IEU3RQRlQatQvxX8-2eegy7xvRekSmdTIoWwZNstDP564P2FDGwOxt6Da6sTcA0KmWxlsBVa9b4Xhv7bMRdkiaGFPOdKsXBsuKfB4y_nai0nLLxGI6hD4leMZT10LMal4lxs9HB6wjB-Qyzx7ZGMrqjTIEWpBfjnPHH16bqE1sv-ME2jv4sDQ\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "1d294651-cf38-4507-8796-8b6d3a5a0997"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "121"],
+          ["Date", "Tue, 03 Nov 2026 04:10:58 GMT"]
+        ],
+        "body": "{\"events\":[],\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    }
+  ]
+}

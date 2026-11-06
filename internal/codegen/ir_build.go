@@ -58,6 +58,7 @@ func Build(m *Model, cfg ServiceConfig, iam *iamTable, h Header) (*ServiceIR, er
 		b.service,
 		b.dataShapes,
 		b.operations,
+		b.wiring,
 		b.members,
 		b.checksums,
 		b.roles,
@@ -162,6 +163,7 @@ func (b *builder) serviceProtocols(svc *Shape) error {
 		ir.QueryVersion = svc.Version
 	}
 	ir.QueryCompatible = svc.Traits.Has(traitQueryCompatible)
+	ir.ResponseCRC32 = svc.Traits.Has(utResponseCRC32)
 	if raw, ok := svc.Traits[traitXMLNamespace]; ok {
 		ns, err := parseXMLNamespace(raw)
 		if err != nil {
@@ -211,6 +213,7 @@ func (b *builder) serviceDefaults(svc *Shape) error {
 		}
 		b.ir.PathStyle = s
 	}
+	_, b.ir.InputRoot = svc.Traits[utValidationInputRoot]
 	return nil
 }
 

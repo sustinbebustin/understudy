@@ -12,27 +12,27 @@ var schemaBucketLocationConstraint = smithy.Schema{ID: "com.amazonaws.s3#BucketL
 
 var schemaBucketName = smithy.Schema{ID: "com.amazonaws.s3#BucketName", Type: smithy.TypeString}
 
-var schemaCommonPrefix = smithy.Schema{ID: "com.amazonaws.s3#CommonPrefix", Type: smithy.TypeStructure}
+var schemaCommonPrefix = smithy.Schema{ID: "com.amazonaws.s3#CommonPrefix", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCommonPrefix_Prefix}}
 
-var memberCommonPrefix_Prefix = smithy.Member{Name: "Prefix", Index: 0}
+var memberCommonPrefix_Prefix = smithy.Member{Name: "Prefix", Index: 0, Target: &schemaPrefix}
 
-var schemaCommonPrefixList = smithy.Schema{ID: "com.amazonaws.s3#CommonPrefixList", Type: smithy.TypeList}
+var schemaCommonPrefixList = smithy.Schema{ID: "com.amazonaws.s3#CommonPrefixList", Type: smithy.TypeList, Members: []*smithy.Member{&memberCommonPrefixList_member}}
 
-var memberCommonPrefixList_member = smithy.Member{Name: "member", Index: 0}
+var memberCommonPrefixList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaCommonPrefix}
 
-var schemaDeleteObjectTaggingInput = smithy.Schema{ID: "com.amazonaws.s3#DeleteObjectTaggingRequest", Type: smithy.TypeStructure}
+var schemaDeleteObjectTaggingInput = smithy.Schema{ID: "com.amazonaws.s3#DeleteObjectTaggingRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteObjectTaggingInput_Bucket, &memberDeleteObjectTaggingInput_Key, &memberDeleteObjectTaggingInput_VersionId, &memberDeleteObjectTaggingInput_ExpectedBucketOwner}}
 
-var memberDeleteObjectTaggingInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteObjectTaggingInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteObjectTaggingInput_Key = smithy.Member{Name: "Key", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberDeleteObjectTaggingInput_Key = smithy.Member{Name: "Key", Index: 1, Target: &schemaObjectKey, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberDeleteObjectTaggingInput_VersionId = smithy.Member{Name: "VersionId", Index: 2, HTTP: smithy.HTTPQuery{Name: "versionId"}}
+var memberDeleteObjectTaggingInput_VersionId = smithy.Member{Name: "VersionId", Index: 2, Target: &schemaObjectVersionId, HTTP: smithy.HTTPQuery{Name: "versionId"}}
 
-var memberDeleteObjectTaggingInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 3, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
+var memberDeleteObjectTaggingInput_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 3, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaDeleteObjectTaggingOutput = smithy.Schema{ID: "com.amazonaws.s3#DeleteObjectTaggingOutput", Type: smithy.TypeStructure}
+var schemaDeleteObjectTaggingOutput = smithy.Schema{ID: "com.amazonaws.s3#DeleteObjectTaggingOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteObjectTaggingOutput_VersionId}}
 
-var memberDeleteObjectTaggingOutput_VersionId = smithy.Member{Name: "VersionId", Index: 0, HTTP: smithy.HTTPHeader{Name: "x-amz-version-id"}}
+var memberDeleteObjectTaggingOutput_VersionId = smithy.Member{Name: "VersionId", Index: 0, Target: &schemaObjectVersionId, HTTP: smithy.HTTPHeader{Name: "x-amz-version-id"}}
 
 var schemaDelimiter = smithy.Schema{ID: "com.amazonaws.s3#Delimiter", Type: smithy.TypeString}
 
@@ -44,19 +44,19 @@ var schemaEncodingType = smithy.Schema{ID: "com.amazonaws.s3#EncodingType", Type
 
 var schemaFetchOwner = smithy.Schema{ID: "com.amazonaws.s3#FetchOwner", Type: smithy.TypeBoolean}
 
-var schemaGetBucketLocationInput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketLocationRequest", Type: smithy.TypeStructure}
+var schemaGetBucketLocationInput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketLocationRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketLocationInput_Bucket}}
 
-var memberGetBucketLocationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetBucketLocationInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var schemaGetBucketLocationOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketLocationOutput", Type: smithy.TypeStructure, XMLName: "LocationConstraint"}
+var schemaGetBucketLocationOutput = smithy.Schema{ID: "com.amazonaws.s3#GetBucketLocationOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetBucketLocationOutput_LocationConstraint}, XMLName: "LocationConstraint"}
 
-var memberGetBucketLocationOutput_LocationConstraint = smithy.Member{Name: "LocationConstraint", Index: 0}
+var memberGetBucketLocationOutput_LocationConstraint = smithy.Member{Name: "LocationConstraint", Index: 0, Target: &schemaBucketLocationConstraint}
 
-var schemaGetObjectInput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectRequest", Type: smithy.TypeStructure}
+var schemaGetObjectInput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetObjectInput_Bucket, &memberGetObjectInput_Key}}
 
-var memberGetObjectInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetObjectInput_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberGetObjectInput_Key = smithy.Member{Name: "Key", Index: 1, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberGetObjectInput_Key = smithy.Member{Name: "Key", Index: 1, Target: &schemaObjectKey, Required: true, HTTP: smithy.HTTPLabel{}}
 
 var schemaGetObjectOutput = smithy.Schema{ID: "com.amazonaws.s3#GetObjectOutput", Type: smithy.TypeStructure}
 
@@ -68,53 +68,53 @@ var schemaKeyCount = smithy.Schema{ID: "com.amazonaws.s3#KeyCount", Type: smithy
 
 var schemaLastModified = smithy.Schema{ID: "com.amazonaws.s3#LastModified", Type: smithy.TypeTimestamp}
 
-var schemaListObjectsV2Input = smithy.Schema{ID: "com.amazonaws.s3#ListObjectsV2Request", Type: smithy.TypeStructure}
+var schemaListObjectsV2Input = smithy.Schema{ID: "com.amazonaws.s3#ListObjectsV2Request", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListObjectsV2Input_Bucket, &memberListObjectsV2Input_Delimiter, &memberListObjectsV2Input_EncodingType, &memberListObjectsV2Input_MaxKeys, &memberListObjectsV2Input_Prefix, &memberListObjectsV2Input_ContinuationToken, &memberListObjectsV2Input_FetchOwner, &memberListObjectsV2Input_StartAfter, &memberListObjectsV2Input_RequestPayer, &memberListObjectsV2Input_ExpectedBucketOwner}}
 
-var memberListObjectsV2Input_Bucket = smithy.Member{Name: "Bucket", Index: 0, Required: true, HTTP: smithy.HTTPLabel{}}
+var memberListObjectsV2Input_Bucket = smithy.Member{Name: "Bucket", Index: 0, Target: &schemaBucketName, Required: true, HTTP: smithy.HTTPLabel{}}
 
-var memberListObjectsV2Input_Delimiter = smithy.Member{Name: "Delimiter", Index: 1, HTTP: smithy.HTTPQuery{Name: "delimiter"}}
+var memberListObjectsV2Input_Delimiter = smithy.Member{Name: "Delimiter", Index: 1, Target: &schemaDelimiter, HTTP: smithy.HTTPQuery{Name: "delimiter"}}
 
-var memberListObjectsV2Input_EncodingType = smithy.Member{Name: "EncodingType", Index: 2, HTTP: smithy.HTTPQuery{Name: "encoding-type"}}
+var memberListObjectsV2Input_EncodingType = smithy.Member{Name: "EncodingType", Index: 2, Target: &schemaEncodingType, HTTP: smithy.HTTPQuery{Name: "encoding-type"}}
 
-var memberListObjectsV2Input_MaxKeys = smithy.Member{Name: "MaxKeys", Index: 3, HTTP: smithy.HTTPQuery{Name: "max-keys"}}
+var memberListObjectsV2Input_MaxKeys = smithy.Member{Name: "MaxKeys", Index: 3, Target: &schemaMaxKeys, HTTP: smithy.HTTPQuery{Name: "max-keys"}}
 
-var memberListObjectsV2Input_Prefix = smithy.Member{Name: "Prefix", Index: 4, HTTP: smithy.HTTPQuery{Name: "prefix"}}
+var memberListObjectsV2Input_Prefix = smithy.Member{Name: "Prefix", Index: 4, Target: &schemaPrefix, HTTP: smithy.HTTPQuery{Name: "prefix"}}
 
-var memberListObjectsV2Input_ContinuationToken = smithy.Member{Name: "ContinuationToken", Index: 5, HTTP: smithy.HTTPQuery{Name: "continuation-token"}}
+var memberListObjectsV2Input_ContinuationToken = smithy.Member{Name: "ContinuationToken", Index: 5, Target: &schemaToken, HTTP: smithy.HTTPQuery{Name: "continuation-token"}}
 
-var memberListObjectsV2Input_FetchOwner = smithy.Member{Name: "FetchOwner", Index: 6, HTTP: smithy.HTTPQuery{Name: "fetch-owner"}}
+var memberListObjectsV2Input_FetchOwner = smithy.Member{Name: "FetchOwner", Index: 6, Target: &schemaFetchOwner, HTTP: smithy.HTTPQuery{Name: "fetch-owner"}}
 
-var memberListObjectsV2Input_StartAfter = smithy.Member{Name: "StartAfter", Index: 7, HTTP: smithy.HTTPQuery{Name: "start-after"}}
+var memberListObjectsV2Input_StartAfter = smithy.Member{Name: "StartAfter", Index: 7, Target: &schemaStartAfter, HTTP: smithy.HTTPQuery{Name: "start-after"}}
 
-var memberListObjectsV2Input_RequestPayer = smithy.Member{Name: "RequestPayer", Index: 8, HTTP: smithy.HTTPHeader{Name: "x-amz-request-payer"}}
+var memberListObjectsV2Input_RequestPayer = smithy.Member{Name: "RequestPayer", Index: 8, Target: &schemaRequestPayer, HTTP: smithy.HTTPHeader{Name: "x-amz-request-payer"}}
 
-var memberListObjectsV2Input_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 9, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
+var memberListObjectsV2Input_ExpectedBucketOwner = smithy.Member{Name: "ExpectedBucketOwner", Index: 9, Target: &schemaAccountId, HTTP: smithy.HTTPHeader{Name: "x-amz-expected-bucket-owner"}}
 
-var schemaListObjectsV2Output = smithy.Schema{ID: "com.amazonaws.s3#ListObjectsV2Output", Type: smithy.TypeStructure}
+var schemaListObjectsV2Output = smithy.Schema{ID: "com.amazonaws.s3#ListObjectsV2Output", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListObjectsV2Output_IsTruncated, &memberListObjectsV2Output_Contents, &memberListObjectsV2Output_Name, &memberListObjectsV2Output_Prefix, &memberListObjectsV2Output_Delimiter, &memberListObjectsV2Output_MaxKeys, &memberListObjectsV2Output_CommonPrefixes, &memberListObjectsV2Output_EncodingType, &memberListObjectsV2Output_KeyCount, &memberListObjectsV2Output_ContinuationToken, &memberListObjectsV2Output_NextContinuationToken, &memberListObjectsV2Output_StartAfter}}
 
-var memberListObjectsV2Output_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 0}
+var memberListObjectsV2Output_IsTruncated = smithy.Member{Name: "IsTruncated", Index: 0, Target: &schemaIsTruncated}
 
-var memberListObjectsV2Output_Contents = smithy.Member{Name: "Contents", Index: 1, XMLFlattened: true}
+var memberListObjectsV2Output_Contents = smithy.Member{Name: "Contents", Index: 1, Target: &schemaObjectList, XMLFlattened: true}
 
-var memberListObjectsV2Output_Name = smithy.Member{Name: "Name", Index: 2}
+var memberListObjectsV2Output_Name = smithy.Member{Name: "Name", Index: 2, Target: &schemaBucketName}
 
-var memberListObjectsV2Output_Prefix = smithy.Member{Name: "Prefix", Index: 3}
+var memberListObjectsV2Output_Prefix = smithy.Member{Name: "Prefix", Index: 3, Target: &schemaPrefix}
 
-var memberListObjectsV2Output_Delimiter = smithy.Member{Name: "Delimiter", Index: 4}
+var memberListObjectsV2Output_Delimiter = smithy.Member{Name: "Delimiter", Index: 4, Target: &schemaDelimiter}
 
-var memberListObjectsV2Output_MaxKeys = smithy.Member{Name: "MaxKeys", Index: 5}
+var memberListObjectsV2Output_MaxKeys = smithy.Member{Name: "MaxKeys", Index: 5, Target: &schemaMaxKeys}
 
-var memberListObjectsV2Output_CommonPrefixes = smithy.Member{Name: "CommonPrefixes", Index: 6, XMLFlattened: true}
+var memberListObjectsV2Output_CommonPrefixes = smithy.Member{Name: "CommonPrefixes", Index: 6, Target: &schemaCommonPrefixList, XMLFlattened: true}
 
-var memberListObjectsV2Output_EncodingType = smithy.Member{Name: "EncodingType", Index: 7}
+var memberListObjectsV2Output_EncodingType = smithy.Member{Name: "EncodingType", Index: 7, Target: &schemaEncodingType}
 
-var memberListObjectsV2Output_KeyCount = smithy.Member{Name: "KeyCount", Index: 8}
+var memberListObjectsV2Output_KeyCount = smithy.Member{Name: "KeyCount", Index: 8, Target: &schemaKeyCount}
 
-var memberListObjectsV2Output_ContinuationToken = smithy.Member{Name: "ContinuationToken", Index: 9}
+var memberListObjectsV2Output_ContinuationToken = smithy.Member{Name: "ContinuationToken", Index: 9, Target: &schemaToken}
 
-var memberListObjectsV2Output_NextContinuationToken = smithy.Member{Name: "NextContinuationToken", Index: 10}
+var memberListObjectsV2Output_NextContinuationToken = smithy.Member{Name: "NextContinuationToken", Index: 10, Target: &schemaNextToken}
 
-var memberListObjectsV2Output_StartAfter = smithy.Member{Name: "StartAfter", Index: 11}
+var memberListObjectsV2Output_StartAfter = smithy.Member{Name: "StartAfter", Index: 11, Target: &schemaStartAfter}
 
 var schemaMaxKeys = smithy.Schema{ID: "com.amazonaws.s3#MaxKeys", Type: smithy.TypeInteger}
 
@@ -122,35 +122,35 @@ var schemaNextToken = smithy.Schema{ID: "com.amazonaws.s3#NextToken", Type: smit
 
 var schemaNoSuchBucket = smithy.Schema{ID: "com.amazonaws.s3#NoSuchBucket", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var schemaObject = smithy.Schema{ID: "com.amazonaws.s3#Object", Type: smithy.TypeStructure}
+var schemaObject = smithy.Schema{ID: "com.amazonaws.s3#Object", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberObject_Key, &memberObject_LastModified, &memberObject_ETag, &memberObject_Size, &memberObject_StorageClass, &memberObject_Owner}}
 
-var memberObject_Key = smithy.Member{Name: "Key", Index: 0}
+var memberObject_Key = smithy.Member{Name: "Key", Index: 0, Target: &schemaObjectKey}
 
-var memberObject_LastModified = smithy.Member{Name: "LastModified", Index: 1}
+var memberObject_LastModified = smithy.Member{Name: "LastModified", Index: 1, Target: &schemaLastModified}
 
-var memberObject_ETag = smithy.Member{Name: "ETag", Index: 2}
+var memberObject_ETag = smithy.Member{Name: "ETag", Index: 2, Target: &schemaETag}
 
-var memberObject_Size = smithy.Member{Name: "Size", Index: 3}
+var memberObject_Size = smithy.Member{Name: "Size", Index: 3, Target: &schemaSize}
 
-var memberObject_StorageClass = smithy.Member{Name: "StorageClass", Index: 4}
+var memberObject_StorageClass = smithy.Member{Name: "StorageClass", Index: 4, Target: &schemaObjectStorageClass}
 
-var memberObject_Owner = smithy.Member{Name: "Owner", Index: 5}
+var memberObject_Owner = smithy.Member{Name: "Owner", Index: 5, Target: &schemaOwner}
 
 var schemaObjectKey = smithy.Schema{ID: "com.amazonaws.s3#ObjectKey", Type: smithy.TypeString}
 
-var schemaObjectList = smithy.Schema{ID: "com.amazonaws.s3#ObjectList", Type: smithy.TypeList}
+var schemaObjectList = smithy.Schema{ID: "com.amazonaws.s3#ObjectList", Type: smithy.TypeList, Members: []*smithy.Member{&memberObjectList_member}}
 
-var memberObjectList_member = smithy.Member{Name: "member", Index: 0}
+var memberObjectList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaObject}
 
 var schemaObjectStorageClass = smithy.Schema{ID: "com.amazonaws.s3#ObjectStorageClass", Type: smithy.TypeEnum}
 
 var schemaObjectVersionId = smithy.Schema{ID: "com.amazonaws.s3#ObjectVersionId", Type: smithy.TypeString}
 
-var schemaOwner = smithy.Schema{ID: "com.amazonaws.s3#Owner", Type: smithy.TypeStructure}
+var schemaOwner = smithy.Schema{ID: "com.amazonaws.s3#Owner", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOwner_DisplayName, &memberOwner_ID}}
 
-var memberOwner_DisplayName = smithy.Member{Name: "DisplayName", Index: 0}
+var memberOwner_DisplayName = smithy.Member{Name: "DisplayName", Index: 0, Target: &schemaDisplayName}
 
-var memberOwner_ID = smithy.Member{Name: "ID", Index: 1}
+var memberOwner_ID = smithy.Member{Name: "ID", Index: 1, Target: &schemaID}
 
 var schemaPrefix = smithy.Schema{ID: "com.amazonaws.s3#Prefix", Type: smithy.TypeString}
 
@@ -164,65 +164,6 @@ var schemaStartAfter = smithy.Schema{ID: "com.amazonaws.s3#StartAfter", Type: sm
 
 var schemaToken = smithy.Schema{ID: "com.amazonaws.s3#Token", Type: smithy.TypeString}
 
-var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaValidationException = smithy.Schema{ID: "com.amazon.coral.validate#ValidationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberValidationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberValidationException_message = smithy.Member{Name: "message", Index: 0}
-
-func init() {
-	memberCommonPrefix_Prefix.Target = &schemaPrefix
-	schemaCommonPrefix.Members = []*smithy.Member{&memberCommonPrefix_Prefix}
-	memberCommonPrefixList_member.Target = &schemaCommonPrefix
-	schemaCommonPrefixList.Members = []*smithy.Member{&memberCommonPrefixList_member}
-	memberDeleteObjectTaggingInput_Bucket.Target = &schemaBucketName
-	memberDeleteObjectTaggingInput_Key.Target = &schemaObjectKey
-	memberDeleteObjectTaggingInput_VersionId.Target = &schemaObjectVersionId
-	memberDeleteObjectTaggingInput_ExpectedBucketOwner.Target = &schemaAccountId
-	schemaDeleteObjectTaggingInput.Members = []*smithy.Member{&memberDeleteObjectTaggingInput_Bucket, &memberDeleteObjectTaggingInput_Key, &memberDeleteObjectTaggingInput_VersionId, &memberDeleteObjectTaggingInput_ExpectedBucketOwner}
-	memberDeleteObjectTaggingOutput_VersionId.Target = &schemaObjectVersionId
-	schemaDeleteObjectTaggingOutput.Members = []*smithy.Member{&memberDeleteObjectTaggingOutput_VersionId}
-	memberGetBucketLocationInput_Bucket.Target = &schemaBucketName
-	schemaGetBucketLocationInput.Members = []*smithy.Member{&memberGetBucketLocationInput_Bucket}
-	memberGetBucketLocationOutput_LocationConstraint.Target = &schemaBucketLocationConstraint
-	schemaGetBucketLocationOutput.Members = []*smithy.Member{&memberGetBucketLocationOutput_LocationConstraint}
-	memberGetObjectInput_Bucket.Target = &schemaBucketName
-	memberGetObjectInput_Key.Target = &schemaObjectKey
-	schemaGetObjectInput.Members = []*smithy.Member{&memberGetObjectInput_Bucket, &memberGetObjectInput_Key}
-	memberListObjectsV2Input_Bucket.Target = &schemaBucketName
-	memberListObjectsV2Input_Delimiter.Target = &schemaDelimiter
-	memberListObjectsV2Input_EncodingType.Target = &schemaEncodingType
-	memberListObjectsV2Input_MaxKeys.Target = &schemaMaxKeys
-	memberListObjectsV2Input_Prefix.Target = &schemaPrefix
-	memberListObjectsV2Input_ContinuationToken.Target = &schemaToken
-	memberListObjectsV2Input_FetchOwner.Target = &schemaFetchOwner
-	memberListObjectsV2Input_StartAfter.Target = &schemaStartAfter
-	memberListObjectsV2Input_RequestPayer.Target = &schemaRequestPayer
-	memberListObjectsV2Input_ExpectedBucketOwner.Target = &schemaAccountId
-	schemaListObjectsV2Input.Members = []*smithy.Member{&memberListObjectsV2Input_Bucket, &memberListObjectsV2Input_Delimiter, &memberListObjectsV2Input_EncodingType, &memberListObjectsV2Input_MaxKeys, &memberListObjectsV2Input_Prefix, &memberListObjectsV2Input_ContinuationToken, &memberListObjectsV2Input_FetchOwner, &memberListObjectsV2Input_StartAfter, &memberListObjectsV2Input_RequestPayer, &memberListObjectsV2Input_ExpectedBucketOwner}
-	memberListObjectsV2Output_IsTruncated.Target = &schemaIsTruncated
-	memberListObjectsV2Output_Contents.Target = &schemaObjectList
-	memberListObjectsV2Output_Name.Target = &schemaBucketName
-	memberListObjectsV2Output_Prefix.Target = &schemaPrefix
-	memberListObjectsV2Output_Delimiter.Target = &schemaDelimiter
-	memberListObjectsV2Output_MaxKeys.Target = &schemaMaxKeys
-	memberListObjectsV2Output_CommonPrefixes.Target = &schemaCommonPrefixList
-	memberListObjectsV2Output_EncodingType.Target = &schemaEncodingType
-	memberListObjectsV2Output_KeyCount.Target = &schemaKeyCount
-	memberListObjectsV2Output_ContinuationToken.Target = &schemaToken
-	memberListObjectsV2Output_NextContinuationToken.Target = &schemaNextToken
-	memberListObjectsV2Output_StartAfter.Target = &schemaStartAfter
-	schemaListObjectsV2Output.Members = []*smithy.Member{&memberListObjectsV2Output_IsTruncated, &memberListObjectsV2Output_Contents, &memberListObjectsV2Output_Name, &memberListObjectsV2Output_Prefix, &memberListObjectsV2Output_Delimiter, &memberListObjectsV2Output_MaxKeys, &memberListObjectsV2Output_CommonPrefixes, &memberListObjectsV2Output_EncodingType, &memberListObjectsV2Output_KeyCount, &memberListObjectsV2Output_ContinuationToken, &memberListObjectsV2Output_NextContinuationToken, &memberListObjectsV2Output_StartAfter}
-	memberObject_Key.Target = &schemaObjectKey
-	memberObject_LastModified.Target = &schemaLastModified
-	memberObject_ETag.Target = &schemaETag
-	memberObject_Size.Target = &schemaSize
-	memberObject_StorageClass.Target = &schemaObjectStorageClass
-	memberObject_Owner.Target = &schemaOwner
-	schemaObject.Members = []*smithy.Member{&memberObject_Key, &memberObject_LastModified, &memberObject_ETag, &memberObject_Size, &memberObject_StorageClass, &memberObject_Owner}
-	memberObjectList_member.Target = &schemaObject
-	schemaObjectList.Members = []*smithy.Member{&memberObjectList_member}
-	memberOwner_DisplayName.Target = &schemaDisplayName
-	memberOwner_ID.Target = &schemaID
-	schemaOwner.Members = []*smithy.Member{&memberOwner_DisplayName, &memberOwner_ID}
-	memberValidationException_message.Target = &schemaSmithyString
-	schemaValidationException.Members = []*smithy.Member{&memberValidationException_message}
-}
+var memberValidationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}

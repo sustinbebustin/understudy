@@ -7,1068 +7,728 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
 
-var schemaAWSAccountIdList = smithy.Schema{ID: "com.amazonaws.sqs#AWSAccountIdList", Type: smithy.TypeList}
+var schemaAWSAccountIdList = smithy.Schema{ID: "com.amazonaws.sqs#AWSAccountIdList", Type: smithy.TypeList, Members: []*smithy.Member{&memberAWSAccountIdList_member}}
 
-var memberAWSAccountIdList_member = smithy.Member{Name: "member", Index: 0}
+var memberAWSAccountIdList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaString}
 
-var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaAccessDenied = smithy.Schema{ID: "com.amazon.coral.service#AccessDenied", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessDenied_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0}
+var memberAccessDenied_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaActionNameList = smithy.Schema{ID: "com.amazonaws.sqs#ActionNameList", Type: smithy.TypeList}
+var schemaAccessDeniedException = smithy.Schema{ID: "com.amazon.coral.service#AccessDeniedException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAccessDeniedException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberActionNameList_member = smithy.Member{Name: "member", Index: 0}
+var memberAccessDeniedException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaAddPermissionInput = smithy.Schema{ID: "com.amazonaws.sqs#AddPermissionRequest", Type: smithy.TypeStructure}
+var schemaActionNameList = smithy.Schema{ID: "com.amazonaws.sqs#ActionNameList", Type: smithy.TypeList, Members: []*smithy.Member{&memberActionNameList_member}}
 
-var memberAddPermissionInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberActionNameList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaString}
 
-var memberAddPermissionInput_Label = smithy.Member{Name: "Label", Index: 1, Required: true}
+var schemaAddPermissionInput = smithy.Schema{ID: "com.amazonaws.sqs#AddPermissionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberAddPermissionInput_QueueUrl, &memberAddPermissionInput_Label, &memberAddPermissionInput_AWSAccountIds, &memberAddPermissionInput_Actions}}
 
-var memberAddPermissionInput_AWSAccountIds = smithy.Member{Name: "AWSAccountIds", Index: 2, Required: true, XMLName: "AWSAccountId", XMLFlattened: true}
+var memberAddPermissionInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberAddPermissionInput_Actions = smithy.Member{Name: "Actions", Index: 3, Required: true, XMLName: "ActionName", XMLFlattened: true}
+var memberAddPermissionInput_Label = smithy.Member{Name: "Label", Index: 1, Target: &schemaString, Required: true}
 
-var schemaAttributeNameList = smithy.Schema{ID: "com.amazonaws.sqs#AttributeNameList", Type: smithy.TypeList}
+var memberAddPermissionInput_AWSAccountIds = smithy.Member{Name: "AWSAccountIds", Index: 2, Target: &schemaAWSAccountIdList, Required: true, XMLName: "AWSAccountId", XMLFlattened: true}
 
-var memberAttributeNameList_member = smithy.Member{Name: "member", Index: 0}
+var memberAddPermissionInput_Actions = smithy.Member{Name: "Actions", Index: 3, Target: &schemaActionNameList, Required: true, XMLName: "ActionName", XMLFlattened: true}
 
-var schemaBatchEntryIdsNotDistinct = smithy.Schema{ID: "com.amazonaws.sqs#BatchEntryIdsNotDistinct", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaAttributeNameList = smithy.Schema{ID: "com.amazonaws.sqs#AttributeNameList", Type: smithy.TypeList, Members: []*smithy.Member{&memberAttributeNameList_member}}
 
-var memberBatchEntryIdsNotDistinct_message = smithy.Member{Name: "message", Index: 0}
+var memberAttributeNameList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaQueueAttributeName}
 
-var schemaBatchRequestTooLong = smithy.Schema{ID: "com.amazonaws.sqs#BatchRequestTooLong", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaBatchEntryIdsNotDistinct = smithy.Schema{ID: "com.amazonaws.sqs#BatchEntryIdsNotDistinct", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBatchEntryIdsNotDistinct_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberBatchRequestTooLong_message = smithy.Member{Name: "message", Index: 0}
+var memberBatchEntryIdsNotDistinct_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaBatchResultErrorEntry = smithy.Schema{ID: "com.amazonaws.sqs#BatchResultErrorEntry", Type: smithy.TypeStructure}
+var schemaBatchRequestTooLong = smithy.Schema{ID: "com.amazonaws.sqs#BatchRequestTooLong", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBatchRequestTooLong_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberBatchResultErrorEntry_Id = smithy.Member{Name: "Id", Index: 0, Required: true}
+var memberBatchRequestTooLong_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var memberBatchResultErrorEntry_SenderFault = smithy.Member{Name: "SenderFault", Index: 1, Required: true, Default: document.Bool(false)}
+var schemaBatchResultErrorEntry = smithy.Schema{ID: "com.amazonaws.sqs#BatchResultErrorEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberBatchResultErrorEntry_Id, &memberBatchResultErrorEntry_SenderFault, &memberBatchResultErrorEntry_Code, &memberBatchResultErrorEntry_Message}}
 
-var memberBatchResultErrorEntry_Code = smithy.Member{Name: "Code", Index: 2, Required: true}
+var memberBatchResultErrorEntry_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaString, Required: true}
 
-var memberBatchResultErrorEntry_Message = smithy.Member{Name: "Message", Index: 3}
+var memberBatchResultErrorEntry_SenderFault = smithy.Member{Name: "SenderFault", Index: 1, Target: &schemaBoolean, Required: true, Default: document.Bool(false)}
 
-var schemaBatchResultErrorEntryList = smithy.Schema{ID: "com.amazonaws.sqs#BatchResultErrorEntryList", Type: smithy.TypeList}
+var memberBatchResultErrorEntry_Code = smithy.Member{Name: "Code", Index: 2, Target: &schemaString, Required: true}
 
-var memberBatchResultErrorEntryList_member = smithy.Member{Name: "member", Index: 0}
+var memberBatchResultErrorEntry_Message = smithy.Member{Name: "Message", Index: 3, Target: &schemaString}
+
+var schemaBatchResultErrorEntryList = smithy.Schema{ID: "com.amazonaws.sqs#BatchResultErrorEntryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberBatchResultErrorEntryList_member}}
+
+var memberBatchResultErrorEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaBatchResultErrorEntry}
 
 var schemaBinary = smithy.Schema{ID: "com.amazonaws.sqs#Binary", Type: smithy.TypeBlob}
 
-var schemaBinaryList = smithy.Schema{ID: "com.amazonaws.sqs#BinaryList", Type: smithy.TypeList}
+var schemaBinaryList = smithy.Schema{ID: "com.amazonaws.sqs#BinaryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberBinaryList_member}}
 
-var memberBinaryList_member = smithy.Member{Name: "member", Index: 0, XMLName: "BinaryListValue"}
+var memberBinaryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaBinary, XMLName: "BinaryListValue"}
 
 var schemaBoolean = smithy.Schema{ID: "com.amazonaws.sqs#Boolean", Type: smithy.TypeBoolean}
 
 var schemaBoxedInteger = smithy.Schema{ID: "com.amazonaws.sqs#BoxedInteger", Type: smithy.TypeInteger}
 
-var schemaCancelMessageMoveTaskInput = smithy.Schema{ID: "com.amazonaws.sqs#CancelMessageMoveTaskRequest", Type: smithy.TypeStructure}
+var schemaCancelMessageMoveTaskInput = smithy.Schema{ID: "com.amazonaws.sqs#CancelMessageMoveTaskRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCancelMessageMoveTaskInput_TaskHandle}}
 
-var memberCancelMessageMoveTaskInput_TaskHandle = smithy.Member{Name: "TaskHandle", Index: 0, Required: true}
+var memberCancelMessageMoveTaskInput_TaskHandle = smithy.Member{Name: "TaskHandle", Index: 0, Target: &schemaString, Required: true}
 
-var schemaCancelMessageMoveTaskOutput = smithy.Schema{ID: "com.amazonaws.sqs#CancelMessageMoveTaskResult", Type: smithy.TypeStructure}
+var schemaCancelMessageMoveTaskOutput = smithy.Schema{ID: "com.amazonaws.sqs#CancelMessageMoveTaskResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCancelMessageMoveTaskOutput_ApproximateNumberOfMessagesMoved}}
 
-var memberCancelMessageMoveTaskOutput_ApproximateNumberOfMessagesMoved = smithy.Member{Name: "ApproximateNumberOfMessagesMoved", Index: 0, Default: document.Number("0")}
+var memberCancelMessageMoveTaskOutput_ApproximateNumberOfMessagesMoved = smithy.Member{Name: "ApproximateNumberOfMessagesMoved", Index: 0, Target: &schemaLong, Default: document.Number("0")}
 
-var schemaChangeMessageVisibilityBatchInput = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchRequest", Type: smithy.TypeStructure}
+var schemaChangeMessageVisibilityBatchInput = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChangeMessageVisibilityBatchInput_QueueUrl, &memberChangeMessageVisibilityBatchInput_Entries}}
 
-var memberChangeMessageVisibilityBatchInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberChangeMessageVisibilityBatchInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberChangeMessageVisibilityBatchInput_Entries = smithy.Member{Name: "Entries", Index: 1, Required: true, XMLName: "ChangeMessageVisibilityBatchRequestEntry", XMLFlattened: true}
+var memberChangeMessageVisibilityBatchInput_Entries = smithy.Member{Name: "Entries", Index: 1, Target: &schemaChangeMessageVisibilityBatchRequestEntryList, Required: true, XMLName: "ChangeMessageVisibilityBatchRequestEntry", XMLFlattened: true}
 
-var schemaChangeMessageVisibilityBatchOutput = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchResult", Type: smithy.TypeStructure}
+var schemaChangeMessageVisibilityBatchOutput = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChangeMessageVisibilityBatchOutput_Successful, &memberChangeMessageVisibilityBatchOutput_Failed}}
 
-var memberChangeMessageVisibilityBatchOutput_Successful = smithy.Member{Name: "Successful", Index: 0, Required: true, XMLName: "ChangeMessageVisibilityBatchResultEntry", XMLFlattened: true}
+var memberChangeMessageVisibilityBatchOutput_Successful = smithy.Member{Name: "Successful", Index: 0, Target: &schemaChangeMessageVisibilityBatchResultEntryList, Required: true, XMLName: "ChangeMessageVisibilityBatchResultEntry", XMLFlattened: true}
 
-var memberChangeMessageVisibilityBatchOutput_Failed = smithy.Member{Name: "Failed", Index: 1, Required: true, XMLName: "BatchResultErrorEntry", XMLFlattened: true}
+var memberChangeMessageVisibilityBatchOutput_Failed = smithy.Member{Name: "Failed", Index: 1, Target: &schemaBatchResultErrorEntryList, Required: true, XMLName: "BatchResultErrorEntry", XMLFlattened: true}
 
-var schemaChangeMessageVisibilityBatchRequestEntry = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchRequestEntry", Type: smithy.TypeStructure}
+var schemaChangeMessageVisibilityBatchRequestEntry = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchRequestEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChangeMessageVisibilityBatchRequestEntry_Id, &memberChangeMessageVisibilityBatchRequestEntry_ReceiptHandle, &memberChangeMessageVisibilityBatchRequestEntry_VisibilityTimeout}}
 
-var memberChangeMessageVisibilityBatchRequestEntry_Id = smithy.Member{Name: "Id", Index: 0, Required: true}
+var memberChangeMessageVisibilityBatchRequestEntry_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaString, Required: true}
 
-var memberChangeMessageVisibilityBatchRequestEntry_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 1, Required: true}
+var memberChangeMessageVisibilityBatchRequestEntry_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 1, Target: &schemaString, Required: true}
 
-var memberChangeMessageVisibilityBatchRequestEntry_VisibilityTimeout = smithy.Member{Name: "VisibilityTimeout", Index: 2}
+var memberChangeMessageVisibilityBatchRequestEntry_VisibilityTimeout = smithy.Member{Name: "VisibilityTimeout", Index: 2, Target: &schemaNullableInteger}
 
-var schemaChangeMessageVisibilityBatchRequestEntryList = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchRequestEntryList", Type: smithy.TypeList}
+var schemaChangeMessageVisibilityBatchRequestEntryList = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchRequestEntryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberChangeMessageVisibilityBatchRequestEntryList_member}}
 
-var memberChangeMessageVisibilityBatchRequestEntryList_member = smithy.Member{Name: "member", Index: 0}
+var memberChangeMessageVisibilityBatchRequestEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaChangeMessageVisibilityBatchRequestEntry}
 
-var schemaChangeMessageVisibilityBatchResultEntry = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchResultEntry", Type: smithy.TypeStructure}
+var schemaChangeMessageVisibilityBatchResultEntry = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchResultEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChangeMessageVisibilityBatchResultEntry_Id}}
 
-var memberChangeMessageVisibilityBatchResultEntry_Id = smithy.Member{Name: "Id", Index: 0, Required: true}
+var memberChangeMessageVisibilityBatchResultEntry_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaString, Required: true}
 
-var schemaChangeMessageVisibilityBatchResultEntryList = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchResultEntryList", Type: smithy.TypeList}
+var schemaChangeMessageVisibilityBatchResultEntryList = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityBatchResultEntryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberChangeMessageVisibilityBatchResultEntryList_member}}
 
-var memberChangeMessageVisibilityBatchResultEntryList_member = smithy.Member{Name: "member", Index: 0}
+var memberChangeMessageVisibilityBatchResultEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaChangeMessageVisibilityBatchResultEntry}
 
-var schemaChangeMessageVisibilityInput = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityRequest", Type: smithy.TypeStructure}
+var schemaChangeMessageVisibilityInput = smithy.Schema{ID: "com.amazonaws.sqs#ChangeMessageVisibilityRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberChangeMessageVisibilityInput_QueueUrl, &memberChangeMessageVisibilityInput_ReceiptHandle, &memberChangeMessageVisibilityInput_VisibilityTimeout}}
 
-var memberChangeMessageVisibilityInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberChangeMessageVisibilityInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberChangeMessageVisibilityInput_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 1, Required: true}
+var memberChangeMessageVisibilityInput_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 1, Target: &schemaString, Required: true}
 
-var memberChangeMessageVisibilityInput_VisibilityTimeout = smithy.Member{Name: "VisibilityTimeout", Index: 2, Required: true}
+var memberChangeMessageVisibilityInput_VisibilityTimeout = smithy.Member{Name: "VisibilityTimeout", Index: 2, Target: &schemaNullableInteger, Required: true}
 
-var schemaCreateQueueInput = smithy.Schema{ID: "com.amazonaws.sqs#CreateQueueRequest", Type: smithy.TypeStructure}
+var schemaCreateQueueInput = smithy.Schema{ID: "com.amazonaws.sqs#CreateQueueRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateQueueInput_QueueName, &memberCreateQueueInput_Attributes, &memberCreateQueueInput_tags}}
 
-var memberCreateQueueInput_QueueName = smithy.Member{Name: "QueueName", Index: 0, Required: true}
+var memberCreateQueueInput_QueueName = smithy.Member{Name: "QueueName", Index: 0, Target: &schemaString, Required: true}
 
-var memberCreateQueueInput_Attributes = smithy.Member{Name: "Attributes", Index: 1, XMLName: "Attribute", XMLFlattened: true}
+var memberCreateQueueInput_Attributes = smithy.Member{Name: "Attributes", Index: 1, Target: &schemaQueueAttributeMap, XMLName: "Attribute", XMLFlattened: true}
 
-var memberCreateQueueInput_tags = smithy.Member{Name: "tags", Index: 2, XMLName: "Tag", XMLFlattened: true}
+var memberCreateQueueInput_tags = smithy.Member{Name: "tags", Index: 2, Target: &schemaTagMap, XMLName: "Tag", XMLFlattened: true}
 
-var schemaCreateQueueOutput = smithy.Schema{ID: "com.amazonaws.sqs#CreateQueueResult", Type: smithy.TypeStructure}
+var schemaCreateQueueOutput = smithy.Schema{ID: "com.amazonaws.sqs#CreateQueueResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberCreateQueueOutput_QueueUrl}}
 
-var memberCreateQueueOutput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0}
+var memberCreateQueueOutput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString}
 
-var schemaDeleteMessageBatchInput = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchRequest", Type: smithy.TypeStructure}
+var schemaDeleteMessageBatchInput = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteMessageBatchInput_QueueUrl, &memberDeleteMessageBatchInput_Entries}}
 
-var memberDeleteMessageBatchInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberDeleteMessageBatchInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberDeleteMessageBatchInput_Entries = smithy.Member{Name: "Entries", Index: 1, Required: true, XMLName: "DeleteMessageBatchRequestEntry", XMLFlattened: true}
+var memberDeleteMessageBatchInput_Entries = smithy.Member{Name: "Entries", Index: 1, Target: &schemaDeleteMessageBatchRequestEntryList, Required: true, XMLName: "DeleteMessageBatchRequestEntry", XMLFlattened: true}
 
-var schemaDeleteMessageBatchOutput = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchResult", Type: smithy.TypeStructure}
+var schemaDeleteMessageBatchOutput = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteMessageBatchOutput_Successful, &memberDeleteMessageBatchOutput_Failed}}
 
-var memberDeleteMessageBatchOutput_Successful = smithy.Member{Name: "Successful", Index: 0, Required: true, XMLName: "DeleteMessageBatchResultEntry", XMLFlattened: true}
+var memberDeleteMessageBatchOutput_Successful = smithy.Member{Name: "Successful", Index: 0, Target: &schemaDeleteMessageBatchResultEntryList, Required: true, XMLName: "DeleteMessageBatchResultEntry", XMLFlattened: true}
 
-var memberDeleteMessageBatchOutput_Failed = smithy.Member{Name: "Failed", Index: 1, Required: true, XMLName: "BatchResultErrorEntry", XMLFlattened: true}
+var memberDeleteMessageBatchOutput_Failed = smithy.Member{Name: "Failed", Index: 1, Target: &schemaBatchResultErrorEntryList, Required: true, XMLName: "BatchResultErrorEntry", XMLFlattened: true}
 
-var schemaDeleteMessageBatchRequestEntry = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchRequestEntry", Type: smithy.TypeStructure}
+var schemaDeleteMessageBatchRequestEntry = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchRequestEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteMessageBatchRequestEntry_Id, &memberDeleteMessageBatchRequestEntry_ReceiptHandle}}
 
-var memberDeleteMessageBatchRequestEntry_Id = smithy.Member{Name: "Id", Index: 0, Required: true}
+var memberDeleteMessageBatchRequestEntry_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaString, Required: true}
 
-var memberDeleteMessageBatchRequestEntry_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 1, Required: true}
+var memberDeleteMessageBatchRequestEntry_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 1, Target: &schemaString, Required: true}
 
-var schemaDeleteMessageBatchRequestEntryList = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchRequestEntryList", Type: smithy.TypeList}
+var schemaDeleteMessageBatchRequestEntryList = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchRequestEntryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberDeleteMessageBatchRequestEntryList_member}}
 
-var memberDeleteMessageBatchRequestEntryList_member = smithy.Member{Name: "member", Index: 0}
+var memberDeleteMessageBatchRequestEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeleteMessageBatchRequestEntry}
 
-var schemaDeleteMessageBatchResultEntry = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchResultEntry", Type: smithy.TypeStructure}
+var schemaDeleteMessageBatchResultEntry = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchResultEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteMessageBatchResultEntry_Id}}
 
-var memberDeleteMessageBatchResultEntry_Id = smithy.Member{Name: "Id", Index: 0, Required: true}
+var memberDeleteMessageBatchResultEntry_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaString, Required: true}
 
-var schemaDeleteMessageBatchResultEntryList = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchResultEntryList", Type: smithy.TypeList}
+var schemaDeleteMessageBatchResultEntryList = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageBatchResultEntryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberDeleteMessageBatchResultEntryList_member}}
 
-var memberDeleteMessageBatchResultEntryList_member = smithy.Member{Name: "member", Index: 0}
+var memberDeleteMessageBatchResultEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaDeleteMessageBatchResultEntry}
 
-var schemaDeleteMessageInput = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageRequest", Type: smithy.TypeStructure}
+var schemaDeleteMessageInput = smithy.Schema{ID: "com.amazonaws.sqs#DeleteMessageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteMessageInput_QueueUrl, &memberDeleteMessageInput_ReceiptHandle}}
 
-var memberDeleteMessageInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberDeleteMessageInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberDeleteMessageInput_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 1, Required: true}
+var memberDeleteMessageInput_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 1, Target: &schemaString, Required: true}
 
-var schemaDeleteQueueInput = smithy.Schema{ID: "com.amazonaws.sqs#DeleteQueueRequest", Type: smithy.TypeStructure}
+var schemaDeleteQueueInput = smithy.Schema{ID: "com.amazonaws.sqs#DeleteQueueRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDeleteQueueInput_QueueUrl}}
 
-var memberDeleteQueueInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberDeleteQueueInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var schemaEmptyBatchRequest = smithy.Schema{ID: "com.amazonaws.sqs#EmptyBatchRequest", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaEmptyBatchRequest = smithy.Schema{ID: "com.amazonaws.sqs#EmptyBatchRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberEmptyBatchRequest_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberEmptyBatchRequest_message = smithy.Member{Name: "message", Index: 0}
+var memberEmptyBatchRequest_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
 var schemaExceptionMessage = smithy.Schema{ID: "com.amazonaws.sqs#ExceptionMessage", Type: smithy.TypeString}
 
-var schemaExpiredToken = smithy.Schema{ID: "com.amazon.coral.service#ExpiredToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaExpiredToken = smithy.Schema{ID: "com.amazon.coral.service#ExpiredToken", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExpiredToken_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberExpiredToken_message = smithy.Member{Name: "message", Index: 0}
+var memberExpiredToken_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaExpiredTokenException = smithy.Schema{ID: "com.amazon.coral.service#ExpiredTokenException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberExpiredTokenException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0}
+var memberExpiredTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaGetQueueAttributesInput = smithy.Schema{ID: "com.amazonaws.sqs#GetQueueAttributesRequest", Type: smithy.TypeStructure}
+var schemaGetQueueAttributesInput = smithy.Schema{ID: "com.amazonaws.sqs#GetQueueAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetQueueAttributesInput_QueueUrl, &memberGetQueueAttributesInput_AttributeNames}}
 
-var memberGetQueueAttributesInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberGetQueueAttributesInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberGetQueueAttributesInput_AttributeNames = smithy.Member{Name: "AttributeNames", Index: 1, XMLName: "AttributeName", XMLFlattened: true}
+var memberGetQueueAttributesInput_AttributeNames = smithy.Member{Name: "AttributeNames", Index: 1, Target: &schemaAttributeNameList, XMLName: "AttributeName", XMLFlattened: true}
 
-var schemaGetQueueAttributesOutput = smithy.Schema{ID: "com.amazonaws.sqs#GetQueueAttributesResult", Type: smithy.TypeStructure}
+var schemaGetQueueAttributesOutput = smithy.Schema{ID: "com.amazonaws.sqs#GetQueueAttributesResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetQueueAttributesOutput_Attributes}}
 
-var memberGetQueueAttributesOutput_Attributes = smithy.Member{Name: "Attributes", Index: 0, XMLName: "Attribute", XMLFlattened: true}
+var memberGetQueueAttributesOutput_Attributes = smithy.Member{Name: "Attributes", Index: 0, Target: &schemaQueueAttributeMap, XMLName: "Attribute", XMLFlattened: true}
 
-var schemaGetQueueUrlInput = smithy.Schema{ID: "com.amazonaws.sqs#GetQueueUrlRequest", Type: smithy.TypeStructure}
+var schemaGetQueueUrlInput = smithy.Schema{ID: "com.amazonaws.sqs#GetQueueUrlRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetQueueUrlInput_QueueName, &memberGetQueueUrlInput_QueueOwnerAWSAccountId}}
 
-var memberGetQueueUrlInput_QueueName = smithy.Member{Name: "QueueName", Index: 0, Required: true}
+var memberGetQueueUrlInput_QueueName = smithy.Member{Name: "QueueName", Index: 0, Target: &schemaString, Required: true}
 
-var memberGetQueueUrlInput_QueueOwnerAWSAccountId = smithy.Member{Name: "QueueOwnerAWSAccountId", Index: 1}
+var memberGetQueueUrlInput_QueueOwnerAWSAccountId = smithy.Member{Name: "QueueOwnerAWSAccountId", Index: 1, Target: &schemaString}
 
-var schemaGetQueueUrlOutput = smithy.Schema{ID: "com.amazonaws.sqs#GetQueueUrlResult", Type: smithy.TypeStructure}
+var schemaGetQueueUrlOutput = smithy.Schema{ID: "com.amazonaws.sqs#GetQueueUrlResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetQueueUrlOutput_QueueUrl}}
 
-var memberGetQueueUrlOutput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0}
+var memberGetQueueUrlOutput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString}
 
-var schemaHoldVisibilityInput = smithy.Schema{ID: "com.amazonaws.sqs#HoldVisibilityRequest", Type: smithy.TypeStructure}
+var schemaHoldVisibilityInput = smithy.Schema{ID: "com.amazonaws.sqs#HoldVisibilityRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberHoldVisibilityInput_QueueUrl, &memberHoldVisibilityInput_ReceiptHandles, &memberHoldVisibilityInput_Mode}}
 
-var memberHoldVisibilityInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberHoldVisibilityInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberHoldVisibilityInput_ReceiptHandles = smithy.Member{Name: "ReceiptHandles", Index: 1, Required: true}
+var memberHoldVisibilityInput_ReceiptHandles = smithy.Member{Name: "ReceiptHandles", Index: 1, Target: &schemaReceiptHandleList, Required: true}
 
-var memberHoldVisibilityInput_Mode = smithy.Member{Name: "Mode", Index: 2, Required: true}
+var memberHoldVisibilityInput_Mode = smithy.Member{Name: "Mode", Index: 2, Target: &schemaHoldVisibilityMode, Required: true}
 
 var schemaHoldVisibilityMode = smithy.Schema{ID: "com.amazonaws.sqs#HoldVisibilityMode", Type: smithy.TypeEnum}
 
-var schemaIncompleteSignature = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignature", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaIncompleteSignature = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignature", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIncompleteSignature_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberIncompleteSignature_message = smithy.Member{Name: "message", Index: 0}
+var memberIncompleteSignature_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaIncompleteSignatureException = smithy.Schema{ID: "com.amazon.coral.service#IncompleteSignatureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIncompleteSignatureException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0}
+var memberIncompleteSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
+var schemaInternalFailure = smithy.Schema{ID: "com.amazon.coral.service#InternalFailure", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInternalFailure_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 500}}
 
-var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0}
+var memberInternalFailure_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInvalidAction = smithy.Schema{ID: "com.amazon.coral.service#InvalidAction", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidAction = smithy.Schema{ID: "com.amazon.coral.service#InvalidAction", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidAction_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidAction_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidAction_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaInvalidAddress = smithy.Schema{ID: "com.amazonaws.sqs#InvalidAddress", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+var schemaInvalidAddress = smithy.Schema{ID: "com.amazonaws.sqs#InvalidAddress", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidAddress_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
-var memberInvalidAddress_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidAddress_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaInvalidAttributeName = smithy.Schema{ID: "com.amazonaws.sqs#InvalidAttributeName", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaInvalidAttributeName = smithy.Schema{ID: "com.amazonaws.sqs#InvalidAttributeName", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidAttributeName_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberInvalidAttributeName_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidAttributeName_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaInvalidAttributeValue = smithy.Schema{ID: "com.amazonaws.sqs#InvalidAttributeValue", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaInvalidAttributeValue = smithy.Schema{ID: "com.amazonaws.sqs#InvalidAttributeValue", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidAttributeValue_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberInvalidAttributeValue_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidAttributeValue_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaInvalidBatchEntryId = smithy.Schema{ID: "com.amazonaws.sqs#InvalidBatchEntryId", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidBatchEntryId = smithy.Schema{ID: "com.amazonaws.sqs#InvalidBatchEntryId", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidBatchEntryId_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidBatchEntryId_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidBatchEntryId_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaInvalidClientTokenId = smithy.Schema{ID: "com.amazon.coral.service#InvalidClientTokenId", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaInvalidClientTokenId = smithy.Schema{ID: "com.amazon.coral.service#InvalidClientTokenId", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidClientTokenId_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberInvalidClientTokenId_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidClientTokenId_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaInvalidIdFormat = smithy.Schema{ID: "com.amazonaws.sqs#InvalidIdFormat", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var schemaInvalidMessageContents = smithy.Schema{ID: "com.amazonaws.sqs#InvalidMessageContents", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+var schemaInvalidMessageContents = smithy.Schema{ID: "com.amazonaws.sqs#InvalidMessageContents", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidMessageContents_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
 
-var memberInvalidMessageContents_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidMessageContents_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaInvalidParameterValue = smithy.Schema{ID: "com.amazonaws.sqs#InvalidParameterValue", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidParameterValue = smithy.Schema{ID: "com.amazonaws.sqs#InvalidParameterValue", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidParameterValue_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidParameterValue_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidParameterValue_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaInvalidSecurity = smithy.Schema{ID: "com.amazonaws.sqs#InvalidSecurity", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaInvalidSecurity = smithy.Schema{ID: "com.amazonaws.sqs#InvalidSecurity", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidSecurity_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberInvalidSecurity_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidSecurity_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaInvalidSignatureException = smithy.Schema{ID: "com.amazon.coral.service#InvalidSignatureException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaInvalidSignatureException = smithy.Schema{ID: "com.amazon.coral.service#InvalidSignatureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberInvalidSignatureException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberInvalidSignatureException_message = smithy.Member{Name: "message", Index: 0}
+var memberInvalidSignatureException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaKmsAccessDenied = smithy.Schema{ID: "com.amazonaws.sqs#KmsAccessDenied", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaKmsAccessDenied = smithy.Schema{ID: "com.amazonaws.sqs#KmsAccessDenied", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKmsAccessDenied_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberKmsAccessDenied_message = smithy.Member{Name: "message", Index: 0}
+var memberKmsAccessDenied_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaKmsDisabled = smithy.Schema{ID: "com.amazonaws.sqs#KmsDisabled", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaKmsDisabled = smithy.Schema{ID: "com.amazonaws.sqs#KmsDisabled", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKmsDisabled_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberKmsDisabled_message = smithy.Member{Name: "message", Index: 0}
+var memberKmsDisabled_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaKmsInvalidKeyUsage = smithy.Schema{ID: "com.amazonaws.sqs#KmsInvalidKeyUsage", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaKmsInvalidKeyUsage = smithy.Schema{ID: "com.amazonaws.sqs#KmsInvalidKeyUsage", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKmsInvalidKeyUsage_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberKmsInvalidKeyUsage_message = smithy.Member{Name: "message", Index: 0}
+var memberKmsInvalidKeyUsage_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaKmsInvalidState = smithy.Schema{ID: "com.amazonaws.sqs#KmsInvalidState", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaKmsInvalidState = smithy.Schema{ID: "com.amazonaws.sqs#KmsInvalidState", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKmsInvalidState_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberKmsInvalidState_message = smithy.Member{Name: "message", Index: 0}
+var memberKmsInvalidState_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaKmsNotFound = smithy.Schema{ID: "com.amazonaws.sqs#KmsNotFound", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaKmsNotFound = smithy.Schema{ID: "com.amazonaws.sqs#KmsNotFound", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKmsNotFound_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberKmsNotFound_message = smithy.Member{Name: "message", Index: 0}
+var memberKmsNotFound_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaKmsOptInRequired = smithy.Schema{ID: "com.amazonaws.sqs#KmsOptInRequired", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaKmsOptInRequired = smithy.Schema{ID: "com.amazonaws.sqs#KmsOptInRequired", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKmsOptInRequired_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberKmsOptInRequired_message = smithy.Member{Name: "message", Index: 0}
+var memberKmsOptInRequired_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaKmsThrottled = smithy.Schema{ID: "com.amazonaws.sqs#KmsThrottled", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaKmsThrottled = smithy.Schema{ID: "com.amazonaws.sqs#KmsThrottled", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberKmsThrottled_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberKmsThrottled_message = smithy.Member{Name: "message", Index: 0}
+var memberKmsThrottled_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaListDeadLetterSourceQueuesInput = smithy.Schema{ID: "com.amazonaws.sqs#ListDeadLetterSourceQueuesRequest", Type: smithy.TypeStructure}
+var schemaListDeadLetterSourceQueuesInput = smithy.Schema{ID: "com.amazonaws.sqs#ListDeadLetterSourceQueuesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDeadLetterSourceQueuesInput_QueueUrl, &memberListDeadLetterSourceQueuesInput_NextToken, &memberListDeadLetterSourceQueuesInput_MaxResults}}
 
-var memberListDeadLetterSourceQueuesInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberListDeadLetterSourceQueuesInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberListDeadLetterSourceQueuesInput_NextToken = smithy.Member{Name: "NextToken", Index: 1}
+var memberListDeadLetterSourceQueuesInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaToken}
 
-var memberListDeadLetterSourceQueuesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2}
+var memberListDeadLetterSourceQueuesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2, Target: &schemaBoxedInteger}
 
-var schemaListDeadLetterSourceQueuesOutput = smithy.Schema{ID: "com.amazonaws.sqs#ListDeadLetterSourceQueuesResult", Type: smithy.TypeStructure}
+var schemaListDeadLetterSourceQueuesOutput = smithy.Schema{ID: "com.amazonaws.sqs#ListDeadLetterSourceQueuesResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListDeadLetterSourceQueuesOutput_queueUrls, &memberListDeadLetterSourceQueuesOutput_NextToken}}
 
-var memberListDeadLetterSourceQueuesOutput_queueUrls = smithy.Member{Name: "queueUrls", Index: 0, Required: true, XMLName: "QueueUrl", XMLFlattened: true}
+var memberListDeadLetterSourceQueuesOutput_queueUrls = smithy.Member{Name: "queueUrls", Index: 0, Target: &schemaQueueUrlList, Required: true, XMLName: "QueueUrl", XMLFlattened: true}
 
-var memberListDeadLetterSourceQueuesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1}
+var memberListDeadLetterSourceQueuesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaToken}
 
-var schemaListMessageMoveTasksInput = smithy.Schema{ID: "com.amazonaws.sqs#ListMessageMoveTasksRequest", Type: smithy.TypeStructure}
+var schemaListMessageMoveTasksInput = smithy.Schema{ID: "com.amazonaws.sqs#ListMessageMoveTasksRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListMessageMoveTasksInput_SourceArn, &memberListMessageMoveTasksInput_MaxResults}}
 
-var memberListMessageMoveTasksInput_SourceArn = smithy.Member{Name: "SourceArn", Index: 0, Required: true}
+var memberListMessageMoveTasksInput_SourceArn = smithy.Member{Name: "SourceArn", Index: 0, Target: &schemaString, Required: true}
 
-var memberListMessageMoveTasksInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1}
+var memberListMessageMoveTasksInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 1, Target: &schemaNullableInteger}
 
-var schemaListMessageMoveTasksOutput = smithy.Schema{ID: "com.amazonaws.sqs#ListMessageMoveTasksResult", Type: smithy.TypeStructure, XMLName: "ListMessageMoveTasksResult"}
+var schemaListMessageMoveTasksOutput = smithy.Schema{ID: "com.amazonaws.sqs#ListMessageMoveTasksResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListMessageMoveTasksOutput_Results}, XMLName: "ListMessageMoveTasksResult"}
 
-var memberListMessageMoveTasksOutput_Results = smithy.Member{Name: "Results", Index: 0, XMLName: "ListMessageMoveTasksResultEntry", XMLFlattened: true}
+var memberListMessageMoveTasksOutput_Results = smithy.Member{Name: "Results", Index: 0, Target: &schemaListMessageMoveTasksResultEntryList, XMLName: "ListMessageMoveTasksResultEntry", XMLFlattened: true}
 
-var schemaListMessageMoveTasksResultEntry = smithy.Schema{ID: "com.amazonaws.sqs#ListMessageMoveTasksResultEntry", Type: smithy.TypeStructure}
+var schemaListMessageMoveTasksResultEntry = smithy.Schema{ID: "com.amazonaws.sqs#ListMessageMoveTasksResultEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListMessageMoveTasksResultEntry_TaskHandle, &memberListMessageMoveTasksResultEntry_Status, &memberListMessageMoveTasksResultEntry_SourceArn, &memberListMessageMoveTasksResultEntry_DestinationArn, &memberListMessageMoveTasksResultEntry_MaxNumberOfMessagesPerSecond, &memberListMessageMoveTasksResultEntry_ApproximateNumberOfMessagesMoved, &memberListMessageMoveTasksResultEntry_ApproximateNumberOfMessagesToMove, &memberListMessageMoveTasksResultEntry_FailureReason, &memberListMessageMoveTasksResultEntry_StartedTimestamp}}
 
-var memberListMessageMoveTasksResultEntry_TaskHandle = smithy.Member{Name: "TaskHandle", Index: 0}
+var memberListMessageMoveTasksResultEntry_TaskHandle = smithy.Member{Name: "TaskHandle", Index: 0, Target: &schemaString}
 
-var memberListMessageMoveTasksResultEntry_Status = smithy.Member{Name: "Status", Index: 1}
+var memberListMessageMoveTasksResultEntry_Status = smithy.Member{Name: "Status", Index: 1, Target: &schemaString}
 
-var memberListMessageMoveTasksResultEntry_SourceArn = smithy.Member{Name: "SourceArn", Index: 2}
+var memberListMessageMoveTasksResultEntry_SourceArn = smithy.Member{Name: "SourceArn", Index: 2, Target: &schemaString}
 
-var memberListMessageMoveTasksResultEntry_DestinationArn = smithy.Member{Name: "DestinationArn", Index: 3}
+var memberListMessageMoveTasksResultEntry_DestinationArn = smithy.Member{Name: "DestinationArn", Index: 3, Target: &schemaString}
 
-var memberListMessageMoveTasksResultEntry_MaxNumberOfMessagesPerSecond = smithy.Member{Name: "MaxNumberOfMessagesPerSecond", Index: 4}
+var memberListMessageMoveTasksResultEntry_MaxNumberOfMessagesPerSecond = smithy.Member{Name: "MaxNumberOfMessagesPerSecond", Index: 4, Target: &schemaNullableInteger}
 
-var memberListMessageMoveTasksResultEntry_ApproximateNumberOfMessagesMoved = smithy.Member{Name: "ApproximateNumberOfMessagesMoved", Index: 5, Default: document.Number("0")}
+var memberListMessageMoveTasksResultEntry_ApproximateNumberOfMessagesMoved = smithy.Member{Name: "ApproximateNumberOfMessagesMoved", Index: 5, Target: &schemaLong, Default: document.Number("0")}
 
-var memberListMessageMoveTasksResultEntry_ApproximateNumberOfMessagesToMove = smithy.Member{Name: "ApproximateNumberOfMessagesToMove", Index: 6}
+var memberListMessageMoveTasksResultEntry_ApproximateNumberOfMessagesToMove = smithy.Member{Name: "ApproximateNumberOfMessagesToMove", Index: 6, Target: &schemaNullableLong}
 
-var memberListMessageMoveTasksResultEntry_FailureReason = smithy.Member{Name: "FailureReason", Index: 7}
+var memberListMessageMoveTasksResultEntry_FailureReason = smithy.Member{Name: "FailureReason", Index: 7, Target: &schemaString}
 
-var memberListMessageMoveTasksResultEntry_StartedTimestamp = smithy.Member{Name: "StartedTimestamp", Index: 8, Default: document.Number("0")}
+var memberListMessageMoveTasksResultEntry_StartedTimestamp = smithy.Member{Name: "StartedTimestamp", Index: 8, Target: &schemaLong, Default: document.Number("0")}
 
-var schemaListMessageMoveTasksResultEntryList = smithy.Schema{ID: "com.amazonaws.sqs#ListMessageMoveTasksResultEntryList", Type: smithy.TypeList}
+var schemaListMessageMoveTasksResultEntryList = smithy.Schema{ID: "com.amazonaws.sqs#ListMessageMoveTasksResultEntryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberListMessageMoveTasksResultEntryList_member}}
 
-var memberListMessageMoveTasksResultEntryList_member = smithy.Member{Name: "member", Index: 0}
+var memberListMessageMoveTasksResultEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaListMessageMoveTasksResultEntry}
 
-var schemaListQueueTagsInput = smithy.Schema{ID: "com.amazonaws.sqs#ListQueueTagsRequest", Type: smithy.TypeStructure}
+var schemaListQueueTagsInput = smithy.Schema{ID: "com.amazonaws.sqs#ListQueueTagsRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListQueueTagsInput_QueueUrl}}
 
-var memberListQueueTagsInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberListQueueTagsInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var schemaListQueueTagsOutput = smithy.Schema{ID: "com.amazonaws.sqs#ListQueueTagsResult", Type: smithy.TypeStructure}
+var schemaListQueueTagsOutput = smithy.Schema{ID: "com.amazonaws.sqs#ListQueueTagsResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListQueueTagsOutput_Tags}}
 
-var memberListQueueTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, XMLName: "Tag", XMLFlattened: true}
+var memberListQueueTagsOutput_Tags = smithy.Member{Name: "Tags", Index: 0, Target: &schemaTagMap, XMLName: "Tag", XMLFlattened: true}
 
-var schemaListQueuesInput = smithy.Schema{ID: "com.amazonaws.sqs#ListQueuesRequest", Type: smithy.TypeStructure}
+var schemaListQueuesInput = smithy.Schema{ID: "com.amazonaws.sqs#ListQueuesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListQueuesInput_QueueNamePrefix, &memberListQueuesInput_NextToken, &memberListQueuesInput_MaxResults}}
 
-var memberListQueuesInput_QueueNamePrefix = smithy.Member{Name: "QueueNamePrefix", Index: 0}
+var memberListQueuesInput_QueueNamePrefix = smithy.Member{Name: "QueueNamePrefix", Index: 0, Target: &schemaString}
 
-var memberListQueuesInput_NextToken = smithy.Member{Name: "NextToken", Index: 1}
+var memberListQueuesInput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaToken}
 
-var memberListQueuesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2}
+var memberListQueuesInput_MaxResults = smithy.Member{Name: "MaxResults", Index: 2, Target: &schemaBoxedInteger}
 
-var schemaListQueuesOutput = smithy.Schema{ID: "com.amazonaws.sqs#ListQueuesResult", Type: smithy.TypeStructure}
+var schemaListQueuesOutput = smithy.Schema{ID: "com.amazonaws.sqs#ListQueuesResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberListQueuesOutput_QueueUrls, &memberListQueuesOutput_NextToken}}
 
-var memberListQueuesOutput_QueueUrls = smithy.Member{Name: "QueueUrls", Index: 0, XMLName: "QueueUrl", XMLFlattened: true}
+var memberListQueuesOutput_QueueUrls = smithy.Member{Name: "QueueUrls", Index: 0, Target: &schemaQueueUrlList, XMLName: "QueueUrl", XMLFlattened: true}
 
-var memberListQueuesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1}
+var memberListQueuesOutput_NextToken = smithy.Member{Name: "NextToken", Index: 1, Target: &schemaToken}
 
 var schemaLong = smithy.Schema{ID: "com.amazonaws.sqs#Long", Type: smithy.TypeLong}
 
-var schemaMessage = smithy.Schema{ID: "com.amazonaws.sqs#Message", Type: smithy.TypeStructure}
+var schemaMessage = smithy.Schema{ID: "com.amazonaws.sqs#Message", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMessage_MessageId, &memberMessage_ReceiptHandle, &memberMessage_MD5OfBody, &memberMessage_Body, &memberMessage_Attributes, &memberMessage_MD5OfMessageAttributes, &memberMessage_MessageAttributes}}
 
-var memberMessage_MessageId = smithy.Member{Name: "MessageId", Index: 0}
+var memberMessage_MessageId = smithy.Member{Name: "MessageId", Index: 0, Target: &schemaString}
 
-var memberMessage_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 1}
+var memberMessage_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 1, Target: &schemaString}
 
-var memberMessage_MD5OfBody = smithy.Member{Name: "MD5OfBody", Index: 2}
+var memberMessage_MD5OfBody = smithy.Member{Name: "MD5OfBody", Index: 2, Target: &schemaString}
 
-var memberMessage_Body = smithy.Member{Name: "Body", Index: 3}
+var memberMessage_Body = smithy.Member{Name: "Body", Index: 3, Target: &schemaString}
 
-var memberMessage_Attributes = smithy.Member{Name: "Attributes", Index: 4, XMLName: "Attribute", XMLFlattened: true}
+var memberMessage_Attributes = smithy.Member{Name: "Attributes", Index: 4, Target: &schemaMessageSystemAttributeMap, XMLName: "Attribute", XMLFlattened: true}
 
-var memberMessage_MD5OfMessageAttributes = smithy.Member{Name: "MD5OfMessageAttributes", Index: 5}
+var memberMessage_MD5OfMessageAttributes = smithy.Member{Name: "MD5OfMessageAttributes", Index: 5, Target: &schemaString}
 
-var memberMessage_MessageAttributes = smithy.Member{Name: "MessageAttributes", Index: 6, XMLName: "MessageAttribute", XMLFlattened: true}
+var memberMessage_MessageAttributes = smithy.Member{Name: "MessageAttributes", Index: 6, Target: &schemaMessageBodyAttributeMap, XMLName: "MessageAttribute", XMLFlattened: true}
 
 var schemaMessageAttributeName = smithy.Schema{ID: "com.amazonaws.sqs#MessageAttributeName", Type: smithy.TypeString}
 
-var schemaMessageAttributeNameList = smithy.Schema{ID: "com.amazonaws.sqs#MessageAttributeNameList", Type: smithy.TypeList}
+var schemaMessageAttributeNameList = smithy.Schema{ID: "com.amazonaws.sqs#MessageAttributeNameList", Type: smithy.TypeList, Members: []*smithy.Member{&memberMessageAttributeNameList_member}}
 
-var memberMessageAttributeNameList_member = smithy.Member{Name: "member", Index: 0}
+var memberMessageAttributeNameList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMessageAttributeName}
 
-var schemaMessageAttributeValue = smithy.Schema{ID: "com.amazonaws.sqs#MessageAttributeValue", Type: smithy.TypeStructure}
+var schemaMessageAttributeValue = smithy.Schema{ID: "com.amazonaws.sqs#MessageAttributeValue", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMessageAttributeValue_StringValue, &memberMessageAttributeValue_BinaryValue, &memberMessageAttributeValue_StringListValues, &memberMessageAttributeValue_BinaryListValues, &memberMessageAttributeValue_DataType}}
 
-var memberMessageAttributeValue_StringValue = smithy.Member{Name: "StringValue", Index: 0}
+var memberMessageAttributeValue_StringValue = smithy.Member{Name: "StringValue", Index: 0, Target: &schemaString}
 
-var memberMessageAttributeValue_BinaryValue = smithy.Member{Name: "BinaryValue", Index: 1}
+var memberMessageAttributeValue_BinaryValue = smithy.Member{Name: "BinaryValue", Index: 1, Target: &schemaBinary}
 
-var memberMessageAttributeValue_StringListValues = smithy.Member{Name: "StringListValues", Index: 2, XMLName: "StringListValue", XMLFlattened: true}
+var memberMessageAttributeValue_StringListValues = smithy.Member{Name: "StringListValues", Index: 2, Target: &schemaStringList, XMLName: "StringListValue", XMLFlattened: true}
 
-var memberMessageAttributeValue_BinaryListValues = smithy.Member{Name: "BinaryListValues", Index: 3, XMLName: "BinaryListValue", XMLFlattened: true}
+var memberMessageAttributeValue_BinaryListValues = smithy.Member{Name: "BinaryListValues", Index: 3, Target: &schemaBinaryList, XMLName: "BinaryListValue", XMLFlattened: true}
 
-var memberMessageAttributeValue_DataType = smithy.Member{Name: "DataType", Index: 4, Required: true}
+var memberMessageAttributeValue_DataType = smithy.Member{Name: "DataType", Index: 4, Target: &schemaString, Required: true}
 
-var schemaMessageBodyAttributeMap = smithy.Schema{ID: "com.amazonaws.sqs#MessageBodyAttributeMap", Type: smithy.TypeMap}
+var schemaMessageBodyAttributeMap = smithy.Schema{ID: "com.amazonaws.sqs#MessageBodyAttributeMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberMessageBodyAttributeMap_key, &memberMessageBodyAttributeMap_value}}
 
-var memberMessageBodyAttributeMap_key = smithy.Member{Name: "key", Index: 0, XMLName: "Name"}
+var memberMessageBodyAttributeMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaString, XMLName: "Name"}
 
-var memberMessageBodyAttributeMap_value = smithy.Member{Name: "value", Index: 1, XMLName: "Value"}
+var memberMessageBodyAttributeMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaMessageAttributeValue, XMLName: "Value"}
 
-var schemaMessageBodySystemAttributeMap = smithy.Schema{ID: "com.amazonaws.sqs#MessageBodySystemAttributeMap", Type: smithy.TypeMap}
+var schemaMessageBodySystemAttributeMap = smithy.Schema{ID: "com.amazonaws.sqs#MessageBodySystemAttributeMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberMessageBodySystemAttributeMap_key, &memberMessageBodySystemAttributeMap_value}}
 
-var memberMessageBodySystemAttributeMap_key = smithy.Member{Name: "key", Index: 0, XMLName: "Name"}
+var memberMessageBodySystemAttributeMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaMessageSystemAttributeNameForSends, XMLName: "Name"}
 
-var memberMessageBodySystemAttributeMap_value = smithy.Member{Name: "value", Index: 1, XMLName: "Value"}
+var memberMessageBodySystemAttributeMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaMessageSystemAttributeValue, XMLName: "Value"}
 
-var schemaMessageCause = smithy.Schema{ID: "com.amazonaws.sqs#MessageCause", Type: smithy.TypeStructure}
+var schemaMessageCause = smithy.Schema{ID: "com.amazonaws.sqs#MessageCause", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMessageCause_ReceiptHandle, &memberMessageCause_EnqueuedEvent, &memberMessageCause_EnqueuedTrace}}
 
-var memberMessageCause_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 0, Required: true}
+var memberMessageCause_ReceiptHandle = smithy.Member{Name: "ReceiptHandle", Index: 0, Target: &schemaString, Required: true}
 
-var memberMessageCause_EnqueuedEvent = smithy.Member{Name: "EnqueuedEvent", Index: 1, Required: true, Default: document.Number("0")}
+var memberMessageCause_EnqueuedEvent = smithy.Member{Name: "EnqueuedEvent", Index: 1, Target: &schemaLong, Required: true, Default: document.Number("0")}
 
-var memberMessageCause_EnqueuedTrace = smithy.Member{Name: "EnqueuedTrace", Index: 2, Required: true, Default: document.Number("0")}
+var memberMessageCause_EnqueuedTrace = smithy.Member{Name: "EnqueuedTrace", Index: 2, Target: &schemaLong, Required: true, Default: document.Number("0")}
 
-var schemaMessageCauseList = smithy.Schema{ID: "com.amazonaws.sqs#MessageCauseList", Type: smithy.TypeList}
+var schemaMessageCauseList = smithy.Schema{ID: "com.amazonaws.sqs#MessageCauseList", Type: smithy.TypeList, Members: []*smithy.Member{&memberMessageCauseList_member}}
 
-var memberMessageCauseList_member = smithy.Member{Name: "member", Index: 0}
+var memberMessageCauseList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMessageCause}
 
-var schemaMessageCausesInput = smithy.Schema{ID: "com.amazonaws.sqs#MessageCausesRequest", Type: smithy.TypeStructure}
+var schemaMessageCausesInput = smithy.Schema{ID: "com.amazonaws.sqs#MessageCausesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMessageCausesInput_QueueUrl, &memberMessageCausesInput_ReceiptHandles}}
 
-var memberMessageCausesInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberMessageCausesInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberMessageCausesInput_ReceiptHandles = smithy.Member{Name: "ReceiptHandles", Index: 1, Required: true}
+var memberMessageCausesInput_ReceiptHandles = smithy.Member{Name: "ReceiptHandles", Index: 1, Target: &schemaReceiptHandleList, Required: true}
 
-var schemaMessageCausesOutput = smithy.Schema{ID: "com.amazonaws.sqs#MessageCausesResult", Type: smithy.TypeStructure}
+var schemaMessageCausesOutput = smithy.Schema{ID: "com.amazonaws.sqs#MessageCausesResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMessageCausesOutput_Causes}}
 
-var memberMessageCausesOutput_Causes = smithy.Member{Name: "Causes", Index: 0}
+var memberMessageCausesOutput_Causes = smithy.Member{Name: "Causes", Index: 0, Target: &schemaMessageCauseList}
 
-var schemaMessageList = smithy.Schema{ID: "com.amazonaws.sqs#MessageList", Type: smithy.TypeList}
+var schemaMessageList = smithy.Schema{ID: "com.amazonaws.sqs#MessageList", Type: smithy.TypeList, Members: []*smithy.Member{&memberMessageList_member}}
 
-var memberMessageList_member = smithy.Member{Name: "member", Index: 0}
+var memberMessageList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMessage}
 
 var schemaMessageNotInflight = smithy.Schema{ID: "com.amazonaws.sqs#MessageNotInflight", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var schemaMessageSystemAttributeList = smithy.Schema{ID: "com.amazonaws.sqs#MessageSystemAttributeList", Type: smithy.TypeList}
+var schemaMessageSystemAttributeList = smithy.Schema{ID: "com.amazonaws.sqs#MessageSystemAttributeList", Type: smithy.TypeList, Members: []*smithy.Member{&memberMessageSystemAttributeList_member}}
 
-var memberMessageSystemAttributeList_member = smithy.Member{Name: "member", Index: 0}
+var memberMessageSystemAttributeList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaMessageSystemAttributeName}
 
-var schemaMessageSystemAttributeMap = smithy.Schema{ID: "com.amazonaws.sqs#MessageSystemAttributeMap", Type: smithy.TypeMap}
+var schemaMessageSystemAttributeMap = smithy.Schema{ID: "com.amazonaws.sqs#MessageSystemAttributeMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberMessageSystemAttributeMap_key, &memberMessageSystemAttributeMap_value}}
 
-var memberMessageSystemAttributeMap_key = smithy.Member{Name: "key", Index: 0, XMLName: "Name"}
+var memberMessageSystemAttributeMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaMessageSystemAttributeName, XMLName: "Name"}
 
-var memberMessageSystemAttributeMap_value = smithy.Member{Name: "value", Index: 1, XMLName: "Value"}
+var memberMessageSystemAttributeMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaString, XMLName: "Value"}
 
 var schemaMessageSystemAttributeName = smithy.Schema{ID: "com.amazonaws.sqs#MessageSystemAttributeName", Type: smithy.TypeEnum}
 
 var schemaMessageSystemAttributeNameForSends = smithy.Schema{ID: "com.amazonaws.sqs#MessageSystemAttributeNameForSends", Type: smithy.TypeEnum}
 
-var schemaMessageSystemAttributeValue = smithy.Schema{ID: "com.amazonaws.sqs#MessageSystemAttributeValue", Type: smithy.TypeStructure}
+var schemaMessageSystemAttributeValue = smithy.Schema{ID: "com.amazonaws.sqs#MessageSystemAttributeValue", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMessageSystemAttributeValue_StringValue, &memberMessageSystemAttributeValue_BinaryValue, &memberMessageSystemAttributeValue_StringListValues, &memberMessageSystemAttributeValue_BinaryListValues, &memberMessageSystemAttributeValue_DataType}}
 
-var memberMessageSystemAttributeValue_StringValue = smithy.Member{Name: "StringValue", Index: 0}
+var memberMessageSystemAttributeValue_StringValue = smithy.Member{Name: "StringValue", Index: 0, Target: &schemaString}
 
-var memberMessageSystemAttributeValue_BinaryValue = smithy.Member{Name: "BinaryValue", Index: 1}
+var memberMessageSystemAttributeValue_BinaryValue = smithy.Member{Name: "BinaryValue", Index: 1, Target: &schemaBinary}
 
-var memberMessageSystemAttributeValue_StringListValues = smithy.Member{Name: "StringListValues", Index: 2, XMLName: "StringListValue", XMLFlattened: true}
+var memberMessageSystemAttributeValue_StringListValues = smithy.Member{Name: "StringListValues", Index: 2, Target: &schemaStringList, XMLName: "StringListValue", XMLFlattened: true}
 
-var memberMessageSystemAttributeValue_BinaryListValues = smithy.Member{Name: "BinaryListValues", Index: 3, XMLName: "BinaryListValue", XMLFlattened: true}
+var memberMessageSystemAttributeValue_BinaryListValues = smithy.Member{Name: "BinaryListValues", Index: 3, Target: &schemaBinaryList, XMLName: "BinaryListValue", XMLFlattened: true}
 
-var memberMessageSystemAttributeValue_DataType = smithy.Member{Name: "DataType", Index: 4, Required: true}
+var memberMessageSystemAttributeValue_DataType = smithy.Member{Name: "DataType", Index: 4, Target: &schemaString, Required: true}
 
-var schemaMissingAuthenticationToken = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationToken", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaMissingAuthenticationToken = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationToken", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMissingAuthenticationToken_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberMissingAuthenticationToken_message = smithy.Member{Name: "message", Index: 0}
+var memberMissingAuthenticationToken_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationTokenException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaMissingAuthenticationTokenException = smithy.Schema{ID: "com.amazon.coral.service#MissingAuthenticationTokenException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMissingAuthenticationTokenException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0}
+var memberMissingAuthenticationTokenException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaMissingParameter = smithy.Schema{ID: "com.amazonaws.sqs#MissingParameter", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaMissingParameter = smithy.Schema{ID: "com.amazonaws.sqs#MissingParameter", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberMissingParameter_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberMissingParameter_message = smithy.Member{Name: "message", Index: 0}
+var memberMissingParameter_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
+var schemaNotImplemented = smithy.Schema{ID: "dev.understudy#NotImplemented", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNotImplemented_message}, Error: &smithy.ErrorTrait{Fault: smithy.ServerFault, HTTPError: 501}}
 
-var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0}
+var memberNotImplemented_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaNullableInteger = smithy.Schema{ID: "com.amazonaws.sqs#NullableInteger", Type: smithy.TypeInteger}
 
 var schemaNullableLong = smithy.Schema{ID: "com.amazonaws.sqs#NullableLong", Type: smithy.TypeLong}
 
-var schemaOverLimit = smithy.Schema{ID: "com.amazonaws.sqs#OverLimit", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaOverLimit = smithy.Schema{ID: "com.amazonaws.sqs#OverLimit", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberOverLimit_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberOverLimit_message = smithy.Member{Name: "message", Index: 0}
+var memberOverLimit_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaPurgeQueueInProgress = smithy.Schema{ID: "com.amazonaws.sqs#PurgeQueueInProgress", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaPurgeQueueInProgress = smithy.Schema{ID: "com.amazonaws.sqs#PurgeQueueInProgress", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPurgeQueueInProgress_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberPurgeQueueInProgress_message = smithy.Member{Name: "message", Index: 0}
+var memberPurgeQueueInProgress_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaPurgeQueueInput = smithy.Schema{ID: "com.amazonaws.sqs#PurgeQueueRequest", Type: smithy.TypeStructure}
+var schemaPurgeQueueInput = smithy.Schema{ID: "com.amazonaws.sqs#PurgeQueueRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPurgeQueueInput_QueueUrl}}
 
-var memberPurgeQueueInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberPurgeQueueInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var schemaQueueAttributeMap = smithy.Schema{ID: "com.amazonaws.sqs#QueueAttributeMap", Type: smithy.TypeMap}
+var schemaQueueAttributeMap = smithy.Schema{ID: "com.amazonaws.sqs#QueueAttributeMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberQueueAttributeMap_key, &memberQueueAttributeMap_value}}
 
-var memberQueueAttributeMap_key = smithy.Member{Name: "key", Index: 0, XMLName: "Name"}
+var memberQueueAttributeMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaQueueAttributeName, XMLName: "Name"}
 
-var memberQueueAttributeMap_value = smithy.Member{Name: "value", Index: 1, XMLName: "Value"}
+var memberQueueAttributeMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaString, XMLName: "Value"}
 
 var schemaQueueAttributeName = smithy.Schema{ID: "com.amazonaws.sqs#QueueAttributeName", Type: smithy.TypeEnum}
 
-var schemaQueueDeletedRecently = smithy.Schema{ID: "com.amazonaws.sqs#QueueDeletedRecently", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaQueueDeletedRecently = smithy.Schema{ID: "com.amazonaws.sqs#QueueDeletedRecently", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQueueDeletedRecently_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberQueueDeletedRecently_message = smithy.Member{Name: "message", Index: 0}
+var memberQueueDeletedRecently_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaQueueDoesNotExist = smithy.Schema{ID: "com.amazonaws.sqs#QueueDoesNotExist", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaQueueDoesNotExist = smithy.Schema{ID: "com.amazonaws.sqs#QueueDoesNotExist", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQueueDoesNotExist_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberQueueDoesNotExist_message = smithy.Member{Name: "message", Index: 0}
+var memberQueueDoesNotExist_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaQueueNameExists = smithy.Schema{ID: "com.amazonaws.sqs#QueueNameExists", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaQueueNameExists = smithy.Schema{ID: "com.amazonaws.sqs#QueueNameExists", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberQueueNameExists_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberQueueNameExists_message = smithy.Member{Name: "message", Index: 0}
+var memberQueueNameExists_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaQueueUrlList = smithy.Schema{ID: "com.amazonaws.sqs#QueueUrlList", Type: smithy.TypeList}
+var schemaQueueUrlList = smithy.Schema{ID: "com.amazonaws.sqs#QueueUrlList", Type: smithy.TypeList, Members: []*smithy.Member{&memberQueueUrlList_member}}
 
-var memberQueueUrlList_member = smithy.Member{Name: "member", Index: 0}
+var memberQueueUrlList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaString}
 
-var schemaReceiptHandleIsInvalid = smithy.Schema{ID: "com.amazonaws.sqs#ReceiptHandleIsInvalid", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+var schemaReceiptHandleIsInvalid = smithy.Schema{ID: "com.amazonaws.sqs#ReceiptHandleIsInvalid", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReceiptHandleIsInvalid_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
-var memberReceiptHandleIsInvalid_message = smithy.Member{Name: "message", Index: 0}
+var memberReceiptHandleIsInvalid_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaReceiptHandleList = smithy.Schema{ID: "com.amazonaws.sqs#ReceiptHandleList", Type: smithy.TypeList}
+var schemaReceiptHandleList = smithy.Schema{ID: "com.amazonaws.sqs#ReceiptHandleList", Type: smithy.TypeList, Members: []*smithy.Member{&memberReceiptHandleList_member}}
 
-var memberReceiptHandleList_member = smithy.Member{Name: "member", Index: 0}
+var memberReceiptHandleList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaString}
 
-var schemaReceiveMessageInput = smithy.Schema{ID: "com.amazonaws.sqs#ReceiveMessageRequest", Type: smithy.TypeStructure}
+var schemaReceiveMessageInput = smithy.Schema{ID: "com.amazonaws.sqs#ReceiveMessageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReceiveMessageInput_QueueUrl, &memberReceiveMessageInput_AttributeNames, &memberReceiveMessageInput_MessageSystemAttributeNames, &memberReceiveMessageInput_MessageAttributeNames, &memberReceiveMessageInput_MaxNumberOfMessages, &memberReceiveMessageInput_VisibilityTimeout, &memberReceiveMessageInput_WaitTimeSeconds, &memberReceiveMessageInput_ReceiveRequestAttemptId}}
 
-var memberReceiveMessageInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberReceiveMessageInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberReceiveMessageInput_AttributeNames = smithy.Member{Name: "AttributeNames", Index: 1, XMLName: "AttributeName", XMLFlattened: true, QueryKeyAlias: &smithy.QueryKeyAlias{Key: "AttributeName", Decode: smithy.AliasIgnore}}
+var memberReceiveMessageInput_AttributeNames = smithy.Member{Name: "AttributeNames", Index: 1, Target: &schemaAttributeNameList, XMLName: "AttributeName", XMLFlattened: true, QueryKeyAlias: &smithy.QueryKeyAlias{Key: "AttributeName", Decode: smithy.AliasIgnore}}
 
-var memberReceiveMessageInput_MessageSystemAttributeNames = smithy.Member{Name: "MessageSystemAttributeNames", Index: 2, XMLName: "AttributeName", XMLFlattened: true, QueryKeyAlias: &smithy.QueryKeyAlias{Key: "AttributeName", Decode: smithy.AliasReceive}}
+var memberReceiveMessageInput_MessageSystemAttributeNames = smithy.Member{Name: "MessageSystemAttributeNames", Index: 2, Target: &schemaMessageSystemAttributeList, XMLName: "AttributeName", XMLFlattened: true, QueryKeyAlias: &smithy.QueryKeyAlias{Key: "AttributeName", Decode: smithy.AliasReceive}}
 
-var memberReceiveMessageInput_MessageAttributeNames = smithy.Member{Name: "MessageAttributeNames", Index: 3, XMLName: "MessageAttributeName", XMLFlattened: true}
+var memberReceiveMessageInput_MessageAttributeNames = smithy.Member{Name: "MessageAttributeNames", Index: 3, Target: &schemaMessageAttributeNameList, XMLName: "MessageAttributeName", XMLFlattened: true}
 
-var memberReceiveMessageInput_MaxNumberOfMessages = smithy.Member{Name: "MaxNumberOfMessages", Index: 4}
+var memberReceiveMessageInput_MaxNumberOfMessages = smithy.Member{Name: "MaxNumberOfMessages", Index: 4, Target: &schemaNullableInteger}
 
-var memberReceiveMessageInput_VisibilityTimeout = smithy.Member{Name: "VisibilityTimeout", Index: 5}
+var memberReceiveMessageInput_VisibilityTimeout = smithy.Member{Name: "VisibilityTimeout", Index: 5, Target: &schemaNullableInteger}
 
-var memberReceiveMessageInput_WaitTimeSeconds = smithy.Member{Name: "WaitTimeSeconds", Index: 6}
+var memberReceiveMessageInput_WaitTimeSeconds = smithy.Member{Name: "WaitTimeSeconds", Index: 6, Target: &schemaNullableInteger}
 
-var memberReceiveMessageInput_ReceiveRequestAttemptId = smithy.Member{Name: "ReceiveRequestAttemptId", Index: 7}
+var memberReceiveMessageInput_ReceiveRequestAttemptId = smithy.Member{Name: "ReceiveRequestAttemptId", Index: 7, Target: &schemaString}
 
-var schemaReceiveMessageOutput = smithy.Schema{ID: "com.amazonaws.sqs#ReceiveMessageResult", Type: smithy.TypeStructure}
+var schemaReceiveMessageOutput = smithy.Schema{ID: "com.amazonaws.sqs#ReceiveMessageResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberReceiveMessageOutput_Messages}}
 
-var memberReceiveMessageOutput_Messages = smithy.Member{Name: "Messages", Index: 0, XMLName: "Message", XMLFlattened: true}
+var memberReceiveMessageOutput_Messages = smithy.Member{Name: "Messages", Index: 0, Target: &schemaMessageList, XMLName: "Message", XMLFlattened: true}
 
-var schemaRemovePermissionInput = smithy.Schema{ID: "com.amazonaws.sqs#RemovePermissionRequest", Type: smithy.TypeStructure}
+var schemaRemovePermissionInput = smithy.Schema{ID: "com.amazonaws.sqs#RemovePermissionRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRemovePermissionInput_QueueUrl, &memberRemovePermissionInput_Label}}
 
-var memberRemovePermissionInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberRemovePermissionInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberRemovePermissionInput_Label = smithy.Member{Name: "Label", Index: 1, Required: true}
+var memberRemovePermissionInput_Label = smithy.Member{Name: "Label", Index: 1, Target: &schemaString, Required: true}
 
-var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
+var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRequestEntityTooLargeException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
 
-var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0}
+var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaRequestThrottled = smithy.Schema{ID: "com.amazonaws.sqs#RequestThrottled", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaRequestThrottled = smithy.Schema{ID: "com.amazonaws.sqs#RequestThrottled", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRequestThrottled_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberRequestThrottled_message = smithy.Member{Name: "message", Index: 0}
+var memberRequestThrottled_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaResourceNotFoundException = smithy.Schema{ID: "com.amazonaws.sqs#ResourceNotFoundException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+var schemaResourceNotFoundException = smithy.Schema{ID: "com.amazonaws.sqs#ResourceNotFoundException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberResourceNotFoundException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
-var memberResourceNotFoundException_message = smithy.Member{Name: "message", Index: 0}
+var memberResourceNotFoundException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaSendMessageBatchInput = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchRequest", Type: smithy.TypeStructure}
+var schemaSendMessageBatchInput = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendMessageBatchInput_QueueUrl, &memberSendMessageBatchInput_Entries}}
 
-var memberSendMessageBatchInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberSendMessageBatchInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberSendMessageBatchInput_Entries = smithy.Member{Name: "Entries", Index: 1, Required: true, XMLName: "SendMessageBatchRequestEntry", XMLFlattened: true}
+var memberSendMessageBatchInput_Entries = smithy.Member{Name: "Entries", Index: 1, Target: &schemaSendMessageBatchRequestEntryList, Required: true, XMLName: "SendMessageBatchRequestEntry", XMLFlattened: true}
 
-var schemaSendMessageBatchOutput = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchResult", Type: smithy.TypeStructure}
+var schemaSendMessageBatchOutput = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendMessageBatchOutput_Successful, &memberSendMessageBatchOutput_Failed}}
 
-var memberSendMessageBatchOutput_Successful = smithy.Member{Name: "Successful", Index: 0, Required: true, XMLName: "SendMessageBatchResultEntry", XMLFlattened: true}
+var memberSendMessageBatchOutput_Successful = smithy.Member{Name: "Successful", Index: 0, Target: &schemaSendMessageBatchResultEntryList, Required: true, XMLName: "SendMessageBatchResultEntry", XMLFlattened: true}
 
-var memberSendMessageBatchOutput_Failed = smithy.Member{Name: "Failed", Index: 1, Required: true, XMLName: "BatchResultErrorEntry", XMLFlattened: true}
+var memberSendMessageBatchOutput_Failed = smithy.Member{Name: "Failed", Index: 1, Target: &schemaBatchResultErrorEntryList, Required: true, XMLName: "BatchResultErrorEntry", XMLFlattened: true}
 
-var schemaSendMessageBatchRequestEntry = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchRequestEntry", Type: smithy.TypeStructure}
+var schemaSendMessageBatchRequestEntry = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchRequestEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendMessageBatchRequestEntry_Id, &memberSendMessageBatchRequestEntry_MessageBody, &memberSendMessageBatchRequestEntry_DelaySeconds, &memberSendMessageBatchRequestEntry_MessageAttributes, &memberSendMessageBatchRequestEntry_MessageSystemAttributes, &memberSendMessageBatchRequestEntry_MessageDeduplicationId, &memberSendMessageBatchRequestEntry_MessageGroupId}}
 
-var memberSendMessageBatchRequestEntry_Id = smithy.Member{Name: "Id", Index: 0, Required: true}
+var memberSendMessageBatchRequestEntry_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaString, Required: true}
 
-var memberSendMessageBatchRequestEntry_MessageBody = smithy.Member{Name: "MessageBody", Index: 1, Required: true}
+var memberSendMessageBatchRequestEntry_MessageBody = smithy.Member{Name: "MessageBody", Index: 1, Target: &schemaString, Required: true}
 
-var memberSendMessageBatchRequestEntry_DelaySeconds = smithy.Member{Name: "DelaySeconds", Index: 2}
+var memberSendMessageBatchRequestEntry_DelaySeconds = smithy.Member{Name: "DelaySeconds", Index: 2, Target: &schemaNullableInteger}
 
-var memberSendMessageBatchRequestEntry_MessageAttributes = smithy.Member{Name: "MessageAttributes", Index: 3, XMLName: "MessageAttribute", XMLFlattened: true}
+var memberSendMessageBatchRequestEntry_MessageAttributes = smithy.Member{Name: "MessageAttributes", Index: 3, Target: &schemaMessageBodyAttributeMap, XMLName: "MessageAttribute", XMLFlattened: true}
 
-var memberSendMessageBatchRequestEntry_MessageSystemAttributes = smithy.Member{Name: "MessageSystemAttributes", Index: 4, XMLName: "MessageSystemAttribute", XMLFlattened: true}
+var memberSendMessageBatchRequestEntry_MessageSystemAttributes = smithy.Member{Name: "MessageSystemAttributes", Index: 4, Target: &schemaMessageBodySystemAttributeMap, XMLName: "MessageSystemAttribute", XMLFlattened: true}
 
-var memberSendMessageBatchRequestEntry_MessageDeduplicationId = smithy.Member{Name: "MessageDeduplicationId", Index: 5}
+var memberSendMessageBatchRequestEntry_MessageDeduplicationId = smithy.Member{Name: "MessageDeduplicationId", Index: 5, Target: &schemaString}
 
-var memberSendMessageBatchRequestEntry_MessageGroupId = smithy.Member{Name: "MessageGroupId", Index: 6}
+var memberSendMessageBatchRequestEntry_MessageGroupId = smithy.Member{Name: "MessageGroupId", Index: 6, Target: &schemaString}
 
-var schemaSendMessageBatchRequestEntryList = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchRequestEntryList", Type: smithy.TypeList}
+var schemaSendMessageBatchRequestEntryList = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchRequestEntryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberSendMessageBatchRequestEntryList_member}}
 
-var memberSendMessageBatchRequestEntryList_member = smithy.Member{Name: "member", Index: 0}
+var memberSendMessageBatchRequestEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSendMessageBatchRequestEntry}
 
-var schemaSendMessageBatchResultEntry = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchResultEntry", Type: smithy.TypeStructure}
+var schemaSendMessageBatchResultEntry = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchResultEntry", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendMessageBatchResultEntry_Id, &memberSendMessageBatchResultEntry_MessageId, &memberSendMessageBatchResultEntry_MD5OfMessageBody, &memberSendMessageBatchResultEntry_MD5OfMessageAttributes, &memberSendMessageBatchResultEntry_MD5OfMessageSystemAttributes, &memberSendMessageBatchResultEntry_SequenceNumber}}
 
-var memberSendMessageBatchResultEntry_Id = smithy.Member{Name: "Id", Index: 0, Required: true}
+var memberSendMessageBatchResultEntry_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaString, Required: true}
 
-var memberSendMessageBatchResultEntry_MessageId = smithy.Member{Name: "MessageId", Index: 1, Required: true}
+var memberSendMessageBatchResultEntry_MessageId = smithy.Member{Name: "MessageId", Index: 1, Target: &schemaString, Required: true}
 
-var memberSendMessageBatchResultEntry_MD5OfMessageBody = smithy.Member{Name: "MD5OfMessageBody", Index: 2, Required: true}
+var memberSendMessageBatchResultEntry_MD5OfMessageBody = smithy.Member{Name: "MD5OfMessageBody", Index: 2, Target: &schemaString, Required: true}
 
-var memberSendMessageBatchResultEntry_MD5OfMessageAttributes = smithy.Member{Name: "MD5OfMessageAttributes", Index: 3}
+var memberSendMessageBatchResultEntry_MD5OfMessageAttributes = smithy.Member{Name: "MD5OfMessageAttributes", Index: 3, Target: &schemaString}
 
-var memberSendMessageBatchResultEntry_MD5OfMessageSystemAttributes = smithy.Member{Name: "MD5OfMessageSystemAttributes", Index: 4}
+var memberSendMessageBatchResultEntry_MD5OfMessageSystemAttributes = smithy.Member{Name: "MD5OfMessageSystemAttributes", Index: 4, Target: &schemaString}
 
-var memberSendMessageBatchResultEntry_SequenceNumber = smithy.Member{Name: "SequenceNumber", Index: 5}
+var memberSendMessageBatchResultEntry_SequenceNumber = smithy.Member{Name: "SequenceNumber", Index: 5, Target: &schemaString}
 
-var schemaSendMessageBatchResultEntryList = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchResultEntryList", Type: smithy.TypeList}
+var schemaSendMessageBatchResultEntryList = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageBatchResultEntryList", Type: smithy.TypeList, Members: []*smithy.Member{&memberSendMessageBatchResultEntryList_member}}
 
-var memberSendMessageBatchResultEntryList_member = smithy.Member{Name: "member", Index: 0}
+var memberSendMessageBatchResultEntryList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaSendMessageBatchResultEntry}
 
-var schemaSendMessageInput = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageRequest", Type: smithy.TypeStructure}
+var schemaSendMessageInput = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendMessageInput_QueueUrl, &memberSendMessageInput_MessageBody, &memberSendMessageInput_DelaySeconds, &memberSendMessageInput_MessageAttributes, &memberSendMessageInput_MessageSystemAttributes, &memberSendMessageInput_MessageDeduplicationId, &memberSendMessageInput_MessageGroupId}}
 
-var memberSendMessageInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberSendMessageInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberSendMessageInput_MessageBody = smithy.Member{Name: "MessageBody", Index: 1, Required: true}
+var memberSendMessageInput_MessageBody = smithy.Member{Name: "MessageBody", Index: 1, Target: &schemaString, Required: true}
 
-var memberSendMessageInput_DelaySeconds = smithy.Member{Name: "DelaySeconds", Index: 2}
+var memberSendMessageInput_DelaySeconds = smithy.Member{Name: "DelaySeconds", Index: 2, Target: &schemaNullableInteger}
 
-var memberSendMessageInput_MessageAttributes = smithy.Member{Name: "MessageAttributes", Index: 3, XMLName: "MessageAttribute", XMLFlattened: true}
+var memberSendMessageInput_MessageAttributes = smithy.Member{Name: "MessageAttributes", Index: 3, Target: &schemaMessageBodyAttributeMap, XMLName: "MessageAttribute", XMLFlattened: true}
 
-var memberSendMessageInput_MessageSystemAttributes = smithy.Member{Name: "MessageSystemAttributes", Index: 4, XMLName: "MessageSystemAttribute", XMLFlattened: true}
+var memberSendMessageInput_MessageSystemAttributes = smithy.Member{Name: "MessageSystemAttributes", Index: 4, Target: &schemaMessageBodySystemAttributeMap, XMLName: "MessageSystemAttribute", XMLFlattened: true}
 
-var memberSendMessageInput_MessageDeduplicationId = smithy.Member{Name: "MessageDeduplicationId", Index: 5}
+var memberSendMessageInput_MessageDeduplicationId = smithy.Member{Name: "MessageDeduplicationId", Index: 5, Target: &schemaString}
 
-var memberSendMessageInput_MessageGroupId = smithy.Member{Name: "MessageGroupId", Index: 6}
+var memberSendMessageInput_MessageGroupId = smithy.Member{Name: "MessageGroupId", Index: 6, Target: &schemaString}
 
-var schemaSendMessageOutput = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageResult", Type: smithy.TypeStructure}
+var schemaSendMessageOutput = smithy.Schema{ID: "com.amazonaws.sqs#SendMessageResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSendMessageOutput_MD5OfMessageBody, &memberSendMessageOutput_MD5OfMessageAttributes, &memberSendMessageOutput_MD5OfMessageSystemAttributes, &memberSendMessageOutput_MessageId, &memberSendMessageOutput_SequenceNumber}}
 
-var memberSendMessageOutput_MD5OfMessageBody = smithy.Member{Name: "MD5OfMessageBody", Index: 0}
+var memberSendMessageOutput_MD5OfMessageBody = smithy.Member{Name: "MD5OfMessageBody", Index: 0, Target: &schemaString}
 
-var memberSendMessageOutput_MD5OfMessageAttributes = smithy.Member{Name: "MD5OfMessageAttributes", Index: 1}
+var memberSendMessageOutput_MD5OfMessageAttributes = smithy.Member{Name: "MD5OfMessageAttributes", Index: 1, Target: &schemaString}
 
-var memberSendMessageOutput_MD5OfMessageSystemAttributes = smithy.Member{Name: "MD5OfMessageSystemAttributes", Index: 2}
+var memberSendMessageOutput_MD5OfMessageSystemAttributes = smithy.Member{Name: "MD5OfMessageSystemAttributes", Index: 2, Target: &schemaString}
 
-var memberSendMessageOutput_MessageId = smithy.Member{Name: "MessageId", Index: 3}
+var memberSendMessageOutput_MessageId = smithy.Member{Name: "MessageId", Index: 3, Target: &schemaString}
 
-var memberSendMessageOutput_SequenceNumber = smithy.Member{Name: "SequenceNumber", Index: 4}
+var memberSendMessageOutput_SequenceNumber = smithy.Member{Name: "SequenceNumber", Index: 4, Target: &schemaString}
 
-var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaSerializationException = smithy.Schema{ID: "com.amazon.coral.service#SerializationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSerializationException_Message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0}
+var memberSerializationException_Message = smithy.Member{Name: "Message", Index: 0, Target: &schemaSmithyString}
 
-var schemaSetQueueAttributesInput = smithy.Schema{ID: "com.amazonaws.sqs#SetQueueAttributesRequest", Type: smithy.TypeStructure}
+var schemaSetQueueAttributesInput = smithy.Schema{ID: "com.amazonaws.sqs#SetQueueAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSetQueueAttributesInput_QueueUrl, &memberSetQueueAttributesInput_Attributes}}
 
-var memberSetQueueAttributesInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberSetQueueAttributesInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberSetQueueAttributesInput_Attributes = smithy.Member{Name: "Attributes", Index: 1, Required: true, XMLName: "Attribute", XMLFlattened: true}
+var memberSetQueueAttributesInput_Attributes = smithy.Member{Name: "Attributes", Index: 1, Target: &schemaQueueAttributeMap, Required: true, XMLName: "Attribute", XMLFlattened: true}
 
-var schemaSignatureDoesNotMatch = smithy.Schema{ID: "com.amazon.coral.service#SignatureDoesNotMatch", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
+var schemaSignatureDoesNotMatch = smithy.Schema{ID: "com.amazon.coral.service#SignatureDoesNotMatch", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberSignatureDoesNotMatch_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 403}}
 
-var memberSignatureDoesNotMatch_message = smithy.Member{Name: "message", Index: 0}
+var memberSignatureDoesNotMatch_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaSmithyString = smithy.Schema{ID: "smithy.api#String", Type: smithy.TypeString}
 
 var schemaSmithyUnit = smithy.Schema{ID: "smithy.api#Unit", Type: smithy.TypeUnit}
 
-var schemaStartMessageMoveTaskInput = smithy.Schema{ID: "com.amazonaws.sqs#StartMessageMoveTaskRequest", Type: smithy.TypeStructure}
+var schemaStartMessageMoveTaskInput = smithy.Schema{ID: "com.amazonaws.sqs#StartMessageMoveTaskRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStartMessageMoveTaskInput_SourceArn, &memberStartMessageMoveTaskInput_DestinationArn, &memberStartMessageMoveTaskInput_MaxNumberOfMessagesPerSecond}}
 
-var memberStartMessageMoveTaskInput_SourceArn = smithy.Member{Name: "SourceArn", Index: 0, Required: true}
+var memberStartMessageMoveTaskInput_SourceArn = smithy.Member{Name: "SourceArn", Index: 0, Target: &schemaString, Required: true}
 
-var memberStartMessageMoveTaskInput_DestinationArn = smithy.Member{Name: "DestinationArn", Index: 1}
+var memberStartMessageMoveTaskInput_DestinationArn = smithy.Member{Name: "DestinationArn", Index: 1, Target: &schemaString}
 
-var memberStartMessageMoveTaskInput_MaxNumberOfMessagesPerSecond = smithy.Member{Name: "MaxNumberOfMessagesPerSecond", Index: 2}
+var memberStartMessageMoveTaskInput_MaxNumberOfMessagesPerSecond = smithy.Member{Name: "MaxNumberOfMessagesPerSecond", Index: 2, Target: &schemaNullableInteger}
 
-var schemaStartMessageMoveTaskOutput = smithy.Schema{ID: "com.amazonaws.sqs#StartMessageMoveTaskResult", Type: smithy.TypeStructure}
+var schemaStartMessageMoveTaskOutput = smithy.Schema{ID: "com.amazonaws.sqs#StartMessageMoveTaskResult", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberStartMessageMoveTaskOutput_TaskHandle}}
 
-var memberStartMessageMoveTaskOutput_TaskHandle = smithy.Member{Name: "TaskHandle", Index: 0}
+var memberStartMessageMoveTaskOutput_TaskHandle = smithy.Member{Name: "TaskHandle", Index: 0, Target: &schemaString}
 
 var schemaString = smithy.Schema{ID: "com.amazonaws.sqs#String", Type: smithy.TypeString}
 
-var schemaStringList = smithy.Schema{ID: "com.amazonaws.sqs#StringList", Type: smithy.TypeList}
+var schemaStringList = smithy.Schema{ID: "com.amazonaws.sqs#StringList", Type: smithy.TypeList, Members: []*smithy.Member{&memberStringList_member}}
 
-var memberStringList_member = smithy.Member{Name: "member", Index: 0, XMLName: "StringListValue"}
+var memberStringList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaString, XMLName: "StringListValue"}
 
 var schemaTagKey = smithy.Schema{ID: "com.amazonaws.sqs#TagKey", Type: smithy.TypeString}
 
-var schemaTagKeyList = smithy.Schema{ID: "com.amazonaws.sqs#TagKeyList", Type: smithy.TypeList}
+var schemaTagKeyList = smithy.Schema{ID: "com.amazonaws.sqs#TagKeyList", Type: smithy.TypeList, Members: []*smithy.Member{&memberTagKeyList_member}}
 
-var memberTagKeyList_member = smithy.Member{Name: "member", Index: 0}
+var memberTagKeyList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaTagKey}
 
-var schemaTagMap = smithy.Schema{ID: "com.amazonaws.sqs#TagMap", Type: smithy.TypeMap}
+var schemaTagMap = smithy.Schema{ID: "com.amazonaws.sqs#TagMap", Type: smithy.TypeMap, Members: []*smithy.Member{&memberTagMap_key, &memberTagMap_value}}
 
-var memberTagMap_key = smithy.Member{Name: "key", Index: 0, XMLName: "Key"}
+var memberTagMap_key = smithy.Member{Name: "key", Index: 0, Target: &schemaTagKey, XMLName: "Key"}
 
-var memberTagMap_value = smithy.Member{Name: "value", Index: 1, XMLName: "Value"}
+var memberTagMap_value = smithy.Member{Name: "value", Index: 1, Target: &schemaTagValue, XMLName: "Value"}
 
-var schemaTagQueueInput = smithy.Schema{ID: "com.amazonaws.sqs#TagQueueRequest", Type: smithy.TypeStructure}
+var schemaTagQueueInput = smithy.Schema{ID: "com.amazonaws.sqs#TagQueueRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTagQueueInput_QueueUrl, &memberTagQueueInput_Tags}}
 
-var memberTagQueueInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberTagQueueInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberTagQueueInput_Tags = smithy.Member{Name: "Tags", Index: 1, Required: true, XMLName: "Tag", XMLFlattened: true}
+var memberTagQueueInput_Tags = smithy.Member{Name: "Tags", Index: 1, Target: &schemaTagMap, Required: true, XMLName: "Tag", XMLFlattened: true}
 
 var schemaTagValue = smithy.Schema{ID: "com.amazonaws.sqs#TagValue", Type: smithy.TypeString}
 
-var schemaThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaThrottlingException = smithy.Schema{ID: "com.amazon.coral.service#ThrottlingException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberThrottlingException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0}
+var memberThrottlingException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
 var schemaToken = smithy.Schema{ID: "com.amazonaws.sqs#Token", Type: smithy.TypeString}
 
-var schemaTooManyEntriesInBatchRequest = smithy.Schema{ID: "com.amazonaws.sqs#TooManyEntriesInBatchRequest", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaTooManyEntriesInBatchRequest = smithy.Schema{ID: "com.amazonaws.sqs#TooManyEntriesInBatchRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberTooManyEntriesInBatchRequest_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberTooManyEntriesInBatchRequest_message = smithy.Member{Name: "message", Index: 0}
+var memberTooManyEntriesInBatchRequest_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnknownOperationException = smithy.Schema{ID: "com.amazon.coral.service#UnknownOperationException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnknownOperationException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnknownOperationException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnrecognizedClientException = smithy.Schema{ID: "com.amazon.coral.service#UnrecognizedClientException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnrecognizedClientException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0}
+var memberUnrecognizedClientException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
 
-var schemaUnsupportedOperation = smithy.Schema{ID: "com.amazonaws.sqs#UnsupportedOperation", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
+var schemaUnsupportedOperation = smithy.Schema{ID: "com.amazonaws.sqs#UnsupportedOperation", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUnsupportedOperation_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 400}}
 
-var memberUnsupportedOperation_message = smithy.Member{Name: "message", Index: 0}
+var memberUnsupportedOperation_message = smithy.Member{Name: "message", Index: 0, Target: &schemaExceptionMessage}
 
-var schemaUntagQueueInput = smithy.Schema{ID: "com.amazonaws.sqs#UntagQueueRequest", Type: smithy.TypeStructure}
+var schemaUntagQueueInput = smithy.Schema{ID: "com.amazonaws.sqs#UntagQueueRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUntagQueueInput_QueueUrl, &memberUntagQueueInput_TagKeys}}
 
-var memberUntagQueueInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Required: true}
+var memberUntagQueueInput_QueueUrl = smithy.Member{Name: "QueueUrl", Index: 0, Target: &schemaString, Required: true}
 
-var memberUntagQueueInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Required: true, XMLName: "TagKey", XMLFlattened: true}
-
-func init() {
-	memberAWSAccountIdList_member.Target = &schemaString
-	schemaAWSAccountIdList.Members = []*smithy.Member{&memberAWSAccountIdList_member}
-	memberAccessDeniedException_message.Target = &schemaSmithyString
-	schemaAccessDeniedException.Members = []*smithy.Member{&memberAccessDeniedException_message}
-	memberActionNameList_member.Target = &schemaString
-	schemaActionNameList.Members = []*smithy.Member{&memberActionNameList_member}
-	memberAddPermissionInput_QueueUrl.Target = &schemaString
-	memberAddPermissionInput_Label.Target = &schemaString
-	memberAddPermissionInput_AWSAccountIds.Target = &schemaAWSAccountIdList
-	memberAddPermissionInput_Actions.Target = &schemaActionNameList
-	schemaAddPermissionInput.Members = []*smithy.Member{&memberAddPermissionInput_QueueUrl, &memberAddPermissionInput_Label, &memberAddPermissionInput_AWSAccountIds, &memberAddPermissionInput_Actions}
-	memberAttributeNameList_member.Target = &schemaQueueAttributeName
-	schemaAttributeNameList.Members = []*smithy.Member{&memberAttributeNameList_member}
-	memberBatchEntryIdsNotDistinct_message.Target = &schemaExceptionMessage
-	schemaBatchEntryIdsNotDistinct.Members = []*smithy.Member{&memberBatchEntryIdsNotDistinct_message}
-	memberBatchRequestTooLong_message.Target = &schemaExceptionMessage
-	schemaBatchRequestTooLong.Members = []*smithy.Member{&memberBatchRequestTooLong_message}
-	memberBatchResultErrorEntry_Id.Target = &schemaString
-	memberBatchResultErrorEntry_SenderFault.Target = &schemaBoolean
-	memberBatchResultErrorEntry_Code.Target = &schemaString
-	memberBatchResultErrorEntry_Message.Target = &schemaString
-	schemaBatchResultErrorEntry.Members = []*smithy.Member{&memberBatchResultErrorEntry_Id, &memberBatchResultErrorEntry_SenderFault, &memberBatchResultErrorEntry_Code, &memberBatchResultErrorEntry_Message}
-	memberBatchResultErrorEntryList_member.Target = &schemaBatchResultErrorEntry
-	schemaBatchResultErrorEntryList.Members = []*smithy.Member{&memberBatchResultErrorEntryList_member}
-	memberBinaryList_member.Target = &schemaBinary
-	schemaBinaryList.Members = []*smithy.Member{&memberBinaryList_member}
-	memberCancelMessageMoveTaskInput_TaskHandle.Target = &schemaString
-	schemaCancelMessageMoveTaskInput.Members = []*smithy.Member{&memberCancelMessageMoveTaskInput_TaskHandle}
-	memberCancelMessageMoveTaskOutput_ApproximateNumberOfMessagesMoved.Target = &schemaLong
-	schemaCancelMessageMoveTaskOutput.Members = []*smithy.Member{&memberCancelMessageMoveTaskOutput_ApproximateNumberOfMessagesMoved}
-	memberChangeMessageVisibilityBatchInput_QueueUrl.Target = &schemaString
-	memberChangeMessageVisibilityBatchInput_Entries.Target = &schemaChangeMessageVisibilityBatchRequestEntryList
-	schemaChangeMessageVisibilityBatchInput.Members = []*smithy.Member{&memberChangeMessageVisibilityBatchInput_QueueUrl, &memberChangeMessageVisibilityBatchInput_Entries}
-	memberChangeMessageVisibilityBatchOutput_Successful.Target = &schemaChangeMessageVisibilityBatchResultEntryList
-	memberChangeMessageVisibilityBatchOutput_Failed.Target = &schemaBatchResultErrorEntryList
-	schemaChangeMessageVisibilityBatchOutput.Members = []*smithy.Member{&memberChangeMessageVisibilityBatchOutput_Successful, &memberChangeMessageVisibilityBatchOutput_Failed}
-	memberChangeMessageVisibilityBatchRequestEntry_Id.Target = &schemaString
-	memberChangeMessageVisibilityBatchRequestEntry_ReceiptHandle.Target = &schemaString
-	memberChangeMessageVisibilityBatchRequestEntry_VisibilityTimeout.Target = &schemaNullableInteger
-	schemaChangeMessageVisibilityBatchRequestEntry.Members = []*smithy.Member{&memberChangeMessageVisibilityBatchRequestEntry_Id, &memberChangeMessageVisibilityBatchRequestEntry_ReceiptHandle, &memberChangeMessageVisibilityBatchRequestEntry_VisibilityTimeout}
-	memberChangeMessageVisibilityBatchRequestEntryList_member.Target = &schemaChangeMessageVisibilityBatchRequestEntry
-	schemaChangeMessageVisibilityBatchRequestEntryList.Members = []*smithy.Member{&memberChangeMessageVisibilityBatchRequestEntryList_member}
-	memberChangeMessageVisibilityBatchResultEntry_Id.Target = &schemaString
-	schemaChangeMessageVisibilityBatchResultEntry.Members = []*smithy.Member{&memberChangeMessageVisibilityBatchResultEntry_Id}
-	memberChangeMessageVisibilityBatchResultEntryList_member.Target = &schemaChangeMessageVisibilityBatchResultEntry
-	schemaChangeMessageVisibilityBatchResultEntryList.Members = []*smithy.Member{&memberChangeMessageVisibilityBatchResultEntryList_member}
-	memberChangeMessageVisibilityInput_QueueUrl.Target = &schemaString
-	memberChangeMessageVisibilityInput_ReceiptHandle.Target = &schemaString
-	memberChangeMessageVisibilityInput_VisibilityTimeout.Target = &schemaNullableInteger
-	schemaChangeMessageVisibilityInput.Members = []*smithy.Member{&memberChangeMessageVisibilityInput_QueueUrl, &memberChangeMessageVisibilityInput_ReceiptHandle, &memberChangeMessageVisibilityInput_VisibilityTimeout}
-	memberCreateQueueInput_QueueName.Target = &schemaString
-	memberCreateQueueInput_Attributes.Target = &schemaQueueAttributeMap
-	memberCreateQueueInput_tags.Target = &schemaTagMap
-	schemaCreateQueueInput.Members = []*smithy.Member{&memberCreateQueueInput_QueueName, &memberCreateQueueInput_Attributes, &memberCreateQueueInput_tags}
-	memberCreateQueueOutput_QueueUrl.Target = &schemaString
-	schemaCreateQueueOutput.Members = []*smithy.Member{&memberCreateQueueOutput_QueueUrl}
-	memberDeleteMessageBatchInput_QueueUrl.Target = &schemaString
-	memberDeleteMessageBatchInput_Entries.Target = &schemaDeleteMessageBatchRequestEntryList
-	schemaDeleteMessageBatchInput.Members = []*smithy.Member{&memberDeleteMessageBatchInput_QueueUrl, &memberDeleteMessageBatchInput_Entries}
-	memberDeleteMessageBatchOutput_Successful.Target = &schemaDeleteMessageBatchResultEntryList
-	memberDeleteMessageBatchOutput_Failed.Target = &schemaBatchResultErrorEntryList
-	schemaDeleteMessageBatchOutput.Members = []*smithy.Member{&memberDeleteMessageBatchOutput_Successful, &memberDeleteMessageBatchOutput_Failed}
-	memberDeleteMessageBatchRequestEntry_Id.Target = &schemaString
-	memberDeleteMessageBatchRequestEntry_ReceiptHandle.Target = &schemaString
-	schemaDeleteMessageBatchRequestEntry.Members = []*smithy.Member{&memberDeleteMessageBatchRequestEntry_Id, &memberDeleteMessageBatchRequestEntry_ReceiptHandle}
-	memberDeleteMessageBatchRequestEntryList_member.Target = &schemaDeleteMessageBatchRequestEntry
-	schemaDeleteMessageBatchRequestEntryList.Members = []*smithy.Member{&memberDeleteMessageBatchRequestEntryList_member}
-	memberDeleteMessageBatchResultEntry_Id.Target = &schemaString
-	schemaDeleteMessageBatchResultEntry.Members = []*smithy.Member{&memberDeleteMessageBatchResultEntry_Id}
-	memberDeleteMessageBatchResultEntryList_member.Target = &schemaDeleteMessageBatchResultEntry
-	schemaDeleteMessageBatchResultEntryList.Members = []*smithy.Member{&memberDeleteMessageBatchResultEntryList_member}
-	memberDeleteMessageInput_QueueUrl.Target = &schemaString
-	memberDeleteMessageInput_ReceiptHandle.Target = &schemaString
-	schemaDeleteMessageInput.Members = []*smithy.Member{&memberDeleteMessageInput_QueueUrl, &memberDeleteMessageInput_ReceiptHandle}
-	memberDeleteQueueInput_QueueUrl.Target = &schemaString
-	schemaDeleteQueueInput.Members = []*smithy.Member{&memberDeleteQueueInput_QueueUrl}
-	memberEmptyBatchRequest_message.Target = &schemaExceptionMessage
-	schemaEmptyBatchRequest.Members = []*smithy.Member{&memberEmptyBatchRequest_message}
-	memberExpiredToken_message.Target = &schemaSmithyString
-	schemaExpiredToken.Members = []*smithy.Member{&memberExpiredToken_message}
-	memberExpiredTokenException_message.Target = &schemaSmithyString
-	schemaExpiredTokenException.Members = []*smithy.Member{&memberExpiredTokenException_message}
-	memberGetQueueAttributesInput_QueueUrl.Target = &schemaString
-	memberGetQueueAttributesInput_AttributeNames.Target = &schemaAttributeNameList
-	schemaGetQueueAttributesInput.Members = []*smithy.Member{&memberGetQueueAttributesInput_QueueUrl, &memberGetQueueAttributesInput_AttributeNames}
-	memberGetQueueAttributesOutput_Attributes.Target = &schemaQueueAttributeMap
-	schemaGetQueueAttributesOutput.Members = []*smithy.Member{&memberGetQueueAttributesOutput_Attributes}
-	memberGetQueueUrlInput_QueueName.Target = &schemaString
-	memberGetQueueUrlInput_QueueOwnerAWSAccountId.Target = &schemaString
-	schemaGetQueueUrlInput.Members = []*smithy.Member{&memberGetQueueUrlInput_QueueName, &memberGetQueueUrlInput_QueueOwnerAWSAccountId}
-	memberGetQueueUrlOutput_QueueUrl.Target = &schemaString
-	schemaGetQueueUrlOutput.Members = []*smithy.Member{&memberGetQueueUrlOutput_QueueUrl}
-	memberHoldVisibilityInput_QueueUrl.Target = &schemaString
-	memberHoldVisibilityInput_ReceiptHandles.Target = &schemaReceiptHandleList
-	memberHoldVisibilityInput_Mode.Target = &schemaHoldVisibilityMode
-	schemaHoldVisibilityInput.Members = []*smithy.Member{&memberHoldVisibilityInput_QueueUrl, &memberHoldVisibilityInput_ReceiptHandles, &memberHoldVisibilityInput_Mode}
-	memberIncompleteSignature_message.Target = &schemaSmithyString
-	schemaIncompleteSignature.Members = []*smithy.Member{&memberIncompleteSignature_message}
-	memberIncompleteSignatureException_message.Target = &schemaSmithyString
-	schemaIncompleteSignatureException.Members = []*smithy.Member{&memberIncompleteSignatureException_message}
-	memberInternalFailure_message.Target = &schemaSmithyString
-	schemaInternalFailure.Members = []*smithy.Member{&memberInternalFailure_message}
-	memberInvalidAction_message.Target = &schemaSmithyString
-	schemaInvalidAction.Members = []*smithy.Member{&memberInvalidAction_message}
-	memberInvalidAddress_message.Target = &schemaExceptionMessage
-	schemaInvalidAddress.Members = []*smithy.Member{&memberInvalidAddress_message}
-	memberInvalidAttributeName_message.Target = &schemaExceptionMessage
-	schemaInvalidAttributeName.Members = []*smithy.Member{&memberInvalidAttributeName_message}
-	memberInvalidAttributeValue_message.Target = &schemaExceptionMessage
-	schemaInvalidAttributeValue.Members = []*smithy.Member{&memberInvalidAttributeValue_message}
-	memberInvalidBatchEntryId_message.Target = &schemaExceptionMessage
-	schemaInvalidBatchEntryId.Members = []*smithy.Member{&memberInvalidBatchEntryId_message}
-	memberInvalidClientTokenId_message.Target = &schemaSmithyString
-	schemaInvalidClientTokenId.Members = []*smithy.Member{&memberInvalidClientTokenId_message}
-	memberInvalidMessageContents_message.Target = &schemaExceptionMessage
-	schemaInvalidMessageContents.Members = []*smithy.Member{&memberInvalidMessageContents_message}
-	memberInvalidParameterValue_message.Target = &schemaExceptionMessage
-	schemaInvalidParameterValue.Members = []*smithy.Member{&memberInvalidParameterValue_message}
-	memberInvalidSecurity_message.Target = &schemaExceptionMessage
-	schemaInvalidSecurity.Members = []*smithy.Member{&memberInvalidSecurity_message}
-	memberInvalidSignatureException_message.Target = &schemaSmithyString
-	schemaInvalidSignatureException.Members = []*smithy.Member{&memberInvalidSignatureException_message}
-	memberKmsAccessDenied_message.Target = &schemaExceptionMessage
-	schemaKmsAccessDenied.Members = []*smithy.Member{&memberKmsAccessDenied_message}
-	memberKmsDisabled_message.Target = &schemaExceptionMessage
-	schemaKmsDisabled.Members = []*smithy.Member{&memberKmsDisabled_message}
-	memberKmsInvalidKeyUsage_message.Target = &schemaExceptionMessage
-	schemaKmsInvalidKeyUsage.Members = []*smithy.Member{&memberKmsInvalidKeyUsage_message}
-	memberKmsInvalidState_message.Target = &schemaExceptionMessage
-	schemaKmsInvalidState.Members = []*smithy.Member{&memberKmsInvalidState_message}
-	memberKmsNotFound_message.Target = &schemaExceptionMessage
-	schemaKmsNotFound.Members = []*smithy.Member{&memberKmsNotFound_message}
-	memberKmsOptInRequired_message.Target = &schemaExceptionMessage
-	schemaKmsOptInRequired.Members = []*smithy.Member{&memberKmsOptInRequired_message}
-	memberKmsThrottled_message.Target = &schemaExceptionMessage
-	schemaKmsThrottled.Members = []*smithy.Member{&memberKmsThrottled_message}
-	memberListDeadLetterSourceQueuesInput_QueueUrl.Target = &schemaString
-	memberListDeadLetterSourceQueuesInput_NextToken.Target = &schemaToken
-	memberListDeadLetterSourceQueuesInput_MaxResults.Target = &schemaBoxedInteger
-	schemaListDeadLetterSourceQueuesInput.Members = []*smithy.Member{&memberListDeadLetterSourceQueuesInput_QueueUrl, &memberListDeadLetterSourceQueuesInput_NextToken, &memberListDeadLetterSourceQueuesInput_MaxResults}
-	memberListDeadLetterSourceQueuesOutput_queueUrls.Target = &schemaQueueUrlList
-	memberListDeadLetterSourceQueuesOutput_NextToken.Target = &schemaToken
-	schemaListDeadLetterSourceQueuesOutput.Members = []*smithy.Member{&memberListDeadLetterSourceQueuesOutput_queueUrls, &memberListDeadLetterSourceQueuesOutput_NextToken}
-	memberListMessageMoveTasksInput_SourceArn.Target = &schemaString
-	memberListMessageMoveTasksInput_MaxResults.Target = &schemaNullableInteger
-	schemaListMessageMoveTasksInput.Members = []*smithy.Member{&memberListMessageMoveTasksInput_SourceArn, &memberListMessageMoveTasksInput_MaxResults}
-	memberListMessageMoveTasksOutput_Results.Target = &schemaListMessageMoveTasksResultEntryList
-	schemaListMessageMoveTasksOutput.Members = []*smithy.Member{&memberListMessageMoveTasksOutput_Results}
-	memberListMessageMoveTasksResultEntry_TaskHandle.Target = &schemaString
-	memberListMessageMoveTasksResultEntry_Status.Target = &schemaString
-	memberListMessageMoveTasksResultEntry_SourceArn.Target = &schemaString
-	memberListMessageMoveTasksResultEntry_DestinationArn.Target = &schemaString
-	memberListMessageMoveTasksResultEntry_MaxNumberOfMessagesPerSecond.Target = &schemaNullableInteger
-	memberListMessageMoveTasksResultEntry_ApproximateNumberOfMessagesMoved.Target = &schemaLong
-	memberListMessageMoveTasksResultEntry_ApproximateNumberOfMessagesToMove.Target = &schemaNullableLong
-	memberListMessageMoveTasksResultEntry_FailureReason.Target = &schemaString
-	memberListMessageMoveTasksResultEntry_StartedTimestamp.Target = &schemaLong
-	schemaListMessageMoveTasksResultEntry.Members = []*smithy.Member{&memberListMessageMoveTasksResultEntry_TaskHandle, &memberListMessageMoveTasksResultEntry_Status, &memberListMessageMoveTasksResultEntry_SourceArn, &memberListMessageMoveTasksResultEntry_DestinationArn, &memberListMessageMoveTasksResultEntry_MaxNumberOfMessagesPerSecond, &memberListMessageMoveTasksResultEntry_ApproximateNumberOfMessagesMoved, &memberListMessageMoveTasksResultEntry_ApproximateNumberOfMessagesToMove, &memberListMessageMoveTasksResultEntry_FailureReason, &memberListMessageMoveTasksResultEntry_StartedTimestamp}
-	memberListMessageMoveTasksResultEntryList_member.Target = &schemaListMessageMoveTasksResultEntry
-	schemaListMessageMoveTasksResultEntryList.Members = []*smithy.Member{&memberListMessageMoveTasksResultEntryList_member}
-	memberListQueueTagsInput_QueueUrl.Target = &schemaString
-	schemaListQueueTagsInput.Members = []*smithy.Member{&memberListQueueTagsInput_QueueUrl}
-	memberListQueueTagsOutput_Tags.Target = &schemaTagMap
-	schemaListQueueTagsOutput.Members = []*smithy.Member{&memberListQueueTagsOutput_Tags}
-	memberListQueuesInput_QueueNamePrefix.Target = &schemaString
-	memberListQueuesInput_NextToken.Target = &schemaToken
-	memberListQueuesInput_MaxResults.Target = &schemaBoxedInteger
-	schemaListQueuesInput.Members = []*smithy.Member{&memberListQueuesInput_QueueNamePrefix, &memberListQueuesInput_NextToken, &memberListQueuesInput_MaxResults}
-	memberListQueuesOutput_QueueUrls.Target = &schemaQueueUrlList
-	memberListQueuesOutput_NextToken.Target = &schemaToken
-	schemaListQueuesOutput.Members = []*smithy.Member{&memberListQueuesOutput_QueueUrls, &memberListQueuesOutput_NextToken}
-	memberMessage_MessageId.Target = &schemaString
-	memberMessage_ReceiptHandle.Target = &schemaString
-	memberMessage_MD5OfBody.Target = &schemaString
-	memberMessage_Body.Target = &schemaString
-	memberMessage_Attributes.Target = &schemaMessageSystemAttributeMap
-	memberMessage_MD5OfMessageAttributes.Target = &schemaString
-	memberMessage_MessageAttributes.Target = &schemaMessageBodyAttributeMap
-	schemaMessage.Members = []*smithy.Member{&memberMessage_MessageId, &memberMessage_ReceiptHandle, &memberMessage_MD5OfBody, &memberMessage_Body, &memberMessage_Attributes, &memberMessage_MD5OfMessageAttributes, &memberMessage_MessageAttributes}
-	memberMessageAttributeNameList_member.Target = &schemaMessageAttributeName
-	schemaMessageAttributeNameList.Members = []*smithy.Member{&memberMessageAttributeNameList_member}
-	memberMessageAttributeValue_StringValue.Target = &schemaString
-	memberMessageAttributeValue_BinaryValue.Target = &schemaBinary
-	memberMessageAttributeValue_StringListValues.Target = &schemaStringList
-	memberMessageAttributeValue_BinaryListValues.Target = &schemaBinaryList
-	memberMessageAttributeValue_DataType.Target = &schemaString
-	schemaMessageAttributeValue.Members = []*smithy.Member{&memberMessageAttributeValue_StringValue, &memberMessageAttributeValue_BinaryValue, &memberMessageAttributeValue_StringListValues, &memberMessageAttributeValue_BinaryListValues, &memberMessageAttributeValue_DataType}
-	memberMessageBodyAttributeMap_key.Target = &schemaString
-	memberMessageBodyAttributeMap_value.Target = &schemaMessageAttributeValue
-	schemaMessageBodyAttributeMap.Members = []*smithy.Member{&memberMessageBodyAttributeMap_key, &memberMessageBodyAttributeMap_value}
-	memberMessageBodySystemAttributeMap_key.Target = &schemaMessageSystemAttributeNameForSends
-	memberMessageBodySystemAttributeMap_value.Target = &schemaMessageSystemAttributeValue
-	schemaMessageBodySystemAttributeMap.Members = []*smithy.Member{&memberMessageBodySystemAttributeMap_key, &memberMessageBodySystemAttributeMap_value}
-	memberMessageCause_ReceiptHandle.Target = &schemaString
-	memberMessageCause_EnqueuedEvent.Target = &schemaLong
-	memberMessageCause_EnqueuedTrace.Target = &schemaLong
-	schemaMessageCause.Members = []*smithy.Member{&memberMessageCause_ReceiptHandle, &memberMessageCause_EnqueuedEvent, &memberMessageCause_EnqueuedTrace}
-	memberMessageCauseList_member.Target = &schemaMessageCause
-	schemaMessageCauseList.Members = []*smithy.Member{&memberMessageCauseList_member}
-	memberMessageCausesInput_QueueUrl.Target = &schemaString
-	memberMessageCausesInput_ReceiptHandles.Target = &schemaReceiptHandleList
-	schemaMessageCausesInput.Members = []*smithy.Member{&memberMessageCausesInput_QueueUrl, &memberMessageCausesInput_ReceiptHandles}
-	memberMessageCausesOutput_Causes.Target = &schemaMessageCauseList
-	schemaMessageCausesOutput.Members = []*smithy.Member{&memberMessageCausesOutput_Causes}
-	memberMessageList_member.Target = &schemaMessage
-	schemaMessageList.Members = []*smithy.Member{&memberMessageList_member}
-	memberMessageSystemAttributeList_member.Target = &schemaMessageSystemAttributeName
-	schemaMessageSystemAttributeList.Members = []*smithy.Member{&memberMessageSystemAttributeList_member}
-	memberMessageSystemAttributeMap_key.Target = &schemaMessageSystemAttributeName
-	memberMessageSystemAttributeMap_value.Target = &schemaString
-	schemaMessageSystemAttributeMap.Members = []*smithy.Member{&memberMessageSystemAttributeMap_key, &memberMessageSystemAttributeMap_value}
-	memberMessageSystemAttributeValue_StringValue.Target = &schemaString
-	memberMessageSystemAttributeValue_BinaryValue.Target = &schemaBinary
-	memberMessageSystemAttributeValue_StringListValues.Target = &schemaStringList
-	memberMessageSystemAttributeValue_BinaryListValues.Target = &schemaBinaryList
-	memberMessageSystemAttributeValue_DataType.Target = &schemaString
-	schemaMessageSystemAttributeValue.Members = []*smithy.Member{&memberMessageSystemAttributeValue_StringValue, &memberMessageSystemAttributeValue_BinaryValue, &memberMessageSystemAttributeValue_StringListValues, &memberMessageSystemAttributeValue_BinaryListValues, &memberMessageSystemAttributeValue_DataType}
-	memberMissingAuthenticationToken_message.Target = &schemaSmithyString
-	schemaMissingAuthenticationToken.Members = []*smithy.Member{&memberMissingAuthenticationToken_message}
-	memberMissingAuthenticationTokenException_message.Target = &schemaSmithyString
-	schemaMissingAuthenticationTokenException.Members = []*smithy.Member{&memberMissingAuthenticationTokenException_message}
-	memberMissingParameter_message.Target = &schemaExceptionMessage
-	schemaMissingParameter.Members = []*smithy.Member{&memberMissingParameter_message}
-	memberNotImplemented_message.Target = &schemaSmithyString
-	schemaNotImplemented.Members = []*smithy.Member{&memberNotImplemented_message}
-	memberOverLimit_message.Target = &schemaExceptionMessage
-	schemaOverLimit.Members = []*smithy.Member{&memberOverLimit_message}
-	memberPurgeQueueInProgress_message.Target = &schemaExceptionMessage
-	schemaPurgeQueueInProgress.Members = []*smithy.Member{&memberPurgeQueueInProgress_message}
-	memberPurgeQueueInput_QueueUrl.Target = &schemaString
-	schemaPurgeQueueInput.Members = []*smithy.Member{&memberPurgeQueueInput_QueueUrl}
-	memberQueueAttributeMap_key.Target = &schemaQueueAttributeName
-	memberQueueAttributeMap_value.Target = &schemaString
-	schemaQueueAttributeMap.Members = []*smithy.Member{&memberQueueAttributeMap_key, &memberQueueAttributeMap_value}
-	memberQueueDeletedRecently_message.Target = &schemaExceptionMessage
-	schemaQueueDeletedRecently.Members = []*smithy.Member{&memberQueueDeletedRecently_message}
-	memberQueueDoesNotExist_message.Target = &schemaExceptionMessage
-	schemaQueueDoesNotExist.Members = []*smithy.Member{&memberQueueDoesNotExist_message}
-	memberQueueNameExists_message.Target = &schemaExceptionMessage
-	schemaQueueNameExists.Members = []*smithy.Member{&memberQueueNameExists_message}
-	memberQueueUrlList_member.Target = &schemaString
-	schemaQueueUrlList.Members = []*smithy.Member{&memberQueueUrlList_member}
-	memberReceiptHandleIsInvalid_message.Target = &schemaExceptionMessage
-	schemaReceiptHandleIsInvalid.Members = []*smithy.Member{&memberReceiptHandleIsInvalid_message}
-	memberReceiptHandleList_member.Target = &schemaString
-	schemaReceiptHandleList.Members = []*smithy.Member{&memberReceiptHandleList_member}
-	memberReceiveMessageInput_QueueUrl.Target = &schemaString
-	memberReceiveMessageInput_AttributeNames.Target = &schemaAttributeNameList
-	memberReceiveMessageInput_MessageSystemAttributeNames.Target = &schemaMessageSystemAttributeList
-	memberReceiveMessageInput_MessageAttributeNames.Target = &schemaMessageAttributeNameList
-	memberReceiveMessageInput_MaxNumberOfMessages.Target = &schemaNullableInteger
-	memberReceiveMessageInput_VisibilityTimeout.Target = &schemaNullableInteger
-	memberReceiveMessageInput_WaitTimeSeconds.Target = &schemaNullableInteger
-	memberReceiveMessageInput_ReceiveRequestAttemptId.Target = &schemaString
-	schemaReceiveMessageInput.Members = []*smithy.Member{&memberReceiveMessageInput_QueueUrl, &memberReceiveMessageInput_AttributeNames, &memberReceiveMessageInput_MessageSystemAttributeNames, &memberReceiveMessageInput_MessageAttributeNames, &memberReceiveMessageInput_MaxNumberOfMessages, &memberReceiveMessageInput_VisibilityTimeout, &memberReceiveMessageInput_WaitTimeSeconds, &memberReceiveMessageInput_ReceiveRequestAttemptId}
-	memberReceiveMessageOutput_Messages.Target = &schemaMessageList
-	schemaReceiveMessageOutput.Members = []*smithy.Member{&memberReceiveMessageOutput_Messages}
-	memberRemovePermissionInput_QueueUrl.Target = &schemaString
-	memberRemovePermissionInput_Label.Target = &schemaString
-	schemaRemovePermissionInput.Members = []*smithy.Member{&memberRemovePermissionInput_QueueUrl, &memberRemovePermissionInput_Label}
-	memberRequestEntityTooLargeException_message.Target = &schemaSmithyString
-	schemaRequestEntityTooLargeException.Members = []*smithy.Member{&memberRequestEntityTooLargeException_message}
-	memberRequestThrottled_message.Target = &schemaExceptionMessage
-	schemaRequestThrottled.Members = []*smithy.Member{&memberRequestThrottled_message}
-	memberResourceNotFoundException_message.Target = &schemaExceptionMessage
-	schemaResourceNotFoundException.Members = []*smithy.Member{&memberResourceNotFoundException_message}
-	memberSendMessageBatchInput_QueueUrl.Target = &schemaString
-	memberSendMessageBatchInput_Entries.Target = &schemaSendMessageBatchRequestEntryList
-	schemaSendMessageBatchInput.Members = []*smithy.Member{&memberSendMessageBatchInput_QueueUrl, &memberSendMessageBatchInput_Entries}
-	memberSendMessageBatchOutput_Successful.Target = &schemaSendMessageBatchResultEntryList
-	memberSendMessageBatchOutput_Failed.Target = &schemaBatchResultErrorEntryList
-	schemaSendMessageBatchOutput.Members = []*smithy.Member{&memberSendMessageBatchOutput_Successful, &memberSendMessageBatchOutput_Failed}
-	memberSendMessageBatchRequestEntry_Id.Target = &schemaString
-	memberSendMessageBatchRequestEntry_MessageBody.Target = &schemaString
-	memberSendMessageBatchRequestEntry_DelaySeconds.Target = &schemaNullableInteger
-	memberSendMessageBatchRequestEntry_MessageAttributes.Target = &schemaMessageBodyAttributeMap
-	memberSendMessageBatchRequestEntry_MessageSystemAttributes.Target = &schemaMessageBodySystemAttributeMap
-	memberSendMessageBatchRequestEntry_MessageDeduplicationId.Target = &schemaString
-	memberSendMessageBatchRequestEntry_MessageGroupId.Target = &schemaString
-	schemaSendMessageBatchRequestEntry.Members = []*smithy.Member{&memberSendMessageBatchRequestEntry_Id, &memberSendMessageBatchRequestEntry_MessageBody, &memberSendMessageBatchRequestEntry_DelaySeconds, &memberSendMessageBatchRequestEntry_MessageAttributes, &memberSendMessageBatchRequestEntry_MessageSystemAttributes, &memberSendMessageBatchRequestEntry_MessageDeduplicationId, &memberSendMessageBatchRequestEntry_MessageGroupId}
-	memberSendMessageBatchRequestEntryList_member.Target = &schemaSendMessageBatchRequestEntry
-	schemaSendMessageBatchRequestEntryList.Members = []*smithy.Member{&memberSendMessageBatchRequestEntryList_member}
-	memberSendMessageBatchResultEntry_Id.Target = &schemaString
-	memberSendMessageBatchResultEntry_MessageId.Target = &schemaString
-	memberSendMessageBatchResultEntry_MD5OfMessageBody.Target = &schemaString
-	memberSendMessageBatchResultEntry_MD5OfMessageAttributes.Target = &schemaString
-	memberSendMessageBatchResultEntry_MD5OfMessageSystemAttributes.Target = &schemaString
-	memberSendMessageBatchResultEntry_SequenceNumber.Target = &schemaString
-	schemaSendMessageBatchResultEntry.Members = []*smithy.Member{&memberSendMessageBatchResultEntry_Id, &memberSendMessageBatchResultEntry_MessageId, &memberSendMessageBatchResultEntry_MD5OfMessageBody, &memberSendMessageBatchResultEntry_MD5OfMessageAttributes, &memberSendMessageBatchResultEntry_MD5OfMessageSystemAttributes, &memberSendMessageBatchResultEntry_SequenceNumber}
-	memberSendMessageBatchResultEntryList_member.Target = &schemaSendMessageBatchResultEntry
-	schemaSendMessageBatchResultEntryList.Members = []*smithy.Member{&memberSendMessageBatchResultEntryList_member}
-	memberSendMessageInput_QueueUrl.Target = &schemaString
-	memberSendMessageInput_MessageBody.Target = &schemaString
-	memberSendMessageInput_DelaySeconds.Target = &schemaNullableInteger
-	memberSendMessageInput_MessageAttributes.Target = &schemaMessageBodyAttributeMap
-	memberSendMessageInput_MessageSystemAttributes.Target = &schemaMessageBodySystemAttributeMap
-	memberSendMessageInput_MessageDeduplicationId.Target = &schemaString
-	memberSendMessageInput_MessageGroupId.Target = &schemaString
-	schemaSendMessageInput.Members = []*smithy.Member{&memberSendMessageInput_QueueUrl, &memberSendMessageInput_MessageBody, &memberSendMessageInput_DelaySeconds, &memberSendMessageInput_MessageAttributes, &memberSendMessageInput_MessageSystemAttributes, &memberSendMessageInput_MessageDeduplicationId, &memberSendMessageInput_MessageGroupId}
-	memberSendMessageOutput_MD5OfMessageBody.Target = &schemaString
-	memberSendMessageOutput_MD5OfMessageAttributes.Target = &schemaString
-	memberSendMessageOutput_MD5OfMessageSystemAttributes.Target = &schemaString
-	memberSendMessageOutput_MessageId.Target = &schemaString
-	memberSendMessageOutput_SequenceNumber.Target = &schemaString
-	schemaSendMessageOutput.Members = []*smithy.Member{&memberSendMessageOutput_MD5OfMessageBody, &memberSendMessageOutput_MD5OfMessageAttributes, &memberSendMessageOutput_MD5OfMessageSystemAttributes, &memberSendMessageOutput_MessageId, &memberSendMessageOutput_SequenceNumber}
-	memberSerializationException_Message.Target = &schemaSmithyString
-	schemaSerializationException.Members = []*smithy.Member{&memberSerializationException_Message}
-	memberSetQueueAttributesInput_QueueUrl.Target = &schemaString
-	memberSetQueueAttributesInput_Attributes.Target = &schemaQueueAttributeMap
-	schemaSetQueueAttributesInput.Members = []*smithy.Member{&memberSetQueueAttributesInput_QueueUrl, &memberSetQueueAttributesInput_Attributes}
-	memberSignatureDoesNotMatch_message.Target = &schemaSmithyString
-	schemaSignatureDoesNotMatch.Members = []*smithy.Member{&memberSignatureDoesNotMatch_message}
-	memberStartMessageMoveTaskInput_SourceArn.Target = &schemaString
-	memberStartMessageMoveTaskInput_DestinationArn.Target = &schemaString
-	memberStartMessageMoveTaskInput_MaxNumberOfMessagesPerSecond.Target = &schemaNullableInteger
-	schemaStartMessageMoveTaskInput.Members = []*smithy.Member{&memberStartMessageMoveTaskInput_SourceArn, &memberStartMessageMoveTaskInput_DestinationArn, &memberStartMessageMoveTaskInput_MaxNumberOfMessagesPerSecond}
-	memberStartMessageMoveTaskOutput_TaskHandle.Target = &schemaString
-	schemaStartMessageMoveTaskOutput.Members = []*smithy.Member{&memberStartMessageMoveTaskOutput_TaskHandle}
-	memberStringList_member.Target = &schemaString
-	schemaStringList.Members = []*smithy.Member{&memberStringList_member}
-	memberTagKeyList_member.Target = &schemaTagKey
-	schemaTagKeyList.Members = []*smithy.Member{&memberTagKeyList_member}
-	memberTagMap_key.Target = &schemaTagKey
-	memberTagMap_value.Target = &schemaTagValue
-	schemaTagMap.Members = []*smithy.Member{&memberTagMap_key, &memberTagMap_value}
-	memberTagQueueInput_QueueUrl.Target = &schemaString
-	memberTagQueueInput_Tags.Target = &schemaTagMap
-	schemaTagQueueInput.Members = []*smithy.Member{&memberTagQueueInput_QueueUrl, &memberTagQueueInput_Tags}
-	memberThrottlingException_message.Target = &schemaSmithyString
-	schemaThrottlingException.Members = []*smithy.Member{&memberThrottlingException_message}
-	memberTooManyEntriesInBatchRequest_message.Target = &schemaExceptionMessage
-	schemaTooManyEntriesInBatchRequest.Members = []*smithy.Member{&memberTooManyEntriesInBatchRequest_message}
-	memberUnknownOperationException_message.Target = &schemaSmithyString
-	schemaUnknownOperationException.Members = []*smithy.Member{&memberUnknownOperationException_message}
-	memberUnrecognizedClientException_message.Target = &schemaSmithyString
-	schemaUnrecognizedClientException.Members = []*smithy.Member{&memberUnrecognizedClientException_message}
-	memberUnsupportedOperation_message.Target = &schemaExceptionMessage
-	schemaUnsupportedOperation.Members = []*smithy.Member{&memberUnsupportedOperation_message}
-	memberUntagQueueInput_QueueUrl.Target = &schemaString
-	memberUntagQueueInput_TagKeys.Target = &schemaTagKeyList
-	schemaUntagQueueInput.Members = []*smithy.Member{&memberUntagQueueInput_QueueUrl, &memberUntagQueueInput_TagKeys}
-}
+var memberUntagQueueInput_TagKeys = smithy.Member{Name: "TagKeys", Index: 1, Target: &schemaTagKeyList, Required: true, XMLName: "TagKey", XMLFlattened: true}

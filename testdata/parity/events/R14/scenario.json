@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "item": "R14",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "eventbridge",
+      "operation": "CreateEventBus",
+      "input": {
+        "Name": "usr-rec-20261014-bus"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "events/R14/04-custom-bus-schedule.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H1-01.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H1-02.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H8-01.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H8-02.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H8-03.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H9-01-a.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H9-01-b.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H9-02-a.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H9-02-b.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H9-03-a.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H9-03-b.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H14-01.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H14-02.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H14-03.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H14-04.json",
+      "compare": "all"
+    }
+  ],
+  "settles": [
+    {
+      "switch": "events.pattern.empty-input",
+      "step": "H1-01",
+      "field": "body/Result"
+    },
+    {
+      "switch": "events.pattern.exactly-operator",
+      "step": "H14-01",
+      "field": "status"
+    },
+    {
+      "switch": "events.pattern.or-shared-values",
+      "step": "H14-02",
+      "field": "body/Result"
+    }
+  ]
+}

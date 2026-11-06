@@ -1,0 +1,29 @@
+{
+  "step": "06-undeployed-route",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://un8cw1i7c9.execute-api.us-east-2.amazonaws.com/dev/b",
+        "headers": [
+          ["Host", "un8cw1i7c9.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "reason": "Not Found",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:44:21 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "23"],
+          ["Connection", "keep-alive"],
+          ["apigw-requestid", "GRdX4hBSiYcEMkA="]
+        ],
+        "body": "{\"message\":\"Not Found\"}"
+      }
+    }
+  ]
+}

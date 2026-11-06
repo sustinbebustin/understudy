@@ -5,9 +5,11 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazonaws.s3#SlowDown",
+        "dev.understudy#denialError": "com.amazonaws.s3#AccessDenied",
         "dev.understudy#validationError": {"code": "com.amazonaws.s3#InvalidArgument"},
         "dev.understudy#malformedRequestError": "com.amazonaws.s3#MalformedXML",
         "dev.understudy#evidence": [
+          {"label": "aws-doc", "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: the model's AccessDenied (403) and https://docs.aws.amazon.com/AmazonS3/latest/userguide/troubleshoot-403-errors.html (3.1, 3.2); the message text falls under switch s3.denial.text (12.8)", "covers": ["dev.understudy#denialError"]},
           {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html", "covers": ["dev.understudy#throttleError"]},
           {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2880", "validated": "2026-02-21", "covers": ["dev.understudy#validationError"]},
           {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L1526", "validated": "2026-02-21", "covers": ["dev.understudy#malformedRequestError"]}
@@ -360,6 +362,15 @@
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json", "validated": "2026-02-21"}
       }
     },
+    "com.amazonaws.s3#InvalidEncryptionAlgorithmError": {
+      "type": "structure",
+      "members": {"ArgumentName": {"target": "smithy.api#String"}, "ArgumentValue": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L12718: test_put_object_validation_sse_c", "validated": "2026-02-21"}
+      }
+    },
     "com.amazonaws.s3#InvalidLocationConstraint": {
       "type": "structure",
       "members": {"LocationConstraint": {"target": "smithy.api#String"}},
@@ -405,6 +416,15 @@
         "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/01-get-metrics-nope.json", "validated": "2026-10-14"}
       }
     },
+    "com.amazonaws.s3#NoSuchObjectLockConfiguration": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L9458: test_s3_object_retention_exc", "validated": "2026-02-21"}
+      }
+    },
     "com.amazonaws.s3#PermanentRedirect": {
       "type": "structure",
       "members": {"Endpoint": {"target": "smithy.api#String"}, "Bucket": {"target": "smithy.api#String"}},
@@ -433,6 +453,27 @@
       "traits": {
         "dev.understudy#validationError": {"enumPolicy": "handler"},
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json: a Status other than Enabled or Suspended is MalformedXML", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#GetObjectRequest$ChecksumMode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "sdk-source", "source": "https://github.com/awslabs/aws-c-s3/blob/07262f7ec17186712d56bccdb7c6eed744e31fb7/source/s3_util.c#L51-L52: the CRT S3 client behind the AWS CLI's s3 commands sends x-amz-checksum-mode: enabled on GetObject (source/s3_auto_ranged_get.c L496-L531, source/s3_default_meta_request.c L387-L390), and its tests against real S3 assert the response checksum was validated (tests/s3_data_plane_tests.c L6388-L6471); LocalStack compares the value upper-cased (https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/s3/provider.py#L1042); a value that is no case variant of ENABLED is refused with the enum's InvalidArgument, AWS's answer to it UNVERIFIED (s3.md 5.8, recording S3-01)"}
+      }
+    },
+    "com.amazonaws.s3#HeadObjectRequest$ChecksumMode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "sdk-source", "source": "https://github.com/awslabs/aws-c-s3/blob/07262f7ec17186712d56bccdb7c6eed744e31fb7/source/s3_util.c#L51-L52: the CRT S3 client behind the AWS CLI's s3 commands sends x-amz-checksum-mode: enabled on the HeadObject that opens a download (source/s3_auto_ranged_get.c L496-L531), and its tests against real S3 assert that HEAD came first and the response checksum was validated (tests/s3_data_plane_tests.c L6388-L6471); LocalStack compares the value upper-cased (https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/s3/provider.py#L1168); a value that is no case variant of ENABLED is refused with the enum's InvalidArgument, AWS's answer to it UNVERIFIED (s3.md 5.8, recording S3-01)"}
+      }
+    },
+    "com.amazonaws.s3#GetObjectAnnotationRequest$ChecksumMode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "sdk-source", "source": "https://github.com/awslabs/aws-c-s3/blob/07262f7ec17186712d56bccdb7c6eed744e31fb7/source/s3_util.c#L51-L52: the CRT S3 client sends x-amz-checksum-mode: enabled, which S3 takes as ENABLED on GetObject and HeadObject (s3.md 5.8); GetObjectAnnotation shares the member and is unbound, so a handler that binds it judges the value the same way"}
       }
     },
     "com.amazonaws.s3#CopyObjectRequest$CopySource": {
@@ -477,11 +518,109 @@
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_list_operations.snapshot.json test_list_ops_encoding_type_validation: InvalidArgument \"Invalid Encoding Method specified in Request\" naming encoding-type (s3.md 9.1)"}
       }
     },
+    "com.amazonaws.s3#ServerSideEncryptionConfiguration$Rules": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.s3#MalformedXML", "style": "fixed", "constraints": ["required"], "reason": "The XML you provided was not well-formed or did not validate against our published schema"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json L1380 test_s3_default_bucket_encryption_exc: a configuration without a rule is MalformedXML (s3.md 4.2.2)", "validated": "2026-02-21"}
+      }
+    },
     "com.amazonaws.s3#OwnershipControlsRule$ObjectOwnership": {
       "type": "apply",
       "traits": {
         "dev.understudy#validationError": {"enumPolicy": "handler"},
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json: an unknown ObjectOwnership is MalformedXML", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#PutObjectRequest$ObjectLockMode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L17916, L17938: a bad mode without a date is refused for the pairing first; with a date it is InvalidArgument \"Unknown wormMode directive.\" naming x-amz-object-lock-mode (s3-ssec-object-lock.md 6.2)", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#PutObjectRequest$ObjectLockLegalHoldStatus": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18)"}
+      }
+    },
+    "com.amazonaws.s3#CopyObjectRequest$ObjectLockMode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: CopyObject carries PutObject's lock headers, whose bad mode is InvalidArgument \"Unknown wormMode directive.\" after the pairing check (recorded for PutObject and CreateMultipartUpload)"}
+      }
+    },
+    "com.amazonaws.s3#CopyObjectRequest$ObjectLockLegalHoldStatus": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18)"}
+      }
+    },
+    "com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockMode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L17950: a bad mode with a date on CreateMultipartUpload is InvalidArgument \"Unknown wormMode directive.\" naming x-amz-object-lock-mode (s3-ssec-object-lock.md 6.2)", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockLegalHoldStatus": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#62-header-validation-third-party-recorded-all-400-invalidargument: a legal hold other than ON or OFF is InvalidArgument naming x-amz-object-lock-legal-hold, checked after the mode and before the date (switch s3.object-lock.header-texts); UNVERIFIED (S3SOL-18)"}
+      }
+    },
+    "com.amazonaws.s3#DefaultRetention$Mode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json L2571: a bad DefaultRetention Mode is MalformedXML (s3-ssec-object-lock.md 5.2)", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#ObjectLockRetention$Mode": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L9500: a bad PutObjectRetention Mode is MalformedXML (s3-ssec-object-lock.md 6.4)", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#ObjectLockRetention$EventHold": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses an EventHold element with its 501 NotImplemented whatever its value, since it does not implement event holds"}
+      }
+    },
+    "com.amazonaws.s3#PutObjectRequest$ObjectLockEventHold": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses x-amz-object-lock-event-hold with its 501 NotImplemented whatever its value, since it does not implement event holds"}
+      }
+    },
+    "com.amazonaws.s3#CopyObjectRequest$ObjectLockEventHold": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses x-amz-object-lock-event-hold with its 501 NotImplemented whatever its value, since it does not implement event holds"}
+      }
+    },
+    "com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockEventHold": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#113-rules-to-implement: understudy refuses x-amz-object-lock-event-hold with its 501 NotImplemented whatever its value, since it does not implement event holds"}
+      }
+    },
+    "com.amazonaws.s3#ObjectLockLegalHold$Status": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/s3-ssec-object-lock.md#65-putobjectlegalhold-and-getobjectlegalhold: a PutObjectLegalHold body without a valid Status is MalformedXML, as one without a body is (LocalStack test_s3.snapshot.json L10002); the bad-value text is UNVERIFIED"}
       }
     },
     "com.amazonaws.s3#GetBucketPolicy": {

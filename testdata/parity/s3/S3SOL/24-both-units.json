@@ -1,0 +1,38 @@
+{
+  "step": "24-both-units",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (MalformedXML) when calling the PutObjectRetention operation: The XML you provided was not well-formed or did not validate against our published schema",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/e24?retention",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/W,AN,g,E,b,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-retention"],
+          ["x-amz-checksum-crc64nvme", "IZ+EHAT3me8="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034325Z"],
+          ["X-Amz-Content-SHA256", "3ba107b29e6cee490f0bb44253afe624049769e2f9357d38a22551588afa6dd7"],
+          ["amz-sdk-invocation-id", "e1d5f10e-6a71-45c2-abb7-a95dae09d3c5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "188"]
+        ],
+        "body": "<Retention xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Mode>GOVERNANCE</Mode><EventHold>ON</EventHold><EventHoldDuration><Days>1</Days><Years>1</Years></EventHoldDuration></Retention>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "HFKKGHWD3W3PTENR"],
+          ["x-amz-id-2", "x/llS3mPVz0xEskCfE2OOgov1xPLjmtK/P2DLRHbz0ClsewaAyWQtXN0ASXXCoFJMTj1SsdDNc2W501bc9259vHwCd/VuqVZ"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:43:25 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>MalformedXML</Code><Message>The XML you provided was not well-formed or did not validate against our published schema</Message><RequestId>HFKKGHWD3W3PTENR</RequestId><HostId>x/llS3mPVz0xEskCfE2OOgov1xPLjmtK/P2DLRHbz0ClsewaAyWQtXN0ASXXCoFJMTj1SsdDNc2W501bc9259vHwCd/VuqVZ</HostId></Error>"
+      }
+    }
+  ]
+}

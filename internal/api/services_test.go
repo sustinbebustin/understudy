@@ -8,23 +8,33 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/api/apigatewayapi"
+	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
+	"github.com/sustinbebustin/understudy/internal/api/kinesisapi"
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
+	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
+	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
+// services are the services the server wires.
 func services() []*registry.Service {
 	return []*registry.Service{
 		cloudwatchapi.Service(), dynamodbapi.Service(), eventbridgeapi.Service(), iamapi.Service(),
@@ -33,11 +43,30 @@ func services() []*registry.Service {
 	}
 }
 
-// TestTheTwelveServicesRegisterTogether is the check the server runs at
-// boot: unique ids, ordinals by name, JSON target and Query (Action,
-// Version) tables without collisions, valid route tables.
-func TestTheTwelveServicesRegisterTogether(t *testing.T) {
+// generated is every generated package: the wired services and the
+// roadmap's services that are generated but not wired yet.
+func generated() []*registry.Service {
+	return append(services(),
+		apigatewayapi.Service(), apigatewayv2api.Service(), dynamodbstreamsapi.Service(), kinesisapi.Service(),
+		schedulerapi.Service(), sesapi.Service(), sesv2api.Service(), sfnapi.Service(), ssmapi.Service(),
+	)
+}
+
+// TestTheServicesRegisterTogether is the check the server runs at boot:
+// unique ids, ordinals by name, JSON target and Query (Action, Version)
+// tables without collisions, valid route tables.
+func TestTheServicesRegisterTogether(t *testing.T) {
 	if _, err := registry.New(services()...); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestTheGeneratedServicesRegisterTogether: the pairs that share a signing
+// name (dynamodb and dynamodbstreams, apigateway and apigatewayv2, ses and
+// sesv2) are told apart by a claim rule, so every generated service can be
+// wired beside the others (ADR 0019).
+func TestTheGeneratedServicesRegisterTogether(t *testing.T) {
+	if _, err := registry.New(generated()...); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -66,15 +95,33 @@ func TestEveryModeledOperationNamesItsIAMActions(t *testing.T) {
 		"logs.PutLogEvents":                "logs:PutLogEvents",
 		"eventbridge.PutRule":              "events:PutRule",
 		"dynamodb.BatchWriteItem":          "dynamodb:BatchWriteItem",
-		"sts.AssumeRole":                   "sts:AssumeRole",
+		// The Service Reference also lists dynamodb:ReadDataForReplication
+		// for Scan; the same-name action stays first.
+		"dynamodb.Scan":  "dynamodb:Scan",
+		"sts.AssumeRole": "sts:AssumeRole",
 		// The same-name action is listed under the service's Actions[]
 		// only; the operation's authorized list leaves it out.
 		"dynamodb.RestoreTableToPointInTime": "dynamodb:RestoreTableToPointInTime",
 		"s3.GetObjectAttributes":             "s3:GetObjectAttributes",
 		"sts.AssumeRoleWithWebIdentity":      "sts:AssumeRoleWithWebIdentity",
 		"logs.StartLiveTail":                 "logs:StartLiveTail",
+		// API Gateway management actions are HTTP methods; the operation's
+		// own method is its primary action (codegen/services iamPrimary),
+		// but a tag change is PATCH on the tagged resource (APIGW1-22,
+		// APIGW2-15).
+		"apigateway.CreateRestApi":   "apigateway:POST",
+		"apigateway.TagResource":     "apigateway:PATCH",
+		"apigatewayv2.TagResource":   "apigateway:PATCH",
+		"apigatewayv2.ImportApi":     "apigateway:PUT",
+		"dynamodbstreams.GetRecords": "dynamodb:GetRecords",
+		"kinesis.PutRecords":         "kinesis:PutRecords",
+		"scheduler.CreateSchedule":   "scheduler:CreateSchedule",
+		"ses.SendEmail":              "ses:SendEmail",
+		"sesv2.SendEmail":            "ses:SendEmail",
+		"sfn.StartExecution":         "states:StartExecution",
+		"ssm.GetParameter":           "ssm:GetParameter",
 	}
-	for _, svc := range services() {
+	for _, svc := range generated() {
 		for _, op := range svc.Operations {
 			if op.Kind != registry.Modeled {
 				continue
@@ -108,7 +155,7 @@ func TestEveryModeledOperationNamesItsIAMActions(t *testing.T) {
 // its query conditions and required headers present, nothing else) must
 // also route back to that row's operation through registry.RouteTable.Match.
 func TestEveryRouteRowRoundTrips(t *testing.T) {
-	for _, svc := range services() {
+	for _, svc := range generated() {
 		if svc.Routes == nil {
 			continue
 		}
@@ -154,17 +201,26 @@ func TestEveryRouteRowRoundTrips(t *testing.T) {
 // descriptors with their IAM actions and no schema (ARCHITECTURE.md 5.3).
 func TestRawOperations(t *testing.T) {
 	want := map[ref.OperationID][]string{
+		// The execute-api data plane declares no action: AWS evaluates no
+		// IAM on a NONE route (apigateway-http.md 8.2, 8.3).
+		{Service: "apigatewayv2", Name: "InvokeApi"}: nil,
+		// Nor does REST's: AWS evaluates no IAM on a NONE method
+		// (apigateway-rest.md 12.2, 3.10).
+		{Service: "apigateway", Name: "InvokeRestApi"}:    nil,
 		{Service: "lambda", Name: "InvokeFunctionUrl"}:    {"lambda:InvokeFunctionUrl"},
 		{Service: "lambda", Name: "DownloadFunctionCode"}: nil,
 		{Service: "s3", Name: "ListTagsForResource"}:      {"s3:ListTagsForResource"},
 		{Service: "s3", Name: "TagResource"}:              {"s3:TagResource"},
 		{Service: "s3", Name: "UntagResource"}:            {"s3:UntagResource"},
+		// The verification link is an understudy surface with no IAM check
+		// (ses.md 11.3 item 1).
+		{Service: "ses", Name: "VerificationLink"}:        nil,
 		{Service: "sns", Name: "ConfirmSubscriptionLink"}: {"sns:ConfirmSubscription"},
 		{Service: "sns", Name: "SigningCert"}:             nil,
 		{Service: "sns", Name: "UnsubscribeLink"}:         {"sns:Unsubscribe"},
 	}
 	got := map[ref.OperationID][]string{}
-	for _, svc := range services() {
+	for _, svc := range generated() {
 		for _, op := range svc.Operations {
 			if op.Kind != registry.Raw {
 				continue
@@ -248,12 +304,26 @@ func TestServiceWideOverlayTraits(t *testing.T) {
 // awserr catalogue describe the same protocol-level errors per family; a
 // service speaks the vocabulary of each family it belongs to and no other.
 // The __type is compared by name alone, since awsJson1_1 and restJson1
-// services send it bare.
+// services send it bare. A service overlay may correct a generic status
+// its service documents otherwise; each correction is listed here, so any
+// other drift still fails.
 func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
+	statusOverrides := map[ref.ServiceID]map[string]int{
+		// DynamoDB's developer guide lists AccessDeniedException under HTTP
+		// 400 (iam-enforcement-surfaces.md 3.2); Streams follows DynamoDB.
+		"dynamodb":        {"com.amazon.coral.service#AccessDeniedException": 400},
+		"dynamodbstreams": {"com.amazon.coral.service#AccessDeniedException": 400},
+		// Step Functions' denial answers 400 as every plain awsJson service
+		// of iam-enforcement-surfaces.md 12.3 (switch sfn.denial.status).
+		"sfn": {"com.amazon.coral.service#AccessDeniedException": 400},
+	}
 	generic := map[ref.ServiceID]func(awserr.Family) []awserr.Identity{
 		"cloudwatch": cloudwatchapi.GenericErrors, "dynamodb": dynamodbapi.GenericErrors, "eventbridge": eventbridgeapi.GenericErrors,
 		"iam": iamapi.GenericErrors, "kms": kmsapi.GenericErrors, "lambda": lambdaapi.GenericErrors, "logs": logsapi.GenericErrors,
 		"secretsmanager": secretsmanagerapi.GenericErrors, "sns": snsapi.GenericErrors, "sqs": sqsapi.GenericErrors, "sts": stsapi.GenericErrors,
+		"apigateway": apigatewayapi.GenericErrors, "apigatewayv2": apigatewayv2api.GenericErrors, "dynamodbstreams": dynamodbstreamsapi.GenericErrors,
+		"kinesis": kinesisapi.GenericErrors, "scheduler": schedulerapi.GenericErrors, "ses": sesapi.GenericErrors, "sesv2": sesv2api.GenericErrors,
+		"sfn": sfnapi.GenericErrors, "ssm": ssmapi.GenericErrors,
 	}
 	byShape := func(ids []awserr.Identity) map[string]awserr.Identity {
 		out := make(map[string]awserr.Identity, len(ids))
@@ -266,7 +336,7 @@ func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 		}
 		return out
 	}
-	for _, svc := range services() {
+	for _, svc := range generated() {
 		speaks := map[awserr.Family]bool{}
 		for _, p := range svc.Protocols {
 			if f, ok := awserr.FamilyOf(p); ok {
@@ -285,8 +355,15 @@ func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 			if speaks[f] {
 				want = awserr.Catalogue(f)
 			}
-			if got := byShape(fn(f)); !reflect.DeepEqual(got, byShape(want)) {
-				t.Errorf("%s: GenericErrors(%v) =\n%+v\nwant\n%+v", svc.ID, f, got, byShape(want))
+			wantByShape := byShape(want)
+			for shape, status := range statusOverrides[svc.ID] {
+				if id, ok := wantByShape[shape]; ok {
+					id.Status = status
+					wantByShape[shape] = id
+				}
+			}
+			if got := byShape(fn(f)); !reflect.DeepEqual(got, wantByShape) {
+				t.Errorf("%s: GenericErrors(%v) =\n%+v\nwant\n%+v", svc.ID, f, got, wantByShape)
 			}
 		}
 	}

@@ -1,0 +1,35 @@
+{
+  "step": "03-past-rate-end",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: The StartDate you specify must come before the EndDate.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-e91",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,E,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163720Z"],
+          ["amz-sdk-invocation-id", "baff8e3f-3920-47ce-a6a3-2e6bdae7ab7c"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "300"]
+        ],
+        "body": "{\"EndDate\": 1577836800, \"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"rate(1 hour)\", \"State\": \"DISABLED\", \"Target\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-sch\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\"}, \"ClientToken\": \"fe166972-7ba2-494d-ad2d-86bf305272ab\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "f647b47b-bb66-4249-ac20-283e63f62591"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "69"],
+          ["Date", "Tue, 03 Nov 2026 16:37:20 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"The StartDate you specify must come before the EndDate.\"}"
+      }
+    }
+  ]
+}

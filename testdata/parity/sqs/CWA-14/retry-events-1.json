@@ -1,0 +1,35 @@
+{
+  "step": "retry-events-1",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,AC,b,AN,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T163830Z"],
+          ["amz-sdk-invocation-id", "61bef8e1-6d14-4696-99e0-2232d61fc221"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "195"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-cwa-ev\", \"AttributeNames\": [\"All\"], \"MessageSystemAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 10}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "76491251-9cec-5d59-988b-71358caa6929"],
+          ["Date", "Tue, 03 Nov 2026 16:38:30 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "2395"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AIDAIMTEBMVXFWRSXIKCK\",\"ApproximateFirstReceiveTimestamp\":\"1793723910728\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793723849747\"},\"Body\":\"{\\\"version\\\":\\\"0\\\",\\\"id\\\":\\\"f1e61fb6-be45-b46e-1ff3-3f0a8f5920f3\\\",\\\"detail-type\\\":\\\"CloudWatch Alarm Configuration Change\\\",\\\"source\\\":\\\"aws.cloudwatch\\\",\\\"account\\\":\\\"123456789012\\\",\\\"time\\\":\\\"2026-11-03T16:37:29Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[\\\"arn:aws:cloudwatch:us-east-2:123456789012:alarm:us1103-ev-off\\\"],\\\"detail\\\":{\\\"alarmName\\\":\\\"us1103-ev-off\\\",\\\"operation\\\":\\\"update\\\",\\\"state\\\":{\\\"value\\\":\\\"INSUFFICIENT_DATA\\\",\\\"timestamp\\\":\\\"2026-11-03T16:37:28.495+0000\\\"},\\\"configuration\\\":{\\\"evaluationPeriods\\\":1,\\\"threshold\\\":3.0,\\\"comparisonOperator\\\":\\\"GreaterThanThreshold\\\",\\\"treatMissingData\\\":\\\"ignore\\\",\\\"metrics\\\":[{\\\"id\\\":\\\"cad0d122-eb97-c2d6-64ad-1d47285730aa\\\",\\\"metricStat\\\":{\\\"metric\\\":{\\\"namespace\\\":\\\"us1103/cwa\\\",\\\"name\\\":\\\"ev-none\\\",\\\"dimensions\\\":{}},\\\"period\\\":60,\\\"stat\\\":\\\"Maximum\\\"},\\\"returnData\\\":true}],\\\"alarmName\\\":\\\"us1103-ev-off\\\",\\\"actionsEnabled\\\":false,\\\"timestamp\\\":\\\"2026-11-03T16:37:29.676+0000\\\",\\\"okActions\\\":[],\\\"alarmActions\\\":[\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-cwa\\\"],\\\"insufficientDataActions\\\":[]},\\\"previousConfiguration\\\":{\\\"evaluationPeriods\\\":1,\\\"threshold\\\":3.0,\\\"comparisonOperator\\\":\\\"GreaterThanThreshold\\\",\\\"treatMissingData\\\":\\\"ignore\\\",\\\"metrics\\\":[{\\\"id\\\":\\\"cad0d122-eb97-c2d6-64ad-1d47285730aa\\\",\\\"metricStat\\\":{\\\"metric\\\":{\\\"namespace\\\":\\\"us1103/cwa\\\",\\\"name\\\":\\\"ev-none\\\",\\\"dimensions\\\":{}},\\\"period\\\":60,\\\"stat\\\":\\\"Maximum\\\"},\\\"returnData\\\":true}],\\\"alarmName\\\":\\\"us1103-ev-off\\\",\\\"actionsEnabled\\\":true,\\\"timestamp\\\":\\\"2026-11-03T16:37:28.495+0000\\\",\\\"okActions\\\":[],\\\"alarmActions\\\":[\\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-cwa\\\"],\\\"insufficientDataActions\\\":[]}}}\",\"MD5OfBody\":\"0ac7c2dbed09b96b3270d0c0d67f28ea\",\"MessageId\":\"f5f33e66-09f0-440a-9989-d6eeba1a731a\",\"ReceiptHandle\":\"AQEBpftvjxzb8rdtM3cw1DYkUgKmLn5mjSIXB6mlVD/UluoaxSqlO8uL3EcQed0v6W8S4CfywedmFvjT3ap4st7QME3JC37kghY7HmntmTHkQQjRXCdEGNEbKHooKZDTuXT8cHr2GvCVnrh8p4WTA+/JasGoITpeiAmj2+rv0e9mHxxchdyJegfyBRtbZb8PajVCk5DBvo8zujFZLvExO4lnBSXkDO9uM7YqpG40qPLpz4Yb3zurxqF3kaMbxOW0Ds8EF2xyBXYQrQ2IFE99cdzLJ6tz0fOs+69QI5b8Z4OYVkvv/Z9DJ84gqT2wBriV7eDwY6qy82g9kpz5O2EaO164jbxwD4goMl2Zm4AMdD+mKxnQ/4f3BfL+JlyG1LO04FAhENJZMJwGArhghu8hcXeAnw==\"}]}"
+      }
+    }
+  ]
+}

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"maps"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -21,26 +20,61 @@ import (
 const (
 	referenceIndex = "https://servicereference.us-east-1.amazonaws.com/"
 	actionsName    = "actions.json"
+	// boto3 is the SDK package whose client names referenceServices uses.
+	boto3 = "Boto3"
 )
 
-// referencePrefixes maps each pinned model directory to its IAM service
-// prefix, the Service Reference document name: CloudWatch is cloudwatch, not
-// the model's arnNamespace monitoring (smithy-models.md 3.1, 8).
-func referencePrefixes() map[string]string {
-	return map[string]string{
-		"cloudwatch":      "cloudwatch",
-		"cloudwatch-logs": "logs",
-		"dynamodb":        "dynamodb",
-		"eventbridge":     "events",
-		"iam":             "iam",
-		"kms":             "kms",
-		"lambda":          "lambda",
-		"s3":              "s3",
-		"secrets-manager": "secretsmanager",
-		"sns":             "sns",
-		"sqs":             "sqs",
-		"sts":             "sts",
+// referenceService is where one pinned model's operations sit in the
+// Service Reference: Prefix is the document (the IAM service prefix) and SDK
+// the Boto3 client name its Operations[].SDK entries carry. Two models can
+// share a prefix and an operation name (API Gateway v1 and v2 are both
+// apigateway and both have CreateDeployment); SDK tells such operations
+// apart, and is empty for a model whose operations need no telling apart.
+type referenceService struct {
+	Prefix string
+	SDK    string
+}
+
+// referenceServices maps each pinned model directory to its place in the
+// Service Reference: CloudWatch is cloudwatch, not the model's arnNamespace
+// monitoring (smithy-models.md 3.1, 8). It mirrors the iamPrefix and
+// sdkService of codegen/services, which a test checks.
+func referenceServices() map[string]referenceService {
+	return map[string]referenceService{
+		"api-gateway":      {Prefix: "apigateway", SDK: "apigateway"},
+		"apigatewayv2":     {Prefix: "apigateway", SDK: "apigatewayv2"},
+		"cloudwatch":       {Prefix: "cloudwatch"},
+		"cloudwatch-logs":  {Prefix: "logs"},
+		"dynamodb":         {Prefix: "dynamodb"},
+		"dynamodb-streams": {Prefix: "dynamodb"},
+		"eventbridge":      {Prefix: "events"},
+		"iam":              {Prefix: "iam"},
+		"kinesis":          {Prefix: "kinesis"},
+		"kms":              {Prefix: "kms"},
+		"lambda":           {Prefix: "lambda"},
+		"s3":               {Prefix: "s3"},
+		"scheduler":        {Prefix: "scheduler"},
+		"secrets-manager":  {Prefix: "secretsmanager"},
+		"ses":              {Prefix: "ses", SDK: "ses"},
+		"sesv2":            {Prefix: "ses", SDK: "sesv2"},
+		"sfn":              {Prefix: "states"},
+		"sns":              {Prefix: "sns"},
+		"sqs":              {Prefix: "sqs"},
+		"ssm":              {Prefix: "ssm"},
+		"sts":              {Prefix: "sts"},
 	}
+}
+
+// referencePrefixes are the Service Reference documents to fetch, each
+// once, sorted.
+func referencePrefixes() []string {
+	services := referenceServices()
+	out := make([]string, 0, len(services))
+	for _, s := range services {
+		out = append(out, s.Prefix)
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
 }
 
 // Actions is actions.json: per service, the IAM actions each operation
@@ -70,10 +104,30 @@ type ServiceActions struct {
 
 // OperationAction is Operations[].AuthorizedActions of one operation, each
 // action as prefix:Name in the document's order. An empty list is the
-// document's own: the operation authorizes no action.
+// document's own: the operation authorizes no action. SDK is the sorted Boto3
+// client names of the operation's Operations[].SDK entries, which say which
+// model an operation of a shared document belongs to; it is empty when the
+// document names none.
 type OperationAction struct {
 	Name       string   `json:"name"`
+	SDK        []string `json:"sdk,omitempty"`
 	Authorized []string `json:"authorized"`
+}
+
+// appliesTo reports whether the entry is an operation of the model whose
+// Boto3 client is sdk: an entry naming no SDK applies to every model of its
+// document, and a model with no sdk takes every entry.
+func (o OperationAction) appliesTo(sdk string) bool {
+	return sdk == "" || len(o.SDK) == 0 || slices.Contains(o.SDK, sdk)
+}
+
+// compareOperations orders entries by name, then by SDK names, so a shared
+// document's operations of one name sit together.
+func compareOperations(a, b OperationAction) int {
+	if c := strings.Compare(a.Name, b.Name); c != 0 {
+		return c
+	}
+	return slices.Compare(a.SDK, b.SDK)
 }
 
 // ActionInfo is Actions[].Annotations.Properties of one action.
@@ -95,6 +149,10 @@ type referenceDoc struct {
 			Name    string `json:"Name"`
 			Service string `json:"Service"`
 		} `json:"AuthorizedActions"`
+		SDK []struct {
+			Name    string `json:"Name"`
+			Package string `json:"Package"`
+		} `json:"SDK"`
 	} `json:"Operations"`
 	Actions []struct {
 		Name        string `json:"Name"`
@@ -122,8 +180,9 @@ func serviceReferenceFetcher() referenceFetcher {
 	return referenceFetcher{fetcher: githubFetcher(), indexURL: referenceIndex}
 }
 
-// fetchActions downloads the twelve documents and writes the derived table to
-// dir. Nothing is written unless every document downloads and parses.
+// fetchActions downloads one document per pinned prefix and writes the
+// derived table to dir. Nothing is written unless every document downloads
+// and parses.
 func (f referenceFetcher) fetchActions(ctx context.Context, dir string) error {
 	var index []indexEntry
 	if err := f.getJSON(ctx, f.indexURL, &index); err != nil {
@@ -134,7 +193,7 @@ func (f referenceFetcher) fetchActions(ctx context.Context, dir string) error {
 		byPrefix[e.Service] = e
 	}
 	out := Actions{Source: f.indexURL, Retrieved: f.today()}
-	for _, prefix := range slices.Sorted(maps.Values(referencePrefixes())) {
+	for _, prefix := range referencePrefixes() {
 		e, ok := byPrefix[prefix]
 		if !ok {
 			return fmt.Errorf("the Service Reference index lists no %q document; the prefix table in reference.go is wrong", prefix)
@@ -157,8 +216,8 @@ func (f referenceFetcher) fetchActions(ctx context.Context, dir string) error {
 }
 
 // deriveService keeps a document's operations, each authorized action as
-// prefix:Name, and the annotations of the service's own actions, sorted by
-// name.
+// prefix:Name with the Boto3 clients the operation belongs to, and the
+// annotations of the service's own actions, sorted by name.
 func deriveService(prefix string, e indexEntry, body []byte) (ServiceActions, error) {
 	var doc referenceDoc
 	if err := json.Unmarshal(body, &doc); err != nil {
@@ -173,6 +232,13 @@ func deriveService(prefix string, e indexEntry, body []byte) (ServiceActions, er
 		for _, a := range op.AuthorizedActions {
 			oa.Authorized = append(oa.Authorized, a.Service+":"+a.Name)
 		}
+		for _, sdk := range op.SDK {
+			if sdk.Package == boto3 {
+				oa.SDK = append(oa.SDK, sdk.Name)
+			}
+		}
+		slices.Sort(oa.SDK)
+		oa.SDK = slices.Compact(oa.SDK)
 		svc.Operations = append(svc.Operations, oa)
 	}
 	for _, a := range doc.Actions {
@@ -180,7 +246,7 @@ func deriveService(prefix string, e indexEntry, body []byte) (ServiceActions, er
 		info.Name = a.Name
 		svc.Actions = append(svc.Actions, info)
 	}
-	slices.SortFunc(svc.Operations, func(a, b OperationAction) int { return strings.Compare(a.Name, b.Name) })
+	slices.SortFunc(svc.Operations, compareOperations)
 	slices.SortFunc(svc.Actions, func(a, b ActionInfo) int { return strings.Compare(a.Name, b.Name) })
 	return svc, nil
 }
@@ -193,9 +259,10 @@ var (
 
 // verifyActions checks actions.json offline: one entry per pinned prefix with
 // its provenance, operations and actions sorted by name, no operation listed
-// twice, well-formed action names, and an entry for every operation shape of every pinned model in
-// models (the api-models-aws tree), so a model bump that adds an operation
-// fails here before the generator does.
+// twice for one model, well-formed action names, and an entry for every
+// operation shape of every pinned model in models (the api-models-aws tree),
+// so a model bump that adds an operation fails here before the generator
+// does.
 func verifyActions(root, models fs.FS, dir string) error {
 	var problems []Problem
 	add := func(p, format string, args ...any) {
@@ -217,7 +284,7 @@ func verifyActions(root, models fs.FS, dir string) error {
 	if _, err := time.Parse(time.DateOnly, a.Retrieved); err != nil {
 		add(actionsName, "retrieved %q is not a YYYY-MM-DD date", a.Retrieved)
 	}
-	want := slices.Sorted(maps.Values(referencePrefixes()))
+	want := referencePrefixes()
 	got := make([]string, len(a.Services))
 	for i, s := range a.Services {
 		got[i] = s.Prefix
@@ -231,21 +298,7 @@ func verifyActions(root, models fs.FS, dir string) error {
 		checkService(s, add)
 	}
 	for _, m := range pinnedModels() {
-		prefix := referencePrefixes()[m.Dir]
-		ops, err := modelOperations(models, m.Path)
-		if err != nil {
-			add(m.Path, "%v", err)
-			continue
-		}
-		have := map[string]bool{}
-		for _, op := range byPrefix[prefix].Operations {
-			have[op.Name] = true
-		}
-		for _, op := range ops {
-			if !have[op] {
-				add(actionsName, "service %s has no entry for operation %s of %s; re-run -service-reference", prefix, op, m.Path)
-			}
-		}
+		checkModelCovered(models, m, byPrefix, add)
 	}
 	if len(problems) > 0 {
 		return &VerifyError{Dir: dir, Problems: problems}
@@ -264,15 +317,18 @@ func checkService(s ServiceActions, add func(p, format string, args ...any)) {
 	if !hexPattern.MatchString(s.SHA256) {
 		add(where, "sha256 %q is not 64 lowercase hex digits", s.SHA256)
 	}
-	if !slices.IsSortedFunc(s.Operations, func(a, b OperationAction) int { return strings.Compare(a.Name, b.Name) }) {
-		add(where, "operations are not sorted by name")
+	if !slices.IsSortedFunc(s.Operations, compareOperations) {
+		add(where, "operations are not sorted by name, then SDK")
 	}
 	if !slices.IsSortedFunc(s.Actions, func(a, b ActionInfo) int { return strings.Compare(a.Name, b.Name) }) {
 		add(where, "actions are not sorted by name")
 	}
 	for i, op := range s.Operations {
-		if i > 0 && s.Operations[i-1].Name == op.Name {
-			add(where, "operation %s appears twice", op.Name)
+		for _, prev := range s.Operations[:i] {
+			if prev.Name == op.Name && sharesModel(prev, op) {
+				add(where, "operation %s appears twice for one SDK client", op.Name)
+				break
+			}
 		}
 		for _, act := range op.Authorized {
 			if !actionPattern.MatchString(act) {
@@ -280,6 +336,41 @@ func checkService(s ServiceActions, add func(p, format string, args ...any)) {
 			}
 		}
 	}
+}
+
+// checkModelCovered reports each operation shape of model m that has no
+// entry for it in its Service Reference document.
+func checkModelCovered(models fs.FS, m model, byPrefix map[string]ServiceActions, add func(p, format string, args ...any)) {
+	ref := referenceServices()[m.Dir]
+	ops, err := modelOperations(models, m.Path)
+	if err != nil {
+		add(m.Path, "%v", err)
+		return
+	}
+	have := map[string]bool{}
+	for _, op := range byPrefix[ref.Prefix].Operations {
+		if op.appliesTo(ref.SDK) {
+			have[op.Name] = true
+		}
+	}
+	client := ""
+	if ref.SDK != "" {
+		client = " for the Boto3 client " + ref.SDK
+	}
+	for _, op := range ops {
+		if !have[op] {
+			add(actionsName, "service %s has no entry for operation %s of %s%s; re-run -service-reference", ref.Prefix, op, m.Path, client)
+		}
+	}
+}
+
+// sharesModel reports whether two entries could both apply to one model:
+// either names no SDK, or their SDK lists overlap.
+func sharesModel(a, b OperationAction) bool {
+	if len(a.SDK) == 0 || len(b.SDK) == 0 {
+		return true
+	}
+	return slices.ContainsFunc(a.SDK, func(s string) bool { return slices.Contains(b.SDK, s) })
 }
 
 // modelOperations lists the names of the operation shapes of one model file.

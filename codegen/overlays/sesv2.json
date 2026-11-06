@@ -1,0 +1,90 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.sesv2#SimpleEmailService_v2": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.sesv2#TooManyRequestsException",
+        "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
+        "dev.understudy#validationError": {"code": "com.amazonaws.sesv2#BadRequestException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the SES v2 denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers; UNVERIFIED until recording IAM-ENF-39",
+            "covers": ["dev.understudy#denialError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/ses.md#114-fidelity-switches: https://docs.aws.amazon.com/ses/latest/APIReference-V2/API_SendEmail.html#API_SendEmail_Errors lists TooManyRequestsException 429 'Too many requests have been made to the operation.'; the model declares it on all 116 v2 operations, and docs/research/ses.md#114-fidelity-switches names it as the v2 throttle error (3.3 lists it at 429); https://docs.aws.amazon.com/ses/latest/APIReference-V2/CommonErrors.html also lists ThrottlingException 400 'Your request rate is too high.', so taking the per-operation error over it is inferred; which one a throttled v2 call returns is UNVERIFIED, and no case in the section 12 recording queue settles it yet",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/ses.md#114-fidelity-switches: the note names BadRequestException 400 as the v2 validation identity; its text 'The input you provided is invalid.' and its declaration on all 116 v2 operations come from the model, and https://docs.aws.amazon.com/ses/latest/APIReference-V2/CommonErrors.html also lists ValidationError 400; no recording shows what a v2 required, enum, length, range or pattern violation answers, and SES-23 (4.4) records service checks on Content and FromEmailAddress, which the model does not constrain; UNVERIFIED, and no case in the section 12 recording queue settles it yet (a raw POST /v2/email/identities with EmailIdentity \"\", com.amazonaws.sesv2#Identity length min 1, would)",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.sesv2#Message$Subject": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the subject of a Simple send is the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.sesv2#Message$Body": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the bodies of a Simple send are the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.sesv2#Attachment$RawContent": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: attachment contents are the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.sesv2#RawMessage$Data": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the raw MIME of a send (up to 40 MB, 2.2) is the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.sesv2#Template$TemplateContent": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: inline template content (4.4) is the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.sesv2#Template$TemplateData": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: TemplateData holds the replacement values of a templated send (4.4), part of the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    }
+  }
+}

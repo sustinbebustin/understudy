@@ -6,9 +6,15 @@
       "traits": {
         "dev.understudy#errorNamespace": "com.amazonaws.cloudwatch.v2010_08_01",
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
+        "dev.understudy#denialError": "com.amazon.coral.service#AccessDenied",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#queryErrorEnvelope": {"namespace": true},
         "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: CloudWatch models no denial shape (3.1); Query code AccessDenied, 403, and over JSON and CBOR the __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, switch cloudwatch.denial.identity (12.8), until recording IAM-ENF-09",
+            "covers": ["dev.understudy#denialError"]
+          },
           {
             "label": "third-party-recorded",
             "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L186",

@@ -5,6 +5,7 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazonaws.lambda#TooManyRequestsException",
+        "dev.understudy#denialError": "com.amazonaws.lambda#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#validationPathStyle": "rolledUp",
         "dev.understudy#malformedRequestError": "com.amazonaws.lambda#InvalidRequestContentException",
@@ -38,8 +39,29 @@
             "label": "aws-doc",
             "source": "https://docs.aws.amazon.com/lambda/latest/api/CommonErrors.html",
             "covers": ["dev.understudy#unknownOperationError"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/lambda/IAM-ENF/11-get.json: a same-account IAM denial answers 403 with x-amzn-ErrorType AccessDeniedException and the grammar in Message; another account's function ARN gives Message null (third-party-recorded) (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch lambda.denial.body)",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#denialError"]
           }
         ]
+      }
+    },
+    "com.amazonaws.lambda#AccessDeniedException": {
+      "type": "structure",
+      "members": {
+        "Message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 403,
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L13926-L13934: CreateFunction with another account's function ARN answers x-amzn-errortype AccessDeniedException, 403, with the body key Message (docs/research/iam-enforcement-surfaces.md#32-per-service-identity); the model declares no such shape",
+          "validated": "2025-11-25"
+        }
       }
     },
     "com.amazonaws.lambda#UnknownOperationException": {
@@ -183,6 +205,71 @@
         "dev.understudy#evidence": {
           "label": "inferred",
           "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[0-9A-Za-z\\.\\-_]*(?<!\\.)$ is the class repeated, not ending in a dot"
+        }
+      }
+    },
+    "com.amazonaws.lambda#LayerVersionArn": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternEcho": "(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1}:\\d{12}:layer:[a-zA-Z0-9-_]+:[0-9]+)|(arn:[a-zA-Z0-9-]+:lambda:::awslayer:[a-zA-Z0-9-_]+)",
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8368-L8377: AWS prints the pattern without the model's anchors and without its outer group (docs/research/lambda-destinations-layers.md#64-getlayerversion-and-getlayerversionbyarn)",
+          "validated": "2026-01-12"
+        }
+      }
+    },
+    "com.amazonaws.lambda#LayerList$member": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"patternPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L9396-L9405: the refusal of a layer ARN without a version is the rolled-up element constraint ending in 'Member must not be null', a clause the generated one lacks (docs/research/lambda-destinations-layers.md#71-createfunction-and-updatefunctionconfiguration)",
+          "validated": "2026-01-12"
+        }
+      }
+    },
+    "com.amazonaws.lambda#CompatibleRuntimes$member": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8444-L8463: the refusal prints the 25-value creation list, not the model's enum, and names compatibleRuntimes before compatibleArchitectures (docs/research/lambda-destinations-layers.md#63-publishlayerversion)",
+          "validated": "2026-01-12"
+        }
+      }
+    },
+    "com.amazonaws.lambda#CompatibleArchitectures$member": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8444-L8463: the refusal is the rolled-up element constraint with 'Member must not be null', after the compatibleRuntimes one (docs/research/lambda-destinations-layers.md#63-publishlayerversion)",
+          "validated": "2026-01-12"
+        }
+      }
+    },
+    "com.amazonaws.lambda#ListLayersRequest$CompatibleRuntime": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8296: the filter is checked against a 56-value internal list, not the model's enum (docs/research/lambda-destinations-layers.md#65-listlayers-and-listlayerversions)",
+          "validated": "2026-01-12"
+        }
+      }
+    },
+    "com.amazonaws.lambda#ListLayerVersionsRequest$CompatibleRuntime": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/lambda-destinations-layers.md#65-listlayers-and-listlayerversions: ListLayers' filter is recorded against a 56-value internal list (test_lambda_api.snapshot.json#L8296); ListLayerVersions shares the member's name and target, so it is taken to share the list"
         }
       }
     }

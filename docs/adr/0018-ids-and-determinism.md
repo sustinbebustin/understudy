@@ -8,7 +8,7 @@ Fault injection runs must be deterministic under a seed, and snapshots must be d
 
 ## Decision
 
-- `internal/ids` owns every generated identifier. The default source is `crypto/rand`. With `--seed N`, each generator kind (request id, SQS message id, receipt handle, SNS message id, Lambda request id, ESM UUID, upload id, version id, KMS key id, IAM `AROA`/`ANPA`/`AIDA` ids, minted access keys, fault streams, delivery jitter) draws from its own ChaCha8 stream derived from `(seed, kind)`. UUIDs are formatted from the stream. Stream positions are recorded in the snapshot manifest and restored on load.
+- `internal/ids` owns every generated identifier. The default source is `crypto/rand`. With `--seed N`, each generator kind (request id, SQS message id, receipt handle, SNS message id, Lambda request id, ESM UUID, upload id, version id, KMS key id, IAM `AROA`/`ANPA`/`AIDA` ids, minted access keys, API Gateway API ids, API Gateway route, integration and deployment ids, Step Functions execution names, revision ids, `States.UUID` values and unseeded `States.MathRandom` draws, EventBridge Scheduler execution ids, role session names and flexible-window offsets, fault streams, delivery jitter and the seed of each Step Functions execution's retry jitter) draws from its own ChaCha8 stream derived from `(seed, kind)`. UUIDs are formatted from the stream. Stream positions are recorded in the snapshot manifest and restored on load.
 - KMS key material and SNS signing keys always come from `crypto/rand`, even when seeded.
 - Map iteration for any output, wire or file, always sorts; snapshots use deterministic JSON.
 - Timer firing order is `(due, seq)` (ADR 0006); fan-out order is creation order (ADR 0015).

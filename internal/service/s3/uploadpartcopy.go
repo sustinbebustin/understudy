@@ -68,8 +68,9 @@ func (r *copyRange) span(size int64) (first, n int64, err *awserr.Error) {
 // uploadPartCopy stores part n of an upload from a range of an existing
 // object (s3.md 7): the copy-source conditions apply as for CopyObject,
 // and the part's ETag is the MD5 of the bytes copied, or random for an
-// SSE-KMS upload (partETag). The range streams through the blob store
-// once, hashed on the way.
+// SSE-KMS or SSE-C upload (partETag). The target's SSE-C headers follow
+// UploadPart's rules and the source's a read's (s3-ssec-object-lock.md
+// 3.5). The range streams through the blob store once, hashed on the way.
 func (s *Service) uploadPartCopy(ctx context.Context, c *kernel.Call, in *s3api.UploadPartCopyInput) (*s3api.UploadPartCopyOutput, *awserr.Error) {
 	blobs, err := s.blobStore()
 	if err != nil {
@@ -86,19 +87,16 @@ func (s *Service) uploadPartCopy(ctx context.Context, c *kernel.Call, in *s3api.
 	if err != nil {
 		return nil, err
 	}
-	if customerKeyed(in.SSECustomerAlgorithm, in.SSECustomerKey, in.SSECustomerKeyMD5) ||
-		customerKeyed(in.CopySourceSSECustomerAlgorithm, in.CopySourceSSECustomerKey, in.CopySourceSSECustomerKeyMD5) {
-		return nil, errSSECNotApplicable()
-	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
-	t, err := s.readTarget(ctx, c, a, in.UploadId, in.Key)
+	t, err := s.readTarget(ctx, c, a, in.UploadId, in.Key, customerHeaders{algorithm: in.SSECustomerAlgorithm, key: in.SSECustomerKey, keyMD5: in.SSECustomerKeyMD5}, false)
 	if err != nil {
 		return nil, err
 	}
 	src, err := s.readSource(blobs, srcRef, in.ExpectedSourceBucketOwner, readConditions{
 		ifMatch: in.CopySourceIfMatch, ifNoneMatch: in.CopySourceIfNoneMatch,
 		ifModifiedSince: in.CopySourceIfModifiedSince, ifUnmodifiedSince: in.CopySourceIfUnmodifiedSince,
-	}, c.Admitted().Wire())
+	}, customerHeaders{algorithm: in.CopySourceSSECustomerAlgorithm, key: in.CopySourceSSECustomerKey, keyMD5: in.CopySourceSSECustomerKeyMD5},
+		c.Endpoint().Scheme, c.Admitted().Wire())
 	if err != nil {
 		return nil, err
 	}
@@ -129,8 +127,9 @@ func (s *Service) uploadPartCopy(ctx context.Context, c *kernel.Call, in *s3api.
 	result := &s3api.CopyPartResult{ETag: new(quote(p.ETag)), LastModified: new(p.Modified.Wire())}
 	copyPartResultFields(result).set(reportedPartChecksum(t.mode, p))
 	out := &s3api.UploadPartCopyOutput{CopyPartResult: result, CopySourceVersionId: src.reported}
-	h := t.enc.headers()
+	h := encryptionHeaders(t.enc)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
+	out.SSECustomerAlgorithm, out.SSECustomerKeyMD5 = customerEcho(t.key)
 	return out, nil
 }
 

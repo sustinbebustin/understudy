@@ -63,6 +63,12 @@ Structured logs:
 understudy serve --log-format json --log-level debug
 ```
 
+SNS `http` and `https` subscriptions delivered to a receiver on this machine; nothing is delivered to a host the list leaves out ([SNS HTTP delivery](sns-http.md)):
+
+```sh
+understudy serve --sns-http-delivery-allow 127.0.0.1:8080
+```
+
 Any flag has a variable, which suits containers and CI:
 
 ```sh
@@ -88,6 +94,6 @@ A few behaviors are file settings, because AWS's own behavior would slow tests d
 | `s3.crossRegion` | `aws`, `lenient` | `aws` refuses a bucket request signed for another region, as AWS does; `lenient` serves it and journals a warning |
 | `lambda.stateTransitions` | `final`, `clock` | `final` makes functions `Active` before the call returns; `clock` restores `Pending` and `InProgress` on the emulator clock, for SDK waiter tests |
 | `sqs.queueDeletedRecently` | `ignore`, `enforce` | `ignore` frees a deleted queue's name at once; `enforce` refuses re-creating it for 60 seconds, as AWS does |
-| `iam.assumeRole` | `strict`, `lenient` | `strict` refuses `AssumeRole` for a role that does not exist; `lenient` allows it |
+| `iam.assumeRole` | `strict`, `lenient` | `strict` refuses `AssumeRole` for a role that does not exist; `lenient` allows it; also `--iam-assume-role`; under `--iam-enforce enforce` such a role is denied whatever this says |
 
 `understudy coverage --switches` lists every fidelity switch, these last three among them, with its value and the evidence behind it. `s3.crossRegion` is a configuration setting only and is not listed there.

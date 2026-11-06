@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -15,19 +16,29 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
+	"github.com/sustinbebustin/understudy/internal/api/apigatewayapi"
+	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
+	"github.com/sustinbebustin/understudy/internal/api/kinesisapi"
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
+	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
+	"github.com/sustinbebustin/understudy/internal/api/ssmapi"
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
 	"github.com/sustinbebustin/understudy/internal/auth"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
@@ -35,21 +46,28 @@ import (
 	"github.com/sustinbebustin/understudy/internal/config"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/edge"
+	"github.com/sustinbebustin/understudy/internal/egress"
+	"github.com/sustinbebustin/understudy/internal/enforce"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/outbox"
+	"github.com/sustinbebustin/understudy/internal/policycatalogue"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	serveradmin "github.com/sustinbebustin/understudy/internal/server/admin"
+	"github.com/sustinbebustin/understudy/internal/server/ui"
+	"github.com/sustinbebustin/understudy/internal/service/apigateway"
+	"github.com/sustinbebustin/understudy/internal/service/apigatewayv2"
 	"github.com/sustinbebustin/understudy/internal/service/cloudwatch"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
 	"github.com/sustinbebustin/understudy/internal/service/events"
 	"github.com/sustinbebustin/understudy/internal/service/iam"
+	"github.com/sustinbebustin/understudy/internal/service/kinesis"
 	"github.com/sustinbebustin/understudy/internal/service/kms"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
@@ -57,9 +75,13 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/lambda/pool"
 	"github.com/sustinbebustin/understudy/internal/service/logs"
 	"github.com/sustinbebustin/understudy/internal/service/s3"
+	"github.com/sustinbebustin/understudy/internal/service/scheduler"
 	"github.com/sustinbebustin/understudy/internal/service/secretsmanager"
+	"github.com/sustinbebustin/understudy/internal/service/ses"
+	"github.com/sustinbebustin/understudy/internal/service/sfn"
 	"github.com/sustinbebustin/understudy/internal/service/sns"
 	"github.com/sustinbebustin/understudy/internal/service/sqs"
+	"github.com/sustinbebustin/understudy/internal/service/ssm"
 	"github.com/sustinbebustin/understudy/internal/service/sts"
 	"github.com/sustinbebustin/understudy/internal/snapshot"
 )
@@ -102,7 +124,10 @@ type wiring struct {
 	// clockFrom is what set the clock serve starts with, which the banner
 	// names.
 	clockFrom clockOrigin
-	stopped   sync.Once
+	// own are understudy's own addresses, which SNS HTTP delivery refuses;
+	// Serve records its listeners there.
+	own     *ownAddrs
+	stopped sync.Once
 }
 
 // wire builds the registry, the kernel with its clock, journal, faults,
@@ -144,18 +169,20 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	recorder := &access.Recorder{}
 	box := outbox.New()
 	link := &deferredLinker{}
+	authorizer := enforce.New(enforce.Options{Mode: enforceMode(cfg.IAMEnforce)})
 	k, err := kernel.New(kernel.Options{
-		Registry: reg,
-		Clock:    clk,
-		Timers:   timers,
-		IDs:      src,
-		Journal:  w.journal,
-		Faults:   w.faults,
-		Access:   recorder,
-		Identity: idStore,
-		Deliver:  box,
-		Linker:   link,
-		Log:      log,
+		Registry:   reg,
+		Clock:      clk,
+		Timers:     timers,
+		IDs:        src,
+		Journal:    w.journal,
+		Faults:     w.faults,
+		Access:     recorder,
+		Identity:   idStore,
+		Deliver:    box,
+		Linker:     link,
+		Authorizer: kernelAuthorizer(authorizer),
+		Log:        log,
 	})
 	if err != nil {
 		return w, err
@@ -169,39 +196,30 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if err := w.containers(cfg, instance, clk, log); err != nil {
 		return w, err
 	}
+	w.own = &ownAddrs{runtime: w.host.runtimeAddrs, interfaces: net.InterfaceAddrs}
 	deps := func(desc *registry.Service) kernel.ServiceDeps {
 		return kernel.ServiceDeps{Kernel: k, Binder: k.Binder(desc), Clock: clk, IDs: src, Blob: w.blobs, Identity: idStore, Docker: w.host.client, Log: log}
 	}
-	var images lambda.ImageSource
-	if w.pool != nil {
-		images = w.host
+	c := &construction{
+		switches: cfg.Switches, regions: regions, local: w.local, images: w.images(), tlsPort: w.own.TLSPort,
+		sesVerified: cfg.SESVerifiedIdentities, sesProduction: cfg.SESProductionAccess,
+		apigatewayEnforce: apigatewayEnforce(cfg.IAMEnforce),
 	}
-	sw := cfg.Switches
-	sqsSvc := sqs.New(deps(sqsapi.Service()), sqs.Options{DeletedRecently: sw.SQSDeletedRecently})
-	snsSvc := sns.New(deps(snsapi.Service()), sns.Options{})
-	s3Svc := s3.New(deps(s3api.Service()), s3.Options{CrossRegion: sw.S3CrossRegion, Regions: regions})
-	dynamoSvc := dynamodb.New(deps(dynamodbapi.Service()), dynamodb.Options{Local: w.local})
-	lambdaDeps := deps(lambdaapi.Service())
-	lambdaSvc := lambda.New(lambdaDeps, lambda.Options{StateTransitions: sw.LambdaTransitions, Images: images})
-	logsSvc := logs.New(deps(logsapi.Service()), logs.Options{})
-	secretsSvc := secretsmanager.New(deps(secretsmanagerapi.Service()), secretsmanager.Options{})
-	kmsSvc := kms.New(deps(kmsapi.Service()), kms.Options{})
-	iamSvc := iam.New(deps(iamapi.Service()), iam.Options{})
-	stsSvc := sts.New(deps(stsapi.Service()), sts.Options{AssumeRole: sw.STSAssumeRole})
-	eventsSvc := events.New(deps(eventbridgeapi.Service()), events.Options{})
-	cloudwatchSvc := cloudwatch.New(deps(cloudwatchapi.Service()), cloudwatch.Options{})
-	if err := w.execution(cfg, account, regions, lambdaSvc, lambdaDeps, images); err != nil {
+	built, err := c.build(deps)
+	if err != nil {
+		return w, err
+	}
+	if err := w.execution(cfg, account, regions, c.lambda, c.lambdaDeps, c.images); err != nil {
 		return w, err
 	}
 	link.set(w.lambda)
 	if err := k.BindErr(); err != nil {
 		return w, err
 	}
-	policies := policySources{sqs: sqsSvc, sns: snsSvc, lambda: lambdaSvc}
-	if err := box.Bind(k, outbox.Options{Faults: w.faults, Policies: policies}); err != nil {
+	if err := bindPolicies(authorizer, box, k, w.faults, c.iam, cfg.SNSHTTPDelivery, w.own, built); err != nil {
 		return w, err
 	}
-	stateful, late := collect(box, sqsSvc, snsSvc, s3Svc, dynamoSvc, lambdaSvc, w.lambda.AsyncQueue(), logsSvc, secretsSvc, kmsSvc, iamSvc, stsSvc, eventsSvc, cloudwatchSvc)
+	stateful, late := collect(box, built, w.lambda)
 	if err := checkCollected(reg, stateful); err != nil {
 		return w, err
 	}
@@ -223,6 +241,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		DefaultAccount:   account,
 		MaxSnapshotBytes: snapshotMaxBytes(cfg),
 		Token:            cfg.AdminToken,
+		UISecret:         cfg.UISecret,
 		Version:          cfg.Version,
 		ModelPin:         modelPin,
 		Uptime:           clk.Stopwatch(),
@@ -233,8 +252,10 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		Pollers:       w.lambda,
 		HotReloader:   w.lambda,
 		ImagePuller:   w.lambda,
-		TTLSweeper:    dynamoSvc,
-		Subscriptions: snsSvc,
+		TTLSweeper:    c.dynamodb,
+		Subscriptions: c.sns,
+		SES:           sesMessages{svc: c.ses, regions: regions},
+		IAM:           authorizer,
 	}
 	if err := w.snapshotDirs(&opts); err != nil {
 		return w, err
@@ -242,7 +263,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if w.admin, err = serveradmin.New(opts); err != nil {
 		return w, err
 	}
-	if err := w.edges(cfg, k, reg, idStore, regions, cat, s3Svc.BucketExists, log); err != nil {
+	if err := w.edges(cfg, k, reg, idStore, regions, cat, c.s3.BucketExists, c.executeAPIFronts(), log); err != nil {
 		return w, err
 	}
 	if err := w.load(cfg, snapshots, log); err != nil {
@@ -293,23 +314,155 @@ func (w *wiring) snapshotDirs(o *serveradmin.Options) error {
 	return err
 }
 
-// policySources routes the outbox's access advisory to the service that
-// stores the delivery target's resource policy: the queue's Policy, the
-// topic's Policy, the function's permissions.
-type policySources struct {
-	sqs, sns, lambda outbox.PolicySource
+// images is the Lambda image source: the container host when there is a
+// pool to run images in, else none.
+func (w *wiring) images() lambda.ImageSource {
+	if w.pool == nil {
+		return nil
+	}
+	return w.host
 }
 
-func (p policySources) ResourcePolicy(target aws.ARN) (*policydoc.Document, bool) {
-	switch target.Service {
-	case "sqs":
-		return p.sqs.ResourcePolicy(target)
-	case "sns":
-		return p.sns.ResourcePolicy(target)
-	case "lambda":
-		return p.lambda.ResourcePolicy(target)
+// bindPolicies hands the built services' policies to their readers: the
+// authorizer reads IAM's identity-based policies and every service's
+// resource policies, and the outbox binds to the kernel, with HTTP
+// deliveries going out through egress under SNS HTTP delivery's settings,
+// never to own's addresses. Under iam.enforce off the outbox's access
+// advisory asks the services that store resource policies; under advise
+// and enforce step 8 decides each delivery call instead, so the advisory,
+// which assumes the clauses it cannot evaluate hold, is not journaled
+// beside it.
+func bindPolicies(a *enforce.Authorizer, box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, identities *iam.Service, delivery SNSHTTPDelivery, own *ownAddrs, built []wiredBuilt) error {
+	policies, err := policyProviders(built)
+	if err != nil {
+		return err
 	}
-	return nil, false
+	out, err := snsEgress(delivery, k.Clock(), own)
+	if err != nil {
+		return err
+	}
+	if err := a.Bind(enforce.Sources{Identities: identities, Resources: policies, Clock: k.Clock()}); err != nil {
+		return err
+	}
+	o := outbox.Options{Faults: faults, Egress: out}
+	if a.Mode() == enforce.Off {
+		o.Policies = policies
+	}
+	return box.Bind(k, o)
+}
+
+// apigatewayEnforce maps iam.enforce onto the mode REST APIs apply to a
+// resource policy (the 6b enforce matrix).
+func apigatewayEnforce(m IAMEnforce) apigateway.EnforceMode {
+	switch m {
+	case IAMEnforceAdvise:
+		return apigateway.EnforceAdvise
+	case IAMEnforceEnforce:
+		return apigateway.EnforceEnforce
+	case IAMEnforceOff:
+	}
+	return apigateway.EnforceOff
+}
+
+// enforceMode maps iam.enforce onto the authorizer's mode.
+func enforceMode(m IAMEnforce) enforce.Mode {
+	switch m {
+	case IAMEnforceAdvise:
+		return enforce.Advise
+	case IAMEnforceEnforce:
+		return enforce.Enforce
+	case IAMEnforceOff:
+	}
+	return enforce.Off
+}
+
+// kernelAuthorizer is the kernel's Authorizer: a, unless iam.enforce is
+// off, which leaves step 8 and kernel.Authorize asking nothing
+// (iam-enforcement-surfaces.md 12.1). a still answers POST /iam/evaluate.
+func kernelAuthorizer(a *enforce.Authorizer) kernel.Authorizer {
+	if a.Mode() == enforce.Off {
+		return nil
+	}
+	return a
+}
+
+// policySources routes a resource-policy read to the service that stores
+// the target's policy, by the target ARN's service namespace: the queue's
+// and the topic's Policy, the bucket policy, the function's permissions,
+// the key policy, the secret's resource policy and the role's trust policy
+// (iam-enforcement-surfaces.md 12.2), and the event bus's policy
+// (eventbridge-buses.md 10.2.5). The outbox's access advisory asks it about
+// delivery targets; it never asks for an event bus's policy, since it skips
+// events-to-events deliveries (ADR 0015 amendment 2026-10-26;
+// eventbridge-buses.md 6.2, 6.3). IAM evaluation reads each target's owner
+// and stored policy through it.
+type policySources map[string]policyStore
+
+// policyStore is a service that stores resource policies, read both ways:
+// as the advisory reads them and as the evaluator does.
+type policyStore interface {
+	authz.PolicyProvider
+	authz.StoredPolicyReader
+}
+
+// The router reads every namespace's policies through one provider.
+var (
+	_ authz.PolicyProvider     = policySources(nil)
+	_ authz.StoredPolicyReader = policySources(nil)
+)
+
+// policyProviders indexes the built services that implement both
+// authz.PolicyProvider and authz.StoredPolicyReader by their descriptor's
+// ARNNamespace, so a namespace never answers one question and not the
+// other. Two providers for one namespace are a *PolicySourceError.
+func policyProviders(built []wiredBuilt) (policySources, error) {
+	out := policySources{}
+	by := map[string]ref.ServiceID{}
+	for _, b := range built {
+		p, ok := b.svc.(policyStore)
+		if !ok {
+			continue
+		}
+		ns := b.desc.ARNNamespace
+		if first, dup := by[ns]; dup {
+			return nil, &PolicySourceError{Namespace: ns, Services: [2]ref.ServiceID{first, b.desc.ID}}
+		}
+		out[ns], by[ns] = p, b.desc.ID
+	}
+	return out, nil
+}
+
+// ResourcePolicy asks the provider of target's namespace; a namespace no
+// service provides has no resource policy.
+func (p policySources) ResourcePolicy(target aws.ARN) (*policydoc.Document, bool) {
+	src, ok := p[target.Service]
+	if !ok {
+		return nil, false
+	}
+	return src.ResourcePolicy(target)
+}
+
+// StoredPolicy asks the provider of target's namespace; a namespace no
+// service provides has no resource policy.
+func (p policySources) StoredPolicy(target aws.ARN) (authz.StoredPolicy, bool) {
+	src, ok := p[target.Service]
+	if !ok {
+		return authz.StoredPolicy{}, false
+	}
+	return src.StoredPolicy(target)
+}
+
+// PolicySourceError names an ARN namespace whose resource policies two
+// wired services provide, so a resource-policy read could ask only one of
+// them. It is a bug in wire.go; nothing is served.
+type PolicySourceError struct {
+	Namespace string
+	Services  [2]ref.ServiceID
+}
+
+func (e *PolicySourceError) Error() string {
+	return fmt.Sprintf("server: the wired services %s and %s both provide the resource policies of ARN namespace %q, so a resource-policy read cannot tell which to ask; "+
+		"this is a bug in understudy's wiring: have one service in wire.go provide each namespace", e.Services[0], e.Services[1], e.Namespace)
 }
 
 // journalOptions maps the journal setting onto the journal.
@@ -367,7 +520,7 @@ func (w *wiring) containers(cfg Config, instance string, clk *clock.Clock, log *
 		storage, codeDir = ddblocal.InMemory{}, filepath.Join(w.temp, "code")
 	}
 	var err error
-	if w.host, err = newContainerHost(cfg.Docker, cfg.LambdaNetwork, ownership, clk, log); err != nil {
+	if w.host, err = newContainerHost(cfg.Docker, cfg.LambdaNetwork, ownership, cfg.DockerLabels, clk, log); err != nil {
 		return err
 	}
 	w.local = &lazyLocal{host: w.host, mode: cfg.DynamoDB, storage: storage, memory: cfg.DynamoDBMemory, log: log}
@@ -458,7 +611,9 @@ func unwatchable(bindings []HotReload, err error) error {
 }
 
 // edges builds the main listener's front door and the container
-// listener's. A main listener beyond loopback answers every Host from a
+// listener's. The main listener, and the TLS listener sharing its front
+// door, serve the web UI beside the admin API; the container listener does
+// not. A main listener beyond loopback answers every Host from a
 // client that is not a browser, since its clients name it by whatever
 // their network calls it, such as a compose service name; checkExposure
 // has already required what guards it. The container listener keeps
@@ -467,7 +622,7 @@ func unwatchable(bindings []HotReload, err error) error {
 // refused on every other one, and one ClockTimeline, so a URL presigned
 // after a clock change made on the main listener is placed after it on
 // the container listener too.
-func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idStore *identity.Store, regions aws.Regions, cat catalogue, bucketExists func(string) bool, log *slog.Logger) error {
+func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idStore *identity.Store, regions aws.Regions, cat catalogue, bucketExists func(string) bool, fronts []edge.ExecuteAPIService, log *slog.Logger) error {
 	domains := cfg.S3BaseDomains
 	if domains == nil {
 		domains = config.DefaultBaseDomains()
@@ -475,6 +630,10 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 	var hosts edge.HostPolicy = edge.LocalHosts{}
 	if !cfg.Listen.Addr().IsLoopback() {
 		hosts = edge.NetworkHosts{}
+	}
+	page, err := ui.New(ui.Assets())
+	if err != nil {
+		return err
 	}
 	o := edge.Options{
 		Hosts:                 hosts,
@@ -489,16 +648,18 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 		Listener:              ref.ListenerMain,
 		Served:                &edge.ServedPorts{},
 		Timeline:              &edge.ClockTimeline{},
-		Admin:                 w.admin,
+		Admin:                 ui.Mount(page, w.admin),
 		Unclaimed:             ref.AWSJSON10,
 		UnknownOperationError: cat.unknownOperationError,
+		LegacyQuery:           []ref.ServiceID{ssmapi.Service().ID},
+		ExecuteAPI:            fronts,
 		Log:                   log,
 	}
 	vocabulary, refuse := s3.AuthDialect()
 	o.ServiceAuth = map[ref.ServiceID]edge.ServiceAuth{s3api.Service().ID: {Vocabulary: vocabulary, ParseError: refuse, Payload: edge.ServiceChecksPayload}}
 	o.OperationAuth = map[ref.OperationID]auth.Vocabulary{{Service: lambdaapi.Service().ID, Name: "InvokeFunctionUrl"}: lambda.FunctionURLAuth()}
+	o.ProtocolAuth = map[edge.ServiceProtocol]auth.Vocabulary{{Service: sqsapi.Service().ID, Protocol: ref.AWSJSON10}: sqs.JSONAuth()}
 	o.Verify = cfg.SigV4 == SigV4Verify
-	var err error
 	if w.edge, err = edge.New(o); err != nil {
 		return err
 	}
@@ -605,26 +766,32 @@ func ruleSettingError(i int, err *fault.RuleError) *SettingError {
 	return out
 }
 
-// collect gathers the Stateful views, with the outbox first, and the Late
-// services.
-func collect(box *outbox.Outbox, services ...serveradmin.Service) ([]serveradmin.Service, []snapshot.Late) {
-	stateful := make([]serveradmin.Service, 0, 1+len(services))
-	stateful = append(stateful, box)
+// collect gathers the Stateful views: the outbox first, then each built
+// service's in table order, with the Lambda execution layer's asynchronous
+// queue beside Lambda's (ARCHITECTURE.md 14.7); and the Late services.
+func collect(box *outbox.Outbox, built []wiredBuilt, x *lambda.Execution) ([]serveradmin.Service, []snapshot.Late) {
+	views := make([]serveradmin.Service, 0, 2+len(built))
+	views = append(views, box)
+	for _, b := range built {
+		views = append(views, b.svc)
+		if b.svc.Name() == x.Name() {
+			views = append(views, x.AsyncQueue())
+		}
+	}
 	var late []snapshot.Late
-	for _, s := range services {
-		stateful = append(stateful, s)
-		if l, ok := s.(snapshot.Late); ok {
+	for _, v := range views {
+		if l, ok := v.(snapshot.Late); ok {
 			late = append(late, l)
 		}
 	}
-	return stateful, late
+	return views, late
 }
 
-// UncollectedServiceError names registered services wire passed no
-// Stateful view of to collect: their state would silently be left out of
-// snapshots, persistence, resets and the resource listing. It is a bug in
-// wire.go, which names each service in apis(), its constructor block and
-// its collect call; nothing is served.
+// UncollectedServiceError names registered services wire collected no
+// Stateful view of: their state would silently be left out of snapshots,
+// persistence, resets and the resource listing. It is a bug in wire.go:
+// its wiring table collects each row's service, so a row's service is
+// named other than its descriptor; nothing is served.
 type UncollectedServiceError struct{ Services []ref.ServiceID }
 
 func (e *UncollectedServiceError) Error() string {
@@ -633,7 +800,7 @@ func (e *UncollectedServiceError) Error() string {
 		names[i] = string(s)
 	}
 	return "server: the registered services " + strings.Join(names, ", ") + " are not collected for snapshots, resets and resources; " +
-		"this is a bug in understudy's wiring: pass each one to collect in wire.go"
+		"this is a bug in understudy's wiring: each one's row in wiredServices in wire.go must build a service whose Name is the descriptor's ID"
 }
 
 // checkCollected refuses a registry service without a collected Stateful
@@ -712,23 +879,219 @@ func (c catalogue) unknownOperationError(svc ref.ServiceID, f awserr.Family) (aw
 	return none, false
 }
 
-// apis lists every generated service. S3 routes through its restXml route
-// table only, so it has no unknown-operation identity.
-func apis() []api {
-	return []api{
-		{sqsapi.Service(), sqsapi.ThrottleError(), sqsapi.UnknownOperationError},
-		{snsapi.Service(), snsapi.ThrottleError(), snsapi.UnknownOperationError},
-		{s3api.Service(), s3api.ThrottleError(), nil},
-		{dynamodbapi.Service(), dynamodbapi.ThrottleError(), dynamodbapi.UnknownOperationError},
-		{lambdaapi.Service(), lambdaapi.ThrottleError(), lambdaapi.UnknownOperationError},
-		{logsapi.Service(), logsapi.ThrottleError(), logsapi.UnknownOperationError},
-		{secretsmanagerapi.Service(), secretsmanagerapi.ThrottleError(), secretsmanagerapi.UnknownOperationError},
-		{kmsapi.Service(), kmsapi.ThrottleError(), kmsapi.UnknownOperationError},
-		{iamapi.Service(), iamapi.ThrottleError(), iamapi.UnknownOperationError},
-		{stsapi.Service(), stsapi.ThrottleError(), stsapi.UnknownOperationError},
-		{eventbridgeapi.Service(), eventbridgeapi.ThrottleError(), eventbridgeapi.UnknownOperationError},
-		{cloudwatchapi.Service(), cloudwatchapi.ThrottleError(), cloudwatchapi.UnknownOperationError},
+// wiredService is one row of the wiring table: a generated API and the
+// constructor of the service that serves it.
+type wiredService struct {
+	api api
+	// build constructs the service from its kernel.ServiceDeps and the
+	// run's settings in c, and records in c the services wire hands on by
+	// type.
+	build func(kernel.ServiceDeps, *construction) serveradmin.Service
+}
+
+// wiredServices is the wiring table: every service, in the order wire
+// registers, builds and collects them. apis(), the collected Stateful
+// views, checkCollected and the policy lookup all read it, so a new service
+// is one row. S3 routes through its restXml route table only, so it has no
+// unknown-operation identity.
+func wiredServices() []wiredService {
+	return []wiredService{
+		{api{sqsapi.Service(), sqsapi.ThrottleError(), sqsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			return sqs.New(d, sqs.Options{DeletedRecently: c.switches.SQSDeletedRecently})
+		}},
+		{api{snsapi.Service(), snsapi.ThrottleError(), snsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.sns = sns.New(d, sns.Options{TLSPort: c.tlsPort, AWSName: egress.IsAWSName})
+			return c.sns
+		}},
+		{api{s3api.Service(), s3api.ThrottleError(), nil}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.s3 = s3.New(d, s3.Options{CrossRegion: c.switches.S3CrossRegion, Regions: c.regions})
+			return c.s3
+		}},
+		{api{dynamodbapi.Service(), dynamodbapi.ThrottleError(), dynamodbapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.dynamodb = dynamodb.New(d, dynamodb.Options{Local: c.local})
+			return c.dynamodb
+		}},
+		// DynamoDB Streams serves DynamoDB's stream log, so its row follows
+		// DynamoDB's (ADR 0019).
+		{api{dynamodbstreamsapi.Service(), dynamodbstreamsapi.ThrottleError(), dynamodbstreamsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			return dynamodb.NewStreams(d, c.dynamodb)
+		}},
+		{api{lambdaapi.Service(), lambdaapi.ThrottleError(), lambdaapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.lambda, c.lambdaDeps = lambda.New(d, lambda.Options{StateTransitions: c.switches.LambdaTransitions, Images: c.images}), d
+			return c.lambda
+		}},
+		// After Lambda's row: a Lambda proxy integration reads the function
+		// policies of the Lambda service built above (apigateway-http.md 5.5).
+		{api{apigatewayv2api.Service(), apigatewayv2api.ThrottleError(), apigatewayv2api.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.apigatewayv2 = apigatewayv2.New(d, apigatewayv2.Options{FunctionPolicies: c.lambda, Regions: c.regions})
+			return c.apigatewayv2
+		}},
+		// REST APIs after HTTP APIs: the two share the signing name
+		// apigateway, and a request neither route table matches is the first
+		// registered service's unknown operation (ADR 0019), so the order is
+		// pinned by TestAPIGatewayUnmatchedPathIsV2Unknown.
+		{api{apigatewayapi.Service(), apigatewayapi.ThrottleError(), apigatewayapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.apigateway = apigateway.New(d, apigateway.Options{FunctionPolicies: c.lambda, Regions: c.regions, Enforce: c.apigatewayEnforce})
+			return c.apigateway
+		}},
+		{api{logsapi.Service(), logsapi.ThrottleError(), logsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return logs.New(d, logs.Options{})
+		}},
+		{api{secretsmanagerapi.Service(), secretsmanagerapi.ThrottleError(), secretsmanagerapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return secretsmanager.New(d, secretsmanager.Options{})
+		}},
+		{api{kmsapi.Service(), kmsapi.ThrottleError(), kmsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return kms.New(d, kms.Options{})
+		}},
+		{api{ssmapi.Service(), ssmapi.ThrottleError(), ssmapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return ssm.New(d, ssm.Options{})
+		}},
+		{api{iamapi.Service(), iamapi.ThrottleError(), iamapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.iam = iam.New(d, iam.Options{Catalogue: policycatalogue.Embedded})
+			return c.iam
+		}},
+		{api{stsapi.Service(), stsapi.ThrottleError(), stsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			return sts.New(d, sts.Options{AssumeRole: c.switches.STSAssumeRole})
+		}},
+		{api{eventbridgeapi.Service(), eventbridgeapi.ThrottleError(), eventbridgeapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return events.New(d, events.Options{})
+		}},
+		{api{cloudwatchapi.Service(), cloudwatchapi.ThrottleError(), cloudwatchapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return cloudwatch.New(d, cloudwatch.Options{})
+		}},
+		{api{sfnapi.Service(), sfnapi.ThrottleError(), sfnapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return sfn.New(d, sfn.Options{})
+		}},
+		{api{kinesisapi.Service(), kinesisapi.ThrottleError(), kinesisapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return kinesis.New(d, kinesis.Options{})
+		}},
+		// SES v1 owns the store both SES APIs share; v2's row follows and
+		// takes it (ses.md 2.3), and rule 8 tries sesv2's route table for a
+		// REST request signed for ses (ADR 0019).
+		{api{sesapi.Service(), sesapi.ThrottleError(), sesapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.ses = ses.New(d, ses.Options{VerifiedIdentities: c.sesVerified, ProductionAccess: c.sesProduction})
+			return c.ses
+		}},
+		{api{sesv2api.Service(), sesv2api.ThrottleError(), sesv2api.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			return ses.NewV2(d, c.ses)
+		}},
+		// Scheduler reaches IAM (ResolveRole) and its targets only through
+		// kernel.Invoke and the outbox, so its row needs no service above.
+		{api{schedulerapi.Service(), schedulerapi.ThrottleError(), schedulerapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+			return scheduler.New(d, scheduler.Options{})
+		}},
 	}
+}
+
+// apis lists every wired service's generated API, in table order.
+func apis() []api {
+	rows := wiredServices()
+	out := make([]api, len(rows))
+	for i, r := range rows {
+		out[i] = r.api
+	}
+	return out
+}
+
+// wiredBuilt is a built row: the service and its descriptor.
+type wiredBuilt struct {
+	desc *registry.Service
+	svc  serveradmin.Service
+}
+
+// construction is what the constructors take beyond kernel.ServiceDeps,
+// and the services wire hands on by type once every row is built: to the
+// front door (S3's bucket lookup), the admin hooks (DynamoDB's TTL sweep,
+// SNS's subscription tokens) and the Lambda execution layer, the named
+// hook built after the table. Handing them on by type keeps the compiler
+// checking that each implements its hook.
+type construction struct {
+	switches Switches
+	regions  aws.Regions
+	local    *lazyLocal
+	images   lambda.ImageSource
+	// tlsPort reports the TLS listener's port once Serve binds it.
+	tlsPort func() (uint16, bool)
+	// sesVerified is ses.verifiedIdentities.
+	sesVerified ses.VerifiedIdentities
+	// sesProduction is ses.productionAccess.
+	sesProduction bool
+	// apigatewayEnforce is iam.enforce as REST APIs read it for a resource
+	// policy they do not evaluate.
+	apigatewayEnforce apigateway.EnforceMode
+
+	s3         *s3.Service
+	dynamodb   *dynamodb.Service
+	sns        *sns.Service
+	lambda     *lambda.Service
+	lambdaDeps kernel.ServiceDeps
+	// iam is the identity-policy source of IAM evaluation.
+	iam *iam.Service
+	// ses is the store SES v2's view shares.
+	ses *ses.Service
+	// apigatewayv2 and apigateway own the execute-api API ids the edge
+	// resolves (ADR 0019).
+	apigatewayv2 *apigatewayv2.Service
+	apigateway   *apigateway.Service
+}
+
+// executeAPIFronts are the execute-api fronts the edge resolves an API id
+// against, in registration order, HTTP APIs then REST APIs (ADR 0019); a
+// service the table did not build is left out.
+func (c *construction) executeAPIFronts() []edge.ExecuteAPIService {
+	var fronts []edge.ExecuteAPIService
+	if c.apigatewayv2 != nil {
+		fronts = append(fronts, edge.ExecuteAPIService{Op: ref.OperationID{Service: apigatewayv2api.Service().ID, Name: "InvokeApi"}, Owner: c.apigatewayv2})
+	}
+	if c.apigateway != nil {
+		fronts = append(fronts, edge.ExecuteAPIService{Op: ref.OperationID{Service: apigatewayapi.Service().ID, Name: "InvokeRestApi"}, Owner: c.apigateway})
+	}
+	return fronts
+}
+
+// build constructs every row of the wiring table in order. A table whose
+// rows leave a service wire hands on by type unbuilt is an
+// *UnbuiltServiceError.
+func (c *construction) build(deps func(*registry.Service) kernel.ServiceDeps) ([]wiredBuilt, error) {
+	rows := wiredServices()
+	built := make([]wiredBuilt, len(rows))
+	for i, r := range rows {
+		built[i] = wiredBuilt{desc: r.api.desc, svc: r.build(deps(r.api.desc), c)}
+	}
+	var missing []ref.ServiceID
+	for _, m := range []struct {
+		unbuilt bool
+		id      ref.ServiceID
+	}{
+		{c.s3 == nil, s3api.Service().ID},
+		{c.dynamodb == nil, dynamodbapi.Service().ID},
+		{c.sns == nil, snsapi.Service().ID},
+		{c.lambda == nil, lambdaapi.Service().ID},
+		{c.iam == nil, iamapi.Service().ID},
+		{c.ses == nil, sesapi.Service().ID},
+	} {
+		if m.unbuilt {
+			missing = append(missing, m.id)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, &UnbuiltServiceError{Services: missing}
+	}
+	return built, nil
+}
+
+// UnbuiltServiceError names services that the front door, an admin hook or
+// the Lambda execution layer takes by type and no row of the wiring table
+// built. It is a bug in wire.go; nothing is served.
+type UnbuiltServiceError struct{ Services []ref.ServiceID }
+
+func (e *UnbuiltServiceError) Error() string {
+	names := make([]string, len(e.Services))
+	for i, s := range e.Services {
+		names[i] = string(s)
+	}
+	return "server: the services " + strings.Join(names, ", ") + " are not built, but the front door, the admin hooks or the Lambda execution layer need them; " +
+		"this is a bug in understudy's wiring: keep each one's row in wiredServices in wire.go, recording the service in its construction field"
 }
 
 // drainTimeout bounds how long closing waits for the Lambda environments

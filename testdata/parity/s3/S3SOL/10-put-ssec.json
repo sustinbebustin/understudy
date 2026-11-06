@@ -1,0 +1,45 @@
+{
+  "step": "10-put-ssec",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-ssec-rule.s3.us-east-2.amazonaws.com/c",
+        "headers": [
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="],
+          ["x-amz-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/W,g,b,E,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "10"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034009Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "a34cb972-7438-4105-b68b-812d7d450e85"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "9P4zv0GNi1BmPzzixKN4IEUAz8fjtaNaABM4y3J/4OBwQrZOWM0CLd6eNhLdVq8SH1JV2p4Pr9cebLdFfvpJtFvoMCsW3fdj"],
+          ["x-amz-request-id", "YJYMECQKGEVJBS4E"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:40:10 GMT"],
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="],
+          ["ETag", "\"1541fb988968110f920338196cd70fb5\""],
+          ["x-amz-checksum-crc64nvme", "Ffmx7kz9nB0="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

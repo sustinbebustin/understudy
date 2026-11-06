@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // Target says where and as whom an internal call runs.
@@ -40,13 +41,21 @@ type Target struct {
 type PrincipalMode interface{ isPrincipalMode() }
 
 // AsCaller is a forward-access call charged to the original principal: S3,
-// Secrets Manager, DynamoDB and CloudWatch Logs calling KMS, STS reading
-// the role AssumeRole names, and Lambda reading a package from S3.
+// Secrets Manager, SSM Parameter Store, DynamoDB and CloudWatch Logs
+// calling KMS, STS reading the role AssumeRole names, and Lambda reading a
+// package from S3.
 type AsCaller struct{}
 
-// AsExecutionRole is a call made as a function's execution role: event
-// source mapping polls and Lambda log writes.
-type AsExecutionRole struct{ Role aws.ARN }
+// AsExecutionRole is a call made as an execution role: event source
+// mapping polls and Lambda log writes as a function's, and Scheduler
+// deliveries as a schedule's (scheduler.md 14.4.4).
+type AsExecutionRole struct {
+	Role aws.ARN
+	// ID is the role's AROA... id the session carries, "" when unknown.
+	ID string
+	// Session is the role session name; "" is "understudy".
+	Session string
+}
 
 // AsService is a delivery a service principal makes, gated by the target's
 // resource policy. Source is the resource the delivery comes from (the
@@ -55,12 +64,18 @@ type AsExecutionRole struct{ Role aws.ARN }
 type AsService struct {
 	Name   string // "sns.amazonaws.com"
 	Source aws.ARN
+	// SourceAccount is the aws:SourceAccount the delivery sends; zero when
+	// it sends none (iam-enforcement-surfaces.md 8.1, 12.4).
+	SourceAccount aws.AccountID
 }
 
 // AsPlatform is a call a service makes on its own behalf, which AWS
 // authorizes no principal or resource policy for: an event source mapping
-// invoking its function. It runs as the service principal Name and the
-// access recorder leaves it out, since no policy needs to grant it.
+// invoking its function, S3 checking that a notification destination exists
+// (iam-enforcement-surfaces.md 12.4) and DynamoDB's TTL sweep deleting
+// expired items (dynamodb-local.md 5.1). It runs as the service principal
+// Name; the access recorder leaves it out and step 8 does not ask about it,
+// since no policy needs to grant it.
 type AsPlatform struct{ Name string }
 
 func (AsCaller) isPrincipalMode()        {}
@@ -100,37 +115,54 @@ func (e *TargetError) Error() string {
 // admission instant when t.At is zero. It returns Internal, never panics,
 // when parent holds a cell lock.
 func Invoke[In, Out any](ctx context.Context, k *Kernel, parent *Call, op Op[In, Out], t Target, in *In) (*Out, *awserr.Error) {
+	c, out, err := k.invoke(ctx, parent, op.desc, t, in)
+	if err != nil {
+		return nil, err
+	}
+	typed, ok := out.(*Out)
+	if !ok {
+		k.discard(ctx, c, out)
+		return nil, awserr.Internalf(&TargetError{Op: op.desc.ID, Reason: fmt.Sprintf("the handler's output is %T, want %T", out, (*Out)(nil))})
+	}
+	return typed, nil
+}
+
+// invoke is Invoke without its type parameters, so its body is compiled
+// once rather than per operation (ADR 0001's binary budget): it returns
+// the internal call and the output its handler answered, which Invoke
+// checks is an *Out.
+func (k *Kernel) invoke(ctx context.Context, parent *Call, desc *registry.Operation, t Target, in any) (*Call, any, *awserr.Error) {
 	var id ref.OperationID
-	if op.desc != nil {
-		id = op.desc.ID
+	if desc != nil {
+		id = desc.ID
 	}
 	switch {
 	case parent == nil:
-		return nil, awserr.Internalf(&TargetError{Op: id, Reason: "no parent call; internal calls run on behalf of a call or a timer"})
+		return nil, nil, awserr.Internalf(&TargetError{Op: id, Reason: "no parent call; internal calls run on behalf of a call or a timer"})
 	case parent.holding.Load():
-		return nil, awserr.Internalf(&HoldingError{Attempted: "kernel.Invoke of " + id.String(), Holder: parent.label})
-	case op.desc == nil:
-		return nil, awserr.Internalf(&TargetError{Reason: "the Op has no descriptor"})
+		return nil, nil, awserr.Internalf(&HoldingError{Attempted: "kernel.Invoke of " + id.String(), Holder: parent.label})
+	case desc == nil:
+		return nil, nil, awserr.Internalf(&TargetError{Reason: "the Op has no descriptor"})
 	case t.As == nil:
-		return nil, awserr.Internalf(&TargetError{Op: id, Reason: "Target.As is nil; say whom AWS authorizes the call as"})
+		return nil, nil, awserr.Internalf(&TargetError{Op: id, Reason: "Target.As is nil; say whom AWS authorizes the call as"})
 	case t.Scope.Account.IsZero():
-		return nil, awserr.Internalf(&TargetError{Op: id, Reason: "Target.Scope has no account; take it from the target resource"})
+		return nil, nil, awserr.Internalf(&TargetError{Op: id, Reason: "Target.Scope has no account; take it from the target resource"})
 	}
-	c := k.internalCall(parent, op.desc.ID, t)
+	// An AuthorizedAfterResolve parent is asked at its first Invoke, before
+	// the call: a denial is what Invoke returns.
+	if err := parent.authorizeDeferred(); err != nil {
+		return nil, nil, err
+	}
+	c := k.internalCall(parent, desc.ID, t)
 	switch r := k.Dispatch(ctx, c, Ok{In: in, Wire: Synthesized{}}).(type) {
 	case Output:
-		out, ok := r.Out.(*Out)
-		if !ok {
-			k.discard(ctx, c, r.Out)
-			return nil, awserr.Internalf(&TargetError{Op: id, Reason: fmt.Sprintf("the handler's output is %T, want %T", r.Out, (*Out)(nil))})
-		}
-		return out, nil
+		return c, r.Out, nil
 	case Failure:
-		return nil, r.Err
+		return nil, nil, r.Err
 	case StatusOKFailure:
-		return nil, r.Err
+		return nil, nil, r.Err
 	}
-	return nil, awserr.Internalf(&TargetError{Op: id, Reason: "Dispatch returned no result"})
+	return nil, nil, awserr.Internalf(&TargetError{Op: id, Reason: "Dispatch returned no result"})
 }
 
 // internalCall builds the call Invoke dispatches.
@@ -144,7 +176,12 @@ func (k *Kernel) internalCall(parent *Call, id ref.OperationID, t Target) *Call 
 	if cause == (ref.Cause{}) {
 		cause = ref.Cause{Parent: parent.event, Trace: parent.cause.Trace}
 	}
+	var forwarder *registry.Service
+	if _, forward := t.As.(AsCaller); forward && parent.op != nil {
+		forwarder = parent.op.Service
+	}
 	return &Call{
+		forwarder: forwarder,
 		k:         k,
 		id:        k.ids.RequestID(),
 		scope:     t.Scope,
@@ -171,7 +208,7 @@ func resolvePrincipal(parent *Call, m PrincipalMode) identity.Principal {
 	case AsCaller:
 		return parent.principal
 	case AsExecutionRole:
-		return executionRole(m.Role)
+		return executionRole(m)
 	case AsService:
 		return identity.ServicePrincipal{Name: m.Name}
 	case AsPlatform:
@@ -180,14 +217,19 @@ func resolvePrincipal(parent *Call, m PrincipalMode) identity.Principal {
 	return identity.Anonymous{}
 }
 
-// executionRole is the session a function's execution role runs internal
-// calls as: the role from its ARN (arn:aws:iam::<account>:role<path><name>)
-// under the session name "understudy", since the access recorder keys on
-// the role and no session of a real environment is involved. An ARN that
-// names no role is anonymous.
-func executionRole(role aws.ARN) identity.Principal {
-	account, err := aws.ParseAccountID(role.Account)
-	rest, ok := strings.CutPrefix(role.Resource, "role/")
+// defaultSession is the session name of an execution role call that names
+// none: a function's execution role, since the access recorder keys on the
+// role and no session of a real environment is involved.
+const defaultSession = "understudy"
+
+// executionRole is the session m runs internal calls as: the role from its
+// ARN (arn:aws:iam::<account>:role<path><name>) with m's role id, under
+// m's session name or defaultSession. A Scheduler delivery names its
+// invocation's session and the role id IAM resolved (scheduler.md 7.2,
+// 14.4.4). An ARN that names no role is anonymous.
+func executionRole(m AsExecutionRole) identity.Principal {
+	account, err := aws.ParseAccountID(m.Role.Account)
+	rest, ok := strings.CutPrefix(m.Role.Resource, "role/")
 	if err != nil || !ok || rest == "" {
 		return identity.Anonymous{}
 	}
@@ -195,10 +237,14 @@ func executionRole(role aws.ARN) identity.Principal {
 	if i := strings.LastIndexByte(rest, '/'); i >= 0 {
 		path, name = "/"+rest[:i+1], rest[i+1:]
 	}
+	session := m.Session
+	if session == "" {
+		session = defaultSession
+	}
 	return identity.AssumedRole{
 		Account: account,
-		Role:    identity.RoleRef{Name: name, Path: path},
-		Session: "understudy",
+		Role:    identity.RoleRef{Name: name, Path: path, ID: m.ID},
+		Session: session,
 		Source:  identity.FromAssumeRole{},
 	}
 }

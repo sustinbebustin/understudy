@@ -8,9 +8,21 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
-// exportVersion is the schema version of the Export document; Import refuses
-// any other.
-const exportVersion = 1
+// exportVersion is the schema version Export writes. Version 2 added an
+// error action's members; Import reads version 1 too, with the same rule
+// decoder, refusing a version-1 rule that sets them, and refuses any other
+// version.
+const exportVersion = 2
+
+// readsVersion reports whether Import reads an Export document of version v.
+func readsVersion(v int) bool { return v == 1 || v == exportVersion }
+
+// hasMembers reports whether a is an error action that sets members, which
+// a version-1 rule never does.
+func hasMembers(a Action) bool {
+	e, ok := a.(Error)
+	return ok && e.Members != nil
+}
 
 // exportJSON is the Export document: the active rules in evaluation order,
 // each with its hits and, for a Probability rule, its stream position.
@@ -128,8 +140,8 @@ func (s *Store) Import(data []byte) error {
 	if err := jsonx.Unmarshal(data, &doc); err != nil {
 		return &ImportError{Index: -1, Reason: "it is not a fault rules document", Cause: err}
 	}
-	if doc.Version != exportVersion {
-		return &ImportError{Index: -1, Reason: fmt.Sprintf("version %d is not the version %d this binary reads", doc.Version, exportVersion)}
+	if !readsVersion(doc.Version) {
+		return &ImportError{Index: -1, Reason: fmt.Sprintf("version %d is not one of the versions 1 and %d this binary reads", doc.Version, exportVersion)}
 	}
 	if err := checkReplay(doc.Rules); err != nil {
 		return err
@@ -138,7 +150,7 @@ func (s *Store) Import(data []byte) error {
 	seen := make(map[ref.RuleID]bool, len(doc.Rules))
 	for i := range doc.Rules {
 		a := &doc.Rules[i]
-		e, err := s.restore(a, seen)
+		e, err := s.restore(doc.Version, a, seen)
 		if err != nil {
 			err.Index, err.Rule = i, a.Rule.ID
 			return err
@@ -168,9 +180,9 @@ func checkReplay(rules []activeJSON) *ImportError {
 	return nil
 }
 
-// restore rebuilds one exported rule; the caller fills the error's Index and
-// Rule.
-func (s *Store) restore(a *activeJSON, seen map[ref.RuleID]bool) (*entry, *ImportError) {
+// restore rebuilds one exported rule of a document of version version; the
+// caller fills the error's Index and Rule.
+func (s *Store) restore(version int, a *activeJSON, seen map[ref.RuleID]bool) (*entry, *ImportError) {
 	r := a.Rule
 	switch {
 	case r.ID == "":
@@ -179,6 +191,8 @@ func (s *Store) restore(a *activeJSON, seen map[ref.RuleID]bool) (*entry, *Impor
 		return nil, &ImportError{Reason: "the id appears twice"}
 	case a.Hits < 0:
 		return nil, &ImportError{Reason: fmt.Sprintf("hits is %d; it cannot be negative", a.Hits)}
+	case version == 1 && hasMembers(r.Action):
+		return nil, &ImportError{Reason: "it sets action.members, which version 1 rules never carry; the document is corrupt or was not written by Export"}
 	}
 	res, rerr := resolve(s.cat, r)
 	if rerr != nil {

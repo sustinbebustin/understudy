@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "item": "SES-29",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ses/SES-29/list-max-0.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-29/list-max-0-raw.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-29/list-max-1001-raw.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ses/SES-29/template-over.json",
+      "compare": "all"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "05-literal-over-max",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidDefinition) when calling the CreateStateMachine operation: Invalid State Machine Definition: 'SCHEMA_VALIDATION_FAILED: Maximum value is 99999999 at /States/W/Seconds'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.CreateStateMachine"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,E,g,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.create-state-machine"],
+          ["X-Amz-Date", "20261103T164819Z"],
+          ["amz-sdk-invocation-id", "54d67145-9e97-40fd-b96f-dcac768d52bc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "190"]
+        ],
+        "body": "{\"name\": \"us1103-wbig\", \"definition\": \"{\\\"StartAt\\\":\\\"W\\\",\\\"States\\\":{\\\"W\\\":{\\\"Type\\\":\\\"Wait\\\",\\\"Seconds\\\":100000000,\\\"End\\\":true}}}\", \"roleArn\": \"arn:aws:iam::123456789012:role/us1103-sfn\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "e6eacb06-5d02-4e70-b8d9-9cb4fda74f1a"],
+          ["Date", "Tue, 03 Nov 2026 16:48:19 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "186"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.swf.service.v2.model#InvalidDefinition\",\"message\":\"Invalid State Machine Definition: 'SCHEMA_VALIDATION_FAILED: Maximum value is 99999999 at /States/W/Seconds'\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "step": "06-bad-deployment",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the CreateStage operation: Deployment id does not exist",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/stages",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,g,E,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.create-stage"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T163907Z"],
+          ["amz-sdk-invocation-id", "e66e7f78-224f-4c1d-a6e0-99bbb4d85a97"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "45"]
+        ],
+        "body": "{\"stageName\": \"s2\", \"deploymentId\": \"nosuch\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:39:08 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "43"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "962c31bf-5783-4624-a895-bf58a6957be0"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRcm-Jk7CYcEcEQ="]
+        ],
+        "body": "{\"message\":\"Deployment id does not exist\"}\n"
+      }
+    }
+  ]
+}

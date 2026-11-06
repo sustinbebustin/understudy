@@ -1,0 +1,40 @@
+{
+  "golden": 3,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/base/test_base.snapshot.json:L876",
+  "test": "test_state_pass_result_null_input_output_paths (get_execution_history)",
+  "validated": "2024-02-07",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/base/statemachines/pass_result_null_input_output_paths.json5",
+  "definition": {
+    "Comment": "BASE_PASS_RESULT_NULL_INPUT_OUTPUT_PATHS",
+    "StartAt": "State0",
+    "States": {
+      "State0": {
+        "Type": "Pass",
+        "Parameters": {"Arg1": "argument1", "FromInput.$": "$"},
+        "Next": "State1"
+      },
+      "State1": {
+        "Type": "Pass",
+        "InputPath": null,
+        "Parameters": {"Arg2": "argument2", "FromInput.$": "$"},
+        "Next": "State2"
+      },
+      "State2": {
+        "Type": "Pass",
+        "OutputPath": null,
+        "End": true
+      }
+    }
+  },
+  "input": {"InputValue": 0},
+  "history": [
+    {"executionStartedEventDetails": {"input": {"InputValue": 0}, "inputDetails": {"truncated": false}, "roleArn": "snf_role_arn"}, "id": 1, "previousEventId": 0, "timestamp": "timestamp", "type": "ExecutionStarted"},
+    {"id": 2, "previousEventId": 0, "stateEnteredEventDetails": {"input": {"InputValue": 0}, "inputDetails": {"truncated": false}, "name": "State0"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": 3, "previousEventId": 2, "stateExitedEventDetails": {"name": "State0", "output": {"Arg1": "argument1", "FromInput": {"InputValue": 0}}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"id": 4, "previousEventId": 3, "stateEnteredEventDetails": {"input": {"Arg1": "argument1", "FromInput": {"InputValue": 0}}, "inputDetails": {"truncated": false}, "name": "State1"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": 5, "previousEventId": 4, "stateExitedEventDetails": {"name": "State1", "output": {"Arg2": "argument2", "FromInput": {}}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"id": 6, "previousEventId": 5, "stateEnteredEventDetails": {"input": {"Arg2": "argument2", "FromInput": {}}, "inputDetails": {"truncated": false}, "name": "State2"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": 7, "previousEventId": 6, "stateExitedEventDetails": {"name": "State2", "output": {}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"executionSucceededEventDetails": {"output": {}, "outputDetails": {"truncated": false}}, "id": 8, "previousEventId": 7, "timestamp": "timestamp", "type": "ExecutionSucceeded"}
+  ]
+}

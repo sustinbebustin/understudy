@@ -21,6 +21,7 @@ func tree() *command {
 		resourcesCmd(),
 		coverageCmd(),
 		iamCmd(),
+		sesCmd(),
 		lambdaCmd(),
 		imagesCmd(),
 		envCmd(),

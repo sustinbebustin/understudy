@@ -4,16 +4,35 @@ package secretsmanagerapi
 
 import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-// IdentityAccessDeniedException returns the identity of com.amazon.coral.service#AccessDeniedException.
+// IdentityAccessDeniedException returns the identity of com.amazonaws.secretsmanager#AccessDeniedException.
 func IdentityAccessDeniedException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.secretsmanager#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
 }
 
 // ErrAccessDeniedException returns an AccessDeniedException error with message.
 func ErrAccessDeniedException(message string) *awserr.Error {
-	return &awserr.Error{ID: IdentityAccessDeniedException(), Message: message, Origin: awserr.Generic{}}
+	return &awserr.Error{ID: IdentityAccessDeniedException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#AccessDeniedException.
+func (*AccessDeniedException) ErrorIdentity() awserr.Identity { return IdentityAccessDeniedException() }
+
+// IdentityCoralServiceAccessDeniedException returns the identity of com.amazon.coral.service#AccessDeniedException.
+func IdentityCoralServiceAccessDeniedException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrCoralServiceAccessDeniedException returns a CoralServiceAccessDeniedException error with message.
+func ErrCoralServiceAccessDeniedException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityCoralServiceAccessDeniedException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#AccessDeniedException.
+func (*CoralServiceAccessDeniedException) ErrorIdentity() awserr.Identity {
+	return IdentityCoralServiceAccessDeniedException()
 }
 
 // IdentityDecryptionFailure returns the identity of com.amazonaws.secretsmanager#DecryptionFailure.
@@ -26,6 +45,9 @@ func ErrDecryptionFailure(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityDecryptionFailure(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#DecryptionFailure.
+func (*DecryptionFailure) ErrorIdentity() awserr.Identity { return IdentityDecryptionFailure() }
+
 // IdentityEncryptionFailure returns the identity of com.amazonaws.secretsmanager#EncryptionFailure.
 func IdentityEncryptionFailure() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.secretsmanager#EncryptionFailure", JSONType: "EncryptionFailure", QueryCode: "EncryptionFailure", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -35,6 +57,9 @@ func IdentityEncryptionFailure() awserr.Identity {
 func ErrEncryptionFailure(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityEncryptionFailure(), Message: message, Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#EncryptionFailure.
+func (*EncryptionFailure) ErrorIdentity() awserr.Identity { return IdentityEncryptionFailure() }
 
 // IdentityExpiredTokenException returns the identity of com.amazon.coral.service#ExpiredTokenException.
 func IdentityExpiredTokenException() awserr.Identity {
@@ -46,6 +71,9 @@ func ErrExpiredTokenException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityExpiredTokenException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#ExpiredTokenException.
+func (*ExpiredTokenException) ErrorIdentity() awserr.Identity { return IdentityExpiredTokenException() }
+
 // IdentityIncompleteSignatureException returns the identity of com.amazon.coral.service#IncompleteSignatureException.
 func IdentityIncompleteSignatureException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#IncompleteSignatureException", JSONType: "IncompleteSignatureException", QueryCode: "IncompleteSignature", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -54,6 +82,11 @@ func IdentityIncompleteSignatureException() awserr.Identity {
 // ErrIncompleteSignatureException returns an IncompleteSignatureException error with message.
 func ErrIncompleteSignatureException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityIncompleteSignatureException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#IncompleteSignatureException.
+func (*IncompleteSignatureException) ErrorIdentity() awserr.Identity {
+	return IdentityIncompleteSignatureException()
 }
 
 // IdentityInternalFailure returns the identity of com.amazon.coral.service#InternalFailure.
@@ -66,6 +99,9 @@ func ErrInternalFailure(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInternalFailure(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#InternalFailure.
+func (*InternalFailure) ErrorIdentity() awserr.Identity { return IdentityInternalFailure() }
+
 // IdentityInternalServiceError returns the identity of com.amazonaws.secretsmanager#InternalServiceError.
 func IdentityInternalServiceError() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.secretsmanager#InternalServiceError", JSONType: "InternalServiceError", QueryCode: "InternalServiceError", Status: 500, Fault: awserr.Receiver, MessageKey: awserr.MessageUpper}
@@ -76,6 +112,9 @@ func ErrInternalServiceError(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInternalServiceError(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#InternalServiceError.
+func (*InternalServiceError) ErrorIdentity() awserr.Identity { return IdentityInternalServiceError() }
+
 // IdentityInvalidNextTokenException returns the identity of com.amazonaws.secretsmanager#InvalidNextTokenException.
 func IdentityInvalidNextTokenException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.secretsmanager#InvalidNextTokenException", JSONType: "InvalidNextTokenException", QueryCode: "InvalidNextTokenException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -84,6 +123,11 @@ func IdentityInvalidNextTokenException() awserr.Identity {
 // ErrInvalidNextTokenException returns an InvalidNextTokenException error with message.
 func ErrInvalidNextTokenException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidNextTokenException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#InvalidNextTokenException.
+func (*InvalidNextTokenException) ErrorIdentity() awserr.Identity {
+	return IdentityInvalidNextTokenException()
 }
 
 // IdentityInvalidParameterException returns the identity of com.amazonaws.secretsmanager#InvalidParameterException.
@@ -96,6 +140,11 @@ func ErrInvalidParameterException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidParameterException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#InvalidParameterException.
+func (*InvalidParameterException) ErrorIdentity() awserr.Identity {
+	return IdentityInvalidParameterException()
+}
+
 // IdentityInvalidRequestException returns the identity of com.amazonaws.secretsmanager#InvalidRequestException.
 func IdentityInvalidRequestException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.secretsmanager#InvalidRequestException", JSONType: "InvalidRequestException", QueryCode: "InvalidRequestException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -104,6 +153,11 @@ func IdentityInvalidRequestException() awserr.Identity {
 // ErrInvalidRequestException returns an InvalidRequestException error with message.
 func ErrInvalidRequestException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidRequestException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#InvalidRequestException.
+func (*InvalidRequestException) ErrorIdentity() awserr.Identity {
+	return IdentityInvalidRequestException()
 }
 
 // IdentityInvalidSignatureException returns the identity of com.amazon.coral.service#InvalidSignatureException.
@@ -116,6 +170,11 @@ func ErrInvalidSignatureException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidSignatureException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#InvalidSignatureException.
+func (*InvalidSignatureException) ErrorIdentity() awserr.Identity {
+	return IdentityInvalidSignatureException()
+}
+
 // IdentityLimitExceededException returns the identity of com.amazonaws.secretsmanager#LimitExceededException.
 func IdentityLimitExceededException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.secretsmanager#LimitExceededException", JSONType: "LimitExceededException", QueryCode: "LimitExceededException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -124,6 +183,11 @@ func IdentityLimitExceededException() awserr.Identity {
 // ErrLimitExceededException returns a LimitExceededException error with message.
 func ErrLimitExceededException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityLimitExceededException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#LimitExceededException.
+func (*LimitExceededException) ErrorIdentity() awserr.Identity {
+	return IdentityLimitExceededException()
 }
 
 // IdentityMalformedPolicyDocumentException returns the identity of com.amazonaws.secretsmanager#MalformedPolicyDocumentException.
@@ -136,6 +200,11 @@ func ErrMalformedPolicyDocumentException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityMalformedPolicyDocumentException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#MalformedPolicyDocumentException.
+func (*MalformedPolicyDocumentException) ErrorIdentity() awserr.Identity {
+	return IdentityMalformedPolicyDocumentException()
+}
+
 // IdentityMissingAuthenticationTokenException returns the identity of com.amazon.coral.service#MissingAuthenticationTokenException.
 func IdentityMissingAuthenticationTokenException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#MissingAuthenticationTokenException", JSONType: "MissingAuthenticationTokenException", QueryCode: "MissingAuthenticationToken", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -144,6 +213,11 @@ func IdentityMissingAuthenticationTokenException() awserr.Identity {
 // ErrMissingAuthenticationTokenException returns a MissingAuthenticationTokenException error with message.
 func ErrMissingAuthenticationTokenException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityMissingAuthenticationTokenException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#MissingAuthenticationTokenException.
+func (*MissingAuthenticationTokenException) ErrorIdentity() awserr.Identity {
+	return IdentityMissingAuthenticationTokenException()
 }
 
 // IdentityNotImplemented returns the identity of dev.understudy#NotImplemented.
@@ -156,6 +230,9 @@ func ErrNotImplemented(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityNotImplemented(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of dev.understudy#NotImplemented.
+func (*NotImplemented) ErrorIdentity() awserr.Identity { return IdentityNotImplemented() }
+
 // IdentityPreconditionNotMetException returns the identity of com.amazonaws.secretsmanager#PreconditionNotMetException.
 func IdentityPreconditionNotMetException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.secretsmanager#PreconditionNotMetException", JSONType: "PreconditionNotMetException", QueryCode: "PreconditionNotMetException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -164,6 +241,11 @@ func IdentityPreconditionNotMetException() awserr.Identity {
 // ErrPreconditionNotMetException returns a PreconditionNotMetException error with message.
 func ErrPreconditionNotMetException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityPreconditionNotMetException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#PreconditionNotMetException.
+func (*PreconditionNotMetException) ErrorIdentity() awserr.Identity {
+	return IdentityPreconditionNotMetException()
 }
 
 // IdentityPublicPolicyException returns the identity of com.amazonaws.secretsmanager#PublicPolicyException.
@@ -176,6 +258,9 @@ func ErrPublicPolicyException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityPublicPolicyException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#PublicPolicyException.
+func (*PublicPolicyException) ErrorIdentity() awserr.Identity { return IdentityPublicPolicyException() }
+
 // IdentityRequestEntityTooLargeException returns the identity of com.amazon.coral.service#RequestEntityTooLargeException.
 func IdentityRequestEntityTooLargeException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#RequestEntityTooLargeException", JSONType: "RequestEntityTooLargeException", QueryCode: "RequestEntityTooLarge", Status: 413, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -184,6 +269,11 @@ func IdentityRequestEntityTooLargeException() awserr.Identity {
 // ErrRequestEntityTooLargeException returns a RequestEntityTooLargeException error with message.
 func ErrRequestEntityTooLargeException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityRequestEntityTooLargeException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#RequestEntityTooLargeException.
+func (*RequestEntityTooLargeException) ErrorIdentity() awserr.Identity {
+	return IdentityRequestEntityTooLargeException()
 }
 
 // IdentityResourceExistsException returns the identity of com.amazonaws.secretsmanager#ResourceExistsException.
@@ -196,6 +286,11 @@ func ErrResourceExistsException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityResourceExistsException(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#ResourceExistsException.
+func (*ResourceExistsException) ErrorIdentity() awserr.Identity {
+	return IdentityResourceExistsException()
+}
+
 // IdentityResourceNotFoundException returns the identity of com.amazonaws.secretsmanager#ResourceNotFoundException.
 func IdentityResourceNotFoundException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.secretsmanager#ResourceNotFoundException", JSONType: "ResourceNotFoundException", QueryCode: "ResourceNotFoundException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -204,6 +299,11 @@ func IdentityResourceNotFoundException() awserr.Identity {
 // ErrResourceNotFoundException returns a ResourceNotFoundException error with message.
 func ErrResourceNotFoundException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityResourceNotFoundException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.secretsmanager#ResourceNotFoundException.
+func (*ResourceNotFoundException) ErrorIdentity() awserr.Identity {
+	return IdentityResourceNotFoundException()
 }
 
 // IdentitySerializationException returns the identity of com.amazon.coral.service#SerializationException.
@@ -216,6 +316,11 @@ func ErrSerializationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentitySerializationException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#SerializationException.
+func (*SerializationException) ErrorIdentity() awserr.Identity {
+	return IdentitySerializationException()
+}
+
 // IdentityThrottlingException returns the identity of com.amazon.coral.service#ThrottlingException.
 func IdentityThrottlingException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#ThrottlingException", JSONType: "ThrottlingException", QueryCode: "ThrottlingException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower, Retryable: true}
@@ -226,6 +331,9 @@ func ErrThrottlingException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityThrottlingException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#ThrottlingException.
+func (*ThrottlingException) ErrorIdentity() awserr.Identity { return IdentityThrottlingException() }
+
 // IdentityUnknownOperationException returns the identity of com.amazon.coral.service#UnknownOperationException.
 func IdentityUnknownOperationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#UnknownOperationException", JSONType: "UnknownOperationException", QueryCode: "UnknownOperationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -234,6 +342,11 @@ func IdentityUnknownOperationException() awserr.Identity {
 // ErrUnknownOperationException returns an UnknownOperationException error with message.
 func ErrUnknownOperationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnknownOperationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#UnknownOperationException.
+func (*UnknownOperationException) ErrorIdentity() awserr.Identity {
+	return IdentityUnknownOperationException()
 }
 
 // IdentityUnrecognizedClientException returns the identity of com.amazon.coral.service#UnrecognizedClientException.
@@ -246,6 +359,11 @@ func ErrUnrecognizedClientException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnrecognizedClientException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#UnrecognizedClientException.
+func (*UnrecognizedClientException) ErrorIdentity() awserr.Identity {
+	return IdentityUnrecognizedClientException()
+}
+
 // IdentityValidationException returns the identity of com.amazon.coral.validate#ValidationException.
 func IdentityValidationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.validate#ValidationException", JSONType: "ValidationException", QueryCode: "ValidationError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -256,9 +374,26 @@ func ErrValidationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityValidationException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.validate#ValidationException.
+func (*ValidationException) ErrorIdentity() awserr.Identity { return IdentityValidationException() }
+
+// NewErrorMembers returns a new, empty value of error shape id, to decode
+// a fault rule's members into, or false for a shape this package does not
+// generate a decoder for.
+func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	switch id {
+	default:
+		return nil, false
+	}
+}
+
 // ThrottleError returns the identity a throttling fault rule injects for
 // this service (dev.understudy#throttleError).
 func ThrottleError() awserr.Identity { return IdentityThrottlingException() }
+
+// DenialError returns the identity this service answers an authorization
+// refusal with (dev.understudy#denialError), evidence third-party-recorded.
+func DenialError() awserr.Identity { return IdentityAccessDeniedException() }
 
 // UnknownOperationError returns the identity this service answers for an
 // operation absent from its model, per protocol family
@@ -284,7 +419,7 @@ func MalformedRequestError() awserr.Identity { return IdentitySerializationExcep
 func GenericErrors(f awserr.Family) []awserr.Identity {
 	switch f {
 	case awserr.JSONFamily:
-		return []awserr.Identity{IdentitySerializationException(), IdentityUnknownOperationException(), IdentityMissingAuthenticationTokenException(), IdentityIncompleteSignatureException(), IdentityInvalidSignatureException(), IdentityUnrecognizedClientException(), IdentityExpiredTokenException(), IdentityAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityThrottlingException()}
+		return []awserr.Identity{IdentitySerializationException(), IdentityUnknownOperationException(), IdentityMissingAuthenticationTokenException(), IdentityIncompleteSignatureException(), IdentityInvalidSignatureException(), IdentityUnrecognizedClientException(), IdentityExpiredTokenException(), IdentityCoralServiceAccessDeniedException(), IdentityInternalFailure(), IdentityNotImplemented(), IdentityRequestEntityTooLargeException(), IdentityThrottlingException()}
 	default:
 		return nil
 	}

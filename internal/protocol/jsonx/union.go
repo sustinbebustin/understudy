@@ -158,6 +158,7 @@ func (u *Union[T]) marshal(enc *jsontext.Encoder, st *callState, v T) error {
 	if !ok {
 		return &UnionError{Sum: u.sum, Reason: fmt.Sprintf("%v is not a declared variant; add it to the union's table", rv.Type())}
 	}
+	inner := len(st.verbatim)
 	st.bypass = true
 	body, err := json.Marshal(rv.Interface(), enc.Options())
 	st.bypass = false
@@ -189,7 +190,17 @@ func (u *Union[T]) marshal(enc *jsontext.Encoder, st *callState, v T) error {
 	if err != nil {
 		return err
 	}
-	return enc.WriteValue(tagged)
+	if err := enc.WriteValue(tagged); err != nil {
+		return err
+	}
+	// The Verbatim values inside the variant were recorded relative to
+	// body; the rewrite above keeps every member's name and position in
+	// it, so they sit at the same pointers under the tagged value.
+	at := enc.StackPointer()
+	for i := inner; i < len(st.verbatim); i++ {
+		st.verbatim[i] = at + st.verbatim[i]
+	}
+	return nil
 }
 
 // unmarshalSum reads a tagged value into a T: null leaves the zero T, any
@@ -214,7 +225,7 @@ func (u *Union[T]) unmarshalSum(dec *jsontext.Decoder, v *T) error {
 	}
 	p := c.zero()
 	if err := json.Unmarshal(raw, p, dec.Options()); err != nil {
-		return err
+		return nested(dec, raw, err)
 	}
 	variant, ok := reflect.TypeAssert[T](reflect.ValueOf(p).Elem())
 	if !ok {
@@ -246,6 +257,27 @@ func (u *Union[T]) unmarshalVariant(dec *jsontext.Decoder, st *callState, want s
 	st.bypass = true
 	err = json.Unmarshal(fields, v, dec.Options())
 	st.bypass = false
+	if err != nil {
+		return nested(dec, raw, err)
+	}
+	return nil
+}
+
+// nested places an error of a nested Unmarshal of raw, the value dec has
+// just read, in dec's document: its JSON pointer, relative to raw, gains
+// raw's own pointer, so a refusal names the member at fault from the
+// document's root ("action.members", not "members"). The byte offset
+// becomes raw's start, since the nested document is raw rewritten without
+// its kind.
+func nested(dec *jsontext.Decoder, raw jsontext.Value, err error) error {
+	start := dec.InputOffset() - int64(len(raw))
+	if sem, ok := errors.AsType[*json.SemanticError](err); ok {
+		sem.JSONPointer = dec.StackPointer() + sem.JSONPointer
+		sem.ByteOffset = start
+	} else if syn, ok := errors.AsType[*jsontext.SyntacticError](err); ok {
+		syn.JSONPointer = dec.StackPointer() + syn.JSONPointer
+		syn.ByteOffset = start
+	}
 	return err
 }
 
@@ -296,7 +328,10 @@ func member(m document.Map, key string) (document.Value, bool) {
 // bypass makes the next union function json calls defer to json's default
 // encoding of the value, which is how a variant's own fields are written
 // and read: the function for a sum also fires for the variant type itself.
-// A call is sequential, so the flag needs no lock; each call has its own.
+// verbatim holds the pointers of the Verbatim values written so far
+// (Codec.Marshal). A call is sequential, so the state needs no lock; each
+// call has its own.
 type callState struct {
-	bypass bool
+	bypass   bool
+	verbatim []jsontext.Pointer
 }

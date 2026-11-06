@@ -1,0 +1,59 @@
+{
+  "step": "03-logs",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,Z,E,b,C cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261103T163814Z"],
+          ["amz-sdk-invocation-id", "0694d7ee-6fc5-41bd-a022-e19e058f9b16"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "44"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/us1103-ldl-p\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "e8e1363f-7d5f-456f-b5f3-2422dc6218fc"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "4876"],
+          ["Date", "Tue, 03 Nov 2026 16:38:15 GMT"]
+        ],
+        "body": "{\"events\":[{\"eventId\":\"40001378809565025902437034115078305071336917230606286848\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"INIT_START Runtime Version: python:3.13.mainlinev2.v82\\tRuntime Version ARN: arn:aws:lambda:us-east-2::runtime:a57ada4e55c073ec92cc8770cbeb247827d22095fbfa8de3509923cb9ce48bd1\\n\",\"timestamp\":1793723862295},{\"eventId\":\"40001378811460589244312137082108841124512027958614622209\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"START RequestId: acd309fc-83a3-4d2e-ac42-f001728e7c8d Version: $LATEST\\n\",\"timestamp\":1793723862380},{\"eventId\":\"40001378811460589244312137082108841124512027958614622210\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"{\\\"event\\\": {\\\"mode\\\": \\\"none\\\", \\\"pad\\\": [1, 2]}, \\\"request_id\\\": \\\"acd309fc-83a3-4d2e-ac42-f001728e7c8d\\\", \\\"invoked\\\": \\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-p\\\", \\\"t\\\": 1793723862.3806875}\\n\",\"timestamp\":1793723862380},{\"eventId\":\"40001378811505190734709198328391912561057324681626583043\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"END RequestId: acd309fc-83a3-4d2e-ac42-f001728e7c8d\\n\",\"timestamp\":1793723862382},{\"eventId\":\"40001378811505190734709198328391912561057324681626583044\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"REPORT RequestId: acd309fc-83a3-4d2e-ac42-f001728e7c8d\\tDuration: 1.99 ms\\tBilled Duration: 84 ms\\tMemory Size: 128 MB\\tMax Memory Used: 31 MB\\tInit Duration: 81.28 ms\\t\\n\",\"timestamp\":1793723862382},{\"eventId\":\"40001378818775233669430181472532556717940690532576198661\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"START RequestId: ad873200-e34d-4151-b084-6f4eaa89d15f Version: $LATEST\\n\",\"timestamp\":1793723862708},{\"eventId\":\"40001378818797534414628712095674092436213338894082179078\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"{\\\"event\\\": {\\\"mode\\\": \\\"text\\\", \\\"pad\\\": [1, 2]}, \\\"request_id\\\": \\\"ad873200-e34d-4151-b084-6f4eaa89d15f\\\", \\\"invoked\\\": \\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-p\\\", \\\"t\\\": 1793723862.7092283}\\n\",\"timestamp\":1793723862709},{\"eventId\":\"40001378818819835159827242718815628154485987255588159495\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"END RequestId: ad873200-e34d-4151-b084-6f4eaa89d15f\\n\",\"timestamp\":1793723862710},{\"eventId\":\"40001378818819835159827242718815628154485987255588159496\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"REPORT RequestId: ad873200-e34d-4151-b084-6f4eaa89d15f\\tDuration: 1.48 ms\\tBilled Duration: 2 ms\\tMemory Size: 128 MB\\tMax Memory Used: 31 MB\\t\\n\",\"timestamp\":1793723862710},{\"eventId\":\"40001378831375154706599983547500237541987014783455133705\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"START RequestId: 3f5e1529-d804-4121-a453-d5429c0c2a89 Version: $LATEST\\n\",\"timestamp\":1793723863273},{\"eventId\":\"40001378831397455451798514170641773260259663144961114122\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"{\\\"event\\\": {\\\"mode\\\": \\\"ok\\\", \\\"pad\\\": [1, 2]}, \\\"request_id\\\": \\\"3f5e1529-d804-4121-a453-d5429c0c2a89\\\", \\\"invoked\\\": \\\"arn:aws:lambda:us-east-2:123456789012:function:us1103-ldl-p\\\", \\\"t\\\": 1793723863.2740786}\\n\",\"timestamp\":1793723863274},{\"eventId\":\"40001378831419756196997044793783308978532311506467094539\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"END RequestId: 3f5e1529-d804-4121-a453-d5429c0c2a89\\n\",\"timestamp\":1793723863275},{\"eventId\":\"40001378831419756196997044793783308978532311506467094540\",\"ingestionTime\":1793723868068,\"logStreamName\":\"2026/11/03/[$LATEST]77c9346a1b5c483c82c6035b89f74cd6\",\"message\":\"REPORT RequestId: 3f5e1529-d804-4121-a453-d5429c0c2a89\\tDuration: 1.74 ms\\tBilled Duration: 2 ms\\tMemory Size: 128 MB\\tMax Memory Used: 31 MB\\t\\n\",\"timestamp\":1793723863275}],\"nextToken\":\"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCozfw8WAsVGCsbOEkMI4TmwH967vFeRBnmDlRjk28qQhZngODkWAbdC7LmB4LtIZYZd9H8aLSE5fam2aEZAqETktcFg2jr55lg-PGvn2_Kdm1dZCrysSDTVNaoetyHSgN9JxkCk_AUIMn98MeZfeefuvJatDHOeFLIoS4A78VtBfvDuEj9fBHZA7kOefa9MCilXDzxLzp7vYQJKnG9h7M-L9ou77g5Inv9NgEjc3rjfItV0D1AhvsFtl9PpvSr994N9FQ7MvNunjUOVCq6DOeM2n0dbUvHoqE2aY8YpXIq0Xg\",\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.FilterLogEvents"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,Z,E,b,C cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.filter-log-events"],
+          ["X-Amz-Date", "20261103T163815Z"],
+          ["amz-sdk-invocation-id", "475cb237-fd53-48c5-a5b2-ac0ec77da3e6"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "403"]
+        ],
+        "body": "{\"logGroupName\": \"/aws/lambda/us1103-ldl-p\", \"nextToken\": \"Bxkq6kVGFtq2y_MoigeqscPOdhXVbhiVtLoAmXb5jCozfw8WAsVGCsbOEkMI4TmwH967vFeRBnmDlRjk28qQhZngODkWAbdC7LmB4LtIZYZd9H8aLSE5fam2aEZAqETktcFg2jr55lg-PGvn2_Kdm1dZCrysSDTVNaoetyHSgN9JxkCk_AUIMn98MeZfeefuvJatDHOeFLIoS4A78VtBfvDuEj9fBHZA7kOefa9MCilXDzxLzp7vYQJKnG9h7M-L9ou77g5Inv9NgEjc3rjfItV0D1AhvsFtl9PpvSr994N9FQ7MvNunjUOVCq6DOeM2n0dbUvHoqE2aY8YpXIq0Xg\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "f07ceb3e-e41a-476c-824c-5ded80eb09ee"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "121"],
+          ["Date", "Tue, 03 Nov 2026 16:38:15 GMT"]
+        ],
+        "body": "{\"events\":[],\"searchStatistics\":{\"approximateTotalLogStreamCount\":0,\"completedLogStreamCount\":0},\"searchedLogStreams\":[]}"
+      }
+    }
+  ]
+}

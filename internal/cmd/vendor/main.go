@@ -32,7 +32,7 @@ func run(ctx context.Context, args []string, stderr io.Writer) error {
 	fs := flag.NewFlagSet("vendor", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	doFetch := fs.Bool("fetch", false, "download the pinned models from GitHub and rewrite UPSTREAM.json (network)")
-	doReference := fs.Bool("service-reference", false, "download the AWS Service Reference for the twelve services and rewrite the derived actions.json (network)")
+	doReference := fs.Bool("service-reference", false, "download the AWS Service Reference for the pinned models' prefixes and rewrite the derived actions.json (network)")
 	doVerify := fs.Bool("verify", false, "recompute every recorded hash and check the corpus pin and the actions table, offline")
 	var d dirs
 	fs.StringVar(&d.models, "dir", "third_party/api-models-aws", "the models vendor directory")

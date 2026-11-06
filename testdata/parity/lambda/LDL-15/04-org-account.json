@@ -1,0 +1,35 @@
+{
+  "step": "04-org-account",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the AddLayerVersionPermission operation: If organization id is specified then principal should be *\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2018-10-31/layers/us1103-ldl-pol/versions/1/policy",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,E,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.add-layer-version-permission"],
+          ["X-Amz-Date", "20261103T170747Z"],
+          ["amz-sdk-invocation-id", "003ab7f5-b028-4ef7-b974-084fe8bab79a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "125"]
+        ],
+        "body": "{\"StatementId\": \"orgacct\", \"Action\": \"lambda:GetLayerVersion\", \"Principal\": \"123456789012\", \"OrganizationId\": \"o-abcdefghij\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 17:07:47 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "86"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "705364d2-9e59-46c9-a23f-602b2ae98f67"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"If organization id is specified then principal should be *\"}"
+      }
+    }
+  ]
+}

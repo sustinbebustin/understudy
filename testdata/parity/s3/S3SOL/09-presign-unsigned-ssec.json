@@ -1,0 +1,21 @@
+{
+  "step": "09-presign-unsigned-ssec",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "FB9RG09YRWQXDDNX"],
+          ["x-amz-id-2", "RTaOrxqwt/y7cNhYmg9vR8h5wpxacmhK5G4rHdLr3KmmD2Zkoy9EI4PCXznHomIj0XulHbNh6IcHKA0WLZ5DJGlw8oZPLsSK"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:05 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>There were headers present in the request which were not signed</Message><HeadersNotSigned>x-amz-server-side-encryption-customer-algorithm</HeadersNotSigned><RequestId>FB9RG09YRWQXDDNX</RequestId><HostId>RTaOrxqwt/y7cNhYmg9vR8h5wpxacmhK5G4rHdLr3KmmD2Zkoy9EI4PCXznHomIj0XulHbNh6IcHKA0WLZ5DJGlw8oZPLsSK</HostId></Error>"
+      }
+    }
+  ]
+}

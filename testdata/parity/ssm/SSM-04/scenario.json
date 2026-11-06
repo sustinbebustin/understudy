@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "item": "SSM-04",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "curl",
+  "steps": [
+    {
+      "fixture": "ssm/SSM-04/put-a_b.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-04/put-us1103_x.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-04/put-_us1103__x.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-04/put-_us1103_x_.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-04/put-awsome.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-04/put-SSMx.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-04/put-_aws_x.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-04/put-_ssm_x.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-04/put-_us1103_aws_x.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-04/put-padded.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-04/get-padded.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-04/put-a_space_b.json",
+      "compare": "all"
+    }
+  ]
+}

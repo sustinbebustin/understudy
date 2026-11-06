@@ -1,0 +1,16 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an answer to kms/KMS-alias/01-duplicate whose __type carries the shape namespace: the error code is the same, the body member is not",
+  "exchanges": [
+    {
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Content-Type", "application/x-amz-json-1.1"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.kms#AlreadyExistsException\",\"message\":\"An alias with the name arn:aws:kms:us-east-2:123456789012:alias/usr-rec-20261014-dup already exists\"}"
+      }
+    }
+  ]
+}

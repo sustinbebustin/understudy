@@ -2,6 +2,7 @@ package identity
 
 import (
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/clock"
 )
 
 // Principal is who makes a call.
@@ -32,7 +33,36 @@ type AssumedRole struct {
 	// Session is the role session name.
 	Session string
 	Source  SessionSource
+	// Attributes are what AssumeRole passed for the session; nil for an
+	// execution-environment session and for the session a kernel
+	// AsExecutionRole call runs as. A pointer keeps AssumedRole comparable;
+	// the value is never mutated.
+	Attributes *SessionAttributes
 }
+
+// SessionAttributes are what an AssumeRole request passed for its session,
+// which IAM evaluation reads: session policies, session tags and the source
+// identity (iam-evaluation.md 2.7).
+type SessionAttributes struct {
+	// Policy is the inline session policy as received; "" for none.
+	Policy string
+	// PolicyARNs are the managed session policies' ARNs, in request order.
+	PolicyARNs []string
+	// Tags are the session tags: the request's, then the transitive tags of
+	// a chained caller session whose keys the request did not set, compared
+	// case-insensitively.
+	Tags []SessionTag
+	// TransitiveTagKeys are the request's, then the inherited ones.
+	TransitiveTagKeys []string
+	// SourceIdentity is the request's, or the chained caller session's; ""
+	// for none.
+	SourceIdentity string
+	// Issued is when STS minted the session (aws:TokenIssueTime).
+	Issued clock.Instant
+}
+
+// SessionTag is one session tag, its key as received.
+type SessionTag struct{ Key, Value string }
 
 // ServicePrincipal is an AWS service acting on its own behalf, such as
 // "sns.amazonaws.com" on an internal delivery.

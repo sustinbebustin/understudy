@@ -1,0 +1,36 @@
+{
+  "step": "02-101st",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.PutParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,E,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.put-parameter"],
+          ["X-Amz-Date", "20261103T163934Z"],
+          ["amz-sdk-invocation-id", "d606d562-642a-44ca-89d8-527a9f26c617"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "81"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/c30\", \"Value\": \"v101\", \"Type\": \"String\", \"Overwrite\": true}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:39:34 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "33"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "c92cea0f-3b27-4aa9-b852-840bfc90f048"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"Tier\":\"Standard\",\"Version\":101}"
+      }
+    }
+  ]
+}

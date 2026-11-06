@@ -40,7 +40,11 @@ func serveFlags(w io.Writer) error {
 		case s.Flag != "":
 			name = "--" + s.Flag + " " + s.Value
 		}
-		fmt.Fprintf(&b, "  %s\n      %s\n      variable %s, file key %q\n", name, s.Usage, s.Env, s.Key)
+		fileKey := fmt.Sprintf("file key %q", s.Key)
+		if section, member, nested := strings.Cut(s.Key, "."); nested {
+			fileKey = fmt.Sprintf("file key %q in the %q section", member, section)
+		}
+		fmt.Fprintf(&b, "  %s\n      %s\n      variable %s, %s\n", name, s.Usage, s.Env, fileKey)
 	}
 	fmt.Fprintf(&b, "  --%s text|json\n      another name for --log-format\n", config.OutputFlag)
 	b.WriteString("\nPrecedence: flags, then UNDERSTUDY_* variables, then the file, then the defaults.\n" +
@@ -76,7 +80,9 @@ const exampleFile = `  {
       "hotReload": [{"function": "worker", "dir": "/abs/path/to/build", "account": "000000000000", "region": "us-east-1"}]
     },
     "sqs": {"queueDeletedRecently": "ignore"},
-    "iam": {"assumeRole": "strict"},
+    "sns": {"httpDelivery": {"allow": ["127.0.0.1:8080"]}},
+    "ses": {"verifiedIdentities": ["sender@example.com", "example.org", "*@example.net"], "productionAccess": false},
+    "iam": {"assumeRole": "strict", "enforce": "off"},
     "dynamodb": {"enabled": true, "memoryLimit": 1073741824},
     "journal": {"capacity": 100000, "maxBytes": 134217728, "file": "/abs/path/to/journal.ndjson"},
     "faults": [{"id": "orders-throttle", "phase": "request", "match": {"operations": ["sqs.SendMessage"]},
@@ -94,7 +100,11 @@ const sectionChoices = `
   lambda.hotReload           functions whose code is read from a host directory; account and
                              region may be left out
   sqs.queueDeletedRecently   ignore or enforce
-  iam.assumeRole             strict or lenient
+  ses.verifiedIdentities     SES identities that start verified when created, in any account
+                             and region: exact addresses (case-sensitive), domains, and
+                             "*@domain" for every address of a domain, subdomains excluded
+  ses.productionAccess       true takes every account and region out of the SES sandbox:
+                             any recipient, the production quota; senders are still checked
   dynamodb.enabled           true, or false to turn DynamoDB off so DynamoDB Local is never
                              pulled; on, it is pulled on first use and runs under Amazon's
                              licence terms
@@ -250,15 +260,23 @@ func serverConfig(cfg config.Config, version string) (server.Config, error) {
 		SnapshotMaxBytes: cfg.Snapshot.MaxBytes,
 		Faults:           cfg.Faults,
 		S3BaseDomains:    cfg.S3.BaseDomains,
-		LogLevel:         cfg.Log.Level,
-		ReadyFile:        cfg.ReadyFile,
-		Version:          version,
+		SNSHTTPDelivery:  server.SNSHTTPDelivery{Allow: cfg.SNS.HTTPDelivery.Allow, CABundle: cfg.SNS.HTTPDelivery.CABundle},
+		SESVerifiedIdentities: server.SESVerifiedIdentities{
+			Addresses:      cfg.SES.VerifiedIdentities.Addresses,
+			Domains:        cfg.SES.VerifiedIdentities.Domains,
+			AddressDomains: cfg.SES.VerifiedIdentities.AddressDomains,
+		},
+		SESProductionAccess: cfg.SES.ProductionAccess,
+		LogLevel:            cfg.Log.Level,
+		ReadyFile:           cfg.ReadyFile,
+		Version:             version,
 		Lambda: server.LambdaLimits{
 			StartConcurrency: cfg.Lambda.StartConcurrency,
 			IdleTimeout:      cfg.Lambda.IdleTimeout,
 			MaxEnvironments:  cfg.Lambda.MaxEnvironments,
 		},
 		LambdaNetwork:  mapNetwork(cfg.Lambda.Network),
+		DockerLabels:   cfg.DockerLabels,
 		DynamoDBMemory: cfg.DynamoDB.MemoryLimit,
 		Switches: server.Switches{
 			LambdaTransitions:  server.LambdaTransitionsFinal,
@@ -288,6 +306,14 @@ func serverConfig(cfg config.Config, version string) (server.Config, error) {
 	}
 	if cfg.IAM.AssumeRole == config.AssumeRoleLenient {
 		s.Switches.STSAssumeRole = server.STSAssumeRoleLenient
+	}
+	switch cfg.IAM.Enforce {
+	case config.EnforceOff:
+		s.IAMEnforce = server.IAMEnforceOff
+	case config.EnforceAdvise:
+		s.IAMEnforce = server.IAMEnforceAdvise
+	case config.EnforceEnforce:
+		s.IAMEnforce = server.IAMEnforceEnforce
 	}
 	if cfg.SigV4 == config.Verify {
 		s.SigV4 = server.SigV4Verify

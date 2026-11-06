@@ -30,7 +30,7 @@
 - 04 pending-deletion key / other-region key: n/a (not captured)
 - x-ssec-on-non-ssec-read (400 InvalidRequest "The encryption parameters are not applicable to this object."): matches
 - x-kms-key-id-without-aws-kms code/message/ArgumentName: matches
-- x-kms-key-id-without-aws-kms ArgumentValue: differs: AWS sends none; understudy adds <ArgumentValue>aws:kms</ArgumentValue> (internal/service/s3/sse.go:116-118)
+- x-kms-key-id-without-aws-kms ArgumentValue: differs: AWS sends none; understudy adds an <ArgumentValue> naming the algorithm the write would otherwise use (internal/service/s3/sse.go:188-191 errKMSKeyWithoutKMS)
 - 05-create-disabled-kms: differs: AWS 400 InvalidParameterException "The operation failed because the specified KMS key is disabled."; understudy 400 EncryptionFailure "Secrets Manager can't encrypt the secret value with the KMS key: DisabledException: ..." (internal/service/secretsmanager/errors.go:140-141 via values.go:214)
 - 05-create / 05-create-duplicate (ResourceExistsException text): matches
 - 05-put-token-1 / -same-value / -different-value: matches

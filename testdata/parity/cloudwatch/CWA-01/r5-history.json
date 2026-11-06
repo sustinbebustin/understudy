@@ -1,0 +1,34 @@
+{
+  "step": "r5-history",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://monitoring.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "GraniteServiceVersion20100801.DescribeAlarmHistory"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,b,AD,C,E,AC cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#cloudwatch.describe-alarm-history"],
+          ["X-Amz-Date", "20261103T035247Z"],
+          ["amz-sdk-invocation-id", "c3d877ec-8885-411a-8008-ac822ee6f2bc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "58"]
+        ],
+        "body": "{\"AlarmName\": \"us1103-r5\", \"ScanBy\": \"TimestampAscending\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "450430ae-e75b-40f7-ae2c-b41d5226fac3"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "2744"],
+          ["Date", "Tue, 03 Nov 2026 03:52:47 GMT"]
+        ],
+        "body": "{\"AlarmHistoryItems\":[{\"AlarmName\":\"us1103-r5\",\"AlarmType\":\"MetricAlarm\",\"HistoryData\":\"{\\\"version\\\":\\\"1.0\\\",\\\"type\\\":\\\"Create\\\",\\\"createdAlarm\\\":{\\\"alarmName\\\":\\\"us1103-r5\\\",\\\"alarmArn\\\":\\\"arn:aws:cloudwatch:us-east-2:123456789012:alarm:us1103-r5\\\",\\\"alarmConfigurationUpdatedTimestamp\\\":\\\"2026-11-03T03:07:44.489+0000\\\",\\\"namespace\\\":\\\"us1103/cwa\\\",\\\"metricName\\\":\\\"r5\\\",\\\"extendedStatistic\\\":\\\"MAXIMUM\\\",\\\"period\\\":300,\\\"dimensions\\\":[],\\\"threshold\\\":3.0,\\\"comparisonOperator\\\":\\\"GreaterThanThreshold\\\",\\\"evaluationPeriods\\\":1,\\\"treatMissingData\\\":\\\"missing\\\",\\\"stateValue\\\":\\\"INSUFFICIENT_DATA\\\",\\\"stateUpdatedTimestamp\\\":\\\"2026-11-03T03:07:44.489+0000\\\",\\\"actionsEnabled\\\":true,\\\"alarmActions\\\":[],\\\"insufficientDataActions\\\":[],\\\"okactions\\\":[]}}\",\"HistoryItemType\":\"ConfigurationUpdate\",\"HistorySummary\":\"Alarm \\\"us1103-r5\\\" created\",\"Timestamp\":1.79367526449E9},{\"AlarmName\":\"us1103-r5\",\"AlarmType\":\"MetricAlarm\",\"HistoryData\":\"{\\\"version\\\":\\\"1.0\\\",\\\"oldState\\\":{\\\"stateValue\\\":\\\"INSUFFICIENT_DATA\\\",\\\"stateReason\\\":\\\"Unchecked: Initial alarm creation\\\"},\\\"newState\\\":{\\\"stateValue\\\":\\\"ALARM\\\",\\\"stateReason\\\":\\\"Threshold Crossed: 1 datapoint [5.0 (03/11/26 03:03:00)] was greater than the threshold (3.0).\\\",\\\"stateReasonData\\\":{\\\"version\\\":\\\"1.0\\\",\\\"queryDate\\\":\\\"2026-11-03T03:08:19.623+0000\\\",\\\"startDate\\\":\\\"2026-11-03T03:03:00.000+0000\\\",\\\"statistic\\\":\\\"Maximum\\\",\\\"period\\\":300,\\\"recentDatapoints\\\":[5.0],\\\"threshold\\\":3.0,\\\"evaluatedDatapoints\\\":[{\\\"timestamp\\\":\\\"2026-11-03T03:03:00.000+0000\\\",\\\"sampleCount\\\":1.0,\\\"value\\\":5.0}]}}}\",\"HistoryItemType\":\"StateUpdate\",\"HistorySummary\":\"Alarm updated from INSUFFICIENT_DATA to ALARM\",\"Timestamp\":1.793675299624E9},{\"AlarmName\":\"us1103-r5\",\"AlarmType\":\"MetricAlarm\",\"HistoryData\":\"{\\\"version\\\":\\\"1.0\\\",\\\"oldState\\\":{\\\"stateValue\\\":\\\"ALARM\\\",\\\"stateReason\\\":\\\"Threshold Crossed: 1 datapoint [5.0 (03/11/26 03:03:00)] was greater than the threshold (3.0).\\\",\\\"stateReasonData\\\":{\\\"version\\\":\\\"1.0\\\",\\\"queryDate\\\":\\\"2026-11-03T03:08:19.623+0000\\\",\\\"startDate\\\":\\\"2026-11-03T03:03:00.000+0000\\\",\\\"statistic\\\":\\\"Maximum\\\",\\\"period\\\":300,\\\"recentDatapoints\\\":[5.0],\\\"threshold\\\":3.0,\\\"evaluatedDatapoints\\\":[{\\\"timestamp\\\":\\\"2026-11-03T03:03:00.000+0000\\\",\\\"sampleCount\\\":1.0,\\\"value\\\":5.0}]}},\\\"newState\\\":{\\\"stateValue\\\":\\\"INSUFFICIENT_DATA\\\",\\\"stateReason\\\":\\\"Insufficient Data: 1 datapoint was unknown.\\\",\\\"stateReasonData\\\":{\\\"version\\\":\\\"1.0\\\",\\\"queryDate\\\":\\\"2026-11-03T03:23:19.621+0000\\\",\\\"statistic\\\":\\\"Maximum\\\",\\\"period\\\":300,\\\"recentDatapoints\\\":[],\\\"threshold\\\":3.0,\\\"evaluatedDatapoints\\\":[{\\\"timestamp\\\":\\\"2026-11-03T03:18:00.000+0000\\\"}]}}}\",\"HistoryItemType\":\"StateUpdate\",\"HistorySummary\":\"Alarm updated from ALARM to INSUFFICIENT_DATA\",\"Timestamp\":1.793676199624E9}]}"
+      }
+    }
+  ]
+}

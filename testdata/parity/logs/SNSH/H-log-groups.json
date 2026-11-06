@@ -1,0 +1,33 @@
+{
+  "step": "H-log-groups",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.DescribeLogGroups"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,E,AN,C,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#logs.describe-log-groups"],
+          ["X-Amz-Date", "20261103T171830Z"],
+          ["amz-sdk-invocation-id", "91b90465-2bf5-4727-987a-f8ceaf297fb6"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "66"]
+        ],
+        "body": "{\"logGroupNamePrefix\": \"sns/us-east-2/123456789012/us1103-snsh-h\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "195b5fd5-159d-4445-b78b-2db16d0c9779"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "939"],
+          ["Date", "Tue, 03 Nov 2026 17:18:30 GMT"]
+        ],
+        "body": "{\"logGroups\":[{\"arn\":\"arn:aws:logs:us-east-2:123456789012:log-group:sns/us-east-2/123456789012/us1103-snsh-h:*\",\"bearerTokenAuthenticationEnabled\":false,\"creationTime\":1793726191654,\"deletionProtectionEnabled\":false,\"logGroupArn\":\"arn:aws:logs:us-east-2:123456789012:log-group:sns/us-east-2/123456789012/us1103-snsh-h\",\"logGroupClass\":\"STANDARD\",\"logGroupName\":\"sns/us-east-2/123456789012/us1103-snsh-h\",\"metricFilterCount\":0,\"retentionInDays\":30,\"storedBytes\":0},{\"arn\":\"arn:aws:logs:us-east-2:123456789012:log-group:sns/us-east-2/123456789012/us1103-snsh-h/Failure:*\",\"bearerTokenAuthenticationEnabled\":false,\"creationTime\":1793726214066,\"deletionProtectionEnabled\":false,\"logGroupArn\":\"arn:aws:logs:us-east-2:123456789012:log-group:sns/us-east-2/123456789012/us1103-snsh-h/Failure\",\"logGroupClass\":\"STANDARD\",\"logGroupName\":\"sns/us-east-2/123456789012/us1103-snsh-h/Failure\",\"metricFilterCount\":0,\"retentionInDays\":30,\"storedBytes\":0}]}"
+      }
+    }
+  ]
+}

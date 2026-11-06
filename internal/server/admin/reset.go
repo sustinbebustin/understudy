@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
@@ -12,7 +11,6 @@ import (
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/blob"
-	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
@@ -46,7 +44,13 @@ func (h *Handler) reset(w http.ResponseWriter, r *http.Request, _ []string) {
 		h.fail(w, r, err)
 		return
 	}
-	res, aerr := h.resetState(r.Context(), in, selected, scope)
+	res, record, aerr := h.resetState(r.Context(), in, selected, scope)
+	if record {
+		// res.Clock names a mode only when the clock was restored.
+		h.journalAction(r.Context(), journal.Reset{
+			Services: res.Services, Accounts: in.Accounts, Regions: in.Regions, Clock: res.Clock != "", Faults: res.Faults,
+		})
+	}
 	if aerr != nil {
 		h.fail(w, r, aerr)
 		return
@@ -56,19 +60,23 @@ func (h *Handler) reset(w http.ResponseWriter, r *http.Request, _ []string) {
 
 // resetState runs the reset in from the drain to the late steps, returning
 // the services it reset, the clock mode it returned to and the number of
-// fault rules it removed. It returns only once the drain is lifted, so the
+// fault rules it removed. record reports whether the caller journals the
+// reset: always when it succeeded, and when a step failed after state was
+// dropped, since the state changed although the call answers aerr; res then
+// holds what was reset. It returns only once the drain is lifted, so the
 // answer never reaches a caller whose next invocation the drain would
 // still refuse.
-func (h *Handler) resetState(ctx context.Context, in admin.ResetRequest, selected []ref.ServiceID, scope kernel.ResetScope) (admin.ResetResult, *admin.Error) {
+func (h *Handler) resetState(ctx context.Context, in admin.ResetRequest, selected []ref.ServiceID, scope kernel.ResetScope) (res admin.ResetResult, record bool, aerr *admin.Error) {
 	h.stateOps.Lock()
 	defer h.stateOps.Unlock()
 	undrain, aerr := h.drain(ctx, selected, scope)
 	if aerr != nil {
-		return admin.ResetResult{}, aerr
+		return admin.ResetResult{}, false, aerr
 	}
 	defer undrain()
-	if err := h.resetLate(ctx, selected, scope); err != nil {
-		return admin.ResetResult{}, err
+	late, lateErr := h.resetLate(ctx, selected, scope)
+	if lateErr != nil {
+		return admin.ResetResult{Services: late}, len(late) > 0, lateErr
 	}
 	names, dropped, cellErr := h.resetCells(selected, scope)
 	releaseErr := h.releaseBlobs(dropped)
@@ -77,9 +85,10 @@ func (h *Handler) resetState(ctx context.Context, in admin.ResetRequest, selecte
 		if releaseErr != nil {
 			cellErr.Message += "; also, " + releaseErr.Message
 		}
-		return admin.ResetResult{}, cellErr
+		reset := withMissing(names, late)
+		return admin.ResetResult{Services: reset}, len(reset) > 0, cellErr
 	}
-	res := admin.ResetResult{Services: names}
+	res = admin.ResetResult{Services: names}
 	var clockErr *admin.Error
 	if in.Clock {
 		res.Clock, clockErr = h.restartClock(ctx)
@@ -94,10 +103,18 @@ func (h *Handler) resetState(ctx context.Context, in admin.ResetRequest, selecte
 	if len(in.Services) == 0 && whole(scope) {
 		h.o.Access.Reset()
 	}
-	if aerr := afterReset(names, clockErr, releaseErr); aerr != nil {
-		return admin.ResetResult{}, aerr
+	return res, true, afterReset(names, clockErr, releaseErr)
+}
+
+// withMissing is names followed by each of more that names lacks.
+func withMissing(names, more []string) []string {
+	out := slices.Clone(names)
+	for _, m := range more {
+		if !slices.Contains(out, m) {
+			out = append(out, m)
+		}
 	}
-	return res, nil
+	return out
 }
 
 // afterReset reports the steps that failed once the selected state was
@@ -349,8 +366,9 @@ func (h *Handler) checkLateScope(selected []ref.ServiceID, scope kernel.ResetSco
 // resetLate drops the late data scope covers in the selected Late services:
 // through LateResetter when the service implements it, otherwise, for a
 // reset of every account and region, by replacing its data with nothing.
-// checkLateScope has refused every other case.
-func (h *Handler) resetLate(ctx context.Context, selected []ref.ServiceID, scope kernel.ResetScope) *admin.Error {
+// checkLateScope has refused every other case. It returns the services
+// whose late data it dropped, on failure those before the one that failed.
+func (h *Handler) resetLate(ctx context.Context, selected []ref.ServiceID, scope kernel.ResetScope) (reset []string, aerr *admin.Error) {
 	for _, l := range h.o.Late {
 		if !slices.Contains(selected, l.Name()) {
 			continue
@@ -365,10 +383,11 @@ func (h *Handler) resetLate(ctx context.Context, selected []ref.ServiceID, scope
 			continue
 		}
 		if err != nil {
-			return internal("resetting the data of "+string(l.Name()), err)
+			return reset, internal("resetting the data of "+string(l.Name()), err)
 		}
+		reset = append(reset, string(l.Name()))
 	}
-	return nil
+	return reset, nil
 }
 
 // restartClock returns the clock to how serve started it, and returns the
@@ -383,7 +402,7 @@ func (h *Handler) restartClock(ctx context.Context) (admin.ClockMode, *admin.Err
 		h.rearm()
 		return "", internal("restoring the clock", err)
 	}
-	h.journalClock(ctx, change.From, change.To)
+	h.journalClock(ctx, journal.ClockRestore, change.From, change.To)
 	h.rearm()
 	return modeName(change.To), nil
 }
@@ -409,12 +428,5 @@ func (h *Handler) rearm() {
 func (h *Handler) rearmPollers() {
 	if h.o.Pollers != nil {
 		h.o.Pollers.RearmPollers()
-	}
-}
-
-// journalClock records a clock mode change.
-func (h *Handler) journalClock(ctx context.Context, from, to clock.Mode) {
-	if _, err := h.o.Kernel.Journal().Append(journal.Event{Detail: journal.ClockChanged{From: from, To: to}}); err != nil {
-		h.log.LogAttrs(ctx, slog.LevelWarn, "the journal refused a clock change", slog.String("error", err.Error()))
 	}
 }

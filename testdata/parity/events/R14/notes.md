@@ -7,7 +7,7 @@
 
 ## Expected
 
-Compared against understudy built from /home/austin/dev/local-aws-stack (same corpus replayed on a local instance, account 000000000000; AWS account written as 123456789012).
+Compared against understudy built locally (same corpus replayed on a local instance, account 000000000000; AWS account written as 123456789012).
 
 - 01 invalid-expression error (status, __type, message): matches (400 ValidationException "Parameter ScheduleExpression is not valid.", internal/schedexpr/schedule.go:12)
 - 01 stored ScheduleExpression (describe-rule): matches (stored verbatim, no normalisation, 01-NN-describe.out)
@@ -33,12 +33,12 @@ Compared against understudy built from /home/austin/dev/local-aws-stack (same co
 - 03 Detail over 256 KiB: matches (accepted, FailedEntryCount 0; understudy limit 1 MiB, internal/service/events/putevents.go:24)
 - 03 past Time: matches (accepted)
 - 03 nonexistent EventBusName: matches (200, EventId, FailedEntryCount 0)
-- 04 schedule rule on a custom bus: n/a (AWS 400 ValidationException "ScheduleExpression is supported only on the default event bus."; understudy does not implement custom buses: CreateEventBus is NotImplemented and PutRule answers ResourceNotFoundException "Event bus <name> does not exist.", internal/service/events/buses.go:87-97, 136-137)
+- 04 schedule rule on a custom bus: matches (400 ValidationException "ScheduleExpression is supported only on the default event bus.", refused before the bus is looked up, so for the bus the recording never created too; internal/service/events/rules.go checkPutRule). Replay: matches (internal/parity/baseline.json, events/R14#04-custom-bus-schedule)
 - H1-01, H1-02 exists:false on empty/other detail: matches (true, true)
 - H8-01..03 string vs number: matches (false x3)
 - H9-01, H9-02 full-length masks: matches (InvalidEventPatternException "Event pattern is not valid. Reason: IPv4 mask bits must be < 32" / "IPv6 mask bits must be < 128", no location suffix)
 - H9-03-a 0.0.0.0/0 vs 10.0.0.1: matches (true)
-- H9-03-b 0.0.0.0/0 vs 2001:db8::1: differs: AWS true (H9-03-b.out, Ruler's mask-0 behaviour); understudy false (internal/ruler/matcher.go:254-260; choice documented at internal/ruler/doc.go:111-112)
+- H9-03-b 0.0.0.0/0 vs 2001:db8::1: differs: AWS true (H9-03-b.out, Ruler's mask-0 behaviour); understudy false (internal/ruler/matcher.go:254-260; choice documented at internal/ruler/doc.go:111-112). Replay: matches; understudy now answers true (internal/parity/baseline.json, events/R14#H9-03-b)
 - H14-01 {"exactly":"a"}: differs: AWS accepts, Result true (H14-01.out); understudy 400 InvalidEventPatternException "Event pattern is not valid. Reason: Unrecognized match type exactly" (internal/ruler/compile.go:609-611, profile.go:132-140)
 - H14-02, H14-04 $or members sharing values: differs: AWS false, false (H14-02.out, H14-04.out: order-dependent, as executed Ruler); understudy true, true (documented semantics, internal/ruler/profile.go:141-147, doc.go:104-110)
 - H14-03 swapped $or: matches (true)

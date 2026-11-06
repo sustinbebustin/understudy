@@ -51,7 +51,7 @@ const (
 // measured them at most 0.3 ms behind).
 const defaultLogSettle = 20 * time.Millisecond
 
-const invokeNote = "an alias with weighted routing always runs its primary version; asynchronous invocations retry but do not deliver to destinations or dead-letter queues; " +
+const invokeNote = "an alias with weighted routing always runs its primary version; " +
 	"LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing"
 
 // The data plane's decisions the architecture leaves open:
@@ -230,6 +230,10 @@ func NewExecution(svc *Service, d kernel.ServiceDeps, o ExecutionOptions) (*Exec
 	}
 	x.async = d.Kernel.Timers().Handle(TimerAsync, x.onAsync)
 	svc.overlayDir = x.overlays.dirOf
+	// A delivery is authorized at step 8, as every call is, so one to a
+	// deleted function is denied before the function is looked up
+	// (lambda.enforce.missing-resource.delivery deny-first;
+	// iam-enforcement-surfaces.md 8.4, IAM-ENF-22).
 	lambdaapi.NewBinder(d.Binder).Invoke(x.invoke, partial(invokeNote), kernel.WithResources(invokedFunction))
 	return x, nil
 }
@@ -243,11 +247,7 @@ func invokedFunction(c *kernel.Call, in *lambdaapi.InvokeInput) []aws.ARN {
 	if err != nil {
 		return nil
 	}
-	a, perr := aws.ParseARN(r.qualifiedARN())
-	if perr != nil {
-		return nil
-	}
-	return []aws.ARN{a}
+	return parsedARN(r.qualifiedARN())
 }
 
 // Close stops every execution environment, log stream and watcher, and
@@ -341,6 +341,21 @@ type target struct {
 	async      asyncConfig
 }
 
+// find reports the function or qualifier ref names missing, with the
+// error resolve would return for it, and nothing else; nil when both are
+// there.
+func (x *Execution) find(r functionRef) *awserr.Error {
+	_, err := view(x.svc, r.scope, func(st *State) (struct{}, *awserr.Error) {
+		if r.qualifier == latestPublished {
+			_, err := st.function(r)
+			return struct{}{}, err
+		}
+		_, _, err := st.lookup(r)
+		return struct{}{}, err
+	})
+	return err
+}
+
 // resolve reads the version ref names, as it was before an update in
 // progress (Version.serving); a version that is not Active cannot be
 // invoked. $LATEST.PUBLISHED is NoPublishedVersionException for every
@@ -370,7 +385,7 @@ func (x *Execution) resolve(r functionRef) (target, *awserr.Error) {
 			return target{}, errService(fmt.Sprintf("Lambda cannot run %s: its stored execution role %q is not an ARN (%v). Set a valid role with UpdateFunctionConfiguration.", r.qualifiedARN(), v.Config.Role, perr))
 		}
 		v.Config.Environment = maps.Clone(v.Config.Environment)
-		t := target{ref: r, version: v, invoked: invokedARN(r), role: role, incarnation: f.Incarnation, unreserved: st.unreserved(""), async: asyncConfigOf(f, r.qualifier)}
+		t := target{ref: r, version: v, invoked: invokedARN(r), role: role, incarnation: f.Incarnation, unreserved: st.unreserved(""), async: asyncConfigOf(f, v, r.qualifier)}
 		if v.Number == latest {
 			t.generation = generation
 		}
@@ -401,16 +416,22 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 	if err != nil {
 		return nil, err
 	}
-	t, err := x.resolve(r)
-	if err != nil {
-		// Invoke names a missing function by its $LATEST ARN, unlike the
-		// read operations (test_invoke_exceptions).
+	// Invoke names a missing function by its $LATEST ARN, unlike the read
+	// operations (test_invoke_exceptions).
+	missing := func(err *awserr.Error) *awserr.Error {
 		if r.qualifier == "" && err.ID.Status == http.StatusNotFound {
-			return nil, errFunctionNotFound(r.arn() + ":" + latest)
+			return errFunctionNotFound(r.arn() + ":" + latest)
 		}
-		return nil, err
+		return err
+	}
+	if err := x.find(r); err != nil {
+		return nil, missing(err)
 	}
 	touch(c, r.qualifiedARN())
+	t, err := x.resolve(r)
+	if err != nil {
+		return nil, missing(err)
+	}
 	switch mode {
 	case lambdaapi.InvocationTypeDryRun:
 		return &lambdaapi.InvokeOutput{StatusCode: http.StatusNoContent}, nil
@@ -424,6 +445,9 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 	tail := in.LogType != nil && *in.LogType == lambdaapi.LogTypeTail
 	if _, external := c.Origin().(ref.External); external {
 		ctx = outliveCaller(ctx)
+	}
+	if sink, ok := ctx.Value(invokedRequestKey{}).(*ids.LambdaRequestID); ok {
+		*sink = ids.LambdaRequestID(c.ID())
 	}
 	res, err := x.runSync(ctx, c, t, syncRun{payload: payload, clientContext: clientContext})
 	if err != nil {
@@ -441,6 +465,17 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 		out.LogResult = new(base64.StdEncoding.EncodeToString(lastBytes(res.tail, maxTail)))
 	}
 	return out, nil
+}
+
+// invokedRequestKey is the context key of withInvokedRequest's sink.
+type invokedRequestKey struct{}
+
+// withInvokedRequest is ctx carrying sink, which the Invoke operation sets
+// to its request id when it runs the function synchronously: how a stream
+// mapping learns the request id of the invocation an on-failure record
+// names (lambda-stream-sources.md 5.6), which InvokeOutput does not carry.
+func withInvokedRequest(ctx context.Context, sink *ids.LambdaRequestID) context.Context {
+	return context.WithValue(ctx, invokedRequestKey{}, sink)
 }
 
 // syncRun is a RequestResponse invocation run on behalf of a call; see
@@ -649,7 +684,11 @@ func (x *Execution) lease(ctx context.Context, r *run, fn fnVersion) (leased, *a
 	case ZipCode:
 		overlayDir, w.overlay = x.overlays.current(fnKey{scope: fn.scope, name: fn.name})
 		if overlayDir == "" {
-			w.tree = code.Sha256
+			w.trees = append(w.trees, packageTree(code.Sha256))
+		}
+		// An overlay replaces the code, never the layers.
+		if layers := t.version.Config.Layers; len(layers) > 0 {
+			w.trees = append(w.trees, layersKey(layers))
 		}
 	case ImageCode:
 	}

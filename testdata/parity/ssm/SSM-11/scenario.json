@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "item": "SSM-11",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ssm/SSM-11/01-no-type.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-11/02-keyid-on-string.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-11/03-empty-value.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-11/04-describe.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-11/05-nested-reference.json",
+      "compare": "all"
+    }
+  ]
+}

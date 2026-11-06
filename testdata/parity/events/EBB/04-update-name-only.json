@@ -1,0 +1,33 @@
+{
+  "step": "04-update-name-only",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.UpdateEventBus"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,b,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.update-event-bus"],
+          ["X-Amz-Date", "20261103T163554Z"],
+          ["amz-sdk-invocation-id", "f63cf761-8a68-4010-a3ae-fe52940ffb0f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "20"]
+        ],
+        "body": "{\"Name\": \"us1103-u\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "7449215a-1b81-41eb-972c-9661115732ba"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "230"],
+          ["Date", "Tue, 03 Nov 2026 16:35:54 GMT"]
+        ],
+        "body": "{\"Arn\":\"arn:aws:events:us-east-2:123456789012:event-bus/us1103-u\",\"DeadLetterConfig\":{\"Arn\":\"arn:aws:sqs:us-east-2:123456789012:us1103-ebb\"},\"Description\":\"d1\",\"LogConfig\":{\"IncludeDetail\":\"FULL\",\"Level\":\"INFO\"},\"Name\":\"us1103-u\"}"
+      }
+    }
+  ]
+}

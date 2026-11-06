@@ -25,7 +25,8 @@ const (
 	// Request-phase AfterCommit and StatusOKError rules.
 	AfterHandler
 	// DeliveryAttempt is the delivery engine, once per attempt. It runs
-	// Delivery-phase Latency and DropDelivery rules.
+	// Delivery-phase Latency, DropDelivery, HTTPStatus and HTTPTimeout
+	// rules.
 	DeliveryAttempt
 )
 
@@ -36,7 +37,7 @@ func (h Hook) runs(r Rule) bool {
 		return h == BeforeHandler
 	case AfterCommit, StatusOKError:
 		return h == AfterHandler
-	case DropDelivery:
+	case DropDelivery, HTTPStatus, HTTPTimeout:
 		return h == DeliveryAttempt
 	case Latency:
 		return (h == BeforeHandler && r.Phase == Request) || (h == DeliveryAttempt && r.Phase == Delivery)
@@ -65,6 +66,10 @@ type MatchInput struct {
 	// Origin is where the call came from; at DeliveryAttempt it is always
 	// ref.Internal{Via: Mechanism.Via()}.
 	Origin ref.Origin
+	// Items is the number of items of a transactional call (DynamoDB
+	// TransactItems, TransactStatements), which a rule's per-item members
+	// line up with; 0 for every other call.
+	Items int
 }
 
 // Decision is what the caller of Evaluate does with the call. BeforeHandler
@@ -125,9 +130,22 @@ type FailStatusOK struct {
 // Drop discards the delivery attempt.
 type Drop struct{ Injection }
 
+// RespondHTTP ends an HTTP delivery attempt as an answer of Status,
+// without contacting the endpoint (an HTTPStatus rule).
+type RespondHTTP struct {
+	Status int
+	Injection
+}
+
+// TimeOutHTTP ends an HTTP delivery attempt as a timed-out exchange,
+// without contacting the endpoint (an HTTPTimeout rule).
+type TimeOutHTTP struct{ Injection }
+
 func (None) isDecision()            {}
 func (Fail) isDecision()            {}
 func (Delay) isDecision()           {}
 func (FailAfterCommit) isDecision() {}
 func (FailStatusOK) isDecision()    {}
 func (Drop) isDecision()            {}
+func (RespondHTTP) isDecision()     {}
+func (TimeOutHTTP) isDecision()     {}

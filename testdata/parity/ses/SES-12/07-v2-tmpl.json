@@ -1,0 +1,33 @@
+{
+  "step": "07-v2-tmpl",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/v2/email/templates",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,Z,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sesv2.create-email-template"],
+          ["X-Amz-Date", "20261103T164223Z"],
+          ["amz-sdk-invocation-id", "05de2b58-7d09-49b6-b75d-b4cd5ccd52a8"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "79"]
+        ],
+        "body": "{\"TemplateName\": \"us1103-t2\", \"TemplateContent\": {\"Subject\": \"s\", \"Text\": \"t\"}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:24 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "2"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "31fe5416-d4f4-4fd7-8ea9-04176aef1c8e"]
+        ],
+        "body": "{}"
+      }
+    }
+  ]
+}

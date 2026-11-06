@@ -1,0 +1,36 @@
+{
+  "step": "04-missing-label",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ParameterVersionNotFound) when calling the GetParameter operation: Systems Manager could not find a version of /us1103/ssm/l16 that has the specified label, nolabel. Verify the parameter label and try again.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,Z,g,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameter"],
+          ["X-Amz-Date", "20261103T163700Z"],
+          ["amz-sdk-invocation-id", "13d8a8ff-d4c8-4521-8b3b-ecaaff30faf5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "35"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/l16:nolabel\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:00 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "190"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "3eeaf761-95d4-44ea-966d-7e965cc3adb7"]
+        ],
+        "body": "{\"__type\":\"ParameterVersionNotFound\",\"message\":\"Systems Manager could not find a version of /us1103/ssm/l16 that has the specified label, nolabel. Verify the parameter label and try again.\"}"
+      }
+    }
+  ]
+}

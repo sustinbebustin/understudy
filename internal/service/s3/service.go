@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -111,19 +112,42 @@ func declareAccess(b *kernel.Binder) {
 	kernel.Declare(b, s3api.OpUploadPartCopy, kernel.WithActions(func(_ *kernel.Call, in *s3api.UploadPartCopyInput) []registry.IAMAction {
 		return []registry.IAMAction{copySourceRead(in.CopySource)}
 	}))
+	// A copy reads its source and writes its destination: step 8 and the
+	// access record pair the read actions with the source object alone and
+	// the write actions with the destination alone, never crossed
+	// (iam-enforcement-surfaces.md 12.6; 8.7 documents the split for the
+	// copy's KMS actions).
+	kernel.Declare(b, s3api.OpCopyObject,
+		kernel.WithResourcesFor(copyReads(), func(_ *kernel.Call, in *s3api.CopyObjectInput) []aws.ARN { return copySourceObject(in.CopySource) }),
+		kernel.WithResourcesFor(copyWrites(s3api.OpCopyObject.Descriptor()), func(_ *kernel.Call, in *s3api.CopyObjectInput) []aws.ARN {
+			return []aws.ARN{objectResource(in.Bucket, in.Key)}
+		}))
+	kernel.Declare(b, s3api.OpUploadPartCopy,
+		kernel.WithResourcesFor(copyReads(), func(_ *kernel.Call, in *s3api.UploadPartCopyInput) []aws.ARN { return copySourceObject(in.CopySource) }),
+		kernel.WithResourcesFor(copyWrites(s3api.OpUploadPartCopy.Descriptor()), func(_ *kernel.Call, in *s3api.UploadPartCopyInput) []aws.ARN {
+			return []aws.ARN{objectResource(in.Bucket, in.Key)}
+		}))
 	// Reading a version needs s3:GetObjectVersion. Never declared:
 	// s3:GetObjectLegalHold, s3:GetObjectRetention and s3:GetObjectTagging,
 	// which only decide whether the response carries the object's lock
-	// headers; no input member asks for them.
+	// headers; no input member asks for them. Its actions apply to the
+	// object alone: a missing key also asks s3:ListBucket about the bucket
+	// (missingKey), which the object actions are not paired with.
 	kernel.Declare(b, s3api.OpGetObject, kernel.WithActions(func(_ *kernel.Call, in *s3api.GetObjectInput) []registry.IAMAction {
 		return versioned(in.VersionId, s3Action("GetObjectVersion"))
+	}), kernel.WithResourcesFor(s3api.OpGetObject.Descriptor().IAM, func(_ *kernel.Call, in *s3api.GetObjectInput) []aws.ARN {
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}
 	}))
 	// HeadObject declares no secondary, for the same reason as GetObject's
 	// lock actions. Heading a version needs s3:GetObjectVersion on AWS
 	// (HeadObject, Permissions), but its generated list has no
 	// s3:GetObjectVersion, so a versioned call's record lacks it; the
-	// policy guide lists the gap.
-	kernel.Declare(b, s3api.OpHeadObject, kernel.WithoutSecondaryActions())
+	// policy guide lists the gap. Its actions apply to the object alone, as
+	// GetObject's.
+	kernel.Declare(b, s3api.OpHeadObject, kernel.WithoutSecondaryActions(),
+		kernel.WithResourcesFor(s3api.OpHeadObject.Descriptor().IAM, func(_ *kernel.Call, in *s3api.HeadObjectInput) []aws.ARN {
+			return []aws.ARN{objectResource(in.Bucket, in.Key)}
+		}))
 	// GetObjectAttributes needs s3:GetObject and s3:GetObjectAttributes
 	// without a version, s3:GetObjectVersion and
 	// s3:GetObjectVersionAttributes with one (GetObjectAttributes,
@@ -135,6 +159,8 @@ func declareAccess(b *kernel.Binder) {
 			return []registry.IAMAction{s3Action("GetObjectVersion")}
 		}
 		return []registry.IAMAction{s3Action("GetObject")}
+	}), kernel.WithResourcesFor(s3api.OpGetObjectAttributes.Descriptor().IAM, func(_ *kernel.Call, in *s3api.GetObjectAttributesInput) []aws.ARN {
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}
 	}))
 	kernel.Declare(b, s3api.OpGetObjectTagging, kernel.WithActions(func(_ *kernel.Call, in *s3api.GetObjectTaggingInput) []registry.IAMAction {
 		return versioned(in.VersionId, s3Action("GetObjectVersionTagging"))
@@ -156,6 +182,12 @@ func declareAccess(b *kernel.Binder) {
 			out = append(out, s3Action("DeleteObjectVersion"))
 		}
 		return append(out, bypassing(in.BypassGovernanceRetention)...)
+	}))
+	// Shortening or removing governance-mode retention needs
+	// s3:BypassGovernanceRetention with the header (Object Lock, "Bypassing
+	// governance mode").
+	kernel.Declare(b, s3api.OpPutObjectRetention, kernel.WithActions(func(_ *kernel.Call, in *s3api.PutObjectRetentionInput) []registry.IAMAction {
+		return bypassing(in.BypassGovernanceRetention)
 	}))
 	// CreateBucket needs s3:PutBucketAcl for an ACL or grant,
 	// s3:PutBucketObjectLockConfiguration and s3:PutBucketVersioning to
@@ -214,6 +246,27 @@ func objectWriteActions(m objectWriteMembers) []registry.IAMAction {
 		}
 	}
 	return out
+}
+
+// copyReads are the actions a copy needs on its source object.
+func copyReads() []registry.IAMAction {
+	return []registry.IAMAction{s3Action("GetObject"), s3Action("GetObjectVersion")}
+}
+
+// copyWrites are the actions of a copy's generated list that it needs on
+// its destination object: all but the source reads.
+func copyWrites(op *registry.Operation) []registry.IAMAction {
+	return slices.DeleteFunc(slices.Clone(op.IAM), func(a registry.IAMAction) bool { return slices.Contains(copyReads(), a) })
+}
+
+// copySourceObject is the object the x-amz-copy-source header names;
+// nothing when it does not parse, and the handler refuses it.
+func copySourceObject(header string) []aws.ARN {
+	src, err := parseCopySource(header)
+	if err != nil {
+		return nil
+	}
+	return []aws.ARN{objectResource(src.bucket, src.key)}
 }
 
 // copySourceRead is the action reading a copy source needs:
@@ -353,15 +406,51 @@ func (s *Service) Scopes() []aws.Scope {
 	return out
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence.
-func (*Service) Switches() []fidelity.Entry {
-	return []fidelity.Entry{
+// Switches lists the behaviors chosen without AWS-recorded evidence, last
+// those of IAM enforcement: S3's denial text (iam-enforcement-surfaces.md
+// 12.8), what becomes of a notification its destination refuses (8.3) and
+// the root's bucket-policy lockout rule (6.3), which governs the bucket
+// policy operations.
+func (s *Service) Switches() []fidelity.Entry {
+	return slices.Concat([]fidelity.Entry{
 		encryptionAfterDelete().Entry(),
-		crossAccountAccess().Entry(),
+		crossAccountAccess(s.bucketOperations()).Entry(),
 		publicACLAtCreate().Entry(),
 		tagLimits().Entry(),
 		lifecycleRuleLimits().Entry(),
+	}, ssecSwitches(), objectLockSwitches(), []fidelity.Entry{
+		authz.RecordedSwitch("s3.denial.text", "the S3 variant of 4.2: a quoted resource on every denial of one, \", with policy ARN:\", Access Denied outside the owner's account",
+			"4.2", "IAM-ENF-12", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(s3api.Service())),
+		notificationDeliveryDenied(),
+	}, authz.SwitchesOf("s3", []string{"s3.GetBucketPolicy", "s3.PutBucketPolicy", "s3.DeleteBucketPolicy"}))
+}
+
+// notificationDeliveryDenied is what becomes of a notification whose
+// destination's policy refuses it under iam.enforce=enforce: drop, as AWS
+// dropped the recorded one, with the configuration kept
+// (iam-enforcement-surfaces.md 8.3, IAM-ENF-21). The outbox drops it by
+// construction: a notification's request carries no DLQ and is not
+// retried after a denial.
+func notificationDeliveryDenied() fidelity.Entry {
+	return authz.RecordedSwitch("s3.notification.delivery-denied", "drop", "8.3", "IAM-ENF-21", authz.DeliveryUnreplayed,
+		[]string{"s3.PutBucketNotificationConfiguration"})
+}
+
+// bucketOperations are the operations bound in s's kernel that address an
+// existing bucket, every one of which admit serves whatever account sends
+// it: each bound S3 operation but CreateBucket and ListBuckets. They are
+// read from the bindings so that an operation bound later joins them.
+func (s *Service) bucketOperations() []string {
+	var out []string
+	for _, op := range s3api.Service().Operations {
+		if op == s3api.OpCreateBucket.Descriptor() || op == s3api.OpListBuckets.Descriptor() {
+			continue
+		}
+		if _, bound := s.k.Bindings().Status(op).(kernel.Bound); bound {
+			out = append(out, op.ID.String())
+		}
 	}
+	return out
 }
 
 func (s *Service) reset(rs kernel.ResetScope) error {
@@ -451,26 +540,39 @@ func (s *Service) homes() map[string]Home {
 }
 
 // encryptionAfterDelete is GetBucketEncryption after DeleteBucketEncryption:
-// AWS documents that every bucket always has the SSE-S3 default, and no
-// recording shows the read (s3.md 4.1).
+// the SSE-S3 default every bucket has (s3.md 4.1), as
+// s3/R06/02-get-encryption-after-delete.json records the read
+// (s3-ssec-object-lock.md 2).
 func encryptionAfterDelete() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "s3.encryption.after-delete",
-		Value: "default-sse-s3",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/s3.md#41-state-of-a-freshly-created-bucket-and-what-unset-means",
+		Name:    "s3.encryption.after-delete",
+		Value:   "default-sse-s3",
+		Label:   evidence.AWSRecorded,
+		Ref:     "docs/research/s3-ssec-object-lock.md#2-what-the-repos-recordings-already-settled",
+		Ops:     []string{"s3.GetBucketEncryption"},
+		Settles: fidelity.NoScenario{Reason: s3Unreplayed("s3/R06/02-get-encryption-after-delete.json is")},
 	}
+}
+
+// s3Unreplayed is why no scenario settles a switch whose recording exists:
+// S3 requests are REST, which the replayer does not route yet. recorded
+// names the fixtures, with "is" or "are".
+func s3Unreplayed(recorded string) string {
+	return recorded + " recorded; the replayer skips S3's REST requests"
 }
 
 // crossAccountAccess is a bucket request from an account that does not own
 // the bucket: understudy evaluates no bucket policy or ACL, so it is served.
 // What AWS answers is UNVERIFIED: no research note or recording covers it.
-func crossAccountAccess() fidelity.Switch[string] {
+// ops are the operations that address an existing bucket.
+func crossAccountAccess(ops []string) fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "s3.bucket.cross-account",
-		Value: "served",
-		Label: evidence.Inferred,
-		Ref:   "UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket",
+		Name:    "s3.bucket.cross-account",
+		Value:   "served",
+		Label:   evidence.Inferred,
+		Ref:     "UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket",
+		Ops:     ops,
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording sends a bucket request from an account that does not own the bucket"},
 	}
 }
 
@@ -479,22 +581,27 @@ func crossAccountAccess() fidelity.Switch[string] {
 // code (s3.md 3.2).
 func publicACLAtCreate() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "s3.create-bucket.public-acl",
-		Value: "InvalidBucketAclWithObjectOwnership",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/s3.md#32-createbucket",
+		Name:    "s3.create-bucket.public-acl",
+		Value:   "InvalidBucketAclWithObjectOwnership",
+		Label:   evidence.AWSDoc,
+		Ref:     "docs/research/s3.md#32-createbucket",
+		Ops:     []string{"s3.CreateBucket"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording creates a bucket with a public canned ACL under BucketOwnerEnforced"},
 	}
 }
 
 // tagLimits are the 50-tag, 128-character key and 256-character value
 // limits of a bucket tag set: documented, with error texts no recording
-// shows (s3.md 4.2.9).
+// shows (s3.md 4.2.9). CreateBucket, PutBucketTagging and the S3 Control
+// TagResource check them.
 func tagLimits() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
-		Name:  "s3.tagging.limits",
-		Value: "InvalidTag",
-		Label: evidence.AWSDoc,
-		Ref:   "docs/research/s3.md#429-bucket-tagging",
+		Name:    "s3.tagging.limits",
+		Value:   "InvalidTag",
+		Label:   evidence.AWSDoc,
+		Ref:     "docs/research/s3.md#429-bucket-tagging",
+		Ops:     []string{"s3.CreateBucket", "s3.PutBucketTagging", "s3.TagResource"},
+		Settles: fidelity.NoScenario{Reason: "unrecorded: no recording exceeds a bucket tag limit"},
 	}
 }
 
@@ -507,5 +614,9 @@ func lifecycleRuleLimits() fidelity.Switch[string] {
 		Value: "InvalidArgument",
 		Label: evidence.AWSDoc,
 		Ref:   "https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html",
+		Ops:   []string{"s3.PutBucketLifecycleConfiguration"},
+		Settles: fidelity.NoScenario{
+			Reason: s3Unreplayed("s3/R12/12-lifecycle-transition-7-standard-ia.json, the other 12-lifecycle steps and 15-lifecycle-glacier-then-onezone-ia.json are"),
+		},
 	}
 }

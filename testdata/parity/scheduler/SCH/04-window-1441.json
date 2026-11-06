@@ -1,0 +1,35 @@
+{
+  "step": "04-window-1441",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: 1 validation error detected: Value '1441' at 'flexibleTimeWindow.maximumWindowInMinutes' failed to satisfy constraint: Member must have value less than or equal to 1440",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-f3",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,g,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163736Z"],
+          ["amz-sdk-invocation-id", "9ddc53fd-d102-4e95-905c-6ca6f134a294"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "293"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"FLEXIBLE\", \"MaximumWindowInMinutes\": 1441}, \"ScheduleExpression\": \"rate(1 hour)\", \"Target\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-sch\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\"}, \"ClientToken\": \"129a71b1-bbeb-4ea7-a6a4-cd56ba56f033\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "dd6df9c1-6fed-41e8-8373-e75f20b2d12d"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "182"],
+          ["Date", "Tue, 03 Nov 2026 16:37:36 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"1 validation error detected: Value '1441' at 'flexibleTimeWindow.maximumWindowInMinutes' failed to satisfy constraint: Member must have value less than or equal to 1440\"}"
+      }
+    }
+  ]
+}

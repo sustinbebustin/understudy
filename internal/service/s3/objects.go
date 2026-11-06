@@ -23,19 +23,27 @@ import (
 // bindObjects binds the object operations.
 func (s *Service) bindObjects(b s3api.Binder) {
 	put := func(in *s3api.PutObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutObject(s.putObject, registry.Partial{Note: "no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify"}, touches(put))
+	b.PutObject(s.putObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; " + eventHoldNote}, touches(put))
 	get := func(in *s3api.GetObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.GetObject(s.getObject, registry.Partial{Note: "no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify"}, touches(get))
+	b.GetObject(s.getObject, registry.Partial{Note: readNote}, touches(get))
 	head := func(in *s3api.HeadObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.HeadObject(s.headObject, registry.Partial{Note: "no SSE-C, so SSE-C headers are refused; presigned URLs are verified and expire on the emulator clock under sigv4 verify"}, touches(head))
+	b.HeadObject(s.headObject, registry.Partial{Note: readNote}, touches(head))
 	attrs := func(in *s3api.GetObjectAttributesInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.GetObjectAttributes(reader(s, attrs, getObjectAttributes), registry.Partial{Note: "no SSE-C, so SSE-C headers are refused"}, touches(attrs))
+	b.GetObjectAttributes(func(ctx context.Context, c *kernel.Call, in *s3api.GetObjectAttributesInput) (*s3api.GetObjectAttributesOutput, *awserr.Error) {
+		out, err := read(ctx, s, c, attrs(in), func(b *Bucket) (*s3api.GetObjectAttributesOutput, *awserr.Error) {
+			return getObjectAttributes(in, b, c.Endpoint().Scheme)
+		})
+		if err != nil {
+			return nil, missingKey(ctx, c, in.Bucket, err)
+		}
+		return out, nil
+	}, registry.Full{}, touches(attrs))
 	del := func(in *s3api.DeleteObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.DeleteObject(s.deleteObject, registry.Partial{Note: "no MFA delete or Object Lock retention"}, touches(del))
+	b.DeleteObject(s.deleteObject, registry.Partial{Note: deleteNote}, touches(del))
 	dels := func(in *s3api.DeleteObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.DeleteObjects(s.deleteObjects, registry.Partial{Note: "no MFA delete or Object Lock retention"}, touches(dels))
+	b.DeleteObjects(s.deleteObjects, registry.Partial{Note: deleteNote}, touches(dels))
 	cp := func(in *s3api.CopyObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.CopyObject(s.copyObject, registry.Partial{Note: "no SSE-C or Object Lock; an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error"}, touches(cp))
+	b.CopyObject(s.copyObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; " + eventHoldNote}, touches(cp))
 	lv1 := func(in *s3api.ListObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjects(reader(s, lv1, listObjects), registry.Partial{Note: "no RestoreStatus"}, touches(lv1))
 	lv2 := func(in *s3api.ListObjectsV2Input) access { return at(in.Bucket, in.ExpectedBucketOwner) }
@@ -43,6 +51,7 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	lvv := func(in *s3api.ListObjectVersionsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjectVersions(reader(s, lvv, listObjectVersions), registry.Partial{Note: "no RestoreStatus"}, touches(lvv))
 	s.bindObjectTagging(b)
+	s.bindObjectLockState(b)
 }
 
 // nullVersion is the version id of an object written while the bucket was
@@ -97,6 +106,9 @@ type Object struct {
 	// Parts are a multipart object's parts, in part order; empty for an
 	// object written in one request.
 	Parts []ObjectPart `json:"parts,omitempty"`
+	// Lock is the version's retention and legal hold: zero, and not
+	// written, for a version that never had either.
+	Lock ObjectLock `json:"lock,omitzero"`
 }
 
 // ObjectPart is one part of a multipart object: its size and, for a

@@ -50,20 +50,28 @@ func (s *sequencer) pop() (*attempt, bool) {
 	return a, true
 }
 
-// sequence runs a after every attempt handed over before it.
-func (e *engine) sequence(a *attempt) {
-	if e.ready.push(a) {
-		e.k.Go(kernel.DeliveryAttempt, e.drain)
+// idle reports whether s has no attempt queued and no drain running.
+func (s *sequencer) idle() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return !s.draining && len(s.queue) == 0
+}
+
+// sequence runs a on s after every attempt handed to s before it: the
+// engine's sequencer, or a throttled subscription's (pacer).
+func (e *engine) sequence(s *sequencer, a *attempt) {
+	if s.push(a) {
+		e.k.Go(kernel.DeliveryAttempt, func(ctx context.Context) { e.drain(ctx, s) })
 	}
 }
 
-// drain runs queued attempts until the queue is empty. Once the kernel
-// stopped, ctx is done and each remaining attempt neither advises nor calls
-// its target: it records no outcome and releases its claim, leaving its
-// delivery pending for the next Rearm.
-func (e *engine) drain(ctx context.Context) {
+// drain runs the attempts queued on s until its queue is empty. Once the
+// kernel stopped, ctx is done and each remaining attempt neither advises
+// nor calls its target: it records no outcome and releases its claim,
+// leaving its delivery pending for the next Rearm.
+func (e *engine) drain(ctx context.Context, s *sequencer) {
 	for {
-		a, ok := e.ready.pop()
+		a, ok := s.pop()
 		if !ok {
 			return
 		}

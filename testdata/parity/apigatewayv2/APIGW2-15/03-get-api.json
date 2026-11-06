@@ -1,0 +1,35 @@
+{
+  "step": "03-get-api",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the GetApi operation: User: arn:aws:sts::123456789012:assumed-role/us1103-gw-caller/gw15 is not authorized to perform: apigateway:GET on resource: arn:aws:apigateway:us-east-2::/apis/hl9cpb8a0a because no identity-based policy allows the apigateway:GET action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,g,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.get-api"],
+          ["X-Amz-Date", "20261103T165055Z"],
+          ["amz-sdk-invocation-id", "8f0d764b-94ce-4938-a932-d81e6303dba1"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:50:55 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "251"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "5b7cb16b-bef8-48bf-86aa-1b8d99f1d658"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "AccessDeniedException"],
+          ["x-amz-apigw-id", "GReVdFpdCYcEs5A="],
+          ["X-Amzn-Trace-Id", "Root=1-6aea10ef-08d21bc56f3d8c015b62fdfe"]
+        ],
+        "body": "{\"message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-gw-caller/gw15 is not authorized to perform: apigateway:GET on resource: arn:aws:apigateway:us-east-2::/apis/hl9cpb8a0a because no identity-based policy allows the apigateway:GET action\"}"
+      }
+    }
+  ]
+}

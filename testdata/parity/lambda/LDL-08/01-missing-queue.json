@@ -1,0 +1,35 @@
+{
+  "step": "01-missing-queue",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the PutFunctionEventInvokeConfig operation: The destination ARN arn:aws:sqs:us-east-2:123456789012:us1103-ldl-nosuch is invalid.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2019-09-25/functions/us1103-ldl-v/event-invoke-config",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,Z,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.put-function-event-invoke-config"],
+          ["X-Amz-Date", "20261103T165341Z"],
+          ["amz-sdk-invocation-id", "523af60b-29cf-4ef6-b5ec-d5a2221f590d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "109"]
+        ],
+        "body": "{\"DestinationConfig\": {\"OnFailure\": {\"Destination\": \"arn:aws:sqs:us-east-2:123456789012:us1103-ldl-nosuch\"}}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:53:42 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "112"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "617a6aaa-f95f-4a00-aae2-954413f449b3"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"The destination ARN arn:aws:sqs:us-east-2:123456789012:us1103-ldl-nosuch is invalid.\"}"
+      }
+    }
+  ]
+}

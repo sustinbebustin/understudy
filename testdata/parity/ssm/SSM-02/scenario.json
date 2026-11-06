@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "item": "SSM-02",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ssm/SSM-02/01-delete.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-02/02-history.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-02/03-label.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-02/04-unlabel.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-02/05-public.json",
+      "compare": "all"
+    }
+  ],
+  "settles": [
+    {
+      "switch": "ssm.error.parameter-not-found-message",
+      "step": "03-label",
+      "field": "error/message"
+    }
+  ]
+}

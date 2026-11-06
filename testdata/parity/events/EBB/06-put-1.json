@@ -1,0 +1,33 @@
+{
+  "step": "06-put-1",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutPermission"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,b,g,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-permission"],
+          ["X-Amz-Date", "20261103T163613Z"],
+          ["amz-sdk-invocation-id", "1e89baf8-94a3-4b16-ab45-368b868d9f6f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "108"]
+        ],
+        "body": "{\"EventBusName\": \"us1103-p\", \"Action\": \"events:PutEvents\", \"Principal\": \"123456789012\", \"StatementId\": \"s1\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "9c98a061-2481-4440-93c7-90e3ec97f88a"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "0"],
+          ["Date", "Tue, 03 Nov 2026 16:36:14 GMT"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

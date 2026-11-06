@@ -1,0 +1,36 @@
+{
+  "step": "01-get-missing-api",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (NotFoundException) when calling the GetApi operation: Invalid API identifier specified 123456789012:0000000000",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/0000000000",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,b,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.get-api"],
+          ["X-Amz-Date", "20261103T164307Z"],
+          ["amz-sdk-invocation-id", "67555c6b-3ee5-40d8-a8a2-00be17568f6f"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:07 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "76"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "710b64e1-8181-4a73-87e5-a675878b1411"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "NotFoundException"],
+          ["x-amz-apigw-id", "GRdMVHXnCYcEcIw="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f1b-08b3394654bb27f00d6e70bc"]
+        ],
+        "body": "{\n  \"message\" : \"Invalid API identifier specified 123456789012:0000000000\"\n}"
+      }
+    }
+  ]
+}

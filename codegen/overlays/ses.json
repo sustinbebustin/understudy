@@ -1,0 +1,98 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.ses#SimpleEmailService": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.ses#Throttling",
+        "dev.understudy#denialError": "com.amazon.coral.service#AccessDenied",
+        "dev.understudy#validationError": {"code": "com.amazonaws.ses#InvalidParameterValue"},
+        "dev.understudy#queryErrorEnvelope": {"namespace": true},
+        "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the SES v1 denial and its model declares none; it takes the Query services' AccessDenied, 403, as STS answers (recorded) and IAM is inferred to; UNVERIFIED until recording IAM-ENF-38",
+            "covers": ["dev.understudy#denialError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/ses.md#114-fidelity-switches: the note names Code Throttling (AWS blog, 3.3) as the v1 throttle identity rather than CommonErrors.html's ThrottlingException; its 400 status is UNVERIFIED until recording SES-21",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/ses.md#114-fidelity-switches: the note names InvalidParameterValue 400 as the v1 validation identity, extrapolated from v1 SendEmail's tag check (third-party-recorded 2024-07-30, https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/ses/test_ses.snapshot.json#L592-L735), a handler check on MessageTagName and MessageTagValue, which carry no model constraints; no recording shows what a v1 required, enum, length, range or pattern violation answers, and CommonErrors v1 also lists MissingParameter 400 and ValidationError 400 (3.3); UNVERIFIED, and no case in the section 12 recording queue settles it yet",
+            "covers": ["dev.understudy#validationError"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/ses/SES-01/01-cli.json",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#queryErrorEnvelope"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.ses#SendEmailRequest$Message": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the subject and bodies of a send are the sender's mail, which the journal must not keep; the model marks no send content sensitive, so the generated Redact() would journal it whole"
+        }
+      }
+    },
+    "com.amazonaws.ses#RawMessage$Data": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the raw MIME of a send (up to 10 MB, 2.2) is the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.ses#SendTemplatedEmailRequest$TemplateData": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#sensitive": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: TemplateData holds the replacement values of a templated send (4.3), part of the sender's mail, which the journal must not keep; the model marks no send content sensitive"
+        }
+      }
+    },
+    "com.amazonaws.ses#Throttling": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "Throttling", "httpResponseCode": 400},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/ses.md#33-error-tables: sending-rate throttling is Code Throttling with 'Maximum sending rate exceeded.' (AWS blog, 2013-02-01); the 400 status is UNVERIFIED until recording SES-21"
+        }
+      }
+    },
+    "com.amazonaws.ses#InvalidParameterValue": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "aws.protocols#awsQueryError": {"code": "InvalidParameterValue", "httpResponseCode": 400},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/ses/test_ses.snapshot.json#L592-L735",
+          "validated": "2024-07-30"
+        }
+      }
+    }
+  }
+}

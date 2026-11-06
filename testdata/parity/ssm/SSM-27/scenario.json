@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "item": "SSM-27",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/x27/b",
+        "Type": "String",
+        "Value": "v"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/x27/a",
+        "Type": "String",
+        "Value": "v"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-27/01-delete.json",
+      "compare": "all"
+    }
+  ]
+}

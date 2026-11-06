@@ -1,0 +1,39 @@
+{
+  "step": "17-timeout-over",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the CreateIntegration operation: Timeout should be between 50 ms and 30000 ms",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a/integrations",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,g,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-integration"],
+          ["X-Amz-Date", "20261103T164316Z"],
+          ["amz-sdk-invocation-id", "9db60d92-9ec7-4870-aadd-36eff9356300"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "167"]
+        ],
+        "body": "{\"integrationType\": \"AWS_PROXY\", \"integrationUri\": \"arn:aws:lambda:us-east-2:123456789012:function:us1103-gw\", \"payloadFormatVersion\": \"2.0\", \"timeoutInMillis\": 30001}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:16 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "58"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "47af4b49-2724-49ec-bac5-2989994d6231"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdN0GYqCYcESfQ="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f24-3469df701fb95db04fac2a9e"]
+        ],
+        "body": "{\"message\":\"Timeout should be between 50 ms and 30000 ms\"}"
+      }
+    }
+  ]
+}

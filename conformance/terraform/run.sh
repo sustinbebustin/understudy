@@ -13,6 +13,10 @@
 #   conformance/terraform/run.sh sqs sns         # only these
 #   CONFORMANCE_JOBS=1 conformance/terraform/run.sh
 #   SIGV4=verify conformance/terraform/run.sh    # serve with --sigv4 verify (default parse)
+#   CONFORMANCE_IAM_ENFORCE=enforce CONFORMANCE_ADVISORIES_OUT=advisories.json \
+#     conformance/terraform/run.sh               # serve with --iam-enforce enforce (default off)
+#                                                # and write the journal's advisories as JSON
+#                                                # before stopping (conformance/iam-loop reads them)
 #
 # DynamoDB runs on DynamoDB Local, pulled on first use; CONFORMANCE_DYNAMODB
 # is unset or 0, and run.sh exits 2 before building on any other value, as
@@ -40,12 +44,17 @@ sealed="$repo_root/scripts/sealed"
 
 port="${CONFORMANCE_PORT:-45665}"
 endpoint="http://127.0.0.1:$port"
+# The HTTPS receiver SNS's https subscription delivers to; it confirms each
+# subscription through its SubscribeURL, as endpoint_auto_confirms expects
+# (tf-messaging.md 3.5, sns-http-delivery.md 8.6).
+receiver_port="${CONFORMANCE_SNS_RECEIVER_PORT:-45667}"
+receiver_url="https://127.0.0.1:$receiver_port"
 max_jobs="${CONFORMANCE_JOBS:-11}"
 phase_timeout="${CONFORMANCE_PHASE_TIMEOUT:-900}"
 
 # Each service runs in an account of its own: understudy derives the account
 # from a 12-digit access key, so services never see each other's resources.
-all_services=(sqs sns s3 dynamodb kms secretsmanager iam lambda logs events cloudwatch)
+all_services=(sqs sns s3 dynamodb kms secretsmanager iam lambda logs events cloudwatch apigatewayv2 dynamodbstreams ssm sfn kinesis ses apigateway scheduler)
 declare -A accounts=(
   [sqs]=100000000001
   [sns]=100000000002
@@ -58,6 +67,14 @@ declare -A accounts=(
   [logs]=100000000009
   [events]=100000000010
   [cloudwatch]=100000000011
+  [apigatewayv2]=100000000012
+  [dynamodbstreams]=100000000013
+  [ssm]=100000000014
+  [sfn]=100000000015
+  [kinesis]=100000000016
+  [ses]=100000000017
+  [apigateway]=100000000018
+  [scheduler]=100000000019
 )
 phases=(apply-create plan-create-no-changes apply-update plan-update-no-changes destroy nothing-left)
 
@@ -66,7 +83,7 @@ die() {
   exit 2
 }
 
-for tool in go jq docker curl uv timeout; do
+for tool in go jq docker curl uv timeout openssl python3; do
   command -v "$tool" >/dev/null || die "$tool is not on PATH; install it and run again"
 done
 conformance_require_tool terraform version
@@ -99,13 +116,22 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 
 data_dir=$(mktemp -d "${TMPDIR:-/tmp}/understudy-terraform.XXXXXX")
 server_pid=""
+receiver_pid=""
 
 stop_server() {
   local status=$?
   set +e
+  if [[ -n "$receiver_pid" ]]; then
+    kill "$receiver_pid" 2>/dev/null
+    wait "$receiver_pid" 2>/dev/null
+  fi
   if [[ -n "$server_pid" ]] && kill -0 "$server_pid" 2>/dev/null; then
     "$binary" journal --endpoint "$endpoint" --errors --output json --limit 100000 \
       >"$logs_dir/journal-errors.json" 2>&1
+    if [[ -n "${CONFORMANCE_ADVISORIES_OUT:-}" ]]; then
+      "$binary" journal --endpoint "$endpoint" --kind advisory --output json --limit 100000 \
+        >"$CONFORMANCE_ADVISORIES_OUT" 2>&1
+    fi
     kill -TERM "$server_pid" 2>/dev/null
     for _ in $(seq 1 60); do
       kill -0 "$server_pid" 2>/dev/null || break
@@ -143,15 +169,73 @@ trap 'exit 143' TERM
 
 conformance_isolate_serve_env
 
+# The receiver's key and certificate, for its IP address; understudy trusts
+# it through the CA bundle setting (sns-http-delivery.md 7.4).
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=127.0.0.1" -addext "subjectAltName=IP:127.0.0.1" \
+  -keyout "$run_dir/receiver.key" -out "$run_dir/receiver.pem" >"$logs_dir/openssl.log" 2>&1 ||
+  die "openssl could not make the SNS receiver's certificate; see $logs_dir/openssl.log"
+
+# ses.tf's domain is verified by configuration, so its
+# aws_ses_domain_identity_verification completes (docs/research/ses.md 11.7).
+printf '%s\n' '{"ses": {"verifiedIdentities": ["ses-verified.example.org"]}}' >"$run_dir/understudy.json"
+
 echo "==> starting understudy on $endpoint (data in $data_dir)"
-env "${conformance_serve_env[@]}" "$binary" serve --listen "127.0.0.1:$port" --persist "$data_dir" \
-  --sigv4 "${SIGV4:-parse}" --log-format json >"$logs_dir/server.log" 2>&1 &
+env "${conformance_serve_env[@]}" "$binary" serve --config "$run_dir/understudy.json" --listen "127.0.0.1:$port" --persist "$data_dir" \
+  --sigv4 "${SIGV4:-parse}" --iam-enforce "${CONFORMANCE_IAM_ENFORCE:-off}" --log-format json \
+  --sns-http-delivery-allow "127.0.0.1:$receiver_port" --sns-http-delivery-ca-bundle "$run_dir/receiver.pem" \
+  >"$logs_dir/server.log" 2>&1 &
 server_pid=$!
 if ! "$binary" health --endpoint "$endpoint" --wait 60s >"$logs_dir/health.txt" 2>&1; then
   cat "$logs_dir/health.txt" >&2
   die "understudy did not become ready on $endpoint; see $logs_dir/server.log"
 fi
 conformance_require_ddb_enabled "$endpoint/_understudy/v1" "$logs_dir/server.log"
+
+# The SNS HTTPS receiver: it logs each POST and, for a
+# SubscriptionConfirmation, GETs the SubscribeURL once it has answered
+# (sns-http-delivery.md 2.3). Its log is logs/sns-receiver.jsonl.
+echo "==> starting the SNS HTTPS receiver on $receiver_url"
+python3 -I - "$run_dir/receiver.pem" "$run_dir/receiver.key" "$receiver_port" "$logs_dir/sns-receiver.jsonl" <<'PY' >"$logs_dir/sns-receiver.log" 2>&1 &
+import http.server, json, ssl, sys, urllib.request
+
+cert, key, port, log = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
+opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def note(entry):
+    with open(log, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+class Hook(http.server.BaseHTTPRequestHandler):
+    def do_POST(self):
+        body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
+        kind = self.headers.get("x-amz-sns-message-type", "")
+        note({"path": self.path, "kind": kind})
+        self.send_response(200)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        if kind == "SubscriptionConfirmation":
+            link = json.loads(body)["SubscribeURL"]
+            with opener.open(link, timeout=10) as r:
+                note({"confirmed": self.path, "status": r.status})
+
+    def log_message(self, *args):
+        pass
+
+
+server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Hook)
+context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+context.load_cert_chain(cert, key)
+server.socket = context.wrap_socket(server.socket, server_side=True)
+server.serve_forever()
+PY
+receiver_pid=$!
+for _ in $(seq 1 100); do
+  curl -sk -o /dev/null "$receiver_url/" -X POST && break
+  sleep 0.05
+done
+kill -0 "$receiver_pid" 2>/dev/null || die "the SNS HTTPS receiver did not start; see $logs_dir/sns-receiver.log"
 
 # sealed points Terraform at this cache, creates it and disables the
 # version check.
@@ -232,8 +316,9 @@ plan_clean() {
 
 # nothing_left SERVICE checks the state is empty and understudy holds no
 # resource in the service's account, except what AWS keeps after a delete:
-# customer managed keys waiting out their deletion window, and AWS managed
-# keys, which cannot be deleted.
+# customer managed keys waiting out their deletion window, AWS managed
+# keys, which cannot be deleted, and a deleted table's stream, which AWS
+# deletes 24 hours after its table (dynamodb-streams.md 5.4).
 nothing_left() {
   local svc=$1 acct=${accounts[$1]} log="$logs_dir/$1/nothing-left.log"
   local state remaining kept="" arn manager problems=""
@@ -246,7 +331,7 @@ nothing_left() {
     return
   fi
   cp -- "$run_dir/resources-$svc.json" "$log.resources.json"
-  remaining=$(jq -r '.resources[] | select(.service != "kms" or .summary != "PendingDeletion") | "\(.service) \(.arn) (\(.summary))"' "$run_dir/resources-$svc.json")
+  remaining=$(jq -r '.resources[] | select(.service != "kms" or .summary != "PendingDeletion") | select(.service != "dynamodb" or (.arn | test(":table/[^/]+/stream/") | not)) | "\(.service) \(.arn) (\(.summary))"' "$run_dir/resources-$svc.json")
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
     arn=$(cut -d' ' -f2 <<<"$line")
@@ -277,20 +362,136 @@ skip_rest() {
   done
 }
 
+# expect_json URL STATUS FILTER requests URL and succeeds when it answers
+# STATUS with a body the jq FILTER holds for (a FILTER of - skips the body);
+# otherwise it prints what came back.
+expect_json() {
+  local url=$1 want=$2 filter=$3 body status
+  body=$(mktemp "$run_dir/body.XXXXXX")
+  status=$(curl -sS -o "$body" -w '%{http_code}' "$url") || status="curl exit $?"
+  if [[ "$status" != "$want" ]] || { [[ "$filter" != - ]] && ! jq -e "$filter" "$body" >/dev/null 2>&1; }; then
+    echo "GET $url answered $status $(head -c 400 "$body"); expected $want, body filter $filter"
+    rm -f -- "$body"
+    return 1
+  fi
+  rm -f -- "$body"
+}
+
+# check_apigatewayv2 STEP calls the HTTP API's routes through the path
+# fallback, with the API id taken from api_endpoint, never invoke_url
+# (apigateway-http.md 9.7, 13.6): each payload format, the $default stage
+# and the named stage, which serves GET /extra only after the update has
+# replaced its deployment.
+check_apigatewayv2() {
+  local step=$1 api_endpoint id base deployment color=blue extra_status=404 extra_filter=-
+  api_endpoint=$(tf apigatewayv2 output -raw apigatewayv2_api_endpoint) || {
+    echo "terraform output apigatewayv2_api_endpoint failed"
+    return 1
+  }
+  id=${api_endpoint#*://}
+  id=${id%%.*}
+  base="$endpoint/_understudy/execute-api/$id"
+  if [[ "$step" == update ]]; then
+    color=green extra_status=200 extra_filter='.route == "GET /extra" and .stage == "live"'
+  fi
+  # shellcheck disable=SC2016 # $default is the stage's name, not a variable
+  expect_json "$base/hello" 200 '.version == "2.0" and .route == "GET /hello" and .stage == "$default"' &&
+    expect_json "$base/pets/rex" 200 '.version == "1.0" and .route == "/pets/{name}" and .pathParameters.name == "rex"' &&
+    expect_json "$base/live/hello" 200 ".stage == \"live\" and .stageVariables.color == \"$color\"" &&
+    expect_json "$base/live/extra" "$extra_status" "$extra_filter" || return 1
+  deployment=$(tf apigatewayv2 output -raw apigatewayv2_live_deployment_id) || {
+    echo "terraform output apigatewayv2_live_deployment_id failed"
+    return 1
+  }
+  if [[ "$step" == create ]]; then
+    printf '%s' "$deployment" >"$run_dir/apigatewayv2-deployment"
+  elif [[ "$deployment" == "$(cat "$run_dir/apigatewayv2-deployment")" ]]; then
+    echo "the update kept deployment $deployment; its triggers should have replaced it"
+    return 1
+  fi
+}
+
+# check_apigateway STEP calls the REST API's live stage through the path
+# fallback, /_understudy/execute-api/<id>/live/..., with the id from the
+# rest_api resource, never invoke_url (apigateway-rest.md 9.2): the Lambda
+# proxy on /items/{id} and on /{proxy+}, and the MOCK OPTIONS method with its
+# static header and literal template (6.3, 6.7). /status falls to
+# /{proxy+} until the update adds its MOCK method and replaces the
+# deployment the stage serves (4.3, 9.4).
+check_apigateway() {
+  local step=$1 id base deployment color=blue status_filter='.route == "/{proxy+}"' headers body status
+  id=$(tf apigateway output -raw apigateway_rest_api_id) || {
+    echo "terraform output apigateway_rest_api_id failed"
+    return 1
+  }
+  base="$endpoint/_understudy/execute-api/$id/live"
+  if [[ "$step" == update ]]; then
+    color=green status_filter='.status == "ok"'
+  fi
+  expect_json "$base/items/42" 200 ".route == \"/items/{id}\" and .pathParameters.id == \"42\" and .stage == \"live\" and .stageVariables.color == \"$color\"" &&
+    expect_json "$base/a/b" 200 '.route == "/{proxy+}" and .pathParameters.proxy == "a/b"' &&
+    expect_json "$base/status" 200 "$status_filter" || return 1
+  headers=$(mktemp "$run_dir/headers.XXXXXX")
+  body=$(mktemp "$run_dir/body.XXXXXX")
+  status=$(curl -sS -X OPTIONS -D "$headers" -o "$body" -w '%{http_code}' "$base/items/42") || status="curl exit $?"
+  if [[ "$status" != 200 ]] || ! jq -e '.preflight == true' "$body" >/dev/null 2>&1 ||
+    ! grep -qi '^access-control-allow-methods: GET,OPTIONS' "$headers"; then
+    echo "OPTIONS $base/items/42 answered $status $(head -c 400 "$body") with headers $(tr '\r\n' '  ' <"$headers"); expected 200, {\"preflight\":true} and Access-Control-Allow-Methods: GET,OPTIONS"
+    rm -f -- "$headers" "$body"
+    return 1
+  fi
+  rm -f -- "$headers" "$body"
+  deployment=$(tf apigateway output -raw apigateway_live_deployment_id) || {
+    echo "terraform output apigateway_live_deployment_id failed"
+    return 1
+  }
+  if [[ "$step" == create ]]; then
+    printf '%s' "$deployment" >"$run_dir/apigateway-deployment"
+  elif [[ "$deployment" == "$(cat "$run_dir/apigateway-deployment")" ]]; then
+    echo "the update kept deployment $deployment; its triggers should have replaced it"
+    return 1
+  fi
+}
+
+# check SERVICE STEP runs check_SERVICE, when there is one, after an apply,
+# and records it as SERVICE/check-STEP.
+check() {
+  local svc=$1 step=$2 detail status=0
+  declare -F "check_$svc" >/dev/null || return 0
+  detail=$("check_$svc" "$step" 2>&1) || status=$?
+  if ((status == 0)); then
+    record "$svc/check-$step" PASS ""
+  else
+    record "$svc/check-$step" FAIL "$detail"
+  fi
+}
+
+# skip_check SERVICE STEP REASON records SERVICE/check-STEP as skipped when
+# the service has a check.
+skip_check() {
+  declare -F "check_$1" >/dev/null || return 0
+  record "$1/check-$2" SKIP "$3"
+}
+
 # lifecycle SERVICE runs every phase of one service.
 lifecycle() {
   local svc=$1 last_step=create
   if apply "$svc" apply-create create; then
+    check "$svc" create
     plan_clean "$svc" plan-create-no-changes create
     last_step=update
     if apply "$svc" apply-update update; then
+      check "$svc" update
       plan_clean "$svc" plan-update-no-changes update
     else
+      skip_check "$svc" update "apply-update failed"
       record "$svc/plan-update-no-changes" SKIP "apply-update failed"
     fi
   else
+    skip_check "$svc" create "apply-create failed"
     record "$svc/plan-create-no-changes" SKIP "apply-create failed"
     record "$svc/apply-update" SKIP "apply-create failed"
+    skip_check "$svc" update "apply-create failed"
     record "$svc/plan-update-no-changes" SKIP "apply-create failed"
   fi
   local status=0
@@ -313,7 +514,8 @@ prepare() {
     --arg run_id "$run_id" \
     --arg functions_dir "$suite_dir/functions" \
     --arg artifacts_dir "$artifacts_dir" \
-    '{name_prefix: $name_prefix, run_id: $run_id, functions_dir: $functions_dir, artifacts_dir: $artifacts_dir}' \
+    --arg sns_https_receiver "$receiver_url" \
+    '{name_prefix: $name_prefix, run_id: $run_id, functions_dir: $functions_dir, artifacts_dir: $artifacts_dir, sns_https_receiver: $sns_https_receiver}' \
     >"$dir/terraform.tfvars.json"
   local status=0
   run_phase "$svc" init init -lockfile=readonly || status=$?
@@ -332,7 +534,7 @@ prepare() {
 # concurrent installs. The lifecycles then run in parallel.
 ready=()
 for svc in "${services[@]}"; do
-  if [[ "$svc" == dynamodb && "$conformance_ddb" == opted-out ]]; then
+  if [[ ("$svc" == dynamodb || "$svc" == dynamodbstreams) && "$conformance_ddb" == opted-out ]]; then
     skip_rest "$svc" "${phases[0]}" "$conformance_ddb_opt_out_reason"
     continue
   fi

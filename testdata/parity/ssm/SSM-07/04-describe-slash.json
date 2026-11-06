@@ -1,0 +1,36 @@
+{
+  "step": "04-describe-slash",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.DescribeParameters"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,AN,E,g,C cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.describe-parameters"],
+          ["X-Amz-Date", "20261103T163610Z"],
+          ["amz-sdk-invocation-id", "64a27d02-08fa-43ec-b45e-1c00822e75e3"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "67"]
+        ],
+        "body": "{\"ParameterFilters\": [{\"Key\": \"Name\", \"Values\": [\"/us1103-root\"]}]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:10 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "336"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "b8a86b51-b62e-48e8-a292-b776acbc022d"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"Parameters\":[{\"ARN\":\"arn:aws:ssm:us-east-2:123456789012:parameter/us1103-root\",\"DataType\":\"text\",\"LastModifiedDate\":1.79372376872E9,\"LastModifiedUser\":\"arn:aws:sts::123456789012:assumed-role/AccountFullAccessRole/00000000-0000-0000-0000-000000000005\",\"Name\":\"us1103-root\",\"Policies\":[],\"Tier\":\"Standard\",\"Type\":\"String\",\"Version\":1}]}"
+      }
+    }
+  ]
+}

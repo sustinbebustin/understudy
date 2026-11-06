@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "item": "IAM-EVAL-35",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "iam/IAM-EVAL-35/02-assumed-role.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "iam/IAM-EVAL-35/03-delegation-request.json",
+      "compare": "all"
+    }
+  ]
+}

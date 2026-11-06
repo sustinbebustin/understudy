@@ -1,0 +1,33 @@
+{
+  "step": "01-v1-page",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164226Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "51"]
+        ],
+        "body": "Action=ListIdentities&Version=2010-12-01&MaxItems=2"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:26 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "968"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "4f28c624-188c-421e-9866-f29fb456d80e"]
+        ],
+        "body": "<ListIdentitiesResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <ListIdentitiesResult>\n    <Identities>\n      <member>us1103.example.org</member>\n      <member>us1103.example.com</member>\n    </Identities>\n    <NextToken>QUFBQUFBQUFBQUVsNGNyN2w1ZUxpQVBsd3pnSFFVUmFpMDhjc2FaRENrWTc3WEhwWm9ZUU5IaVJS\nKzdESWt2ZzJuTUJGL0lXLzBvUVpSMk9VZ1lLSzRCQlI5K29vcDlsbTNFeTNSQmo0aWF3dStBeTFY\nVnB5a0V2Q0szSGZyNkhtSE43WDBJM3IrSVdzVXA0NjNaek0xTG5HREJKZUJBN3ZGYjRmbFFDNGlL\nU1plQWFIcWFvdDJnYmh6UnJtNmxlOGJ1QVkvUVc0U25hUXZmS3RIOWNrL2JBMFRQb0M3b1A2ZDNu\neS9CZTcyeFA3TTQ0VXlwVURHTEVJQm43TDZCd2tlYStUeGFDN3k1ZmJvZDhSODRrbkZsRFowazhw\nalJKdXBTNVVGR0NtbmhpckRiVHhoWTE1MFVpSzFtY1BZcFVoK0VnQlpqdmtXRklHZm5YTnBvaUxE\nWmlHdEt2Ujl0djlHYXo4Z1NGVlFxT2RXU1hkWU5jRWRVQ1BaTk1JOTN2Q25YeXFXOFZwNSszSHJm\nRDNZWS9ZZ3VpMzZ3WHhudVM=</NextToken>\n  </ListIdentitiesResult>\n  <ResponseMetadata>\n    <RequestId>4f28c624-188c-421e-9866-f29fb456d80e</RequestId>\n  </ResponseMetadata>\n</ListIdentitiesResponse>\n"
+      }
+    }
+  ]
+}

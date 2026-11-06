@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -104,15 +106,21 @@ func (e *NoValidationPolicyError) Error() string {
 // order when they span two codes. The policy is generated onto *In; an In
 // without one is an Internal error.
 func Validate[In any](vs []awserr.Violation) *awserr.Error {
+	return validateAs((*In)(nil), vs)
+}
+
+// validateAs is Validate for the input type of token, a (*In)(nil), so the
+// kernel's bindings reach it without a copy per input type.
+func validateAs(token any, vs []awserr.Violation) *awserr.Error {
 	if len(vs) == 0 {
 		return nil
 	}
-	if p, ok := any((*In)(nil)).(interface {
+	if p, ok := token.(interface {
 		ValidationError(vs []awserr.Violation) *awserr.Error
 	}); ok {
 		return p.ValidationError(vs)
 	}
-	return awserr.Internalf(&NoValidationPolicyError{Type: fmt.Sprintf("%T", (*In)(nil))})
+	return awserr.Internalf(&NoValidationPolicyError{Type: fmt.Sprintf("%T", token)})
 }
 
 // issuesURL is where users ask for an operation understudy does not implement.
@@ -124,9 +132,13 @@ const issuesURL = "https://github.com/sustinbebustin/understudy/issues"
 // terminals link the whole URL.
 func NotImplemented(op *registry.Operation) *awserr.Error {
 	return &awserr.Error{
-		ID: awserr.NotImplemented(),
-		Message: fmt.Sprintf("understudy does not implement %s. Run 'understudy coverage --service %s' for what is supported; to ask for it, see %s?q=%s",
-			op.ID, op.ID.Service, issuesURL, op.ID),
-		Origin: awserr.Unimplemented{Op: op.ID},
+		ID:      awserr.NotImplemented(),
+		Message: notImplementedMessage(op.ID.String(), op.ID.Service),
+		Origin:  awserr.Unimplemented{Op: op.ID},
 	}
+}
+
+func notImplementedMessage(name string, coverage ref.ServiceID) string {
+	return fmt.Sprintf("understudy does not implement %s. Run 'understudy coverage --service %s' for what is supported; to ask for it, see %s?q=%s",
+		name, coverage, issuesURL, url.QueryEscape(name))
 }

@@ -1,0 +1,35 @@
+{
+  "step": "04-aws-source",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: 1 validation error detected: Value 'aws.x' at 'target.eventBridgeParameters.source' failed to satisfy constraint: Member must satisfy regular expression pattern: (?=[/\\.\\-_A-Za-z0-9]+)((?!aws\\.).*)|(\\$(\\.[\\w_-]+(\\[(\\d+|\\*)\\])*)*)",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-b1",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,b,E,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163742Z"],
+          ["amz-sdk-invocation-id", "b150f341-8984-4bd5-b5f3-35d457c24eb0"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "346"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"rate(1 hour)\", \"Target\": {\"Arn\": \"arn:aws:events:us-east-2:123456789012:event-bus/default\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\", \"Input\": \"{}\", \"EventBridgeParameters\": {\"Source\": \"aws.x\", \"DetailType\": \"t\"}}, \"ClientToken\": \"2b3be40c-e061-479f-9c50-163aa44e3f23\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "47376be4-177e-4054-83f0-604a3b1482c8"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "253"],
+          ["Date", "Tue, 03 Nov 2026 16:37:42 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"1 validation error detected: Value 'aws.x' at 'target.eventBridgeParameters.source' failed to satisfy constraint: Member must satisfy regular expression pattern: (?=[/\\\\.\\\\-_A-Za-z0-9]+)((?!aws\\\\.).*)|(\\\\$(\\\\.[\\\\w_-]+(\\\\[(\\\\d+|\\\\*)\\\\])*)*)\"}"
+      }
+    }
+  ]
+}

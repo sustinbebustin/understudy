@@ -99,25 +99,25 @@ type DatetimeOffsetsOutput struct {
 
 // Defaults is aws.protocoltests.restjson#Defaults.
 type Defaults struct {
-	DefaultString          string
-	DefaultBoolean         bool
+	DefaultString          *string
+	DefaultBoolean         *bool
 	DefaultList            []string
 	DefaultDocumentMap     document.Value
 	DefaultDocumentString  document.Value
 	DefaultDocumentBoolean document.Value
 	DefaultDocumentList    document.Value
 	DefaultNullDocument    document.Value
-	DefaultTimestamp       time.Time
+	DefaultTimestamp       *time.Time
 	DefaultBlob            []byte
-	DefaultByte            int8
-	DefaultShort           int16
-	DefaultInteger         int32
-	DefaultLong            int64
-	DefaultFloat           float32
-	DefaultDouble          float64
+	DefaultByte            *int8
+	DefaultShort           *int16
+	DefaultInteger         *int32
+	DefaultLong            *int64
+	DefaultFloat           *float32
+	DefaultDouble          *float64
 	DefaultMap             map[string]string
-	DefaultEnum            TestEnum
-	DefaultIntEnum         TestIntEnum
+	DefaultEnum            *TestEnum
+	DefaultIntEnum         *TestIntEnum
 	EmptyString            string
 	FalseBoolean           bool
 	EmptyBlob              []byte
@@ -132,7 +132,7 @@ type Defaults struct {
 // Dialog is aws.protocoltests.restjson#Dialog.
 type Dialog struct {
 	Language *string
-	Greeting string
+	Greeting *string
 	Farewell *Farewell
 }
 
@@ -275,7 +275,7 @@ func (EventStreamMemberError) isEventStream() {}
 
 // Farewell is aws.protocoltests.restjson#Farewell.
 type Farewell struct {
-	Phrase string
+	Phrase *string
 }
 
 // FooEnum is aws.protocoltests.shared#FooEnum.
@@ -1179,31 +1179,31 @@ type OmitsSerializingEmptyListsOutput struct{}
 type OperationWithDefaultsInput struct {
 	Defaults               *Defaults
 	ClientOptionalDefaults *ClientOptionalDefaults
-	TopLevelDefault        string
+	TopLevelDefault        *string
 	OtherTopLevelDefault   int32
 }
 
 // OperationWithDefaultsOutput is the output of OperationWithDefaults, aws.protocoltests.restjson#OperationWithDefaultsOutput.
 type OperationWithDefaultsOutput struct {
-	DefaultString          string
-	DefaultBoolean         bool
+	DefaultString          *string
+	DefaultBoolean         *bool
 	DefaultList            []string
 	DefaultDocumentMap     document.Value
 	DefaultDocumentString  document.Value
 	DefaultDocumentBoolean document.Value
 	DefaultDocumentList    document.Value
 	DefaultNullDocument    document.Value
-	DefaultTimestamp       time.Time
+	DefaultTimestamp       *time.Time
 	DefaultBlob            []byte
-	DefaultByte            int8
-	DefaultShort           int16
-	DefaultInteger         int32
-	DefaultLong            int64
-	DefaultFloat           float32
-	DefaultDouble          float64
+	DefaultByte            *int8
+	DefaultShort           *int16
+	DefaultInteger         *int32
+	DefaultLong            *int64
+	DefaultFloat           *float32
+	DefaultDouble          *float64
 	DefaultMap             map[string]string
-	DefaultEnum            TestEnum
-	DefaultIntEnum         TestIntEnum
+	DefaultEnum            *TestEnum
+	DefaultIntEnum         *TestIntEnum
 	EmptyString            string
 	FalseBoolean           bool
 	EmptyBlob              []byte

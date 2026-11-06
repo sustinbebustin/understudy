@@ -158,7 +158,7 @@ type PutKindsInput struct {
 	Small   *int16
 	Count   *int32
 	Total   int64
-	Retries int32
+	Retries *int32
 	Ratio   *float32
 	Score   *float64
 	Huge    *big.Int

@@ -1,0 +1,30 @@
+{
+  "step": "11-public-get",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://lambda.us-east-2.amazonaws.com/2018-10-31/layers?find=LayerVersion&Arn=arn%3Aaws%3Alambda%3Aus-east-2%3A017000801446%3Alayer%3AAWSLambdaPowertoolsPythonV3-python313-x86_64%3A42",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,E,b,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.get-layer-version-by-arn"],
+          ["X-Amz-Date", "20261103T170839Z"],
+          ["amz-sdk-invocation-id", "c3b2225f-e78e-4b6a-8acd-081989f0ae55"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 17:08:39 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "2633"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "3c524c1c-0f75-4afb-b3c7-be7a1aa39c87"]
+        ],
+        "body": "{\"CompatibleRuntimes\":[\"python3.13\"],\"LicenseInfo\":\"MIT-0\",\"Description\":\"Powertools for AWS Lambda (Python) V3 [x86_64 - Python 3.13] with extra dependencies version 3.39.0\",\"LayerVersionArn\":\"arn:aws:lambda:us-east-2:017000801446:layer:AWSLambdaPowertoolsPythonV3-python313-x86_64:42\",\"Version\":42,\"Content\":{\"SigningProfileVersionArn\":null,\"CodeSize\":12553304,\"ResolvedS3Object\":null,\"UncompressedCodeSize\":0,\"SigningJobArn\":null,\"CodeSha256\":\"P31Nu/pY7l3dLliGH4kNslnHy89SrpfNI63bqkHVD7s=\",\"Location\":\"https://awslambda-us-east-2-layers.s3.us-east-2.amazonaws.com/snapshots/017000801446/AWSLambdaPowertoolsPythonV3-python313-x86_64-90c962bc-32a6-4312-9fae-f561ecb6f07d?versionId=L2Hm6EXRv4n05q71AKwHlODLsjQT1rmD&X-Amz-Security-Token=REDACTED&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20261103T170839Z&X-Amz-SignedHeaders=host&X-Amz-Expires=600&X-Amz-Credential=ASIAREDACTED%2F20261103%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Signature=REDACTED\"},\"CreatedDate\":\"2026-11-03T13:49:17.429+0000\",\"LayerArn\":\"arn:aws:lambda:us-east-2:017000801446:layer:AWSLambdaPowertoolsPythonV3-python313-x86_64\",\"CompatibleArchitectures\":[\"x86_64\"]}"
+      }
+    }
+  ]
+}

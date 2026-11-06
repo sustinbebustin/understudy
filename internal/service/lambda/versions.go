@@ -20,7 +20,7 @@ func (s *Service) bindVersions(b lambdaapi.Binder) {
 	b.ListVersionsByFunction(s.listVersionsByFunction, full())
 }
 
-func (s *Service) publishVersion(_ context.Context, c *kernel.Call, in *lambdaapi.PublishVersionInput) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
+func (s *Service) publishVersion(ctx context.Context, c *kernel.Call, in *lambdaapi.PublishVersionInput) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
 	ref, err := parseFunctionRef(c, in.FunctionName, nil)
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func (s *Service) publishVersion(_ context.Context, c *kernel.Call, in *lambdaap
 		if in.RevisionId != nil && *in.RevisionId != f.Latest.RevisionID {
 			return lambdaapi.FunctionConfiguration{}, errRevisionMismatch()
 		}
-		if err := s.retainForPublish(&f, now); err != nil {
+		if err := s.retainForPublish(ctx, &f, now); err != nil {
 			return lambdaapi.FunctionConfiguration{}, err
 		}
 		f = f.clone()
@@ -77,19 +77,17 @@ func (s *Service) nextVersion(f *Function, now clock.Instant) (code Code, status
 	return code, status, n == 0 || !unchanged(&f.Versions[n-1], f.Latest.Config, code)
 }
 
-// retainForPublish retains the package reference of the zip version
-// publishing $LATEST of f would add. It is the one step of publishing
-// that can fail, so a write runs it before it changes the state; a write
-// that changes the state first holds the reference before it starts
-// (holdForPublish).
-func (s *Service) retainForPublish(f *Function, now clock.Instant) *awserr.Error {
+// retainForPublish retains the references of the version publishing
+// $LATEST of f would add: its zip package's and one per layer of its
+// configuration. It is the one step of publishing that can fail, so a write
+// runs it before it changes the state; a write that changes the state first
+// holds the references before it starts (holdForPublish).
+func (s *Service) retainForPublish(ctx context.Context, f *Function, now clock.Instant) *awserr.Error {
 	code, _, adds := s.nextVersion(f, now)
-	if z, ok := code.(ZipCode); ok && adds {
-		if err := s.blobs.Retain(z.Blob); err != nil {
-			return awserr.Internalf(err)
-		}
+	if !adds {
+		return nil
 	}
-	return nil
+	return s.retain(ctx, append(codeRefs(code), layerBlobs(f.Latest.Config.Layers)...)...)
 }
 
 // publish snapshots $LATEST of f as a new version (nextVersion), or
@@ -197,6 +195,8 @@ const (
 	listingEventSourceMappings paging.Listing = "event-source-mappings"
 	listingEventInvokeConfigs  paging.Listing = "event-invoke-configs"
 	listingFunctionURLConfigs  paging.Listing = "function-url-configs"
+	listingLayers              paging.Listing = "layers"
+	listingLayerVersions       paging.Listing = "layer-versions"
 )
 
 // page returns the page of listing l over items, sorted by key with unique

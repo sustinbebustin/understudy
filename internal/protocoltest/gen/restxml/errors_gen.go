@@ -4,6 +4,7 @@ package restxml
 
 import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // IdentityComplexError returns the identity of aws.protocoltests.restxml#ComplexError.
@@ -16,6 +17,14 @@ func ErrComplexError(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityComplexError(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of aws.protocoltests.restxml#ComplexError.
+func (*ComplexError) ErrorIdentity() awserr.Identity { return IdentityComplexError() }
+
+// ErrComplexErrorMembers returns a ComplexError error with message, carrying v's members.
+func ErrComplexErrorMembers(message string, v ComplexError) *awserr.Error {
+	return awserr.WithMembers(&v, message, awserr.Modeled{})
+}
+
 // IdentityInvalidGreeting returns the identity of aws.protocoltests.restxml#InvalidGreeting.
 func IdentityInvalidGreeting() awserr.Identity {
 	return awserr.Identity{Shape: "aws.protocoltests.restxml#InvalidGreeting", JSONType: "InvalidGreeting", QueryCode: "InvalidGreeting", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -26,6 +35,9 @@ func ErrInvalidGreeting(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidGreeting(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of aws.protocoltests.restxml#InvalidGreeting.
+func (*InvalidGreeting) ErrorIdentity() awserr.Identity { return IdentityInvalidGreeting() }
+
 // IdentityValidationException returns the identity of com.amazon.coral.validate#ValidationException.
 func IdentityValidationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.validate#ValidationException", JSONType: "ValidationException", QueryCode: "ValidationError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -34,4 +46,23 @@ func IdentityValidationException() awserr.Identity {
 // ErrValidationException returns a ValidationException error with message.
 func ErrValidationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityValidationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.validate#ValidationException.
+func (*ValidationException) ErrorIdentity() awserr.Identity { return IdentityValidationException() }
+
+// NewErrorMembers returns a new, empty value of error shape id, to decode
+// a fault rule's members into, or false for a shape this package does not
+// generate a decoder for.
+func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	switch id {
+	case "aws.protocoltests.restxml#ComplexError":
+		return new(ComplexError), true
+	case "aws.protocoltests.restxml#InvalidGreeting":
+		return new(InvalidGreeting), true
+	case "com.amazon.coral.validate#ValidationException":
+		return new(ValidationException), true
+	default:
+		return nil, false
+	}
 }

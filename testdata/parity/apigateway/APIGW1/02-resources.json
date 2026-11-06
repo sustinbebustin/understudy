@@ -1,0 +1,32 @@
+{
+  "step": "02-resources",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/resources",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,C,AN,g,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.get-resources"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T163650Z"],
+          ["amz-sdk-invocation-id", "f3c321c3-7196-4d1b-ab35-a89451ab4adf"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:36:50 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "146"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "aa86aaa8-367c-46fb-9116-3388d416cfbd"],
+          ["x-amz-apigw-id", "GRcRdKTRiYcEdRQ="]
+        ],
+        "body": "{\"item\":[{\"id\":\"rmfy2r\",\"parentId\":\"tz0skq9gak\",\"path\":\"/items\",\"pathPart\":\"items\",\"resourceMethods\":{\"GET\":{}}},{\"id\":\"tz0skq9gak\",\"path\":\"/\"}]}\n"
+      }
+    }
+  ]
+}

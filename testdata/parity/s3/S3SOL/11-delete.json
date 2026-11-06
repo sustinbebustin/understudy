@@ -1,0 +1,31 @@
+{
+  "step": "11-delete",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://us1103-ssec-rule.s3.us-east-2.amazonaws.com/?encryption",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,AN,g,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.delete-bucket-encryption"],
+          ["X-Amz-Date", "20261103T034013Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "8541651e-120d-4aec-a891-e788f5ed66d7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 204,
+        "headers": [
+          ["x-amz-id-2", "LApPWAXNXmW/5pqAmX085lcDUhrjByM4xaqBSgAf1kg3JboqEWKvFHS1B3uv7ev9a4cOtXlA5vw="],
+          ["x-amz-request-id", "KMD6MZ362QVXSW90"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:40:14 GMT"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

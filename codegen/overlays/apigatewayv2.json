@@ -1,0 +1,58 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.apigatewayv2#ApiGatewayV2": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#throttleError": "com.amazonaws.apigatewayv2#TooManyRequestsException",
+        "dev.understudy#denialError": "com.amazonaws.apigatewayv2#AccessDeniedException",
+        "dev.understudy#validationError": {"code": "com.amazonaws.apigatewayv2#BadRequestException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "inferred",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the API Gateway v2 denial; the model's own AccessDeniedException is taken; UNVERIFIED until recording IAM-ENF-34 or APIGW2-15 (docs/research/apigateway-http.md#1416-apigw2-15-control-plane-iam-denials-and-resources, step 01 repeats IAM-ENF-34), either of which settles status, error type and text",
+            "covers": ["dev.understudy#denialError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/apigateway-http.md#23-errors: the model's only 429 shape is TooManyRequestsException while the API Reference names the 429 model LimitExceededException; which name AWS sends is UNVERIFIED until recording APIGW2-02",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "docs/research/apigateway-http.md#23-errors: a model constraint failure is BadRequestException 400, not REST's ValidationException: testdata/parity/apigatewayv2/APIGW2-01/17-timeout-over.json (TimeoutInMillis 30001, a model range) and 17b-enum-integration-type.json (IntegrationType HTTPS_PROXY, a model enum), recorded 2026-11-03. The texts are the handler's own, not Coral's; the two members below carry them",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.apigatewayv2#UpdateApi": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#successCode": 201,
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/apigatewayv2/APIGW2-03/09-update-cors.json and 13-braced-selection.json, recorded 2026-11-03 (apigateway-http.md 2.2): PATCH /v2/apis/{ApiId} answers 201 with the Api, where the model's http trait says 200"}
+      }
+    },
+    "com.amazonaws.apigatewayv2#CreateIntegrationRequest$TimeoutInMillis": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.apigatewayv2#BadRequestException", "style": "fixed", "constraints": ["range"], "reason": "Timeout should be between 50 ms and 30000 ms"},
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/apigatewayv2/APIGW2-01/17-timeout-over.json, recorded 2026-11-03 (apigateway-http.md 2.3): TimeoutInMillis 30001 answers BadRequestException 400 'Timeout should be between 50 ms and 30000 ms'"}
+      }
+    },
+    "com.amazonaws.apigatewayv2#UpdateIntegrationRequest$TimeoutInMillis": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.apigatewayv2#BadRequestException", "style": "fixed", "constraints": ["range"], "reason": "Timeout should be between 50 ms and 30000 ms"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/apigatewayv2/APIGW2-01/17-timeout-over.json recorded CreateIntegration's text, 2026-11-03 (apigateway-http.md 2.3); UpdateIntegration is taken to check the same member alike"}
+      }
+    },
+    "com.amazonaws.apigatewayv2#CreateIntegrationRequest$IntegrationType": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/apigatewayv2/APIGW2-01/17b-enum-integration-type.json, recorded 2026-11-03 (apigateway-http.md 2.3): IntegrationType HTTPS_PROXY answers BadRequestException 400 'IntegrationType is a required parameter for creating integration.', the unknown value dropped, so the handler answers it"}
+      }
+    }
+  }
+}

@@ -29,9 +29,10 @@ func TestCopyRecomputesCompositeChecksum(t *testing.T) {
 	}
 	so := &Object{
 		Blob: ref, Size: size, ETag: "5d41402abc4b2a76b9719d911017c592",
-		Checksum: StoredChecksum{Algorithm: checksum.CRC32.String(), Value: "AAAAAA==-2", Type: s3api.ChecksumTypeComposite},
+		Checksum:   StoredChecksum{Algorithm: checksum.CRC32.String(), Value: "AAAAAA==-2", Type: s3api.ChecksumTypeComposite},
+		Encryption: SSES3Encryption{},
 	}
-	obj, aerr := (&Service{}).copied(blobs, so, copyRequest{}, &s3api.CopyObjectInput{}, Encryption{})
+	obj, aerr := (&Service{}).copied(blobs, so, copyRequest{}, &s3api.CopyObjectInput{}, SSES3Encryption{})
 	if aerr != nil {
 		t.Fatal(aerr)
 	}

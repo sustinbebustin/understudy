@@ -49,5 +49,7 @@
 //   - Export writes JSON with encoding/json in the {"kind": ...} tagged-union
 //     shape, because the dependency rules keep jsonx out of this package.
 //     Snapshots therefore hold minted secrets, which signature verification
-//     needs after a load.
+//     needs after a load. They also hold each role session's
+//     SessionAttributes, which IAM evaluation reads (iam-evaluation.md 2.7,
+//     8.1), so a loaded session keeps its session policies and tags.
 package identity

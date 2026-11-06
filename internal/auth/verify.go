@@ -257,7 +257,8 @@ func Verify(a SigV4Header, req Normalized, secret string, wallNow time.Time, v V
 // signed, the emulator instant it was signed at, plus X-Amz-Expires, so
 // advancing the clock expires it and a URL signed after an advance lives
 // its full lifetime. A request time more than 15 minutes ahead of wallNow
-// is not yet valid (lambda-runtime-contract.md 3 row 10). Every x-amz-*
+// is not yet valid (lambda-runtime-contract.md 3 row 10,
+// testdata/parity/s3/R18/01-presign-date-16min-future.json). Every x-amz-*
 // header the request carries must be signed, and no signed header may
 // differ from a query parameter of the same name
 // (sigv4-checksums-endpoints.md 2.1). The conflict is judged only once the
@@ -265,7 +266,7 @@ func Verify(a SigV4Header, req Normalized, secret string, wallNow time.Time, v V
 // test_s3_put_presigned_url_same_header_and_qs_parameter).
 func VerifyPresignedSince(a SigV4Query, req Normalized, secret string, wallNow time.Time, signed, emuNow clock.Instant, v Vocabulary) *awserr.Error {
 	if a.Time.After(wallNow.Add(skewWindow)) {
-		return notYetCurrent(a.Time, iso(a.Time), wallNow, v)
+		return presignedNotYetValid(a, wallNow, v)
 	}
 	if expiry := signed.Add(a.Expires); !emuNow.Before(expiry) {
 		lifetime := awserr.Field{Name: qExpires, Value: strconv.FormatInt(int64(a.Expires/time.Second), 10)}
@@ -310,13 +311,34 @@ func checkSkew(t time.Time, sent string, wallNow time.Time, v Vocabulary) *awser
 }
 
 // notYetCurrent is the answer to a request time ahead of the window. S3's
-// answer for a presigned URL dated in the future is UNVERIFIED; it gets
-// S3's skew answer.
+// answer for a header-signed request dated in the future is UNVERIFIED; it
+// gets S3's skew answer, as one dated in the past does
+// (testdata/parity/s3/R18/02-s3-skew-16min.json).
 func notYetCurrent(t time.Time, sent string, wallNow time.Time, v Vocabulary) *awserr.Error {
 	if v.Dialect == S3Dialect {
 		return tooSkewed(sent, wallNow, v)
 	}
 	return failure(v.Skewed, "Signature not yet current: "+iso(t)+" is still later than "+iso(wallNow.Add(skewWindow))+" ("+iso(wallNow)+" + 15 min.)")
+}
+
+// presignedNotYetValid is the answer to a presigned URL dated more than 15
+// minutes ahead of wallNow. S3 answers it with an expired URL's identity,
+// AccessDenied, "Request is not yet valid", X-Amz-Date in epoch
+// milliseconds, the expiry the URL's own date and lifetime give, and the
+// server time (testdata/parity/s3/R18/01-presign-date-16min-future.json).
+// The Coral services' answer to a presigned URL is unrecorded; they get
+// their skew answer.
+func presignedNotYetValid(a SigV4Query, wallNow time.Time, v Vocabulary) *awserr.Error {
+	if v.Dialect != S3Dialect {
+		return notYetCurrent(a.Time, iso(a.Time), wallNow, v)
+	}
+	err := failure(v.Expired, "Request is not yet valid")
+	err.Fields = []awserr.Field{
+		{Name: qDate, Value: strconv.FormatInt(a.Time.UnixMilli(), 10)},
+		{Name: "Expires", Value: s3Time(a.Time.Add(a.Expires))},
+		{Name: "ServerTime", Value: s3Time(wallNow)},
+	}
+	return err
 }
 
 // tooSkewed is S3's RequestTimeTooSkewed answer. The text and elements are
@@ -350,17 +372,31 @@ func expired(expiry time.Time, emuNow clock.Instant, v Vocabulary, lifetime ...a
 	return err
 }
 
+// s3UnsignedExempt reports whether S3 lets a presigned request carry the
+// lower-case x-amz-* header name unsigned: the SSE-C key and its MD5. With
+// all three SSE-C headers unsigned S3 named only the algorithm (S3SOL-09
+// 09-presign-unsigned-ssec, recorded 2026-11-03; s3-ssec-object-lock.md
+// 3.10), and it names every unsigned header it does refuse
+// (error-matrix.md 5.4 T8).
+func s3UnsignedExempt(name string) bool {
+	return name == "x-amz-server-side-encryption-customer-key" || name == "x-amz-server-side-encryption-customer-key-md5"
+}
+
 // checkAllAmzHeadersSigned refuses a presigned request carrying x-amz-*
 // headers it did not sign, naming them as S3 does: sorted, joined with ", "
 // (error-matrix.md 5.4 T8). S3 names them in its HeadersNotSigned element;
 // no recording shows a Coral answer, so the Coral text, which names them in
 // the message since Coral has no such member, is understudy's own
-// (UNVERIFIED). No x-amz-* header is exempt; no recording shows S3 exempting
-// one.
+// (UNVERIFIED). S3 exempts the SSE-C key and its MD5 (s3UnsignedExempt);
+// every other x-amz-* header must be signed.
 func checkAllAmzHeadersSigned(req Normalized, signed []string, v Vocabulary) *awserr.Error {
 	var unsigned []string
 	for name := range req.Header {
-		if lower := strings.ToLower(name); strings.HasPrefix(lower, "x-amz-") && !slices.Contains(signed, lower) {
+		lower := strings.ToLower(name)
+		if v.Dialect == S3Dialect && s3UnsignedExempt(lower) {
+			continue
+		}
+		if strings.HasPrefix(lower, "x-amz-") && !slices.Contains(signed, lower) {
 			unsigned = append(unsigned, lower)
 		}
 	}

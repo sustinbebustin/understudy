@@ -1,0 +1,405 @@
+package asl
+
+import (
+	"slices"
+	"time"
+
+	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
+	"github.com/sustinbebustin/understudy/internal/service/sfn/asl/intrinsic"
+)
+
+// maxHistoryEvents is the history quota of a Standard execution
+// (stepfunctions-asl.md 11.1, aws-doc dg/service-quotas).
+const maxHistoryEvents = 25_000
+
+// HistoryLimitCause is the cause of the States.Runtime that ends an
+// execution at maxHistoryEvents, without the 4.6 prefix (ASL-16, recorded
+// 2026-11-03).
+const HistoryLimitCause = "The execution reached the maximum number of history events (25000)."
+
+// stepMargin is how many events a state step leaves room for before it
+// starts: its entered and exited events and the execution's last. ASL-16
+// recorded the failure as event 25,000 in place of the next state's entered
+// event, after an exited event at 24,999 (recorded 2026-11-03).
+const stepMargin = 3
+
+// taskMargin is stepMargin for a Task, which writes its entered,
+// scheduled, started, result and exited events before the execution's
+// last, so it never passes the limit; where AWS stops a Task near the
+// limit is unrecorded (inferred, ASL-16).
+const taskMargin = 6
+
+// errRuntime is the name of the terminal runtime error
+// (stepfunctions-asl.md 8.1).
+const errRuntime = "States.Runtime"
+
+// errDataLimit is the error of state data over maxDataBytes
+// (stepfunctions-asl.md 8.5).
+const errDataLimit = "States.DataLimitExceeded"
+
+// maxDataBytes is the UTF-8 size limit on state input and output
+// (stepfunctions-asl.md 12, aws-doc dg/service-quotas).
+const maxDataBytes = 262_144
+
+// Step applies ev to x and returns the new execution, the history events it
+// wrote (ids continuing from x's last) and the effects, in order. It is
+// pure: equal arguments give equal results. An event that does not apply (a
+// timer or task x does not know, anything after the outcome) returns x
+// unchanged with no events or effects.
+//
+// LambdaSucceeded and LambdaFailed apply only to a task in flight: a late
+// result after the task timed out is dropped (stepfunctions-asl.md 9.1).
+// MachineDeleting writes no event and asks for nothing: under
+// Rules.EndOnDelete it marks the execution, which fails at its next
+// transition instead of taking it (machineDeleted).
+func Step(d *Definition, rules Rules, src intrinsic.Source, x Execution, ev Event) (Execution, []HistoryEvent, []Effect) {
+	if _, done := x.Outcome(); done {
+		return x, nil, nil
+	}
+	if _, isStart := ev.(Start); isStart == x.started {
+		// Start applies only before the execution started, everything
+		// else only after.
+		return x, nil, nil
+	}
+	s := stepper{d: d, rules: rules, src: src, x: x}
+	s.x.timers = slices.Clone(x.timers)
+	s.x.tasks = slices.Clone(x.tasks)
+	s.x.runs = slices.Clone(x.runs)
+	for i := range s.x.runs {
+		// A run's results change in place; x keeps its own.
+		s.x.runs[i].results = slices.Clone(x.runs[i].results)
+	}
+	switch ev := ev.(type) {
+	case Start:
+		s.start(ev)
+	case TimerFired:
+		i := slices.IndexFunc(x.timers, func(t armed) bool { return t.id == ev.Timer })
+		if i < 0 {
+			return x, nil, nil
+		}
+		fired := s.x.timers[i]
+		s.x.timers = slices.Delete(s.x.timers, i, i+1)
+		s.at = ev.At
+		if _, deadline := fired.job.(deadlineJob); s.x.deleting && !deadline {
+			s.machineDeleted()
+			break
+		}
+		s.run(fired.job)
+	case LambdaSucceeded:
+		t, applies, ok := s.answered(ev.Task, ev.At)
+		if !applies {
+			return x, nil, nil
+		}
+		if ok {
+			s.lambdaSucceeded(t, ev.Output)
+		}
+	case LambdaFailed:
+		t, applies, ok := s.answered(ev.Task, ev.At)
+		if !applies {
+			return x, nil, nil
+		}
+		if ok {
+			s.taskError(t, "Failed", ev.Err)
+		}
+	case Stop:
+		s.at = ev.At
+		s.abort(ev.Error, ev.Cause)
+	case MachineDeleting:
+		if !rules.EndOnDelete || x.deleting {
+			return x, nil, nil
+		}
+		s.x.deleting = true
+	default:
+		return x, nil, nil
+	}
+	return s.x, s.events, s.effects()
+}
+
+// stepper is one Step in progress: the execution it changes, the instant
+// its events carry, the frame it runs in, and what it writes.
+type stepper struct {
+	d       *Definition
+	rules   Rules
+	src     intrinsic.Source
+	x       Execution
+	at      time.Time
+	fr      frame
+	events  []HistoryEvent
+	cancels []Effect
+	allocs  []Effect
+	finish  []Effect
+}
+
+// effects are the step's effects in contract order: cancellations, then
+// timers and invocations in allocation order, then Finish.
+func (s *stepper) effects() []Effect {
+	return slices.Concat(s.cancels, s.allocs, s.finish)
+}
+
+// emit writes one history event and returns its id.
+func (s *stepper) emit(typ string, previous int64, details document.Value) int64 {
+	s.x.lastEvent++
+	s.events = append(s.events, HistoryEvent{ID: s.x.lastEvent, PreviousEventID: previous, Type: typ, Timestamp: s.at, Details: details})
+	return s.x.lastEvent
+}
+
+// arm arms a timer for j at at.
+func (s *stepper) arm(at time.Time, j job) {
+	s.x.lastTimer++
+	s.x.timers = append(s.x.timers, armed{id: s.x.lastTimer, at: at, job: j})
+	s.allocs = append(s.allocs, ArmTimer{Timer: s.x.lastTimer, At: at})
+}
+
+// end records the outcome, withdraws every armed timer and finishes.
+func (s *stepper) end(o Outcome) {
+	for _, t := range s.x.timers {
+		s.cancels = append(s.cancels, CancelTimer{Timer: t.id})
+	}
+	s.x.timers = nil
+	s.x.tasks = nil
+	s.x.runs = nil
+	s.x.outcome = o
+	s.finish = []Effect{Finish{Outcome: o}}
+}
+
+func (s *stepper) start(ev Start) {
+	s.at = ev.At
+	s.x.started = true
+	s.x.context = ev.Context
+	s.x.jitterSeed = ev.Jitter
+	input := ev.Input
+	if input == nil {
+		input = document.Null{}
+	}
+	details := document.Map{
+		{Key: "input", Value: document.String(text(input))},
+		{Key: "inputDetails", Value: untruncated()},
+	}
+	if role, ok := at(at(ev.Context, "Execution"), "RoleArn").(document.String); ok {
+		details = append(details, document.Entry{Key: "roleArn", Value: role})
+	}
+	s.emit("ExecutionStarted", 0, details)
+	s.arm(ev.At, stepJob{state: s.d.startAt, input: input, previous: 0})
+	s.arm(ev.At.Add(s.d.limit()), deadlineJob{})
+}
+
+// run does what a fired timer's job asks, in the job's frame.
+func (s *stepper) run(j job) {
+	switch j := j.(type) {
+	case stepJob:
+		s.fr = j.fr
+		s.step(j)
+	case waitJob:
+		s.fr = j.fr
+		s.waitExit(j)
+	case deadlineJob:
+		s.timedOut()
+	case taskTimeoutJob:
+		// The timer is the task's own, so the task is in flight.
+		if t, _, ok := s.takeTask(j.task); ok {
+			s.fr = t.fr
+			s.taskError(t, "TimedOut", StateError{Name: errTimeout})
+		}
+	case retryJob:
+		s.fr = j.fr
+		s.retry(j)
+	case runRetryJob:
+		s.fr = j.fr
+		s.runRetry(j)
+	}
+}
+
+// maxExecution is the longest a Standard execution runs: one year
+// (stepfunctions-asl.md 3.1, aws-doc dg/service-quotas "Maximum execution
+// time"). AWS's length of that year is unrecorded; understudy takes 365
+// days (inferred, ASL-09).
+const maxExecution = 365 * 24 * time.Hour
+
+// limit is how long an execution of d may run: its TimeoutSeconds, at most
+// maxExecution.
+func (d *Definition) limit() time.Duration {
+	if d.timeoutSeconds > 0 && time.Duration(d.timeoutSeconds)*time.Second < maxExecution {
+		return time.Duration(d.timeoutSeconds) * time.Second
+	}
+	return maxExecution
+}
+
+// timedOut ends the execution TIMED_OUT at its deadline. DescribeExecution
+// then has no error or cause (stepfunctions-asl.md 8.6; aws-recorded
+// localstack@8b9a79f v2/timeouts/test_timeouts.snapshot.json:L688-L708),
+// while ExecutionTimedOut's details are {"error":"States.Timeout"} with no
+// cause. Its previousEventId is 0, as ExecutionAborted's from
+// StopExecution is, and a running Wait writes no WaitStateAborted (ASL-12,
+// recorded 2026-11-03).
+func (s *stepper) timedOut() {
+	s.emit("ExecutionTimedOut", 0, errorDetails(errTimeout, ""))
+	s.end(TimedOut{})
+}
+
+// abort ends the execution ABORTED: ExecutionAborted has previousEventId 0
+// and {error?, cause?} (stepfunctions-asl.md 11.2 rule 10, 11.3).
+func (s *stepper) abort(name, cause string) {
+	s.emit("ExecutionAborted", 0, errorDetails(name, cause))
+	s.end(Aborted{Error: name, Cause: cause})
+}
+
+// machineDeleted ends an execution whose machine was deleted, at its next
+// transition: FAILED with States.Runtime and a cause naming the machine,
+// ExecutionFailed pointing at the last event (SFN-06, recorded 2026-11-03;
+// stepfunctions-api.md 5.4).
+func (s *stepper) machineDeleted() {
+	name := ""
+	if n, ok := at(at(s.x.context, "StateMachine"), "Name").(document.String); ok {
+		name = string(n)
+	}
+	s.fail(errRuntime, "State machine "+name+" has been deleted", s.x.lastEvent)
+}
+
+// step runs one state transition (contract 5.5 item 2).
+func (s *stepper) step(j stepJob) {
+	margin := int64(stepMargin)
+	if _, isTask := s.d.states[j.state].(taskState); isTask {
+		margin = taskMargin
+	}
+	if s.x.lastEvent+margin > maxHistoryEvents {
+		s.fail(errRuntime, HistoryLimitCause, s.x.lastEvent)
+		return
+	}
+	switch st := s.d.states[j.state].(type) {
+	case passState:
+		entered := s.emit("PassStateEntered", j.previous, stateEntered(st.name, j.input))
+		output, f := s.pass(st, j.input)
+		if f == nil {
+			f = dataLimit(st.name, output)
+		}
+		if f != nil {
+			s.stateFailed(st.name, entered, f)
+			return
+		}
+		exited := s.emit("PassStateExited", entered, stateExited(st.name, output))
+		s.transition(st.next, output, exited)
+	case succeedState:
+		entered := s.emit("SucceedStateEntered", j.previous, stateEntered(st.name, j.input))
+		output, f := s.passThrough(st.name, st.io, j.input)
+		if f == nil {
+			f = dataLimit(st.name, output)
+		}
+		if f != nil {
+			s.stateFailed(st.name, entered, f)
+			return
+		}
+		exited := s.emit("SucceedStateExited", entered, stateExited(st.name, output))
+		s.scopeDone(output, exited)
+	case failState:
+		entered := s.emit("FailStateEntered", j.previous, stateEntered(st.name, j.input))
+		name, cause, f := s.failMessages(st, j.input)
+		if f != nil {
+			s.stateFailed(st.name, entered, f)
+			return
+		}
+		// Inside a branch or iteration the error becomes the enclosing
+		// state's, which Retry and Catch see (stepfunctions-asl.md 7.2).
+		s.raise(StateError{Name: name, Cause: cause}, entered)
+	case choiceState:
+		s.choice(st, j)
+	case waitState:
+		s.wait(st, j)
+	case taskState:
+		s.task(st, j)
+	case parallelState:
+		entered := s.emit("ParallelStateEntered", j.previous, stateEntered(st.name, j.input))
+		s.startRun(st, visit{fr: s.fr, state: st.name, input: j.input, enteredAt: s.at, entered: entered}, entered)
+	case mapState:
+		entered := s.emit("MapStateEntered", j.previous, stateEntered(st.name, j.input))
+		s.startRun(st, visit{fr: s.fr, state: st.name, input: j.input, enteredAt: s.at, entered: entered}, entered)
+	case nil:
+		// Parse admits no transition to a missing state; a definition that
+		// lacks one was changed under a running execution.
+		s.fail(errRuntime, "The state '"+j.state+"' is not in the definition the execution runs.", j.previous)
+	}
+}
+
+// transition moves to next on output in the step's frame, or ends the
+// frame when next is "".
+func (s *stepper) transition(next string, output document.Value, previous int64) {
+	if next == "" {
+		s.scopeDone(output, previous)
+		return
+	}
+	s.arm(s.at, stepJob{fr: s.fr, state: next, input: output, previous: previous})
+}
+
+func (s *stepper) succeed(output document.Value, previous int64) {
+	s.emit("ExecutionSucceeded", previous, document.Map{
+		{Key: "output", Value: document.String(text(output))},
+		{Key: "outputDetails", Value: untruncated()},
+	})
+	s.end(Succeeded{Output: output})
+}
+
+// fail ends the execution FAILED; an empty error or cause leaves its key
+// out (stepfunctions-asl.md 11.3).
+func (s *stepper) fail(name, cause string, previous int64) {
+	s.emit("ExecutionFailed", previous, errorDetails(name, cause))
+	s.end(Failed{Error: name, Cause: cause})
+}
+
+// errorDetails are {error?, cause?}.
+func errorDetails(name, cause string) document.Map {
+	m := document.Map{}
+	if name != "" {
+		m = append(m, document.Entry{Key: "error", Value: document.String(name)})
+	}
+	if cause != "" {
+		m = append(m, document.Entry{Key: "cause", Value: document.String(cause)})
+	}
+	return m
+}
+
+func stateEntered(name string, input document.Value) document.Map {
+	return document.Map{
+		{Key: "name", Value: document.String(name)},
+		{Key: "input", Value: document.String(text(input))},
+		{Key: "inputDetails", Value: untruncated()},
+	}
+}
+
+func stateExited(name string, output document.Value) document.Map {
+	return document.Map{
+		{Key: "name", Value: document.String(name)},
+		{Key: "output", Value: document.String(text(output))},
+		{Key: "outputDetails", Value: untruncated()},
+	}
+}
+
+// untruncated is a HistoryEventExecutionDataDetails of data shown whole.
+func untruncated() document.Map {
+	return document.Map{{Key: "truncated", Value: document.Bool(false)}}
+}
+
+// at reads the member key of v; nil when v is not an object or lacks it.
+func at(v document.Value, key string) document.Value {
+	m, ok := v.(document.Map)
+	if !ok {
+		return nil
+	}
+	out, _ := member(m, key)
+	return out
+}
+
+// text is the compact JSON text of v, members in document order; nil is
+// null.
+func text(v document.Value) string {
+	if v == nil {
+		v = document.Null{}
+	}
+	e := jsonx.NewEncoder(jsonx.WireOrder)
+	e.Value(v)
+	b, err := e.Bytes()
+	if err != nil {
+		// Encoder.Value fails only for a nil value, which is null here.
+		return "null"
+	}
+	return string(b)
+}

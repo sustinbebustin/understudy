@@ -1,0 +1,35 @@
+{
+  "step": "05-default-policy",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the CreateEventBus operation: Access to call kms:GenerateDataKey is denied. Reason: events.amazonaws.com is not authorized to perform: kms:GenerateDataKey on arn:aws:kms:us-east-2:123456789012:key/e210730e-c26d-4850-a13d-fab031e5efa0 because the resource does not exist in this Region, no resource-based policies allow access, or a resource-based policy explicitly denies access",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.CreateEventBus"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,Z,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.create-event-bus"],
+          ["X-Amz-Date", "20261103T163602Z"],
+          ["amz-sdk-invocation-id", "2b7489cd-0ca6-41e4-a05e-8c88f7979bbb"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "120"]
+        ],
+        "body": "{\"Name\": \"us1103-k0\", \"KmsKeyIdentifier\": \"arn:aws:kms:us-east-2:123456789012:key/e210730e-c26d-4850-a13d-fab031e5efa0\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "77074583-5387-4b83-8728-68e91a40f56c"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "395"],
+          ["Date", "Tue, 03 Nov 2026 16:36:02 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"AccessDeniedException\",\"Message\":\"Access to call kms:GenerateDataKey is denied. Reason: events.amazonaws.com is not authorized to perform: kms:GenerateDataKey on arn:aws:kms:us-east-2:123456789012:key/e210730e-c26d-4850-a13d-fab031e5efa0 because the resource does not exist in this Region, no resource-based policies allow access, or a resource-based policy explicitly denies access\"}"
+      }
+    }
+  ]
+}

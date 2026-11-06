@@ -1,0 +1,38 @@
+{
+  "step": "04-update-api",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the UpdateApi operation: User: arn:aws:sts::123456789012:assumed-role/us1103-gw-caller/gw15 is not authorized to perform: apigateway:PATCH on resource: arn:aws:apigateway:us-east-2::/apis/hl9cpb8a0a because no identity-based policy allows the apigateway:PATCH action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PATCH",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/hl9cpb8a0a",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,g,E,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.update-api"],
+          ["X-Amz-Date", "20261103T165055Z"],
+          ["amz-sdk-invocation-id", "fe4594a1-3a80-4728-90a0-9bd0a19481f8"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "20"]
+        ],
+        "body": "{\"description\": \"x\"}"
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:50:55 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "255"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "464a5388-35e7-44dc-a91a-9ffed6d2ff49"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "AccessDeniedException"],
+          ["x-amz-apigw-id", "GReVjErvCYcED5w="],
+          ["X-Amzn-Trace-Id", "Root=1-6aea10ef-73ad74f97fdd0a9d65fc5c0d"]
+        ],
+        "body": "{\"message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-gw-caller/gw15 is not authorized to perform: apigateway:PATCH on resource: arn:aws:apigateway:us-east-2::/apis/hl9cpb8a0a because no identity-based policy allows the apigateway:PATCH action\"}"
+      }
+    }
+  ]
+}

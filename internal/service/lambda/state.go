@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base32"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -14,18 +15,31 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
+	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 1
+// stateVersion is the schema version of State in snapshot sections. Version
+// 2 added Mapping.SourceKind, version 3 the layer store, and version 4
+// moved an SQS mapping's scaling into its source kind and saves stream
+// checkpoints. A version 3 section is migrated on import
+// (migrateUnkindedScaling); a section of an earlier version is refused
+// (ADR 0009).
+const stateVersion = 4
+
+// stateVersionUnkindedScaling is the version whose mappings hold their
+// scaling beside their source kind, which Import still reads.
+const stateVersionUnkindedScaling = 3
 
 // State is the Lambda state of one account and region: its functions by
-// name and its event source mappings by UUID. Records are values replaced
-// on change; a value read out of a cell is always a copy.
+// name, its event source mappings by UUID and its layers by name. Records
+// are values replaced on change; a value read out of a cell is always a
+// copy.
 type State struct {
 	Functions map[string]Function `json:"functions,omitempty"`
 	Mappings  map[string]Mapping  `json:"mappings,omitempty"`
+	Layers    map[string]Layer    `json:"layers,omitempty"`
 	// Serial counts the identifiers the scope has minted (revision ids,
 	// function URL ids); each is derived from the scope and its serial, so
 	// none repeats until the scope is reset.
@@ -34,6 +48,11 @@ type State struct {
 	// directly or with their alias or function, which a request then finds
 	// forbidden rather than unknown, as on AWS.
 	RetiredURLs map[string]bool `json:"retiredUrls,omitempty"`
+	// Checkpoints are where each stream mapping's reader resumes, by
+	// mapping UUID, one per shard read so far. A mapping without one reads
+	// from its StartingPosition. Saved, so a loaded mapping resumes where
+	// it stopped (lambda-stream-sources.md 12.3 item 4).
+	Checkpoints map[string][]esm.Checkpoint `json:"checkpoints,omitempty"`
 }
 
 func newState(aws.Scope) State {
@@ -42,9 +61,10 @@ func newState(aws.Scope) State {
 
 // IsZero reports whether the scope holds nothing, which snapshots skip. A scope
 // that minted identifiers is not empty even once its functions are gone:
-// its serial and retired URL ids keep later ids from repeating them.
+// its serial and retired URL ids keep later ids from repeating them, as a
+// layer whose versions are all deleted keeps its numbering.
 func (s *State) IsZero() bool {
-	return len(s.Functions) == 0 && len(s.Mappings) == 0 && s.Serial == 0 && len(s.RetiredURLs) == 0
+	return len(s.Functions) == 0 && len(s.Mappings) == 0 && len(s.Layers) == 0 && s.Serial == 0 && len(s.RetiredURLs) == 0
 }
 
 // Partitioned finds IsZero and BlobRefs by type assertions; these keep a
@@ -54,12 +74,18 @@ var (
 	_ store.BlobHolder = (*State)(nil)
 )
 
-// BlobRefs lists one entry per reference the state holds on a zip package:
-// one per version whose code is a zip.
+// BlobRefs lists one entry per reference the state holds on a zip archive:
+// those of every function version (Version.blobRefs) and one per stored
+// layer version.
 func (s *State) BlobRefs() []string {
 	var refs []string
 	for _, name := range slices.Sorted(maps.Keys(s.Functions)) {
-		for _, ref := range s.Functions[name].zipRefs() {
+		for _, ref := range s.Functions[name].blobRefs() {
+			refs = append(refs, ref.String())
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(s.Layers)) {
+		for _, ref := range s.Layers[name].blobRefs() {
 			refs = append(refs, ref.String())
 		}
 	}
@@ -74,6 +100,34 @@ func (s *State) retireURLs(urls ...URLConfig) {
 		}
 		s.RetiredURLs[u.ID] = true
 	}
+}
+
+// checkpoint is where mapping uuid's reader resumes shard; nil when it has
+// no checkpoint there.
+func (s *State) checkpoint(uuid, shard string) shardlog.Position {
+	for _, c := range s.Checkpoints[uuid] {
+		if c.Shard == shard {
+			return c.Next
+		}
+	}
+	return nil
+}
+
+// setCheckpoint moves mapping uuid's checkpoint of shard to next. The
+// slice is replaced, never written in place: a State read out of a cell
+// shares it with the stored value.
+func (s *State) setCheckpoint(uuid, shard string, next shardlog.Position) {
+	if s.Checkpoints == nil {
+		s.Checkpoints = map[string][]esm.Checkpoint{}
+	}
+	cps := slices.DeleteFunc(slices.Clone(s.Checkpoints[uuid]), func(c esm.Checkpoint) bool { return c.Shard == shard })
+	s.Checkpoints[uuid] = append(cps, esm.Checkpoint{Shard: shard, Next: next})
+}
+
+// dropMapping removes mapping uuid and its checkpoints.
+func (s *State) dropMapping(uuid string) {
+	delete(s.Mappings, uuid)
+	delete(s.Checkpoints, uuid)
 }
 
 // mint derives a new identifier of the scope from its serial and purpose:
@@ -174,18 +228,14 @@ func (f Function) withRevision(q, rev string) Function {
 	return f
 }
 
-// zipRefs lists the blob reference of every version whose code is a zip,
-// and of the zip an update in progress replaced.
-func (f Function) zipRefs() []blob.Ref {
+// blobRefs lists the blob references every version of f holds.
+func (f Function) blobRefs() []blob.Ref {
+	var refs []blob.Ref
 	versions := f.all()
-	codes := make([]Code, 0, len(versions))
 	for i := range versions {
-		codes = append(codes, versions[i].Code)
-		if replaced := versions[i].replacedCode(); replaced != nil {
-			codes = append(codes, replaced)
-		}
+		refs = append(refs, versions[i].blobRefs()...)
 	}
-	return codeRefs(codes...)
+	return refs
 }
 
 // all lists $LATEST and then the published versions, oldest first.
@@ -264,9 +314,12 @@ type Code interface{ isCode() }
 // ZipCode is a zip package kept in the blob store.
 type ZipCode struct {
 	// Sha256 is CodeSha256: the base64 SHA-256 of the package.
-	Sha256 string   `json:"sha256"`
-	Size   int64    `json:"size"`
-	Blob   blob.Ref `json:"blob"`
+	Sha256 string `json:"sha256"`
+	Size   int64  `json:"size"`
+	// Unzipped is the sum of the entries' uncompressed sizes, which the
+	// function's layers add to (checkCodeWithLayers).
+	Unzipped int64    `json:"unzipped"`
+	Blob     blob.Ref `json:"blob"`
 }
 
 // ImageCode is a container image.
@@ -363,15 +416,33 @@ func (v Version) serving(generation uint64) (runs Version, runsGeneration uint64
 	return v, u.Serving.Generation
 }
 
-// replacedCode is the code an update in progress keeps for the
-// invocations it serves, nil when there is none.
-func (v Version) replacedCode() Code {
+// updating is the update in progress on v; false when there is none.
+func (v Version) updating() (Updating, bool) {
 	if a, ok := v.Status.(Active); ok {
 		if u, ok := a.Update.(Updating); ok {
-			return u.Serving.Code
+			return u, true
 		}
 	}
-	return nil
+	return Updating{}, false
+}
+
+// blobRefs lists the blob references v holds: its zip package's, one per
+// layer its configuration lists, and while an update is in progress those
+// of what the update serves (Serving.blobRefs).
+func (v Version) blobRefs() []blob.Ref {
+	refs := append(codeRefs(v.Code), layerBlobs(v.Config.Layers)...)
+	if u, ok := v.updating(); ok {
+		refs = append(refs, u.Serving.blobRefs()...)
+	}
+	return refs
+}
+
+// blobRefs lists the blob references an update in progress holds for the
+// invocations it serves until it settles: the package an UpdateFunctionCode
+// replaced, and one per layer of the configuration it serves, which
+// updateLatest takes when the update starts.
+func (s Serving) blobRefs() []blob.Ref {
+	return append(codeRefs(s.Code), layerBlobs(s.Config.Layers)...)
 }
 
 // UpdatingImage is a code update to Pending's image, applied once the
@@ -441,13 +512,58 @@ type Cors struct {
 }
 
 // EventInvokeConfig is an asynchronous invocation configuration. The
-// asynchronous queue applies its limits; its destinations are stored only.
+// asynchronous queue applies its limits and sends records to its
+// destinations (async.go).
 type EventInvokeConfig struct {
 	MaximumRetryAttempts     *int32        `json:"maximumRetryAttempts,omitempty"`
 	MaximumEventAgeInSeconds *int32        `json:"maximumEventAgeInSeconds,omitempty"`
 	OnSuccess                string        `json:"onSuccess,omitempty"`
 	OnFailure                string        `json:"onFailure,omitempty"`
 	Modified                 clock.Instant `json:"modified"`
+}
+
+// migrateUnkindedScaling rewrites the data of a version 3 section as
+// version 4: each SQS mapping's scaling member moves into its source kind,
+// and a stream mapping's, always unbounded, is dropped (spec conflict row
+// 6). A version 3 section saved no stream checkpoints, so any stream
+// mappings in it read again from their StartingPosition. The layer store
+// is carried over unchanged.
+func migrateUnkindedScaling(data []byte) ([]byte, error) {
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, fmt.Errorf("migrating a version %d lambda section: %w", stateVersionUnkindedScaling, err)
+	}
+	raw, ok := doc["mappings"]
+	if !ok {
+		return data, nil
+	}
+	var mappings map[string]map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &mappings); err != nil {
+		return nil, fmt.Errorf("migrating a version %d lambda section's mappings: %w", stateVersionUnkindedScaling, err)
+	}
+	for uuid, m := range mappings {
+		scaling, has := m["scaling"]
+		delete(m, "scaling")
+		var kind map[string]json.RawMessage
+		if err := json.Unmarshal(m["sourceKind"], &kind); err != nil {
+			return nil, fmt.Errorf("migrating mapping %s of a version %d lambda section: sourceKind: %w", uuid, stateVersionUnkindedScaling, err)
+		}
+		if !has || string(kind[jsonx.KindKey]) != `"sqs"` {
+			continue
+		}
+		kind["scaling"] = scaling
+		rekinded, err := json.Marshal(kind)
+		if err != nil {
+			return nil, err
+		}
+		m["sourceKind"] = rekinded
+	}
+	enc, err := json.Marshal(mappings)
+	if err != nil {
+		return nil, err
+	}
+	doc["mappings"] = enc
+	return json.Marshal(doc)
 }
 
 // stateCodec is the codec of State: the tagged-union tables of its sums.
@@ -490,13 +606,60 @@ func unions() (jsonx.Codec, error) {
 	if err != nil {
 		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
 	}
-	scaling, err := jsonx.NewUnion("lambda.Scaling",
-		jsonx.Variant[Scaling, Unbounded]("unbounded"),
-		jsonx.Variant[Scaling, MaximumConcurrency]("maximum-concurrency"),
-		jsonx.Variant[Scaling, ProvisionedPollers]("provisioned-pollers"),
+	scaling, err := jsonx.NewUnion("esm.Scaling",
+		jsonx.Variant[esm.Scaling, esm.Unbounded]("unbounded"),
+		jsonx.Variant[esm.Scaling, esm.MaximumConcurrency]("maximum-concurrency"),
+		jsonx.Variant[esm.Scaling, esm.ProvisionedPollers]("provisioned-pollers"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
 	}
-	return jsonx.NewCodec(code, statuses, updates, scaling), nil
+	sources, err := jsonx.NewUnion("lambda.EventSourceKind",
+		jsonx.Variant[esm.EventSourceKind, esm.SQS]("sqs"),
+		jsonx.Variant[esm.EventSourceKind, esm.DynamoDBStream]("dynamodb-stream"),
+		jsonx.Variant[esm.EventSourceKind, esm.KinesisStream]("kinesis-stream"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	starts, err := jsonx.NewUnion("esm.StreamStart",
+		jsonx.Variant[esm.StreamStart, esm.TrimHorizon]("trim-horizon"),
+		jsonx.Variant[esm.StreamStart, esm.Latest]("latest"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	ages, err := jsonx.NewUnion("esm.RecordAge",
+		jsonx.Variant[esm.RecordAge, esm.AnyAge]("any-age"),
+		jsonx.Variant[esm.RecordAge, esm.MaxAge]("max-age"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	retries, err := jsonx.NewUnion("esm.Retries",
+		jsonx.Variant[esm.Retries, esm.Unlimited]("unlimited"),
+		jsonx.Variant[esm.Retries, esm.Attempts]("attempts"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	failures, err := jsonx.NewUnion("esm.OnFailure",
+		jsonx.Variant[esm.OnFailure, esm.NoDestination]("none"),
+		jsonx.Variant[esm.OnFailure, esm.QueueDestination]("queue"),
+		jsonx.Variant[esm.OnFailure, esm.TopicDestination]("topic"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	positions, err := jsonx.NewUnion("shardlog.Position",
+		jsonx.Variant[shardlog.Position, shardlog.TrimHorizon]("trim-horizon"),
+		jsonx.Variant[shardlog.Position, shardlog.Latest]("latest"),
+		jsonx.Variant[shardlog.Position, shardlog.At]("at"),
+		jsonx.Variant[shardlog.Position, shardlog.After]("after"),
+		jsonx.Variant[shardlog.Position, shardlog.AtTime]("at-time"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)
+	}
+	return jsonx.NewCodec(code, statuses, updates, scaling, sources, starts, ages, retries, failures, positions), nil
 }

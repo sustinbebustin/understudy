@@ -197,12 +197,16 @@ func policyTagged(account aws.AccountID, arn string) tagged {
 	}
 }
 
-// policyTags reads the tags ListPolicyTags shows: a customer managed
-// policy's, or none for an AWS managed policy, which exists for every
-// account (unknownAWSManaged).
-func policyTags(account aws.AccountID, arn string) tagsOf {
-	if ref, ok := parsePolicyARN(arn); ok && ref.awsManaged() {
-		return func(*State) ([]Tag, aws.ARN, *awserr.Error) { return nil, ref.arn, nil }
+// policyTags reads the tags ListPolicyTags shows for arn, which named
+// resolved among the AWS managed policies: a customer managed policy's, or
+// none for a catalogued AWS managed policy, which every account sees.
+func policyTags(account aws.AccountID, arn string, named awsPolicy) tagsOf {
+	switch named := named.(type) {
+	case catalogued:
+		return func(*State) ([]Tag, aws.ARN, *awserr.Error) { return nil, named.ref.arn, nil }
+	case uncatalogued:
+		return func(*State) ([]Tag, aws.ARN, *awserr.Error) { return nil, aws.ARN{}, errNoSuchPolicy(arn) }
+	case notAWSManaged:
 	}
 	return policyTagged(account, arn).get
 }
@@ -210,32 +214,33 @@ func policyTags(account aws.AccountID, arn string) tagsOf {
 // bindTags binds the tag operations of roles, users, managed policies and
 // instance profiles.
 func (s *Service) bindTags(b iamapi.Binder) {
+	named := resolvedPartial()
 	b.TagRole(func(_ context.Context, c *kernel.Call, in *iamapi.TagRoleInput) (*iamapi.TagRoleOutput, *awserr.Error) {
 		return unit[iamapi.TagRoleOutput](s.tag(c, roleTagged(c.Scope().Account, in.RoleName), in.Tags))
-	}, registry.Full{})
+	}, named)
 	b.UntagRole(func(_ context.Context, c *kernel.Call, in *iamapi.UntagRoleInput) (*iamapi.UntagRoleOutput, *awserr.Error) {
 		return unit[iamapi.UntagRoleOutput](s.untag(c, roleTagged(c.Scope().Account, in.RoleName), in.TagKeys))
-	}, registry.Full{})
+	}, named)
 	b.ListRoleTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListRoleTagsInput) (*iamapi.ListRoleTagsOutput, *awserr.Error) {
 		p, err := s.listTags(c, "role-tags", roleTagged(c.Scope().Account, in.RoleName).get, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListRoleTagsOutput{Tags: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 	b.TagUser(func(_ context.Context, c *kernel.Call, in *iamapi.TagUserInput) (*iamapi.TagUserOutput, *awserr.Error) {
 		return unit[iamapi.TagUserOutput](s.tag(c, userTagged(c.Scope().Account, in.UserName), in.Tags))
-	}, registry.Full{})
+	}, named)
 	b.UntagUser(func(_ context.Context, c *kernel.Call, in *iamapi.UntagUserInput) (*iamapi.UntagUserOutput, *awserr.Error) {
 		return unit[iamapi.UntagUserOutput](s.untag(c, userTagged(c.Scope().Account, in.UserName), in.TagKeys))
-	}, registry.Full{})
+	}, named)
 	b.ListUserTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListUserTagsInput) (*iamapi.ListUserTagsOutput, *awserr.Error) {
 		p, err := s.listTags(c, "user-tags", userTagged(c.Scope().Account, in.UserName).get, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListUserTagsOutput{Tags: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 	b.TagPolicy(func(_ context.Context, c *kernel.Call, in *iamapi.TagPolicyInput) (*iamapi.TagPolicyOutput, *awserr.Error) {
 		return unit[iamapi.TagPolicyOutput](s.tag(c, policyTagged(c.Scope().Account, in.PolicyArn), in.Tags))
 	}, registry.Full{})
@@ -243,7 +248,11 @@ func (s *Service) bindTags(b iamapi.Binder) {
 		return unit[iamapi.UntagPolicyOutput](s.untag(c, policyTagged(c.Scope().Account, in.PolicyArn), in.TagKeys))
 	}, registry.Full{})
 	b.ListPolicyTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListPolicyTagsInput) (*iamapi.ListPolicyTagsOutput, *awserr.Error) {
-		p, err := s.listTags(c, "policy-tags", policyTags(c.Scope().Account, in.PolicyArn), in.Marker, in.MaxItems)
+		named, err := s.lookup(in.PolicyArn)
+		if err != nil {
+			return nil, err
+		}
+		p, err := s.listTags(c, "policy-tags", policyTags(c.Scope().Account, in.PolicyArn, named), in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
@@ -251,21 +260,24 @@ func (s *Service) bindTags(b iamapi.Binder) {
 	}, registry.Full{})
 	b.TagInstanceProfile(func(_ context.Context, c *kernel.Call, in *iamapi.TagInstanceProfileInput) (*iamapi.TagInstanceProfileOutput, *awserr.Error) {
 		return unit[iamapi.TagInstanceProfileOutput](s.tag(c, instanceProfileTagged(c.Scope().Account, in.InstanceProfileName), in.Tags))
-	}, registry.Full{})
+	}, named)
 	b.UntagInstanceProfile(func(_ context.Context, c *kernel.Call, in *iamapi.UntagInstanceProfileInput) (*iamapi.UntagInstanceProfileOutput, *awserr.Error) {
 		return unit[iamapi.UntagInstanceProfileOutput](s.untag(c, instanceProfileTagged(c.Scope().Account, in.InstanceProfileName), in.TagKeys))
-	}, registry.Full{})
+	}, named)
 	b.ListInstanceProfileTags(func(_ context.Context, c *kernel.Call, in *iamapi.ListInstanceProfileTagsInput) (*iamapi.ListInstanceProfileTagsOutput, *awserr.Error) {
 		p, err := s.listTags(c, "instance-profile-tags", instanceProfileTagged(c.Scope().Account, in.InstanceProfileName).get, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListInstanceProfileTagsOutput{Tags: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 }
 
 // tag adds or replaces tags on the entity e reaches.
 func (s *Service) tag(c *kernel.Call, e tagged, add []iamapi.Tag) *awserr.Error {
+	if err := s.taggedExists(c, e); err != nil {
+		return err
+	}
 	arn, err := kernel.Write(c, s.cells, c.Scope().Account, func(st *State, _ clock.Instant, _ *kernel.Tx) (aws.ARN, *awserr.Error) {
 		have, arn, err := e.get(st)
 		if err != nil {
@@ -286,6 +298,9 @@ func (s *Service) tag(c *kernel.Call, e tagged, add []iamapi.Tag) *awserr.Error 
 
 // untag removes tags from the entity e reaches.
 func (s *Service) untag(c *kernel.Call, e tagged, keys []string) *awserr.Error {
+	if err := s.taggedExists(c, e); err != nil {
+		return err
+	}
 	arn, err := kernel.Write(c, s.cells, c.Scope().Account, func(st *State, _ clock.Instant, _ *kernel.Tx) (aws.ARN, *awserr.Error) {
 		have, arn, err := e.get(st)
 		if err != nil {

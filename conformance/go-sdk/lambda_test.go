@@ -13,12 +13,16 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	ddbtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -109,7 +113,7 @@ func TestLambdaFunctionLifecycle(t *testing.T) {
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
 	acct := account(t)
-	fnName := name("fn")
+	fnName := name(t, "fn")
 	role := createRole(t, fnName+"-role", lambdaTrustPolicy)
 	code := functionZip(t, "1")
 	sum := sha256.Sum256(code)
@@ -169,7 +173,7 @@ func TestLambdaFunctionLifecycle(t *testing.T) {
 		wantMessage(t, err, "CreateFunction of an existing name", "Function already exist: "+fnName)
 
 		_, err = client.CreateFunction(ctx, &lambda.CreateFunctionInput{
-			FunctionName: aws.String(name("badrole")), Role: aws.String("r1"), Runtime: types.RuntimePython313,
+			FunctionName: aws.String(name(t, "badrole")), Role: aws.String("r1"), Runtime: types.RuntimePython313,
 			Handler: aws.String("handler.echo"), Code: &types.FunctionCode{ZipFile: code},
 		})
 		apiErr(t, err, "CreateFunction with role r1", "ValidationException")
@@ -177,14 +181,14 @@ func TestLambdaFunctionLifecycle(t *testing.T) {
 		wantMessageContains(t, err, "CreateFunction with role r1", "Value 'r1' at 'role' failed to satisfy constraint: Member must satisfy regular expression pattern: arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+")
 
 		_, err = client.CreateFunction(ctx, &lambda.CreateFunctionInput{
-			FunctionName: aws.String(name("old")), Role: role.Arn, Runtime: types.RuntimePython37,
+			FunctionName: aws.String(name(t, "old")), Role: role.Arn, Runtime: types.RuntimePython37,
 			Handler: aws.String("handler.echo"), Code: &types.FunctionCode{ZipFile: code},
 		})
 		errAs[*types.InvalidParameterValueException](t, err, "CreateFunction with python3.7")
 		wantMessage(t, err, "CreateFunction with python3.7", "The runtime parameter of python3.7 is no longer supported for creating or updating AWS Lambda functions. We recommend you use a supported runtime while creating or updating functions.")
 
 		_, err = client.CreateFunction(ctx, &lambda.CreateFunctionInput{
-			FunctionName: aws.String(name("badzip")), Role: role.Arn, Runtime: types.RuntimePython313,
+			FunctionName: aws.String(name(t, "badzip")), Role: role.Arn, Runtime: types.RuntimePython313,
 			Handler: aws.String("handler.echo"), Code: &types.FunctionCode{ZipFile: []byte("not a zip file")},
 		})
 		errAs[*types.InvalidParameterValueException](t, err, "CreateFunction with a corrupt zip")
@@ -227,7 +231,7 @@ func TestLambdaFunctionLifecycle(t *testing.T) {
 			t.Errorf("ListFunctions(FunctionVersion ALL) does not list %s:$LATEST", fnArn)
 		}
 
-		missing := name("missing")
+		missing := name(t, "missing")
 		_, err = client.GetFunction(ctx, &lambda.GetFunctionInput{FunctionName: aws.String(missing)})
 		errAs[*types.ResourceNotFoundException](t, err, "GetFunction of a missing function")
 		wantStatus(t, err, "GetFunction of a missing function", 404)
@@ -428,7 +432,7 @@ func TestLambdaPermissions(t *testing.T) {
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
 	acct := account(t)
-	fn := deployFunction(t, name("perm"), "handler.echo", nil)
+	fn := deployFunction(t, name(t, "perm"), "handler.echo", nil)
 	fnName := aws.ToString(fn.FunctionName)
 	topic := "arn:aws:sns:" + region() + ":" + acct + ":t"
 
@@ -507,7 +511,7 @@ func TestLambdaInvoke(t *testing.T) {
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
 	acct := account(t)
-	echo := deployFunction(t, name("echo"), "handler.echo", nil)
+	echo := deployFunction(t, name(t, "echo"), "handler.echo", nil)
 	echoName := aws.ToString(echo.FunctionName)
 
 	t.Run("RequestResponse", func(t *testing.T) {
@@ -546,7 +550,7 @@ func TestLambdaInvoke(t *testing.T) {
 		errAs[*types.InvalidRequestContentException](t, err, "Invoke with a non-JSON payload")
 		wantStatus(t, err, "Invoke with a non-JSON payload", 400)
 		wantMessageContains(t, err, "Invoke with a non-JSON payload", "Could not parse request body into json")
-		missing := name("missing")
+		missing := name(t, "missing")
 		_, err = client.Invoke(ctx, &lambda.InvokeInput{FunctionName: aws.String(missing)})
 		errAs[*types.ResourceNotFoundException](t, err, "Invoke of a missing function")
 		// An unqualified Invoke names the $LATEST ARN (LocalStack
@@ -555,7 +559,7 @@ func TestLambdaInvoke(t *testing.T) {
 	})
 
 	t.Run("function error", func(t *testing.T) {
-		fn := deployFunction(t, name("fail"), "handler.fail", nil)
+		fn := deployFunction(t, name(t, "fail"), "handler.fail", nil)
 		out, err := client.Invoke(ctx, &lambda.InvokeInput{FunctionName: fn.FunctionName})
 		ok(t, err, "Invoke of a failing handler")
 		if out.StatusCode != 200 || aws.ToString(out.FunctionError) != "Unhandled" {
@@ -573,7 +577,7 @@ func TestLambdaInvoke(t *testing.T) {
 	})
 
 	t.Run("timeout", func(t *testing.T) {
-		fn := deployFunction(t, name("slow"), "handler.sleep", nil)
+		fn := deployFunction(t, name(t, "slow"), "handler.sleep", nil)
 		_, err := client.UpdateFunctionConfiguration(ctx, &lambda.UpdateFunctionConfigurationInput{FunctionName: fn.FunctionName, Timeout: aws.Int32(1)})
 		ok(t, err, "UpdateFunctionConfiguration Timeout 1")
 		ok(t, lambda.NewFunctionUpdatedV2Waiter(client).Wait(ctx, &lambda.GetFunctionInput{FunctionName: fn.FunctionName}, time.Minute), "FunctionUpdatedV2 waiter")
@@ -623,7 +627,7 @@ func TestLambdaEventInvokeConfig(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
-	fn := deployFunction(t, name("async"), "handler.echo", nil)
+	fn := deployFunction(t, name(t, "async"), "handler.echo", nil)
 	fnName := aws.ToString(fn.FunctionName)
 	latestArn := aws.ToString(fn.FunctionArn) + ":$LATEST"
 
@@ -662,7 +666,7 @@ func TestLambdaFunctionURL(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := lambda.NewFromConfig(awsCfg)
-	fn := deployFunction(t, name("url"), "handler.url", nil)
+	fn := deployFunction(t, name(t, "url"), "handler.url", nil)
 	fnName := aws.ToString(fn.FunctionName)
 
 	created, err := client.CreateFunctionUrlConfig(ctx, &lambda.CreateFunctionUrlConfigInput{FunctionName: aws.String(fnName), AuthType: types.FunctionUrlAuthTypeNone})
@@ -755,11 +759,11 @@ func TestLambdaSQSEventSourceMapping(t *testing.T) {
 	client := lambda.NewFromConfig(awsCfg)
 	sqsClient := sqs.NewFromConfig(awsCfg)
 	acct := account(t)
-	resultURL := createQueue(t, name("esm-result"), nil)
-	fn := deployFunction(t, name("esm"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
+	resultURL := createQueue(t, name(t, "esm-result"), nil)
+	fn := deployFunction(t, name(t, "esm"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
 	fnName := aws.ToString(fn.FunctionName)
-	dlqURL := createQueue(t, name("esm-dlq"), nil)
-	srcName := name("esm-src")
+	dlqURL := createQueue(t, name(t, "esm-dlq"), nil)
+	srcName := name(t, "esm-src")
 	srcURL := createQueue(t, srcName, map[string]string{
 		"VisibilityTimeout": "5",
 		"RedrivePolicy":     `{"deadLetterTargetArn":"` + queueArn(t, dlqURL) + `","maxReceiveCount":"1"}`,
@@ -770,10 +774,10 @@ func TestLambdaSQSEventSourceMapping(t *testing.T) {
 		_, err := client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(srcArn), BatchSize: aws.Int32(20)})
 		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping BatchSize 20 without a window")
 		wantMessage(t, err, "CreateEventSourceMapping BatchSize 20 without a window", "Maximum batch window in seconds must be greater than 0 if maximum batch size is greater than 10")
-		_, err = client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(name("nofn")), EventSourceArn: aws.String(srcArn)})
+		_, err = client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(name(t, "nofn")), EventSourceArn: aws.String(srcArn)})
 		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping of a missing function")
 		wantMessage(t, err, "CreateEventSourceMapping of a missing function", "Function does not exist")
-		short := createQueue(t, name("esm-short"), map[string]string{"VisibilityTimeout": "2"})
+		short := createQueue(t, name(t, "esm-short"), map[string]string{"VisibilityTimeout": "2"})
 		_, err = client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(queueArn(t, short))})
 		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping on a queue whose visibility timeout is below the function timeout")
 		wantMessage(t, err, "CreateEventSourceMapping on a queue whose visibility timeout is below the function timeout", "Queue visibility timeout: 2 seconds is less than Function timeout: 5 seconds")
@@ -890,5 +894,197 @@ func TestLambdaSQSEventSourceMapping(t *testing.T) {
 			var nf *types.ResourceNotFoundException
 			return errors.As(err, &nf), err.Error()
 		})
+	})
+}
+
+// A DynamoDB stream mapping: the refusals of lambda-stream-sources.md 3.3
+// rows 1 and 4, the create shape of 3.5 (third-party-recorded
+// LS-D:L246-L271), and a written item reaching the function as a stream
+// record (dynamodb-streams.md 7.8; LS-D:L2-L101).
+func TestLambdaDynamoDBStreamEventSourceMapping(t *testing.T) {
+	requireDynamoDB(t)
+	t.Parallel()
+	ctx := t.Context()
+	client := lambda.NewFromConfig(awsCfg)
+	ddb := dynamodb.NewFromConfig(awsCfg)
+	resultURL := createQueue(t, name(t, "ddb-esm-result"), nil)
+	fn := deployFunction(t, name(t, "ddb-esm"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
+	fnName := aws.ToString(fn.FunctionName)
+	tableName := name(t, "ddb-esm")
+	streamArn := aws.ToString(createStreamTable(t, tableName, ddbtypes.StreamViewTypeNewImage).LatestStreamArn)
+
+	t.Run("validation", func(t *testing.T) {
+		_, err := client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(streamArn)})
+		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping without StartingPosition")
+		wantMessage(t, err, "CreateEventSourceMapping without StartingPosition", "1 validation error detected: Value null at 'startingPosition' failed to satisfy constraint: Member must not be null.")
+		missing := strings.Replace(streamArn, "/stream/", "x/stream/", 1)
+		_, err = client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(missing), StartingPosition: types.EventSourcePositionTrimHorizon})
+		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping on a missing stream")
+		wantMessage(t, err, "CreateEventSourceMapping on a missing stream", "Stream not found: "+missing)
+	})
+
+	created, err := client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{
+		FunctionName: aws.String(fnName), EventSourceArn: aws.String(streamArn), StartingPosition: types.EventSourcePositionTrimHorizon,
+	})
+	ok(t, err, "CreateEventSourceMapping")
+	uuid := aws.ToString(created.UUID)
+	t.Cleanup(func() {
+		_, _ = client.DeleteEventSourceMapping(context.Background(), &lambda.DeleteEventSourceMappingInput{UUID: aws.String(uuid)})
+	})
+	if aws.ToInt32(created.BatchSize) != 100 || aws.ToBool(created.BisectBatchOnFunctionError) || created.DestinationConfig == nil || created.DestinationConfig.OnFailure == nil ||
+		created.DestinationConfig.OnFailure.Destination != nil || aws.ToString(created.LastProcessingResult) != "No records processed" ||
+		aws.ToInt32(created.MaximumRecordAgeInSeconds) != -1 || aws.ToInt32(created.MaximumRetryAttempts) != -1 || aws.ToInt32(created.ParallelizationFactor) != 1 ||
+		created.StartingPosition != types.EventSourcePositionTrimHorizon || aws.ToString(created.StateTransitionReason) != "User action" ||
+		aws.ToInt32(created.TumblingWindowInSeconds) != 0 || created.FunctionResponseTypes == nil {
+		t.Errorf("CreateEventSourceMapping = %+v, want the recorded stream defaults", created)
+	}
+	eventually(t, time.Minute, 500*time.Millisecond, "the mapping to be Enabled", func() (bool, string) {
+		got, err := client.GetEventSourceMapping(ctx, &lambda.GetEventSourceMappingInput{UUID: aws.String(uuid)})
+		if err != nil {
+			return false, err.Error()
+		}
+		return aws.ToString(got.State) == "Enabled", "State " + aws.ToString(got.State)
+	})
+
+	_, err = ddb.PutItem(ctx, &dynamodb.PutItemInput{TableName: aws.String(tableName), Item: map[string]ddbtypes.AttributeValue{"id": ddbS("hello")}})
+	ok(t, err, "PutItem")
+	type record struct {
+		EventID        string `json:"eventID"`
+		EventName      string `json:"eventName"`
+		EventVersion   string `json:"eventVersion"`
+		EventSource    string `json:"eventSource"`
+		AwsRegion      string `json:"awsRegion"`
+		EventSourceARN string `json:"eventSourceARN"`
+		Dynamodb       struct {
+			ApproximateCreationDateTime float64
+			Keys                        map[string]map[string]string
+			NewImage                    map[string]map[string]string
+			SequenceNumber              string
+			StreamViewType              string
+		} `json:"dynamodb"`
+	}
+	var got []record
+	deadline := time.Now().Add(60 * time.Second)
+	for len(got) == 0 && time.Now().Before(deadline) {
+		for _, m := range drain(t, resultURL, 2*time.Second) {
+			var ev struct{ Records []record }
+			if err := json.Unmarshal([]byte(aws.ToString(m.Body)), &ev); err != nil {
+				t.Fatalf("the function received %s, want a DynamoDB stream event", aws.ToString(m.Body))
+			}
+			got = append(got, ev.Records...)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("the function received %d records, want the one PutItem's", len(got))
+	}
+	r := got[0]
+	if r.EventName != "INSERT" || r.EventVersion != "1.1" || r.EventSource != "aws:dynamodb" || r.AwsRegion != region() || r.EventSourceARN != streamArn || r.EventID == "" ||
+		r.Dynamodb.Keys["id"]["S"] != "hello" || r.Dynamodb.NewImage["id"]["S"] != "hello" || r.Dynamodb.StreamViewType != "NEW_IMAGE" || r.Dynamodb.SequenceNumber == "" ||
+		len(strconv.FormatInt(int64(r.Dynamodb.ApproximateCreationDateTime), 10)) != 10 {
+		t.Errorf("stream record = %+v", r)
+	}
+	eventually(t, 30*time.Second, 500*time.Millisecond, "LastProcessingResult OK", func() (bool, string) {
+		got, err := client.GetEventSourceMapping(ctx, &lambda.GetEventSourceMappingInput{UUID: aws.String(uuid)})
+		if err != nil {
+			return false, err.Error()
+		}
+		return aws.ToString(got.LastProcessingResult) == "OK", "LastProcessingResult " + aws.ToString(got.LastProcessingResult)
+	})
+}
+
+// A Kinesis stream mapping: the refusals of lambda-stream-sources.md 3.3
+// rows 1 and 4, the create shape of 3.5 (third-party-recorded LS-K:L5-L29),
+// and a put record reaching the function in the form of 8.1 (LS-K:L33-L48;
+// kinesis.md 8.1).
+func TestLambdaKinesisEventSourceMapping(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	client := lambda.NewFromConfig(awsCfg)
+	kin := kinesis.NewFromConfig(awsCfg)
+	resultURL := createQueue(t, name(t, "kin-esm-result"), nil)
+	fn := deployFunction(t, name(t, "kin-esm"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": resultURL})
+	fnName := aws.ToString(fn.FunctionName)
+	streamName := name(t, "kin-esm")
+	createKinesisStream(t, streamName, 1)
+	streamArn := "arn:aws:kinesis:" + region() + ":" + account(t) + ":stream/" + streamName
+
+	t.Run("validation", func(t *testing.T) {
+		_, err := client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(streamArn)})
+		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping without StartingPosition")
+		wantMessage(t, err, "CreateEventSourceMapping without StartingPosition", "1 validation error detected: Value null at 'startingPosition' failed to satisfy constraint: Member must not be null.")
+		missing := streamArn + "x"
+		_, err = client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{FunctionName: aws.String(fnName), EventSourceArn: aws.String(missing), StartingPosition: types.EventSourcePositionTrimHorizon})
+		errAs[*types.InvalidParameterValueException](t, err, "CreateEventSourceMapping on a missing stream")
+		wantMessage(t, err, "CreateEventSourceMapping on a missing stream", "Stream not found: "+missing)
+	})
+
+	created, err := client.CreateEventSourceMapping(ctx, &lambda.CreateEventSourceMappingInput{
+		FunctionName: aws.String(fnName), EventSourceArn: aws.String(streamArn), StartingPosition: types.EventSourcePositionTrimHorizon,
+	})
+	ok(t, err, "CreateEventSourceMapping")
+	uuid := aws.ToString(created.UUID)
+	t.Cleanup(func() {
+		_, _ = client.DeleteEventSourceMapping(context.Background(), &lambda.DeleteEventSourceMappingInput{UUID: aws.String(uuid)})
+	})
+	if aws.ToInt32(created.BatchSize) != 100 || aws.ToBool(created.BisectBatchOnFunctionError) || created.DestinationConfig == nil || created.DestinationConfig.OnFailure == nil ||
+		created.DestinationConfig.OnFailure.Destination != nil || aws.ToString(created.LastProcessingResult) != "No records processed" ||
+		aws.ToInt32(created.MaximumRecordAgeInSeconds) != -1 || aws.ToInt32(created.MaximumRetryAttempts) != -1 || aws.ToInt32(created.ParallelizationFactor) != 1 ||
+		created.StartingPosition != types.EventSourcePositionTrimHorizon || aws.ToString(created.StateTransitionReason) != "User action" ||
+		aws.ToInt32(created.TumblingWindowInSeconds) != 0 || created.FunctionResponseTypes == nil || aws.ToString(created.EventSourceArn) != streamArn {
+		t.Errorf("CreateEventSourceMapping = %+v, want the recorded stream defaults", created)
+	}
+	eventually(t, time.Minute, 500*time.Millisecond, "the mapping to be Enabled", func() (bool, string) {
+		got, err := client.GetEventSourceMapping(ctx, &lambda.GetEventSourceMappingInput{UUID: aws.String(uuid)})
+		if err != nil {
+			return false, err.Error()
+		}
+		return aws.ToString(got.State) == "Enabled", "State " + aws.ToString(got.State)
+	})
+
+	put, err := kin.PutRecord(ctx, &kinesis.PutRecordInput{StreamName: aws.String(streamName), PartitionKey: aws.String("pk-1"), Data: []byte("hello")})
+	ok(t, err, "PutRecord")
+	type record struct {
+		EventID           string `json:"eventID"`
+		EventName         string `json:"eventName"`
+		EventVersion      string `json:"eventVersion"`
+		EventSource       string `json:"eventSource"`
+		AwsRegion         string `json:"awsRegion"`
+		EventSourceARN    string `json:"eventSourceARN"`
+		InvokeIdentityArn string `json:"invokeIdentityArn"`
+		Kinesis           struct {
+			KinesisSchemaVersion        string  `json:"kinesisSchemaVersion"`
+			PartitionKey                string  `json:"partitionKey"`
+			SequenceNumber              string  `json:"sequenceNumber"`
+			Data                        string  `json:"data"`
+			ApproximateArrivalTimestamp float64 `json:"approximateArrivalTimestamp"`
+		} `json:"kinesis"`
+	}
+	var got []record
+	deadline := time.Now().Add(60 * time.Second)
+	for len(got) == 0 && time.Now().Before(deadline) {
+		for _, m := range drain(t, resultURL, 2*time.Second) {
+			var ev struct{ Records []record }
+			if err := json.Unmarshal([]byte(aws.ToString(m.Body)), &ev); err != nil {
+				t.Fatalf("the function received %s, want a Kinesis event", aws.ToString(m.Body))
+			}
+			got = append(got, ev.Records...)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("the function received %d records, want the one PutRecord's", len(got))
+	}
+	r, seq := got[0], aws.ToString(put.SequenceNumber)
+	if r.EventName != "aws:kinesis:record" || r.EventVersion != "1.0" || r.EventSource != "aws:kinesis" || r.AwsRegion != region() || r.EventSourceARN != streamArn ||
+		r.EventID != aws.ToString(put.ShardId)+":"+seq || r.InvokeIdentityArn != aws.ToString(fn.Role) || r.Kinesis.KinesisSchemaVersion != "1.0" ||
+		r.Kinesis.PartitionKey != "pk-1" || r.Kinesis.SequenceNumber != seq || r.Kinesis.Data != base64.StdEncoding.EncodeToString([]byte("hello")) ||
+		len(strconv.FormatInt(int64(r.Kinesis.ApproximateArrivalTimestamp), 10)) != 10 {
+		t.Errorf("Kinesis record = %+v", r)
+	}
+	eventually(t, 30*time.Second, 500*time.Millisecond, "LastProcessingResult OK", func() (bool, string) {
+		got, err := client.GetEventSourceMapping(ctx, &lambda.GetEventSourceMappingInput{UUID: aws.String(uuid)})
+		if err != nil {
+			return false, err.Error()
+		}
+		return aws.ToString(got.LastProcessingResult) == "OK", "LastProcessingResult " + aws.ToString(got.LastProcessingResult)
 	})
 }

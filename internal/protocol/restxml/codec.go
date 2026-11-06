@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/protocol/restbind"
@@ -28,14 +29,21 @@ type Dialect struct {
 	// bare <Error> root with RequestId and HostId (S3), not
 	// <ErrorResponse><Error>...</Error><RequestId/></ErrorResponse>.
 	NoErrorWrapping bool
-	// MillisecondTimestamps writes date-time values with milliseconds
-	// always, as S3 does: 2009-10-12T17:50:30.000Z.
+	// MillisecondTimestamps writes date-time values as S3 does: with
+	// milliseconds always in bodies, 2009-10-12T17:50:30.000Z, and in
+	// response headers only when they are not zero,
+	// 2026-11-03T04:40:14Z and 2028-11-03T03:40:47.030Z
+	// (s3-ssec-object-lock.md 6.7, for the one such header).
 	MillisecondTimestamps bool
 	// InvalidArgument answers a label, query or header value that does not
 	// parse, with ArgumentName and ArgumentValue (S3's InvalidArgument,
 	// error-matrix.md 5.4 T2). Zero means the service's
 	// malformedRequestError.
 	InvalidArgument awserr.Identity
+	// ArgumentTexts is the InvalidArgument message for an unparsable
+	// value of the label, query or header it names, in place of
+	// "Invalid value for the <name> <location>.".
+	ArgumentTexts map[string]string
 	// Internal renders an awserr.Internal origin (a handler or codec bug,
 	// a kernel panic) with S3's own identity and text, "We encountered an
 	// internal error. Please try again.", in place of the generic
@@ -73,7 +81,11 @@ const internalMessage = "We encountered an internal error. Please try again."
 // bodiless output, 206 for a partial read, and inert object bodies. The
 // composition root sets Internal to S3's InternalError identity.
 func S3Dialect(invalidArgument awserr.Identity) Dialect {
-	return Dialect{NoErrorWrapping: true, MillisecondTimestamps: true, InvalidArgument: invalidArgument, OmitEmptyDocumentType: true, PartialContent: true, InertStreams: true}
+	return Dialect{
+		NoErrorWrapping: true, MillisecondTimestamps: true, InvalidArgument: invalidArgument, OmitEmptyDocumentType: true, PartialContent: true, InertStreams: true,
+		// s3-ssec-object-lock.md 6.2: S3SOL-18 18-bad-date, recorded 2026-11-03.
+		ArgumentTexts: map[string]string{"x-amz-object-lock-retain-until-date": "The retain until date must be provided in ISO 8601 format"},
+	}
 }
 
 // S3ControlDialect is S3 Control's: S3's, but with Smithy's wrapped
@@ -181,7 +193,10 @@ func (c Codec) Encode(r *http.Request, op *registry.Operation, requestID string,
 		encodeKeys: r != nil && r.URL.Query().Get("encoding-type") == "url" && hasMember(op.Output, "EncodingType"),
 		unwrapped:  unwrapped(op.Output),
 	}
-	enc, err := restbind.Encode(op, out, status, restbind.HasResponseDocument, func() restbind.DocumentWriter { return newWriter(opts) })
+	stamp := func(t time.Time, f smithy.TimestampFormat) string {
+		return formatHeaderTimestamp(t, f, d.MillisecondTimestamps)
+	}
+	enc, err := restbind.EncodeTimestamps(op, out, status, restbind.HasResponseDocument, func() restbind.DocumentWriter { return newWriter(opts) }, stamp)
 	if err != nil {
 		return Response{}, awserr.Internalf(fmt.Errorf("encoding the %s output: %w", op.ID, err))
 	}
@@ -208,17 +223,25 @@ func (c Codec) Encode(r *http.Request, op *registry.Operation, requestID string,
 // the identity, which is 200 on the 200-with-error path of
 // CompleteMultipartUpload, CopyObject and UploadPartCopy, where the
 // pipeline has already set it; the XML declaration first, then <Error>
-// with Code, Message (absent when empty), the error's context fields in
-// order, RequestId and HostId; Content-Type application/xml; the error's
-// headers (x-amz-bucket-region); and x-amz-request-id and x-amz-id-2. A
-// HEAD request, and a status that allows no body (1xx, 204, and 304 for
-// S3's NotModified, wire-rest.md 3.6), get the status and headers only.
-// Without NoErrorWrapping the document is Smithy's <ErrorResponse> form.
-// An awserr.Internal origin takes the dialect's Internal identity (S3's
-// InternalError). svc may be nil for a request no service claimed.
+// with Code, Message (absent when empty), the members of the value e
+// carries that bind to no header, as outputs write them
+// (smithy-protocol-tests.md 11.2), the error's context fields in order,
+// RequestId and HostId; Content-Type application/xml; the value's
+// httpHeader members and the error's headers (x-amz-bucket-region); and
+// x-amz-request-id and x-amz-id-2. A HEAD request, and a status that
+// allows no body (1xx, 204, and 304 for S3's NotModified, wire-rest.md
+// 3.6), get the status and headers only. Without NoErrorWrapping the
+// document is Smithy's <ErrorResponse> form. An awserr.Internal origin
+// takes the dialect's Internal identity (S3's InternalError). A value that
+// does not serialize is answered as InternalFailure. svc may be nil for a
+// request no service claimed.
 func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID string, e *awserr.Error) Response {
-	e = c.dialect(svc).rendered(e)
-	h := http.Header{}
+	d := c.dialect(svc)
+	e = d.rendered(e)
+	h, members, err := errorMembers(e, d)
+	if err != nil {
+		return c.EncodeError(r, svc, requestID, awserr.Internalf(err))
+	}
 	for _, x := range e.Headers {
 		h.Add(x.Name, x.Value)
 	}
@@ -229,9 +252,9 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 	var buf bytes.Buffer
 	x := xmlw.New(&buf)
 	x.Declaration()
-	if c.dialect(svc).NoErrorWrapping {
+	if d.NoErrorWrapping {
 		x.Start("Error")
-		errorFields(x, e)
+		errorFields(x, e, members)
 		textElement(x, "RequestId", requestID)
 		textElement(x, "HostId", HostID(requestID))
 		x.End()
@@ -239,7 +262,7 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 		x.Start("ErrorResponse")
 		x.Start("Error")
 		textElement(x, "Type", e.ID.Fault.String())
-		errorFields(x, e)
+		errorFields(x, e, members)
 		x.End()
 		textElement(x, "RequestId", requestID)
 		x.End()
@@ -264,15 +287,52 @@ func HostID(requestID string) string {
 
 // rendered is e as the dialect sends it: an Internal origin under the
 // dialect's Internal identity and text, with e's status, when it has one.
+// The rendered error is built anew, so it never carries a value of
+// another shape under the dialect's identity.
 func (d Dialect) rendered(e *awserr.Error) *awserr.Error {
 	if _, ok := e.Origin.(awserr.Internal); !ok || d.Internal.Shape == "" {
 		return e
 	}
-	out := *e
-	out.ID = d.Internal
-	out.ID.Status = e.ID.Status
-	out.Message, out.Messages = internalMessage, nil
-	return &out
+	id := d.Internal
+	id.Status = e.ID.Status
+	return &awserr.Error{ID: id, Message: internalMessage, Fields: e.Fields, Headers: e.Headers, Origin: e.Origin}
+}
+
+// errorMembers splits the value e carries by its HTTP bindings: the
+// headers its httpHeader members set, and the elements of its other
+// members, which go inside <Error>. Without a value they are no headers
+// and no elements.
+func errorMembers(e *awserr.Error, d Dialect) (http.Header, []*element, error) {
+	v, ok := e.WireMembers()
+	if !ok {
+		return http.Header{}, nil, nil
+	}
+	var (
+		doc     *writer
+		payload bool
+	)
+	hasDocument := func(s *smithy.Schema) bool {
+		_, payload = restbind.PayloadMember(s)
+		return restbind.HasResponseDocument(s)
+	}
+	enc, err := restbind.EncodeStructure(v, e.ID.Status, hasDocument, func() restbind.DocumentWriter {
+		doc = &writer{opts: writerOptions{millis: d.MillisecondTimestamps}}
+		return doc
+	})
+	switch {
+	case err != nil:
+		return nil, nil, fmt.Errorf("encoding the members of the %s error: %w", e.ID.Shape, err)
+	case payload:
+		return nil, nil, fmt.Errorf("encoding the members of the %s error: an httpPayload member has no place in an error body", e.ID.Shape)
+	case doc == nil:
+		// The shape has no member outside the headers.
+		return enc.Header, nil, nil
+	case len(doc.root.attrs) > 0:
+		return nil, nil, fmt.Errorf("encoding the members of the %s error: an xmlAttribute member has no place on <Error>", e.ID.Shape)
+	}
+	// The document's root is the value's structure; its children are the
+	// members <Error> holds.
+	return enc.Header, doc.root.children, nil
 }
 
 func (c Codec) dialect(svc *registry.Service) Dialect {
@@ -284,13 +344,18 @@ func (c Codec) dialect(svc *registry.Service) Dialect {
 
 // invalidArgument answers a head value that does not parse.
 func (c Codec) invalidArgument(svc *registry.Service, bind *restbind.BindError) *awserr.Error {
-	id := c.dialect(svc).InvalidArgument
+	d := c.dialect(svc)
+	id := d.InvalidArgument
 	if id.Shape == "" {
 		return malformedRequest(svc, bind.Error())
 	}
+	message, ok := d.ArgumentTexts[bind.Name]
+	if !ok {
+		message = fmt.Sprintf("Invalid value for the %s %s.", bind.Name, bind.Location)
+	}
 	return &awserr.Error{
 		ID:      id,
-		Message: fmt.Sprintf("Invalid value for the %s %s.", bind.Name, bind.Location),
+		Message: message,
 		Fields:  []awserr.Field{{Name: "ArgumentName", Value: bind.Name}, {Name: "ArgumentValue", Value: bind.Value}},
 		Origin:  awserr.Generic{},
 	}
@@ -306,8 +371,9 @@ func malformedRequest(svc *registry.Service, message string) *awserr.Error {
 	return &awserr.Error{ID: id, Message: message, Origin: awserr.Generic{}}
 }
 
-// errorFields writes Code, Message and the context fields.
-func errorFields(x *xmlw.Writer, e *awserr.Error) {
+// errorFields writes Code, Message, the value's members and the context
+// fields.
+func errorFields(x *xmlw.Writer, e *awserr.Error, members []*element) {
 	code := e.ID.QueryCode
 	if code == "" {
 		code = e.ID.Shape.Name()
@@ -315,6 +381,9 @@ func errorFields(x *xmlw.Writer, e *awserr.Error) {
 	textElement(x, "Code", code)
 	if msg := e.MessageFor(ref.RESTXML); msg != "" {
 		textElement(x, "Message", msg)
+	}
+	for _, m := range members {
+		emit(x, m, nil)
 	}
 	for _, f := range e.Fields {
 		textElement(x, f.Name, f.Value)

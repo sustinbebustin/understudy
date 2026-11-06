@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "item": "SSM-28",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ssm/SSM-28/01-put.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-28/02-get.json",
+      "compare": "all"
+    }
+  ]
+}

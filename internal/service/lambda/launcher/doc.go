@@ -5,7 +5,8 @@
 // reserved environment plus execution-role credentials, AWS_ENDPOINT_URL as
 // an IPv4 literal and AWS_EC2_METADATA_DISABLED; code mounted read-only at
 // /var/task through HostConfig.Mounts (never Binds) with a read-only root
-// file system; memory equal to memory plus swap, PidsLimit and nofile at
+// file system, and the merged tree of the function's layers at /opt the
+// same way; memory equal to memory plus swap, PidsLimit and nofile at
 // Lambda's 1024, json-file logs with rotation, every capability dropped,
 // no-new-privileges, the ownership labels of containers.md 9.1, the
 // topology's extra hosts and network, and the platform of the function's
@@ -18,7 +19,14 @@
 //
 //   - Code delivery follows the topology: tar copy (with a writable root
 //     file system) when understudy runs in a container, bind mounts
-//     otherwise. Image functions keep a read-only root either way.
+//     otherwise. Image functions keep a read-only root either way. Under
+//     tar copy the layer tree follows the code as one more archive,
+//     uploaded at / with its opt directory first, so the image need not
+//     have /opt (lambda-destinations-layers.md 11.5).
+//   - No search path is set for layers: the base images put /opt/bin on
+//     PATH and /opt/lib on LD_LIBRARY_PATH, and the runtimes search
+//     /opt/python and /opt/nodejs/node_modules themselves
+//     (lambda-destinations-layers.md 8.2).
 //   - The second trigger of ARCHITECTURE.md 14.3, a code path the daemon
 //     cannot see, is detected only when the daemon says so: Docker
 //     Desktop's "Mounts denied ... is not shared from the host", on the

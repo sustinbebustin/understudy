@@ -1,0 +1,16 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an answer to kms/KMS-alias/01-duplicate with another Content-Type",
+  "exchanges": [
+    {
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Content-Type", "application/json"]
+        ],
+        "body": "{\"__type\":\"AlreadyExistsException\",\"message\":\"An alias with the name arn:aws:kms:us-east-2:123456789012:alias/usr-rec-20261014-dup already exists\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "step": "02-advanced",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.PutParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,g,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.put-parameter"],
+          ["X-Amz-Date", "20261103T163643Z"],
+          ["amz-sdk-invocation-id", "b8de9abd-b0bf-4300-9036-6588cda1fe2a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "203"]
+        ],
+        "body": "{\"Name\": \"/us1103/ssm/p14b\", \"Value\": \"v\", \"Type\": \"String\", \"Tier\": \"Advanced\", \"Policies\": \"[{\\\"Type\\\":\\\"Expiration\\\",\\\"Version\\\":\\\"1.0\\\",\\\"Attributes\\\":{\\\"Timestamp\\\":\\\"2030-01-01T00:00:00.000Z\\\"}}]\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:36:43 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "31"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "1a167325-81d8-452e-8923-f7cd82c9df7f"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"Tier\":\"Advanced\",\"Version\":1}"
+      }
+    }
+  ]
+}

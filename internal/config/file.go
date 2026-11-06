@@ -27,6 +27,8 @@ type fileSections struct {
 	S3       *fileS3           `json:"s3"`
 	Lambda   *fileLambda       `json:"lambda"`
 	SQS      *fileSQS          `json:"sqs"`
+	SNS      *fileSNS          `json:"sns"`
+	SES      *fileSES          `json:"ses"`
 	IAM      *fileIAM          `json:"iam"`
 	DynamoDB *fileDynamoDB     `json:"dynamodb"`
 	Journal  *fileJournal      `json:"journal"`
@@ -71,8 +73,26 @@ type fileSQS struct {
 	QueueDeletedRecently *string `json:"queueDeletedRecently"`
 }
 
+// fileSNS holds only scalar settings, read as their flags would be.
+type fileSNS struct {
+	HTTPDelivery *fileSNSHTTPDelivery `json:"httpDelivery"`
+}
+
+type fileSNSHTTPDelivery struct {
+	Allow    []string `json:"allow"`
+	CABundle *string  `json:"caBundle"`
+}
+
+type fileSES struct {
+	VerifiedIdentities []string `json:"verifiedIdentities"`
+	ProductionAccess   *bool    `json:"productionAccess"`
+}
+
+// fileIAM holds the scalar settings iam.assumeRole and iam.enforce, each
+// read as its flag would be.
 type fileIAM struct {
 	AssumeRole *string `json:"assumeRole"`
+	Enforce    *string `json:"enforce"`
 }
 
 type fileDynamoDB struct {
@@ -96,7 +116,12 @@ func parseFile(name string, data []byte) (fileDoc, *Error) {
 		return fileDoc{}, &Error{Where: name, Reason: "is not a JSON object: " + describe(err), Hint: `write {"listen": "127.0.0.1:4566"} or another object of settings`}
 	}
 	scalarKeys := make([]string, 0, len(Settings()))
+	var nestedKeys []string
 	for _, s := range Settings() {
+		if strings.Contains(s.Key, ".") {
+			nestedKeys = append(nestedKeys, s.Key)
+			continue
+		}
 		scalarKeys = append(scalarKeys, s.Key)
 	}
 	sectionType := reflect.TypeFor[fileSections]()
@@ -105,6 +130,12 @@ func parseFile(name string, data []byte) (fileDoc, *Error) {
 	for _, key := range slices.Sorted(maps.Keys(top)) {
 		where := name + ": " + key
 		switch {
+		case key == keyDockerLabels:
+			// The file takes the label object itself, or a string holding
+			// its text, as the flag does.
+			doc.scalars[key] = value{text: jsonText(top[key]), where: where, source: fromFile}
+		case slices.Contains(nestedKeys, key):
+			return fileDoc{}, nestedOnly(key, where)
 		case slices.Contains(scalarKeys, key):
 			text, err := scalarText(top[key])
 			if err != nil {
@@ -116,16 +147,84 @@ func parseFile(name string, data []byte) (fileDoc, *Error) {
 				return fileDoc{}, err
 			}
 		default:
-			return fileDoc{}, &Error{Where: where, Reason: "is not a configuration key", Closest: Closest(key, valid), Hint: "fix or remove the key"}
+			candidates := valid
+			if strings.Contains(key, ".") {
+				// A dotted name is nearest a nested setting's key, whose
+				// refusal then gives the nested form.
+				candidates = append(slices.Clone(valid), nestedKeys...)
+			}
+			return fileDoc{}, &Error{Where: where, Reason: "is not a configuration key", Closest: Closest(key, candidates), Hint: "fix or remove the key"}
 		}
 	}
 	if err := json.Unmarshal(data, &doc.sections); err != nil {
 		if typeErr, ok := errors.AsType[*json.UnmarshalTypeError](err); ok {
-			return fileDoc{}, &Error{Where: name + ": " + typeErr.Field, Reason: "is a JSON " + typeErr.Value + "; expected " + typeName(typeErr.Type)}
+			return fileDoc{}, typeError(name, typeErr, nestedKeys)
 		}
 		return fileDoc{}, &Error{Where: name, Reason: err.Error()}
 	}
+	doc.liftNested()
 	return doc, nil
+}
+
+// typeError refuses a value of the wrong JSON type at the path the decoder
+// names, an array element written [i] as checkKeys writes it. An entry of
+// a nested setting's list is named by its setting, as the flag would be,
+// with the entry's index in the reason, as the setting's other refusals
+// give it.
+func typeError(name string, e *json.UnmarshalTypeError, nestedKeys []string) *Error {
+	reason := "is a JSON " + e.Value + "; expected " + typeName(e.Type)
+	for _, key := range nestedKeys {
+		if index, ok := strings.CutPrefix(e.Field, key+"."); ok {
+			return &Error{Where: name + ": " + key, Reason: "entry " + index + ": " + reason}
+		}
+	}
+	var path strings.Builder
+	for i, part := range strings.Split(e.Field, ".") {
+		switch {
+		case strings.Trim(part, "0123456789") == "" && part != "":
+			path.WriteString("[" + part + "]")
+		case i > 0:
+			path.WriteString("." + part)
+		default:
+			path.WriteString(part)
+		}
+	}
+	return &Error{Where: name + ": " + path.String(), Reason: reason}
+}
+
+// nestedOnly refuses a nested setting's dotted key at the top level of the
+// file, rather than reading it as a second spelling, and shows the nested
+// form the file takes.
+func nestedOnly(key, where string) *Error {
+	path := strings.Split(key, ".")
+	nested := "..."
+	for _, p := range slices.Backward(path) {
+		nested = "{" + quote(p) + ": " + nested + "}"
+	}
+	section, member := strings.Join(path[:len(path)-1], "."), path[len(path)-1]
+	return &Error{Where: where, Reason: "is not a top-level key; the setting is " + quote(member) + " in the " + quote(section) + " section", Hint: "write it as " + nested}
+}
+
+// liftNested reads the scalar settings the file holds nested in its
+// sections as the file's values of their dotted keys, so they take the
+// precedence and checks of every scalar setting.
+func (doc *fileDoc) liftNested() {
+	at := func(key string) string { return doc.name + ": " + key }
+	if iam := doc.sections.IAM; iam != nil {
+		for key, text := range map[string]*string{keyIAMEnforce: iam.Enforce, keyIAMAssumeRole: iam.AssumeRole} {
+			if text != nil {
+				doc.scalars[key] = value{text: *text, where: at(key), source: fromFile}
+			}
+		}
+	}
+	if sns := doc.sections.SNS; sns != nil && sns.HTTPDelivery != nil {
+		if allow := sns.HTTPDelivery.Allow; allow != nil {
+			doc.scalars[keySNSAllow] = value{list: allow, where: at(keySNSAllow), source: fromFile}
+		}
+		if bundle := sns.HTTPDelivery.CABundle; bundle != nil {
+			doc.scalars[keySNSCABundle] = value{text: *bundle, where: at(keySNSCABundle), source: fromFile}
+		}
+	}
 }
 
 // scalarText is a scalar setting's value as the text a flag would carry: a

@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "item": "SSM-10",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/f10",
+        "Type": "SecureString",
+        "Value": "v1",
+        "Description": "d",
+        "AllowedPattern": "^v.*",
+        "KeyId": "alias/aws/ssm"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-10/01-value-only.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-10/02-describe.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-10/03-history.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-10/04-empty-pattern.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-10/05-describe-after-empty.json",
+      "compare": "all"
+    }
+  ],
+  "waivers": [
+    {
+      "step": "03-history",
+      "field": "body/Parameters/0/Value",
+      "reason": "a SecureString read without decryption is KMS ciphertext, opaque and different on every encryption"
+    },
+    {
+      "step": "03-history",
+      "field": "body/Parameters/1/Value",
+      "reason": "a SecureString read without decryption is KMS ciphertext, opaque and different on every encryption"
+    }
+  ]
+}

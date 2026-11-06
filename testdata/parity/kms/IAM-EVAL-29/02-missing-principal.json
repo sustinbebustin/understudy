@@ -1,0 +1,38 @@
+{
+  "step": "02-missing-principal",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (MalformedPolicyDocumentException) when calling the PutKeyPolicy operation: Policy contains a statement with one or more invalid principals.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.PutKeyPolicy"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,b,Z,E,AD,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#kms.put-key-policy"],
+          ["X-Amz-Date", "20261103T032239Z"],
+          ["amz-sdk-invocation-id", "31b8c953-dffb-4be3-a93a-fcd7fd7f984d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "398"]
+        ],
+        "body": "{\"KeyId\": \"3cfd985a-9e71-4a26-a9e6-c56567aee046\", \"PolicyName\": \"default\", \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":\\\"arn:aws:iam::123456789012:root\\\"},\\\"Action\\\":\\\"kms:*\\\",\\\"Resource\\\":\\\"*\\\"},{\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":\\\"arn:aws:iam::123456789012:role/us1103-nope\\\"},\\\"Action\\\":\\\"kms:DescribeKey\\\",\\\"Resource\\\":\\\"*\\\"}]}\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "865dcff3-8fcc-480c-a26a-0e324f70dba4"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Tue, 03 Nov 2026 03:22:39 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "122"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"MalformedPolicyDocumentException\",\"message\":\"Policy contains a statement with one or more invalid principals.\"}"
+      }
+    }
+  ]
+}

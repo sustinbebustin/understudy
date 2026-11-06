@@ -71,42 +71,43 @@ func sourceOf(packageType lambdaapi.PackageType, zipFile []byte, bucket, key, ve
 }
 
 // checkZip checks a package sent inline: at most maxZipped bytes, and an
-// archive checkArchive accepts.
-func checkZip(b []byte) *awserr.Error {
+// archive checkArchive accepts. It returns what checkArchive does.
+func checkZip(b []byte) (int64, *awserr.Error) {
 	if len(b) > maxZipped {
-		return errZippedTooLarge()
+		return 0, errZippedTooLarge()
 	}
 	return checkArchive(b)
 }
 
 // checkArchive checks that b is a zip archive whose entries claim at most
-// maxUnzipped bytes; a package read from S3 has only this limit, since the
-// zipped one is the API upload's (lambda-api.md 4.3). The archive is only
-// read here; codestore extracts it, entry by entry and zip-slip safe, when
-// an environment first runs it. zip.NewReader allocates for every central
-// header it parses, so the entry bound codestore applies is checked first.
-func checkArchive(b []byte) *awserr.Error {
+// maxUnzipped bytes, and returns the sum the entries claim; a package read
+// from S3 has only this limit, since the zipped one is the API upload's
+// (lambda-api.md 4.3). The archive is only read here; codestore extracts
+// it, entry by entry and zip-slip safe, when an environment first runs it.
+// zip.NewReader allocates for every central header it parses, so the entry
+// bound codestore applies is checked first.
+func checkArchive(b []byte) (int64, *awserr.Error) {
 	if headers := codestore.Headers(b); headers > codestore.DefaultMaxEntries {
-		return errTooManyEntries(headers)
+		return 0, errTooManyEntries(headers)
 	}
 	r, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
 	if err != nil {
-		return errInvalidZip()
+		return 0, errInvalidZip()
 	}
 	var total uint64
 	for _, f := range r.File {
 		total += f.UncompressedSize64
 		if total > uint64(maxUnzipped) {
-			return errUnzippedTooLarge()
+			return 0, errUnzippedTooLarge()
 		}
 	}
-	return nil
+	return int64(total), nil
 }
 
-// storeZip keeps a checked zip package in the blob store. The returned
-// code holds one blob reference, which the caller hands to the state or
-// releases.
-func (s *Service) storeZip(ctx context.Context, b []byte) (ZipCode, *awserr.Error) {
+// storeZip keeps a zip package, whose entries checkArchive found to claim
+// unzipped bytes, in the blob store. The returned code holds one blob
+// reference, which the caller hands to the state or releases.
+func (s *Service) storeZip(ctx context.Context, b []byte, unzipped int64) (ZipCode, *awserr.Error) {
 	if s.blobs == nil {
 		return ZipCode{}, awserr.Internalf(errors.New("the Lambda service was built without a blob store, so it cannot keep function code; wire kernel.ServiceDeps.Blob"))
 	}
@@ -115,7 +116,19 @@ func (s *Service) storeZip(ctx context.Context, b []byte) (ZipCode, *awserr.Erro
 		return ZipCode{}, awserr.Internalf(err)
 	}
 	sum := sha256.Sum256(b)
-	return ZipCode{Sha256: base64.StdEncoding.EncodeToString(sum[:]), Size: size, Blob: ref}, nil
+	return ZipCode{Sha256: base64.StdEncoding.EncodeToString(sum[:]), Size: size, Unzipped: unzipped, Blob: ref}, nil
+}
+
+// retain takes one more reference on each of refs, all or none: when one
+// fails, those already taken are released.
+func (s *Service) retain(ctx context.Context, refs ...blob.Ref) *awserr.Error {
+	for i, r := range refs {
+		if err := s.blobs.Retain(r); err != nil {
+			s.release(ctx, refs[:i]...)
+			return awserr.Internalf(err)
+		}
+	}
+	return nil
 }
 
 // release drops blob references a failed or replaced write no longer

@@ -179,9 +179,10 @@ func resourceFormatError(r string) *ValidationError {
 	switch {
 	case service == "iam" && hasRegion:
 		return &ValidationError{Rule: RuleIAMResourceRegion, Subject: r}
-	case service == "s3" && hasRegion && !strings.HasPrefix(resourceID, "accesspoint/"):
+	case service == "s3" && hasRegion && !s3RegionalResource(resourceID):
 		return &ValidationError{Rule: RuleS3ResourceRegion, Subject: r}
-	case service == "iam" && resourceID != "*" && !slices.ContainsFunc(iamResourcePaths(), func(p string) bool { return strings.HasPrefix(resourceID, p) }):
+	case service == "iam" && resourceID != "*" && resourceID != "root" &&
+		!slices.ContainsFunc(iamResourcePaths(), func(p string) bool { return strings.HasPrefix(resourceID, p) }):
 		return &ValidationError{Rule: RuleIAMResourcePath, Subject: r}
 	default:
 		return nil
@@ -208,11 +209,39 @@ func knownPartition(p string) bool {
 	}
 }
 
-// iamResourcePaths are the resource types an IAM resource may start with.
+// s3RegionalResource reports whether the S3 region rule exempts a resource
+// with a region, by its resource element: it starts with one of
+// s3RegionalResources, whatever the account element holds. CreatePolicy
+// accepted arn:aws:s3:<region>::job/k and ::accesspoint/k
+// (iam-evaluation.md 10.6, IAM-EVAL-36, aws-recorded), as moto does for
+// accesspoint/; the other prefixes follow (inferred).
+func s3RegionalResource(resourceID string) bool {
+	return slices.ContainsFunc(s3RegionalResources(), func(p string) bool { return strings.HasPrefix(resourceID, p) })
+}
+
+// s3RegionalResources are the leading literal parts of the resource element
+// of the S3 resource types whose ARN format carries a region, which the S3
+// region rule exempts. They are the resource types table of the Service
+// Authorization Reference for Amazon S3
+// (https://docs.aws.amazon.com/service-authorization/latest/reference/list_s3.html,
+// read 2026-10-26): accessgrantsinstance, accessgrant and
+// accessgrantslocation; accesspoint and accesspointobject; job;
+// multiregionaccesspointrequestarn; storagelensconfiguration and
+// storagelensgroup. bucket and object carry no region. moto exempts access
+// points alone. CreatePolicy accepted each in a customer policy, a
+// multi-Region access point request in eu-west-1 as in us-west-2, whose
+// format fixes it (iam-evaluation.md 10.6, IAM-EVAL-36, aws-recorded).
+func s3RegionalResources() []string {
+	return []string{"access-grants/", "accesspoint/", "async-request/mrap/", "job/", "storage-lens/", "storage-lens-group/"}
+}
+
+// iamResourcePaths are the resource types an IAM resource may start with,
+// as IAM's MalformedPolicyDocument message lists them; the resource "root"
+// is accepted too (IAM-EVAL-35, aws-recorded).
 func iamResourcePaths() []string {
 	return []string{
 		"user/", "federated-user/", "role/", "group/", "instance-profile/", "mfa/", "server-certificate/",
-		"policy/", "sms-mfa/", "saml-provider/", "oidc-provider/", "report/", "access-report/",
+		"policy/", "sms-mfa/", "saml-provider/", "oidc-provider/", "report/", "access-report/", "role-template/",
 	}
 }
 

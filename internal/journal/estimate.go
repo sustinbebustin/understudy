@@ -28,13 +28,15 @@ func detailSize(d Detail) int {
 		return strs(string(d.Op.Service), d.Op.Name, string(d.RequestID), d.Principal, d.Mode, d.TraceHeader, d.Input.doc) +
 			originSize(d.Origin) + arns(d.Resources...) + outcomeSize(d.Outcome)
 	case Delivery:
-		n := arns(d.From, d.To)
+		n := arns(d.From, d.To) + strs(d.Endpoint)
 		switch o := d.Outcome.(type) {
 		case Filtered:
 			n += strs(o.Rule)
 		case DeadLettered:
 			n += arns(o.DLQ)
 		case Dropped:
+			n += strs(o.Reason)
+		case Refused:
 			n += strs(o.Reason)
 		case Delivered, Retrying:
 		}
@@ -59,6 +61,28 @@ func detailSize(d Detail) int {
 		return strs(d.Method, d.Host, d.Path) + strs(d.Reasons...)
 	case Gap:
 		return 0
+	case AdminAction:
+		return adminOpSize(d.Op)
+	}
+	return 0
+}
+
+func adminOpSize(op AdminOp) int {
+	switch op := op.(type) {
+	case Reset:
+		return strs(op.Services...) + strs(op.Accounts...) + strs(op.Regions...)
+	case SnapshotSave:
+		return strs(op.Path)
+	case SnapshotLoad:
+		return strs(op.Path)
+	case FaultRuleAdded:
+		return strs(string(op.Rule))
+	case FaultRuleRemoved:
+		n := 0
+		for _, r := range op.Rules {
+			n += strs(string(r))
+		}
+		return n
 	}
 	return 0
 }

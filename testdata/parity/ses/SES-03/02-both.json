@@ -1,0 +1,34 @@
+{
+  "step": "02-both",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (MessageRejected) when calling the SendEmail operation: Email address is not verified. The following identities failed the check in region US-EAST-2: us1103-rp@example.com, us1103-r1@example.com, us1103-nobody@example.com, us1103-r2@example.com",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,g,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ses.send-email"],
+          ["X-Amz-Date", "20261103T164212Z"],
+          ["amz-sdk-invocation-id", "25f069d5-a4ad-4fd7-85cc-e6d29ddc3a44"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "267"]
+        ],
+        "body": "Action=SendEmail&Version=2010-12-01&Destination.ToAddresses.member.1=us1103-r1%40example.com&Destination.CcAddresses.member.1=us1103-r2%40example.com&Message.Subject.Data=s&Message.Body.Text.Data=b&ReturnPath=us1103-rp%40example.com&Source=us1103-nobody%40example.com"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:12 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "434"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "6c09f8a5-a200-4ce7-bae9-91f7a1f2f87a"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>MessageRejected</Code>\n    <Message>Email address is not verified. The following identities failed the check in region US-EAST-2: us1103-rp@example.com, us1103-r1@example.com, us1103-nobody@example.com, us1103-r2@example.com</Message>\n  </Error>\n  <RequestId>6c09f8a5-a200-4ce7-bae9-91f7a1f2f87a</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

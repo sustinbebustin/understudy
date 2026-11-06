@@ -1,0 +1,35 @@
+{
+  "step": "04-role-missing",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: The execution role you provide must allow AWS EventBridge Scheduler to assume the role.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-r2",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,E,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163745Z"],
+          ["amz-sdk-invocation-id", "28a64297-08cc-4cad-a5bc-ec126fdbd814"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "259"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"rate(1 hour)\", \"Target\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-sch\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-norole\"}, \"ClientToken\": \"aeb27cdd-1364-4b78-bb4b-36c610b4beee\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "9db18014-15d6-42c0-81bf-b7f4e1341c82"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "101"],
+          ["Date", "Tue, 03 Nov 2026 16:37:45 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"The execution role you provide must allow AWS EventBridge Scheduler to assume the role.\"}"
+      }
+    }
+  ]
+}

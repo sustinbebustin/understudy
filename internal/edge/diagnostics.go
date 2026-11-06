@@ -88,12 +88,27 @@ func routed(rt route) string {
 		return rt.op.ID.String()
 	case toService:
 		return string(rt.svc.ID) + " (no operation named)"
+	case legacyQuery:
+		if rt.action == "" {
+			return string(rt.svc.ID) + " (legacy Query form body, not implemented)"
+		}
+		return string(rt.svc.ID) + "." + rt.action + " (legacy Query, not implemented)"
 	case notEmulated:
 		return rt.signingName + " (not emulated)"
+	case misscoped:
+		return string(rt.svc.ID) + " (credential scope refused)"
 	case unclaimed:
 		return "unclaimed"
 	case toLocalStack:
 		return "unclaimed (LocalStack path)"
+	case toExecuteAPI:
+		return "execute-api (not implemented)"
+	case executeAPIClaimedTwice:
+		return "execute-api (API id held twice)"
+	case kinesisCBOR:
+		return "kinesis CBOR (not implemented)"
+	case http2Preface:
+		return "HTTP/2 preface (not implemented)"
 	}
 	return "unrouted"
 }

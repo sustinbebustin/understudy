@@ -1,0 +1,33 @@
+{
+  "step": "implicit-iam",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDenied) when calling the ListRoles operation: User: arn:aws:sts::123456789012:assumed-role/us1103-eval-none/none is not authorized to perform: iam:ListRoles on resource: arn:aws:iam::123456789012:role/ because no identity-based policy allows the iam:ListRoles action. Go to https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/authorization-details/agujumfqd5t6wouewx1xhkwrn for complete details, or call the GetRequestAuthorizationDetails API with the following authorization id: agujumfqd5t6wouewx1xhkwrn",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://iam.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,C,AN,Z,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#iam.list-roles"],
+          ["X-Amz-Date", "20261103T031952Z"],
+          ["amz-sdk-invocation-id", "bfdccd35-78a9-445f-bf68-f7865d6cb0bc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "35"]
+        ],
+        "body": "Action=ListRoles&Version=2010-05-08"
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:19:52 GMT"],
+          ["x-amzn-RequestId", "0b6962b9-d37c-4de7-a518-656886cef03c"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "719"]
+        ],
+        "body": "<ErrorResponse xmlns=\"https://iam.amazonaws.com/doc/2010-05-08/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>AccessDenied</Code>\n    <Message>User: arn:aws:sts::123456789012:assumed-role/us1103-eval-none/none is not authorized to perform: iam:ListRoles on resource: arn:aws:iam::123456789012:role/ because no identity-based policy allows the iam:ListRoles action. Go to https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/authorization-details/agujumfqd5t6wouewx1xhkwrn for complete details, or call the GetRequestAuthorizationDetails API with the following authorization id: agujumfqd5t6wouewx1xhkwrn</Message>\n  </Error>\n  <RequestId>0b6962b9-d37c-4de7-a518-656886cef03c</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

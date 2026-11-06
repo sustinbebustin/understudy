@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"maps"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -166,6 +167,27 @@ func (c *Client) JournalEvents(ctx context.Context, q JournalQuery) (*JournalPag
 	return fetch[JournalPage](ctx, c, http.MethodGet, "/journal/events", q.Values(), nil)
 }
 
+// JournalTail returns the newest n events q selects, oldest first; q.Limit
+// and q.Cursor are not sent. An n below 1 is refused without a request.
+func (c *Client) JournalTail(ctx context.Context, q JournalQuery, n int) ([]JournalEvent, error) {
+	if n <= 0 {
+		return nil, &Error{
+			Code: InvalidRequest, Field: ParamTail,
+			Message: fmt.Sprintf("a journal tail of %d events asks for none; no request was sent", n),
+			Hint:    "pass a positive count of the newest events to return",
+		}
+	}
+	v := q.Values()
+	v.Del(ParamLimit)
+	v.Del(ParamCursor)
+	v.Set(ParamTail, strconv.Itoa(n))
+	out, err := fetch[JournalPage](ctx, c, http.MethodGet, "/journal/events", v, nil)
+	if err != nil {
+		return nil, err
+	}
+	return out.Events, nil
+}
+
 // JournalStream follows the events q selects as they are recorded, starting
 // after the event with id after (0 starts live). The stream ends when ctx
 // does; a consumer too slow for the emulator receives a "gap" event for
@@ -298,6 +320,41 @@ func (c *Client) LoadSnapshotFrom(ctx context.Context, path string) (*SnapshotIn
 	return fetch[SnapshotInfo](ctx, c, http.MethodPut, "/snapshots", nil, SnapshotRequest{Path: path})
 }
 
+// SnapshotList is GET /snapshots.
+type SnapshotList struct {
+	Snapshots []SnapshotFile `json:"snapshots"`
+}
+
+// Snapshots lists the archives under the server's snapshots directory,
+// which needs serve --persist; without it the *Error has code unavailable.
+func (c *Client) Snapshots(ctx context.Context) ([]SnapshotFile, error) {
+	out, err := fetch[SnapshotList](ctx, c, http.MethodGet, "/snapshots", nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return out.Snapshots, nil
+}
+
+// UISession reports whether secret is this run's web UI session secret,
+// sending it in UISessionHeader ("" sends no header).
+func (c *Client) UISession(ctx context.Context, secret string) (*UISession, error) {
+	var header http.Header
+	if secret != "" {
+		// Header field names are case-insensitive; http.Header keys them in
+		// canonical form, Understudy-Ui-Session.
+		header = http.Header{http.CanonicalHeaderKey(UISessionHeader): {secret}}
+	}
+	resp, err := c.sendHeader(ctx, http.MethodGet, "/ui/session", nil, nil, "", header)
+	if err != nil {
+		return nil, err
+	}
+	var out UISession
+	if err := c.decode(resp, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 func (o SaveOptions) values() url.Values {
 	v := url.Values{}
 	if o.Gzip {
@@ -359,6 +416,14 @@ func (c *Client) IAMUsage(ctx context.Context, q UsageQuery) ([]Usage, error) {
 // IAMPolicy returns the least-privilege policy for principal, an IAM ARN.
 func (c *Client) IAMPolicy(ctx context.Context, principal string) (*Policy, error) {
 	return fetch[Policy](ctx, c, http.MethodGet, "/iam/policy", url.Values{"principal": {principal}}, nil)
+}
+
+// IAMEvaluate decides r's pairs for r's principal as iam.enforce would,
+// under every mode, journaling nothing: an invalid principal, policy,
+// action or resource is an *Error with code invalid_request naming the
+// field, and a principal that does not exist one with code not_found.
+func (c *Client) IAMEvaluate(ctx context.Context, r EvaluateRequest) (*Evaluation, error) {
+	return fetch[Evaluation](ctx, c, http.MethodPost, "/iam/evaluate", nil, r)
 }
 
 // Settle waits up to timeout for the emulator's tracked work to finish. On
@@ -424,6 +489,11 @@ func (c *Client) call(ctx context.Context, method, path string, v url.Values, in
 // a caller that reads past the error can read it again. On a 2xx answer
 // the caller closes the body.
 func (c *Client) send(ctx context.Context, method, path string, v url.Values, body io.Reader, contentType string) (*http.Response, error) {
+	return c.sendHeader(ctx, method, path, v, body, contentType, nil)
+}
+
+// sendHeader is send with header's fields added to the request.
+func (c *Client) sendHeader(ctx context.Context, method, path string, v url.Values, body io.Reader, contentType string, header http.Header) (*http.Response, error) {
 	u := c.base
 	u.Path = Prefix + path
 	u.RawPath = ""
@@ -446,6 +516,7 @@ func (c *Client) send(ctx context.Context, method, path string, v url.Values, bo
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
+	maps.Copy(req.Header, header)
 	resp, err := c.hc.Do(req)
 	if err != nil {
 		return nil, &UnreachableError{Endpoint: c.base.String(), Err: err}

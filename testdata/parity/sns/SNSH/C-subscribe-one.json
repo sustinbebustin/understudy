@@ -1,0 +1,33 @@
+{
+  "step": "C-subscribe-one",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,E,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.subscribe"],
+          ["X-Amz-Date", "20261103T164502Z"],
+          ["amz-sdk-invocation-id", "7a208057-ae3f-4ed3-87e7-b6410972c813"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "466"]
+        ],
+        "body": "Action=Subscribe&Version=2010-03-31&TopicArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-snsh-c&Protocol=https&Attributes.entry.1.key=DeliveryPolicy&Attributes.entry.1.value=%7B%22healthyRetryPolicy%22%3A%7B%22numRetries%22%3A1%2C%22minDelayTarget%22%3A5%2C%22maxDelayTarget%22%3A40%2C%22backoffFunction%22%3A%22linear%22%7D%7D&ReturnSubscriptionArn=true&Endpoint=https%3A%2F%2Fvz3psz4tmkxmxkgmjauplxjx5e0onbnf.lambda-url.us-east-2.on.aws%2Fauto%2Fone%2Fs500"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "fba83ff5-e0c7-54ef-8ddc-5c91f109ac81"],
+          ["Date", "Tue, 03 Nov 2026 16:45:02 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "363"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<SubscribeResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <SubscribeResult>\n    <SubscriptionArn>arn:aws:sns:us-east-2:123456789012:us1103-snsh-c:733b7f54-ab20-4a07-a1b7-263610719eb8</SubscriptionArn>\n  </SubscribeResult>\n  <ResponseMetadata>\n    <RequestId>fba83ff5-e0c7-54ef-8ddc-5c91f109ac81</RequestId>\n  </ResponseMetadata>\n</SubscribeResponse>\n"
+      }
+    }
+  ]
+}

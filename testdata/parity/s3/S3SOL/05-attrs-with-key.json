@@ -1,0 +1,36 @@
+{
+  "step": "05-attrs-with-key",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/c1?attributes",
+        "headers": [
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="],
+          ["x-amz-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="],
+          ["x-amz-object-attributes", "ETag,ObjectSize"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,b,Z,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-object-attributes"],
+          ["X-Amz-Date", "20261103T033953Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "715e3bf7-bdd9-42a6-a26c-f27182fd1b79"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "lReUXB5mTja3XzENVkp+j/bkuCA6K7CdY1TLPoZJBcOCXKrfG88j9OyBrMh5kFOTW6VJ1v2R9Nw="],
+          ["x-amz-request-id", "THQNA3B5NS01SK69"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:39:54 GMT"],
+          ["Last-Modified", "Tue, 03 Nov 2026 03:39:43 GMT"],
+          ["Content-Length", "218"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<GetObjectAttributesResponse xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><ETag>98709c745e0c635a8b444cc8e5aa5e23</ETag><ObjectSize>10</ObjectSize></GetObjectAttributesResponse>"
+      }
+    }
+  ]
+}

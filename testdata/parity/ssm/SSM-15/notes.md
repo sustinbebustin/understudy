@@ -1,0 +1,14 @@
+# SSM-15 notes
+
+- Date: 2026-11-03 (UTC)
+- Region: us-east-2
+- aws --version: aws-cli/2.38.3 Python/3.15.0 Linux/6.8.0-147-generic source/x86_64.ubuntu.24
+- curl --version: curl 8.23.0 (x86_64-pc-linux-gnu) libcurl/8.23.0 OpenSSL/4.0.3 zlib/1.3.1.zlib-ng brotli/1.2.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.23.3 libssh2/1.11.1 nghttp2/1.70.0 ngtcp2/1.25.0 nghttp3/1.18.0 mit-krb5/1.22.2 OpenLDAP/2.7.1
+- Recipe: docs/research/ssm-parameters.md 13.16; session script changes marked `# session:` (exact-name deletes replace `ssmsweep`, which deletes by prefix and other recordings share P)
+
+- 01 `10,000` vs `\d{1,4}`: ParameterPatternMismatchException, whole-value match, text `Parameter value, cannot be validated against allowedPattern: \d{1,4}`: matches 12.4.
+- 02 lookahead `^(?=a).*$`: accepted (Java dialect). understudy answers 501 for patterns RE2 cannot compile (disclosed in the coverage note).
+- 03 possessive `a*+`: accepted. Same 501 disclosure in understudy.
+- 04 `(`: InvalidAllowedPatternException `The syntax of the allowedPattern parameter is invalid.` (code matches understudy's; text not recorded before).
+
+Replay (scenario.json): steps 01 and 04 only. Steps 02 and 03 are left out because understudy answers them 501 by design (RE2 cannot compile a Java lookahead or possessive quantifier), so a replay would only restate the coverage note.

@@ -1,0 +1,35 @@
+{
+  "step": "04-sqs-params-on-lambda",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: Parameters SqsParameters not supported for the target.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-l2",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,g,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163741Z"],
+          ["amz-sdk-invocation-id", "4f80d1cc-40c6-43a3-a62a-7c9cd441ba23"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "332"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"rate(1 hour)\", \"State\": \"DISABLED\", \"Target\": {\"Arn\": \"arn:aws:lambda:us-east-2:123456789012:function:us1103-nofn\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\", \"SqsParameters\": {\"MessageGroupId\": \"g\"}}, \"ClientToken\": \"5fbdfb13-ebc8-4639-89d5-c558e6a64da3\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "a3cee4c4-fe8f-4891-8988-d221d826977e"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "68"],
+          ["Date", "Tue, 03 Nov 2026 16:37:41 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"Parameters SqsParameters not supported for the target.\"}"
+      }
+    }
+  ]
+}

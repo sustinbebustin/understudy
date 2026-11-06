@@ -1,0 +1,35 @@
+{
+  "step": "05-history",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArn) when calling the GetExecutionHistory operation: Invalid Arn: 'Resource type not valid in this context: express'",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.GetExecutionHistory"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,C,E,b,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.get-execution-history"],
+          ["X-Amz-Date", "20261103T165153Z"],
+          ["amz-sdk-invocation-id", "df98a258-3c91-4777-8a09-28e0c9cd4f27"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "149"]
+        ],
+        "body": "{\"executionArn\": \"arn:aws:states:us-east-2:123456789012:express:us1103-xw:345bf6db-d1d5-4346-b221-0f6259a02d58:e92995f2-a075-4449-92f8-fc7de9e93dcb\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "fb2b32b5-b8c5-4f24-9f16-33a060936b60"],
+          ["Date", "Tue, 03 Nov 2026 16:51:54 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "134"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"com.amazonaws.swf.service.v2.model#InvalidArn\",\"message\":\"Invalid Arn: 'Resource type not valid in this context: express'\"}"
+      }
+    }
+  ]
+}

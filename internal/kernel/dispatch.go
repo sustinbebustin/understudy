@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"slices"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
@@ -15,6 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // Decoded is what the edge hands the kernel. The kernel is the only caller
@@ -84,8 +86,8 @@ func (e *DecodedError) Error() string {
 }
 
 // PanicError is service code that panicked during a call: a validator,
-// check or resource resolver (steps 7 and 8) or the handler (step 9). The
-// stack goes to the journal and the log, never to the client.
+// check, resource resolver or the Authorizer (steps 7 and 8) or the handler
+// (step 9). The stack goes to the journal and the log, never to the client.
 type PanicError struct {
 	Op    string
 	Value any
@@ -99,28 +101,32 @@ func (e *PanicError) Error() string {
 
 // Dispatch runs pipeline steps 6 to 12 of ARCHITECTURE.md 4 for c: journal
 // begin; for a modeled, bound operation the generated and typed
-// validators, request-phase faults, the handler, after-commit faults; the
-// access record; journal end. An unknown operation, an unbound one (501)
-// and a rejected decode end after step 6, journaled and access-recorded
-// like any other call; an unauthenticated request ends there too,
-// journaled but not access-recorded.
+// validators, authorization, request-phase faults, the handler,
+// after-commit faults; the access record; journal end. An unknown
+// operation, an unbound one (501) and a rejected decode end after step 6,
+// journaled and access-recorded like any other call; an unauthenticated
+// request ends there too, journaled but not access-recorded.
 func (k *Kernel) Dispatch(ctx context.Context, c *Call, d Decoded) Result {
 	bnd, _ := k.bindings.lookup(c.op)
 	k.begin(ctx, c, d, bnd)
 	used := secondariesBefore(bnd)
 	res, inj := k.pipeline(ctx, c, d, bnd, &used)
 	if _, unauthenticated := d.(Unauthenticated); inj == nil && !unauthenticated {
-		k.recordAccess(ctx, c, res, used)
+		k.recordAccess(ctx, c, bnd, res, used)
 	}
 	k.end(ctx, c, res, inj)
 	return res
 }
 
 // pipeline runs steps 7 to 10, setting *used to what the binding says
-// about the secondary IAM actions a valid input used (WithActions). A
-// panic anywhere in them, in the bound validators, checks and resolvers as
-// much as in the handler, becomes Internal carrying the stack, so steps 11
-// and 12 still record the call and the client gets 500 InternalFailure.
+// about the secondary IAM actions a valid input used (WithActions). Step 8
+// authorizes the call before the request-phase fault rules
+// (iam-enforcement-surfaces.md 12.1), so a denied call reaches neither
+// them nor the handler, and ends as a Failure, not an injected fault. A
+// panic anywhere in them, in the bound validators, checks, resolvers and
+// the Authorizer as much as in the handler, becomes Internal carrying the
+// stack, so steps 11 and 12 still record the call and the client gets 500
+// InternalFailure.
 func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding, used *secondaries) (res Result, inj *fault.Injection) {
 	defer func() {
 		if v := recover(); v != nil {
@@ -148,15 +154,29 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 		return Failure{Err: err}, nil
 	}
 	c.Touch(bnd.resources(c, in.In)...)
+	scoped, resolved := bnd.scoping(c, in.In)
+	c.scoped = scoped
+	c.Touch(resolved...)
 	*used = bnd.secondaries(c, in.In)
-	if res, inj, stop := k.before(ctx, c); stop {
+	c.keys = bnd.conditionKeys(c, in.In)
+	if err := k.authorize(ctx, c, bnd, *used, c.keys); err != nil {
+		return Failure{Err: err}, nil
+	}
+	items := bnd.items(in.In)
+	if res, inj, stop := k.before(ctx, c, items); stop {
 		return res, inj
 	}
 	out, err := k.handle(ctx, c, bnd, in)
 	if err != nil {
 		return Failure{Err: err}, nil
 	}
-	if res, inj, hit := k.after(ctx, c); hit {
+	// An AuthorizedAfterResolve call that neither wrote nor invoked is asked
+	// now, and a denial replaces its output.
+	if err := c.authorizeDeferred(); err != nil {
+		k.discard(ctx, c, out)
+		return Failure{Err: err}, nil
+	}
+	if res, inj, hit := k.after(ctx, c, items); hit {
 		k.discard(ctx, c, out)
 		return res, inj
 	}
@@ -173,14 +193,15 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	return Output{Out: out, Status: status}, nil
 }
 
-// before runs the request-phase fault rules (step 8). It reports stop when
-// a rule answers the call; a latency rule holds the call for its wall time
+// before runs the request-phase fault rules (step 8) on a call whose input
+// carries items transaction items (WithItemCount). It reports stop when a
+// rule answers the call; a latency rule holds the call for its wall time
 // and lets the rules after it decide.
-func (k *Kernel) before(ctx context.Context, c *Call) (Result, *fault.Injection, bool) {
+func (k *Kernel) before(ctx context.Context, c *Call, items int) (Result, *fault.Injection, bool) {
 	if k.faults == nil {
 		return nil, nil, false
 	}
-	decision := k.faults.Evaluate(fault.BeforeHandler, k.matchInput(c))
+	decision := k.faults.Evaluate(fault.BeforeHandler, k.matchInput(c, items))
 	for {
 		switch d := decision.(type) {
 		case fault.Fail:
@@ -193,7 +214,7 @@ func (k *Kernel) before(ctx context.Context, c *Call) (Result, *fault.Injection,
 				return Failure{Err: err}, nil, true
 			}
 			decision = d.Then
-		case fault.None, fault.FailAfterCommit, fault.FailStatusOK, fault.Drop, nil:
+		case fault.None, fault.FailAfterCommit, fault.FailStatusOK, fault.Drop, fault.RespondHTTP, fault.TimeOutHTTP, nil:
 			return nil, nil, false
 		}
 	}
@@ -211,7 +232,7 @@ func (k *Kernel) journalSpent(ctx context.Context, c *Call, decision fault.Decis
 		case fault.Delay:
 			k.journalFault(ctx, c, d.Injection)
 			decision = d.Then
-		case fault.None, fault.FailAfterCommit, fault.FailStatusOK, fault.Drop, nil:
+		case fault.None, fault.FailAfterCommit, fault.FailStatusOK, fault.Drop, fault.RespondHTTP, fault.TimeOutHTTP, nil:
 			return
 		}
 	}
@@ -219,18 +240,18 @@ func (k *Kernel) journalSpent(ctx context.Context, c *Call, decision fault.Decis
 
 // after runs the after-commit fault rules (step 10) on a call whose handler
 // succeeded.
-func (k *Kernel) after(ctx context.Context, c *Call) (Result, *fault.Injection, bool) {
+func (k *Kernel) after(ctx context.Context, c *Call, items int) (Result, *fault.Injection, bool) {
 	if k.faults == nil {
 		return nil, nil, false
 	}
-	switch d := k.faults.Evaluate(fault.AfterHandler, k.matchInput(c)).(type) {
+	switch d := k.faults.Evaluate(fault.AfterHandler, k.matchInput(c, items)).(type) {
 	case fault.FailAfterCommit:
 		k.journalFault(ctx, c, d.Injection)
 		return Failure{Err: d.Err}, &d.Injection, true
 	case fault.FailStatusOK:
 		k.journalFault(ctx, c, d.Injection)
 		return StatusOKFailure{Err: d.Err}, &d.Injection, true
-	case fault.None, fault.Fail, fault.Delay, fault.Drop, nil:
+	case fault.None, fault.Fail, fault.Delay, fault.Drop, fault.RespondHTTP, fault.TimeOutHTTP, nil:
 	}
 	return nil, nil, false
 }
@@ -254,8 +275,8 @@ func (k *Kernel) wallDelay(ctx context.Context, d time.Duration) *awserr.Error {
 	return nil
 }
 
-func (k *Kernel) matchInput(c *Call) fault.MatchInput {
-	return fault.MatchInput{Service: c.opID.Service, Op: c.opID, Touched: c.Touched(), Scope: c.scope, Origin: c.origin}
+func (k *Kernel) matchInput(c *Call, items int) fault.MatchInput {
+	return fault.MatchInput{Service: c.opID.Service, Op: c.opID, Touched: c.Touched(), Scope: c.scope, Origin: c.origin, Items: items}
 }
 
 // begin opens the call's journal event (step 6).
@@ -362,13 +383,19 @@ func (k *Kernel) journalFault(ctx context.Context, c *Call, inj fault.Injection)
 	}
 }
 
-// recordAccess records the IAM actions the call used (step 11), as
-// recordedActions selects them from the operation's list and what its
-// binding declared. It records nothing for an anonymous caller, a service
-// acting on its own behalf (AsPlatform), which no policy grants, or an
-// internal operation that declares no action. Dispatch skips it for an
-// injected fault and for an Unauthenticated request.
-func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used secondaries) {
+// recordAccess records the pairs the call needed (step 11): the actions
+// recordedActions selects from the operation's list and what its binding
+// declared, each paired as step 8 pairs it (pairsOf, with the binding's
+// WithResourcesFor scoping, over the resources touched when step 8 or the
+// deferred authorization formed its pairs: pairingResources), then each
+// pair the handler asked about through Authorize. An AuthorizedInHandler
+// binding's primary action, which step 8 never asks, is recorded only
+// through the handler's Authorize, never on "*". It records nothing for an
+// anonymous caller, a service acting on its own behalf (AsPlatform), which
+// no policy grants, or a call with no pair, such as an internal operation
+// that declares no action. Dispatch skips it for an injected fault and for
+// an Unauthenticated request. bnd is nil for an unbound operation.
+func (k *Kernel) recordAccess(ctx context.Context, c *Call, bnd *binding, res Result, used secondaries) {
 	if _, platform := c.mode.(AsPlatform); k.access == nil || c.op == nil || platform {
 		return
 	}
@@ -377,7 +404,26 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 		return
 	}
 	actions := k.recordedActions(ctx, c, used)
-	if len(actions) == 0 {
+	paired := actions
+	if bnd != nil && bnd.authorization == inHandler && len(c.op.IAM) > 0 {
+		paired = slices.DeleteFunc(slices.Clone(actions), func(a registry.IAMAction) bool { return a == c.op.IAM[0] })
+	}
+	pairs := pairsOf(paired, c.op.Service.IAMPrefix, c.pairingResources(), c.scoped)
+	recorded := accessPairs(pairs, c.keys)
+	// recorded is pairs mapped one to one; a pair the handler asked about
+	// keeps the iam:PassedToService it was asked with even when step 8's
+	// pairing already holds it without one.
+	for _, a := range c.authorizedPairs() {
+		asked := accessPairs([]Pair{a.pair}, a.keys)[0]
+		switch i := slices.Index(pairs, a.pair); {
+		case i < 0:
+			pairs = append(pairs, a.pair)
+			recorded = append(recorded, asked)
+		case recorded[i].PassedToService == "":
+			recorded[i] = asked
+		}
+	}
+	if len(pairs) == 0 {
 		return
 	}
 	var outcome access.Outcome = access.Succeeded{}
@@ -394,6 +440,7 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 		Service:   c.op.Service.IAMPrefix,
 		Actions:   actions,
 		Resources: c.Touched(),
+		Pairs:     recorded,
 		Outcome:   outcome,
 		At:        c.admitted.Wire(),
 	})
@@ -401,6 +448,31 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, res Result, used sec
 		k.log.LogAttrs(ctx, slog.LevelWarn, "access recorder refused a call",
 			slog.String("op", c.label), slog.String("request_id", string(c.id)), slog.String("error", err.Error()))
 	}
+}
+
+// accessPairs maps step 8's pairs onto the access record's, an iam:PassRole
+// pair with the one iam:PassedToService keys supply, so the rendered policy
+// grants the pass on that condition (iam-enforcement-surfaces.md 12.6).
+func accessPairs(pairs []Pair, keys ConditionKeys) []access.Pair {
+	var passedTo string
+	if v := keys["iam:PassedToService"]; len(v) == 1 {
+		passedTo = v[0]
+	}
+	out := make([]access.Pair, 0, len(pairs))
+	for _, p := range pairs {
+		var scope access.Scope = access.AnyResource{}
+		switch r := p.Resource.(type) {
+		case ResourceARN:
+			scope = access.OnResource{ARN: r.ARN}
+		case AnyResource:
+		}
+		pair := access.Pair{Action: p.Action, Resource: scope}
+		if p.Action == (registry.IAMAction{Prefix: "iam", Name: "PassRole"}) {
+			pair.PassedToService = passedTo
+		}
+		out = append(out, pair)
+	}
+	return out
 }
 
 // accessPrincipal maps a caller onto the access recorder's principals: a
@@ -427,7 +499,7 @@ func accessMode(m PrincipalMode) access.Mode {
 	case AsExecutionRole:
 		return access.AsExecutionRole{}
 	case AsService:
-		return access.AsService{Source: m.Source}
+		return access.AsService{Source: m.Source, SourceAccount: m.SourceAccount}
 	case AsPlatform:
 		// recordAccess records no AsPlatform call; Direct keeps the switch
 		// whole.

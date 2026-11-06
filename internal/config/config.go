@@ -1,11 +1,13 @@
 package config
 
 import (
+	"crypto/x509"
 	"log/slog"
 	"net/netip"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/fault"
 )
 
@@ -24,11 +26,19 @@ type Config struct {
 	Clock    ClockStart
 	Accounts Accounts
 	// Regions are region names accepted beyond AWS's own.
-	Regions  []aws.Region
-	Docker   Docker
-	S3       S3
-	Lambda   Lambda
-	SQS      SQS
+	Regions []aws.Region
+	Docker  Docker
+	// DockerLabels are added to every container understudy creates, function
+	// environments and DynamoDB Local (dockerLabels, testcontainers.md 9.3);
+	// serve creates no network. No key starts with understudy.dev/. Nil when
+	// unset; the source that sets it replaces the others whole.
+	DockerLabels map[string]string
+	S3           S3
+	Lambda       Lambda
+	SQS          SQS
+	SNS          SNS
+	// SES is read from the file's ses section only.
+	SES      SES
 	IAM      IAM
 	DynamoDB DynamoDB
 	Journal  Journal
@@ -332,8 +342,61 @@ const (
 	DeletedRecentlyEnforce
 )
 
+// SNS holds the SNS settings.
+type SNS struct{ HTTPDelivery SNSHTTPDelivery }
+
+// SNSHTTPDelivery is sns.httpDelivery, SNS's outbound HTTP delivery.
+type SNSHTTPDelivery struct {
+	// Allow is sns.httpDelivery.allow parsed (sns-http-delivery.md 7.2);
+	// the zero AllowList allows nothing.
+	Allow egress.AllowList
+	// CABundle is sns.httpDelivery.caBundle read and parsed: the
+	// certificates an https endpoint may chain to beside the system roots;
+	// nil when unset.
+	CABundle []*x509.Certificate
+}
+
+// SES holds the SES settings (ses.md 11.3).
+type SES struct {
+	// VerifiedIdentities is ses.verifiedIdentities classified.
+	VerifiedIdentities SESVerifiedIdentities
+	// ProductionAccess is ses.productionAccess: true takes every account
+	// and Region out of the sandbox.
+	ProductionAccess bool
+}
+
+// SESVerifiedIdentities is ses.verifiedIdentities, each entry in its class
+// in file order:
+// an exact address (case-sensitive), a domain (stored lower case) or
+// "*@domain" (its domain, stored lower case). Load refuses any other entry,
+// naming it.
+type SESVerifiedIdentities struct {
+	Addresses      []string
+	Domains        []string
+	AddressDomains []string
+}
+
 // IAM holds the IAM and STS settings.
-type IAM struct{ AssumeRole AssumeRole }
+type IAM struct {
+	AssumeRole AssumeRole
+	// Enforce is iam.enforce.
+	Enforce Enforcement
+}
+
+// Enforcement is the iam.enforce mode (iam-enforcement-surfaces.md 12.1).
+type Enforcement uint8
+
+// Enforcement values.
+const (
+	// EnforceOff records which actions each principal uses and enforces
+	// nothing.
+	EnforceOff Enforcement = iota
+	// EnforceAdvise evaluates every call and journals an advisory for each
+	// denial AWS would issue, answering as EnforceOff does.
+	EnforceAdvise
+	// EnforceEnforce answers those denials.
+	EnforceEnforce
+)
 
 // AssumeRole is the iam.assumeRole switch.
 type AssumeRole uint8

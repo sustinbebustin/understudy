@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/clock"
+	// Named apart from normalize, this package's tree walk.
+	normalizer "github.com/sustinbebustin/understudy/internal/normalize"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 )
 
@@ -205,7 +207,7 @@ func manifestTree(m Manifest, norm bool) (tree, error) {
 			}
 			for j, f := range c.val.members {
 				if f.name == "at" {
-					t.members[i].val.members[j].val = str(maskWallTime)
+					t.members[i].val.members[j].val = str(normalizer.WallTime.Mask())
 				}
 			}
 		}

@@ -1,0 +1,38 @@
+{
+  "step": "22-hold-missing-key-nolock",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the PutObjectLegalHold operation: Bucket is missing Object Lock Configuration",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-nolock.s3.us-east-2.amazonaws.com/missing?legal-hold",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,W,b,Z,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-legal-hold"],
+          ["x-amz-checksum-crc64nvme", "Yw8nczH5A1M="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034316Z"],
+          ["X-Amz-Content-SHA256", "96b73c95a8d33e664ab2170e095025b47ebd55978bb71cebd6a51e394bf96722"],
+          ["amz-sdk-invocation-id", "8c0e6e2c-f957-4816-9309-c27976d10019"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "90"]
+        ],
+        "body": "<LegalHold xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Status>ON</Status></LegalHold>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "4VQ7Y3SH14NGJQAE"],
+          ["x-amz-id-2", "N1HeoePMcisbcJHAH/zy6kueCw1boeFwsI2aTd3PVKcT8OBxjZTvDX+apvGR3qYUB1OGFwDmTih+4fCdce9r/LHa/QCay4Jv"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:43:16 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Bucket is missing Object Lock Configuration</Message><RequestId>4VQ7Y3SH14NGJQAE</RequestId><HostId>N1HeoePMcisbcJHAH/zy6kueCw1boeFwsI2aTd3PVKcT8OBxjZTvDX+apvGR3qYUB1OGFwDmTih+4fCdce9r/LHa/QCay4Jv</HostId></Error>"
+      }
+    }
+  ]
+}

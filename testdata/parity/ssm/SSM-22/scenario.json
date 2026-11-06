@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "item": "SSM-22",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "kms",
+      "operation": "CreateKey",
+      "input": {
+        "Description": "us1103-ssm-k22"
+      },
+      "bind": [
+        {
+          "path": "body/KeyMetadata/KeyId",
+          "shape": {
+            "kind": "uuid"
+          },
+          "aws": "15db6cb0-3df0-4f41-957d-55fad776664b"
+        }
+      ]
+    },
+    {
+      "service": "kms",
+      "operation": "CreateAlias",
+      "input": {
+        "AliasName": "alias/us1103-ssm",
+        "TargetKeyId": "15db6cb0-3df0-4f41-957d-55fad776664b"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/k22/id",
+        "Type": "SecureString",
+        "Value": "s",
+        "KeyId": "15db6cb0-3df0-4f41-957d-55fad776664b"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/k22/arn",
+        "Type": "SecureString",
+        "Value": "s",
+        "KeyId": "arn:aws:kms:us-east-2:123456789012:key/15db6cb0-3df0-4f41-957d-55fad776664b"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/k22/aliasarn",
+        "Type": "SecureString",
+        "Value": "s",
+        "KeyId": "arn:aws:kms:us-east-2:123456789012:alias/us1103-ssm"
+      }
+    },
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103/ssm/k22/default",
+        "Type": "SecureString",
+        "Value": "s"
+      }
+    },
+    {
+      "service": "kms",
+      "operation": "DisableKey",
+      "input": {
+        "KeyId": "15db6cb0-3df0-4f41-957d-55fad776664b"
+      },
+      "before": "05-disabled-put"
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-22/01-describe.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-22/02-history.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-22/04-missing-key.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-22/05-disabled-put.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-22/06-disabled-get.json",
+      "compare": "all"
+    }
+  ],
+  "waivers": [
+    {
+      "step": "02-history",
+      "field": "body/Parameters/0/Value",
+      "reason": "a SecureString read without decryption is KMS ciphertext, opaque and different on every encryption"
+    }
+  ]
+}

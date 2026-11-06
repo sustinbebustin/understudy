@@ -1,0 +1,35 @@
+{
+  "step": "01-cli",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (MessageRejected) when calling the SendEmail operation: Email address is not verified. The following identities failed the check in region US-EAST-2: us1103-nobody@example.com",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/v2/email/outbound-emails",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,E,g,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sesv2.send-email"],
+          ["X-Amz-Date", "20261103T164211Z"],
+          ["amz-sdk-invocation-id", "c8cac927-6527-4796-8ed4-96f7c31fdd02"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "202"]
+        ],
+        "body": "{\"FromEmailAddress\": \"us1103-nobody@example.com\", \"Destination\": {\"ToAddresses\": [\"success@simulator.amazonses.com\"]}, \"Content\": {\"Simple\": {\"Subject\": {\"Data\": \"s\"}, \"Body\": {\"Text\": {\"Data\": \"b\"}}}}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:11 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "133"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "cf3476d4-7b6e-4738-904b-3f0427f690e3"],
+          ["x-amzn-ErrorType", "MessageRejected"]
+        ],
+        "body": "{\"message\":\"Email address is not verified. The following identities failed the check in region US-EAST-2: us1103-nobody@example.com\"}"
+      }
+    }
+  ]
+}

@@ -11,6 +11,7 @@
 package dockertest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -72,6 +73,11 @@ type fault struct {
 	message string
 }
 
+// hold is a request HoldNext keeps unserved until it is released.
+type hold struct {
+	held, release, served chan struct{}
+}
+
 // Daemon is a running fake Engine. All methods are safe for concurrent use.
 type Daemon struct {
 	opts     Options
@@ -94,6 +100,7 @@ type Daemon struct {
 	events     []docker.Event
 	requests   []Request
 	faults     map[string][]fault
+	holds      map[string][]*hold
 }
 
 // epoch is where the fake's logical clock starts.
@@ -156,6 +163,7 @@ func newDaemon(opts Options) *Daemon {
 		containers: map[string]*container{},
 		networks:   map[string]*network{},
 		faults:     map[string][]fault{},
+		holds:      map[string][]*hold{},
 	}
 	d.addNetwork(opts.DefaultNetwork, opts.BridgeSubnet, nil, false)
 	return d
@@ -204,6 +212,22 @@ func (d *Daemon) FailNext(route string, status int, message string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.faults[route] = append(d.faults[route], fault{status: status, message: message})
+}
+
+// HoldNext holds the next request to route, named as for FailNext, once the
+// daemon has read it: held closes then. release serves it whether or not
+// its client is still waiting, as a real daemon may complete a create
+// whose client has given up, and returns once it is served. Call release
+// once, after held has closed.
+func (d *Daemon) HoldNext(route string) (held <-chan struct{}, release func()) {
+	h := &hold{held: make(chan struct{}), release: make(chan struct{}), served: make(chan struct{})}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.holds[route] = append(d.holds[route], h)
+	return h.held, func() {
+		close(h.release)
+		<-h.served
+	}
 }
 
 // Requests returns every request received so far, in order.
@@ -279,7 +303,8 @@ func (d *Daemon) routes() *http.ServeMux {
 	return mux
 }
 
-// wrap records the request and serves an injected fault if one is queued.
+// wrap records the request and serves an injected fault if one is queued,
+// else holds it if HoldNext asked for that.
 func (d *Daemon) wrap(route string, h handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		d.mu.Lock()
@@ -290,10 +315,27 @@ func (d *Daemon) wrap(route string, h handler) http.HandlerFunc {
 			f = &queued[0]
 			d.faults[route] = queued[1:]
 		}
+		var held *hold
+		if f == nil && len(d.holds[route]) > 0 {
+			held = d.holds[route][0]
+			d.holds[route] = d.holds[route][1:]
+		}
 		d.mu.Unlock()
 		if f != nil {
 			writeError(w, f.status, f.message)
 			return
+		}
+		if held != nil {
+			defer close(held.served)
+			body, err := io.ReadAll(r.Body)
+			close(held.held)
+			<-held.release
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "dockertest: reading the held request's body: "+err.Error())
+				return
+			}
+			r = r.WithContext(context.WithoutCancel(r.Context()))
+			r.Body = io.NopCloser(bytes.NewReader(body))
 		}
 		h(w, r)
 	}

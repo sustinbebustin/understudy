@@ -1,0 +1,29 @@
+{
+  "step": "03-timeout",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://hl9cpb8a0a.execute-api.us-east-2.amazonaws.com/slow?mode=sleep",
+        "headers": [
+          ["Host", "hl9cpb8a0a.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"]
+        ]
+      },
+      "response": {
+        "status": 503,
+        "reason": "Service Unavailable",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:46:38 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "33"],
+          ["Connection", "keep-alive"],
+          ["apigw-requestid", "GRdtKiZtCYcEP5A="]
+        ],
+        "body": "{\"message\":\"Service Unavailable\"}"
+      }
+    }
+  ]
+}

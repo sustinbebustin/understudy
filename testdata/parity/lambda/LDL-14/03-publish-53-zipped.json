@@ -1,0 +1,35 @@
+{
+  "step": "03-publish-53-zipped",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (RequestEntityTooLargeException) when calling the PublishLayerVersion operation: Request must be smaller than 70167211 bytes for the PublishLayerVersion operation",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2018-10-31/layers/us1103-ldl-big4/versions",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,AN,E,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.publish-layer-version"],
+          ["X-Amz-Date", "20261103T170732Z"],
+          ["amz-sdk-invocation-id", "f9815d53-5c4d-4ed4-866a-a7eb345d5792"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "70688408"]
+        ],
+        "body_omitted": {"bytes": 70688408, "sha256": "e0b5f5327f7bc31065d58194f29c7ffa49599544934df8b5cf8bb158476c2c47"}
+      },
+      "response": {
+        "status": 413,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 17:07:32 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "95"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "657dcf6b-c992-465f-a3ea-51bc328d4bc7"],
+          ["x-amzn-ErrorType", "RequestEntityTooLargeException"]
+        ],
+        "body": "{\"Message\":\"Request must be smaller than 70167211 bytes for the PublishLayerVersion operation\"}"
+      }
+    }
+  ]
+}

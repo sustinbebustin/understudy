@@ -27,7 +27,8 @@ func (o *Outbox) Export() ([]store.Section, error) {
 
 // Import loads sections written by Export of this schema version and
 // raises the Seq counter past every loaded entry's, so entries accepted
-// after the load order after them. Rearm then arms their attempts.
+// after the load order after them, and forgets every subscription's
+// pacing. Rearm then arms their attempts.
 func (o *Outbox) Import(ss []store.Section) error {
 	e := o.e.Load()
 	if e == nil {
@@ -36,6 +37,7 @@ func (o *Outbox) Import(ss []store.Section) error {
 	if err := e.cells.Import(store.ScopeKeys(), stateVersion, ss); err != nil {
 		return err
 	}
+	e.pace.forget(func(aws.Scope) bool { return false })
 	var last uint64
 	for _, scope := range e.cells.Keys(store.ScopeKeys()) {
 		cell, ok := e.cells.Lookup(scope)
@@ -52,11 +54,14 @@ func (o *Outbox) Import(ss []store.Section) error {
 	}
 }
 
-// Reset drops the pending deliveries into the scopes rs covers. Their armed
-// attempts find nothing when they fire.
+// Reset drops the pending deliveries into the scopes rs covers, and the
+// pacing of the subscriptions whose topics are there. Their armed attempts
+// find nothing when they fire.
 func (o *Outbox) Reset(rs kernel.ResetScope) {
 	if e := o.e.Load(); e != nil {
-		e.cells.Reset(func(k aws.Scope) bool { return !rs.Covers(k) })
+		keep := func(k aws.Scope) bool { return !rs.Covers(k) }
+		e.cells.Reset(keep)
+		e.pace.forget(keep)
 	}
 }
 
@@ -97,7 +102,9 @@ func (o *Outbox) Scopes() []aws.Scope {
 }
 
 // Resources lists the deliveries pending into scope, oldest first, each by
-// its target.
+// the resource it lands in (deliveredTo). A delivery to an HTTP endpoint,
+// which has no ARN, is listed by its source, its summary naming the
+// endpoint.
 func (o *Outbox) Resources(scope aws.Scope) []kernel.Resource {
 	e := o.e.Load()
 	if e == nil {
@@ -110,12 +117,18 @@ func (o *Outbox) Resources(scope aws.Scope) []kernel.Resource {
 	return store.Read(cell, func(st *State) []kernel.Resource {
 		out := make([]kernel.Resource, 0, len(st.Entries))
 		for _, en := range st.sorted() {
-			target, _ := targetARN(en.Request.Target)
-			out = append(out, kernel.Resource{
-				ARN: target,
+			req := en.Request
+			res := kernel.Resource{
+				ARN: deliveredTo(req),
 				Summary: fmt.Sprintf("pending %s delivery %s from %s: attempt %d due %s",
-					en.Request.Mechanism, en.ID, en.Request.Source, en.Attempt+1, en.NextAt),
-			})
+					req.Mechanism, en.ID, req.Source, en.Attempt+1, en.NextAt),
+			}
+			if endpoint := endpointOf(req.Target); endpoint != "" {
+				res.ARN = req.Source
+				res.Summary = fmt.Sprintf("pending %s delivery %s from %s to %s: attempt %d due %s",
+					req.Mechanism, en.ID, req.Source, endpoint, en.Attempt+1, en.NextAt)
+			}
+			out = append(out, res)
 		}
 		return out
 	})

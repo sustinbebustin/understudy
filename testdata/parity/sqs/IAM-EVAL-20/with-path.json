@@ -1,0 +1,35 @@
+{
+  "step": "with-path",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.GetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,E,b,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes"],
+          ["X-Amz-Date", "20261103T031927Z"],
+          ["amz-sdk-invocation-id", "6e58e737-ac83-4f14-aa49-9d0e8efaf128"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "113"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-eval-star\", \"AttributeNames\": [\"QueueArn\"]}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "a01e58ec-a18e-5303-a763-3b8ff5716bf4"],
+          ["Date", "Tue, 03 Nov 2026 03:19:27 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "81"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Attributes\":{\"QueueArn\":\"arn:aws:sqs:us-east-2:123456789012:us1103-eval-star\"}}"
+      }
+    }
+  ]
+}

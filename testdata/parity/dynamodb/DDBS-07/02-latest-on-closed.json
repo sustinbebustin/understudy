@@ -1,0 +1,34 @@
+{
+  "step": "02-latest-on-closed",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "streams.dynamodb.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163825Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDBStreams_20120810.GetShardIterator"],
+          ["Content-Length", "186"]
+        ],
+        "body": "{\"StreamArn\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs-cl/stream/2026-11-03T16:37:07.192\",\"ShardId\":\"shardId-00000001793723828731-bbce01c8\",\"ShardIteratorType\":\"LATEST\"}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["x-amzn-RequestId", "UQLD7S353Q1HGIRC5SJJDIJ75NVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "1920713021"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1002"],
+          ["Date", "Tue, 03 Nov 2026 16:38:25 GMT"]
+        ],
+        "body": "{\"ShardIterator\":\"arn:aws:dynamodb:us-east-2:123456789012:table/us1103-ddbs-cl/stream/2026-11-03T16:37:07.192|1|AAAAAAAAAAFozrUW7GqlcfS7UnakZ2YqViei+UjT2LtVMMnT2LQrCnEZ549iscLYud9KdOXkOtEmUiHvxxNqgGAP6JF3iSqHrAjOrjsBXHHyxZE0vY6yciH/7oqaP38XhhxKFoHv/GgrDqGzH1Hg4PLDJ+VSk3RMo99ka/8Q0gI/l5PpiKJ4/baUyA7qcTpIZ0bLP5ArQ5vfLtyzyNpB8HCNEhVyMZ/I0z+3bI2AycLKVNJ+msqoyJmkELoDeZaJ9Q5i6NIVOWaVkexX4xiz6pdvJtwIWRLYY616xmJRQipG1S/nAldTkrpo0Nwpj1o/4q0v9JEQYnMOTzno/Zl3td1RSVkInGCjeWnMPq7nkodWQjS651Wtk+INuE6Aar6HEa5gDOBHaSLkno2zdxBgUCpkMQqxSvtIje37I2nqvnRz/2sPi2n7WStpQqc/tOjm65ThB73lKYnwxxj9Xg9RohZgfFI64sD6ypY0hVssxDwpXpVdtu3i/aaKyYLEYa/c3PlM9p2+g+Gdl9WMld0GJ4dT6bhcBBvIROC8xwnNC3ExO7/VqnJBpjsWHqGlalYrGYIMcTU/IRvRuDqkUQTQ6Zm+K6l2FODLD1tFw2Xuiz/CvSEgi6LD8cvEkO/SekLK3kHK6JiPcsOzu+26lhRbdGpE+1yoBn9J8Qk5YS1VDL8+vh9RaLd8gzGmSI22ckBu40CJM7phXXQtO+P2AWoDlsg07MNjoofMs/+jpQkVTHGPJ2GtWbwjlHVSx3PoBVyWx0ZpKinCw28zoCFVXEq4UucGL0WnQA5t/SuVKQO4f2cIlpJTboFSfK6MURU9VwvdqVjWFDB28MbtQOx1htg5Liioy+n5Qj5vzB81OvtqzoB1il/UmtS6nQ==\"}"
+      }
+    }
+  ]
+}

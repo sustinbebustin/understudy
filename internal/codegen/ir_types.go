@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -26,6 +27,9 @@ type ServiceIR struct {
 	QueryVersion     string
 	XMLNamespace     string
 	QueryCompatible  bool
+	// ResponseCRC32 is dev.understudy#responseCrc32: every encoded answer
+	// carries x-amz-crc32.
+	ResponseCRC32 bool
 	// QueryErrorEnvelope is dev.understudy#queryErrorEnvelope, the zero
 	// value without one.
 	QueryErrorEnvelope registry.QueryErrorEnvelope
@@ -39,6 +43,9 @@ type ServiceIR struct {
 	Routes []RouteIR
 	// RawBinding adds a <Op>Raw binder method per modeled operation.
 	RawBinding bool
+	// Wiring is the config's, its bound operations checked against
+	// Operations.
+	Wiring Wiring
 	// SerdeBoth emits both serde directions for every shape: a rawBinding
 	// service encodes inputs and decodes outputs for its passthrough, and
 	// the protocol compliance harness drives a corpus service both ways.
@@ -50,11 +57,17 @@ type ServiceIR struct {
 	// collection's element constraints are reported per element or rolled
 	// up at the collection (Lambda).
 	PathStyle PathStyle
+	// InputRoot is dev.understudy#validationInputRoot: a Coral message
+	// names a member not bound to the URI under the input structure,
+	// <operation>Input.<member> (API Gateway), and a URI label bare.
+	InputRoot bool
 
 	Throttle         *ErrorIR
 	UnknownJSON      *ErrorIR
 	UnknownQuery     *ErrorIR
 	MalformedRequest *ErrorIR
+	// Denial is dev.understudy#denialError, nil when the overlay names none.
+	Denial *DenialIR
 	// Vocabularies are the generic vocabularies of the protocol families
 	// the service speaks (overlays/common.json), JSON first.
 	Vocabularies []VocabularyIR
@@ -63,6 +76,14 @@ type ServiceIR struct {
 	// order. A rule with no constraint filter matches every violation, so
 	// it is the catch-all and belongs last.
 	Validation []RuleIR
+}
+
+// DenialIR is the identity an authorization refusal answers with and the
+// weakest label of the overlay evidence covering it
+// (iam-enforcement-surfaces.md 12.3).
+type DenialIR struct {
+	Error *ErrorIR
+	Label evidence.Label
 }
 
 // OperationIR is one operation.
@@ -132,6 +153,9 @@ type ShapeIR struct {
 	SchemaVar string
 	Members   []*MemberIR
 	Enum      []EnumValueIR
+	// EnumOrder is dev.understudy#enumOrder: the values in the order an
+	// enum violation lists them, nil for the model's order.
+	EnumOrder []string
 
 	TimestampFormat smithy.TimestampFormat
 	MediaType       string
@@ -179,8 +203,10 @@ type MemberIR struct {
 	Owner  *ShapeIR
 	Target *ShapeIR
 
-	Required        bool
-	Default         json.RawMessage // nil when absent or null
+	Required bool
+	Default  json.RawMessage // nil when absent or null
+	// DefaultKind says how the Go field holds Default.
+	DefaultKind     DefaultKind
 	JSONName        string
 	XMLName         string
 	XMLFlattened    bool
@@ -203,7 +229,8 @@ type MemberIR struct {
 	AlwaysEmit bool
 	Empty      EmptyCollection
 	// Value: the Go field is a plain value rather than a pointer (scalars and
-	// structures only; collections, unions and documents use nil for absent).
+	// structures only; collections, unions and documents use nil for absent,
+	// and a DefaultPointer member is never one).
 	Value bool
 	// Bit is the presence bit of a tracked required member, else -1.
 	Bit   int
@@ -212,6 +239,30 @@ type MemberIR struct {
 	// identities exist to resolve it against.
 	rulesRaw json.RawMessage
 }
+
+// DefaultKind is how a structure member's Go field holds its modeled
+// default, which the serializer writes for a member the handler leaves
+// unset and the deserializer fills in for an absent one
+// (smithy-protocol-tests.md 10.4, 14.2 to 14.4).
+type DefaultKind uint8
+
+// DefaultKind values.
+const (
+	// DefaultNone: no default applies. The member models none, models
+	// @default(null), is not a structure member, or streams, which keeps a
+	// stream as it is.
+	DefaultNone DefaultKind = iota
+	// DefaultZero: the default is the Go zero value of a plain field
+	// (numeric 0, false, "" or intEnum 0), so unset and default agree.
+	DefaultZero
+	// DefaultPointer: any other scalar default, every string enum and
+	// every timestamp default (Go's zero time is not the epoch). The field
+	// is a pointer and nil is unset.
+	DefaultPointer
+	// DefaultNil: a list, map, document, blob or big integer, whose Go type
+	// has its own nil for unset.
+	DefaultNil
+)
 
 // Bounds is a length or range trait, decimal text as the model wrote it.
 type Bounds struct {

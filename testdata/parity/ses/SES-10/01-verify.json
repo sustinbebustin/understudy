@@ -1,0 +1,33 @@
+{
+  "step": "01-verify",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,Z,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ses.verify-domain-identity"],
+          ["X-Amz-Date", "20261103T164215Z"],
+          ["amz-sdk-invocation-id", "4dd5acd4-3d43-41d7-9b56-e376f263fc41"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "72"]
+        ],
+        "body": "Action=VerifyDomainIdentity&Version=2010-12-01&Domain=us1103.example.com"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:15 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "370"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "495dafe7-8b49-492a-9965-5b4084de7e69"]
+        ],
+        "body": "<VerifyDomainIdentityResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <VerifyDomainIdentityResult>\n    <VerificationToken>YGeZgoZsyn2wJItc7NW++uyqW+9IkVP0H21sAixsShI=</VerificationToken>\n  </VerifyDomainIdentityResult>\n  <ResponseMetadata>\n    <RequestId>495dafe7-8b49-492a-9965-5b4084de7e69</RequestId>\n  </ResponseMetadata>\n</VerifyDomainIdentityResponse>\n"
+      }
+    }
+  ]
+}

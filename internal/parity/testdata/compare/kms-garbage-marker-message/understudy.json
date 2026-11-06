@@ -1,0 +1,16 @@
+{
+  "step": "understudy",
+  "client": "curl",
+  "note": "an answer to kms/R15/x-listkeys-garbage-marker that adds a message AWS does not send (its notes: differs)",
+  "exchanges": [
+    {
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Content-Type", "application/x-amz-json-1.1"]
+        ],
+        "body": "{\"__type\":\"InvalidMarkerException\",\"message\":\"The marker is not valid.\"}"
+      }
+    }
+  ]
+}

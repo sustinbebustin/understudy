@@ -73,6 +73,11 @@ variable "artifacts_dir" {
   type        = string
 }
 
+variable "sns_https_receiver" {
+  description = "Base URL of the HTTPS receiver run.sh starts for SNS https subscriptions; it confirms each one through its SubscribeURL."
+  type        = string
+}
+
 data "aws_caller_identity" "current" {}
 
 data "aws_partition" "current" {}

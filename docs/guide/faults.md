@@ -35,12 +35,14 @@ S3 object calls (`GetObject`, `HeadObject`, `GetObjectAttributes`, `PutObject`, 
 
 | Action | Flag | Effect |
 |---|---|---|
-| Error | `--error SHAPE [--message TEXT]` | The call fails with that error before the handler runs |
+| Error | `--error SHAPE [--message TEXT] [--members JSON]` | The call fails with that error before the handler runs; `--members` sets its other members ([below](#errors-with-members)) |
 | Throttle | `--throttle` | The service's own throttling error, such as `RequestThrottled` for SQS or `TooManyRequestsException` for Lambda |
 | Latency | `--latency 2s` | The call waits this much wall time, then runs |
 | After commit | `--after-commit SHAPE` | The call takes effect, then the client gets the error |
 | Error in a 200 | `--status-ok SHAPE` | S3's `CopyObject`, `UploadPartCopy` and `CompleteMultipartUpload` only: a 200 response with an error body |
 | Drop | `--drop` | Delivery phase only: the target never receives the delivery |
+| HTTP status | `--http-status 503` | Delivery phase, `sns-to-http` only: the attempt gets this status (100 to 599) without contacting the endpoint |
+| HTTP timeout | `--http-timeout` | Delivery phase, `sns-to-http` only: the attempt ends as a timed-out exchange at once, without contacting the endpoint; its retry is scheduled from the end of the 15-second deadline, which on a running clock is 15 seconds after the attempt |
 
 | Trigger | Flag |
 |---|---|
@@ -50,6 +52,54 @@ S3 object calls (`GetObject`, `HeadObject`, `GetObjectAttributes`, `PutObject`, 
 
 Probability draws come from a stream seeded by `serve --seed` and the rule id, so the same seed, rules and call order give the same failures.
 
+## Errors with members
+
+`--members` sets an error's members beyond its message: a JSON object of the shape's members as awsJson writes them, with names as modeled, base64 blobs and epoch-second timestamps. They are checked against the shape when the rule is added, and a refusal names the member at fault. Only DynamoDB's errors take members. In the JSON form a rule carries them as `"members"` in its error action.
+
+DynamoDB Local never conflicts, so a cancelled transaction is simulated with `TransactionCanceledException`. AWS always sends it with `CancellationReasons`, one per item of the transaction in item order, so a rule must set them. Without them the rule is refused:
+
+```sh
+understudy faults add --operation dynamodb.TransactWriteItems --error TransactionCanceledException
+```
+
+```text
+understudy faults add: fault rule rejected, no rule was added or changed: action.members: com.amazonaws.dynamodb#TransactionCanceledException always carries CancellationReasons on AWS, one per item of the transaction in item order; set them in action.members, such as {"CancellationReasons": [{"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item"}]}
+```
+
+```sh
+understudy faults add --id conflict --operation dynamodb.TransactWriteItems --error TransactionCanceledException \
+  --members '{"CancellationReasons": [{"Code": "None"}, {"Code": "TransactionConflict", "Message": "Transaction is ongoing for the item"}]}'
+# three-puts.json holds three Put items for one table
+aws dynamodb transact-write-items --transact-items file://three-puts.json --cli-error-format json
+```
+
+```text
+{
+    "Message": "Transaction cancelled, please refer cancellation reasons for specific reasons [None, TransactionConflict, None]",
+    "Code": "TransactionCanceledException",
+    "CancellationReasons": [
+        {
+            "Code": "None"
+        },
+        {
+            "Code": "TransactionConflict",
+            "Message": "Transaction is ongoing for the item"
+        },
+        {
+            "Code": "None"
+        }
+    ]
+}
+```
+
+- Reason `i` belongs to item `i`. Each item after the rule's last reason gets `{"Code": "None"}`, so the error carries one reason per item.
+- A call with fewer items than the rule gives reasons does not match it: it reaches DynamoDB Local and spends none of the rule's budget.
+- Without `--message`, the message lists the codes as AWS writes it. The cancelled call writes none of its items.
+- Every reason needs a `Code`, and there are 1 to 100 of them. The error is not one the SDKs retry.
+- Reasons that are all `None` are refused. That guard is understudy's own: AWS is not known to cancel a transaction in which no item failed, but no recording settles it.
+- `--after-commit` cannot inject `TransactionCanceledException`, since a cancelled transaction changes nothing.
+- The top-level `Message` key follows the model's spelling and DynamoDB Local, and the bytes of a `None` reason follow the API reference and DynamoDB Local. On `ExecuteTransaction`, the message and reasons take the `TransactWriteItems` form. None of these is recorded from AWS yet.
+
 ## Delivery faults
 
 A delivery-phase rule acts on understudy's own deliveries between services rather than on client calls:
@@ -58,7 +108,18 @@ A delivery-phase rule acts on understudy's own deliveries between services rathe
 understudy faults add --phase delivery --mechanism sns-to-sqs --drop --next 1
 ```
 
-The mechanisms are `sns-to-sqs`, `sns-to-lambda`, `s3-to-sqs`, `s3-to-sns`, `s3-to-lambda`, `events-to-lambda`, `events-to-sqs` and `events-to-sns`. A request-phase rule with `--origin internal` fails the internal call itself instead, which drives the source's own retry policy: SNS retries a failed SQS delivery on its AWS schedule (on the [emulator clock](clock.md)) and then sends it to the subscription's dead-letter queue.
+The mechanisms are `sns-to-sqs`, `sns-to-lambda`, `sns-to-http`, `s3-to-sqs`, `s3-to-sns`, `s3-to-lambda`, `events-to-lambda`, `events-to-sqs`, `events-to-sns`, `events-to-events` (an EventBridge rule's event bus target), and `lambda-to-sqs`, `lambda-to-sns`, `lambda-to-lambda`, `lambda-to-events` and `lambda-to-s3` (an asynchronous invocation's record to a destination, or its event to the function's dead-letter queue or topic), `esm-to-sqs` and `esm-to-sns` (a DynamoDB stream mapping's on-failure record), `cloudwatch-to-sns` and `cloudwatch-to-lambda` (a CloudWatch alarm's action), and `scheduler-to-lambda`, `scheduler-to-sqs`, `scheduler-to-events`, `scheduler-to-sns` and `scheduler-to-states` (an EventBridge Scheduler schedule's target). A request-phase rule with `--origin internal` fails the internal call itself instead, which drives the source's own retry policy: SNS retries a failed SQS delivery on its AWS schedule (on the [emulator clock](clock.md)) and then sends it to the subscription's dead-letter queue.
+
+An HTTP endpoint is in no service, so a rule for `sns-to-http` sets no `--service`. `--http-status` and `--http-timeout` answer such an attempt without a receiver, which drives SNS's HTTP retry schedule ([SNS HTTP delivery](sns-http.md#retries-and-dead-letters)): a 429, a 5xx or a timeout is retried, and any other status is a permanent failure.
+
+```sh
+understudy faults add --id unavailable --phase delivery --mechanism sns-to-http --http-status 503 --next 1
+understudy faults add --phase delivery --mechanism sns-to-sqs --http-status 503
+```
+
+```text
+understudy faults add: fault rule rejected, no rule was added or changed: match.mechanisms: the http-status action applies to sns-to-http deliveries only, which match.mechanisms does not list
+```
 
 ## SDK retries
 

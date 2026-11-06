@@ -360,7 +360,7 @@ func (j *Journal) Append(e Event) (ref.EventID, error) {
 		return 0, &RecordError{Kind: KindAPICall, Reason: CallNeedsBegin}
 	case Gap:
 		return 0, &RecordError{Kind: KindGap, Reason: GapNotRecordable}
-	case Delivery, Invocation, TimerFired, StateChange, FaultInjected, ClockChanged, Advisory, Unclaimed:
+	case Delivery, Invocation, TimerFired, StateChange, FaultInjected, ClockChanged, Advisory, Unclaimed, AdminAction:
 	}
 	e.Detail = asDecoded(e.Detail)
 	if err := checkWireForm(e); err != nil {

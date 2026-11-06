@@ -471,7 +471,7 @@ func normalize(e Event) Event {
 	case ClockChanged:
 		d.From, d.To = normalizeMode(d.From), normalizeMode(d.To)
 		e.Detail = d
-	case Delivery, TimerFired, StateChange, FaultInjected, Advisory, Unclaimed, Gap:
+	case Delivery, TimerFired, StateChange, FaultInjected, Advisory, Unclaimed, Gap, AdminAction:
 	}
 	return e
 }

@@ -17,45 +17,53 @@ import (
 
 // bindAttachments binds the managed policy attachments of roles and users.
 func (s *Service) bindAttachments(b iamapi.Binder) {
-	stored := registry.Partial{Note: "the attachment is stored, not enforced; " + unknownAWSManaged}
+	stored := registry.Partial{Note: withResolved("the attachment is stored, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " + catalogueMembership + "; every catalogued policy attaches, service-linked role policies included, though the IAM model documents PolicyNotAttachable for them")}
+	named := resolvedPartial()
 	b.AttachRolePolicy(func(_ context.Context, c *kernel.Call, in *iamapi.AttachRolePolicyInput) (*iamapi.AttachRolePolicyOutput, *awserr.Error) {
 		return unit[iamapi.AttachRolePolicyOutput](s.attach(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyArn))
 	}, stored)
 	b.DetachRolePolicy(func(_ context.Context, c *kernel.Call, in *iamapi.DetachRolePolicyInput) (*iamapi.DetachRolePolicyOutput, *awserr.Error) {
 		return unit[iamapi.DetachRolePolicyOutput](s.detach(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyArn))
-	}, registry.Full{})
+	}, named)
 	b.ListAttachedRolePolicies(func(_ context.Context, c *kernel.Call, in *iamapi.ListAttachedRolePoliciesInput) (*iamapi.ListAttachedRolePoliciesOutput, *awserr.Error) {
 		p, err := s.listAttached(c, "attached-role-policies", roleHolder(c.Scope().Account, in.RoleName), in.PathPrefix, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListAttachedRolePoliciesOutput{AttachedPolicies: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 	b.AttachUserPolicy(func(_ context.Context, c *kernel.Call, in *iamapi.AttachUserPolicyInput) (*iamapi.AttachUserPolicyOutput, *awserr.Error) {
 		return unit[iamapi.AttachUserPolicyOutput](s.attach(c, userHolder(c.Scope().Account, in.UserName), in.PolicyArn))
 	}, stored)
 	b.DetachUserPolicy(func(_ context.Context, c *kernel.Call, in *iamapi.DetachUserPolicyInput) (*iamapi.DetachUserPolicyOutput, *awserr.Error) {
 		return unit[iamapi.DetachUserPolicyOutput](s.detach(c, userHolder(c.Scope().Account, in.UserName), in.PolicyArn))
-	}, registry.Full{})
+	}, named)
 	b.ListAttachedUserPolicies(func(_ context.Context, c *kernel.Call, in *iamapi.ListAttachedUserPoliciesInput) (*iamapi.ListAttachedUserPoliciesOutput, *awserr.Error) {
 		p, err := s.listAttached(c, "attached-user-policies", userHolder(c.Scope().Account, in.UserName), in.PathPrefix, in.Marker, in.MaxItems)
 		if err != nil {
 			return nil, err
 		}
 		return &iamapi.ListAttachedUserPoliciesOutput{AttachedPolicies: p.Items, IsTruncated: p.Truncated, Marker: p.Next}, nil
-	}, registry.Full{})
+	}, named)
 }
 
 // attach attaches a managed policy; attaching one already attached
-// succeeds and changes nothing.
+// succeeds and changes nothing. The holder is checked before the policy.
 func (s *Service) attach(c *kernel.Call, h holder, arn string) *awserr.Error {
+	named, err := s.lookup(arn)
+	if err != nil {
+		return err
+	}
+	if err := s.holderExists(c, h); err != nil {
+		return err
+	}
 	account := c.Scope().Account
 	touched, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (aws.ARN, *awserr.Error) {
 		have, entity, err := h.get(st)
 		if err != nil {
 			return aws.ARN{}, err
 		}
-		if _, err := st.attachable(account, arn); err != nil {
+		if err := st.checkAttachable(account, arn, named); err != nil {
 			return aws.ARN{}, err
 		}
 		if slices.Contains(have.attached, arn) {
@@ -75,6 +83,9 @@ func (s *Service) attach(c *kernel.Call, h holder, arn string) *awserr.Error {
 }
 
 func (s *Service) detach(c *kernel.Call, h holder, arn string) *awserr.Error {
+	if err := s.holderExists(c, h); err != nil {
+		return err
+	}
 	touched, err := kernel.Write(c, s.cells, c.Scope().Account, func(st *State, _ clock.Instant, _ *kernel.Tx) (aws.ARN, *awserr.Error) {
 		have, entity, err := h.get(st)
 		if err != nil {

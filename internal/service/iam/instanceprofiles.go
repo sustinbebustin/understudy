@@ -15,12 +15,12 @@ import (
 // bindInstanceProfiles binds instance profiles and their one role.
 func (s *Service) bindInstanceProfiles(b iamapi.Binder) {
 	b.CreateInstanceProfile(s.createInstanceProfile, registry.Full{})
-	b.GetInstanceProfile(s.getInstanceProfile, registry.Full{})
-	b.DeleteInstanceProfile(s.deleteInstanceProfile, registry.Full{})
-	b.AddRoleToInstanceProfile(s.addRoleToInstanceProfile, registry.Full{})
-	b.RemoveRoleFromInstanceProfile(s.removeRoleFromInstanceProfile, registry.Full{})
+	b.GetInstanceProfile(s.getInstanceProfile, resolvedPartial())
+	b.DeleteInstanceProfile(s.deleteInstanceProfile, resolvedPartial())
+	b.AddRoleToInstanceProfile(s.addRoleToInstanceProfile, resolvedPartial())
+	b.RemoveRoleFromInstanceProfile(s.removeRoleFromInstanceProfile, resolvedPartial())
 	b.ListInstanceProfiles(s.listInstanceProfiles, registry.Full{})
-	b.ListInstanceProfilesForRole(s.listInstanceProfilesForRole, registry.Full{})
+	b.ListInstanceProfilesForRole(s.listInstanceProfilesForRole, resolvedPartial())
 }
 
 // apiInstanceProfiles lists the profiles keep accepts, by name, as the
@@ -88,6 +88,9 @@ func (s *Service) getInstanceProfile(_ context.Context, c *kernel.Call, in *iama
 // deleteInstanceProfile deletes a profile without a role: IAM removes
 // nothing itself.
 func (s *Service) deleteInstanceProfile(_ context.Context, c *kernel.Call, in *iamapi.DeleteInstanceProfileInput) (*iamapi.DeleteInstanceProfileOutput, *awserr.Error) {
+	if err := s.profileExists(c, in.InstanceProfileName); err != nil {
+		return nil, err
+	}
 	account := c.Scope().Account
 	p, err := kernel.Write(c, s.cells, account, func(st *State, _ clock.Instant, _ *kernel.Tx) (InstanceProfile, *awserr.Error) {
 		p, err := st.instanceProfile(in.InstanceProfileName)
@@ -111,6 +114,12 @@ func (s *Service) deleteInstanceProfile(_ context.Context, c *kernel.Call, in *i
 // role under the account's cell and touches both. The profile is looked up
 // first, then the role.
 func (s *Service) changeProfileRole(c *kernel.Call, profile, role string, change func(p InstanceProfile, r Role) (InstanceProfile, *awserr.Error)) *awserr.Error {
+	if err := s.profileExists(c, profile); err != nil {
+		return err
+	}
+	if err := s.roleExists(c, role); err != nil {
+		return err
+	}
 	account := c.Scope().Account
 	type changed struct {
 		profile InstanceProfile

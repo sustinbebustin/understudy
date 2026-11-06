@@ -5,6 +5,7 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazonaws.eventbridge#ThrottlingException",
+        "dev.understudy#denialError": "com.amazonaws.eventbridge#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#evidence": [
           {
@@ -13,12 +14,45 @@
             "covers": ["dev.understudy#throttleError"]
           },
           {
+            "label": "aws-recorded",
+            "source": "testdata/parity/events/IAM-ENF/08-describe.json: an IAM denial answers 400 with __type AccessDeniedException, not the CommonErrors template's 403 (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch events.denial.status)",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#denialError"]
+          },
+          {
             "label": "third-party-recorded",
             "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/events/test_events.snapshot.json#L234",
             "validated": "2025-01-08",
             "covers": ["dev.understudy#validationError"]
           }
         ]
+      }
+    },
+    "com.amazonaws.eventbridge#CreateEventBus": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing the name default, a name with /, and the 101st bus are unrecorded (EBB-02)"
+        }
+      }
+    },
+    "com.amazonaws.eventbridge#PutPermission": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing a Policy sent with a statement member, a statement missing a member, a Policy that is not a policy document, and a policy over 10,240 characters are unrecorded (EBB-06)"
+        }
+      }
+    },
+    "com.amazonaws.eventbridge#PutTargets": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/eventbridge-buses.md#103-validation-and-error-texts: the texts refusing a cross-account event bus target without a RoleArn or with Input, InputPath or InputTransformer are unrecorded (EBB-09)"
+        }
       }
     },
     "com.amazonaws.eventbridge#PathParameter": {
@@ -31,6 +65,37 @@
         "dev.understudy#evidence": {
           "label": "inferred",
           "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace"
+        }
+      }
+    },
+    "com.amazonaws.eventbridge#PutServiceEventInternal": {
+      "type": "operation",
+      "input": {"target": "com.amazonaws.eventbridge#PutServiceEventInternalRequest"},
+      "output": {"target": "smithy.api#Unit"},
+      "errors": [
+        {"target": "com.amazonaws.eventbridge#InternalException"}
+      ],
+      "traits": {
+        "dev.understudy#internalOperation": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/cloudwatch-alarms.md#124-actions-and-delivery: an AWS service's event goes to the default bus of its account and Region, with a Source in the aws. namespace that PutEvents refuses"
+        }
+      }
+    },
+    "com.amazonaws.eventbridge#PutServiceEventInternalRequest": {
+      "type": "structure",
+      "members": {
+        "Source": {"target": "com.amazonaws.eventbridge#String", "traits": {"smithy.api#required": {}}},
+        "DetailType": {"target": "com.amazonaws.eventbridge#String", "traits": {"smithy.api#required": {}}},
+        "Detail": {"target": "com.amazonaws.eventbridge#String", "traits": {"smithy.api#required": {}}},
+        "Resources": {"target": "com.amazonaws.eventbridge#EventResourceList"}
+      },
+      "traits": {
+        "smithy.api#input": {},
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "docs/research/cloudwatch-alarms.md#124-actions-and-delivery"
         }
       }
     }

@@ -1,0 +1,37 @@
+{
+  "step": "04-describe",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the DescribeTable operation: User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: dynamodb:DescribeTable on resource: arn:aws:dynamodb:us-east-2:123456789012:table/us1103-enf-d because no identity-based policy allows the dynamodb:DescribeTable action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "DynamoDB_20120810.DescribeTable"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,g,b,P,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#dynamodb.describe-table"],
+          ["X-Amz-Date", "20261103T034504Z"],
+          ["amz-sdk-invocation-id", "372fdebd-2df4-4292-a224-f6c58de4ed5f"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "29"]
+        ],
+        "body": "{\"TableName\": \"us1103-enf-d\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 03:45:04 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "335"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "E46LGLDEV6ROCFI6DEB93AMVAJVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "1822121032"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: dynamodb:DescribeTable on resource: arn:aws:dynamodb:us-east-2:123456789012:table/us1103-enf-d because no identity-based policy allows the dynamodb:DescribeTable action\"}"
+      }
+    }
+  ]
+}

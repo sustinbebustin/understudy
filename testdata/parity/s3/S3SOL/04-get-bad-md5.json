@@ -1,0 +1,36 @@
+{
+  "step": "04-get-bad-md5",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/c1",
+        "headers": [
+          ["Host", "us1103-ssec.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T033951Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="],
+          ["x-amz-server-side-encryption-customer-key-MD5", "dT1y7SEiqn6YCJ3QeqwoIw=="]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "TVGT2NHWPYD0G7Z5"],
+          ["x-amz-id-2", "Hs7VzrlYu9ywVkMC4hL/7TMfaAwSiJVbTdcOceTfXsmEHzhP5a+1zWXhYMmc73lq45JWNf82u43pHi11KpMpT9OVdLrWG0r1"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:50 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>The calculated MD5 hash of the key did not match the hash that was provided.</Message><ArgumentName>x-amz-server-side-encryption</ArgumentName><RequestId>TVGT2NHWPYD0G7Z5</RequestId><HostId>Hs7VzrlYu9ywVkMC4hL/7TMfaAwSiJVbTdcOceTfXsmEHzhP5a+1zWXhYMmc73lq45JWNf82u43pHi11KpMpT9OVdLrWG0r1</HostId></Error>"
+      }
+    }
+  ]
+}

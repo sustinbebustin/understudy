@@ -60,7 +60,7 @@ func TestUnmaskedReadsRecordUnmask(t *testing.T) {
 // group and stream and puts the events through PutLogEventsInternal, which
 // is recorded as logs:PutLogEvents. The role's policy then carries the
 // three actions of AWSLambdaBasicExecutionRole, on the group and on the
-// stream the call touched.
+// group's streams, since Lambda mints the stream's name.
 func TestFunctionLogDeliveryRecordsPutLogEventsForTheExecutionRole(t *testing.T) {
 	run(t, func(h *harness) {
 		role, err := aws.ParseARN("arn:aws:iam::000000000000:role/worker")
@@ -88,7 +88,10 @@ func TestFunctionLogDeliveryRecordsPutLogEventsForTheExecutionRole(t *testing.T)
 		groupARN := "arn:aws:logs:us-east-1:000000000000:log-group:" + group
 		want := `{"Version":"2012-10-17","Statement":[` +
 			`{"Effect":"Allow","Action":"logs:CreateLogGroup","Resource":"` + groupARN + `"},` +
-			`{"Effect":"Allow","Action":["logs:CreateLogStream","logs:PutLogEvents"],"Resource":"` + groupARN + `:log-stream:` + stream + `"}]}`
+			// The stream Lambda creates for an execution environment is
+			// minted, so the policy grants every stream of the group
+			// (ARCHITECTURE.md 17).
+			`{"Effect":"Allow","Action":["logs:CreateLogStream","logs:PutLogEvents"],"Resource":"` + groupARN + `:log-stream:*"}]}`
 		if got := string(policydoc.Encode(doc)); got != want {
 			t.Errorf("Policy =\n%s\nwant\n%s", got, want)
 		}

@@ -22,6 +22,7 @@ var service = registry.Service{
 	JSONTargetPrefix:      "QueryCompatibleJsonRpc10",
 	QueryCompatible:       true,
 	MalformedRequestError: IdentitySerializationException(),
+	NewErrorMembers:       NewErrorMembers,
 }
 
 // The operations point back at the service, so the list is linked once

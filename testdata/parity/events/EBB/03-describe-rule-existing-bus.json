@@ -1,0 +1,35 @@
+{
+  "step": "03-describe-rule-existing-bus",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the DescribeRule operation: Rule us1103-m does not exist on EventBus us1103-e.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.DescribeRule"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,b,E,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.describe-rule"],
+          ["X-Amz-Date", "20261103T163551Z"],
+          ["amz-sdk-invocation-id", "3278b260-a23d-4e3b-8b4b-7efc052e090b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "48"]
+        ],
+        "body": "{\"Name\": \"us1103-m\", \"EventBusName\": \"us1103-e\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "cde30855-f859-4d15-8365-b8b0af7dfc0f"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "101"],
+          ["Date", "Tue, 03 Nov 2026 16:35:52 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ResourceNotFoundException\",\"message\":\"Rule us1103-m does not exist on EventBus us1103-e.\"}"
+      }
+    }
+  ]
+}

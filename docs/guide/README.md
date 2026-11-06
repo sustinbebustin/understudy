@@ -9,12 +9,21 @@ Task-oriented pages. Each command shown was run against a build of this reposito
 | [SDKs and the AWS CLI](sdks.md) | Go v2, boto3, JS v3 and the CLI, S3 addressing, TLS, Go tests with `understudytest` |
 | [Terraform](terraform.md) | The provider block, a plan that stays empty, what is slow and why |
 | [Lambda](lambda.md) | Runtimes, zip and image functions, hot reload, networking, logs, event sources, function URLs |
+| [DynamoDB Streams and Kinesis](streams.md) | Stream-enabled tables and Kinesis data streams, reading records, Lambda mappings with retries and on-failure destinations, iterator expiry and trimming on the emulator clock, settings for Java, KCL and JavaScript Kinesis clients |
+| [API Gateway](apigateway.md) | HTTP APIs: routes, Lambda proxy integrations with payload 1.0 and 2.0, stages and deployments; REST APIs: resources, methods, Lambda proxy and MOCK integrations, deployments and stages; the execute-api host and path, Terraform |
+| [SSM Parameter Store](ssm.md) | String and SecureString parameters, by path, versions and labels, Terraform, what answers 501 |
+| [Step Functions](stepfunctions.md) | Standard workflows, executions on the emulator clock, Lambda tasks with Retry and Catch, history, what is refused |
+| [EventBridge Scheduler](eventbridge-scheduler.md) | Rate, cron and at() schedules on the emulator clock, time zones, context attributes, retries and dead letters, groups, what answers 501 |
+| [SES](ses-email.md) | Verifying identities by link or configuration, the sandbox and production access, reading recorded messages, Terraform's domain verification wait |
+| [SNS HTTP delivery](sns-http.md) | The allow-list, retries and dead letters, https endpoints, validating signatures with AWS's validators and openssl |
 | [The clock](clock.md) | Freeze, advance, scale; what runs on emulator time and what does not |
 | [Fault injection](faults.md) | Rules, triggers, delivery faults, SDK retries |
 | [The journal](journal.md) | Querying, following and tracing calls, deliveries and invocations |
+| [The web UI](ui.md) | Live trace trees, resources, fault rules, the clock, IAM policy and coverage in a browser |
 | [Snapshots and persistence](snapshots.md) | Save, load, diff, `--persist`, reset |
-| [Policy generation](policy.md) | Least-privilege policies from recorded access |
+| [Policy generation](policy.md) | Least-privilege policies from recorded access, and opt-in enforcement |
 | [CI](ci.md) | Running understudy in a pipeline |
+| [Testcontainers](testcontainers-modules.md) | The Go, Python and Node modules that start the image from a test suite; Lambda through the socket, Terraform, cleanup |
 | [Differences from AWS](differences.md) | Recorded behavior that still differs from AWS, by service, with workarounds |
 
 The full setting reference is [../configuration.md](../configuration.md), and the operation-by-operation coverage is [../coverage.md](../coverage.md).

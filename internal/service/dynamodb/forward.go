@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
+	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -102,13 +103,22 @@ func upstream(ctx context.Context, endpoint *url.URL, x exchange, body []byte) (
 	}
 	r.Header = http.Header{
 		"Content-Type":    {jsonMediaType},
-		"X-Amz-Target":    {dynamodbapi.Service().JSONTargetPrefix + "." + x.op.Name},
+		"X-Amz-Target":    {targetPrefix(x.op) + "." + x.op.Name},
 		"X-Amz-Date":      {x.at.Wire().UTC().Format("20060102T150405Z")},
 		"Accept-Encoding": {"identity"},
 		"Authorization": {"AWS4-HMAC-SHA256 Credential=" + credential(x) +
 			", SignedHeaders=content-type;host;x-amz-date;x-amz-target, Signature=" + unsignedSignature},
 	}
 	return r, nil
+}
+
+// targetPrefix is the X-Amz-Target prefix of op: DynamoDB Streams' for the
+// feed's reads of Local's stream, DynamoDB's for everything else.
+func targetPrefix(op ref.OperationID) string {
+	if op.Service == dynamodbstreamsapi.Service().ID {
+		return dynamodbstreamsapi.Service().JSONTargetPrefix
+	}
+	return dynamodbapi.Service().JSONTargetPrefix
 }
 
 // send sends body to Local as x and returns its answer as received.

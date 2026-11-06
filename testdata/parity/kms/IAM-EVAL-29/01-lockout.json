@@ -1,0 +1,38 @@
+{
+  "step": "01-lockout",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (MalformedPolicyDocumentException) when calling the PutKeyPolicy operation: The new key policy will not allow you to update the key policy in the future.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.PutKeyPolicy"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AC,Z,AN,AD,b,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#kms.put-key-policy"],
+          ["X-Amz-Date", "20261103T032238Z"],
+          ["amz-sdk-invocation-id", "817a6aaf-9ea3-4b30-be03-141f4f4b27dc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "271"]
+        ],
+        "body": "{\"KeyId\": \"3cfd985a-9e71-4a26-a9e6-c56567aee046\", \"PolicyName\": \"default\", \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":\\\"arn:aws:iam::123456789012:role/us1103-eval-kms2\\\"},\\\"Action\\\":\\\"kms:*\\\",\\\"Resource\\\":\\\"*\\\"}]}\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "004700ef-cf20-45a0-9823-7c727a9cf34b"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Tue, 03 Nov 2026 03:22:38 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "135"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"__type\":\"MalformedPolicyDocumentException\",\"message\":\"The new key policy will not allow you to update the key policy in the future.\"}"
+      }
+    }
+  ]
+}

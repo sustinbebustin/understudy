@@ -2,11 +2,15 @@ package sts
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/stsapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -36,9 +40,10 @@ var _ kernel.Stateful = (*Service)(nil)
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{k: d.Kernel, clock: d.Clock, identity: d.Identity, opts: o}
 	b := stsapi.NewBinder(d.Binder)
-	b.GetCallerIdentity(s.getCallerIdentity, registry.Full{})
-	b.AssumeRole(s.assumeRole, registry.Partial{Note: "the role's trust policy and session policies are not evaluated; session policies, tags and source identity are validated but not enforced; MFA is accepted and not checked; the account root user may assume roles, which AWS refuses, because unminted keys resolve to root (ADR 0012)"},
-		kernel.WithActions(assumeRoleActions))
+	b.GetCallerIdentity(s.getCallerIdentity, registry.Full{}, kernel.NeverAuthorized())
+	b.AssumeRole(s.assumeRole, registry.Partial{Note: "the role's trust policy, the caller's sts:AssumeRole permission and the session policies, tags and source identity stored on the session are evaluated only when iam.enforce is advise, which journals each denial, or enforce, which answers it; PolicyArns are not checked to exist in the role's account, which AWS requires (iam-evaluation.md 2.7); a chained session inherits its caller's transitive tags and source identity, and a request that sets a tag key or source identity its caller passes on keeps its own value, where AWS's answer is unrecorded; the inline session policy is validated as an IAM identity policy, whose S3 region rule exempts the regional S3 resource types moto refuses, UNVERIFIED (iam-evaluation.md 10.6); MFA is accepted and not checked; the account root user may assume roles when iam.enforce is off or advise, which AWS refuses, because unminted keys resolve to root (ADR 0012), and is refused when it is enforce; the answer leaves out PackedPolicySize, SessionTokenSize and SessionTokenUtilization, which AWS sends"},
+		kernel.WithCheck(checkRoleARN), kernel.WithResources(assumedRole),
+		kernel.WithActions(assumeRoleActions), kernel.WithConditionKeys(assumeRoleKeys))
 	b.GetSessionToken(s.getSessionToken, registry.Partial{Note: "MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify"})
 	return s
 }
@@ -61,9 +66,74 @@ func assumeRoleActions(_ *kernel.Call, in *stsapi.AssumeRoleInput) []registry.IA
 	return out
 }
 
+// checkRoleARN refuses a RoleArn that names no role at validation, before
+// authorization asks about it (switch iam.enforce.order,
+// iam-enforcement-surfaces.md 5.3).
+func checkRoleARN(in *stsapi.AssumeRoleInput) *awserr.Error {
+	_, err := parseRoleARN(in.RoleArn)
+	return err
+}
+
+// assumedRole is the role an AssumeRole names, which step 8 asks
+// sts:AssumeRole about against its trust policy (iam-evaluation.md 3.1).
+func assumedRole(_ *kernel.Call, in *stsapi.AssumeRoleInput) []aws.ARN {
+	target, err := parseRoleARN(in.RoleArn)
+	if err != nil {
+		return nil
+	}
+	return []aws.ARN{target.arn}
+}
+
+// assumeRoleKeys are the request keys AssumeRole sends that a trust policy
+// may test (iam-evaluation.md 3.1, 8.1): sts:RoleSessionName,
+// sts:ExternalId, sts:SourceIdentity, sts:TransitiveTagKeys, and
+// aws:RequestTag/<key> and aws:TagKeys for the session tags. A key the
+// request does not carry has no values, so it evaluates as absent rather
+// than unsupplied.
+func assumeRoleKeys(_ *kernel.Call, in *stsapi.AssumeRoleInput) kernel.ConditionKeys {
+	keys := kernel.ConditionKeys{
+		"sts:RoleSessionName":   {in.RoleSessionName},
+		"sts:ExternalId":        nil,
+		"sts:SourceIdentity":    nil,
+		"sts:TransitiveTagKeys": slices.Clone(in.TransitiveTagKeys),
+		"aws:TagKeys":           nil,
+	}
+	if in.ExternalId != nil {
+		keys["sts:ExternalId"] = []string{*in.ExternalId}
+	}
+	if in.SourceIdentity != nil {
+		keys["sts:SourceIdentity"] = []string{*in.SourceIdentity}
+	}
+	for _, t := range in.Tags {
+		keys["aws:RequestTag/"+t.Key] = []string{t.Value}
+		keys["aws:TagKeys"] = append(keys["aws:TagKeys"], t.Key)
+	}
+	return keys
+}
+
 // Switches lists the behaviors chosen without AWS-recorded evidence.
 func (s *Service) Switches() []fidelity.Entry {
-	return []fidelity.Entry{s.roleCheck().Entry()}
+	return []fidelity.Entry{s.roleCheck().Entry(), denialReason().Entry()}
+}
+
+// denialReason is switch sts.denial.reason: every AssumeRole denial omits
+// the reason clause, as each recorded one does: a trust policy that does
+// not name the caller, a caller with no identity policy, an explicit deny
+// in the trust policy, and an ExternalId wrong or absent
+// (iam-enforcement-surfaces.md 4.3, IAM-ENF-16).
+func denialReason() fidelity.Switch[string] {
+	return fidelity.Switch[string]{
+		Name:   "sts.denial.reason",
+		Value:  "omitted",
+		Label:  evidence.AWSRecorded,
+		Ref:    "docs/research/iam-enforcement-surfaces.md#4.3",
+		Record: "IAM-ENF-16",
+		Ops:    []string{"sts.AssumeRole"},
+		Settles: fidelity.NoScenario{
+			Reason: "IAM-ENF-16 recorded 2026-11-03 (testdata/parity/sts/IAM-ENF); " + authz.SessionUnreplayed +
+				"; sts/R15#06-assume-denied replays the implicit trust denial",
+		},
+	}
 }
 
 // Name returns "sts".
@@ -120,5 +190,9 @@ func (s *Service) roleCheck() fidelity.Switch[string] {
 		Value: s.opts.AssumeRole.String(),
 		Label: s.opts.AssumeRole.label(),
 		Ref:   "docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions",
+		Ops:   []string{"sts.AssumeRole"},
+		Settles: fidelity.NoScenario{
+			Reason: "the switch decides AssumeRole of a role IAM does not hold, which no recording asks; sts/R15#06-assume-denied names a role that exists, refused by its trust policy",
+		},
 	}
 }

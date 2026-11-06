@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"net/netip"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -38,7 +40,7 @@ func testHostOn(t *testing.T, network LambdaNetwork, socket string) *containerHo
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := newContainerHost(DockerSocket{Path: socket}, network, docker.Ownership{Instance: "test", Owner: "run-test"}, clk, slog.New(slog.DiscardHandler))
+	h, err := newContainerHost(DockerSocket{Path: socket}, network, docker.Ownership{Instance: "test", Owner: "run-test"}, nil, clk, slog.New(slog.DiscardHandler))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,5 +162,67 @@ func TestDynamoDBLocalDisabledByConfiguration(t *testing.T) {
 	}
 	if _, ok := l.current(); ok {
 		t.Error("a disabled DynamoDB built a DynamoDB Local manager")
+	}
+}
+
+// A shutdown that meets DynamoDB Local's background start while the daemon
+// is still creating its container leaves no container once the daemon has
+// finished the create. Such a create may land after its client gave up and
+// after the instance's last sweep, so shutdown waits for its answer. Seen
+// against a real daemon: a DynamoDB Local container left in state created
+// when a Testcontainers Terminate stopped understudy just after it was
+// ready.
+func TestShutdownDuringABackgroundCreateLeavesNoContainer(t *testing.T) {
+	daemon := dockertest.New(t, dockertest.Options{BridgeSubnet: netip.MustParsePrefix("127.0.0.0/8")})
+	daemon.AddImage(ddblocal.Reference(), docker.Image{ID: ddblocal.Digest})
+	held, release := daemon.HoldNext("POST /containers/create")
+	srv, err := New(Config{
+		Docker:        DockerSocket{Path: daemon.Socket()},
+		LambdaNetwork: NetworkBridge{Gateway: netip.MustParseAddr("127.0.0.1")},
+		LogOutput:     io.Discard,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	main, err := listen(t.Context(), netip.MustParseAddrPort("127.0.0.1:0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.begin(); err != nil {
+		t.Fatal(err)
+	}
+	sess, err := srv.start(t.Context(), main, nil)
+	if err != nil {
+		t.Fatalf("start = %v", err)
+	}
+	select {
+	case <-held:
+	case <-time.After(time.Minute):
+		t.Fatal("the background start sent no container create within a minute")
+	}
+	stopped := make(chan error, 1)
+	go func() { stopped <- srv.shutdown(t.Context(), sess) }()
+	// A shutdown that gives up on the create returns while it is held; one
+	// that waits for its answer returns only after the release.
+	var stopErr error
+	returned := false
+	select {
+	case stopErr = <-stopped:
+		returned = true
+	case <-time.After(200 * time.Millisecond):
+	}
+	release()
+	if !returned {
+		stopErr = <-stopped
+	}
+	if stopErr != nil {
+		t.Fatalf("shutdown = %v", stopErr)
+	}
+	created := daemon.Created()
+	if len(created) != 1 {
+		t.Fatalf("the daemon created %d containers, want the held DynamoDB Local create's one", len(created))
+	}
+	if c, ok := daemon.Container(created[0].ID); ok {
+		t.Errorf("container %s (%s, %s) outlived the shutdown that met its create", c.ID, c.Name, c.State.Status)
 	}
 }

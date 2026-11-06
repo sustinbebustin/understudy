@@ -213,12 +213,28 @@ func (w *writer) WriteBigInt(m *smithy.Member, v *big.Int) {
 func (w *writer) WriteBigDecimal(m *smithy.Member, v smithy.BigDecimal) { w.scalar(m, string(v)) }
 
 func (w *writer) WriteTimestamp(m *smithy.Member, v time.Time) {
-	format := restbind.TimestampFormat(m, smithy.DateTime)
-	if format == smithy.DateTime && w.opts.millis {
-		w.scalar(m, v.UTC().Truncate(time.Millisecond).Format(restbind.DateTimeMillis))
-		return
+	w.scalar(m, formatTimestamp(v, restbind.TimestampFormat(m, smithy.DateTime), w.opts.millis))
+}
+
+// formatTimestamp writes v in format as Smithy does, except that date-time
+// has milliseconds always under millis, as S3 writes it in bodies.
+func formatTimestamp(v time.Time, format smithy.TimestampFormat, millis bool) string {
+	if format == smithy.DateTime && millis {
+		return v.UTC().Truncate(time.Millisecond).Format(restbind.DateTimeMillis)
 	}
-	w.scalar(m, restbind.FormatTimestamp(v, format))
+	return restbind.FormatTimestamp(v, format)
+}
+
+// formatHeaderTimestamp writes a header's v as formatTimestamp does, except
+// that under millis a date-time whose milliseconds are zero has none, as
+// S3 writes x-amz-object-lock-retain-until-date: 2026-11-03T04:40:14Z and
+// 2028-11-03T03:40:47.030Z (s3-ssec-object-lock.md 6.7; S3SOL-12 and
+// S3SOL-13, recorded 2026-11-03).
+func formatHeaderTimestamp(v time.Time, format smithy.TimestampFormat, millis bool) string {
+	if format == smithy.DateTime && millis && v.Truncate(time.Millisecond).Equal(v.Truncate(time.Second)) {
+		return v.UTC().Truncate(time.Second).Format(time.RFC3339)
+	}
+	return formatTimestamp(v, format, millis)
 }
 
 func (w *writer) WriteBlob(m *smithy.Member, v []byte) {

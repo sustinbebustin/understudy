@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
+	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -50,7 +51,7 @@ import (
 //     pinned when the snapshot was saved loads unpinned and returns after
 //     its visibility timeout.
 //   - A message received again while its batch waits for the window, its
-//     visibility timeout over, replaces the held copy (esm.Batch.Add).
+//     visibility timeout over, replaces the held copy (esm.QueueBatch.Add).
 //   - A throttled invocation, or one the emulator could not run, fails the
 //     whole batch, which returns to the queue with its visibility timeout.
 //   - A receive that fails after earlier receives filled part of the batch
@@ -142,7 +143,7 @@ func (st *State) settleMapping(uuid string, due clock.Instant) bool {
 		return false
 	}
 	if m.Transition.State == MappingDeleting {
-		delete(st.Mappings, uuid)
+		st.dropMapping(uuid)
 		return true
 	}
 	m.Transition = nil
@@ -196,8 +197,11 @@ type poller struct {
 	scope aws.Scope
 	uuid  string
 	queue aws.ARN
-	// queueScope is the queue's account and region, where its calls run.
+	// queueScope is the queue's account and region, where its calls run;
+	// a stream reader's stream's.
 	queueScope aws.Scope
+	// stream is a stream reader's own state; nil for an SQS poller.
+	stream *streamHeld
 	// stop ends the goroutine that waits on the queue.
 	stop context.CancelFunc
 
@@ -233,7 +237,7 @@ const (
 // has received and not yet invoked or given back, with its pins, and the
 // step's caches and failure tracking.
 type held struct {
-	batch esm.Batch
+	batch esm.QueueBatch
 	// opened is when the batch's first message was received, which opens
 	// its batching window.
 	opened clock.Instant
@@ -328,9 +332,24 @@ func (p *pollers) polledMappings() []*poller {
 	return out
 }
 
-// newPoller is the poller of mapping uuid; false when its source is not a
-// queue ARN this emulator can address.
+// newPoller is the poller of mapping uuid, by the kind of its source;
+// false when its source is not one this emulator can address.
 func newPoller(scope aws.Scope, uuid string, m Mapping) (*poller, bool) {
+	switch m.SourceKind.(type) {
+	case esm.SQS:
+		return newQueuePoller(scope, uuid, m)
+	case esm.DynamoDBStream, esm.KinesisStream:
+		return newStreamPoller(scope, uuid, m)
+	case nil:
+		// createMapping gives every mapping a kind and every section of
+		// this state version stores it; one without has nothing to poll.
+	}
+	return nil, false
+}
+
+// newQueuePoller is the poller of mapping uuid, whose source is an SQS
+// queue; false when the queue ARN is not one this emulator can address.
+func newQueuePoller(scope aws.Scope, uuid string, m Mapping) (*poller, bool) {
 	queue, err := aws.ParseARN(m.Source)
 	if err != nil {
 		return nil, false
@@ -348,6 +367,9 @@ func newPoller(scope aws.Scope, uuid string, m Mapping) (*poller, bool) {
 func (p *pollers) start(ctx context.Context, pl *poller) *poller {
 	ctx, pl.stop = context.WithCancel(ctx)
 	key := esm.QueueWaitKey(pl.queue)
+	if pl.stream != nil {
+		key = shardlog.WaitKey(pl.stream.stream)
+	}
 	woke := p.x.k.Waiters().Wait(ctx, key)
 	p.x.wg.Go(func() {
 		for {
@@ -489,6 +511,9 @@ func (p *pollers) retire(pl *poller) {
 
 // step runs one poll cycle of pl on behalf of the timer's call c.
 func (p *pollers) step(ctx context.Context, c *kernel.Call, pl *poller) pollNext {
+	if pl.stream != nil {
+		return p.streamStep(ctx, c, pl)
+	}
 	if p.replaced(pl) {
 		p.giveBack(ctx, c, pl)
 	}
@@ -546,7 +571,15 @@ func (p *pollers) mapping(pl *poller) (Mapping, bool) {
 	m, _ := view(p.x.svc, pl.scope, func(st *State) (Mapping, *awserr.Error) {
 		return st.Mappings[pl.uuid], nil
 	})
-	return m, m.UUID == pl.uuid && m.Source == pl.queue.String() && m.polled()
+	return m, m.UUID == pl.uuid && m.Source == pl.source().String() && m.polled()
+}
+
+// source is the ARN pl reads: its queue, or a stream reader's stream.
+func (pl *poller) source() aws.ARN {
+	if pl.stream != nil {
+		return pl.stream.stream
+	}
+	return pl.queue
 }
 
 // unavailable gives back what pl holds when its function cannot run. The
@@ -638,5 +671,9 @@ func (p *pollers) record(ctx context.Context, c *kernel.Call, pl *poller, from, 
 
 // attrs are the log attributes that name pl, then extra.
 func (pl *poller) attrs(extra ...slog.Attr) []slog.Attr {
-	return append([]slog.Attr{slog.String("mapping", pl.id), slog.String("queue", pl.queue.String())}, extra...)
+	source := slog.String("queue", pl.queue.String())
+	if pl.stream != nil {
+		source = slog.String("stream", pl.stream.stream.String())
+	}
+	return append([]slog.Attr{slog.String("mapping", pl.id), source}, extra...)
 }

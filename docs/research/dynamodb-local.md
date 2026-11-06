@@ -266,7 +266,7 @@ Observed with `StreamViewType` `NEW_AND_OLD_IMAGES`:
 - TTL-driven removals emit `"eventName":"UNKNOWN_TO_SDK_VERSION"` (section 5.2).
 - Table delete does not require stream cleanup from the caller.
 
-Streams to Lambda is a phase 1 stretch goal; the poller that feeds the event source mapping has to read through the proxy (`GetRecords` with the rewritten ARN) and must emit AWS's Lambda DynamoDB event format; that format is covered by the Lambda events research file, not here.
+Streams to Lambda does not read through the proxy: Local refuses rewritten ARNs and keeps wall-clock expiry, a cross-table counter and UUID ids, so understudy owns the stream log and drains Local's shard only to learn what each write changed (dynamodb-streams.md 8.3, 11.1; ADR 0014 amendment of 2026-10-26). The poller that feeds the event source mapping reads that log and emits AWS's Lambda DynamoDB event format, covered by the Lambda events research file, not here.
 
 ---
 

@@ -1,0 +1,34 @@
+{
+  "step": "GreaterThanThreshold-5-history",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://monitoring.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "GraniteServiceVersion20100801.DescribeAlarmHistory"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AD,b,AC,AN,E,C,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#cloudwatch.describe-alarm-history"],
+          ["X-Amz-Date", "20261103T031723Z"],
+          ["amz-sdk-invocation-id", "d9b07859-703a-46fe-a04a-34815b061f0d"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "80"]
+        ],
+        "body": "{\"AlarmName\": \"us1103-o-GreaterThanThreshold-5\", \"ScanBy\": \"TimestampAscending\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "a8f104bc-a197-4855-ae5c-e462aa4fa53e"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1810"],
+          ["Date", "Tue, 03 Nov 2026 03:17:23 GMT"]
+        ],
+        "body": "{\"AlarmHistoryItems\":[{\"AlarmName\":\"us1103-o-GreaterThanThreshold-5\",\"AlarmType\":\"MetricAlarm\",\"HistoryData\":\"{\\\"version\\\":\\\"1.0\\\",\\\"type\\\":\\\"Create\\\",\\\"createdAlarm\\\":{\\\"alarmName\\\":\\\"us1103-o-GreaterThanThreshold-5\\\",\\\"alarmArn\\\":\\\"arn:aws:cloudwatch:us-east-2:123456789012:alarm:us1103-o-GreaterThanThreshold-5\\\",\\\"alarmConfigurationUpdatedTimestamp\\\":\\\"2026-11-03T03:14:10.860+0000\\\",\\\"namespace\\\":\\\"us1103/cwa\\\",\\\"metricName\\\":\\\"o-GreaterThanThreshold-5\\\",\\\"extendedStatistic\\\":\\\"MAXIMUM\\\",\\\"period\\\":60,\\\"dimensions\\\":[],\\\"threshold\\\":3.0,\\\"comparisonOperator\\\":\\\"GreaterThanThreshold\\\",\\\"evaluationPeriods\\\":1,\\\"treatMissingData\\\":\\\"missing\\\",\\\"stateValue\\\":\\\"INSUFFICIENT_DATA\\\",\\\"stateUpdatedTimestamp\\\":\\\"2026-11-03T03:14:10.860+0000\\\",\\\"actionsEnabled\\\":true,\\\"alarmActions\\\":[],\\\"insufficientDataActions\\\":[],\\\"okactions\\\":[]}}\",\"HistoryItemType\":\"ConfigurationUpdate\",\"HistorySummary\":\"Alarm \\\"us1103-o-GreaterThanThreshold-5\\\" created\",\"Timestamp\":1.793675650861E9},{\"AlarmName\":\"us1103-o-GreaterThanThreshold-5\",\"AlarmType\":\"MetricAlarm\",\"HistoryData\":\"{\\\"version\\\":\\\"1.0\\\",\\\"oldState\\\":{\\\"stateValue\\\":\\\"INSUFFICIENT_DATA\\\",\\\"stateReason\\\":\\\"Unchecked: Initial alarm creation\\\"},\\\"newState\\\":{\\\"stateValue\\\":\\\"ALARM\\\",\\\"stateReason\\\":\\\"Threshold Crossed: 1 datapoint [5.0 (03/11/26 03:13:00)] was greater than the threshold (3.0).\\\",\\\"stateReasonData\\\":{\\\"version\\\":\\\"1.0\\\",\\\"queryDate\\\":\\\"2026-11-03T03:15:43.377+0000\\\",\\\"startDate\\\":\\\"2026-11-03T03:13:00.000+0000\\\",\\\"statistic\\\":\\\"Maximum\\\",\\\"period\\\":60,\\\"recentDatapoints\\\":[5.0],\\\"threshold\\\":3.0,\\\"evaluatedDatapoints\\\":[{\\\"timestamp\\\":\\\"2026-11-03T03:13:00.000+0000\\\",\\\"sampleCount\\\":1.0,\\\"value\\\":5.0}]}}}\",\"HistoryItemType\":\"StateUpdate\",\"HistorySummary\":\"Alarm updated from INSUFFICIENT_DATA to ALARM\",\"Timestamp\":1.793675743378E9}]}"
+      }
+    }
+  ]
+}

@@ -206,6 +206,8 @@ type Error struct {
 	// Message is the error text; empty means a message naming the rule. A
 	// shape with no message member takes none, and Add rejects one.
 	Message string `json:"message,omitempty"`
+	// Members sets members of the error beyond its message; nil sets none.
+	Members Members `json:"members,omitzero"`
 }
 
 // Throttle fails the call before the handler with the service's own
@@ -231,12 +233,28 @@ type StatusOKError struct {
 // DropDelivery discards a delivery attempt: the target never receives it.
 type DropDelivery struct{}
 
+// HTTPStatus answers an HTTP delivery attempt with Status, 100 to 599,
+// without contacting the endpoint (sns-http-delivery.md 8.2.2). Delivery
+// phase only, and sns-to-http attempts only: the rule must list
+// sns-to-http in match.mechanisms.
+type HTTPStatus struct {
+	Status int `json:"status"`
+}
+
+// HTTPTimeout ends an HTTP delivery attempt as a timed-out exchange
+// without contacting the endpoint or waiting; the outbox schedules its
+// retry from the end of the 15-second deadline it stands for. Delivery
+// phase only, and sns-to-http attempts only, as HTTPStatus.
+type HTTPTimeout struct{}
+
 func (Error) isAction()         {}
 func (Throttle) isAction()      {}
 func (Latency) isAction()       {}
 func (AfterCommit) isAction()   {}
 func (StatusOKError) isAction() {}
 func (DropDelivery) isAction()  {}
+func (HTTPStatus) isAction()    {}
+func (HTTPTimeout) isAction()   {}
 
 // Trigger says which matched calls a rule fires on.
 //

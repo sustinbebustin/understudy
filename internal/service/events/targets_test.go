@@ -201,13 +201,13 @@ func TestPutTargetsRefusesUnsupportedTargetsPerEntry(t *testing.T) {
 			t.Fatalf("PutTargets = %+v", out)
 		}
 		for i, want := range []struct{ id, message string }{
-			{"stream", "understudy delivers EventBridge targets to Lambda functions, SQS queues and SNS topics in the rule's region (us-east-1), in an account it serves, and " +
+			{"stream", "understudy delivers EventBridge targets to Lambda functions, SQS queues and SNS topics in the rule's region (us-east-1) and to event buses in any region, in an account it serves, and " +
 				"arn:aws:kinesis:us-east-1:000000000000:stream/s is none of them; the target was not added. Run 'understudy coverage --service eventbridge' for what is supported."},
 			{"http", "understudy does not implement HttpParameters on EventBridge targets; the target was not added. " +
 				"Run 'understudy coverage --service eventbridge' for what is supported."},
 			{"ecs", "understudy does not implement KinesisParameters, EcsParameters on EventBridge targets; the target was not added. " +
 				"Run 'understudy coverage --service eventbridge' for what is supported."},
-			{"west", "understudy delivers EventBridge targets to Lambda functions, SQS queues and SNS topics in the rule's region (us-east-1), in an account it serves, and " +
+			{"west", "understudy delivers EventBridge targets to Lambda functions, SQS queues and SNS topics in the rule's region (us-east-1) and to event buses in any region, in an account it serves, and " +
 				"arn:aws:sqs:us-west-2:000000000000:q is none of them; the target was not added. Run 'understudy coverage --service eventbridge' for what is supported."},
 		} {
 			f := out.FailedEntries[i]

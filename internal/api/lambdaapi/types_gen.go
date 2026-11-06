@@ -8,7 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-// AccessDeniedException is the error com.amazon.coral.service#AccessDeniedException.
+// AccessDeniedException is the error com.amazonaws.lambda#AccessDeniedException.
 type AccessDeniedException struct {
 	Message *string
 }
@@ -575,6 +575,11 @@ type ContextSucceededDetails struct {
 	Result EventResult
 }
 
+// CoralServiceAccessDeniedException is the error com.amazon.coral.service#AccessDeniedException.
+type CoralServiceAccessDeniedException struct {
+	Message *string
+}
+
 // CoralServiceUnknownOperationException is the error com.amazon.coral.service#UnknownOperationException.
 type CoralServiceUnknownOperationException struct {
 	Message *string
@@ -1092,7 +1097,7 @@ type ErrorObject struct {
 type Event struct {
 	EventType                     *EventType
 	SubType                       *string
-	EventId                       int32
+	EventId                       *int32
 	Id                            *string
 	Name                          *string
 	EventTimestamp                *time.Time
@@ -1846,7 +1851,7 @@ type GetDurableExecutionHistoryOutput struct {
 // GetDurableExecutionInput is the input of GetDurableExecution, com.amazonaws.lambda#GetDurableExecutionRequest.
 type GetDurableExecutionInput struct {
 	DurableExecutionArn  string
-	IncludeExecutionData bool
+	IncludeExecutionData *bool
 	// missing has a bit set per required member Deserialize did not
 	// find, so Validate tells absent from zero. Values built in Go
 	// leave it zero; Validate then treats a nil required list, map,

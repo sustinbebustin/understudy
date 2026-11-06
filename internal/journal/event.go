@@ -3,6 +3,7 @@ package journal
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -54,10 +55,31 @@ type APICall struct {
 
 // Delivery is one attempt to deliver a message across services.
 type Delivery struct {
-	From, To  aws.ARN
+	From, To aws.ARN
+	// Endpoint is an HTTP delivery's host:port, the port defaulted to 80 or
+	// 443, and "" for every other target; never the path, query or
+	// userinfo. NDJSON writes it as "endpoint", omitted when "", so the
+	// lines of other deliveries read as before.
+	Endpoint  string
 	Mechanism delivery.Mechanism
 	Attempt   int
 	Outcome   DeliveryOutcome
+	// HTTP is an HTTP endpoint attempt's exchange; nil for every other
+	// target, for a decision before any attempt (Attempt 0) and for an
+	// attempt a DropDelivery rule dropped. NDJSON writes it as "http",
+	// omitted when nil.
+	HTTP *HTTPExchange
+}
+
+// HTTPExchange is one HTTP delivery attempt (sns-http-delivery.md 8.2.2).
+type HTTPExchange struct {
+	// Status is the final answer's status, or the injected one; 0 when
+	// none came.
+	Status int
+	Class  HTTPClass
+	// Duration is the wall time egress took to send; 0 for an injected
+	// answer.
+	Duration time.Duration
 }
 
 // Invocation is one Lambda function invocation in an execution environment.
@@ -85,8 +107,13 @@ type FaultInjected struct {
 	Hit, Of int
 }
 
-// ClockChanged is the emulator clock changing mode.
-type ClockChanged struct{ From, To clock.Mode }
+// ClockChanged is the emulator clock changing mode or moving. From and To
+// are the modes before and after, read under the clock's lock; Op is what
+// changed it.
+type ClockChanged struct {
+	From, To clock.Mode
+	Op       ClockOp
+}
 
 // Advisory is something the emulator did that AWS would not have, or that a
 // user would want to know about, such as a delivery a stored resource policy
@@ -123,6 +150,7 @@ func (ClockChanged) isDetail()  {}
 func (Advisory) isDetail()      {}
 func (Unclaimed) isDetail()     {}
 func (Gap) isDetail()           {}
+func (AdminAction) isDetail()   {}
 
 // Kind names a Detail variant; queries filter on it.
 type Kind uint8
@@ -139,6 +167,12 @@ const (
 	KindAdvisory
 	KindUnclaimed
 	KindGap
+	KindAdminAction
+
+	// endKind follows the last kind and is no kind: ParseKind, MarshalText
+	// and the KindError text count up to it, so a new kind is one line
+	// above it plus its String, KindOf and NDJSON cases.
+	endKind
 )
 
 // KindOf returns the Kind of d; a nil Detail has kind 0.
@@ -164,6 +198,8 @@ func KindOf(d Detail) Kind {
 		return KindUnclaimed
 	case Gap:
 		return KindGap
+	case AdminAction:
+		return KindAdminAction
 	}
 	return 0
 }
@@ -191,6 +227,8 @@ func (k Kind) String() string {
 		return "unclaimed"
 	case KindGap:
 		return "gap"
+	case KindAdminAction:
+		return "admin-action"
 	default:
 		return fmt.Sprintf("Kind(%d)", uint8(k))
 	}
@@ -202,12 +240,31 @@ type KindError struct {
 }
 
 func (e *KindError) Error() string {
-	return fmt.Sprintf("%q names no journal event kind; known names are api-call, delivery, invocation, timer-fired, state-change, fault-injected, clock-changed, advisory, unclaimed and gap", e.Text)
+	return fmt.Sprintf("%q names no journal event kind; known names are %s", e.Text, knownKinds())
+}
+
+// knownKinds lists every Kind's wire name in value order, the last after
+// "and".
+func knownKinds() string {
+	names := make([]string, 0, endKind-KindAPICall)
+	for k := KindAPICall; k < endKind; k++ {
+		names = append(names, k.String())
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+}
+
+// Kinds returns every declared Kind in value order.
+func Kinds() []Kind {
+	all := make([]Kind, 0, endKind-KindAPICall)
+	for k := KindAPICall; k < endKind; k++ {
+		all = append(all, k)
+	}
+	return all
 }
 
 // ParseKind returns the Kind whose wire name is s.
 func ParseKind(s string) (Kind, error) {
-	for k := KindAPICall; k <= KindGap; k++ {
+	for k := KindAPICall; k < endKind; k++ {
 		if k.String() == s {
 			return k, nil
 		}
@@ -217,7 +274,7 @@ func ParseKind(s string) (Kind, error) {
 
 // MarshalText encodes the wire name.
 func (k Kind) MarshalText() ([]byte, error) {
-	if k < KindAPICall || k > KindGap {
+	if k < KindAPICall || k >= endKind {
 		return nil, &KindError{Text: k.String()}
 	}
 	return []byte(k.String()), nil
@@ -253,7 +310,7 @@ func resourcesOf(d Detail) []aws.ARN {
 		all = []aws.ARN{d.Resource}
 	case Advisory:
 		all = []aws.ARN{d.Resource}
-	case TimerFired, FaultInjected, ClockChanged, Unclaimed, Gap:
+	case TimerFired, FaultInjected, ClockChanged, Unclaimed, Gap, AdminAction:
 	}
 	if !slices.Contains(all, aws.ARN{}) {
 		return all

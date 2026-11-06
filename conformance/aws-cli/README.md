@@ -9,7 +9,10 @@ conformance/aws-cli/run.sh                                 # every service
 CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh          # every service but DynamoDB
 conformance/aws-cli/run.sh sqs sns                         # only these services (test file names)
 UE_ONLY='dlq|redrive' conformance/aws-cli/run.sh sqs       # only tests whose name matches
+UE_TRANSFER_CLIENTS=crt conformance/aws-cli/run.sh s3      # the s3 transfer tests under crt only
 ```
+
+The `aws s3` transfer tests (`test_s3_*` and the virtual-hosted ones in `tests/s3.sh`) run once under each AWS CLI transfer client in `UE_TRANSFER_CLIENTS`, default `classic crt`, and report as `<test>[classic]` and `<test>[crt]`. The two clients send different requests (the CRT sends `x-amz-checksum-mode: enabled`, `docs/research/s3.md` 5.8), and which one the CLI picks by itself depends on its version and host. The client reaches the CLI as `preferred_transfer_client` in a config file `lib.sh` writes (`ue_cli_config`), which holds no endpoint or credentials. An empty `UE_TRANSFER_CLIENTS` runs them once, under the CLI's own choice.
 
 `run.sh` builds understudy into `.build/conformance/aws-cli/understudy`, starts it on `127.0.0.1:45664` with a fresh data directory, waits for `/_understudy/v1/health`, runs the suite through `scripts/sealed`, then stops the server and removes the containers it labelled. It ends with a summary on stderr, `run.sh: passed=N failed=N skipped=N` and a `run.sh: SKIP <service>/<test>: <reason>` line per skip, read from `results.tsv`. It exits non-zero when any test fails, or when the build or the server start fails. On failure it keeps the work directory (server log, data, one log per test) and prints its path.
 
@@ -24,8 +27,8 @@ DynamoDB runs on DynamoDB Local, pulled on first use, and `run.sh` exits 1 unles
 | `run.sh` | build, serve, run, always clean up |
 | `run-suite.sh` | the runner: executes every `test_*` function in `tests/*.sh` in its own shell with a timeout, prints PASS, FAIL or SKIP and records each in `results.tsv` (a skip with its reason) |
 | `lib.sh` | assertions (`assert_eq`, `assert_jq`, `aws_error`, ...) and probes (`require_service`, which also honours `CONFORMANCE_DYNAMODB=0`, and `require_docker`) |
-| `lambda-helpers.sh` | function fixtures shared by `tests/lambda.sh` and `tests/events.sh` |
-| `tests/<service>.sh` | one file per service: `cloudwatch`, `dynamodb`, `events`, `iam`, `kms`, `lambda`, `logs`, `s3`, `secretsmanager`, `sns`, `sqs`, `sts` |
+| `lambda-helpers.sh` | function fixtures shared by `tests/lambda.sh`, `tests/events.sh`, `tests/apigatewayv2.sh` and `tests/apigateway.sh` |
+| `tests/<service>.sh` | one file per service: `apigateway`, `apigatewayv2`, `cloudwatch`, `dynamodb`, `dynamodbstreams`, `events`, `iam`, `kinesis`, `kms`, `lambda`, `logs`, `s3`, `secretsmanager`, `sfn`, `sns`, `sqs`, `ssm`, `sts`; `sns-http`, SNS delivery to an http receiver each test starts on a loopback port, which `run.sh` lists in `sns.httpDelivery.allow`; and `sfn-task`, Step Functions Lambda tasks without Retry or Catch, reusing `sfn`'s helpers |
 
 A fixer owns one service by owning one file in `tests/`.
 

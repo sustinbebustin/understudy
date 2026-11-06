@@ -20,9 +20,10 @@ import (
 // message's visibility counted from its receive (sqs.md 7.2).
 const maxVisibility = 43200
 
-// bindReceives binds ReceiveMessage.
+// bindReceives binds ReceiveMessage. The note is what the sqs/R01 replay
+// finds (internal/parity/baseline.json).
 func (s *Service) bindReceives(b sqsapi.Binder) {
-	b.ReceiveMessage(s.receiveMessage, registry.Full{},
+	b.ReceiveMessage(s.receiveMessage, registry.Partial{Note: "a message's members are in model order and its Attributes sorted by name, where AWS writes the members in alphabetical order and the Attributes in an order of its own"},
 		kernel.WithCheck(checkReceiveMessage),
 		queueByURL(func(in *sqsapi.ReceiveMessageInput) string { return in.QueueUrl }))
 }

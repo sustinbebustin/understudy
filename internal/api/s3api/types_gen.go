@@ -3181,6 +3181,12 @@ type InvalidChunkSizeError struct{}
 // InvalidDigest is the error com.amazonaws.s3#InvalidDigest.
 type InvalidDigest struct{}
 
+// InvalidEncryptionAlgorithmError is the error com.amazonaws.s3#InvalidEncryptionAlgorithmError.
+type InvalidEncryptionAlgorithmError struct {
+	ArgumentName  *string
+	ArgumentValue *string
+}
+
 // InvalidLocationConstraint is the error com.amazonaws.s3#InvalidLocationConstraint.
 type InvalidLocationConstraint struct {
 	LocationConstraint *string
@@ -4349,6 +4355,9 @@ type NoSuchKey struct{}
 type NoSuchLifecycleConfiguration struct {
 	BucketName *string
 }
+
+// NoSuchObjectLockConfiguration is the error com.amazonaws.s3#NoSuchObjectLockConfiguration.
+type NoSuchObjectLockConfiguration struct{}
 
 // NoSuchPublicAccessBlockConfiguration is the error com.amazonaws.s3#NoSuchPublicAccessBlockConfiguration.
 type NoSuchPublicAccessBlockConfiguration struct {

@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // policySource is the hand-written validation policy runtime (package
@@ -94,6 +96,7 @@ func emitPolicies(f *file, ir *ServiceIR) error {
 		if hasCodes(o.Validation) {
 			f.p("\toperation: %s,", rulesLit(o.Validation))
 		}
+		emitPolicyRoot(f, ir, o)
 		f.p("\tservice: %s,", service)
 		f.p("}\n")
 		f.p("// ValidationError returns the error %s answers for vs, the", o.Name)
@@ -102,6 +105,26 @@ func emitPolicies(f *file, ir *ServiceIR) error {
 		f.p("func (*%s) ValidationError(vs []awserr.Violation) *awserr.Error { return %s.render(vs) }\n", o.Input.GoName, pv)
 	}
 	return nil
+}
+
+// emitPolicyRoot writes, for a service with
+// dev.understudy#validationInputRoot, the policy's root <operation>Input
+// and the input's URI labels, which a message names bare. Operations
+// sharing an input share the first one's root.
+func emitPolicyRoot(f *file, ir *ServiceIR, o *OperationIR) {
+	if !ir.InputRoot {
+		return
+	}
+	var labels []string
+	for _, m := range o.Input.Members {
+		if _, ok := m.HTTP.(smithy.HTTPLabel); ok {
+			labels = append(labels, goString(lowerCamel(m.Name)))
+		}
+	}
+	f.p("\troot: %s,", goString(lowerCamel(o.Name)+"Input"))
+	if len(labels) > 0 {
+		f.p("\tunrooted: []string{%s},", strings.Join(labels, ", "))
+	}
 }
 
 func rulesLit(rules []RuleIR) string {
@@ -154,6 +177,8 @@ func styleLit(s ValidationStyle) string {
 		return "styleMissingParameter"
 	case StyleSNSParameter:
 		return "styleSNSParameter"
+	case StyleFixed:
+		return "styleFixed"
 	default:
 		return "styleCoral"
 	}

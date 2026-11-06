@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
@@ -28,6 +29,10 @@ type Service struct {
 	QueryVersion    string
 	XMLNamespace    string
 	QueryCompatible bool // awsQueryCompatible: JSON errors carry x-amzn-query-error
+	// ResponseCRC32 is the overlay's dev.understudy#responseCrc32: every
+	// answer the awsJson codec encodes, success and error, carries
+	// x-amz-crc32, the CRC-32 (IEEE) of its body in decimal.
+	ResponseCRC32 bool
 	// QueryErrorEnvelope is the overlay's dev.understudy#queryErrorEnvelope:
 	// how the awsQuery ErrorResponse differs from Smithy's example. The zero
 	// value is Smithy's example.
@@ -37,11 +42,37 @@ type Service struct {
 	// InvalidRequestContentException). It is the zero Identity when the
 	// overlay sets none; the codec then answers with its protocol's default.
 	MalformedRequestError awserr.Identity
+	// Denial is the overlay's dev.understudy#denialError, the error an
+	// authorization refusal answers with; zero when the overlay names none.
+	Denial Denial
+	// NewErrorMembers returns a new, empty value of one of the service's
+	// error shapes, to decode a fault rule's members into, or false for a
+	// shape the service generates no decoder for. Generated descriptors set
+	// it to their package's NewErrorMembers; it is nil on a hand-built
+	// descriptor, whose errors then take no members.
+	NewErrorMembers func(smithy.ShapeID) (awserr.DecodableMembers, bool)
+	// GenericErrors returns the service's generic, protocol-level
+	// identities over protocol family f: overlays/common.json's vocabulary
+	// with the service overlay's corrections (DynamoDB's
+	// AccessDeniedException is 400), nil for a family it does not speak.
+	// Generated descriptors set it to their package's GenericErrors; it is
+	// nil on a hand-built descriptor, whose fault rules then read
+	// awserr.Catalogue.
+	GenericErrors func(awserr.Family) []awserr.Identity
 	// Operations are every operation, sorted by name; an operation's Ordinal
 	// is its index.
 	Operations []*Operation
 	// Routes is the REST dispatch table, nil for RPC services.
 	Routes *RouteTable
+}
+
+// Denial is the error a service answers an authorization refusal with, and
+// the weakest evidence behind it (iam-enforcement-surfaces.md 12.3).
+type Denial struct {
+	Identity awserr.Identity
+	// Label is the weakest label, in evidence.Labels order, among the overlay
+	// evidence items covering dev.understudy#denialError.
+	Label evidence.Label
 }
 
 // QueryErrorEnvelope is how a service's awsQuery ErrorResponse differs from

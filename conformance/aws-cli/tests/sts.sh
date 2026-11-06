@@ -2,6 +2,18 @@
 # STS: GetCallerIdentity and AssumeRole.
 # Arbiter: docs/research/iam-sts-kms.md sections 4 and 7.
 
+# assumable_trust prints a trust policy that admits Lambda and the
+# caller's account root, so a non-root caller of that account may assume
+# the role: AWS requires the trust policy to admit the caller
+# (iam-evaluation.md 3.1, 3.2; vector 9.8 H7 shows a service-only trust
+# denies).
+assumable_trust() {
+  local acct
+  aws_ok sts get-caller-identity
+  acct=$(jqv '.Account')
+  printf '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com","AWS":"arn:aws:iam::%s:root"},"Action":"sts:AssumeRole"}]}' "$acct"
+}
+
 test_get_caller_identity_shape() {
   aws_ok sts get-caller-identity
   assert_jq_match '.Account' '^[0-9]{12}$'
@@ -32,7 +44,7 @@ test_assume_role_returns_temporary_credentials() {
   local role arn session
   role=$(new_name sts-assume)
   session=session-one
-  arn=$(make_role "$role")
+  arn=$(make_role "$role" "$(assumable_trust)")
   aws_ok sts get-caller-identity
   local acct
   acct=$(jqv '.Account')
@@ -49,7 +61,7 @@ test_assume_role_returns_temporary_credentials() {
 test_assume_role_default_duration_is_one_hour() {
   local role arn
   role=$(new_name sts-dur)
-  arn=$(make_role "$role")
+  arn=$(make_role "$role" "$(assumable_trust)")
   aws_ok sts assume-role --role-arn "$arn" --role-session-name dur
   # Expiration is wall time + 3600s (iam-sts-kms.md item 8); allow generous skew.
   local ttl
@@ -60,7 +72,7 @@ test_assume_role_default_duration_is_one_hour() {
 test_assume_role_credentials_identify_assumed_role() {
   local role arn acct
   role=$(new_name sts-who)
-  arn=$(make_role "$role")
+  arn=$(make_role "$role" "$(assumable_trust)")
   aws_ok sts get-caller-identity
   acct=$(jqv '.Account')
   aws_ok sts assume-role --role-arn "$arn" --role-session-name who
@@ -86,7 +98,7 @@ test_assume_role_unknown_role_is_access_denied() {
 test_assume_role_session_name_pattern_is_validated() {
   local role arn
   role=$(new_name sts-badname)
-  arn=$(make_role "$role")
+  arn=$(make_role "$role" "$(assumable_trust)")
   aws_error ValidationError 400 sts assume-role --role-arn "$arn" --role-session-name 'bad name!'
   aws_error_message_contains "roleSessionName' failed to satisfy constraint"
 }
@@ -94,7 +106,7 @@ test_assume_role_session_name_pattern_is_validated() {
 test_assume_role_duration_above_role_maximum_is_rejected() {
   local role arn
   role=$(new_name sts-maxdur)
-  arn=$(make_role "$role")
+  arn=$(make_role "$role" "$(assumable_trust)")
   aws_error ValidationError 400 sts assume-role --role-arn "$arn" --role-session-name long-duration --duration-seconds 7200
   aws_error_message_contains 'exceeds the MaxSessionDuration'
 }

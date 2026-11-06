@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
@@ -27,6 +28,7 @@ const (
 	utErrorNamespace      = understudyNamespace + "errorNamespace"
 	utJSONType            = understudyNamespace + "jsonType"
 	utMessageByProtocol   = understudyNamespace + "messageByProtocol"
+	utMessageKey          = understudyNamespace + "messageKey"
 	utValidationError     = understudyNamespace + "validationError"
 	utValidationPathStyle = understudyNamespace + "validationPathStyle"
 	utSuccessCode         = understudyNamespace + "successCode"
@@ -38,11 +40,15 @@ const (
 	utAlwaysEmit          = understudyNamespace + "alwaysEmit"
 	utMaxRequestBytes     = understudyNamespace + "maxRequestBytes"
 	utThrottleError       = understudyNamespace + "throttleError"
+	utDenialError         = understudyNamespace + "denialError"
 	utNotConfigured       = understudyNamespace + "notConfigured"
 	utMalformedRequest    = understudyNamespace + "malformedRequestError"
 	utStatusOverride      = understudyNamespace + "statusOverride"
 	utUnknownOperation    = understudyNamespace + "unknownOperationError"
 	utQueryErrorEnvelope  = understudyNamespace + "queryErrorEnvelope"
+	utResponseCRC32       = understudyNamespace + "responseCrc32"
+	utEnumOrder           = understudyNamespace + "enumOrder"
+	utValidationInputRoot = understudyNamespace + "validationInputRoot"
 )
 
 // site is where a trait sits once overlays are merged.
@@ -55,15 +61,17 @@ const (
 	siteErrorShape
 	siteStringShape
 	siteAnyShape
+	siteEnumShape
 )
 
 func (s site) String() string {
 	names := map[site]string{
 		siteService: "a service shape", siteOperation: "an operation shape", siteMember: "a member",
 		siteErrorShape: "an error structure", siteStringShape: "a string shape", siteAnyShape: "any shape",
+		siteEnumShape: "an enum shape",
 	}
 	var out []string
-	for _, b := range []site{siteService, siteOperation, siteMember, siteErrorShape, siteStringShape, siteAnyShape} {
+	for _, b := range []site{siteService, siteOperation, siteMember, siteErrorShape, siteStringShape, siteAnyShape, siteEnumShape} {
 		if s&b != 0 {
 			out = append(out, names[b])
 		}
@@ -89,6 +97,7 @@ func understudyTraits() map[string]understudyTrait {
 		utErrorNamespace:      {Honor, siteService, func(r json.RawMessage) error { _, err := parseErrorNamespace(r); return err }},
 		utJSONType:            {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseNonEmptyString(r); return err }},
 		utMessageByProtocol:   {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseMessageByProtocol(r); return err }},
+		utMessageKey:          {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseMessageKey(r); return err }},
 		utValidationError:     {Honor, siteService | siteOperation | siteMember, func(r json.RawMessage) error { _, err := parseValidationRules(r); return err }},
 		utValidationPathStyle: {Honor, siteService, func(r json.RawMessage) error { _, err := parsePathStyle(r); return err }},
 		utSuccessCode:         {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
@@ -100,12 +109,30 @@ func understudyTraits() map[string]understudyTrait {
 		utAlwaysEmit:          {Honor, siteMember, parseAnnotation},
 		utMaxRequestBytes:     {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseMaxRequestBytes(r); return err }},
 		utThrottleError:       {Honor, siteService, shapeRef},
+		utDenialError:         {Honor, siteService, shapeRef},
 		utNotConfigured:       {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseNotConfigured(r); return err }},
 		utMalformedRequest:    {Honor, siteService, shapeRef},
 		utStatusOverride:      {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
 		utUnknownOperation:    {Honor, siteService, func(r json.RawMessage) error { _, err := parseUnknownOperation(r); return err }},
 		utQueryErrorEnvelope:  {Honor, siteService, func(r json.RawMessage) error { _, err := parseQueryErrorEnvelope(r); return err }},
+		utResponseCRC32:       {Honor, siteService, parseAnnotation},
+		utEnumOrder:           {Honor, siteEnumShape, func(r json.RawMessage) error { _, err := parseEnumOrder(r); return err }},
+		utValidationInputRoot: {Honor, siteService, parseAnnotation},
 	}
+}
+
+// parseEnumOrder reads dev.understudy#enumOrder: the enum's values in the
+// order AWS lists them in an enum violation, when it is not the model's.
+// The shape's IR checks that it is a permutation of the values.
+func parseEnumOrder(raw json.RawMessage) ([]string, error) {
+	var v []string
+	if err := decodeTrait(raw, &v); err != nil {
+		return nil, errors.New("enumOrder takes the enum's values as a list of strings")
+	}
+	if len(v) == 0 {
+		return nil, errors.New("enumOrder is empty; the model's order needs no trait")
+	}
+	return v, nil
 }
 
 // parseQueryErrorEnvelope reads {namespace?, detail?}. A value with neither
@@ -193,6 +220,18 @@ func evidenceItems(raw json.RawMessage) (items []evidenceItem, list bool, err er
 	return []evidenceItem{one}, false, nil
 }
 
+// covering returns the items of ev that back trait: the single-object
+// form, which covers the whole entry, or the list items naming it.
+func covering(ev []Evidence, trait string) []Evidence {
+	var out []Evidence
+	for _, e := range ev {
+		if len(e.Covers) == 0 || slices.Contains(e.Covers, trait) {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
 // checkCoverage requires the list form of evidence to cover every other
 // trait of its entry exactly once.
 func checkCoverage(ev []Evidence, traits Traits) error {
@@ -236,6 +275,23 @@ func parseNonEmptyString(raw json.RawMessage) (string, error) {
 		return "", errors.New("the value must be a non-empty string")
 	}
 	return s, nil
+}
+
+// parseMessageKey reads dev.understudy#messageKey: the body key AWS sends
+// an error's message under, "message" or "Message", when it is not the
+// spelling of the shape's own message member or the shape has none.
+func parseMessageKey(raw json.RawMessage) (awserr.MessageKey, error) {
+	s, err := parseNonEmptyString(raw)
+	if err != nil {
+		return 0, err
+	}
+	switch s {
+	case "message":
+		return awserr.MessageLower, nil
+	case "Message":
+		return awserr.MessageUpper, nil
+	}
+	return 0, fmt.Errorf("messageKey is %q or %q, not %q", "message", "Message", s)
 }
 
 func parseErrorNamespace(raw json.RawMessage) (string, error) {
@@ -331,12 +387,16 @@ const (
 	// StyleSNSParameter is SNS's hand text for the first violation:
 	// "Invalid parameter: <P> Reason: <reason>".
 	StyleSNSParameter
+	// StyleFixed is the reason as the whole message: a text the service
+	// sends whatever failed, such as S3's MalformedXML text.
+	StyleFixed
 )
 
 func validationStyles() map[string]ValidationStyle {
 	return map[string]ValidationStyle{
 		"coral": StyleCoral, "parameter": StyleParameter,
 		"missingParameter": StyleMissingParameter, "snsParameter": StyleSNSParameter,
+		"fixed": StyleFixed,
 	}
 }
 
@@ -501,7 +561,7 @@ func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 		r.Kinds |= k
 	}
 	r.Reason = v.Reason
-	needsReason := r.Style == StyleParameter || r.Style == StyleSNSParameter
+	needsReason := r.Style == StyleParameter || r.Style == StyleSNSParameter || r.Style == StyleFixed
 	switch {
 	case needsReason && r.Reason == "":
 		return r, fmt.Errorf("style %s needs a reason", v.Style)

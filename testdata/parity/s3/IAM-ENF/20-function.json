@@ -1,0 +1,36 @@
+{
+  "step": "20-function",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketNotificationConfiguration operation: Unable to validate the following destination configurations",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-enf-b.s3.us-east-2.amazonaws.com/?notification",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,g,E,AN,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-notification-configuration"],
+          ["X-Amz-Date", "20261103T035751Z"],
+          ["X-Amz-Content-SHA256", "796066385b21386e0b124b97d079e81ade0411cf287aa3c62999f1cdbffc3f93"],
+          ["amz-sdk-invocation-id", "7758d9be-973c-4455-a3d2-fc698635fcab"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "284"]
+        ],
+        "body": "<NotificationConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><CloudFunctionConfiguration><CloudFunction>arn:aws:lambda:us-east-2:123456789012:function:us1103-enf-fn</CloudFunction><Event>s3:ObjectCreated:*</Event></CloudFunctionConfiguration></NotificationConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "400V5C6MNYQQB7JR"],
+          ["x-amz-id-2", "yAhmcIdZbCj07vhd+7B9KyzXYW1JGc9QAiyJh66gKrjIAi7XuAutcFbcMl9YyJWptDWfvKYAwUV2JRiYhGHM+qYZU5QpmVQw"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:57:51 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Unable to validate the following destination configurations</Message><ArgumentName1>arn:aws:lambda:us-east-2:123456789012:function:us1103-enf-fn, null</ArgumentName1><ArgumentValue1>Not authorized to invoke function [arn:aws:lambda:us-east-2:123456789012:function:us1103-enf-fn]</ArgumentValue1><RequestId>400V5C6MNYQQB7JR</RequestId><HostId>yAhmcIdZbCj07vhd+7B9KyzXYW1JGc9QAiyJh66gKrjIAi7XuAutcFbcMl9YyJWptDWfvKYAwUV2JRiYhGHM+qYZU5QpmVQw</HostId></Error>"
+      }
+    }
+  ]
+}

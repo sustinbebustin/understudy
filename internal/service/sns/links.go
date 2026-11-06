@@ -3,7 +3,9 @@ package sns
 import (
 	"context"
 	"encoding/xml"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
@@ -22,7 +24,8 @@ const linkPrefix = "/_understudy/sns/"
 // carries: the signing certificate and the unsubscribe and confirm links.
 func (s *Service) bindLinks(b snsapi.Binder) {
 	b.SigningCert(s.signingCert, registry.Full{})
-	b.UnsubscribeLink(s.unsubscribeLink, registry.Full{})
+	b.UnsubscribeLink(s.unsubscribeLink, registry.Partial{Note: "the UnsubscribeConfirmation reaches the endpoint only when its host and port are in sns.httpDelivery.allow; " +
+		"its Token and SubscribeURL do not restore the subscription"})
 	b.ConfirmSubscriptionLink(s.confirmLink, registry.Full{})
 }
 
@@ -33,6 +36,38 @@ type links struct {
 }
 
 func linksOf(e kernel.Endpoint) links { return links{base: e.String() + linkPrefix} }
+
+// httpLinks builds the links of an http or https delivery: on the TLS
+// listener as https://localhost:<port> while one serves, so the
+// validators' https and .pem checks can pass (sns-http-delivery.md 5.6,
+// 8.3.3), else on the host the calling client addressed, as every other
+// delivery's. Never on an AWS host (8.8): an exposed listener answers any
+// Host from a client that is not a browser, and a configured S3 base
+// domain can be an AWS one, so a client that addressed understudy by an
+// AWS name gets the links on localhost at the port it used. A receiver on
+// another host then cannot follow them; it confirms with the Token
+// instead.
+func (s *Service) httpLinks(e kernel.Endpoint) links {
+	if s.tlsPort != nil {
+		if port, ok := s.tlsPort(); ok {
+			return links{base: "https://localhost:" + strconv.FormatUint(uint64(port), 10) + linkPrefix}
+		}
+	}
+	if s.awsName != nil {
+		host, port, err := net.SplitHostPort(e.Host)
+		if err != nil {
+			// No port: the Host is the name alone.
+			host, port = e.Host, ""
+		}
+		if s.awsName(host) {
+			e.Host = "localhost"
+			if port != "" {
+				e.Host += ":" + port
+			}
+		}
+	}
+	return linksOf(e)
+}
 
 // unsubscribe is a subscription's UnsubscribeURL, shaped as AWS's
 // (sns.md 5.1) under the reserved prefix.
@@ -83,7 +118,10 @@ func (s *Service) signingCert(_ context.Context, _ *kernel.Call, r *http.Request
 }
 
 // unsubscribeLink serves UnsubscribeURL: Unsubscribe without credentials,
-// the subscription named by the SubscriptionArn query member.
+// the subscription named by the SubscriptionArn query member. The
+// UnsubscribeConfirmation it sends an http or https endpoint is signed, so
+// when it will send one, a scope with no key (an older snapshot's) gets one
+// first, as for a publish.
 func (s *Service) unsubscribeLink(_ context.Context, c *kernel.Call, r *http.Request, w http.ResponseWriter) *awserr.Error {
 	arn := r.URL.Query().Get("SubscriptionArn")
 	if _, err := aws.ParseARN(arn); err != nil {
@@ -91,12 +129,42 @@ func (s *Service) unsubscribeLink(_ context.Context, c *kernel.Call, r *http.Req
 	}
 	if ref, ok := s.subscriptionOf(arn); ok {
 		c.Touch(ref.arn())
+		if s.confirmsUnsubscribe(ref) {
+			if err := s.ensureKey(c, ref.topic); err != nil {
+				return err
+			}
+		}
 		if err := s.unsubscribe(c, ref, unauthenticated); err != nil {
 			return err
 		}
 	}
 	writeQueryResponse(w, c, "Unsubscribe", "")
 	return nil
+}
+
+// confirmsUnsubscribe reports whether an unsigned unsubscribe of ref, as
+// the state stands, sends an UnsubscribeConfirmation: ref is a confirmed
+// http or https subscription with a usable endpoint, attached to a
+// standard topic, that an unauthenticated caller may remove. Only then
+// does unsubscribeLink need the scope's signing key.
+func (s *Service) confirmsUnsubscribe(ref subscriptionRef) bool {
+	if ref.topic.fifo() {
+		return false
+	}
+	sends, _ := read(s, ref.topic.scope, func(st *State) bool {
+		t, ok := st.Topics[ref.topic.name]
+		i := t.indexOf(ref.id)
+		if !ok || i < 0 {
+			return false
+		}
+		sub := &t.Subscriptions[i]
+		if _, bad := httpEndpointOf(sub); !sub.Protocol.http() || bad != nil {
+			return false
+		}
+		_, confirmed := sub.Status.(Confirmed)
+		return confirmed && mayUnsubscribe(sub, unauthenticated) == nil
+	})
+	return sends
 }
 
 // confirmLink serves the SubscribeURL of a confirmation message:

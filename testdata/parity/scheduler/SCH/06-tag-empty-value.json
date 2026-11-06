@@ -1,0 +1,7 @@
+{
+  "step": "06-tag-empty-value",
+  "client": "aws-cli",
+  "exit": 252,
+  "error": "aws: [ERROR]: An error occurred (ParamValidation): Parameter validation failed:\nInvalid length for parameter Tags[0].Value, value: 0, valid min length: 1",
+  "exchanges": []
+}

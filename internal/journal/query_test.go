@@ -130,7 +130,7 @@ func oracle(f Filter, e Event) bool {
 		case DeadLettered:
 			about = append(about, o.DLQ)
 			result = "error"
-		case Retrying, Dropped:
+		case Retrying, Dropped, Refused:
 			result = "error"
 		}
 	case Invocation:
@@ -145,7 +145,7 @@ func oracle(f Filter, e Event) bool {
 		about = []aws.ARN{d.Resource}
 	case Unclaimed:
 		result = "error"
-	case TimerFired, FaultInjected, ClockChanged, Gap:
+	case TimerFired, FaultInjected, ClockChanged, Gap, AdminAction:
 	}
 	anyARN := func(pred func(aws.ARN) bool) bool {
 		// The zero ARN is no resource.
@@ -230,7 +230,7 @@ func genFilter(next ref.EventID) *rapid.Generator[Filter] {
 			).Draw(t, "resource")
 		}
 		if set("kind?") {
-			f.Kind = Kind(rapid.Uint8Range(uint8(KindAPICall), uint8(KindGap)).Draw(t, "kind"))
+			f.Kind = Kind(rapid.Uint8Range(uint8(KindAPICall), uint8(KindAdminAction)).Draw(t, "kind"))
 		}
 		if set("outcome?") {
 			f.Outcome = Result(rapid.Uint8Range(uint8(ResultOK), uint8(ResultPending)).Draw(t, "outcome"))

@@ -55,7 +55,7 @@ func TestUnsignedTrailerFromGoSDK(t *testing.T) {
 	if !ok {
 		t.Fatal("Trailers() not ready after EOF")
 	}
-	if err := checksum.Verify(trailers.Get("x-amz-checksum-crc32"), h.Checksum()); err != nil {
+	if err := checksum.Verify(trailers.Get("X-Amz-Checksum-Crc32"), h.Checksum()); err != nil {
 		t.Fatalf("trailer checksum: %v", err)
 	}
 }

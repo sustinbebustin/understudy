@@ -38,8 +38,11 @@ type Call struct {
 	// mode is how an internal call is authorized; nil for external and
 	// timer calls.
 	mode PrincipalMode
-	op   *registry.Operation // nil only for an operation the service does not model
-	opID ref.OperationID
+	// forwarder is the service of the call that made this forward-access
+	// call (AsCaller); nil for every other call.
+	forwarder *registry.Service
+	op        *registry.Operation // nil only for an operation the service does not model
+	opID      ref.OperationID
 	// label names the call in diagnostics: its operation, or the timer kind
 	// of a timer callback.
 	label string
@@ -55,9 +58,35 @@ type Call struct {
 	elapsed  func() time.Duration
 
 	holding atomic.Bool
+	// deferred is the authorization an AuthorizedAfterResolve binding's
+	// call owes, set at step 8; nil for every other call.
+	deferred *deferred
+	// scoped is what the binding's WithResourcesFor options resolved, set
+	// once at step 7 before the handler runs; nil without the option.
+	scoped scoping
+	// keys are the binding's WithConditionKeys for the input, set once at
+	// step 8; the access record keeps iam:PassedToService from them.
+	keys ConditionKeys
 
 	mu      sync.Mutex
 	touched []aws.ARN
+	// paired is what touched held when step 8, or a deferred
+	// authorization, formed the call's pairs (fixPairing); nil until then,
+	// and for a call that is never asked, whose record pairs with every
+	// touched resource.
+	paired []aws.ARN
+	// authorized are the pairs the handler asked about through Authorize,
+	// in order, without repeats, each with the keys it was first asked
+	// with.
+	authorized []askedPair
+}
+
+// askedPair is a pair a handler asked about through Authorize and the
+// condition keys it supplied; the access record keeps iam:PassedToService
+// from them.
+type askedPair struct {
+	pair Pair
+	keys ConditionKeys
 }
 
 // Endpoint is the scheme and host a client addressed the emulator with, as
@@ -100,6 +129,15 @@ func (c *Call) VerifiedAuth() (auth.Auth, bool) { return c.verified, c.verified 
 
 // Origin returns where the call came from.
 func (c *Call) Origin() ref.Origin { return c.origin }
+
+// Mode returns how an internal call is authorized (Target.As); nil for
+// external and timer calls.
+func (c *Call) Mode() PrincipalMode { return c.mode }
+
+// ForwardedBy returns the service whose call made this forward-access call
+// (AsCaller), as kms:ViaService names it, and false for every other call
+// and for one a timer callback made.
+func (c *Call) ForwardedBy() (*registry.Service, bool) { return c.forwarder, c.forwarder != nil }
 
 // Op returns the operation's descriptor. It is nil only for a request that
 // names an operation its service does not model, which never reaches a
@@ -147,8 +185,11 @@ func (c *Call) Header(name string) (string, bool) {
 }
 
 // Touch records resources the call reads or changes. The journal lists
-// them on the call's event and the access recorder pairs them with the
-// operation's IAM actions; fault rules match on them.
+// them on the call's event and fault rules match on them. The access
+// recorder pairs the operation's IAM actions only with the resources
+// touched by the time step 8 (or the deferred authorization) formed its
+// pairs, or with every touched resource for a call that is never asked
+// (ARCHITECTURE.md 17); a Touch after that reaches the journal only.
 func (c *Call) Touch(arns ...aws.ARN) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -168,14 +209,14 @@ func (c *Call) Touch(arns ...aws.ARN) {
 // pipeline's own events. A record that describes a state change belongs on
 // the Write that makes it: Tx.Record.
 func (c *Call) Record(ctx context.Context, scope aws.Scope, d journal.Detail) {
-	if err := c.k.record(c, c.admitted, scope, d); err != nil {
+	if err := c.k.record(c.effectCause(), c.admitted, scope, d); err != nil {
 		c.k.log.LogAttrs(ctx, slog.LevelWarn, "journal refused an event a handler recorded",
 			slog.String("op", c.label), slog.String("request_id", string(c.id)), slog.String("error", err.Error()))
 	}
 }
 
-func (k *Kernel) record(c *Call, at clock.Instant, scope aws.Scope, d journal.Detail) error {
-	_, err := k.journal.Append(journal.Event{Cause: ref.Cause{Parent: c.event, Trace: c.cause.Trace}, At: at, Scope: scope, Detail: d})
+func (k *Kernel) record(cause ref.Cause, at clock.Instant, scope aws.Scope, d journal.Detail) error {
+	_, err := k.journal.Append(journal.Event{Cause: cause, At: at, Scope: scope, Detail: d})
 	return err
 }
 
@@ -185,6 +226,51 @@ func (c *Call) Touched() []aws.ARN {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return slices.Clone(c.touched)
+}
+
+// fixPairing returns the resources the call has touched so far and fixes
+// them as the ones the access record pairs its actions with; a later call
+// returns the same set.
+func (c *Call) fixPairing() []aws.ARN {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.paired == nil {
+		c.paired = append([]aws.ARN{}, c.touched...)
+	}
+	return slices.Clone(c.paired)
+}
+
+// pairingResources returns the resources the access record pairs the
+// call's actions with: those fixPairing fixed, else every touched one.
+func (c *Call) pairingResources() []aws.ARN {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.paired != nil {
+		return slices.Clone(c.paired)
+	}
+	return slices.Clone(c.touched)
+}
+
+// effectCause is the cause of an event or delivery the call produces: the
+// call's event, in its trace.
+func (c *Call) effectCause() ref.Cause { return ref.Cause{Parent: c.event, Trace: c.cause.Trace} }
+
+// asked keeps p, a pair the handler asked about through Authorize with
+// keys, for the access record.
+func (c *Call) asked(p Pair, keys ConditionKeys) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !slices.ContainsFunc(c.authorized, func(a askedPair) bool { return a.pair == p }) {
+		c.authorized = append(c.authorized, askedPair{pair: p, keys: keys})
+	}
+}
+
+// authorizedPairs returns the pairs the handler asked about through
+// Authorize, in order, with their keys.
+func (c *Call) authorizedPairs() []askedPair {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Clone(c.authorized)
 }
 
 // CallHeaders is the closed set of unmodeled request headers a Call keeps

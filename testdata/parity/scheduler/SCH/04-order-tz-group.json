@@ -1,0 +1,35 @@
+{
+  "step": "04-order-tz-group",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the CreateSchedule operation: Invalid timezone Mars/Olympus.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-o2",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,Z,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T163746Z"],
+          ["amz-sdk-invocation-id", "c2fc4704-548c-4d28-a7f9-9528ce8f4ad3"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "339"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"GroupName\": \"us1103-nogroup\", \"ScheduleExpression\": \"cron(0 12 * * ? *)\", \"ScheduleExpressionTimezone\": \"Mars/Olympus\", \"Target\": {\"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-sch\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\"}, \"ClientToken\": \"e6a54333-cd4d-4dd9-8387-78cf0c5a50bf\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "13650726-a1fc-478d-a9b1-90d6ff3d7dd1"],
+          ["x-amzn-ErrorType", "ValidationException:http://internal.amazon.com/coral/com.amazonaws.chronos/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "44"],
+          ["Date", "Tue, 03 Nov 2026 16:37:47 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"Message\":\"Invalid timezone Mars/Olympus.\"}"
+      }
+    }
+  ]
+}

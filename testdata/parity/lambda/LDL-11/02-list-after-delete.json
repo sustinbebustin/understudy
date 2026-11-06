@@ -1,0 +1,30 @@
+{
+  "step": "02-list-after-delete",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://lambda.us-east-2.amazonaws.com/2018-10-31/layers",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/C,g,b,E,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.list-layers"],
+          ["X-Amz-Date", "20261103T170631Z"],
+          ["amz-sdk-invocation-id", "f8d58bdd-3a4e-46ae-95c7-5b9952f325d7"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 17:06:31 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "433"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "6483e3de-47c8-4501-a8e4-2023956ef561"]
+        ],
+        "body": "{\"NextMarker\":null,\"Layers\":[{\"LatestMatchingVersion\":{\"CompatibleRuntimes\":[\"nodejs22.x\"],\"LicenseInfo\":null,\"Description\":null,\"LayerVersionArn\":\"arn:aws:lambda:us-east-2:123456789012:layer:us1103-ldl-x:1\",\"Version\":1,\"CreatedDate\":\"2026-11-03T17:06:24.940+0000\",\"CompatibleArchitectures\":[\"arm64\"]},\"Description\":null,\"LayerName\":\"us1103-ldl-x\",\"State\":null,\"LayerArn\":\"arn:aws:lambda:us-east-2:123456789012:layer:us1103-ldl-x\"}]}"
+      }
+    }
+  ]
+}

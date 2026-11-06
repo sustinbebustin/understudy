@@ -1,0 +1,35 @@
+{
+  "step": "10-put-empty-rule",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-ssec-rule.s3.us-east-2.amazonaws.com/?encryption",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,W,AN,Z,E,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-encryption"],
+          ["x-amz-checksum-crc64nvme", "ORl3P4Fewd8="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034010Z"],
+          ["X-Amz-Content-SHA256", "068206c4bee9d48c06b6bb0bc87e9f44b55af7099168144ffe90d6bf56b63bf5"],
+          ["amz-sdk-invocation-id", "9226c2fc-5c18-4534-ad53-7dafe496c729"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "127"]
+        ],
+        "body": "<ServerSideEncryptionConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Rule /></ServerSideEncryptionConfiguration>"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "vZIWwRAHsrqfjS61Bc8PcA3i+mBsLGbzuOQ7E0vDx53FGpuOY0IzYg6AlO3pXdzbCYbHBvFIx7Upsm0r8RXhZ9Bc8kqHoJLS"],
+          ["x-amz-request-id", "PT0X63KHPP9M531Q"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:40:11 GMT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

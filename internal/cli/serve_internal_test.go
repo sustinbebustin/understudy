@@ -2,6 +2,7 @@ package cli
 
 import (
 	"io/fs"
+	"maps"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -152,6 +153,37 @@ func TestConfigurationReferenceMatchesServeHelp(t *testing.T) {
 	}
 	if block != help.String() {
 		t.Errorf("docs/configuration.md is out of date; replace its block with what serveFlags prints:\n%s", help.String())
+	}
+}
+
+// serve --help lists dockerLabels beside --docker, and serverConfig hands
+// the labels to the server whole, so understudy's children carry them
+// (testcontainers.md 9.3).
+func TestServeCarriesDockerLabels(t *testing.T) {
+	labels := map[string]string{"org.testcontainers.session-id": "6f1b8c2e-1d7a-4c39-9a51-0d2f3b4c5e6f", "com.example/team": "payments"}
+	s, err := serverConfig(loadFile(t, []string{"--docker-labels", `{"org.testcontainers.session-id": "6f1b8c2e-1d7a-4c39-9a51-0d2f3b4c5e6f", "com.example/team": "payments"}`}, `{}`), "test")
+	if err != nil {
+		t.Fatalf("serverConfig = %v", err)
+	}
+	if !maps.Equal(s.DockerLabels, labels) {
+		t.Errorf("DockerLabels = %v, want %v", s.DockerLabels, labels)
+	}
+	s, err = serverConfig(loadFile(t, nil, `{"dockerLabels": {"com.example/team": "payments"}}`), "test")
+	if err != nil || !maps.Equal(s.DockerLabels, map[string]string{"com.example/team": "payments"}) {
+		t.Errorf("serverConfig of the file key = %v, %v; want the file's labels", s.DockerLabels, err)
+	}
+	if s, err := serverConfig(loadFile(t, nil, `{}`), "test"); err != nil || len(s.DockerLabels) != 0 {
+		t.Errorf("serverConfig without the setting = %v, %v; want no labels", s.DockerLabels, err)
+	}
+	var help strings.Builder
+	if err := serveFlags(&help); err != nil {
+		t.Fatal(err)
+	}
+	h := help.String()
+	docker := strings.Index(h, "\n  --docker URL\n")
+	labelsAt := strings.Index(h, "\n  --docker-labels JSON\n")
+	if docker < 0 || labelsAt < docker || !strings.Contains(h, "      variable UNDERSTUDY_DOCKER_LABELS, file key \"dockerLabels\"\n") {
+		t.Errorf("serve --help does not list --docker-labels JSON, variable UNDERSTUDY_DOCKER_LABELS and file key dockerLabels after --docker:\n%s", h)
 	}
 }
 

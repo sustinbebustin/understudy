@@ -30,15 +30,19 @@ type coverageFlags struct {
 	format   string
 	switches bool
 	overlays string
+	parity   string
 }
+
+// parityNext is the next step after a parity baseline coverage cannot use.
+const parityNext = "point --parity at internal/parity/baseline.json, or run 'just parity-baseline', then run 'understudy coverage' again"
 
 func coverageCmd() *command {
 	return leaf("coverage", "Report protocol compliance, operation coverage and evidence, from the running server or offline",
-		"coverage [--service S] [--format text|markdown|json] [--switches] [--overlays DIR]",
+		"coverage [--service S] [--format text|markdown|json] [--switches] [--overlays DIR] [--parity FILE]",
 		[]string{
 			"understudy coverage",
 			"understudy coverage --service sqs --switches",
-			"understudy coverage --format markdown --overlays codegen/overlays > docs/coverage.md",
+			"understudy coverage --format markdown --overlays codegen/overlays --parity internal/parity/baseline.json > docs/coverage.md",
 		},
 		func(fs *flag.FlagSet) action {
 			var f coverageFlags
@@ -46,6 +50,7 @@ func coverageCmd() *command {
 			fs.StringVar(&f.format, "format", "", "text, markdown or json (default json with --output json, else text)")
 			fs.BoolVar(&f.switches, "switches", false, "list the fidelity switches in the text report")
 			fs.StringVar(&f.overlays, "overlays", "", "directory of overlay files whose evidence to add, such as codegen/overlays")
+			fs.StringVar(&f.parity, "parity", "", "parity replay baseline whose evidence to add, such as internal/parity/baseline.json")
 			return func(ctx context.Context, r *runner, args []string) error {
 				if err := wantArgs(args, 0, "no arguments"); err != nil {
 					return err
@@ -75,6 +80,13 @@ func (r *runner) coverage(ctx context.Context, f coverageFlags) error {
 			return err
 		}
 		report.Overlays = coverage.OverlaysRead{Entries: entries}
+	}
+	if f.parity != "" {
+		// Checked before --service narrows the switches and services the
+		// baseline's claims are checked against.
+		if err := r.addParity(&report, f.parity); err != nil {
+			return err
+		}
 	}
 	if err := filterServices(&report, f.services); err != nil {
 		return err
@@ -198,6 +210,24 @@ func (r *runner) readOverlays(dir string) ([]coverage.OverlayEntry, error) {
 		out = append(out, entries...)
 	}
 	return out, nil
+}
+
+// addParity reads the parity replay baseline at path into report and checks
+// it against the report's switches and services.
+func (r *runner) addParity(report *coverage.Report, path string) error {
+	data, err := r.o.ReadFile(path)
+	if err != nil {
+		return &localError{op: "reading parity baseline " + path, err: err, next: parityNext}
+	}
+	read, err := coverage.ParseParity(data)
+	if err != nil {
+		return &localError{op: "parsing parity baseline " + path, err: err, next: parityNext}
+	}
+	report.Parity = read
+	if err := report.CheckEvidence(); err != nil {
+		return &localError{op: "checking parity baseline " + path + " against the switches", err: err, next: parityNext}
+	}
+	return nil
 }
 
 // writeCoverageText writes the three measures apart, never added together.

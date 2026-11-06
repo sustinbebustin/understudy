@@ -1,0 +1,32 @@
+{
+  "step": "01-notfound",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/us1103-missing",
+        "headers": [
+          ["Host", "apigateway.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163649Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "application/json"]
+        ]
+      },
+      "response": {
+        "status": 404,
+        "reason": "Not Found",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:36:49 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "75"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "ab915098-465b-4dbf-a416-740dad4be1a0"],
+          ["x-amzn-ErrorType", "NotFoundException"],
+          ["x-amz-apigw-id", "GRcRVJHmCYcEcgg="]
+        ],
+        "body": "{\"message\":\"Invalid API identifier specified 123456789012:us1103-missing\"}\n"
+      }
+    }
+  ]
+}

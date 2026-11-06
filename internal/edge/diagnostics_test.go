@@ -57,7 +57,8 @@ func TestTheServerLogsRequestsAndWarnsOnceAboutWhatItDoesNotServe(t *testing.T) 
 	for range 2 {
 		for _, r := range []*http.Request{
 			request(t, http.MethodPost, "/", jsonHeader("Logs_20140328.DescribeLogGroups", "application/x-amz-json-1.1"), `{}`, "logs"),
-			request(t, http.MethodPost, "/", jsonHeader("Kinesis_20131202.ListStreams", "application/x-amz-json-1.1"), `{}`, "kinesis"),
+			// A service no planned item adds, so the example stays not emulated.
+			request(t, http.MethodPost, "/", jsonHeader("Firehose_20150804.ListDeliveryStreams", "application/x-amz-json-1.1"), `{}`, "firehose"),
 			request(t, http.MethodPost, "/", jsonHeader("AmazonSQS.Bogus", "application/x-amz-json-1.0"), `{}`, "sqs"),
 		} {
 			f.handler.ServeHTTP(httptest.NewRecorder(), r)
@@ -81,9 +82,9 @@ func TestTheServerLogsRequestsAndWarnsOnceAboutWhatItDoesNotServe(t *testing.T) 
 	}
 	for k, want := range map[key]int{
 		{"DEBUG", "request", "logs.DescribeLogGroups"}:                                                   2,
-		{"DEBUG", "request", "kinesis (not emulated)"}:                                                   2,
+		{"DEBUG", "request", "firehose (not emulated)"}:                                                  2,
 		{"WARN", "a client called an operation understudy does not implement", "logs.DescribeLogGroups"}: 1,
-		{"WARN", "a client called a service understudy does not emulate", "kinesis"}:                     1,
+		{"WARN", "a client called a service understudy does not emulate", "firehose"}:                    1,
 		{"DEBUG", "request", `sqs unknown operation "Bogus"`}:                                            2,
 		{"WARN", unknownOperationWarning, "sqs.Bogus"}:                                                   1,
 	} {

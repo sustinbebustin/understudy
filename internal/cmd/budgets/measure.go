@@ -166,20 +166,29 @@ func healthy(ctx context.Context, client *http.Client, ready string) bool {
 
 // stop interrupts the emulator and kills it when it has not exited after
 // five seconds. Stopping a process that has already exited is not an
-// error.
+// error; serve exits 0 on its first interrupt, so any other exit after the
+// interrupt is.
 func (s *served) stop() error {
 	if err := s.cmd.Process.Signal(os.Interrupt); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return fmt.Errorf("interrupt the emulator: %w", err)
 	}
 	select {
-	case <-s.exited:
+	case err := <-s.exited:
+		if err != nil {
+			return fmt.Errorf("the emulator exited with %w after an interrupt, where serve exits 0", err)
+		}
 		return nil
 	case <-time.After(5 * time.Second):
 	}
 	if err := s.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return fmt.Errorf("the emulator ignored an interrupt for 5 s and cannot be killed: %w", err)
 	}
-	<-s.exited
+	// The killed process's exit status is the kill's own; only a failure to
+	// wait for it says something.
+	var exit *exec.ExitError
+	if err := <-s.exited; err != nil && !errors.As(err, &exit) {
+		return fmt.Errorf("wait for the killed emulator: %w", err)
+	}
 	return nil
 }
 

@@ -1,0 +1,32 @@
+{
+  "step": "02-deployments",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/deployments",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/C,AN,b,E,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.get-deployments"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T163657Z"],
+          ["amz-sdk-invocation-id", "17f45569-06b8-47ca-84e4-0ac8c3821906"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:36:58 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "52"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "b63398c5-2827-4fe0-b553-22aae185d4c3"],
+          ["x-amz-apigw-id", "GRcStKJiiYcEc5A="]
+        ],
+        "body": "{\"item\":[{\"createdDate\":1793723779,\"id\":\"m1dpon\"}]}\n"
+      }
+    }
+  ]
+}

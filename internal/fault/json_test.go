@@ -108,7 +108,7 @@ func drawShape(t *rapid.T) smithy.ShapeID {
 }
 
 func drawAction(t *rapid.T) fault.Action {
-	switch rapid.IntRange(0, 5).Draw(t, "action") {
+	switch rapid.IntRange(0, 7).Draw(t, "action") {
 	case 0:
 		return fault.Error{Shape: drawShape(t), Message: rapid.String().Draw(t, "message")}
 	case 1:
@@ -119,6 +119,10 @@ func drawAction(t *rapid.T) fault.Action {
 		return fault.AfterCommit{Shape: drawShape(t)}
 	case 4:
 		return fault.StatusOKError{Shape: drawShape(t)}
+	case 5:
+		return fault.HTTPStatus{Status: rapid.IntRange(100, 599).Draw(t, "status")}
+	case 6:
+		return fault.HTTPTimeout{}
 	default:
 		return fault.DropDelivery{}
 	}
@@ -290,7 +294,7 @@ func TestImportRefusesBadDocumentsAndKeepsTheRules(t *testing.T) {
 	spent := `{"version":1,"rules":[{"rule":{"id":"a","phase":"request","match":{"operations":["sqs.SendMessage"]},"action":{"kind":"throttle"},"trigger":{"kind":"next-n","n":2}},"hits":2}]}`
 	invalid := `{"version":1,"rules":[{"rule":{"id":"a","phase":"request","match":{"operations":["sqs.SendMessage"]},"action":{"kind":"error","shape":"Nope"},"trigger":{"kind":"always"}}}]}`
 	cases := map[string]string{
-		"other version":     `{"version":2,"rules":[]}`,
+		"other version":     `{"version":3,"rules":[]}`,
 		"unknown member":    `{"version":1,"rules":[],"seed":1}`,
 		"spent budget":      spent,
 		"invalid rule":      invalid,

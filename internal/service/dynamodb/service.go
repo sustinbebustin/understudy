@@ -24,6 +24,18 @@ type Service struct {
 	kernel *kernel.Kernel
 	// sweeps are the TTL sweep timers.
 	sweeps *sweeper
+	// streamSeq is the dynamodb.streams.sequence-number switch.
+	streamSeq StreamSequence
+	// iteratorReuse is the dynamodb.streams.iterator-reuse switch.
+	iteratorReuse IteratorReuse
+	// feedLocks are the stream locks of the tables, each held across a
+	// write and the drain that follows it (dynamodb-streams.md 11.1 item 2).
+	feedLocks feedLocks
+	// drains are the timers that retry a failed drain.
+	drains kernel.HandledKind
+	// relinks are the tables the last ImportLate re-created in Local with a
+	// stream, for the Import that follows it to map (State.relink).
+	relinks relinks
 }
 
 // The service is the snapshot and reset view of its shim state.
@@ -34,20 +46,24 @@ var _ kernel.Stateful = (*Service)(nil)
 // Local sees them, and coverage lists them.
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{
-		local:  o.Local,
-		cells:  store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
-		kernel: d.Kernel,
+		local:         o.Local,
+		cells:         store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
+		kernel:        d.Kernel,
+		streamSeq:     o.StreamSequence,
+		iteratorReuse: o.IteratorReuse,
 	}
 	if s.local == nil {
 		s.local = noLocal{}
 	}
 	timers := d.Kernel.Timers()
 	s.sweeps = newSweeper(timers.Scheduler(), timers.Handle(ttlTimer, s.onSweep))
+	s.drains = timers.Handle(drainTimer, s.onDrainRetry)
 	b := dynamodbapi.NewBinder(d.Binder)
 	s.bindTables(b)
 	s.bindItems(b)
 	s.bindStatements(b)
 	s.bindShims(b)
+	declareActions(d.Binder)
 	return s
 }
 
@@ -65,16 +81,18 @@ const (
 	noThrottling = "aws-differs: dynamodb-local: requests are never throttled; inject com.amazonaws.dynamodb#ThrottlingException with a fault rule"
 	noConflicts  = "aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule"
 	// noTxConflicts is how a conflict shows on the transaction operations,
-	// which do not send TransactionConflictException.
+	// which do not send TransactionConflictException. A fault rule sets the
+	// reasons through its members, one per item of the call, which the
+	// bindings count (smithy-protocol-tests.md 14.9, 14.10). The injected
+	// error's message key, None reasons and ExecuteTransaction form are
+	// AWS's, recorded (12.4: PROTO-01, PROTO-02 and PROTO-05).
 	noTxConflicts = "aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException " +
-		"and the cancellation reason TransactionConflict, and a fault rule cannot set cancellation reasons yet"
+		"and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons " +
+		"(smithy-protocol-tests.md 12.4)"
 	caseTwins      = "aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException"
 	statementTwins = "aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table"
 	parallelScan   = "aws-differs: dynamodb-local: Segment and TotalSegments are ignored, so a parallel scan reads sequentially"
 	statementLimit = "aws-differs: dynamodb-local: Limit is ignored"
-	// streamLabels goes on the operations whose answers carry
-	// LatestStreamLabel (ADR 0009 amendment, ARCHITECTURE.md 15).
-	streamLabels = "aws-differs: dynamodb-local: LatestStreamLabel is minted by DynamoDB Local; a table re-created by snapshot load or reset carries a new one"
 )
 
 // notes joins coverage notes into one Partial.
@@ -82,13 +100,15 @@ func notes(ns ...string) registry.Partial { return registry.Partial{Note: string
 
 func (s *Service) bindTables(b dynamodbapi.Binder) {
 	createTable := named(func(in *dynamodbapi.CreateTableInput) string { return in.TableName })
-	b.CreateTableRaw(s.createTable, notes(caseTwins, streamLabels), tables(createTable))
+	b.CreateTableRaw(s.createTable, notes(caseTwins), tables(createTable))
 	deleteTable := named(func(in *dynamodbapi.DeleteTableInput) string { return in.TableName })
 	b.DeleteTableRaw(s.deleteTable, registry.Full{}, tables(deleteTable))
 	describeTable := named(func(in *dynamodbapi.DescribeTableInput) string { return in.TableName })
-	b.DescribeTableRaw(s.describeTable, notes(streamLabels), tables(describeTable))
+	b.DescribeTableRaw(s.describeTable, registry.Full{}, tables(describeTable))
 	updateTable := named(func(in *dynamodbapi.UpdateTableInput) string { return in.TableName })
-	b.UpdateTableRaw(s.updateTable, notes(streamLabels), tables(updateTable))
+	// The stream enable and disable refusals carry AWS's texts
+	// (dynamodb-streams.md 5.1; DDBS-06).
+	b.UpdateTableRaw(s.updateTable, registry.Full{}, tables(updateTable))
 	b.ListTablesRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.ListTablesInput]), registry.Full{})
 	b.DescribeLimitsRaw(passthrough(s, noTables, plainAnswer[dynamodbapi.DescribeLimitsInput]), registry.Full{})
 }
@@ -97,11 +117,11 @@ func (s *Service) bindItems(b dynamodbapi.Binder) {
 	getItem := named(func(in *dynamodbapi.GetItemInput) string { return in.TableName })
 	b.GetItemRaw(passthrough(s, getItem, echoed(getItem)), notes(noThroughput), tables(getItem))
 	putItem := named(func(in *dynamodbapi.PutItemInput) string { return in.TableName })
-	b.PutItemRaw(ttlWrites(s, passthrough(s, putItem, echoed(putItem)), putItemWrites), notes(noThroughput, noConflicts), tables(putItem))
+	b.PutItemRaw(ttlWrites(s, fed(s, passthrough(s, putItem, echoed(putItem)), putItem), putItemWrites), notes(noThroughput, noConflicts), tables(putItem))
 	updateItem := named(func(in *dynamodbapi.UpdateItemInput) string { return in.TableName })
-	b.UpdateItemRaw(ttlWrites(s, passthrough(s, updateItem, echoed(updateItem)), updateItemWrites), notes(noThroughput, noConflicts), tables(updateItem))
+	b.UpdateItemRaw(ttlWrites(s, fed(s, passthrough(s, updateItem, echoed(updateItem)), updateItem), updateItemWrites), notes(noThroughput, noConflicts), tables(updateItem))
 	deleteItem := named(func(in *dynamodbapi.DeleteItemInput) string { return in.TableName })
-	b.DeleteItemRaw(passthrough(s, deleteItem, echoed(deleteItem)), notes(noThroughput, noConflicts), tables(deleteItem))
+	b.DeleteItemRaw(fed(s, passthrough(s, deleteItem, echoed(deleteItem)), deleteItem), notes(noThroughput, noConflicts), tables(deleteItem))
 	query := named(func(in *dynamodbapi.QueryInput) string { return in.TableName })
 	b.QueryRaw(passthrough(s, query, echoed(query)), notes(noThroughput), tables(query))
 	scan := named(func(in *dynamodbapi.ScanInput) string { return in.TableName })
@@ -109,21 +129,26 @@ func (s *Service) bindItems(b dynamodbapi.Binder) {
 	batchGet := func(in *dynamodbapi.BatchGetItemInput) []string { return slices.Sorted(maps.Keys(in.RequestItems)) }
 	b.BatchGetItemRaw(passthrough(s, batchGet, echoed(batchGet, "Responses", "UnprocessedKeys")), notes(noThroughput), tables(batchGet))
 	batchWrite := func(in *dynamodbapi.BatchWriteItemInput) []string { return slices.Sorted(maps.Keys(in.RequestItems)) }
-	b.BatchWriteItemRaw(ttlWrites(s, passthrough(s, batchWrite, echoed(batchWrite, "UnprocessedItems", "ItemCollectionMetrics")), batchWrites),
+	b.BatchWriteItemRaw(ttlWrites(s, fed(s, passthrough(s, batchWrite, echoed(batchWrite, "UnprocessedItems", "ItemCollectionMetrics")), batchWrite), batchWrites),
 		notes(noThroughput), tables(batchWrite))
-	b.TransactGetItemsRaw(passthrough(s, transactGetTables, echoed(transactGetTables)), notes(noThroughput, noTxConflicts), tables(transactGetTables))
-	b.TransactWriteItemsRaw(ttlWrites(s, passthrough(s, transactWriteTables, echoed(transactWriteTables, "ItemCollectionMetrics")), transactWrites),
-		notes(noThroughput, noTxConflicts), tables(transactWriteTables))
+	// A cancellation reason lines up with each requested item
+	// (smithy-protocol-tests.md 12.2), so fault matching counts them.
+	b.TransactGetItemsRaw(passthrough(s, transactGetTables, echoed(transactGetTables)), notes(noThroughput, noTxConflicts), tables(transactGetTables),
+		kernel.WithItemCount(func(in *dynamodbapi.TransactGetItemsInput) int { return len(in.TransactItems) }))
+	b.TransactWriteItemsRaw(ttlWrites(s, fed(s, passthrough(s, transactWriteTables, echoed(transactWriteTables, "ItemCollectionMetrics")), transactWriteTables), transactWrites),
+		notes(noThroughput, noTxConflicts, transactPutAlways), tables(transactWriteTables),
+		kernel.WithItemCount(func(in *dynamodbapi.TransactWriteItemsInput) int { return len(in.TransactItems) }))
 }
 
 // bindStatements binds PartiQL, whose tables are inside the statements.
 func (s *Service) bindStatements(b dynamodbapi.Binder) {
-	b.ExecuteStatementRaw(ttlStatements(s, passthrough(s, noTables, plainAnswer[dynamodbapi.ExecuteStatementInput]), statementOf),
-		notes(noThroughput, noConflicts, statementLimit, statementTwins))
-	b.BatchExecuteStatementRaw(ttlStatements(s, passthrough(s, noTables, plainAnswer[dynamodbapi.BatchExecuteStatementInput]), batchStatements),
-		notes(noThrottling, statementTwins))
-	b.ExecuteTransactionRaw(ttlStatements(s, passthrough(s, noTables, plainAnswer[dynamodbapi.ExecuteTransactionInput]), transactionStatements),
-		notes(noThroughput, noTxConflicts, statementTwins))
+	b.ExecuteStatementRaw(ttlStatements(s, fedScope(s, passthrough(s, noTables, plainAnswer[dynamodbapi.ExecuteStatementInput])), statementOf),
+		notes(noThroughput, noConflicts, statementLimit, statementTwins, partiQLSelectAlways))
+	b.BatchExecuteStatementRaw(ttlStatements(s, fedScope(s, passthrough(s, noTables, plainAnswer[dynamodbapi.BatchExecuteStatementInput])), batchStatements),
+		notes(noThrottling, statementTwins, partiQLSelectAlways))
+	b.ExecuteTransactionRaw(ttlStatements(s, fedScope(s, passthrough(s, noTables, plainAnswer[dynamodbapi.ExecuteTransactionInput])), transactionStatements),
+		notes(noThroughput, noTxConflicts, statementTwins, partiQLSelectAlways),
+		kernel.WithItemCount(func(in *dynamodbapi.ExecuteTransactionInput) int { return len(in.TransactStatements) }))
 }
 
 // named lists the one table a TableName member addresses.
@@ -178,12 +203,22 @@ func (s *Service) createTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	}
 	a := tableAnswer(in.TableName)
 	a.shim = &shimmed{table: &record, status: dynamodbapi.TableStatusCreating}
+	var minted *Stream
+	if e, ok := streamChangeOf(in.StreamSpecification).(streamEnabled); ok {
+		minted = new(s.mint(c.Scope(), name, e.viewType, c.Admitted()))
+		a.shim.stream = minted.members(c.Scope())
+		a.shim.seen = &localStreamSeen{}
+	}
 	resp, err := s.forward(ctx, c, in, w, a, []string{in.TableName})
 	if err != nil || resp.Status != http.StatusOK {
 		return resp, err
 	}
 	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
 		st.Tables[name] = record
+		if minted != nil {
+			minted.adopt(a.shim.seen)
+			st.Streams = append(st.Streams, *minted)
+		}
 		return struct{}{}, nil
 	})
 	return resp, err
@@ -191,21 +226,29 @@ func (s *Service) createTable(ctx context.Context, c *kernel.Call, in *dynamodba
 
 // deleteTable forwards the delete of a table the name resolves to exactly,
 // answers it DELETING as AWS does, and forgets the table Local deleted,
-// with its TTL sweep.
+// with its TTL sweep. A table with an enabled stream is deleted under its
+// stream lock once Local holds none of its records the log lacks
+// (closingStream).
 func (s *Service) deleteTable(ctx context.Context, c *kernel.Call, in *dynamodbapi.DeleteTableInput, w kernel.Wire) (kernel.RawResponse, *awserr.Error) {
 	a := tableAnswer(in.TableName)
 	a.shim = s.described(c.Scope(), in.TableName, dynamodbapi.TableStatusDeleting)
+	name := tableName(in.TableName)
+	release, err := s.closingStream(ctx, c, name)
+	if err != nil {
+		return kernel.RawResponse{}, err
+	}
+	defer release()
 	resp, err := s.forward(ctx, c, in, w, a, []string{in.TableName})
 	if err != nil || resp.Status != http.StatusOK {
 		return resp, err
 	}
-	name := tableName(in.TableName)
 	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		if _, ok := st.Tables[name]; !ok {
 			tx.Unchanged()
 			return struct{}{}, nil
 		}
 		delete(st.Tables, name)
+		st.tableDeleted(name, c.Admitted())
 		return struct{}{}, nil
 	})
 	s.sweeps.forget(tableKey{scope: c.Scope(), table: name})

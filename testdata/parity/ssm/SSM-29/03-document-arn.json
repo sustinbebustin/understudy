@@ -1,0 +1,36 @@
+{
+  "step": "03-document-arn",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ValidationException) when calling the GetParameter operation: Incorrect resource type document in: arn:aws:ssm:us-east-2:123456789012:document/us1103-a29",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.GetParameter"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,g,b,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.get-parameter"],
+          ["X-Amz-Date", "20261103T163837Z"],
+          ["amz-sdk-invocation-id", "9e001c06-81fc-45bc-962e-ad2df1a2811e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "66"]
+        ],
+        "body": "{\"Name\": \"arn:aws:ssm:us-east-2:123456789012:document/us1103-a29\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:38:37 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "136"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "543a79a3-96c6-4bec-aa1b-4ec64b4554bb"]
+        ],
+        "body": "{\"__type\":\"ValidationException\",\"message\":\"Incorrect resource type document in: arn:aws:ssm:us-east-2:123456789012:document/us1103-a29\"}"
+      }
+    }
+  ]
+}

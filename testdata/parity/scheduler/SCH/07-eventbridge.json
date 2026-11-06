@@ -1,0 +1,32 @@
+{
+  "step": "07-eventbridge",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-p8",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,b,g,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.create-schedule"],
+          ["X-Amz-Date", "20261103T172627Z"],
+          ["amz-sdk-invocation-id", "5e0f6c38-53da-4209-b4f0-7797c4da5259"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "372"]
+        ],
+        "body": "{\"FlexibleTimeWindow\": {\"Mode\": \"OFF\"}, \"ScheduleExpression\": \"at(2026-11-03T17:30:23)\", \"Target\": {\"Arn\": \"arn:aws:events:us-east-2:123456789012:event-bus/us1103-sch\", \"RoleArn\": \"arn:aws:iam::123456789012:role/us1103-sch\", \"Input\": \"{\\\"k\\\":1}\", \"EventBridgeParameters\": {\"Source\": \"rec.sch\", \"DetailType\": \"tick\"}}, \"ClientToken\": \"2724caee-95ef-4d8b-99f0-aa7050595f4e\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "4ef61546-6f4c-4274-ac29-69e91b85bca1"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "85"],
+          ["Date", "Tue, 03 Nov 2026 17:26:27 GMT"]
+        ],
+        "body": "{\"ScheduleArn\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-p8\"}"
+      }
+    }
+  ]
+}

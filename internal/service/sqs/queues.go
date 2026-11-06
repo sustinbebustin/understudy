@@ -38,6 +38,15 @@ func (s *Service) bindQueues(b sqsapi.Binder) {
 		kernel.WithCheck(func(in *sqsapi.CreateQueueInput) *awserr.Error { return checkTags(in.Tags) }),
 		kernel.WithResources(func(c *kernel.Call, in *sqsapi.CreateQueueInput) []aws.ARN {
 			return []aws.ARN{queueRef{scope: c.Scope(), name: in.QueueName}.arn()}
+		}),
+		// sqs:TagQueue only for a queue created with tags: a tag action on
+		// a create applies when tags are sent (iam-enforcement-surfaces.md
+		// 10.2, 10.4).
+		kernel.WithActions(func(_ *kernel.Call, in *sqsapi.CreateQueueInput) []registry.IAMAction {
+			if len(in.Tags) == 0 {
+				return nil
+			}
+			return []registry.IAMAction{sqsAction("TagQueue")}
 		}))
 	b.GetQueueUrl(s.getQueueURL, registry.Full{},
 		kernel.WithResources(func(c *kernel.Call, in *sqsapi.GetQueueUrlInput) []aws.ARN {

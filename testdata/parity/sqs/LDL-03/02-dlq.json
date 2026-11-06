@@ -1,0 +1,35 @@
+{
+  "step": "02-dlq",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,g,Z,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T163909Z"],
+          ["amz-sdk-invocation-id", "6deafb30-83bc-4b11-bb52-becaf7262155"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "190"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-ldl-dlq\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 20}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "b5924b44-f807-5503-84d9-2820e86a2bae"],
+          ["Date", "Tue, 03 Nov 2026 16:39:09 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "2201"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA2A:awslambda_647_20261103163823257\",\"ApproximateFirstReceiveTimestamp\":\"1793723949771\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793723903305\",\"AWSTraceHeader\":\"Root=1-6aea0dff-1669cf937d45a69a1735a2ef;Parent=77188f627ce88b4c;Sampled=0;Lineage=1:cabbc008:0\"},\"Body\":\"{\\\"mode\\\":\\\"longerr\\\",\\\"c\\\":\\\"é\\\"}\",\"MD5OfBody\":\"f0aae355a74e932922d061033592e44f\",\"MD5OfMessageAttributes\":\"5e4d96bc66dcbdc5bdde2aedcd526329\",\"MessageAttributes\":{\"ErrorCode\":{\"DataType\":\"Number\",\"StringValue\":\"200\"},\"ErrorMessage\":{\"DataType\":\"String\",\"StringValue\":\"éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé\"},\"RequestID\":{\"DataType\":\"String\",\"StringValue\":\"5e395135-168c-4233-9749-bd76550c4518\"}},\"MessageId\":\"a3575bb8-7faa-450f-b573-2fe5f3c36da9\",\"ReceiptHandle\":\"AQEBHb/zdDI+2qNt1h0sf7+HG4/TdoO6n1BPlLwxkUbDU6uaZ80+fDoju6DMzUpAB8d+CWwsy61hQvftCx/sBaxHX3imiNAZRh24OEDRCmpOWWY8NINGKFMt/qMIJb/8xb1Quy5pg57iJwc6JDN5DPKLc5tzEBD1JqcxeXcBXIuP/2obwr/Npn2460CaZKIJeKywmA3oUuh59eMb+Lx0Aqk25jw/4qN55Bq8pqkiuW2Wsg4o8W9SVCpt4R0l/sTCcmtVKHcW2TMgXiCO5OKudsxBkT4spMHt3FWkGF+/pMjmeCLYBuA5o/DcqdUQYeTfQU4v5nmIhQ/eItZ7wLHCnPLkVoBgdh3DyrL7Z/aQtLzESWbBPiwmK8d9045hC61/TBzGlTDDwFmP20mayS+1tPjegg==\"}]}"
+      }
+    }
+  ]
+}

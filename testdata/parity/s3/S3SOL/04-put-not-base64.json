@@ -1,0 +1,39 @@
+{
+  "step": "04-put-not-base64",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/m4",
+        "headers": [
+          ["Host", "us1103-ssec.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T033950Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key", "not base64!"],
+          ["x-amz-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="],
+          ["Content-Length", "10"],
+          ["Content-Type", "application/x-www-form-urlencoded"]
+        ],
+        "body": "0123456789"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "JRV6WCD7HJSVFWQ5"],
+          ["x-amz-id-2", "FKXbDijKNDRK6V7o4rKEGyIJUxygIyye81kz0Jd+GQGO2PEjGNFhPczEM0FYYl9PP9vEVFfmqPX+L8sR7Ujcz2CzFwWLA0df"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:39:50 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>The calculated MD5 hash of the key did not match the hash that was provided.</Message><ArgumentName>x-amz-server-side-encryption</ArgumentName><RequestId>JRV6WCD7HJSVFWQ5</RequestId><HostId>FKXbDijKNDRK6V7o4rKEGyIJUxygIyye81kz0Jd+GQGO2PEjGNFhPczEM0FYYl9PP9vEVFfmqPX+L8sR7Ujcz2CzFwWLA0df</HostId></Error>"
+      }
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "golden": 24,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/intrinsic_functions/test_math_operations.snapshot.json:L306",
+  "test": "test_math_add (exec_hist_resp_0)",
+  "validated": "2023-09-13",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/intrinsicfunctions/statemachines/math_operations/math_add.json5",
+  "definition": {
+    "Comment": "MATH_ADD",
+    "StartAt": "State_0",
+    "States": {
+      "State_0": {
+        "Type": "Pass",
+        "Parameters": {
+          "FunctionResult.$": "States.MathAdd($.FunctionInput.fst, $.FunctionInput.snd)"
+        },
+        "End": true
+      }
+    }
+  },
+  "input": {"FunctionInput": {"fst": -9, "snd": 3}},
+  "history": [
+    {
+      "executionStartedEventDetails": {
+        "input": {"FunctionInput": {"fst": -9, "snd": 3}},
+        "inputDetails": {"truncated": false},
+        "roleArn": "snf_role_arn"
+      },
+      "id": 1,
+      "previousEventId": 0,
+      "timestamp": "timestamp",
+      "type": "ExecutionStarted"
+    },
+    {
+      "id": 2,
+      "previousEventId": 0,
+      "stateEnteredEventDetails": {
+        "input": {"FunctionInput": {"fst": -9, "snd": 3}},
+        "inputDetails": {"truncated": false},
+        "name": "State_0"
+      },
+      "timestamp": "timestamp",
+      "type": "PassStateEntered"
+    },
+    {
+      "id": 3,
+      "previousEventId": 2,
+      "stateExitedEventDetails": {
+        "name": "State_0",
+        "output": {"FunctionResult": -6},
+        "outputDetails": {"truncated": false}
+      },
+      "timestamp": "timestamp",
+      "type": "PassStateExited"
+    },
+    {
+      "executionSucceededEventDetails": {
+        "output": {"FunctionResult": -6},
+        "outputDetails": {"truncated": false}
+      },
+      "id": 4,
+      "previousEventId": 3,
+      "timestamp": "timestamp",
+      "type": "ExecutionSucceeded"
+    }
+  ]
+}

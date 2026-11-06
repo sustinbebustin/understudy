@@ -1,0 +1,36 @@
+{
+  "step": "36-kinesis",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the ListStreams operation: User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: kinesis:ListStreams because no identity-based policy allows the kinesis:ListStreams action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kinesis.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Kinesis_20131202.ListStreams"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/P,E,C,AN,b,Z,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#kinesis.list-streams"],
+          ["X-Amz-Date", "20261103T033954Z"],
+          ["amz-sdk-invocation-id", "9753ce61-7c8b-411e-87bf-c89e64f9cdfa"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "c3372c22-c6f4-491c-a054-75e852994ecc"],
+          ["x-amz-id-2", "OjatZGiFZ/twQ28UWlSMXyBML+OHdA1VTJ1mp8NQnuW66Ox7MQxzCA1PbxtB1fPLk8STjxdejV3+4mQylhOsb6+RQAM6Admslgbfvpn/d+4="],
+          ["Date", "Tue, 03 Nov 2026 03:39:54 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "232"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: kinesis:ListStreams because no identity-based policy allows the kinesis:ListStreams action\"}"
+      }
+    }
+  ]
+}

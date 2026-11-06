@@ -1,0 +1,34 @@
+{
+  "step": "02-map-describe",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.DescribeExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,AN,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.describe-execution"],
+          ["X-Amz-Date", "20261103T164707Z"],
+          ["amz-sdk-invocation-id", "56a79547-7003-40c6-aad0-64f04ca408ab"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "116"]
+        ],
+        "body": "{\"executionArn\": \"arn:aws:states:us-east-2:123456789012:execution:us1103-mmap:ce123c4a-023d-4bad-90fe-cf2a946ca60b\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "9ea9a825-b784-4397-853b-e014c0cc6a0a"],
+          ["Date", "Tue, 03 Nov 2026 16:47:07 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "746"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"cause\":\"An error occurred while executing the state 'M' (entered at the event id #2). The JSONPath '$.nope' specified for the field 'v.$' could not be found in the input '{\\\"items\\\": [1], \\\"k\\\": \\\"v\\\"}'\",\"error\":\"States.Runtime\",\"executionArn\":\"arn:aws:states:us-east-2:123456789012:execution:us1103-mmap:ce123c4a-023d-4bad-90fe-cf2a946ca60b\",\"input\":\"{\\\"items\\\": [1], \\\"k\\\": \\\"v\\\"}\",\"inputDetails\":{\"__type\":\"com.amazonaws.swf.base.model#CloudWatchEventsExecutionDataDetails\",\"included\":true},\"name\":\"ce123c4a-023d-4bad-90fe-cf2a946ca60b\",\"redriveCount\":0,\"redriveStatus\":\"REDRIVABLE\",\"startDate\":1.793724426197E9,\"stateMachineArn\":\"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-mmap\",\"status\":\"FAILED\",\"stopDate\":1.793724426248E9}"
+      }
+    }
+  ]
+}

@@ -211,6 +211,17 @@ func (v *ConnectCustomKeyStoreOutput) serialize(s smithy.Serializer, m *smithy.M
 	s.CloseStruct()
 }
 
+// Serialize writes v through s.
+func (v *CoralServiceAccessDeniedException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *CoralServiceAccessDeniedException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaCoralServiceAccessDeniedException)
+	if v.Message != nil {
+		s.WriteString(&memberCoralServiceAccessDeniedException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
 // Deserialize reads v from d. Absent members stay absent; Validate
 // reports missing required ones.
 func (v *CreateAliasInput) Deserialize(d smithy.Deserializer) error { return v.deserialize(d) }

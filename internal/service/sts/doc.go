@@ -20,10 +20,13 @@
 //     AccessDenied with AWS's trust failure text. The iam.assumeRole switch
 //     (Options.AssumeRole) set to lenient mints a session anyway, with a role
 //     id derived from the ARN and a MaxSessionDuration of 12 hours.
-//   - The role's trust policy, session policies, tags, MFA and external id
-//     are not evaluated: understudy does not enforce IAM. Session policies and
-//     tags are still validated as AWS documents: at most 10 managed policy
-//     ARNs, an inline policy IAM would accept as an identity policy, at most
+//   - The role's trust policy, with the request's external id, session name,
+//     source identity and tags as condition keys, is evaluated at step 8 only
+//     under iam.enforce advise and enforce; the session policies and tags
+//     stored on the session are evaluated on its later calls; MFA is not
+//     checked. Session policies and tags are validated as AWS documents: at
+//     most 10 managed policy ARNs, an inline policy IAM would accept as an
+//     identity policy, at most
 //     2,048 characters of policy plaintext, no "aws:" prefix on a source
 //     identity or a session tag key or value, no two session tag keys that
 //     differ only in case, and no transitive tag key that names no session

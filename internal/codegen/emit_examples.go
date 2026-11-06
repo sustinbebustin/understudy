@@ -324,14 +324,25 @@ func (f *file) mapLit(s *ShapeIR, raw json.RawMessage, subject string) (string, 
 }
 
 // elemLit renders a list element or map value; sparse collections hold
-// pointers, with nil for null.
+// nil for null (nullElem), and pointers where elemType gives one.
 func (f *file) elemLit(m *MemberIR, raw json.RawMessage, subject string) (string, error) {
-	sparse := m.Owner.Sparse && pointerable(m.Target)
-	if sparse && string(raw) == "null" {
-		return "nil", nil
+	// A null document is a document value. Any other null that nullElem
+	// does not hold would render as an empty value or fail obscurely, so it
+	// stops here (smithy-protocol-tests.md 13.1, 14.14).
+	if string(raw) == "null" && m.Target.Type != smithy.TypeDocument {
+		switch {
+		case nullElem(m):
+			return "nil", nil
+		case m.Owner.Sparse:
+			return "", failf(StageEmit, subject, "%s holds a null %s element; this generator keeps null apart only for elements "+
+				"that are scalars, structures, lists or maps (smithy-protocol-tests.md 14.8)", m.Owner.ID, m.Target.Type)
+		default:
+			return "", failf(StageEmit, subject, "%s holds a null element, but it is not @sparse, so no element of it can be null "+
+				"(smithy-protocol-tests.md 13.1); a literal would render the null as an empty value", m.Owner.ID)
+		}
 	}
 	lit, err := f.exampleLit(m.Target, raw, subject)
-	if err != nil || !sparse {
+	if err != nil || !m.Owner.Sparse || !pointerable(m.Target) {
 		return lit, err
 	}
 	return "new(" + lit + ")", nil

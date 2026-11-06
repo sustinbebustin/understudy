@@ -1,0 +1,35 @@
+{
+  "step": "04-publish-bad-zip",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the PublishLayerVersion operation: Could not unzip uploaded file. Please check your file, then try to upload again.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://lambda.us-east-2.amazonaws.com/2018-10-31/layers/us1103-ldl-bad/versions",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,g,Z,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.publish-layer-version"],
+          ["X-Amz-Date", "20261103T171003Z"],
+          ["amz-sdk-invocation-id", "457d4820-946b-492b-b1e6-f3bb0b5896c7"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "40"]
+        ],
+        "body": "{\"Content\": {\"ZipFile\": \"bm90IGEgemlw\"}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 17:10:04 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "108"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "851bd780-e3c5-4202-8420-f068b57fd831"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"Could not unzip uploaded file. Please check your file, then try to upload again.\"}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "step": "02-create-api",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the CreateApi operation: User: arn:aws:sts::123456789012:assumed-role/us1103-gw-caller/gw15 is not authorized to perform: apigateway:POST on resource: arn:aws:apigateway:us-east-2::/apis because no identity-based policy allows the apigateway:POST action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,b,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-api"],
+          ["X-Amz-Date", "20261103T165054Z"],
+          ["amz-sdk-invocation-id", "2c650a2d-5709-4c9b-827c-e7f4ba3ca045"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "52"]
+        ],
+        "body": "{\"name\": \"us1103-gw-denied\", \"protocolType\": \"HTTP\"}"
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:50:54 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "242"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "5484cab3-df6c-4251-be09-8bd613cc21bf"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "AccessDeniedException"],
+          ["x-amz-apigw-id", "GReVYF3yiYcEoRA="],
+          ["X-Amzn-Trace-Id", "Root=1-6aea10ee-03040b760c6ed91e136669bb"]
+        ],
+        "body": "{\"message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-gw-caller/gw15 is not authorized to perform: apigateway:POST on resource: arn:aws:apigateway:us-east-2::/apis because no identity-based policy allows the apigateway:POST action\"}"
+      }
+    }
+  ]
+}

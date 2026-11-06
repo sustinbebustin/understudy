@@ -12,6 +12,7 @@ import (
 
 	"pgregory.net/rapid"
 
+	"github.com/sustinbebustin/understudy/internal/access"
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/journal"
@@ -291,11 +292,14 @@ func TestUpdateReadBackIsNoCall(t *testing.T) {
 	})
 }
 
-// TestTTLSweepRunsAsTheServiceThroughThePipeline: the sweep's calls are
+// TestTTLSweepRunsAsThePlatformThroughThePipeline: the sweep's calls are
 // journaled as internal calls of dynamodb.amazonaws.com made by the TTL
 // shim, its deletes conditioned on the item still being expired at the
-// sweep's instant.
-func TestTTLSweepRunsAsTheServiceThroughThePipeline(t *testing.T) {
+// sweep's instant. TTL deletes are DynamoDB's own service deletions
+// (dynamodb-local.md 5.1), not a delivery a resource policy gates
+// (ARCHITECTURE.md 16), so they run as the platform: the access record,
+// and the policies rendered from it, leave them out.
+func TestTTLSweepRunsAsThePlatformThroughThePipeline(t *testing.T) {
 	runStore(t, func(h *harness, _ *tableStore) {
 		h.lockTable("Locks")
 		h.mustCall("PutItem", `{"TableName":"Locks","Item":{"id":{"S":"a"},"exp":{"N":"946684830"}}}`)
@@ -309,8 +313,11 @@ func TestTTLSweepRunsAsTheServiceThroughThePipeline(t *testing.T) {
 			h.Fatalf("journal holds %d DeleteItem calls, want 1", len(deletes))
 		}
 		call, isCall := deletes[0].Detail.(journal.APICall)
-		if !isCall || call.Origin != (ref.Internal{Via: ref.DynamoDBTTL}) || call.Mode != "service:dynamodb.amazonaws.com" {
-			h.Errorf("the delete was journaled as %+v, want an internal call of the TTL shim as dynamodb.amazonaws.com", deletes[0].Detail)
+		if !isCall || call.Origin != (ref.Internal{Via: ref.DynamoDBTTL}) || call.Mode != "platform:dynamodb.amazonaws.com" || call.Principal != "dynamodb.amazonaws.com" {
+			h.Errorf("the delete was journaled as %+v, want an internal platform call of the TTL shim as dynamodb.amazonaws.com", deletes[0].Detail)
+		}
+		if uses := h.Access.Usage(access.Filter{Principal: access.ServicePrincipal{Name: "dynamodb.amazonaws.com"}}); len(uses) != 0 {
+			h.Errorf("the sweep was access-recorded as %+v, want nothing", uses)
 		}
 		if at := deletes[0].At.Wire(); !at.Equal(time.Date(2000, 1, 1, 0, 0, 30, 0, time.UTC)) {
 			h.Errorf("the delete was admitted at %s, want the expiry 2000-01-01T00:00:30Z", at)

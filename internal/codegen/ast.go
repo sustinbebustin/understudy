@@ -28,6 +28,24 @@ const (
 // has run. Shapes holds every shape by absolute id, prelude shapes included.
 type Model struct {
 	Shapes map[smithy.ShapeID]*Shape
+	// evidence holds, for each trait an overlay entry applied, the items of
+	// the entry's evidence that cover it. The evidence trait itself never
+	// reaches a shape (applyTraits), so this is where a stage that emits a
+	// label (dev.understudy#denialError) reads it.
+	evidence map[appliedTrait][]Evidence
+}
+
+// appliedTrait names one trait at one shape ("ns#Shape") or member
+// ("ns#Shape$member").
+type appliedTrait struct {
+	at    string
+	trait string
+}
+
+// evidenceOf returns the overlay evidence items covering trait on shape;
+// none when no overlay entry applied it there.
+func (m *Model) evidenceOf(shape smithy.ShapeID, trait string) []Evidence {
+	return m.evidence[appliedTrait{at: string(shape), trait: trait}]
 }
 
 // Shape is one shape of the AST. Only the fields of its kind are set.
@@ -279,7 +297,7 @@ func Load(r io.Reader, source string) (*Model, error) {
 	if rm.Smithy != "2.0" && rm.Smithy != "2" {
 		return nil, failf(StageLoad, source, `"smithy" is %q; only Smithy 2.0 models are supported`, rm.Smithy)
 	}
-	m := &Model{Shapes: prelude()}
+	m := &Model{Shapes: prelude(), evidence: map[appliedTrait][]Evidence{}}
 	for _, key := range slices.Sorted(maps.Keys(rm.Shapes)) {
 		s, err := parseShape(key, rm.Shapes[key], source, StageLoad)
 		if err != nil {

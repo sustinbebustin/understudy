@@ -24,6 +24,7 @@ func asDecoded(d Detail) Detail {
 		return callAsDecoded(d)
 	case Delivery:
 		d.From, d.To = arnAsDecoded(d.From), arnAsDecoded(d.To)
+		d.Endpoint = wireText(d.Endpoint)
 		switch o := d.Outcome.(type) {
 		case Filtered:
 			d.Outcome = Filtered{Rule: wireText(o.Rule)}
@@ -31,6 +32,8 @@ func asDecoded(d Detail) Detail {
 			d.Outcome = DeadLettered{DLQ: arnAsDecoded(o.DLQ)}
 		case Dropped:
 			d.Outcome = Dropped{Reason: wireText(o.Reason)}
+		case Refused:
+			d.Outcome = Refused{Reason: wireText(o.Reason)}
 		case Delivered, Retrying:
 		}
 		return d
@@ -65,9 +68,37 @@ func asDecoded(d Detail) Detail {
 		return d
 	case Gap:
 		return d
+	case AdminAction:
+		d.Op = adminOpAsDecoded(d.Op)
+		return d
 	}
 	return d
 }
+
+// adminOpAsDecoded is asDecoded for an admin action's op: its text as JSON
+// carries it and its empty lists as nil.
+func adminOpAsDecoded(op AdminOp) AdminOp {
+	switch op := op.(type) {
+	case Reset:
+		op.Services, op.Accounts, op.Regions = textsAsDecoded(op.Services), textsAsDecoded(op.Accounts), textsAsDecoded(op.Regions)
+		return op
+	case SnapshotSave:
+		op.Path = wireText(op.Path)
+		return op
+	case SnapshotLoad:
+		op.Path = wireText(op.Path)
+		return op
+	case FaultRuleAdded:
+		op.Rule = ruleAsDecoded(op.Rule)
+		return op
+	case FaultRuleRemoved:
+		op.Rules = mapAsDecoded(op.Rules, ruleAsDecoded)
+		return op
+	}
+	return op
+}
+
+func ruleAsDecoded(r ref.RuleID) ref.RuleID { return ref.RuleID(wireText(string(r))) }
 
 // callAsDecoded is asDecoded for an APICall, which Begin keeps as one.
 func callAsDecoded(d APICall) APICall {

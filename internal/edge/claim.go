@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/auth"
@@ -48,16 +49,35 @@ type toRaw struct {
 }
 
 // toLink is a raw operation serving a link understudy hands out for a
-// browser to open from any page, as AWS serves its own: an SNS link or a
-// Lambda code link (rule 1), or a function URL by path (rule 1) or by host
-// (rule 2). The edge's browser defences never refuse one.
-type toLink struct{ op *registry.Operation }
+// browser to open from any page, as AWS serves its own: an SNS or SES link
+// or a Lambda code link (rule 1), a function URL by path (rule 1) or by
+// host (rule 2), or the execute-api data plane by path (rule 1) or by host
+// (rule 2). The edge's browser defences never refuse one. policy is
+// cspSandbox for the path fallbacks, a user's page on understudy's origin,
+// and for the SES verification link, which echoes an identity a client
+// wrote (ADR 0020).
+type toLink struct {
+	op     *registry.Operation
+	policy csp
+}
 
 // toService is a request signed for a registered service that no rule
 // claimed (rule 8): that service answers it, never S3, as its own front end
 // would (ADR 0013).
 type toService struct {
 	svc     *registry.Service
+	reasons []reason
+}
+
+// legacyQuery is a POST signed for a service of Options.LegacyQuery that
+// carries no X-Amz-Target and names its operation in an Action query
+// parameter or sends a form body: the legacy Query protocol AWS also
+// serves for it, which understudy does not (rule 8; ssm-parameters.md 2.3).
+type legacyQuery struct {
+	svc *registry.Service
+	// action is the Action query parameter; empty when the request is a
+	// form body, whose Action the edge does not read.
+	action  string
 	reasons []reason
 }
 
@@ -68,6 +88,15 @@ type notEmulated struct {
 	reasons     []reason
 }
 
+// misscoped is an operation X-Amz-Target names whose SigV4 credential is
+// scoped to a service name AWS refuses for it (rule 6, refusedScope). It
+// never reaches the service.
+type misscoped struct {
+	codec   Codec
+	svc     *registry.Service
+	reasons []reason
+}
+
 // unclaimed is a request no rule claimed (rule 9), or one rule 5 rejected.
 type unclaimed struct{ reasons []reason }
 
@@ -76,15 +105,42 @@ type unclaimed struct{ reasons []reason }
 // passed over before it, for the Unclaimed journal event.
 type toLocalStack struct{ reasons []reason }
 
+// executeAPIClaimedTwice is an execute-api request whose API id more than
+// one front's owner holds: an understudy bug, since API Gateway mints ids
+// in one namespace, answered 500 naming the services so neither runs.
+// reasons end with the claiming rule's, for the Unclaimed journal event;
+// policy is as for toExecuteAPI.
+type executeAPIClaimedTwice struct {
+	message string
+	reasons []reason
+	policy  csp
+}
+
+// toExecuteAPI is API Gateway's execute-api data plane, by host (rule 2)
+// or by the path fallback (rule 1), when no raw execute-api operation is
+// registered: it is claimed so S3 never answers it, and answered 501.
+// reasons end with the claiming rule's, for the Unclaimed journal event. policy is
+// cspSandbox for the path fallback, which an integration controls on
+// understudy's origin (ADR 0020).
+type toExecuteAPI struct {
+	reasons []reason
+	policy  csp
+}
+
 func (toAdmin) isRoute()      {}
 func (toOperation) isRoute()  {}
 func (toUnknown) isRoute()    {}
 func (toRaw) isRoute()        {}
 func (toLink) isRoute()       {}
 func (toService) isRoute()    {}
+func (legacyQuery) isRoute()  {}
 func (notEmulated) isRoute()  {}
+func (misscoped) isRoute()    {}
 func (unclaimed) isRoute()    {}
 func (toLocalStack) isRoute() {}
+func (toExecuteAPI) isRoute() {}
+
+func (executeAPIClaimedTwice) isRoute() {}
 
 // reason is why one claim rule passed over a request: its number in
 // ARCHITECTURE.md 4.1, which the journal records, and the words a client
@@ -104,9 +160,9 @@ func journaled(reasons []reason) []string {
 	return out
 }
 
-// adminPrefix is reserved for understudy: the admin API, SNS links and the
-// function URL path fallback. Bucket names cannot start with "_", so it
-// never shadows S3.
+// adminPrefix is reserved for understudy: the admin API, SNS links, Lambda
+// code links and the function URL and execute-api path fallbacks. Bucket
+// names cannot start with "_", so it never shadows S3.
 const adminPrefix = "/_understudy/"
 
 // localStackSegment is the first path segment of LocalStack's reserved
@@ -133,10 +189,17 @@ func (c *claimer) decline(rule int, format string, args ...any) {
 // parsed credentials, nil when they cannot be read, and parseErr says why.
 func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) route {
 	c := &claimer{h: h, r: r, path: requestPath(r), host: hostname(r.Host), auth: a, parseErr: parseErr}
-	if rt, ok := c.snsLink(); ok {
+	if isHTTP2Preface(r) {
+		c.decline(9, http2PrefaceMessage)
+		return http2Preface{reasons: c.reasons}
+	}
+	if rt, ok := c.serviceLink(); ok {
 		return rt
 	}
 	if rt, ok := c.functionURLPath(); ok {
+		return rt
+	}
+	if rt, ok := c.executeAPIPath(); ok {
 		return rt
 	}
 	if rt, ok := c.lambdaCodeLink(); ok {
@@ -157,6 +220,9 @@ func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) 
 	if rt, ok := c.functionURL(); ok {
 		return rt
 	}
+	if rt, ok := c.executeAPI(); ok {
+		return rt
+	}
 	if rt, ok := c.s3Control(); ok {
 		return rt
 	}
@@ -168,28 +234,53 @@ func (h *Handler) claim(r *http.Request, a auth.Auth, parseErr auth.ParseError) 
 	return unclaimed{reasons: c.reasons}
 }
 
-// snsLinkPrefix is where the links SNS writes into notifications live
-// (SigningCertURL, UnsubscribeURL, SubscribeURL): the reserved prefix, then
-// the raw SNS operation that serves the link.
-const snsLinkPrefix = adminPrefix + "sns/"
+// serviceLink is a service whose AWS-visible links live under
+// /_understudy/<service>/<Op>, Op naming the raw operation that serves the
+// link.
+type serviceLink struct {
+	service ref.ServiceID
+	// ops names the link operations, for the decline of any other path.
+	ops string
+	// policy is cspSandbox for a page that echoes what a client wrote, on
+	// understudy's origin (ADR 0020).
+	policy csp
+}
 
-// snsLink is rule 1's SNS part: on the main listener, /_understudy/sns/<Op>
-// goes to SNS's raw operation <Op>. The links carry no credentials; the
+// serviceLinks are the services with links: SNS's notification links
+// (SigningCertURL, UnsubscribeURL, SubscribeURL), and SES's verification
+// link (ses.md 11.3), sandboxed since its text names the identity a client
+// chose.
+func serviceLinks() []serviceLink {
+	return []serviceLink{
+		{service: "sns", ops: "SigningCert, UnsubscribeLink, ConfirmSubscriptionLink", policy: cspAsWritten},
+		{service: "ses", ops: "VerificationLink", policy: cspSandbox},
+	}
+}
+
+// serviceLink is rule 1's links part: on the main listener,
+// /_understudy/<service>/<Op> for a service of serviceLinks goes to that
+// service's raw operation <Op>. The links carry no credentials; the
 // operations serve them as AWS serves its own (ARCHITECTURE.md 4.1). Any
 // other request goes on to the admin part of rule 1, which says why it
 // declines.
-func (c *claimer) snsLink() (route, bool) {
-	rest, ok := strings.CutPrefix(c.path, snsLinkPrefix)
-	if !ok || c.h.opts.Listener != ref.ListenerMain {
+func (c *claimer) serviceLink() (route, bool) {
+	if c.h.opts.Listener != ref.ListenerMain {
 		return nil, false
 	}
-	name, _, _ := strings.Cut(rest, "/")
-	op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: "sns", Name: name})
-	if !ok || op.Kind != registry.Raw {
-		c.decline(1, "%s names no raw SNS link operation (SigningCert, UnsubscribeLink, ConfirmSubscriptionLink)", c.path)
-		return unclaimed{reasons: c.reasons}, true
+	for _, l := range serviceLinks() {
+		rest, ok := strings.CutPrefix(c.path, adminPrefix+string(l.service)+"/")
+		if !ok {
+			continue
+		}
+		name, _, _ := strings.Cut(rest, "/")
+		op, ok := c.h.opts.Registry.Operation(ref.OperationID{Service: l.service, Name: name})
+		if !ok || op.Kind != registry.Raw {
+			c.decline(1, "%s names no raw %s link operation (%s)", c.path, l.service, l.ops)
+			return unclaimed{reasons: c.reasons}, true
+		}
+		return toLink{op: op, policy: l.policy}, true
 	}
-	return toLink{op: op}, true
+	return nil, false
 }
 
 // functionURLPathPrefix is the function URL path fallback,
@@ -199,8 +290,9 @@ const functionURLPathPrefix = adminPrefix + "lambda-url/"
 
 // functionURLPath is rule 1's function URL part: on the main listener, the
 // path fallback goes to Lambda's raw InvokeFunctionUrl operation, which
-// resolves the url id from the path as it does from the host (rule 2).
-// Any other request goes on to the admin part of rule 1.
+// resolves the url id from the path as it does from the host (rule 2),
+// sandboxed, since the function's page shares understudy's origin (ADR
+// 0020). Any other request goes on to the admin part of rule 1.
 func (c *claimer) functionURLPath() (route, bool) {
 	if !strings.HasPrefix(c.path, functionURLPathPrefix) || c.h.opts.Listener != ref.ListenerMain {
 		return nil, false
@@ -210,7 +302,87 @@ func (c *claimer) functionURLPath() (route, bool) {
 		c.decline(1, "%s is the function URL path fallback, but no raw lambda.InvokeFunctionUrl operation is registered", c.path)
 		return unclaimed{reasons: c.reasons}, true
 	}
-	return toLink{op: op}, true
+	return toLink{op: op, policy: cspSandbox}, true
+}
+
+// executeAPIPathPrefix is the execute-api path fallback,
+// /_understudy/execute-api/<api-id>/<path>, for clients that cannot resolve
+// an execute-api host (apigateway-http.md 11.3).
+const executeAPIPathPrefix = adminPrefix + "execute-api/"
+
+// executeAPIPath is rule 1's execute-api part: on the main listener, the
+// path fallback is API Gateway's data plane, whatever follows the prefix
+// and whatever the credentials, sandboxed, since its pages share
+// understudy's origin (ADR 0020). The API id resolves to its front
+// (executeAPIFront). Any other request goes on to the admin part of rule 1.
+func (c *claimer) executeAPIPath() (route, bool) {
+	if !strings.HasPrefix(c.path, executeAPIPathPrefix) || c.h.opts.Listener != ref.ListenerMain {
+		return nil, false
+	}
+	id, _, _ := strings.Cut(strings.TrimPrefix(c.path, executeAPIPathPrefix), "/")
+	return c.executeAPIFront(1, strings.ToLower(id), c.path+" is the API Gateway execute-api path fallback", cspSandbox), true
+}
+
+// executeAPIFront routes an execute-api request for the API id, which
+// rule names as what (ADR 0019 amendment 2026-10-31). Among the fronts of
+// Options.ExecuteAPI whose operation is registered Raw, the one whose
+// owner holds the id serves it; when none does, the first registered
+// front's handler answers its unknown-API answer; when several do, the
+// id is an understudy bug, answered 500 naming them so that neither
+// runs. Without Options.ExecuteAPI the front is the raw
+// apigatewayv2.InvokeApi operation (6a's rule). With no front registered
+// the request is answered 501.
+func (c *claimer) executeAPIFront(rule int, id, what string, policy csp) route {
+	raw := func(oid ref.OperationID) (*registry.Operation, bool) {
+		op, ok := c.h.opts.Registry.Operation(oid)
+		return op, ok && op.Kind == registry.Raw
+	}
+	fronts := c.h.opts.ExecuteAPI
+	if fronts == nil {
+		fronts = []ExecuteAPIService{{Op: ref.OperationID{Service: "apigatewayv2", Name: "InvokeApi"}}}
+	}
+	var first *registry.Operation
+	var owners []*registry.Operation
+	for _, front := range fronts {
+		op, ok := raw(front.Op)
+		if !ok {
+			continue
+		}
+		if first == nil {
+			first = op
+		}
+		if front.Owner != nil && front.Owner.OwnsExecuteAPI(id) {
+			owners = append(owners, op)
+		}
+	}
+	switch {
+	case len(owners) == 1:
+		return toLink{op: owners[0], policy: policy}
+	case len(owners) > 1:
+		msg := claimedTwiceMessage(id, owners)
+		c.decline(rule, "%s, and %s", what, msg)
+		return executeAPIClaimedTwice{message: msg, reasons: c.reasons, policy: policy}
+	case first != nil:
+		return toLink{op: first, policy: policy}
+	}
+	c.decline(rule, "%s, and understudy does not implement API Gateway invoke", what)
+	return toExecuteAPI{reasons: c.reasons, policy: policy}
+}
+
+// claimedTwiceMessage is the answer to an API id that the owners of ops
+// all hold (ADR 0019 amendment): what happened, that nothing was
+// changed, and where to report it.
+func claimedTwiceMessage(id string, ops []*registry.Operation) string {
+	names := make([]string, len(ops))
+	for i, op := range ops {
+		names[i] = string(op.ID.Service)
+	}
+	services := "both " + names[0] + " and " + names[1]
+	if len(names) > 2 {
+		services = "each of " + strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+	}
+	return "understudy found API id " + id + " in " + services +
+		", which is an understudy bug; nothing was changed. Report it at https://github.com/sustinbebustin/understudy/issues"
 }
 
 // lambdaCodePrefix is where GetFunction's Code.Location links live.
@@ -248,6 +420,54 @@ func (c *claimer) functionURL() (route, bool) {
 		return nil, false
 	}
 	return toLink{op: op}, true
+}
+
+// executeAPIHost matches <api-id>.execute-api.<rest>; isExecuteAPIHost
+// checks that rest is <region>.<domain> or <domain>.
+var executeAPIHost = regexp.MustCompile(`^[a-z0-9]+\.execute-api\.(.+)$`)
+
+// isExecuteAPIHost reports whether the host is
+// <api-id>.execute-api.<region>.<domain> or <api-id>.execute-api.<domain>,
+// domain being a configured base domain without a leading "s3." label, as
+// for regionalBase. Host detection is configuration on the base domains
+// (apigateway-http.md 11.3), so the claim ends at one: a bucket named
+// x.execute-api.y is S3's on its regional virtual host
+// x.execute-api.y.s3.<region>.<domain>, as on AWS.
+func (c *claimer) isExecuteAPIHost() bool {
+	m := executeAPIHost.FindStringSubmatch(c.host)
+	if m == nil {
+		return false
+	}
+	rest := m[1]
+	for _, base := range c.h.opts.S3BaseDomains {
+		domain := strings.TrimPrefix(base, "s3.")
+		if rest == domain {
+			return true
+		}
+		region, ok := strings.CutSuffix(rest, "."+domain)
+		if !ok || strings.Contains(region, ".") {
+			continue
+		}
+		if _, err := c.h.opts.Regions.Parse(region); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// executeAPI is rule 2's execute-api part: an execute-api host is API
+// Gateway's data plane whatever the credentials, never an S3
+// virtual-hosted bucket, as AWS serves those hosts apart from S3
+// (apigateway-http.md 4.1, ADR 0013). A bucket of that name stays
+// reachable path style. The API id, the host's first label, resolves to
+// its front (executeAPIFront), unsandboxed, since the host is an origin of
+// its own (ADR 0020).
+func (c *claimer) executeAPI() (route, bool) {
+	if !c.isExecuteAPIHost() {
+		return nil, false
+	}
+	id, _, _ := strings.Cut(c.host, ".")
+	return c.executeAPIFront(2, id, fmt.Sprintf("host %q is an API Gateway execute-api host", c.host), cspAsWritten), true
 }
 
 // accountHost matches <12 digits>.<base>, the S3 Control authority.
@@ -314,12 +534,31 @@ func (c *claimer) awsJSON() (route, bool) {
 		c.decline(6, "no X-Amz-Target header")
 		return nil, false
 	}
+	if isKinesisCBOR(c.r) {
+		c.decline(6, "X-Amz-Target names a Kinesis operation in CBOR (%s), which understudy does not serve; it serves Kinesis in JSON", cborMediaType)
+		return kinesisCBOR{reasons: c.reasons}, true
+	}
 	for _, p := range []ref.ProtocolID{ref.AWSJSON10, ref.AWSJSON11} {
 		if rt, ok := c.codecClaim(p, 6); ok {
 			return rt, true
 		}
 	}
 	return nil, false
+}
+
+// refusedScope is the credential-scope service name AWS refuses for a
+// service whose endpoint prefix differs from its signing name, "" for any
+// other service. DynamoDB Streams is reached at streams.dynamodb.<region>
+// but signed for dynamodb; a credential scoped to streams.dynamodb is
+// refused with 400 InvalidSignatureException whatever the signature
+// (aws-recorded, testdata/parity/dynamodb/R11/07-streams-signed-streams.dynamodb.json;
+// dynamodb-streams.md 3.2). It is a check of the credential's scope, as
+// the region check is, so it holds under sigv4 parse as under verify.
+func refusedScope(id ref.ServiceID) string {
+	if id == "dynamodbstreams" {
+		return "streams.dynamodb"
+	}
+	return ""
 }
 
 // awsQuery is rule 7: a form body, or a GET with Action.
@@ -366,6 +605,10 @@ func (c *claimer) codecClaim(p ref.ProtocolID, rule int) (route, bool) {
 		return nil, false
 	}
 	if signed, ok := signingName(c.auth); ok && signed != svc.SigningName {
+		if _, named := rt.(toOperation); named && signed == refusedScope(svc.ID) {
+			c.decline(rule, "the request names %s service %s, whose credentials AWS refuses when scoped to %q: sign for %q", p, svc.ID, signed, svc.SigningName)
+			return misscoped{codec: codec, svc: svc, reasons: c.reasons}, true
+		}
 		c.decline(rule, "the request names %s service %s but is signed for %q", p, svc.ID, signed)
 		return nil, false
 	}
@@ -377,7 +620,8 @@ var datePath = regexp.MustCompile(`^/\d{4}-\d{2}-\d{2}/`)
 
 // rest is rule 8: Lambda's and S3's route tables, and the rule that a
 // request signed for another service is that service's to answer, never
-// S3's.
+// S3's: the route tables of the REST services that share its signing name,
+// else the first service of the name (ADR 0019).
 func (c *claimer) rest() (route, bool) {
 	signed, isSigned := signingName(c.auth)
 	_, presigned := c.auth.(auth.SigV4Query)
@@ -474,17 +718,94 @@ func (c *claimer) s3(what string) (route, bool) {
 	return c.restService("s3", ref.RESTXML, what+" (virtual-hosted bucket "+bucket+")", r, path)
 }
 
-// signedElsewhere answers a request signed for a service no rule claimed:
-// a registered service answers with its own error, never S3's (ADR 0013),
-// and any other signing name names a service understudy does not emulate.
+// signedElsewhere answers a request signed for a service no earlier rule
+// claimed. When REST services share the signing name, their route tables
+// are tried in registration order and the first match wins; a request none
+// matches is the first one's unknown operation, as a single REST service
+// answers it (ADR 0019). Otherwise the first registered service of the name
+// answers with its own error, never S3's (ADR 0013), and a name no service
+// holds names a service understudy does not emulate.
 func (c *claimer) signedElsewhere(signed string) (route, bool) {
-	svc, ok := c.h.opts.Registry.BySigningName(signed)
-	if !ok {
+	candidates := c.h.opts.Registry.BySigningName(signed)
+	if len(candidates) == 0 {
 		c.decline(8, "the request is signed for %q, which names no registered service", signed)
 		return notEmulated{signingName: signed, reasons: c.reasons}, true
 	}
+	if rt, ok := c.restCandidates(candidates); ok {
+		return rt, true
+	}
+	svc := candidates[0]
+	if rt, ok := c.legacyQuery(svc); ok {
+		return rt, true
+	}
 	c.decline(8, "the request is signed for %s, which no protocol rule claimed", svc.ID)
 	return toService{svc: svc, reasons: c.reasons}, true
+}
+
+// legacyQuery claims, for a service of Options.LegacyQuery, a POST with no
+// X-Amz-Target and either an Action query parameter (the recorded form,
+// ssm-parameters.md 2.3) or a form body (Query's other form; AWS's answer
+// to it is unrecorded): the legacy Query protocol, answered 501 rather
+// than as the service's unknown operation, so the client learns that the
+// protocol is missing, not the operation (ssm-parameters.md 12.1).
+func (c *claimer) legacyQuery(svc *registry.Service) (route, bool) {
+	if !slices.Contains(c.h.opts.LegacyQuery, svc.ID) || c.r.Method != http.MethodPost || c.r.Header.Get("X-Amz-Target") != "" {
+		return nil, false
+	}
+	if action := c.r.URL.Query().Get("Action"); action != "" {
+		c.decline(8, "the request is signed for %s and names %s in an Action query parameter without X-Amz-Target: the legacy Query protocol, which understudy does not serve", svc.ID, action)
+		return legacyQuery{svc: svc, action: action, reasons: c.reasons}, true
+	}
+	if mediaType(c.r.Header.Get("Content-Type")) == "application/x-www-form-urlencoded" {
+		c.decline(8, "the request is signed for %s and sends a form body without X-Amz-Target: the legacy Query protocol, which understudy does not serve", svc.ID)
+		return legacyQuery{svc: svc, reasons: c.reasons}, true
+	}
+	return nil, false
+}
+
+// restCandidates matches the request against the route table of each REST
+// service among candidates, in order; false when none is a REST service
+// with a route table. A candidate whose codec is not registered is
+// skipped; with every one skipped the request is unclaimed (rule 9).
+func (c *claimer) restCandidates(candidates []*registry.Service) (route, bool) {
+	var unknown route
+	found := false
+	for _, svc := range candidates {
+		p, isREST := restProtocol(svc)
+		if !isREST || svc.Routes == nil {
+			continue
+		}
+		found = true
+		codec, ok := c.h.opts.Codecs[p]
+		if !ok {
+			c.decline(8, "%s: no %s codec is registered", svc.ID, p)
+			continue
+		}
+		if matched, ok := svc.Routes.Match(c.r.Method, c.path, c.r.URL.Query(), c.r.Header); ok {
+			return toOperation{codec: codec, op: matched.Operation, req: c.r}, true
+		}
+		if unknown == nil {
+			unknown = toUnknown{codec: codec, svc: svc, req: c.r}
+		}
+	}
+	switch {
+	case !found:
+		return nil, false
+	case unknown == nil:
+		return unclaimed{reasons: c.reasons}, true
+	}
+	return unknown, true
+}
+
+// restProtocol is the first of a service's protocols that is restJson1 or
+// restXml, the one its route table is decoded in.
+func restProtocol(svc *registry.Service) (ref.ProtocolID, bool) {
+	for _, p := range svc.Protocols {
+		if p == ref.RESTJSON1 || p == ref.RESTXML {
+			return p, true
+		}
+	}
+	return "", false
 }
 
 // restService matches r, whose escaped path is path, against a REST

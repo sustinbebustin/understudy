@@ -41,10 +41,6 @@ func TestS3ParseFailuresCarryS3Identities(t *testing.T) {
 			want: s3api.IdentityAuthorizationQueryParametersError(),
 		},
 		{
-			name: "X-Amz-Expires zero", target: "/b/k?" + query + "&X-Amz-Expires=0",
-			want: s3api.IdentityAuthorizationQueryParametersError(),
-		},
-		{
 			name: "malformed header", target: "/b/k",
 			header: map[string]string{"Authorization": "AWS4-HMAC-SHA256 Credential=" + cred, "X-Amz-Date": date},
 			want:   s3api.IdentityAuthorizationHeaderMalformed(),

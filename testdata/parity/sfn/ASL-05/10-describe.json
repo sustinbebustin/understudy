@@ -1,0 +1,34 @@
+{
+  "step": "10-describe",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.DescribeExecution"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,g,b,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.describe-execution"],
+          ["X-Amz-Date", "20261103T164738Z"],
+          ["amz-sdk-invocation-id", "1f45982b-36a4-4db4-b16b-ea5c5e11d1bc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "115"]
+        ],
+        "body": "{\"executionArn\": \"arn:aws:states:us-east-2:123456789012:execution:us1103-i10:052b0df4-aa4d-4166-ada4-12bc494416ff\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "5e79fdff-f526-4583-92d3-9420208563c7"],
+          ["Date", "Tue, 03 Nov 2026 16:47:38 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "783"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"cause\":\"An error occurred while executing the state 'A' (entered at the event id #4). There was an error while evaluating the intrinsic function: States.MathAdd($.n, 1). Invalid arguments in States.MathAdd\",\"error\":\"States.Runtime\",\"executionArn\":\"arn:aws:states:us-east-2:123456789012:execution:us1103-i10:052b0df4-aa4d-4166-ada4-12bc494416ff\",\"input\":\"{\\\"a\\\":[1],\\\"s\\\":\\\"%%%\\\",\\\"n\\\":2147483647,\\\"o\\\":{\\\"k\\\":{\\\"x\\\":1}}}\",\"inputDetails\":{\"__type\":\"com.amazonaws.swf.base.model#CloudWatchEventsExecutionDataDetails\",\"included\":true},\"name\":\"052b0df4-aa4d-4166-ada4-12bc494416ff\",\"redriveCount\":0,\"redriveStatus\":\"REDRIVABLE\",\"startDate\":1.793724457875E9,\"stateMachineArn\":\"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-i10\",\"status\":\"FAILED\",\"stopDate\":1.793724457929E9}"
+      }
+    }
+  ]
+}

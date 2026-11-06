@@ -24,6 +24,8 @@ type Input struct {
 	Ungenerated []protocoltest.Ungenerated
 	Switches    []fidelity.Entry
 	Overlays    Overlays
+	// Parity is the parity replay baseline, nil when not read.
+	Parity Parity
 }
 
 // Report is the coverage report: protocol compliance, operation coverage
@@ -37,6 +39,9 @@ type Report struct {
 	Services    []Service         `json:"services"`
 	Switches    []Switch          `json:"switches"`
 	Overlays    Overlays          `json:"overlays"`
+	// Parity is the parity replay evidence: the baseline `understudy
+	// coverage --parity` reads, else not carried.
+	Parity Parity `json:"parity,omitzero"`
 }
 
 // UngeneratedCase is a server-runnable corpus case the harness cannot run
@@ -97,6 +102,9 @@ type Service struct {
 type Operation struct {
 	Name   string `json:"name"`
 	Status Status `json:"status"`
+	// Shapes are the shape ids overlay evidence attaches to the operation
+	// by: the operation, its input and output, and its errors, sorted.
+	Shapes []string `json:"shapes,omitempty"`
 }
 
 // Status is an operation's coverage: bound with the coverage its bind
@@ -137,13 +145,21 @@ type Switch struct {
 	Label  evidence.Label `json:"label"`
 	Ref    string         `json:"ref"`
 	Record string         `json:"record,omitempty"`
+	// Ops are the operations the switch governs ("sqs.DeleteMessage").
+	Ops []string `json:"ops,omitempty"`
+	// Settles is the parity scenario step that settles the switch, or why
+	// none exists; nil when the switch states neither.
+	Settles fidelity.Settles `json:"settles,omitzero"`
 }
 
 // Build assembles the report.
 func Build(in Input) Report {
-	r := Report{Overlays: in.Overlays}
+	r := Report{Overlays: in.Overlays, Parity: in.Parity}
 	if r.Overlays == nil {
 		r.Overlays = OverlaysNotCarried{}
+	}
+	if r.Parity == nil {
+		r.Parity = ParityNotCarried{}
 	}
 	for _, s := range in.Baseline.Suites {
 		r.Protocols = append(r.Protocols, suiteOf(s, in.Skips))
@@ -189,7 +205,7 @@ func suiteOf(s protocoltest.Suite, skips protocoltest.Skips) Suite {
 func serviceOf(svc *registry.Service, b *kernel.Bindings) Service {
 	out := Service{Service: svc.ID}
 	for _, op := range svc.Operations {
-		o := Operation{Name: op.ID.Name, Status: statusOf(b.Status(op))}
+		o := Operation{Name: op.ID.Name, Status: statusOf(b.Status(op)), Shapes: shapesOf(op)}
 		switch op.Kind {
 		case registry.Modeled:
 			out.Operations = append(out.Operations, o)
@@ -205,6 +221,24 @@ func serviceOf(svc *registry.Service, b *kernel.Bindings) Service {
 		})
 	}
 	return out
+}
+
+// shapesOf lists the shapes overlay evidence attaches to op by: the
+// operation, its input and output, and its errors, sorted and once each.
+func shapesOf(op *registry.Operation) []string {
+	shapes := []string{string(op.Shape)}
+	if op.Input != nil {
+		shapes = append(shapes, string(op.Input.ID))
+	}
+	if op.Output != nil {
+		shapes = append(shapes, string(op.Output.ID))
+	}
+	for _, e := range op.Errors {
+		shapes = append(shapes, string(e.Shape))
+	}
+	shapes = slices.DeleteFunc(shapes, func(s string) bool { return s == "" })
+	slices.Sort(shapes)
+	return slices.Compact(shapes)
 }
 
 func statusOf(s kernel.Status) Status {

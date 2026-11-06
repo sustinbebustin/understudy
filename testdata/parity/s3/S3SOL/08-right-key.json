@@ -1,0 +1,39 @@
+{
+  "step": "08-right-key",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://us1103-ssec.s3.us-east-2.amazonaws.com/m8c?uploadId=QY1uSkzthEJ_bZ_2gDeGIuxjJwUrgDRWCAn.SUO3SIYi6iqbaBw28FVGXCIAE8hfm8DkBKn_ycdewJRsTXA2XsQn64sUZkRFtnt.6jZQg0Gqx5H17k.CeijqbLxTYbsJkV246edAlUhDY2uGpRWBqUgORkMQLC2jpmHzT4kGm190C1GEaxMZ5lZe7F8Uygzp",
+        "headers": [
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="],
+          ["x-amz-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,Z,b,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.complete-multipart-upload"],
+          ["X-Amz-Date", "20261103T034003Z"],
+          ["X-Amz-Content-SHA256", "915588b704ad26a92529cb108225e5d36b77e94979fbd04484f0dd6c55430700"],
+          ["amz-sdk-invocation-id", "712a06cd-10b2-4849-993f-310d5df113ad"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "224"]
+        ],
+        "body": "<CompleteMultipartUpload xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Part><PartNumber>1</PartNumber><ETag>\"96ff95582922dd382a167081ad62f640\"</ETag><ChecksumCRC32>poTHxg==</ChecksumCRC32></Part></CompleteMultipartUpload>"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "4w1k9VenhW/4x+bLW3siMn7ZUgZQfOA+5YJf5eTPCrn/OBwCC81H9ZhonlJIIj1gMXHwMlT6I9o5xvfMS0DWLaNbWACGM8mr"],
+          ["x-amz-request-id", "YM9QHMFFXSQW14YW"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:40:04 GMT"],
+          ["x-amz-server-side-encryption-customer-algorithm", "AES256"],
+          ["x-amz-server-side-encryption-customer-key-MD5", "hRasmdxgYDKV3nvbahU1MA=="],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<CompleteMultipartUploadResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Location>https://us1103-ssec.s3.us-east-2.amazonaws.com/m8c</Location><Bucket>us1103-ssec</Bucket><Key>m8c</Key><ETag>\"1c74b2a6ed4a6de9d9c3a5dd5e2bacc7-1\"</ETag><ChecksumCRC32>WcQMlQ==-1</ChecksumCRC32><ChecksumType>COMPOSITE</ChecksumType></CompleteMultipartUploadResult>"
+      }
+    }
+  ]
+}

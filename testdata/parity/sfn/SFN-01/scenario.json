@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "item": "SFN-01",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "curl",
+  "steps": [
+    {
+      "fixture": "sfn/SFN-01/01-missing-machine.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sfn/SFN-01/02-not-an-arn.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sfn/SFN-01/03-other-service.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sfn/SFN-01/04-execution-arn.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sfn/SFN-01/05-other-region.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "sfn/SFN-01/06-missing-execution.json",
+      "compare": "all"
+    }
+  ],
+  "settles": [
+    {
+      "overlay": "com.amazonaws.sfn#AWSStepFunctions",
+      "covers": [
+        "dev.understudy#errorNamespace"
+      ],
+      "step": "01-missing-machine",
+      "field": "body/__type"
+    }
+  ]
+}

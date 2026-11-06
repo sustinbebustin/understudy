@@ -30,12 +30,14 @@ const (
 const listPageCap = 50
 
 func (s *Service) bindFunctions(b lambdaapi.Binder) {
-	b.CreateFunction(s.createFunction, partial("layers and PublishTo are refused; code signing and VPC networking are stored only"),
+	// The layer clause is lambda-destinations-layers.md 11.1's.
+	const layerFound = "a layer version is found only if it was published to understudy, which never fetches layers from AWS; "
+	b.CreateFunction(s.createFunction, partial(layerFound+"PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only"),
 		kernel.WithValidator(validateCreateFunction), kernel.WithCheck(checkCreateFunction))
 	b.GetFunction(s.getFunction, partial("Code.Location is a link understudy serves the package at, not a presigned S3 URL"))
 	b.GetFunctionConfiguration(s.getFunctionConfiguration, full())
 	b.ListFunctions(s.listFunctions, full())
-	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial("layers are refused; code signing and VPC networking are stored only"),
+	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial(layerFound+"DurableConfig is refused; code signing and VPC networking are stored only"),
 		kernel.WithValidator(validateUpdateConfiguration), kernel.WithCheck(checkUpdateConfiguration))
 	b.UpdateFunctionCode(s.updateFunctionCode, partial(publishToRefused), kernel.WithValidator(validateUpdateCode),
 		kernel.WithCheck(func(in *lambdaapi.UpdateFunctionCodeInput) *awserr.Error {
@@ -62,19 +64,32 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 	if err != nil {
 		return nil, err
 	}
-	code, err := s.newCode(ctx, c, src)
+	att, err := s.resolveLayers(ctx, ref.scope, in.Layers)
 	if err != nil {
 		return nil, err
 	}
-	held, err := s.holdForPublish(ctx, in.Publish, code)
+	code, err := s.newCode(ctx, c, src)
 	if err != nil {
-		s.release(ctx, codeRefs(code)...)
+		s.release(ctx, att.blobs()...)
+		return nil, err
+	}
+	if err := checkCodeWithLayers(code, att.layers); err != nil {
+		s.release(ctx, append(codeRefs(code), att.blobs()...)...)
+		return nil, err
+	}
+	held, err := s.holdForPublish(ctx, in.Publish, code, att.layers)
+	if err != nil {
+		s.release(ctx, append(codeRefs(code), att.blobs()...)...)
 		return nil, err
 	}
 	cfg := newConfig(in)
+	cfg.Layers = att.layers
 	out, err := write(s, c, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (lambdaapi.FunctionConfiguration, *awserr.Error) {
 		if _, ok := st.Functions[ref.name]; ok {
 			return lambdaapi.FunctionConfiguration{}, errFunctionExists(ref.name)
+		}
+		for _, a := range att.advisories {
+			tx.Record(ref.scope, a)
 		}
 		v := Version{Number: latest, Config: cfg, Code: code, Status: s.initialStatus(code, now), Modified: now, RevisionID: st.revision(ref.scope)}
 		f := Function{Name: ref.name, Created: now, Latest: v, Tags: maps.Clone(in.Tags), Generation: 1, Incarnation: st.revision(ref.scope)}
@@ -92,7 +107,7 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 		return out, nil
 	})
 	if err != nil {
-		s.release(ctx, append(codeRefs(code), held...)...)
+		s.release(ctx, slices.Concat(codeRefs(code), att.blobs(), held)...)
 		return nil, err
 	}
 	touch(c, ref.arn())
@@ -100,19 +115,16 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 }
 
 // holdForPublish retains, before a write that changes $LATEST and then
-// publishes it, the reference a new zip version of code would hold, as
-// publish needs it held. The caller releases the returned references when
-// the write fails or publishes no version.
-func (s *Service) holdForPublish(ctx context.Context, publish bool, code Code) ([]blob.Ref, *awserr.Error) {
+// publishes it, the references a new version of code with layers would
+// hold, as publish needs them held. The caller releases the returned
+// references when the write fails or publishes no version.
+func (s *Service) holdForPublish(ctx context.Context, publish bool, code Code, layers []LayerRef) ([]blob.Ref, *awserr.Error) {
 	if !publish {
 		return nil, nil
 	}
-	refs := codeRefs(code)
-	for i, r := range refs {
-		if err := s.blobs.Retain(r); err != nil {
-			s.release(ctx, refs[:i]...)
-			return nil, awserr.Internalf(err)
-		}
+	refs := append(codeRefs(code), layerBlobs(layers)...)
+	if err := s.retain(ctx, refs...); err != nil {
+		return nil, err
 	}
 	return refs, nil
 }
@@ -123,19 +135,21 @@ func (s *Service) holdForPublish(ctx context.Context, publish bool, code Code) (
 func (s *Service) newCode(ctx context.Context, c *kernel.Call, src codeSource) (Code, *awserr.Error) {
 	switch src := src.(type) {
 	case zipSource:
-		if err := checkZip(src.bytes); err != nil {
+		unzipped, err := checkZip(src.bytes)
+		if err != nil {
 			return nil, err
 		}
-		return s.storeZip(ctx, src.bytes)
+		return s.storeZip(ctx, src.bytes, unzipped)
 	case s3Source:
 		b, err := s.fetchPackage(ctx, c, src)
 		if err != nil {
 			return nil, err
 		}
-		if err := checkArchive(b); err != nil {
+		unzipped, err := checkArchive(b)
+		if err != nil {
 			return nil, err
 		}
-		return s.storeZip(ctx, b)
+		return s.storeZip(ctx, b, unzipped)
 	case imageSource:
 		return ImageCode{URI: src.uri}, nil
 	}
@@ -259,8 +273,10 @@ func (s *Service) listFunctions(_ context.Context, c *kernel.Call, in *lambdaapi
 // updateLatest applies change to $LATEST of the function ref names, once
 // its state allows a change and the RevisionId precondition holds, and
 // stores the result as a new revision of a new generation. change gets
-// what $LATEST was, for the status of an update in progress.
-func (s *Service) updateLatest(st *State, tx *kernel.Tx, ref functionRef, revision *string, now clock.Instant, change func(v *Version, was Serving) *awserr.Error) (Function, *awserr.Error) {
+// what $LATEST was, for the status of an update in progress; when change
+// starts one, the configuration it serves takes its own reference on each
+// of its layers' archives (Serving.blobRefs), which settleVersion releases.
+func (s *Service) updateLatest(ctx context.Context, st *State, tx *kernel.Tx, ref functionRef, revision *string, now clock.Instant, change func(v *Version, was Serving) *awserr.Error) (Function, *awserr.Error) {
 	f, err := st.function(ref)
 	if err != nil {
 		return Function{}, err
@@ -276,6 +292,11 @@ func (s *Service) updateLatest(st *State, tx *kernel.Tx, ref functionRef, revisi
 	if err := change(&v, Serving{Config: f.Latest.Config.clone(), Generation: f.Generation}); err != nil {
 		return Function{}, err
 	}
+	if u, ok := v.updating(); ok {
+		if err := s.retain(ctx, layerBlobs(u.Serving.Config.Layers)...); err != nil {
+			return Function{}, err
+		}
+	}
 	v.Modified, v.RevisionID = now, st.revision(ref.scope)
 	f = f.withVersion(v)
 	f.Generation++
@@ -284,7 +305,22 @@ func (s *Service) updateLatest(st *State, tx *kernel.Tx, ref functionRef, revisi
 	return f, nil
 }
 
-func (s *Service) updateFunctionConfiguration(_ context.Context, c *kernel.Call, in *lambdaapi.UpdateFunctionConfigurationInput) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
+// checkImageUpdate refuses layers, then a runtime or handler, on an image
+// function's configuration (lambda-destinations-layers.md 7.1).
+func checkImageUpdate(code Code, in *lambdaapi.UpdateFunctionConfigurationInput) *awserr.Error {
+	if _, image := code.(ImageCode); !image {
+		return nil
+	}
+	switch {
+	case len(in.Layers) > 0:
+		return errImageTakesNoLayers()
+	case in.Runtime != nil || in.Handler != nil:
+		return errImageTakesNoRuntime()
+	}
+	return nil
+}
+
+func (s *Service) updateFunctionConfiguration(ctx context.Context, c *kernel.Call, in *lambdaapi.UpdateFunctionConfigurationInput) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
 	ref, err := parseFunctionRef(c, in.FunctionName, nil)
 	if err != nil {
 		return nil, err
@@ -292,25 +328,65 @@ func (s *Service) updateFunctionConfiguration(_ context.Context, c *kernel.Call,
 	if err := ref.unqualified(errQualifierNotAccepted("UpdateFunctionConfiguration")); err != nil {
 		return nil, err
 	}
-	out, err := write(s, c, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (lambdaapi.FunctionConfiguration, *awserr.Error) {
-		f, err := s.updateLatest(st, tx, ref, in.RevisionId, now, func(v *Version, was Serving) *awserr.Error {
-			if _, image := v.Code.(ImageCode); image && (in.Runtime != nil || in.Handler != nil) {
-				return errImageTakesNoRuntime()
+	att, err := s.layersForUpdate(ctx, ref, in.Layers)
+	if err != nil {
+		return nil, err
+	}
+	type result struct {
+		out      lambdaapi.FunctionConfiguration
+		released []blob.Ref
+	}
+	res, err := write(s, c, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (result, *awserr.Error) {
+		var released []blob.Ref
+		f, err := s.updateLatest(ctx, st, tx, ref, in.RevisionId, now, func(v *Version, was Serving) *awserr.Error {
+			if err := checkImageUpdate(v.Code, in); err != nil {
+				return err
+			}
+			// Layers replaces the list whole, and [] clears it
+			// (lambda-destinations-layers.md 9.2).
+			if in.Layers != nil {
+				if err := checkCodeWithLayers(v.Code, att.layers); err != nil {
+					return err
+				}
+				released, v.Config.Layers = layerBlobs(v.Config.Layers), att.layers
 			}
 			v.Config.update(in)
 			v.Status = s.updatedStatus(now, was)
 			return nil
 		})
 		if err != nil {
-			return lambdaapi.FunctionConfiguration{}, err
+			return result{}, err
 		}
-		return renderConfig(ref.scope, &f, &f.Latest, ref.arn(), false), nil
+		for _, a := range att.advisories {
+			tx.Record(ref.scope, a)
+		}
+		return result{out: renderConfig(ref.scope, &f, &f.Latest, ref.arn(), false), released: released}, nil
 	})
 	if err != nil {
+		s.release(ctx, att.blobs()...)
 		return nil, err
 	}
+	s.release(ctx, res.released...)
 	touch(c, ref.arn())
-	return &out, nil
+	return &res.out, nil
+}
+
+// layersForUpdate resolves an UpdateFunctionConfiguration's Layers for the
+// function ref names; nothing for none. An image function takes no layer,
+// which is refused before the layers are looked up; the write checks again,
+// as the function may be created anew in between.
+func (s *Service) layersForUpdate(ctx context.Context, ref functionRef, layers []string) (attachment, *awserr.Error) {
+	if len(layers) == 0 {
+		return attachment{}, nil
+	}
+	packageType, err := s.packageType(ref)
+	if err != nil {
+		return attachment{}, err
+	}
+	if packageType == lambdaapi.PackageTypeImage {
+		return attachment{}, errImageTakesNoLayers()
+	}
+	return s.resolveLayers(ctx, ref.scope, layers)
 }
 
 // packageType is the package type of the function ref names.
@@ -362,7 +438,7 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 	if err != nil {
 		return nil, err
 	}
-	held, err := s.holdForPublish(ctx, in.Publish, code)
+	held, err := s.holdForPublish(ctx, in.Publish, code, nil)
 	if err != nil {
 		s.release(ctx, codeRefs(code)...)
 		return nil, err
@@ -371,9 +447,19 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 		out      lambdaapi.FunctionConfiguration
 		released []blob.Ref
 	}
+	// heldLayers are the references a published version's layers take:
+	// $LATEST's, which a code update keeps, held inside the write before it
+	// changes the state, as publishing cannot fail.
+	var heldLayers []blob.Ref
 	res, err := write(s, c, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (result, *awserr.Error) {
+		if f, ok := st.Functions[ref.name]; ok && in.Publish {
+			if err := s.retain(ctx, layerBlobs(f.Latest.Config.Layers)...); err != nil {
+				return result{}, err
+			}
+			heldLayers = layerBlobs(f.Latest.Config.Layers)
+		}
 		var released []blob.Ref
-		f, err := s.updateLatest(st, tx, ref, in.RevisionId, now, func(v *Version, was Serving) *awserr.Error {
+		f, err := s.updateLatest(ctx, st, tx, ref, in.RevisionId, now, func(v *Version, was Serving) *awserr.Error {
 			var err *awserr.Error
 			released, err = s.applyCode(v, was, code, in.Architectures, now)
 			return err
@@ -385,7 +471,7 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 		if in.Publish {
 			pv, added := s.publish(st, tx, ref.scope, &f, nil, now)
 			if !added {
-				released = append(released, held...)
+				released = slices.Concat(released, held, heldLayers)
 			}
 			st.Functions[ref.name] = f
 			out = renderConfig(ref.scope, &f, &pv, ref.arn()+":"+pv.Number, false)
@@ -393,7 +479,7 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 		return result{out: out, released: released}, nil
 	})
 	if err != nil {
-		s.release(ctx, append(codeRefs(code), held...)...)
+		s.release(ctx, slices.Concat(codeRefs(code), held, heldLayers)...)
 		return nil, err
 	}
 	s.release(ctx, res.released...)
@@ -403,12 +489,16 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 }
 
 // applyCode is UpdateFunctionCode's change to $LATEST v, whose state
-// before the update is was: v takes code, or for an image waits for it,
-// on the architecture archs names. It returns the package reference v no
-// longer holds; an update in progress keeps the replaced package for the
-// invocations it serves until it completes (settleVersion).
+// before the update is was: v takes code, which with v's layers must fit
+// the unzipped limit, or for an image waits for it, on the architecture
+// archs names. It returns the package reference v no longer holds; an
+// update in progress keeps the replaced package for the invocations it
+// serves until it completes (settleVersion).
 func (s *Service) applyCode(v *Version, was Serving, code Code, archs []lambdaapi.Architecture, now clock.Instant) ([]blob.Ref, *awserr.Error) {
 	if err := samePackageType(v.Code, code); err != nil {
+		return nil, err
+	}
+	if err := checkCodeWithLayers(code, v.Config.Layers); err != nil {
 		return nil, err
 	}
 	if len(archs) == 1 {
@@ -443,26 +533,35 @@ func samePackageType(current, code Code) *awserr.Error {
 }
 
 // dryRunCode validates an UpdateFunctionCode without changing the
-// function: the package is checked and the current $LATEST returned.
+// function: the package is checked, with $LATEST's layers against the
+// unzipped limit, and the current $LATEST returned.
 func (s *Service) dryRunCode(ctx context.Context, c *kernel.Call, ref functionRef, src codeSource) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
+	var code Code = ImageCode{}
 	switch src := src.(type) {
 	case zipSource:
-		if err := checkZip(src.bytes); err != nil {
+		unzipped, err := checkZip(src.bytes)
+		if err != nil {
 			return nil, err
 		}
+		code = ZipCode{Unzipped: unzipped}
 	case s3Source:
 		b, err := s.fetchPackage(ctx, c, src)
 		if err != nil {
 			return nil, err
 		}
-		if err := checkArchive(b); err != nil {
+		unzipped, err := checkArchive(b)
+		if err != nil {
 			return nil, err
 		}
+		code = ZipCode{Unzipped: unzipped}
 	case imageSource:
 	}
 	return view(s, ref.scope, func(st *State) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
 		f, err := st.function(ref)
 		if err != nil {
+			return nil, err
+		}
+		if err := checkCodeWithLayers(code, f.Latest.Config.Layers); err != nil {
 			return nil, err
 		}
 		return new(renderConfig(ref.scope, &f, &f.Latest, ref.arn(), false)), nil
@@ -497,7 +596,7 @@ func (s *Service) deleteFunction(ctx context.Context, c *kernel.Call, in *lambda
 			}
 			st.retireURLs(slices.Collect(maps.Values(f.URLs))...)
 			delete(st.Functions, ref.name)
-			return f.zipRefs(), nil
+			return f.blobRefs(), nil
 		case !isVersionNumber(q):
 			return nil, ref.notFound()
 		}
@@ -512,7 +611,7 @@ func (s *Service) deleteFunction(ctx context.Context, c *kernel.Call, in *lambda
 }
 
 // deleteVersion deletes the published version ref names, unless an alias
-// routes to it (lambda-api.md 6.4), and returns the blob reference it held.
+// routes to it (lambda-api.md 6.4), and returns the blob references it held.
 // A version that does not exist is deleted already: AWS answers 204
 // (test_delete_on_nonexisting_version).
 func (s *Service) deleteVersion(st *State, tx *kernel.Tx, ref functionRef, f Function) ([]blob.Ref, *awserr.Error) {
@@ -533,7 +632,7 @@ func (s *Service) deleteVersion(st *State, tx *kernel.Tx, ref functionRef, f Fun
 	delete(f.EventInvoke, v.Number)
 	s.disarmProvisioning(tx, ref.scope, ref.name, v.Number)
 	st.Functions[ref.name] = f
-	return codeRefs(v.Code), nil
+	return v.blobRefs(), nil
 }
 
 func (s *Service) getFunctionCodeSigningConfig(_ context.Context, c *kernel.Call, in *lambdaapi.GetFunctionCodeSigningConfigInput) (*lambdaapi.GetFunctionCodeSigningConfigOutput, *awserr.Error) {
@@ -662,8 +761,8 @@ func (s *Service) onSettle(c *kernel.Call, key clock.TimerKey, due clock.Instant
 }
 
 // settleVersion ends a version's Creating or Updating that was due by due,
-// and returns the package reference of the code a completed update no
-// longer serves. The version gets a new RevisionId, as AWS's changes when
+// and returns the blob references of what a completed update no longer
+// serves (Serving.blobRefs). The version gets a new RevisionId, as AWS's changes when
 // a function becomes Active and when an update completes
 // (test_function_revisions_basic).
 func (st *State) settleVersion(scope aws.Scope, name, number string, due clock.Instant) (released []blob.Ref, changed bool) {
@@ -685,7 +784,7 @@ func (st *State) settleVersion(scope aws.Scope, name, number string, due clock.I
 		if !ok || due.Before(u.Settles) {
 			return nil, false
 		}
-		released = codeRefs(u.Serving.Code)
+		released = u.Serving.blobRefs()
 	case PullingImage, Failed:
 		return nil, false
 	}

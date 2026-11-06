@@ -1,0 +1,22 @@
+{
+  "golden": 7,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/base/test_base.snapshot.json:L181",
+  "test": "test_state_fail_empty (get_execution_history)",
+  "validated": "2024-03-06",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/base/statemachines/raise_empty_failure.json5",
+  "definition": {
+    "Comment": "RAISE_EMPTY_FAILURE",
+    "StartAt": "FailState",
+    "States": {
+      "FailState": {
+        "Type": "Fail"
+      }
+    }
+  },
+  "input": {},
+  "history": [
+    {"executionStartedEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "roleArn": "snf_role_arn"}, "id": 1, "previousEventId": 0, "timestamp": "timestamp", "type": "ExecutionStarted"},
+    {"id": 2, "previousEventId": 0, "stateEnteredEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "name": "FailState"}, "timestamp": "timestamp", "type": "FailStateEntered"},
+    {"executionFailedEventDetails": {}, "id": 3, "previousEventId": 2, "timestamp": "timestamp", "type": "ExecutionFailed"}
+  ]
+}

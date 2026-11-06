@@ -1,0 +1,33 @@
+{
+  "step": "32-both",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-enf-b.s3.us-east-2.amazonaws.com/exists?attributes",
+        "headers": [
+          ["x-amz-object-attributes", "ETag,ObjectSize"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,E,AN,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-object-attributes"],
+          ["X-Amz-Date", "20261103T042927Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "f662ed54-3c33-4e99-abf2-c7b3e16bbc83"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "9Iv86PpeqQbQkZo3ZR3twUkbxDENSJCZxBrIcEx6Pmu21BLyAIeqnSTLSSEuQtVZwrcthuIB3qdehJqA4R6SD1YFcKRHGRXx"],
+          ["x-amz-request-id", "YRG4FNTWRJFWX9MW"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 04:29:28 GMT"],
+          ["Last-Modified", "Tue, 03 Nov 2026 03:39:34 GMT"],
+          ["Content-Length", "217"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<GetObjectAttributesResponse xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><ETag>9dd4e461268c8034f5c8564e155c67a6</ETag><ObjectSize>1</ObjectSize></GetObjectAttributesResponse>"
+      }
+    }
+  ]
+}

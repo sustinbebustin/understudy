@@ -31,11 +31,80 @@ const (
 	KindFaultStream
 	KindJitter
 	// KindEventID is EventBridge's: PutEvents entry ids and the ids of
-	// scheduled events. It stays last: kindCount counts up to it.
+	// scheduled events.
 	KindEventID
+	// KindSSECSalt salts the HMAC S3 keeps of an SSE-C customer key
+	// (s3-ssec-object-lock.md 3.11).
+	KindSSECSalt
+	// KindLambdaRecordKey is the UUID that ends the S3 object key of an
+	// asynchronous invocation record (lambda-destinations-layers.md 4.5).
+	KindLambdaRecordKey
+	// KindAPIGatewayAPIID is API Gateway's API ids, which HTTP and REST
+	// APIs draw alike, so the execute-api namespace is one stream.
+	KindAPIGatewayAPIID
+	// KindAPIGatewayChildID is the ids of what an API Gateway API holds:
+	// routes, integrations and deployments.
+	KindAPIGatewayChildID
+	// KindStreamEventID is a DynamoDB stream record's eventID
+	// (dynamodb-streams.md 4.5).
+	KindStreamEventID
+	// KindStreamIteratorKey is the HMAC key that signs shard iterators
+	// (dynamodb-streams.md 11.1).
+	KindStreamIteratorKey
+	// KindSFNExecutionName names a Step Functions execution started without
+	// a name: a v4 UUID (stepfunctions-api.md 6.1).
+	KindSFNExecutionName
+	// KindSFNRevisionID is the revisionId an effective UpdateStateMachine
+	// mints: a v4 UUID (stepfunctions-api.md 5.3).
+	KindSFNRevisionID
+	// KindSFNUUID is a States.UUID value: a v4 UUID (stepfunctions-asl.md
+	// 5.2).
+	KindSFNUUID
+	// KindSFNMathRandom draws an unseeded States.MathRandom value
+	// (stepfunctions-asl.md 5.2).
+	KindSFNMathRandom
+	// KindSFNJitter seeds each Step Functions execution's FULL retry jitter
+	// (stepfunctions-asl.md 8.3), apart from delivery jitter (KindJitter),
+	// so EventBridge deliveries never shift an execution's retry delays
+	// (ADR 0018).
+	KindSFNJitter
+	// KindSESMessageID is the random part of an SES MessageId (ses.md 4.7).
+	KindSESMessageID
+	// KindSESDomainToken is an SES domain verification token: 32 bytes
+	// encoded as 44 base64 characters (ses.md 5.3).
+	KindSESDomainToken
+	// KindSESDkimToken is the Easy DKIM tokens of an SES v2 domain identity,
+	// whose format is unrecorded (ses.md 5.4, SES-13).
+	KindSESDkimToken
+	// KindSESLinkToken is the token of an SES verification link (ses.md
+	// 11.3).
+	KindSESLinkToken
+	// KindSchedulerExecution is an EventBridge Scheduler invocation's
+	// execution id: a lower-case UUID (SCH-07, recorded 2026-11-03;
+	// scheduler.md 7.2).
+	KindSchedulerExecution
+	// KindRoleSession is the 32-hex role session name a Scheduler
+	// invocation runs as, one per invocation (scheduler.md 7.2, 9).
+	KindRoleSession
+	// KindFlexOffset draws a Scheduler flexible-window offset when a fire is
+	// armed (scheduler.md 14.3.7), apart from delivery jitter (KindJitter).
+	KindFlexOffset
+
+	// endKind follows the last kind and is no kind: kindCount counts up to
+	// it, so a new kind is one line above it plus its String case.
+	endKind
 )
 
-const kindCount = int(KindEventID) + 1
+const kindCount = int(endKind)
+
+// Kinds returns every generator kind in value order, KindRequestID first.
+func Kinds() []Kind {
+	all := make([]Kind, 0, kindCount)
+	for k := range endKind {
+		all = append(all, k)
+	}
+	return all
+}
 
 // String returns the kind's stable name, which also seeds its stream and
 // keys it in snapshot manifests.
@@ -77,6 +146,42 @@ func (k Kind) String() string {
 		return "jitter"
 	case KindEventID:
 		return "events-event-id"
+	case KindSSECSalt:
+		return "s3-ssec-salt"
+	case KindLambdaRecordKey:
+		return "lambda-record-key"
+	case KindAPIGatewayAPIID:
+		return "apigateway-api-id"
+	case KindAPIGatewayChildID:
+		return "apigateway-child-id"
+	case KindStreamEventID:
+		return "dynamodb-stream-event-id"
+	case KindStreamIteratorKey:
+		return "shard-iterator-key"
+	case KindSFNExecutionName:
+		return "sfn-execution-name"
+	case KindSFNRevisionID:
+		return "sfn-revision-id"
+	case KindSFNUUID:
+		return "sfn-uuid"
+	case KindSFNMathRandom:
+		return "sfn-math-random"
+	case KindSFNJitter:
+		return "sfn-jitter"
+	case KindSESMessageID:
+		return "ses-message-id"
+	case KindSESDomainToken:
+		return "ses-domain-token"
+	case KindSESDkimToken:
+		return "ses-dkim-token"
+	case KindSESLinkToken:
+		return "ses-link-token"
+	case KindSchedulerExecution:
+		return "scheduler-execution-id"
+	case KindRoleSession:
+		return "scheduler-role-session"
+	case KindFlexOffset:
+		return "scheduler-flex-offset"
 	}
 	return fmt.Sprintf("kind(%d)", uint8(k))
 }

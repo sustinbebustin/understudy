@@ -1,0 +1,44 @@
+{
+  "step": "30-with-header",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-enf-b2.s3.us-east-2.amazonaws.com/b",
+        "headers": [
+          ["x-amz-server-side-encryption", "aws:kms"],
+          ["x-amz-server-side-encryption-aws-kms-key-id", "arn:aws:kms:us-east-2:123456789012:key/45c1da4a-a2c9-4510-9930-7f77b26866b5"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,Z,g,W,AN,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "60"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T042818Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "b9558c72-af10-4448-b711-ba9418f44df8"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "wrR2kBVndPoSFbmIg94LdieO4UDerIiRYj7fioya45r33Lp2oF6zbjYcHBJzSDg8IiII/ktHCpk="],
+          ["x-amz-request-id", "B381AJQWX3CSN9D9"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 04:28:19 GMT"],
+          ["x-amz-server-side-encryption", "aws:kms"],
+          ["x-amz-server-side-encryption-aws-kms-key-id", "arn:aws:kms:us-east-2:123456789012:key/45c1da4a-a2c9-4510-9930-7f77b26866b5"],
+          ["ETag", "\"e8dd927321226fec5884a22c3357743b\""],
+          ["x-amz-checksum-crc64nvme", "xqUPBxxlnos="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

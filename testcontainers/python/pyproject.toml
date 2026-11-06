@@ -1,0 +1,22 @@
+[project]
+name = "testcontainers-understudy"
+version = "0.0.0"
+description = "Testcontainers module for understudy, the local AWS emulator"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+dependencies = ["testcontainers>=4.15,<5"]
+
+[dependency-groups]
+dev = [
+    "boto3>=1.43",
+    "pytest>=9",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.4,<0.14"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"

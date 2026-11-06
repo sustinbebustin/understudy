@@ -1,0 +1,35 @@
+{
+  "step": "implicit-logs",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the DescribeLogGroups operation: User: arn:aws:sts::123456789012:assumed-role/us1103-eval-none/none is not authorized to perform: logs:DescribeLogGroups on resource: arn:aws:logs:us-east-2:123456789012:log-group::log-stream: because no identity-based policy allows the logs:DescribeLogGroups action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.DescribeLogGroups"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,C,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.describe-log-groups"],
+          ["X-Amz-Date", "20261103T031949Z"],
+          ["amz-sdk-invocation-id", "d0e449a4-005e-4a0a-9c18-dee36021a294"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "2"]
+        ],
+        "body": "{}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "e1c1ca1c-836b-4c30-8a20-8bdc5f54ab15"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "312"],
+          ["Date", "Tue, 03 Nov 2026 03:19:49 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-eval-none/none is not authorized to perform: logs:DescribeLogGroups on resource: arn:aws:logs:us-east-2:123456789012:log-group::log-stream: because no identity-based policy allows the logs:DescribeLogGroups action\"}"
+      }
+    }
+  ]
+}

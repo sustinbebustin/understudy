@@ -68,7 +68,7 @@ func TestVerifyAcceptsTheRecordedTree(t *testing.T) {
 }
 
 func TestVerifyReportsEveryAlteration(t *testing.T) {
-	sqs := pinnedModels()[10].Path
+	sqs := pinnedModel(t, "sqs").Path
 	tests := []struct {
 		name   string
 		mutate func(fstest.MapFS)
@@ -212,14 +212,14 @@ func TestFetchWritesVerbatimFilesAndAManifestThatVerifies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m.Files) != 12 || m.Retrieved != "2026-10-08" || m.License != "Apache-2.0" {
+	if len(m.Files) != len(pinnedModels()) || m.Retrieved != "2026-10-08" || m.License != "Apache-2.0" {
 		t.Fatalf("manifest = %+v", m)
 	}
 }
 
 func TestFetchRefusesABlobThatDoesNotMatchTheTree(t *testing.T) {
 	files := upstreamFixture()
-	sqs := pinnedModels()[10].Path
+	sqs := pinnedModel(t, "sqs").Path
 	dir := t.TempDir()
 	err := fakeGitHub(t, files, false, map[string]string{sqs: strings.Repeat("a", 40)}).fetch(context.Background(), dir)
 	if err == nil || !strings.Contains(err.Error(), "git blob SHA-1") {

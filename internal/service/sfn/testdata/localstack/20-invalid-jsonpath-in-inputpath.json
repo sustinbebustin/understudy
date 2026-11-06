@@ -1,0 +1,53 @@
+{
+  "golden": 20,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/scenarios/test_base_scenarios.snapshot.json:L26515",
+  "test": "test_invalid_jsonpath[ST.INVALID_JSONPATH_IN_INPUTPATH]",
+  "validated": "2025-01-02",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/scenarios/statemachines/invalid_jsonpath_in_inputpath.json5",
+  "definition": {
+    "StartAt": "pass",
+    "States": {
+      "pass": {
+        "Type": "Pass",
+        "InputPath": "$.NoSuchInputPath",
+        "End": true
+      }
+    }
+  },
+  "input": {"int-literal": 0},
+  "placeholders": {},
+  "history": [
+    {
+      "executionStartedEventDetails": {
+        "input": {"int-literal": 0},
+        "inputDetails": {"truncated": false},
+        "roleArn": "snf_role_arn"
+      },
+      "id": 1,
+      "previousEventId": 0,
+      "timestamp": "timestamp",
+      "type": "ExecutionStarted"
+    },
+    {
+      "id": 2,
+      "previousEventId": 0,
+      "stateEnteredEventDetails": {
+        "input": {"int-literal": 0},
+        "inputDetails": {"truncated": false},
+        "name": "pass"
+      },
+      "timestamp": "timestamp",
+      "type": "PassStateEntered"
+    },
+    {
+      "executionFailedEventDetails": {
+        "cause": "An error occurred while executing the state 'pass' (entered at the event id #2). Invalid path '$.NoSuchInputPath' : No results for path: $['NoSuchInputPath']",
+        "error": "States.Runtime"
+      },
+      "id": 3,
+      "previousEventId": 2,
+      "timestamp": "timestamp",
+      "type": "ExecutionFailed"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "step": "01-serialization",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/resources/rmfy2r/methods/POST",
+        "headers": [
+          ["Host", "apigateway.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163649Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "application/json"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "26"]
+        ],
+        "body": "{\"authorizationType\":true}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:36:49 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "72"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "57a5aef1-8047-4dc9-b55f-f8122d5221c5"],
+          ["x-amzn-ErrorType", "SerializationException"],
+          ["x-amz-apigw-id", "GRcRYK_jiYcEdxw="]
+        ],
+        "body": "{\"Message\":\"class java.lang.Boolean can not be converted to an String\"}\n"
+      }
+    }
+  ]
+}

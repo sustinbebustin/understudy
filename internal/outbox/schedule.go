@@ -43,6 +43,15 @@ const maxEventsBackoff = 5 * time.Minute
 // at-least-once delivery, not its retries.
 const s3Retries = 3
 
+// The bounds SNS documents for an http or https subscription's
+// healthyRetryPolicy (sns-http-delivery.md 6.7, aws-doc): numRetries 0 to
+// 100, minDelayTarget at least 1 s and maxDelayTarget at most 3600 s.
+const (
+	maxHTTPRetries     = 100
+	minHTTPDelayTarget = time.Second
+	maxHTTPDelayTarget = 3600 * time.Second
+)
+
 // retryDelay returns how long after a failed attempt retry number retry
 // (1-based) is due under p, and false when p allows no such retry. seed is
 // the delivery's jitter seed; only EventBridge targets use it.
@@ -67,9 +76,29 @@ func retryDelay(p delivery.RetryPolicy, retry int, seed uint64) (time.Duration, 
 			return 0, false
 		}
 		return time.Second << (retry - 1), true
+	case delivery.SNSHTTP:
+		return p.Delay(retry)
 	case delivery.None:
 	}
 	return 0, false
+}
+
+// attemptEnd is the emulator instant an attempt due at due ended, having
+// taken took of wall time under the clock mode m: a frozen clock stood
+// still while it ran, a running one moved with wall time and a scaled one
+// Factor times as fast. An HTTP attempt's retry delay runs from there
+// (sns-http-delivery.md 6.3, inferred from "retries about 35 seconds after
+// the previous attempt" when a 15 s timeout meets the 20 s delay), so
+// clock advance replays the schedule from the due instants alone.
+func attemptEnd(m clock.Mode, due clock.Instant, took time.Duration) clock.Instant {
+	switch m := m.(type) {
+	case clock.Running:
+		return due.Add(took)
+	case clock.Scaled:
+		return due.Add(time.Duration(float64(took) * m.Factor))
+	case clock.Frozen:
+	}
+	return due
 }
 
 // snsDelay walks the phases of the AWS-managed policy, counting retry down
@@ -96,7 +125,9 @@ func snsDelay(retry int) (time.Duration, bool) {
 }
 
 // nextAttempt returns when e's next attempt is due after attempt number
-// e.Attempt+1, due at last, failed; false when its policy allows no more:
+// e.Attempt+1 failed, last being the instant its delay runs from (the
+// attempt's due instant, or for an HTTP attempt its end); false when its
+// policy allows no more:
 // retries are exhausted, or an EventBridge target's next attempt would come
 // after its maximum event age (exhaustedCondition says which).
 func nextAttempt(e *Entry, last clock.Instant) (clock.Instant, bool) {

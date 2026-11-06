@@ -1,0 +1,33 @@
+{
+  "step": "04-sqs-role-without-permission",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://hl9cpb8a0a.execute-api.us-east-2.amazonaws.com/sqs-denied",
+        "headers": [
+          ["Host", "hl9cpb8a0a.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Length", "1"],
+          ["Content-Type", "application/x-www-form-urlencoded"]
+        ],
+        "body": "x"
+      },
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:50:51 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "501"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "d3733bec-50d5-56cd-a24c-588843fe85df"],
+          ["apigw-requestid", "GReU6imOCYcEPMg="]
+        ],
+        "body": "<?xml version=\"1.0\"?><ErrorResponse xmlns=\"http://queue.amazonaws.com/doc/2012-11-05/\"><Error><Type>Sender</Type><Code>AccessDenied</Code><Message>User: arn:aws:sts::123456789012:assumed-role/us1103-gw-none/1793724651749961508 is not authorized to perform: sqs:sendmessage on resource: arn:aws:sqs:us-east-2:123456789012:us1103-gw-q because no identity-based policy allows the sqs:sendmessage action</Message><Detail/></Error><RequestId>d3733bec-50d5-56cd-a24c-588843fe85df</RequestId></ErrorResponse>"
+      }
+    }
+  ]
+}

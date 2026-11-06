@@ -104,16 +104,28 @@
 //     loopback addresses, so as a trust root it vouches for nothing else),
 //     and its URL is the ready file's tlsEndpoint. The certificate is not
 //     written to disk; a client trusts it by reading it from the handshake.
+//   - Each service is one row of the wiring table, wiredServices: its
+//     generated API and its constructor. The registry, the constructed
+//     services, the collected Stateful views and the checks all read the
+//     table, so a new service is one row. New refuses a registered service
+//     that is not collected with an *UncollectedServiceError, so none can
+//     silently drop out of snapshots, persistence, resets and the resource
+//     listing. The Lambda execution layer, which needs more than
+//     kernel.ServiceDeps, is built after the table by its own hook, and its
+//     asynchronous queue is collected beside Lambda.
 //   - The admin hooks (draining, pollers, hot reload, image pulls, the TTL
 //     sweep, subscription tokens) are assigned by type, so the compiler
-//     checks that each service implements its hook. The outbox's
-//     PolicySource routes on the target ARN's service to SQS, SNS or
-//     Lambda, which read the queue's Policy, the topic's Policy and the
-//     function's permissions for the access advisory.
-//   - Each service is named in apis(), its constructor block and its
-//     collect call; New refuses a registered service that is not collected
-//     with an *UncollectedServiceError, so none can silently drop out of
-//     snapshots, persistence, resets and the resource listing.
+//     checks that each service implements its hook; the rows of the
+//     services they need record them by type, and a table that leaves one
+//     unbuilt is an *UnbuiltServiceError. Resource-policy reads, the
+//     outbox's access advisory and IAM evaluation's owner and stored-policy
+//     reads among them, route on the target ARN's service namespace to the
+//     wired service of that ARNNamespace that implements both
+//     authz.PolicyProvider and authz.StoredPolicyReader: SQS, SNS, S3,
+//     Lambda, KMS, Secrets Manager and IAM, which read the queue's and the
+//     topic's Policy, the bucket policy, the function's permissions, the
+//     key policy, the secret's resource policy and the role's trust policy;
+//     two providers of one namespace are a *PolicySourceError.
 //   - The kernel takes its Linker before the Lambda execution layer that
 //     implements it exists, so wire.go hands it a deferredLinker that the
 //     execution layer is set into.

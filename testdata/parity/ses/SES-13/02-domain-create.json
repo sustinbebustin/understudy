@@ -1,0 +1,33 @@
+{
+  "step": "02-domain-create",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/v2/email/identities",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,AN,E,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sesv2.create-email-identity"],
+          ["X-Amz-Date", "20261103T164225Z"],
+          ["amz-sdk-invocation-id", "0370f679-b70c-4beb-8c94-26e17135e63a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "39"]
+        ],
+        "body": "{\"EmailIdentity\": \"us1103.example.org\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:25 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "439"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "bc6d981d-ece9-4525-9011-fb7da2be6eb3"]
+        ],
+        "body": "{\"DkimAttributes\":{\"CurrentSigningKeyLength\":\"RSA_2048_BIT\",\"LastKeyGenerationTimestamp\":1.79372414535E9,\"NextSigningKeyLength\":\"RSA_2048_BIT\",\"SigningAttributesOrigin\":\"AWS_SES\",\"SigningEnabled\":true,\"SigningHostedZone\":\"dkim.amazonses.com\",\"Status\":\"NOT_STARTED\",\"Tokens\":[\"3xrs2fceorio55jhnhudc7ecwjkx3ylw\",\"x5srfsxsxpvy7ubmsbadktv7or2kzxkn\",\"c4nlvyg2yps45wxp4trsfixwof2afsy2\"]},\"IdentityType\":\"DOMAIN\",\"VerifiedForSendingStatus\":false}"
+      }
+    }
+  ]
+}

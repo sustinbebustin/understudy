@@ -1,0 +1,35 @@
+{
+  "step": "retry-events-3",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,AN,AC,Z,AD cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T163831Z"],
+          ["amz-sdk-invocation-id", "580074fa-dfe4-4299-8f9e-1e325e74a865"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "195"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-cwa-ev\", \"AttributeNames\": [\"All\"], \"MessageSystemAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 10}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "505fb752-e787-582c-968f-d436f7c0cb08"],
+          ["Date", "Tue, 03 Nov 2026 16:38:31 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "1576"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AIDAIMTEBMVXFWRSXIKCK\",\"ApproximateFirstReceiveTimestamp\":\"1793723911826\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793723850268\"},\"Body\":\"{\\\"version\\\":\\\"0\\\",\\\"id\\\":\\\"03bd35fe-76af-4b8a-9a73-3402fa24e197\\\",\\\"detail-type\\\":\\\"CloudWatch Alarm State Change\\\",\\\"source\\\":\\\"aws.cloudwatch\\\",\\\"account\\\":\\\"123456789012\\\",\\\"time\\\":\\\"2026-11-03T16:37:30Z\\\",\\\"region\\\":\\\"us-east-2\\\",\\\"resources\\\":[\\\"arn:aws:cloudwatch:us-east-2:123456789012:alarm:us1103-ev-off\\\"],\\\"detail\\\":{\\\"alarmName\\\":\\\"us1103-ev-off\\\",\\\"state\\\":{\\\"value\\\":\\\"ALARM\\\",\\\"reason\\\":\\\"actions disabled\\\",\\\"timestamp\\\":\\\"2026-11-03T16:37:30.198+0000\\\"},\\\"previousState\\\":{\\\"value\\\":\\\"INSUFFICIENT_DATA\\\",\\\"reason\\\":\\\"Unchecked: Initial alarm creation\\\",\\\"timestamp\\\":\\\"2026-11-03T16:37:28.495+0000\\\"},\\\"configuration\\\":{\\\"metrics\\\":[{\\\"id\\\":\\\"cad0d122-eb97-c2d6-64ad-1d47285730aa\\\",\\\"metricStat\\\":{\\\"metric\\\":{\\\"namespace\\\":\\\"us1103/cwa\\\",\\\"name\\\":\\\"ev-none\\\",\\\"dimensions\\\":{}},\\\"period\\\":60,\\\"stat\\\":\\\"Maximum\\\"},\\\"returnData\\\":true}]}}}\",\"MD5OfBody\":\"20451b26040b27ac20870b9b0929d12e\",\"MessageId\":\"d45a1d2d-ce89-419e-8620-16b204d1168f\",\"ReceiptHandle\":\"AQEBuMK32WW6i7benPNCHIYMSOEOdO11Bmx4mCdqLuXwXYY8fu60Flz0Yk2/id/+yP+hsCd38ZhMRKzsJf+Eo0D79VZGMg9Ha60/FB+wjzM3zhGqBBiNfxnKLNHfB3VbuEoXZ3hQgQw1iHld8wSlXeMlbsNeKUMn41yvdyhST1NceoC7z3K1ZsqfHbmxt07hnZ39MbmAZ48ipZOe5emxwMxbSTBgJD+4+OtrEBn9GWaNJisMnekAM8/0arm/bfItO9nqmUnK6I6eKO96eh4ptIWVefPrJ0edGzIsUrt1PL4KOCX2zBqvG8pPU7QwGxbpcOio8HzpPxyk4ytDR3qgh6ubR0APq1BCoMXcK6mMR2141mhTa15rtV9BVvM0FH7H+LbGqszmC181rAxD3s1zNwddjg==\"}]}"
+      }
+    }
+  ]
+}

@@ -88,8 +88,37 @@ func jsonMediaType(p ref.ProtocolID) string {
 	return ""
 }
 
+// legacyQuery answers a legacy Query request (rule 8) with 501
+// NotImplemented in the service's JSON envelope, naming the protocol, the
+// action and the X-Amz-Target that reaches the same operation, and
+// journals it as Unclaimed with the rule trace.
+func (h *Handler) legacyQuery(ctx context.Context, x *exchange, rt legacyQuery) {
+	h.journalUnclaimed(ctx, x, rt.reasons)
+	form, target := "?Action="+rt.action, rt.svc.JSONTargetPrefix+"."+rt.action
+	if rt.action == "" {
+		form, target = "a form body", rt.svc.JSONTargetPrefix+".<Action>"
+	}
+	e := &awserr.Error{
+		ID: awserr.NotImplemented(),
+		Message: "understudy does not serve the legacy Query protocol (" + form + " without X-Amz-Target) for " + string(rt.svc.ID) +
+			", which AWS also accepts. Send the JSON 1.1 request instead, with X-Amz-Target: " + target +
+			", as the AWS SDKs and CLI do. Nothing was changed.",
+		Origin: awserr.Generic{},
+	}
+	for _, p := range rt.svc.Protocols {
+		if family, ok := awserr.FamilyOf(p); !ok || family != awserr.JSONFamily {
+			continue
+		}
+		if codec, ok := h.opts.Codecs[p]; ok {
+			h.write(ctx, x, codec.EncodeError(x.r, rt.svc, string(x.id), e))
+			return
+		}
+	}
+	h.answerUnrouted(ctx, x, e)
+}
+
 // notEmulated answers a request signed for a service understudy does not
-// emulate (ec2, rds, kinesis, ...) with 501 NotImplemented, outside every
+// emulate (ec2, rds, firehose, ...) with 501 NotImplemented, outside every
 // SDK's retry set, naming the service and the ones understudy emulates.
 // The rule trace stays in the Unclaimed journal event: the client needs
 // only the one fact.
@@ -106,6 +135,22 @@ func (h *Handler) notEmulated(ctx context.Context, x *exchange, rt notEmulated) 
 			h.emulated + "; run 'understudy coverage' for the operations of each. Nothing was changed.",
 		Origin: awserr.Generic{},
 	})
+}
+
+// misscoped answers a request whose credential is scoped to a service name
+// AWS refuses for the operation it names, such as DynamoDB Streams scoped
+// to streams.dynamodb, with AWS's 400 InvalidSignatureException in the
+// service's envelope (refusedScope). The service never sees it, so the
+// rule trace is journaled as Unclaimed; the client gets AWS's text, which
+// names the scope to sign for.
+func (h *Handler) misscoped(ctx context.Context, x *exchange, rt misscoped) {
+	h.journalUnclaimed(ctx, x, rt.reasons)
+	x.protocol = rt.codec.Protocol()
+	h.write(ctx, x, rt.codec.EncodeError(x.r, rt.svc, string(x.id), &awserr.Error{
+		ID:      awserr.InvalidSignatureException(),
+		Message: "Credential should be scoped to correct service: '" + rt.svc.SigningName + "'. ",
+		Origin:  awserr.Generic{},
+	}))
 }
 
 // unclaimed answers a request no rule claimed (rule 9): an AWS-shaped 400
@@ -160,6 +205,53 @@ func (h *Handler) localStack(ctx context.Context, x *exchange, reasons []reason)
 		Status: http.StatusNotFound,
 		Header: http.Header{"Content-Type": {"application/json"}},
 		Body:   bytes.NewReader(append(body, '\n')),
+	})
+}
+
+// executeAPIBody is the answer to an execute-api request until understudy
+// implements API Gateway invoke: API Gateway's own {"message": ...} shape
+// (apigateway-http.md 4.5), naming what is missing and where to ask for it.
+const executeAPIBody = `{"message":"understudy does not implement API Gateway invoke (the execute-api data plane); nothing was changed. To ask for it, see https://github.com/sustinbebustin/understudy/issues?q=execute-api"}`
+
+// executeAPI answers a request to API Gateway's execute-api data plane,
+// which understudy does not implement, with 501 NotImplemented (ADR 0003),
+// and journals it as Unclaimed. Whether AWS sends a Content-Type on the
+// gateway's own answers is unverified (apigateway-http.md 4.5, APIGW2-06);
+// application/json names the body.
+func (h *Handler) executeAPI(ctx context.Context, x *exchange, reasons []reason) {
+	h.journalUnclaimed(ctx, x, reasons)
+	if h.warned.first("execute-api") {
+		h.log.LogAttrs(ctx, slog.LevelWarn, "a client called API Gateway invoke (execute-api), which understudy does not implement",
+			slog.String("method", x.r.Method), slog.String("host", x.r.Host), slog.String("path", requestPath(x.r)),
+			slog.String("request_id", string(x.id)))
+	}
+	h.write(ctx, x, Response{
+		Status: http.StatusNotImplemented,
+		Header: http.Header{"Content-Type": {"application/json"}},
+		Body:   strings.NewReader(executeAPIBody),
+	})
+}
+
+// executeAPIClaimedTwice answers an execute-api request whose API id more
+// than one front holds with 500 in API Gateway's {"message": ...} shape,
+// naming the services (ADR 0019 amendment), journals it as Unclaimed
+// with that reason, and logs it as the bug it is. Neither front runs.
+func (h *Handler) executeAPIClaimedTwice(ctx context.Context, x *exchange, rt executeAPIClaimedTwice) {
+	h.journalUnclaimed(ctx, x, rt.reasons)
+	h.log.LogAttrs(ctx, slog.LevelError, "an execute-api API id is held by more than one API Gateway service",
+		slog.String("reason", rt.message), slog.String("host", x.r.Host), slog.String("path", requestPath(x.r)),
+		slog.String("request_id", string(x.id)))
+	body, err := json.Marshal(struct {
+		Message string `json:"message"`
+	}{rt.message})
+	if err != nil {
+		h.write(ctx, x, plainError(http.StatusInternalServerError, rt.message))
+		return
+	}
+	h.write(ctx, x, Response{
+		Status: http.StatusInternalServerError,
+		Header: http.Header{"Content-Type": {"application/json"}},
+		Body:   bytes.NewReader(body),
 	})
 }
 

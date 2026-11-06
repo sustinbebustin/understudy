@@ -1,0 +1,212 @@
+{
+  "version": 1,
+  "item": "EBB",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "eventbridge",
+      "operation": "CreateEventBus",
+      "input": {
+        "Name": "us1103-d1"
+      }
+    },
+    {
+      "service": "eventbridge",
+      "operation": "PutRule",
+      "input": {
+        "Name": "us1103-d1r",
+        "EventPattern": "{\"source\":[\"rec\"]}",
+        "EventBusName": "us1103-d1"
+      }
+    },
+    {
+      "service": "eventbridge",
+      "operation": "CreateEventBus",
+      "input": {
+        "Name": "us1103-e"
+      }
+    },
+    {
+      "service": "eventbridge",
+      "operation": "CreateEventBus",
+      "input": {
+        "Name": "us1103-p"
+      }
+    },
+    {
+      "service": "eventbridge",
+      "operation": "CreateEventBus",
+      "input": {
+        "Name": "us1103-h1"
+      }
+    },
+    {
+      "service": "eventbridge",
+      "operation": "PutRule",
+      "input": {
+        "Name": "us1103-h1r",
+        "EventPattern": "{\"source\":[\"rec\"]}",
+        "EventBusName": "us1103-h1"
+      }
+    },
+    {
+      "service": "eventbridge",
+      "operation": "CreateEventBus",
+      "input": {
+        "Name": "us1103-h2"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "events/EBB/01-delete-with-rule.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/02-name-default.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/02-name-slash.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/02-name-aws-dot.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/02-name-partner-like.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/03-put-rule.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/03-put-rule-schedule.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/03-describe-rule.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/03-put-rule-schedule-arn.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/03-delete-rule.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/03-list-rules.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/03-enable-rule.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/03-put-targets.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/03-list-targets.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/03-remove-targets.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/03-describe-rule-existing-bus.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/04-create.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/04-update-name-only.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/04-update-desc-empty.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/04-update-log-off.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/04-update-missing.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/04-update-no-name.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/06-remove-all-empty.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/06-put-1.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/06-put-1-replace.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/06-remove-last.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/06-bad-action.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/06-condition-account.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/06-condition-star.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/06-policy-and-sid.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/06-too-long.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/08-input-on-bus-target.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/08-missing-target-bus.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/EBB/08-no-role.json",
+      "compare": "all"
+    }
+  ],
+  "settles": [
+    {
+      "switch": "events.delete-bus.with-rules",
+      "step": "01-delete-with-rule",
+      "field": "body/message"
+    },
+    {
+      "switch": "events.bus-policy.remove-all-without-policy",
+      "step": "06-remove-all-empty",
+      "field": "status"
+    }
+  ]
+}

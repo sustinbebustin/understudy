@@ -1,0 +1,36 @@
+{
+  "golden": 9,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/error_handling/test_states_errors.snapshot.json:L147",
+  "test": "test_service_task_lambada_catch_state_all_data_limit_exceeded_on_large_utf8_response (get_execution_history)",
+  "validated": "2024-03-21",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/errorhandling/statemachines/task_service_lambda_invoke_catch_all.json5; the function is templates/errorhandling/lambdafunctions/large_output_string.py, 257 KiB of 'a'",
+  "definition": {
+    "Comment": "TASK_SERVICE_LAMBDA_INVOKE_CATCH_ALL",
+    "StartAt": "InvokeLambda",
+    "States": {
+      "InvokeLambda": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::lambda:invoke",
+        "Parameters": {"FunctionName.$": "$.FunctionName", "Payload.$": "$.Payload"},
+        "Next": "ProcessResult",
+        "Catch": [{"ErrorEquals": ["States.ALL"], "Next": "HandleGeneralError"}]
+      },
+      "ProcessResult": {"Type": "Pass", "End": true},
+      "HandleGeneralError": {"Type": "Pass", "End": true}
+    }
+  },
+  "input": {"FunctionName": "golden-fn", "Payload": null},
+  "lambdaAnswers": [{"largeString": 263168}],
+  "placeholders": {"<lambda_function_name>": "golden-fn", "<region>": "us-east-1"},
+  "history": [
+    {"executionStartedEventDetails":{"input":{"FunctionName":"<lambda_function_name>","Payload":null},"inputDetails":{"truncated":false},"roleArn":"snf_role_arn"},"id":1,"previousEventId":0,"timestamp":"timestamp","type":"ExecutionStarted"},
+    {"id":2,"previousEventId":0,"stateEnteredEventDetails":{"input":{"FunctionName":"<lambda_function_name>","Payload":null},"inputDetails":{"truncated":false},"name":"InvokeLambda"},"timestamp":"timestamp","type":"TaskStateEntered"},
+    {"id":3,"previousEventId":2,"taskScheduledEventDetails":{"parameters":{"FunctionName":"<lambda_function_name>","Payload":null},"region":"<region>","resource":"invoke","resourceType":"lambda"},"timestamp":"timestamp","type":"TaskScheduled"},
+    {"id":4,"previousEventId":3,"taskStartedEventDetails":{"resource":"invoke","resourceType":"lambda"},"timestamp":"timestamp","type":"TaskStarted"},
+    {"id":5,"previousEventId":4,"taskFailedEventDetails":{"cause":"The state/task 'lambda' returned a result with a size exceeding the maximum number of bytes service limit.","error":"States.DataLimitExceeded","resource":"invoke","resourceType":"lambda"},"timestamp":"timestamp","type":"TaskFailed"},
+    {"id":6,"previousEventId":5,"stateExitedEventDetails":{"name":"InvokeLambda","output":{"Error":"States.DataLimitExceeded","Cause":"The state/task 'lambda' returned a result with a size exceeding the maximum number of bytes service limit."},"outputDetails":{"truncated":false}},"timestamp":"timestamp","type":"TaskStateExited"},
+    {"id":7,"previousEventId":6,"stateEnteredEventDetails":{"input":{"Error":"States.DataLimitExceeded","Cause":"The state/task 'lambda' returned a result with a size exceeding the maximum number of bytes service limit."},"inputDetails":{"truncated":false},"name":"HandleGeneralError"},"timestamp":"timestamp","type":"PassStateEntered"},
+    {"id":8,"previousEventId":7,"stateExitedEventDetails":{"name":"HandleGeneralError","output":{"Error":"States.DataLimitExceeded","Cause":"The state/task 'lambda' returned a result with a size exceeding the maximum number of bytes service limit."},"outputDetails":{"truncated":false}},"timestamp":"timestamp","type":"PassStateExited"},
+    {"executionSucceededEventDetails":{"output":{"Error":"States.DataLimitExceeded","Cause":"The state/task 'lambda' returned a result with a size exceeding the maximum number of bytes service limit."},"outputDetails":{"truncated":false}},"id":9,"previousEventId":8,"timestamp":"timestamp","type":"ExecutionSucceeded"}
+  ]
+}

@@ -16,16 +16,21 @@ import (
 
 // ServiceConfig is codegen/services/<svc>.json (ARCHITECTURE.md 5.3). Model
 // names the UPSTREAM.json directory of the service's model file, so the
-// generator reads one model instead of scanning all twelve. IAMPrefix is the
+// generator reads one model instead of scanning them all. IAMPrefix is the
 // service's IAM action prefix and its key in the Service Reference table,
 // stated rather than derived: the model's arnNamespace is wrong for
 // CloudWatch (monitoring, where IAM says cloudwatch; smithy-models.md 3.1).
+// SDKService is the Boto3 client name the table records for the model's
+// operations; it tells apart two models whose operations share one prefix
+// (API Gateway v1 and v2), and may be empty for a model whose prefix no other
+// model uses.
 type ServiceConfig struct {
 	ID             ref.ServiceID
 	Service        smithy.ShapeID
 	Package        string
 	Model          string
 	IAMPrefix      string
+	SDKService     string
 	ExtraProtocols []ref.ProtocolID
 	// RawBinding adds a <Op>Raw binder method per operation (DynamoDB's
 	// passthrough, ADR 0014).
@@ -42,7 +47,29 @@ type ServiceConfig struct {
 	// Destination is APIPackage for a codegen/services file and
 	// CorpusPackage for a synthetic compliance service.
 	Destination Destination
+	// Wiring is WireBound when the file lists boundOperations, else
+	// WireAll.
+	Wiring Wiring
 }
+
+// Wiring says which shapes' schemas are generated with their members
+// (ADR 0001).
+//
+//sumtype:decl
+type Wiring interface{ isWiring() }
+
+// WireAll generates every shape's members.
+type WireAll struct{}
+
+// WireBound generates members only for the error shapes and the shapes the
+// inputs and outputs of Operations, the operations a handler binds, reach.
+// Every other shape keeps its schema's ID and traits but no members: its
+// operations are unbound, answer 501 before reading input, and coverage
+// reads only the ID. Operations are sorted and distinct.
+type WireBound struct{ Operations []string }
+
+func (WireAll) isWiring()   {}
+func (WireBound) isWiring() {}
 
 // RawOperation is one rawOperations entry: a Kind Raw descriptor with its IAM
 // actions, claimed by an edge prefix or host rule rather than a route.
@@ -82,11 +109,13 @@ func ParseServiceConfig(r io.Reader, id ref.ServiceID) (ServiceConfig, error) {
 		Package        string            `json:"package"`
 		Model          string            `json:"model"`
 		IAMPrefix      string            `json:"iamPrefix"`
+		SDKService     string            `json:"sdkService"`
 		ExtraProtocols []string          `json:"extraProtocols"`
 		RawBinding     bool              `json:"rawBinding"`
 		RawOperations  []json.RawMessage `json:"rawOperations"`
 		RouteOverrides []json.RawMessage `json:"routeOverrides"`
 		IAMPrimary     []json.RawMessage `json:"iamPrimary"`
+		Bound          *[]string         `json:"boundOperations"`
 	}
 	if err := strictUnmarshal(raw, &v); err != nil {
 		return ServiceConfig{}, failf(StageLoad, subject, "%w", err)
@@ -104,9 +133,18 @@ func ParseServiceConfig(r io.Reader, id ref.ServiceID) (ServiceConfig, error) {
 	if !isIAMPrefix(v.IAMPrefix) {
 		return ServiceConfig{}, failf(StageLoad, subject, `"iamPrefix" is %q; give the IAM action prefix the Service Reference lists, such as "sqs" or "cloudwatch" (not the arnNamespace "monitoring")`, v.IAMPrefix)
 	}
+	if v.SDKService != "" && !isIAMPrefix(v.SDKService) {
+		return ServiceConfig{}, failf(StageLoad, subject, `"sdkService" is %q; give the Boto3 client name, such as "apigatewayv2" or "stepfunctions"`, v.SDKService)
+	}
 	cfg := ServiceConfig{
-		ID: id, Service: svc, Package: v.Package, Model: v.Model, IAMPrefix: v.IAMPrefix,
-		RawBinding: v.RawBinding, Destination: APIPackage{},
+		ID: id, Service: svc, Package: v.Package, Model: v.Model, IAMPrefix: v.IAMPrefix, SDKService: v.SDKService,
+		RawBinding: v.RawBinding, Destination: APIPackage{}, Wiring: WireAll{},
+	}
+	if v.Bound != nil {
+		if err := checkBoundOperations(*v.Bound); err != nil {
+			return ServiceConfig{}, failf(StageLoad, subject, "boundOperations: %w", err)
+		}
+		cfg.Wiring = WireBound{Operations: *v.Bound}
 	}
 	for _, p := range v.ExtraProtocols {
 		pid, ok := protocolTraits()[p]
@@ -125,6 +163,27 @@ func ParseServiceConfig(r io.Reader, id ref.ServiceID) (ServiceConfig, error) {
 		return ServiceConfig{}, err
 	}
 	return cfg, nil
+}
+
+// checkBoundOperations refuses a boundOperations list that is not sorted,
+// distinct operation names: sorted, a newly bound operation is a one-line
+// diff in a predictable place.
+func checkBoundOperations(names []string) error {
+	for i, n := range names {
+		if !token.IsExported(n) {
+			return fmt.Errorf("%q is not an operation name such as CreateQueue", n)
+		}
+		if i == 0 {
+			continue
+		}
+		switch prev := names[i-1]; {
+		case prev == n:
+			return fmt.Errorf("%s is listed twice; remove one", n)
+		case prev > n:
+			return fmt.Errorf("%s comes after %s; keep the list sorted", n, prev)
+		}
+	}
+	return nil
 }
 
 // parseEntries parses the entries of a per-operation list field, refusing a

@@ -8,24 +8,24 @@
         "url": "https://streams.dynamodb.us-east-2.amazonaws.com/",
         "headers": [
           ["Host", "streams.dynamodb.us-east-2.amazonaws.com"],
-          ["X-Amz-Date", "20261014T070310Z"],
-          ["User-Agent", "curl/8.22.0"],
+          ["X-Amz-Date", "20261103T034045Z"],
+          ["User-Agent", "curl/8.23.0"],
           ["Accept", "*/*"],
           ["Content-Type", "application/x-amz-json-1.0"],
           ["X-Amz-Target", "DynamoDBStreams_20120810.ListStreams"],
           ["Content-Length", "2"]
         ],
-        "body_unrecorded": {"bytes": 2}
+        "body": "{}"
       },
       "response": {
         "status": 200,
         "reason": "OK",
         "headers": [
-          ["x-amzn-RequestId", "7J39NMV00D4A0C8658Q62A75TRVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amzn-RequestId", "VI9Q27JDO9PETIK2UD4DN0HHLBVV4KQNSO5AEMVJF66Q9ASUAAJG"],
           ["x-amz-crc32", "1490112021"],
           ["Content-Type", "application/x-amz-json-1.0"],
           ["Content-Length", "14"],
-          ["Date", "Wed, 14 Oct 2026 07:03:10 GMT"]
+          ["Date", "Tue, 03 Nov 2026 03:40:45 GMT"]
         ],
         "body": "{\"Streams\":[]}"
       }

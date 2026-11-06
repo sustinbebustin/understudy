@@ -1,6 +1,7 @@
 package fault
 
 import (
+	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"errors"
 	"fmt"
@@ -78,6 +79,8 @@ const (
 	kindAfterCommit   = "after-commit"
 	kindStatusOKError = "status-ok-error"
 	kindDropDelivery  = "drop-delivery"
+	kindHTTPStatus    = "http-status"
+	kindHTTPTimeout   = "http-timeout"
 	kindAlways        = "always"
 	kindNextN         = "next-n"
 	kindProbability   = "probability"
@@ -98,6 +101,10 @@ func actionKind(a Action) string {
 		return kindStatusOKError
 	case DropDelivery:
 		return kindDropDelivery
+	case HTTPStatus:
+		return kindHTTPStatus
+	case HTTPTimeout:
+		return kindHTTPTimeout
 	default:
 		return fmt.Sprintf("%T", a)
 	}
@@ -118,6 +125,8 @@ func codec() (jsonx.Codec, error) {
 		jsonx.Variant[Action, AfterCommit](kindAfterCommit),
 		jsonx.Variant[Action, StatusOKError](kindStatusOKError),
 		jsonx.Variant[Action, DropDelivery](kindDropDelivery),
+		jsonx.Variant[Action, HTTPStatus](kindHTTPStatus),
+		jsonx.Variant[Action, HTTPTimeout](kindHTTPTimeout),
 	)
 	if err != nil {
 		return jsonx.Codec{}, err
@@ -132,6 +141,11 @@ func codec() (jsonx.Codec, error) {
 	}
 	return jsonx.NewCodec(actions, triggers), nil
 }
+
+// JSONVerbatim marks Rule as a jsonx.Verbatim value: its MarshalJSON
+// writes the canonical form itself, every object sorted but its members
+// in the order given, so a document holding rules keeps them as written.
+func (Rule) JSONVerbatim() {}
 
 // MarshalJSON encodes the rule in its JSON form.
 func (r Rule) MarshalJSON() ([]byte, error) {
@@ -205,20 +219,40 @@ func (e *RuleParseError) Unwrap() error { return e.Err }
 
 // parseError turns the decoder's error into a *RuleParseError.
 func parseError(err error) error {
+	if syn, ok := errors.AsType[*jsontext.SyntacticError](err); ok && errors.Is(syn.Err, jsontext.ErrDuplicateName) {
+		return &RuleParseError{
+			Path:   strings.Join(slices.Collect(syn.JSONPointer.Parent().Tokens()), "."),
+			Reason: fmt.Sprintf("is invalid: duplicate member %q", syn.JSONPointer.LastToken()),
+			Err:    err,
+		}
+	}
 	sem, ok := errors.AsType[*json.SemanticError](err)
 	if !ok {
 		return &RuleParseError{Reason: "is not valid JSON: " + strings.TrimPrefix(err.Error(), "jsontext: "), Err: err}
 	}
 	out := &RuleParseError{Path: strings.Join(slices.Collect(sem.JSONPointer.Tokens()), "."), Err: err}
+	kind, isKind := errors.AsType[*jsonx.KindError](sem.Err)
 	switch {
 	case errors.Is(sem.Err, json.ErrUnknownName):
 		out.Reason = "is not a member a rule has"
+	case isKind:
+		// A member that reads itself, such as action.members, says which
+		// JSON kind it wanted.
+		out.Reason = "is a JSON " + kind.Got.String() + "; expected " + withArticle(kind.Want)
 	case sem.Err != nil:
 		out.Reason = "is invalid: " + strings.TrimPrefix(sem.Err.Error(), "fault: ")
 	default:
 		out.Reason = "is a JSON " + sem.JSONKind.String() + "; expected " + jsonShape(sem.GoType)
 	}
 	return out
+}
+
+// withArticle names a JSON kind with its article: "an object", "a string".
+func withArticle(k jsonx.Kind) string {
+	if k == jsonx.Object || k == jsonx.Array {
+		return "an " + k.String()
+	}
+	return "a " + k.String()
 }
 
 // jsonShape says what JSON a rule member of Go type t takes.

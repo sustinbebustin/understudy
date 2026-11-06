@@ -1,0 +1,33 @@
+{
+  "step": "42-bare-create-group",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.CreateLogGroup"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,E,AN,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.create-log-group"],
+          ["X-Amz-Date", "20261103T034023Z"],
+          ["amz-sdk-invocation-id", "a5db7e0c-879c-4f20-93c9-38077ac04bdc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "31"]
+        ],
+        "body": "{\"logGroupName\": \"/us1103/r28\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "078aac45-e3fa-4918-8d84-c3e84f6b6230"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "0"],
+          ["Date", "Tue, 03 Nov 2026 03:40:23 GMT"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

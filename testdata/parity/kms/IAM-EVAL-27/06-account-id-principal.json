@@ -1,0 +1,37 @@
+{
+  "step": "06-account-id-principal",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://kms.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "TrentService.GetKeyPolicy"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AD,E,AC,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#kms.get-key-policy"],
+          ["X-Amz-Date", "20261103T032235Z"],
+          ["amz-sdk-invocation-id", "dcde7dac-e3eb-4186-827f-14bf5eb8b9fc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "74"]
+        ],
+        "body": "{\"KeyId\": \"3cfd985a-9e71-4a26-a9e6-c56567aee046\", \"PolicyName\": \"default\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "5081ca15-954e-4e11-8743-bf1572dc16b7"],
+          ["Cache-Control", "no-cache, no-store, must-revalidate, private"],
+          ["Expires", "0"],
+          ["Pragma", "no-cache"],
+          ["Date", "Tue, 03 Nov 2026 03:22:35 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "295"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Policy\":\"{\\n  \\\"Version\\\" : \\\"2012-10-17\\\",\\n  \\\"Statement\\\" : [ {\\n    \\\"Sid\\\" : \\\"acct\\\",\\n    \\\"Effect\\\" : \\\"Allow\\\",\\n    \\\"Principal\\\" : {\\n      \\\"AWS\\\" : \\\"arn:aws:iam::123456789012:root\\\"\\n    },\\n    \\\"Action\\\" : \\\"kms:*\\\",\\n    \\\"Resource\\\" : \\\"*\\\"\\n  } ]\\n}\",\"PolicyName\":\"default\"}"
+      }
+    }
+  ]
+}

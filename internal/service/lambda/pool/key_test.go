@@ -24,16 +24,19 @@ func specFieldChanges(t *testing.T) map[string]func(*launcher.Spec) {
 		t.Fatal(err)
 	}
 	return map[string]func(*launcher.Spec){
-		"Function.Name":                   func(s *launcher.Spec) { s.Function.Name = "other" },
-		"Function.Version":                func(s *launcher.Spec) { s.Function.Version = "7" },
-		"Function.Account":                func(s *launcher.Spec) { s.Function.Account = account },
-		"Function.Region":                 func(s *launcher.Spec) { s.Function.Region = region },
-		"Generation":                      func(s *launcher.Spec) { s.Generation++ },
-		"Image":                           func(s *launcher.Spec) { s.Image = "my-function:dev" },
-		"Architecture":                    func(s *launcher.Spec) { s.Architecture = launcher.ARM64 },
-		"Code":                            func(s *launcher.Spec) { s.Code = launcher.ImageCode{} },
-		"Code.ZipCode.Dir":                func(s *launcher.Spec) { s.Code = launcher.ZipCode{Dir: "/code/other", Handler: "bootstrap"} },
-		"Code.ZipCode.Handler":            func(s *launcher.Spec) { s.Code = launcher.ZipCode{Dir: "/code/f", Handler: "main"} },
+		"Function.Name":        func(s *launcher.Spec) { s.Function.Name = "other" },
+		"Function.Version":     func(s *launcher.Spec) { s.Function.Version = "7" },
+		"Function.Account":     func(s *launcher.Spec) { s.Function.Account = account },
+		"Function.Region":      func(s *launcher.Spec) { s.Function.Region = region },
+		"Generation":           func(s *launcher.Spec) { s.Generation++ },
+		"Image":                func(s *launcher.Spec) { s.Image = "my-function:dev" },
+		"Architecture":         func(s *launcher.Spec) { s.Architecture = launcher.ARM64 },
+		"Code":                 func(s *launcher.Spec) { s.Code = launcher.ImageCode{} },
+		"Code.ZipCode.Dir":     func(s *launcher.Spec) { s.Code = launcher.ZipCode{Dir: "/code/other", Handler: "bootstrap"} },
+		"Code.ZipCode.Handler": func(s *launcher.Spec) { s.Code = launcher.ZipCode{Dir: "/code/f", Handler: "main"} },
+		"Code.ZipCode.Opt": func(s *launcher.Spec) {
+			s.Code = launcher.ZipCode{Dir: "/code/f", Handler: "bootstrap", Opt: "/code/merged/f"}
+		},
 		"Code.ImageCode.EntryPoint":       func(s *launcher.Spec) { s.Code = launcher.ImageCode{EntryPoint: []string{"/app"}} },
 		"Code.ImageCode.Command":          func(s *launcher.Spec) { s.Code = launcher.ImageCode{Command: []string{"handler"}} },
 		"Code.ImageCode.WorkingDirectory": func(s *launcher.Spec) { s.Code = launcher.ImageCode{WorkingDirectory: "/app"} },

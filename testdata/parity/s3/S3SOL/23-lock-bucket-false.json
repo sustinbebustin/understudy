@@ -1,0 +1,35 @@
+{
+  "step": "23-lock-bucket-false",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDenied) when calling the DeleteObject operation: Access Denied because object protected by object lock.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/f23?versionId=Iw.E9QmGLoDkHjRdClVpE5EHWqLQYqV2",
+        "headers": [
+          ["x-amz-bypass-governance-retention", "false"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,E,g,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.delete-object"],
+          ["X-Amz-Date", "20261103T034322Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "656672ed-ab8a-4f05-85c3-f38c92beaba0"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "VFANKM77DRTF87BY"],
+          ["x-amz-id-2", "2MOM03To+xKLSNDstksQQ+kQd8P4HgOSTq9b4W+GiRTKT0yaywQux0p3lcFghfSLG/Katqi6LXY="],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:43:22 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>Access Denied because object protected by object lock.</Message><RequestId>VFANKM77DRTF87BY</RequestId><HostId>2MOM03To+xKLSNDstksQQ+kQd8P4HgOSTq9b4W+GiRTKT0yaywQux0p3lcFghfSLG/Katqi6LXY=</HostId></Error>"
+      }
+    }
+  ]
+}

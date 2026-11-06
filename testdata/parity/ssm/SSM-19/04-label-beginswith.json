@@ -1,0 +1,35 @@
+{
+  "step": "04-label-beginswith",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "ssm.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T163715Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["X-Amz-Target", "AmazonSSM.GetParametersByPath"],
+          ["Content-Length", "100"]
+        ],
+        "body": "{\"Path\":\"/us1103/ssm/p19\",\"ParameterFilters\":[{\"Key\":\"Label\",\"Option\":\"BeginsWith\",\"Values\":[\"o\"]}]}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:15 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "131"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "e6758e3e-175c-4459-87c1-dea4e8dd2830"]
+        ],
+        "body": "{\"__type\":\"InvalidFilterOption\",\"message\":\"The following filter option is not valid: BeginsWith. Valid options include: [Equals].\"}"
+      }
+    }
+  ]
+}

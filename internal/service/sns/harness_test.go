@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
@@ -74,11 +75,27 @@ func (r *recorder[T]) all() []T {
 	return append([]T(nil), r.items...)
 }
 
+// harnessOptions adjusts the harness: the SNS options, and an egress
+// client for the outbox that reaches dialer's network for the hosts in
+// allow (sns-http-delivery.md 7.2). Without a dialer the outbox has no
+// client and refuses every HTTP delivery.
+type harnessOptions struct {
+	sns    sns.Options
+	dialer egress.Dialer
+	allow  []string
+}
+
 // run runs fn in a synctest bubble against a frozen clock.
 func run(t *testing.T, fn func(h *harness)) {
 	t.Helper()
+	runWith(t, harnessOptions{}, fn)
+}
+
+// runWith is run with the harness adjusted by o.
+func runWith(t *testing.T, o harnessOptions, fn func(h *harness)) {
+	t.Helper()
 	synctest.Test(t, func(t *testing.T) {
-		h := build(t)
+		h := build(t, o)
 		ctx, cancel := context.WithCancel(context.Background())
 		stopped := make(chan error, 1)
 		go func() { stopped <- h.k.Run(ctx) }()
@@ -95,7 +112,7 @@ func run(t *testing.T, fn func(h *harness)) {
 	})
 }
 
-func build(t *testing.T) *harness {
+func build(t *testing.T, o harnessOptions) *harness {
 	t.Helper()
 	timers := kernel.NewTimers()
 	clk, err := clock.New(clock.Options{Mode: clock.Frozen{}, Timers: timers.Scheduler()})
@@ -121,7 +138,19 @@ func build(t *testing.T) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := box.Bind(k, outbox.Options{}); err != nil {
+	var oo outbox.Options
+	if o.dialer != nil {
+		allow, perr := egress.ParseAllowList(egress.Setting{Service: "sns", Feature: "httpDelivery"}, o.allow)
+		if perr != nil {
+			t.Fatalf("ParseAllowList(%q): %v", o.allow, perr)
+		}
+		client, cerr := egress.New(egress.Options{Allow: allow, Clock: clk, Dialer: o.dialer})
+		if cerr != nil {
+			t.Fatalf("egress.New: %v", cerr)
+		}
+		oo.Egress = client
+	}
+	if err := box.Bind(k, oo); err != nil {
 		t.Fatal(err)
 	}
 	h := &harness{
@@ -131,7 +160,7 @@ func build(t *testing.T) *harness {
 		scope:    aws.Scope{Partition: aws.PartitionAWS(), Account: aws.DefaultAccount(), Region: aws.DefaultRegion()},
 		endpoint: kernel.Endpoint{Scheme: "http", Host: "localhost:4566"},
 	}
-	h.svc = sns.New(kernel.ServiceDeps{Kernel: k, Binder: k.Binder(snsapi.Service()), Clock: clk, IDs: src, Identity: idStore, Log: k.Log()}, sns.Options{})
+	h.svc = sns.New(kernel.ServiceDeps{Kernel: k, Binder: k.Binder(snsapi.Service()), Clock: clk, IDs: src, Identity: idStore, Log: k.Log()}, o.sns)
 	kernel.Bind(k.Binder(sqsapi.Service()), sqsapi.OpSendMessage, func(_ context.Context, _ *kernel.Call, in *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
 		h.sent.add(*in)
 		return &sqsapi.SendMessageOutput{MessageId: new("stub")}, nil

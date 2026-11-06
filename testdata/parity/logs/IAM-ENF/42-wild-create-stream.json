@@ -1,0 +1,33 @@
+{
+  "step": "42-wild-create-stream",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://logs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "Logs_20140328.CreateLogStream"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,g,Z cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#logs.create-log-stream"],
+          ["X-Amz-Date", "20261103T034020Z"],
+          ["amz-sdk-invocation-id", "3df53882-cb63-421b-b5b9-9532dded86d5"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "53"]
+        ],
+        "body": "{\"logGroupName\": \"/us1103/r28\", \"logStreamName\": \"s\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "8bc5acdd-8cbd-43e3-ade9-728f2ababe9a"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "0"],
+          ["Date", "Tue, 03 Nov 2026 03:40:20 GMT"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

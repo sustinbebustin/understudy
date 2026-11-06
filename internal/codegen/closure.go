@@ -153,8 +153,8 @@ type errorRef struct {
 }
 
 // referencedErrors lists the error shapes the service's overlay traits name:
-// throttle, malformed-request and unknown-operation identities and every
-// validationError code in the closure.
+// throttle, denial, malformed-request and unknown-operation identities and
+// every validationError code in the closure.
 func (m *Model) referencedErrors(c *closure) ([]errorRef, error) {
 	out, err := serviceErrorRefs(c.service)
 	if err != nil {
@@ -186,7 +186,7 @@ func (m *Model) referencedErrors(c *closure) ([]errorRef, error) {
 // serviceErrorRefs lists the identities the service-level traits name.
 func serviceErrorRefs(svc *Shape) ([]errorRef, error) {
 	var out []errorRef
-	for _, t := range []string{utThrottleError, utMalformedRequest} {
+	for _, t := range []string{utThrottleError, utDenialError, utMalformedRequest} {
 		if raw, ok := svc.Traits[t]; ok {
 			id, err := parseShapeRef(raw)
 			if err != nil {

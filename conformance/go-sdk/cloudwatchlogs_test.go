@@ -46,7 +46,7 @@ func TestLogsGroupsAndStreams(t *testing.T) {
 	ctx := t.Context()
 	client := cloudwatchlogs.NewFromConfig(awsCfg)
 	acct := account(t)
-	group := "/conformance/" + name("group")
+	group := "/conformance/" + name(t, "group")
 	createLogGroup(t, group, map[string]string{"team": "platform"})
 	groupArn := "arn:aws:logs:" + region() + ":" + acct + ":log-group:" + group
 
@@ -147,7 +147,7 @@ func TestLogsGroupsAndStreams(t *testing.T) {
 	})
 
 	t.Run("deletion protection", func(t *testing.T) {
-		g := "/conformance/" + name("protected")
+		g := "/conformance/" + name(t, "protected")
 		createLogGroup(t, g, nil)
 		if d := describeGroup(t, client, g); aws.ToBool(d.DeletionProtectionEnabled) {
 			t.Errorf("a new group has deletion protection enabled")
@@ -166,7 +166,7 @@ func TestLogsGroupsAndStreams(t *testing.T) {
 	})
 
 	t.Run("DeleteLogGroup", func(t *testing.T) {
-		g := "/conformance/" + name("gone")
+		g := "/conformance/" + name(t, "gone")
 		_, err := client.CreateLogGroup(ctx, &cloudwatchlogs.CreateLogGroupInput{LogGroupName: aws.String(g)})
 		ok(t, err, "CreateLogGroup")
 		_, err = client.DeleteLogGroup(ctx, &cloudwatchlogs.DeleteLogGroupInput{LogGroupName: aws.String(g)})
@@ -185,7 +185,7 @@ func TestLogsEvents(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
 	client := cloudwatchlogs.NewFromConfig(awsCfg)
-	group := "/conformance/" + name("events")
+	group := "/conformance/" + name(t, "events")
 	createLogGroup(t, group, nil)
 	for _, s := range []string{"app", "worker"} {
 		_, err := client.CreateLogStream(ctx, &cloudwatchlogs.CreateLogStreamInput{LogGroupName: aws.String(group), LogStreamName: aws.String(s)})

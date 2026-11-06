@@ -70,6 +70,7 @@ func (h *Handler) snapshotSave(w http.ResponseWriter, r *http.Request, _ []strin
 		h.fail(w, r, aerr)
 		return
 	}
+	h.journalAction(r.Context(), journal.SnapshotSave{Path: target})
 	h.ok(w, r, info)
 }
 
@@ -101,6 +102,9 @@ func (h *Handler) saveToResponse(w http.ResponseWriter, r *http.Request, journal
 		h.fail(w, r, internal("rewinding the archive", err))
 		return
 	}
+	// The archive is complete: the save happened, whether or not its bytes
+	// reach the client.
+	h.journalAction(ctx, journal.SnapshotSave{})
 	contentType := admin.Tar
 	if opts.Gzip {
 		contentType = admin.Gzip
@@ -164,12 +168,21 @@ func syncDir(root *os.Root, dir string) error {
 	return errors.Join(d.Sync(), d.Close())
 }
 
-// createTemp creates a new file next to target in root, named
-// <target>.<random>.tmp, that no other caller has opened.
+// saveTempSuffix ends the name of a save's temporary file.
+const saveTempSuffix = ".tmp"
+
+// saveTempName is the name of a save's temporary file next to target,
+// random being a crypto/rand.Text result; isSaveTemp recognizes it.
+func saveTempName(target, random string) string {
+	return target + "." + random + saveTempSuffix
+}
+
+// createTemp creates a new file next to target in root, named by
+// saveTempName, that no other caller has opened.
 func createTemp(root *os.Root, target string) (*os.File, string, error) {
 	const attempts = 10
 	for range attempts {
-		name := target + "." + rand.Text() + ".tmp"
+		name := saveTempName(target, rand.Text())
 		f, err := root.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		if errors.Is(err, fs.ErrExist) {
 			continue
@@ -272,7 +285,13 @@ func (h *Handler) snapshotLoad(w http.ResponseWriter, r *http.Request, _ []strin
 		h.fail(w, r, readError(err))
 		return
 	}
-	if aerr := h.loadState(r.Context(), a); aerr != nil {
+	replaced, aerr := h.loadState(r.Context(), a)
+	if replaced {
+		// The admin action is the load's one signal: its clock restore
+		// journals no clock change of its own.
+		h.journalAction(r.Context(), journal.SnapshotLoad{Path: target})
+	}
+	if aerr != nil {
 		h.fail(w, r, aerr)
 		return
 	}
@@ -281,15 +300,18 @@ func (h *Handler) snapshotLoad(w http.ResponseWriter, r *http.Request, _ []strin
 	h.ok(w, r, info)
 }
 
-// loadState replaces the state with a's inside the drain bracket. It
-// returns only once the drain is lifted, so the answer never reaches a
-// caller whose next invocation the drain would still refuse.
-func (h *Handler) loadState(ctx context.Context, a *snapshot.Archive) *admin.Error {
+// loadState replaces the state with a's inside the drain bracket. replaced
+// reports whether the state changed: the load succeeded, or failed after it
+// began replacing state (a *snapshot.LoadError), which the caller journals
+// although the call answers aerr. It returns only once the drain is lifted,
+// so the answer never reaches a caller whose next invocation the drain
+// would still refuse.
+func (h *Handler) loadState(ctx context.Context, a *snapshot.Archive) (replaced bool, aerr *admin.Error) {
 	h.stateOps.Lock()
 	defer h.stateOps.Unlock()
 	undrain, aerr := h.drain(ctx, h.stateful(), kernel.ResetScope{})
 	if aerr != nil {
-		return aerr
+		return false, aerr
 	}
 	defer undrain()
 	h.o.Kernel.Timers().Scheduler().Clear()
@@ -298,14 +320,15 @@ func (h *Handler) loadState(ctx context.Context, a *snapshot.Archive) *admin.Err
 		// The state is loaded and Load rearmed it; only blobs of the
 		// replaced state stay stored, which the caller cannot act on.
 		h.log.LogAttrs(ctx, slog.LevelWarn, "snapshot loaded; some blobs of the replaced state stay stored until restart", slog.String("error", released.Error()))
-		return nil
+		return true, nil
 	}
 	if err != nil {
 		// Load rearms only the state it finished loading.
 		h.rearm()
-		return loadError(err)
+		_, partial := errors.AsType[*snapshot.LoadError](err)
+		return partial, loadError(err)
 	}
-	return nil
+	return true, nil
 }
 
 // openArchive opens the archive at target under the snapshots directory. A

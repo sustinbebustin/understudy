@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/docker"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 )
 
@@ -18,6 +19,9 @@ type Options struct {
 	// *launcher.Launcher. nil means no Docker daemon is reachable, so an
 	// image function becomes Failed with a message naming its image.
 	Images ImageSource
+	// Streams are the stream poller's switches (lambda.esm-stream.*): the
+	// LATEST anchor, the retry delay and the partial-resend budget.
+	Streams esm.StreamFidelity
 }
 
 // StateTransitions says when the provisioning states of functions and event

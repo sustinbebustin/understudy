@@ -1,0 +1,22 @@
+{
+  "step": "19-missing-queue",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:47:57 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "197"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "55112ceb-448f-4c28-a1c6-2cae836a0622"],
+          ["x-amz-apigw-id", "GRd5tFA-CYcEJYw="],
+          ["X-Amzn-Trace-Id", "Root=1-6aea103d-7545ef50797eaf3a39cf1e55"]
+        ],
+        "body": "{\"Error\":{\"Code\":\"AWS.SimpleQueueService.NonExistentQueue\",\"Message\":\"The specified queue does not exist for this wsdl version.\",\"Type\":\"Sender\"},\"RequestId\":\"a46f4df7-386d-5647-9b8d-2e932a10ff50\"}"
+      }
+    }
+  ]
+}

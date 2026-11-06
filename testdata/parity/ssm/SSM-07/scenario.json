@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "item": "SSM-07",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "ssm",
+      "operation": "PutParameter",
+      "input": {
+        "Name": "/us1103-root",
+        "Type": "String",
+        "Value": "v"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "ssm/SSM-07/01-get-bare.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-07/02-get-slash.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-07/03-get-parameters.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-07/04-describe-slash.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-07/05-describe-bare.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-07/06-history.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-07/07-by-path-root.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-07/08-put-bare.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-07/09-tags-slash.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-07/10-tags-arn.json",
+      "compare": "all"
+    }
+  ]
+}

@@ -3,8 +3,10 @@
 // builds the request event (Event), infers the HTTP response from the
 // function's output (Infer), applies a URL's CORS configuration (CORS) and
 // words the answers Lambda's front end gives itself (BadGateway,
-// UnknownURL, Forbidden, Denied). It is pure: the lambda package finds the
-// URL configuration, authorizes the request and runs the function.
+// UnknownURL, Forbidden, Denied). Event and Infer fill in a function URL's
+// context around the payload format 2.0 builders of internal/httpevent,
+// which API Gateway HTTP APIs share. It is pure: the lambda package finds
+// the URL configuration, authorizes the request and runs the function.
 //
 // Decisions the research leaves open:
 //
@@ -33,19 +35,12 @@
 //     resource policy does not allow the request answers the recorded
 //     Forbidden help message with x-amzn-ErrorType AccessDeniedException
 //     (lambda-events.md 7.2), not the {"Message":null} of an unknown url id.
-//   - A body is text when its content type is text/*, JSON, XML or
-//     JavaScript and it is valid UTF-8; anything else, form posts
-//     included, is base64. A request without a body has no body key, and
-//     one without a query or cookies has no queryStringParameters or
-//     cookies key.
-//   - A JSON string output is the bare string, as recorded against AWS
-//     (the guide's example keeps the quotes). A response whose statusCode
-//     is not an integer from 200 to 599, whose headers are not strings, or
-//     whose body is not a string is malformed and answered with 502, as is
-//     output that is not JSON. The framing headers a function returns
-//     (Content-Length, Transfer-Encoding, Connection, Keep-Alive, Upgrade,
-//     Trailer, in any case) are dropped: the length sent is the body's, as
-//     AWS's front end frames its own response.
+//   - The event's text-or-base64 body, its omitted keys, the bare JSON
+//     string output (recorded against AWS; the guide's example keeps the
+//     quotes), malformed outputs and the dropped framing headers are
+//     httpevent's rules, listed in its package doc. A malformed output is
+//     answered with 502; the length sent is the body's, as AWS's front end
+//     frames its own response.
 //   - A CORS preflight is answered with 200; configured CORS headers
 //     replace any the function set, and a request without Origin gets
 //     none. The preflight is answered before the auth type applies, since

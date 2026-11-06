@@ -97,9 +97,12 @@ conformance_isolate_serve_env
 # understudy keeps behind fidelity switches that are off by default (ADR 0006).
 printf '%s\n' '{"lambda": {"stateTransitions": "clock"}, "sqs": {"queueDeletedRecently": "enforce"}}' >"$work/understudy.json"
 
+# SNS delivers http subscriptions to loopback ports only, where the SNS HTTP
+# test starts its receiver.
 echo "run.sh: starting understudy on $endpoint, data in $data" >&2
 (cd -- "$work" && exec env "${conformance_serve_env[@]}" "$bin" serve \
-	--listen "$listen" --persist "$data" --sigv4 "$sigv4" --config "$work/understudy.json") >"$log" 2>&1 &
+	--listen "$listen" --persist "$data" --sigv4 "$sigv4" --config "$work/understudy.json" \
+	--sns-http-delivery-allow '127.0.0.1:*') >"$log" 2>&1 &
 pid=$!
 
 if ! "$bin" health --endpoint "$endpoint" --wait 60s >/dev/null 2>&1; then

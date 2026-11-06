@@ -22,21 +22,34 @@ const maxTargets = 5
 // bindTargets binds the target operations.
 func (s *Service) bindTargets(b eventbridgeapi.Binder) {
 	b.PutTargets(s.putTargets,
-		registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
-			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented"},
-		namedRule(func(in *eventbridgeapi.PutTargetsInput) string { return in.Rule }))
-	b.RemoveTargets(s.removeTargets, registry.Full{},
-		namedRule(func(in *eventbridgeapi.RemoveTargetsInput) string { return in.Rule }))
-	b.ListTargetsByRule(s.listTargetsByRule, registry.Full{},
-		namedRule(func(in *eventbridgeapi.ListTargetsByRuleInput) string { return in.Rule }))
+		registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; " +
+			"RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
+			"an event bus target with a RoleArn is delivered as a session of that role, which under iam.enforce=enforce must trust events.amazonaws.com and be allowed events:PutEvents on the bus, " +
+			"and one events.amazonaws.com cannot assume is not retried and goes to the dead-letter queue with ERROR_CODE FAILED_TO_ASSUME_ROLE; the session name and the trust request's aws:SourceArn and aws:SourceAccount are inferred; " +
+			"the RoleArn of a function, queue or topic target is not assumed, so under iam.enforce=enforce those deliveries, a bus target without a RoleArn and a bus target whose RoleArn names no IAM role (which AWS fails with FAILED_TO_ASSUME_ROLE) are decided for events.amazonaws.com against the target's policy; " +
+			"a delivery the target refuses is not retried and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); " +
+			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, " +
+			"fails its entry with NotImplemented; an event bus target of the rule's account without a RoleArn is accepted, where AWS refuses the call; " +
+			"a rule on another account's or region's bus answers NotImplemented"},
+		namedRule(func(in *eventbridgeapi.PutTargetsInput) *string { return in.EventBusName },
+			func(in *eventbridgeapi.PutTargetsInput) string { return in.Rule }))
+	b.RemoveTargets(s.removeTargets, registry.Partial{Note: noteForeignBus},
+		namedRule(func(in *eventbridgeapi.RemoveTargetsInput) *string { return in.EventBusName },
+			func(in *eventbridgeapi.RemoveTargetsInput) string { return in.Rule }))
+	b.ListTargetsByRule(s.listTargetsByRule, registry.Partial{Note: noteForeignBus},
+		namedRule(func(in *eventbridgeapi.ListTargetsByRuleInput) *string { return in.EventBusName },
+			func(in *eventbridgeapi.ListTargetsByRuleInput) string { return in.Rule }))
 }
 
-// putTargets adds targets to a rule or replaces those with the same Id. A
-// request-level problem (inputs, placeholders, a FIFO queue's message group,
-// the dead-letter queue, the target limit) fails the whole request; a target understudy cannot deliver to, or with a member it
-// does not model, fails its entry.
+// putTargets adds targets to a rule of one of the caller's buses or
+// replaces those with the same Id. A request-level problem (inputs,
+// placeholders, a FIFO queue's message group, the dead-letter queue, the
+// target limit) fails the whole request; a target understudy cannot deliver
+// to, or with a member it does not model, fails its entry. Like the rule,
+// the bus is looked up after the targets are checked.
 func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgeapi.PutTargetsInput) (*eventbridgeapi.PutTargetsOutput, *awserr.Error) {
-	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
+	bus, err := ownBusName(c.Scope(), in.EventBusName)
+	if err != nil {
 		return nil, err
 	}
 	scope := c.Scope()
@@ -59,30 +72,23 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 		}
 		accepted = append(accepted, parsed[i])
 	}
-	r := ruleRef{scope: scope, name: in.Rule}
-	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
-		rule, ok := st.Rules[r.name]
+	r := ruleRef{scope: scope, bus: bus, name: in.Rule}
+	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+		if err := st.requireBus(r.bus); err != nil {
+			return struct{}{}, err
+		}
+		rule, ok := st.rule(r.bus, r.name)
 		if !ok {
-			return struct{}{}, errRuleNotFound(r.name)
+			return struct{}{}, errRuleNotFound(r.name, r.bus)
 		}
-		targets := slices.Clone(rule.Targets)
-		seq := st.TargetSeq
-		for _, t := range accepted {
-			if i := slices.IndexFunc(targets, func(o Target) bool { return o.ID == t.ID }); i >= 0 {
-				t.Seq = targets[i].Seq
-				targets[i] = t
-				continue
-			}
-			seq++
-			t.Seq = seq
-			targets = append(targets, t)
-		}
-		if len(targets) > maxTargets {
-			return struct{}{}, errTooManyTargets()
+		targets, seq, err := merged(r.scope, rule.Targets, accepted, st.TargetSeq)
+		if err != nil {
+			return struct{}{}, err
 		}
 		rule.Targets = targets
-		st.Rules[r.name] = rule
+		st.setRule(r.bus, rule)
 		st.TargetSeq = seq
+		st.used(c.Admitted())
 		return struct{}{}, nil
 	})
 	if err != nil {
@@ -91,9 +97,43 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 	return &eventbridgeapi.PutTargetsOutput{FailedEntryCount: int32(len(failed)), FailedEntries: failed}, nil //nolint:gosec // at most 100 targets, the model's limit
 }
 
+// merged is current, a rule's targets in scope, with accepted put: each
+// replaces the target with its Id, keeping its Seq, or is added with the
+// next number after seq. It returns the targets and the scope's last Seq,
+// or the refusal of a cross-account bus target without a role
+// (withCrossAccountRole) or of more than maxTargets.
+func merged(scope aws.Scope, current, accepted []Target, seq uint64) ([]Target, uint64, *awserr.Error) {
+	targets := slices.Clone(current)
+	for _, t := range accepted {
+		i := slices.IndexFunc(targets, func(o Target) bool { return o.ID == t.ID })
+		var replaced *Target
+		if i >= 0 {
+			replaced = &targets[i]
+		}
+		t, err := withCrossAccountRole(scope, t, replaced)
+		if err != nil {
+			return nil, 0, err
+		}
+		if replaced != nil {
+			t.Seq = replaced.Seq
+			targets[i] = t
+			continue
+		}
+		seq++
+		t.Seq = seq
+		targets = append(targets, t)
+	}
+	if len(targets) > maxTargets {
+		return nil, 0, errTooManyTargets()
+	}
+	return targets, seq, nil
+}
+
 // parseTarget checks a PutTargets entry for a rule in scope and returns it
 // as stored: at most one input form, each well formed, a message group for a
-// FIFO queue and a dead-letter queue deadLetterQueue accepts.
+// FIFO queue, no input form for an event bus, and a
+// dead-letter queue deadLetterQueue accepts. Whether such a bus target has
+// a RoleArn depends on the target it replaces (withCrossAccountRole).
 func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Error) {
 	input, err := parseInput(t)
 	if err != nil {
@@ -103,9 +143,15 @@ func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Err
 	if p := t.SqsParameters; p != nil {
 		out.SQS = &SQSParameters{MessageGroupID: copyOf(p.MessageGroupId)}
 	}
-	if dt, ok := targetOf(scope, t.Arn); ok {
-		if q, ok := dt.(queueTarget); ok && q.fifo() && (out.SQS == nil || out.SQS.MessageGroupID == nil || *out.SQS.MessageGroupID == "") {
+	dt, _ := targetOf(scope, t.Arn)
+	switch dt := dt.(type) {
+	case queueTarget:
+		if dt.fifo() && (out.SQS == nil || out.SQS.MessageGroupID == nil || *out.SQS.MessageGroupID == "") {
 			return Target{}, errFIFONeedsGroup(t.Id)
+		}
+	case busTarget:
+		if err := checkBusInput(scope, dt, t); err != nil {
+			return Target{}, err
 		}
 	}
 	if d := t.DeadLetterConfig; d != nil {
@@ -122,11 +168,48 @@ func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Err
 	return out, nil
 }
 
+// checkBusInput checks a PutTargets entry t whose ARN is the event bus dt,
+// for a rule in scope: no bus target takes an input form. A bus of the
+// rule's account, in any region, refuses the whole call (AWS-recorded,
+// eventbridge-buses.md 6.2, EBB-08); another account's bus is refused with
+// the PutTargets page's sentence (API_PutTargets; the refusal's text is
+// unrecorded, eventbridge-buses.md 6.3, EBB-09).
+func checkBusInput(scope aws.Scope, dt busTarget, t *eventbridgeapi.Target) *awserr.Error {
+	switch {
+	case t.Input == nil && t.InputPath == nil && t.InputTransformer == nil:
+		return nil
+	case dt.crossAccount(scope):
+		return errCrossAccountInput()
+	}
+	return errBusTargetInput(t.Id)
+}
+
+// withCrossAccountRole is t, a target of a rule in scope, as stored in
+// place of replaced, the rule's target with t's Id, if any. Another
+// account's bus needs a RoleArn (events.bus-target.cross-account-role:
+// "EventBridge now requires all new cross account event bus targets to add
+// IAM roles", eb-cross-account.html; the refusal's text is unrecorded,
+// eventbridge-buses.md 6.3, EBB-09), and a call without one keeps the role
+// of the target it replaces when the Arn is the same ("a PutTargets call
+// without a role on the same target (same Id and Arn) will not remove the
+// role", API_PutTargets). The fan-out delivers as the role (targetRole).
+func withCrossAccountRole(scope aws.Scope, t Target, replaced *Target) (Target, *awserr.Error) {
+	dt, _ := targetOf(scope, t.ARN)
+	if bus, isBus := dt.(busTarget); !isBus || !bus.crossAccount(scope) || t.RoleARN != nil {
+		return t, nil
+	}
+	if replaced == nil || replaced.ARN != t.ARN || replaced.RoleARN == nil {
+		return Target{}, errCrossAccountRole(t.ID)
+	}
+	t.RoleARN = replaced.RoleARN
+	return t, nil
+}
+
 // refusal is why understudy does not add a PutTargets entry, which fails
 // the entry with NotImplemented: its ARN is not a target understudy
-// delivers to from a rule in scope, or it sets a member understudy does not
-// model. Storing it would make deliveries fail, or the member be ignored,
-// silently.
+// delivers to from a rule in scope, or it sets a member understudy does
+// not model. Storing it would make deliveries fail, or the member be
+// ignored, silently.
 func refusal(scope aws.Scope, t *eventbridgeapi.Target) (string, bool) {
 	if _, ok := targetOf(scope, t.Arn); !ok {
 		return msgUnsupportedTarget(scope, t.Arn), true
@@ -191,17 +274,21 @@ func parseInput(t *eventbridgeapi.Target) (Input, *awserr.Error) {
 	return nil, errInputsExclusive(t.Id)
 }
 
-// removeTargets removes the targets with the given Ids. An Id the rule has
-// no target for is ignored.
+// removeTargets removes the targets with the given Ids from a rule of one
+// of the caller's buses. An Id the rule has no target for is ignored.
 func (s *Service) removeTargets(_ context.Context, c *kernel.Call, in *eventbridgeapi.RemoveTargetsInput) (*eventbridgeapi.RemoveTargetsOutput, *awserr.Error) {
-	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
+	bus, err := ownBusName(c.Scope(), in.EventBusName)
+	if err != nil {
 		return nil, err
 	}
-	r := ruleRef{scope: c.Scope(), name: in.Rule}
-	_, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		rule, ok := st.Rules[r.name]
+	r := ruleRef{scope: c.Scope(), bus: bus, name: in.Rule}
+	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+		if err := st.requireBus(r.bus); err != nil {
+			return struct{}{}, err
+		}
+		rule, ok := st.rule(r.bus, r.name)
 		if !ok {
-			return struct{}{}, errRuleNotFound(r.name)
+			return struct{}{}, errRuleNotFound(r.name, r.bus)
 		}
 		kept := slices.DeleteFunc(slices.Clone(rule.Targets), func(t Target) bool { return slices.Contains(in.Ids, t.ID) })
 		if len(kept) == len(rule.Targets) {
@@ -209,7 +296,8 @@ func (s *Service) removeTargets(_ context.Context, c *kernel.Call, in *eventbrid
 			return struct{}{}, nil
 		}
 		rule.Targets = kept
-		st.Rules[r.name] = rule
+		st.setRule(r.bus, rule)
+		st.used(c.Admitted())
 		return struct{}{}, nil
 	})
 	if err != nil {
@@ -218,16 +306,21 @@ func (s *Service) removeTargets(_ context.Context, c *kernel.Call, in *eventbrid
 	return &eventbridgeapi.RemoveTargetsOutput{FailedEntries: []eventbridgeapi.RemoveTargetsResultEntry{}}, nil
 }
 
-// listTargetsByRule lists a rule's targets in creation order, each as
-// PutTargets sent it.
+// listTargetsByRule lists the targets of a rule of one of the caller's
+// buses in creation order, each as PutTargets sent it.
 func (s *Service) listTargetsByRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.ListTargetsByRuleInput) (*eventbridgeapi.ListTargetsByRuleOutput, *awserr.Error) {
-	if err := requireDefaultBus(c.Scope(), in.EventBusName); err != nil {
+	bus, err := ownBusName(c.Scope(), in.EventBusName)
+	if err != nil {
 		return nil, err
 	}
-	r := ruleRef{scope: c.Scope(), name: in.Rule}
-	rule, ok := s.rule(r)
+	r := ruleRef{scope: c.Scope(), bus: bus, name: in.Rule}
+	var rule Rule
+	var ok bool
+	if err := s.readBus(r.scope, r.bus, func(st *State) { rule, ok = st.rule(r.bus, r.name) }); err != nil {
+		return nil, err
+	}
 	if !ok {
-		return nil, errRuleNotFound(in.Rule)
+		return nil, errRuleNotFound(r.name, r.bus)
 	}
 	listed := make([]eventbridgeapi.Target, len(rule.Targets))
 	for i := range rule.Targets {

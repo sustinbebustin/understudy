@@ -1,0 +1,29 @@
+{
+  "step": "01-list-page",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules?MaxResults=1&NamePrefix=us1103-s",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,E,AN,b,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.list-schedules"],
+          ["X-Amz-Date", "20261103T163650Z"],
+          ["amz-sdk-invocation-id", "28735b90-a306-4ebd-b4d3-01df4b95de0c"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "85e6a178-7486-4338-837d-89ab7652ed0f"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "724"],
+          ["Date", "Tue, 03 Nov 2026 16:36:50 GMT"]
+        ],
+        "body": "{\"NextToken\":\"AAMA9kFRSURBSGkzemU2V1ZudTVBenpIVlZBWFU1NjZJZWxTekRmbEpMUFYyY1pQRzM4eUhRSEJOZE02cU1ORXozYmhmeHp4TXRBQUFBQUFmakI4QmdrcWhraUc5dzBCQndhZ2J6QnRBZ0VBTUdnR0NTcUdTSWIzRFFFSEFUQWVCZ2xnaGtnQlpRTUVBUzR3RVFRTXVCbDg3VmVSLXh3NzVhenZBZ0VRZ0R2ejhtbVhuZDd5Xzh0NEtsazMwVG9SYlpONzRXc3JMT2NfcGQzdFFqMkozZXF5UDNfSjFqMzlrcmVHU09qUmFFNjQ4cWZoR1hyNDBJMlY1Uc0IqAGeJskaSgarSQmicUMfcvxeb4_ll9yljHk6lhZUM-vLe4qv1mdmp_hfZlEAlZOYmAHP7ZoH2JqX__imCISN\",\"Schedules\":[{\"Arn\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-s1\",\"CreationDate\":1.793723806092E9,\"GroupName\":\"default\",\"LastModificationDate\":1.793723806092E9,\"Name\":\"us1103-s1\",\"State\":\"ENABLED\",\"Target\":{\"Arn\":\"arn:aws:sqs:us-east-2:123456789012:us1103-sch\"}}]}"
+      }
+    }
+  ]
+}

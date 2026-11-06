@@ -1,0 +1,31 @@
+{
+  "step": "13-get",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/resources/120umh/methods/GET/integration",
+        "headers": [
+          ["Host", "apigateway.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164229Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "application/json"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:29 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "224"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "6a3e7ed0-e926-4768-b41c-f418a2f30089"],
+          ["x-amz-apigw-id", "GRdGgLq6iYcEcEQ="]
+        ],
+        "body": "{\"cacheKeyParameters\":[],\"cacheNamespace\":\"120umh\",\"passthroughBehavior\":\"WHEN_NO_MATCH\",\"requestTemplates\":{\"application/json\":null,\"text/plain\":\"x\"},\"responseTransferMode\":\"BUFFERED\",\"timeoutInMillis\":29000,\"type\":\"MOCK\"}\n"
+      }
+    }
+  ]
+}

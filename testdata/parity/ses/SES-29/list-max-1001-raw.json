@@ -1,0 +1,33 @@
+{
+  "step": "list-max-1001-raw",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164255Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-www-form-urlencoded"],
+          ["Content-Length", "54"]
+        ],
+        "body": "Action=ListIdentities&Version=2010-12-01&MaxItems=1001"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:55 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "334"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "58388e3a-2d21-4206-a33d-89aa542080f3"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>InvalidParameterValue</Code>\n    <Message>Value 1001 for parameter MaxItems is invalid. MaxItems must be between 1 and 1000.</Message>\n  </Error>\n  <RequestId>58388e3a-2d21-4206-a33d-89aa542080f3</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

@@ -7,9 +7,13 @@
 // Resource or NotResource, Condition) into a typed Document;
 // ValidateIdentity and ValidateTrust add the rules IAM applies to identity
 // and trust policies, with the MalformedPolicyDocument texts of
-// docs/research/iam-sts-kms.md 3.3. Encode writes a canonical form and Allows
-// evaluates a request against one document. understudy stores policies and
-// does not enforce them; Allows serves resource-policy advisories and tests.
+// docs/research/iam-sts-kms.md 3.3; ValidateIdentityForm applies only the
+// two that make a document an identity policy, for documents that never
+// went through CreatePolicy. Encode writes a canonical form. Allows evaluates
+// a request against one document for resource-policy advisories and tests;
+// Evaluate is the per-document evaluator that enforcement builds on: it lists
+// the statements that apply, how each named the requester, and the condition
+// keys a Context marks as unsupplied.
 //
 // Decisions where neither the architecture nor an AWS recording settles the
 // behavior:
@@ -33,10 +37,17 @@
 //     that version, which Terraform must be able to apply. ValidateTrust
 //     therefore accepts 2008-10-17, and an absent Version too, which IAM
 //     reads as 2008-10-17.
-//   - Three resource checks depart from moto. The IAM resource path rule
-//     accepts a resource element of "*" (arn:aws:iam::111111111111:*), which
-//     moto rejects; IAM policies use that form, and the rule's own text
-//     allows "*". An empty string in a Resource list is checked like any
+//   - Four resource checks depart from moto. The S3 region rule exempts
+//     every S3 resource type whose ARN format carries a region in the
+//     Service Authorization Reference (access grants, batch jobs, Storage
+//     Lens, multi-Region access point requests in any region), by prefix
+//     and whatever the account element holds, where moto exempts access
+//     points alone; CreatePolicy accepts them in a customer policy
+//     (iam-evaluation.md 10.6, IAM-EVAL-36, recorded). The IAM resource
+//     path rule accepts a resource element of "*"
+//     (arn:aws:iam::111111111111:*), which moto rejects, and root and
+//     role-template/, as IAM's own message lists them (IAM-EVAL-35,
+//     recorded). An empty string in a Resource list is checked like any
 //     other value and fails the format rule, where moto drops empty list
 //     items before both the format and the legacy checks. The legacy rule
 //     against an empty service element applies to every Resource list item
@@ -69,4 +80,30 @@
 //     condition is assumed to hold and reported, rather than Allows
 //     returning a bare bool, so a caller can tell an unconditional answer
 //     from an assumed one.
+//   - Evaluate is the enforcement evaluator and never assumes a clause
+//     holds: an unsupplied key evaluates as absent by the truth table of
+//     iam-evaluation.md 6.14 and is reported. It follows the value of the
+//     switch authz.Switches registers, recorded against AWS's simulator
+//     where the item says so, or an inference: a plain operator on a
+//     multivalued key never holds (IAM-EVAL-02, recorded); a set qualifier
+//     reads a single-valued key as a set of one (IAM-EVAL-03, recorded);
+//     "" is a value, for Null and the set operators alike (IAM-EVAL-05,
+//     IAM-EVAL-04, recorded); Bool takes a policy variable literally
+//     (IAM-EVAL-01, recorded) and true and false in any case, and IgnoreCase
+//     folds with strings.EqualFold (IAM-EVAL-08); numbers are decimal with
+//     an optional exponent, compared as float64 (IAM-EVAL-09); dates are the
+//     W3C profile of ISO 8601 or integer epoch seconds, four digits reading
+//     as a year (IAM-EVAL-06); an IPv6 address without a prefix is /128
+//     (IAM-EVAL-07); an ARN condition value or context value without six
+//     fields never matches, and only an identity policy completes an
+//     incomplete Resource ARN (IAM-EVAL-11); a variable is ${name} or
+//     ${name, 'default'} spelled exactly so (IAM-EVAL-15), a multivalued key
+//     gives it no value and variables in Action stay literal (IAM-EVAL-14),
+//     and a value or default substitutes as literal characters; an
+//     unresolved policy value matches nothing, in a list of values as in
+//     Resource or NotResource (IAM-EVAL-16, IAM-EVAL-13); NotPrincipal
+//     exempts a user only when its account and its identifier are listed,
+//     and a session only when its account, its role's identifier and its
+//     session ARN all are (IAM-EVAL-18, recorded for the session); "*"
+//     names service principals (IAM-EVAL-33).
 package policydoc

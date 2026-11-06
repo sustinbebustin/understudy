@@ -1,0 +1,36 @@
+{
+  "step": "20-topic",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketNotificationConfiguration operation: Unable to validate the following destination configurations",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-enf-b.s3.us-east-2.amazonaws.com/?notification",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,E,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-bucket-notification-configuration"],
+          ["X-Amz-Date", "20261103T035751Z"],
+          ["X-Amz-Content-SHA256", "3d61726ecd4ca2442353b4dbc2aadfc65cf51364828699169696bb89e9825324"],
+          ["amz-sdk-invocation-id", "d7692a55-bd16-40de-adf9-5ad9fabfc724"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "240"]
+        ],
+        "body": "<NotificationConfiguration xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><TopicConfiguration><Topic>arn:aws:sns:us-east-2:123456789012:us1103-enf-nt</Topic><Event>s3:ObjectCreated:*</Event></TopicConfiguration></NotificationConfiguration>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "400HEVVK80TJTXTY"],
+          ["x-amz-id-2", "CmUpxnMthaNlLhpI5wnHaAx8NoinPzJEkUdCPgZV7sQEjjyOIaXUP3MEKYvlfmAuTvNZA/Bdxrs="],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:57:50 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>Unable to validate the following destination configurations</Message><ArgumentName1>arn:aws:sns:us-east-2:123456789012:us1103-enf-nt</ArgumentName1><ArgumentValue1>Permissions on the destination topic do not allow S3 to publish notifications from this bucket</ArgumentValue1><RequestId>400HEVVK80TJTXTY</RequestId><HostId>CmUpxnMthaNlLhpI5wnHaAx8NoinPzJEkUdCPgZV7sQEjjyOIaXUP3MEKYvlfmAuTvNZA/Bdxrs=</HostId></Error>"
+      }
+    }
+  ]
+}

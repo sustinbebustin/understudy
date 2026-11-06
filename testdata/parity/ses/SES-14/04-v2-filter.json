@@ -1,0 +1,33 @@
+{
+  "step": "04-v2-filter",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/v2/email/list-identities",
+        "headers": [
+          ["Host", "email.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T164226Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "46"]
+        ],
+        "body": "{\"Filter\":{\"IDENTITY_NAME_CONTAINS\":\"us1103\"}}"
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:26 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "617"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "882f0111-ed7f-4007-a8b0-3ceb342a540d"]
+        ],
+        "body": "{\"EmailIdentities\":[{\"IdentityName\":\"us1103-dup@example.com\",\"IdentityType\":\"EMAIL_ADDRESS\",\"SendingEnabled\":false,\"VdmAttributes\":null,\"VerificationStatus\":\"PENDING\"},{\"IdentityName\":\"us1103-me@example.com\",\"IdentityType\":\"EMAIL_ADDRESS\",\"SendingEnabled\":false,\"VdmAttributes\":null,\"VerificationStatus\":\"PENDING\"},{\"IdentityName\":\"us1103-v1@example.com\",\"IdentityType\":\"EMAIL_ADDRESS\",\"SendingEnabled\":false,\"VdmAttributes\":null,\"VerificationStatus\":\"PENDING\"},{\"IdentityName\":\"us1103.example.com\",\"IdentityType\":\"DOMAIN\",\"SendingEnabled\":false,\"VdmAttributes\":null,\"VerificationStatus\":\"PENDING\"}],\"NextToken\":null}"
+      }
+    }
+  ]
+}

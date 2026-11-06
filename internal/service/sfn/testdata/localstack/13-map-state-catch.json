@@ -1,0 +1,24 @@
+{
+  "golden": 13,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/scenarios/test_base_scenarios.snapshot.json:L1300",
+  "test": "test_map_state_catch (get_execution_history)",
+  "validated": "2023-07-18",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/scenarios/statemachines/map_state_catch.json5",
+  "definition": {"StartAt": "StartState", "States": {"StartState": {"Type": "Pass", "Result": [1], "ResultPath": "$.arr", "Next": "MapState"}, "MapState": {"Type": "Map", "ResultPath": null, "InputPath": "$.arr", "MaxConcurrency": 1, "ItemProcessor": {"ProcessorConfig": {"Mode": "INLINE"}, "StartAt": "HandleItemFail", "States": {"HandleItemFail": {"Type": "Fail", "Error": "HandleItemFailError", "Cause": "HandleItemFailCause"}}}, "Catch": [{"ErrorEquals": ["HandleItemFailError"], "Next": "FinalCaught"}], "Next": "Final"}, "FinalCaught": {"Type": "Pass", "End": true}, "Final": {"Type": "Pass", "End": true}}},
+  "input": {},
+  "history": [
+    {"executionStartedEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "roleArn": "snf_role_arn"}, "id": 1, "previousEventId": 0, "timestamp": "timestamp", "type": "ExecutionStarted"},
+    {"id": 2, "previousEventId": 0, "stateEnteredEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "name": "StartState"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": 3, "previousEventId": 2, "stateExitedEventDetails": {"name": "StartState", "output": {"arr": [1]}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"id": 4, "previousEventId": 3, "stateEnteredEventDetails": {"input": {"arr": [1]}, "inputDetails": {"truncated": false}, "name": "MapState"}, "timestamp": "timestamp", "type": "MapStateEntered"},
+    {"id": 5, "mapStateStartedEventDetails": {"length": 1}, "previousEventId": 4, "timestamp": "timestamp", "type": "MapStateStarted"},
+    {"id": 6, "mapIterationStartedEventDetails": {"index": 0, "name": "MapState"}, "previousEventId": 5, "timestamp": "timestamp", "type": "MapIterationStarted"},
+    {"id": 7, "previousEventId": 6, "stateEnteredEventDetails": {"input": "1", "inputDetails": {"truncated": false}, "name": "HandleItemFail"}, "timestamp": "timestamp", "type": "FailStateEntered"},
+    {"id": 8, "mapIterationFailedEventDetails": {"index": 0, "name": "MapState"}, "previousEventId": 7, "timestamp": "timestamp", "type": "MapIterationFailed"},
+    {"id": 9, "previousEventId": 7, "timestamp": "timestamp", "type": "MapStateFailed"},
+    {"id": 10, "previousEventId": 9, "stateExitedEventDetails": {"name": "MapState", "output": {"Error": "HandleItemFailError", "Cause": "HandleItemFailCause"}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "MapStateExited"},
+    {"id": 11, "previousEventId": 10, "stateEnteredEventDetails": {"input": {"Error": "HandleItemFailError", "Cause": "HandleItemFailCause"}, "inputDetails": {"truncated": false}, "name": "FinalCaught"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": 12, "previousEventId": 11, "stateExitedEventDetails": {"name": "FinalCaught", "output": {"Error": "HandleItemFailError", "Cause": "HandleItemFailCause"}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"executionSucceededEventDetails": {"output": {"Error": "HandleItemFailError", "Cause": "HandleItemFailCause"}, "outputDetails": {"truncated": false}}, "id": 13, "previousEventId": 12, "timestamp": "timestamp", "type": "ExecutionSucceeded"}
+  ]
+}

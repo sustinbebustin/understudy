@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "item": "SSM-13",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ssm/SSM-13/01-it-small.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-13/02-it-large.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-13/03-describe.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-13/04-downgrade.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-13/05-overwrite-no-tier.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-13/06-it-small-on-advanced.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-13/07-describe-after.json",
+      "compare": "all"
+    }
+  ]
+}

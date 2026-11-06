@@ -1,0 +1,36 @@
+{
+  "step": "04-raw",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://dynamodb.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Host", "dynamodb.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T034504Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["X-Amz-Target", "DynamoDB_20120810.GetItem"],
+          ["Content-Length", "50"]
+        ],
+        "body": "{\"TableName\":\"us1103-enf-d\",\"Key\":{\"k\":{\"S\":\"a\"}}}"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 03:45:04 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "323"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-requestid", "HGILQ5UGG3ET1Q3FSTGU724B4RVV4KQNSO5AEMVJF66Q9ASUAAJG"],
+          ["x-amz-crc32", "813688441"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: dynamodb:GetItem on resource: arn:aws:dynamodb:us-east-2:123456789012:table/us1103-enf-d because no identity-based policy allows the dynamodb:GetItem action\"}"
+      }
+    }
+  ]
+}

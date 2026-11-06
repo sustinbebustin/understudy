@@ -1,0 +1,38 @@
+{
+  "step": "24-no-duration",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the PutObjectRetention operation: EventHold:ON must be supplied with an EventHoldDuration.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/e24?retention",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/W,E,Z,g,AN,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-retention"],
+          ["x-amz-checksum-crc64nvme", "HCdwk8Ocink="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034324Z"],
+          ["X-Amz-Content-SHA256", "3afc000144bc76014b48274a2e8f7d926045cb143bda3cab1981b5bb3942e0ff"],
+          ["amz-sdk-invocation-id", "d94c092b-6d6e-43ae-ba38-d06be8243f23"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "119"]
+        ],
+        "body": "<Retention xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Mode>GOVERNANCE</Mode><EventHold>ON</EventHold></Retention>"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "07BFX789XGN71999"],
+          ["x-amz-id-2", "ZwOiX1V0kccespKwwPlVTlyqVsfyRSd+LLldVQ9egJ44o/vuhhTNHUV9AUOYU5xhsaiJMK/wr7ad2bZjkcbOAOI281eZdMQy"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:43:24 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>EventHold:ON must be supplied with an EventHoldDuration.</Message><RequestId>07BFX789XGN71999</RequestId><HostId>ZwOiX1V0kccespKwwPlVTlyqVsfyRSd+LLldVQ9egJ44o/vuhhTNHUV9AUOYU5xhsaiJMK/wr7ad2bZjkcbOAOI281eZdMQy</HostId></Error>"
+      }
+    }
+  ]
+}

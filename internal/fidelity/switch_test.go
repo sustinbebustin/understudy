@@ -1,6 +1,7 @@
 package fidelity_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/evidence"
@@ -24,7 +25,7 @@ func TestEntryCarriesProvenanceAndFormattedValue(t *testing.T) {
 		Ref:    "docs/research/logs-filter-patterns.md#5",
 		Record: "R10/C1",
 	}
-	if got := s.Entry(); got != want {
+	if got := s.Entry(); !reflect.DeepEqual(got, want) {
 		t.Errorf("Entry() = %+v, want %+v", got, want)
 	}
 	n := fidelity.Switch[int]{Name: "sqs.max", Value: 10, Label: evidence.Inferred}

@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
@@ -24,8 +25,11 @@ func NewCatalogue(reg *registry.Registry, throttles map[ref.ServiceID]awserr.Ide
 	return Catalogue{reg: reg, throttles: throttles}
 }
 
-// Errors returns op's modeled and overlay errors plus the generic catalogue
-// of every protocol family its service speaks, without repeats.
+// Errors returns op's modeled and overlay errors plus the generic
+// vocabulary of every protocol family its service speaks, without repeats.
+// The vocabulary is the descriptor's GenericErrors, which carries the
+// service overlay's corrections (DynamoDB's AccessDeniedException is 400,
+// iam-enforcement-surfaces.md 3.2), else awserr.Catalogue.
 func (c Catalogue) Errors(op ref.OperationID) ([]awserr.Identity, bool) {
 	d, ok := c.reg.Operation(op)
 	if !ok {
@@ -39,7 +43,11 @@ func (c Catalogue) Errors(op ref.OperationID) ([]awserr.Identity, bool) {
 		}
 	}
 	for _, f := range families {
-		for _, id := range awserr.Catalogue(f) {
+		generic := awserr.Catalogue(f)
+		if d.Service.GenericErrors != nil {
+			generic = d.Service.GenericErrors(f)
+		}
+		for _, id := range generic {
 			if !slices.ContainsFunc(out, func(have awserr.Identity) bool { return have.Shape == id.Shape }) {
 				out = append(out, id)
 			}
@@ -59,4 +67,15 @@ func (c Catalogue) Throttle(svc ref.ServiceID) awserr.Identity {
 		return id
 	}
 	return awserr.ThrottlingException()
+}
+
+// NewMembers returns a new, empty value of error shape for op's service,
+// from the descriptor's generated NewErrorMembers, or false for an unknown
+// operation or a service without one.
+func (c Catalogue) NewMembers(op ref.OperationID, shape smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	d, ok := c.reg.Operation(op)
+	if !ok || d.Service.NewErrorMembers == nil {
+		return nil, false
+	}
+	return d.Service.NewErrorMembers(shape)
 }

@@ -48,7 +48,7 @@ func s3Client(opts ...func(*s3.Options)) *s3.Client {
 // empties and deletes it.
 func createBucket(t *testing.T, client *s3.Client) string {
 	t.Helper()
-	bucket := name("cf")
+	bucket := name(t, "cf")
 	_, err := client.CreateBucket(t.Context(), &s3.CreateBucketInput{Bucket: aws.String(bucket)})
 	ok(t, err, "CreateBucket "+bucket)
 	t.Cleanup(func() { deleteBucketFully(client, bucket) })
@@ -192,7 +192,7 @@ func TestS3Buckets(t *testing.T) {
 		ok(t, err, "re-creating an owned bucket in us-east-1 without tags (200 per s3.md 3.2)")
 
 		_, err = client.CreateBucket(ctx, &s3.CreateBucketInput{
-			Bucket:                    aws.String(name("cf")),
+			Bucket:                    aws.String(name(t, "cf")),
 			CreateBucketConfiguration: &types.CreateBucketConfiguration{LocationConstraint: types.BucketLocationConstraint("us-east-1")},
 		})
 		apiErr(t, err, "CreateBucket LocationConstraint us-east-1 in us-east-1", "InvalidLocationConstraint")
@@ -204,7 +204,7 @@ func TestS3Buckets(t *testing.T) {
 	})
 
 	t.Run("missing bucket", func(t *testing.T) {
-		missing := name("missing")
+		missing := name(t, "missing")
 		_, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(missing)})
 		errAs[*types.NotFound](t, err, "HeadBucket missing")
 		wantStatus(t, err, "HeadBucket missing", 404)
@@ -226,7 +226,7 @@ func TestS3Buckets(t *testing.T) {
 	})
 
 	t.Run("DeleteBucket", func(t *testing.T) {
-		b := name("cf")
+		b := name(t, "cf")
 		_, err := client.CreateBucket(ctx, &s3.CreateBucketInput{Bucket: aws.String(b)})
 		ok(t, err, "CreateBucket")
 		out, err := client.DeleteBucket(ctx, &s3.DeleteBucketInput{Bucket: aws.String(b)})
@@ -1033,7 +1033,7 @@ func TestS3Addressing(t *testing.T) {
 		if got := getBody(t, pathClient, bucket, "dir/key with space.txt"); got != "hello" {
 			t.Errorf("path-style read of a virtual-hosted write = %q, want hello", got)
 		}
-		_, err = client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(name("missing"))})
+		_, err = client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(name(t, "missing"))})
 		errAs[*types.NotFound](t, err, "virtual-hosted HeadBucket of a missing bucket")
 	})
 
@@ -1147,8 +1147,11 @@ func TestS3Notifications(t *testing.T) {
 	ctx := t.Context()
 	client := s3Client()
 	bucket := createBucket(t, client)
-	queueURL := createQueue(t, name("s3-events"), nil)
+	queueURL := createQueue(t, name(t, "s3-events"), nil)
 	arn := queueArn(t, queueURL)
+	// S3 delivers as s3.amazonaws.com with aws:SourceArn the bucket's ARN
+	// (iam-enforcement-surfaces.md 8.1).
+	allowQueueDelivery(t, queueURL, "s3.amazonaws.com", "arn:aws:s3:::"+bucket)
 
 	_, err := client.PutBucketNotificationConfiguration(ctx, &s3.PutBucketNotificationConfigurationInput{Bucket: aws.String(bucket), NotificationConfiguration: &types.NotificationConfiguration{
 		QueueConfigurations: []types.QueueConfiguration{{QueueArn: aws.String("not-an-arn"), Events: []types.Event{"s3:ObjectCreated:*"}}},

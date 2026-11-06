@@ -1,7 +1,11 @@
 package s3
 
 import (
+	"cmp"
+	"fmt"
 	"maps"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
@@ -14,8 +18,12 @@ import (
 
 // stateVersion is the schema version of Index and BucketCell in snapshot
 // sections. The subresource documents are the S3 model's own shapes, so a
-// model pin that changes one of them bumps it.
-const stateVersion = 1
+// model pin that changes one of them bumps it. Version 2 made Encryption a
+// tagged union with an SSE-C variant and added the per-version lock state
+// and the bucket's SSE-C block (s3-ssec-object-lock.md 11.2); until the
+// first tagged release a section of another version is refused, not
+// migrated (ARCHITECTURE.md 13).
+const stateVersion = 2
 
 // Index is the partition-wide bucket name index (ARCHITECTURE.md 8 rule 3):
 // every bucket's owner and home region, by name. Bucket names are global
@@ -131,13 +139,20 @@ type Bucket struct {
 	Lifecycle   *Lifecycle                      `json:"lifecycle,omitempty"`
 	Replication *s3api.ReplicationConfiguration `json:"replication,omitempty"`
 	// Encryption is nil for the default rule every bucket has: SSE-S3 with
-	// no bucket key (s3.md 4.1).
-	Encryption        *s3api.ServerSideEncryptionConfiguration `json:"encryption,omitempty"`
-	ObjectLock        *s3api.ObjectLockConfiguration           `json:"objectLock,omitempty"`
-	RequestPayment    *s3api.RequestPaymentConfiguration       `json:"requestPayment,omitempty"`
-	Accelerate        *s3api.AccelerateConfiguration           `json:"accelerate,omitempty"`
-	PublicAccessBlock *s3api.PublicAccessBlockConfiguration    `json:"publicAccessBlock,omitempty"`
-	Ownership         *s3api.OwnershipControls                 `json:"ownership,omitempty"`
+	// no bucket key (s3.md 4.1). A rule put is kept as sent but for its
+	// BlockedEncryptionTypes.
+	Encryption *s3api.ServerSideEncryptionConfiguration `json:"encryption,omitempty"`
+	// BlockedEncryption is the rule's BlockedEncryptionTypes, kept apart
+	// from Encryption so that a bucket without a rule still has one; a Put
+	// omitting it, or a Delete, puts back a new bucket's (switch
+	// s3.encryption.blocked-types-omitted). Its zero value, SSE-C blocked,
+	// is never written.
+	BlockedEncryption BlockedEncryption                     `json:"blockedEncryption,omitzero"`
+	ObjectLock        *s3api.ObjectLockConfiguration        `json:"objectLock,omitempty"`
+	RequestPayment    *s3api.RequestPaymentConfiguration    `json:"requestPayment,omitempty"`
+	Accelerate        *s3api.AccelerateConfiguration        `json:"accelerate,omitempty"`
+	PublicAccessBlock *s3api.PublicAccessBlockConfiguration `json:"publicAccessBlock,omitempty"`
+	Ownership         *s3api.OwnershipControls              `json:"ownership,omitempty"`
 	// Tags is the bucket's tag set, which the S3 tagging operations and the
 	// S3 Control tag operations share; empty is no tag set.
 	Tags         map[string]string                `json:"tags,omitempty"`
@@ -174,7 +189,8 @@ func bucketARN(name string) aws.ARN {
 // stateCodec is the snapshot codec of the index and the buckets, with the
 // S3 model's unions that subresource documents hold in the tagged-union
 // form. A table jsonx refuses is a bug in this file; the codec then fails
-// every Export and Import with that error.
+// every Export and Import with that error. A bucket it reads must pass
+// checkEncrypted, so Import refuses the section before changing anything.
 func stateCodec() store.Codec {
 	c, err := unionCodec()
 	if err != nil {
@@ -183,7 +199,53 @@ func stateCodec() store.Codec {
 			Unmarshal: func([]byte, any) error { return err },
 		}
 	}
-	return store.Codec{Marshal: c.Marshal, Unmarshal: c.Unmarshal}
+	return store.Codec{Marshal: c.Marshal, Unmarshal: func(data []byte, v any) error {
+		if err := c.Unmarshal(data, v); err != nil {
+			return err
+		}
+		if cell, ok := v.(*BucketCell); ok {
+			return cell.checkEncrypted()
+		}
+		return nil
+	}}
+}
+
+// checkEncrypted refuses a bucket holding an object version or an upload
+// without its encryption, which state never holds (Encryption): the union
+// reads a null or absent "encryption" as no variant at all.
+func (c *BucketCell) checkEncrypted() error {
+	b := c.Bucket
+	if b == nil {
+		return nil
+	}
+	for _, key := range slices.Sorted(maps.Keys(b.Objects.Keys)) {
+		for _, v := range b.Objects.Keys[key] {
+			if !v.marker() && v.Object.Encryption == nil {
+				return &MissingEncryptionError{Bucket: b.Name, Key: key, Holder: "version " + v.ID}
+			}
+		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(b.Uploads.ByID)) {
+		if u := b.Uploads.ByID[id]; u.Encryption == nil {
+			return &MissingEncryptionError{Bucket: b.Name, Key: u.Key, Holder: "upload " + id}
+		}
+	}
+	return nil
+}
+
+// MissingEncryptionError reports a snapshot's object version or upload
+// with no encryption. Every one this package writes has one, so the
+// snapshot was not written by it and is refused.
+type MissingEncryptionError struct {
+	Bucket string
+	Key    string
+	// Holder is what lacks it: "version <id>" or "upload <id>".
+	Holder string
+}
+
+func (e *MissingEncryptionError) Error() string {
+	return fmt.Sprintf("s3: %s of %s/%s has no encryption, which every object version and upload understudy writes holds, "+
+		"so the snapshot was not written by understudy and is refused; load a snapshot that understudy exported", e.Holder, e.Bucket, e.Key)
 }
 
 func unionCodec() (jsonx.Codec, error) {
@@ -204,7 +266,75 @@ func unionCodec() (jsonx.Codec, error) {
 	if err != nil {
 		return jsonx.Codec{}, err
 	}
-	return jsonx.NewCodec(metrics, analytics), nil
+	encryption, err := jsonx.NewUnion("s3.Encryption",
+		jsonx.Variant[Encryption, SSES3Encryption]("sse-s3"),
+		jsonx.Variant[Encryption, KMSEncryption]("sse-kms"),
+		jsonx.Variant[Encryption, CustomerEncryption]("sse-c"),
+	)
+	if err != nil {
+		return jsonx.Codec{}, err
+	}
+	return jsonx.NewCodec(metrics, analytics, encryption), nil
+}
+
+// textTable is the text each value of an enum held in state is written
+// as. A value missing from it has no text and fails to marshal, as a text
+// naming no value fails to unmarshal.
+type textTable[T cmp.Ordered] map[T]string
+
+func (t textTable[T]) marshal(typ string, v T) ([]byte, error) {
+	if text, ok := t[v]; ok {
+		return []byte(text), nil
+	}
+	return nil, &EnumTextError{Type: typ, Value: fmt.Sprint(v), Known: t.known()}
+}
+
+func (t textTable[T]) unmarshal(typ string, text []byte, v *T) error {
+	value, ok := t.value(string(text))
+	if !ok {
+		return &EnumTextError{Type: typ, Value: strconv.Quote(string(text)), Known: t.known()}
+	}
+	*v = value
+	return nil
+}
+
+// value is the value written as text; false when none is. Request parsers
+// read their headers with it, so a request and the state agree on the
+// texts.
+func (t textTable[T]) value(text string) (T, bool) {
+	for value, s := range t {
+		if s == text {
+			return value, true
+		}
+	}
+	var zero T
+	return zero, false
+}
+
+// known is the table's texts in value order.
+func (t textTable[T]) known() []string {
+	out := make([]string, 0, len(t))
+	for _, v := range slices.Sorted(maps.Keys(t)) {
+		out = append(out, t[v])
+	}
+	return out
+}
+
+// EnumTextError reports an enum held in state that cannot be written or
+// read: a value with no text, or a text naming no value. Either is a bug
+// in this package or a snapshot it did not write; the snapshot is refused.
+type EnumTextError struct {
+	// Type names the enum, such as "RetentionMode".
+	Type string
+	// Value is the value without a text, as a number, or the text naming
+	// none, quoted.
+	Value string
+	// Known are the enum's texts.
+	Known []string
+}
+
+func (e *EnumTextError) Error() string {
+	return fmt.Sprintf("s3: %s %s is not one of %s", e.Type, e.Value, strings.Join(e.Known, ", "))
 }
 
 // with returns a copy of m with key set to v; m is never changed.

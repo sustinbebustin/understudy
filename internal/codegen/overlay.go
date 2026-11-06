@@ -25,6 +25,8 @@ type overlayEntry struct {
 	replace bool
 	traits  Traits
 	shape   *Shape // set for a new shape; nil for an apply entry
+	// evidence is the entry's dev.understudy#evidence, parsed.
+	evidence []Evidence
 }
 
 // ParseOverlay reads an overlay. Every entry must carry
@@ -80,7 +82,7 @@ func parseEntry(key string, raw json.RawMessage, source string) (overlayEntry, e
 	if len(e.traits) == 0 {
 		return e, failf(StageOverlay, subject, "the entry applies no traits")
 	}
-	if err := checkOverlayTraits(subject, e); err != nil {
+	if e.evidence, err = checkOverlayTraits(subject, e); err != nil {
 		return e, err
 	}
 	return e, nil
@@ -124,18 +126,19 @@ func parseNewShape(key string, raw json.RawMessage, source, subject string) (ove
 }
 
 // checkOverlayTraits enforces mandatory evidence and the closed
-// dev.understudy set on an entry and on the members of a new shape.
-func checkOverlayTraits(subject string, e overlayEntry) error {
+// dev.understudy set on an entry and on the members of a new shape, and
+// returns the entry's evidence.
+func checkOverlayTraits(subject string, e overlayEntry) ([]Evidence, error) {
 	ev, ok := e.traits[utEvidence]
 	if !ok {
-		return failf(StageOverlay, subject, "has no %s; every overlay entry states its evidence {label, source, validated?}", utEvidence)
+		return nil, failf(StageOverlay, subject, "has no %s; every overlay entry states its evidence {label, source, validated?}", utEvidence)
 	}
 	items, err := parseEvidence(ev)
 	if err != nil {
-		return failf(StageOverlay, subject, "%s: %w", utEvidence, err)
+		return nil, failf(StageOverlay, subject, "%s: %w", utEvidence, err)
 	}
 	if err := checkCoverage(items, e.traits); err != nil {
-		return failf(StageOverlay, subject, "%s: %w", utEvidence, err)
+		return nil, failf(StageOverlay, subject, "%s: %w", utEvidence, err)
 	}
 	all := []Traits{e.traits}
 	if e.shape != nil {
@@ -149,17 +152,17 @@ func checkOverlayTraits(subject string, e overlayEntry) error {
 				continue
 			}
 			if _, known := understudyTraits()[id]; !known {
-				return failf(StageOverlay, subject, "%s is not a dev.understudy trait; the closed set is %v", id, slices.Sorted(maps.Keys(understudyTraits())))
+				return nil, failf(StageOverlay, subject, "%s is not a dev.understudy trait; the closed set is %v", id, slices.Sorted(maps.Keys(understudyTraits())))
 			}
 		}
 	}
 	if e.shape == nil && e.traits.Has(utInternalOperation) {
-		return failf(StageOverlay, subject, "%s marks an operation the overlay defines, not one the model has", utInternalOperation)
+		return nil, failf(StageOverlay, subject, "%s marks an operation the overlay defines, not one the model has", utInternalOperation)
 	}
 	if e.shape != nil && e.shape.Kind == KindOperation && !e.traits.Has(utInternalOperation) {
-		return failf(StageOverlay, subject, "defines an operation without %s; no service lists an overlay operation, so it would never be generated. Mark it internal, or leave modeled operations to the model", utInternalOperation)
+		return nil, failf(StageOverlay, subject, "defines an operation without %s; no service lists an overlay operation, so it would never be generated. Mark it internal, or leave modeled operations to the model", utInternalOperation)
 	}
-	return nil
+	return items, nil
 }
 
 // Merge applies o to m. A new shape must not exist yet; an apply entry's
@@ -178,6 +181,7 @@ func (m *Model) Merge(o *Overlay) error {
 				return failf(StageOverlay, subject, "redefines a shape from %s; use an apply entry to add traits to it", prev.Source)
 			}
 			m.Shapes[e.target] = e.shape
+			m.recordEvidence(e)
 			continue
 		}
 		target, ok := m.Shapes[e.target]
@@ -199,8 +203,24 @@ func (m *Model) Merge(o *Overlay) error {
 		if err := applyTraits(subject, traits, inherited, e); err != nil {
 			return err
 		}
+		m.recordEvidence(e)
 	}
 	return nil
+}
+
+// recordEvidence keeps, for each trait e applies, the items of e's evidence
+// covering it, replacing what an earlier entry recorded for that trait as
+// the trait's value was replaced.
+func (m *Model) recordEvidence(e overlayEntry) {
+	at := string(e.target)
+	if e.member != "" {
+		at += "$" + e.member
+	}
+	for _, id := range e.traits.IDs() {
+		if id != utEvidence {
+			m.evidence[appliedTrait{at: at, trait: id}] = covering(e.evidence, id)
+		}
+	}
 }
 
 // traitSource is a trait set an apply entry is checked against, and the
@@ -282,6 +302,9 @@ func shapeSite(s *Shape) site {
 		}
 		if s.Type == smithy.TypeString {
 			out |= siteStringShape
+		}
+		if s.Type == smithy.TypeEnum {
+			out |= siteEnumShape
 		}
 	}
 	return out

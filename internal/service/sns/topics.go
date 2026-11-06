@@ -14,19 +14,56 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-// bindTopics binds the topic control plane.
+// bindTopics binds the topic control plane. SetTopicAttributes's note is
+// sns-http-delivery.md 8.1's text. Of the http defaults in DeliveryPolicy,
+// defaultHealthyRetryPolicy, defaultThrottlePolicy and defaultRequestPolicy
+// apply; disableSubscriptionOverrides and defaultSicklyRetryPolicy are
+// stored and echoed, never applied, since what AWS does with them is
+// UNVERIFIED (6.2, SNSH-18, SNSH-19), and the 3,600-second total retry
+// time is not checked (httpRetryPolicy).
 func (s *Service) bindTopics(b snsapi.Binder) {
 	b.CreateTopic(s.createTopic, registry.Full{},
 		kernel.WithResources(func(c *kernel.Call, in *snsapi.CreateTopicInput) []aws.ARN {
 			return []aws.ARN{topicRef{scope: c.Scope(), name: in.Name}.arn()}
+		}),
+		// iam:PassRole applies to each delivery-status role the attributes
+		// pass, on which the access record keeps it; sns:TagResource only to
+		// a topic created with tags; sns:PutDataProtectionPolicy never,
+		// since a DataProtectionPolicy is refused (iam-enforcement-surfaces.md
+		// 10.2, 10.4).
+		kernel.WithResources(func(_ *kernel.Call, in *snsapi.CreateTopicInput) []aws.ARN { return feedbackRoles(in.Attributes) }),
+		kernel.WithActions(func(_ *kernel.Call, in *snsapi.CreateTopicInput) []registry.IAMAction {
+			if len(in.Tags) == 0 {
+				return nil
+			}
+			return []registry.IAMAction{{Prefix: "sns", Name: "TagResource"}}
 		}))
 	b.DeleteTopic(s.deleteTopic, registry.Full{},
 		arnResource(func(in *snsapi.DeleteTopicInput) string { return in.TopicArn }))
 	b.GetTopicAttributes(s.getTopicAttributes, registry.Full{},
 		arnResource(func(in *snsapi.GetTopicAttributesInput) string { return in.TopicArn }))
-	b.SetTopicAttributes(s.setTopicAttributes, registry.Partial{Note: "Policy, DeliveryPolicy, KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never enforced"},
+	b.SetTopicAttributes(s.setTopicAttributes, registry.Partial{Note: "Policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
+		"KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never applied; " +
+		"the http defaults in DeliveryPolicy apply to http and https subscriptions"},
 		arnResource(func(in *snsapi.SetTopicAttributesInput) string { return in.TopicArn }))
 	b.ListTopics(s.listTopics, registry.Full{})
+}
+
+// feedbackRoles are the IAM roles the delivery-status attributes pass, in
+// attribute-name order; a value that is not an IAM ARN passes none.
+func feedbackRoles(attributes map[string]string) []aws.ARN {
+	var out []aws.ARN
+	for _, name := range slices.Sorted(maps.Keys(attributes)) {
+		for _, p := range feedbackProtocols() {
+			if name != p+"SuccessFeedbackRoleArn" && name != p+"FailureFeedbackRoleArn" {
+				continue
+			}
+			if a, err := aws.ParseARN(attributes[name]); err == nil && a.Service == "iam" && !slices.Contains(out, a) {
+				out = append(out, a)
+			}
+		}
+	}
+	return out
 }
 
 // arnResource names the topic or subscription an input's ARN member

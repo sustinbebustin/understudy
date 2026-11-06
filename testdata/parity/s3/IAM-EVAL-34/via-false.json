@@ -1,0 +1,44 @@
+{
+  "step": "via-false",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-eval-via-123456789012.s3.us-east-2.amazonaws.com/k",
+        "headers": [
+          ["x-amz-server-side-encryption", "aws:kms"],
+          ["x-amz-server-side-encryption-aws-kms-key-id", "arn:aws:kms:us-east-2:123456789012:key/e962f3e0-e791-4b09-a1a5-018e6f94f99f"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,b,E,W,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "0"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T164554Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "60197d3e-7332-4b40-bf52-149b91208509"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "fsaWkh1vlePIvnR+ZAsicwQjmlCDQJt1d8rlkzFZNJ9AC2/jXj/UlkEunMRVdkRKFCQvr3oC8LiD1zZHyzbl5c0KHVzfTaR6"],
+          ["x-amz-request-id", "XK9CDTJCPFGP132Q"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 16:45:56 GMT"],
+          ["x-amz-server-side-encryption", "aws:kms"],
+          ["x-amz-server-side-encryption-aws-kms-key-id", "arn:aws:kms:us-east-2:123456789012:key/e962f3e0-e791-4b09-a1a5-018e6f94f99f"],
+          ["ETag", "\"5e98b54179afed255a497a4e17ec3609\""],
+          ["x-amz-checksum-crc64nvme", "AAAAAAAAAAA="],
+          ["x-amz-checksum-type", "FULL_OBJECT"],
+          ["Content-Length", "0"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

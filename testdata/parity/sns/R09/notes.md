@@ -7,7 +7,7 @@
 
 ## Expected
 
-Compared against understudy built from /home/austin/dev/local-aws-stack on 2026-10-14, replaying a copy of r09.py and the r09.sh kit steps through scripts/sealed (account 123456789012). Paths are repo-relative.
+Compared against understudy built on 2026-10-14, replaying a copy of r09.py and the r09.sh kit steps through scripts/sealed (account 123456789012). Paths are repo-relative.
 
 - T01 (row 1, bare 100 vs Number 100): matches (delivered)
 - T02 (row 2, numeric = 100 vs Number 100.0): matches (delivered)

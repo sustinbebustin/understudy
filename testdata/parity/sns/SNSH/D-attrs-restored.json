@@ -1,0 +1,33 @@
+{
+  "step": "D-attrs-restored",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sns.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,b,g,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sns.get-subscription-attributes"],
+          ["X-Amz-Date", "20261103T170933Z"],
+          ["amz-sdk-invocation-id", "6abe1941-8a06-4357-844e-ff35bd1d3786"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "165"]
+        ],
+        "body": "Action=GetSubscriptionAttributes&Version=2010-03-31&SubscriptionArn=arn%3Aaws%3Asns%3Aus-east-2%3A123456789012%3Aus1103-snsh-d%3A5ab3db84-8c58-4967-b8e5-d717e86fb4a1"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "fda18f03-51aa-5910-83a8-ec6746275d7c"],
+          ["Date", "Tue, 03 Nov 2026 17:09:33 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "1982"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "<GetSubscriptionAttributesResponse xmlns=\"http://sns.amazonaws.com/doc/2010-03-31/\">\n  <GetSubscriptionAttributesResult>\n    <Attributes>\n      <entry>\n        <key>SubscriptionPrincipal</key>\n        <value>arn:aws:iam::123456789012:role/managed/AccountFullAccessRole</value>\n      </entry>\n      <entry>\n        <key>Owner</key>\n        <value>123456789012</value>\n      </entry>\n      <entry>\n        <key>RawMessageDelivery</key>\n        <value>false</value>\n      </entry>\n      <entry>\n        <key>TopicArn</key>\n        <value>arn:aws:sns:us-east-2:123456789012:us1103-snsh-d</value>\n      </entry>\n      <entry>\n        <key>Endpoint</key>\n        <value>https://vz3psz4tmkxmxkgmjauplxjx5e0onbnf.lambda-url.us-east-2.on.aws/auto/restore</value>\n      </entry>\n      <entry>\n        <key>EffectiveDeliveryPolicy</key>\n        <value>{&quot;healthyRetryPolicy&quot;:{&quot;minDelayTarget&quot;:20,&quot;maxDelayTarget&quot;:20,&quot;numRetries&quot;:3,&quot;numMaxDelayRetries&quot;:0,&quot;numNoDelayRetries&quot;:0,&quot;numMinDelayRetries&quot;:0,&quot;backoffFunction&quot;:&quot;linear&quot;},&quot;sicklyRetryPolicy&quot;:null,&quot;throttlePolicy&quot;:null,&quot;requestPolicy&quot;:{&quot;headerContentType&quot;:&quot;text/plain; charset=UTF-8&quot;},&quot;guaranteed&quot;:false}</value>\n      </entry>\n      <entry>\n        <key>Protocol</key>\n        <value>https</value>\n      </entry>\n      <entry>\n        <key>PendingConfirmation</key>\n        <value>false</value>\n      </entry>\n      <entry>\n        <key>ConfirmationWasAuthenticated</key>\n        <value>false</value>\n      </entry>\n      <entry>\n        <key>SubscriptionArn</key>\n        <value>arn:aws:sns:us-east-2:123456789012:us1103-snsh-d:5ab3db84-8c58-4967-b8e5-d717e86fb4a1</value>\n      </entry>\n    </Attributes>\n  </GetSubscriptionAttributesResult>\n  <ResponseMetadata>\n    <RequestId>fda18f03-51aa-5910-83a8-ec6746275d7c</RequestId>\n  </ResponseMetadata>\n</GetSubscriptionAttributesResponse>\n"
+      }
+    }
+  ]
+}

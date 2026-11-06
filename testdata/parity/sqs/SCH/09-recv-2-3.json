@@ -1,0 +1,35 @@
+{
+  "step": "09-recv-2-3",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.ReceiveMessage"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,E,Z,b,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.receive-message"],
+          ["X-Amz-Date", "20261103T175759Z"],
+          ["amz-sdk-invocation-id", "156ddc44-70d1-4584-8238-64c5a87696c3"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "186"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-sch\", \"AttributeNames\": [\"All\"], \"MessageAttributeNames\": [\"All\"], \"MaxNumberOfMessages\": 10, \"WaitTimeSeconds\": 10}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "815a7bfd-7fb3-5465-9b5e-18995d542328"],
+          ["Date", "Tue, 03 Nov 2026 17:57:59 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "4150"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"Messages\":[{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA3A:4c824c9b0db83dc282e9a9c50beb54e3\",\"ApproximateFirstReceiveTimestamp\":\"1793728679202\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793727959762\"},\"Body\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-w3 2026-11-03T17:43:19Z 1\",\"MD5OfBody\":\"16b2f0cdbfc3d24854faa71d92690b6f\",\"MessageId\":\"1fe592f8-7cd5-4b12-b0ac-4bf5375e1db9\",\"ReceiptHandle\":\"AQEBrKMISF050SwYZpVJE77V9iJkyMInJ0M0JBuJ7PXF/4w86Ds+v7LeEkQ+7fcAguoCrXrCQrcswGjsu+C7lPpFfJ8VxGzmmXsJQw7l/tAxCf64XHi1J/Fl7mexk4i0wa3WpyX8Cq+TUfiuLJx1q9hapP9SnQKTiSUoJwI1xhes6UJ7rUhcZEZhySNuGSLpGkIQDwVFTeri/IrnGwB8NNYegCKMVvOFhy9cnXNtTj9aOS2cmci2BLvohBt52RuL/anPfA9uXI20Frxj1SEj5Rw5aSYtURnKadV2D0ZWFixoiTJBp+IR5S5zFIjW+LhVwL1GJioLJzL6vOWK69sbvvDFXkkmKkyYn2eQWbOWud3t2j6Dh50nXxSmJg/Cm2cCZtMybA/oUYK7uAlT4JrZT1aPZw==\"},{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA3A:4c824c9b0db83dc282e9a9c50beb54e3\",\"ApproximateFirstReceiveTimestamp\":\"1793728679204\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793728186546\"},\"Body\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-w1 2026-11-03T17:49:18Z 1\",\"MD5OfBody\":\"bb328ba6c9f082a8545d6830a43cb890\",\"MessageId\":\"51fb3695-a54f-43a8-97cb-dca4dbef65ed\",\"ReceiptHandle\":\"AQEB6pX3KNrdUOrlGcAtK2zbKQk/0wZuCRoBflWVL0itty8xWkFH/wLUxp3cF5igzm86852O3zGqcU9IIdcCau8qXNSNxdPZ7QS/tJN5/4MRw0BEeN7KMkABPxeEuvYHWL75vq2d4wbd7C6WVHM01CPZpDdin85f6F9limNuyJLccO6YxMUR0TWzm0zKYNE9QQbnMQahDxWnYlnUpWTEqdAuthXmA5KQ1R9HdcfAZxE1yegTUDuafYFbiaQULf169yotEgqA6BLDp1R0LPn7L/+um19ImU824kuNJfj3TqA/Y29VqURIE0I5AmyUtvkrpOhRbQXY8/alN8rNnzWGgl1lHDsi9DIdhfA65W/5veikjgvLtivMcwtEAYxSrw9XYRVONJ+I1aUV0tmKZ+JYOTnDOA==\"},{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA3A:4c824c9b0db83dc282e9a9c50beb54e3\",\"ApproximateFirstReceiveTimestamp\":\"1793728679204\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793728264617\"},\"Body\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-w4 2026-11-03T17:47:19Z 1\",\"MD5OfBody\":\"4feb67ff50282f5e0f5eb4f16b178d5a\",\"MessageId\":\"e51339be-e45b-4dff-82b9-7baa07d82562\",\"ReceiptHandle\":\"AQEBWB4P4Vmv+DONGQL1ri3omRJRCPCVcZifhcyHR3fkDps8arge87os4SM6+EnITx3mWqanwhoSJo0mLw6j/n/ISFX0+dtqOQT/Vlh8RnJHfFBfFdJ/eEjW37oSX0YioHmtYBVj9nG5i/jFMTrQfQHaojP2Be6mbFg3e5RMq81QxQiOgjbhe6Dvda+335wnB4su1V3x0Sd2dbsH6KrdLhYpD/lf94yHtGe/qSgrxgqITGH8KGACCE/Asiz2ocrQh39GKHh3gcSnO4cB6Rqk19YE67rwcKMIfUHzkkXOl4akStCubnyl8vdjpFccnGmyh4UVsSx2jiq6/IdjPxhmQ3bsDsJO3CVDBGqlLp+BKvVX2fx6d/qg88X6O5F8jqcQTev/qSfKL9kAT7ev8athooUt1g==\"},{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA3A:4c824c9b0db83dc282e9a9c50beb54e3\",\"ApproximateFirstReceiveTimestamp\":\"1793728679204\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793728364044\"},\"Body\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-wf3 2026-11-03T17:48:21Z 1\",\"MD5OfBody\":\"0069ac4ef77e2259fec206bf88cae5de\",\"MessageId\":\"6c66f75f-35ce-447b-8db2-2e622920f4ec\",\"ReceiptHandle\":\"AQEBCeAJIs9eTC86Jh33cbY93UwKq8C2jkRzqNLAt7MRaFChTMQ7m5YZAhJgeUNH+a6HoLUXBr0zzCjZjgsaPiOZE5lJfTKmvMePBHrMyhfFlR9BiijA+0hD1Y6i0h+AZ37bxT7LAK1NL+bjal0UBW+pwXS7i5sXGcet1KkUWI1QxyMq8X8gZW4ac4X1cs3ZQsiB8hlvOZw1z7UVOnM+p74PWkgNRstdy1YdiFyRKUjb35LPRN9EN0m8Lme/LzBmZjJKYiCb6o3YEjrgj/PsYjaTJPf/a2YK8m5dO9cLUVO3p1J6h545LWOtcgcdb674kSNe0Iqk3Mx1sf+AfIbXa33Cuwi3lOsHCDXxc9upHbXETDON40hvesIC5meUyVBuEsI7TbHJ6WbtXUj3aMhH5Dcbzg==\"},{\"Attributes\":{\"SenderId\":\"AROARZPUZDIKAAAAAAA3A:4c824c9b0db83dc282e9a9c50beb54e3\",\"ApproximateFirstReceiveTimestamp\":\"1793728679204\",\"ApproximateReceiveCount\":\"1\",\"SentTimestamp\":\"1793728415932\"},\"Body\":\"arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-w1 2026-11-03T17:52:55Z 1\",\"MD5OfBody\":\"dabf1d2294659f80157663b8d819a094\",\"MessageId\":\"579f6bdc-06d4-4cb8-991b-f79f380e9631\",\"ReceiptHandle\":\"AQEBcu8ug58+KIVNv9NO4hU2Y316a9RzAdchBsmY3zsSdmpMZtzka40omD2U+TCIYijAy6KEntJ6I0eHahafDDzaOqZjORQ7hv5WqcypeSA20sDJ70HUBab1Q0KH9IUcOJ/Fxw2H+4ROC5buImcZW26D97GKRA6WdLfKieQqrh+3GtqMQE4jEGldyaGkqGKa++/I/wBjq0XZgph6XGv4l3HXKXk2IBvyQFc1ChJKSfyuj0re38U9fH/CMfy36SeHNy+x6dVBHbmT3nuLdXpDzLrclt2lcItbtwZD/jZf2JxOR6np/CRfvA/AOFVfbf/dX6hEjkAKvF8YLHxgqVB70flAYTUMEVs3RukztxHwo+Dwp1BZ7IMxO2bleyePCyS9CARB12qfXz8oIy5G20vMV8Gr3g==\"}]}"
+      }
+    }
+  ]
+}

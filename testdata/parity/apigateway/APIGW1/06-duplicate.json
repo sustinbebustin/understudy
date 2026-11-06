@@ -1,0 +1,37 @@
+{
+  "step": "06-duplicate",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ConflictException) when calling the CreateStage operation: Stage already exists",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/stages",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,E,b,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.create-stage"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T163906Z"],
+          ["amz-sdk-invocation-id", "59439f4b-1496-4af0-9906-6e8b9a0fee0b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "45"]
+        ],
+        "body": "{\"stageName\": \"s1\", \"deploymentId\": \"m1dpon\"}"
+      },
+      "response": {
+        "status": 409,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:39:06 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "35"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "74e7a801-8db6-4aa1-9e49-46895839f07c"],
+          ["x-amzn-ErrorType", "ConflictException"],
+          ["x-amz-apigw-id", "GRcmtKbwiYcEcgg="]
+        ],
+        "body": "{\"message\":\"Stage already exists\"}\n"
+      }
+    }
+  ]
+}

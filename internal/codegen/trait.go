@@ -88,7 +88,7 @@ func Classify(id string) (Class, bool) {
 	return 0, false
 }
 
-// traitClasses is the closed table of every trait id the twelve vendored
+// traitClasses is the closed table of every trait id the vendored
 // models and the protocol compliance corpus use. Some honored traits have
 // no runtime descriptor field and are honored by hand where they act:
 // idempotencyToken by the services (they deduplicate), eventPayload by the
@@ -169,6 +169,7 @@ func traitClasses() map[string]Class {
 		"aws.iam#defineConditionKeys":          GenerationOnly,
 		"aws.iam#disableConditionKeyInference": GenerationOnly,
 		"aws.iam#supportedPrincipalTypes":      GenerationOnly,
+		"aws.iam#requiredActions":              GenerationOnly,
 
 		// Traits only the protocol compliance corpus uses. eventHeader and
 		// httpChecksumRequired are honored by hand like eventPayload and
@@ -203,6 +204,11 @@ func traitClasses() map[string]Class {
 		"smithy.api#tags":                  Ignore,
 		"smithy.api#suppress":              Ignore,
 		"smithy.api#title":                 Ignore,
+
+		// CloudFormation resource-schema metadata (Scheduler); nothing on
+		// the wire.
+		"aws.cloudformation#cfnResource":        Ignore,
+		"aws.cloudformation#cfnExcludeProperty": Ignore,
 	}
 }
 

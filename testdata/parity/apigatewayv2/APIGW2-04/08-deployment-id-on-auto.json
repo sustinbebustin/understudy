@@ -1,0 +1,39 @@
+{
+  "step": "08-deployment-id-on-auto",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (BadRequestException) when calling the UpdateStage operation: Deployment ID cannot be set on this stage 123456789012:un8cw1i7c9 because AutoDeploy is enabled.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PATCH",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/un8cw1i7c9/stages/auto",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,AN,E,b,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.update-stage"],
+          ["X-Amz-Date", "20261103T164425Z"],
+          ["amz-sdk-invocation-id", "98fce5ae-ef6d-46a4-a41a-cc79834fda80"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "26"]
+        ],
+        "body": "{\"deploymentId\": \"m7zack\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:44:25 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "116"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "86bb8cca-234a-4a8a-9f60-b76d64ae208f"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "BadRequestException"],
+          ["x-amz-apigw-id", "GRdYmF8ACYcEWOQ="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f69-493b54bf1bdf886318dc7da7"]
+        ],
+        "body": "{\n  \"message\" : \"Deployment ID cannot be set on this stage 123456789012:un8cw1i7c9 because AutoDeploy is enabled.\"\n}"
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "item": "SSM-15",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ssm/SSM-15/01-partial-run.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "ssm/SSM-15/04-invalid.json",
+      "compare": "all"
+    }
+  ]
+}

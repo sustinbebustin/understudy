@@ -5,6 +5,7 @@
       "type": "apply",
       "traits": {
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
+        "dev.understudy#denialError": "com.amazon.coral.service#AccessDenied",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#queryErrorEnvelope": {"namespace": true},
         "dev.understudy#evidence": [
@@ -12,6 +13,12 @@
             "label": "aws-doc",
             "source": "https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html",
             "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/iam/IAM-ENF/10-get-role.json: an IAM denial answers 403 with Type Sender and Code AccessDenied in the IAM namespace envelope; the CommonErrors page's AccessDeniedException is a template (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch iam.denial.identity)",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#denialError"]
           },
           {
             "label": "sdk-source",

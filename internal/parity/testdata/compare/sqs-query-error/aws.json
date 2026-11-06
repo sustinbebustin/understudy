@@ -1,0 +1,21 @@
+{
+  "step": "aws",
+  "client": "aws-cli",
+  "exit": 254,
+  "note": "the response shape of sqs/R01/05-cmv-deleted, the message shortened: awsJson SQS names the awsQuery error code in x-amzn-query-error",
+  "exchanges": [
+    {
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "77a40e7f-fe26-5608-bee1-6d36ddc77e86"],
+          ["x-amzn-query-error", "InvalidParameterValue;Sender"],
+          ["Date", "Wed, 14 Oct 2026 06:30:57 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "105"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#InvalidParameterValueException\",\"message\":\"Value x for parameter ReceiptHandle is invalid.\"}"
+      }
+    }
+  ]
+}

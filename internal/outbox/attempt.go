@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
@@ -11,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -22,7 +24,8 @@ import (
 // entry (Entry.Running), evaluates the Delivery-phase fault rules and hands
 // the attempt due at due to tracked work, which Settle counts until it
 // ends. A timer whose entry is gone, rescheduled or already being attempted
-// is stale and does nothing.
+// is stale and does nothing. An attempt its subscription's throttle paces
+// is re-armed for the instant the throttle allows instead (pacer).
 //
 // The clock dispatches timers one at a time in firing order, and the
 // outbox keeps that order: the Delivery-phase rules are evaluated here, and
@@ -31,11 +34,13 @@ import (
 // spend a NextN budget, draw from a seeded Probability stream and draw
 // seeded ids in that order, in both fault phases, not in the order
 // goroutines happen to run. An attempt that would hold the sequencer for
-// wall time runs on its own goroutine instead (attempt.blocks).
+// wall time runs on its own goroutine instead (attempt.blocks), or, for a
+// throttled subscription, on that subscription's sequencer (pacer).
 //
 // The claim is a plain cell update, not a kernel.Write: it has no effects,
 // and Write would create the cell of a scope a reset just dropped. It
-// leaves the revision alone, since Running is never saved.
+// leaves the revision alone, since Running is never saved. A paced
+// attempt's re-arm is a plain update too, like Enqueue's arm.
 func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant) {
 	scope, id, ok := parseTimerID(key.ID)
 	if !ok {
@@ -46,11 +51,23 @@ func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant
 	if !ok {
 		return
 	}
+	var throttled *sequencer
 	entry := store.Update(cell, func(st *State) (*Entry, bool) {
 		en, ok := st.Entries[id]
 		if cell.Retired() || !ok || en.Running || en.NextAt.Compare(due) != 0 {
 			return nil, false
 		}
+		rearm, paced, ready := e.pace.admit(&en, due)
+		if paced {
+			// Re-armed under the cell lock, as Enqueue arms, its attempt
+			// number unchanged: a paced attempt is not made, so it spends
+			// no retry and no fault rule's budget.
+			en.NextAt = rearm
+			st.Entries[id] = en
+			e.k.Timers().Scheduler().Arm(key, rearm)
+			return nil, true
+		}
+		throttled = ready
 		en.Running = true
 		st.Entries[id] = en
 		return &en, false
@@ -59,11 +76,14 @@ func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant
 		return
 	}
 	a := &attempt{e: e, c: c, cell: cell, scope: scope, entry: *entry, due: due, decision: e.evaluateFaults(scope, entry)}
-	if a.blocks() {
+	switch {
+	case throttled != nil:
+		e.sequence(throttled, a)
+	case a.blocks():
 		e.k.Go(kernel.DeliveryAttempt, a.do)
-		return
+	default:
+		e.sequence(&e.ready, a)
 	}
-	e.sequence(a)
 }
 
 // evaluateFaults returns the Delivery-phase fault decision for the attempt
@@ -73,11 +93,14 @@ func (e *engine) evaluateFaults(scope aws.Scope, en *Entry) fault.Decision {
 		return fault.None{}
 	}
 	req := en.Request
-	target, _ := targetARN(req.Target)
+	var touched []aws.ARN
+	if to := deliveredTo(req); to != (aws.ARN{}) {
+		touched = []aws.ARN{to}
+	}
 	return e.faults.Evaluate(fault.DeliveryAttempt, fault.MatchInput{
 		Service:   req.Mechanism.Target(),
 		Mechanism: req.Mechanism,
-		Touched:   []aws.ARN{target},
+		Touched:   touched,
 		Scope:     scope,
 		Origin:    ref.Internal{Via: req.Mechanism.Via()},
 	})
@@ -97,18 +120,38 @@ type attempt struct {
 	entry    Entry
 	due      clock.Instant
 	decision fault.Decision
+	// took is the wall time an HTTP attempt's exchange took through egress:
+	// 0 for an injected answer. exchange is the HTTP attempt's account for
+	// its Delivery event, nil for every other attempt and for one a rule
+	// dropped.
+	took     time.Duration
+	exchange *journal.HTTPExchange
 }
 
 // blocks reports whether the attempt would hold the sequencer for wall
-// time: a Delivery-phase latency rule holds it, or it invokes a function
-// synchronously, which waits for the function to run. Such an attempt runs
-// on its own goroutine, so its target call is not ordered with the others.
+// time: a Delivery-phase latency rule holds it, it invokes a function
+// synchronously, which waits for the function to run, or it posts to an
+// HTTP endpoint, which waits on the network. Such an attempt runs on its
+// own goroutine, so its target call is not ordered with the others. One a
+// rule drops, or answers in place of its HTTP endpoint, makes no target
+// call, so it stays on the sequencer, and its dead letter keeps the firing
+// order.
 func (a *attempt) blocks() bool {
-	if _, delayed := a.decision.(fault.Delay); delayed {
+	switch a.decision.(type) {
+	case fault.Delay:
 		return true
+	case fault.Drop, fault.RespondHTTP, fault.TimeOutHTTP:
+		return false
+	case fault.None, fault.Fail, fault.FailAfterCommit, fault.FailStatusOK, nil:
 	}
-	f, ok := a.entry.Request.Target.(delivery.LambdaFunction)
-	return ok && f.Invocation == delivery.InvocationRequestResponse
+	switch t := a.entry.Request.Target.(type) {
+	case delivery.LambdaFunction:
+		return t.Invocation == delivery.InvocationRequestResponse
+	case delivery.HTTPEndpoint:
+		return true
+	case delivery.SQSQueue, delivery.SNSTopic, delivery.EventBus, delivery.S3Object, delivery.StateMachine:
+	}
+	return false
 }
 
 // do makes the attempt and records its outcome.
@@ -118,8 +161,51 @@ func (a *attempt) do(ctx context.Context) {
 	// attempt the delivery again.
 	defer a.release()
 	if outcome, ok := a.run(ctx); ok {
-		a.finish(ctx, outcome)
+		a.finish(ctx, a.counted(outcome))
 	}
+}
+
+// counted is outcome with, for a Lambda delivery that ends undelivered, the
+// metric AWS counts it in: DestinationDeliveryFailures for a destination
+// record (lambda-destinations-layers.md 4.6), DeadLetterErrors for a dead
+// letter, whose event Lambda then deletes (5.4). A Lambda delivery makes
+// one attempt and has no dead-letter queue (checkSender), so every such
+// outcome is Dropped.
+func (a *attempt) counted(outcome journal.DeliveryOutcome) journal.DeliveryOutcome {
+	s := a.entry.Request.Sender
+	d, dropped := outcome.(journal.Dropped)
+	if s == nil || !dropped {
+		return outcome
+	}
+	switch s.Carries {
+	case delivery.DestinationRecord:
+		d.Reason += "; Lambda counts it in " + s.Carries.Metric()
+	case delivery.DeadLetter:
+		d.Reason += "; Lambda deletes the event and counts it in " + s.Carries.Metric()
+	}
+	return d
+}
+
+// fifoRefusal is why Lambda does not make a's target call: the target is a
+// FIFO queue or topic, which Lambda never delivers a record or dead letter
+// to (lambda-destinations-layers.md 2.2, 5.1, 11.3.6); false for any other
+// delivery.
+func (a *attempt) fifoRefusal() (string, bool) {
+	if a.entry.Request.Sender == nil {
+		return "", false
+	}
+	switch t := a.entry.Request.Target.(type) {
+	case delivery.SQSQueue:
+		if isFIFO(t.ARN) {
+			return t.ARN.String() + " is a FIFO queue, which Lambda does not deliver to (lambda-destinations-layers.md 2.2, 5.1)", true
+		}
+	case delivery.SNSTopic:
+		if isFIFO(t.ARN) {
+			return t.ARN.String() + " is a FIFO topic, which Lambda does not deliver to (lambda-destinations-layers.md 2.2, 5.1)", true
+		}
+	case delivery.LambdaFunction, delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
+	}
+	return "", false
 }
 
 // release ends the attempt's claim on its entry if it still holds it: the
@@ -154,8 +240,55 @@ func (a *attempt) run(ctx context.Context) (journal.DeliveryOutcome, bool) {
 	if outcome, decided, ok := a.faults(ctx); !ok || decided {
 		return outcome, ok
 	}
+	if reason, refused := a.fifoRefusal(); refused {
+		return journal.Dropped{Reason: reason}, true
+	}
 	a.advise(ctx)
-	err := a.send(ctx, a.entry.Request.Target)
+	if outcome, ok, done := a.authorizeInvocation(ctx); done {
+		return outcome, ok
+	}
+	return a.send(ctx, rendered(a.entry.Request, a.entry.Attempt+1))
+}
+
+// rendered is req's target as attempt number attempt sends it: a Scheduler
+// delivery's payload rendered from its invocation, whose
+// <aws.scheduler.attempt-number> counts this attempt (scheduler.md 6.3,
+// 14.4.2), and any other target unchanged. An EventBus target carries one
+// entry (checkEventBus), whose Detail is the payload.
+func rendered(req delivery.Request, attempt int) delivery.Target {
+	inv := req.Invocation
+	if inv == nil {
+		return req.Target
+	}
+	payload := inv.Payload(attempt)
+	switch t := req.Target.(type) {
+	case delivery.SQSQueue:
+		t.Body = payload
+		return t
+	case delivery.LambdaFunction:
+		t.Event = []byte(payload)
+		return t
+	case delivery.SNSTopic:
+		t.Message = payload
+		return t
+	case delivery.EventBus:
+		entries := slices.Clone(t.Entries)
+		for i := range entries {
+			entries[i].Detail = payload
+		}
+		t.Entries = entries
+		return t
+	case delivery.StateMachine:
+		t.Input = payload
+		return t
+	case delivery.S3Object, delivery.HTTPEndpoint:
+	}
+	return req.Target
+}
+
+// end is the outcome of an attempt whose target call answered err, nil
+// when it delivered; false when the kernel stopped first.
+func (a *attempt) end(ctx context.Context, err *awserr.Error) (journal.DeliveryOutcome, bool) {
 	if ctx.Err() != nil {
 		return nil, false
 	}
@@ -164,19 +297,83 @@ func (a *attempt) run(ctx context.Context) (journal.DeliveryOutcome, bool) {
 		return journal.Delivered{}, true
 	case unimplemented(err):
 		return journal.Dropped{Reason: describe(err)}, true
+	case denied(err):
+		// A refusal by the target's policy is a client-side error, whatever
+		// status the target's denial identity carries: SNS does not retry
+		// it and EventBridge sends it straight to the dead-letter queue
+		// (iam-enforcement-surfaces.md 8.2, 8.4, aws-doc).
+		return a.permanent(ctx, targetError{err: err})
 	case retryable(err.ID):
-		if next, ok := nextAttempt(&a.entry, a.due); ok {
-			return journal.Retrying{Next: next}, true
-		}
-		return a.deadLetter(ctx, err, exhausted)
+		return a.retry(ctx, targetError{err: err}, a.due)
 	default:
-		return a.deadLetter(ctx, err, refused)
+		return a.permanent(ctx, targetError{err: err})
 	}
 }
 
+// permanent ends an attempt the target failed with a client-side error:
+// it is dead-lettered at once, except that a Scheduler delivery under
+// scheduler.retry.permanent-errors retried is retried as a server-side
+// error is, until its policy runs out (scheduler.md 7.1, 14.5.2). Which
+// target errors Scheduler counts as permanent is UNVERIFIED (SCH-08).
+func (a *attempt) permanent(ctx context.Context, f failure) (journal.DeliveryOutcome, bool) {
+	if inv := a.entry.Request.Invocation; inv != nil && inv.OnPermanent == delivery.PermanentRetried {
+		return a.retry(ctx, f, a.due)
+	}
+	return a.deadLetter(ctx, f, refused)
+}
+
+// endHTTP is the outcome of an HTTPEndpoint attempt that ended as r; false
+// when the kernel stopped first. By the reading sns-http-delivery.md 6.1
+// recommends, a 2xx delivers; 429, 5xx and a failed or timed-out exchange
+// are retried; any other answer is a permanent failure, dead-lettered when
+// the delivery has a queue. 6.1 leaves UNVERIFIED whether a
+// connection-level failure is retried (SNSH-24), and the class of 3xx and
+// other 4xx and whether a permanent failure goes to the DLQ (SNSH-05). A
+// request egress refused, or one with no client to send it, is Refused:
+// never retried or dead-lettered (7.3). The retry delay runs from the end
+// of the attempt (attemptEnd), waited of wall time after due. The exchange
+// is kept for the attempt's Delivery event.
+func (a *attempt) endHTTP(ctx context.Context, r httpResult, waited time.Duration) (journal.DeliveryOutcome, bool) {
+	a.exchange = exchangeOf(r, a.took)
+	if ctx.Err() != nil {
+		return nil, false
+	}
+	switch r := r.(type) {
+	case httpAccepted:
+		return journal.Delivered{}, true
+	case httpRetry:
+		ended := a.due
+		if waited > 0 {
+			ended = attemptEnd(a.e.k.Clock().Mode(), a.due, waited)
+		}
+		return a.retry(ctx, endpointError{reason: r.reason}, ended)
+	case httpPermanent:
+		return a.deadLetter(ctx, endpointError{reason: statusText(r.status)}, refused)
+	case httpRefused:
+		return journal.Refused{Reason: r.reason}, true
+	}
+	return journal.Dropped{Reason: "the HTTP attempt reported no result"}, true
+}
+
+// retry arms the delivery's next attempt when its retry policy allows
+// one, its delay running from ended, and otherwise dead-letters it, f
+// being how this attempt failed.
+func (a *attempt) retry(ctx context.Context, f failure, ended clock.Instant) (journal.DeliveryOutcome, bool) {
+	if next, ok := nextAttempt(&a.entry, ended); ok {
+		return journal.Retrying{Next: next}, true
+	}
+	return a.deadLetter(ctx, f, exhausted)
+}
+
 // faults applies the attempt's Delivery-phase decision: it journals each
-// rule hit, waits out a delay and drops the attempt. decided is true when a
-// rule dropped the attempt; ok is false when the kernel stopped during an
+// rule hit, waits out a delay, drops the attempt or answers an HTTP attempt
+// without its endpoint, an injected status as a real answer of that status
+// and an injected timeout as a timed-out exchange (sns-http-delivery.md 8.2
+// item 2). Neither waits or records a duration, but an injected timeout's
+// retry is scheduled from the end of the 15-second deadline it stands for
+// (3.1), as a real timeout's is under a running or scaled clock; on a
+// frozen clock that end is the due instant. decided is true when a rule
+// decided the attempt; ok is false when the kernel stopped during an
 // injected delay.
 func (a *attempt) faults(ctx context.Context) (outcome journal.DeliveryOutcome, decided, ok bool) {
 	decision := a.decision
@@ -185,6 +382,14 @@ func (a *attempt) faults(ctx context.Context) (outcome journal.DeliveryOutcome, 
 		case fault.Drop:
 			a.journal(ctx, journal.FaultInjected{Rule: d.Rule, Hit: d.Hit, Of: d.Of})
 			return journal.Dropped{Reason: fmt.Sprintf("fault rule %s dropped the attempt", d.Rule)}, true, true
+		case fault.RespondHTTP:
+			a.journal(ctx, journal.FaultInjected{Rule: d.Rule, Hit: d.Hit, Of: d.Of})
+			outcome, ok := a.endHTTP(ctx, statusResult(d.Status), 0)
+			return outcome, true, ok
+		case fault.TimeOutHTTP:
+			a.journal(ctx, journal.FaultInjected{Rule: d.Rule, Hit: d.Hit, Of: d.Of})
+			outcome, ok := a.endHTTP(ctx, httpRetry{reason: fmt.Sprintf("fault rule %s timed out the attempt", d.Rule)}, egress.DefaultTimeout)
+			return outcome, true, ok
 		case fault.Delay:
 			a.journal(ctx, journal.FaultInjected{Rule: d.Rule, Hit: d.Hit, Of: d.Of})
 			if !a.wait(ctx, d.Wall) {
@@ -204,6 +409,12 @@ func (a *attempt) journalSpent(ctx context.Context, decision fault.Decision) {
 	for {
 		switch d := decision.(type) {
 		case fault.Drop:
+			a.journal(ctx, journal.FaultInjected{Rule: d.Rule, Hit: d.Hit, Of: d.Of})
+			return
+		case fault.RespondHTTP:
+			a.journal(ctx, journal.FaultInjected{Rule: d.Rule, Hit: d.Hit, Of: d.Of})
+			return
+		case fault.TimeOutHTTP:
 			a.journal(ctx, journal.FaultInjected{Rule: d.Rule, Hit: d.Hit, Of: d.Of})
 			return
 		case fault.Delay:
@@ -226,12 +437,28 @@ func (a *attempt) wait(ctx context.Context, d time.Duration) bool {
 // advise journals an Advisory when the target's stored resource policy
 // would not let the delivering service make the call in AWS. understudy
 // delivers anyway (ARCHITECTURE.md 16).
+//
+// An events-to-events delivery gets none: AWS authorizes an event bus
+// target through its RoleArn, or the sender account against the receiving
+// bus's policy (eventbridge-buses.md 6.2, 6.3), not through a grant to
+// events.amazonaws.com, so this model would misreport every same-account
+// forward. Nor does a delivery sent as an execution role (req.Sender), which
+// AWS authorizes as that role, not as a service principal a resource policy
+// names (lambda-destinations-layers.md 2.5, 11.3.2); across accounts the
+// destination's resource policy must grant the role as well
+// (iam-evaluation.md 2.4). A Scheduler delivery (req.As) runs as a session
+// of the schedule's execution role too, which needs no grant in the
+// target's resource policy (scheduler.md 1 item 1, 14.4.4). Under
+// iam.enforce the attempt's calls are decided as the principal as() names:
+// an event bus target with a RoleArn as a session of that role
+// (iam-enforcement-surfaces.md 8.4), one without as events.amazonaws.com
+// against the receiving bus's policy.
 func (a *attempt) advise(ctx context.Context) {
-	if a.e.policies == nil {
+	req := a.entry.Request
+	if a.e.policies == nil || req.Mechanism == delivery.EventsToEvents || req.Sender != nil || req.As != nil {
 		return
 	}
-	req := a.entry.Request
-	target, _ := targetARN(req.Target)
+	target := deliveredTo(req)
 	op := operationOf(req.Target)
 	if op == nil || len(op.IAM) == 0 {
 		return
@@ -241,30 +468,60 @@ func (a *attempt) advise(ctx context.Context) {
 		return
 	}
 	principal := access.ServicePrincipal{Name: servicePrincipal(req.Mechanism)}
-	if d, ok := access.Advise(doc, principal, op.IAM[0], req.Source, target).(access.WouldDeny); ok {
+	if d, ok := access.AdviseWith(doc, principal, op.IAM[0], req.Source, req.SourceAccount, target).(access.WouldDeny); ok {
 		a.journal(ctx, journal.Advisory{Kind: journal.AdvisoryPolicyWouldDeny, Resource: target, Text: d.Reason})
 	}
 }
 
 // as is how every call of the attempt runs: in scope, as the delivering
-// service on behalf of the source, admitted at the due instant and caused
-// by the source call, like the attempt's Delivery event.
+// service on behalf of the source, with the aws:SourceAccount the request
+// says it sends, as the function's execution role for a Lambda delivery
+// (lambda-destinations-layers.md 2.5, 11.3.2), or as the session of the
+// schedule's execution role a Scheduler delivery names in Request.As
+// (scheduler.md 14.4.4), admitted at the due instant
+// and caused by the source call, like the attempt's Delivery event. A dead
+// letter is sent the same way: AWS documents only aws:SourceArn for an
+// EventBridge dead letter (iam-enforcement-surfaces.md 8.1), so its
+// aws:SourceAccount following the delivery's is inferred.
 func (a *attempt) as(scope aws.Scope) kernel.Target {
 	req := a.entry.Request
+	var as kernel.PrincipalMode = kernel.AsService{Name: servicePrincipal(req.Mechanism), Source: req.Source, SourceAccount: req.SourceAccount}
+	if req.Sender != nil {
+		as = kernel.AsExecutionRole{Role: req.Sender.Role}
+	}
+	switch p := req.As.(type) {
+	case delivery.ExecutionRole:
+		as = kernel.AsExecutionRole{Role: p.Role, ID: p.RoleID, Session: p.Session}
+	case nil:
+	}
 	return kernel.Target{
 		Scope:  scope,
-		As:     kernel.AsService{Name: servicePrincipal(req.Mechanism), Source: req.Source},
+		As:     as,
 		Via:    req.Mechanism.Via(),
 		At:     a.due,
 		Resume: a.entry.Cause,
 	}
 }
 
+// deadLetterAs is how the delivery's dead letter is sent: as every call of
+// the attempt (as), except that an event bus target's dead letter is sent
+// as events.amazonaws.com even when the delivery runs as its RoleArn: the
+// queue's policy grants EventBridge, not the role (eb-rule-dlq.html;
+// iam-enforcement-surfaces.md 8.1). A Scheduler dead letter is sent as the
+// execution role (scheduler.md 14.4.4).
+func (a *attempt) deadLetterAs(scope aws.Scope) kernel.Target {
+	t := a.as(scope)
+	if a.entry.Request.Mechanism == delivery.EventsToEvents {
+		t.As = kernel.AsService{Name: servicePrincipal(delivery.EventsToEvents), Source: a.entry.Request.Source, SourceAccount: a.entry.Request.SourceAccount}
+	}
+	return t
+}
+
 // deadLetter sends the delivery's dead letter to its dead-letter queue, or
-// drops it when it has none or the queue refuses it. err is the target's
-// last error and end why it was not retried again.
-func (a *attempt) deadLetter(ctx context.Context, err *awserr.Error, end ending) (journal.DeliveryOutcome, bool) {
-	why := end.reason(err)
+// drops it when it has none or the queue refuses it. f is how the last
+// attempt failed and end why it was not retried again.
+func (a *attempt) deadLetter(ctx context.Context, f failure, end ending) (journal.DeliveryOutcome, bool) {
+	why := end.reason(f)
 	dlq := a.entry.Request.DLQ
 	if dlq == nil {
 		return journal.Dropped{Reason: "no dead-letter queue is set and " + why}, true
@@ -273,7 +530,11 @@ func (a *attempt) deadLetter(ctx context.Context, err *awserr.Error, end ending)
 	if scopeErr != nil {
 		return journal.Dropped{Reason: fmt.Sprintf("%s; the dead-letter queue %s: %v", why, unservedScope, scopeErr)}, true
 	}
-	sendErr := a.sendSQS(ctx, scope, deadLetterMessage(&a.entry, *dlq, err, end))
+	m, msgErr := deadLetterOf(&a.entry, *dlq, f, end)
+	if msgErr != nil {
+		return journal.Dropped{Reason: fmt.Sprintf("%s; its dead letter for %s could not be written: %v", why, dlq, msgErr)}, true
+	}
+	sendErr := a.sendSQS(ctx, a.deadLetterAs(scope), m)
 	if ctx.Err() != nil {
 		return nil, false
 	}
@@ -305,8 +566,10 @@ func (a *attempt) deadLetter(ctx context.Context, err *awserr.Error, end ending)
 func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) {
 	id := a.entry.ID
 	req := a.entry.Request
-	target, _ := targetARN(req.Target)
-	event := journal.Delivery{From: req.Source, To: target, Mechanism: req.Mechanism, Attempt: a.entry.Attempt + 1, Outcome: outcome}
+	event := journal.Delivery{
+		From: req.Source, To: deliveredTo(req), Endpoint: endpointOf(req.Target),
+		Mechanism: req.Mechanism, Attempt: a.entry.Attempt + 1, Outcome: outcome, HTTP: a.exchange,
+	}
 	changed, err := kernel.Write(a.c, a.e.cells, a.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (bool, *awserr.Error) {
 		// Import and Reset retire cells under the gate's exclusive side and
 		// Write holds its shared side, so the check cannot race them.
@@ -358,15 +621,30 @@ func (a *attempt) journal(ctx context.Context, d journal.Detail) {
 	}
 }
 
-// servicePrincipal is the AWS service principal that makes deliveries by m.
+// servicePrincipal is the AWS service principal that makes deliveries by m;
+// "" for the Lambda and ESM mechanisms, which run as the function's
+// execution role (delivery.Request.Sender), never as a service principal.
 func servicePrincipal(m delivery.Mechanism) string {
 	switch m {
-	case delivery.SNSToSQS, delivery.SNSToLambda:
+	case delivery.SNSToSQS, delivery.SNSToLambda, delivery.SNSToHTTP:
 		return "sns.amazonaws.com"
 	case delivery.S3ToSQS, delivery.S3ToSNS, delivery.S3ToLambda:
 		return "s3.amazonaws.com"
-	case delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS:
+	case delivery.EventsToLambda, delivery.EventsToSQS, delivery.EventsToSNS, delivery.EventsToEvents:
 		return "events.amazonaws.com"
+	case delivery.CloudWatchToSNS:
+		// The topic policy grants cloudwatch.amazonaws.com SNS:Publish
+		// (cloudwatch-alarms.md 5.3).
+		return "cloudwatch.amazonaws.com"
+	case delivery.CloudWatchToLambda:
+		// The function policy names lambda.alarms.cloudwatch.amazonaws.com
+		// (cloudwatch-alarms.md 6.1).
+		return "lambda.alarms.cloudwatch.amazonaws.com"
+	case delivery.LambdaToSQS, delivery.LambdaToSNS, delivery.LambdaToLambda, delivery.LambdaToEvents, delivery.LambdaToS3,
+		delivery.ESMToSQS, delivery.ESMToSNS:
+	case delivery.SchedulerToLambda, delivery.SchedulerToSQS, delivery.SchedulerToEvents, delivery.SchedulerToSNS, delivery.SchedulerToStates:
+		// Scheduler delivers as the schedule's execution role
+		// (delivery.Request.As, scheduler.md 14.4.4).
 	}
 	return ""
 }
@@ -384,6 +662,13 @@ func retryable(id awserr.Identity) bool {
 // that message.
 func unimplemented(err *awserr.Error) bool {
 	_, ok := err.Origin.(awserr.Unimplemented)
+	return ok
+}
+
+// denied reports whether err is the target refusing the delivery on its
+// policy: an authorization denial under iam.enforce=enforce.
+func denied(err *awserr.Error) bool {
+	_, ok := err.Origin.(awserr.Denial)
 	return ok
 }
 

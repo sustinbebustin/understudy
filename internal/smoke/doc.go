@@ -2,17 +2,21 @@
 // (`just smoke`). It builds the binary, starts `understudy serve` on
 // 127.0.0.1:0 with a ready file, a frozen clock, seed 1 and the TLS
 // listener, and drives a few raw HTTP requests per service with net/http:
-// SQS and DynamoDB over awsJson1_0, SNS publishing to the queue over
+// SQS, DynamoDB and DynamoDB Streams over awsJson1_0, SNS publishing to the queue over
 // awsQuery with the delivery asserted in the journal, S3 over restXml (a
 // checksum header over HTTP, an aws-chunked trailer body over TLS,
-// SSE-KMS), Lambda over restJson1, CloudWatch Logs, Secrets Manager, KMS
-// and EventBridge over awsJson1_1, IAM and STS over awsQuery, and
-// CloudWatch alarms over awsJson1_0 and rpcv2Cbor. It then asks
-// `understudy iam policy` for the smoke principal's policy and reads the
-// coverage report.
+// SSE-KMS), Lambda and API Gateway HTTP and REST APIs over restJson1, CloudWatch
+// Logs, Secrets Manager, KMS, EventBridge and Kinesis over awsJson1_1, IAM
+// and STS over awsQuery, CloudWatch alarms over awsJson1_0 and rpcv2Cbor,
+// an SES email identity over awsQuery, and an SES v2 domain identity over
+// restJson1. It then asks `understudy iam policy` for the smoke
+// principal's policy and reads the coverage report.
 //
 // With the docker tag as well, the workload invokes its zip function on a
-// provided.al2023 runtime, and runs again against understudy inside the
+// provided.al2023 runtime, directly and through the HTTP and REST APIs'
+// execute-api path fallback (without Docker those requests answer 501
+// naming Docker),
+// and runs again against understudy inside the
 // image built from the repository's Dockerfile, with the Docker socket
 // mounted: the InContainer topology.
 //
@@ -23,9 +27,10 @@
 //   - The emulator runs with the test's environment minus UNDERSTUDY_* and
 //     AWS_* variables, in an empty working directory, so no configuration
 //     of the machine changes what it does. Without the docker tag it runs
-//     with --docker disabled, so it starts no container and DynamoDB
-//     answers 501 saying it needs Docker; under the docker tag DynamoDB
-//     lists tables through DynamoDB Local.
+//     with --docker disabled, so it starts no container and DynamoDB and
+//     DynamoDB Streams answer 501 saying DynamoDB Local needs Docker; under
+//     the docker tag DynamoDB lists tables through DynamoDB Local and
+//     DynamoDB Streams lists none.
 //   - The test trusts the TLS listener's self-signed certificate by
 //     reading it from a first handshake, then verifies every request
 //     against it.

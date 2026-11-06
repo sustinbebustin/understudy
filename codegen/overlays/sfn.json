@@ -1,0 +1,72 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.amazonaws.sfn#AWSStepFunctions": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#errorNamespace": "com.amazonaws.swf.service.v2.model",
+        "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
+        "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/sfn/SFN-01/01-missing-machine.json: every modeled Step Functions error answers __type com.amazonaws.swf.service.v2.model#<Code> (docs/research/stepfunctions-api.md#32-error-identities-and-statuses)",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#errorNamespace"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/sfn/SFN-15/01-denied-list.json: an IAM denial answers 400 with __type com.amazon.coral.service#AccessDeniedException (docs/research/stepfunctions-api.md#32-error-identities-and-statuses); its message key is the capital Message, which the shared shape does not spell yet",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#denialError"]
+          },
+          {
+            "label": "inferred",
+            "source": "docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ThrottlingException, HTTP 400 and SDK retry are documented at https://docs.aws.amazon.com/step-functions/latest/apireference/CommonErrors.html, which shows the bare name only; the awsJson1_0 __type namespace com.amazon.coral.service# is inferred from the recorded Coral denial and validation errors (SFN-15, SFN-08); no recording shows a throttled API call",
+            "covers": ["dev.understudy#throttleError"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/sfn/SFN-08/07-big-input.json: 400, __type com.amazon.coral.validate#ValidationException, lower-case message (docs/research/stepfunctions-api.md#32-error-identities-and-statuses)",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
+      }
+    },
+    "com.amazonaws.sfn#CharacterRestrictedName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#patternValidator": {"allOf": ["^[0-9]*[a-zA-Z_\\-\\.][a-zA-Z0-9_\\-\\.]*$"]},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api_aliasing.snapshot.json#L132-L152",
+          "validated": "2025-04-09"
+        }
+      }
+    },
+    "com.amazonaws.sfn#ListExecutionsInput$statusFilter": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api.snapshot.json#L1672: Member must satisfy enum value set: [SUCCEEDED, TIMED_OUT, PENDING_REDRIVE, ABORTED, FAILED, RUNNING], not model order, so the handler renders the recorded order (docs/research/stepfunctions-api.md#32-error-identities-and-statuses)",
+          "validated": "2024-03-14"
+        }
+      }
+    },
+    "com.amazon.coral.service#AccessDeniedException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#statusOverride": 400,
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/sfn/SFN-15/01-denied-list.json: HTTP/1.1 400 Bad Request (switch sfn.denial.status; docs/research/stepfunctions-api.md#1416-sfn-15-denials-and-lambda-service-errors)",
+          "validated": "2026-11-03"
+        }
+      }
+    }
+  }
+}

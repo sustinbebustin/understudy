@@ -12,18 +12,20 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/auth"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/furl"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/runtimeapi"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-const urlNote = "BUFFERED only: a RESPONSE_STREAM URL answers buffered; AWS_IAM requires a SigV4 signature, verified under sigv4 verify, and IAM policies are not enforced"
+const urlNote = "BUFFERED only: a RESPONSE_STREAM URL answers buffered; AWS_IAM requires a SigV4 signature, verified under sigv4 verify, and no identity or resource policy is evaluated for it under any iam.enforce mode"
 
 // functionURL is the URL a function URL configuration answers on:
 // http://<url-id>.lambda-url.<region>.localhost:<port>/, on the port the
@@ -232,24 +234,25 @@ func (u *urlServer) authorize(c *kernel.Call, r *http.Request, s served, addr fu
 // 7); the recorded fixtures, which add only the first statement, predate
 // it, and Terraform's aws_lambda_function_url adds both. The error is a
 // stored policy that cannot be parsed, reported rather than read as no
-// policy.
+// policy. The check is authz.CheckResource, which applies under every
+// iam.enforce mode, as AWS's does (iam-enforcement-surfaces.md 7).
 func public(s served) (authorization, *awserr.Error) {
-	var doc policydoc.Document
+	var doc *policydoc.Document // nil: no resource policy, which allows nothing
 	if s.policy != "" {
 		parsed, perr := policydoc.Parse([]byte(s.policy))
 		if perr != nil {
 			return nil, errService("Lambda could not read the stored resource policy of " + s.ref.qualifiedARN() + ": " + perr.Error() +
 				". This is an understudy bug; the function did not run. GetPolicy returns the stored document, and RemovePermission and AddPermission rewrite it.")
 		}
-		doc = parsed
+		doc = &parsed
 	}
 	keys := map[string]string{
 		"lambda:FunctionUrlAuthType":   string(lambdaapi.FunctionUrlAuthTypeNone),
 		"lambda:InvokedViaFunctionUrl": "true",
 	}
-	for _, action := range []string{"lambda:InvokeFunctionUrl", "lambda:InvokeFunction"} {
-		q := policydoc.Query{Principal: policydoc.Anonymous{}, Action: action, Resource: s.ref.qualifiedARN(), Context: keys}
-		if _, ok := policydoc.Allows(doc, q).(policydoc.Allowed); !ok {
+	for _, action := range []registry.IAMAction{lambdaAction("InvokeFunctionUrl"), lambdaAction("InvokeFunction")} {
+		r := authz.ResourceRequest{Caller: policydoc.Anonymous{}, Action: action, Resource: s.ref.qualifiedARN(), Keys: keys}
+		if _, ok := authz.CheckResource(doc, r).(policydoc.Allowed); !ok {
 			return refused{furl.Forbidden()}, nil
 		}
 	}

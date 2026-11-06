@@ -1,0 +1,39 @@
+{
+  "step": "18-bad-date",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/v18",
+        "headers": [
+          ["Host", "us1103-olock.s3.us-east-2.amazonaws.com"],
+          ["X-Amz-Date", "20261103T034057Z"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["x-amz-content-sha256", "UNSIGNED-PAYLOAD"],
+          ["Content-MD5", "eB5eJF1ptWaXm4bijSPyxw=="],
+          ["x-amz-object-lock-mode", "GOVERNANCE"],
+          ["x-amz-object-lock-retain-until-date", "tomorrow"],
+          ["Content-Length", "10"],
+          ["Content-Type", "application/x-www-form-urlencoded"]
+        ],
+        "body": "0123456789"
+      },
+      "response": {
+        "status": 400,
+        "reason": "Bad Request",
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "CTAJSFDXERQW84EQ"],
+          ["x-amz-id-2", "eA6h7j+qKaBCW0gGa4zyisxnx/X8Yf+kSxGm9t9PTqI3fBzuAxKPVdQ+3Rq4kwjpQcEvL/J/44LeX7+6/2HUnKyHiwar8E54"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:57 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidArgument</Code><Message>The retain until date must be provided in ISO 8601 format</Message><ArgumentName>x-amz-object-lock-retain-until-date</ArgumentName><ArgumentValue>tomorrow</ArgumentValue><RequestId>CTAJSFDXERQW84EQ</RequestId><HostId>eA6h7j+qKaBCW0gGa4zyisxnx/X8Yf+kSxGm9t9PTqI3fBzuAxKPVdQ+3Rq4kwjpQcEvL/J/44LeX7+6/2HUnKyHiwar8E54</HostId></Error>"
+      }
+    }
+  ]
+}

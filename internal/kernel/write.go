@@ -37,7 +37,18 @@ type Tx struct {
 	err     error
 	// unchanged is set by Unchanged: the cell's revision stays.
 	unchanged bool
+	// resume is the stored cause Resume set, zero for the call's own.
+	resume ref.Cause
 }
+
+// Resume stamps the write's journal records and deliveries with cause, a
+// stored cause the write continues, instead of the writing call's event
+// and trace, as Target.Resume does for an internal call (ARCHITECTURE.md
+// 10: state carries causes across time). A timer call that finishes work
+// another call began, such as an asynchronous invocation the Invoke
+// queued, uses it so the work's effects stay in that call's trace rather
+// than in the TimerFired event's. The zero cause leaves the call's own.
+func (tx *Tx) Resume(cause ref.Cause) { tx.resume = cause }
 
 // Unchanged tells the write that fn left the state exactly as it was (an
 // empty receive, an idempotent create), so the cell's revision
@@ -108,6 +119,15 @@ func (tx *Tx) fail(err error) {
 	}
 }
 
+// cause is what the write's effects are stamped with: the resumed cause,
+// or c's.
+func (tx *Tx) cause(c *Call) ref.Cause {
+	if tx.resume != (ref.Cause{}) {
+		return tx.resume
+	}
+	return c.effectCause()
+}
+
 // UnregisteredKindError is a timer armed with the zero HandledKind, which
 // no handler stands behind; the timer was not armed.
 type UnregisteredKindError struct {
@@ -160,34 +180,69 @@ func (e *DeliverError) Unwrap() error { return e.Err }
 // made from fn, returns Internal naming the attempt and the holding call
 // (HoldingError). Journal records and timer arms and disarms apply inside
 // the critical section in commit order; wakes and deliveries run after
-// unlock, stamped with the call's cause and counted by the work tracker.
+// unlock, stamped with the call's cause (or the one Tx.Resume set) and
+// counted by the work tracker.
 func Write[K comparable, S, R any](c *Call, p *store.Partitioned[K, S], key K, fn func(s *S, now clock.Instant, tx *Tx) (R, *awserr.Error)) (R, *awserr.Error) {
-	var zero R
-	if !c.holding.CompareAndSwap(false, true) {
-		return zero, awserr.Internalf(&HoldingError{Attempted: "kernel.Write", Holder: c.label})
+	var r R
+	err := write(c, func() *store.Cell[S] { return p.For(key) }, func(s *S, now clock.Instant, tx *Tx) *awserr.Error {
+		var err *awserr.Error
+		r, err = fn(s, now, tx)
+		return err
+	})
+	if err != nil {
+		var zero R
+		return zero, err
+	}
+	return r, nil
+}
+
+// write is Write over the state type alone, its key and result captured by
+// the caller, so its body is compiled once per state type rather than per
+// key, state and result (ADR 0001's binary budget). cell resolves the cell
+// again for each attempt.
+func write[S any](c *Call, cell func() *store.Cell[S], fn func(s *S, now clock.Instant, tx *Tx) *awserr.Error) *awserr.Error {
+	if err := c.beginWrite(); err != nil {
+		return err
 	}
 	defer c.holding.Store(false)
 	for {
-		res := commit(c, p.For(key), fn)
+		res := commit(c, cell(), fn)
 		if res.retired {
 			continue
 		}
 		if res.err != nil {
-			return zero, res.err
+			return res.err
 		}
 		if err := c.k.afterUnlock(c, res.tx); err != nil {
-			return zero, err
+			return err
 		}
 		if res.tx.err != nil {
-			return zero, awserr.Internalf(res.tx.err)
+			return awserr.Internalf(res.tx.err)
 		}
-		return res.r, nil
+		return nil
 	}
 }
 
+// beginWrite marks c as holding for a Write, or returns the error the Write
+// ends with. A nested Write is refused first, as Invoke refuses a call made
+// under a lock, so an AuthorizedAfterResolve call's authorization never runs
+// under a cell lock (ADR 0005); that call is asked next, at its first Write,
+// before the lock: a denial is what the Write returns.
+func (c *Call) beginWrite() *awserr.Error {
+	if c.holding.Load() {
+		return awserr.Internalf(&HoldingError{Attempted: "kernel.Write", Holder: c.label})
+	}
+	if err := c.authorizeDeferred(); err != nil {
+		return err
+	}
+	if !c.holding.CompareAndSwap(false, true) {
+		return awserr.Internalf(&HoldingError{Attempted: "kernel.Write", Holder: c.label})
+	}
+	return nil
+}
+
 // committed is the outcome of one attempt at a Write.
-type committed[R any] struct {
-	r   R
+type committed struct {
 	err *awserr.Error
 	tx  *Tx
 	// retired reports that the cell was retired before fn ran; nothing
@@ -199,19 +254,18 @@ type committed[R any] struct {
 // An effect Tx refused (tx.err) does not undo the others: fn has changed
 // the state in place, so its valid timers, wakes and deliveries still run
 // and the scheduler agrees with the state; Write then answers Internal.
-func commit[S, R any](c *Call, cell *store.Cell[S], fn func(s *S, now clock.Instant, tx *Tx) (R, *awserr.Error)) committed[R] {
+func commit[S any](c *Call, cell *store.Cell[S], fn func(s *S, now clock.Instant, tx *Tx) *awserr.Error) committed {
 	k := c.k
-	return store.Update(cell, func(s *S) (committed[R], bool) {
+	return store.Update(cell, func(s *S) (committed, bool) {
 		if cell.Retired() {
-			return committed[R]{retired: true}, false
+			return committed{retired: true}, false
 		}
 		tx := &Tx{k: k, now: k.clock.Now()}
-		r, err := fn(s, tx.now, tx)
-		if err != nil {
-			return committed[R]{err: err}, false
+		if err := fn(s, tx.now, tx); err != nil {
+			return committed{err: err}, false
 		}
 		for _, rec := range tx.records {
-			if err := k.record(c, tx.now, rec.scope, rec.detail); err != nil {
+			if err := k.record(tx.cause(c), tx.now, rec.scope, rec.detail); err != nil {
 				tx.fail(&RecordError{Err: err})
 			}
 		}
@@ -225,7 +279,7 @@ func commit[S, R any](c *Call, cell *store.Cell[S], fn func(s *S, now clock.Inst
 		if n := len(tx.wakes) + len(tx.sends); n > 0 {
 			k.work.add(EffectPending, n)
 		}
-		return committed[R]{r: r, tx: tx}, !tx.unchanged
+		return committed{tx: tx}, !tx.unchanged
 	})
 }
 
@@ -236,7 +290,7 @@ func (k *Kernel) afterUnlock(c *Call, tx *Tx) *awserr.Error {
 	for _, key := range tx.wakes {
 		k.waiters.Wake(key)
 	}
-	cause := ref.Cause{Parent: c.event, Trace: c.cause.Trace}
+	cause := tx.cause(c)
 	for i := range tx.sends {
 		if err := k.deliver.Deliver(Delivery{Request: tx.sends[i], Cause: cause, Accepted: tx.now}); err != nil {
 			return awserr.Internalf(&DeliverError{Err: err})

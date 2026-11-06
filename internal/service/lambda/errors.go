@@ -136,9 +136,82 @@ func errTooManyLayers() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Cannot reference more than 5 layers."))
 }
 
-// errLayerNotFound answers every layer reference: understudy has no layers.
+// errLayerTwice names two entries of a function's Layers that are versions
+// of one layer, or the same version twice (lambda-destinations-layers.md
+// 7.1: test_lambda_api.snapshot.json:L9336-L9371).
+func errLayerTwice(first, second string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Two different versions of the same layer are not allowed to be referenced in the same function. " +
+		first + " and " + second + " are versions of the same layer."))
+}
+
+// errLayerRegion answers a layer of another region than the function's
+// (lambda-destinations-layers.md 7.1: test_lambda_api.snapshot.json:L9406-L9417).
+func errLayerRegion(region string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Layers are not in the same region as the function. Layers are expected to be in region " + region + "."))
+}
+
+// errLayerNotFound answers a function's layer version that understudy does
+// not hold, in AWS's words for one that does not exist
+// (lambda-destinations-layers.md 7.1: test_lambda_api.snapshot.json:L9372-L9395).
 func errLayerNotFound(arn string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Layer version " + arn + " does not exist."))
+}
+
+// layerNeverFetched follows AWS's sentence when a layer understudy does not
+// hold may well exist on AWS (lambda-destinations-layers.md 8.4, 11.5.6).
+const layerNeverFetched = " understudy has only the layers published to it and never fetches layers from AWS; "
+
+// errForeignLayerNotFound is errLayerNotFound for a version of account,
+// another account than the caller's, then why understudy lacks it and how
+// to give it one.
+func errForeignLayerNotFound(arn, account string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Layer version " + arn + " does not exist." + layerNeverFetched +
+		"publish the archive to understudy with credentials for account " + account + " and use the version that returns."))
+}
+
+// errManagedLayerNotFound is errLayerNotFound for an AWS-managed awslayer
+// ARN, which no one can publish to understudy.
+func errManagedLayerNotFound(arn string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Layer version " + arn + " does not exist." + layerNeverFetched +
+		"an AWS-managed layer cannot be published to understudy, so publish its content as a layer of your own."))
+}
+
+// errCodeWithLayersTooLarge answers a package and layers whose unzipped
+// sizes together pass maxUnzipped: AWS's text for layers past it
+// (aws-recorded, lambda-destinations-layers.md 7.1: LDL-14 01); that a
+// package tipping smaller layers over gets the same text is inferred.
+func errCodeWithLayersTooLarge() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Layers consume more than the available size of " + strconv.FormatInt(maxUnzipped, 10) + " bytes"))
+}
+
+// errLayerVersionMissing is the permission operations' answer for a layer
+// or version that does not exist (lambda-destinations-layers.md 6.8).
+func errLayerVersionMissing(arn string) *awserr.Error {
+	return user(lambdaapi.ErrResourceNotFoundException("Layer version " + arn + " does not exist."))
+}
+
+func errLayerVersionBelowOne() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Layer Version Cannot be less than 1"))
+}
+
+// errLayerPolicyRevisionMismatch keeps the recorded "GetLayerPolicy", a name
+// no operation has (lambda-destinations-layers.md 6.8).
+func errLayerPolicyRevisionMismatch() *awserr.Error {
+	return user(lambdaapi.ErrPreconditionFailedException("The Revision Id provided does not match the latest Revision Id. Call the GetLayerPolicy API to retrieve the latest Revision Id"))
+}
+
+// errLayerName is understudy's text for a LayerName that passes the model's
+// unanchored pattern but names no layer a version can be published under;
+// AWS's answer is unrecorded.
+func errLayerName(name string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("The layer name " + name + " is neither a name of letters, digits, hyphens and underscores nor an unversioned layer ARN " +
+		"(arn:aws:lambda:<region>:<account>:layer:<name>), so no layer version can be published under it. Pass the layer's name or its unversioned ARN."))
+}
+
+// errLayerContent is understudy's text for a Content that names no archive,
+// or both an inline one and an S3 object; AWS's is unrecorded.
+func errLayerContent() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("PublishLayerVersion needs Content.ZipFile, or Content.S3Bucket and Content.S3Key, and not both; nothing was published."))
 }
 
 func errInvalidZip() *awserr.Error {
@@ -184,6 +257,20 @@ func errZipNeedsRuntime() *awserr.Error {
 
 func errImageTakesNoRuntime() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Please don't provide Handler or Runtime or Layer when the intended function PackageType is Image."))
+}
+
+// errImageTakesNoLayers is AWS's refusal of layers on an image function,
+// sent with "Type":null, which understudy leaves out (aws-recorded,
+// lambda-destinations-layers.md 7.1: LDL-13 03). It comes before the image
+// is looked up.
+func errImageTakesNoLayers() *awserr.Error {
+	return lambdaapi.ErrInvalidParameterValueException("Lambda layers are not supported for functions created with container images.")
+}
+
+// errLayerOrgPrincipal refuses an organization id beside a principal that
+// is not "*" (aws-recorded, lambda-destinations-layers.md 6.7: LDL-15 04).
+func errLayerOrgPrincipal() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("If organization id is specified then principal should be *"))
 }
 
 // errCodeSource is understudy's text for code that names no source, or a
@@ -323,6 +410,13 @@ func errDestinationMissing(arn string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("The destination ARN " + arn + " is invalid."))
 }
 
+// errBucketDestinationMissing is AWS's answer for an S3 on-failure
+// destination whose bucket does not exist (aws-recorded,
+// lambda-destinations-layers.md 2.3: LDL-08 04).
+func errBucketDestinationMissing() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Error occurred while ListBucket. S3 Error Code: 404 Not Found. S3 Error Message: Not Found"))
+}
+
 func errDestinationConfig(onSuccess, onFailure string) *awserr.Error {
 	side := func(name, arn string) string {
 		if arn == "" {
@@ -339,9 +433,42 @@ func errUnrecognizedEventSource() *awserr.Error {
 }
 
 // errEventSourceUnsupported answers an event source other than an SQS
-// queue: understudy polls only SQS.
+// queue, a DynamoDB stream or a Kinesis data stream, the sources
+// understudy polls (08b contract 6.1).
 func errEventSourceUnsupported(arn string) *awserr.Error {
-	return lambdaapi.ErrNotImplemented("understudy implements event source mappings for Amazon SQS queues only; " + arn + " is not an SQS queue ARN. Run 'understudy coverage --service lambda' for what is supported.")
+	return lambdaapi.ErrNotImplemented("understudy implements event source mappings for Amazon SQS queues, DynamoDB streams and Kinesis data streams only; " + arn + " is none of them. Run 'understudy coverage --service lambda' for what is supported.")
+}
+
+// errKinesisConsumerUnsupported answers a Kinesis stream consumer ARN:
+// enhanced fan-out is not built (lambda-stream-sources.md 12.1 item 2; 08b
+// contract 6.1).
+func errKinesisConsumerUnsupported(arn string) *awserr.Error {
+	return lambdaapi.ErrNotImplemented("understudy does not implement Kinesis stream consumers (enhanced fan-out); " + arn + " is a consumer ARN. Map the stream ARN instead. Run 'understudy coverage --service lambda' for what is supported.")
+}
+
+// errKinesisAtTimestampUnsupported answers StartingPosition AT_TIMESTAMP
+// on a Kinesis stream, which AWS accepts and understudy does not build
+// (lambda-stream-sources.md 12.1 item 2; 08b contract 6.1).
+func errKinesisAtTimestampUnsupported() *awserr.Error {
+	return lambdaapi.ErrNotImplemented("understudy does not implement StartingPosition AT_TIMESTAMP on a Kinesis stream event source mapping. Run 'understudy coverage --service lambda' for what is supported.")
+}
+
+// checkUnimplementedConfig refuses a configuration member whose feature
+// understudy does not implement: TenancyConfig (tenant isolation) and
+// DurableConfig (durable functions). Storing either without effect would
+// fake a function that isolates tenants or checkpoints its executions.
+func checkUnimplementedConfig(op string, tenancy *lambdaapi.TenancyConfig, durable *lambdaapi.DurableConfig) *awserr.Error {
+	var member, feature string
+	switch {
+	case tenancy != nil:
+		member, feature = "TenancyConfig", "tenant isolation"
+	case durable != nil:
+		member, feature = "DurableConfig", "durable functions"
+	default:
+		return nil
+	}
+	return lambdaapi.ErrNotImplemented(op + " with " + member + " configures " + feature + ", which understudy does not implement; nothing was changed. " +
+		"Leave " + member + " out. Run 'understudy coverage --service lambda' for what is supported.")
 }
 
 // publishToRefused is the coverage note of an operation checkPublishTo
@@ -363,6 +490,24 @@ func checkPublishTo(op string, to *lambdaapi.FunctionVersionLatestPublished) *aw
 
 func errUnsupportedDestination() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Unsupported DestinationConfig parameter for given event source mapping type."))
+}
+
+// errStartingPositionOnSQS and errUnsupportedMember refuse a member of the
+// stream type on an SQS mapping (aws-recorded, lambda-stream-sources.md
+// 3.4: ESMS-03).
+func errStartingPositionOnSQS() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("StartingPosition is not valid for SQS event sources."))
+}
+
+func errUnsupportedMember(member string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Unsupported " + member + " parameter for given event source mapping type."))
+}
+
+// errFIFOStreamDestination refuses a FIFO queue as a stream mapping's
+// on-failure destination (aws-recorded, lambda-stream-sources.md 3.7:
+// ESMS-05 04).
+func errFIFOStreamDestination() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("FIFO-type Amazon SQS queues aren't supported as a destination."))
 }
 
 func errBatchWindow() *awserr.Error {
@@ -406,6 +551,30 @@ func errQueueMissing() *awserr.Error {
 // the recorded form of the missing queue.
 func errSQSFailure(code, message string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Error occurred while ReceiveMessage. SQS Error Code: " + code + ". SQS Error Message: " + message))
+}
+
+// esmRoleDeniedText is what CreateEventSourceMapping and
+// UpdateEventSourceMapping answer when iam.enforce=enforce refuses the
+// execution role's read of the mapping's source, naming the source's
+// action and service: "The function execution role does not have
+// permissions to call ReceiveMessage on SQS" (iam-enforcement-surfaces.md
+// 4.3, 8.6, testdata/parity/lambda/IAM-ENF/24-create.json); a stream's
+// sentence follows the queue's (inferred).
+func esmRoleDeniedText(action, service string) string {
+	return "The function execution role does not have permissions to call " + action + " on " + service
+}
+
+// esmCreateDeniedValue is switch lambda.esm.create-denied-text's value:
+// the sentence for a queue, then for each kind of stream (08b contract
+// 6.1).
+func esmCreateDeniedValue() string {
+	return esmRoleDeniedText("ReceiveMessage", "SQS") +
+		"; for a DynamoDB stream: " + esmRoleDeniedText("DescribeStream", "DynamoDB") +
+		"; for a Kinesis stream: " + esmRoleDeniedText("DescribeStreamSummary", "Kinesis")
+}
+
+func errESMRoleDenied(action, service string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException(esmRoleDeniedText(action, service)))
 }
 
 func errVisibilityTimeout(visibility, timeout int) *awserr.Error {

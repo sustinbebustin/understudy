@@ -1,0 +1,32 @@
+{
+  "step": "02-models",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/iqia6sj0ff/models",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,C,b,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.get-models"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T163656Z"],
+          ["amz-sdk-invocation-id", "a0e29bb2-c454-4503-9c93-55b150111cb9"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:36:56 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "728"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "cf1092b9-b85c-438e-a08c-f2ec8944e45e"],
+          ["x-amz-apigw-id", "GRcSdKayCYcEb6w="]
+        ],
+        "body": "{\"item\":[{\"contentType\":\"application/json\",\"description\":\"This is a default error schema model\",\"id\":\"hoppwk\",\"name\":\"Error\",\"schema\":\"{\\n  \\\"$schema\\\" : \\\"http://json-schema.org/draft-04/schema#\\\",\\n  \\\"title\\\" : \\\"Error Schema\\\",\\n  \\\"type\\\" : \\\"object\\\",\\n  \\\"properties\\\" : {\\n    \\\"message\\\" : { \\\"type\\\" : \\\"string\\\" }\\n  }\\n}\"},{\"contentType\":\"application/json\",\"id\":\"pj8mdn\",\"name\":\"M1\",\"schema\":\"{\\\"type\\\":\\\"object\\\",\\\"properties\\\":{\\\"a\\\":{\\\"type\\\":\\\"string\\\"}}}\"},{\"contentType\":\"application/json\",\"description\":\"This is a default empty schema model\",\"id\":\"w21ycu\",\"name\":\"Empty\",\"schema\":\"{\\n  \\\"$schema\\\": \\\"http://json-schema.org/draft-04/schema#\\\",\\n  \\\"title\\\" : \\\"Empty Schema\\\",\\n  \\\"type\\\" : \\\"object\\\"\\n}\"}]}\n"
+      }
+    }
+  ]
+}

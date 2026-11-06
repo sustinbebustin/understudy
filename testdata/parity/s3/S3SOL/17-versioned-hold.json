@@ -1,0 +1,41 @@
+{
+  "step": "17-versioned-hold",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidRequest) when calling the PutObject operation: Bucket is missing ObjectLockConfiguration",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-nolock.s3.us-east-2.amazonaws.com/l17",
+        "headers": [
+          ["x-amz-object-lock-legal-hold", "ON"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/W,g,Z,E,AN,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object"],
+          ["Expect", "100-continue"],
+          ["Transfer-Encoding", "chunked"],
+          ["Content-Encoding", "aws-chunked"],
+          ["X-Amz-Trailer", "x-amz-checksum-crc64nvme"],
+          ["X-Amz-Decoded-Content-Length", "10"],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034054Z"],
+          ["X-Amz-Content-SHA256", "STREAMING-UNSIGNED-PAYLOAD-TRAILER"],
+          ["amz-sdk-invocation-id", "cad1edc1-5421-47ff-932a-cd4bf1ca14e5"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "B6CTWJEKY1XAWEYN"],
+          ["x-amz-id-2", "Vmx+aXQwMQOs+Ms5UWAafR308eJSMIkGBo5L+v797FZoHJKWZQfEhuNKJUWg3roiN6SFe6GPp5OPoOW6RkBK8e334nQ2bORg"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:40:54 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>InvalidRequest</Code><Message>Bucket is missing ObjectLockConfiguration</Message><RequestId>B6CTWJEKY1XAWEYN</RequestId><HostId>Vmx+aXQwMQOs+Ms5UWAafR308eJSMIkGBo5L+v797FZoHJKWZQfEhuNKJUWg3roiN6SFe6GPp5OPoOW6RkBK8e334nQ2bORg</HostId></Error>"
+      }
+    }
+  ]
+}

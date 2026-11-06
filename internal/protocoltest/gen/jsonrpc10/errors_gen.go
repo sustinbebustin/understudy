@@ -4,6 +4,7 @@ package jsonrpc10
 
 import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // IdentityComplexError returns the identity of aws.protocoltests.json10#ComplexError.
@@ -16,6 +17,14 @@ func ErrComplexError() *awserr.Error {
 	return &awserr.Error{ID: IdentityComplexError(), Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of aws.protocoltests.json10#ComplexError.
+func (*ComplexError) ErrorIdentity() awserr.Identity { return IdentityComplexError() }
+
+// ErrComplexErrorMembers returns a ComplexError error carrying v's members; the shape carries no message.
+func ErrComplexErrorMembers(v ComplexError) *awserr.Error {
+	return awserr.WithMembers(&v, "", awserr.Modeled{})
+}
+
 // IdentityFooError returns the identity of aws.protocoltests.json10#FooError.
 func IdentityFooError() awserr.Identity {
 	return awserr.Identity{Shape: "aws.protocoltests.json10#FooError", JSONType: "aws.protocoltests.json10#FooError", QueryCode: "FooError", Status: 500, Fault: awserr.Receiver, MessageKey: awserr.NoMessage}
@@ -25,6 +34,9 @@ func IdentityFooError() awserr.Identity {
 func ErrFooError() *awserr.Error {
 	return &awserr.Error{ID: IdentityFooError(), Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of aws.protocoltests.json10#FooError.
+func (*FooError) ErrorIdentity() awserr.Identity { return IdentityFooError() }
 
 // IdentityInvalidGreeting returns the identity of aws.protocoltests.json10#InvalidGreeting.
 func IdentityInvalidGreeting() awserr.Identity {
@@ -36,6 +48,9 @@ func ErrInvalidGreeting(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidGreeting(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of aws.protocoltests.json10#InvalidGreeting.
+func (*InvalidGreeting) ErrorIdentity() awserr.Identity { return IdentityInvalidGreeting() }
+
 // IdentitySerializationException returns the identity of com.amazon.coral.service#SerializationException.
 func IdentitySerializationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#SerializationException", JSONType: "com.amazon.coral.service#SerializationException", QueryCode: "SerializationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
@@ -44,6 +59,11 @@ func IdentitySerializationException() awserr.Identity {
 // ErrSerializationException returns a SerializationException error with message.
 func ErrSerializationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentitySerializationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#SerializationException.
+func (*SerializationException) ErrorIdentity() awserr.Identity {
+	return IdentitySerializationException()
 }
 
 // IdentityUnknownOperationException returns the identity of com.amazon.coral.service#UnknownOperationException.
@@ -56,6 +76,11 @@ func ErrUnknownOperationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnknownOperationException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#UnknownOperationException.
+func (*UnknownOperationException) ErrorIdentity() awserr.Identity {
+	return IdentityUnknownOperationException()
+}
+
 // IdentityValidationException returns the identity of com.amazon.coral.validate#ValidationException.
 func IdentityValidationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.validate#ValidationException", JSONType: "com.amazon.coral.validate#ValidationException", QueryCode: "ValidationError", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -64,6 +89,31 @@ func IdentityValidationException() awserr.Identity {
 // ErrValidationException returns a ValidationException error with message.
 func ErrValidationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityValidationException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.validate#ValidationException.
+func (*ValidationException) ErrorIdentity() awserr.Identity { return IdentityValidationException() }
+
+// NewErrorMembers returns a new, empty value of error shape id, to decode
+// a fault rule's members into, or false for a shape this package does not
+// generate a decoder for.
+func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	switch id {
+	case "aws.protocoltests.json10#ComplexError":
+		return new(ComplexError), true
+	case "aws.protocoltests.json10#FooError":
+		return new(FooError), true
+	case "aws.protocoltests.json10#InvalidGreeting":
+		return new(InvalidGreeting), true
+	case "com.amazon.coral.service#SerializationException":
+		return new(SerializationException), true
+	case "com.amazon.coral.service#UnknownOperationException":
+		return new(UnknownOperationException), true
+	case "com.amazon.coral.validate#ValidationException":
+		return new(ValidationException), true
+	default:
+		return nil, false
+	}
 }
 
 // UnknownOperationError returns the identity this service answers for an

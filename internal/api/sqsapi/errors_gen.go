@@ -4,8 +4,22 @@ package sqsapi
 
 import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
+
+// IdentityAccessDenied returns the identity of com.amazon.coral.service#AccessDenied.
+func IdentityAccessDenied() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDenied", JSONType: "com.amazon.coral.service#AccessDeniedException", QueryCode: "AccessDenied", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+}
+
+// ErrAccessDenied returns an AccessDenied error with message.
+func ErrAccessDenied(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityAccessDenied(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#AccessDenied.
+func (*AccessDenied) ErrorIdentity() awserr.Identity { return IdentityAccessDenied() }
 
 // IdentityAccessDeniedException returns the identity of com.amazon.coral.service#AccessDeniedException.
 func IdentityAccessDeniedException() awserr.Identity {
@@ -17,6 +31,9 @@ func ErrAccessDeniedException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityAccessDeniedException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#AccessDeniedException.
+func (*AccessDeniedException) ErrorIdentity() awserr.Identity { return IdentityAccessDeniedException() }
+
 // IdentityBatchEntryIdsNotDistinct returns the identity of com.amazonaws.sqs#BatchEntryIdsNotDistinct.
 func IdentityBatchEntryIdsNotDistinct() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#BatchEntryIdsNotDistinct", JSONType: "com.amazonaws.sqs#BatchEntryIdsNotDistinct", QueryCode: "AWS.SimpleQueueService.BatchEntryIdsNotDistinct", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -25,6 +42,11 @@ func IdentityBatchEntryIdsNotDistinct() awserr.Identity {
 // ErrBatchEntryIdsNotDistinct returns a BatchEntryIdsNotDistinct error with message.
 func ErrBatchEntryIdsNotDistinct(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityBatchEntryIdsNotDistinct(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#BatchEntryIdsNotDistinct.
+func (*BatchEntryIdsNotDistinct) ErrorIdentity() awserr.Identity {
+	return IdentityBatchEntryIdsNotDistinct()
 }
 
 // IdentityBatchRequestTooLong returns the identity of com.amazonaws.sqs#BatchRequestTooLong.
@@ -37,6 +59,9 @@ func ErrBatchRequestTooLong(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityBatchRequestTooLong(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#BatchRequestTooLong.
+func (*BatchRequestTooLong) ErrorIdentity() awserr.Identity { return IdentityBatchRequestTooLong() }
+
 // IdentityEmptyBatchRequest returns the identity of com.amazonaws.sqs#EmptyBatchRequest.
 func IdentityEmptyBatchRequest() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#EmptyBatchRequest", JSONType: "com.amazonaws.sqs#EmptyBatchRequest", QueryCode: "AWS.SimpleQueueService.EmptyBatchRequest", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -46,6 +71,9 @@ func IdentityEmptyBatchRequest() awserr.Identity {
 func ErrEmptyBatchRequest(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityEmptyBatchRequest(), Message: message, Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#EmptyBatchRequest.
+func (*EmptyBatchRequest) ErrorIdentity() awserr.Identity { return IdentityEmptyBatchRequest() }
 
 // IdentityExpiredToken returns the identity of com.amazon.coral.service#ExpiredToken.
 func IdentityExpiredToken() awserr.Identity {
@@ -57,6 +85,9 @@ func ErrExpiredToken(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityExpiredToken(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#ExpiredToken.
+func (*ExpiredToken) ErrorIdentity() awserr.Identity { return IdentityExpiredToken() }
+
 // IdentityExpiredTokenException returns the identity of com.amazon.coral.service#ExpiredTokenException.
 func IdentityExpiredTokenException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#ExpiredTokenException", JSONType: "com.amazon.coral.service#ExpiredTokenException", QueryCode: "ExpiredToken", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -66,6 +97,9 @@ func IdentityExpiredTokenException() awserr.Identity {
 func ErrExpiredTokenException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityExpiredTokenException(), Message: message, Origin: awserr.Generic{}}
 }
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#ExpiredTokenException.
+func (*ExpiredTokenException) ErrorIdentity() awserr.Identity { return IdentityExpiredTokenException() }
 
 // IdentityIncompleteSignature returns the identity of com.amazon.coral.service#IncompleteSignature.
 func IdentityIncompleteSignature() awserr.Identity {
@@ -77,6 +111,9 @@ func ErrIncompleteSignature(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityIncompleteSignature(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#IncompleteSignature.
+func (*IncompleteSignature) ErrorIdentity() awserr.Identity { return IdentityIncompleteSignature() }
+
 // IdentityIncompleteSignatureException returns the identity of com.amazon.coral.service#IncompleteSignatureException.
 func IdentityIncompleteSignatureException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#IncompleteSignatureException", JSONType: "com.amazon.coral.service#IncompleteSignatureException", QueryCode: "IncompleteSignature", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -85,6 +122,11 @@ func IdentityIncompleteSignatureException() awserr.Identity {
 // ErrIncompleteSignatureException returns an IncompleteSignatureException error with message.
 func ErrIncompleteSignatureException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityIncompleteSignatureException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#IncompleteSignatureException.
+func (*IncompleteSignatureException) ErrorIdentity() awserr.Identity {
+	return IdentityIncompleteSignatureException()
 }
 
 // IdentityInternalFailure returns the identity of com.amazon.coral.service#InternalFailure.
@@ -97,6 +139,9 @@ func ErrInternalFailure(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInternalFailure(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#InternalFailure.
+func (*InternalFailure) ErrorIdentity() awserr.Identity { return IdentityInternalFailure() }
+
 // IdentityInvalidAction returns the identity of com.amazon.coral.service#InvalidAction.
 func IdentityInvalidAction() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#InvalidAction", JSONType: "com.amazon.coral.service#InvalidAction", QueryCode: "InvalidAction", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -106,6 +151,9 @@ func IdentityInvalidAction() awserr.Identity {
 func ErrInvalidAction(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidAction(), Message: message, Origin: awserr.Generic{}}
 }
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#InvalidAction.
+func (*InvalidAction) ErrorIdentity() awserr.Identity { return IdentityInvalidAction() }
 
 // IdentityInvalidAddress returns the identity of com.amazonaws.sqs#InvalidAddress.
 func IdentityInvalidAddress() awserr.Identity {
@@ -117,6 +165,9 @@ func ErrInvalidAddress(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidAddress(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#InvalidAddress.
+func (*InvalidAddress) ErrorIdentity() awserr.Identity { return IdentityInvalidAddress() }
+
 // IdentityInvalidAttributeName returns the identity of com.amazonaws.sqs#InvalidAttributeName.
 func IdentityInvalidAttributeName() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#InvalidAttributeName", JSONType: "com.amazonaws.sqs#InvalidAttributeName", QueryCode: "InvalidAttributeName", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -126,6 +177,9 @@ func IdentityInvalidAttributeName() awserr.Identity {
 func ErrInvalidAttributeName(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidAttributeName(), Message: message, Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#InvalidAttributeName.
+func (*InvalidAttributeName) ErrorIdentity() awserr.Identity { return IdentityInvalidAttributeName() }
 
 // IdentityInvalidAttributeValue returns the identity of com.amazonaws.sqs#InvalidAttributeValue.
 func IdentityInvalidAttributeValue() awserr.Identity {
@@ -137,6 +191,9 @@ func ErrInvalidAttributeValue(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidAttributeValue(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#InvalidAttributeValue.
+func (*InvalidAttributeValue) ErrorIdentity() awserr.Identity { return IdentityInvalidAttributeValue() }
+
 // IdentityInvalidBatchEntryId returns the identity of com.amazonaws.sqs#InvalidBatchEntryId.
 func IdentityInvalidBatchEntryId() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#InvalidBatchEntryId", JSONType: "com.amazonaws.sqs#InvalidBatchEntryId", QueryCode: "AWS.SimpleQueueService.InvalidBatchEntryId", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -146,6 +203,9 @@ func IdentityInvalidBatchEntryId() awserr.Identity {
 func ErrInvalidBatchEntryId(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidBatchEntryId(), Message: message, Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#InvalidBatchEntryId.
+func (*InvalidBatchEntryId) ErrorIdentity() awserr.Identity { return IdentityInvalidBatchEntryId() }
 
 // IdentityInvalidClientTokenId returns the identity of com.amazon.coral.service#InvalidClientTokenId.
 func IdentityInvalidClientTokenId() awserr.Identity {
@@ -157,6 +217,9 @@ func ErrInvalidClientTokenId(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidClientTokenId(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#InvalidClientTokenId.
+func (*InvalidClientTokenId) ErrorIdentity() awserr.Identity { return IdentityInvalidClientTokenId() }
+
 // IdentityInvalidIdFormat returns the identity of com.amazonaws.sqs#InvalidIdFormat.
 func IdentityInvalidIdFormat() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#InvalidIdFormat", JSONType: "com.amazonaws.sqs#InvalidIdFormat", QueryCode: "InvalidIdFormat", Status: 400, Fault: awserr.Sender, MessageKey: awserr.NoMessage}
@@ -167,6 +230,9 @@ func ErrInvalidIdFormat() *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidIdFormat(), Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#InvalidIdFormat.
+func (*InvalidIdFormat) ErrorIdentity() awserr.Identity { return IdentityInvalidIdFormat() }
+
 // IdentityInvalidMessageContents returns the identity of com.amazonaws.sqs#InvalidMessageContents.
 func IdentityInvalidMessageContents() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#InvalidMessageContents", JSONType: "com.amazonaws.sqs#InvalidMessageContents", QueryCode: "InvalidMessageContents", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -175,6 +241,11 @@ func IdentityInvalidMessageContents() awserr.Identity {
 // ErrInvalidMessageContents returns an InvalidMessageContents error with message.
 func ErrInvalidMessageContents(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidMessageContents(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#InvalidMessageContents.
+func (*InvalidMessageContents) ErrorIdentity() awserr.Identity {
+	return IdentityInvalidMessageContents()
 }
 
 // IdentityInvalidParameterValue returns the identity of com.amazonaws.sqs#InvalidParameterValue.
@@ -187,6 +258,9 @@ func ErrInvalidParameterValue(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidParameterValue(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#InvalidParameterValue.
+func (*InvalidParameterValue) ErrorIdentity() awserr.Identity { return IdentityInvalidParameterValue() }
+
 // IdentityInvalidSecurity returns the identity of com.amazonaws.sqs#InvalidSecurity.
 func IdentityInvalidSecurity() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#InvalidSecurity", JSONType: "com.amazonaws.sqs#InvalidSecurity", QueryCode: "InvalidSecurity", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -197,6 +271,9 @@ func ErrInvalidSecurity(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidSecurity(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#InvalidSecurity.
+func (*InvalidSecurity) ErrorIdentity() awserr.Identity { return IdentityInvalidSecurity() }
+
 // IdentityInvalidSignatureException returns the identity of com.amazon.coral.service#InvalidSignatureException.
 func IdentityInvalidSignatureException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#InvalidSignatureException", JSONType: "com.amazon.coral.service#InvalidSignatureException", QueryCode: "SignatureDoesNotMatch", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -205,6 +282,11 @@ func IdentityInvalidSignatureException() awserr.Identity {
 // ErrInvalidSignatureException returns an InvalidSignatureException error with message.
 func ErrInvalidSignatureException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityInvalidSignatureException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#InvalidSignatureException.
+func (*InvalidSignatureException) ErrorIdentity() awserr.Identity {
+	return IdentityInvalidSignatureException()
 }
 
 // IdentityKmsAccessDenied returns the identity of com.amazonaws.sqs#KmsAccessDenied.
@@ -217,6 +299,9 @@ func ErrKmsAccessDenied(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityKmsAccessDenied(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#KmsAccessDenied.
+func (*KmsAccessDenied) ErrorIdentity() awserr.Identity { return IdentityKmsAccessDenied() }
+
 // IdentityKmsDisabled returns the identity of com.amazonaws.sqs#KmsDisabled.
 func IdentityKmsDisabled() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#KmsDisabled", JSONType: "com.amazonaws.sqs#KmsDisabled", QueryCode: "KMS.DisabledException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -226,6 +311,9 @@ func IdentityKmsDisabled() awserr.Identity {
 func ErrKmsDisabled(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityKmsDisabled(), Message: message, Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#KmsDisabled.
+func (*KmsDisabled) ErrorIdentity() awserr.Identity { return IdentityKmsDisabled() }
 
 // IdentityKmsInvalidKeyUsage returns the identity of com.amazonaws.sqs#KmsInvalidKeyUsage.
 func IdentityKmsInvalidKeyUsage() awserr.Identity {
@@ -237,6 +325,9 @@ func ErrKmsInvalidKeyUsage(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityKmsInvalidKeyUsage(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#KmsInvalidKeyUsage.
+func (*KmsInvalidKeyUsage) ErrorIdentity() awserr.Identity { return IdentityKmsInvalidKeyUsage() }
+
 // IdentityKmsInvalidState returns the identity of com.amazonaws.sqs#KmsInvalidState.
 func IdentityKmsInvalidState() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#KmsInvalidState", JSONType: "com.amazonaws.sqs#KmsInvalidState", QueryCode: "KMS.InvalidStateException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -246,6 +337,9 @@ func IdentityKmsInvalidState() awserr.Identity {
 func ErrKmsInvalidState(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityKmsInvalidState(), Message: message, Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#KmsInvalidState.
+func (*KmsInvalidState) ErrorIdentity() awserr.Identity { return IdentityKmsInvalidState() }
 
 // IdentityKmsNotFound returns the identity of com.amazonaws.sqs#KmsNotFound.
 func IdentityKmsNotFound() awserr.Identity {
@@ -257,6 +351,9 @@ func ErrKmsNotFound(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityKmsNotFound(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#KmsNotFound.
+func (*KmsNotFound) ErrorIdentity() awserr.Identity { return IdentityKmsNotFound() }
+
 // IdentityKmsOptInRequired returns the identity of com.amazonaws.sqs#KmsOptInRequired.
 func IdentityKmsOptInRequired() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#KmsOptInRequired", JSONType: "com.amazonaws.sqs#KmsOptInRequired", QueryCode: "KMS.OptInRequired", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -266,6 +363,9 @@ func IdentityKmsOptInRequired() awserr.Identity {
 func ErrKmsOptInRequired(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityKmsOptInRequired(), Message: message, Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#KmsOptInRequired.
+func (*KmsOptInRequired) ErrorIdentity() awserr.Identity { return IdentityKmsOptInRequired() }
 
 // IdentityKmsThrottled returns the identity of com.amazonaws.sqs#KmsThrottled.
 func IdentityKmsThrottled() awserr.Identity {
@@ -277,6 +377,9 @@ func ErrKmsThrottled(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityKmsThrottled(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#KmsThrottled.
+func (*KmsThrottled) ErrorIdentity() awserr.Identity { return IdentityKmsThrottled() }
+
 // IdentityMessageNotInflight returns the identity of com.amazonaws.sqs#MessageNotInflight.
 func IdentityMessageNotInflight() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#MessageNotInflight", JSONType: "com.amazonaws.sqs#MessageNotInflight", QueryCode: "AWS.SimpleQueueService.MessageNotInflight", Status: 400, Fault: awserr.Sender, MessageKey: awserr.NoMessage}
@@ -287,6 +390,9 @@ func ErrMessageNotInflight() *awserr.Error {
 	return &awserr.Error{ID: IdentityMessageNotInflight(), Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#MessageNotInflight.
+func (*MessageNotInflight) ErrorIdentity() awserr.Identity { return IdentityMessageNotInflight() }
+
 // IdentityMissingAuthenticationToken returns the identity of com.amazon.coral.service#MissingAuthenticationToken.
 func IdentityMissingAuthenticationToken() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#MissingAuthenticationToken", JSONType: "com.amazon.coral.service#MissingAuthenticationToken", QueryCode: "MissingAuthenticationToken", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -295,6 +401,11 @@ func IdentityMissingAuthenticationToken() awserr.Identity {
 // ErrMissingAuthenticationToken returns a MissingAuthenticationToken error with message.
 func ErrMissingAuthenticationToken(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityMissingAuthenticationToken(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#MissingAuthenticationToken.
+func (*MissingAuthenticationToken) ErrorIdentity() awserr.Identity {
+	return IdentityMissingAuthenticationToken()
 }
 
 // IdentityMissingAuthenticationTokenException returns the identity of com.amazon.coral.service#MissingAuthenticationTokenException.
@@ -307,6 +418,11 @@ func ErrMissingAuthenticationTokenException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityMissingAuthenticationTokenException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#MissingAuthenticationTokenException.
+func (*MissingAuthenticationTokenException) ErrorIdentity() awserr.Identity {
+	return IdentityMissingAuthenticationTokenException()
+}
+
 // IdentityMissingParameter returns the identity of com.amazonaws.sqs#MissingParameter.
 func IdentityMissingParameter() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#MissingParameter", JSONType: "com.amazonaws.sqs#MissingRequiredParameterException", QueryCode: "MissingParameter", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -316,6 +432,9 @@ func IdentityMissingParameter() awserr.Identity {
 func ErrMissingParameter(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityMissingParameter(), Message: message, Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#MissingParameter.
+func (*MissingParameter) ErrorIdentity() awserr.Identity { return IdentityMissingParameter() }
 
 // IdentityNotImplemented returns the identity of dev.understudy#NotImplemented.
 func IdentityNotImplemented() awserr.Identity {
@@ -327,6 +446,9 @@ func ErrNotImplemented(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityNotImplemented(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of dev.understudy#NotImplemented.
+func (*NotImplemented) ErrorIdentity() awserr.Identity { return IdentityNotImplemented() }
+
 // IdentityOverLimit returns the identity of com.amazonaws.sqs#OverLimit.
 func IdentityOverLimit() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#OverLimit", JSONType: "com.amazonaws.sqs#OverLimit", QueryCode: "OverLimit", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -336,6 +458,9 @@ func IdentityOverLimit() awserr.Identity {
 func ErrOverLimit(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityOverLimit(), Message: message, Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#OverLimit.
+func (*OverLimit) ErrorIdentity() awserr.Identity { return IdentityOverLimit() }
 
 // IdentityPurgeQueueInProgress returns the identity of com.amazonaws.sqs#PurgeQueueInProgress.
 func IdentityPurgeQueueInProgress() awserr.Identity {
@@ -347,6 +472,9 @@ func ErrPurgeQueueInProgress(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityPurgeQueueInProgress(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#PurgeQueueInProgress.
+func (*PurgeQueueInProgress) ErrorIdentity() awserr.Identity { return IdentityPurgeQueueInProgress() }
+
 // IdentityQueueDeletedRecently returns the identity of com.amazonaws.sqs#QueueDeletedRecently.
 func IdentityQueueDeletedRecently() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#QueueDeletedRecently", JSONType: "com.amazonaws.sqs#QueueDeletedRecently", QueryCode: "AWS.SimpleQueueService.QueueDeletedRecently", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -356,6 +484,9 @@ func IdentityQueueDeletedRecently() awserr.Identity {
 func ErrQueueDeletedRecently(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityQueueDeletedRecently(), Message: message, Origin: awserr.Modeled{}}
 }
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#QueueDeletedRecently.
+func (*QueueDeletedRecently) ErrorIdentity() awserr.Identity { return IdentityQueueDeletedRecently() }
 
 // IdentityQueueDoesNotExist returns the identity of com.amazonaws.sqs#QueueDoesNotExist.
 func IdentityQueueDoesNotExist() awserr.Identity {
@@ -368,6 +499,9 @@ func ErrQueueDoesNotExist(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityQueueDoesNotExist(), Message: message, Messages: []awserr.ProtocolMessage{{Protocol: ref.AWSQuery, Message: "The specified queue does not exist for this wsdl version."}}, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#QueueDoesNotExist.
+func (*QueueDoesNotExist) ErrorIdentity() awserr.Identity { return IdentityQueueDoesNotExist() }
+
 // IdentityQueueNameExists returns the identity of com.amazonaws.sqs#QueueNameExists.
 func IdentityQueueNameExists() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#QueueNameExists", JSONType: "com.amazonaws.sqs#QueueNameExists", QueryCode: "QueueAlreadyExists", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -378,6 +512,9 @@ func ErrQueueNameExists(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityQueueNameExists(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#QueueNameExists.
+func (*QueueNameExists) ErrorIdentity() awserr.Identity { return IdentityQueueNameExists() }
+
 // IdentityReceiptHandleIsInvalid returns the identity of com.amazonaws.sqs#ReceiptHandleIsInvalid.
 func IdentityReceiptHandleIsInvalid() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#ReceiptHandleIsInvalid", JSONType: "com.amazonaws.sqs#ReceiptHandleIsInvalid", QueryCode: "ReceiptHandleIsInvalid", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -386,6 +523,11 @@ func IdentityReceiptHandleIsInvalid() awserr.Identity {
 // ErrReceiptHandleIsInvalid returns a ReceiptHandleIsInvalid error with message.
 func ErrReceiptHandleIsInvalid(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityReceiptHandleIsInvalid(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#ReceiptHandleIsInvalid.
+func (*ReceiptHandleIsInvalid) ErrorIdentity() awserr.Identity {
+	return IdentityReceiptHandleIsInvalid()
 }
 
 // IdentityRequestEntityTooLargeException returns the identity of com.amazon.coral.service#RequestEntityTooLargeException.
@@ -398,6 +540,11 @@ func ErrRequestEntityTooLargeException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityRequestEntityTooLargeException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#RequestEntityTooLargeException.
+func (*RequestEntityTooLargeException) ErrorIdentity() awserr.Identity {
+	return IdentityRequestEntityTooLargeException()
+}
+
 // IdentityRequestThrottled returns the identity of com.amazonaws.sqs#RequestThrottled.
 func IdentityRequestThrottled() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#RequestThrottled", JSONType: "com.amazonaws.sqs#RequestThrottled", QueryCode: "RequestThrottled", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower, Retryable: true}
@@ -408,6 +555,9 @@ func ErrRequestThrottled(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityRequestThrottled(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#RequestThrottled.
+func (*RequestThrottled) ErrorIdentity() awserr.Identity { return IdentityRequestThrottled() }
+
 // IdentityResourceNotFoundException returns the identity of com.amazonaws.sqs#ResourceNotFoundException.
 func IdentityResourceNotFoundException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#ResourceNotFoundException", JSONType: "com.amazonaws.sqs#ResourceNotFoundException", QueryCode: "ResourceNotFoundException", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -416,6 +566,11 @@ func IdentityResourceNotFoundException() awserr.Identity {
 // ErrResourceNotFoundException returns a ResourceNotFoundException error with message.
 func ErrResourceNotFoundException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityResourceNotFoundException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#ResourceNotFoundException.
+func (*ResourceNotFoundException) ErrorIdentity() awserr.Identity {
+	return IdentityResourceNotFoundException()
 }
 
 // IdentitySerializationException returns the identity of com.amazon.coral.service#SerializationException.
@@ -428,6 +583,11 @@ func ErrSerializationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentitySerializationException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#SerializationException.
+func (*SerializationException) ErrorIdentity() awserr.Identity {
+	return IdentitySerializationException()
+}
+
 // IdentitySignatureDoesNotMatch returns the identity of com.amazon.coral.service#SignatureDoesNotMatch.
 func IdentitySignatureDoesNotMatch() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#SignatureDoesNotMatch", JSONType: "com.amazon.coral.service#SignatureDoesNotMatch", QueryCode: "SignatureDoesNotMatch", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -437,6 +597,9 @@ func IdentitySignatureDoesNotMatch() awserr.Identity {
 func ErrSignatureDoesNotMatch(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentitySignatureDoesNotMatch(), Message: message, Origin: awserr.Generic{}}
 }
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#SignatureDoesNotMatch.
+func (*SignatureDoesNotMatch) ErrorIdentity() awserr.Identity { return IdentitySignatureDoesNotMatch() }
 
 // IdentityThrottlingException returns the identity of com.amazon.coral.service#ThrottlingException.
 func IdentityThrottlingException() awserr.Identity {
@@ -448,6 +611,9 @@ func ErrThrottlingException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityThrottlingException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#ThrottlingException.
+func (*ThrottlingException) ErrorIdentity() awserr.Identity { return IdentityThrottlingException() }
+
 // IdentityTooManyEntriesInBatchRequest returns the identity of com.amazonaws.sqs#TooManyEntriesInBatchRequest.
 func IdentityTooManyEntriesInBatchRequest() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.sqs#TooManyEntriesInBatchRequest", JSONType: "com.amazonaws.sqs#TooManyEntriesInBatchRequest", QueryCode: "AWS.SimpleQueueService.TooManyEntriesInBatchRequest", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -456,6 +622,11 @@ func IdentityTooManyEntriesInBatchRequest() awserr.Identity {
 // ErrTooManyEntriesInBatchRequest returns a TooManyEntriesInBatchRequest error with message.
 func ErrTooManyEntriesInBatchRequest(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityTooManyEntriesInBatchRequest(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.sqs#TooManyEntriesInBatchRequest.
+func (*TooManyEntriesInBatchRequest) ErrorIdentity() awserr.Identity {
+	return IdentityTooManyEntriesInBatchRequest()
 }
 
 // IdentityUnknownOperationException returns the identity of com.amazon.coral.service#UnknownOperationException.
@@ -468,6 +639,11 @@ func ErrUnknownOperationException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnknownOperationException(), Message: message, Origin: awserr.Generic{}}
 }
 
+// ErrorIdentity returns the identity of com.amazon.coral.service#UnknownOperationException.
+func (*UnknownOperationException) ErrorIdentity() awserr.Identity {
+	return IdentityUnknownOperationException()
+}
+
 // IdentityUnrecognizedClientException returns the identity of com.amazon.coral.service#UnrecognizedClientException.
 func IdentityUnrecognizedClientException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#UnrecognizedClientException", JSONType: "com.amazon.coral.service#UnrecognizedClientException", QueryCode: "InvalidClientTokenId", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
@@ -476,6 +652,11 @@ func IdentityUnrecognizedClientException() awserr.Identity {
 // ErrUnrecognizedClientException returns an UnrecognizedClientException error with message.
 func ErrUnrecognizedClientException(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnrecognizedClientException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#UnrecognizedClientException.
+func (*UnrecognizedClientException) ErrorIdentity() awserr.Identity {
+	return IdentityUnrecognizedClientException()
 }
 
 // IdentityUnsupportedOperation returns the identity of com.amazonaws.sqs#UnsupportedOperation.
@@ -488,9 +669,26 @@ func ErrUnsupportedOperation(message string) *awserr.Error {
 	return &awserr.Error{ID: IdentityUnsupportedOperation(), Message: message, Origin: awserr.Modeled{}}
 }
 
+// ErrorIdentity returns the identity of com.amazonaws.sqs#UnsupportedOperation.
+func (*UnsupportedOperation) ErrorIdentity() awserr.Identity { return IdentityUnsupportedOperation() }
+
+// NewErrorMembers returns a new, empty value of error shape id, to decode
+// a fault rule's members into, or false for a shape this package does not
+// generate a decoder for.
+func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
+	switch id {
+	default:
+		return nil, false
+	}
+}
+
 // ThrottleError returns the identity a throttling fault rule injects for
 // this service (dev.understudy#throttleError).
 func ThrottleError() awserr.Identity { return IdentityRequestThrottled() }
+
+// DenialError returns the identity this service answers an authorization
+// refusal with (dev.understudy#denialError), evidence aws-recorded.
+func DenialError() awserr.Identity { return IdentityAccessDenied() }
 
 // UnknownOperationError returns the identity this service answers for an
 // operation absent from its model, per protocol family

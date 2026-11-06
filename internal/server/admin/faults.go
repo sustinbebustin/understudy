@@ -8,6 +8,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/fault"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
@@ -25,8 +26,8 @@ func (h *Handler) faultList(w http.ResponseWriter, r *http.Request, _ []string) 
 	h.ok(w, r, out)
 }
 
-func (h *Handler) faultClear(w http.ResponseWriter, _ *http.Request, _ []string) {
-	h.o.Faults.Clear()
+func (h *Handler) faultClear(w http.ResponseWriter, r *http.Request, _ []string) {
+	h.journalAction(r.Context(), journal.FaultRuleRemoved{Rules: h.o.Faults.RemoveAll()})
 	h.noContent(w)
 }
 
@@ -51,7 +52,8 @@ func (h *Handler) faultPut(w http.ResponseWriter, r *http.Request, args []string
 		return
 	}
 	rule.ID = ref.RuleID(id)
-	if _, rerr := h.o.Faults.Add(rule); rerr != nil {
+	added, rerr := h.o.Faults.Add(rule)
+	if rerr != nil {
 		h.fail(w, r, &admin.Error{
 			Code:  admin.InvalidRequest,
 			Field: rerr.Field,
@@ -64,6 +66,9 @@ func (h *Handler) faultPut(w http.ResponseWriter, r *http.Request, args []string
 		})
 		return
 	}
+	// The rule is active from here, so it is journaled even if rendering
+	// it for the answer fails.
+	h.journalAction(r.Context(), journal.FaultRuleAdded{Rule: added})
 	f, aerr := h.wireFault(rule, 0)
 	if aerr != nil {
 		h.fail(w, r, aerr)
@@ -92,10 +97,12 @@ func ruleParseError(err error) *admin.Error {
 }
 
 func (h *Handler) faultDelete(w http.ResponseWriter, r *http.Request, args []string) {
-	if !h.o.Faults.Remove(ref.RuleID(args[0])) {
+	id := ref.RuleID(args[0])
+	if !h.o.Faults.Remove(id) {
 		h.fail(w, r, &admin.Error{Code: admin.NotFound, Message: fmt.Sprintf("no active fault rule has id %q", args[0]), Hint: "list the active rules with 'understudy faults list' (GET " + admin.Prefix + "/faults); a next-n rule leaves after its last hit"})
 		return
 	}
+	h.journalAction(r.Context(), journal.FaultRuleRemoved{Rules: []ref.RuleID{id}})
 	h.noContent(w)
 }
 

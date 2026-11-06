@@ -153,13 +153,13 @@ func TestStageFailures(t *testing.T) {
 				"dev.understudy#flavor": "vanilla", ` + evidence + `}}`),
 			stage: codegen.StageOverlay,
 			want: "understudy-gen overlay: extra.json: com.example.golden#Golden: dev.understudy#flavor is not a dev.understudy trait; " +
-				"the closed set is [dev.understudy#alwaysEmit dev.understudy#emptyCollection dev.understudy#errorNamespace " +
+				"the closed set is [dev.understudy#alwaysEmit dev.understudy#denialError dev.understudy#emptyCollection dev.understudy#enumOrder dev.understudy#errorNamespace " +
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
-				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#notConfigured dev.understudy#patternEcho " +
+				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#patternEcho " +
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryKeyAlias " +
-				"dev.understudy#statusOverride dev.understudy#successCode " +
+				"dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationError dev.understudy#validationError " +
-				"dev.understudy#validationPathStyle]",
+				"dev.understudy#validationInputRoot dev.understudy#validationPathStyle]",
 		},
 		{
 			name: "dev.understudy trait on the wrong site",
@@ -614,6 +614,55 @@ func TestIAMPrimaryAction(t *testing.T) {
 	}
 }
 
+// TestIAMRowPerSDKClient: a prefix two models share can list one operation
+// name once per Boto3 client; sdkService picks the model's row, and a config
+// without one is refused rather than given either row.
+func TestIAMRowPerSDKClient(t *testing.T) {
+	const single = `{"name": "PutKinds", "authorized": ["golden:TagThing", "golden:PutKinds", "iam:PassRole"]}`
+	const shared = `{"name": "PutKinds", "sdk": ["golden"], "authorized": ["golden:PutKinds"]},
+        {"name": "PutKinds", "sdk": ["goldenv2"], "authorized": ["golden:WriteKinds"]}`
+	tests := []struct{ name, sdk, first, err string }{
+		{name: "the model's client", sdk: "golden", first: `{Prefix: "golden", Name: "PutKinds"}}`},
+		{name: "the other model's client", sdk: "goldenv2", first: `{Prefix: "golden", Name: "WriteKinds"}}`},
+		{
+			name: "no sdkService",
+			err:  "understudy-gen ir: com.example.golden#PutKinds: the golden table lists PutKinds once per SDK client (2 rows match); set sdkService in the service config to the model's Boto3 client",
+		},
+		{
+			name: "a client the table does not name", sdk: "goldenv3",
+			err: "understudy-gen ir: com.example.golden#PutKinds: the Service Reference table has no golden entry for this operation; re-run go run ./internal/cmd/vendor -service-reference",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in := goldenInputs(t)
+			table, ok := in.IAM.(codegen.ActionsTable)
+			if !ok {
+				t.Fatalf("goldenInputs gives IAM %T, want an ActionsTable", in.IAM)
+			}
+			if !bytes.Contains(table.Source.Content, []byte(single)) {
+				t.Fatalf("the golden table no longer holds %s", single)
+			}
+			table.Source.Content = bytes.Replace(table.Source.Content, []byte(single), []byte(shared), 1)
+			in.IAM = table
+			in.Config.SDKService = tt.sdk
+			files, err := codegen.Generate(in)
+			if tt.err != "" {
+				if err == nil || err.Error() != tt.err {
+					t.Fatalf("Generate = %v\nwant %s", err, tt.err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := "[]registry.IAMAction{" + tt.first; !bytes.Contains(files["ops_gen.go"], []byte(want)) {
+				t.Fatalf("PutKinds does not list %s:\n%s", tt.first, files["ops_gen.go"])
+			}
+		})
+	}
+}
+
 // TestServiceConfigIAMPrimaryEntries: an iamPrimary entry states its reason,
 // and one operation has one entry.
 func TestServiceConfigIAMPrimaryEntries(t *testing.T) {
@@ -691,6 +740,7 @@ func TestClassifyOverlayTraits(t *testing.T) {
 		"dev.understudy#errorNamespace":        codegen.Honor,
 		"dev.understudy#jsonType":              codegen.Honor,
 		"dev.understudy#messageByProtocol":     codegen.Honor,
+		"dev.understudy#messageKey":            codegen.Honor,
 		"dev.understudy#validationError":       codegen.Honor,
 		"dev.understudy#validationPathStyle":   codegen.Honor,
 		"dev.understudy#successCode":           codegen.Honor,
@@ -707,6 +757,9 @@ func TestClassifyOverlayTraits(t *testing.T) {
 		"dev.understudy#statusOverride":        codegen.Honor,
 		"dev.understudy#unknownOperationError": codegen.Honor,
 		"dev.understudy#queryErrorEnvelope":    codegen.Honor,
+		"dev.understudy#responseCrc32":         codegen.Honor,
+		"dev.understudy#enumOrder":             codegen.Honor,
+		"dev.understudy#validationInputRoot":   codegen.Honor,
 	}
 	for id, class := range want {
 		if c, ok := codegen.Classify(id); c != class || !ok {

@@ -1,0 +1,31 @@
+{
+  "step": "10-01-denied-get",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDeniedException) when calling the GetSchedule operation: User: arn:aws:iam::123456789012:user/us1103-sch-caller is not authorized to perform: scheduler:GetSchedule on resource: arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-none because no identity-based policy allows the scheduler:GetSchedule action",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://scheduler.us-east-2.amazonaws.com/schedules/us1103-none",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,AN,E,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#scheduler.get-schedule"],
+          ["X-Amz-Date", "20261103T175915Z"],
+          ["amz-sdk-invocation-id", "4f459142-dd93-4b70-9441-28042c3078e7"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["x-amzn-RequestId", "45a5b1a8-e402-40eb-b617-db7a8b58ed70"],
+          ["x-amzn-ErrorType", "AccessDeniedException:http://internal.amazon.com/coral/com.amazon.coral.service/"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "276"],
+          ["Date", "Tue, 03 Nov 2026 17:59:15 GMT"]
+        ],
+        "body": "{\"Message\":\"User: arn:aws:iam::123456789012:user/us1103-sch-caller is not authorized to perform: scheduler:GetSchedule on resource: arn:aws:scheduler:us-east-2:123456789012:schedule/default/us1103-none because no identity-based policy allows the scheduler:GetSchedule action\"}"
+      }
+    }
+  ]
+}

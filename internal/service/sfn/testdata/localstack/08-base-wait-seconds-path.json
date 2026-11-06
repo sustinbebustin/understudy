@@ -1,0 +1,21 @@
+{
+  "golden": 8,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/base/test_wait.snapshot.json:L557",
+  "test": "test_base_wait_seconds_path[0] (get_execution_history)",
+  "validated": "2024-03-22",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/base/statemachines/wait_seconds_path.json5",
+  "definition": {
+    "Comment": "WAIT_SECONDS_PATH",
+    "StartAt": "WaitState",
+    "States": {
+      "WaitState": {"Type": "Wait", "SecondsPath": "$.input.waitSeconds", "End": true}
+    }
+  },
+  "input": {"input": {"waitSeconds": 0}},
+  "history": [
+    {"executionStartedEventDetails": {"input": {"input": {"waitSeconds": 0}}, "inputDetails": {"truncated": false}, "roleArn": "snf_role_arn"}, "id": 1, "previousEventId": 0, "timestamp": "timestamp", "type": "ExecutionStarted"},
+    {"id": 2, "previousEventId": 0, "stateEnteredEventDetails": {"input": {"input": {"waitSeconds": 0}}, "inputDetails": {"truncated": false}, "name": "WaitState"}, "timestamp": "timestamp", "type": "WaitStateEntered"},
+    {"id": 3, "previousEventId": 2, "stateExitedEventDetails": {"name": "WaitState", "output": {"input": {"waitSeconds": 0}}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "WaitStateExited"},
+    {"executionSucceededEventDetails": {"output": {"input": {"waitSeconds": 0}}, "outputDetails": {"truncated": false}}, "id": 4, "previousEventId": 3, "timestamp": "timestamp", "type": "ExecutionSucceeded"}
+  ]
+}

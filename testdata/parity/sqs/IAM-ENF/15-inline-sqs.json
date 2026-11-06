@@ -1,0 +1,37 @@
+{
+  "step": "15-inline-sqs",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (AccessDenied) when calling the GetQueueAttributes operation: User: arn:aws:sts::123456789012:assumed-role/us1103-enf-mix/enf is not authorized to perform: sqs:getqueueattributes on resource: arn:aws:sqs:us-east-2:123456789012:us1103-enf-q with an explicit deny in an identity-based policy",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://sqs.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSQS.GetQueueAttributes"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["x-amzn-query-mode", "true"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/AN,Z,E,g,b cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#sqs.get-queue-attributes"],
+          ["X-Amz-Date", "20261103T034548Z"],
+          ["amz-sdk-invocation-id", "54109a79-3159-498b-97cb-4b04f9248950"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "104"]
+        ],
+        "body": "{\"QueueUrl\": \"https://sqs.us-east-2.amazonaws.com/123456789012/us1103-enf-q\", \"AttributeNames\": [\"All\"]}"
+      },
+      "response": {
+        "status": 403,
+        "headers": [
+          ["x-amzn-RequestId", "4f98f17b-d438-5280-aeac-92188f14fdaf"],
+          ["x-amzn-query-error", "AccessDenied;Sender"],
+          ["Connection", "close"],
+          ["Date", "Tue, 03 Nov 2026 03:45:48 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "299"]
+        ],
+        "body": "{\"__type\":\"com.amazon.coral.service#AccessDeniedException\",\"Message\":\"User: arn:aws:sts::123456789012:assumed-role/us1103-enf-mix/enf is not authorized to perform: sqs:getqueueattributes on resource: arn:aws:sqs:us-east-2:123456789012:us1103-enf-q with an explicit deny in an identity-based policy\"}"
+      }
+    }
+  ]
+}

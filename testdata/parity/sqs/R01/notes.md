@@ -7,9 +7,9 @@
 
 ## Expected
 
-Understudy paths are under /home/austin/dev/local-aws-stack.
+Understudy paths are repo-relative.
 
-- step 2 re-receive (ApproximateReceiveCount 2, same MessageId, new handle; 02-recv1/02-recv2): matches.
+- step 2 re-receive (ApproximateReceiveCount 2, same MessageId, new handle; 02-recv1/02-recv2): matches. Replay: the values match, the JSON member order differs (below).
 - step 3 stale delete H1 while H2 current (03-delete-stale): differs: AWS 200 empty body AND the message is deleted (03-recv-after-stale-delete and 03-recv-after-6s both `{}`, 6 s after a 5 s timeout); understudy matches only the latest handle, so H1 is a silent no-op and the message reappears (internal/service/sqs/visibility.go:140, state.go:321).
 - step 3 delete H2 after message gone (03-delete-h2): matches (200, empty body).
 - step 4 delete current then stale on a gone message (04-delete-current, 04-delete-stale-gone): matches (200, empty body both).
@@ -27,4 +27,14 @@ Understudy paths are under /home/austin/dev/local-aws-stack.
 - step 7 FIFO delete H2 (07-fifo-delete-h2) and recv3 `{}`: matches.
 - step 8 handle form (08-handles.txt): differs: AWS 412 chars, `AQEB` + base64, no shared prefix beyond `AQEB` across receives; understudy `AQEB` + 32 chars (internal/ids/ids.go:54). Cosmetic.
 - backlog decision: AWS deletes on any handle of an existing standard message ("any handle for an existing message deletes it"); CMV with a stale standard handle succeeds.
+
+## Replay (internal/parity)
+
+`scenario.json` replays every step in recorded order; internal/parity/baseline.json holds the outcomes.
+
+- Member order, not compared above: every receive that returns a message differs on it. AWS writes a message's members as Attributes, Body, MD5OfBody, MessageId, ReceiptHandle, and its Attributes as SenderId, ApproximateFirstReceiveTimestamp, ApproximateReceiveCount, SentTimestamp, then SequenceNumber, MessageDeduplicationId, MessageGroupId; understudy writes the model's order and sorts the Attributes. The batch answers too: AWS writes Failed before Successful, and each entry as Code, Id, Message, SenderFault.
+- The stale delete of step 3 cascades: understudy keeps the message, so 03-recv-after-6s and 03-drain return it, 04-recv2 receives it (ApproximateReceiveCount 5, step 2's MessageId), and 04-delete-current and 04-delete-stale-gone delete it and step 4's message.
+- Made up: the queue 06-cmv-batch and 06-delete-batch take the `otherqueue` handle from. The kit created it and received from it outside `rec`, and its name and message body were not recorded; the setup names it `usr-rec-20261014-other` and sends `other`. Those entries' results depend only on the handle being another queue's, and no settles entry sits on either step.
+- Inferred: the advances a frozen clock needs where the kit's long polls waited, from the recorded X-Amz-Date gaps: 8s before 03-recv-after-6s, 3s before 03-delete-h2, 7s before 03-drain, 2s before 04-send and before 08-recv1. The other advances are the kit's `sleep 6`.
+- Handle length is not compared: the ReceiptHandle binds admit 36 to 1024 characters, so understudy's 36-character handles and AWS's 412-character ones both bind, and the receipt-handle normalizer masks the value. A matching receive says nothing about the length step 8 records as differing.
 

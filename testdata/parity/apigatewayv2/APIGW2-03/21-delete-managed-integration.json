@@ -1,0 +1,37 @@
+{
+  "step": "21-delete-managed-integration",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ConflictException) when calling the DeleteIntegration operation: Cannot delete Integration because it is referenced by the following Routes with Ids: [c4e4267]",
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/swtcu0ifi5/integrations/5bugk0v",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,Z,E,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.delete-integration"],
+          ["X-Amz-Date", "20261103T164342Z"],
+          ["amz-sdk-invocation-id", "c2e450a4-4a50-464b-8bc2-c7b054c1943e"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 409,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:42 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "108"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "07fc85b3-61f2-4ce6-a5b3-ff45d6df4f49"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amzn-ErrorType", "ConflictException"],
+          ["x-amz-apigw-id", "GRdR2Fv0CYcEH8A="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f3e-084652946936d943021ffbdc"]
+        ],
+        "body": "{\"message\":\"Cannot delete Integration because it is referenced by the following Routes with Ids: [c4e4267]\"}"
+      }
+    }
+  ]
+}

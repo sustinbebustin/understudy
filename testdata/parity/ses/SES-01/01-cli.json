@@ -1,0 +1,34 @@
+{
+  "step": "01-cli",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (MessageRejected) when calling the SendEmail operation: Email address is not verified. The following identities failed the check in region US-EAST-2: us1103-nobody@example.com",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,g,AN,Z,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ses.send-email"],
+          ["X-Amz-Date", "20261103T164210Z"],
+          ["amz-sdk-invocation-id", "5caf7075-da48-4eed-8c95-9bc7d7c74256"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "185"]
+        ],
+        "body": "Action=SendEmail&Version=2010-12-01&Destination.ToAddresses.member.1=success%40simulator.amazonses.com&Message.Subject.Data=s&Message.Body.Text.Data=b&Source=us1103-nobody%40example.com"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:10 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "365"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "bb1c938d-08ab-47a1-9602-ecc387b7d130"]
+        ],
+        "body": "<ErrorResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <Error>\n    <Type>Sender</Type>\n    <Code>MessageRejected</Code>\n    <Message>Email address is not verified. The following identities failed the check in region US-EAST-2: us1103-nobody@example.com</Message>\n  </Error>\n  <RequestId>bb1c938d-08ab-47a1-9602-ecc387b7d130</RequestId>\n</ErrorResponse>\n"
+      }
+    }
+  ]
+}

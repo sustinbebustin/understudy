@@ -1,0 +1,22 @@
+{
+  "step": "07-unknown-route",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 403,
+        "reason": "Forbidden",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:39:11 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "42"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "6a83b194-aa8a-442d-8daa-42bd9d2e05eb"],
+          ["x-amzn-ErrorType", "MissingAuthenticationTokenException"],
+          ["x-amz-apigw-id", "GRcndF9BCYcECYA="]
+        ],
+        "body": "{\"message\":\"Missing Authentication Token\"}"
+      }
+    }
+  ]
+}

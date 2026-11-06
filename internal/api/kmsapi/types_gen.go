@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// AccessDeniedException is the error com.amazon.coral.service#AccessDeniedException.
+// AccessDeniedException is the error com.amazonaws.kms#AccessDeniedException.
 type AccessDeniedException struct {
 	Message *string
 }
@@ -263,6 +263,11 @@ func (ConnectionStateType) Values() []ConnectionStateType {
 		ConnectionStateTypeDisconnected,
 		ConnectionStateTypeDisconnecting,
 	}
+}
+
+// CoralServiceAccessDeniedException is the error com.amazon.coral.service#AccessDeniedException.
+type CoralServiceAccessDeniedException struct {
+	Message *string
 }
 
 // CreateAliasInput is the input of CreateAlias, com.amazonaws.kms#CreateAliasRequest.

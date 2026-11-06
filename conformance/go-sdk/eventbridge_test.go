@@ -3,6 +3,7 @@ package gosdk_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -11,12 +12,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	sqstypes "github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
 // Research: docs/research/secrets-logs-events-alarms.md section 4,
-// matching-engines.md, error-matrix.md 5.12.
+// matching-engines.md, error-matrix.md 5.12, eventbridge-buses.md for
+// custom buses.
+
+// eventsTrustPolicy lets EventBridge assume a target's role
+// (iam-enforcement-surfaces.md 8.4).
+const eventsTrustPolicy = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sts:AssumeRole"}]}`
 
 // putRule creates or replaces a rule on the default bus and, when the test
 // ends, removes its targets and deletes it.
@@ -68,7 +75,7 @@ func TestEventBridgeRules(t *testing.T) {
 	ctx := t.Context()
 	client := eventbridge.NewFromConfig(awsCfg)
 	acct := account(t)
-	ruleName := name("rule")
+	ruleName := name(t, "rule")
 	pattern := `{"source":["conformance.app"],"detail-type":["Order Placed"]}`
 	ruleArn := putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(pattern), Tags: []types.Tag{{Key: aws.String("team"), Value: aws.String("platform")}}})
 
@@ -87,7 +94,7 @@ func TestEventBridgeRules(t *testing.T) {
 	})
 
 	t.Run("PutRule replaces", func(t *testing.T) {
-		other := name("replace")
+		other := name(t, "replace")
 		putRule(t, &eventbridge.PutRuleInput{Name: aws.String(other), EventPattern: aws.String(pattern), Description: aws.String("first")})
 		_, err := client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(other), EventPattern: aws.String(pattern), State: types.RuleStateDisabled})
 		ok(t, err, "PutRule again")
@@ -107,18 +114,18 @@ func TestEventBridgeRules(t *testing.T) {
 	})
 
 	t.Run("errors", func(t *testing.T) {
-		missing := name("missing")
+		missing := name(t, "missing")
 		_, err := client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: aws.String(missing)})
 		errAs[*types.ResourceNotFoundException](t, err, "DescribeRule missing")
 		wantMessage(t, err, "DescribeRule missing", "Rule "+missing+" does not exist on EventBus default.")
-		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name("bad")), EventPattern: aws.String(`{"source":"not-an-array"}`)})
+		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name(t, "bad")), EventPattern: aws.String(`{"source":"not-an-array"}`)})
 		errAs[*types.InvalidEventPatternException](t, err, "PutRule with a non-array leaf")
 		wantMessageContains(t, err, "PutRule with a non-array leaf", "Event pattern is not valid. Reason: ")
-		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name("bad")), EventPattern: aws.String(`{"source":[]}`)})
+		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name(t, "bad")), EventPattern: aws.String(`{"source":[]}`)})
 		errAs[*types.InvalidEventPatternException](t, err, "PutRule with an empty array")
 		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String("bad name!"), EventPattern: aws.String(pattern)})
 		apiErr(t, err, "PutRule with an invalid name", "ValidationException")
-		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name("none"))})
+		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name(t, "none"))})
 		// A rule needs EventPattern or ScheduleExpression; the research
 		// records no error code for the omission, so only the failure is
 		// asserted.
@@ -132,7 +139,7 @@ func TestEventBridgeRules(t *testing.T) {
 			"rate(1 minute)", "rate(5 minutes)", "rate(2 hours)", "rate(1 day)", "cron(0 10 * * ? *)", "cron(0/15 * * * ? *)",
 			"cron(0 18 ? * MON-FRI *)", "cron(15 10 ? * 6L 2002-2005)", "cron(0 2 ? * SAT#3 *)", "cron(0/5 5 ? JAN 1-5 2022)",
 		} {
-			n := name("sched")
+			n := name(t, "sched")
 			putRule(t, &eventbridge.PutRuleInput{Name: aws.String(n), ScheduleExpression: aws.String(expr), State: types.RuleStateDisabled})
 			out, err := client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: aws.String(n)})
 			ok(t, err, "DescribeRule "+expr)
@@ -144,7 +151,7 @@ func TestEventBridgeRules(t *testing.T) {
 			"rate(10 seconds)", "rate(1 minutes)", "rate(10 minute)", "rate(10 MINUTES)", "rate(0 minutes)", "rate( 10 minutes )",
 			"cron(0 1 * * * *)", "cron(71 8 1 * ? *)", "cron(INVALID)",
 		} {
-			_, err := client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name("badsched")), ScheduleExpression: aws.String(expr)})
+			_, err := client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name(t, "badsched")), ScheduleExpression: aws.String(expr)})
 			apiErr(t, err, "PutRule ScheduleExpression "+expr, "ValidationException")
 			wantMessage(t, err, "PutRule ScheduleExpression "+expr, "Parameter ScheduleExpression is not valid.")
 		}
@@ -168,7 +175,7 @@ func TestEventBridgeRules(t *testing.T) {
 	})
 
 	t.Run("targets", func(t *testing.T) {
-		queueURL := createQueue(t, name("eb-target"), nil)
+		queueURL := createQueue(t, name(t, "eb-target"), nil)
 		qArn := queueArn(t, queueURL)
 		putTargets(t, ruleName, types.Target{Id: aws.String("q"), Arn: aws.String(qArn), Input: aws.String(`{"fixed":true}`)})
 		list, err := client.ListTargetsByRule(ctx, &eventbridge.ListTargetsByRuleInput{Rule: aws.String(ruleName)})
@@ -221,14 +228,21 @@ func TestEventBridgePutEvents(t *testing.T) {
 	ctx := t.Context()
 	client := eventbridge.NewFromConfig(awsCfg)
 	acct := account(t)
-	source := "conformance." + name("app")
-	ruleName := name("orders")
-	putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(`{"source":["` + source + `"],"detail":{"amount":[{"numeric":[">",100]}]}}`)})
-	whole := createQueue(t, name("eb-whole"), nil)
-	path := createQueue(t, name("eb-path"), nil)
-	transformed := createQueue(t, name("eb-tx"), nil)
-	topicArn := createTopic(t, name("eb-topic"), nil)
-	viaTopic, _ := subscribeQueue(t, topicArn, name("eb-via-topic"), nil, map[string]string{"RawMessageDelivery": "true"})
+	source := "conformance." + name(t, "app")
+	ruleName := name(t, "orders")
+	ruleArn := putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(`{"source":["` + source + `"],"detail":{"amount":[{"numeric":[">",100]}]}}`)})
+	whole := createQueue(t, name(t, "eb-whole"), nil)
+	path := createQueue(t, name(t, "eb-path"), nil)
+	transformed := createQueue(t, name(t, "eb-tx"), nil)
+	topicArn := createTopic(t, name(t, "eb-topic"), nil)
+	viaTopic, _ := subscribeQueue(t, topicArn, name(t, "eb-via-topic"), nil, map[string]string{"RawMessageDelivery": "true"})
+	// EventBridge delivers as events.amazonaws.com with aws:SourceArn the
+	// rule's ARN, and PutTargets grants nothing on the target
+	// (iam-enforcement-surfaces.md 8.1, 8.4).
+	for _, q := range []string{whole, path, transformed} {
+		allowQueueDelivery(t, q, "events.amazonaws.com", ruleArn)
+	}
+	allowTopicDelivery(t, topicArn, "events.amazonaws.com", ruleArn)
 	putTargets(t, ruleName,
 		types.Target{Id: aws.String("whole"), Arn: aws.String(queueArn(t, whole))},
 		types.Target{Id: aws.String("path"), Arn: aws.String(queueArn(t, path)), InputPath: aws.String("$.detail.customer")},
@@ -319,7 +333,7 @@ func TestEventBridgePutEvents(t *testing.T) {
 		apiErr(t, err, "PutEvents with 11 entries", "ValidationException")
 		wantMessageContains(t, err, "PutEvents with 11 entries", "at 'entries' failed to satisfy constraint: Member must have length less than or equal to 10")
 		none, err := client.PutEvents(ctx, &eventbridge.PutEventsInput{Entries: []types.PutEventsRequestEntry{
-			{Source: aws.String(source), DetailType: aws.String("x"), Detail: aws.String("{}"), EventBusName: aws.String(name("no-such-bus"))},
+			{Source: aws.String(source), DetailType: aws.String("x"), Detail: aws.String("{}"), EventBusName: aws.String(name(t, "no-such-bus"))},
 		}})
 		ok(t, err, "PutEvents to a bus that does not exist (200, dropped)")
 		if none.FailedEntryCount != 0 || aws.ToString(none.Entries[0].EventId) == "" {
@@ -349,14 +363,14 @@ func TestEventBridgeBusAndPatterns(t *testing.T) {
 		if !found {
 			t.Errorf("ListEventBuses = %+v, want the default bus", list.EventBuses)
 		}
-		missing := name("bus")
+		missing := name(t, "bus")
 		_, err = client.DescribeEventBus(ctx, &eventbridge.DescribeEventBusInput{Name: aws.String(missing)})
 		errAs[*types.ResourceNotFoundException](t, err, "DescribeEventBus of a missing bus")
 		wantMessage(t, err, "DescribeEventBus of a missing bus", "Event bus "+missing+" does not exist.")
 	})
 
 	t.Run("EnableRule, DisableRule and ListRuleNamesByTarget", func(t *testing.T) {
-		ruleName := name("toggle")
+		ruleName := name(t, "toggle")
 		putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(`{"source":["x"]}`)})
 		_, err := client.DisableRule(ctx, &eventbridge.DisableRuleInput{Name: aws.String(ruleName)})
 		ok(t, err, "DisableRule")
@@ -368,9 +382,9 @@ func TestEventBridgeBusAndPatterns(t *testing.T) {
 		if out, err := client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: aws.String(ruleName)}); err != nil || out.State != types.RuleStateEnabled {
 			t.Errorf("after EnableRule: State %v, err %v; want ENABLED", out, err)
 		}
-		_, err = client.DisableRule(ctx, &eventbridge.DisableRuleInput{Name: aws.String(name("missing"))})
+		_, err = client.DisableRule(ctx, &eventbridge.DisableRuleInput{Name: aws.String(name(t, "missing"))})
 		errAs[*types.ResourceNotFoundException](t, err, "DisableRule of a missing rule")
-		queueURL := createQueue(t, name("eb-by-target"), nil)
+		queueURL := createQueue(t, name(t, "eb-by-target"), nil)
 		qArn := queueArn(t, queueURL)
 		putTargets(t, ruleName, types.Target{Id: aws.String("q"), Arn: aws.String(qArn)})
 		names, err := client.ListRuleNamesByTarget(ctx, &eventbridge.ListRuleNamesByTargetInput{TargetArn: aws.String(qArn)})
@@ -429,10 +443,10 @@ func TestEventBridgeBusAndPatterns(t *testing.T) {
 func TestEventBridgeLambdaTarget(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-	forward := createQueue(t, name("eb-lambda-out"), nil)
-	fn := deployFunction(t, name("eb-fn"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": forward})
-	source := "conformance." + name("lambda")
-	ruleName := name("to-lambda")
+	forward := createQueue(t, name(t, "eb-lambda-out"), nil)
+	fn := deployFunction(t, name(t, "eb-fn"), "handler.forward", map[string]string{"FORWARD_QUEUE_URL": forward})
+	source := "conformance." + name(t, "lambda")
+	ruleName := name(t, "to-lambda")
 	ruleArn := putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), EventPattern: aws.String(`{"source":["` + source + `"]}`)})
 	_, err := lambda.NewFromConfig(awsCfg).AddPermission(ctx, &lambda.AddPermissionInput{
 		FunctionName: fn.FunctionName, StatementId: aws.String("eventbridge"), Action: aws.String("lambda:InvokeFunction"),
@@ -459,10 +473,13 @@ func TestEventBridgeLambdaTarget(t *testing.T) {
 // queue; the first fire is one interval after the rule is created.
 func TestEventBridgeSchedule(t *testing.T) {
 	t.Parallel()
-	queueURL := createQueue(t, name("eb-sched"), nil)
-	ruleName := name("every-minute")
+	queueURL := createQueue(t, name(t, "eb-sched"), nil)
+	ruleName := name(t, "every-minute")
 	created := time.Now()
 	ruleArn := putRule(t, &eventbridge.PutRuleInput{Name: aws.String(ruleName), ScheduleExpression: aws.String("rate(1 minute)")})
+	// iam-enforcement-surfaces.md 8.1, 8.4: the target queue must allow
+	// events.amazonaws.com for the rule.
+	allowQueueDelivery(t, queueURL, "events.amazonaws.com", ruleArn)
 	putTargets(t, ruleName, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, queueURL))})
 	var msgs []sqstypes.Message
 	deadline := time.Now().Add(150 * time.Second)
@@ -484,4 +501,258 @@ func TestEventBridgeSchedule(t *testing.T) {
 	if !strings.HasSuffix(ev.Time, "Z") || strings.Contains(ev.Time, ".") {
 		t.Errorf("scheduled event time %q, want whole-second UTC RFC 3339", ev.Time)
 	}
+}
+
+// createBus creates a custom event bus and deletes it when the test ends.
+func createBus(t *testing.T, in *eventbridge.CreateEventBusInput) *eventbridge.CreateEventBusOutput {
+	t.Helper()
+	client := eventbridge.NewFromConfig(awsCfg)
+	out, err := client.CreateEventBus(t.Context(), in)
+	ok(t, err, "CreateEventBus "+aws.ToString(in.Name))
+	t.Cleanup(func() {
+		_, _ = client.DeleteEventBus(context.Background(), &eventbridge.DeleteEventBusInput{Name: in.Name})
+	})
+	return out
+}
+
+// putBusRule creates a pattern rule on bus with targets and, when the test
+// ends, removes them and deletes the rule (before the bus, whose cleanup
+// was registered first).
+func putBusRule(t *testing.T, bus, rule, pattern string, targets ...types.Target) string {
+	t.Helper()
+	client := eventbridge.NewFromConfig(awsCfg)
+	out, err := client.PutRule(t.Context(), &eventbridge.PutRuleInput{Name: aws.String(rule), EventBusName: aws.String(bus), EventPattern: aws.String(pattern)})
+	ok(t, err, "PutRule "+rule+" on "+bus)
+	t.Cleanup(func() {
+		ctx := context.Background()
+		var ids []string
+		for _, tg := range targets {
+			ids = append(ids, aws.ToString(tg.Id))
+		}
+		if len(ids) > 0 {
+			_, _ = client.RemoveTargets(ctx, &eventbridge.RemoveTargetsInput{Rule: aws.String(rule), EventBusName: aws.String(bus), Ids: ids})
+		}
+		_, _ = client.DeleteRule(ctx, &eventbridge.DeleteRuleInput{Name: aws.String(rule), EventBusName: aws.String(bus)})
+	})
+	if len(targets) > 0 {
+		put, err := client.PutTargets(t.Context(), &eventbridge.PutTargetsInput{Rule: aws.String(rule), EventBusName: aws.String(bus), Targets: targets})
+		ok(t, err, "PutTargets on "+bus)
+		if put.FailedEntryCount != 0 {
+			t.Fatalf("PutTargets on %s FailedEntries = %+v", bus, put.FailedEntries)
+		}
+	}
+	return aws.ToString(out.RuleArn)
+}
+
+// TestEventBridgeCustomBus drives a custom bus through its lifecycle, its
+// rules and PutEvents, a bus target and the bus policy
+// (eventbridge-buses.md 3 to 6).
+func TestEventBridgeCustomBus(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	client := eventbridge.NewFromConfig(awsCfg)
+	acct := account(t)
+	busARN := func(n string) string { return "arn:aws:events:" + region() + ":" + acct + ":event-bus/" + n }
+
+	t.Run("lifecycle", func(t *testing.T) {
+		bus := name(t, "bus")
+		// CreateEventBus answers the ARN and echoes Description
+		// (eventbridge-buses.md 3.1, third-party-recorded).
+		out := createBus(t, &eventbridge.CreateEventBusInput{
+			Name: aws.String(bus), Description: aws.String("test bus"),
+			Tags: []types.Tag{{Key: aws.String("tag1"), Value: aws.String("value1")}},
+		})
+		if aws.ToString(out.EventBusArn) != busARN(bus) || aws.ToString(out.Description) != "test bus" {
+			t.Errorf("CreateEventBus = EventBusArn %q, Description %q", aws.ToString(out.EventBusArn), aws.ToString(out.Description))
+		}
+		// A fresh bus describes as {Arn, CreationTime, LastModifiedTime,
+		// Name, Description} (eventbridge-buses.md 3.2).
+		d, err := client.DescribeEventBus(ctx, &eventbridge.DescribeEventBusInput{Name: aws.String(bus)})
+		ok(t, err, "DescribeEventBus")
+		if aws.ToString(d.Name) != bus || aws.ToString(d.Arn) != busARN(bus) || aws.ToString(d.Description) != "test bus" ||
+			d.CreationTime == nil || d.LastModifiedTime == nil || d.Policy != nil || d.KmsKeyIdentifier != nil || d.DeadLetterConfig != nil || d.LogConfig != nil {
+			t.Errorf("DescribeEventBus = %+v", d)
+		}
+		list, err := client.ListEventBuses(ctx, &eventbridge.ListEventBusesInput{NamePrefix: aws.String(bus)})
+		ok(t, err, "ListEventBuses")
+		if len(list.EventBuses) != 1 || aws.ToString(list.EventBuses[0].Arn) != busARN(bus) {
+			t.Errorf("ListEventBuses %s = %+v", bus, list.EventBuses)
+		}
+		tags, err := client.ListTagsForResource(ctx, &eventbridge.ListTagsForResourceInput{ResourceARN: aws.String(busARN(bus))})
+		ok(t, err, "ListTagsForResource")
+		if len(tags.Tags) != 1 || aws.ToString(tags.Tags[0].Key) != "tag1" || aws.ToString(tags.Tags[0].Value) != "value1" {
+			t.Errorf("bus tags = %+v", tags.Tags)
+		}
+		// eventbridge-buses.md 3.1 and 3.5, third-party-recorded.
+		_, err = client.CreateEventBus(ctx, &eventbridge.CreateEventBusInput{Name: aws.String(bus)})
+		errAs[*types.ResourceAlreadyExistsException](t, err, "CreateEventBus of an existing name")
+		wantMessage(t, err, "CreateEventBus of an existing name", "Event bus "+bus+" already exists.")
+		_, err = client.DeleteEventBus(ctx, &eventbridge.DeleteEventBusInput{Name: aws.String("default")})
+		apiErr(t, err, "DeleteEventBus default", "ValidationException")
+		wantMessage(t, err, "DeleteEventBus default", "Cannot delete event bus default.")
+		_, err = client.DeleteEventBus(ctx, &eventbridge.DeleteEventBusInput{Name: aws.String(name(t, "never-created"))})
+		ok(t, err, "DeleteEventBus of a missing bus (200)")
+
+		_, err = client.UpdateEventBus(ctx, &eventbridge.UpdateEventBusInput{Name: aws.String(bus), Description: aws.String("")})
+		ok(t, err, "UpdateEventBus clearing the description")
+		if d, err := client.DescribeEventBus(ctx, &eventbridge.DescribeEventBusInput{Name: aws.String(bus)}); err != nil || aws.ToString(d.Description) != "" {
+			t.Errorf("DescribeEventBus after clearing the description = %v, %v", d, err)
+		}
+		_, err = client.DeleteEventBus(ctx, &eventbridge.DeleteEventBusInput{Name: aws.String(bus)})
+		ok(t, err, "DeleteEventBus")
+		_, err = client.DescribeEventBus(ctx, &eventbridge.DescribeEventBusInput{Name: aws.String(bus)})
+		errAs[*types.ResourceNotFoundException](t, err, "DescribeEventBus of a deleted bus")
+		wantMessage(t, err, "DescribeEventBus of a deleted bus", "Event bus "+bus+" does not exist.")
+	})
+
+	t.Run("rules and PutEvents", func(t *testing.T) {
+		bus := name(t, "bus")
+		createBus(t, &eventbridge.CreateEventBusInput{Name: aws.String(bus)})
+		source := "conformance." + name(t, "app")
+		onBus := createQueue(t, name(t, "eb-on-bus"), nil)
+		onDefault := createQueue(t, name(t, "eb-on-default"), nil)
+		rule := name(t, "r")
+		// A custom-bus rule's ARN names the bus (eventbridge-buses.md 5.2).
+		ruleArn := putBusRule(t, bus, rule, `{"source":["`+source+`"]}`, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, onBus))})
+		if want := "arn:aws:events:" + region() + ":" + acct + ":rule/" + bus + "/" + rule; ruleArn != want {
+			t.Errorf("RuleArn = %q, want %q", ruleArn, want)
+		}
+		putRule(t, &eventbridge.PutRuleInput{Name: aws.String(rule), EventPattern: aws.String(`{"source":["` + source + `"]}`)})
+		putTargets(t, rule, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, onDefault))})
+		// Each queue's policy lets its rule deliver (iam-enforcement-surfaces.md 8.1, 8.4).
+		allowQueueDelivery(t, onBus, "events.amazonaws.com", ruleArn)
+		allowQueueDelivery(t, onDefault, "events.amazonaws.com", "arn:aws:events:"+region()+":"+acct+":rule/"+rule)
+		dr, err := client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: aws.String(rule), EventBusName: aws.String(bus)})
+		ok(t, err, "DescribeRule on the bus")
+		if aws.ToString(dr.Arn) != ruleArn || aws.ToString(dr.EventBusName) != bus || aws.ToString(dr.CreatedBy) != acct {
+			t.Errorf("DescribeRule = Arn %q, EventBusName %q, CreatedBy %q", aws.ToString(dr.Arn), aws.ToString(dr.EventBusName), aws.ToString(dr.CreatedBy))
+		}
+		// A schedule on a custom bus is refused (eventbridge-buses.md 5.3,
+		// testdata/parity/events/R14/04-custom-bus-schedule.json).
+		_, err = client.PutRule(ctx, &eventbridge.PutRuleInput{Name: aws.String(name(t, "timer")), EventBusName: aws.String(bus), ScheduleExpression: aws.String("rate(5 minutes)")})
+		apiErr(t, err, "PutRule with a schedule on a custom bus", "ValidationException")
+		wantMessage(t, err, "PutRule with a schedule on a custom bus", "ScheduleExpression is supported only on the default event bus.")
+
+		// Only the named bus's rules match (eventbridge-buses.md 6.1).
+		out, err := client.PutEvents(ctx, &eventbridge.PutEventsInput{Entries: []types.PutEventsRequestEntry{
+			{Source: aws.String(source), DetailType: aws.String("Order Placed"), Detail: aws.String(`{"n":1}`), EventBusName: aws.String(bus)},
+		}})
+		ok(t, err, "PutEvents to the bus")
+		msgs := receive(t, onBus, 1, 20*time.Second)
+		if len(msgs) != 1 {
+			t.Fatalf("the bus rule's queue received %d messages, want 1", len(msgs))
+		}
+		var ev ebEvent
+		ok(t, json.Unmarshal([]byte(aws.ToString(msgs[0].Body)), &ev), "decoding the event")
+		if ev.ID != aws.ToString(out.Entries[0].EventId) || ev.Source != source || ev.Account != acct || ev.Region != region() {
+			t.Errorf("delivered event = %+v", ev)
+		}
+		if stray := receive(t, onDefault, 1, 3*time.Second); len(stray) != 0 {
+			t.Errorf("the default bus's rule received an event put to %s: %s", bus, aws.ToString(stray[0].Body))
+		}
+	})
+
+	t.Run("bus target", func(t *testing.T) {
+		first, second, third := name(t, "bus"), name(t, "bus"), name(t, "bus")
+		createBus(t, &eventbridge.CreateEventBusInput{Name: aws.String(first)})
+		createBus(t, &eventbridge.CreateEventBusInput{Name: aws.String(second)})
+		createBus(t, &eventbridge.CreateEventBusInput{Name: aws.String(third)})
+		source := "conformance." + name(t, "app")
+		pattern := `{"source":["` + source + `"]}`
+		reached := createQueue(t, name(t, "eb-second"), nil)
+		beyond := createQueue(t, name(t, "eb-third"), nil)
+		// The targets' role trusts events.amazonaws.com and its inline
+		// policy allows events:PutEvents on the target buses
+		// (iam-enforcement-surfaces.md 8.4; eb-event-bus-perms.html).
+		roleName := name(t, "events-role")
+		role := createRole(t, roleName, eventsTrustPolicy).Arn
+		iamClient := iam.NewFromConfig(awsCfg)
+		policy := fmt.Sprintf(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"events:PutEvents","Resource":[%q,%q]}]}`, busARN(second), busARN(third))
+		_, err := iamClient.PutRolePolicy(ctx, &iam.PutRolePolicyInput{RoleName: aws.String(roleName), PolicyName: aws.String("put-events"), PolicyDocument: aws.String(policy)})
+		ok(t, err, "PutRolePolicy on "+roleName)
+		t.Cleanup(func() {
+			_, _ = iamClient.DeleteRolePolicy(context.Background(), &iam.DeleteRolePolicyInput{RoleName: aws.String(roleName), PolicyName: aws.String("put-events")})
+		})
+		putBusRule(t, first, name(t, "fwd"), pattern, types.Target{Id: aws.String("bus"), Arn: aws.String(busARN(second)), RoleArn: role})
+		inRule := putBusRule(t, second, name(t, "in"), pattern,
+			types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, reached))},
+			types.Target{Id: aws.String("onward"), Arn: aws.String(busARN(third)), RoleArn: role})
+		// The second bus's rule may deliver to its queue
+		// (iam-enforcement-surfaces.md 8.1, 8.4).
+		allowQueueDelivery(t, reached, "events.amazonaws.com", inRule)
+		putBusRule(t, third, name(t, "last"), pattern, types.Target{Id: aws.String("q"), Arn: aws.String(queueArn(t, beyond))})
+
+		_, err = client.PutEvents(ctx, &eventbridge.PutEventsInput{Entries: []types.PutEventsRequestEntry{
+			{Source: aws.String(source), DetailType: aws.String("Order Placed"), Detail: aws.String(`{"n":1}`), EventBusName: aws.String(first)},
+		}})
+		ok(t, err, "PutEvents to the first bus")
+		// The forwarded event reaches the second bus's queue with its
+		// source, detail-type, account, region and detail
+		// (eventbridge-buses.md 6.2, third-party-recorded).
+		msgs := receive(t, reached, 1, 20*time.Second)
+		if len(msgs) != 1 {
+			t.Fatalf("the second bus's queue received %d messages, want 1", len(msgs))
+		}
+		var ev ebEvent
+		ok(t, json.Unmarshal([]byte(aws.ToString(msgs[0].Body)), &ev), "decoding the forwarded event")
+		if ev.Source != source || ev.DetailType != "Order Placed" || ev.Account != acct || ev.Region != region() {
+			t.Errorf("forwarded event = %+v", ev)
+		}
+		wantJSONEqual(t, "forwarded detail", string(ev.Detail), `{"n":1}`)
+		// One hop only: the second bus does not forward it to the third
+		// (aws-doc eb-cross-account.html, eventbridge-buses.md 6.5).
+		if stray := receive(t, beyond, 1, 5*time.Second); len(stray) != 0 {
+			t.Errorf("the event took a second hop to the third bus: %s", aws.ToString(stray[0].Body))
+		}
+	})
+
+	t.Run("bus policy", func(t *testing.T) {
+		bus := name(t, "bus")
+		createBus(t, &eventbridge.CreateEventBusInput{Name: aws.String(bus)})
+		for sid, principal := range map[string]string{"s1": "111111111111", "s2": "*"} {
+			_, err := client.PutPermission(ctx, &eventbridge.PutPermissionInput{
+				EventBusName: aws.String(bus), StatementId: aws.String(sid),
+				Action: aws.String("events:PutEvents"), Principal: aws.String(principal),
+			})
+			ok(t, err, "PutPermission "+sid)
+		}
+		// The Policy is a JSON string of statements with string Action and
+		// Resource, an account Principal as {"AWS": "arn:aws:iam::<a>:root"}
+		// and "*" as "*" (eventbridge-buses.md 4.2, third-party-recorded).
+		d, err := client.DescribeEventBus(ctx, &eventbridge.DescribeEventBusInput{Name: aws.String(bus)})
+		ok(t, err, "DescribeEventBus")
+		var policy struct {
+			Version   string
+			Statement []struct {
+				Sid       string
+				Effect    string
+				Principal json.RawMessage
+				Action    string
+				Resource  string
+			}
+		}
+		ok(t, json.Unmarshal([]byte(aws.ToString(d.Policy)), &policy), "decoding the Policy")
+		principals := map[string]string{}
+		for _, s := range policy.Statement {
+			if s.Effect != "Allow" || s.Action != "events:PutEvents" || s.Resource != busARN(bus) {
+				t.Errorf("statement %+v", s)
+			}
+			principals[s.Sid] = string(s.Principal)
+		}
+		if policy.Version != "2012-10-17" || len(policy.Statement) != 2 {
+			t.Errorf("Policy = %s", aws.ToString(d.Policy))
+		}
+		wantJSONEqual(t, "s1 Principal", principals["s1"], `{"AWS":"arn:aws:iam::111111111111:root"}`)
+		wantJSONEqual(t, "s2 Principal", principals["s2"], `"*"`)
+
+		// eventbridge-buses.md 4.3, third-party-recorded.
+		_, err = client.RemovePermission(ctx, &eventbridge.RemovePermissionInput{EventBusName: aws.String(bus), StatementId: aws.String("nope")})
+		errAs[*types.ResourceNotFoundException](t, err, "RemovePermission of an unknown statement")
+		wantMessage(t, err, "RemovePermission of an unknown statement", "Statement with the provided id does not exist.")
+		_, err = client.RemovePermission(ctx, &eventbridge.RemovePermissionInput{EventBusName: aws.String(bus), RemoveAllPermissions: true})
+		ok(t, err, "RemovePermission RemoveAllPermissions")
+		if d, err := client.DescribeEventBus(ctx, &eventbridge.DescribeEventBusInput{Name: aws.String(bus)}); err != nil || d.Policy != nil {
+			t.Errorf("DescribeEventBus after RemoveAllPermissions = %v, %v; want no Policy", d, err)
+		}
+	})
 }

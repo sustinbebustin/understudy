@@ -86,8 +86,9 @@ func TestPutObjectWithTagsRecordsPutObjectTagging(t *testing.T) {
 }
 
 // A copy reads its source, s3:GetObject, and writes its destination,
-// s3:PutObject; both objects are the call's resources, and a source version
-// needs s3:GetObjectVersion instead.
+// s3:PutObject; both objects are the call's resources, each action is
+// recorded on the object it applies to only (iam-enforcement-surfaces.md
+// 12.6), and a source version needs s3:GetObjectVersion instead.
 func TestCopyObjectTouchesBothObjects(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		h.createBucket("inbox")
@@ -95,10 +96,7 @@ func TestCopyObjectTouchesBothObjects(t *testing.T) {
 		h.put("inbox", "a", "x")
 		h.Access.Reset()
 		ok(h, who{}, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "outbox", Key: "b", CopySource: "inbox/a"})
-		want := []string{
-			"s3:GetObject on arn:aws:s3:::inbox/*", "s3:GetObject on arn:aws:s3:::outbox/*",
-			"s3:PutObject on arn:aws:s3:::inbox/*", "s3:PutObject on arn:aws:s3:::outbox/*",
-		}
+		want := []string{"s3:GetObject on arn:aws:s3:::inbox/*", "s3:PutObject on arn:aws:s3:::outbox/*"}
 		if got := h.rootUses("s3"); !slices.Equal(got, want) {
 			t.Errorf("s3 uses = %v, want %v", got, want)
 		}

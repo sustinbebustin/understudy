@@ -1,0 +1,35 @@
+{
+  "step": "03-put-targets",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the PutTargets operation: Event bus us1103-missing does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutTargets"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,AN,E,Z,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-targets"],
+          ["X-Amz-Date", "20261103T163549Z"],
+          ["amz-sdk-invocation-id", "e447280e-00c2-483a-b73f-878ecaa6335b"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "136"]
+        ],
+        "body": "{\"Rule\": \"us1103-m\", \"EventBusName\": \"us1103-missing\", \"Targets\": [{\"Id\": \"q\", \"Arn\": \"arn:aws:sqs:us-east-2:123456789012:us1103-ebb\"}]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "a2d7e8dc-c2b7-47aa-95d0-875269b926f6"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "91"],
+          ["Date", "Tue, 03 Nov 2026 16:35:49 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ResourceNotFoundException\",\"message\":\"Event bus us1103-missing does not exist.\"}"
+      }
+    }
+  ]
+}

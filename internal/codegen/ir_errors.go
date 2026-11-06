@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
@@ -59,7 +60,7 @@ func (b *builder) operationErrors() error {
 	return nil
 }
 
-// serviceErrors resolves throttleError, malformedRequestError,
+// serviceErrors resolves throttleError, denialError, malformedRequestError,
 // unknownOperationError and the families' generic vocabularies.
 func (b *builder) serviceErrors() error {
 	for _, v := range b.clo.vocabularies {
@@ -82,6 +83,9 @@ func (b *builder) serviceErrors() error {
 		// set, which awserr.Identity.Retryable covers with the trait.
 		b.ir.Throttle.Retryable = true
 	}
+	if b.ir.Denial, err = b.denial(); err != nil {
+		return err
+	}
 	if b.ir.MalformedRequest, err = b.serviceError(utMalformedRequest); err != nil {
 		return err
 	}
@@ -99,6 +103,26 @@ func (b *builder) serviceErrors() error {
 	}
 	b.ir.UnknownQuery, err = b.errorByID(utUnknownOperation, u.Query)
 	return err
+}
+
+// denial resolves denialError and labels it with the weakest overlay
+// evidence covering the trait, so a descriptor never claims more than the
+// research backs (iam-enforcement-surfaces.md 12.3).
+func (b *builder) denial() (*DenialIR, error) {
+	e, err := b.serviceError(utDenialError)
+	if err != nil || e == nil {
+		return nil, err
+	}
+	svc := b.clo.service.ID
+	var labels []evidence.Label
+	for _, ev := range b.model.evidenceOf(svc, utDenialError) {
+		labels = append(labels, ev.Label)
+	}
+	label, ok := evidence.Weakest(labels)
+	if !ok {
+		return nil, failf(StageIR, string(svc), "%s names %s, but no overlay evidence covers it; apply the trait from an overlay entry whose %s covers it", utDenialError, e.Shape.ID, utEvidence)
+	}
+	return &DenialIR{Error: e, Label: label}, nil
 }
 
 func (b *builder) serviceError(trait string) (*ErrorIR, error) {
@@ -128,7 +152,7 @@ func (b *builder) errorByID(trait string, id smithy.ShapeID) (*ErrorIR, error) {
 // status from httpError or the fault default, then statusOverride; the
 // Query code from awsQueryError, else the shape name; __type from jsonType
 // or the shape name, namespaced for awsJson1_0; the message key from the
-// shape's own member spelling.
+// shape's own member spelling, then messageKey.
 func (b *builder) errorIR(s *ShapeIR, src *Shape, namespace string) (*ErrorIR, error) {
 	subject := string(s.ID)
 	e := &ErrorIR{Shape: s, QueryCode: s.ID.Name(), Retryable: src.Traits.Has(traitRetryable), Generic: s.ID.Namespace() != b.cfg.Service.Namespace()}
@@ -159,20 +183,11 @@ func (b *builder) errorIR(s *ShapeIR, src *Shape, namespace string) (*ErrorIR, e
 		}
 		e.JSONType = ns + "#" + name
 	}
-	e.MessageKey = awserr.NoMessage
-	for _, m := range src.Members {
-		switch m.Name {
-		case "message":
-			e.MessageKey = awserr.MessageLower
-		case "Message":
-			e.MessageKey = awserr.MessageUpper
-		}
+	key, err := b.messageKey(src)
+	if err != nil {
+		return nil, failf(StageIR, subject, "%w", err)
 	}
-	if e.MessageKey == awserr.NoMessage && slices.Contains(b.ir.Protocols, ref.RESTXML) {
-		// S3's <Error> always carries <Message>, although its error
-		// structures declare no members (wire-rest.md 2.4).
-		e.MessageKey = awserr.MessageUpper
-	}
+	e.MessageKey = key
 	if raw, ok := src.Traits[utMessageByProtocol]; ok {
 		msgs, err := parseMessageByProtocol(raw)
 		if err != nil {
@@ -181,6 +196,38 @@ func (b *builder) errorIR(s *ShapeIR, src *Shape, namespace string) (*ErrorIR, e
 		e.Messages = msgs
 	}
 	return e, nil
+}
+
+// messageKey is the body key of an error's message: the spelling of the
+// shape's own message member, Message for a member-less REST-XML error,
+// and messageKey over both where AWS's differs.
+func (b *builder) messageKey(src *Shape) (awserr.MessageKey, error) {
+	key := awserr.NoMessage
+	for _, m := range src.Members {
+		switch m.Name {
+		case "message":
+			key = awserr.MessageLower
+		case "Message":
+			key = awserr.MessageUpper
+		}
+	}
+	if key == awserr.NoMessage && slices.Contains(b.ir.Protocols, ref.RESTXML) {
+		// S3's <Error> always carries <Message>, although its error
+		// structures declare no members (wire-rest.md 2.4).
+		key = awserr.MessageUpper
+	}
+	raw, ok := src.Traits[utMessageKey]
+	if !ok {
+		return key, nil
+	}
+	k, err := parseMessageKey(raw)
+	if err != nil {
+		return 0, err
+	}
+	if k == key {
+		return 0, fmt.Errorf("%s is %s, the member's own spelling; drop the trait", utMessageKey, raw)
+	}
+	return k, nil
 }
 
 // status reads the fault, httpError and statusOverride.

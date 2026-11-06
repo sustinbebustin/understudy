@@ -207,7 +207,8 @@ type AtSubscribe struct {
 // ConfirmSubscription: authenticated.
 type ByCall struct {
 	// Token is the token it was confirmed with, so confirming again is
-	// idempotent.
+	// idempotent, as AWS's is (third-party-recorded,
+	// sns-http-delivery.md 2.3).
 	Token string `json:"token"`
 	// AuthenticateOnUnsubscribe is ConfirmSubscription's
 	// AuthenticateOnUnsubscribe: only a caller with credentials may then
@@ -219,7 +220,8 @@ type ByCall struct {
 // not authenticated.
 type ByLink struct {
 	// Token is the token it was confirmed with, so confirming again is
-	// idempotent.
+	// idempotent, as AWS's is (third-party-recorded,
+	// sns-http-delivery.md 2.3).
 	Token string `json:"token"`
 }
 
@@ -240,23 +242,19 @@ func (c Confirmed) authenticated() bool {
 	}
 }
 
-// credentialsRequired is why only an Unsubscribe call with credentials may
-// remove the subscription, never the unsigned UnsubscribeURL: it was
-// confirmed with AuthenticateOnUnsubscribe, or is a queue its owner
-// subscribed. It is "" when an unsigned request may remove it.
-func (c Confirmed) credentialsRequired() string {
+// credentialsRequired reports whether only an Unsubscribe call with
+// credentials may remove the subscription, never the unsigned
+// UnsubscribeURL: it was confirmed with AuthenticateOnUnsubscribe, or is a
+// queue its owner subscribed, which sets it.
+func (c Confirmed) credentialsRequired() bool {
 	switch by := c.By.(type) {
 	case AtSubscribe:
-		if by.AuthenticateOnUnsubscribe {
-			return "the queue owner subscribed its own queue, which sets AuthenticateOnUnsubscribe=true"
-		}
+		return by.AuthenticateOnUnsubscribe
 	case ByCall:
-		if by.AuthenticateOnUnsubscribe {
-			return "the subscription was confirmed with AuthenticateOnUnsubscribe=true"
-		}
+		return by.AuthenticateOnUnsubscribe
 	case ByLink:
 	}
-	return ""
+	return false
 }
 
 // tokenConfirmation is a confirmation made with a token: ByCall or ByLink.
@@ -439,6 +437,10 @@ func (p *Protocol) UnmarshalText(text []byte) error {
 // confirms at Subscribe (sns.md 3.1); the others wait for
 // ConfirmSubscription.
 func (p Protocol) confirmedAtOnce() bool { return p == ProtocolSQS || p == ProtocolLambda }
+
+// http reports a protocol whose endpoint is a URL SNS POSTs to: http or
+// https (sns-http-delivery.md 2.1).
+func (p Protocol) http() bool { return p == ProtocolHTTP || p == ProtocolHTTPS }
 
 // rawDelivery reports a protocol that takes RawMessageDelivery=true: AWS
 // documents raw delivery for sqs, http, https and firehose only, and

@@ -1,0 +1,32 @@
+{
+  "golden": 18,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/scenarios/test_base_scenarios.snapshot.json:L11100",
+  "test": "test_catch_states_runtime (get_execution_history)",
+  "validated": "2023-11-23",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/scenarios/statemachines/catch_states_runtime.json5, Resource set to the function's ARN as the test does; the function is the identity function (templates/services/lambdafunctions/id_function.py), which the stub's echo stands for",
+  "definition": {
+    "Comment": "CATCH_STATE_RUNTIME",
+    "StartAt": "RaiseRuntime",
+    "States": {
+      "RaiseRuntime": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:us-east-1:000000000000:function:golden-fn",
+        "OutputPath": "$.no.such.result.path",
+        "Catch": [{"ErrorEquals": ["States.Runtime"], "Next": "CaughtRuntime"}],
+        "Next": "Final"
+      },
+      "CaughtRuntime": {"Type": "Pass", "End": true},
+      "Final": {"Type": "Pass", "End": true}
+    }
+  },
+  "input": {},
+  "placeholders": {"<partition>": "aws", "<region>": "us-east-1", "111111111111": "000000000000", "<lambda_function_name>": "golden-fn"},
+  "history": [
+    {"executionStartedEventDetails":{"input":{},"inputDetails":{"truncated":false},"roleArn":"snf_role_arn"},"id":1,"previousEventId":0,"timestamp":"timestamp","type":"ExecutionStarted"},
+    {"id":2,"previousEventId":0,"stateEnteredEventDetails":{"input":{},"inputDetails":{"truncated":false},"name":"RaiseRuntime"},"timestamp":"timestamp","type":"TaskStateEntered"},
+    {"id":3,"lambdaFunctionScheduledEventDetails":{"input":{},"inputDetails":{"truncated":false},"resource":"arn:<partition>:lambda:<region>:111111111111:function:<lambda_function_name>"},"previousEventId":2,"timestamp":"timestamp","type":"LambdaFunctionScheduled"},
+    {"id":4,"previousEventId":3,"timestamp":"timestamp","type":"LambdaFunctionStarted"},
+    {"id":5,"lambdaFunctionSucceededEventDetails":{"output":{},"outputDetails":{"truncated":false}},"previousEventId":4,"timestamp":"timestamp","type":"LambdaFunctionSucceeded"},
+    {"executionFailedEventDetails":{"cause":"An error occurred while executing the state 'RaiseRuntime' (entered at the event id #2). Invalid path '$.no.such.result.path' : Missing property in path $['no']","error":"States.Runtime"},"id":6,"previousEventId":5,"timestamp":"timestamp","type":"ExecutionFailed"}
+  ]
+}

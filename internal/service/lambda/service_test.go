@@ -1,6 +1,7 @@
 package lambda_test
 
 import (
+	"errors"
 	"net/http"
 	"reflect"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // PublishTo LATEST_PUBLISHED publishes a Lambda Managed Instances version,
@@ -43,6 +45,44 @@ func TestPublishToLatestPublishedIsNotImplemented(t *testing.T) {
 	})
 }
 
+// TenancyConfig (tenant isolation) and DurableConfig (durable functions)
+// configure features understudy does not implement: CreateFunction and
+// UpdateFunctionConfiguration refuse them with 501 rather than drop them,
+// and change nothing.
+func TestTenancyAndDurableConfigAreNotImplemented(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		tenant := zipFunction(h, "tenant")
+		tenant.TenancyConfig = &lambdaapi.TenancyConfig{TenantIsolationMode: lambdaapi.TenantIsolationModePerTenant}
+		durable := zipFunction(h, "durable")
+		durable.DurableConfig = &lambdaapi.DurableConfig{ExecutionTimeout: new(int32(60))}
+		before := h.createFunction("fn")
+		update := &lambdaapi.UpdateFunctionConfigurationInput{FunctionName: "fn", Description: new("changed"), DurableConfig: &lambdaapi.DurableConfig{}}
+		for _, c := range []struct {
+			op, member string
+			err        *awserr.Error
+		}{
+			{"CreateFunction", "TenancyConfig", fail(h, lambdaapi.OpCreateFunction, tenant)},
+			{"CreateFunction", "DurableConfig", fail(h, lambdaapi.OpCreateFunction, durable)},
+			{"UpdateFunctionConfiguration", "DurableConfig", fail(h, lambdaapi.OpUpdateFunctionConfiguration, update)},
+		} {
+			if c.err.ID.Status != http.StatusNotImplemented || !strings.HasPrefix(c.err.Message, c.op+" with "+c.member+" ") ||
+				!strings.Contains(c.err.Message, "which understudy does not implement; nothing was changed.") {
+				t.Errorf("%s with %s = %d %q, want 501 naming the member", c.op, c.member, c.err.ID.Status, c.err.Message)
+			}
+		}
+		for _, name := range []string{"tenant", "durable"} {
+			if _, err := h.Invoke(h.Context(), lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: name}); err == nil {
+				t.Errorf("a refused CreateFunction created %s", name)
+			}
+		}
+		after := call(h, lambdaapi.OpGetFunctionConfiguration, &lambdaapi.GetFunctionConfigurationInput{FunctionName: "fn"})
+		if *after.RevisionId != *before.RevisionId || *after.Description != *before.Description {
+			t.Errorf("a refused UpdateFunctionConfiguration changed fn: revision %s -> %s, description %q -> %q",
+				*before.RevisionId, *after.RevisionId, *before.Description, *after.Description)
+		}
+	})
+}
+
 // A scope whose functions are all deleted still saves the identifiers it
 // minted, so a function created after a snapshot round trip gets no
 // RevisionId an earlier one had.
@@ -62,6 +102,36 @@ func TestSnapshotOfAnEmptiedScopeKeepsItsIdentifiersUnique(t *testing.T) {
 			t.Errorf("function b's RevisionId %s repeats deleted function a's", *next.RevisionId)
 		}
 	})
+}
+
+// State version 2 added each mapping's source kind, version 3 the layer
+// store and each function version's layers, and version 4 moved an SQS
+// mapping's scaling into its source kind. Before the first release a
+// section an older binary wrote is refused naming both versions rather
+// than migrated (ADR 0009); version 3 is migrated (the ADR's amendment of
+// 2026-10-27).
+func TestSnapshotRefusesAnEarlierVersion(t *testing.T) {
+	for _, earlier := range []int{1, 2} {
+		run(t, lambda.Options{}, func(h *harness) {
+			t := h.T
+			h.createFunction("a")
+			sections, err := h.svc.Export()
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := range sections {
+				sections[i].Version = earlier
+			}
+			err = h.svc.Import(sections)
+			vm, ok := errors.AsType[*store.VersionMismatchError](err)
+			if !ok {
+				t.Fatalf("Import(a version %d section) = %v, want a *store.VersionMismatchError", earlier, err)
+			}
+			if vm.Section != earlier || vm.Running != 4 || h.svc.SchemaVersion() != 4 {
+				t.Errorf("mismatch %+v, schema version %d; want section %d refused by running 4", vm, h.svc.SchemaVersion(), earlier)
+			}
+		})
+	}
 }
 
 // Function URL ids are not derived from the account, region and a counter

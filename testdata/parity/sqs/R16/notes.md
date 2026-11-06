@@ -7,7 +7,7 @@
 
 ## Expected
 
-Compared against understudy built from /home/austin/dev/local-aws-stack on 2026-10-14, replaying a copy of r16.sh through scripts/sealed (account 123456789012, Lambda in Docker). Paths are repo-relative.
+Compared against understudy built on 2026-10-14, replaying a copy of r16.sh through scripts/sealed (account 123456789012, Lambda in Docker). Paths are repo-relative.
 
 - Lambda Records[0] (EventSource, EventVersion "1.0", EventSubscriptionArn): matches
 - Lambda Sns Subject absent: matches (null)

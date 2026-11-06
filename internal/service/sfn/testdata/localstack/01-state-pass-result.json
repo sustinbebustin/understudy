@@ -1,0 +1,25 @@
+{
+  "golden": 1,
+  "source": "localstack@8b9a79f tests/aws/services/stepfunctions/v2/base/test_base.snapshot.json:L245",
+  "test": "test_state_pass_result (get_execution_history)",
+  "validated": "2024-02-07",
+  "definitionSource": "localstack@8b9a79f tests/aws/services/stepfunctions/templates/base/statemachines/pass_result.json5",
+  "definition": {
+    "Comment": "BASE_PASS_RESULT",
+    "StartAt": "State_1",
+    "States": {
+      "State_1": {
+        "Type": "Pass",
+        "Result": {"Arg1": "argument1"},
+        "End": true
+      }
+    }
+  },
+  "input": {},
+  "history": [
+    {"executionStartedEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "roleArn": "snf_role_arn"}, "id": 1, "previousEventId": 0, "timestamp": "timestamp", "type": "ExecutionStarted"},
+    {"id": 2, "previousEventId": 0, "stateEnteredEventDetails": {"input": {}, "inputDetails": {"truncated": false}, "name": "State_1"}, "timestamp": "timestamp", "type": "PassStateEntered"},
+    {"id": 3, "previousEventId": 2, "stateExitedEventDetails": {"name": "State_1", "output": {"Arg1": "argument1"}, "outputDetails": {"truncated": false}}, "timestamp": "timestamp", "type": "PassStateExited"},
+    {"executionSucceededEventDetails": {"output": {"Arg1": "argument1"}, "outputDetails": {"truncated": false}}, "id": 4, "previousEventId": 3, "timestamp": "timestamp", "type": "ExecutionSucceeded"}
+  ]
+}

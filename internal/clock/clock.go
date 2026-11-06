@@ -43,6 +43,9 @@ type WaitersHook func(Advanced)
 type Advanced struct {
 	Fired    []TimerKey
 	From, To Instant
+	// Modes is the mode the advance's shift replaced and the shifted mode,
+	// read under the one lock that applies the shift.
+	Modes ModeChange[Mode]
 }
 
 // Deadline bounds a wait in two domains: it ends when emulator time reaches
@@ -355,13 +358,16 @@ func (c *Clock) advanceLocked(target func(from Instant) Instant) (Advanced, erro
 
 // advance fires the timers due by to, then moves the mode to to. The caller
 // holds step and has set stepping with Now held at from.
-func (c *Clock) advance(from, to Instant) Advanced {
+func (c *Clock) advance(from, to Instant) (adv Advanced) {
 	// Deferred so a panicking handler still leaves the clock at to with Now
 	// following its mode again; the unfired timers stay armed and fire as
-	// overdue on the next driver pass or advance.
+	// overdue on the next driver pass or advance. It fills adv.Modes after
+	// the return below has set the rest.
 	defer func() {
 		c.mu.Lock()
-		c.mode = shifted(c.mode, to.Sub(from))
+		was := c.mode
+		c.mode = shifted(was, to.Sub(from))
+		adv.Modes = ModeChange[Mode]{From: was, To: c.mode}
 		c.last = to
 		c.stepping = false
 		c.broadcastLocked()

@@ -1,0 +1,37 @@
+{
+  "step": "07-create-stage",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://apigateway.us-east-2.amazonaws.com/v2/apis/9ackjmy7v7/stages",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,AN,Z,b,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigatewayv2.create-stage"],
+          ["X-Amz-Date", "20261103T164331Z"],
+          ["amz-sdk-invocation-id", "23903399-a430-45e0-b0b9-4c33423a293a"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "20"]
+        ],
+        "body": "{\"stageName\": \"dev\"}"
+      },
+      "response": {
+        "status": 201,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:43:31 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "251"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "3f29676d-4414-4c95-a083-202310375639"],
+          ["Access-Control-Allow-Origin", "*"],
+          ["x-amz-apigw-id", "GRdQKF69iYcEnxQ="],
+          ["Access-Control-Expose-Headers", "x-amzn-RequestId,x-amzn-ErrorType,x-amzn-ErrorMessage,Date"],
+          ["X-Amzn-Trace-Id", "Root=1-6aea0f33-73d746824b3c053b0267f44d"]
+        ],
+        "body": "{\n  \"stageName\" : \"dev\",\n  \"defaultRouteSettings\" : {\n    \"detailedMetricsEnabled\" : false\n  },\n  \"routeSettings\" : { },\n  \"stageVariables\" : { },\n  \"createdDate\" : \"2026-11-03T16:43:31Z\",\n  \"lastUpdatedDate\" : \"2026-11-03T16:43:31Z\",\n  \"tags\" : { }\n}"
+      }
+    }
+  ]
+}

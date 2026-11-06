@@ -1,0 +1,33 @@
+{
+  "step": "03-delete",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "DELETE",
+        "url": "https://apigateway.us-east-2.amazonaws.com/restapis/zp95paqot5",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,Z,E,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#apigateway.delete-rest-api"],
+          ["Accept", "application/json"],
+          ["X-Amz-Date", "20261103T163743Z"],
+          ["amz-sdk-invocation-id", "765cdb61-37f9-48a2-a410-fb5edcf53afc"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "0"]
+        ]
+      },
+      "response": {
+        "status": 202,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:37:43 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "0"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "02b5d6b1-dafa-48fd-abe4-d5bda0f17143"],
+          ["x-amz-apigw-id", "GRcZuKnUCYcEc5A="]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

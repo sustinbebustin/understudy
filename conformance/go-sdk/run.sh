@@ -10,8 +10,9 @@
 #   SIGV4=verify conformance/go-sdk/run.sh         # serve with --sigv4 verify (default parse)
 #
 # DynamoDB runs on DynamoDB Local, pulled on first use; CONFORMANCE_DYNAMODB
-# is unset or 0, and run.sh exits 2 before building on any other value. It
-# runs go test -v, keeps its
+# is unset or 0, and run.sh exits 2 before building on any other value. SNS
+# delivers http subscriptions to loopback ports only (127.0.0.1:*), where the
+# SNS HTTP test starts its receiver. It runs go test -v, keeps its
 # output in the work directory's test.log, and ends with a summary on stderr:
 # the totals, then each skipped test and its reason.
 #
@@ -85,6 +86,7 @@ printf '%s\n' '{"lambda": {"stateTransitions": "clock"}, "sqs": {"queueDeletedRe
 echo "run.sh: starting understudy on $endpoint, data in $data" >&2
 (cd -- "$work" && exec env "${conformance_serve_env[@]}" "$bin" serve \
 	--listen "$listen" --tls --tls-listen 127.0.0.1:0 --sigv4 "$sigv4" \
+	--sns-http-delivery-allow '127.0.0.1:*' \
 	--persist "$data" --ready-file "$work/ready.json" --config "$work/understudy.json") >"$log" 2>&1 &
 pid=$!
 

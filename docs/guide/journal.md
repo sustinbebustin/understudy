@@ -30,15 +30,26 @@ Filters combine. `--since` counts back in emulator time. `--limit N` keeps the n
 | Kind | Recorded when |
 |---|---|
 | `api-call` | Any call, from a client or between services, with its outcome |
-| `delivery` | An SNS, S3 or EventBridge delivery attempt: delivered, filtered, retrying, dead-lettered or dropped |
+| `delivery` | An SNS, S3 or EventBridge delivery attempt, or a Lambda asynchronous invocation's record or dead letter: delivered, filtered, retrying, dead-lettered, dropped or refused |
 | `invocation` | A Lambda invocation ends: cold or warm, duration, outcome |
 | `timer-fired` | A timer on the emulator clock fires |
 | `state-change` | A resource changes state |
 | `fault-injected` | A [fault rule](faults.md) fires |
-| `clock-changed` | The [clock](clock.md) is frozen, resumed or scaled |
+| `clock-changed` | The [clock](clock.md) is frozen, resumed, scaled, advanced or set, or a reset returns it to how `serve` started it; `op` in the detail says which |
 | `advisory` | Something AWS would do differently, such as deny a delivery its resource policy does not allow |
 | `unclaimed` | A request no service claimed, with why each routing rule declined it |
-| `gap` | A slow `--follow` consumer missed events |
+| `gap` | A stream consumer missed events: it fell behind, or resumed with `?after=` past events the journal has since dropped |
+| `admin-action` | An admin call changed state: a reset, a snapshot saved or loaded, a [fault rule](faults.md) added or removed; `op` in the detail says which |
+
+An [SNS HTTP delivery](sns-http.md) goes to an endpoint rather than a resource, so its line names the endpoint's host and port, never its path or credentials. Its JSON detail adds an `http` member: the answer's status (left out when none came), how it was classed (`success`, `retryable`, `permanent` or `refused`) and the wall time the exchange took, in nanoseconds (left out for an attempt a [fault rule](faults.md) answered):
+
+```text
+11     2026-10-26T23:44:17.764060058Z  delivery       000000000000/us-east-1 sns-to-http orders -> 127.0.0.1:9000 attempt 1 refused: egress: refused to send to 127.0.0.1:9000 (not-allowed): no entry of sns.httpDelivery.allow allows it; nothing was sent. To allow it, add "127.0.0.1:9000" or "127.0.0.1:*" to sns.httpDelivery.allow.
+```
+
+```json
+{"from":"arn:aws:sns:us-east-1:000000000000:orders","to":"","endpoint":"127.0.0.1:8080","mechanism":"sns-to-http","attempt":1,"outcome":{"kind":"delivered"},"http":{"status":200,"class":"success","duration":876453}}
+```
 
 ## From an error to its cause
 
@@ -84,7 +95,18 @@ understudy journal --errors --follow --output json
 curl -s 'http://127.0.0.1:4566/_understudy/v1/journal/events?kind=delivery&limit=1'
 ```
 
-`/_understudy/v1/journal/events` takes the CLI's filters as query parameters and pages with a cursor; `/journal/stream` streams NDJSON, resumable with `?after=<event id>`; `/journal/traces/<id>` returns a tree. Go tests use `admin.Client.JournalEvents`, `JournalStream` and `Trace`.
+`/_understudy/v1/journal/events` takes the CLI's filters as query parameters and pages with a cursor, or with `tail=N` answers the newest N matches in one page, oldest first; `/journal/stream` streams NDJSON, resumable with `?after=<event id>`; `/journal/traces/<id>` returns a tree. Go tests use `admin.Client.JournalEvents`, `JournalTail`, `JournalStream` and `Trace`.
+
+```sh
+understudy reset --service sqs
+curl -s 'http://127.0.0.1:4566/_understudy/v1/journal/events?kind=admin-action&tail=1'
+```
+
+```json
+{"events":[{"id":1,"cause":{"trace":1},"at":"2026-10-26T21:33:13.757529331Z","wall":"2026-10-26T21:33:13.757529701Z","scope":{"partition":"","account":"","region":""},"kind":"admin-action","detail":{"op":"reset","services":["sqs"]}}]}
+```
+
+The [web UI](ui.md) follows the journal this way: it opens the stream, then asks for the newest 500 events, and shows each event once.
 
 ## Retention and privacy
 

@@ -1,0 +1,36 @@
+{
+  "step": "03-tags",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.ListTagsForResource"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,E,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.list-tags-for-resource"],
+          ["X-Amz-Date", "20261103T163800Z"],
+          ["amz-sdk-invocation-id", "e402b379-7522-4957-a83e-1ca569bd7043"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "62"]
+        ],
+        "body": "{\"ResourceType\": \"Parameter\", \"ResourceId\": \"/us1103/ssm/r26\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:38:00 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "14"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "6a25ca28-25b3-4d3b-883c-6106c1c1c05c"],
+          ["Cache-Control", "no-store"]
+        ],
+        "body": "{\"TagList\":[]}"
+      }
+    }
+  ]
+}

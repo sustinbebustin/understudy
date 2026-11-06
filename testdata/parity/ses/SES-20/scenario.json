@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "item": "SES-20",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "ses/SES-20/03-no-sender.json",
+      "compare": "all"
+    }
+  ]
+}

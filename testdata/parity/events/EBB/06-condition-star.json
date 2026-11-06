@@ -1,0 +1,33 @@
+{
+  "step": "06-condition-star",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.PutPermission"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,g,E,AN,b cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.put-permission"],
+          ["X-Amz-Date", "20261103T163618Z"],
+          ["amz-sdk-invocation-id", "fb6b296d-9b01-4300-afdd-7af26759f1cf"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "190"]
+        ],
+        "body": "{\"EventBusName\": \"us1103-p\", \"Action\": \"events:PutEvents\", \"Principal\": \"*\", \"StatementId\": \"s4\", \"Condition\": {\"Type\": \"StringEquals\", \"Key\": \"aws:PrincipalOrgID\", \"Value\": \"o-aaaaaaaaaa\"}}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "6f8680ed-2942-49cb-a85d-0dc3264bfe30"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "0"],
+          ["Date", "Tue, 03 Nov 2026 16:36:18 GMT"]
+        ],
+        "body": ""
+      }
+    }
+  ]
+}

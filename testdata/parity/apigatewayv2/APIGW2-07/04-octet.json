@@ -1,0 +1,32 @@
+{
+  "step": "04-octet",
+  "client": "curl",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://roj3rnqmie.execute-api.us-east-2.amazonaws.com/e",
+        "headers": [
+          ["Host", "roj3rnqmie.execute-api.us-east-2.amazonaws.com"],
+          ["User-Agent", "curl/8.23.0"],
+          ["Accept", "*/*"],
+          ["Content-Type", "application/octet-stream"],
+          ["Content-Length", "16"]
+        ],
+        "body_base64": "bqdJWJnLKGOPlAL6/jw8Pw=="
+      },
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 03:40:30 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "962"],
+          ["Connection", "keep-alive"],
+          ["Apigw-Requestid", "GPqjYjE-iYcEJBQ="]
+        ],
+        "body": "{\"version\": \"2.0\", \"routeKey\": \"ANY /{proxy+}\", \"rawPath\": \"/e\", \"rawQueryString\": \"\", \"headers\": {\"accept\": \"*/*\", \"content-length\": \"16\", \"content-type\": \"application/octet-stream\", \"host\": \"roj3rnqmie.execute-api.us-east-2.amazonaws.com\", \"user-agent\": \"curl/8.23.0\", \"x-amzn-trace-id\": \"Root=1-6ae957ae-465497b00e6793f72090c2cf\", \"x-forwarded-for\": \"198.51.100.2\", \"x-forwarded-port\": \"443\", \"x-forwarded-proto\": \"https\"}, \"requestContext\": {\"accountId\": \"123456789012\", \"apiId\": \"roj3rnqmie\", \"domainName\": \"roj3rnqmie.execute-api.us-east-2.amazonaws.com\", \"domainPrefix\": \"roj3rnqmie\", \"http\": {\"method\": \"POST\", \"path\": \"/e\", \"protocol\": \"HTTP/1.1\", \"sourceIp\": \"198.51.100.2\", \"userAgent\": \"curl/8.23.0\"}, \"requestId\": \"GPqjYjE-iYcEJBQ=\", \"routeKey\": \"ANY /{proxy+}\", \"stage\": \"$default\", \"time\": \"03/Nov/2026:03:40:30 +0000\", \"timeEpoch\": 1793677230704}, \"pathParameters\": {\"proxy\": \"e\"}, \"body\": \"bqdJWJnLKGOPlAL6/jw8Pw==\", \"isBase64Encoded\": true}"
+      }
+    }
+  ]
+}

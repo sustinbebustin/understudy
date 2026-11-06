@@ -1,0 +1,21 @@
+{
+  "step": "09-json",
+  "client": "curl",
+  "exchanges": [
+    {
+      "response": {
+        "status": 200,
+        "reason": "OK",
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:40:23 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "16"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "1710b6eb-7a1b-4f5b-97fa-d702ec8fa3ce"],
+          ["x-amz-apigw-id", "GRcyvHWgCYcEv9w="]
+        ],
+        "body": "{\"marker\": \"pt\"}"
+      }
+    }
+  ]
+}

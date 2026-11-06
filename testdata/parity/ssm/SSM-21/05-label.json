@@ -1,0 +1,36 @@
+{
+  "step": "05-label",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidFilterKey) when calling the DescribeParameters operation: The following filter key is not valid: Label. Valid filter keys include: [Path, Name, Type, KeyId, Tier, DataType].",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://ssm.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AmazonSSM.DescribeParameters"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,b,Z,C,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ssm.describe-parameters"],
+          ["X-Amz-Date", "20261103T163740Z"],
+          ["amz-sdk-invocation-id", "ef419a25-3ac5-4d57-9896-f60a3774c056"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "57"]
+        ],
+        "body": "{\"ParameterFilters\": [{\"Key\": \"Label\", \"Values\": [\"x\"]}]}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Server", "Server"],
+          ["Date", "Tue, 03 Nov 2026 16:37:40 GMT"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "157"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "8b2f31bb-a25c-4fe0-99d7-acbf9a80fa82"]
+        ],
+        "body": "{\"__type\":\"InvalidFilterKey\",\"Message\":\"The following filter key is not valid: Label. Valid filter keys include: [Path, Name, Type, KeyId, Tier, DataType].\"}"
+      }
+    }
+  ]
+}

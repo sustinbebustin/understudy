@@ -1,0 +1,35 @@
+{
+  "step": "05-fifo-queue",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the PutFunctionEventInvokeConfig operation: The provided destination config DestinationConfig(onSuccess=null, onFailure=OnFailure(destination=arn:aws:sqs:us-east-2:123456789012:us1103-ldl-f.fifo)) is invalid.\n\nAdditional error details:\nType: User",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://lambda.us-east-2.amazonaws.com/2019-09-25/functions/us1103-ldl-v/event-invoke-config",
+        "headers": [
+          ["Content-Type", "application/json"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,E,Z,AN,g cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#lambda.put-function-event-invoke-config"],
+          ["X-Amz-Date", "20261103T165344Z"],
+          ["amz-sdk-invocation-id", "ee388ec1-84ca-42da-bb96-5d95e98deb92"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "109"]
+        ],
+        "body": "{\"DestinationConfig\": {\"OnFailure\": {\"Destination\": \"arn:aws:sqs:us-east-2:123456789012:us1103-ldl-f.fifo\"}}}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:53:44 GMT"],
+          ["Content-Type", "application/json"],
+          ["Content-Length", "192"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "ffec7cce-c6bd-43aa-843d-aaf0b1b2fada"],
+          ["x-amzn-ErrorType", "InvalidParameterValueException"]
+        ],
+        "body": "{\"Type\":\"User\",\"message\":\"The provided destination config DestinationConfig(onSuccess=null, onFailure=OnFailure(destination=arn:aws:sqs:us-east-2:123456789012:us1103-ldl-f.fifo)) is invalid.\"}"
+      }
+    }
+  ]
+}

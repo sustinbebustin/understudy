@@ -121,7 +121,11 @@ func writePolicy(w io.Writer, p *admin.Policy) error {
 	if len(p.ResourcePolicies) > 0 {
 		b.WriteString("\nResource policies the recorded deliveries need:\n")
 		for _, rp := range p.ResourcePolicies {
-			fmt.Fprintf(&b, "  %s must allow %s to call %s from %s\n", rp.Target, rp.Principal, rp.Action, rp.Source)
+			fmt.Fprintf(&b, "  %s must allow %s to call %s from %s", rp.Target, rp.Principal, rp.Action, rp.Source)
+			if rp.SourceAccount != "" {
+				fmt.Fprintf(&b, " (aws:SourceAccount %s)", rp.SourceAccount)
+			}
+			b.WriteString("\n")
 		}
 	}
 	_, err := io.WriteString(w, b.String())

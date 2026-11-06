@@ -1,0 +1,40 @@
+{
+  "step": "22-hold-delete-marker",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (MethodNotAllowed) when calling the PutObjectLegalHold operation: The specified method is not allowed against this resource.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "PUT",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/d12?legal-hold&versionId=vFUEUovtjDNvX0sBQVnq.25h.3edJVzS",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/g,AN,b,E,Z,W cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.put-object-legal-hold"],
+          ["x-amz-checksum-crc64nvme", "Yw8nczH5A1M="],
+          ["x-amz-sdk-checksum-algorithm", "CRC64NVME"],
+          ["X-Amz-Date", "20261103T034319Z"],
+          ["X-Amz-Content-SHA256", "96b73c95a8d33e664ab2170e095025b47ebd55978bb71cebd6a51e394bf96722"],
+          ["amz-sdk-invocation-id", "eb873720-6e0e-4e6f-b72d-a85981c87f79"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "90"]
+        ],
+        "body": "<LegalHold xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Status>ON</Status></LegalHold>"
+      },
+      "response": {
+        "status": 405,
+        "headers": [
+          ["Server", "AmazonS3"],
+          ["x-amz-request-id", "YTRT6E6ZS7BD34B7"],
+          ["x-amz-id-2", "TdnDIHfaj1x/8gpCDoG0AqAdXhw+Ii1sylpOyuGRZZ98aDqrpkHeSZLQU1s0TPeS61GPo3Mkp8Y="],
+          ["x-amz-delete-marker", "true"],
+          ["x-amz-version-id", "vFUEUovtjDNvX0sBQVnq.25h.3edJVzS"],
+          ["Allow", "DELETE"],
+          ["Content-Type", "application/xml"],
+          ["Transfer-Encoding", "chunked"],
+          ["Date", "Tue, 03 Nov 2026 03:43:19 GMT"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>MethodNotAllowed</Code><Message>The specified method is not allowed against this resource.</Message><Method>PUT</Method><ResourceType>DeleteMarker</ResourceType><RequestId>YTRT6E6ZS7BD34B7</RequestId><HostId>TdnDIHfaj1x/8gpCDoG0AqAdXhw+Ii1sylpOyuGRZZ98aDqrpkHeSZLQU1s0TPeS61GPo3Mkp8Y=</HostId></Error>"
+      }
+    }
+  ]
+}

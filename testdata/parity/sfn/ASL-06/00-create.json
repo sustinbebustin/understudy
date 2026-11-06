@@ -1,0 +1,34 @@
+{
+  "step": "00-create",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://states.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSStepFunctions.CreateStateMachine"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/b,Z,g,AN,E cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#stepfunctions.create-state-machine"],
+          ["X-Amz-Date", "20261103T164743Z"],
+          ["amz-sdk-invocation-id", "04bb4e23-8b77-426e-8015-b2a0ed333e43"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "764"]
+        ],
+        "body": "{\"name\": \"us1103-intr\", \"definition\": \"{\\\"StartAt\\\":\\\"A\\\",\\\"States\\\":{\\\"A\\\":{\\\"Type\\\":\\\"Pass\\\",\\\"Parameters\\\":{\\n \\\"unique.$\\\":\\\"States.ArrayUnique($.u)\\\",\\\"contains1.$\\\":\\\"States.ArrayContains($.c, 1)\\\",\\\"fmt.$\\\":\\\"States.Format($.tpl, $.f[0], $.f[1], $.f[2], $.f[3], $.f[4])\\\",\\n \\\"json.$\\\":\\\"States.JsonToString($.f)\\\",\\\"seeded1.$\\\":\\\"States.MathRandom(0, 1000, 7)\\\",\\\"seeded2.$\\\":\\\"States.MathRandom(0, 1000, 7)\\\",\\\"frac.$\\\":\\\"States.MathRandom(0.6, 2.4)\\\"},\\\"Next\\\":\\\"M\\\"},\\n \\\"M\\\":{\\\"Type\\\":\\\"Map\\\",\\\"ItemsPath\\\":\\\"$.r\\\",\\\"ItemSelector\\\":{\\\"v.$\\\":\\\"States.MathRandom(0, 2)\\\"},\\\"ItemProcessor\\\":{\\\"StartAt\\\":\\\"S\\\",\\\"States\\\":{\\\"S\\\":{\\\"Type\\\":\\\"Succeed\\\"}}},\\\"ResultPath\\\":\\\"$.randoms\\\",\\\"End\\\":true}}}\", \"roleArn\": \"arn:aws:iam::123456789012:role/us1103-sfn\"}"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amzn-RequestId", "cd4820b5-ddd2-4245-b012-17d75c05d6c0"],
+          ["Date", "Tue, 03 Nov 2026 16:47:43 GMT"],
+          ["Content-Type", "application/x-amz-json-1.0"],
+          ["Content-Length", "116"],
+          ["connection", "keep-alive"]
+        ],
+        "body": "{\"creationDate\":1.793724463845E9,\"stateMachineArn\":\"arn:aws:states:us-east-2:123456789012:stateMachine:us1103-intr\"}"
+      }
+    }
+  ]
+}

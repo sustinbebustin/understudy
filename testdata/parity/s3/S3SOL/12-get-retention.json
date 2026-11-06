@@ -1,0 +1,31 @@
+{
+  "step": "12-get-retention",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://us1103-olock.s3.us-east-2.amazonaws.com/d12?retention",
+        "headers": [
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/Z,b,E,AN,g cfg/retry-mode#standard md/installer#source sid/000000000006 md/distrib#ubuntu.24 md/prompt#off md/command#s3api.get-object-retention"],
+          ["X-Amz-Date", "20261103T034016Z"],
+          ["X-Amz-Content-SHA256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"],
+          ["amz-sdk-invocation-id", "443b9795-8867-4ab4-8096-5d0e797b6262"],
+          ["amz-sdk-request", "attempt=1"]
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["x-amz-id-2", "Hmd/1kCHDSy1TokeL8GYAoVrlXXuD+eAH9f+pniewmgoUFrwyt23XYdpVWGpVVm86luZq8p2BDXMb7pQjhzCUvO6HpwPtfts"],
+          ["x-amz-request-id", "Z8RVHE1G0TWYF62A"],
+          ["Server", "AmazonS3"],
+          ["Date", "Tue, 03 Nov 2026 03:40:17 GMT"],
+          ["Transfer-Encoding", "chunked"]
+        ],
+        "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Retention xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\"><Mode>GOVERNANCE</Mode><RetainUntilDate>2026-11-03T04:40:14.000Z</RetainUntilDate></Retention>"
+      }
+    }
+  ]
+}

@@ -114,8 +114,14 @@ func TestAdminHealthReportsReadinessAndServices(t *testing.T) {
 	if !h.Ready || h.Version != "test" || h.Services["sqs"].Status != admin.Enabled || !strings.HasPrefix(h.Model, "api-models-aws@") {
 		t.Fatalf("health = %+v", h)
 	}
-	if len(h.Services) != 12 {
-		t.Fatalf("health lists %d services, want the twelve services: %+v", len(h.Services), h.Services)
+	wired := server.ServiceIDs()
+	if len(h.Services) != len(wired) {
+		t.Fatalf("health lists %d services, want the %d wired services %v: %+v", len(h.Services), len(wired), wired, h.Services)
+	}
+	for _, id := range wired {
+		if _, ok := h.Services[string(id)]; !ok {
+			t.Errorf("health does not list the wired service %s: %+v", id, h.Services)
+		}
 	}
 	// Every wired service holds its state under its registry id, so a reset
 	// can name each one.
@@ -150,7 +156,7 @@ func TestEveryProtocolReachesItsService(t *testing.T) {
 			name: "rpcv2Cbor", method: http.MethodPost, path: "/service/GraniteServiceVersion20100801/operation/ListDashboards", signing: "monitoring",
 			header: map[string]string{"Content-Type": "application/cbor", "Smithy-Protocol": "rpc-v2-cbor"}, want: "NotImplemented",
 		},
-		{name: "restJson1", method: http.MethodGet, path: "/2018-10-31/layers", signing: "lambda", want: "understudy does not implement lambda.ListLayers"},
+		{name: "restJson1", method: http.MethodGet, path: "/2020-04-22/code-signing-configs", signing: "lambda", want: "understudy does not implement lambda.ListCodeSigningConfigs"},
 		{name: "restXml", method: http.MethodGet, path: "/bucket/key?torrent", signing: "s3", want: "understudy does not implement s3.GetObjectTorrent"},
 	}
 	for _, tc := range cases {
@@ -238,9 +244,11 @@ func TestAdminClockModes(t *testing.T) {
 	}
 	_, err = c.ChangeClock(t.Context(), admin.Scale{Factor: 0})
 	wantCode(t, err, admin.InvalidRequest)
+	// A set journals a clock change too (ADR 0007 pre-tag amendment: clock
+	// moves are journaled); the refused set and scale journal nothing.
 	page, err := c.JournalEvents(t.Context(), admin.JournalQuery{Kind: "clock-changed"})
-	if err != nil || len(page.Events) != 3 {
-		t.Fatalf("clock-changed events = %+v, %v; want scale, resume and freeze", page, err)
+	if err != nil || len(page.Events) != 4 {
+		t.Fatalf("clock-changed events = %+v, %v; want set, scale, resume and freeze", page, err)
 	}
 }
 
@@ -622,8 +630,8 @@ func TestAdminCoverageReportsTheRunningServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Protocols) == 0 || len(report.Services) != 12 {
-		t.Fatalf("coverage lists %d protocol suites and %d services, want some suites and the twelve services", len(report.Protocols), len(report.Services))
+	if wired := len(server.ServiceIDs()); len(report.Protocols) == 0 || len(report.Services) != wired {
+		t.Fatalf("coverage lists %d protocol suites and %d services, want some suites and the %d wired services", len(report.Protocols), len(report.Services), wired)
 	}
 }
 

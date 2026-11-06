@@ -69,7 +69,10 @@
 //   - coverage asks the server at the endpoint for its JSON report and, when
 //     none answers, wires the emulator in process and asks that, so the two
 //     agree byte for byte. --overlays adds the overlay evidence of a directory
-//     such as codegen/overlays, which the binary does not carry.
+//     such as codegen/overlays, and --parity the replay evidence of
+//     internal/parity/baseline.json, neither of which the binary carries;
+//     the baseline is checked against the switches before --service narrows
+//     them.
 //   - env prints AWS_ENDPOINT_URL, the test keys (the default account) or
 //     with --account that account's 12-digit id as the access key id (ADR
 //     0012), and AWS_REGION, plus AWS_DEFAULT_REGION for boto3, the AWS CLI

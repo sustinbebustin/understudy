@@ -1,0 +1,35 @@
+{
+  "step": "03-enable-rule",
+  "client": "aws-cli",
+  "exit": 254,
+  "error": "aws: [ERROR]: An error occurred (ResourceNotFoundException) when calling the EnableRule operation: Event bus us1103-missing does not exist.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://events.us-east-2.amazonaws.com/",
+        "headers": [
+          ["X-Amz-Target", "AWSEvents.EnableRule"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,g,b,AN,Z cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#events.enable-rule"],
+          ["X-Amz-Date", "20261103T163549Z"],
+          ["amz-sdk-invocation-id", "596178d3-a471-48a4-ae8c-c0a886e19689"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "54"]
+        ],
+        "body": "{\"Name\": \"us1103-m\", \"EventBusName\": \"us1103-missing\"}"
+      },
+      "response": {
+        "status": 400,
+        "headers": [
+          ["x-amzn-RequestId", "34253503-25ad-4fbf-9c0c-d11bc7c2be84"],
+          ["Content-Type", "application/x-amz-json-1.1"],
+          ["Content-Length", "91"],
+          ["Date", "Tue, 03 Nov 2026 16:35:49 GMT"],
+          ["Connection", "close"]
+        ],
+        "body": "{\"__type\":\"ResourceNotFoundException\",\"message\":\"Event bus us1103-missing does not exist.\"}"
+      }
+    }
+  ]
+}

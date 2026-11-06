@@ -21,6 +21,8 @@ var service = registry.Service{
 	Protocols:             []ref.ProtocolID{ref.RESTXML},
 	XMLNamespace:          "http://s3.amazonaws.com/doc/2006-03-01/",
 	MalformedRequestError: IdentityMalformedXML(),
+	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-doc"},
+	NewErrorMembers:       NewErrorMembers,
 }
 
 // The operations point back at the service, so the list is linked once

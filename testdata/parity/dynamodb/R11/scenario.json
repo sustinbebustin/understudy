@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "item": "R11",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "curl",
+  "steps": [
+    {
+      "fixture": "dynamodb/R11/07-streams-signed-streams.dynamodb.json",
+      "compare": "all",
+      "signing": "streams.dynamodb"
+    }
+  ]
+}

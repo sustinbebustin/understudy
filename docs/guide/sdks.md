@@ -64,7 +64,7 @@ func TestDelayedMessage(t *testing.T) {
 }
 ```
 
-`emu.Admin()` is an `admin.Client` with the whole admin API: clock, faults, journal, snapshots, resources, IAM usage. `emu.Settle(ctx)` waits until deliveries and invocations are done. Both packages are public and experimental until the first release.
+`emu.Admin()` is an `admin.Client` with the whole admin API: clock, faults, journal, snapshots, resources, IAM usage. `emu.Settle(ctx)` waits until deliveries and invocations are done. Both packages are public and experimental until the first release. To run understudy as a container from a testcontainers-go, Python or Node suite instead, see [Testcontainers](testcontainers-modules.md).
 
 ## Python (boto3)
 
@@ -143,6 +143,58 @@ eval "$(understudy env --tls)"
 ```
 
 The TLS listener is on port 4567. `env --tls` writes the certificate to the user cache directory (or `--ca-file`) and sets `AWS_CA_BUNDLE`, and `NODE_EXTRA_CA_CERTS` for Node. The certificate is new at every start, so run `env --tls` again after a restart.
+
+## S3 SSE-C and Object Lock
+
+AWS refuses SSE-C (customer-provided keys) over plain HTTP, and, since April 2026, on every new bucket until its encryption configuration unblocks it. understudy does both, so SSE-C needs the TLS listener and an unblocked bucket:
+
+```sh
+understudy serve --tls
+eval "$(understudy env --tls --sdk cli)"
+aws s3api create-bucket --bucket ssec-demo
+aws s3api put-bucket-encryption --bucket ssec-demo --server-side-encryption-configuration \
+  '{"Rules":[{"BlockedEncryptionTypes":{"EncryptionType":["NONE"]}}]}'
+aws s3api put-object --bucket ssec-demo --key secret.txt --body secret.txt \
+  --sse-customer-algorithm AES256 --sse-customer-key 0123456789abcdef0123456789abcdef
+aws s3api get-object --bucket ssec-demo --key secret.txt \
+  --sse-customer-algorithm AES256 --sse-customer-key 0123456789abcdef0123456789abcdef out.txt
+```
+
+`get-object` writes the object to `out.txt` and echoes the algorithm and the key's MD5 (trimmed):
+
+```text
+    "SSECustomerAlgorithm": "AES256",
+    "SSECustomerKeyMD5": "hRasmdxgYDKV3nvbahU1MA=="
+```
+
+Without the `put-bucket-encryption` call, the put fails with `AccessDenied` "Access Denied". At the plain HTTP endpoint it fails, with or without that call, with `InvalidArgument` "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection.", and so does a `get-object` sent with SSE-C headers. A `get-object` without the key fails with `InvalidRequest` "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object.", and one with another key fails with `AccessDenied`. understudy never stores the key. It keeps a salted HMAC of the key to check reads, and stores the object's bytes as sent, unencrypted.
+
+Object Lock retention runs on the [emulator clock](clock.md), so a test moves the clock past the retain-until date instead of waiting for it:
+
+```sh
+understudy serve --clock frozen@2026-01-01T00:00:00Z
+eval "$(understudy env --sdk cli)"
+aws s3api create-bucket --bucket lock-demo --object-lock-enabled-for-bucket
+VERSION=$(aws s3api put-object --bucket lock-demo --key report.csv --body report.csv \
+  --object-lock-mode COMPLIANCE --object-lock-retain-until-date 2026-01-02T00:00:00Z \
+  --query VersionId --output text)
+aws s3api delete-object --bucket lock-demo --key report.csv --version-id "$VERSION"  # AccessDenied
+understudy clock advance 24h
+aws s3api delete-object --bucket lock-demo --key report.csv --version-id "$VERSION"  # deleted
+```
+
+The first delete and the clock advance print:
+
+```text
+An error occurred (AccessDenied) when calling the DeleteObject operation: Access Denied because object protected by object lock.
+2026-01-02T00:00:00Z frozen
+```
+
+- **Refused deletes:** until the clock reaches the date, the versioned delete fails with 403 `AccessDenied`, as above. A delete without `--version-id` succeeds, because it only adds a delete marker.
+- **Bypass:** `--bypass-governance-retention` lifts GOVERNANCE retention but never COMPLIANCE retention. understudy does not evaluate `s3:BypassGovernanceRetention` ([differences](differences.md#s3)).
+- **Legal holds:** `put-object-legal-hold --legal-hold Status=ON` blocks deletes, bypass or not, until the hold is set to `OFF`.
+- **Default retention:** a bucket default from `put-object-lock-configuration` dates each new version from its creation. A `put-object` into such a bucket needs `Content-MD5` or a checksum, which the AWS CLI and current SDKs send by default.
+- **Reset:** `understudy reset` drops locked versions along with everything else, so COMPLIANCE retention never outlives a test run.
 
 ## Accounts in tests
 

@@ -1,0 +1,33 @@
+{
+  "step": "08-v1-tmpl-read",
+  "client": "aws-cli",
+  "exit": 0,
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "url": "https://email.us-east-2.amazonaws.com/",
+        "headers": [
+          ["Content-Type", "application/x-www-form-urlencoded; charset=utf-8"],
+          ["User-Agent", "aws-cli/2.38.3 md/awscrt#0.37.0 ua/2.1 os/linux#6.8.0-147-generic md/arch#x86_64 lang/python#3.15.0 md/pyimpl#CPython m/E,b,g,Z,AN cfg/retry-mode#standard md/installer#source sid/000000000001 md/distrib#ubuntu.24 md/prompt#off md/command#ses.get-template"],
+          ["X-Amz-Date", "20261103T164224Z"],
+          ["amz-sdk-invocation-id", "53902624-4829-40b6-a52f-11538bea2d28"],
+          ["amz-sdk-request", "attempt=1"],
+          ["Content-Length", "60"]
+        ],
+        "body": "Action=GetTemplate&Version=2010-12-01&TemplateName=us1103-t2"
+      },
+      "response": {
+        "status": 200,
+        "headers": [
+          ["Date", "Tue, 03 Nov 2026 16:42:24 GMT"],
+          ["Content-Type", "text/xml"],
+          ["Content-Length", "386"],
+          ["Connection", "keep-alive"],
+          ["x-amzn-RequestId", "bacd249a-5cfd-4c21-8417-41762ccdf908"]
+        ],
+        "body": "<GetTemplateResponse xmlns=\"http://ses.amazonaws.com/doc/2010-12-01/\">\n  <GetTemplateResult>\n    <Template>\n      <TemplateName>us1103-t2</TemplateName>\n      <SubjectPart>s</SubjectPart>\n      <TextPart>t</TextPart>\n    </Template>\n  </GetTemplateResult>\n  <ResponseMetadata>\n    <RequestId>bacd249a-5cfd-4c21-8417-41762ccdf908</RequestId>\n  </ResponseMetadata>\n</GetTemplateResponse>\n"
+      }
+    }
+  ]
+}
