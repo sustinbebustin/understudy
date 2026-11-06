@@ -25,7 +25,7 @@ fmt-check:
     #!/usr/bin/env bash
     set -euo pipefail
     unformatted=$(find . -name '*.go' -not -path './.git/*' -print0 \
-        | { xargs -0 -r grep -LZ -E '^// Code generated .* DO NOT EDIT\.$' || true; } \
+        | { xargs -0 -r grep -L --null -E '^// Code generated .* DO NOT EDIT\.$' || true; } \
         | xargs -0 -r gofmt -l)
     if [ -n "$unformatted" ]; then
         echo "gofmt would change these files; run 'just fmt':" >&2
