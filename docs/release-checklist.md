@@ -1,8 +1,8 @@
 # macOS Docker Desktop run
 
-For the maintainer, before the first tag (ROADMAP item 4). Agents only have Linux, so Docker Desktop is supported by design but untested (ADR 0011, README "Limitations"). This run decides whether it becomes a tested topology, and it answers four open questions:
+For the maintainer, before a tag (ROADMAP item 4). CI only has Linux, so Docker Desktop is supported but not CI-tested (ADR 0011, amendment of 2026-11-06). The first run, on 2026-11-06, answered the four questions below; each later run checks that the answers still hold on the current Desktop:
 
-1. The exact `OperatingSystem` string `docker info` reports on Desktop. Topology detection keys on it containing `Docker Desktop` (`internal/topology/detect.go`), and `docs/research/containers.md` section 2.2 marks the string UNVERIFIED. If it is wrong, Desktop is treated as a Linux bridge and functions cannot reach understudy.
+1. The exact `OperatingSystem` string `docker info` reports on Desktop. Topology detection keys on it containing `Docker Desktop` (`internal/topology/detect.go`), as `docs/research/containers.md` section 2.2 records. If it changes, Desktop is treated as a Linux bridge and functions cannot reach understudy.
 2. Which Engine API call answers "Mounts denied" for a path Desktop does not share, the container create or the start, and with what status. The Lambda launcher falls back to copying the code on either (`internal/service/lambda/launcher/doc.go`), but its tests only fake the daemon's answer.
 3. Whether `*.localhost` names resolve on macOS (`understudy doctor`'s localhost check).
 4. TC-01 (`docs/research/testcontainers.md` 11.1): the uid, gid and mode of the Docker socket as a container sees it on Desktop, whether `--group-add <gid>` lets the image's user 65532 use it, and whether a `127.0.0.1` publish is reachable from macOS.
@@ -15,27 +15,35 @@ Any failure not listed here is a finding.
 
 - `TestDetectOnThisHost` (`internal/topology`, `-tags docker`) asserts a Linux CI host and fails on Docker Desktop by design. Its `detected ...` log line is the result this run needs.
 
+Two tests skip on a Mac by design, with the reason in `-v` output: `TestContainerListenerServesOnlyItsNetwork` (`internal/server`) needs a second loopback address, and `TestDynamoDBLocalMakesNoNetworkAttempts` (`internal/service/dynamodb/ddblocal`, `-tags docker`) needs a host that routes to container addresses.
+
 ## 1. Set up the Mac
 
 1. Install the current Docker Desktop. In Settings:
    - General: leave the file sharing implementation on VirtioFS. Note whether "Use Rosetta for x86_64/amd64 emulation on Apple Silicon" is on.
    - Advanced: turn on "Allow the default Docker socket to be used". understudy reads no Docker contexts: its default socket is `/var/run/docker.sock`, and the image tests mount that path.
    - Resources: at least 4 CPUs and 8 GB of memory. Leave File sharing at its defaults.
-2. Install the tools. Go must be 1.27 or later (`go.mod`); the Testcontainers suites need Node 24, Bun 1.4.3 and golangci-lint 2.15 (CONTRIBUTING "Setup"):
+2. Install the tools. Go must be 1.27 or later (`go.mod`); the Testcontainers suites need Node 24, Bun 1.4.3 and golangci-lint 2.15; the conformance suites need bash 4, and macOS's `/bin/bash` is 3.2 (CONTRIBUTING "Setup"):
 
    ```sh
-   brew install go just uv jq awscli actionlint golangci-lint node@24
+   brew install go just uv jq awscli actionlint golangci-lint node@24 bash
    brew install hashicorp/tap/terraform
    curl -fsSL https://bun.sh/install | bash -s bun-v1.4.3
    ```
 
-3. Clone the repository under your home directory (a path Desktop shares by default) and check out the commit under test. Run every command below from the repository root, in `bash`:
+3. Use a checkout under your home directory (a path Desktop shares by default), such as a fresh clone or an existing working copy, at the commit under test. Run every command below from the repository root, in Homebrew's `bash`. macOS's login shell is zsh, so start bash first. An agent whose tool calls each start a fresh shell runs each block as `bash -c '...'` and repeats the two exports at the top of every block:
 
    ```sh
-   bash
-   export PATH="$(brew --prefix node@24)/bin:$HOME/.bun/bin:$PATH"   # node@24 is keg-only; the Bun installer edits only your login shell's rc file
-   cd ~/src/understudy        # your clone
+   "$(brew --prefix)/bin/bash"
+   export PATH="$(brew --prefix)/bin:$(brew --prefix node@24)/bin:$HOME/.bun/bin:$PATH"   # Homebrew's bash before /bin's 3.2; node@24 is keg-only; the Bun installer edits only your login shell's rc file
    export OUT=~/understudy-macos-run && mkdir -p "$OUT"
+   cd <your checkout>
+   ```
+
+4. Pull the image's golang base, as CI's `test-docker` job does: steps 5 to 8 build the image behind a dead proxy, which cannot fetch a registry token.
+
+   ```sh
+   docker pull "$(sed -n 's/^FROM --platform=$BUILDPLATFORM \(golang:[^ ]*\) AS builder$/\1/p' Dockerfile)"
    ```
 
 ## 2. Record the environment
@@ -127,7 +135,7 @@ docker rm -f tc01-with-group tc01-without-group
 stat -L -f 'host socket: uid=%u gid=%g mode=%Lp' /var/run/docker.sock >"$OUT/TC-01/host-stat.txt"
 ```
 
-Record `docker.status` and `docker.reason` from both health files, and whether curl reached `127.0.0.1` at all. The host's own `stat` is kept too: the Testcontainers modules read the group from the socket on the host (testcontainers.md 8.5), and the README's `--group-add "$(stat -c %g ...)"` recipe uses GNU `stat`, which macOS does not have.
+Record `docker.status` and `docker.reason` from both health files, and whether curl reached `127.0.0.1` at all. The host's own `stat` is kept too, for comparison: on 2026-11-06 the container saw `uid=0 gid=0 mode=660` and the host the user's group, which is why the modules and the README add group 0 on Desktop (testcontainers.md 8.5).
 
 ## 8. Testcontainers modules
 
@@ -137,11 +145,11 @@ testcontainers/python/run.sh 2>&1 | tee "$OUT/tc-python.log"
 testcontainers/node/run.sh 2>&1 | tee "$OUT/tc-node.log"
 ```
 
-Each suite runs against `understudy:dev` and includes a Lambda case with the socket mounted, whose group comes from the host's socket. A failure there with the module's "the Docker socket is mounted but understudy reports Docker ..." message is the TC-01 answer for the modules. On Linux the Go suite has one known failure, the cleanup of `TestTerminateLeavesNoChildContainer`, which lists containers with an already-canceled context; it is not a Desktop finding.
+Each suite runs against `understudy:dev` and includes a Lambda case with the socket mounted, with group 0 on Desktop. A failure there with the module's "the Docker socket is mounted but understudy reports Docker ..." message means the socket's ownership changed (step 7). On Linux the Go suite has one known failure, the cleanup of `TestTerminateLeavesNoChildContainer`, which lists containers with an already-canceled context; it passed on Desktop on 2026-11-06. The Node suite skips one case when `localhost` resolves to IPv6 first, as it does on macOS.
 
 ## 9. Which call answers "Mounts denied"
 
-`/opt` is not one of Desktop's shared paths. Ask the Engine API for a bind mount from there, and keep both answers:
+`/opt` is not one of Desktop's shared paths. Ask the Engine API for a bind mount from there, and keep both answers. The two `sudo` lines need your password; an agent asks you to run them:
 
 ```sh
 sudo mkdir -p /opt/understudy-mount-probe
