@@ -25,6 +25,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/config/configtest"
 	"github.com/sustinbebustin/understudy/internal/docker"
+	"github.com/sustinbebustin/understudy/internal/topology"
 )
 
 // sinkImage runs the sink binary; any image with a Linux userland would do,
@@ -52,6 +53,17 @@ type egress struct {
 func newEgress(t *testing.T) *egress {
 	t.Helper()
 	d := configtest.EngineClient(t)
+	// The test reaches Local at its address on an internal network, which
+	// only a host that routes to container addresses can do; the image's
+	// silence does not depend on the host, so a Linux run covers the rest.
+	var detector topology.Detector
+	top, err := detector.Detect(t.Context(), d, topology.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, routed := NetworkFor(top).(DefaultBridge); !routed {
+		t.Skipf("%s cannot route to container addresses; the egress test needs a Linux bridge or rootful Podman", top)
+	}
 	b := make([]byte, 6)
 	if _, err := rand.Read(b); err != nil {
 		t.Fatal(err)

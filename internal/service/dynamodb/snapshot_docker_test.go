@@ -26,7 +26,7 @@ func startLocal(t *testing.T) *ddblocal.Manager {
 	t.Helper()
 	d := engine(t)
 	own := ownership(t)
-	m, err := ddblocal.New(ddblocal.Config{Docker: d, Labels: docker.Labels{Ownership: own, Test: true}})
+	m, err := ddblocal.New(ddblocal.Config{Docker: d, Network: localNetwork(t, d), Labels: docker.Labels{Ownership: own, Test: true}})
 	if err != nil {
 		t.Fatal(err)
 	}

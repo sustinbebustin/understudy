@@ -29,12 +29,26 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
+	"github.com/sustinbebustin/understudy/internal/topology"
 )
 
 // engine connects to the daemon serve would use.
 func engine(t *testing.T) *docker.Client {
 	t.Helper()
 	return configtest.EngineClient(t)
+}
+
+// localNetwork is how serve would reach DynamoDB Local on d's topology: a
+// container address on a Linux bridge, a loopback port on Docker Desktop
+// (ddblocal.NetworkFor).
+func localNetwork(t *testing.T, d *docker.Client) ddblocal.Network {
+	t.Helper()
+	var detector topology.Detector
+	top, err := detector.Detect(t.Context(), d, topology.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ddblocal.NetworkFor(top)
 }
 
 // ownership is unique per run, so names and owner labels never collide
@@ -138,7 +152,7 @@ func scopeOf(t *testing.T, account, region string) aws.Scope {
 func TestLocalIsolatesAccountsAndRegions(t *testing.T) {
 	d := engine(t)
 	own := ownership(t)
-	m, err := ddblocal.New(ddblocal.Config{Docker: d, Labels: docker.Labels{Ownership: own, Test: true}})
+	m, err := ddblocal.New(ddblocal.Config{Docker: d, Network: localNetwork(t, d), Labels: docker.Labels{Ownership: own, Test: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
