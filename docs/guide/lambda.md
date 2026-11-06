@@ -321,7 +321,7 @@ understudy detects how containers reach it the first time a function runs, and `
 | Where understudy runs | How functions reach it |
 |---|---|
 | Linux host, Docker bridge network | A listener on the bridge gateway (such as `172.17.0.1`) serving the AWS API only; `localhost:<port>` URLs inside functions also reach the host |
-| Docker Desktop (macOS) | `host.docker.internal`, forwarded to understudy on the host's loopback. Supported by design, not yet tested |
+| Docker Desktop (macOS) | `host.docker.internal`, forwarded to understudy on the host's loopback; functions are handed Desktop's documented address, `192.168.65.254`. Supported, not CI-tested: a manual run on Docker Desktop 4.98.0 (2026-11-06) ran functions from the host and from the image |
 | In a container (the image) | understudy's own container network; functions join it |
 | Rootless Docker, rootless Podman | Not supported; understudy says so when a function would start |
 
