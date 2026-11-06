@@ -99,10 +99,13 @@ func TestOtherLoopbackAddressesAreRefused(t *testing.T) {
 }
 
 // The group is read only from a local unix socket; any other daemon names
-// itself in the socket-group text (testcontainers.md 8.5, 9.5).
+// itself in the socket-group text. Docker Desktop mounts its VM's socket,
+// root:root 0660, so the group is 0 whatever the host's socket says
+// (testcontainers.md 8.5, 9.5).
 func TestDaemonSocketGroup(t *testing.T) {
+	const engine = "Ubuntu 24.04.3 LTS"
 	for _, host := range []string{"tcp://10.0.0.5:2375", "npipe:////./pipe/docker_engine", "ssh://docker@remote"} {
-		_, err := daemonSocketGroup(host)
+		_, err := daemonSocketGroup(host, engine)
 		if se, ok := errors.AsType[*SocketGroupError](err); !ok || se.Daemon != host {
 			t.Errorf("daemonSocketGroup(%q) = %v, want a *SocketGroupError naming it", host, err)
 		}
@@ -112,13 +115,16 @@ func TestDaemonSocketGroup(t *testing.T) {
 	if err := os.WriteFile(sock, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	gid, err := daemonSocketGroup("unix://" + sock)
+	gid, err := daemonSocketGroup("unix://"+sock, engine)
 	if err != nil || int(gid) != os.Getegid() {
 		t.Errorf("daemonSocketGroup(unix://%s) = %d, %v; want the file's group %d", sock, gid, err, os.Getegid())
 	}
 
 	missing := filepath.Join(t.TempDir(), "absent.sock")
-	_, err = daemonSocketGroup("unix://" + missing)
+	if gid, err := daemonSocketGroup("unix://"+missing, "Docker Desktop"); err != nil || gid != 0 {
+		t.Errorf("daemonSocketGroup on Docker Desktop = %d, %v; want 0, the VM socket's group, without reading the host's socket", gid, err)
+	}
+	_, err = daemonSocketGroup("unix://"+missing, engine)
 	if _, isGroupErr := errors.AsType[*SocketGroupError](err); isGroupErr || !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("daemonSocketGroup on a missing socket = %v, want the stat error, not the remote-daemon text", err)
 	}

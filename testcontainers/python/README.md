@@ -45,7 +45,7 @@ def test_orders_queue():
 
 | Method | Effect |
 |---|---|
-| `with_docker_socket()` | mounts the Docker socket and adds its group, for Lambda and DynamoDB Local; `start()` raises `UnderstudyDockerError` unless understudy then reports Docker enabled |
+| `with_docker_socket()` | mounts the Docker socket and adds its group (0 on Docker Desktop, whose VM owns the socket), for Lambda and DynamoDB Local; `start()` raises `UnderstudyDockerError` unless understudy then reports Docker enabled |
 | `with_docker_socket(gid=n)` | the same, with the group given, for a daemon that is not a local unix socket |
 | `with_clock(frozen_at=dt, scale=f)` | the emulator clock; `frozen_at` must be timezone-aware |
 | `with_seed(n)` | repeatable generated identifiers |

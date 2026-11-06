@@ -344,7 +344,8 @@ class UnderstudyContainer(DockerContainer):
         """The socket to mount and its group, or None without with_docker_socket (testcontainers.md 8.5).
 
         The source is the path tc-py mounts into Ryuk. The group is the one
-        given, else the st_gid of the local unix socket the client uses.
+        given, else 0 on Docker Desktop, whose VM socket is root:root 0660,
+        else the st_gid of the local unix socket the client uses.
         """
         if self._socket is None:
             return None
@@ -364,6 +365,9 @@ class UnderstudyContainer(DockerContainer):
                 "daemon's host."
             )
             raise UnderstudyConfigError(msg)
+        # Docker Desktop mounts its VM's socket, not the host's (TC-01).
+        if "Docker Desktop" in self.get_docker_client().client.info().get("OperatingSystem", ""):
+            return 0
         try:
             return os.stat(adapter.socket_path).st_gid
         except OSError as e:

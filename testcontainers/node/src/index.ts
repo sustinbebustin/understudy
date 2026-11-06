@@ -515,7 +515,8 @@ function isLoopback(addr: string): boolean {
  * The socket to mount and its group (testcontainers.md 8.5).
  *
  * The source is the path tc-node mounts into Ryuk. The group is the one
- * given, else the gid of the local unix socket the client uses.
+ * given, else 0 on Docker Desktop, whose VM socket is root:root 0660, else
+ * the gid of the local unix socket the client uses.
  */
 function resolveSocket(client: ContainerRuntimeClient, socket: SocketRequest): SocketMount {
   const source = client.info.containerRuntime.remoteSocketPath;
@@ -527,6 +528,8 @@ function resolveSocket(client: ContainerRuntimeClient, socket: SocketRequest): S
         "pass withDockerSocket(<gid>), the numeric group owning /var/run/docker.sock on the daemon's host.",
     );
   }
+  // Docker Desktop mounts its VM's socket, not the host's (TC-01).
+  if (client.info.containerRuntime.operatingSystem.includes("Docker Desktop")) return { source, gid: 0 };
   try {
     return { source, gid: statSync(daemon.socketPath).gid };
   } catch (err) {

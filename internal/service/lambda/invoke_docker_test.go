@@ -454,7 +454,10 @@ func TestDockerDeadlineIgnoresTheEmulatorClock(t *testing.T) {
 	}
 	for i := range 2 {
 		remaining, ok := result(t, s.invoke(t, "py", `{"action":"remaining"}`))["remaining"].(float64)
-		if d := 3*time.Second - time.Duration(remaining)*time.Millisecond; !ok || d < 0 || d > 100*time.Millisecond {
+		// The function reads the deadline on its own clock. Docker
+		// Desktop's VM clock trailed the host's by up to 4 ms (macOS run,
+		// 2026-11-06), so a few milliseconds above the timeout are skew.
+		if d := 3*time.Second - time.Duration(remaining)*time.Millisecond; !ok || d < -50*time.Millisecond || d > 100*time.Millisecond {
 			t.Errorf("invocation %d: get_remaining_time_in_millis() = %v, want within 100 ms of 3 s", i, remaining)
 		}
 	}

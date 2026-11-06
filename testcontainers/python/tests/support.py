@@ -81,7 +81,13 @@ def image_containers() -> list[Container]:
 
 
 def docker_socket_gid() -> int:
-    """The group owning the local Docker socket the client uses (testcontainers.md 8.5)."""
+    """The group owning the Docker socket as a container sees it (testcontainers.md 8.5).
+
+    0 on Docker Desktop, whose VM socket is root:root 0660; elsewhere the
+    group of the local socket the client uses.
+    """
+    if "Docker Desktop" in docker_client().info().get("OperatingSystem", ""):
+        return 0
     host = os.environ.get("DOCKER_HOST", "unix:///var/run/docker.sock")
     if not host.startswith("unix://"):
         raise AssertionError(f"the Docker daemon is at {host}, not a local unix socket; this test needs one")

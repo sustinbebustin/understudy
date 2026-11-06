@@ -66,7 +66,7 @@ func newFaultKernel(t *testing.T, local dynamodb.Local) (*kernel.Kernel, *fault.
 // 12.2, 12.4, 14.9).
 func TestTransactionCanceledRuleAgainstLocal(t *testing.T) {
 	d := engine(t)
-	m, err := ddblocal.New(ddblocal.Config{Docker: d, Labels: docker.Labels{Ownership: ownership(t), Test: true}})
+	m, err := ddblocal.New(ddblocal.Config{Docker: d, Network: localNetwork(t, d), Labels: docker.Labels{Ownership: ownership(t), Test: true}})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,13 +2,17 @@ package understudy
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/system"
 	"github.com/testcontainers/testcontainers-go"
 )
 
@@ -39,7 +43,13 @@ func resolveSocket(ctx context.Context, group socketGroup) (*socketMount, error)
 		if err := cli.Close(); err != nil {
 			return nil, fmt.Errorf("understudy: closing the Docker client used to read the socket's group: %w", err)
 		}
-		if gid, err = daemonSocketGroup(host); err != nil {
+		var operatingSystem string
+		if path, ok := strings.CutPrefix(host, "unix://"); ok {
+			if operatingSystem, err = engineOperatingSystem(ctx, path); err != nil {
+				return nil, err
+			}
+		}
+		if gid, err = daemonSocketGroup(host, operatingSystem); err != nil {
 			return nil, err
 		}
 	}
@@ -51,9 +61,14 @@ func resolveSocket(ctx context.Context, group socketGroup) (*socketMount, error)
 }
 
 // daemonSocketGroup is the group owning the socket of the daemon at host,
-// a Docker host URL, when it is a local unix socket; any other daemon is a
-// *SocketGroupError (testcontainers.md 8.5, 9.5).
-func daemonSocketGroup(host string) (uint32, error) {
+// a Docker host URL, as a container sees it. Docker Desktop, which names
+// itself in operatingSystem, mounts its VM's socket, owned by group 0 (TC-01,
+// testcontainers.md 8.5). Elsewhere it is the group of the local unix
+// socket; any other daemon is a *SocketGroupError (9.5).
+func daemonSocketGroup(host, operatingSystem string) (uint32, error) {
+	if strings.Contains(operatingSystem, "Docker Desktop") {
+		return 0, nil
+	}
 	path, ok := strings.CutPrefix(host, "unix://")
 	if !ok {
 		return 0, &SocketGroupError{Daemon: host}
@@ -67,6 +82,34 @@ func daemonSocketGroup(host string) (uint32, error) {
 		return 0, &SocketGroupError{Daemon: host}
 	}
 	return gid, nil
+}
+
+// engineOperatingSystem asks the daemon listening on the unix socket at
+// path for the OperatingSystem its GET /info reports. It speaks the Engine
+// API directly because the module's package code imports moby's API types
+// but not its client (ADR 0016, amendment of 2026-10-26).
+func engineOperatingSystem(ctx context.Context, path string) (string, error) {
+	transport := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "unix", path)
+	}}
+	defer transport.CloseIdleConnections()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://docker/info", http.NoBody)
+	if err != nil {
+		return "", fmt.Errorf("understudy: building the Docker info request: %w", err)
+	}
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		return "", fmt.Errorf("understudy: WithDockerSocket cannot ask Docker at unix://%s which engine it runs, which decides the socket's group: %w; pass WithDockerSocketGroup(<gid>)", path, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("understudy: Docker at unix://%s answered GET /info with %s; pass WithDockerSocketGroup(<gid>), the numeric group owning the socket", path, resp.Status)
+	}
+	var info system.Info
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return "", fmt.Errorf("understudy: decoding Docker's GET /info from unix://%s: %w", path, err)
+	}
+	return info.OperatingSystem, nil
 }
 
 // daemonSocketPath is the socket's path on the daemon's host, as tc-go

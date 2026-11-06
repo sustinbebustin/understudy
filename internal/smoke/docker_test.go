@@ -79,6 +79,12 @@ func TestSmokeInContainer(t *testing.T) {
 	if !ok {
 		t.Fatalf("%s has no unix ownership", socket)
 	}
+	group := strconv.FormatUint(uint64(st.Gid), 10)
+	// Docker Desktop mounts its VM's socket, root:root 0660, not the
+	// host's (testcontainers.md 8.5).
+	if strings.Contains(docker(t, "info", "--format", "{{.OperatingSystem}}"), "Docker Desktop") {
+		group = "0"
+	}
 	id := strings.ToLower(rand.Text()[:10])
 	tag := "understudy:smoke-" + id
 	docker(t, "build", "--label", "understudy.dev/test=1", "-t", tag, "../..")
@@ -89,7 +95,7 @@ func TestSmokeInContainer(t *testing.T) {
 	docker(t,
 		"run", "--detach", "--name", name, "--label", "understudy.dev/test=1",
 		"--publish", "127.0.0.1::4566",
-		"--volume", socket+":"+socket, "--group-add", strconv.FormatUint(uint64(st.Gid), 10),
+		"--volume", socket+":"+socket, "--group-add", group,
 		tag, "serve", "--clock", "frozen", "--seed", "1")
 	t.Cleanup(func() {
 		// SIGTERM drains the function environments and DynamoDB Local; the

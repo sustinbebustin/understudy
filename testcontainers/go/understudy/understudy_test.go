@@ -163,12 +163,21 @@ func imageContainers(t *testing.T, cli *testcontainers.DockerClient) []container
 	return res.Items
 }
 
-// socketGroup is the group owning the local Docker socket the tc-go client
-// uses; the module adds it to the container's groups (testcontainers.md
-// 8.5).
+// socketGroup is the group owning the Docker socket as a container sees it:
+// 0 on Docker Desktop, whose VM socket is root:root 0660, and otherwise the
+// group of the local socket the tc-go client uses; the module adds it to
+// the container's groups (testcontainers.md 8.5).
 func socketGroup(t *testing.T) uint32 {
 	t.Helper()
-	host := dockerClient(t).DaemonHost()
+	cli := dockerClient(t)
+	info, err := cli.Info(t.Context(), client.InfoOptions{})
+	if err != nil {
+		t.Fatalf("Docker info: %v", err)
+	}
+	if strings.Contains(info.Info.OperatingSystem, "Docker Desktop") {
+		return 0
+	}
+	host := cli.DaemonHost()
 	path, ok := strings.CutPrefix(host, "unix://")
 	if !ok {
 		t.Fatalf("the Docker daemon is at %s, not a local unix socket; this test needs one to read the socket's group", host)

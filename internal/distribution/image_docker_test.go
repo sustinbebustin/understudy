@@ -308,11 +308,16 @@ func getHealth(ctx context.Context, endpoint string) (admin.Health, int, error) 
 	return h, resp.StatusCode, nil
 }
 
-// socketGroup is the group that owns the Docker socket. A missing socket
-// fails rather than skips: the docker tag already requires a daemon, and a
-// skip would hide that the "Docker reachable" check never ran.
+// socketGroup is the group that owns the Docker socket as a container sees
+// it. On Docker Desktop that is the VM's socket, root:root 0660, not the
+// host's (testcontainers.md 8.5). A missing socket fails rather than
+// skips: the docker tag already requires a daemon, and a skip would hide
+// that the "Docker reachable" check never ran.
 func socketGroup(t *testing.T) string {
 	t.Helper()
+	if strings.Contains(docker(t, "info", "--format", "{{.OperatingSystem}}"), "Docker Desktop") {
+		return "0"
+	}
 	info, err := os.Stat(socketPath)
 	if err != nil {
 		t.Fatalf("the socket check mounts the Docker daemon's socket from %s, which is not there (%v); run the docker-tagged tests against a daemon listening at %s (rootless and remote daemons are not supported)", socketPath, err, socketPath)
