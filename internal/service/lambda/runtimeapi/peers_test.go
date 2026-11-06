@@ -14,7 +14,8 @@ import (
 // With Peers set, an environment's listener serves a peer inside the
 // container network and refuses one outside it, so a LAN machine cannot
 // take invocations with GET /next. The listener binds 127.0.0.1 and the
-// client dials from 127.0.0.2: inside 127.0.0.0/8, outside 127.0.0.1/32.
+// client dials from it too: inside 127.0.0.0/8, outside 127.0.0.2/32. Only
+// 127.0.0.1 is used, because macOS's loopback holds no other address.
 func TestRuntimeAPIServesOnlyItsContainerNetwork(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
@@ -22,7 +23,7 @@ func TestRuntimeAPIServesOnlyItsContainerNetwork(t *testing.T) {
 		allowed bool
 	}{
 		{"a peer inside the network", netip.MustParsePrefix("127.0.0.0/8"), true},
-		{"a peer outside it", netip.MustParsePrefix("127.0.0.1/32"), false},
+		{"a peer outside it", netip.MustParsePrefix("127.0.0.2/32"), false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c, err := clock.New(clock.Options{Wall: wallAt})
@@ -40,7 +41,7 @@ func TestRuntimeAPIServesOnlyItsContainerNetwork(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			client := &http.Client{Transport: &http.Transport{DialContext: (&net.Dialer{LocalAddr: &net.TCPAddr{IP: net.IPv4(127, 0, 0, 2)}}).DialContext}}
+			client := &http.Client{Transport: &http.Transport{DialContext: (&net.Dialer{LocalAddr: &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)}}).DialContext}}
 			// The invocation endpoint for an unknown request id answers
 			// without waiting, so an accepted peer gets a status at once.
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost,
@@ -53,7 +54,7 @@ func TestRuntimeAPIServesOnlyItsContainerNetwork(t *testing.T) {
 				_ = resp.Body.Close()
 			}
 			if got := err == nil; got != tc.allowed {
-				t.Errorf("request from 127.0.0.2 with peers %s: err = %v, want served = %v", tc.peers, err, tc.allowed)
+				t.Errorf("request from 127.0.0.1 with peers %s: err = %v, want served = %v", tc.peers, err, tc.allowed)
 			}
 		})
 	}

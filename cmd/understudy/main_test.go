@@ -209,6 +209,12 @@ func startServe(t *testing.T) served {
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
+	// macOS checks a new executable on its first launch, which took 0.6 to
+	// 2.3 s on an Apple Silicon Mac; one run first keeps that out of the
+	// startup budget.
+	if out, err := exec.CommandContext(t.Context(), bin, "version").CombinedOutput(); err != nil {
+		t.Fatalf("%s version: %v\n%s", bin, err, out)
+	}
 	ready := filepath.Join(dir, "ready.json")
 	logs := new(syncBuffer)
 	cmd := exec.CommandContext(t.Context(), bin, "serve", "--listen", "127.0.0.1:0", "--ready-file", ready)
