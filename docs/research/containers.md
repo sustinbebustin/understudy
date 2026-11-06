@@ -364,6 +364,8 @@ Endpoints and statuses from the AWS spec ([runtimes-api](https://docs.aws.amazon
 
 Recommendation: default to the bind mount when the emulator runs on the host (the primary topology), with the tar-copy path (without `ReadonlyRootfs`) as the fallback chosen automatically when `/proc/self/cgroup`/mountinfo shows the emulator is itself in a container or the bind source is not under a host-visible path. A named-volume path can wait.
 
+Which call Docker Desktop refuses, observed on the macOS Docker Desktop run of 2026-11-06 (Docker Desktop 4.98.0, Engine 29.9.2, VirtioFS): `POST /containers/create` with `HostConfig.Binds` naming `/opt/understudy-mount-probe` answered `201 Created`. `POST /containers/{name}/start` answered `500 Internal Server Error`, `Content-Type: text/plain; charset=utf-8`, body `mounts denied: \nThe path /opt/understudy-mount-probe is not shared from the host and is not known to Docker.\nYou can configure shared paths from Docker -> Preferences... -> Resources -> File Sharing.` The refusal is plain text, not the Engine's JSON `{"message":...}`, so a client must take the raw body as the message.
+
 ### 5.2 Zip extraction hygiene (container-relevant parts)
 
 - The extraction directory is shared with the container, so it must contain only the function's code: extract into a per-version content-addressed directory (MiniStack caches by code sha and mounts read-only: [lambda_svc.py#L402-L414](https://github.com/ministackorg/ministack/blob/a63cb7ccc84261291fd41002256698f3de9719af/ministack/services/lambda_svc.py#L402-L414)).
