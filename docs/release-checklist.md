@@ -72,7 +72,7 @@ grep 'DynamoDB Local is ready' "$OUT/serve.log" >>"$OUT/dynamodb.txt"
 kill %1
 ```
 
-`doctor` reports the Docker socket, the detected topology (`docker-desktop`, with the host address from the `host.docker.internal` probe or the `192.168.65.254` fallback), whether `*.localhost` resolves (question 3), the hot-reload paths against Desktop's shared paths, and DynamoDB.
+`doctor` reports the Docker socket, the detected topology (`docker-desktop`, with the documented host address `192.168.65.254`), whether `*.localhost` resolves (question 3), the hot-reload paths against Desktop's shared paths, and DynamoDB.
 
 On Desktop understudy publishes DynamoDB Local on `127.0.0.1` with an ephemeral host port, because Desktop does not route to container addresses (ADR 0014). `dynamodb.txt` should hold `"TableNames": []` and a `DynamoDB Local is ready` line whose endpoint is `http://127.0.0.1:<port>`.
 
@@ -187,7 +187,7 @@ The last two commands should list nothing; anything they list is worth reporting
 
 Write `$OUT/results.md` with one line per step (pass, fail or skipped, and for each failure the test name and its first error line), then answer:
 
-1. The `OperatingSystem` string (`env.txt`), and the topology `doctor` detected, with the host address from the probe or the fallback.
+1. The `OperatingSystem` string (`env.txt`), and the topology `doctor` detected, with the host address it reports.
 2. Whether `*.localhost` resolved (`doctor.txt`).
 3. Whether Lambda functions ran from the host (step 5 Lambda packages, step 6 host run) and in the container (step 6 image run).
 4. Which call answered "Mounts denied" (`mounts-create.txt` or `mounts-start.txt`), with its status and message.

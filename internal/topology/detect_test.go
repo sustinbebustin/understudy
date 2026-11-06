@@ -2,12 +2,10 @@ package topology_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/fs"
 	"net"
 	"net/netip"
-	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -17,40 +15,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/topology"
 )
 
-const probeImage = "public.ecr.aws/lambda/provided:al2023"
-
 // onHost is a filesystem without container markers.
 func onHost() fs.FS { return fstest.MapFS{"etc/hostname": {Data: []byte("devbox\n")}} }
-
-func probeLabels() docker.Labels {
-	return docker.Labels{Ownership: docker.Ownership{Instance: "i", Owner: "o"}}
-}
-
-// ahostsv4 is what `getent ahostsv4 host.docker.internal` prints when the
-// name resolves to addr: one line per socket type, the name on the first.
-func ahostsv4(addr string) string {
-	return addr + "  STREAM host.docker.internal\n" + addr + "  DGRAM  \n" + addr + "  RAW    \n"
-}
-
-// desktopProbing scripts getent in the probe image to print stdout.
-func desktopProbing(t *testing.T, stdout string) *dockertest.Daemon {
-	t.Helper()
-	d := dockertest.New(t, dockertest.Options{Info: docker.Info{OperatingSystem: "Docker Desktop"}})
-	d.AddImage(probeImage, docker.Image{})
-	d.SetProgram(probeImage, dockertest.Exit{Output: []docker.Frame{{Stream: docker.Stdout, Payload: []byte(stdout)}}})
-	return d
-}
-
-// probesStarted counts the probe containers created so far.
-func probesStarted(d *dockertest.Daemon) int {
-	n := 0
-	for _, e := range d.Events() {
-		if e.Type == "container" && e.Action == "create" {
-			n++
-		}
-	}
-	return n
-}
 
 // startSelf runs understudy's own container on network and returns its ID
 // and address.
@@ -103,12 +69,10 @@ func TestDetect(t *testing.T) {
 			},
 		},
 		{
-			name: "docker desktop with the probed host address",
+			name: "docker desktop from the operating system",
 			opts: dockertest.Options{Info: docker.Info{OperatingSystem: "Docker Desktop"}},
-			setup: func(_ *testing.T, d *dockertest.Daemon, _ *docker.Client) (fs.FS, topology.Topology) {
-				d.AddImage(probeImage, docker.Image{})
-				d.SetProgram(probeImage, dockertest.Exit{Output: []docker.Frame{{Stream: docker.Stdout, Payload: []byte(ahostsv4("192.168.65.2"))}}})
-				return onHost(), topology.DockerDesktop{Host: topology.ProbedHost{Addr: netip.MustParseAddr("192.168.65.2")}}
+			setup: func(*testing.T, *dockertest.Daemon, *docker.Client) (fs.FS, topology.Topology) {
+				return onHost(), topology.DockerDesktop{}
 			},
 		},
 		{
@@ -234,7 +198,7 @@ func TestDetect(t *testing.T) {
 			d := dockertest.New(t, tc.opts)
 			c := d.Client(t)
 			root, want := tc.setup(t, d, c)
-			got, err := new(topology.Detector).Detect(t.Context(), c, topology.Options{ProbeImage: probeImage, ProbeLabels: probeLabels(), Root: root})
+			got, err := new(topology.Detector).Detect(t.Context(), c, topology.Options{Root: root})
 			if err != nil {
 				t.Fatalf("Detect: %v", err)
 			}
@@ -245,147 +209,27 @@ func TestDetect(t *testing.T) {
 	}
 }
 
-func TestDetectDesktopProbeRunsALabeledContainerAndRemovesIt(t *testing.T) {
-	d := desktopProbing(t, ahostsv4("192.168.65.254"))
-	if _, err := new(topology.Detector).Detect(t.Context(), d.Client(t), topology.Options{ProbeImage: probeImage, ProbeLabels: probeLabels(), Root: onHost()}); err != nil {
-		t.Fatal(err)
-	}
-	var created, destroyed int
-	for _, e := range d.Events() {
-		switch e.Action {
-		case "create":
-			created++
-			if e.Actor.Attributes[docker.LabelOwner] != "o" || e.Actor.Attributes[docker.LabelManaged] != "true" {
-				t.Errorf("probe container labels = %v, want the managed probe labels", e.Actor.Attributes)
-			}
-		case "destroy":
-			destroyed++
-		}
-	}
-	if created != 1 || destroyed != 1 {
-		t.Errorf("probe containers created %d, destroyed %d; want one of each", created, destroyed)
-	}
-	// ARCHITECTURE.md 14.5, ADR 0011: getent replaces the entrypoint, since
-	// the base images' entrypoint rejects more than one argument, and its
-	// output is read back from a readable log driver.
-	probes := d.Created()
-	if len(probes) != 1 {
-		t.Fatalf("daemon recorded %d created containers, want the one probe", len(probes))
-	}
-	for _, probe := range probes {
-		if !slices.Equal(probe.Config.Entrypoint, []string{"getent", "ahostsv4", "host.docker.internal"}) ||
-			len(probe.Config.Cmd) != 0 || probe.HostConfig.LogConfig.Type != "json-file" {
-			t.Errorf("probe Entrypoint %q, Cmd %q, log driver %q; want getent ahostsv4 host.docker.internal, no Cmd, json-file",
-				probe.Config.Entrypoint, probe.Config.Cmd, probe.HostConfig.LogConfig.Type)
-		}
-	}
-}
-
-// A probe that printed its address succeeded even when its container could
-// not be removed: the address is used and remembered, and the leftover is
-// reported for doctor rather than turned into a fallback.
-func TestDetectDesktopKeepsTheProbedAddressWhenRemovalFails(t *testing.T) {
-	d := desktopProbing(t, ahostsv4("192.168.65.3"))
-	d.FailNext("DELETE /containers/{id}", 500, "removal failed")
-	var detector topology.Detector
-	opts := topology.Options{ProbeImage: probeImage, ProbeLabels: probeLabels(), Root: onHost()}
-	got, err := detector.Detect(t.Context(), d.Client(t), opts)
+// Docker Desktop hands functions Desktop's documented address for
+// host.docker.internal and runs no container to find it (ADR 0011,
+// amendment 2026-11-06).
+func TestDetectDesktopHandsFunctionsTheDocumentedAddress(t *testing.T) {
+	d := dockertest.New(t, dockertest.Options{Info: docker.Info{OperatingSystem: "Docker Desktop"}})
+	got, err := new(topology.Detector).Detect(t.Context(), d.Client(t), topology.Options{Root: onHost()})
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
-	desktop, ok := got.(topology.DockerDesktop)
-	probed, isProbed := desktop.Host.(topology.ProbedHost)
-	if !ok || !isProbed || probed.Addr != netip.MustParseAddr("192.168.65.3") {
-		t.Fatalf("Detect = %v, want Docker Desktop at the probed 192.168.65.3", got)
-	}
-	if probed.Cleanup == nil {
-		t.Error("ProbedHost.Cleanup = nil, want the removal failure")
-	}
-	again, err := detector.Detect(t.Context(), d.Client(t), opts)
-	if err != nil {
-		t.Fatalf("second Detect: %v", err)
-	}
-	if want := (topology.DockerDesktop{Host: topology.ProbedHost{Addr: probed.Addr}}); again != want {
-		t.Errorf("second Detect = %v, want the remembered %v", again, want)
-	}
-	if n := probesStarted(d); n != 1 {
-		t.Errorf("probe containers created = %d, want 1: the successful probe is remembered", n)
-	}
-}
-
-func TestDetectDesktopFallsBackToTheDocumentedAddress(t *testing.T) {
-	cases := []struct {
-		name    string
-		program dockertest.Program
-		image   string
-	}{
-		{name: "probe image absent", image: ""},
-		{name: "getent fails", image: probeImage, program: dockertest.Exit{Code: 2}},
-		{name: "getent prints nothing usable", image: probeImage, program: dockertest.Exit{Output: []docker.Frame{{Stream: docker.Stdout, Payload: []byte("host.docker.internal\n")}}}},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			d := dockertest.New(t, dockertest.Options{Info: docker.Info{OperatingSystem: "Docker Desktop"}})
-			if tc.image != "" {
-				d.AddImage(tc.image, docker.Image{})
-				d.SetProgram(tc.image, tc.program)
-			}
-			got, err := new(topology.Detector).Detect(t.Context(), d.Client(t), topology.Options{ProbeImage: probeImage, ProbeLabels: probeLabels(), Root: onHost()})
-			if err != nil {
-				t.Fatal(err)
-			}
-			desktop, ok := got.(topology.DockerDesktop)
-			fallback, isFallback := desktop.Host.(topology.FallbackHost)
-			if !ok || !isFallback || fallback.Cause == nil || fallback.HostAddr() != topology.DesktopDefaultHostAddr() {
-				t.Errorf("Detect = %v, want Docker Desktop at 192.168.65.254 with the probe failure", got)
-			}
-			if a, err := got.Addresses(); err != nil || a.FunctionEndpointHost != topology.DesktopDefaultHostAddr() {
-				t.Errorf("Addresses = %+v, %v; want functions sent to 192.168.65.254", a, err)
-			}
-		})
-	}
-}
-
-func TestDetectDesktopProbesOncePerDaemonButRetriesAFailure(t *testing.T) {
-	d := desktopProbing(t, "")
-	d.SetProgram(probeImage, dockertest.Exit{Code: 2})
-	c := d.Client(t)
-	var detector topology.Detector
-	opts := topology.Options{ProbeImage: probeImage, ProbeLabels: probeLabels(), Root: onHost()}
-	detect := func() topology.Topology {
-		t.Helper()
-		got, err := detector.Detect(t.Context(), c, opts)
-		if err != nil {
-			t.Fatalf("Detect: %v", err)
-		}
-		return got
-	}
-
-	if got, ok := detect().(topology.DockerDesktop); !ok || got.Host == nil {
+	if got != (topology.DockerDesktop{}) {
 		t.Fatalf("Detect = %v, want Docker Desktop", got)
-	} else if _, fell := got.Host.(topology.FallbackHost); !fell {
-		t.Errorf("Detect with a failing getent = %v, want the fallback", got)
 	}
-	d.SetProgram(probeImage, dockertest.Exit{Output: []docker.Frame{{Stream: docker.Stdout, Payload: []byte(ahostsv4("192.168.65.3"))}}})
-	want := topology.DockerDesktop{Host: topology.ProbedHost{Addr: netip.MustParseAddr("192.168.65.3")}}
-	for range 2 {
-		if got := detect(); got != want {
-			t.Errorf("Detect = %v, want %v", got, want)
-		}
+	a, err := got.Addresses()
+	if err != nil || a.FunctionEndpointHost != netip.MustParseAddr("192.168.65.254") || a.ListenerBind != netip.MustParseAddr("127.0.0.1") {
+		t.Errorf("Addresses = %+v, %v; want functions sent to 192.168.65.254 and listeners on loopback", a, err)
 	}
-	if n := probesStarted(d); n != 2 {
-		t.Errorf("probe containers created = %d, want 2: the failed probe is retried, the successful one remembered", n)
+	if want := "Docker Desktop (host 192.168.65.254)"; got.String() != want {
+		t.Errorf("String = %q, want %q", got.String(), want)
 	}
-}
-
-func TestDetectDesktopRefusesToProbeWithoutOwnershipLabels(t *testing.T) {
-	d := desktopProbing(t, ahostsv4("192.168.65.254"))
-	_, err := new(topology.Detector).Detect(t.Context(), d.Client(t), topology.Options{ProbeImage: probeImage, Root: onHost()})
-	if oe, ok := errors.AsType[*docker.OwnershipError](err); !ok || oe.Ownership != (docker.Ownership{}) {
-		t.Errorf("Detect without probe labels = %v, want an *OwnershipError for the empty ownership", err)
-	}
-	if n := probesStarted(d); n != 0 {
-		t.Errorf("probe containers created = %d, want none: a sweep could not find an unowned probe", n)
+	if n := len(d.Created()); n != 0 {
+		t.Errorf("detection created %d containers, want none", n)
 	}
 }
 
