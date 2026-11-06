@@ -64,7 +64,7 @@ The owner settled the licence questions without counsel, on the precedent and re
 
 This closes the deviation of the 2026-10-11 implementation amendment. `internal/docker` carries `Config.ExposedPorts`, `HostConfig.PortBindings` and `NetworkSettings.Ports`, written in-repo under the dependency review that kept the Docker client.
 
-- Where the host cannot route to container addresses (Docker Desktop, rootless Docker, rootless Podman), the Manager publishes `8000/tcp` on `127.0.0.1` with host port `0` and reaches Local at the host port the daemon reports. DynamoDB works under Docker Desktop.
+- Where the host cannot route to container addresses (Docker Desktop, rootless Docker, rootless Podman), the Manager publishes `8000/tcp` on `127.0.0.1` with host port `0` and reaches Local at the host port the daemon reports. DynamoDB works under Docker Desktop: on the macOS Docker Desktop run of 2026-11-06 (Docker Desktop 4.98.0), `serve` logged `DynamoDB Local is ready` at `http://127.0.0.1:<ephemeral port>` and `ListTables` answered from the host.
 - On a Linux bridge and rootful Podman the Manager keeps reaching Local at its default-bridge address and publishes no port. In the `InContainer` topology Local still attaches to understudy's network and is addressed by container IP.
 - `ddblocal.Network` is `DefaultBridge | Published{HostIP} | Attached`; the server picks one from the detected topology.
 - On a remote daemon reached over `tcp://` (topology `Remote`, ADR 0011 dependency policy amendment) Local is published on the daemon's own address rather than loopback, which is the daemon host's loopback there, and reached at that address and the read-back host port. The port is open to the daemon's network; for docker:dind that is the CI job's network.

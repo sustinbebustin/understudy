@@ -317,7 +317,7 @@ Every other understudy setting with a `UNDERSTUDY_*` variable is reachable throu
 
 - **Mount source.** Use the library's daemon-side socket path: tc-go `MustExtractDockerSocket` (4.4), tc-py `testcontainers_config.ryuk_docker_socket`, which is the client-side path unless `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE` is set (5.4), so it is daemon-side only for a local daemon, tc-node `client.info.containerRuntime.remoteSocketPath` (6.4).
 - **Mount type.** Mount it with `Mounts` `Type: bind`, never `Binds`, so a wrong path fails instead of creating a root-owned directory (3.4). Append; do not replace the user's mounts, which the LocalStack module and tc-node's `withBindMounts` do (4.1, 6.3).
-- **Group.** On a local unix daemon, add the socket's numeric GID from `stat` (Go `syscall.Stat_t.Gid`, Python `os.stat().st_gid`, Node `fs.statSync().gid`). A group name cannot resolve in a `scratch` image with no `/etc/group` (inferred). Otherwise require `WithDockerSocketGroup(gid)`, with the text in 9.5. Docker Desktop's value is UNVERIFIED (TC-01).
+- **Group.** On a local unix daemon, add the socket's numeric GID from `stat` (Go `syscall.Stat_t.Gid`, Python `os.stat().st_gid`, Node `fs.statSync().gid`). A group name cannot resolve in a `scratch` image with no `/etc/group` (inferred). Otherwise require `WithDockerSocketGroup(gid)`, with the text in 9.5. On Docker Desktop, whose `GET /info` reports `OperatingSystem` `Docker Desktop`, add group 0 instead: a container sees the VM's socket, `uid=0 gid=0 mode=660`, not the host's, which belongs to the user's group, so the host `stat` gives a group that cannot use it (TC-01, recorded 2026-11-06).
 - **Check after start.** Read `/health` and fail with its `docker.reason` unless `docker.status` is `enabled`. A socket that cannot be used must never pass silently (3.1, 9.7).
 - **Fallback.** Running the container as `0:0` avoids the GID question. The socket already grants root on the host (3.4), but this drops the image's non-root default, so it is a documented fallback, not the default.
 
@@ -416,7 +416,7 @@ Nothing module-specific. `Env()` provides `AWS_ENDPOINT_URL` at an IP endpoint, 
 
 ## 10. UNVERIFIED items
 
-1. **Docker Desktop for macOS socket access.** The uid, gid and mode of `/var/run/docker.sock` as mounted into a container, and whether `--group-add <gid>` lets uid 65532 use it. Also whether a `127.0.0.1` binding is reachable from macOS's loopback. The plausible outcomes: the socket is root-owned 0660, so the gid works; or it is world-accessible and no group is needed; or uid 65532 cannot use it at all, so the module falls back to user `0:0` on Desktop. Settles 8.5's Desktop branch. TC-01.
+1. **Docker Desktop for macOS socket access.** Settled by TC-01 on 2026-11-06 (11.1): the socket is root-owned 0660 in the container, `--group-add 0` lets uid 65532 use it, and a `127.0.0.1` binding is reachable from macOS's loopback. 8.5's Desktop branch adds group 0.
 2. **Lambda from a containerized understudy on Docker's default `bridge` network.** Testcontainers does not create a network by default. ADR 0011 says the InContainer topology is CI-tested, but which network the test uses was not established. The plausible outcomes: it works by container IP on `bridge`, or the module must create a user-defined network when the socket is mounted. TC-02.
 3. **Drain time under a 10 s stop.** Whether `docker stop -t 10` lets understudy remove warm function containers and DynamoDB Local before SIGKILL. The design target is "a few seconds total" ([repo] `docs/research/containers.md` 9.2). Also what a force remove leaves, which confirms finding 3 empirically. Settles the 10 s grace in 8.6. TC-03.
 4. **tc-node's HTTP wait against a 127.0.0.1-only binding when `localhost` resolves to `::1` first.** undici's dial-fallback behavior was not read. The plausible outcomes: it falls back to IPv4, or the wait times out and the Node module needs its own wait that dials 127.0.0.1. TC-04.
@@ -447,6 +447,13 @@ done
 ```
 
 Record `docker.status` and `docker.reason` from both health files, and whether curl reached 127.0.0.1 at all. Cost: USD 0, about 10 minutes. Teardown: `docker rm -f "$P-tc01-with-group" "$P-tc01-without-group"`.
+
+Recorded 2026-11-06 by the macOS Docker Desktop run (`docs/release-checklist.md` step 7), on Docker Desktop 4.98.0, Engine 29.9.2, macOS 26.7.1 on Apple Silicon, with Rosetta on:
+
+- In a container: `uid=0 gid=0 mode=660`. On the host, `stat -L` of `/var/run/docker.sock`, a symlink to the user's Desktop socket: the user's uid, gid 20 (`staff`), mode 755.
+- With `--group-add 0`: `docker.status` `enabled`. Without it: `degraded`, reason `docker daemon unavailable: permission denied on unix:///var/run/docker.sock`.
+- curl reached the `127.0.0.1` publish in both runs.
+- The three modules added the host's gid, 20, so each one's socket cases failed with its "the Docker socket is mounted but understudy reports Docker degraded" error, three per module. With group 0 on Desktop, every case passed.
 
 ### 11.2 TC-02: Lambda from a containerized understudy, default bridge versus a user network
 

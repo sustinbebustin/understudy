@@ -61,3 +61,13 @@ A `tcp://` daemon (plain, or TLS under `DOCKER_TLS_VERIFY`, `containers.md 2.1`)
 - Function code is copied in (`PUT /containers/{id}/archive`), never bind-mounted, since the daemon cannot see understudy's paths; no `ExtraHosts`, since `host-gateway` names the daemon's host.
 - A daemon reached on loopback, such as a docker:dind port published on this host, is taken to be this host's daemon; functions on it would not reach understudy. `understudy doctor` names the detected topology.
 - A host on the daemon's network can reach the container listener as a function can: the same trust as the bridge, extended to that network. Plain TCP to the daemon is the network's exposure, not understudy's; every Docker client accepts it.
+
+## Amendment (macOS Docker Desktop run, 2026-11-06)
+
+The maintainer's Mac ran `docs/release-checklist.md` on Docker Desktop 4.98.0 (Engine 29.9.2, macOS 26.7.1, Apple Silicon, Rosetta on).
+
+- Detection holds: `GET /info` reports `OperatingSystem` exactly `Docker Desktop` (`containers.md 2.2`), and `doctor` and `TestDetectOnThisHost` reported `DockerDesktop`. `*.localhost` resolved to loopback.
+- Functions ran from the host: the Docker-tagged Lambda and pool packages passed, as did the smoke workload's invoke. They also ran from the image with the socket mounted, given `--group-add 0`, because a container sees the VM's socket as `root:root` 0660 (`testcontainers.md 8.5`, TC-01).
+- The host address was always the documented fallback, `192.168.65.254`. The probe this ADR specifies never ran, because no caller sets `topology.Options.ProbeImage`: the server and `doctor` both pass empty options. The fallback worked. Wiring the probe, or dropping it in favour of the documented address, is open.
+- The Desktop failures were in tests and modules, not in `serve`: tests that reached DynamoDB Local at a bridge address, a deadline check without room for the VM's clock skew, and the host's socket group added on Desktop. Each was fixed.
+- Decision: Docker Desktop stays supported and best effort, not a tested topology. CI cannot run it (GitHub's macOS runners have no Docker), and one manual run is not continuous coverage. The README and the Lambda guide say "supported, not CI-tested" and name this run.
