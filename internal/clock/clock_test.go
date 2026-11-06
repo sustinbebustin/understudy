@@ -315,6 +315,35 @@ func TestDriverExitsWhenContextEnds(t *testing.T) {
 	})
 }
 
+// Stepping is true while an advance fires a timer and the channel it
+// returns then is closed once the advance has moved Now to its target.
+func TestSteppingEndsWhenTheAdvanceReachesItsTarget(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		h := newHarness(t, Options{Start: epoch, Mode: Frozen{}})
+		var ended <-chan struct{}
+		var stepping bool
+		h.onFire = func(TimerKey, Instant) { stepping, ended = h.clock.Stepping() }
+		h.timers.Arm(TimerKey{Kind: "sqs.delay", ID: "q/m1"}, epoch.Add(time.Minute))
+		if was, _ := h.clock.Stepping(); was {
+			t.Fatal("Stepping before any advance")
+		}
+		if _, err := h.clock.Advance(time.Hour); err != nil {
+			t.Fatalf("Advance: %v", err)
+		}
+		if !stepping {
+			t.Error("Stepping was false while the timer fired")
+		}
+		select {
+		case <-ended:
+		default:
+			t.Error("the channel returned while stepping is still open after the advance")
+		}
+		if now, _ := h.clock.Stepping(); now {
+			t.Error("Stepping after the advance")
+		}
+	})
+}
+
 func TestAdvanceToRefusesBackwards(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		h := newHarness(t, Options{Start: epoch, Mode: Frozen{}})
