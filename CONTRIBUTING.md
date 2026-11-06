@@ -7,7 +7,7 @@ Thanks for helping. This file covers the setup, the rules every change follows, 
 - Go 1.27, [golangci-lint](https://golangci-lint.run) 2.15 and [just](https://just.systems) for the core gate.
 - [uv](https://docs.astral.sh/uv/), which runs `scripts/sealed`.
 - Docker, for Lambda, DynamoDB Local and the `-tags docker` tests.
-- For the conformance suites: the AWS CLI v2, Terraform 1.16 or later, Python 3.14 (through uv), [Bun](https://bun.sh), `jq` and `curl`.
+- For the conformance suites: bash 4 or later (macOS's `/bin/bash` is 3.2: `brew install bash` and put Homebrew's `bin` first in `PATH`), the AWS CLI v2, Terraform 1.16 or later, Python 3.14 (through uv), [Bun](https://bun.sh), `jq` and `curl`.
 - For the Testcontainers modules (`just testcontainers`): Node 24 and Bun.
 - For the web UI in `ui/`: Bun 1.4.3 exactly, which `just ui` checks for.
 

@@ -12,6 +12,14 @@
 #
 # Every message goes to stderr and starts with "run.sh:".
 
+# The suites use bash 4 (mapfile, declare -A, empty arrays under set -u).
+# macOS's /bin/bash is 3.2, which `env bash` finds before Homebrew's when
+# /bin comes first in PATH.
+if ((BASH_VERSINFO[0] < 4)); then
+	echo "run.sh: this suite needs bash 4 or later, but $BASH runs bash $BASH_VERSION; on macOS run 'brew install bash' and put \$(brew --prefix)/bin before /bin in PATH" >&2
+	exit 2
+fi
+
 conformance_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # The reason every suite gives for a DynamoDB test it skips under
