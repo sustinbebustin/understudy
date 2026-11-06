@@ -1,5 +1,5 @@
 {
-  "step": "bool-TRUE",
+  "step": "bool-uppercase",
   "client": "aws-cli",
   "exit": 0,
   "exchanges": [

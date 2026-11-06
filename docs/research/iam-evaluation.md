@@ -1360,9 +1360,10 @@ sip v6-case 2001:DB8::1 2001:db8::1
 Settles 6.3 and 6.6.
 
 ```sh
-for v in True TRUE 1; do
+for s in True=titlecase TRUE=uppercase 1=1; do   # step names must not differ only in case
+  v=${s%%=*}
   POL='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"*","Condition":{"Bool":{"aws:SecureTransport":"'"$v"'"}}}]}'
-  sim "08/bool-$v" "$POL" s3:GetObject arn:aws:s3:::b/k --context-entries '[{"ContextKeyName":"aws:SecureTransport","ContextKeyType":"boolean","ContextKeyValues":["true"]}]'
+  sim "08/bool-${s#*=}" "$POL" s3:GetObject arn:aws:s3:::b/k --context-entries '[{"ContextKeyName":"aws:SecureTransport","ContextKeyType":"boolean","ContextKeyValues":["true"]}]'
 done
 POL='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"*","Condition":{"StringEqualsIgnoreCase":{"aws:PrincipalTag/n":"ÄRGER"}}}]}'
 sim 08/ignorecase-nonascii "$POL" s3:GetObject arn:aws:s3:::b/k --context-entries '[{"ContextKeyName":"aws:PrincipalTag/n","ContextKeyType":"string","ContextKeyValues":["ärger"]}]'
