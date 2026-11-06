@@ -30,7 +30,8 @@
 //   - The second trigger of ARCHITECTURE.md 14.3, a code path the daemon
 //     cannot see, is detected only when the daemon says so: Docker
 //     Desktop's "Mounts denied ... is not shared from the host", on the
-//     create or the start. Start then retries with tar copy and the
+//     create or the start (4.98.0 answers the start, 500 in plain text:
+//     docker.IsMountNotShared). Start then retries with tar copy and the
 //     launcher keeps copying from then on, with one warning logged.
 //     Colima cannot be detected: it mounts a path outside /Users/$USER as
 //     an empty directory (containers.md 5.1), so the runtime finds no

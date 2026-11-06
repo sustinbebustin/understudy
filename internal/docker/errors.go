@@ -36,8 +36,10 @@ func IsConflict(err error) bool { return hasStatus(err, http.StatusConflict) }
 // whose source it cannot see, as Docker Desktop does for a path outside its
 // shared directories: "Mounts denied: The path ... is not shared from the
 // host and is not known to Docker" (containers.md 5.1). Docker Desktop
-// checks mounts in its API proxy, so the refusal may answer the create or
-// the start. It matches the message, not the status, which is unrecorded.
+// checks mounts in its API proxy: 4.98.0 accepted the create and refused
+// the start with 500 and a text/plain body (macOS Docker Desktop run,
+// 2026-11-06). It matches the message, not the status, in case another
+// version answers the create.
 func IsMountNotShared(err error) bool {
 	var e *Error
 	if !errors.As(err, &e) {
