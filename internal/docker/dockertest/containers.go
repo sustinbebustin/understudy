@@ -1,6 +1,7 @@
 package dockertest
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
@@ -153,6 +154,23 @@ func (d *Daemon) Created() []docker.Container {
 		out = append(out, d.inspect(c))
 	}
 	return out
+}
+
+// WaitCreated blocks until n containers have been created, removed ones
+// included, or ctx ends, and reports whether they were. Use it before
+// Created when a caller creates containers in the background.
+func (d *Daemon) WaitCreated(ctx context.Context, n int) bool {
+	for {
+		d.mu.Lock()
+		have, changed := len(d.history), d.changed
+		d.mu.Unlock()
+		if have >= n {
+			return true
+		}
+		if !waitChange(ctx, changed) {
+			return false
+		}
+	}
 }
 
 // SetMemory sets the memory statistics the container reports. It reports
