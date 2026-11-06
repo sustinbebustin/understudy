@@ -12,12 +12,11 @@ import (
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb/ddblocal"
-	"github.com/sustinbebustin/understudy/internal/topology"
 )
 
 // lazyLocal is the DynamoDB Local the DynamoDB service forwards to. The
 // ddblocal.Manager behind it is built at the first start, once the
-// topology says how understudy reaches the container (localNetwork).
+// topology says how understudy reaches the container (ddblocal.NetworkFor).
 type lazyLocal struct {
 	host *containerHost
 	// mode is whether the configuration runs DynamoDB at all.
@@ -147,7 +146,7 @@ func (l *lazyLocal) manager(ctx context.Context) (*ddblocal.Manager, error) {
 	m, err := ddblocal.New(ddblocal.Config{
 		Docker:  l.host.client,
 		Storage: l.storage,
-		Network: localNetwork(top),
+		Network: ddblocal.NetworkFor(top),
 		Labels:  docker.Labels{Ownership: l.host.ownership, Extra: l.host.extraLabels},
 		Memory:  l.memory,
 		Log:     l.log,
@@ -161,32 +160,6 @@ func (l *lazyLocal) manager(ctx context.Context) (*ddblocal.Manager, error) {
 	l.log.LogAttrs(ctx, slog.LevelInfo, notice, slog.String("image", ddblocal.Reference()))
 	l.m = m
 	return m, nil
-}
-
-// localNetwork is how understudy reaches DynamoDB Local on top: at its
-// default-bridge address where the host routes to container addresses, on
-// understudy's own network in a container, on a port published on a remote
-// daemon's own address, and otherwise on a port published on loopback (ADR
-// 0014). Docker Desktop keeps containers in a VM, rootless engines keep
-// them in a network namespace, and a remote daemon keeps them on another
-// host, so none can be reached at a container address.
-func localNetwork(top topology.Topology) ddblocal.Network {
-	switch t := top.(type) {
-	case topology.LinuxBridge:
-		return ddblocal.DefaultBridge{}
-	case topology.Podman:
-		if t.Rootless {
-			return ddblocal.Published{}
-		}
-		return ddblocal.DefaultBridge{}
-	case topology.InContainer:
-		return ddblocal.Attached{Network: t.Network}
-	case topology.Remote:
-		return ddblocal.Published{HostIP: t.Daemon}
-	case topology.DockerDesktop, topology.RootlessDocker:
-		return ddblocal.Published{}
-	}
-	return ddblocal.Published{}
 }
 
 func (l *lazyLocal) current() (*ddblocal.Manager, bool) {
