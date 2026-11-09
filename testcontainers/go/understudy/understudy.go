@@ -23,7 +23,7 @@ import (
 // DefaultImage is the release image of the understudy version this module
 // is released with, in lockstep (testcontainers.md 8.8). Run takes the image
 // explicitly, by tc-go's convention (testcontainers.md 4.1).
-const DefaultImage = "ghcr.io/sustinbebustin/understudy:0.1.1"
+const DefaultImage = "ghcr.io/sustinbebustin/understudy:0.1.2"
 
 const (
 	// apiPort is understudy's listener in the container (testcontainers.md

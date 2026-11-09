@@ -1,6 +1,6 @@
 [project]
 name = "testcontainers-understudy"
-version = "0.1.1"
+version = "0.1.2"
 description = "Testcontainers module for understudy, the local AWS emulator"
 readme = "README.md"
 requires-python = ">=3.10"
