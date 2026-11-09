@@ -28,10 +28,8 @@ def test_version_and_default_image() -> None:
     # The release image is ghcr.io/sustinbebustin/understudy tagged with the version
     # (testcontainers.md 3.2); the package moves in lockstep with understudy's releases
     # (testcontainers.md 8.8).
-    assert __version__ == "0.1.1"
     assert importlib.metadata.version("testcontainers-understudy") == __version__
-    assert DEFAULT_IMAGE == "ghcr.io/sustinbebustin/understudy:0.1.1"
-    assert DEFAULT_IMAGE.endswith(":" + __version__)
+    assert DEFAULT_IMAGE == "ghcr.io/sustinbebustin/understudy:" + __version__
 
 
 def test_public_names() -> None:

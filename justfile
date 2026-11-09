@@ -155,6 +155,10 @@ testcontainers: image
 image:
     docker build -t understudy:dev .
 
+# Move every version pin to release X.Y.Z and cut CHANGELOG.md; prepare-release.yml runs it in CI.
+bump version:
+    scripts/bump-version {{version}}
+
 # Validate the GoReleaser configuration and run a snapshot release into dist/:
 # binaries, archives, checksums, one image per platform in the local daemon
 # and the Homebrew cask, with nothing published. GoReleaser comes from the Go

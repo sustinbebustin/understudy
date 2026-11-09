@@ -9,6 +9,7 @@ stops with a 10 s grace so understudy removes its own containers first
 
 from __future__ import annotations
 
+import importlib.metadata
 import ipaddress
 import json
 import os
@@ -42,7 +43,8 @@ __all__ = [
     "__version__",
 ]
 
-__version__ = "0.1.1"
+# pyproject.toml is the one place the version is written (scripts/bump-version).
+__version__ = importlib.metadata.version("testcontainers-understudy")
 
 # The release image of the understudy version this package is released
 # with, in lockstep (testcontainers.md 8.8).

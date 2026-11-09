@@ -21,9 +21,7 @@ test("the default image is the release image at the package version", () => {
   // version (testcontainers.md 3.2); the package moves in lockstep with
   // understudy's releases (testcontainers.md 8.8).
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
-  assert.equal(pkg.version, "0.1.1");
-  assert.equal(UNDERSTUDY_IMAGE, "ghcr.io/sustinbebustin/understudy:0.1.1");
-  assert.ok(UNDERSTUDY_IMAGE.endsWith(`:${pkg.version}`));
+  assert.equal(UNDERSTUDY_IMAGE, `ghcr.io/sustinbebustin/understudy:${pkg.version}`);
 });
 
 test("the docker text names withDockerSocket", () => {

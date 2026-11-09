@@ -37,16 +37,13 @@ The cask goes to the existing tap `sustinbebustin/homebrew-tap`, which also hold
 gh repo view sustinbebustin/homebrew-tap
 ```
 
-For a release candidate, skip to section 3. For `X.Y.Z`, one pull request, reviewed and merged before the tag:
+For a release candidate, skip to section 3. For `X.Y.Z`, write the release's entries under `[Unreleased]` in `CHANGELOG.md`, then run the `prepare-release` workflow:
 
-1. In `CHANGELOG.md`, move the `[Unreleased]` entries under `## [X.Y.Z] - <date>` and leave `[Unreleased]` empty.
-2. Bump the Testcontainers modules to `X.Y.Z` in lockstep (testcontainers.md 8.8):
-   - `testcontainers/go/understudy/understudy.go`: `DefaultImage = "ghcr.io/sustinbebustin/understudy:X.Y.Z"`.
-   - `testcontainers/go/go.mod`: `(cd testcontainers/go && go mod edit -require=github.com/sustinbebustin/understudy@vX.Y.Z)`. The `replace => ../..` stays, since it applies only inside the repository; consumers resolve the root module at the tag pushed in step 3, which carries the same commit.
-   - `testcontainers/python/pyproject.toml` `version` and `src/testcontainers_understudy/__init__.py` `__version__`, then `(cd testcontainers/python && uv lock)`.
-   - `testcontainers/node/package.json` `version` and `src/index.ts` `VERSION`.
-   - The tests that pin `0.0.0` until the first release: `testcontainers/go/understudy/understudy_test.go`, `testcontainers/python/tests/test_validation.py`, `testcontainers/node/test/validation.test.ts`.
-3. Run `just verify`, `just release-check` and `just testcontainers`.
+```sh
+gh workflow run prepare-release.yml --repo sustinbebustin/understudy -f version=X.Y.Z
+```
+
+It runs `scripts/bump-version X.Y.Z` (`just bump X.Y.Z` locally), which moves `[Unreleased]` under `## [X.Y.Z] - <date>` and every version pin of the Testcontainers modules to `X.Y.Z` in lockstep (testcontainers.md 8.8), and opens the pull request `build: release X.Y.Z`. The pins are the script's `PINS`; Python's `__version__` reads the package metadata, and each module's tests check its default image against its own version, so nothing else names it. Go's `replace => ../..` stays, since it applies only inside the repository; consumers resolve the root module at the tag pushed in section 3, which carries the same commit. Merge the pull request once its checks pass; CI's `sealed-test` fails if the pins ever disagree.
 
 The cask needs the `HOMEBREW_TAP_TOKEN` repository secret: a fine-grained personal access token limited to `sustinbebustin/homebrew-tap` with Contents read and write. The token mws already uses for its `HOMEBREW_TAP_TOKEN` secret qualifies if it has that scope; GitHub never shows a secret's value again, so paste it from where you keep it or create a new one. The workflow's own `GITHUB_TOKEN` cannot write to another repository. Check it exists with `gh secret list --repo sustinbebustin/understudy`; set it with:
 

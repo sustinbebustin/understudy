@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # prepare-release.yml dispatches it on the release branch, whose pull
+  # request, opened with the workflow's token, starts no pull_request run.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -145,7 +148,9 @@ jobs:
       # Dockerfile's golang stages. Pulled here, the digest-pinned base
       # resolves from the daemon's store instead.
       - name: Pull the image's golang base
-        run: docker pull "$(sed -n 's/^FROM --platform=$BUILDPLATFORM \(golang:[^ ]*\) AS builder$/\1/p' Dockerfile)"
+        run: |
+          # shellcheck disable=SC2016 # $BUILDPLATFORM is the Dockerfile's text
+          docker pull "$(sed -n 's/^FROM --platform=$BUILDPLATFORM \(golang:[^ ]*\) AS builder$/\1/p' Dockerfile)"
       - run: just test-docker
 
   # Builds the image, then runs the smoke workload with a Lambda invoke
