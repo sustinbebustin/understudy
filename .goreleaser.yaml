@@ -118,9 +118,9 @@ homebrew_casks:
           end
 
 # The release notes are the tag's section of CHANGELOG.md, which release.yml
-# passes as --release-notes.
-changelog:
-  disable: true
+# passes as --release-notes. The changelog stays enabled: --release-notes is
+# read by the changelog step, which disable skips, leaving the body empty
+# (v0.1.0-rc.1). Given the file, GoReleaser generates nothing from git.
 
 release:
   prerelease: auto
