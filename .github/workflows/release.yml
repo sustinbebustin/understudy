@@ -88,3 +88,113 @@ jobs:
             dist/checksums.txt
             dist/homebrew/Casks/understudy.rb
           if-no-files-found: error
+
+  # The Testcontainers modules, in lockstep with the release and only once
+  # its image exists, since each module's default image is the release's
+  # (testcontainers.md 8.8). A prerelease publishes none of them. PyPI and npm
+  # trust this workflow file through OIDC (trusted publishing), so there is
+  # no registry token.
+  pypi:
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: testcontainers/python
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: The package version is the tag's
+        run: |
+          version=$(uv version --short)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::testcontainers/python is $version, the tag $GITHUB_REF_NAME; bump the modules in lockstep (docs/release-runbook.md 2)."
+            exit 1
+          fi
+      - run: uv build
+      # --check-url skips files PyPI already has, so a rerun succeeds.
+      - run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/
+
+  npm:
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: testcontainers/node
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.22.1"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      # The bun that wrote bun.lock.
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.3"
+      - name: The package version is the tag's
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::testcontainers/node is $version, the tag $GITHUB_REF_NAME; bump the modules in lockstep (docs/release-runbook.md 2)."
+            exit 1
+          fi
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install -g npm@11.6.2
+      # npm configures trusted publishing only for a package that exists, so
+      # the first version was published by hand; a version already on the
+      # registry is skipped, which also makes a rerun succeed.
+      - name: Publish unless the version exists
+        run: |
+          version=$(node -p 'require("./package.json").version')
+          if npm view "testcontainers-understudy@$version" version >/dev/null 2>&1; then
+            echo "testcontainers-understudy@$version is already on npm"
+          else
+            npm publish --access public
+          fi
+
+  # The Go module is a tag on the same commit. Pushed with this token, it
+  # starts no workflow.
+  go-module:
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.3"
+          cache: false
+      - name: The module requires this release
+        run: |
+          required=$(cd testcontainers/go && go list -m -f '{{.Version}}' github.com/sustinbebustin/understudy)
+          if [ "$required" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::testcontainers/go requires understudy $required, the tag is $GITHUB_REF_NAME; bump the modules in lockstep (docs/release-runbook.md 2)."
+            exit 1
+          fi
+      - name: Tag testcontainers/go
+        run: |
+          tag="testcontainers/go/$GITHUB_REF_NAME"
+          git tag "$tag" "$GITHUB_SHA"
+          git push origin "refs/tags/$tag"
+      - name: A consumer resolves it
+        run: |
+          cd "$(mktemp -d)"
+          go mod init example.com/probe
+          go get "github.com/sustinbebustin/understudy/testcontainers/go@$GITHUB_REF_NAME"
+          test "$(go list -m -f '{{.Version}}' github.com/sustinbebustin/understudy)" = "$GITHUB_REF_NAME"

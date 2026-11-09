@@ -1,11 +1,15 @@
 [project]
 name = "testcontainers-understudy"
-version = "0.0.0"
+version = "0.1.0"
 description = "Testcontainers module for understudy, the local AWS emulator"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 dependencies = ["testcontainers>=4.15,<5"]
+
+[project.urls]
+Homepage = "https://github.com/sustinbebustin/understudy/tree/main/testcontainers/python"
+Source = "https://github.com/sustinbebustin/understudy"
 
 [dependency-groups]
 dev = [
