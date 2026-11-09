@@ -3,9 +3,7 @@ package topology
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"maps"
 	"net"
@@ -13,7 +11,6 @@ import (
 	"os"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/docker"
@@ -21,14 +18,6 @@ import (
 
 // Options configures Detect.
 type Options struct {
-	// ProbeImage runs the Docker Desktop probe; use the function's own
-	// image, which is already present. Empty skips the probe and uses the
-	// documented default address.
-	ProbeImage string
-	// ProbeLabels label the probe container so a sweep removes it if
-	// understudy dies mid-probe. With a ProbeImage, the ownership must be
-	// set.
-	ProbeLabels docker.Labels
 	// Root is the filesystem the in-container markers are read from; nil
 	// means the host's root. Tests substitute an fstest.MapFS.
 	Root fs.FS
@@ -41,21 +30,14 @@ type Options struct {
 // routeTimeout bounds the connection that shows the route to the daemon.
 const routeTimeout = 5 * time.Second
 
-// DesktopDefaultHostAddr is the address host.docker.internal resolves to in
-// Docker Desktop's VM unless configured otherwise; it is used when the probe
-// cannot run.
-func DesktopDefaultHostAddr() netip.Addr { return netip.AddrFrom4([4]byte{192, 168, 65, 254}) }
+// DesktopHostAddr is the address host.docker.internal resolves to in Docker
+// Desktop's VM (containers.md 8.1), which functions are handed on Desktop.
+// It is Desktop's documented address, not probed: ADR 0011 (amendment
+// 2026-11-06).
+func DesktopHostAddr() netip.Addr { return netip.AddrFrom4([4]byte{192, 168, 65, 254}) }
 
-// Detector detects topologies and remembers the host address each Docker
-// Desktop daemon's probe found, keyed by Info.ID, so the probe container
-// runs once per daemon. A failed probe is not remembered: the next Detect,
-// perhaps with another image, tries again. Concurrent first detections on
-// one daemon may each probe. The zero value is ready to use; a Detector
-// must not be copied after first use.
-type Detector struct {
-	mu      sync.Mutex
-	desktop map[string]netip.Addr
-}
+// Detector detects topologies. The zero value is ready to use.
+type Detector struct{}
 
 // Detect works out the topology at first Lambda use, following
 // containers.md 8.1 to 8.3: understudy in a container (markers plus a self
@@ -98,7 +80,7 @@ func (d *Detector) Detect(ctx context.Context, c *docker.Client, opts Options) (
 	case docker.Moby:
 	}
 	if strings.Contains(info.OperatingSystem, "Docker Desktop") {
-		return d.desktopTopology(ctx, c, info.ID, opts)
+		return DockerDesktop{}, nil
 	}
 	gw, err := gateway(ctx, c, "bridge")
 	if err != nil {
@@ -307,142 +289,4 @@ func podmanGateway(ctx context.Context, c *docker.Client) (netip.Addr, error) {
 		return gateway(ctx, c, "podman")
 	}
 	return gw, err
-}
-
-// desktopTopology returns daemonID's remembered probe address, or resolves
-// host.docker.internal inside Desktop's VM by running getent in
-// ProbeImage. A probe that cannot run falls back to the documented address
-// and says why in FallbackHost; only a cancelled context or probe labels
-// without ownership fail detection.
-func (d *Detector) desktopTopology(ctx context.Context, c *docker.Client, daemonID string, opts Options) (Topology, error) {
-	d.mu.Lock()
-	addr, ok := d.desktop[daemonID]
-	d.mu.Unlock()
-	if ok {
-		return DockerDesktop{Host: ProbedHost{Addr: addr}}, nil
-	}
-	if opts.ProbeImage == "" {
-		return DockerDesktop{Host: FallbackHost{Cause: errors.New("no probe image was given")}}, nil
-	}
-	labels, err := opts.ProbeLabels.Map()
-	if err != nil {
-		return nil, fmt.Errorf("detect container topology: Docker Desktop probe refused, because a sweep could not remove a probe container left by a crash: ProbeLabels: %w", err)
-	}
-	host, err := runProbe(ctx, c, opts.ProbeImage, labels)
-	if err != nil {
-		if ctx.Err() != nil {
-			return nil, fmt.Errorf("detect container topology: Docker Desktop probe: %w", ctx.Err())
-		}
-		return DockerDesktop{Host: FallbackHost{Cause: err}}, nil
-	}
-	d.mu.Lock()
-	if d.desktop == nil {
-		d.desktop = map[string]netip.Addr{}
-	}
-	d.desktop[daemonID] = host.Addr
-	d.mu.Unlock()
-	return DockerDesktop{Host: host}, nil
-}
-
-// probeRemoveTimeout bounds removing the probe container.
-const probeRemoveTimeout = 10 * time.Second
-
-// runProbe runs getent in a labelled container and removes it. The daemon
-// names the container; a sweep finds a leftover by its labels. A removal
-// failure fails the probe only when the probe itself failed; after a
-// successful probe it is reported in ProbedHost.Cleanup.
-func runProbe(ctx context.Context, c *docker.Client, image string, labels map[string]string) (ProbedHost, error) {
-	created, err := c.ContainerCreate(ctx, "",
-		docker.Config{
-			Image: image,
-			// The Lambda base images' entrypoint insists on exactly one
-			// argument, so the probe replaces it instead of passing Cmd.
-			// ahostsv4, not hosts: glibc's hosts prints only the IPv6
-			// address of a dual-stack name.
-			Entrypoint: []string{"getent", "ahostsv4", "host.docker.internal"},
-			Labels:     labels,
-		},
-		docker.HostConfig{LogConfig: docker.LogConfig{Type: "json-file"}},
-		docker.NetworkingConfig{})
-	if err != nil {
-		return ProbedHost{}, err
-	}
-	out, err := runToExit(ctx, c, created.ID)
-	rmErr := removeProbe(ctx, c, created.ID)
-	if err != nil {
-		return ProbedHost{}, errors.Join(err, rmErr)
-	}
-	addr, err := parseGetent(out)
-	if err != nil {
-		return ProbedHost{}, errors.Join(err, rmErr)
-	}
-	return ProbedHost{Addr: addr, Cleanup: rmErr}, nil
-}
-
-// removeProbe force-removes the probe container. Removal outlives a
-// cancelled ctx but not a hung daemon; a probe left behind carries
-// ProbeLabels, so a later sweep removes it.
-func removeProbe(ctx context.Context, c *docker.Client, id string) error {
-	rmCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), probeRemoveTimeout)
-	defer cancel()
-	err := c.ContainerRemove(rmCtx, id, docker.RemoveOptions{Force: true, Volumes: true})
-	if err != nil && !docker.IsNotFound(err) {
-		return fmt.Errorf("remove probe container %s (it carries the probe labels, so the next sweep removes it): %w", id, err)
-	}
-	return nil
-}
-
-// runToExit starts a created container, waits for it and returns its
-// stdout; a non-zero exit is an error.
-func runToExit(ctx context.Context, c *docker.Client, id string) (string, error) {
-	wait, err := c.ContainerWait(ctx, id, docker.WaitNextExit)
-	if err != nil {
-		return "", err
-	}
-	defer wait.Close()
-	if err := c.ContainerStart(ctx, id); err != nil {
-		return "", err
-	}
-	code, err := wait.Result()
-	if err != nil {
-		return "", err
-	}
-	logs, err := c.ContainerLogs(ctx, id, docker.LogsOptions{})
-	if err != nil {
-		return "", err
-	}
-	defer logs.Close()
-	var stdout strings.Builder
-	for {
-		f, err := logs.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return "", err
-		}
-		if f.Stream == docker.Stdout {
-			stdout.Write(f.Payload)
-		}
-	}
-	if code != 0 {
-		return "", fmt.Errorf("getent exited %d (output %q)", code, stdout.String())
-	}
-	return stdout.String(), nil
-}
-
-// parseGetent reads the first IPv4 address from `getent ahostsv4` output:
-// lines of an address, a socket type and, on the first line of each
-// address, the name.
-func parseGetent(out string) (netip.Addr, error) {
-	for line := range strings.Lines(out) {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		if a, err := netip.ParseAddr(fields[0]); err == nil && a.Is4() {
-			return a, nil
-		}
-	}
-	return netip.Addr{}, fmt.Errorf("getent ahostsv4 host.docker.internal printed no IPv4 address: %q", out)
 }

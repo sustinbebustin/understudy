@@ -24,19 +24,9 @@ func TestAddresses(t *testing.T) {
 			want: topology.Addresses{ListenerBind: gw, FunctionEndpointHost: gw, ExtraHosts: []string{"localhost:host-gateway"}, NeedsContainerListener: true},
 		},
 		{
-			name: "docker desktop stays on loopback and hands functions the probed host",
-			topo: topology.DockerDesktop{Host: topology.ProbedHost{Addr: netip.MustParseAddr("192.168.65.2")}},
-			want: topology.Addresses{ListenerBind: netip.MustParseAddr("127.0.0.1"), FunctionEndpointHost: netip.MustParseAddr("192.168.65.2")},
-		},
-		{
-			name: "docker desktop without a probe falls back to the documented host",
-			topo: topology.DockerDesktop{Host: topology.FallbackHost{Cause: errors.New("no probe image was given")}},
-			want: topology.Addresses{ListenerBind: netip.MustParseAddr("127.0.0.1"), FunctionEndpointHost: topology.DesktopDefaultHostAddr()},
-		},
-		{
-			name: "docker desktop with no host recorded falls back to the documented host",
+			name: "docker desktop stays on loopback and hands functions the documented host",
 			topo: topology.DockerDesktop{},
-			want: topology.Addresses{ListenerBind: netip.MustParseAddr("127.0.0.1"), FunctionEndpointHost: topology.DesktopDefaultHostAddr()},
+			want: topology.Addresses{ListenerBind: netip.MustParseAddr("127.0.0.1"), FunctionEndpointHost: netip.MustParseAddr("192.168.65.254")},
 		},
 		{
 			name: "rootful podman behaves like a linux bridge",

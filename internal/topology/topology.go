@@ -1,7 +1,6 @@
 package topology
 
 import (
-	"errors"
 	"fmt"
 	"net/netip"
 )
@@ -64,74 +63,24 @@ func (t LinuxBridge) String() string { return "Linux bridge (gateway " + t.Gatew
 func (LinuxBridge) isTopology() {}
 
 // DockerDesktop forwards a container's connection to host.docker.internal
-// to the host's loopback, so understudy keeps listening on 127.0.0.1. Host
-// is what host.docker.internal resolves to inside Desktop's VM; nil means
-// no probe ran, so the documented default applies.
-type DockerDesktop struct {
-	Host DesktopHost
-}
+// to the host's loopback, so understudy keeps listening on 127.0.0.1 and
+// hands functions DesktopHostAddr (ADR 0011, amendment 2026-11-06).
+type DockerDesktop struct{}
 
 // Addresses keeps every listener on loopback and hands functions the host
 // address; no extra hosts, because Desktop resolves its own.
-func (t DockerDesktop) Addresses() (Addresses, error) {
+func (DockerDesktop) Addresses() (Addresses, error) {
 	return Addresses{
 		ListenerBind:         netip.AddrFrom4([4]byte{127, 0, 0, 1}),
-		FunctionEndpointHost: t.host().HostAddr(),
+		FunctionEndpointHost: DesktopHostAddr(),
 	}, nil
 }
 
-func (t DockerDesktop) String() string {
-	h := t.host()
-	if fallback, ok := h.(FallbackHost); ok {
-		return fmt.Sprintf("Docker Desktop (host %s, the documented default: probing host.docker.internal failed: %v)", fallback.HostAddr(), fallback.Cause)
-	}
-	return "Docker Desktop (host " + h.HostAddr().String() + ")"
+func (DockerDesktop) String() string {
+	return "Docker Desktop (host " + DesktopHostAddr().String() + ")"
 }
 
 func (DockerDesktop) isTopology() {}
-
-// host returns Host, or a FallbackHost for a nil Host.
-func (t DockerDesktop) host() DesktopHost {
-	if t.Host == nil {
-		return FallbackHost{Cause: errors.New("no probe ran")}
-	}
-	return t.Host
-}
-
-// DesktopHost is where host.docker.internal points inside Docker Desktop's
-// VM, and how that was learned.
-//
-//sumtype:decl
-type DesktopHost interface {
-	HostAddr() netip.Addr
-	isDesktopHost()
-}
-
-// ProbedHost is the address getent printed inside Desktop's VM. Cleanup is
-// set only by the Detect call that ran the probe, when the probe container
-// could not be removed afterwards; the container carries ProbeLabels, so a
-// later sweep removes it, and doctor reports it.
-type ProbedHost struct {
-	Addr    netip.Addr
-	Cleanup error
-}
-
-// HostAddr returns the probed address.
-func (h ProbedHost) HostAddr() netip.Addr { return h.Addr }
-
-func (ProbedHost) isDesktopHost() {}
-
-// FallbackHost is the documented DesktopDefaultHostAddr, used because the
-// probe could not run or printed no IPv4 address, for the reason in Cause;
-// doctor reports it.
-type FallbackHost struct {
-	Cause error
-}
-
-// HostAddr returns DesktopDefaultHostAddr.
-func (FallbackHost) HostAddr() netip.Addr { return DesktopDefaultHostAddr() }
-
-func (FallbackHost) isDesktopHost() {}
 
 // RootlessDocker blocks containers from reaching the host's loopback, and
 // host-gateway resolves inside rootlesskit's namespace. HostAddr is that
