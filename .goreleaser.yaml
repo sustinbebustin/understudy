@@ -103,9 +103,10 @@ homebrew_casks:
     repository:
       owner: sustinbebustin
       name: homebrew-tap
-      # GoReleaser has isEnvSet but no envOrDefault, which failed v0.1.0's
-      # cask step; a skipped upload never renders this.
-      token: '{{ if isEnvSet "HOMEBREW_TAP_TOKEN" }}{{ .Env.HOMEBREW_TAP_TOKEN }}{{ end }}'
+      # Rendered with no template functions, and only as a single
+      # environment variable (internal/distribution/goreleaser_test.go). A
+      # skipped upload, as without the secret, never renders it.
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     skip_upload: '{{ if isEnvSet "HOMEBREW_TAP_TOKEN" }}auto{{ else }}true{{ end }}'
     # Homebrew quarantines what a cask downloads, and Gatekeeper refuses a
     # quarantined binary Apple has not notarized. Removing the attribute

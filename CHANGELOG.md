@@ -4,11 +4,15 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Fixed
+
+- The Homebrew cask and the Testcontainers modules are published. The 0.1.0 and 0.1.1 releases stopped before the cask, each on its tap token template, so they have binaries and images but no cask, and no module on PyPI, npm or the Go proxy.
+
 ## [0.1.1] - 2026-11-09
 
 ### Fixed
 
-- The Homebrew cask is published: 0.1.0's release stopped before writing it, so 0.1.0 has no cask and its Testcontainers modules were not published. 0.1.1 is the first version of the cask and of the modules on PyPI, npm and the Go proxy.
+- A second attempt at publishing the Homebrew cask, which 0.1.0's release stopped before. It stopped at the same step, so 0.1.1 has no cask and no published Testcontainers modules either.
 
 ## [0.1.0] - 2026-11-09
 
