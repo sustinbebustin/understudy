@@ -197,7 +197,7 @@ func TestDefaultImageIsTheReleaseImageAtThisVersion(t *testing.T) {
 	// The release image is ghcr.io/sustinbebustin/understudy, tagged with
 	// the version (testcontainers.md 3.2); the module moves in lockstep
 	// with understudy's releases (testcontainers.md 8.8).
-	if understudy.DefaultImage != "ghcr.io/sustinbebustin/understudy:0.1.0" {
+	if understudy.DefaultImage != "ghcr.io/sustinbebustin/understudy:0.1.1" {
 		t.Errorf("DefaultImage = %q", understudy.DefaultImage)
 	}
 }
