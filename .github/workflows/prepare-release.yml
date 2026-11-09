@@ -1,0 +1,51 @@
+name: prepare-release
+
+# Opens the pull request for a release: scripts/bump-version moves every
+# version pin to the version given and cuts CHANGELOG.md. Merge it, then push
+# the tag vX.Y.Z from the merge commit (docs/release-runbook.md 3); the tag
+# runs release.yml.
+#
+# A pull request opened with this workflow's token starts no pull_request
+# run, so the job dispatches ci.yml on the branch: its jobs report on the
+# same commit, which is what the required checks look for.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The release, X.Y.Z without the v"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Bump the pins and cut the changelog
+        env:
+          VERSION: ${{ inputs.version }}
+        run: scripts/bump-version "$VERSION"
+      - name: Open the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          branch="release/v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "build: release $VERSION"
+          git push origin "$branch"
+          notes=$(awk -v h="## [$VERSION]" 'index($0, h) == 1 { on = 1; next } on && /^## \[/ { exit } on' CHANGELOG.md)
+          # shellcheck disable=SC2016 # the backticks are Markdown
+          body=$(printf 'Moves every version pin to %s and cuts CHANGELOG.md (scripts/bump-version). After merging, push the tag from the merge commit:\n\n```sh\ngit switch main && git pull --ff-only\ngit tag -a v%s -m "understudy v%s" && git push origin v%s\n```\n\n## Release notes\n\n%s\n' "$VERSION" "$VERSION" "$VERSION" "$VERSION" "$notes")
+          gh pr create --base main --head "$branch" --title "build: release $VERSION" --body "$body"
+          gh workflow run ci.yml --ref "$branch"

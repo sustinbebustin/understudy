@@ -1,0 +1,141 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
+"""Move every version pin to a new understudy release, or check they agree.
+
+    scripts/bump-version 0.2.0     # rewrite the pins, cut CHANGELOG.md, relock
+    scripts/bump-version --check   # exit 1 if the pins disagree
+
+The Testcontainers modules are released in lockstep with understudy, and each
+module's default image is the release's (testcontainers.md 8.8), so one
+version lives in every file of PINS. A release candidate needs no bump: its
+tag publishes no modules (docs/release-runbook.md 1), so only X.Y.Z is taken.
+"""
+
+import argparse
+import datetime
+import re
+import subprocess
+import sys
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+
+RELEASE = re.compile(r"\d+\.\d+\.\d+")
+
+
+class BumpError(Exception):
+    """A bump that was refused before any file changed."""
+
+
+@dataclass(frozen=True)
+class Pin:
+    """One version in one file: `pattern`'s single group is the version."""
+
+    path: str
+    pattern: re.Pattern[str]
+
+    def read(self, text: str) -> str | None:
+        m = self.pattern.search(text)
+        return m.group(1) if m else None
+
+    def write(self, text: str, version: str) -> str:
+        m = self.pattern.search(text)
+        if m is None:
+            raise BumpError(f"{self.path}: no line matches {self.pattern.pattern}")
+        return text[: m.start(1)] + version + text[m.end(1) :]
+
+
+PINS = (
+    Pin("testcontainers/python/pyproject.toml", re.compile(r'^version = "([^"]+)"$', re.M)),
+    Pin("testcontainers/node/package.json", re.compile(r'^  "version": "([^"]+)",$', re.M)),
+    Pin("testcontainers/node/src/index.ts", re.compile(r'^const VERSION = "([^"]+)";$', re.M)),
+    Pin(
+        "testcontainers/go/understudy/understudy.go",
+        re.compile(r'^const DefaultImage = "ghcr\.io/sustinbebustin/understudy:([^"]+)"$', re.M),
+    ),
+    Pin("testcontainers/go/go.mod", re.compile(r"^\tgithub\.com/sustinbebustin/understudy v(\S+)$", re.M)),
+)
+
+Run = Callable[[list[str], Path], object]
+
+
+def read_versions(root: Path) -> dict[str, str | None]:
+    return {pin.path: pin.read((root / pin.path).read_text()) for pin in PINS}
+
+
+def check(root: Path) -> list[str]:
+    """One line per pin that disagrees with the first, or is missing."""
+    versions = read_versions(root)
+    expected = versions[PINS[0].path]
+    return [
+        f"{path}: {version or 'no version line'}, but {PINS[0].path} is {expected}"
+        for path, version in versions.items()
+        if version is None or version != expected
+    ]
+
+
+def release_key(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))
+
+
+def cut_changelog(text: str, version: str, date: str) -> str:
+    """Move [Unreleased]'s entries under a new [version] heading."""
+    m = re.search(r"^## \[Unreleased\]\n(.*?)(?=^## \[|\Z)", text, re.M | re.S)
+    if m is None:
+        raise BumpError("CHANGELOG.md has no [Unreleased] section")
+    entries = m.group(1).strip()
+    if not entries:
+        raise BumpError("CHANGELOG.md's [Unreleased] is empty: write the release's entries first")
+    section = f"## [Unreleased]\n\n## [{version}] - {date}\n\n{entries}\n\n"
+    return text[: m.start()] + section + text[m.end() :]
+
+
+def bump(root: Path, version: str, date: str, run: Run) -> None:
+    """Rewrite every pin and cut the changelog; every check runs before any write."""
+    if not RELEASE.fullmatch(version):
+        raise BumpError(f"{version!r} is not X.Y.Z; a release candidate needs no bump")
+    problems = check(root)
+    if problems:
+        raise BumpError("the pins disagree before the bump:\n" + "\n".join(problems))
+    current = read_versions(root)[PINS[0].path]
+    if current is not None and RELEASE.fullmatch(current) and release_key(version) <= release_key(current):
+        raise BumpError(f"{version} is not newer than the current {current}")
+    changelog_path = root / "CHANGELOG.md"
+    changelog = cut_changelog(changelog_path.read_text(), version, date)
+    texts = {pin.path: pin.write((root / pin.path).read_text(), version) for pin in PINS}
+    for path, text in texts.items():
+        (root / path).write_text(text)
+    changelog_path.write_text(changelog)
+    run(["uv", "lock", "--quiet"], root / "testcontainers/python")
+
+
+def _run(cmd: list[str], cwd: Path) -> None:
+    subprocess.run(cmd, cwd=cwd, check=True)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("version", nargs="?", help="the new release, X.Y.Z without the v")
+    group.add_argument("--check", action="store_true", help="exit 1 if the pins disagree")
+    args = parser.parse_args()
+    root = Path(__file__).resolve().parent.parent
+    if args.check:
+        problems = check(root)
+        for problem in problems:
+            print(f"bump-version: {problem}", file=sys.stderr)
+        return 1 if problems else 0
+    try:
+        bump(root, args.version, datetime.date.today().isoformat(), _run)
+    except BumpError as e:
+        print(f"bump-version: {e}\nNothing was changed.", file=sys.stderr)
+        return 1
+    print(f"bumped to {args.version}: {', '.join(pin.path for pin in PINS)}, CHANGELOG.md, testcontainers/python/uv.lock")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

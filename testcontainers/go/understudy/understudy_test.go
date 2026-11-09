@@ -196,9 +196,18 @@ func socketGroup(t *testing.T) uint32 {
 func TestDefaultImageIsTheReleaseImageAtThisVersion(t *testing.T) {
 	// The release image is ghcr.io/sustinbebustin/understudy, tagged with
 	// the version (testcontainers.md 3.2); the module moves in lockstep
-	// with understudy's releases (testcontainers.md 8.8).
-	if understudy.DefaultImage != "ghcr.io/sustinbebustin/understudy:0.1.1" {
-		t.Errorf("DefaultImage = %q", understudy.DefaultImage)
+	// with understudy's releases (testcontainers.md 8.8), so the tag is the
+	// understudy version go.mod requires. scripts/bump-version moves both.
+	gomod, err := os.ReadFile("../go.mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`(?m)^\tgithub\.com/sustinbebustin/understudy v(\S+)$`).FindSubmatch(gomod)
+	if m == nil {
+		t.Fatal("go.mod does not require github.com/sustinbebustin/understudy")
+	}
+	if want := "ghcr.io/sustinbebustin/understudy:" + string(m[1]); understudy.DefaultImage != want {
+		t.Errorf("DefaultImage = %q, want %q", understudy.DefaultImage, want)
 	}
 }
 
