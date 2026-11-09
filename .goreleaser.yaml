@@ -1,7 +1,6 @@
-# Release configuration. Publishing is off until the maintainer turns it on
-# (docs/release-runbook.md): the GitHub release is disabled, the images are
-# pushed only when dockers_v2 is enabled outside snapshot, and the Homebrew
-# cask upload is skipped.
+# Release configuration. A v* tag publishes the GitHub release, the GHCR
+# image and, when HOMEBREW_TAP_TOKEN is set and the tag is not a prerelease,
+# the Homebrew cask (docs/release-runbook.md). A snapshot publishes nothing.
 version: 2
 
 project_name: understudy
@@ -60,8 +59,7 @@ checksum:
 # `docker buildx build --platform linux/amd64,linux/arm64 --push` per image
 # and tag, so the registry gets one multi-arch manifest list. In snapshot it
 # builds one image per platform into the local daemon and pushes nothing,
-# because buildx cannot --load a manifest list. It is disabled outside
-# snapshot until the maintainer enables publishing.
+# because buildx cannot --load a manifest list.
 #
 # sbom is off: the attestation (`--attest=type=sbom`) runs BuildKit's
 # scanner image, an input the release does not otherwise pull, and the
@@ -88,15 +86,12 @@ dockers_v2:
     flags:
       - --target=release
     sbom: "false"
-    disable: "{{ not .IsSnapshot }}"
 
 # A cask, not a formula: `brews` is deprecated in GoReleaser v2.18. The cask
-# is always written to dist/homebrew/Casks and never committed to the tap
-# while skip_upload is "true". Its URLs point at the GitHub release, so the
-# upload is turned on in the same change that enables the release: a token
-# alone must not publish a cask whose downloads do not exist. The URL is
-# spelled out because the GitHub release is disabled, so GoReleaser has no
-# release to derive it from.
+# is always written to dist/homebrew/Casks. It is committed to the tap only
+# with HOMEBREW_TAP_TOKEN set, and auto skips a prerelease, so a release
+# candidate never replaces the cask users install. Its URLs point at the
+# GitHub release's assets.
 homebrew_casks:
   - name: understudy
     ids: [understudy]
@@ -109,7 +104,7 @@ homebrew_casks:
       owner: sustinbebustin
       name: homebrew-tap
       token: '{{ envOrDefault "HOMEBREW_TAP_TOKEN" "" }}'
-    skip_upload: "true"
+    skip_upload: '{{ if isEnvSet "HOMEBREW_TAP_TOKEN" }}auto{{ else }}true{{ end }}'
     # Homebrew quarantines what a cask downloads, and Gatekeeper refuses a
     # quarantined binary Apple has not notarized. Removing the attribute
     # after install trusts the binary on the strength of the HTTPS download
@@ -122,8 +117,10 @@ homebrew_casks:
             run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/understudy"]
           end
 
+# The release notes are the tag's section of CHANGELOG.md, which release.yml
+# passes as --release-notes.
 changelog:
   disable: true
 
 release:
-  disable: true
+  prerelease: auto

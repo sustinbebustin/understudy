@@ -1,12 +1,11 @@
 name: release
 
-# Runs GoReleaser on a v* tag. It publishes only what .goreleaser.yaml
-# enables, and today that is nothing: the GitHub release is disabled, the
-# images are built only in snapshot mode, and the Homebrew cask upload is
-# skipped whether or not the HOMEBREW_TAP_TOKEN secret exists.
-# docs/release-runbook.md says what the maintainer turns on before the first
-# tag. The archives and checksums are attached to this workflow run either
-# way.
+# Runs GoReleaser on a v* tag: the GitHub release with the archives and
+# checksums, the multi-arch GHCR image, and the Homebrew cask when the
+# HOMEBREW_TAP_TOKEN secret exists and the tag is not a prerelease. The
+# release notes are the tag's section of CHANGELOG.md
+# (docs/release-runbook.md). The archives, checksums and cask are also
+# attached to this workflow run.
 #
 # The dry run on every pull request is ci.yml's release-check job.
 #
@@ -38,8 +37,24 @@ jobs:
         with:
           go-version: "1.27.3"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      # Needed only once dockers_v2 is enabled outside snapshot; harmless
-      # before.
+      # A release candidate may go out before its version is cut, so a
+      # prerelease tag without a section of its own takes [Unreleased].
+      # Checked before anything is published.
+      - name: Take the release notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          section() {
+            awk -v h="## [$1]" 'index($0, h) == 1 { on = 1; next } on && /^## \[/ { exit } on' CHANGELOG.md
+          }
+          notes=$(section "$version")
+          if [ -z "${notes//[[:space:]]/}" ] && [[ "$version" == *-* ]]; then
+            notes=$(section Unreleased)
+          fi
+          if [ -z "${notes//[[:space:]]/}" ]; then
+            echo "::error::CHANGELOG.md has no notes for $version. Move [Unreleased] under '## [$version] - <date>' and tag again."
+            exit 1
+          fi
+          printf '%s\n' "$notes" >"$RUNNER_TEMP/release-notes.md"
       - name: Log in to GHCR
         run: echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
         env:
@@ -52,11 +67,11 @@ jobs:
           # the justfile's goreleaser_version
           # matches. Bump both deliberately.
           version: v2.19.0
-          args: release --clean
+          args: release --clean --release-notes ${{ runner.temp }}/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Empty until the maintainer adds the secret, which keeps the cask
-          # out of the tap.
+          # Without the secret it is empty, which keeps the cask out of the
+          # tap.
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           # Optional: when set, the darwin binaries are signed and notarized
           # (.goreleaser.yaml notarize); unset, they ship unsigned.
