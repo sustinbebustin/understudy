@@ -38,8 +38,8 @@
 //   - The image is not built with GoReleaser's dockers and
 //     docker_manifests, which GoReleaser v2 deprecates in favor of
 //     dockers_v2. That has no skip_push, so .goreleaser.yaml uses one
-//     dockers_v2 entry for both platforms and disables it outside snapshot
-//     runs. Nothing is pushed either way.
+//     dockers_v2 entry for both platforms: a tag pushes one manifest list,
+//     and a snapshot loads one image per platform and pushes nothing.
 //   - Tests build the image under a unique tag with the label
 //     understudy.dev/test=1 and remove containers and the image on cleanup.
 package distribution

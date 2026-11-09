@@ -4,8 +4,8 @@ For the maintainer. Tagging, publishing and every registry login are the maintai
 
 ## What exists today
 
-- `.goreleaser.yaml` builds linux and darwin binaries for amd64 and arm64, a `tar.gz` archive of each (with LICENSE, NOTICE and README.md), `checksums.txt`, the image `ghcr.io/sustinbebustin/understudy` for linux/amd64 and linux/arm64, and a Homebrew cask. It publishes nothing: the GitHub release is disabled, `dockers_v2` is disabled outside snapshot, and the cask's `skip_upload` is `"true"`, so it is never committed to the tap. A prerelease tag such as `v0.1.0-rc.1` does not move the `latest` image tag.
-- `release.yml` runs `goreleaser release --clean` on a `v*` tag, with `contents: write` and `packages: write` on that job only, and attaches the archives, checksums and cask to the run.
+- `.goreleaser.yaml` builds linux and darwin binaries for amd64 and arm64, a `tar.gz` archive of each (with LICENSE, NOTICE and README.md), `checksums.txt`, the image `ghcr.io/sustinbebustin/understudy` for linux/amd64 and linux/arm64, and a Homebrew cask. A tag publishes the GitHub release and the image, and commits the cask to the tap when `HOMEBREW_TAP_TOKEN` is set. A prerelease tag such as `v0.1.0-rc.1` is marked a prerelease, does not move the `latest` image tag and does not touch the tap.
+- `release.yml` runs `goreleaser release --clean` on a `v*` tag, with `contents: write` and `packages: write` on that job only, and attaches the archives, checksums and cask to the run. The release notes are the tag's section of `CHANGELOG.md`; a prerelease tag without its own section takes `[Unreleased]`, and any other tag without a section fails before anything is published.
 - CI's `release-check` job runs `just release-check` on every pull request: `goreleaser check`, then `goreleaser release --snapshot --clean --skip=publish`. Run it locally the same way; it writes `dist/` (gitignored) and leaves two `ghcr.io/sustinbebustin/understudy:*-amd64`/`-arm64` tag pairs in the local daemon.
 - The darwin binaries ship unsigned. The cask removes the quarantine attribute after install, so Gatekeeper does not block them (step 1, "macOS and Gatekeeper"). Signing and notarizing switch on by themselves if the five `MACOS_*` secrets are ever added.
 - No SBOM. `dockers_v2.sbom` is off, because the attestation runs BuildKit's scanner image and archive SBOMs need syft, neither of which the release uses today. Turning either on is a separate decision.
@@ -27,9 +27,9 @@ For the maintainer. Tagging, publishing and every registry login are the maintai
 
      (`base64 -w0` is GNU; on macOS use `base64 -i <file>`.) Delete the local `.p12` and `.p8` afterwards, or keep them in a password manager.
 - **The npm and PyPI names.** Both are `testcontainers-understudy` (testcontainers.md 8.1, finding 9), confirmed by the maintainer on 2026-11-05.
-- **Release notes.** `changelog` is disabled, so the GitHub release body is empty unless you write it after the run or enable the changelog.
+- **A release candidate first.** A `vX.Y.Z-rc.N` tag publishes the binaries and the image under the prerelease version and leaves the tap and `latest` alone, so it rehearses every step but the cask (sections 3 and 4). It needs no changelog cut and no module bump.
 
-## 2. Turn publishing on
+## 2. Prepare the version
 
 The cask goes to the existing tap `sustinbebustin/homebrew-tap`, which also holds the mws formula under `Formula/`. GoReleaser writes `Casks/understudy.rb` there on the first publish, so the `Casks/` directory need not exist beforehand. Confirm the tap is still reachable, since a missing tap fails the tagged run in the cask step, after the image and the GitHub release are already public:
 
@@ -37,19 +37,18 @@ The cask goes to the existing tap `sustinbebustin/homebrew-tap`, which also hold
 gh repo view sustinbebustin/homebrew-tap
 ```
 
-Then one pull request, reviewed and merged before the tag, so a single change turns on all publishing:
+For a release candidate, skip to section 3. For `X.Y.Z`, one pull request, reviewed and merged before the tag:
 
-1. In `.goreleaser.yaml`, set `release.disable: false`, remove `disable: "{{ not .IsSnapshot }}"` from `dockers_v2`, and set the cask's `skip_upload` to `'{{ if isEnvSet "HOMEBREW_TAP_TOKEN" }}auto{{ else }}true{{ end }}'` (`auto` skips a prerelease). Outside snapshot dockers_v2 then builds both platforms and pushes one manifest list per tag in a single step; there is no separate push to hold back.
-2. Update the text that says nothing is published: the header comments of `.goreleaser.yaml` and `release.yml`, the dockers_v2 bullet in `internal/distribution/doc.go`, and section 3.2 of `docs/research/testcontainers.md`.
-3. Bump the Testcontainers modules to `X.Y.Z` in lockstep (testcontainers.md 8.8):
+1. In `CHANGELOG.md`, move the `[Unreleased]` entries under `## [X.Y.Z] - <date>` and leave `[Unreleased]` empty.
+2. Bump the Testcontainers modules to `X.Y.Z` in lockstep (testcontainers.md 8.8):
    - `testcontainers/go/understudy/understudy.go`: `DefaultImage = "ghcr.io/sustinbebustin/understudy:X.Y.Z"`.
    - `testcontainers/go/go.mod`: `(cd testcontainers/go && go mod edit -require=github.com/sustinbebustin/understudy@vX.Y.Z)`. The `replace => ../..` stays, since it applies only inside the repository; consumers resolve the root module at the tag pushed in step 3, which carries the same commit.
    - `testcontainers/python/pyproject.toml` `version` and `src/testcontainers_understudy/__init__.py` `__version__`, then `(cd testcontainers/python && uv lock)`.
    - `testcontainers/node/package.json` `version` and `src/index.ts` `VERSION`.
    - The tests that pin `0.0.0` until the first release: `testcontainers/go/understudy/understudy_test.go`, `testcontainers/python/tests/test_validation.py`, `testcontainers/node/test/validation.test.ts`.
-4. Run `just verify`, `just release-check` and `just testcontainers`.
+3. Run `just verify`, `just release-check` and `just testcontainers`.
 
-After that pull request is merged, add the tap token, never before: a fine-grained personal access token limited to `sustinbebustin/homebrew-tap` with Contents read and write. The token mws already uses for its `HOMEBREW_TAP_TOKEN` secret qualifies if it has that scope; GitHub never shows a secret's value again, so paste it from where you keep it or create a new one. The workflow's own `GITHUB_TOKEN` cannot write to another repository.
+The cask needs the `HOMEBREW_TAP_TOKEN` repository secret: a fine-grained personal access token limited to `sustinbebustin/homebrew-tap` with Contents read and write. The token mws already uses for its `HOMEBREW_TAP_TOKEN` secret qualifies if it has that scope; GitHub never shows a secret's value again, so paste it from where you keep it or create a new one. The workflow's own `GITHUB_TOKEN` cannot write to another repository. Check it exists with `gh secret list --repo sustinbebustin/understudy`; set it with:
 
 ```sh
 gh secret set HOMEBREW_TAP_TOKEN --repo sustinbebustin/understudy
@@ -97,6 +96,8 @@ docker rm -f understudy-release-check
 The index lists `linux/amd64` and `linux/arm64`. Entries for `unknown/unknown` are buildx's provenance attestations, not platforms. Health answers `ready: true` and `version: "X.Y.Z"`. Check the package's visibility at `https://github.com/users/sustinbebustin/packages/container/package/understudy`: make it public if it is not, and link it to the repository if GitHub has not.
 
 ## 5. Verify Homebrew
+
+A release candidate stops after section 4: it writes no cask and publishes no modules.
 
 ```sh
 gh api repos/sustinbebustin/homebrew-tap/contents/Casks/understudy.rb --jq .content | base64 -d | head -20
