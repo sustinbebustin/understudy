@@ -119,6 +119,12 @@ func (k *Kernel) PendingEffects() (n int, changed <-chan struct{}) {
 // Go runs fn on a goroutine the kernel owns, counted as kind until it
 // returns. fn's context ends when Run stops; a panic is logged with its
 // stack and ends only fn. After Run has stopped, Go does not start fn.
+//
+// Work started while an advance is firing timers begins once the advance
+// has moved the clock to its target, so a timer handler's work reads the
+// advanced time, never the handler's due instant; the advance itself does
+// not wait for the work (ADR 0006, amendment 2026-11-06). The work counts
+// as pending from this call, so Settle waits for it either way.
 func (k *Kernel) Go(kind WorkKind, fn func(ctx context.Context)) {
 	ctx, cancel := context.WithCancel(context.Background())
 	// The stopped check and the WaitGroup's Add happen under k.mu, so every
@@ -145,6 +151,13 @@ func (k *Kernel) Go(kind WorkKind, fn func(ctx context.Context)) {
 					slog.String("kind", kind.String()), slog.String("panic", fmt.Sprint(v)), slog.String("stack", string(debug.Stack())))
 			}
 		}()
+		for {
+			stepping, ended := k.clock.Stepping()
+			if !stepping {
+				break
+			}
+			<-ended
+		}
 		fn(ctx)
 	})
 }
