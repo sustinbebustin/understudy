@@ -7,6 +7,10 @@ requires-python = ">=3.10"
 license = "Apache-2.0"
 dependencies = ["testcontainers>=4.15,<5"]
 
+[project.urls]
+Homepage = "https://github.com/sustinbebustin/understudy/tree/main/testcontainers/python"
+Source = "https://github.com/sustinbebustin/understudy"
+
 [dependency-groups]
 dev = [
     "boto3>=1.43",

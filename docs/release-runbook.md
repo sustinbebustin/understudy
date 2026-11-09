@@ -109,9 +109,14 @@ The cask's version is `X.Y.Z` and its URLs point at the `vX.Y.Z` release assets.
 
 ## 6. Publish the Testcontainers modules
 
-In lockstep with the release, and only after the GHCR image exists, since each module's default image is `ghcr.io/sustinbebustin/understudy:X.Y.Z` (testcontainers.md 8.8).
+In lockstep with the release, and only after the GHCR image exists, since each module's default image is `ghcr.io/sustinbebustin/understudy:X.Y.Z` (testcontainers.md 8.8). `release.yml` does it after the release job, for a tag that is not a prerelease: the `pypi` and `npm` jobs publish through trusted publishing (OIDC, no token), each skipping a version the registry already has, and `go-module` pushes the tag `testcontainers/go/vX.Y.Z` on the same commit and checks that a consumer resolves it. Each job first checks that its module's version is the tag's.
 
-Go, a tag on the same commit:
+Trusted publishing is configured once, with workflow `release.yml` and no environment, for repository `sustinbebustin/understudy`:
+
+- PyPI: a pending publisher for project `testcontainers-understudy` (pypi.org, Account settings, Publishing); the first publish creates the project.
+- npm: only for a package that exists, so 0.1.0 was published by hand (`npm publish --access public` from `testcontainers/node` after `bun run build`), then the trusted publisher was added in the package's settings.
+
+By hand, if a job must be redone outside the workflow, Go is a tag on the same commit:
 
 ```sh
 git tag -a testcontainers/go/vX.Y.Z -m "testcontainers/go vX.Y.Z" 'vX.Y.Z^{commit}'
