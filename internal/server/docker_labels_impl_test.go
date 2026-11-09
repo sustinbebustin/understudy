@@ -69,10 +69,17 @@ func TestDockerLabelsReachEveryContainerServeCreates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("starting a function container = %v", err)
 	}
-	// DynamoDB Local's program exits at once, so Start fails after the
-	// create; the created container is what is checked.
-	if err := srv.wired.local.Start(t.Context()); err == nil {
-		t.Fatal("DynamoDB Local whose container exits at once started")
+	if _, ok := daemon.Container(fn.ID); !ok {
+		t.Errorf("function container %s is not on the daemon", fn.ID)
+	}
+	// start begins DynamoDB Local in the background, since its image is
+	// present; its program exits at once, so that start fails after the
+	// create, and the created container is what is checked. The test does
+	// not start DynamoDB Local itself: a second start after the background
+	// one has failed would create a third container, and whether it had
+	// failed by then depends on timing.
+	if !daemon.WaitCreated(t.Context(), 2) {
+		t.Fatal("DynamoDB Local's container was not created in the background")
 	}
 
 	created := daemon.Created()
@@ -92,9 +99,6 @@ func TestDockerLabelsReachEveryContainerServeCreates(t *testing.T) {
 		if got[docker.LabelManaged] != "true" {
 			t.Errorf("container %s: %s = %q, want true, so sweeps still find it", c.Name, docker.LabelManaged, got[docker.LabelManaged])
 		}
-	}
-	if _, ok := daemon.Container(fn.ID); !ok {
-		t.Errorf("function container %s is not on the daemon", fn.ID)
 	}
 }
 
