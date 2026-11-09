@@ -26,7 +26,7 @@ import {
 } from "testcontainers";
 
 /** The package version; the default image and the npm version move in lockstep (testcontainers.md 8.8). */
-const VERSION = "0.1.1";
+const VERSION = "0.1.2";
 
 /** The release image of the understudy version this package is released with. */
 export const UNDERSTUDY_IMAGE = `ghcr.io/sustinbebustin/understudy:${VERSION}`;
