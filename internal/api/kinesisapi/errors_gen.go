@@ -9,7 +9,7 @@ import (
 
 // IdentityAccessDeniedException returns the identity of com.amazonaws.kinesis#AccessDeniedException.
 func IdentityAccessDeniedException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.kinesis#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.kinesis#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
 }
 
 // ErrAccessDeniedException returns an AccessDeniedException error with message.

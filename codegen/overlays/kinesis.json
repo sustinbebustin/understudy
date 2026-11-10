@@ -27,6 +27,17 @@
         ]
       }
     },
+    "com.amazonaws.kinesis#AccessDeniedException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "Message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/kinesis/IAM-ENF/36-kinesis.json: the model's member is message, the wire key Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
     "com.amazonaws.kinesis#GetRecordsInput$Limit": {
       "type": "apply",
       "traits": {
