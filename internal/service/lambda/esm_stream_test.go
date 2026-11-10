@@ -42,7 +42,7 @@ const streamShard = "shardId-00000000946684800000-1a2b3c4d"
 // fakeStream stands in for the DynamoDB Streams service: it binds the four
 // operations Lambda reads a stream through, keeps one shard of records and
 // the principal of every call, and wakes shardlog.WaitKey on each append as
-// the stream log does (contract 2, 5.2).
+// the stream log does.
 type fakeStream struct {
 	k *kerneltest.K
 
@@ -373,7 +373,7 @@ func derefAny[T any](p *T) any {
 	return *p
 }
 
-// ---- control plane (A7; lambda-stream-sources.md 3, 12.4) ----.
+// ---- control plane (lambda-stream-sources.md 3, 12.4) ----.
 
 // A stream mapping created with only StartingPosition carries every stream
 // field, defaulted, as recorded (third-party-recorded LS-D:L246-L271 and
@@ -427,8 +427,7 @@ func TestStreamMappingCreateShape(t *testing.T) {
 }
 
 // An SQS mapping renders exactly as before: no StartingPosition and no
-// stream member, so Terraform SQS plans stay empty (spec 8a; lambda-events.md
-// 1.4).
+// stream member, so Terraform SQS plans stay empty (lambda-events.md 1.4).
 func TestSQSMappingRendersNoStreamField(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		_, arn := h.queue("orders", nil)
@@ -529,11 +528,10 @@ func TestStreamMappingRefusals(t *testing.T) {
 }
 
 // Settings understudy does not build answer 501 on a stream, never stored
-// without effect (spec "Out of both"; invariant 3): ParallelizationFactor
+// without effect (CLAUDE.md invariant 3): ParallelizationFactor
 // above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a
 // FilterCriteria pattern that compiles, an S3 on-failure destination, and a
-// source of another service, whose text names what is supported (contract
-// 8.2; 08b contract 6.1).
+// source of another service, whose text names what is supported.
 func TestStreamMappingNotImplemented(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		h.createFunction("worker")
@@ -618,9 +616,8 @@ func TestStreamMappingUpdate(t *testing.T) {
 }
 
 // Create checks the stream through DescribeStream as the mapping's
-// execution role (lambda-stream-sources.md 12.4 item 6; contract 8.2 step
-// 6), and the poller reads through GetShardIterator and GetRecords as that
-// role too (12.5; spec 8a poller).
+// execution role (lambda-stream-sources.md 12.4 item 6), and the poller
+// reads through GetShardIterator and GetRecords as that role too (12.5).
 func TestStreamCallsRunAsTheExecutionRole(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		h.stream.add(h.Clock.Now(), "a")
@@ -641,7 +638,7 @@ func TestStreamCallsRunAsTheExecutionRole(t *testing.T) {
 	})
 }
 
-// ---- poller (A2, A8-A10; lambda-stream-sources.md 4, 5, 7, 12.5) ----.
+// ---- poller (lambda-stream-sources.md 4, 5, 7, 12.5) ----.
 
 // The thin slice: a record reaches the function as a one-record event in
 // the Lambda form (dynamodb-streams.md 7.8: eventSourceARN added,
@@ -1153,7 +1150,7 @@ func TestStreamRetentionResumesAtTrimHorizon(t *testing.T) {
 }
 
 // Each checkpoint move is journaled on the mapping, from TRIM_HORIZON to
-// AFTER <seq> (contract 8.4; lambda-stream-sources.md 12.5 item 10).
+// AFTER <seq> (lambda-stream-sources.md 12.5 item 10).
 func TestStreamCheckpointIsJournaled(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		m := h.mapStream(lambdaapi.CreateEventSourceMappingInput{})
@@ -1167,8 +1164,7 @@ func TestStreamCheckpointIsJournaled(t *testing.T) {
 }
 
 // A save and load keeps the checkpoint: the mapping resumes after the last
-// record it processed (spec acceptance "a mapping resumes at its
-// checkpoint"; lambda-stream-sources.md 12.3 item 4).
+// record it processed (lambda-stream-sources.md 12.3 item 4).
 func TestStreamCheckpointSurvivesSnapshot(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		h.mapStream(lambdaapi.CreateEventSourceMappingInput{})

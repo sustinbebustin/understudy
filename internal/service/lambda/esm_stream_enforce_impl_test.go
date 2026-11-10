@@ -96,12 +96,12 @@ func runGatedStream(t *testing.T, gate *actionGate, f esm.StreamFidelity, fn fun
 // streamRoleDenied is CreateEventSourceMapping's and
 // UpdateEventSourceMapping's answer when iam.enforce refuses the execution
 // role's DescribeStream of the stream: switch lambda.esm.create-denied-text
-// with the stream's action and service (spec enforce matrix row 2;
-// iam-enforcement-surfaces.md 8.6; the queue's sentence is recorded,
+// with the stream's action and service
+// (iam-enforcement-surfaces.md 8.6; the queue's sentence is recorded,
 // IAM-ENF-24, and a stream's follows it).
 const streamRoleDenied = "The function execution role does not have permissions to call DescribeStream on DynamoDB"
 
-// Spec enforce matrix row 2: Create and Update of a stream mapping whose
+// Under iam.enforce, Create and Update of a stream mapping whose
 // execution role may not read the stream are refused with
 // InvalidParameterValueException naming the stream's action and service,
 // and nothing is stored.
@@ -163,7 +163,7 @@ func TestStreamMappingAtLatestRefusesARoleThatMayNotReadRecords(t *testing.T) {
 	})
 }
 
-// Spec enforce matrix rows 3 and 5: a mapping whose role loses its reads
+// Under iam.enforce, a mapping whose role loses its reads
 // of the stream stays Enabled with its fields unchanged; each denied read
 // is journaled as the role's call and nothing is invoked
 // (lambda.esm.permission-loss stay-enabled, iam-enforcement-surfaces.md
@@ -216,7 +216,7 @@ func TestStreamMappingStaysEnabledWhenItsRoleLosesTheStream(t *testing.T) {
 	})
 }
 
-// Spec enforce matrix row 4: an on-failure record the execution role may
+// Under iam.enforce, an on-failure record the execution role may
 // not send (sqs:SendMessage, sns:Publish) fails as denied, is journaled as
 // the esm-to-* delivery's one dropped attempt and never sent; the batch
 // still counts as discarded, so the reader goes on past it.

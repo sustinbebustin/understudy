@@ -88,7 +88,7 @@ func TestASL01EveryProblemTransitionChecksLast(t *testing.T) {
 
 // A construct outside the accepted features is refused, so a caller that
 // accepts only the features whose runtime has landed never gets a
-// definition the engine cannot run (spec "Every commit is honest").
+// definition the engine cannot run.
 func TestParseRefusesWhatTheEngineCannotRun(t *testing.T) {
 	landed := asl.NewFeatures(asl.FeatPass, asl.FeatSucceed)
 	for _, def := range []string{
@@ -121,7 +121,7 @@ func TestParseTransitions(t *testing.T) {
 }
 
 // A jsonx round trip of the execution between any two steps of a Pass and
-// Succeed machine leaves the rest of the run unchanged (contract 5.4).
+// Succeed machine leaves the rest of the run unchanged.
 func TestPassPersistenceRoundTrip(t *testing.T) {
 	def := `{"StartAt":"A","States":{"A":{"Type":"Pass","Result":{"k":[1,"x",null]},"Next":"B"},"B":{"Type":"Pass","Next":"S"},"S":{"Type":"Succeed"}}}`
 	whole := newDriver(t, def, rules())

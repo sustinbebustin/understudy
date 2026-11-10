@@ -12,7 +12,7 @@ import (
 )
 
 // ses.verifiedIdentities reaches the service from serve's configuration:
-// a listed address starts Success (contract 6).
+// a listed address starts Success.
 func TestSESVerifiedIdentitiesAreWired(t *testing.T) {
 	_, endpoint := adminServer(t, server.Config{SESVerifiedIdentities: server.SESVerifiedIdentities{AddressDomains: []string{"example.net"}}})
 	if status, body := sesCall(t, endpoint, url.Values{"Action": {"VerifyEmailIdentity"}, "EmailAddress": {"a@example.net"}}); status != http.StatusOK {

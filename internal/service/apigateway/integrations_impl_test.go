@@ -47,8 +47,8 @@ func TestPutIntegrationBooleanRequestParameter(t *testing.T) {
 // AWS_PROXY accepts a Lambda function uri, qualified or not, and a uri
 // naming a stage variable verbatim; an AWS uri needs path or action after
 // the service; an HTTP uri must be an absolute http(s) URL (aws-recorded
-// texts, apigateway-rest.md 2.4, 3.4; the stage-variable rule is inferred,
-// contract 6b 7.6).
+// texts, apigateway-rest.md 2.4, 3.4; the stage-variable rule is
+// inferred).
 func TestPutIntegrationURIShapes(t *testing.T) {
 	run(t, func(h *harness) {
 		id, root := h.api("t")
@@ -109,9 +109,8 @@ func TestIntegrationRefusalsChangeNothing(t *testing.T) {
 
 // UpdateIntegration refuses /type (not patchable) and /httpMethod on a
 // MOCK integration, and answers NotImplemented for the members of VPC
-// links, TLS and load balancer targets (apigateway-rest.md 3.8; the unit's
-// conflict row 4). Templates and parameters are added and removed by key,
-// the content type escaped.
+// links, TLS and load balancer targets (apigateway-rest.md 3.8). Templates
+// and parameters are added and removed by key, the content type escaped.
 func TestUpdateIntegrationPaths(t *testing.T) {
 	run(t, func(h *harness) {
 		id, root := h.api("t")
@@ -181,8 +180,7 @@ func sortedKeys[V any](m map[string]V) []string {
 	return keys
 }
 
-// Stored integration members survive an export and import (contract 6b
-// 7.1).
+// Stored integration members survive an export and import.
 func TestIntegrationRoundTrip(t *testing.T) {
 	run(t, func(h *harness) {
 		id, root := h.api("t")

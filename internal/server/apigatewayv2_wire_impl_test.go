@@ -14,7 +14,7 @@ import (
 
 // HTTP APIs are wired: a request signed for apigateway, the signing name
 // v1 and v2 share (ADR 0019), on a /v2 path reaches apigatewayv2's route
-// table, and an operation the unit leaves unbound (VPC links) answers 501
+// table, and an operation left unbound (VPC links) answers 501
 // naming it rather than an unknown service (CLAUDE.md invariant 3).
 func TestAPIGatewayV2IsWired(t *testing.T) {
 	_, endpoint := adminServer(t, server.Config{})

@@ -302,7 +302,7 @@ func TestCreateScheduleRefusesACronThatNeverFires(t *testing.T) {
 
 // scheduler.rate.unit-agreement: the census's rate(5 minute) and
 // rate(1 minutes) are accepted under any, and refused with the Scheduler
-// text under singular-iff-one (spec switch table; scheduler.md 5.2, 12).
+// text under singular-iff-one (scheduler.md 5.2, 12).
 func TestRateUnitAgreementSwitch(t *testing.T) {
 	census := []string{"rate(5 minute)", "rate(1 minutes)"}
 	for _, o := range []scheduler.Options{{}, {RateUnits: schedexpr.SingularIffOne}} {
@@ -382,7 +382,7 @@ func TestGetScheduleDefaultsAnOmittedZoneToUTC(t *testing.T) {
 
 // Universal (aws-sdk) targets and the templated targets understudy does
 // not invoke answer 501 NotImplemented at create and update, never
-// accepted and silently not invoked (CLAUDE.md invariant 3; spec "Scope";
+// accepted and silently not invoked (CLAUDE.md invariant 3;
 // scheduler.md 14.1, 14.13.1). ARNs per the templated-target list
 // (aws-doc https://docs.aws.amazon.com/scheduler/latest/UserGuide/managing-targets-templated.html)
 // and the universal form (aws-doc managing-targets-universal).
@@ -414,7 +414,7 @@ func TestUnsupportedTargetsAnswerNotImplemented(t *testing.T) {
 }
 
 // SNS topics and Step Functions state machines are templated targets
-// understudy invokes (spec tail items), so their ARNs are accepted, as are
+// understudy invokes, so their ARNs are accepted, as are
 // Lambda (qualified too), SQS and event bus ARNs (aws-doc
 // managing-targets-templated; scheduler.md 6.1, 14.4.1).
 func TestInvokedTargetsAreAccepted(t *testing.T) {

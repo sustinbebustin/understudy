@@ -58,8 +58,7 @@ func TestRecreatedTableStreamTakesAFreeLabel(t *testing.T) {
 	})
 }
 
-// An ExclusiveStartStreamArn naming no listed stream starts from the first
-// (contract 5.4).
+// An ExclusiveStartStreamArn naming no listed stream starts from the first.
 func TestListStreamsFromAnUnknownStartArn(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		a, _ := latest(h.createStreamTable("Alpha", "KEYS_ONLY"))

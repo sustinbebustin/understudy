@@ -332,7 +332,7 @@ var (
 // resource reads a Task's Resource. Lambda functions and lambda:invoke are
 // accepted; a DynamoDB action AWS does not have gets AWS's recorded text
 // (stepfunctions-asl.md 3.5), as does a value that is no ARN; every other
-// ARN is refused (spec "Definition grammar"). function is the ARN of a
+// ARN is refused. function is the ARN of a
 // FunctionARN resource.
 func (p *parser) resource(v document.Value, at string) (kind ResourceKind, function string) {
 	s, ok := p.str(v, "Resource", at)

@@ -79,7 +79,7 @@ func sesQueryError(err error) *admin.Error {
 	return &admin.Error{Code: admin.Internal, Message: "reading the SES message store failed: " + err.Error()}
 }
 
-// wireSESMessage is m in the admin API's JSON form (contract 3.1).
+// wireSESMessage is m in the admin API's JSON form.
 func wireSESMessage(m *ses.Message) admin.SESMessage {
 	content := func(c *ses.Content) *admin.SESContent {
 		if c == nil {

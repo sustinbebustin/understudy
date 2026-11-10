@@ -32,8 +32,7 @@ func errConflict(format string, args ...any) *awserr.Error {
 }
 
 // errNotImplemented refuses a valid request understudy does not emulate:
-// what names it, and instead says what to do (CLAUDE.md invariant 3; the
-// unit's conflict row 4).
+// what names it, and instead says what to do (CLAUDE.md invariant 3).
 func errNotImplemented(op, what, instead string) *awserr.Error {
 	return apigatewayv2api.ErrNotImplemented(fmt.Sprintf("understudy does not implement %s on %s yet; nothing was changed. %s", what, op, instead))
 }

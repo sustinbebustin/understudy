@@ -16,8 +16,8 @@ import (
 // CreateRestApi stores the settings it accepts and returns them: a
 // REGIONAL endpoint on dualstack with VPC endpoint ids, minimumCompressionSize
 // at the recorded bound, apiKeySource, securityPolicy, endpointAccessMode
-// (apigateway-rest.md 2.3, 3.1; stored without effect per the spec 6b
-// note).
+// (apigateway-rest.md 2.3, 3.1; stored without effect, as the coverage
+// note says).
 func TestCreateRestApiStoresSettings(t *testing.T) {
 	run(t, func(h *harness) {
 		out := must(h, apigatewayapi.OpCreateRestApi, &apigatewayapi.CreateRestApiInput{
@@ -124,7 +124,7 @@ func TestUpdateRestApiSettingRefusals(t *testing.T) {
 	})
 }
 
-// The live settings come before the stage (contract 7.7 steps 3-4): a
+// The live settings come before the stage: a
 // disabled default endpoint or a PRIVATE API answers 501 even for a stage
 // that does not exist; clearing disableExecuteApiEndpoint serves again at
 // once, without a deployment.
@@ -147,8 +147,8 @@ func TestLiveSettingsPrecedeTheStage(t *testing.T) {
 	})
 }
 
-// The resource policy is read live and comes before routing (contract 7.7
-// step 6): under enforce a path no resource serves still answers 501, and
+// The resource policy is read live and comes before routing: under
+// enforce a path no resource serves still answers 501, and
 // removing the policy serves at once; under advise the advisory names the
 // API's ARN and is recorded even when routing then answers 403.
 func TestResourcePolicyIsLiveAndPrecedesRouting(t *testing.T) {
@@ -196,7 +196,7 @@ func TestDeletedRestApiLeavesTheDataPlane(t *testing.T) {
 	})
 }
 
-// The settings survive Export and Import (contract 7.1).
+// The settings survive Export and Import.
 func TestSettingsSurviveExportImport(t *testing.T) {
 	run(t, func(h *harness) {
 		out := must(h, apigatewayapi.OpCreateRestApi, &apigatewayapi.CreateRestApiInput{

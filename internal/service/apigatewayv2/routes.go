@@ -35,8 +35,8 @@ func checkUpdateRoute(in *apigatewayv2api.UpdateRouteInput) *awserr.Error {
 // checkRouteMembers checks the route members that are present: JWT and
 // CUSTOM authorization, an authorizer id and authorization scopes name or
 // configure authorizers, which understudy does not emulate, so they answer
-// NotImplemented (the unit's conflict row 4); a route key must parse
-// (route.ParseKey, apigateway-http.md 2.4, 3.2) and a target must read
+// NotImplemented; a route key must parse (route.ParseKey,
+// apigateway-http.md 2.4, 3.2) and a target must read
 // integrations/<integration-id>. The texts are inferred (APIGW2-01).
 func checkRouteMembers(op string, key, target *string, auth *apigatewayv2api.AuthorizationType, authorizerID *string, scopes []string) *awserr.Error {
 	if auth != nil && *auth != apigatewayv2api.AuthorizationTypeNone && *auth != apigatewayv2api.AuthorizationTypeAwsIam {

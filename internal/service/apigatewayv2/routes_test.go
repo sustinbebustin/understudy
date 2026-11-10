@@ -76,7 +76,7 @@ func TestCreateRouteRefusals(t *testing.T) {
 // AWS_IAM routes are stored (a request to one answers 501, invoke tests);
 // JWT and CUSTOM routes, an authorizer id and authorization scopes name
 // authorizers, which are not emulated, so they answer NotImplemented
-// (apigateway-http.md 3.2, 3.8; the unit's conflict row 4).
+// (apigateway-http.md 3.2, 3.8).
 func TestRouteAuthorization(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.apiID("t")

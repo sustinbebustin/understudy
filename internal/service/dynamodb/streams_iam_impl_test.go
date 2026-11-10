@@ -30,8 +30,7 @@ func usesOf(h *streamsHarness, principal access.Principal) []string {
 }
 
 // The four Streams operations each need their own dynamodb action and no
-// other, on the stream they address, ListStreams on "*": the
-// spec's enforce matrix row 1 and A11. DescribeStream needs
+// other, on the stream they address, ListStreams on "*". DescribeStream needs
 // dynamodb:DescribeStream only, though the generated action list also
 // names dynamodb:ReadDataForReplication, which authorizes replication, not
 // a caller's read. GetRecords is authorized on the stream its iterator's
@@ -67,8 +66,8 @@ func TestStreamsCallsNeedTheirActionOnTheStream(t *testing.T) {
 	})
 }
 
-// DescribeStream needs exactly dynamodb:DescribeStream on the stream (spec
-// A11): a principal whose only call is DescribeStream is recorded with that
+// DescribeStream needs exactly dynamodb:DescribeStream on the stream: a
+// principal whose only call is DescribeStream is recorded with that
 // one action, so the policy written for it grants nothing more.
 func TestDescribeStreamNeedsOnlyDescribeStream(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
@@ -100,7 +99,7 @@ func TestDescribeStreamNeedsOnlyDescribeStream(t *testing.T) {
 // A stream mapping's reads, made as the function's execution role
 // (lambda-stream-sources.md 12.5), are recorded under the role with the
 // stream as their resource, so GET /iam/policy for the role grants the
-// three reads on the stream (spec A11).
+// three reads on the stream.
 func TestStreamsReadsAsAnExecutionRoleAreRecordedUnderTheRole(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		c := defaultCaller()

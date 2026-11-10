@@ -94,8 +94,8 @@ func TestGetRoutesTokenSurvivesADelete(t *testing.T) {
 // UpdateRoute checks what it carries as CreateRoute does (apigateway-http.md
 // 3.2, 13.5) and changes nothing when it refuses: another route's key is a
 // conflict, the route's own key is not, a target must be an integration of
-// the API, and authorizer members answer NotImplemented (the unit's
-// conflict row 4). An unknown route is NotFoundException.
+// the API, and authorizer members answer NotImplemented. An unknown route
+// is NotFoundException.
 func TestUpdateRouteChecks(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.apiID("t")

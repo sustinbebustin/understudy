@@ -163,8 +163,8 @@ func TestRouteSelectionExpression(t *testing.T) {
 
 // WebSocket APIs and quick create are valid requests understudy does not
 // emulate, so each answers NotImplemented naming its member and changes
-// nothing (the unit's conflict row 4; apigateway-http.md 3.1 describes
-// quick create); a plain HTTP API is still created.
+// nothing (apigateway-http.md 3.1 describes quick create); a plain HTTP
+// API is still created.
 func TestWebSocketAndQuickCreateAreNotImplemented(t *testing.T) {
 	run(t, func(h *harness) {
 		kept := h.apiID("kept")
@@ -316,8 +316,7 @@ func TestStageTagQuota(t *testing.T) {
 }
 
 // No URL understudy hands out names amazonaws.com: clients use what GetApi
-// and the stage outputs say (apigateway-http.md 9.7, 11.1, 11.3; the unit's
-// acceptance).
+// and the stage outputs say (apigateway-http.md 9.7, 11.1, 11.3).
 func TestNoAmazonawsHostInOutputs(t *testing.T) {
 	run(t, func(h *harness) {
 		id, _ := h.lambdaAPI("2.0", "GET /hello")

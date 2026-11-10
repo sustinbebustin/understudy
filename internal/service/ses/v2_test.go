@@ -202,8 +202,7 @@ func TestStoreSharingFollowsItsSwitch(t *testing.T) {
 }
 
 // CreateEmailIdentity of an address starts its verification as
-// VerifyEmailIdentity does: a verification email recorded under the v2 API
-// (contract 2.5, 3.2).
+// VerifyEmailIdentity does: a verification email recorded under the v2 API.
 func TestCreateEmailIdentityRecordsVerificationEmail(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createIdentity("person@example.com")
@@ -216,7 +215,7 @@ func TestCreateEmailIdentityRecordsVerificationEmail(t *testing.T) {
 }
 
 // Reset of the v2 view resets the shared store, so it clears what both
-// APIs made (contract 1.2).
+// APIs made.
 func TestV2ResetClearsBothAPIs(t *testing.T) {
 	run(t, func(h *harness) {
 		h.verifyEmail("v1@example.com")
@@ -244,8 +243,7 @@ func simpleEmail(from string, to ...string) *sesv2api.SendEmailInput {
 }
 
 // ConfigurationOverrides and EndpointId answer NotImplemented naming the
-// member, as do the other unimplemented members (invariant 3; spec
-// conflict row 9, contract 2.2).
+// member, as do the other unimplemented members (invariant 3).
 func TestV2SendEmailNotImplementedMembers(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		arn := h.identityARN(sender)
@@ -277,9 +275,9 @@ func TestV2FromAddressMustBeVerified(t *testing.T) {
 	})
 }
 
-// FeedbackForwardingEmailAddress is a sender, checked as ReturnPath (spec
-// conflict row 9, inferred) with the text of ses.error.unverified.text,
-// and recorded as returnPath.
+// FeedbackForwardingEmailAddress is a sender, checked as ReturnPath
+// (inferred) with the text of ses.error.unverified.text, and recorded as
+// returnPath.
 func TestV2FeedbackForwardingAddressIsSenderChecked(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		in := simpleEmail(sender, simulator)
@@ -315,7 +313,7 @@ func TestV2ContentShape(t *testing.T) {
 }
 
 // An accepted v2 Simple send records its Headers and Attachments (model,
-// ses.md 4.4; contract 3.1), and its journaled input keeps no subject,
+// ses.md 4.4), and its journaled input keeps no subject,
 // body or attachment content while touching the sender's identity ARN.
 func TestV2SimpleSendIsRecordedAndRedacted(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
@@ -353,7 +351,7 @@ func TestV2SimpleSendIsRecordedAndRedacted(t *testing.T) {
 }
 
 // v2 Raw content follows ses.raw.envelope (inferred, SES-20): Destination
-// when given, else the headers; union both (contract 1.4).
+// when given, else the headers; union both.
 func TestV2RawEnvelopeFollowsItsSwitch(t *testing.T) {
 	const stranger = "header@unverified.test"
 	raw := func(dest *sesv2api.Destination) *sesv2api.SendEmailInput {
@@ -374,7 +372,7 @@ func TestV2RawEnvelopeFollowsItsSwitch(t *testing.T) {
 }
 
 // The daily quota on v2 answers TooManyRequestsException (the overlay's
-// v2 throttle identity, inferred) with DailyQuotaText (contract 1.6).
+// v2 throttle identity, inferred) with DailyQuotaText.
 func TestV2DailyQuota(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		for batch := range int(ses.SandboxMax24HourSend) / ses.MaxRecipients {

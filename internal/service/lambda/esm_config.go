@@ -315,7 +315,7 @@ func fromSQS(err *awserr.Error) *awserr.Error {
 // eventSource reads EventSourceArn and the kind of source it names: an
 // SQS queue's ARN, or a DynamoDB or Kinesis stream's, whose kind
 // createStreamMapping completes with its StartingPosition. A Kinesis
-// consumer, checked before anything else (08b contract 6.1), and another
+// consumer, checked before anything else, and another
 // service's source are unimplemented; none is "Unrecognized event
 // source.".
 func eventSource(arn *string) (aws.ARN, esm.EventSourceKind, *awserr.Error) {

@@ -175,7 +175,7 @@ func TestPropertyNull(t *testing.T) {
 }
 
 // An unsupplied key decides exactly as an absent one (iam-enforcement-surfaces.md
-// 12.2; the spec's settled row 2) and is always reported.
+// 12.2) and is always reported.
 func TestPropertyUnsuppliedReadsAsAbsent(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		p := rapid.SampledFrom(opPairs).Draw(t, "operators")

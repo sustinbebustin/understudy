@@ -158,7 +158,7 @@ func wantBadRequest(tb testing.TB, err *awserr.Error, text string) {
 	tb.Helper()
 	bad := apigatewayapi.IdentityBadRequestException()
 	if err == nil || err.ID.Shape != bad.Shape || err.ID.Status != http.StatusBadRequest || err.Message != text {
-		tb.Fatalf("error = %+v, want BadRequestException 400 %q (contract 5: path and op refusals)", err, text)
+		tb.Fatalf("error = %+v, want BadRequestException 400 %q", err, text)
 	}
 }
 
@@ -238,7 +238,7 @@ func opGen(valid bool) *rapid.Generator[patch.Operation] {
 }
 
 // Applying a request's operations equals applying them one at a time in
-// order (spec 6b ticket 3).
+// order.
 func TestApplyEqualsOneAtATime(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		ops := rapid.SliceOfN(opGen(true), 0, 8).Draw(t, "ops")
@@ -261,7 +261,7 @@ func TestApplyEqualsOneAtATime(t *testing.T) {
 }
 
 // A request containing a refused operation changes nothing, wherever the
-// refused operation sits (spec 6b ticket 3; apigateway-rest.md 12.4).
+// refused operation sits (apigateway-rest.md 12.4).
 func TestApplyRefusedChangesNothing(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		before := rapid.SliceOfN(opGen(true), 0, 4).Draw(t, "before")

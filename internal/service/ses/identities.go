@@ -23,7 +23,7 @@ import (
 
 // bindIdentities binds the v1 identity operations. Each uses its primary
 // action alone: the generated lists hold no other ses action a call of
-// these operations needs (contract 2.6).
+// these operations needs.
 func (s *Service) bindIdentities(b sesapi.Binder) {
 	verifyEmail := registry.Partial{Note: "the identity stays Pending until its verification link under " + VerificationLinkPath +
 		" is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; " +
@@ -57,7 +57,7 @@ func (s *Service) bindIdentities(b sesapi.Binder) {
 }
 
 // identitiesNamed names the identities an input addresses as the call's
-// resources (contract 2.6), so the journal names what a call acted on.
+// resources, so the journal names what a call acted on.
 func identitiesNamed[In any](namesOf func(*In) []string) kernel.BindOption {
 	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
 		names := namesOf(in)
@@ -82,7 +82,7 @@ func errIdentityLimit(api API) *awserr.Error {
 // create appends a new identity of kind named name at now, created through
 // v.api: Success with a StateChange from NotStarted when
 // ses.verifiedIdentities lists it (no verification email, no timer), else
-// Pending with its expiry timer armed (contract 2.3, 6). A creation to
+// Pending with its expiry timer armed. A creation to
 // Pending is not a transition, so it journals none. It refuses the
 // identity past MaxIdentities in v.
 func (s *Service) create(st *state, v view, scope aws.Scope, kind sesapi.IdentityType, name string, now clock.Instant, tx *kernel.Tx) (*identity, *awserr.Error) {
@@ -105,7 +105,7 @@ func (s *Service) create(st *state, v view, scope aws.Scope, kind sesapi.Identit
 
 // createEmail creates email identity address through v.api as create does
 // and, when it starts Pending, gives it a link token and records its
-// verification email (contract 2.3, 2.5). It returns the blobs of a
+// verification email. It returns the blobs of a
 // message the email evicted, to release once the write commits.
 func (s *Service) createEmail(c *kernel.Call, st *state, v view, address string, now clock.Instant, tx *kernel.Tx) ([]blob.Ref, *awserr.Error) {
 	id, err := s.create(st, v, c.Scope(), sesapi.IdentityTypeEmailAddress, address, now, tx)
@@ -131,7 +131,7 @@ func (s *Service) pend(id *identity, scope aws.Scope, now clock.Instant, tx *ker
 // Pending, Failed or TemporaryFailure one restarts as Pending, its expiry
 // counted again, and a Success one is left as it is (inferred, SES-09).
 // Each start and restart records a verification email, always with the
-// identity's one link token (contract 2.3). An address a send would refuse
+// identity's one link token. An address a send would refuse
 // answers VerifyAddressText (recorded for an address without "@", SES-04,
 // ses.md 4.6).
 func (s *Service) verifyEmailIdentity(ctx context.Context, c *kernel.Call, in *sesapi.VerifyEmailIdentityInput) (*sesapi.VerifyEmailIdentityOutput, *awserr.Error) {
@@ -174,7 +174,7 @@ func (s *Service) verifyEmailIdentity(ctx context.Context, c *kernel.Call, in *s
 }
 
 // linkToken draws a verification link token: 32 bytes as base64url without
-// padding (contract 2.3).
+// padding.
 func (s *Service) linkToken() string {
 	return base64.RawURLEncoding.EncodeToString(s.ids.Draw(ids.KindSESLinkToken, 32))
 }
@@ -269,7 +269,7 @@ func (s *Service) getIdentityVerificationAttributes(_ context.Context, c *kernel
 // elements out; the generated serializer writes them empty, since the model
 // marks them required (a known difference, testdata/parity/ses/SES-08). An
 // unknown identity is omitted under either value of
-// ses.verification.unknown-identity (contract 1.4), as SES-08 recorded.
+// ses.verification.unknown-identity, as SES-08 recorded.
 func (s *Service) getIdentityNotificationAttributes(_ context.Context, c *kernel.Call, in *sesapi.GetIdentityNotificationAttributesInput) (*sesapi.GetIdentityNotificationAttributesOutput, *awserr.Error) {
 	out := &sesapi.GetIdentityNotificationAttributesOutput{NotificationAttributes: map[string]sesapi.IdentityNotificationAttributes{}}
 	cell, ok := s.cells.Lookup(c.Scope())

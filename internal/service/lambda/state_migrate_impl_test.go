@@ -17,8 +17,8 @@ const unkindedSection = `{"mappings":{` +
 	`"function":"f","batchSize":100,"window":0,"scaling":{"kind":"unbounded"},"enabled":true}}}`
 
 // A version 3 section loads as version 4: the SQS mapping's scaling moves
-// into its source kind and the stream mapping's is dropped (spec conflict
-// row 6; contract 8.2).
+// into its source kind and the stream mapping's is dropped
+// (lambda-stream-sources.md 3.4).
 func TestMigrateUnkindedScalingMovesScalingIntoTheSQSKind(t *testing.T) {
 	data, err := migrateUnkindedScaling([]byte(unkindedSection))
 	if err != nil {

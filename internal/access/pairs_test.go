@@ -10,7 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-// 5b's changes to the access record: the pairs a call needed replace the
+// The access record under iam.enforce: the pairs a call needed replace the
 // crossing of its actions with its resources (iam-enforcement-surfaces.md
 // 12.6), sts:GetCallerIdentity stays out of rendered policies because it
 // needs no permission (5.1, aws-doc), and a delivery's aws:SourceAccount is

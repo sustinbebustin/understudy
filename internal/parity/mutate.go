@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// Mutate flips the recorded value at field, for the sensitivity check (spec
-// "Sensitivity check"): a string changes its last ASCII digit to (d+1) mod
+// Mutate flips the recorded value at field, for the sensitivity check: a
+// string changes its last ASCII digit to (d+1) mod
 // 10, else its last ASCII letter to the next one in the same case (z to a),
 // else gains a trailing "x"; a number (status included) changes its
 // literal's last digit the same way; a bool flips; null, an object, an array

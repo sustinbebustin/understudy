@@ -141,7 +141,7 @@ func TestSendTemplatedEmailMissingTemplate(t *testing.T) {
 
 // SendTemplatedEmail runs SendEmail's checks: NotImplemented members (the
 // template ARN among them), tags, addresses, the recipient count, then the
-// sender and sandbox checks (contract 2.1; ses.md 11.1).
+// sender and sandbox checks (ses.md 11.1).
 func TestSendTemplatedEmailChecks(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		h.createTemplate(sesapi.Template{TemplateName: "t", SubjectPart: new("s")})
@@ -273,8 +273,7 @@ func TestV2TemplateContentRefusals(t *testing.T) {
 	})
 }
 
-// Under ses.store.shared-v1-v2 separate, v2 does not see a v1 template
-// (contract 1.5).
+// Under ses.store.shared-v1-v2 separate, v2 does not see a v1 template.
 func TestSeparateStoresKeepTemplatesApart(t *testing.T) {
 	runVerified(t, ses.Options{Store: ses.StoreSeparate}, func(h *harness) {
 		must(h, sesv2api.OpCreateEmailIdentity, &sesv2api.CreateEmailIdentityInput{EmailIdentity: verifiedDomain})

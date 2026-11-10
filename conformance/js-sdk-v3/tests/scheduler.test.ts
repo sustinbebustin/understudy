@@ -268,7 +268,7 @@ describe("EventBridge Scheduler", () => {
   });
 
   // A universal (aws-sdk) target answers 501 NotImplemented and nothing is
-  // stored (CLAUDE.md invariant 3; spec "Scope").
+  // stored (CLAUDE.md invariant 3).
   test("a universal target answers NotImplemented", async () => {
     const { target } = await queueTarget();
     const name = uniq("sch");

@@ -17,7 +17,7 @@ import (
 )
 
 // Export, Reset, Import gives back the identities, the templates, the
-// messages and the recipient counter (contract 1.2, 1.3); Resources lists
+// messages and the recipient counter; Resources lists
 // identities then templates, each in creation order, with the v1 status
 // or "template" as summary.
 func TestSnapshotRoundTrip(t *testing.T) {
@@ -36,7 +36,7 @@ func TestSnapshotRoundTrip(t *testing.T) {
 			h.Fatalf("after Reset the identities remain: %v", got)
 		}
 		if got := h.quota().SentLast24Hours; got != 0 {
-			h.Errorf("SentLast24Hours = %v after Reset, want 0 (contract 2.4)", got)
+			h.Errorf("SentLast24Hours = %v after Reset, want 0", got)
 		}
 		if err := h.svc.Import(sections); err != nil {
 			h.Fatal(err)
@@ -85,7 +85,7 @@ func TestSnapshotRoundTrip(t *testing.T) {
 	})
 }
 
-// Import refuses a section of another schema version (contract 1.2).
+// Import refuses a section of another schema version.
 func TestImportRefusesAnotherVersion(t *testing.T) {
 	run(t, func(h *harness) {
 		h.verifyEmail(sender)
@@ -104,7 +104,7 @@ func TestImportRefusesAnotherVersion(t *testing.T) {
 }
 
 // A loaded snapshot re-arms expiry: an identity Pending at save time turns
-// Failed at its original deadline (contract 1.2; ses.md 5.2, the deadline
+// Failed at its original deadline (ses.md 5.2, the deadline
 // read from EmailVerificationExpiry).
 func TestRearmRestoresExpiry(t *testing.T) {
 	run(t, func(h *harness) {
@@ -154,8 +154,8 @@ func TestResetIsScoped(t *testing.T) {
 	})
 }
 
-// Switches lists the five Options switches with their contract 1.4 Ref and
-// Record, each Value the String of the value in effect, so flipping one
+// Switches lists the five Options switches with their Ref and Record,
+// each Value the String of the value in effect, so flipping one
 // through Options changes the entry. The two whose default SES-12 and
 // SES-08 recorded are labelled aws-recorded, the rest inferred.
 func TestSwitchesListTheOptionsSwitches(t *testing.T) {
@@ -197,7 +197,7 @@ func TestSwitchesListTheOptionsSwitches(t *testing.T) {
 
 // Every bound operation whose generated list holds more than one ses
 // action decides which of them its calls use (iam-enforcement-surfaces.md
-// 10.2; contract 2.6).
+// 10.2).
 func TestEveryMultiActionOperationDeclaresItsActions(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, svc := range []*registry.Service{sesapi.Service(), sesv2api.Service()} {
@@ -208,7 +208,7 @@ func TestEveryMultiActionOperationDeclaresItsActions(t *testing.T) {
 	})
 }
 
-// Identity operations touch the identity ARN (contract 2.6), so the
+// Identity operations touch the identity ARN, so the
 // journal names the identity a call acted on.
 func TestIdentityOperationsTouchTheIdentityARN(t *testing.T) {
 	run(t, func(h *harness) {
@@ -232,8 +232,8 @@ func TestIdentityOperationsTouchTheIdentityARN(t *testing.T) {
 	})
 }
 
-// Operations outside the slice stay unbound and answer 501 (invariant 3;
-// spec "Scope"), including the first calls the LocalStack refusal checks
+// Operations outside the slice stay unbound and answer 501 (invariant 3),
+// including the first calls the LocalStack refusal checks
 // make: DeleteConfigurationSet (test_ses.py L836),
 // CreateConfigurationSetEventDestination (L817), CreateConfigurationSet
 // (L545) and CreateReceiptRuleSet (L350), localstack@8b9a79f

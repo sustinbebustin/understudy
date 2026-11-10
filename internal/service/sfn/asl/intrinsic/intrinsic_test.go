@@ -227,7 +227,7 @@ func halfUp(hundredths int) int {
 	return q
 }
 
-// Spec T7 rounding: MathAdd is floor(a + 0.5) + floor(b + 0.5) for every
+// Rounding: MathAdd is floor(a + 0.5) + floor(b + 0.5) for every
 // pair of decimals (stepfunctions-asl.md 5.3, recorded rule).
 func TestMathAddProperty(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
@@ -251,7 +251,7 @@ func TestMathAddProperty(t *testing.T) {
 
 // States.UUID and an unseeded States.MathRandom draw from the Source;
 // a seeded MathRandom gives the same number for the same seed, inside
-// [start, end) (aws-doc dg/intrinsic-functions; contract section 4).
+// [start, end) (aws-doc dg/intrinsic-functions).
 func TestUUIDAndMathRandom(t *testing.T) {
 	src := &source{uuid: "4f6b2bba-7b9f-4b3c-8a51-6d3e5e0b9a10", random: 7}
 	got, err := eval(t, "States.UUID()", document.Map{}, nil, src)
@@ -277,7 +277,7 @@ func TestUUIDAndMathRandom(t *testing.T) {
 // JsonMerge with deep true is unsupported in AWS (aws-doc
 // dg/intrinsic-functions); a function failing at run time is a
 // *FunctionError, which the engine names by switch sfn.intrinsic.failure-error
-// (contract section 4; the details are TestASL05FunctionErrorDetails').
+// (the details are TestASL05FunctionErrorDetails').
 func TestRuntimeFailuresAreFunctionErrors(t *testing.T) {
 	tests := []struct{ name, expr, input string }{
 		{"JsonMerge deep", `States.JsonMerge($.a, $.b, true)`, `{"a":{},"b":{}}`},
@@ -303,7 +303,7 @@ func TestRuntimeFailuresAreFunctionErrors(t *testing.T) {
 }
 
 // A path argument that selects nothing fails with that path's
-// *jsonpath.MissingError (contract section 4).
+// *jsonpath.MissingError.
 func TestMissingPathArgument(t *testing.T) {
 	_, err := eval(t, `States.Format('{}', $.nope)`, decode(t, `{"a":1}`), nil, &source{})
 	var miss *jsonpath.MissingError
@@ -348,7 +348,7 @@ func escape(s string) string {
 	return strings.NewReplacer(`\`, `\\`, `'`, `\'`, `{`, `\{`, `}`, `\}`).Replace(s)
 }
 
-// Spec T7: escaped string literals round-trip.
+// Escaped string literals round-trip.
 func TestEscapeRoundTrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		s := rapid.StringOfN(rapid.SampledFrom([]rune(`ab '{}\,.$()`)), 0, 20, -1).Draw(t, "s")
@@ -360,7 +360,7 @@ func TestEscapeRoundTrip(t *testing.T) {
 	})
 }
 
-// Spec T7: Hash agrees with crypto/* in lower-case hex for the five
+// Hash agrees with crypto/* in lower-case hex for the five
 // documented algorithms (stepfunctions-asl.md 5.2).
 func TestHashMatchesCrypto(t *testing.T) {
 	algs := map[string]func() hash.Hash{
@@ -390,7 +390,8 @@ func splitRule(s, delims string) []string {
 	return strings.FieldsFunc(s, func(r rune) bool { return strings.ContainsRune(delims, r) })
 }
 
-// Spec T7: StringSplit against the rule.
+// StringSplit against the rule: each delimiter character splits, and empty
+// pieces are dropped.
 func TestStringSplitRule(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		alphabet := rapid.SampledFrom([]rune("ab ,.+=-"))

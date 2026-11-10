@@ -332,7 +332,7 @@ def test_state_machine_target(
 
 def test_universal_target_is_not_implemented(scheduler: Any, role: str) -> None:
     """A universal (aws-sdk) target answers 501 NotImplemented and nothing is stored
-    (CLAUDE.md invariant 3; spec "Scope")."""
+    (CLAUDE.md invariant 3)."""
     name = uniq("sch")
     target = {"Arn": "arn:aws:scheduler:::aws-sdk:sqs:sendMessage", "RoleArn": role, "Input": "{}"}
     with raises("NotImplemented") as info:

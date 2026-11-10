@@ -83,7 +83,7 @@ const (
 )
 
 // CheckBind checks both sides of one binding against sh for a scenario's
-// account and region (spec "Value binding"): each side must have the shape,
+// account and region: each side must have the shape,
 // and what the shape leaves fixed must agree across sides (an ARN's name
 // when the shape gives it none, a URL's path). A *ShapeError names the side
 // that breaks a rule, the aws side first; a disagreement is the understudy

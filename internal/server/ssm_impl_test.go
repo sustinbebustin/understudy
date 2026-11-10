@@ -8,7 +8,7 @@ import (
 )
 
 // GET /resources, which `understudy resources` reads, lists each SSM
-// parameter by ARN with its type and latest version (spec ticket 11).
+// parameter by ARN with its type and latest version.
 func TestSSMResourcesListParameters(t *testing.T) {
 	c, endpoint := adminServer(t, server.Config{})
 	mustSSM(t, endpoint, "PutParameter", `{"Name":"/res/a","Type":"String","Value":"v"}`)

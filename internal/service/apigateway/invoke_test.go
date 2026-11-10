@@ -23,7 +23,7 @@ func obj(tb testing.TB, m map[string]any, key string) map[string]any {
 	return v
 }
 
-// The tracer bullet (spec 6b): GET /<stage>/ on a root GET with an
+// The tracer bullet: GET /<stage>/ on a root GET with an
 // AWS_PROXY integration reaches the function and answers its response.
 // The event has the recorded REST 1.0 shape (aws-recorded,
 // test_apigateway_lambda.snapshot.json:L5-L121, apigateway-rest.md 5.1):
@@ -153,7 +153,7 @@ func TestGreedyProxyEvent(t *testing.T) {
 		}
 		for _, k := range []string{"Via", "X-Amz-Cf-Id", "CloudFront-Viewer-Country"} {
 			if _, has := headers[k]; has {
-				t.Errorf("headers.%s present; an API is served as REGIONAL (spec 6b scope)", k)
+				t.Errorf("headers.%s present; an API is served as REGIONAL", k)
 			}
 		}
 		// A trailing slash stays in path but not in the parameter (4.2).
@@ -258,8 +258,7 @@ func TestResponseMapping(t *testing.T) {
 
 // A function error, a Lambda error other than NotImplemented, answers the
 // proxy failure 502 (aws-recorded, apigateway-rest.md 5.3); Lambda's
-// NotImplemented (Docker unavailable) answers 501 naming Docker (the
-// unit's conflict row 3).
+// NotImplemented (Docker unavailable) answers 501 naming Docker.
 func TestFunctionFailures(t *testing.T) {
 	run(t, func(h *harness) {
 		id, _ := h.proxyAPI()
@@ -294,8 +293,7 @@ func TestIntegrationMethodGETIsAConfigurationError(t *testing.T) {
 // Without a function-policy statement for apigateway.amazonaws.com and the
 // request's source ARN, the invoke answers switch
 // apigateway.lambda.permission's Denial and the function never runs,
-// under every iam.enforce mode (spec 6b enforce matrix; conflict row 2;
-// apigateway-rest.md 5.4). A statement whose source ARN names the method
+// under every iam.enforce mode (apigateway-rest.md 5.4). A statement whose source ARN names the method
 // and resource template exactly lets it through.
 func TestMissingPermission(t *testing.T) {
 	denial := apigateway.PermissionSwitch().Value.Denial
@@ -345,8 +343,7 @@ func TestRouting(t *testing.T) {
 	})
 }
 
-// The execute-api host form serves the same API (contract 6;
-// apigateway-rest.md 4.1: {api-id}.execute-api.{region}.<base>/{stage}/);
+// The execute-api host form serves the same API (apigateway-rest.md 4.1: {api-id}.execute-api.{region}.<base>/{stage}/);
 // a host naming another region answers switch apigateway.invoke.routing's
 // UnknownAPI.
 func TestHostForm(t *testing.T) {
@@ -364,9 +361,9 @@ func TestHostForm(t *testing.T) {
 }
 
 // A body over 10485760 bytes answers REQUEST_TOO_LARGE 413 before any
-// lookup, an unknown API included (aws-doc, apigateway-rest.md 2.6, 4.7;
-// contract 7.7 step 1); an event over Lambda's 6 MB limit is refused
-// without invoking (status only: inferred).
+// lookup, an unknown API included (aws-doc, apigateway-rest.md 2.6, 4.7);
+// an event over Lambda's 6 MB limit is refused without invoking (status
+// only: inferred).
 func TestSizeLimits(t *testing.T) {
 	run(t, func(h *harness) {
 		id, _ := h.proxyAPI("/upload")

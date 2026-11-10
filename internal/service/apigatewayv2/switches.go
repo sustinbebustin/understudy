@@ -299,7 +299,7 @@ func PayloadSwitch() fidelity.Switch[PayloadChoices] {
 }
 
 // Switches lists the behaviors the service chose without AWS-recorded
-// evidence, in the order of the spec's switch table.
+// evidence.
 func (*Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		FailureAnswersSwitch().Entry(),

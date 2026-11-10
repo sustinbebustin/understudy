@@ -21,7 +21,7 @@ func executionRole() aws.ARN {
 }
 
 // onFailure is an event source mapping's on-failure record to a queue, as
-// the stream poller hands it to the outbox (contract 4), sent as role; a
+// the stream poller hands it to the outbox, sent as role; a
 // nil role leaves the sender out.
 func onFailure(role *aws.ARN) delivery.Request {
 	req := delivery.Request{
@@ -37,7 +37,7 @@ func onFailure(role *aws.ARN) delivery.Request {
 }
 
 // An on-failure record is sent as the mapping's execution role, under
-// Via lambda-esm (lambda-stream-sources.md 5.6; contract 4).
+// Via lambda-esm (lambda-stream-sources.md 5.6).
 func TestESMToSQSSendsAsTheExecutionRole(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
@@ -56,8 +56,7 @@ func TestESMToSQSSendsAsTheExecutionRole(t *testing.T) {
 }
 
 // A failed on-failure send is journaled and never retried: Policy None
-// makes one attempt, and with no dead-letter queue the record is dropped
-// (spec enforce row 4; contract 4).
+// makes one attempt, and with no dead-letter queue the record is dropped.
 func TestESMToSQSFailureIsNotRetried(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error {

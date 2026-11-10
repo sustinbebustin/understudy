@@ -197,7 +197,7 @@ type fixedSource struct{}
 func (fixedSource) UUID() string                { return "00000000-0000-4000-8000-000000000000" }
 func (fixedSource) Random(start, _ int64) int64 { return start }
 
-// driver runs an execution the way contract section 5.5 lets a test:
+// driver runs an execution through the engine's effects alone:
 // it fires the earliest armed timer (ties by TimerID), answers each
 // InvokeLambda in TaskID order, and drops cancelled timers.
 type driver struct {

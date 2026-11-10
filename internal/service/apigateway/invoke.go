@@ -29,7 +29,7 @@ import (
 )
 
 // executeAPIPrefix is the execute-api path fallback,
-// /_understudy/execute-api/<api-id>/<stage>/<path> (contract 6).
+// /_understudy/execute-api/<api-id>/<stage>/<path>.
 const executeAPIPrefix = "/_understudy/execute-api/"
 
 // servicePrincipal is whom API Gateway invokes a Lambda proxy integration
@@ -41,7 +41,7 @@ const servicePrincipal = "apigateway.amazonaws.com"
 const maxEvent = 6_291_456
 
 // invoke is InvokeRestApi, the execute-api data plane of REST APIs
-// (apigateway-rest.md 4, 5; contract 7.7): it finds the API the host or
+// (apigateway-rest.md 4, 5): it finds the API the host or
 // path fallback names, the stage, the resource and method of the stage's
 // deployment, checks that the function's resource policy lets API Gateway
 // invoke it, invokes it synchronously with the REST 1.0 event and answers
@@ -53,7 +53,7 @@ func (s *Service) invoke(ctx context.Context, c *kernel.Call, r *http.Request, w
 	// Every response carries both ids (recorded, apigateway-rest.md 4.8).
 	w.Header().Set("X-Amzn-Requestid", string(c.ID()))
 	w.Header().Set("X-Amz-Apigw-Id", extended)
-	// The size limit comes before any lookup (contract 7.7 step 1).
+	// The size limit comes before any lookup.
 	body, tooLarge, err := readBody(r, MaxBody)
 	switch {
 	case err != nil:
@@ -98,7 +98,7 @@ type address struct {
 	region aws.Region
 }
 
-// resolve reads what a request names (contract 6): the path fallback
+// resolve reads what a request names: the path fallback
 // /_understudy/execute-api/<api-id>/<path>, else the host
 // <api-id>.execute-api.<region>.<base> or <api-id>.execute-api.<base>.
 // The API id is lowercased, as a host name is.
@@ -129,8 +129,7 @@ func (s *Service) resolve(r *http.Request) (address, bool) {
 }
 
 // domain is the event's domainName: the host the request named, or for the
-// path fallback the host form under localhost in the API's region
-// (contract 6).
+// path fallback the host form under localhost in the API's region.
 func (a address) domain(owner aws.Scope) string {
 	if a.host != "" {
 		return a.host
@@ -174,7 +173,8 @@ type toFunction struct {
 }
 
 // unemulated is a request understudy cannot serve as AWS would, answered
-// 501 with message (the unit's conflict row 3).
+// 501 with message: an AWS-shaped 500 would read as a real configuration
+// error.
 type unemulated struct{ message string }
 
 // corrupt is state the service cannot have written: an understudy bug.
@@ -187,7 +187,7 @@ func (corrupt) isSelection()    {}
 
 // policyAdvisory is an invocation of an API with a resource policy under
 // iam.enforce=advise: served, with an access-unevaluated advisory naming
-// the API (spec 6b enforce matrix; contract 7.7 step 6).
+// the API (apigateway-rest.md 12.2).
 type policyAdvisory struct {
 	owner aws.Scope
 	apiID string
@@ -200,9 +200,11 @@ func (p *policyAdvisory) text() string {
 
 // selectMethod finds the API addr names in any account, its stage, and the
 // resource and method of the stage's deployment that serve method
-// (apigateway-rest.md 4.1-4.4), in contract 7.7's order. A host naming
-// another region than the API's is the routing switch's UnknownAPI. A
-// non-nil advisory is to be recorded whatever the selection.
+// (apigateway-rest.md 4.1-4.4), checking in order the API, its live
+// settings, the stage, the deployment snapshot, the resource policy and
+// the route. A host naming another region than the API's is the routing
+// switch's UnknownAPI. A non-nil advisory is to be recorded whatever the
+// selection.
 func (s *Service) selectMethod(addr address, method string) (selection, *policyAdvisory) {
 	owner, ok := s.index.lookup(addr.apiID)
 	if !ok || (!addr.region.IsZero() && addr.region != owner.Region) {
@@ -239,19 +241,19 @@ func (s *Service) selectMethod(addr address, method string) (selection, *policyA
 	return got.sel, got.advise
 }
 
-// front checks what applies before routing (contract 7.7 steps 3-5): the
+// front checks what applies before routing: the
 // live settings understudy cannot serve, the stage, and the stage's
 // deployment snapshot. A non-nil selection answers the request.
 func (a *RestAPI) front(stageName string) (Stage, Deployment, selection) {
 	if a.DisableExecuteAPIEndpoint {
 		// No REST source says what AWS answers or when it takes effect, so
-		// understudy refuses at once rather than serve (spec 6b scope list).
+		// understudy refuses at once rather than serve.
 		return Stage{}, Deployment{}, unemulated{fmt.Sprintf("understudy does not emulate a disabled default endpoint: REST API %s has disableExecuteApiEndpoint true, "+
 			"so no integration ran and nothing was changed. Set it to false with UpdateRestApi replace /disableExecuteApiEndpoint.", a.ID)}
 	}
 	if a.Endpoint.Type == apigatewayapi.EndpointTypePrivate {
 		// AWS serves a PRIVATE API only through VPC endpoints, never on a
-		// public host (spec 6b scope list).
+		// public host.
 		return Stage{}, Deployment{}, unemulated{fmt.Sprintf("understudy does not serve PRIVATE APIs: REST API %s has endpoint type PRIVATE, which AWS serves only through VPC endpoints, "+
 			"so no integration ran and nothing was changed. Use a REGIONAL or EDGE endpoint configuration.", a.ID)}
 	}
@@ -266,7 +268,7 @@ func (a *RestAPI) front(stageName string) (Stage, Deployment, selection) {
 	if len(d.BinaryMediaTypes) > 0 {
 		// They decide the event's isBase64Encoded and whether a response
 		// body is decoded (apigateway-rest.md 5.1, 5.2), which understudy
-		// does not apply (spec 6b scope list).
+		// does not apply.
 		return Stage{}, Deployment{}, unemulated{fmt.Sprintf("understudy does not apply binaryMediaTypes: deployment %s of REST API %s, which stage %s serves, has binaryMediaTypes %v, "+
 			"so no integration ran and nothing was changed. Remove the binaryMediaTypes with UpdateRestApi and deploy again.", d.ID, a.ID, stage.Name, d.BinaryMediaTypes)}
 	}
@@ -274,7 +276,7 @@ func (a *RestAPI) front(stageName string) (Stage, Deployment, selection) {
 }
 
 // route finds the resource and method of the deployment d, which stage
-// serves, for method on path (contract 7.7 steps 7-10).
+// serves, for method on path.
 func (a *RestAPI) route(owner aws.Scope, addr address, method, path string, stage Stage, d Deployment) selection {
 	routing := RoutingSwitch().Value
 	res, found, ok := match(d.Resources, method, path, routing.Methods)
@@ -291,8 +293,7 @@ func (a *RestAPI) route(owner aws.Scope, addr address, method, path string, stag
 			"so no integration ran and nothing was changed. Set the method's authorizationType to NONE.", key, res.Path, a.ID, m.Authorization)}
 	}
 	if m.APIKeyRequired {
-		// No API key can be created, so no request carries a valid one
-		// (spec 6b enforce matrix).
+		// No API key can be created, so no request carries a valid one.
 		return answered{APIKeyRequired()}
 	}
 	if m.Integration == nil {
@@ -317,10 +318,10 @@ func (a *RestAPI) route(owner aws.Scope, addr address, method, path string, stag
 }
 
 // unserved names what understudy cannot run of an integration, and how to
-// change it, or reports false for an AWS_PROXY integration it runs (spec
-// 6b scope list). credentials come first: AWS assumes the role instead of
-// checking the function policy (apigateway-rest.md 3.4, 5.4), so the
-// answer precedes any permission check.
+// change it, or reports false for an AWS_PROXY integration it runs.
+// credentials come first: AWS assumes the role instead of checking the
+// function policy (apigateway-rest.md 3.4, 5.4), so the answer precedes
+// any permission check.
 func (i *Integration) unserved() (what, fix string, ok bool) {
 	switch {
 	case i.Credentials != nil:
@@ -487,9 +488,9 @@ func (s *Service) invokeWithin(ctx context.Context, c *kernel.Call, timeout time
 }
 
 // lambdaRefused answers an invocation Lambda refused: Lambda without
-// Docker is understudy's limit, so 501 naming it (the unit's conflict row
-// 3); any other refusal is the proxy failure 502 (apigateway-rest.md 5.3).
-// An emulator failure is returned for the edge to render.
+// Docker is understudy's limit, so 501 naming it; any other refusal is the
+// proxy failure 502 (apigateway-rest.md 5.3). An emulator failure is
+// returned for the edge to render.
 func lambdaRefused(w http.ResponseWriter, t toFunction, err *awserr.Error) *awserr.Error {
 	if _, internal := err.Origin.(awserr.Internal); internal {
 		return err
@@ -523,9 +524,8 @@ func invokeFunctionAction() registry.IAMAction {
 var errNoFunctionPolicies = errors.New("apigateway: no Options.FunctionPolicies was given, so no function's resource policy can be read; wire.go passes the Lambda service")
 
 // permitted reports whether fn's resource policy lets API Gateway invoke
-// it for source, the 5a resource-policy check (the unit's conflict row 2;
-// apigateway-rest.md 5.4). It applies under every iam.enforce mode; a
-// function that does not exist allows nothing.
+// it for source (apigateway-rest.md 5.4). It applies under every
+// iam.enforce mode; a function that does not exist allows nothing.
 func (s *Service) permitted(fn, source aws.ARN, owner aws.Scope) (bool, *awserr.Error) {
 	if s.policies == nil {
 		return false, awserr.Internalf(errNoFunctionPolicies)
@@ -598,7 +598,7 @@ func escapedPath(r *http.Request) string {
 	return r.URL.EscapedPath()
 }
 
-// writeAnswer writes a response the gateway gives itself (contract 7.7):
+// writeAnswer writes a response the gateway gives itself:
 // the answer's status and exact body, Content-Type application/json and
 // x-amzn-ErrorType when the answer has one (apigateway-rest.md 4.7, 4.8).
 func writeAnswer(w http.ResponseWriter, a GatewayAnswer) *awserr.Error {

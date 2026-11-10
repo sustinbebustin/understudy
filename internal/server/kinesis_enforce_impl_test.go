@@ -23,8 +23,7 @@ func kinesisCall(t *testing.T, s signer, endpoint, op, body string) wire {
 }
 
 // isKinesisDenial reports whether w is the Kinesis denial identity: the
-// model's AccessDeniedException at 400 (08b contract 3.8; KIN-27,
-// IAM-ENF-36).
+// model's AccessDeniedException at 400 (KIN-27, IAM-ENF-36).
 func isKinesisDenial(w wire) bool {
 	return w.status == http.StatusBadRequest && jsonType(w) == "AccessDeniedException"
 }
@@ -68,7 +67,7 @@ func granted(t *testing.T, c *admin.Client, principal string) map[string][]strin
 	return out
 }
 
-// Spec enforce matrix row 1 for Kinesis: under enforce a principal with no
+// Under enforce a principal with no
 // policy is refused every bound operation with the model's
 // AccessDeniedException; a policy allowing the stream's actions on its ARN
 // (ListStreams and DescribeLimits on "*") lets the calls past
@@ -179,7 +178,7 @@ func TestKinesisCallsUnderEachEnforceMode(t *testing.T) {
 // GET /iam/policy for a principal that called each of the 21 bound
 // operations grants each its own action on the stream it named, by name,
 // by ARN, by ResourceARN or inside a GetRecords iterator or a ListShards
-// NextToken, and ListStreams and DescribeLimits on "*" (spec B6).
+// NextToken, and ListStreams and DescribeLimits on "*".
 func TestIAMPolicyListsTheKinesisActions(t *testing.T) {
 	c, endpoint, u := enforced(t, server.IAMEnforceOff)
 	for _, op := range [][2]string{

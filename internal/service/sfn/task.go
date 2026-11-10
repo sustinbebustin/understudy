@@ -83,7 +83,7 @@ func taskKey(exec executionRef, task asl.TaskID) string {
 }
 
 // onInvoke starts the invocation a TimerInvoke names, as tracked work
-// parented to the timer's call (spec "Runtime decisions"; ADR 0007), and
+// parented to the timer's call (ADR 0007), and
 // applies its result to the execution. A task no longer in flight, because
 // it timed out or its execution ended or is gone, is not invoked.
 func (s *Service) onInvoke(c *kernel.Call, key clock.TimerKey, _ clock.Instant) {
@@ -152,7 +152,7 @@ func (s *Service) onInvoke(c *kernel.Call, key clock.TimerKey, _ clock.Instant) 
 }
 
 // invokeTask invokes inv's function synchronously as the execution role
-// (spec "Runtime decisions") and returns the engine event for its result,
+// and returns the engine event for its result,
 // given the instant the result is applied at. A Lambda service error is
 // named by switch sfn.integration.lambda-error; a function error by the
 // payload's errorType with the payload as cause (stepfunctions-asl.md 8.1).

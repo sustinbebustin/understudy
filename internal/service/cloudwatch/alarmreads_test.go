@@ -26,7 +26,7 @@ func (h *harness) setState(name string, v cloudwatchapi.StateValue) {
 // DescribeAlarmHistory returns StateUpdate items of metric alarms, newest
 // first by default (cwa 8.1: the API reference and AWS's CLI example),
 // filtered by alarm name, type, item type and date, and nothing for item
-// types and contributors understudy never records (cwa 12.1, contract 3.5).
+// types and contributors understudy never records (cwa 12.1).
 func TestDescribeAlarmHistoryFilters(t *testing.T) {
 	run(t, func(h *harness) {
 		must(h, cloudwatchapi.OpPutMetricAlarm, quietAlarm("a"))
@@ -96,7 +96,7 @@ func TestDescribeAlarmHistoryPages(t *testing.T) {
 		if len(next.AlarmHistoryItems) != 1 || next.NextToken != nil {
 			h.Errorf("second page = %d items, NextToken %v; want 1 and none", len(next.AlarmHistoryItems), next.NextToken)
 		}
-		// Ties keep the newest written first (contract 3.5): the first
+		// Ties keep the newest written first: the first
 		// item written, an INSUFFICIENT_DATA -> ALARM, is last.
 		if got := *next.AlarmHistoryItems[0].HistorySummary; got != "Alarm updated from INSUFFICIENT_DATA to ALARM" {
 			h.Errorf("last item = %q", got)

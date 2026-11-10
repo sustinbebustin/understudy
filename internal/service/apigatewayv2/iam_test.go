@@ -148,8 +148,8 @@ func TestStep8AsksAboutTheDocumentedPairs(t *testing.T) {
 }
 
 // A denied control-plane call answers the service's denial identity
-// (AccessDeniedException 403, inferred: the unit's enforce matrix, case
-// APIGW2-15), read from the descriptor, and changes nothing.
+// (AccessDeniedException 403, inferred, case APIGW2-15), read from the
+// descriptor, and changes nothing.
 func TestDeniedControlPlaneCall(t *testing.T) {
 	g := newGate("CreateApi")
 	run(t, func(h *harness) {

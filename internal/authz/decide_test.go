@@ -203,7 +203,7 @@ func TestPolicyTypeStrings(t *testing.T) {
 // Every key a policy tested that understudy cannot supply reaches the
 // journal with the policy that tested it: the type, the managed policy's
 // ARN or the inline policy's name, "" for a resource policy, and the
-// statement (iam-enforcement-surfaces.md 12.2; the spec's settled row 2).
+// statement (iam-enforcement-surfaces.md 12.2).
 // The key decides as absent.
 func TestDecideGathersUnsuppliedKeys(t *testing.T) {
 	const q = "arn:aws:sqs:us-east-1:111122223333:q"

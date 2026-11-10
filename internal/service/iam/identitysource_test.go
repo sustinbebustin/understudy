@@ -166,7 +166,7 @@ func TestIdentityOfOtherPrincipals(t *testing.T) {
 		ghost := identity.User{Account: aws.DefaultAccount(), Path: "/", Name: "ghost", ID: "AIDAGHOSTEXAMPLE0001"}
 		_, err := svc.Identity(ghost)
 		if !isNoSuchPrincipal(err) || err.Error() != "authz: arn:aws:iam::000000000000:user/ghost does not exist, so it has no identity-based policy" {
-			h.Errorf("Identity of a missing user = %v, want the *NoSuchPrincipalError text of contract 3.3", err)
+			h.Errorf("Identity of a missing user = %v, want the *NoSuchPrincipalError text", err)
 		}
 	})
 }

@@ -83,10 +83,9 @@ test_control_plane_refusals() {
 }
 
 # A MOCK method with a literal request template selects its status and a
-# literal response template is the body (apigateway-rest.md 6.3, spec 6b
-# VTL decision); an unknown path or method is 403 Missing Authentication
-# Token (finding 3); a deployment a stage points at cannot be deleted
-# (finding 12).
+# literal response template is the body (apigateway-rest.md 6.3); an
+# unknown path or method is 403 Missing Authentication Token (finding 3); a
+# deployment a stage points at cannot be deleted (finding 12).
 test_mock_method_and_deployments() {
   new_rest_api
   aws_ok apigateway create-resource --rest-api-id "$API_ID" --parent-id "$ROOT_ID" --path-part items
@@ -137,7 +136,7 @@ test_tags_take_the_escaped_arn() {
   assert_jq '.tags | to_entries | map("\(.key)=\(.value)") | join(",")' 'env=dev'
 }
 
-# A valid request understudy does not emulate (the unit's conflict row 4).
+# A valid request understudy does not emulate.
 test_import_rest_api_is_not_implemented() {
   local spec="$UE_TMP/apigw1-openapi.json"
   printf '%s' '{"openapi":"3.0.1","info":{"title":"t","version":"1"},"paths":{}}' >"$spec"

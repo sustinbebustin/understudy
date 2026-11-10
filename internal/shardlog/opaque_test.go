@@ -21,7 +21,7 @@ const kinesisIteratorTTL = 5 * time.Minute
 
 // opaquePrefix is the 8-byte prefix every Kinesis iterator decodes to
 // (kinesis.md 3.5: aws-doc examples begin AAAAAAAAAA, kinesalite observed
-// 00 00 00 00 00 00 00 01; contract 2).
+// 00 00 00 00 00 00 00 01).
 var opaquePrefix = []byte{0, 0, 0, 0, 0, 0, 0, 1}
 
 // kinesisIteratorGen draws an iterator as Kinesis's GetShardIterator issues
@@ -50,7 +50,7 @@ func kinesisIteratorGen() *rapid.Generator[shardlog.Iterator] {
 // Decode(Encode(it)) is it; the token is padded standard base64 of the
 // 8-byte prefix, so it starts "AAAAAAAAAAE", has no "|1|", and is at most
 // 512 characters (model ShardIterator length, kinesis.md 3.5) for names up
-// to 128 characters and 56-digit numbers (contract 2 properties).
+// to 128 characters and 56-digit numbers.
 func TestOpaqueRoundTrip(t *testing.T) {
 	t.Parallel()
 	c := shardlog.NewCodec(testKey, shardlog.Opaque{})
@@ -81,8 +81,8 @@ func TestOpaqueRoundTrip(t *testing.T) {
 }
 
 // A token decodes 1ns before its 5 minutes end and has expired at them, or
-// when issued after now (contract 2: *ExpiredError when now >= Issued+ttl
-// or now < Issued).
+// when issued after now (*ExpiredError when now >= Issued+ttl or
+// now < Issued).
 func TestOpaqueExpiresAtTTL(t *testing.T) {
 	t.Parallel()
 	c := shardlog.NewCodec(testKey, shardlog.Opaque{})
@@ -106,7 +106,7 @@ func isExpired(err error) bool {
 }
 
 // A flipped byte anywhere in the token, another key's signature, other
-// prefix bytes or text that is not base64 is *MalformedError (contract 2);
+// prefix bytes or text that is not base64 is *MalformedError;
 // ClaimedOpaqueStream refuses what is not base64 of an Opaque payload.
 func TestOpaqueRefusesTampering(t *testing.T) {
 	t.Parallel()

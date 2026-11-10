@@ -61,7 +61,7 @@ done
 // A lambda:invoke Task against a real function on Docker succeeds with the
 // function's output, and its SdkHttpMetadata has exactly golden 21's header
 // key sets, so the stub-backed goldens cannot hide a different shape on the
-// real invoke path (spec T11; localstack@8b9a79f
+// real invoke path (localstack@8b9a79f
 // v2/services/test_lambda_task_service.snapshot.json:L67-L114).
 func TestDockerLambdaInvokeTaskHeaderKeys(t *testing.T) {
 	s := newTaskDockerStack(t)

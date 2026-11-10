@@ -68,7 +68,7 @@ func retrier(t *rapid.T, jitter asl.Jitter) asl.Retrier {
 	}
 }
 
-// Spec T12: delay sequences against the 8.3 formula. Without jitter the
+// Delay sequences against the 8.3 formula. Without jitter the
 // delay is the formula's value floored to whole seconds (ASL-10, recorded
 // 2026-11-03); the comparison allows half a millisecond for float error at
 // a whole second.
@@ -84,7 +84,7 @@ func TestRetryDelayFormula(t *testing.T) {
 	})
 }
 
-// Spec T12: with FULL jitter every delay lies in [0, formula].
+// With FULL jitter every delay lies in [0, formula].
 func TestRetryDelayFullJitterProperty(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		r := retrier(t, asl.JitterFull)

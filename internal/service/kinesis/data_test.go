@@ -64,8 +64,7 @@ func TestPutRecordPlacement(t *testing.T) {
 	}
 }
 
-// PutRecord's checks in the contract's order (contract 3.5; kinesis.md
-// 13.3): DryRun answers 501 (13.9); an ExplicitHashKey above 2^128-1 is
+// PutRecord's checks in order (kinesis.md 13.3): DryRun answers 501 (13.9); an ExplicitHashKey above 2^128-1 is
 // kinesalite's text (k, KIN-07); a missing PartitionKey is understudy's
 // (u, KIN-07); data plus UTF-8 key above MaxRecordSizeInKiB*1024 is
 // refused (u, KIN-14) and exactly at it accepted. Empty data is legal
@@ -86,15 +85,15 @@ func TestPutRecordChecks(t *testing.T) {
 		invalidArg(h, "no PartitionKey", fail(h, kinesisapi.OpPutRecord, put(kinesisapi.PutRecordInput{Data: []byte("x")})),
 			"PartitionKey is required for a stream whose RecordDistributionStrategy is USER_PARTITION_KEY.")
 		const maxBytes = 1024 * 1024 // MaxRecordSizeInKiB default 1024 (aws-doc, kinesis.md 4.1)
-		key := "é"                   // two UTF-8 bytes: the key counts in UTF-8 (contract 3.5)
+		key := "é"                   // two UTF-8 bytes: the key counts in UTF-8
 		call(h, kinesisapi.OpPutRecord, put(kinesisapi.PutRecordInput{PartitionKey: new(key), Data: make([]byte, maxBytes-2)}))
 		invalidArg(h, "a byte over", fail(h, kinesisapi.OpPutRecord, put(kinesisapi.PutRecordInput{PartitionKey: new(key), Data: make([]byte, maxBytes-1)})),
 			fmt.Sprintf("Record size %d bytes (data plus partition key) exceeds the stream's maximum record size of %d bytes.", maxBytes+1, maxBytes))
 		call(h, kinesisapi.OpPutRecord, put(kinesisapi.PutRecordInput{PartitionKey: new("k"), Data: []byte{}}))
 		wantErr(h, "absent stream", fail(h, kinesisapi.OpPutRecord, &kinesisapi.PutRecordInput{StreamName: new("nope"), PartitionKey: new("k"), Data: []byte("x")}),
 			"ResourceNotFoundException", 400, notFound("nope", account))
-		// The stream's own maximum applies (contract 3.5: enforced by the
-		// record-size check).
+		// The stream's own maximum applies (enforced by the record-size
+		// check).
 		call(h, kinesisapi.OpCreateStream, &kinesisapi.CreateStreamInput{StreamName: "big", ShardCount: new(int32(1)), MaxRecordSizeInKiB: new(int32(2048))})
 		call(h, kinesisapi.OpPutRecord, &kinesisapi.PutRecordInput{StreamName: new("big"), PartitionKey: new("k"), Data: make([]byte, 2*maxBytes-1)})
 	})
@@ -103,7 +102,7 @@ func TestPutRecordChecks(t *testing.T) {
 // PutRecords answers each entry in request order with FailedRecordCount 0
 // (aws-doc example, kinesis.md 5.2), appends in request order, fails the
 // whole call on the first bad entry with "Record <i>: " and appends
-// nothing (contract 3.5), and refuses a request over 10 MiB of data plus
+// nothing, and refuses a request over 10 MiB of data plus
 // keys (aws-doc 5.2; the text is understudy's, KIN-14) before the entries.
 func TestPutRecords(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
@@ -165,7 +164,7 @@ func TestPutRecords(t *testing.T) {
 // An iterator is Kinesis's opaque form: padded standard base64 starting
 // AAAAAAAAAAE (the 8-byte prefix 00..01; aws-doc examples begin
 // "AAAAAAAAAAE", kinesis.md 3.5), at most 512 characters (model
-// ShardIterator length), with no "|1|" (contract 2).
+// ShardIterator length), with no "|1|".
 func TestShardIteratorForm(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		name := strings.Repeat("n", 128) // the longest StreamName (model, kinesis.md 3.1)
@@ -186,7 +185,7 @@ func TestShardIteratorForm(t *testing.T) {
 	})
 }
 
-// GetShardIterator's refusals in contract order (contract 3.5; texts
+// GetShardIterator's refusals in order (texts
 // kinesalite's (k) or understudy's (u), UNVERIFIED, KIN-05, KIN-12; the
 // GetShardIterator note).
 func TestGetShardIteratorRefusals(t *testing.T) {
@@ -322,7 +321,7 @@ func TestGetRecordsReadsInOrder(t *testing.T) {
 // AT and AFTER a sequence number, LATEST "just after the most recent
 // record" resolved at issue, AT_TIMESTAMP at the first record at or after
 // it, and TRIM_HORIZON at the oldest untrimmed record, resolved at each
-// read (contract 3.5).
+// read.
 func TestIteratorTypesPosition(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 1)
@@ -371,7 +370,7 @@ func TestIteratorTypesPosition(t *testing.T) {
 	})
 }
 
-// GetRecords' refusals in contract order (contract 3.5): DryRun 501; a
+// GetRecords' refusals in order: DryRun 501; a
 // Limit above 10000 is InvalidArgumentException ("If you specify a value
 // that is greater than 10,000, GetRecords throws InvalidArgumentException",
 // aws-doc 5.5; text u, KIN-07); an iterator that does not verify is
@@ -480,7 +479,7 @@ func TestMillisBehindLatestFollowsTheSwitch(t *testing.T) {
 // A record arriving at t is readable until t+retention and gone at it
 // ("a record is gone when arrival plus retention is not after now", the
 // aws-doc kinesis.retention.trim of 13.2); a trimmed number is refused by
-// GetShardIterator AT (contract 3.5, u text, KIN-12) while a TRIM_HORIZON
+// GetShardIterator AT (u text, KIN-12) while a TRIM_HORIZON
 // read starts at the oldest untrimmed record; Increase does not bring back
 // expired data and Decrease trims at once (aws-doc 4.7).
 func TestRetentionTrimsAtExpiry(t *testing.T) {
@@ -518,7 +517,7 @@ func TestRetentionTrimsAtExpiry(t *testing.T) {
 	})
 }
 
-// ---- rapid properties over the service (spec B3) ----.
+// ---- rapid properties over the service ----.
 
 type putOp struct {
 	key  string
@@ -537,7 +536,7 @@ func putOpsGen() *rapid.Generator[[]putOp] {
 }
 
 // Every put lands in the shard whose range holds its key's hash, and
-// sequence numbers strictly increase per shard (spec B3; kinesis.md 3.4
+// sequence numbers strictly increase per shard (kinesis.md 3.4
 // "Sequence numbers increase over time and are specific to a shard",
 // aws-doc), under any switch setting.
 func TestPutRecordPlacementAndOrderProperty(t *testing.T) {
@@ -574,7 +573,7 @@ func TestPutRecordPlacementAndOrderProperty(t *testing.T) {
 }
 
 // GetRecords pages of any Limit concatenate to the shard's log: the
-// records put to it, in put order, nothing repeated or skipped (spec B3).
+// records put to it, in put order, nothing repeated or skipped.
 func TestGetRecordsPagesConcatenateProperty(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		ops := putOpsGen().Draw(rt, "puts")
@@ -613,7 +612,7 @@ func TestGetRecordsPagesConcatenateProperty(t *testing.T) {
 
 // Nothing older than the retention period is returned, wherever the clock
 // stops: a read at now returns exactly the records whose arrival plus
-// retention is after now (spec B3; kinesis.md 13.2 kinesis.retention.trim
+// retention is after now (kinesis.md 13.2 kinesis.retention.trim
 // aws-doc, 5.7).
 func TestNothingOlderThanRetentionProperty(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
@@ -657,11 +656,11 @@ func TestNothingOlderThanRetentionProperty(t *testing.T) {
 	})
 }
 
-// ---- Snapshot and reset (contract 3.9, B4) ----.
+// ---- Snapshot and reset ----.
 
 // Export then Reset drops the streams; Import restores them with their
 // records, tags and settings, and an iterator issued before the save still
-// reads until it expires (contract 3.9; kinesis.md 13.5 items 3 and 7).
+// reads until it expires (kinesis.md 13.5 items 3 and 7).
 // Import refuses another version.
 func TestSnapshotRoundTrip(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {

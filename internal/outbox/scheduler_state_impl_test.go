@@ -13,7 +13,7 @@ import (
 )
 
 // schedulerEntry is a pending Scheduler delivery to a FIFO queue, as the
-// fire write hands it over (contract section 4).
+// fire write hands it over.
 func schedulerEntry() Entry {
 	at := clock.FromWire(time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC))
 	schedule := aws.ARN{Partition: "aws", Service: "scheduler", Region: "us-east-1", Account: "000000000000", Resource: "schedule/default/tick"}

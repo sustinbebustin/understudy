@@ -51,19 +51,20 @@ type RestAPI struct {
 	// (apigateway-rest.md finding 5); a deployment snapshots them.
 	BinaryMediaTypes []string `json:"binaryMediaTypes,omitzero"`
 	// Endpoint, DisableExecuteAPIEndpoint and Policy are read live at
-	// invoke (contract 7.1): a PRIVATE endpoint and a disabled default
-	// endpoint answer 501, and a policy, which understudy does not
-	// evaluate, follows the enforce matrix's resource-policy row (spec 6b).
+	// invoke: a PRIVATE endpoint and a disabled default endpoint answer
+	// 501, and a policy, which understudy does not evaluate, is ignored
+	// under iam.enforce off, adds an advisory under advise and answers 501
+	// under enforce (apigateway-rest.md 12.2).
 	Endpoint                  Endpoint `json:"endpoint"`
 	DisableExecuteAPIEndpoint bool     `json:"disableExecuteApiEndpoint,omitzero"`
 	// Policy is the resource policy as AWS stores it: execute-api:/
 	// resources rewritten to the API's ARN (policyStored).
 	Policy *string `json:"policy,omitzero"`
 	// APIKeySource, MinimumCompressionSize, SecurityPolicy and
-	// EndpointAccessMode are stored without effect (spec 6b coverage
-	// note): API keys cannot be created, so an apiKeyRequired method
-	// answers 403 whatever the source; understudy never compresses; it
-	// serves no TLS of its own per API.
+	// EndpointAccessMode are stored without effect: API keys cannot be
+	// created, so an apiKeyRequired method answers 403 whatever the
+	// source; understudy never compresses; it serves no TLS of its own
+	// per API.
 	APIKeySource           apigatewayapi.ApiKeySourceType    `json:"apiKeySource"`
 	MinimumCompressionSize *int32                            `json:"minimumCompressionSize,omitzero"`
 	SecurityPolicy         *apigatewayapi.SecurityPolicy     `json:"securityPolicy,omitzero"`
@@ -183,7 +184,7 @@ type Integration struct {
 	ConnectionType *apigatewayapi.ConnectionType `json:"connectionType,omitzero"`
 	// Credentials, a stage variable in URI, ResponseTransferMode STREAM
 	// and ContentHandling are stored and returned; an invocation that
-	// reaches them answers 501 (spec 6b scope list).
+	// reaches them answers 501.
 	Credentials          *string                                `json:"credentials,omitzero"`
 	RequestParameters    map[string]string                      `json:"requestParameters,omitzero"`
 	RequestTemplates     map[string]string                      `json:"requestTemplates,omitzero"`
@@ -246,8 +247,7 @@ type Deployment struct {
 	Created     clock.Instant `json:"created"`
 	Resources   []Resource    `json:"resources"`
 	// BinaryMediaTypes are the API's at the deployment's creation; while
-	// any is set, an invocation of a stage serving it answers 501 (spec
-	// 6b scope list).
+	// any is set, an invocation of a stage serving it answers 501.
 	BinaryMediaTypes []string `json:"binaryMediaTypes,omitzero"`
 }
 

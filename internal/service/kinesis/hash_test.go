@@ -54,9 +54,9 @@ func TestHashKeyRoundTrip(t *testing.T) {
 	})
 }
 
-// Text that is not a decimal key of the space is a *HashKeyError (contract
-// 3.1): above 2^128-1 (the model's 39 digits allow it, kinesis.md 5.3), a
-// leading zero, a sign, empty.
+// Text that is not a decimal key of the space is a *HashKeyError: above
+// 2^128-1 (the model's 39 digits allow it, kinesis.md 5.3), a leading zero,
+// a sign, empty.
 func TestParseHashKeyRefuses(t *testing.T) {
 	t.Parallel()
 	for _, s := range []string{"340282366920938463463374607431768211456", "01", "-1", "+1", "", "1.0", "abc", "1 "} {
@@ -74,7 +74,7 @@ func TestParseHashKeyRefuses(t *testing.T) {
 }
 
 // startOf is start(i) of the kinesis.hash.even-split value s, exactly as
-// the switch value names its formula (contract 3.1).
+// the switch value names its formula.
 func startOf(i, n int, s kinesis.EvenSplit) *big.Int {
 	switch s {
 	case kinesis.SplitIFloor: // "i*floor(2^128/N)"
@@ -89,7 +89,7 @@ func startOf(i, n int, s kinesis.EvenSplit) *big.Int {
 
 // The shards' hash ranges partition [0, 2^128-1] in index order, each
 // starting where the switch's formula puts it, and every key lands in the
-// one range that holds it (spec B3 rapid property; kinesis.md 3.3).
+// one range that holds it (kinesis.md 3.3).
 func TestSplitPartitionsTheKeySpace(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
@@ -232,8 +232,7 @@ func TestPartitionHashDocumentedPlacement(t *testing.T) {
 	}
 }
 
-// Each switch type prints its value's name, else "<Type>(<n>)" (contract
-// 3.1).
+// Each switch type prints its value's name, else "<Type>(<n>)".
 func TestOptionStrings(t *testing.T) {
 	t.Parallel()
 	for got, want := range map[string]string{

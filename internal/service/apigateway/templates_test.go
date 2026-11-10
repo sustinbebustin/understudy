@@ -35,9 +35,9 @@ func TestIsLiteralTemplateVectors(t *testing.T) {
 }
 
 // The boundary as a property: any string without '$', '#' and '\' is
-// literal, and any string containing one of them is not (spec 6b, VTL
-// decision: "a literal template renders unchanged, and a template with one
-// of the three characters is refused").
+// literal, and any string containing one of them is not: a literal
+// template renders unchanged, and a template with one of the three
+// characters is refused (apigateway-rest.md 12.7).
 func TestIsLiteralTemplateProperty(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		s := rapid.String().Draw(t, "template")
@@ -74,8 +74,8 @@ func TestMockStatus(t *testing.T) {
 			t.Errorf("MockStatus(%q) = %d, %v; want %d", in, got, ok, want)
 		}
 	}
-	// A template without a statusCode selects nothing (contract 7.5; the
-	// out-of-range rule there is inferred and not asserted).
+	// A template without a statusCode selects nothing (that a statusCode
+	// outside 100..599 selects nothing either is inferred and not asserted).
 	for _, in := range []string{"", "{}", `{"code": 200}`} {
 		if got, ok := apigateway.MockStatus(in); ok {
 			t.Errorf("MockStatus(%q) = %d, true; want no status", in, got)

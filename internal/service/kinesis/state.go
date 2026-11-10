@@ -22,9 +22,9 @@ import (
 type State struct {
 	// Streams are by name.
 	Streams map[string]Stream `json:"streams"`
-	// TokenKey signs the scope's ListShards tokens and shard iterators
-	// (contract 0): drawn from the seeded id streams by the first
-	// CreateStream of the scope, kept in the snapshot.
+	// TokenKey signs the scope's ListShards tokens and shard iterators:
+	// drawn from the seeded id streams by the first CreateStream of the
+	// scope, kept in the snapshot.
 	TokenKey []byte `json:"tokenKey,omitempty"`
 }
 
@@ -64,7 +64,7 @@ var _ store.BlobHolder = (*State)(nil)
 var _ store.Zeroer = (*State)(nil)
 
 // Stream is one data stream. Status transitions are final, so a stored
-// stream is ACTIVE (contract 0).
+// stream is ACTIVE.
 type Stream struct {
 	Name string `json:"name"`
 	// Created is the emulator instant of the CreateStream call; it opens
@@ -108,7 +108,7 @@ type Shard struct {
 	log *shardlog.Shard[Record]
 }
 
-// Record is one record of a shard log (contract 3.2). Its sequence number
+// Record is one record of a shard log. Its sequence number
 // and arrival instant are the log entry's.
 type Record struct {
 	PartitionKey string `json:"key"`
@@ -121,7 +121,7 @@ type Record struct {
 }
 
 // bytes is what a record counts against GetRecords' 10 MiB page and the
-// record size limit: its data plus its UTF-8 partition key (contract 3.5).
+// record size limit: its data plus its UTF-8 partition key.
 func (r Record) bytes() int { return r.Size + len(r.PartitionKey) }
 
 // newShard is shard i of a stream created at opened, numbered by layout.

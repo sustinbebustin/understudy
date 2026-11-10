@@ -416,9 +416,8 @@ func (s *Service) getParametersByPath(ctx context.Context, c *kernel.Call, in *s
 // parameter the filters keep (ssm-parameters.md 7.5), in byte order of
 // canonical names (switch ssm.list.order). Shared lists nothing, since no
 // parameter can be shared. Filters with ParameterFilters is refused
-// (SSM-21 step 04); the deprecated Filters alone answers 501 (spec
-// "Scope"), AWS's prefix match of its Name (SSM-21 step 03) not being
-// served.
+// (SSM-21 step 04); the deprecated Filters alone answers 501, AWS's prefix
+// match of its Name (SSM-21 step 03) not being served.
 func (s *Service) describeParameters(_ context.Context, c *kernel.Call, in *ssmapi.DescribeParametersInput) (*ssmapi.DescribeParametersOutput, *awserr.Error) {
 	const op = "DescribeParameters"
 	for _, f := range in.ParameterFilters {

@@ -15,8 +15,7 @@ func IsLiteralTemplate(t string) bool {
 }
 
 // mockStatusPattern finds the statusCode a MOCK request template renders,
-// accepting a quoted or unquoted key and a quoted or bare number
-// (contract 7.5).
+// accepting a quoted or unquoted key and a quoted or bare number.
 var mockStatusPattern = regexp.MustCompile(`"?statusCode"?\s*:\s*"?(\d+)`)
 
 // MockStatus reads the status a rendered MOCK request template selects,

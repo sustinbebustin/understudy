@@ -68,7 +68,7 @@ func TestSeqCompareDocumentedExamples(t *testing.T) {
 // ParseSeq accepts 1 to 129 decimal digits without a leading zero, or "0"
 // (kinesis.md 3.4 sets the 129-digit bound; dynamodb-streams.md 3.4 the
 // digits-only rule), and refuses everything else with a *SeqError whose text
-// is understudy's (contract: it names the text and the rule).
+// is understudy's (it names the text and the rule).
 func TestParseSeq(t *testing.T) {
 	t.Parallel()
 	valid := []string{"0", "1", "100000000000000000000", "1" + strings.Repeat("0", 128)}
@@ -137,8 +137,8 @@ func TestDecimalCounterSwitchValues(t *testing.T) {
 }
 
 // Under both counter settings the numbers a shard mints strictly increase
-// numerically, by one, and grow past Digits rather than wrapping (spec A3;
-// dynamodb-streams.md 11.9).
+// numerically, by one, and grow past Digits rather than wrapping
+// (dynamodb-streams.md 11.9).
 func TestDecimalCounterIncreases(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {

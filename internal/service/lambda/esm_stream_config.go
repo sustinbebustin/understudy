@@ -18,13 +18,13 @@ import (
 )
 
 // The control plane of a DynamoDB or Kinesis stream mapping
-// (lambda-stream-sources.md 3, 12.4; contract 8.2; 08b contract 6.1).
+// (lambda-stream-sources.md 3, 12.4).
 // What the stream poller does not build answers 501 rather than being
 // stored without effect: ParallelizationFactor above 1,
 // BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a
 // FilterCriteria pattern and an S3 on-failure destination. The SQS rule
 // that a BatchSize above 10 needs a batching window does not apply to a
-// stream (contract 8.2 step 4; aws-recorded for DynamoDB,
+// stream (aws-recorded for DynamoDB,
 // lambda-stream-sources.md 3.3: ESMS-02 03).
 
 // defaultStreamBatchSize is a stream mapping's BatchSize when Create sets
@@ -107,7 +107,7 @@ func withStream(kind esm.EventSourceKind, start esm.StreamStart, settings esm.St
 
 // errRecordAge refuses a MaximumRecordAgeInSeconds of 0 to 59, which the
 // model's range admits and the member documentation forbids (inferred
-// text, ESMS-01; contract 0).
+// text, ESMS-01).
 func errRecordAge() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("MaximumRecordAgeInSeconds must be -1 or between 60 and 604800."))
 }
@@ -144,8 +144,9 @@ func updateStreamSettings(in *lambdaapi.UpdateEventSourceMappingInput) streamSet
 	}
 }
 
-// apply sets what u carries on m and its stream settings, checking in the
-// contract's order (8.2 steps 2-4): destinations, filters, then the
+// apply sets what u carries on m and its stream settings, checking in
+// this order, which decides the refusal a caller sees: destinations,
+// filters, then the
 // settings understudy does not build and the record-age rule. noun names
 // the stream kind in a 501 (streamNoun).
 func (u streamSettings) apply(m *Mapping, settings *esm.StreamSettings, noun string) *awserr.Error {
@@ -329,7 +330,7 @@ func (s *Service) streamSource(c *kernel.Call, kind esm.EventSourceKind, stream 
 
 // checkStream describes the stream of kind as the function's execution
 // role, through DescribeStream for a DynamoDB stream and
-// DescribeStreamSummary for a Kinesis stream (08b contract 6.1), and
+// DescribeStreamSummary for a Kinesis stream, and
 // refuses one that does not exist with row 4 of 3.3; it returns the source
 // it described, for a caller that reads on.
 func (s *Service) checkStream(ctx context.Context, c *kernel.Call, kind esm.EventSourceKind, stream aws.ARN, target mappingTarget) (esm.StreamSource, *awserr.Error) {
@@ -349,11 +350,11 @@ func (s *Service) checkStream(ctx context.Context, c *kernel.Call, kind esm.Even
 // Lambda's model: a stream that is gone is row 4 of 3.3; a read
 // iam.enforce refused the execution role is switch
 // lambda.esm.create-denied-text's sentence naming the refused operation on
-// DynamoDB or Kinesis (spec enforce matrix row 2); an emulator bug or an
+// DynamoDB or Kinesis (iam-enforcement-surfaces.md 8.6); an emulator bug or an
 // aborted request stays as it is; any other answer of op is wrapped with
 // its code and message, as the Lambda client must never see a Streams or
 // Kinesis error shape (the Kinesis form mirrors the DynamoDB one,
-// understudy's, 08b contract 6.1).
+// understudy's).
 func fromStreamRead(op string, stream aws.ARN, err error) *awserr.Error {
 	if err == nil {
 		return nil
@@ -382,7 +383,7 @@ func fromStreamRead(op string, stream aws.ARN, err error) *awserr.Error {
 // anchorLatest resolves LATEST for every shard of src: the position just
 // after the shard's newest record, so the records written after it are
 // read and none before (lambda.esm-stream.latest-anchor, inferred,
-// ESMS-17; contract 8.2).
+// ESMS-17).
 func anchorLatest(ctx context.Context, src esm.StreamSource) ([]esm.Checkpoint, error) {
 	shards, err := src.Shards(ctx)
 	if err != nil {
@@ -428,8 +429,8 @@ func errStreamMappingExists(stream, function, uuid string) *awserr.Error {
 }
 
 // createStreamMapping creates a mapping on a DynamoDB or Kinesis stream,
-// kind telling which, checking in the order of the contract (8.2; 08b
-// contract 6.1): StartingPosition, the settings, the function, the stream
+// kind telling which, checking in this order, which decides the refusal a
+// caller sees: StartingPosition, the settings, the function, the stream
 // as the execution role, then a duplicate. LATEST is resolved before
 // Create answers under the create-instant anchor.
 func (s *Service) createStreamMapping(ctx context.Context, c *kernel.Call, in *lambdaapi.CreateEventSourceMappingInput, stream aws.ARN, kind esm.EventSourceKind) (*lambdaapi.EventSourceMappingConfiguration, *awserr.Error) {

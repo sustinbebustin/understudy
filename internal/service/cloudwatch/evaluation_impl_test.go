@@ -75,8 +75,8 @@ func historySections(h *harness) []store.Section {
 }
 
 // Items older than 30 days are removed from the store on the next history
-// write to the scope, not only hidden from DescribeAlarmHistory (contract
-// 3.5; cloudwatch-alarms.md 8.1).
+// write to the scope, not only hidden from DescribeAlarmHistory
+// (cloudwatch-alarms.md 8.1).
 func TestHistoryWritePrunesExpiredItems(t *testing.T) {
 	run(t, func(h *harness) {
 		must(h, cloudwatchapi.OpPutMetricAlarm, quietAlarm("old"))
@@ -101,7 +101,7 @@ func TestHistoryWritePrunesExpiredItems(t *testing.T) {
 }
 
 // A snapshot without history sections, such as one written before alarm
-// history existed, loads its alarms with empty history (contract 3.4).
+// history existed, loads its alarms with empty history.
 func TestSnapshotWithoutHistoryLoads(t *testing.T) {
 	run(t, func(h *harness) {
 		must(h, cloudwatchapi.OpPutMetricAlarm, quietAlarm("cpu"))
@@ -148,7 +148,7 @@ func TestSubMinuteAlarmEvaluatesEveryTenSeconds(t *testing.T) {
 }
 
 // A Reset drops the alarms; a timer still armed for one finds nothing and
-// arms no next evaluation (contract 3.4).
+// arms no next evaluation.
 func TestStaleTimerAfterResetDoesNothing(t *testing.T) {
 	run(t, func(h *harness) {
 		must(h, cloudwatchapi.OpPutMetricAlarm, evalAlarm("cpu"))

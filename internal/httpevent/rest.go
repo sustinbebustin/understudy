@@ -53,10 +53,10 @@ type requestContextREST struct {
 // 4.5). r.RawPath is the escaped path after the host, the stage segment
 // included. Header names are reported as r.Header holds them: net/http has
 // canonicalized them, where AWS keeps the client's spelling (a deviation
-// the unit's disputes record). headers keeps the last value of a repeated
-// header (inferred, APIGW1-16), queryStringParameters the last of a
-// repeated parameter (recorded). A request without a body gives body null,
-// or "" with f.BodylessEmpty, and isBase64Encoded f.BodylessBase64 (switch
+// InvokeRestApi's coverage note declares). headers keeps the last value of
+// a repeated header (inferred, APIGW1-16), queryStringParameters the last
+// of a repeated parameter (recorded). A request without a body gives body
+// null, or "" with f.BodylessEmpty, and isBase64Encoded f.BodylessBase64 (switch
 // apigateway.proxy.unrecorded, APIGW1-16); any other body is sent as text,
 // invalid UTF-8 replaced by U+FFFD (inferred, APIGW1-16), with
 // isBase64Encoded false, since a stage with binaryMediaTypes is refused

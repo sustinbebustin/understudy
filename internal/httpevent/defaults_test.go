@@ -132,8 +132,7 @@ func TestInferV2WithAppliesTheDefaultContentTypeToStructuredResponsesOnly(t *tes
 // The documented examples: a bare string and an object without statusCode
 // are 200 application/json responses whatever the default, the string's
 // body the string itself (apigateway-http.md 5.3, the guide's
-// interpretation table; conflict row 6 of lambda-events.md 7.4 settled for
-// the bare string).
+// interpretation table; lambda-events.md 7.4 for the bare string).
 func TestInferV2WithKeepsTheInferredContentType(t *testing.T) {
 	for _, p := range []string{`"Hello from Lambda!"`, `{ "message": "Hello from Lambda!" }`} {
 		got, err := httpevent.InferV2With([]byte(p), httpevent.V2Defaults{ContentType: "text/plain; charset=utf-8"})

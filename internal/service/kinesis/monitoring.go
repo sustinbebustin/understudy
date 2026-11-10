@@ -13,7 +13,7 @@ import (
 
 // bindMonitoring binds Enable and DisableEnhancedMonitoring: the metrics
 // are stored and reported by DescribeStream(Summary), and nothing is
-// published (contract 3.5).
+// published.
 func (s *Service) bindMonitoring(b kinesisapi.Binder) {
 	cov := registry.StoredOnly{Note: "shard-level metrics are stored and reported on the stream; no metrics are published to CloudWatch"}
 	b.EnableEnhancedMonitoring(s.enableMonitoring, cov)

@@ -18,7 +18,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-// The kernel side of 5b: an Authorizer that cannot decide, actions scoped
+// The kernel side of iam.enforce: an Authorizer that cannot decide, actions scoped
 // to the resources they apply to (iam-enforcement-surfaces.md 12.6),
 // authorization moved after a handler resolves its resource by name,
 // request condition keys a binding supplies, the aws:SourceAccount a
@@ -252,7 +252,7 @@ func TestAuthorizedAfterResolveAsksAtTheFirstWrite(t *testing.T) {
 // With no Write or Invoke, the kernel asks at the handler's successful
 // return, and a denial replaces the output. A handler error before any of
 // them is answered as the handler returned it, unauthorized: existence
-// first (contract section 0, iam.enforce.missing-resource).
+// first (switch iam.enforce.missing-resource).
 func TestAuthorizedAfterResolveAsksAtReturnAndAnswersExistenceFirst(t *testing.T) {
 	g := newGuard(guardDenial())
 	a := &fakeAuthorizer{decide: denyAll("denied")}

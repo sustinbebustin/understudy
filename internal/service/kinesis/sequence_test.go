@@ -16,7 +16,7 @@ import (
 // v2Layout writes fields in kinesis.sequence.layout v2-56-digit, the
 // switch's value: the decimal value of the 47 hex digits
 // 2 | created (9) | index&0xf (1) | counter (16) | 00 | record (9) | index (8) | 2
-// (contract 3.1; kinesis.md 3.4).
+// (kinesis.md 3.4).
 func v2Layout(f kinesis.V2Fields) string {
 	sec := func(s int64) int64 {
 		if s < 0 {
@@ -67,7 +67,7 @@ func TestDecodeV2DocumentedNumbers(t *testing.T) {
 // V2Sequencer follows the layout: Start is counter 0 at the shard's
 // creation second, each Next counts up from the previous number and stamps
 // the arrival second; every number has 56 digits and decodes back
-// (contract 3.1; kinesis.md 3.4, where such numbers always have 56 digits).
+// (kinesis.md 3.4, where such numbers always have 56 digits).
 func TestV2SequencerLayout(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
@@ -98,7 +98,7 @@ func TestV2SequencerLayout(t *testing.T) {
 
 // Sequence numbers strictly increase within a shard under both values of
 // kinesis.sequence.layout, whatever the arrival instants, even when the
-// clock does not move (spec B3 rapid property; kinesis.md 3.4 "Sequence
+// clock does not move (kinesis.md 3.4 "Sequence
 // numbers increase over time", aws-doc).
 func TestSequencersStrictlyIncreasePerShard(t *testing.T) {
 	t.Parallel()

@@ -11,7 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// streamRef is the stream a stream-scoped input names (contract 3.3).
+// streamRef is the stream a stream-scoped input names.
 type streamRef struct {
 	name string
 	// account names the stream in the not-found text: the ARN's when one

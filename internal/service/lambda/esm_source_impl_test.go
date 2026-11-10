@@ -92,7 +92,7 @@ func TestMappingUnknownSourceKindIsRefused(t *testing.T) {
 
 // CreateEventSourceMapping takes the kind from the source ARN: an SQS queue,
 // a DynamoDB stream or a Kinesis stream; a source of another service is
-// refused 501 naming the three (contract 8.2; 08b contract 6.1).
+// refused 501 naming the three.
 func TestEventSourceTakesTheKindFromTheARN(t *testing.T) {
 	queue := kindQueue
 	a, kind, err := eventSource(&queue)
@@ -117,8 +117,7 @@ func TestEventSourceTakesTheKindFromTheARN(t *testing.T) {
 		t.Errorf("eventSource(%s) kind = %#v, want esm.KinesisStream", stream, kind)
 	}
 
-	// Anything else answers NotImplemented naming the three kinds (08b
-	// contract 6.1).
+	// Anything else answers NotImplemented naming the three kinds.
 	cluster := "arn:aws:kafka:us-east-1:000000000000:cluster/orders/0123abcd-0123-4567-89ab-0123456789ab-1"
 	_, kind, err = eventSource(&cluster)
 	want := "understudy implements event source mappings for Amazon SQS queues, DynamoDB streams and Kinesis data streams only; " + cluster +

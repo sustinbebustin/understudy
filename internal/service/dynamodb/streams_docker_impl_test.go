@@ -111,7 +111,7 @@ func createTableBody(table, key, view string) string {
 	return body + "}"
 }
 
-// LocalStack goldens 1-5 (spec A4): the record sequences AWS returned for
+// LocalStack goldens 1-5: the record sequences AWS returned for
 // each test's writes, compared at the parsed level, item by item (byItem),
 // against understudy's stream fed by the pinned DynamoDB Local. Sources, each
 // localstack@8b9a79f tests/aws/services/dynamodb/test_dynamodb.snapshot.json

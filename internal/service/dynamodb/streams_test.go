@@ -36,7 +36,7 @@ func streamARNOf(c *caller, table, label string) string {
 	return "arn:aws:dynamodb:" + c.Region + ":" + c.Account + ":table/" + table + "/stream/" + label
 }
 
-// shardIDOf is the contract's deterministic shard id in AWS's form
+// shardIDOf is understudy's deterministic shard id in AWS's form
 // shardId-<20 digits>-<8 hex> (dynamodb-streams.md 4.2, aws-doc examples):
 // the label instant's Unix milliseconds and the CRC-32 of the stream ARN.
 func shardIDOf(arn string, label clock.Instant) string {
@@ -337,7 +337,7 @@ func TestStreamViewTypeIsValidatedBeforeLocal(t *testing.T) {
 // LastEvaluatedStreamArn set whenever the page is full, the last page too
 // (aws-recorded, DDBS-08: 03-list-limit-1.json, 04-list-page-2.json), and
 // ExclusiveStartStreamArn continues after it (dynamodb-streams.md 6.1;
-// order newest first, aws-recorded DDBS-08, ties by ARN, contract 5.4).
+// order newest first, aws-recorded DDBS-08, ties by ARN).
 func TestListStreams(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		a, _ := latest(h.createStreamTable("Alpha", "KEYS_ONLY"))
@@ -542,7 +542,7 @@ func TestWritesFeedTheStream(t *testing.T) {
 
 // The feed drains Local's stream from the saved position: TRIM_HORIZON
 // before the first record, then AFTER_SEQUENCE_NUMBER with Local's last
-// number, GetRecords with Limit 1000 (contract 5.3); a write that changes
+// number, GetRecords with Limit 1000; a write that changes
 // nothing appends nothing (dynamodb-streams.md 7.6, aws-doc and recorded).
 func TestFeedDrainsFromTheSavedPosition(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
@@ -608,7 +608,7 @@ func TestMultiTableWritesFeedEachStream(t *testing.T) {
 // A drain that fails leaves the write's answer as it was, appends nothing,
 // is journaled, and keeps the write's instant: the next write drains both
 // records, each stamped with its own write's instant
-// (dynamodb-streams.md 11.1 item 3; contract 5.3).
+// (dynamodb-streams.md 11.1 item 3).
 func TestFailedDrainRetriesAtTheNextWrite(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
@@ -639,7 +639,7 @@ func TestFailedDrainRetriesAtTheNextWrite(t *testing.T) {
 
 // A failed drain is retried on an emulator timer without another write
 // (dynamodb-streams.md 11.1 item 3: "retried at the next write or on a
-// short emulator-clock timer"; contract 5.3: after 1 s).
+// short emulator-clock timer"; understudy's fires after 1 s).
 func TestFailedDrainRetriesOnTheEmulatorClock(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
@@ -666,7 +666,7 @@ func TestDescribeStreamShortARN(t *testing.T) {
 	})
 }
 
-// GetShardIterator's checks, in the contract's order, with AWS's texts
+// GetShardIterator's checks, in order, with AWS's texts
 // (aws-recorded, dynamodb-streams.md 6.5: testdata/parity/dynamodb/DDBS-02/05-at-without-sequence.json,
 // 06-trim-with-sequence.json, 09-non-numeric-sequence.json;
 // testdata/parity/dynamodb/DDBS-01/02-iterator-missing-stream.json,
@@ -884,8 +884,8 @@ func TestSequenceNumberSwitch(t *testing.T) {
 }
 
 // The Streams service lists its two switches, each with Ref, Record, Ops
-// and NoScenario, and reports the value it was built with (spec Fidelity
-// switches; contract 9). iterator-reuse is aws-recorded (DDBS-04: allowed);
+// and NoScenario, and reports the value it was built with.
+// iterator-reuse is aws-recorded (DDBS-04: allowed);
 // DDBS-09 recorded a sequence-number form neither value has, so that
 // switch stays inferred (dynamodb-streams.md 4.3, 4.4).
 func TestStreamsSwitches(t *testing.T) {
@@ -1105,8 +1105,7 @@ func TestStreamARNsAreNotTaggable(t *testing.T) {
 // their numbers and event ids, the LatestStream members, and an iterator
 // issued before the save; the load's own writes to Local emit nothing,
 // and a write after the load continues the numbering (dynamodb-streams.md
-// 11.1 item 7; contract 5.7; spec acceptance "snapshot load keeps stream
-// labels, records and checkpoints").
+// 11.1 item 7).
 func TestSnapshotKeepsTheStream(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, label := latest(h.createStreamTable("Orders", "NEW_IMAGE"))

@@ -38,8 +38,8 @@ const (
 // sets: a method response header (apigateway-rest.md 3.5).
 const headerParamPrefix = "method.response.header."
 
-// runMock answers a request with its MOCK integration (contract 7.7 step
-// 11; apigateway-rest.md 6.2, 6.3, 6.7): the request template the
+// runMock answers a request with its MOCK integration
+// (apigateway-rest.md 6.2, 6.3, 6.7): the request template the
 // Content-Type selects (or the request body under passthrough) gives the
 // status, which selects an integration response; its static
 // responseParameters and literal response template make the response.
@@ -158,7 +158,7 @@ func mediaEssence(v string) string {
 // (apigateway-rest.md 6.7): the first patterned response whose
 // selectionPattern matches the status text, in the switch's order, else
 // the default (no or an empty pattern). With no status only the default
-// is selected (contract 7.7 step 11c, inferred). refused names a pattern
+// is selected (inferred). refused names a pattern
 // Go RE2 cannot compile; nil and "" is no response to select.
 func selectResponse(responses map[string]IntegrationResponse, status int, hasStatus bool, sw MockSelection) (selected *IntegrationResponse, refused string) {
 	all := slices.Collect(maps.Values(responses))

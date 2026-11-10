@@ -203,7 +203,7 @@ func (h *harness) history(in *cloudwatchapi.DescribeAlarmHistoryInput) []cloudwa
 	h.Helper()
 	out := must(h, cloudwatchapi.OpDescribeAlarmHistory, in)
 	if out.AlarmHistoryItems == nil {
-		h.Fatal("AlarmHistoryItems is nil, want a list (contract 3.5)")
+		h.Fatal("AlarmHistoryItems is nil, want a list")
 	}
 	return out.AlarmHistoryItems
 }
@@ -222,7 +222,7 @@ const jsonTime = "2006-01-02T15:04:05.000-0700" // printed in UTC as +0000 (cwa 
 
 func stamp(t time.Time) string { return t.UTC().Format(jsonTime) }
 
-// The spec's acceptance case: an alarm with an SNS action on data put now.
+// The end-to-end case: an alarm with an SNS action on data put now.
 // clock advance runs one evaluation per minute; the first sees the point
 // and goes to ALARM, publishing one notification; once the point has left
 // the evaluation range (cwa 3.4) the alarm goes to INSUFFICIENT_DATA under
@@ -336,7 +336,7 @@ func TestClockAdvanceEvaluatesAndNotifiesOnce(t *testing.T) {
 		d := deliveries[0].Request
 		topic, ok := d.Target.(delivery.SNSTopic)
 		if !ok || d.Mechanism != delivery.CloudWatchToSNS || d.Source.String() != arn || topic.ARN.String() != alertsTopic {
-			h.Fatalf("delivery = %+v, want CloudWatchToSNS from %s to %s (contract 3.3)", d, arn, alertsTopic)
+			h.Fatalf("delivery = %+v, want CloudWatchToSNS from %s to %s", d, arn, alertsTopic)
 		}
 		if d.Policy != (delivery.None{}) || d.DLQ != nil {
 			h.Errorf("delivery policy %v, DLQ %v; want no retry schedule and no DLQ (cwa 12.4)", d.Policy, d.DLQ)
@@ -393,7 +393,7 @@ func TestEvaluationThatRetainsWritesNothing(t *testing.T) {
 // action is an asynchronous invoke of the unqualified function with its
 // qualifier; a FIFO topic gets the group and deduplication ids of
 // cloudwatch.alarm.sns.fifo-group; an EC2 action is journaled as not run
-// and never claimed (cwa 7.2, 12.4, 12.7; contract 3.3).
+// and never claimed (cwa 7.2, 12.4, 12.7).
 func TestTransitionRunsItsActions(t *testing.T) {
 	runAlarms(t, func(h *harness, fx *effects) {
 		followsSwitch(h, "cloudwatch.alarm.sns.fifo-group", "sha256-hex-of-alarm-arn,uuid-dedup-id")
@@ -474,7 +474,7 @@ func TestDisabledActionsDoNotRun(t *testing.T) {
 
 // Alarm kinds understudy cannot evaluate are stored, journaled with an
 // Advisory naming why, and never evaluated: no timer, and the state
-// PutMetricAlarm gave them stays (cwa 12.1, 12.7; contract 3.2). An update
+// PutMetricAlarm gave them stays (cwa 12.1, 12.7). An update
 // that makes an alarm evaluable arms its timer; one that makes it not
 // evaluable disarms it.
 func TestNotEvaluableAlarmIsStoredAndNeverEvaluated(t *testing.T) {
@@ -593,8 +593,7 @@ func TestNextEvaluationRederivesASetState(t *testing.T) {
 }
 
 // A snapshot keeps alarms and their history, and Rearm after a load arms
-// each evaluable alarm's next evaluation, so evaluation resumes (spec
-// acceptance; contract 3.4).
+// each evaluable alarm's next evaluation, so evaluation resumes.
 func TestSnapshotLoadRearmsEvaluation(t *testing.T) {
 	runAlarms(t, func(h *harness, _ *effects) {
 		h.put("Load", cloudwatchapi.StandardUnitCount, 20)
@@ -662,8 +661,7 @@ func TestHistoryOutlivesTheAlarmForThirtyDays(t *testing.T) {
 // PutMetricAlarm and DeleteAlarms send the configuration change events,
 // and a transition the state change event, to the default bus of the
 // alarm's scope as the CloudWatch service principal, with source
-// aws.cloudwatch and the alarm ARN as the one resource (cwa 6.2, 12.4;
-// contract 3.6).
+// aws.cloudwatch and the alarm ARN as the one resource (cwa 6.2, 12.4).
 func TestAlarmEventsGoToTheDefaultBus(t *testing.T) {
 	runAlarms(t, func(h *harness, fx *effects) {
 		h.put("Load", cloudwatchapi.StandardUnitCount, 20)
@@ -721,7 +719,7 @@ func TestAlarmEventsGoToTheDefaultBus(t *testing.T) {
 }
 
 // Without EventBridge in the kernel, alarm events are skipped and the
-// client sees no error (contract 3.6).
+// client sees no error.
 func TestAlarmEventsSkippedWithoutEventBridge(t *testing.T) {
 	run(t, func(h *harness) {
 		if _, err := call(h, cloudwatchapi.OpPutMetricAlarm, evalAlarm("cpu")); err != nil {
@@ -764,7 +762,7 @@ func TestAlarmCoverage(t *testing.T) {
 
 // Service.Switches registers one switch per row of cwa 12.2 with its
 // default and label, referenced to the research note, plus
-// cloudwatch.alarm.actions.denied (contract 3.7, 3.8).
+// cloudwatch.alarm.actions.denied.
 func TestAlarmSwitches(t *testing.T) {
 	run(t, func(h *harness) {
 		want := map[string]struct {
@@ -817,7 +815,7 @@ func TestAlarmSwitches(t *testing.T) {
 }
 
 // The mechanisms of alarm deliveries name the CloudWatchAlarm via and their
-// target services (contract 2).
+// target services.
 func TestAlarmMechanisms(t *testing.T) {
 	for m, target := range map[delivery.Mechanism]string{delivery.CloudWatchToSNS: "sns", delivery.CloudWatchToLambda: "lambda"} {
 		if m.Via() != ref.CloudWatchAlarm || string(m.Target()) != target {

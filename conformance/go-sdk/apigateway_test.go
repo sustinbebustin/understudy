@@ -117,7 +117,7 @@ func TestAPIGatewayRestApis(t *testing.T) {
 // The recorded refusals of the control plane (apigateway-rest.md 2.4): an
 // empty description, a duplicate sibling, a child of a greedy resource, an
 // unknown integration type; ImportRestApi is a valid request understudy
-// does not emulate (the unit's conflict row 4).
+// does not emulate.
 func TestAPIGatewayRestRefusals(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -150,8 +150,8 @@ func TestAPIGatewayRestRefusals(t *testing.T) {
 }
 
 // A MOCK method with a literal request template selects its status and a
-// literal response template is the body (apigateway-rest.md 6.3, spec 6b
-// VTL decision), with MOCK's recorded defaults (2.3); an unknown path or
+// literal response template is the body (apigateway-rest.md 6.3),
+// with MOCK's recorded defaults (2.3); an unknown path or
 // method is 403 Missing Authentication Token (finding 3); a deployment a
 // stage points at cannot be deleted (finding 12); stages answer their
 // recorded defaults (2.3).

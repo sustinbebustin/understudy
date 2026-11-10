@@ -41,8 +41,7 @@ func runVerifiedWithBlobs(t *testing.T, fn func(h *harness, blobs *blob.Store)) 
 }
 
 // The raw bytes live in the blob store: the snapshot section names the
-// blob, a refused send stores none, and clearing the message releases it
-// (spec Scope: raw MIME in internal/blob, state holds the references).
+// blob, a refused send stores none, and clearing the message releases it.
 func TestRawMessageBlobLifecycle(t *testing.T) {
 	runVerifiedWithBlobs(t, func(h *harness, blobs *blob.Store) {
 		_, err := call(h, sesapi.OpSendRawEmail, rawEmail(mime("body\r\n", "From: stranger@unverified.test", "To: "+simulator)))
@@ -81,7 +80,7 @@ func TestRawMessageBlobLifecycle(t *testing.T) {
 }
 
 // Without Source, the From and Sender headers are senders; Return-Path is
-// one either way (ses.md 4.2, 6.1; contract 2).
+// one either way (ses.md 4.2, 6.1).
 func TestRawSenderHeadersAreChecked(t *testing.T) {
 	const stranger = "stranger@unverified.test"
 	runVerified(t, ses.Options{}, func(h *harness) {

@@ -30,7 +30,7 @@ while true; do
 done
 `
 
-// The REST tracer bullet against a real function (spec 6b): a REST API
+// The REST tracer bullet against a real function: a REST API
 // whose root resource has GET by a Lambda proxy integration, deployed to
 // stage s. Without a permission for apigateway.amazonaws.com the function
 // never runs and the client gets the 500 of switch

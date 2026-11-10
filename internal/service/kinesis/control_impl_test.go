@@ -36,7 +36,7 @@ func TestCreateStreamShardLimit(t *testing.T) {
 // CreateStream tags are listed by ListTagsForStream (kinesis.md 10.3: the
 // tags Terraform reads include CreateStream's) and checked as
 // AddTagsToStream checks them: more than 50 is refused with the tag text
-// (contract 3.5; understudy's text, UNVERIFIED, KIN-07) and nothing is
+// (understudy's text, UNVERIFIED, KIN-07) and nothing is
 // created.
 func TestCreateStreamTags(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
@@ -57,7 +57,7 @@ func TestCreateStreamTags(t *testing.T) {
 }
 
 // DescribeStream starts from the first shard when ExclusiveStartShardId is
-// not one of the stream's (contract 3.5).
+// not one of the stream's.
 func TestDescribeStreamUnknownStartShard(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 3)
@@ -69,8 +69,7 @@ func TestDescribeStreamUnknownStartShard(t *testing.T) {
 }
 
 // Writes addressed by an ARN of another account are not found, named by
-// the ARN's account, and change nothing (contract 3.3; kinesis.md finding
-// 5, KIN-05).
+// the ARN's account, and change nothing (kinesis.md finding 5, KIN-05).
 func TestForeignARNWritesAreNotFound(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 1)
@@ -88,8 +87,8 @@ func TestForeignARNWritesAreNotFound(t *testing.T) {
 }
 
 // An ARN the model's pattern admits but that names no stream is refused by
-// the hand checks (contract 3.3; understudy's texts, KIN-08, KIN-07); one
-// the pattern refuses gets the generated ValidationException (contract 0).
+// the hand checks (understudy's texts, KIN-08, KIN-07); one the pattern
+// refuses gets the generated ValidationException.
 func TestARNsThatNameNoStream(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 1)
@@ -105,7 +104,7 @@ func TestARNsThatNameNoStream(t *testing.T) {
 }
 
 // Export and Import carry the streams; Reset drops them, and a reset scope
-// lists no stream (kernel.Stateful; contract 3.9 for the stream fields).
+// lists no stream (kernel.Stateful).
 func TestStreamsSurviveExportAndReset(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		call(h, kinesisapi.OpCreateStream, &kinesisapi.CreateStreamInput{StreamName: "s", ShardCount: new(int32(3)), Tags: map[string]string{"a": "1"}})

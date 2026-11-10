@@ -95,7 +95,7 @@ func TestDeniedCall(t *testing.T) {
 // states:TagResource, never the whole generated action list; and it asks
 // for iam:PassRole on the role with iam:PassedToService
 // states.amazonaws.com (stepfunctions-api.md 5.1, 9.5; aws-doc
-// service-authorization list_stepfunctions; spec "Enforce matrix").
+// service-authorization list_stepfunctions).
 func TestCreateStateMachineAuthorization(t *testing.T) {
 	g := &gate{}
 	run(t, func(h *harness) {
@@ -133,7 +133,7 @@ func TestCreateStateMachineAuthorization(t *testing.T) {
 }
 
 // A denied iam:PassRole refuses the create with SFN's denial and creates
-// nothing (spec "Enforce matrix").
+// nothing.
 func TestPassRoleDenied(t *testing.T) {
 	g := &gate{deny: []string{"iam:PassRole"}}
 	run(t, func(h *harness) {
@@ -149,8 +149,8 @@ func TestPassRoleDenied(t *testing.T) {
 
 // A Lambda task whose role may not invoke the function fails with the
 // unmodeled Lambda name and an AccessDeniedException cause, and the
-// function never runs (spec "Enforce matrix" last row; switch
-// sfn.integration.lambda-error; recording case SFN-15).
+// function never runs (switch sfn.integration.lambda-error; recording case
+// SFN-15).
 func TestLambdaInvokeDenied(t *testing.T) {
 	g := &gate{deny: []string{"lambda:InvokeFunction"}}
 	run(t, func(h *harness) {
@@ -167,7 +167,7 @@ func TestLambdaInvokeDenied(t *testing.T) {
 
 // What /iam/policy builds on: a create without tags records the caller's
 // states:CreateStateMachine and iam:PassRole, and a Lambda task records
-// lambda:InvokeFunction for the execution role (spec "Enforce matrix").
+// lambda:InvokeFunction for the execution role.
 func TestAccessRecorded(t *testing.T) {
 	run(t, func(h *harness) {
 		h.Access.Reset()

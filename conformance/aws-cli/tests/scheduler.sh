@@ -291,7 +291,7 @@ test_state_machine_target() {
 }
 
 # A universal (aws-sdk) target answers 501 NotImplemented and nothing is
-# stored (CLAUDE.md invariant 3; spec "Scope").
+# stored (CLAUDE.md invariant 3).
 test_universal_target_is_not_implemented() {
   sch_setup
   local name target

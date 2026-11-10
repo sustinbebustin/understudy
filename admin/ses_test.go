@@ -17,8 +17,7 @@ const sesMessageJSON = `{"messageId":"0100000000000000-aaaaaaaa-bbbb-4ccc-8ddd-e
 	`"tags":[{"name":"campaign","value":"spring"}],"simulator":{"success@simulator.amazonses.com":"success"}}`
 
 // SESMessages sends GET /ses/messages with every filter, Limit and Cursor
-// as the contract 4.1 parameters, and decodes the page as the server sent
-// it (Gate B approved surface).
+// as query parameters, and decodes the page as the server sent it.
 func TestSESMessagesSendsTheFiltersAndDecodesThePage(t *testing.T) {
 	c, rec := fakeServer(t, http.StatusOK, `{"messages":[`+sesMessageJSON+`],"next":"c2","evicted":3}`)
 	since := time.Date(2026, 1, 1, 0, 0, 0, 5, time.UTC)
@@ -50,7 +49,7 @@ func TestSESMessagesSendsTheFiltersAndDecodesThePage(t *testing.T) {
 }
 
 // ClearSESMessages sends DELETE /ses/messages with the filters but never
-// limit or cursor, and returns the deleted count (contract 4.1).
+// limit or cursor, and returns the deleted count.
 func TestClearSESMessagesSendsDeleteWithoutPaging(t *testing.T) {
 	c, rec := fakeServer(t, http.StatusOK, `{"deleted":2}`)
 	res, err := c.ClearSESMessages(t.Context(), admin.SESMessageQuery{To: "a@example.com", Limit: 5, Cursor: "c"})
@@ -68,7 +67,7 @@ func TestClearSESMessagesSendsDeleteWithoutPaging(t *testing.T) {
 }
 
 // An ADR 0017 error envelope comes back as *admin.Error naming the field
-// (contract 4.1: a bad limit is invalid_request on field limit).
+// (a bad limit is invalid_request on field limit).
 func TestSESMessagesReturnsTheServerError(t *testing.T) {
 	c, _ := fakeServer(t, http.StatusBadRequest, `{"error":{"code":"invalid_request","message":"limit must be 1 to 1000","field":"limit"}}`)
 	_, err := c.SESMessages(t.Context(), admin.SESMessageQuery{Limit: 1001})

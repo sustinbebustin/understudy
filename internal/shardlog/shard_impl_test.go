@@ -14,8 +14,8 @@ import (
 
 // A shard's State survives the JSON a snapshot writes: restored from the
 // decoded state, the shard holds the same state, reads the same records and
-// numbers its next record where the original would (contract 2.1; DynamoDB's
-// snapshot section persists ShardState, contract 4).
+// numbers its next record where the original would (DynamoDB's snapshot
+// section persists ShardState).
 func TestShardStateJSONRoundTrip(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
@@ -74,7 +74,7 @@ func TestShardStateJSONRoundTrip(t *testing.T) {
 }
 
 // A trimmed read names the shard and the position by the iterator type a
-// caller asked for, not by Go syntax (contract 2, TrimmedError).
+// caller asked for, not by Go syntax.
 func TestTrimmedErrorText(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

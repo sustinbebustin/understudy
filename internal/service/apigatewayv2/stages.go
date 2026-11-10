@@ -81,10 +81,9 @@ func checkUpdateStage(in *apigatewayv2api.UpdateStageInput) *awserr.Error {
 
 // checkStageMembers checks the stage members create and update share:
 // ClientCertificateId is WebSocket-only (apigateway-http.md 3.4), a valid
-// member understudy does not emulate, so it answers NotImplemented (the
-// unit's conflict row 4); an access log format must include
-// $context.requestId and fit the 3 KB template quota (2.4, 3.9). The texts
-// are inferred (APIGW2-01).
+// member understudy does not emulate, so it answers NotImplemented; an
+// access log format must include $context.requestId and fit the 3 KB
+// template quota (2.4, 3.9). The texts are inferred (APIGW2-01).
 func checkStageMembers(op string, clientCertificate *string, accessLog *apigatewayv2api.AccessLogSettings) *awserr.Error {
 	if clientCertificate != nil {
 		return errNotImplemented(op, "clientCertificateId (WebSocket APIs only)", "Send the request without clientCertificateId.")

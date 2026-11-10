@@ -47,7 +47,7 @@ func (s *Service) bindData(b kinesisapi.Binder) {
 }
 
 // dryRun reports a DryRun: true, which slice 1 answers with 501 rather
-// than pretend to check permissions (kinesis.md 13.9; contract 3.7).
+// than pretend to check permissions (kinesis.md 13.9).
 func dryRun(p *bool) bool { return p != nil && *p }
 
 // putEntry is one record a PutRecord or PutRecords call sends.
@@ -103,7 +103,7 @@ func (s *Service) putRecords(ctx context.Context, c *kernel.Call, in *kinesisapi
 	return res, nil
 }
 
-// put checks the entries against the stream (contract 3.5: the stream,
+// put checks the entries against the stream (the stream,
 // then for PutRecords the request size, then each entry in order, the
 // first failing one refusing the whole call), stores their data and
 // appends them in request order at the write's instant, waking the
@@ -171,7 +171,7 @@ func (s *Service) put(ctx context.Context, c *kernel.Call, name, arn *string, en
 
 // plan checks a call's entries against str: for PutRecords the request
 // size first, then each entry in order, a refused one's text prefixed
-// "Record <i>: " (contract 3.5).
+// "Record <i>: ".
 func (s *Service) plan(str Stream, entries []putEntry, batch bool) ([]placed, *awserr.Error) {
 	if batch {
 		total := 0
@@ -215,7 +215,7 @@ func (s *Service) storeData(ctx context.Context, plan []placed) ([]blob.Ref, *aw
 	return refs, nil
 }
 
-// place checks one entry (contract 3.5: ExplicitHashKey in range, a
+// place checks one entry (ExplicitHashKey in range, a
 // partition key, data plus UTF-8 key within MaxRecordSizeInKiB) and returns
 // the index of its shard: the one whose range holds its ExplicitHashKey,
 // which "overrides the partition key to shard mapping", else MD5 of its
@@ -306,7 +306,7 @@ func (s *Service) getShardIterator(ctx context.Context, c *kernel.Call, in *kine
 	return &kinesisapi.GetShardIteratorOutput{ShardIterator: new(got.v)}, nil
 }
 
-// iteratorStart checks the type and its arguments (contract 3.5, KIN-12)
+// iteratorStart checks the type and its arguments (KIN-12)
 // and returns where the iterator starts: TRIM_HORIZON stays TrimHorizon,
 // resolved at each read; LATEST and AT_TIMESTAMP resolve now, a timestamp
 // at or before the oldest record being TRIM_HORIZON (aws-doc kinesis.md
@@ -357,8 +357,7 @@ func iteratorStart(in *kinesisapi.GetShardIteratorInput, str Stream, i int, acco
 
 // startingSequence reads a StartingSequenceNumber under the shard's
 // layout: under v2-56-digit it must decode as a V2 number of this shard,
-// under decimal-56 it must be a number (contract 3.5, understudy's texts,
-// KIN-12).
+// under decimal-56 it must be a number (understudy's texts, KIN-12).
 func startingSequence(text string, layout SequenceLayout, i int, name, account string) (shardlog.Seq, *awserr.Error) {
 	invalid := errSequenceInvalid(text, shardID(i), name, account, "")
 	seq, err := shardlog.ParseSeq(text)
@@ -514,7 +513,7 @@ type pageRead struct {
 // readPage reads up to limit records, and at most 10 MiB of data plus
 // keys (the first record always), from pos. GetRecords never fails for
 // trimming: a position behind the trim point reads from the oldest
-// untrimmed record (contract 3.5). It runs under the cell lock, so it pins
+// untrimmed record. It runs under the cell lock, so it pins
 // the entries' data and leaves reading it to readRecords.
 func (s *Service) readPage(log *shardlog.Shard[Record], pos shardlog.Position, limit int, now clock.Instant) (pageRead, *awserr.Error) {
 	es, next, err := log.Read(pos, limit, maxRecordsBytes, Record.bytes)
@@ -551,8 +550,7 @@ func (s *Service) readData(r Record) ([]byte, *awserr.Error) {
 }
 
 // millisBehind is MillisBehindLatest per
-// kinesis.get-records.millis-behind-latest (contract 3.8; inferred,
-// KIN-10): 0 when no record lies after the page; otherwise now minus the
+// kinesis.get-records.millis-behind-latest (inferred, KIN-10): 0 when no record lies after the page; otherwise now minus the
 // first unread record's arrival, now minus the last returned one's, or the
 // newest record's arrival minus the last returned one's. An empty page
 // with records after it measures from the first unread record in all

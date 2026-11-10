@@ -216,7 +216,7 @@ func errInputTooLarge() *awserr.Error {
 }
 
 // errTargetNotImplemented answers a target understudy does not invoke,
-// what naming its kind (scheduler.md 14.1, 14.4.1; spec "Scope").
+// what naming its kind (scheduler.md 14.1, 14.4.1).
 func errTargetNotImplemented(what, arn string) *awserr.Error {
 	return schedulerapi.ErrNotImplemented(what + " are not implemented in understudy (Target.Arn " + arn + "); nothing was stored. " +
 		"Served targets: Lambda functions, SQS queues, SNS topics, Step Functions state machines and EventBridge event buses in the schedule's Region. " +
@@ -226,7 +226,7 @@ func errTargetNotImplemented(what, arn string) *awserr.Error {
 // issuesURL is where users ask for what understudy does not implement.
 const issuesURL = "https://github.com/sustinbebustin/understudy/issues"
 
-// errNotYet answers a member or value no ticket has built yet: what was
+// errNotYet answers a member or value that is not built yet: what was
 // sent, that nothing was stored, and what is served instead.
 func errNotYet(what string) *awserr.Error {
 	return schedulerapi.ErrNotImplemented(what + " is not implemented in understudy yet; nothing was stored. " +

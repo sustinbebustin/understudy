@@ -43,7 +43,7 @@ func TestTags(t *testing.T) {
 			t.Errorf("GetTags on the stage = %v, want st=x k=v", got)
 		}
 		// An ARN naming no REST API of the caller's scope is NotFoundException
-		// (contract 7.6; text inferred: identity only).
+		// (text inferred: identity only).
 		wantError(t, fail(h, apigatewayapi.OpGetTags, &apigatewayapi.GetTagsInput{ResourceArn: apiARN("zzzzzzzzzz")}), notFound)
 	})
 }

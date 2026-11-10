@@ -47,7 +47,7 @@ func mustSSM(t *testing.T, endpoint, op, body string) string {
 	return out
 }
 
-// The tracer bullet of the spec: SSM is wired, so a String put and get
+// The tracer bullet: SSM is wired, so a String put and get
 // over awsJson1_1 (ssm-parameters.md 2.1) answer as recorded, the put
 // {Tier: Standard, Version: 1} (localstack@8b9a79f
 // tests/aws/services/ssm/test_ssm.snapshot.json:L19-L26, validated
@@ -79,7 +79,7 @@ func TestSSMIsWired(t *testing.T) {
 // the Query-protocol GetParameter AWS serves (localstack@8b9a79f
 // tests/aws/services/apigateway/test_apigateway_ssm.snapshot.json:L33-L71,
 // validated 2024-07-12; request test_apigateway_ssm.py:L110-L158) answers
-// 501 NotImplemented, never the parameter (spec conflict 7).
+// 501 NotImplemented, never the parameter.
 func TestSSMLegacyQueryAnswers501(t *testing.T) {
 	_, endpoint := start(t)
 	mustSSM(t, endpoint, "PutParameter", `{"Name":"param-test-123","Type":"String","Value":"123"}`)
@@ -138,8 +138,7 @@ func policyPairs(t *testing.T, doc json.RawMessage) []string {
 // GET /iam/policy after an aws-cli-like run lists each ssm: action on the
 // parameter ARN it touched, kms:Encrypt and kms:Decrypt for a SecureString
 // under a customer managed key, no kms: action for a default-key one, and
-// no ssm:AddTagsToResource for an untagged put (spec "Contract" IAM and
-// enforce matrix; conflict 9; ssm-parameters.md 5.6).
+// no ssm:AddTagsToResource for an untagged put (ssm-parameters.md 5.6).
 func TestSSMIAMPolicy(t *testing.T) {
 	const root = "arn:aws:iam::000000000000:root"
 	const param = "arn:aws:ssm:us-east-1:000000000000:parameter/"

@@ -254,7 +254,7 @@ func (s *Service) updateMethod(_ context.Context, c *kernel.Call, in *apigateway
 // methodPatch is UpdateMethod's path table (apigateway-rest.md 3.8) for a
 // method of resource resourceID of a. An unknown path answers "Invalid
 // patch path <path>" and an op other than replace on a replace-only path
-// the OpsOneOf(replace) text (both recorded, contract 6b section 5); the
+// the OpsOneOf(replace) text (both recorded); the
 // op texts of the map and list paths are the recorded ones of other
 // resources' alike paths (inferred). Each value is checked as PutMethod
 // checks it.
@@ -457,9 +457,9 @@ func (s *Service) updateMethodResponse(_ context.Context, c *kernel.Call, in *ap
 // methodResponsePatch is UpdateMethodResponse's path table
 // (apigateway-rest.md 3.8): add, replace and remove on
 // /responseParameters/{key} and /responseModels/{escaped content type}.
-// An unknown path answers "Invalid patch path <path>" (recorded, contract
-// 6b section 5); the op text is the recorded one for paths that take
-// those three ops (inferred here).
+// An unknown path answers "Invalid patch path <path>" (recorded); the op
+// text is the recorded one for paths that take those three ops (inferred
+// here).
 func methodResponsePatch(a *RestAPI) patch.Table[MethodResponse] {
 	addRemoveReplace := []apigatewayapi.Op{apigatewayapi.OpAdd, apigatewayapi.OpRemove, apigatewayapi.OpReplace}
 	rules := []patch.Rule[MethodResponse]{

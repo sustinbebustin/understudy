@@ -37,8 +37,8 @@ func TestStreamMappingSettledStatesUnderFinal(t *testing.T) {
 	})
 }
 
-// Update checks a stream mapping's settings as Create does (contract 8.2
-// "the stream-only 501s and record-age check apply"): an on-failure topic
+// Update checks a stream mapping's settings as Create does, the
+// stream-only 501s and the record-age check included: an on-failure topic
 // is echoed, an OnSuccess destination and a destination of another service
 // answer the recorded unsupported text (12.4 item 9), a filter that does
 // not compile answers 3.3 row 6, one that compiles and an S3 destination
@@ -87,7 +87,7 @@ func TestStreamMappingUpdateChecksSettings(t *testing.T) {
 }
 
 // Update moves a stream mapping to another function, checked against the
-// stream as that function's execution role (contract 8.2 step 6), and
+// stream as that function's execution role, and
 // refuses a function that does not exist with the existing text
 // (lambda-events.md 1.3).
 func TestStreamMappingUpdateMovesTheFunction(t *testing.T) {

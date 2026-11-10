@@ -53,7 +53,7 @@ func wantSchedulerCall(tb testing.TB, c *targetCall) {
 
 // The tracer bullet: a rate(1 hour) SQS schedule delivers its Input with
 // the attempt number substituted, "hello 1", within the hour, as a
-// session of the execution role (spec "Tracer bullet"; scheduler.md 5.2,
+// session of the execution role (scheduler.md 5.2,
 // 6.3, 9). Whether it also fires at the write instant is SCH-09's and not
 // asserted.
 func TestTracerRateToSQS(t *testing.T) {
@@ -271,7 +271,7 @@ func TestInputDefaultSwitch(t *testing.T) {
 
 // scheduler.at.past-due: an at() two minutes past is delivered at the
 // create, and on enable when created DISABLED; under never nothing is
-// delivered (spec switch table; aws-doc troubleshooting, "the schedule
+// delivered (aws-doc troubleshooting, "the schedule
 // may immediately invoke its target"; scheduler.md 4.6, 5.1).
 func TestPastDueAtSwitch(t *testing.T) {
 	for _, o := range []scheduler.Options{{}, {AtPastDue: scheduler.PastDueNever}} {
@@ -321,7 +321,7 @@ func TestPastDueAtSwitch(t *testing.T) {
 // scheduled instant, checking the window bounds, whole seconds, the
 // scheduled-time attribute, and that the second invocation is scheduled
 // one interval after the first scheduled instant, not after its offset
-// instant (spec switch table; aws-doc managing-schedule-flexible-time-windows;
+// instant (aws-doc managing-schedule-flexible-time-windows;
 // scheduler.md 5.6, 14.3.7).
 func flexOffsets(t *testing.T, o scheduler.Options, seed uint64) []time.Duration {
 	t.Helper()
@@ -403,8 +403,8 @@ func attr(c *targetCall, name string) (string, bool) {
 // error. Under not-retried it dead-letters at once with ERROR_CODE
 // AWS.SimpleQueueService.NonExistentQueue, RETRY_ATTEMPTS 0 and no
 // EXHAUSTED_RETRY_CONDITION; under retried the retries run until
-// MaximumRetryAttempts is exhausted and the condition is present (spec
-// switch table; aws-doc configuring-schedule-dlq; scheduler.md 7.1, 7.2).
+// MaximumRetryAttempts is exhausted and the condition is present
+// (aws-doc configuring-schedule-dlq; scheduler.md 7.1, 7.2).
 func TestPermanentErrorsSwitch(t *testing.T) {
 	for _, o := range []scheduler.Options{{}, {PermanentErrors: delivery.PermanentRetried}} {
 		t.Run(scheduler.PermanentErrors(o).Value.String(), func(t *testing.T) {
@@ -580,7 +580,7 @@ func TestTemplatedTargetsAreInvoked(t *testing.T) {
 		}
 		// Each invocation is one delivery whose Source is the schedule ARN,
 		// over the Scheduler mechanism of its target, as the execution role
-		// (contract section 4; scheduler.md 14.4.3, 14.4.4).
+		// (scheduler.md 14.4.3, 14.4.4).
 		mechanisms := map[string]string{}
 		for _, d := range h.sink.all() {
 			r := d.Request
@@ -624,7 +624,7 @@ func TestRoleUsageIsRecorded(t *testing.T) {
 // Rearm after a load skips the fires that came due while stopped, with one
 // schedule-fires-skipped advisory per schedule, and keeps the rate's phase;
 // a past-due at() found by Rearm is skipped too (scheduler.md 14.3.8;
-// contract section 1; as internal/service/events/stateful.go).
+// as internal/service/events/stateful.go).
 func TestRearmSkipsMissedFires(t *testing.T) {
 	run(t, func(h *harness) {
 		start := h.now().Add(10 * time.Minute)
@@ -669,7 +669,7 @@ func TestRearmSkipsMissedFires(t *testing.T) {
 }
 
 // A snapshot round trip keeps every member, and a reset drops them
-// (contract section 1; ADR 0009).
+// (ADR 0009).
 func TestSnapshotRoundTrip(t *testing.T) {
 	run(t, func(h *harness) {
 		must(h, schedulerapi.OpCreateScheduleGroup, &schedulerapi.CreateScheduleGroupInput{Name: "g", Tags: []schedulerapi.Tag{{Key: "k", Value: "v"}}})

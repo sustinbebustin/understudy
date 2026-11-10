@@ -131,7 +131,7 @@ type stepper struct {
 	finish  []Effect
 }
 
-// effects are the step's effects in contract order: cancellations, then
+// effects are the step's effects in a fixed order: cancellations, then
 // timers and invocations in allocation order, then Finish.
 func (s *stepper) effects() []Effect {
 	return slices.Concat(s.cancels, s.allocs, s.finish)
@@ -256,7 +256,7 @@ func (s *stepper) machineDeleted() {
 	s.fail(errRuntime, "State machine "+name+" has been deleted", s.x.lastEvent)
 }
 
-// step runs one state transition (contract 5.5 item 2).
+// step runs one state transition.
 func (s *stepper) step(j stepJob) {
 	margin := int64(stepMargin)
 	if _, isTask := s.d.states[j.state].(taskState); isTask {

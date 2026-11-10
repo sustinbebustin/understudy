@@ -31,8 +31,8 @@ func sesStatus(t *testing.T, endpoint, identity string) string {
 // The verification email's link, opened without credentials on the main
 // listener, verifies the address (ses.md 11.3 item 1). Its answer is
 // understudy's text/plain under exactly one Content-Security-Policy,
-// sandbox, and nosniff, since it echoes the identity (ADR 0020; contract
-// 8); any other method is 405 and a path naming no link operation is
+// sandbox, and nosniff, since it echoes the identity (ADR 0020); any
+// other method is 405 and a path naming no link operation is
 // declined.
 func TestSESVerificationLinkThroughTheEdge(t *testing.T) {
 	c, endpoint := adminServer(t, server.Config{})

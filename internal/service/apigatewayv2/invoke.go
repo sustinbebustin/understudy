@@ -204,7 +204,8 @@ type toFunction struct {
 }
 
 // unemulated is a request understudy cannot serve as AWS would, answered
-// 501 with message (the unit's conflict row 3).
+// 501 with message: an AWS-shaped 500 would read as a real configuration
+// error.
 type unemulated struct{ message string }
 
 // corrupt is state the service cannot have written: an understudy bug.
@@ -293,8 +294,8 @@ func (a *API) selectRoute(owner aws.Scope, addr address, method string, origin b
 
 // unemulated names what of the integration understudy cannot run as AWS
 // would, and what to change instead; what is "" for a Lambda proxy
-// integration with nothing a request would need applied (the unit's
-// scope: these are stored and answer 501 when a request reaches them).
+// integration with nothing a request would need applied (these are
+// stored and answer 501 when a request reaches them).
 func (i *Integration) unemulated() (what, instead string) {
 	switch {
 	case i.Type == apigatewayv2api.IntegrationTypeHttpProxy:
@@ -562,10 +563,10 @@ func (t toFunction) response(payload []byte) (httpevent.Response, error) {
 }
 
 // lambdaRefused answers an invocation Lambda refused: Lambda without
-// Docker is understudy's limit, so 501 naming it (the unit's conflict row
-// 3); Lambda's payload limit is the TooLarge answer; any other refusal is
-// the function-error answer (apigateway-http.md 5.6). An emulator failure
-// is returned for the edge to render.
+// Docker is understudy's limit, so 501 naming it; Lambda's payload limit
+// is the TooLarge answer; any other refusal is the function-error answer
+// (apigateway-http.md 5.6). An emulator failure is returned for the edge
+// to render.
 func lambdaRefused(w http.ResponseWriter, t toFunction, err *awserr.Error) *awserr.Error {
 	failures := FailureAnswersSwitch().Value
 	if _, internal := err.Origin.(awserr.Internal); internal {
@@ -614,9 +615,8 @@ func invokeFunctionAction() registry.IAMAction {
 var errNoFunctionPolicies = errors.New("apigatewayv2: no Options.FunctionPolicies was given, so no function's resource policy can be read; wire.go passes the Lambda service")
 
 // permitted reports whether fn's resource policy lets API Gateway invoke
-// it for source, the 5a resource-policy check (apigateway-http.md finding
-// 9, 13.3.1). It applies under every iam.enforce mode; a function that
-// does not exist allows nothing.
+// it for source (apigateway-http.md finding 9, 13.3.1). It applies under
+// every iam.enforce mode; a function that does not exist allows nothing.
 func (s *Service) permitted(fn, source aws.ARN, owner aws.Scope) (bool, *awserr.Error) {
 	if s.policies == nil {
 		return false, awserr.Internalf(errNoFunctionPolicies)

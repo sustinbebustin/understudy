@@ -51,8 +51,7 @@ func TestSixteenLevelsAreAccepted(t *testing.T) {
 
 // The name rules hold on reads and deletes too (ssm-parameters.md 3.1:
 // the space text "appears on every read operation as well"), and a
-// ResourceId that is not a valid name names no parameter: InvalidResourceId
-// (contract 0).
+// ResourceId that is not a valid name names no parameter: InvalidResourceId.
 func TestNameRulesOnEveryOperation(t *testing.T) {
 	run(t, func(h *harness) {
 		wantCode(h.T, "GetParameter", h.get("bad name"), ssmapi.IdentityValidationException())

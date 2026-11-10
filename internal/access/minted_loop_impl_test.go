@@ -7,8 +7,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 )
 
-// The resource types the iam-loop found minted beyond the contract's first
-// five (contract 1.1 rows added by ticket 8): a DynamoDB stream's label and
+// The resource types the iam-loop found minted beyond keys, secrets,
+// subscriptions, event source mappings and log streams: a DynamoDB
+// stream's label and
 // API Gateway's API, route, integration, resource and deployment ids, also
 // inside a tags resource. Formats: the Service Authorization Reference
 // DynamoDB table (sarDynamo) and API Gateway's ARN reference

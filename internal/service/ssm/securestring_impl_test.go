@@ -58,7 +58,7 @@ func TestSecureStringThroughGetParameterAndDescribe(t *testing.T) {
 }
 
 // A root parameter changes type in both directions, as Terraform's update
-// scenario does (ssm-parameters.md 4.1; spec "Done checks"): String to
+// scenario does (ssm-parameters.md 4.1): String to
 // SecureString encrypts and gains a KeyId; back to String reads plain and
 // drops it.
 func TestRootParameterTypeChangeThroughSecureString(t *testing.T) {

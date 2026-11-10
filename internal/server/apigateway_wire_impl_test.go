@@ -40,7 +40,7 @@ func signedAPIGatewayGet(t *testing.T, endpoint, path string) (status int, body 
 }
 
 // REST APIs are wired: a request signed for apigateway on a /restapis
-// path reaches apigateway's route table, and an operation the unit leaves
+// path reaches apigateway's route table, and an operation left
 // unbound (GetAccount, GET /account) answers 501 naming it rather than an
 // unknown service (CLAUDE.md invariant 3).
 func TestAPIGatewayIsWired(t *testing.T) {

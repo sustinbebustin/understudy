@@ -78,7 +78,7 @@ func checkUpdateIntegration(in *apigatewayv2api.UpdateIntegrationInput) *awserr.
 // refuseWebSocketIntegrationMembers answers NotImplemented for the members
 // that change what a WebSocket API's integration does (apigateway-http.md
 // 2.4): understudy does not emulate them, and on an HTTP API storing them
-// without effect would hide that (the unit's conflict row 4).
+// without effect would hide that.
 func refuseWebSocketIntegrationMembers(op string, templates map[string]string, selection *string, handling *apigatewayv2api.ContentHandlingStrategy) *awserr.Error {
 	for _, m := range []member{{"requestTemplates", templates != nil}, {"templateSelectionExpression", selection != nil}, {"contentHandlingStrategy", handling != nil}} {
 		if m.set {

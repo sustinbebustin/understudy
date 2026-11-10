@@ -74,7 +74,7 @@ func errTagsWithOverwrite() *awserr.Error {
 
 // putParameter creates a parameter, or with Overwrite writes its next
 // version. A SecureString value is encrypted through KMS after every other
-// check passes (contract 4.1 row 15) and before the cell is taken: the
+// check passes and before the cell is taken: the
 // request is checked against the stored parameter once to learn the key,
 // then again in the cell, which refuses with TooManyUpdates if a
 // concurrent write changed the key or type in between.
@@ -248,8 +248,10 @@ func (w write) next(st *State, prev Parameter) (Parameter, *awserr.Error) {
 	return p, nil
 }
 
-// version is base with the request's fields applied, checked in the order
-// of contract 4.1. Under switch ssm.put.omitted-fields (preserved) a field
+// version is base with the request's fields applied, checked in order: a
+// KeyId on a type other than SecureString, the DataType, a nested reference
+// in the value, then valueRules. Under switch ssm.put.omitted-fields
+// (preserved) a field
 // the request leaves out keeps base's value, and an empty AllowedPattern
 // clears it (ssm-parameters.md 7.1; SSM-10). UNVERIFIED (SSM-10),
 // ssm-parameters.md 7.1: an empty Description clears it too. current is the
@@ -306,7 +308,7 @@ func (w write) version(st *State, base Version, current *tier) (Version, *awserr
 }
 
 // valueRules resolves v's tier and checks the value against it, the
-// pattern and the scope's parameter count (contract 4.1 rows 9-13).
+// pattern and the scope's parameter count.
 func (w write) valueRules(st *State, v Version, current *tier) (Version, *awserr.Error) {
 	t, err := w.resolveTier(st, current)
 	if err != nil {

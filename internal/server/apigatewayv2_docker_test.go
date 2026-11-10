@@ -78,7 +78,7 @@ func signedJSON(t *testing.T, client *http.Client, method, url, service, body st
 	return resp.StatusCode, out
 }
 
-// The tracer bullet against a real function (the unit's spec): an HTTP API
+// The tracer bullet against a real function: an HTTP API
 // with a Lambda proxy integration of payload format 2.0, a GET /hello route
 // and a $default stage that deploys automatically. Without a permission
 // for apigateway.amazonaws.com the function never runs and the client gets

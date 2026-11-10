@@ -10,10 +10,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 )
 
-// matrixModes are the iam.enforce settings of the unit's enforce matrix
-// on the step-8 seam, with 5b's evaluator not merged: off installs no
-// Authorizer, so nothing is asked; advise and enforce as Root let every
-// call through, here a gate that records what it is asked.
+// matrixModes are the iam.enforce settings on the step-8 seam, with the
+// policy evaluator not merged: off installs no Authorizer, so nothing is
+// asked; advise and enforce as Root let every call through, here a gate
+// that records what it is asked.
 func matrixModes() map[string]*gate {
 	return map[string]*gate{"off": nil, "advise": newGate(), "enforce": newGate()}
 }
@@ -25,12 +25,12 @@ func gateOption(g *gate) []kerneltest.Option {
 	return []kerneltest.Option{kerneltest.Authorizer(g)}
 }
 
-// The data-plane rows of the enforce matrix answer the same under every
-// mode, and none asks step 8 about InvokeApi: a NONE route reaches the
+// The data plane answers the same under every iam.enforce mode, and
+// nothing asks step 8 about InvokeApi: a NONE route reaches the
 // function as apigateway.amazonaws.com (apigateway-http.md 8.2, 5.5); an
 // AWS_IAM route, a Lambda integration with credentialsArn and a CORS
 // request answer 501 without running it; JWT and CUSTOM routes are
-// refused at create with 501 (the unit's scope and conflict row 4).
+// refused at create with 501.
 func TestEnforceMatrixDataPlaneRows(t *testing.T) {
 	for mode, g := range matrixModes() {
 		t.Run(mode, func(t *testing.T) {
@@ -74,7 +74,7 @@ func TestEnforceMatrixDataPlaneRows(t *testing.T) {
 // and changes nothing, while the data plane, never put to IAM, keeps
 // serving: a gate that denies every apigatewayv2 operation, InvokeApi
 // included, still lets a NONE route reach the function (apigateway-http.md
-// 8.2, 8.3; the unit's enforce matrix).
+// 8.2, 8.3).
 func TestEnforceDeniesTheControlPlaneOnly(t *testing.T) {
 	g := newGate()
 	denyOnly := func(ops ...string) {

@@ -9,8 +9,8 @@ import (
 
 // Every bound DynamoDB operation whose generated list holds more than one
 // dynamodb action decides which of them its calls use: Scan needs
-// dynamodb:Scan, not dynamodb:ReadDataForReplication (the spec's vendor
-// commit C note; iam-enforcement-surfaces.md 10.2, 12.6).
+// dynamodb:Scan, not dynamodb:ReadDataForReplication
+// (iam-enforcement-surfaces.md 10.2, 12.6).
 func TestEveryMultiActionOperationDeclaresItsActions(t *testing.T) {
 	run(t, func(h *harness) {
 		if got := kerneltest.UndeclaredActions(h.Kernel, dynamodbapi.Service()); len(got) != 0 {

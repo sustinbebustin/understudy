@@ -15,9 +15,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 )
 
-// The spec's enforce matrix rows 2 to 4 for a Kinesis stream mapping over
-// the real Kinesis service, with the execution role's calls refused by an
-// actionGate (spec B6; iam-enforcement-surfaces.md 8.6).
+// iam.enforce for a Kinesis stream mapping over the real Kinesis service:
+// Create and Update with a role lacking the reads, reads the role loses
+// later, and an on-failure send it may not make, with the execution role's
+// calls refused by an actionGate (iam-enforcement-surfaces.md 8.6).
 
 // runGatedKinesis is runRealKinesis under gate.
 func runGatedKinesis(t *testing.T, gate *actionGate, f esm.StreamFidelity, fn func(h *realKinesisHarness)) {
@@ -26,8 +27,8 @@ func runGatedKinesis(t *testing.T, gate *actionGate, f esm.StreamFidelity, fn fu
 }
 
 // kinesisRoleDenied is lambda.esm.create-denied-text's sentence for a
-// Kinesis stream naming op (08b contract 6.1; the queue's sentence is
-// recorded, IAM-ENF-24, and a stream's follows it).
+// Kinesis stream naming op (the queue's sentence is recorded, IAM-ENF-24,
+// and a stream's follows it).
 func kinesisRoleDenied(op string) string {
 	return "The function execution role does not have permissions to call " + op + " on Kinesis"
 }

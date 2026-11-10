@@ -13,7 +13,7 @@ import (
 
 // A SendTemplatedEmail is readable through GET /ses/messages with its
 // rendered parts and its template, data and render gaps under "template"
-// (ses.md 11.2; contract 3.1).
+// (ses.md 11.2).
 func TestSESTemplatedSendThroughTheAdminAPI(t *testing.T) {
 	c, endpoint := adminServer(t, server.Config{SESVerifiedIdentities: server.SESVerifiedIdentities{AddressDomains: []string{"example.net"}}})
 	for _, form := range []url.Values{

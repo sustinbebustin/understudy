@@ -8,7 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
-// The tracer bullet, as aws_ses_email_identity drives it (ses.md 9.1):
+// The identity lifecycle as aws_ses_email_identity drives it (ses.md 9.1):
 // VerifyEmailIdentity, a read keyed by the request string, a repeat that
 // leaves a Pending identity Pending without a state change (inferred,
 // SES-09), DeleteIdentity, then a read that omits the key; a second delete
@@ -52,8 +52,7 @@ func TestIdentitiesArePerRegion(t *testing.T) {
 }
 
 // Export, Reset, Import gives back the identities with their status, and
-// Resources lists them in creation order with the v1 status (contract 1.2,
-// 1.3).
+// Resources lists them in creation order with the v1 status.
 func TestIdentitySnapshotRoundTrip(t *testing.T) {
 	run(t, func(h *harness) {
 		h.verifyEmail("b@example.com")

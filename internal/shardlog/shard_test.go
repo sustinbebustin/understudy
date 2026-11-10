@@ -57,7 +57,7 @@ func seqNum(s shardlog.Seq) *big.Int {
 
 func cmpSeq(a, b shardlog.Seq) int { return seqNum(a).Cmp(seqNum(b)) }
 
-// resolve is the contract's Resolve over the model.
+// resolve is Shard.Resolve over the model.
 func (m *model) resolve(p shardlog.Position) shardlog.Position {
 	switch p := p.(type) {
 	case shardlog.Latest:
@@ -80,7 +80,7 @@ func (m *model) resolve(p shardlog.Position) shardlog.Position {
 	return p
 }
 
-// read is the contract's Read over the model; trimmed reports a
+// read is Shard.Read over the model; trimmed reports a
 // *TrimmedError.
 func (m *model) read(from shardlog.Position, limit, maxBytes int) (out []shardlog.Entry[item], next shardlog.Position, trimmed bool) {
 	p := m.resolve(from)
@@ -181,9 +181,9 @@ func positionGen(m *model, now clock.Instant) *rapid.Generator[shardlog.Position
 
 // A shard driven by appends, trims, closes and reads agrees with a
 // reference list model: Resolve, Read (entries, next position, trimmed
-// refusals), Range and Exhausted, under the contract's rules for TRIM_HORIZON,
-// LATEST, AT_ and AFTER_SEQUENCE_NUMBER and AT_TIMESTAMP (spec A3;
-// dynamodb-streams.md 6.3 and 11.9; kinesis.md 3.5). A shard restored from
+// refusals), Range and Exhausted, under the rules for TRIM_HORIZON, LATEST,
+// AT_ and AFTER_SEQUENCE_NUMBER and AT_TIMESTAMP (dynamodb-streams.md 6.3
+// and 11.9; kinesis.md 3.5). A shard restored from
 // its State agrees with it afterwards.
 func TestShardAgreesWithReferenceModel(t *testing.T) {
 	t.Parallel()
@@ -287,7 +287,7 @@ func TestShardAgreesWithReferenceModel(t *testing.T) {
 // Records sharing an item key read back in the order they were written,
 // paging from TRIM_HORIZON with any page size (dynamodb-streams.md 7.7,
 // aws-doc: "the stream records appear in the same sequence as the actual
-// modifications to the item"; spec A3).
+// modifications to the item").
 func TestShardPerKeyOrderIsAppendOrder(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
@@ -341,7 +341,7 @@ const streamRetention = 24 * time.Hour
 // Trimming falls exactly at retention on the stepped clock: a record that
 // arrived at t is still read at t+24h-1ns and gone at t+24h, where a read
 // at its number is a *TrimmedError and TRIM_HORIZON starts after it
-// (dynamodb-streams.md 5.5 and 11.1 item 5; contract 2, Trim).
+// (dynamodb-streams.md 5.5 and 11.1 item 5).
 func TestShardTrimsExactlyAtRetention(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
@@ -377,8 +377,8 @@ func TestShardTrimsExactlyAtRetention(t *testing.T) {
 }
 
 // A shard that never held a record closes at its start, and reading it is
-// exhausted at once (contract 2, Close and Exhausted; dynamodb-streams.md
-// 5.3: a disabled stream's shard is closed).
+// exhausted at once (dynamodb-streams.md 5.3: a disabled stream's shard is
+// closed).
 func TestShardCloseEmpty(t *testing.T) {
 	t.Parallel()
 	s := shardlog.NewShard[item](shard0, shardlog.DecimalCounter{Digits: 21})
@@ -392,6 +392,6 @@ func TestShardCloseEmpty(t *testing.T) {
 	}
 	var ce *shardlog.ClosedError
 	if _, err := s.Append(epoch, item{}); !errors.As(err, &ce) || ce.Error() != "shard "+shard0.ID+" is closed: no record can be appended" {
-		t.Errorf("Append after Close: %v, want *ClosedError with the contract's text", err)
+		t.Errorf("Append after Close: %v, want *ClosedError with its text", err)
 	}
 }

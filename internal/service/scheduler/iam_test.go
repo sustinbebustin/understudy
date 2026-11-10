@@ -29,8 +29,7 @@ func (q question) caller() bool {
 }
 
 // gate is a fake Authorizer standing in for iam.enforce=enforce: it
-// records every question and denies those deny matches (spec "Enforce
-// matrix": tests use a fake Authorizer until 05b).
+// records every question and denies those deny matches.
 type gate struct {
 	mu    sync.Mutex
 	deny  func(q question, action, resource string) bool
@@ -103,8 +102,8 @@ func (g *gate) reset() {
 func withGate(g *gate) harnessOptions { return harnessOptions{authorizer: g} }
 
 // A caller denied at step 8 gets Scheduler's denial identity:
-// AccessDeniedException at the status of scheduler.denial.status (spec
-// conflict 9; iam-enforcement-surfaces.md 12.3; scheduler.md 2.4; aws-doc
+// AccessDeniedException at the status of scheduler.denial.status
+// (iam-enforcement-surfaces.md 12.3; scheduler.md 2.4; aws-doc
 // https://docs.aws.amazon.com/scheduler/latest/APIReference/CommonErrors.html).
 func TestDeniedGetSchedule(t *testing.T) {
 	g := &gate{deny: func(q question, _, _ string) bool { return q.caller() }}
@@ -118,7 +117,7 @@ func TestDeniedGetSchedule(t *testing.T) {
 // group ARN or * for the two lists, never the whole generated action list;
 // CreateSchedule and UpdateSchedule add iam:PassRole on the role,
 // CreateScheduleGroup with tags adds scheduler:TagResource (scheduler.md
-// 2.2, 9, 14.11; contract section 1; spec "Contract" IAM).
+// 2.2, 9, 14.11).
 func TestOperationAuthorization(t *testing.T) {
 	g := &gate{}
 	runWith(t, withGate(g), func(h *harness) {
@@ -182,9 +181,9 @@ func TestOperationAuthorization(t *testing.T) {
 }
 
 // iam:PassRole carries iam:PassedToService = scheduler.amazonaws.com
-// (spec conflict 8; scheduler.md 9, 14.11; iam-enforcement-surfaces.md
+// (scheduler.md 9, 14.11; iam-enforcement-surfaces.md
 // 10.2), and a denied PassRole refuses the create with Scheduler's denial
-// before anything is stored (spec "Enforce matrix").
+// before anything is stored.
 func TestPassRole(t *testing.T) {
 	g := &gate{deny: func(q question, action, _ string) bool { return q.caller() && action == "iam:PassRole" }}
 	runWith(t, withGate(g), func(h *harness) {
@@ -239,7 +238,7 @@ func TestDeleteScheduleGroupAuthorizesEachMember(t *testing.T) {
 // KmsKeyArn at create and update: the caller's kms:DescribeKey,
 // kms:GenerateDataKey and kms:Decrypt on the key ARN (aws-doc
 // https://docs.aws.amazon.com/scheduler/latest/UserGuide/encryption-rest.html;
-// scheduler.md 4.1, 9, 14.11; spec "Enforce matrix" KMS rows); one denied
+// scheduler.md 4.1, 9, 14.11); one denied
 // refuses the write with Scheduler's denial and stores nothing; no KMS
 // question without a key.
 func TestKmsKeyCallerAuthorization(t *testing.T) {
@@ -284,7 +283,7 @@ func TestKmsKeyCallerAuthorization(t *testing.T) {
 // KmsKeyArn at invocation: the role session's kms:Decrypt is evaluated
 // before the target call (aws-doc encryption-rest; scheduler.md 9, 14.11);
 // denied, the target is never called and the invocation is dead-lettered
-// (spec "Enforce matrix" KMS row; scheduler.md 14.13.6).
+// (scheduler.md 14.13.6).
 func TestKmsDecryptDeniedAtInvocation(t *testing.T) {
 	g := &gate{deny: func(q question, action, _ string) bool { return !q.caller() && action == "kms:Decrypt" }}
 	runWith(t, withGate(g), func(h *harness) {
@@ -316,8 +315,8 @@ func TestKmsDecryptDeniedAtInvocation(t *testing.T) {
 
 // The role session's own target permission: denied sqs:SendMessage on the
 // target queue is the target's refusal, never a delivery, and the
-// invocation goes to the dead-letter queue (spec "Enforce matrix";
-// scheduler.md 9, 14.11, 14.13.6).
+// invocation goes to the dead-letter queue (scheduler.md 9, 14.11,
+// 14.13.6).
 func TestRoleSessionTargetDenied(t *testing.T) {
 	g := &gate{}
 	runWith(t, withGate(g), func(h *harness) {

@@ -47,8 +47,8 @@ func stateTypes() []string {
 // typeFields are the fields a JSONPath state of type typ takes besides
 // Type, Comment and QueryLanguage (stepfunctions-asl.md 3.3), and the
 // fields of AWS's grammar understudy refuses on it: JSONata's fields,
-// Assign, task credentials and heartbeats, Distributed Map's fields (spec
-// "Definition grammar"). A field in neither list is a schema error.
+// Assign, task credentials and heartbeats, Distributed Map's fields. A
+// field in neither list is a schema error.
 func typeFields(typ string) (taken, refused []string) {
 	io := []string{"InputPath", "OutputPath"}
 	flow := []string{"Next", "End"}
@@ -408,7 +408,7 @@ func (p *parser) namedState(e document.Entry, prefix string, names map[string]bo
 }
 
 // queryLanguage checks a QueryLanguage value; at is "/" for the top level,
-// where the refusal's location is "/" itself (spec Done checks), and the
+// where the refusal's location is "/" itself, and the
 // state's location otherwise.
 func (p *parser) queryLanguage(v document.Value, at string) {
 	field := at + "/QueryLanguage"

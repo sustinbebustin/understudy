@@ -16,7 +16,7 @@ import (
 )
 
 // EventBridge Scheduler under iam.enforce, against the real Authorizer
-// (spec "Enforce matrix"; scheduler.md 9, 14.11): each operation's action
+// (scheduler.md 9, 14.11): each operation's action
 // on the schedule or group ARN, iam:PassRole with iam:PassedToService
 // scheduler.amazonaws.com, the execution role's trust at create and at
 // invocation, scheduler:DeleteSchedule per member of a deleted group, the
@@ -145,7 +145,7 @@ func schedulerPassRole(service, extra string) string {
 }
 
 // The caller's iam:PassRole carries iam:PassedToService
-// scheduler.amazonaws.com (spec conflict 8; scheduler.md 9, 14.11): a
+// scheduler.amazonaws.com (scheduler.md 9, 14.11): a
 // statement conditioned on lambda.amazonaws.com does not allow the create
 // and stores nothing; one conditioned on scheduler.amazonaws.com does.
 func TestSchedulerPassRoleCarriesPassedToService(t *testing.T) {
@@ -220,8 +220,8 @@ func TestSchedulerExecutionRoleTrustAtWrite(t *testing.T) {
 
 // A role deleted after create cannot be assumed at invocation: under
 // enforce the target is never called and the invocation is dead-lettered
-// with roleUnassumableCode, AccessDenied (spec "Enforce matrix";
-// UNVERIFIED, SCH-08 step x5); under advise it is delivered as a session
+// with roleUnassumableCode, AccessDenied (UNVERIFIED, SCH-08 step x5);
+// under advise it is delivered as a session
 // of the named role and the would-be denial journaled.
 func TestSchedulerRoleMissingAtInvocation(t *testing.T) {
 	t.Run("enforce", func(t *testing.T) {
@@ -264,8 +264,8 @@ func TestSchedulerRoleMissingAtInvocation(t *testing.T) {
 
 // Under enforce the role session's own sqs:SendMessage on the target is
 // SQS's step 8: a role with no permission is refused, a client-side error
-// that is dead-lettered, never delivered; with it, delivered (spec
-// "Enforce matrix"; scheduler.md 9, 14.13.6).
+// that is dead-lettered, never delivered; with it, delivered
+// (scheduler.md 9, 14.13.6).
 func TestSchedulerRoleSessionTargetPermission(t *testing.T) {
 	c, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
 	schQueues(t, endpoint)
@@ -401,7 +401,7 @@ func TestSchedulerRoleSessionSkipsTheResourcePolicyAdvisory(t *testing.T) {
 // role with Condition StringEquals iam:PassedToService
 // scheduler.amazonaws.com, and no scheduler:TagResource; for the role it
 // lists sqs:SendMessage on the target and the dead-letter queue its
-// invocations used (spec ticket 9; iam-enforcement-surfaces.md 12.6;
+// invocations used (iam-enforcement-surfaces.md 12.6;
 // scheduler.md 14.11).
 func TestSchedulerPolicyListsCallerAndRoleActions(t *testing.T) {
 	c, endpoint, u := enforced(t, server.IAMEnforceOff)

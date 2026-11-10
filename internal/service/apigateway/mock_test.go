@@ -261,9 +261,8 @@ func TestMockPassthroughTable(t *testing.T) {
 	}
 }
 
-// What MOCK cannot run answers 501 naming it, journaled (spec 6b: "no
-// template with $, # or \ ever renders; each answers 501 and is
-// journaled"; contract 7.7 step 11): a VTL request template, the recorded
+// What MOCK cannot run answers 501 naming it, journaled (no template with
+// $, # or \ ever renders): a VTL request template, the recorded
 // refusal check's VTL response template (localstack@8b9a79f
 // test_apigateway_basic.snapshot.json:L154-L262), a selectionPattern RE2
 // refuses, contentHandling on the selected response and a non-static

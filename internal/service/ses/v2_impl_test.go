@@ -14,7 +14,7 @@ import (
 
 // CreateEmailIdentity of an identity the store holds is
 // AlreadyExistsException; the text is inferred (SES-11) and read from the
-// constant (contract 2.5).
+// constant.
 func TestCreateEmailIdentityRefusesAnExistingIdentity(t *testing.T) {
 	run(t, func(h *harness) {
 		h.verifyEmail("person@example.com")
@@ -24,7 +24,7 @@ func TestCreateEmailIdentityRefusesAnExistingIdentity(t *testing.T) {
 }
 
 // ConfigurationSetName answers NotImplemented naming it, and creates
-// nothing (spec conflict row 4; invariant 3).
+// nothing (invariant 3).
 func TestCreateEmailIdentityConfigurationSetIsNotImplemented(t *testing.T) {
 	run(t, func(h *harness) {
 		_, err := call(h, sesv2api.OpCreateEmailIdentity, &sesv2api.CreateEmailIdentityInput{EmailIdentity: "example.org", ConfigurationSetName: new("set")})
@@ -35,8 +35,8 @@ func TestCreateEmailIdentityConfigurationSetIsNotImplemented(t *testing.T) {
 }
 
 // DkimSigningAttributes are for domains only (model, ses.md 5.4); on a
-// domain a BYODKIM selector is stored and reported as an EXTERNAL origin
-// (contract 2.5), the tokens unchanged.
+// domain a BYODKIM selector is stored and reported as an EXTERNAL origin,
+// the tokens unchanged.
 func TestDkimSigningAttributes(t *testing.T) {
 	run(t, func(h *harness) {
 		attrs := &sesv2api.DkimSigningAttributes{DomainSigningSelector: new("sel"), DomainSigningPrivateKey: new("a2V5")}
@@ -51,7 +51,7 @@ func TestDkimSigningAttributes(t *testing.T) {
 }
 
 // An invalid address is refused as VerifyEmailIdentity refuses it
-// (ses.md 4.6, SES-04), in v2's identity (contract 1.6).
+// (ses.md 4.6, SES-04), in v2's identity.
 func TestCreateEmailIdentityValidatesTheAddress(t *testing.T) {
 	run(t, func(h *harness) {
 		_, err := call(h, sesv2api.OpCreateEmailIdentity, &sesv2api.CreateEmailIdentityInput{EmailIdentity: "a b@example.com"})
@@ -80,7 +80,7 @@ func TestDomainsReadAcrossAPIs(t *testing.T) {
 
 // The tag operations accept only an identity or template ARN of the
 // caller's scope; a missing template, another Region's identity or another
-// resource type is NotFoundException naming the resource (contract 2.5).
+// resource type is NotFoundException naming the resource.
 func TestTagOperationsRefuseOtherARNs(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createIdentity("example.org")
@@ -169,7 +169,7 @@ func TestCreateEmailIdentityLimit(t *testing.T) {
 
 // Under ses.store.shared-v1-v2=separate one name can be an identity of
 // each API; each expires on its own timer, and deleting one leaves the
-// other (contract 1.4).
+// other.
 func TestSeparateStoresKeepTheirOwnTimers(t *testing.T) {
 	runWith(t, ses.Options{Store: ses.StoreSeparate}, func(h *harness) {
 		h.verifyEmail("both@example.com")
@@ -199,8 +199,7 @@ func TestSeparateStoresCheckSendersInTheirOwnAPI(t *testing.T) {
 	})
 }
 
-// A v2 identity's tags, DKIM tokens and status survive a snapshot
-// (contract 1.3).
+// A v2 identity's tags, DKIM tokens and status survive a snapshot.
 func TestV2IdentitySnapshotRoundTrip(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createIdentity("example.org", sesv2api.Tag{Key: "env", Value: "dev"})
@@ -222,8 +221,7 @@ func TestV2IdentitySnapshotRoundTrip(t *testing.T) {
 	})
 }
 
-// A tag operation journals the identity its ResourceArn names (contract
-// 2.6).
+// A tag operation journals the identity its ResourceArn names.
 func TestTagOperationsTouchTheIdentity(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createIdentity("example.org")

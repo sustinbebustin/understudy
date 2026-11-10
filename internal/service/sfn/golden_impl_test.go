@@ -20,8 +20,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
 
-// goldenFixture is one LocalStack history golden under testdata/localstack
-// (spec "Done checks"): a definition, an input, and the history AWS
+// goldenFixture is one LocalStack history golden under testdata/localstack:
+// a definition, an input, and the history AWS
 // recorded for them, as LocalStack's snapshot stores it.
 type goldenFixture struct {
 	Golden           int             `json:"golden"`
@@ -40,8 +40,8 @@ type goldenFixture struct {
 	// without error or cause, once it had settled.
 	Stop bool `json:"stop"`
 	// LambdaPayload is the recorded function's output: the stub Lambda
-	// answers every Invoke with it (spec "Done checks": a test double for
-	// Lambda, never for SFN). Absent, the stub echoes the payload.
+	// answers every Invoke with it (a test double for Lambda, never for
+	// SFN). Absent, the stub echoes the payload.
 	LambdaPayload json.RawMessage `json:"lambdaPayload"`
 	// LambdaAnswers, when given, are the recorded function's answers, one
 	// per invocation in order, the last repeated: the stub Lambda gives
@@ -66,7 +66,7 @@ type goldenFixture struct {
 	// SfnNoneRecursiveParallelTransformer: the events between
 	// ParallelStateStarted and the Parallel's next own event have id [0]
 	// and previousEventId 0 and are sorted, and ParallelStateSucceeded is
-	// missing (spec "Done checks"). The same is done to understudy's
+	// missing. The same is done to understudy's
 	// history; what it hides is covered by the ASL-13 inferred tests.
 	Parallel bool            `json:"parallel"`
 	History  json.RawMessage `json:"history"`

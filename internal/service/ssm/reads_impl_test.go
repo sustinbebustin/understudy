@@ -62,7 +62,7 @@ func TestGetParametersSelectorsAndDecryption(t *testing.T) {
 
 // No name found answers Parameters [] and every name in InvalidParameters,
 // both present (ssm-parameters.md 7.10). A reserved name anywhere in the
-// request makes the whole call 501 (spec "Scope").
+// request makes the whole call 501.
 func TestGetParametersNoneFound(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/nf/a", "v")

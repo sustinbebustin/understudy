@@ -16,7 +16,7 @@ import (
 // application/x-www-form-urlencoded and no X-Amz-Target answers the same
 // 501 naming the protocol, never SSM's unknown operation. AWS's answer to
 // this form is unrecorded (ssm-parameters.md 2.3 records the query-string
-// form); not serving it is answered 501 (invariant 3).
+// form); not serving it is answered 501 (CLAUDE.md invariant 3).
 func TestLegacyQueryFormBodyIsNotImplemented(t *testing.T) {
 	f := newFrontWith(t, nil, func(o *edge.Options) { o.LegacyQuery = []ref.ServiceID{"ssm"} }, ssmapi.Service())
 	rec := httptest.NewRecorder()

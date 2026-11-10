@@ -9,8 +9,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
-// What step 8 asks about each Parameter Store call (spec "Contract" IAM;
-// iam-enforcement-surfaces.md 12.3): the operation's ssm: action on the
+// What step 8 asks about each Parameter Store call
+// (iam-enforcement-surfaces.md 12.3): the operation's ssm: action on the
 // parameter ARNs the input names (ssm-parameters.md 3.3). A name that does
 // not parse names nothing, and the handler refuses it as usual.
 // DescribeParameters names no resource.
@@ -33,7 +33,7 @@ func byNames[In any](namesOf func(*In) []string) kernel.BindOption {
 
 // resourcesOf is the parameter ARN of each raw name, ARN or selected name.
 // An ARN of another account keeps its account, so step 8 asks about the
-// parameter the caller named (spec enforce matrix); one of another Region
+// parameter the caller named; one of another Region
 // or resource type names nothing, the handler refusing it as malformed
 // (SSM-29).
 func resourcesOf(a asker, raws ...string) []aws.ARN {
@@ -85,7 +85,7 @@ func byTagTarget[In any](target func(*In) (ssmapi.ResourceTypeForTagging, string
 }
 
 // putActions declares ssm:AddTagsToResource beside ssm:PutParameter only
-// for a put that carries Tags (spec "Contract" IAM; enforce matrix).
+// for a put that carries Tags.
 func putActions() kernel.BindOption {
 	return kernel.WithActions(func(_ *kernel.Call, in *ssmapi.PutParameterInput) []registry.IAMAction {
 		if len(in.Tags) == 0 {

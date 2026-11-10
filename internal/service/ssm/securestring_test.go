@@ -125,7 +125,7 @@ func TestKeyIDReadsBackAsGiven(t *testing.T) {
 // A KMS refusal surfaces as InvalidKeyId carrying KMS's own message ("The
 // KMS key is not enabled. When this occurs, Parameter Store returns an
 // InvalidKeyId exception with a detailed error message from AWS KMS",
-// ssm-parameters.md 5.5, aws-doc KMS guide; spec conflict 6 extends it to
+// ssm-parameters.md 5.5, aws-doc KMS guide; understudy extends it to
 // every KMS client error): a missing key on write, and a disabled key on
 // write and on a read with decryption. Nothing is stored and no value is
 // returned.
@@ -185,7 +185,7 @@ func TestKMSRefusalsAreInvalidKeyID(t *testing.T) {
 	})
 }
 
-// Who calls KMS (spec conflict 9, ssm-parameters.md 5.6; enforce matrix):
+// Who calls KMS (ssm-parameters.md 5.6):
 // for a customer managed key, kms:Encrypt on write and kms:Decrypt on a
 // read with decryption are forward-access calls recorded under the caller;
 // for the default key alias/aws/ssm the service principal calls, so nothing

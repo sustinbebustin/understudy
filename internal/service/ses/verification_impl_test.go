@@ -15,7 +15,7 @@ import (
 )
 
 // link runs the VerificationLink raw operation on a request of method for
-// target, as the edge dispatches an unsigned link (contract 8).
+// target, as the edge dispatches an unsigned link.
 func (h *harness) link(method, target string) *httptest.ResponseRecorder {
 	h.Helper()
 	op, ok := sesapi.Service().Operation("VerificationLink")
@@ -68,7 +68,7 @@ func wantLinkAnswer(h *harness, rec *httptest.ResponseRecorder, status int) {
 }
 
 // Opening the link of a Pending identity verifies it with a StateChange
-// and cancels its expiry; opening it again changes nothing (contract 8).
+// and cancels its expiry; opening it again changes nothing.
 func TestVerificationLinkVerifies(t *testing.T) {
 	run(t, func(h *harness) {
 		h.verifyEmail(sender)
@@ -95,7 +95,7 @@ func TestVerificationLinkVerifies(t *testing.T) {
 }
 
 // An expired link is 410; verifying again restarts Pending with the same
-// link, which then verifies (contract 2.3, 8; inferred, SES-09).
+// link, which then verifies (inferred, SES-09).
 func TestVerificationLinkAfterExpiry(t *testing.T) {
 	run(t, func(h *harness) {
 		h.verifyEmail(sender)
@@ -118,7 +118,7 @@ func TestVerificationLinkAfterExpiry(t *testing.T) {
 }
 
 // A link naming no identity, one with no token, and one whose identity
-// was deleted are 404; another method is 405 naming GET (contract 8).
+// was deleted are 404; another method is 405 naming GET.
 func TestVerificationLinkRefusals(t *testing.T) {
 	run(t, func(h *harness) {
 		h.verifyEmail(sender)
@@ -155,7 +155,7 @@ func TestRepeatVerifyRestartsExpiry(t *testing.T) {
 }
 
 // Deleting a Pending identity disarms its expiry, and a configured one
-// arms none and is sent no verification email (contract 2.3, 6).
+// arms none and is sent no verification email.
 func TestExpiryTimersFollowTheIdentities(t *testing.T) {
 	o := ses.Options{VerifiedIdentities: ses.VerifiedIdentities{Addresses: []string{"listed@example.com"}}}
 	runWith(t, o, func(h *harness) {

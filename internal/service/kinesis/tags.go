@@ -142,7 +142,7 @@ func (s *Service) listTagsForStream(_ context.Context, c *kernel.Call, in *kines
 }
 
 // resourceOf reads a ResourceARN: a stream ARN names its stream, a consumer
-// or channel ARN answers 501 (contract 3.7), anything else is refused
+// or channel ARN answers 501, anything else is refused
 // (understudy's text, KIN-07).
 func resourceOf(c *kernel.Call, arn, op string) (streamRef, *awserr.Error) {
 	if a, err := aws.ParseARN(arn); err == nil && a.Service == "kinesis" {

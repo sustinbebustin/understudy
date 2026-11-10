@@ -69,14 +69,14 @@ func TestServicesNotEmulatedAreNamedInTheRequestsProtocol(t *testing.T) {
 	}
 }
 
-// DynamoDB Streams is emulated (spec 8a): rule 6 claims its target prefix
-// through the registered service, with no unemulated entry. AWS refuses a
+// DynamoDB Streams is emulated: rule 6 claims its target prefix through
+// the registered service, with no unemulated entry. AWS refuses a
 // request whose credential is scoped to the endpoint prefix
 // streams.dynamodb with 400 InvalidSignatureException (aws-recorded,
 // testdata/parity/dynamodb/R11/07-streams-signed-streams.dynamodb.json;
 // dynamodb-streams.md 3.2), whatever understudy's sigv4 mode: it is a
-// credential-scope check, not signature verification (spec conflict row
-// 12). The request never reaches the service.
+// credential-scope check, not signature verification. The request never
+// reaches the service.
 func TestDynamoDBStreamsScopedToStreamsDynamoDBIsRefused(t *testing.T) {
 	for _, verify := range []bool{false, true} {
 		name := "sigv4 parse"

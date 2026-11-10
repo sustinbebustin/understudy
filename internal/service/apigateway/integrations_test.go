@@ -84,7 +84,7 @@ func TestPutIntegrationRefusals(t *testing.T) {
 }
 
 // connectionType VPC_LINK, tlsConfig and integrationTarget answer
-// NotImplemented naming the member (the unit's conflict row 4).
+// NotImplemented naming the member.
 func TestPutIntegrationNotImplemented(t *testing.T) {
 	run(t, func(h *harness) {
 		id, root := h.api("t")

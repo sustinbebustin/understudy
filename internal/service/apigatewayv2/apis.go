@@ -62,8 +62,7 @@ func checkUpdateAPI(in *apigatewayv2api.UpdateApiInput) *awserr.Error {
 // refuseQuickCreate refuses quick create: Target, RouteKey and
 // CredentialsArn make CreateApi build an integration, a route and an
 // automatically deploying $default stage, and UpdateApi change them
-// (apigateway-http.md 3.1). understudy does not emulate it (the unit's
-// conflict row 4).
+// (apigateway-http.md 3.1). understudy does not emulate it.
 func refuseQuickCreate(op string, target, routeKey, credentials *string) *awserr.Error {
 	for _, m := range []member{{"target", target != nil}, {"routeKey", routeKey != nil}, {"credentialsArn", credentials != nil}} {
 		if m.set {

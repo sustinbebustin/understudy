@@ -17,8 +17,7 @@ import (
 
 // A Standard execution may wait up to a year (aws-doc dg/state-wait,
 // dg/service-quotas): a Wait of 30,000,000 seconds finishes on one clock
-// advance, because the step is an emulator-clock timer (spec Acceptance;
-// invariant 5).
+// advance, because the step is an emulator-clock timer (invariant 5).
 func TestLongWaitFinishesOnOneClockAdvance(t *testing.T) {
 	run(t, func(h *harness) {
 		machine := h.create("long", `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":30000000,"End":true}}}`)
@@ -134,8 +133,7 @@ func TestSnapshotRoundTrip(t *testing.T) {
 }
 
 // A snapshot loaded mid-Wait re-arms the step: Rearm rebuilds the timers
-// from state, and the Wait finishes when the clock reaches it (spec
-// Acceptance; ADR 0009).
+// from state, and the Wait finishes when the clock reaches it (ADR 0009).
 func TestSnapshotMidWaitRearms(t *testing.T) {
 	run(t, func(h *harness) {
 		machine := h.create("w", `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":60,"End":true}}}`)

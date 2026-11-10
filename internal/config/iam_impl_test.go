@@ -10,8 +10,8 @@ import (
 )
 
 // Every text but off, advise and enforce is refused from each source with
-// the same reason, so no other spelling is read as a mode (iam-enforcement-surfaces.md 12.1;
-// the 5a version refused everything but off).
+// the same reason, so no other spelling is read as a mode
+// (iam-enforcement-surfaces.md 12.1).
 func TestIAMEnforceRefusesEveryOtherText(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		// A variable set to the empty string is unset, so only non-empty

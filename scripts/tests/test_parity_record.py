@@ -32,7 +32,7 @@ _loader.exec_module(pr)
 
 ACCOUNT = "111122223333"
 
-# The contract's example: a key created outside rec, then the recorded step.
+# A key created outside rec, then the recorded step.
 KMS = {
     "version": 1,
     "item": "KMS-alias",

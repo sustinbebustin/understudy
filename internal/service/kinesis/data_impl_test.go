@@ -28,8 +28,8 @@ func (h *harness) heldBlobs() int {
 }
 
 // The retention timer trims a stream nobody reads at the expiry instant,
-// so a snapshot taken after it holds no expired record (contract 3.4; the
-// aws-doc kinesis.retention.trim of kinesis.md 13.2).
+// so a snapshot taken after it holds no expired record (the aws-doc
+// kinesis.retention.trim of kinesis.md 13.2).
 func TestRetentionTimerTrimsWithoutARead(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 1)
@@ -51,7 +51,7 @@ func TestRetentionTimerTrimsWithoutARead(t *testing.T) {
 }
 
 // DeleteStream drops the stream's records with it: a snapshot holds none
-// of their data (contract 3.5).
+// of their data.
 func TestDeleteStreamDropsItsRecords(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 2)
@@ -98,7 +98,7 @@ func TestGetRecordsReleasesItsPins(t *testing.T) {
 }
 
 // A put wakes whoever waits on the stream's shardlog.WaitKey, the key the
-// Lambda poller waits on (spec B3; ARCHITECTURE.md 14.8: readers are woken
+// Lambda poller waits on (ARCHITECTURE.md 14.8: readers are woken
 // by writes, not a timer), and a put to another stream does not.
 func TestPutWakesTheStreamsWaitKey(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {

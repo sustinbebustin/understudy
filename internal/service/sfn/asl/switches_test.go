@@ -12,8 +12,7 @@ import (
 
 // The engine-level switches are inferred, so these tests read each value
 // from its switch and check the engine follows it, then flip the value and
-// check the behavior changes (spec "Fidelity switches": a flip test per
-// switch). An ErrorRule's Name is the error the execution reports; its
+// check the behavior changes (a flip test per switch). An ErrorRule's Name is the error the execution reports; its
 // Terminal decides whether a catcher sees it. Catchability is observed
 // through an inline Map's catcher, since an iteration's error becomes the
 // Map's (aws-recorded localstack@8b9a79f

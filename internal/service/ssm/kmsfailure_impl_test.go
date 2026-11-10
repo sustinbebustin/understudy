@@ -24,7 +24,7 @@ func TestKMSAccessDenialIsAccessDeniedException(t *testing.T) {
 
 // A KMS server error answers InternalServerError saying what stayed as it
 // was: on a write nothing was stored; on a read the value was not returned
-// and the parameter is unchanged (spec conflict 6; ssm-parameters.md 12.3).
+// and the parameter is unchanged (ssm-parameters.md 12.3).
 func TestKMSServerErrorSaysWhatWasLeftUnchanged(t *testing.T) {
 	cases := []struct {
 		op      string

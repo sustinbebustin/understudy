@@ -10,10 +10,10 @@ import (
 )
 
 // What step 8 asks about the operations the blind
-// TestStep8AsksAboutTheParameterARNs does not call (spec "Contract" IAM):
+// TestStep8AsksAboutTheParameterARNs does not call:
 // a selector is dropped and a root name loses its slash in the ARN
-// (ssm-parameters.md 3.3); an ARN of another account keeps that account
-// (spec enforce matrix); GetParametersByPath asks about the path ARN
+// (ssm-parameters.md 3.3); an ARN of another account keeps that account;
+// GetParametersByPath asks about the path ARN
 // without its leading slash and with a trailing slash kept, Path / being
 // parameter/ (ssm-parameters.md 7.4; SSM-35 steps 02-03);
 // DescribeParameters names no resource; the tag operations name
@@ -61,7 +61,7 @@ func TestStep8ResourcesOfEveryOperation(t *testing.T) {
 }
 
 // A tag call on another resource type names nothing understudy stores, so
-// step 8 is asked about no parameter (coverage note; spec "Contract" IAM).
+// step 8 is asked about no parameter (coverage note).
 func TestStep8TagsOfOtherResourceTypesNameNoParameter(t *testing.T) {
 	runGated(t, kernel.Allowed{}, func(h *harness, g *gate) {
 		_, err := call(h, ssmapi.OpListTagsForResource, &ssmapi.ListTagsForResourceInput{ResourceType: ssmapi.ResourceTypeForTaggingDocument, ResourceId: "doc"})

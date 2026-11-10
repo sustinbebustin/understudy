@@ -9,7 +9,7 @@ import (
 )
 
 // firstError is the first ERROR diagnostic: the one CreateStateMachine
-// renders (contract 5.1).
+// renders.
 func firstError(diags []asl.Diagnostic) (asl.Diagnostic, bool) {
 	for _, d := range diags {
 		if d.Severity == asl.SeverityError {
@@ -142,10 +142,10 @@ const (
 	terminalP = `"P":{"Type":"Pass","End":true}`
 )
 
-// Every construct the spec refuses is an ERROR diagnostic with code
+// Every construct understudy refuses is an ERROR diagnostic with code
 // UNSUPPORTED_BY_UNDERSTUDY at the field's location, with every feature
-// accepted: nothing is accepted and ignored (spec "Definition grammar";
-// stepfunctions-asl.md 10.4 message form; contract 5.1). Where the nesting
+// accepted: nothing is accepted and ignored (stepfunctions-asl.md 10.4
+// message form). Where the nesting
 // form of a location is understudy's (ASL-01), only the state's prefix is
 // asserted.
 func TestParseRefusalList(t *testing.T) {
@@ -226,7 +226,7 @@ func TestParseRefusalList(t *testing.T) {
 }
 
 // A literal lambda:invoke InvocationType RequestResponse, and one given by
-// a path, are accepted (spec "Definition grammar"; contract 5.1 FeatLambdaTask).
+// a path, are accepted with FeatLambdaTask.
 func TestParseAcceptsRequestResponseInvocation(t *testing.T) {
 	for _, params := range []string{
 		`{"FunctionName":"` + functionArn + `","InvocationType":"RequestResponse"}`,
@@ -246,8 +246,7 @@ func TestParseAcceptsRequestResponseInvocation(t *testing.T) {
 
 // Each feature's constructs are accepted with the feature and refused with
 // UNSUPPORTED_BY_UNDERSTUDY without it, so a construct is accepted only
-// once its runtime has landed (contract 5.1 feature table; spec "Every
-// commit is honest").
+// once its runtime has landed.
 func TestFeatureGating(t *testing.T) {
 	tests := []struct {
 		feature asl.Feature

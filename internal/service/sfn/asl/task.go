@@ -17,7 +17,7 @@ const defaultTaskTimeout = maxSeconds * time.Second
 // (stepfunctions-asl.md 8.1, 8.6).
 const errTimeout = "States.Timeout"
 
-// task enters a Lambda Task state (contract 5.5 item 3): it writes
+// task enters a Lambda Task state: it writes
 // TaskStateEntered and makes the first attempt.
 func (s *stepper) task(st taskState, j stepJob) {
 	entered := s.emit("TaskStateEntered", j.previous, stateEntered(st.name, j.input))
@@ -227,8 +227,8 @@ func (s *stepper) takeTask(id TaskID) (t inflight, deadline time.Time, ok bool) 
 // the task is not in flight, and the result changes nothing; ok is true
 // when the caller is to apply the result. A machine being deleted fails the
 // execution instead (switch sfn.delete.running-execution). The
-// function runs on wall time while the task timeout is emulator time (spec
-// "Runtime decisions"), so a result at or after the timeout's instant
+// function runs on wall time while the task timeout is emulator time, so a
+// result at or after the timeout's instant
 // loses to it: the task times out there and the result is dropped
 // (stepfunctions-asl.md 8.6, 9.1).
 func (s *stepper) answered(id TaskID, at time.Time) (t inflight, applies, ok bool) {

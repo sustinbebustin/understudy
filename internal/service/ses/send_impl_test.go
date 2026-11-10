@@ -84,7 +84,7 @@ func TestSendEmailChecksBeforeAddresses(t *testing.T) {
 }
 
 // VerifyEmailIdentity refuses an invalid address as a send does and
-// creates nothing (contract 2.3; the text is recorded, SES-04).
+// creates nothing (the text is recorded, SES-04).
 func TestVerifyEmailIdentityRefusesInvalidAddress(t *testing.T) {
 	run(t, func(h *harness) {
 		_, err := call(h, sesapi.OpVerifyEmailIdentity, &sesapi.VerifyEmailIdentityInput{EmailAddress: "no-at-sign"})

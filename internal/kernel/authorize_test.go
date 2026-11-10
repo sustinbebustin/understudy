@@ -28,7 +28,7 @@ import (
 // The kernel side of IAM enforcement (iam-enforcement-surfaces.md 12.1):
 // pipeline step 8 asks the Authorizer after validation and before the
 // request-phase fault rules, and kernel.Authorize asks it for a resource a
-// handler resolved itself. A fake Authorizer stands in for 5b's evaluator,
+// handler resolved itself. A fake Authorizer stands in for the evaluator,
 // so these tests pin what the kernel asks and what it does with the
 // answer, never a policy decision.
 

@@ -88,8 +88,7 @@ func TestGoldenG2ToG6ParametersWithPath(t *testing.T) {
 // last_validated_date 2024-07-03), and botocore prints nothing after the
 // colon (localstack@8b9a79f
 // tests/aws/services/cloudformation/resource_providers/ssm/test_parameter.snapshot.json:L69,
-// last_validated_date 2023-06-21). A plain rule, not a switch (spec
-// conflict 3).
+// last_validated_date 2023-06-21). A plain rule, not a switch.
 func TestGoldenG7GetParameterAfterDelete(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/cfn/g7", "v")

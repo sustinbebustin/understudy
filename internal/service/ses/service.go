@@ -123,7 +123,7 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 
 // Resources lists the identities of scope in creation order, each with
 // its v1 verification status, then the templates in creation order, each
-// summarized "template" (contract 1.2).
+// summarized "template".
 func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 	cell, ok := s.cells.Lookup(scope)
 	if !ok {

@@ -209,7 +209,7 @@ func TestRouteSettings(t *testing.T) {
 
 // ClientCertificateId is WebSocket-only (the stage API reference,
 // apigateway-http.md 3.4), a valid member understudy does not emulate, so
-// it answers NotImplemented naming it (the unit's conflict row 4).
+// it answers NotImplemented naming it.
 func TestClientCertificateIsNotImplemented(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.apiID("t")

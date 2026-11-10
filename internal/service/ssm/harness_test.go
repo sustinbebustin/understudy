@@ -188,8 +188,8 @@ func wantError(tb testing.TB, what string, err *awserr.Error, id awserr.Identity
 	}
 }
 
-// wantOwnMessage checks an understudy-owned message by the contract's
-// rule: it names each of parts (the parameter or offending input and the
+// wantOwnMessage checks an understudy-owned message by the rule for
+// them: it names each of parts (the parameter or offending input and the
 // limit) and never holds the request's value.
 func wantOwnMessage(tb testing.TB, what string, err *awserr.Error, value string, parts ...string) {
 	tb.Helper()
@@ -207,7 +207,7 @@ func wantOwnMessage(tb testing.TB, what string, err *awserr.Error, value string,
 }
 
 // wantNotImplemented fails unless err is the 501 NotImplemented naming
-// feature and the issues link (spec "Scope"; contract 2.2).
+// feature and the issues link.
 func wantNotImplemented(tb testing.TB, what string, err *awserr.Error, feature string) {
 	tb.Helper()
 	wantCode(tb, what, err, ssmapi.IdentityNotImplemented())

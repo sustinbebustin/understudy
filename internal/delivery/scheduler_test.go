@@ -78,8 +78,8 @@ func TestPropertySchedulerPayloadWithoutAttributesIsVerbatim(t *testing.T) {
 	})
 }
 
-// The switch values of scheduler.retry.permanent-errors (contract section
-// 3; scheduler.md 14.12).
+// The switch values of scheduler.retry.permanent-errors (scheduler.md
+// 14.12).
 func TestPermanentErrorsStrings(t *testing.T) {
 	if delivery.PermanentNotRetried.String() != "not-retried" || delivery.PermanentRetried.String() != "retried" {
 		t.Errorf("PermanentErrors strings = %q, %q; want not-retried, retried", delivery.PermanentNotRetried, delivery.PermanentRetried)

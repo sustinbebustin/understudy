@@ -17,8 +17,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl"
 )
 
-// TimerStep fires one engine timer of an execution: a state transition
-// (contract 5.5). The key's ID is "<execution ARN>/<TimerID>".
+// TimerStep fires one engine timer of an execution: a state transition.
+// The key's ID is "<execution ARN>/<TimerID>".
 const TimerStep kernel.TimerKind = "sfn.step"
 
 // timerID is the TimerStep ID of timer of the execution ref.

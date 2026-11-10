@@ -14,7 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
-// The control plane of the tracer bullet (spec 6b ticket 2): enough of
+// The control plane of the tracer bullet: enough of
 // CreateRestApi, GetRestApi and CreateDeployment for a Lambda proxy on the
 // root resource. A member these do not handle yet is refused with 501
 // naming it, never ignored.

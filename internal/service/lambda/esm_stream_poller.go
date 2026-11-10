@@ -20,13 +20,13 @@ import (
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 )
 
-// A stream mapping's reader (lambda-stream-sources.md 12.5; contract 8.4):
+// A stream mapping's reader (lambda-stream-sources.md 12.5):
 // the poller of a mapping on a DynamoDB or Kinesis stream, which reads
 // either through its esm.StreamSource and holds no kind-specific code
-// (12.1 item 4; 08b contract 6.2). It shares the SQS poller's lifecycle
+// (12.1 item 4). It shares the SQS poller's lifecycle
 // (esm_runtime.go): an idle reader waits on shardlog.WaitKey of its stream
 // and steps when an append wakes it, so a quiet stream never holds a
-// settle (spec conflict row 2).
+// settle.
 //
 // A step reads the stream from the mapping's checkpoint through an
 // esm.StreamSource as the execution role, gathering records into one
@@ -155,8 +155,8 @@ func (p *pollers) streamStep(ctx context.Context, c *kernel.Call, pl *poller) po
 	src := newStreamSource(p.x.k, c, kind, target, sh.stream, t.role)
 	if r := sh.retry; r != nil {
 		// The retention is the stream's current one: fixed for DynamoDB, the
-		// RetentionPeriodHours DescribeStreamSummary answers for Kinesis
-		// (08b contract 6.2). A failed read keeps the batch for its retry.
+		// RetentionPeriodHours DescribeStreamSummary answers for Kinesis.
+		// A failed read keeps the batch for its retry.
 		retention, rerr := src.Retention(ctx)
 		if rerr != nil {
 			return p.readFailed(ctx, c, pl, rerr)
@@ -213,8 +213,8 @@ func (p *pollers) expireAndInvoke(ctx context.Context, c *kernel.Call, pl *polle
 // lambda-stream-sources.md 5.3; age measured from the arrival and one
 // record each, inferred, ESMS-09), and returns the rest. Each record's
 // approximateInvokeCount is the batch's attempts, at least 1, and its
-// requestId the last invocation's, or a new one when none was made
-// (contract 7). Arrivals do not decrease within a shard, so the expired
+// requestId the last invocation's, or a new one when none was made.
+// Arrivals do not decrease within a shard, so the expired
 // records lead the batch.
 func (p *pollers) expireStream(ctx context.Context, c *kernel.Call, pl *poller, t target, kind esm.EventSourceKind, shard string, b esm.Batch[esm.StreamRecord], attempts int, request ids.LambdaRequestID) (esm.Batch[esm.StreamRecord], error) {
 	limit, ok := streamSettingsOf(kind).RecordAge.(esm.MaxAge)
@@ -251,7 +251,7 @@ func streamSettingsOf(kind esm.EventSourceKind) esm.StreamSettings {
 
 // failedBatch is what an on-failure record reports of records, read from
 // shard and discarded now for cond after count invocations, the last
-// numbered request (lambda-stream-sources.md 5.6; contract 7).
+// numbered request (lambda-stream-sources.md 5.6).
 func (p *pollers) failedBatch(pl *poller, t target, shard string, records []esm.StreamRecord, cond esm.FailCondition, count int, request ids.LambdaRequestID) esm.FailedBatch {
 	return esm.FailedBatch{
 		RequestID:   string(request),
@@ -283,10 +283,9 @@ func batchOf(records []esm.StreamRecord) (esm.Batch[esm.StreamRecord], error) {
 // lambda-stream-sources.md 5.1), and moves the checkpoint past the last.
 // With an on-failure destination in kind's settings, the same write hands
 // the outbox one on-failure record per batch in kind's form (5.6), sent
-// once as the execution role t runs as (contract 4): a destination that is
+// once as the execution role t runs as: a destination that is
 // missing or refuses it is journaled as a failed delivery, and the batch
-// stays discarded (spec enforce row 4). Without one, the log says what was
-// lost.
+// stays discarded. Without one, the log says what was lost.
 func (p *pollers) discardStream(ctx context.Context, c *kernel.Call, pl *poller, t target, kind esm.EventSourceKind, shard string, failed []esm.FailedBatch) {
 	dest := streamSettingsOf(kind).OnFailure
 	var sends []delivery.Request
@@ -321,7 +320,7 @@ func conditionName(cond esm.FailCondition) string {
 // onFailureDelivery is the outbox request that sends record, an on-failure
 // record of the mapping source, to dest as role: SendMessage to a queue,
 // or Publish to a topic with no subject and no attributes
-// (lambda-stream-sources.md 5.6; contract 4), each attempted once. A
+// (lambda-stream-sources.md 5.6), each attempted once. A
 // failed send counts as a destination record's failure
 // (delivery.DestinationRecord). False when dest is no destination.
 func onFailureDelivery(dest esm.OnFailure, source, role aws.ARN, record []byte) (delivery.Request, bool) {
@@ -457,7 +456,7 @@ func (p *pollers) checkpoint(ctx context.Context, c *kernel.Call, pl *poller, sr
 }
 
 // saveCheckpoint moves pl's checkpoint of shard to next, journaling the
-// move on the mapping's ARN (contract 8.4), and marks the mapping
+// move on the mapping's ARN, and marks the mapping
 // processed when a batch succeeded. A shard without a checkpoint moves
 // from the mapping's starting position. A failed save is logged: the
 // records after the old checkpoint may be delivered again.
@@ -497,7 +496,7 @@ func (p *pollers) moveCheckpoint(c *kernel.Call, pl *poller, shard string, next 
 	return werr
 }
 
-// checkpointState names a checkpoint in the journal (contract 8.4):
+// checkpointState names a checkpoint in the journal:
 // TRIM_HORIZON, LATEST, AFTER <seq> or AT <seq>; "" for none.
 func checkpointState(p shardlog.Position) journal.ResourceState {
 	switch p := p.(type) {

@@ -12,8 +12,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/apigateway"
 )
 
-// The five switches of the unit (spec 6b "Fidelity switches"), in its
-// order, with a Ref into apigateway-rest.md, the recording cases that
+// The five switches (apigateway-rest.md 12.3), in Switches' order, each
+// with a Ref into apigateway-rest.md, the recording cases that
 // settle it and no parity scenario (the replayer does not route
 // execute-api requests); api-status and proxy.unrecorded are AWS's as
 // APIGW1-03, -10 and -16 recorded them, the others keep an unrecorded
@@ -87,7 +87,7 @@ func TestSwitchValuesKeepTheDocumentedParts(t *testing.T) {
 	}
 }
 
-// The fixed answers API Gateway writes itself (contract 7.4):
+// The fixed answers API Gateway writes itself:
 // MISSING_AUTHENTICATION_TOKEN 403 with its body and error type
 // (aws-recorded, test_apigateway_common.snapshot.json:L1113-L1132,
 // apigateway-rest.md finding 3), the Lambda proxy failure 502 (aws-recorded,
@@ -114,7 +114,7 @@ func TestFixedAnswers(t *testing.T) {
 		t.Errorf("MaxBody = %d, want 10485760 (apigateway-rest.md 2.6)", apigateway.MaxBody)
 	}
 	if a := apigateway.APIKeyRequired(); a.Status != http.StatusForbidden {
-		t.Errorf("APIKeyRequired status = %d, want 403 (spec 6b enforce matrix)", a.Status)
+		t.Errorf("APIKeyRequired status = %d, want 403", a.Status)
 	}
 	if a := apigateway.EventTooLarge(); a.Status < 500 {
 		t.Errorf("EventTooLarge status = %d, want a 5xx", a.Status)

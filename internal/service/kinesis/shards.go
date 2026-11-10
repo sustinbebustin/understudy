@@ -50,7 +50,7 @@ type listShardsToken struct {
 	Issued  clock.Instant `json:"i"`
 }
 
-// listShards answers ListShards (contract 3.5): the exclusivity refusals
+// listShards answers ListShards: the exclusivity refusals
 // first, then either the listing a NextToken resumes or a new one by
 // stream and filter, paged min(MaxResults or 1000, 1000).
 func (s *Service) listShards(_ context.Context, c *kernel.Call, in *kinesisapi.ListShardsInput) (*kinesisapi.ListShardsOutput, *awserr.Error) {
@@ -125,7 +125,7 @@ func listShardsExclusive(in *kinesisapi.ListShardsInput) *awserr.Error {
 }
 
 // newListing starts a listing: the filter's required member (understudy's
-// texts, KIN-15), the stream (contract 3.3), its creation timestamp to the
+// texts, KIN-15), the stream, its creation timestamp to the
 // millisecond when given (another one is not found), then the start: the
 // later of ExclusiveStartShardId and AFTER_SHARD_ID's ShardId. Every shard
 // of slice 1 is open and opened with its stream (kinesis.md 4.6, 13.5), so

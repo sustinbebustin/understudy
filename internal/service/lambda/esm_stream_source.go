@@ -17,7 +17,7 @@ import (
 
 // dynamoSource reads a DynamoDB stream for the poller through the DynamoDB
 // Streams operations, as the mapping's execution role
-// (lambda-stream-sources.md 12.5; contract 7, StreamSource).
+// (lambda-stream-sources.md 12.5).
 type dynamoSource struct {
 	k      *kernel.Kernel
 	parent *kernel.Call
@@ -133,7 +133,7 @@ func (e *deniedReadError) Error() string {
 }
 
 // lambdaRecord is r as a stream mapping's function receives it
-// (dynamodb-streams.md 7.8; contract 8.3): GetRecords' record with
+// (dynamodb-streams.md 7.8): GetRecords' record with
 // eventSourceARN added, ApproximateCreationDateTime as whole epoch
 // seconds, and userIdentity in Lambda's casing. Its Arrival is the
 // creation time as answered, which for a mapping's read is the stored

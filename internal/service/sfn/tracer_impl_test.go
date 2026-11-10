@@ -181,8 +181,7 @@ func TestGeneratedExecutionName(t *testing.T) {
 }
 
 // Every recording id a coverage note of the sfn bindings names has a test
-// under internal/service/sfn commented "inferred, <id>" (spec
-// "Inferred-choice tests").
+// under internal/service/sfn commented "inferred, <id>".
 func TestEveryNoteRecordingIDHasAnInferredTest(t *testing.T) {
 	var notes []string
 	run(t, func(h *harness) {

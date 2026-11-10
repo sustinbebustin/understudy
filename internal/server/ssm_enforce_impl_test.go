@@ -16,7 +16,7 @@ func ssmCall(t *testing.T, s signer, endpoint, op, body string) wire {
 }
 
 // Under iam.enforce=enforce a default-key SecureString is encrypted and
-// decrypted as ssm.amazonaws.com (spec conflict 9; ssm-parameters.md 5.6,
+// decrypted as ssm.amazonaws.com (ssm-parameters.md 5.6,
 // inferred), so an explicit identity-policy deny of kms:Encrypt and
 // kms:Decrypt does not stop the caller, as the value-bearing operations'
 // coverage notes say. UNVERIFIED (SSM-22 step 08).
@@ -38,7 +38,7 @@ func TestEnforceDefaultKeySecureStringIgnoresKMSDeny(t *testing.T) {
 // Under enforce, GetParameter by the ARN of another account's parameter is
 // denied at step 8 with SSM's denial identity before any lookup: the
 // resource is named by the request and SSM has no resource policy to grant
-// it (spec enforce matrix). AWS denies it whatever the caller's policies
+// it. AWS denies it whatever the caller's policies
 // (ssm-parameters.md 3.3; SSM-29 step 01), so under off the handler denies
 // it too, and another Region's ARN answers ValidationException in both
 // modes (SSM-29 step 02).

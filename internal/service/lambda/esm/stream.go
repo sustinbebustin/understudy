@@ -312,8 +312,8 @@ func (b ResendBudget) String() string {
 	return "ResendBudget(" + strconv.Itoa(int(b)) + ")"
 }
 
-// StreamSwitches returns the stream poller's switch entries (contract 9;
-// lambda-stream-sources.md 12.7).
+// StreamSwitches returns the stream poller's switch entries
+// (lambda-stream-sources.md 12.7).
 func StreamSwitches(f StreamFidelity) []fidelity.Entry {
 	sw := func(name, value, ref, record string, ops ...string) fidelity.Entry {
 		return fidelity.Switch[string]{

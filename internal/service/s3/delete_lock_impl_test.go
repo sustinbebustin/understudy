@@ -123,9 +123,8 @@ func TestExpiredRetentionDoesNotLiftAHold(t *testing.T) {
 // TestImportedLockStateIsEnforcedAndResetClearsIt: lock state a snapshot
 // restores still refuses a versioned delete (s3-ssec-object-lock.md 11.2),
 // so a COMPLIANCE version keeps its bucket from being deleted
-// (BucketNotEmpty, s3.md 3), and reset, which applies no lock, clears both
-// (spec risk: reset clears retention): the name is free for a new, empty
-// bucket.
+// (BucketNotEmpty, s3.md 3), and reset, which applies no lock, clears
+// both: the name is free for a new, empty bucket.
 func TestImportedLockStateIsEnforcedAndResetClearsIt(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T

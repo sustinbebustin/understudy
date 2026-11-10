@@ -157,8 +157,8 @@ func TestStep8AsksAboutTheDocumentedPairs(t *testing.T) {
 }
 
 // A denied control-plane call answers the service's denial identity
-// (AccessDeniedException 403, inferred: the enforce matrix, case
-// APIGW1-22), read from the descriptor, and changes nothing.
+// (AccessDeniedException 403, inferred, case APIGW1-22), read from the
+// descriptor, and changes nothing.
 func TestDeniedControlPlaneCall(t *testing.T) {
 	g := newGate("CreateRestApi")
 	run(t, func(h *harness) {
@@ -177,7 +177,7 @@ func TestDeniedControlPlaneCall(t *testing.T) {
 }
 
 // A request on a NONE method is never put to step 8: InvokeRestApi
-// declares no IAM action (contract 1, 7.3; apigateway-rest.md 12.2), and
+// declares no IAM action (apigateway-rest.md 12.2), and
 // the request reaches the function.
 func TestNoneMethodIsNotAuthorized(t *testing.T) {
 	g := newGate()

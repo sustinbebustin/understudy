@@ -17,7 +17,7 @@ type (
 )
 
 // The coverage page reads baseline.json with its own reader, since coverage
-// does not import parity (contract D13); both readers accept the
+// does not import parity; both readers accept the
 // checked-in file and agree on every step's fixture, operation and outcome
 // and every claim's target and result.
 func TestBaselineReadsInCoverage(t *testing.T) {

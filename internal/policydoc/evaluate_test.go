@@ -277,8 +277,8 @@ func TestEvaluateNotPrincipalNeverExemptsABoundedPrincipal(t *testing.T) {
 // A key AWS would send that understudy cannot compute evaluates as absent
 // by the truth table of iam-evaluation.md 6.14, and Evaluate reports it once
 // per statement that tested it, spelled as the document spells it, so the
-// caller can journal it (iam-enforcement-surfaces.md 12.2; the spec's
-// settled row 2: never assumed to hold). Every clause of a statement whose
+// caller can journal it (iam-enforcement-surfaces.md 12.2: never
+// assumed to hold). Every clause of a statement whose
 // principal, action and resource matched is evaluated, so a second
 // unsupplied key is reported even after the first clause failed.
 func TestEvaluateReportsUnsuppliedKeys(t *testing.T) {

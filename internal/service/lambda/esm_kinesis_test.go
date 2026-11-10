@@ -31,10 +31,10 @@ const kinesisARN = "arn:aws:kinesis:us-east-1:000000000000:stream/clicks"
 const kinesisShard = "shardId-000000000000"
 
 // fakeKinesis stands in for the Kinesis service: it binds the four
-// operations Lambda reads a stream through (contract 6.2: ListShards,
-// GetShardIterator, GetRecords; DescribeStreamSummary for existence), keeps
-// one shard of records and the principal of every call, and wakes
-// shardlog.WaitKey on each put as the service does (contract 3.5).
+// operations Lambda reads a stream through (ListShards, GetShardIterator,
+// GetRecords; DescribeStreamSummary for existence), keeps one shard of
+// records and the principal of every call, and wakes shardlog.WaitKey on
+// each put as the service does.
 type fakeKinesis struct {
 	k *kerneltest.K
 
@@ -210,10 +210,10 @@ func (h *kinesisHarness) kinesisInput(in lambdaapi.CreateEventSourceMappingInput
 }
 
 // A Kinesis mapping created with only StartingPosition LATEST carries
-// every stream field defaulted as recorded (third-party-recorded, golden
-// 10: LS-K:L5-L29, lambda-stream-sources.md 3.5), Enabled under
+// every stream field defaulted as recorded (third-party-recorded,
+// LS-K:L5-L29, lambda-stream-sources.md 3.5), Enabled under
 // lambda.stateTransitions final; existence is checked through
-// DescribeStreamSummary as the execution role (contract 6.1).
+// DescribeStreamSummary as the execution role.
 func TestKinesisMappingCreateShape(t *testing.T) {
 	runKinesis(t, func(h *kinesisHarness) {
 		h.createFunction("worker")
@@ -258,12 +258,11 @@ func TestKinesisMappingCreateShape(t *testing.T) {
 }
 
 // Kinesis mapping refusals: rows 1, 2, 4 and 5 of lambda-stream-sources.md
-// 3.3 byte for byte (third-party-recorded: LS-API:L18250-L18270 rows 1-2,
-// golden 25; LS-K:L3160-L3175 row 4, golden 20; LS-K:L1478-L1489 row 5,
-// golden 14), a second function on the stream allowed (golden 15,
-// LS-K:L1547-L1586); AT_TIMESTAMP and a consumer ARN answer 501 with
-// contract 6.1's texts (12.1 item 2), and an unbuilt setting's 501 names a
-// Kinesis mapping.
+// 3.3 byte for byte (third-party-recorded: LS-API:L18250-L18270 rows 1-2;
+// LS-K:L3160-L3175 row 4; LS-K:L1478-L1489 row 5), a second function on
+// the stream allowed (LS-K:L1547-L1586); AT_TIMESTAMP and a consumer ARN
+// answer 501 naming what is not implemented (12.1 item 2), and an unbuilt
+// setting's 501 names a Kinesis mapping.
 func TestKinesisMappingRefusals(t *testing.T) {
 	runKinesis(t, func(h *kinesisHarness) {
 		h.createFunction("worker")
@@ -304,12 +303,12 @@ func TestKinesisMappingRefusals(t *testing.T) {
 
 // A put reaches the function as a one-record event whose record is the
 // documented Kinesis record, members in order (aws-doc with-kinesis,
-// kinesis.md 8.1 and 13.8 item 2; lambda-stream-sources.md 8.1; contract
-// 6.2): base64 data, approximateArrivalTimestamp in epoch seconds with
-// milliseconds, eventID <shardId>:<sequenceNumber>, invokeIdentityArn the
-// execution role, the stream's region and ARN, no encryptionType. The
-// stream is read through ListShards, GetShardIterator and GetRecords as
-// the execution role (contract 6.2).
+// kinesis.md 8.1 and 13.8 item 2; lambda-stream-sources.md 8.1): base64
+// data, approximateArrivalTimestamp in epoch seconds with milliseconds,
+// eventID <shardId>:<sequenceNumber>, invokeIdentityArn the execution
+// role, the stream's region and ARN, no encryptionType. The stream is read
+// through ListShards, GetShardIterator and GetRecords as the execution
+// role.
 func TestKinesisMappingDeliversTheDocumentedRecord(t *testing.T) {
 	runKinesis(t, func(h *kinesisHarness) {
 		h.createFunction("worker")

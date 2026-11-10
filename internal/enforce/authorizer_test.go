@@ -270,8 +270,9 @@ func TestUnboundAuthorizeAnswersNothing(t *testing.T) {
 // 2.2 step 4): under enforce the call answers the service's denial
 // identity with the documented grammar (iam-enforcement-surfaces.md 4.1,
 // "identity-based, implicit") and an access-denied advisory; under advise
-// it is served with an access-would-deny advisory. The advisory texts are
-// contract 7's.
+// it is served with an access-would-deny advisory. An advisory's text is
+// the denial message, then the policy type, principal, action and resource
+// that decided it, and under advise that the call was served.
 func TestADenialUnderEachMode(t *testing.T) {
 	const decided = "; decided by identity-based policy for arn:aws:iam::000000000000:user/u calling guard:Run on *"
 	ids := &identities{sets: map[string]authz.IdentitySet{userARN: {Boundary: authz.NoBoundary{}}}}
@@ -375,8 +376,7 @@ func TestTheStoredOwnerDecidesTheAccount(t *testing.T) {
 // A stored policy that does not parse is never read as no policy: under
 // enforce the call ends Internal with an *UnevaluableError naming the pair
 // and the parse error; under advise an access-unevaluated advisory is
-// journaled and the call served (iam-enforcement-surfaces.md 12.10;
-// contract section 0).
+// journaled and the call served (iam-enforcement-surfaces.md 12.10).
 func TestAnUnreadableStoredPolicy(t *testing.T) {
 	parseErr := errors.New("Syntax errors in policy")
 	res := resources{queue.String(): {Owner: acct, Policy: authz.Unparsed{Text: `{"Statement":`, Err: parseErr}}}
@@ -401,7 +401,7 @@ func TestAnUnreadableStoredPolicy(t *testing.T) {
 		got := advisories(k, journal.AdvisoryAccessUnevaluated)
 		if len(got) != 1 || got[0].Resource != queue || !strings.HasSuffix(got[0].Text, "; iam.enforce is advise, so understudy served the call") ||
 			!strings.HasPrefix(got[0].Text, "understudy could not evaluate sqs:SendMessage on "+queue.String()+" for "+userARN+": ") {
-			k.Errorf("access-unevaluated advisories = %+v, want one on the queue in contract 7's form", got)
+			k.Errorf("access-unevaluated advisories = %+v, want one on the queue", got)
 		}
 	})
 }
@@ -555,8 +555,7 @@ func TestTheContextReadsTheCall(t *testing.T) {
 }
 
 // Under advise the first denying pair of a question ends it: a call needing
-// two denied pairs journals one access-would-deny advisory, on the first
-// (contract 8.1 step 4).
+// two denied pairs journals one access-would-deny advisory, on the first.
 func TestAdviseJournalsTheFirstDenyingPairOnce(t *testing.T) {
 	first := mustARN("arn:aws:multi:us-east-1:000000000000:thing/one")
 	second := mustARN("arn:aws:multi:us-east-1:000000000000:thing/two")

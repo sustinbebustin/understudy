@@ -205,7 +205,7 @@ func TestGetRoleIsRecordedOnTheRoleOnly(t *testing.T) {
 // A role that does not exist answers NoSuchEntity before any in-handler
 // authorization: there is no role ARN to ask about (iam-enforcement-surfaces.md
 // 12.1, existence checks stay in handlers; the order against authorization
-// is switch iam.enforce.missing-resource, 5b's, case IAM-ENF-14). An allowed
+// is switch iam.enforce.missing-resource, case IAM-ENF-14). An allowed
 // GetRole reads the role as before.
 func TestGetRoleOfAMissingRoleIsNoSuchEntityBeforeAuthorization(t *testing.T) {
 	gate := &roleGate{}

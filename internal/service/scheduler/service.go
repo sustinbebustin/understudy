@@ -59,8 +59,7 @@ const createNote = "templated Lambda, SQS, SNS, EventBridge event bus and Step F
 	"and the refusal of a target ARN that is not a templated target's resource carries understudy's own message"
 
 // New binds the Scheduler operations built so far (scheduler.md 2.2) and
-// registers the fire timer; the rest stay unbound and answer 501 until
-// their tickets build them.
+// registers the fire timer; the rest stay unbound and answer 501.
 func New(d kernel.ServiceDeps, o Options) *Service {
 	s := &Service{opts: o, k: d.Kernel, ids: d.IDs, cells: store.NewPartitioned(d.Kernel.Gate(), codec(), newState)}
 	s.fire = d.Kernel.Timers().Handle(TimerFire, s.onFire)

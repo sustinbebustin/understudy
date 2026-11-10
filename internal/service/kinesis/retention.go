@@ -17,8 +17,7 @@ import (
 )
 
 // TimerRetention fires when the oldest record of a stream outlives the
-// stream's retention period (contract 3.4). The key's ID is the stream's
-// ARN.
+// stream's retention period. The key's ID is the stream's ARN.
 const TimerRetention kernel.TimerKind = "kinesis.retention"
 
 // retention is the stream's retention period.
@@ -98,7 +97,7 @@ func (s *Service) armRetention(tx *kernel.Tx, scope aws.Scope, str Stream) {
 }
 
 // trimStream trims the named stream at the write's instant, as every call
-// that reads a shard does first (contract 3.4), and rearms its retention
+// that reads a shard does first, and rearms its retention
 // timer. A stream that is gone is left alone: the caller's own lookup
 // answers for it.
 func (s *Service) trimStream(ctx context.Context, c *kernel.Call, scope aws.Scope, name string) *awserr.Error {

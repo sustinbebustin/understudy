@@ -17,8 +17,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/apigatewayv2"
 )
 
-// invokeAPI is the raw data-plane operation (the unit's rawOperations
-// entry).
+// invokeAPI is the raw data-plane operation.
 var invokeAPI = ref.OperationID{Service: "apigatewayv2", Name: "InvokeApi"}
 
 // obj reads the JSON object at key of an event.
@@ -347,7 +346,7 @@ func TestPayloadV1(t *testing.T) {
 
 // How a 2.0 response is read (apigateway-http.md 5.3): output without a
 // statusCode is a 200 application/json body, a bare string the string
-// itself (the unit's conflict row 6); a structured response without a
+// itself; a structured response without a
 // Content-Type gets the apigatewayv2.payload.unrecorded switch's
 // DefaultContentType (recorded, APIGW2-09).
 func TestResponseV2(t *testing.T) {
@@ -561,7 +560,7 @@ func TestAutoDeployServesChangesAtOnce(t *testing.T) {
 }
 
 // enforceModes are the iam.enforce settings the permission check must
-// hold under (the unit's enforce matrix): off has no step-8 Authorizer;
+// hold under: off has no step-8 Authorizer;
 // advise and enforce as Root both let every call through step 8. Until
 // the evaluator lands they are the step-8 seam with an Authorizer that
 // allows every call.
@@ -650,7 +649,7 @@ func TestSourceARN(t *testing.T) {
 // the switch's FunctionError ({"message":"Internal Server Error"} is
 // documented, its status UNVERIFIED, apigateway-http.md 5.6, APIGW2-10);
 // Lambda's payload limit answers TooLarge; Lambda without Docker answers
-// 501 naming Docker, never an AWS-shaped error (the unit's conflict row 3).
+// 501 naming Docker, never an AWS-shaped error.
 func TestFunctionFailures(t *testing.T) {
 	fa := apigatewayv2.FailureAnswersSwitch().Value
 	run(t, func(h *harness) {
@@ -721,12 +720,11 @@ func TestSizeLimits(t *testing.T) {
 	})
 }
 
-// What the plan minimum stores but does not run answers 501 when a request
-// reaches it, and the function never runs (the unit's scope and conflict
-// row 3): an AWS_IAM route, a CORS request (an Origin header to an API
-// with a CORS configuration), HTTP_PROXY and service integrations, and a
-// Lambda integration with credentials, parameter mapping or a stage
-// variable in its URI.
+// What understudy stores but does not run answers 501 when a request
+// reaches it, and the function never runs: an AWS_IAM route, a CORS
+// request (an Origin header to an API with a CORS configuration),
+// HTTP_PROXY and service integrations, and a Lambda integration with
+// credentials, parameter mapping or a stage variable in its URI.
 func TestUnemulatedRequestsAnswer501(t *testing.T) {
 	run(t, func(h *harness) {
 		fnARN := h.createFunction("fn")

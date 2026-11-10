@@ -90,8 +90,8 @@ func must[In, Out any](h *harness, op kernel.Op[In, Out], in *In) *Out {
 
 func errOf[Out any](_ *Out, err *awserr.Error) *awserr.Error { return err }
 
-// wantError fails unless err is the shape (by name, contract section 1:
-// clients strip the __type namespace) with status and message.
+// wantError fails unless err is the shape (by name: clients strip the
+// __type namespace) with status and message.
 func wantError(tb testing.TB, err *awserr.Error, shape string, status int, message string) {
 	tb.Helper()
 	switch {

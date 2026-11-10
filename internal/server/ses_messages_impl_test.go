@@ -37,7 +37,7 @@ func sesCall(t *testing.T, endpoint string, form url.Values) (status int, body s
 // The verification email VerifyEmailIdentity records is readable through
 // GET /ses/messages with admin.Client.SESMessages, its link built from the
 // address the client used, and DELETE /ses/messages clears what its filters
-// select (ses.md 11.2; contract 4.1).
+// select (ses.md 11.2).
 func TestSESMessagesThroughTheAdminAPI(t *testing.T) {
 	c, endpoint := adminServer(t, server.Config{})
 	for _, addr := range []string{"a@example.com", "b@example.com"} {
@@ -81,7 +81,7 @@ func TestSESMessagesThroughTheAdminAPI(t *testing.T) {
 	}
 }
 
-// A refused filter is invalid_request naming its field (contract 4.1), and
+// A refused filter is invalid_request naming its field, and
 // DELETE refuses the paging parameters.
 func TestSESMessagesRefusesBadFilters(t *testing.T) {
 	c, endpoint := adminServer(t, server.Config{})

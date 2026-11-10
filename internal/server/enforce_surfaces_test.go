@@ -15,8 +15,8 @@ import (
 )
 
 // Service surfaces under iam.enforce=enforce: operations that resolve their
-// resource by name are decided on the resolved resource (contract 5.3,
-// 11.2, 11.4), CopyObject asks about each action on the resource it applies
+// resource by name are decided on the resolved resource, CopyObject asks
+// about each action on the resource it applies
 // to (iam-enforcement-surfaces.md 12.6), and an EventBridge delivery the
 // target refuses goes to the target's dead-letter queue (8.4).
 
@@ -44,7 +44,7 @@ func wiredSwitch(t *testing.T, c *admin.Client, name string) string {
 // ARN once IAM resolved it, so a policy granting iam:GetUser on the
 // caller's own ARN allows reading itself and no other user (the policy's
 // Resource matches the request's resource, iam-evaluation.md 5.3); a user
-// that does not exist answers NoSuchEntity first (contract section 0,
+// that does not exist answers NoSuchEntity first (switch
 // iam.enforce.missing-resource).
 func TestEnforceDecidesIAMCallsOnTheResolvedUser(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
@@ -65,7 +65,7 @@ func TestEnforceDecidesIAMCallsOnTheResolvedUser(t *testing.T) {
 }
 
 // A KMS call that names its key by alias is decided on the key the alias
-// resolves to (contract 11.4): a grant on the key's ARN covers the alias,
+// resolves to: a grant on the key's ARN covers the alias,
 // and another key stays denied.
 func TestEnforceDecidesKMSCallsOnTheResolvedKey(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)

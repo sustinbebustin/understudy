@@ -34,8 +34,7 @@ func serveKinesis(t *testing.T, srv *server.Server, req *http.Request) *httptest
 
 // The wired emulator serves Kinesis: CreateStream answers 200 with an
 // empty body ("HTTP 200 response with an empty HTTP body", aws-doc
-// kinesis.md 2.1) and DescribeStreamSummary finds the stream (spec B1
-// tracer bullet), where the edge answered 501 before.
+// kinesis.md 2.1) and DescribeStreamSummary finds the stream.
 func TestKinesisIsServed(t *testing.T) {
 	srv, _ := build(t, server.Config{Docker: server.DockerDisabled{}, DynamoDB: server.DynamoDBDisabled{}})
 	rec := serveKinesis(t, srv, kinesisRequest(t, "CreateStream", "application/x-amz-json-1.1", []byte(`{"StreamName":"s","ShardCount":1}`)))
@@ -51,7 +50,7 @@ func TestKinesisIsServed(t *testing.T) {
 // A CBOR request answers 501 in CBOR, so the Java client can parse it, a
 // map of text strings {"__type": "NotImplemented", "message": ...} naming
 // CBOR_ENABLED=false and -Daws.cborEnabled=false (kinesis.md 2.3, 13.4
-// item 2, 13.9: never a generic parse error; contract 4; refusal golden 7:
+// item 2, 13.9: never a generic parse error; the refusal follows
 // localstack@8b9a79f tests/aws/services/kinesis/test_kinesis.py:L775-L814,
 // validated 2024-07-31, and
 // localstack@8b9a79f tests/aws/services/kinesis/test_kinesis.snapshot.json:L230-L237,
@@ -78,7 +77,7 @@ func TestKinesisCBORAnswersNotImplementedInCBOR(t *testing.T) {
 
 // An HTTP/2 prior-knowledge preface, which net/http hands to the handler
 // as method PRI and target *, answers 501 with a diagnostic naming the
-// HTTP/1.1 client setting (kinesis.md 2.4, 13.9; contract 4).
+// HTTP/1.1 client setting (kinesis.md 2.4, 13.9).
 func TestHTTP2PrefaceAnswersNotImplemented(t *testing.T) {
 	srv, _ := build(t, server.Config{Docker: server.DockerDisabled{}, DynamoDB: server.DynamoDBDisabled{}})
 	req := httptest.NewRequestWithContext(t.Context(), "PRI", "http://localhost:4566/", nil)
@@ -93,15 +92,14 @@ func TestHTTP2PrefaceAnswersNotImplemented(t *testing.T) {
 	}
 }
 
-// The coverage report carries the 8b Kinesis notes exactly as the spec
-// words them ("Coverage marks", Kinesis): 21 operations bound, enhanced
-// monitoring stored-only, the rest partial; the 24 others unbound. The
-// unbound list holds two refusal goldens: consumers and SubscribeToShard
-// answer 501 (golden 8: localstack@8b9a79f
+// The coverage report carries the Kinesis notes word for word: 21
+// operations bound, enhanced monitoring stored-only, the rest partial; the 24 others unbound. The
+// unbound list holds two recorded refusals: consumers and SubscribeToShard
+// answer 501 (localstack@8b9a79f
 // tests/aws/services/kinesis/test_kinesis.snapshot.json:L89-L229; its
 // L146-L188 validated 2025-08-19, the span's other dates are not in
-// kinesis.md) and resource policies answer 501 (golden 9:
-// localstack@8b9a79f tests/aws/services/kinesis/test_kinesis.snapshot.json:L239-L318,
+// kinesis.md) and resource policies answer 501
+// (localstack@8b9a79f tests/aws/services/kinesis/test_kinesis.snapshot.json:L239-L318,
 // validated 2025-08-05).
 func TestKinesisCoverageNotes(t *testing.T) {
 	describe := "the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5)"
@@ -165,8 +163,7 @@ func TestKinesisCoverageNotes(t *testing.T) {
 	}
 }
 
-// The five 8b switches are reported by the wired emulator (spec "Fidelity
-// switches"; contract 3.8).
+// The five Kinesis switches are reported by the wired emulator.
 func TestKinesisSwitchesAreReported(t *testing.T) {
 	names := map[string]bool{}
 	for _, sw := range wiredReport(t).Switches {

@@ -16,7 +16,7 @@ import (
 )
 
 // The read side of the stream log: DescribeStream, GetShardIterator and
-// GetRecords (dynamodb-streams.md 11.4; contract 5.4, 5.5).
+// GetRecords (dynamodb-streams.md 11.4).
 
 // describeStreamMax is DescribeStream's largest Limit ("The upper limit is
 // 100", dynamodb-streams.md 6.2).
@@ -218,7 +218,7 @@ func (s *Streams) getShardIterator(ctx context.Context, c *kernel.Call, in *dyna
 }
 
 // codec is the scope's iterator codec, its key drawn on first use from the
-// seeded id streams (contract 3).
+// seeded id streams.
 func (st *State) codec(s *Service) shardlog.Codec {
 	if st.IteratorKey == nil {
 		st.IteratorKey = s.kernel.IDs().StreamIteratorKey()
@@ -273,8 +273,8 @@ const (
 	creationWire creationTime = iota
 	// creationExact keeps the stored arrival. An event source mapping's
 	// read is answered in process and never serialized; the poller measures
-	// record age and retention from the arrival (spec 8a poller, inferred,
-	// ESMS-09) and floors the time itself in the event it sends.
+	// record age and retention from the arrival (inferred, ESMS-09) and
+	// floors the time itself in the event it sends.
 	creationExact
 )
 

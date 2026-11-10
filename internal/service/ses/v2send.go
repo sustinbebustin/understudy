@@ -23,7 +23,7 @@ const v2SendEmailCoverage = "journal-only as the v1 sends, for Simple (with Head
 
 // bindV2Send binds v2 SendEmail, whose resource is its sender's identity
 // ARN: FromEmailAddress, else, for Raw content, the first From header
-// address (contract 2.6).
+// address.
 func (v *V2) bindV2Send(b sesv2api.Binder) {
 	b.SendEmail(v.sendEmail, registry.Partial{Note: v2SendEmailCoverage},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
@@ -44,8 +44,8 @@ func (v *V2) bindV2Send(b sesv2api.Binder) {
 
 // sendEmail runs v2 SendEmail's checks in SendChecks order, model
 // validation having run before the handler, keeps attachment contents or
-// the raw bytes in the blob store and records the accepted message
-// (contract 2.2). Nothing is sent (ses.md 11.8).
+// the raw bytes in the blob store and records the accepted message.
+// Nothing is sent (ses.md 11.8).
 func (v *V2) sendEmail(ctx context.Context, c *kernel.Call, in *sesv2api.SendEmailInput) (*sesv2api.SendEmailOutput, *awserr.Error) {
 	s := v.svc
 	if r := checkV2Send(in); r != nil {
@@ -134,7 +134,7 @@ func (v *V2) sendEmail(ctx context.Context, c *kernel.Call, in *sesv2api.SendEma
 // before the content's own: the Content shape, the sender of Simple and
 // Template content and the Template's source, which the overlay's
 // validation identity answers (SES-23, inferred), then the NotImplemented
-// members (contract 2.2; spec conflict rows 4, 6, 9).
+// members.
 func checkV2Send(in *sesv2api.SendEmailInput) *refusal {
 	t := in.Content.Template
 	switch {
@@ -243,8 +243,8 @@ func v2Headers(in []sesv2api.MessageHeader) []Header {
 }
 
 // checkAddressed runs the checks Simple and Template content share, as v1
-// SendEmail's (contract 2.2): tags, addresses (FeedbackForwardingEmail-
-// Address checked as ReturnPath, spec conflict row 9), the message size
+// SendEmail's: tags, addresses (FeedbackForwardingEmailAddress checked as
+// ReturnPath, inferred), the message size
 // against MaxV2MessageBytes, and the recipient count. Headers' names and
 // values were checked against their model patterns before the handler
 // (ses.md 4.4). The fill records the addressing and tags.
@@ -292,7 +292,7 @@ func checkAddressed(in *sesv2api.SendEmailInput, size int) (*checkedSend, *refus
 	}, nil
 }
 
-// v2SimpleSize is the bytes of Simple content (contract 2.2): subject,
+// v2SimpleSize is the bytes of Simple content: subject,
 // bodies, header names and values, and attachments as base64. As for v1
 // (simpleSize), the bound is approximate, since understudy never assembles
 // the MIME AWS measures (SES-29).

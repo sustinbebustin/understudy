@@ -126,7 +126,7 @@ describe("API Gateway HTTP API control plane", () => {
   });
 
   test("a WebSocket API answers NotImplemented", async () => {
-    // A valid request understudy does not emulate (the unit's conflict row 4).
+    // A valid request understudy does not emulate.
     await expectFailure(
       apigw.send(new CreateApiCommand({ Name: uniq("conf-ws"), ProtocolType: "WEBSOCKET", RouteSelectionExpression: "$request.body.action" })),
       { name: "NotImplemented", status: 501 },

@@ -642,8 +642,7 @@ func (f fn) jsonMerge() (document.Value, error) {
 
 // mathRandom is an integer in [start, end): unseeded from src, seeded from
 // a stream keyed by the seed, so a seed gives the same number every time
-// but never AWS's (aws-doc dg/intrinsic-functions; spec StartExecution
-// note).
+// but never AWS's (aws-doc dg/intrinsic-functions).
 func (f fn) mathRandom(src Source) (document.Value, error) {
 	start, err := f.rounded(0)
 	if err != nil {
@@ -664,7 +663,7 @@ func (f fn) mathRandom(src Source) (document.Value, error) {
 		return nil, err
 	}
 	// The key is the seed's decimal text: deterministic, and no AWS
-	// sequence to match (spec StartExecution note).
+	// sequence to match.
 	var key [32]byte
 	copy(key[:], strconv.FormatInt(seed, 10))
 	rng := mathrand.New(mathrand.NewChaCha8(key)) //nolint:gosec // a seeded States.MathRandom must repeat for its seed; it is not a secret

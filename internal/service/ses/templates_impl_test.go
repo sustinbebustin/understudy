@@ -92,7 +92,7 @@ func TestUpdateAndDeleteTemplate(t *testing.T) {
 	})
 }
 
-// Template operations touch the template ARN (contract 2.6), so the
+// Template operations touch the template ARN, so the
 // journal names the template a call acted on.
 func TestTemplateOperationsTouchTheTemplateARN(t *testing.T) {
 	run(t, func(h *harness) {

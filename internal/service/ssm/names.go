@@ -192,9 +192,9 @@ func parameterARN(scope aws.Scope, canonical string) aws.ARN {
 	}
 }
 
-// reservedNamespaces are the namespaces understudy does not serve (spec
-// "Scope"; ssm-parameters.md 8.1, 8.2, 12.1): AWS public parameters and
-// Secrets Manager references.
+// reservedNamespaces are the namespaces understudy does not serve
+// (ssm-parameters.md 8.1, 8.2, 12.1): AWS public parameters and Secrets
+// Manager references.
 func reservedNamespaces() [2]struct{ prefix, feature string } {
 	return [2]struct{ prefix, feature string }{
 		{"/aws/service/", "AWS public parameters"},

@@ -19,8 +19,7 @@ import (
 
 // kinesisSource reads a Kinesis data stream for the poller and the control
 // plane through ListShards, GetShardIterator, GetRecords and
-// DescribeStreamSummary, as the mapping's execution role (08b contract
-// 6.2).
+// DescribeStreamSummary, as the mapping's execution role.
 type kinesisSource struct {
 	k      *kernel.Kernel
 	parent *kernel.Call
@@ -76,7 +75,7 @@ func (s kinesisSource) Shards(ctx context.Context) ([]string, error) {
 }
 
 // Retention is the stream's current RetentionPeriodHours, read through
-// DescribeStreamSummary (08b contract 5).
+// DescribeStreamSummary.
 func (s kinesisSource) Retention(ctx context.Context) (time.Duration, error) {
 	out, err := kernel.Invoke(ctx, s.k, s.parent, kinesisapi.OpDescribeStreamSummary, s.target, &kinesisapi.DescribeStreamSummaryInput{StreamARN: new(s.stream.String())})
 	if err != nil {
@@ -86,8 +85,8 @@ func (s kinesisSource) Retention(ctx context.Context) (time.Duration, error) {
 }
 
 // Read takes an iterator at from and returns one GetRecords page of up to
-// limit records. A Kinesis shard never closes in slice 1, so a page is
-// Closed only when GetRecords answers no NextShardIterator.
+// limit records. Resharding is not built, so a Kinesis shard never closes
+// and a page is Closed only when GetRecords answers no NextShardIterator.
 func (s kinesisSource) Read(ctx context.Context, shard string, from shardlog.Position, limit int) (esm.StreamPage, error) {
 	in := &kinesisapi.GetShardIteratorInput{StreamARN: new(s.stream.String()), ShardId: shard}
 	switch p := from.(type) {
@@ -132,8 +131,8 @@ func (s kinesisSource) Read(ctx context.Context, shard string, from shardlog.Pos
 // readError is a Kinesis refusal of op as a StreamSource reports it: a
 // missing stream is *esm.GoneError; GetShardIterator's refusal of a
 // sequence number the source read from the shard itself is
-// *shardlog.TrimmedError, the only reason it refuses one (08b contract
-// 6.2); a read iam.enforce refused the execution role *deniedReadError;
+// *shardlog.TrimmedError, the only reason it refuses one; a read
+// iam.enforce refused the execution role *deniedReadError;
 // anything else the error itself. from is nil for an operation that names
 // no position.
 func (s kinesisSource) readError(op string, err *awserr.Error, from shardlog.Position, shard string) error {
@@ -180,8 +179,7 @@ func (s kinesisSource) record(r *kinesisapi.Record, shard string) (esm.StreamRec
 }
 
 // kinesisEventRecord is a Kinesis record in the event a function receives,
-// its members in the documented order and without encryptionType (08b
-// contract 6.2).
+// its members in the documented order and without encryptionType.
 type kinesisEventRecord struct {
 	Kinesis           kinesisEventData `json:"kinesis"`
 	EventSource       string           `json:"eventSource"`
@@ -204,7 +202,7 @@ type kinesisEventData struct {
 
 // epochMillis is t as epoch seconds with millisecond precision, written as
 // the awsJson codec writes a timestamp: trailing zeros trimmed, no
-// exponent (08b contract 6.2). A finer instant is truncated.
+// exponent. A finer instant is truncated.
 func epochMillis(t time.Time) json.Number {
 	return json.Number(strconv.FormatFloat(float64(t.UnixMilli())/1000, 'f', -1, 64))
 }

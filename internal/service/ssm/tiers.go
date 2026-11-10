@@ -148,7 +148,7 @@ type allowedPattern struct {
 // structuralPatternErrors are the regexp/syntax errors no regex dialect
 // accepts. A pattern that fails with one is a client error; any other
 // failure is a construct Go RE2 lacks, such as a lookahead or a
-// backreference (spec "Scope").
+// backreference.
 func structuralPatternErrors() [6]syntax.ErrorCode {
 	return [6]syntax.ErrorCode{
 		syntax.ErrMissingBracket, syntax.ErrMissingParen, syntax.ErrUnexpectedParen,
@@ -159,7 +159,7 @@ func structuralPatternErrors() [6]syntax.ErrorCode {
 // compilePattern compiles a non-empty AllowedPattern as Go RE2. A
 // structural error answers InvalidAllowedPatternException with AWS's text
 // (ssm-parameters.md 4.4; SSM-15 step 04); any other compile failure
-// answers 501 (spec "Scope"), although AWS's Java dialect accepts a
+// answers 501, although AWS's Java dialect accepts a
 // lookahead and a possessive quantifier (SSM-15 steps 02-03).
 func (w write) compilePattern(op, source string) (allowedPattern, *awserr.Error) {
 	// The pattern compiles alone first: wrapped, a stray ")(" or a trailing
@@ -193,7 +193,7 @@ func (w write) checkPattern(p allowedPattern) *awserr.Error {
 
 // checkDataType refuses a DataType other than text and
 // aws:ssm:integration (ssm-parameters.md 4.3); aws:ec2:image answers 501
-// before this (spec "Scope"). The text is understudy's, after moto's
+// before this. The text is understudy's, after moto's
 // (ssm-parameters.md 4.3 [E]).
 func (w write) checkDataType(dataType string) *awserr.Error {
 	switch dataType {

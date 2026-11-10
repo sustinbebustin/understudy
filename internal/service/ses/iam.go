@@ -11,7 +11,7 @@ import (
 // rule a Deny on, say, StringLike ses:FromAddress would never apply and a
 // send AWS denies would go through, so every binding refuses them: under
 // iam.enforce enforce a statement that tests one ends the call 501 naming
-// the key (09g-ses spec, enforce matrix). Supplying them from the parsed
+// the key. Supplying them from the parsed
 // send needs an iam-enforcement-surfaces.md section first.
 func ConditionKeys() []string {
 	return []string{"ses:FromAddress", "ses:Recipients", "ses:FromDisplayName", "ses:FeedbackAddress", "ses:ApiVersion"}

@@ -86,7 +86,7 @@ func (s *Service) onExpiry(c *kernel.Call, key clock.TimerKey, _ clock.Instant) 
 
 // Rearm arms one expiry timer per Pending identity at its deadline, since
 // timers are never saved: an identity Pending at save time turns Failed at
-// its original deadline (contract 1.2). It arms under the cell lock, where
+// its original deadline. It arms under the cell lock, where
 // kernel.Write arms, so a concurrent write either commits first and is read
 // here, or commits after and its own arms replace these.
 func (s *Service) Rearm(clock.Instant) {
@@ -113,7 +113,7 @@ func (s *Service) bindLink(b sesapi.Binder) {
 	b.VerificationLink(s.verificationLink, registry.Full{})
 }
 
-// The verification link's answers (contract 8): understudy's own text, the
+// The verification link's answers: understudy's own text, the
 // owner's click having no AWS response to mirror. The first two are fmt
 // formats whose %s is the identity.
 const (

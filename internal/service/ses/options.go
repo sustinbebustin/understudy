@@ -50,7 +50,7 @@ type VerifiedIdentities struct {
 
 // verifies reports whether an identity of kind named name starts
 // verified: an address listed exactly or whose domain part is an address
-// domain, or a domain listed (contract 6).
+// domain, or a domain listed.
 func (v VerifiedIdentities) verifies(kind sesapi.IdentityType, name string) bool {
 	if kind == sesapi.IdentityTypeDomain {
 		return slices.ContainsFunc(v.Domains, func(d string) bool { return strings.EqualFold(d, name) })

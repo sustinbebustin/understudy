@@ -46,10 +46,10 @@ func mustKinesis(t *testing.T, endpoint, target, body string) []byte {
 	return data
 }
 
-// `understudy resources` lists each stream as kinesis, its ARN and ACTIVE
-// (contract 3.1, 3.9); a snapshot saved, the server reset, and the snapshot
+// `understudy resources` lists each stream as kinesis, its ARN and
+// ACTIVE; a snapshot saved, the server reset, and the snapshot
 // loaded bring back the stream and its record's data, which the archive
-// carries as a blob (contract 3.9).
+// carries as a blob.
 func TestAdminSnapshotKeepsKinesisRecords(t *testing.T) {
 	c, endpoint := adminServer(t, server.Config{})
 	mustKinesis(t, endpoint, "CreateStream", `{"StreamName":"s","ShardCount":1}`)

@@ -15,7 +15,7 @@ import (
 const stateVersion = 1
 
 // state is the SES state of one account and Region, the "ses" snapshot
-// section's data (contract 1.3).
+// section's data.
 type state struct {
 	// Identities are in creation order, the order ListIdentities and
 	// Resources list them in (SES-14).
@@ -166,7 +166,7 @@ type identity struct {
 
 // dkimSigning is the part of a stored DkimSigningAttributes GetEmailIdentity
 // reads back: whether a Bring Your Own DKIM selector was given, which makes
-// SigningAttributesOrigin EXTERNAL (contract 2.5). The private key is never
+// SigningAttributesOrigin EXTERNAL. The private key is never
 // kept.
 type dkimSigning struct {
 	Selector string `json:"selector,omitempty"`
@@ -226,7 +226,7 @@ type status interface {
 	// v1 is the status as v1 VerificationStatus spells it.
 	v1() sesapi.VerificationStatus
 	// v2 is the status as v2 VerificationStatus spells it: v1's in upper
-	// snake case (contract 2.5).
+	// snake case.
 	v2() sesv2api.VerificationStatus
 }
 

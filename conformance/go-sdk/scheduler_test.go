@@ -468,7 +468,7 @@ func TestSchedulerGroupWithTagsAndMembers(t *testing.T) {
 }
 
 // A universal (aws-sdk) target answers 501 NotImplemented and nothing is
-// stored (CLAUDE.md invariant 3; spec "Scope").
+// stored (CLAUDE.md invariant 3).
 func TestSchedulerUniversalTargetIsNotImplemented(t *testing.T) {
 	_, target := schedulerTarget(t)
 	target.Arn = aws.String("arn:aws:scheduler:::aws-sdk:sqs:sendMessage")

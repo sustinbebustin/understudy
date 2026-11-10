@@ -72,7 +72,7 @@ func nearTransitionGen(loc *time.Location) *rapid.Generator[time.Time] {
 }
 
 // In UTC, NextIn is the rules' Next for every cron and instant
-// (scheduler.md 14.3.3; contract section 2).
+// (scheduler.md 14.3.3).
 func TestPropertyNextInUTCEqualsNext(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {

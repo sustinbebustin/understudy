@@ -14,7 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/server"
 )
 
-// Step Functions under iam.enforce (spec "Enforce matrix"): the caller's
+// Step Functions under iam.enforce: the caller's
 // iam:PassRole carries iam:PassedToService states.amazonaws.com, the
 // execution role must trust states.amazonaws.com and, with logging on, may
 // deliver logs, and a Lambda task invokes as the role. Every denial is
@@ -226,7 +226,7 @@ func TestSFNLambdaTaskDeniedUnderEnforce(t *testing.T) {
 // /iam/policy for a caller who created a machine without tags lists
 // states:CreateStateMachine and iam:PassRole on the role with its
 // iam:PassedToService condition, and nothing else (iam-enforcement-surfaces.md
-// 12.6; spec ticket 13).
+// 12.6).
 func TestSFNPolicyListsPassRoleWithItsCondition(t *testing.T) {
 	c, endpoint, u := enforced(t, server.IAMEnforceOff)
 	if w := createMachine(t, u, endpoint, "m", sfnDefinition, ""); w.status != http.StatusOK {

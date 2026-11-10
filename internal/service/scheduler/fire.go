@@ -33,8 +33,8 @@ const scheduleDeleted journal.ResourceState = "DELETED"
 // invocation to the outbox as a session of that role, moves the plan to
 // its next invocation and arms it, or, under ActionAfterCompletion DELETE
 // with no invocation left, deletes the schedule (scheduler.md 14.3, 14.4,
-// 14.6; contract section 1). A timer whose schedule is gone or was re-planned since it
-// was armed does nothing.
+// 14.6). A timer whose schedule is gone or was re-planned since it was
+// armed does nothing.
 func (s *Service) onFire(c *kernel.Call, key clock.TimerKey, due clock.Instant) {
 	ctx := context.Background()
 	r, ok := parseScheduleARN(key.ID)

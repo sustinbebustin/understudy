@@ -74,7 +74,7 @@ func TestGetMetricStatisticsInvalidExtendedStatistic(t *testing.T) {
 }
 
 // A period whose combined SampleCount is zero carries no Average, while the
-// other statistics asked for stay (contract 3.5; cwa 9.2).
+// other statistics asked for stay (cwa 9.2).
 func TestGetMetricStatisticsNoAverageOfNoSamples(t *testing.T) {
 	run(t, func(h *harness) {
 		t0 := h.now()

@@ -321,7 +321,7 @@ func TestNestedFailureReachesOuterCatcher(t *testing.T) {
 }
 
 // A Map with waits inside survives a jsonx round trip mid-run: the rest of
-// the run is what it would have been (contract 5.4, ADR 0009).
+// the run is what it would have been (ADR 0009).
 func TestRunPersistsMidIteration(t *testing.T) {
 	def := `{"StartAt":"M","States":{"M":{"Type":"Map","MaxConcurrency":2,"ItemsPath":"$.items",
 		"ItemSelector":{"i.$":"$$.Map.Item.Index","v.$":"$$.Map.Item.Value"},"Retry":[{"ErrorEquals":["E"],"MaxAttempts":1}],

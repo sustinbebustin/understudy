@@ -56,7 +56,7 @@ func runWith(t *testing.T, o ses.Options, fn func(h *harness), extra ...kernelte
 
 // The verified identities of runVerified: an exact address and a domain,
 // both configured through ses.verifiedIdentities, so each starts Success
-// when created (contract 6).
+// when created.
 const (
 	sender         = "sender@example.com"
 	verifiedDomain = "verified.test"
@@ -238,7 +238,7 @@ func wantCode(tb failer, err *awserr.Error, id awserr.Identity) {
 }
 
 // wantNotImplemented fails unless err is NotImplemented 501 naming name
-// (invariant 3; contract 1.6).
+// (invariant 3).
 func wantNotImplemented(tb failer, err *awserr.Error, name string) {
 	tb.Helper()
 	wantCode(tb, err, awserr.NotImplemented())

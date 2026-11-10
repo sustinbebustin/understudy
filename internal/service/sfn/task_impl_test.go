@@ -15,8 +15,7 @@ import (
 
 // A Task invokes a function in another account in that account's scope,
 // synchronously (RequestResponse), as tracked work whose call is an
-// internal sfn-task call with a journal parent (spec "Runtime decisions";
-// ADR 0007).
+// internal sfn-task call with a journal parent (ADR 0007).
 func TestTaskInvokeTarget(t *testing.T) {
 	run(t, func(h *harness) {
 		fn := "arn:aws:lambda:eu-west-1:111111111111:function:remote"
@@ -54,8 +53,7 @@ func TestTaskInvokeTarget(t *testing.T) {
 
 // Task TimeoutSeconds is emulator time while the function runs on wall
 // time: advancing the clock past it times the task out, and the function's
-// late result is dropped (spec "Runtime decisions"; stepfunctions-asl.md
-// 8.6, 9.1).
+// late result is dropped (stepfunctions-asl.md 8.6, 9.1).
 func TestTaskTimeoutOnEmulatorClock(t *testing.T) {
 	run(t, func(h *harness) {
 		started, release := make(chan struct{}), make(chan struct{})

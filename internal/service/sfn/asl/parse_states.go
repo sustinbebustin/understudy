@@ -101,7 +101,7 @@ func (p *parser) field(f *draft, e document.Entry, at string) {
 
 // templateField reads Parameters, ItemSelector or ResultSelector. A Map's
 // ItemSelector and Parameters come with FeatMap; elsewhere they are payload
-// templates (contract 5.1).
+// templates.
 func (p *parser) templateField(f *draft, e document.Entry, at string) {
 	mapSelector := f.typ == typeMap && e.Key != "ResultSelector"
 	if !mapSelector && !p.need(FeatPayloadTemplates, "the "+e.Key+" field", at) {
@@ -301,8 +301,8 @@ func (p *parser) buildTask(f *draft, io paths, resultPath target) state {
 // FunctionName, which Lambda's Invoke requires, is required at create
 // (understudy's choice and wording, modelled on the recorded Credentials
 // RoleArn text of stepfunctions-asl.md 3.3; ASL-01), and a literal
-// InvocationType other than RequestResponse is refused (spec "Definition
-// grammar"); a path-valued one is checked at run time (SFN-13).
+// InvocationType other than RequestResponse is refused; a path-valued one
+// is checked at run time (SFN-13).
 func (p *parser) invokeParameters(f *draft) {
 	at := f.loc + "/Parameters"
 	if !f.has("Parameters") {

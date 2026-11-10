@@ -47,7 +47,7 @@ func TestStreamsDenialIdentityIsDynamoDBs(t *testing.T) {
 	}
 }
 
-// Spec enforce matrix row 1: a principal's Streams call is denied under
+// A principal's Streams call is denied under
 // enforce with DynamoDB's identity unless its identity policy allows the
 // call's action on the stream (ListStreams on "*"), served with an
 // access-would-deny advisory under advise, and served unchanged under off.
@@ -102,8 +102,8 @@ func TestStreamsCallsUnderEachEnforceMode(t *testing.T) {
 }
 
 // GET /iam/policy for a principal that called the four Streams operations
-// grants each its action on the stream it read, and ListStreams on "*"
-// (spec A11), whatever the calls answered.
+// grants each its action on the stream it read, and ListStreams on "*",
+// whatever the calls answered.
 func TestIAMPolicyListsTheStreamsActions(t *testing.T) {
 	c, endpoint, u := enforced(t, server.IAMEnforceOff)
 	streamsCall(t, u, endpoint, "ListStreams", `{}`)

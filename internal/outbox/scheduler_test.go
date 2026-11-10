@@ -41,7 +41,7 @@ func schedRole() aws.ARN {
 var schedScheduled = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 
 // toSchedulerTarget is a Scheduler delivery of one invocation whose Input
-// is tmpl, as the fire write hands it over (contract section 4); targetARN
+// is tmpl, as the fire write hands it over; targetARN
 // is the target's ARN as configured.
 func toSchedulerTarget(mech delivery.Mechanism, target delivery.Target, targetARN aws.ARN, tmpl string, onPermanent delivery.PermanentErrors, retries int, dlq *aws.ARN) delivery.Request {
 	return delivery.Request{
@@ -447,8 +447,7 @@ func TestSchedulerEventBusTargetPutsOneEntry(t *testing.T) {
 }
 
 // The outbox takes a Scheduler delivery only with the role it runs as and
-// the invocation it renders from, and refuses either on another mechanism
-// (contract section 5, ticket 2).
+// the invocation it renders from, and refuses either on another mechanism.
 func TestSchedulerRequestFieldsAreChecked(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		cause := source(k)

@@ -16,9 +16,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/scheduler"
 )
 
-// targetsNote is the spec's <targets> clause with ticket 10 and the SNS
-// tail landed: SNS and Step Functions targets are invoked (spec "Coverage
-// marks"; scheduler.md 14.1).
+// targetsNote is the targets clause of the coverage notes: SNS and Step
+// Functions targets are invoked (scheduler.md 14.1).
 const targetsNote = "templated Lambda, SQS, SNS, EventBridge event bus and Step Functions targets in the schedule's Region are invoked on the emulator clock as the execution role; " +
 	"universal (aws-sdk) targets and ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector and SageMaker targets answer NotImplemented; " +
 	"a Step Functions execution's name is understudy's"
@@ -134,8 +133,7 @@ func TestSwitches(t *testing.T) {
 }
 
 // Each switch function reports the Options value it was given, so a flip
-// test builds the service with one field set to the other side (contract
-// section 3).
+// test builds the service with one field set to the other side.
 func TestSwitchesFollowOptions(t *testing.T) {
 	def := scheduler.Options{}
 	flipped := scheduler.Options{
@@ -164,12 +162,11 @@ func TestSwitchesFollowOptions(t *testing.T) {
 		t.Errorf("switch strings = %q, %q; want never, window-start", scheduler.PastDueNever, scheduler.OffsetWindowStart)
 	}
 	if scheduler.TimerFire != "scheduler.fire" {
-		t.Errorf("TimerFire = %q, want scheduler.fire (contract section 1)", scheduler.TimerFire)
+		t.Errorf("TimerFire = %q, want scheduler.fire", scheduler.TimerFire)
 	}
 }
 
-// The service is a kernel.Stateful named scheduler at schema version 1
-// (spec "Contract").
+// The service is a kernel.Stateful named scheduler at schema version 1.
 func TestStatefulIdentity(t *testing.T) {
 	run(t, func(h *harness) {
 		var s kernel.Stateful = h.svc

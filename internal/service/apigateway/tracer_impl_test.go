@@ -10,7 +10,7 @@ import (
 
 // Members the tracer bullet's operations do not accept yet are refused
 // with 501 naming them, so none is stored without effect (CLAUDE.md
-// invariant 3; the unit's conflict row 4).
+// invariant 3).
 func TestTracerRefusesUnacceptedMembers(t *testing.T) {
 	run(t, func(h *harness) {
 		id, root := h.api("t")
@@ -78,7 +78,7 @@ func TestTracerDeploymentRefusals(t *testing.T) {
 // The root resource's ANY method serves a verb the root has no explicit
 // method for (apigateway-rest.md 4.4); HEAD is not served by GET (switch
 // apigateway.invoke.routing, HeadMatchesGet false); an AWS_IAM method
-// answers 501 at invoke, without invoking (spec 6b scope).
+// answers 501 at invoke, without invoking.
 func TestTracerRootMethods(t *testing.T) {
 	routing := apigateway.RoutingSwitch().Value
 	run(t, func(h *harness) {
@@ -123,7 +123,7 @@ func TestTracerStageServesItsSnapshot(t *testing.T) {
 }
 
 // The API id index survives an export and import, so the data plane still
-// finds the API (contract 7.1), and Reset drops it.
+// finds the API, and Reset drops it.
 func TestTracerIndexRoundTrip(t *testing.T) {
 	run(t, func(h *harness) {
 		id, _ := h.proxyAPI()

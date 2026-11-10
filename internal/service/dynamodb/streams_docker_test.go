@@ -155,7 +155,7 @@ func createStreamed(t *testing.T, k *kernel.Kernel, scope aws.Scope, table, extr
 // record stamped with their own admission instant: the table's stream lock
 // spans the forward and the drain, so Local's records are attributed to the
 // write that caused them (dynamodb-streams.md 11.1 item 2, 11.9 Docker
-// test; spec A4).
+// test).
 func TestStreamsAttributeConcurrentWritesDocker(t *testing.T) {
 	k, _ := newStreamsKernel(t, startLocal(t))
 	scope := scopeOf(t, "111111111111", "us-east-1")
@@ -196,8 +196,7 @@ func TestStreamsAttributeConcurrentWritesDocker(t *testing.T) {
 
 // A TTL sweep's delete is a REMOVE with userIdentity
 // {"PrincipalId":"dynamodb.amazonaws.com","Type":"Service"}, and an
-// ordinary DeleteItem has none (dynamodb-streams.md 7.5, 11.9 Docker test;
-// spec A4).
+// ordinary DeleteItem has none (dynamodb-streams.md 7.5, 11.9 Docker test).
 func TestStreamsTagOnlySweeperDeletesDocker(t *testing.T) {
 	k, svc := newStreamsKernel(t, startLocal(t))
 	scope := scopeOf(t, "111111111111", "us-east-1")

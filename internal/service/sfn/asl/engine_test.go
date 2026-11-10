@@ -27,7 +27,7 @@ func TestPassHistory(t *testing.T) {
 		}
 	}
 	if !armedNow {
-		t.Fatalf("Start effects = %#v, want an ArmTimer at the start instant for the first step (contract 5.5)", effs)
+		t.Fatalf("Start effects = %#v, want an ArmTimer at the start instant for the first step", effs)
 	}
 	o := d.runToEnd(10)
 	d.wantShape("test_base.snapshot.json:L264-L277",
@@ -54,13 +54,13 @@ func TestPassHistory(t *testing.T) {
 	}
 	for _, e := range d.history {
 		if !e.Timestamp.Equal(t0) {
-			t.Errorf("%s timestamp = %v, want %v: every step ran at the start instant (contract 5.4)", e.Type, e.Timestamp, t0)
+			t.Errorf("%s timestamp = %v, want %v: every step ran at the start instant", e.Type, e.Timestamp, t0)
 		}
 	}
 	last := d.effects[len(d.effects)-1]
 	f, ok := last[len(last)-1].(asl.Finish)
 	if fs, isSucceeded := f.Outcome.(asl.Succeeded); !ok || !isSucceeded || !equal(fs.Output, s.Output) {
-		t.Errorf("last effects = %#v, want Finish last (contract 5.4)", last)
+		t.Errorf("last effects = %#v, want Finish last", last)
 	}
 }
 
@@ -322,7 +322,7 @@ func TestStopDuringWait(t *testing.T) {
 		t.Fatalf("outcome = %#v, %v; want Aborted with no error or cause", o, done)
 	}
 	if len(d.timers) != 0 {
-		t.Errorf("timers still armed after the stop: %v (contract 5.4: ending cancels every armed timer)", d.timers)
+		t.Errorf("timers still armed after the stop: %v: ending cancels every armed timer", d.timers)
 	}
 	if _, ok := effs[len(effs)-1].(asl.Finish); !ok {
 		t.Errorf("Stop effects = %#v, want Finish last", effs)
@@ -345,7 +345,7 @@ func TestStopWithErrorAndCause(t *testing.T) {
 	}
 }
 
-// An event that does not apply changes nothing (contract 5.4): a second
+// An event that does not apply changes nothing: a second
 // Start, an unknown timer, anything after the outcome.
 func TestEventsThatDoNotApply(t *testing.T) {
 	d := newDriver(t, `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":10,"End":true}}}`, rules())
@@ -537,7 +537,7 @@ func TestLambdaFunctionTask(t *testing.T) {
 	}
 	inv := d.invoked[0]
 	if inv.Resource != asl.FunctionARN || inv.Function != functionArn || !equal(inv.Payload, decode(t, `{"in":1}`)) {
-		t.Errorf("InvokeLambda = %#v, want the function ARN with the effective input (contract 5.5)", inv)
+		t.Errorf("InvokeLambda = %#v, want the function ARN with the effective input", inv)
 	}
 	if inv.Timeout != 99_999_999*time.Second {
 		t.Errorf("InvokeLambda.Timeout = %v, want the default 99,999,999 s (aws-doc dg/state-task)", inv.Timeout)
@@ -592,7 +592,7 @@ const (
 // "invoke", region, parameters}, TaskStarted, TaskSucceeded {output}
 // (stepfunctions-asl.md 11.3 optimized row; aws-recorded localstack@8b9a79f
 // v2/scenarios/test_base_scenarios.snapshot.json:L10389-L10622) and invokes
-// Parameters.FunctionName with Parameters.Payload (contract 5.5).
+// Parameters.FunctionName with Parameters.Payload.
 func TestLambdaInvokeTask(t *testing.T) {
 	d := newDriver(t, fmt.Sprintf(invokeTask, "", ""), rules())
 	result := decode(t, `{"ExecutedVersion":"$LATEST","Payload":{"r":1},"StatusCode":200}`)
@@ -741,7 +741,7 @@ func TestMaxAttemptsZero(t *testing.T) {
 // A Task past TimeoutSeconds fails with States.Timeout and no cause
 // (aws-recorded localstack@8b9a79f v2/timeouts/test_timeouts.snapshot.json:L60
 // for the function ARN form, L151-L165 for lambda:invoke); a late result is
-// dropped (contract 5.4; stepfunctions-asl.md 9.1). States.TaskFailed does
+// dropped (stepfunctions-asl.md 9.1). States.TaskFailed does
 // not match States.Timeout (aws-doc dg/concepts-error-handling).
 func TestTaskTimeout(t *testing.T) {
 	d := newDriver(t, fmt.Sprintf(legacyTask, `"TimeoutSeconds":5,"Catch":[{"ErrorEquals":["States.TaskFailed"],"Next":"Done"}],`, `,"Done":{"Type":"Pass","End":true}`), rules())
@@ -918,7 +918,7 @@ func TestInlineMapCaughtFailure(t *testing.T) {
 }
 
 // The execution survives a jsonx round trip at any point: every later Step
-// returns what it would have (contract 5.4, ADR 0009).
+// returns what it would have (ADR 0009).
 func TestExecutionPersistsMidWait(t *testing.T) {
 	def := `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":60,"Next":"P"},"P":{"Type":"Pass","Result":1,"End":true}}}`
 	a := newDriver(t, def, rules())
@@ -947,7 +947,7 @@ func TestExecutionPersistsMidWait(t *testing.T) {
 }
 
 // A Lambda task in flight survives the round trip in InFlight, so the
-// service can invoke it again after a load (contract 5.4).
+// service can invoke it again after a load.
 func TestInFlightSurvivesPersistence(t *testing.T) {
 	d := newDriver(t, fmt.Sprintf(legacyTask, "", ""), rules())
 	d.start(`{"a":1}`)

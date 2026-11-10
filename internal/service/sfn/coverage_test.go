@@ -104,8 +104,8 @@ func TestUnboundOperationsAnswer501(t *testing.T) {
 }
 
 // Every inferred choice is a switch with its value, label, record, ref,
-// operations and no settling scenario (spec "Fidelity switches"; contract
-// section 6.2); a switch the 2026-11-03 recording session settled keeps its
+// operations and no settling scenario; a switch the 2026-11-03 recording
+// session settled keeps its
 // row, labelled aws-recorded. Values are read from the constructors, never
 // restated.
 func TestSwitches(t *testing.T) {

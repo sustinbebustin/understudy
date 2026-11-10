@@ -30,8 +30,8 @@ func partial(note string) registry.BindCoverage {
 	return registry.Partial{Note: baseNote + "; " + note}
 }
 
-// The HTTP API operations are bound with the unit's coverage marks and
-// notes, verbatim; every other v2 operation (authorizers, import and
+// The HTTP API operations are bound with these coverage marks and notes,
+// verbatim; every other v2 operation (authorizers, import and
 // export, models, route and integration responses, domain names, API
 // mappings, VPC links, portals, routing rules) stays unbound and answers
 // 501 (CLAUDE.md invariant 3). No operation is Full: each emits an
@@ -94,7 +94,7 @@ func TestCoverageMarks(t *testing.T) {
 
 func errOf[Out any](_ *Out, err *awserr.Error) *awserr.Error { return err }
 
-// The five switches name the behaviors a test pins, in the unit's order,
+// The five switches name the behaviors a test pins, in a fixed order,
 // each with its evidence label, a Ref into apigateway-http.md, the
 // recording cases that settle it and no parity scenario (the replayer
 // routes no API Gateway request), and Switches lists each constructor's

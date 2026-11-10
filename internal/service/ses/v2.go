@@ -38,7 +38,7 @@ const enforcementHealthy = "HEALTHY"
 
 // bindV2 binds the v2 identity, tag and account operations over the
 // Service store. Each uses its primary action alone, except
-// CreateEmailIdentity with Tags (contract 2.6).
+// CreateEmailIdentity with Tags, which also declares ses:TagResource.
 func (v *V2) bindV2(b sesv2api.Binder) {
 	b.CreateEmailIdentity(v.createEmailIdentity, registry.Partial{Note: createEmailIdentityCoverage},
 		kernel.WithActions(func(_ *kernel.Call, in *sesv2api.CreateEmailIdentityInput) []registry.IAMAction {
@@ -68,8 +68,8 @@ func (v *V2) bindV2(b sesv2api.Binder) {
 	b.GetAccount(v.getAccount, registry.Partial{Note: getAccountCoverage}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
 }
 
-// resourceNamed names a tag operation's ResourceArn as its resource
-// (contract 2.6): the identity's or template's full ARN when it names one
+// resourceNamed names a tag operation's ResourceArn as its resource: the
+// identity's or template's full ARN when it names one
 // of the caller's, else the ARN as given; an ARN that does not parse names
 // none.
 func resourceNamed[In any](arnOf func(*In) string) kernel.BindOption {
@@ -93,12 +93,12 @@ func errIdentityMissing(name string) *awserr.Error {
 }
 
 // createConfigurationSetText refuses CreateEmailIdentity's
-// ConfigurationSetName (spec conflict row 4; invariant 3).
+// ConfigurationSetName (invariant 3).
 const createConfigurationSetText = "CreateEmailIdentity with ConfigurationSetName uses configuration sets, which understudy does not implement; " +
 	"no identity was created. Leave ConfigurationSetName out. Run 'understudy coverage --service sesv2' for what is supported."
 
 // createEmailIdentity creates an email address or domain identity through
-// v2 (ses.md 5.4, contract 2.5). An address starts as VerifyEmailIdentity
+// v2 (ses.md 5.4). An address starts as VerifyEmailIdentity
 // starts one, its verification email recorded under sesv2; a domain gets
 // three Easy DKIM tokens and a verification token. Both are Success at
 // once when ses.verifiedIdentities lists them. Tags and the BYODKIM
@@ -258,8 +258,8 @@ func (v *V2) deleteEmailIdentity(_ context.Context, c *kernel.Call, in *sesv2api
 // 5.4) in descending byte order of name, or ascending when a Filter is
 // given (each inferred from the one page SES-14 recorded), narrowed by
 // every Filter key given: IDENTITY_NAME_CONTAINS a
-// case-sensitive substring, IDENTITY_TYPE and VERIFICATION_STATUS exact
-// (contract 2.5). PageSize 0 or absent is
+// case-sensitive substring, IDENTITY_TYPE and VERIFICATION_STATUS exact.
+// PageSize 0 or absent is
 // ListEmailIdentitiesDefaultPageSize, at most
 // ListEmailIdentitiesMaxPageSize (model; the default and the refusal are
 // inferred, SES-29). NextToken is understudy's own, as ListIdentities'.
@@ -333,7 +333,7 @@ func (id *identity) matches(filter map[sesv2api.IdentityFilterKey]string) bool {
 
 // tagged runs fn on the tags of the identity or template resourceARN names
 // in the caller's view, in a write; a missing one, or any other ARN, is
-// NotFoundException naming its resource (contract 2.5).
+// NotFoundException naming its resource.
 func (v *V2) tagged(c *kernel.Call, resourceARN string, fn func(tags *[]tag, tx *kernel.Tx)) *awserr.Error {
 	s := v.svc
 	scope := c.Scope()
@@ -452,7 +452,7 @@ func (v *V2) listTagsForResource(_ context.Context, c *kernel.Call, in *sesv2api
 }
 
 // getAccount answers the sandbox state and the quota GetSendQuota answers
-// (ses.md 6.3; contract 2.5). Sending cannot be paused yet, so
+// (ses.md 6.3). Sending cannot be paused yet, so
 // SendingEnabled is always true. Automatic dedicated-IP warm-up and the
 // account suppression list for bounces and complaints are on, the defaults
 // SES-15 recorded for a sandbox account; no setter for either is bound.
@@ -507,7 +507,7 @@ func (id *identity) v2Type() sesv2api.IdentityType {
 }
 
 // verified is VerifiedForSendingStatus and IdentityInfo SendingEnabled:
-// the identity is Success (contract 2.5).
+// the identity is Success.
 func (id *identity) verified() bool {
 	_, ok := id.Status.(statusSuccess)
 	return ok
@@ -519,7 +519,7 @@ func (id *identity) verified() bool {
 // NOT_STARTED with no tokens or current key and RSA_1024_BIT next. What AWS
 // answers for a domain v1 created is UNVERIFIED (SES-13); understudy
 // answers the address column. A stored BYODKIM selector makes the origin
-// EXTERNAL (contract 2.5).
+// EXTERNAL.
 func (id *identity) dkim() *sesv2api.DkimAttributes {
 	origin := sesv2api.DkimSigningAttributesOriginAwsSes
 	if id.DkimSigningAttributes != nil && id.DkimSigningAttributes.Selector != "" {

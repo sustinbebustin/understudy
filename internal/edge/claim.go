@@ -330,8 +330,8 @@ func (c *claimer) executeAPIPath() (route, bool) {
 // front's handler answers its unknown-API answer; when several do, the
 // id is an understudy bug, answered 500 naming them so that neither
 // runs. Without Options.ExecuteAPI the front is the raw
-// apigatewayv2.InvokeApi operation (6a's rule). With no front registered
-// the request is answered 501.
+// apigatewayv2.InvokeApi operation. With no front registered the request
+// is answered 501.
 func (c *claimer) executeAPIFront(rule int, id, what string, policy csp) route {
 	raw := func(oid ref.OperationID) (*registry.Operation, bool) {
 		op, ok := c.h.opts.Registry.Operation(oid)

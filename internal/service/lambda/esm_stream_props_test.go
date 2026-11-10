@@ -105,7 +105,7 @@ func TestStreamPartialResponseCheckpointsBeforeLowestProperty(t *testing.T) {
 // record is never invoked again after a batch holding it succeeded, under
 // any pattern of failing invocations; the checkpoint the journal shows
 // never moves backwards ("reads that shard's records in sequence-number
-// order", aws-doc, lambda-stream-sources.md 4.3; spec A8).
+// order", aws-doc, lambda-stream-sources.md 4.3).
 func TestStreamOrderAndCheckpointProperty(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		n := rapid.IntRange(1, 12).Draw(rt, "records")

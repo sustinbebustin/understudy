@@ -230,8 +230,7 @@ func TestEventV1RESTBody(t *testing.T) {
 	}
 }
 
-// A nil front or authorizer is a caller bug answered with an error
-// (contract 3.1).
+// A nil front or authorizer is a caller bug answered with an error.
 func TestEventV1RESTRefusesNilAuthorizer(t *testing.T) {
 	c := restContext()
 	c.Authorizer = nil
@@ -240,8 +239,8 @@ func TestEventV1RESTRefusesNilAuthorizer(t *testing.T) {
 	}
 }
 
-// Properties of the REST event (contract 3.1): it parses as JSON for any
-// request; queryStringParameters[k] is the last of
+// Properties of the REST event: it parses as JSON for any request;
+// queryStringParameters[k] is the last of
 // multiValueQueryStringParameters[k] (aws-recorded, apigateway-rest.md
 // 4.5); path never starts with // (4.2). The single header value is
 // inferred (APIGW1-16) and left out.
@@ -337,7 +336,7 @@ func TestInferV1ForREST(t *testing.T) {
 }
 
 // InferV1For with the HTTP API front is InferV1 for every payload, and
-// with the REST front never panics (contract 3.2).
+// with the REST front never panics.
 func TestInferV1ForProperties(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		p := genPayload().Draw(t, "payload")

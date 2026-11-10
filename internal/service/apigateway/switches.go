@@ -133,7 +133,7 @@ func RequestTooLarge() GatewayAnswer {
 }
 
 // APIKeyRequired answers a method with apiKeyRequired, since no API key can
-// be created; the status follows the spec, the body is inferred.
+// be created (apigateway-rest.md 12.2); the body is inferred.
 func APIKeyRequired() GatewayAnswer {
 	return GatewayAnswer{Status: http.StatusForbidden, Body: `{"message":"Forbidden"}`, ErrorType: "ForbiddenException"}
 }
@@ -253,8 +253,8 @@ func ProxyUnrecordedSwitch() fidelity.Switch[ProxyUnrecorded] {
 	}
 }
 
-// Switches lists the behaviors the spec's switch table names, in its
-// order, each labelled by the evidence it now has.
+// Switches lists the service's fidelity switches (apigateway-rest.md
+// 12.3), each labelled by the evidence it now has.
 func (*Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		APIStatusSwitch().Entry(),

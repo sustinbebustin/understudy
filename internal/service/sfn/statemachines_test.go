@@ -178,7 +178,7 @@ func TestUpdateStateMachine(t *testing.T) {
 }
 
 // The refusals with 501 and the message form of a member understudy does
-// not implement (spec "Definition grammar"; contract section 7): nothing is
+// not implement: nothing is
 // created or changed. publish false, which Terraform always sends
 // (stepfunctions-api.md 11.1), is accepted; versionDescription without
 // publish keeps AWS's recorded ValidationException (stepfunctions-api.md
@@ -232,8 +232,8 @@ func TestUnimplementedMembersAnswer501(t *testing.T) {
 // CreateStateMachine and UpdateStateMachine answer InvalidDefinition in
 // AWS's envelope (aws-recorded localstack@8b9a79f
 // v2/test_sfn_api.snapshot.json:L26-L32); a refused feature uses the same
-// envelope with code UNSUPPORTED_BY_UNDERSTUDY (stepfunctions-asl.md 10.4;
-// the JSONata refusal check of spec "Done checks").
+// envelope with code UNSUPPORTED_BY_UNDERSTUDY (stepfunctions-asl.md 10.4),
+// checked here on a JSONata definition.
 func TestInvalidDefinition(t *testing.T) {
 	run(t, func(h *harness) {
 		_, err := call(h, sfnapi.OpCreateStateMachine, &sfnapi.CreateStateMachineInput{Name: "m", Definition: `{"StartAt":"P"}`, RoleArn: h.roleArn()})

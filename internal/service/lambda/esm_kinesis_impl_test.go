@@ -30,9 +30,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/sqs"
 )
 
-// The Kinesis mapping over the real Kinesis service (08b contract 6;
-// spec B5, goldens 11-13, 16-19, 21-24). The blind tests'
-// fakeKinesis covers goldens 10, 14, 15, 20 and 25.
+// The Kinesis mapping over the real Kinesis service. esm_kinesis_test.go
+// covers the control plane's shape and refusals over fakeKinesis.
 
 // realStream is the Kinesis stream these tests map, in the harness's
 // account and region (kinesis.md 3.1).
@@ -302,7 +301,7 @@ func (h *realKinesisHarness) mappingChanges(arn string) []string {
 // space (kinesis.md 3.3) reaches the function, each with its shard in
 // eventID, the sequence number PutRecord answered, its partition key, and
 // its arrival in epoch seconds with milliseconds (kinesis.md 8.1, 13.8
-// item 2; 08b contract 6.2).
+// item 2).
 func TestKinesisMappingReadsEveryShardOfTheService(t *testing.T) {
 	runRealKinesis(t, esm.StreamFidelity{}, func(h *realKinesisHarness) {
 		h.createStream(2)
@@ -346,7 +345,7 @@ func TestKinesisMappingReadsEveryShardOfTheService(t *testing.T) {
 
 // Three PutRecords calls of ten records under TRIM_HORIZON and BatchSize
 // 10 give three invocations of ten, in put order (third-party-recorded,
-// golden 11: LS-K:L564-L1097; lambda-stream-sources.md 4.2).
+// LS-K:L564-L1097; lambda-stream-sources.md 4.2).
 func TestKinesisMappingBatchesInPutOrder(t *testing.T) {
 	runRealKinesis(t, esm.StreamFidelity{}, func(h *realKinesisHarness) {
 		h.createStream(1)
@@ -370,8 +369,7 @@ func TestKinesisMappingBatchesInPutOrder(t *testing.T) {
 
 // LATEST starts after the records the stream holds when the mapping is
 // created (lambda.esm-stream.latest-anchor create-instant, inferred,
-// ESMS-17), read through ListShards and the shard's records (08b contract
-// 6.1).
+// ESMS-17), read through ListShards and the shard's records.
 func TestKinesisMappingLatestSkipsEarlierRecords(t *testing.T) {
 	runRealKinesis(t, esm.StreamFidelity{}, func(h *realKinesisHarness) {
 		h.createStream(1)
@@ -389,8 +387,8 @@ func TestKinesisMappingLatestSkipsEarlierRecords(t *testing.T) {
 // With MaximumRetryAttempts 1 a failing batch runs twice, one retry delay
 // apart, and then sends one on-failure record to SQS in the Kinesis form,
 // KinesisBatchInfo naming the shard, the sequence range and the stream,
-// approximateInvokeCount 2 (third-party-recorded, golden 12:
-// LS-K:L1326-L1362, count LS-K:L1334; lambda-stream-sources.md 5.2, 5.6).
+// approximateInvokeCount 2 (third-party-recorded, LS-K:L1326-L1362, count
+// LS-K:L1334; lambda-stream-sources.md 5.2, 5.6).
 func TestKinesisMappingOnFailureToSQS(t *testing.T) {
 	runRealKinesis(t, esm.StreamFidelity{}, func(h *realKinesisHarness) {
 		h.rec.setAnswer(failWith)
@@ -416,7 +414,7 @@ func TestKinesisMappingOnFailureToSQS(t *testing.T) {
 }
 
 // The SNS destination gets the same record as the message, with no
-// subject (third-party-recorded, golden 16: LS-K:L1620-L1653;
+// subject (third-party-recorded, LS-K:L1620-L1653;
 // lambda-stream-sources.md 5.6).
 func TestKinesisMappingOnFailureToSNS(t *testing.T) {
 	runRealKinesis(t, esm.StreamFidelity{}, func(h *realKinesisHarness) {
@@ -443,8 +441,8 @@ func TestKinesisMappingOnFailureToSNS(t *testing.T) {
 }
 
 // The ReportBatchItemFailures matrix, one record per batch, as recorded
-// for Kinesis with MaximumRetryAttempts 2 (third-party-recorded, golden
-// 18: LS-K:L1892-L3025; lambda-stream-sources.md 5.5): the success
+// for Kinesis with MaximumRetryAttempts 2 (third-party-recorded,
+// LS-K:L1892-L3025; lambda-stream-sources.md 5.5): the success
 // responses invoke once, the malformed ones fail the whole batch to
 // exhaustion (three invocations) with functionError null, and an
 // exception with "Unhandled".
@@ -510,7 +508,7 @@ func TestKinesisMappingReportBatchItemFailuresMatrix(t *testing.T) {
 // reported, records 1 to 5 are delivered once and the destination gets
 // batchSize 1 with the sixth record's number as start and end,
 // approximateInvokeCount 4 and functionError null (third-party-recorded,
-// golden 17: LS-K:L1656-L1891; lambda-stream-sources.md 5.5).
+// LS-K:L1656-L1891; lambda-stream-sources.md 5.5).
 func TestKinesisMappingPartialFailure(t *testing.T) {
 	runRealKinesis(t, esm.StreamFidelity{RetryDelay: esm.RetryImmediately}, func(h *realKinesisHarness) {
 		h.createStream(1)
@@ -554,8 +552,8 @@ func TestKinesisMappingPartialFailure(t *testing.T) {
 
 // A record that passes MaximumRecordAgeInSeconds while its batch is
 // retried is discarded with RecordAgeExceeded, batchSize 1 and no
-// responseContext (third-party-recorded, golden 21: LS-K:L3208-L3239).
-// Named waiver (spec golden 21): AWS's approximateInvokeCount 8 folds in
+// responseContext (third-party-recorded, LS-K:L3208-L3239). One field is
+// not compared with the recording: AWS's approximateInvokeCount 8 folds in
 // its polling start and retry delay; asserted here is that the count
 // equals the invocations made and is above 1.
 func TestKinesisMappingRecordAgeWhileRetrying(t *testing.T) {
@@ -587,9 +585,9 @@ func TestKinesisMappingRecordAgeWhileRetrying(t *testing.T) {
 
 // A record already older than MaximumRecordAgeInSeconds when it is read
 // is discarded without invocation, approximateInvokeCount 1
-// (third-party-recorded, golden 22: LS-K:L3273-L3304); among five fresh
+// (third-party-recorded, LS-K:L3273-L3304); among five fresh
 // records it goes alone, batchSize 1, and the fresh ones are invoked
-// (third-party-recorded, golden 23: LS-K:L3338-L3451;
+// (third-party-recorded, LS-K:L3338-L3451;
 // lambda-stream-sources.md 5.3).
 func TestKinesisMappingRecordAgeBeforeRead(t *testing.T) {
 	runRealKinesis(t, esm.StreamFidelity{}, func(h *realKinesisHarness) {
@@ -618,11 +616,10 @@ func TestKinesisMappingRecordAgeBeforeRead(t *testing.T) {
 }
 
 // A batch being retried is measured against the stream's own retention,
-// read through DescribeStreamSummary (08b contract 6.2): with 48 hours it
+// read through DescribeStreamSummary: with 48 hours it
 // is still retried at 24 hours plus 1 ms, DynamoDB's retention, and
 // dropped without an on-failure record at 48 hours plus 1 ms, the reader
-// journaling RecordsTrimmed (aws-doc lambda-stream-sources.md 5.1, 5.3;
-// spec "Retention").
+// journaling RecordsTrimmed (aws-doc lambda-stream-sources.md 5.1, 5.3).
 func TestKinesisMappingRetentionIsTheStreams(t *testing.T) {
 	runRealKinesis(t, esm.StreamFidelity{}, func(h *realKinesisHarness) {
 		h.rec.setAnswer(failWith)
@@ -662,7 +659,7 @@ func TestKinesisMappingRetentionIsTheStreams(t *testing.T) {
 // plus 1 ms pass while the mapping is disabled, kinesis.md 4.7) drops the
 // lost records without an on-failure record, journals it, and resumes at
 // TRIM_HORIZON: GetShardIterator's refusal of the trimmed checkpoint is
-// the trim (08b contract 6.2; aws-doc lambda-stream-sources.md 5.1, 5.3;
+// the trim (aws-doc lambda-stream-sources.md 5.1, 5.3;
 // dropping without an on-failure record is inferred, UNVERIFIED, a clause
 // of the CreateEventSourceMapping note).
 func TestKinesisMappingCheckpointBehindRetentionResumesAtTrimHorizon(t *testing.T) {
@@ -718,7 +715,7 @@ func TestKinesisMappingResumesAtTheCheckpointAfterReEnable(t *testing.T) {
 }
 
 // Disabling a Kinesis mapping answers Disabling with "User action", then
-// the mapping reads Disabled (golden 24: localstack@8b9a79f
+// the mapping reads Disabled (localstack@8b9a79f
 // tests/aws/services/lambda_/event_source_mapping/test_lambda_integration_kinesis.snapshot.json:L1098-L1294,
 // validated 2025-11-25; lambda-stream-sources.md 3.6). The transient state
 // needs lambda.stateTransitions = clock (ARCHITECTURE.md 9).
@@ -741,7 +738,7 @@ func TestKinesisMappingDisable(t *testing.T) {
 
 // A deleted stream stops its reader with a StreamGone entry and the
 // mapping stays Enabled (recorded for DynamoDB, lambda-stream-sources.md
-// 7.3; the shared reader, 08b contract 6.2).
+// 7.3; one reader serves both kinds of stream).
 func TestKinesisMappingStreamGoneStopsTheReader(t *testing.T) {
 	runRealKinesis(t, esm.StreamFidelity{}, func(h *realKinesisHarness) {
 		h.createStream(1)
@@ -768,12 +765,11 @@ func TestKinesisMappingStreamGoneStopsTheReader(t *testing.T) {
 }
 
 // Settings a Kinesis mapping does not build answer 501 naming a Kinesis
-// mapping rather than being stored without effect (spec "Out of both";
-// invariant 3): a FilterCriteria pattern that compiles (refusal, golden
-// 13: LS-K:L1365-L1446) and an S3 on-failure destination (refusal, golden
-// 19: LS-K:L3114-L3157), on Create and on Update; Update keeps the kind
-// and starting position and applies the stream settings (08b contract
-// 6.1).
+// mapping rather than being stored without effect (CLAUDE.md invariant
+// 3): a FilterCriteria pattern that compiles (refusal,
+// LS-K:L1365-L1446) and an S3 on-failure destination (refusal,
+// LS-K:L3114-L3157), on Create and on Update; Update keeps the kind
+// and starting position and applies the stream settings.
 func TestKinesisMappingUnbuiltSettingsAndUpdate(t *testing.T) {
 	runRealKinesis(t, esm.StreamFidelity{}, func(h *realKinesisHarness) {
 		h.createStream(1)

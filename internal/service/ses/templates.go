@@ -56,7 +56,7 @@ func (s *state) findTemplate(v view, name string) int {
 
 // bindTemplates binds the v1 template operations. Each uses its primary
 // action alone and touches the template ARN; ListTemplates names no
-// resource (contract 2.6).
+// resource.
 func (s *Service) bindTemplates(b sesapi.Binder) {
 	b.CreateTemplate(s.createTemplate, registry.Full{},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
@@ -74,7 +74,7 @@ func (s *Service) bindTemplates(b sesapi.Binder) {
 }
 
 // templateNamed names the template an input addresses as the call's
-// resource (contract 2.6).
+// resource.
 func templateNamed[In any](nameOf func(*In) string) kernel.BindOption {
 	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
 		return []aws.ARN{templateARN(c.Scope(), nameOf(in))}

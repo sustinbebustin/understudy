@@ -28,9 +28,9 @@ func kinesisFailedBatch(t *testing.T, cond esm.FailCondition) esm.FailedBatch {
 }
 
 // The documented Kinesis record reproduces byte for byte from its inputs:
-// the 8a key order with KinesisBatchInfo, arrival times with milliseconds
-// and Z (aws-doc kinesis-on-failure-destination, lambda-stream-sources.md
-// 5.6; recorded LS-K:L1343-L1351; contract 5).
+// the DynamoDB record's key order with KinesisBatchInfo, arrival times with
+// milliseconds and Z (aws-doc kinesis-on-failure-destination,
+// lambda-stream-sources.md 5.6; recorded LS-K:L1343-L1351).
 func TestKinesisFailureRecordDocumented(t *testing.T) {
 	t.Parallel()
 	b := kinesisFailedBatch(t, esm.RetryAttemptsExhausted{StatusCode: 200, ExecutedVersion: "$LATEST", FunctionError: "Unhandled"})
@@ -48,8 +48,7 @@ func TestKinesisFailureRecordDocumented(t *testing.T) {
 
 // RecordAgeExceeded has no responseContext (recorded LS-K:L3212-L3219,
 // lambda-stream-sources.md 5.6), and arrival times keep milliseconds even
-// when they are zero (the documented form 2006-01-02T15:04:05.000Z,
-// contract 5).
+// when they are zero (the documented form 2006-01-02T15:04:05.000Z).
 func TestKinesisFailureRecordAgeExceeded(t *testing.T) {
 	t.Parallel()
 	b := kinesisFailedBatch(t, esm.RecordAgeExceeded{})
@@ -64,8 +63,8 @@ func TestKinesisFailureRecordAgeExceeded(t *testing.T) {
 
 // A Kinesis stream's retry delay is its documented polling rate, "a base
 // rate of once per second" (aws-doc, kinesis.md 8.2;
-// lambda-stream-sources.md 4.1), and StreamOf reads its start and settings
-// (contract 5).
+// lambda-stream-sources.md 4.1), and StreamOf reads its start and
+// settings.
 func TestKinesisStreamKind(t *testing.T) {
 	t.Parallel()
 	if esm.KinesisRetryDelay != time.Second || esm.PollInterval(esm.KinesisStream{}) != time.Second {

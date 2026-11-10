@@ -15,9 +15,8 @@ import (
 
 // CheckResource answers from one resource's stored policy alone. These
 // tests hold for any evaluator that follows AWS's single-policy rules
-// (iam-evaluation.md 2.2, 5), so they constrain 5b's semantics as well as
-// 5a's. They avoid the two cases the research leaves open: a condition key
-// the request does not carry (iam-evaluation.md 6.14, settled by 5b) and
+// (iam-evaluation.md 2.2, 5). They avoid two cases: a condition key
+// the request does not carry (iam-evaluation.md 6.14) and
 // whether "*" admits a service principal (IAM-EVAL-33).
 
 const (

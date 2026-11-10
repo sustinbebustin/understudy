@@ -20,8 +20,8 @@ const unsupportedSuffix = " Run 'understudy coverage --service sfn' for what is 
 // checkUnimplemented refuses the members of a Standard state machine
 // configuration understudy does not implement, naming the member as
 // Lambda's refusals do: type EXPRESS, publish true and a
-// CUSTOMER_MANAGED_KMS_KEY encryptionConfiguration (spec "Definition
-// grammar"). Storing any of them without effect would fake an Express
+// CUSTOMER_MANAGED_KMS_KEY encryptionConfiguration. Storing any of them
+// without effect would fake an Express
 // workflow, a version or encrypted execution data.
 func checkUnimplemented(op string, typ *sfnapi.StateMachineType, publish bool, enc *sfnapi.EncryptionConfiguration) *awserr.Error {
 	switch {

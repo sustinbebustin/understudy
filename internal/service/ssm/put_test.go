@@ -84,7 +84,7 @@ func TestTagsAndOverwrite(t *testing.T) {
 // {{ssm:parameter-name}} in a parameter value" (ssm-parameters.md 4.1,
 // aws-doc API_PutParameter): such a value is refused as a client error and
 // nothing is stored, and the message never repeats the value, which AWS's
-// does (SSM-11 step 05; spec "Coverage marks").
+// does (SSM-11 step 05).
 func TestDoubleBracesAreRefused(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, v := range []string{"{{a}}", "x{{ssm:other}}y"} {
@@ -104,9 +104,8 @@ func TestDoubleBracesAreRefused(t *testing.T) {
 // DataType takes text and aws:ssm:integration (ssm-parameters.md 4.3,
 // aws-doc API_PutParameter; the integration type with a SecureString under
 // the provider's webhook path, [T] parameter_test.go:L1225-L1252); any other
-// value is SSM's ValidationException (contract 4.1 row 6), and
-// aws:ec2:image answers 501 since understudy has no EC2 to validate an AMI
-// (spec "Scope").
+// value is SSM's ValidationException, and aws:ec2:image answers 501 since
+// understudy has no EC2 to validate an AMI.
 func TestDataType(t *testing.T) {
 	run(t, func(h *harness) {
 		must(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/dt/text", Value: "v", Type: new(ssmapi.ParameterTypeString), DataType: new("text")})
@@ -127,7 +126,7 @@ func TestDataType(t *testing.T) {
 	})
 }
 
-// Parameter policies answer 501 (spec "Scope"; ssm-parameters.md 12.1).
+// Parameter policies answer 501 (ssm-parameters.md 12.1).
 func TestPoliciesAnswer501(t *testing.T) {
 	run(t, func(h *harness) {
 		policy := `[{"Type":"Expiration","Version":"1.0","Attributes":{"Timestamp":"2030-01-01T00:00:00.000Z"}}]`
@@ -163,7 +162,7 @@ func TestAllowedPatternIsAWholeValueMatch(t *testing.T) {
 
 // AllowedPattern is compiled as Go RE2: a pattern RE2 cannot compile for a
 // reason other than the six structural errors answers 501 naming
-// AllowedPattern (spec "Scope"; PutParameter's coverage note), and nothing
+// AllowedPattern (PutParameter's coverage note), and nothing
 // is stored. A lookahead and a backreference are Java constructs RE2 lacks.
 func TestUncompilableAllowedPatternAnswers501(t *testing.T) {
 	run(t, func(h *harness) {
@@ -247,7 +246,7 @@ func TestTiers(t *testing.T) {
 }
 
 // An Advanced SecureString answers 501, explicit or resolved from
-// Intelligent-Tiering, and nothing is stored (spec "Scope", conflict 4).
+// Intelligent-Tiering, and nothing is stored.
 func TestAdvancedSecureStringAnswers501(t *testing.T) {
 	run(t, func(h *harness) {
 		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/adv/s1", Value: "v", Type: new(ssmapi.ParameterTypeSecureString), Tier: new(ssmapi.ParameterTierAdvanced)})

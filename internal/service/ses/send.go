@@ -17,7 +17,7 @@ import (
 )
 
 // refusalClass is how a failed send check answers, whichever API it came
-// through (contract 1.6).
+// through.
 type refusalClass uint8
 
 const (
@@ -70,7 +70,7 @@ func (r *refusal) v1() *awserr.Error {
 	return sesapi.ErrInvalidParameterValue(r.text)
 }
 
-// v2 is r as a v2 error (contract 1.6): the daily quota is
+// v2 is r as a v2 error: the daily quota is
 // TooManyRequestsException (the overlay's v2 throttle identity, inferred).
 func (r *refusal) v2() *awserr.Error {
 	switch r.class {
@@ -91,7 +91,7 @@ func invalid(text string) *refusal { return &refusal{class: refusalInvalid, text
 
 // notImplementedMember refuses member of operation op of service svc
 // ("ses" or "sesv2"), which configures feature understudy does not
-// implement (invariant 3; spec conflict rows 4, 6).
+// implement (invariant 3).
 func notImplementedMember(svc, op, member, feature string) *refusal {
 	return &refusal{class: refusalNotImplemented, text: op + " with " + member + " uses " + feature +
 		", which understudy does not implement; nothing was sent or recorded. Leave " + member +
@@ -123,7 +123,7 @@ const sendEmailCoverage = "journal-only: validates and applies identity and sand
 	"and daily-quota answers, refusing a 257-character tag, check order, mailbox-simulator and label matching"
 
 // bindSends binds the v1 send operations. A send's resource is its
-// sender's identity ARN (contract 2.6).
+// sender's identity ARN.
 func (s *Service) bindSends(b sesapi.Binder) {
 	b.SendEmail(s.sendEmail, registry.Partial{Note: sendEmailCoverage},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
@@ -138,7 +138,7 @@ func (s *Service) bindSends(b sesapi.Binder) {
 
 // sendEmail runs v1 SendEmail's checks in SendChecks order, model
 // validation having run before the handler, then records the accepted
-// message (contract 2.1). Nothing is sent (ses.md 11.8).
+// message. Nothing is sent (ses.md 11.8).
 func (s *Service) sendEmail(ctx context.Context, c *kernel.Call, in *sesapi.SendEmailInput) (*sesapi.SendEmailOutput, *awserr.Error) {
 	if r := checkSendEmail(in); r != nil {
 		return nil, r.v1()
@@ -189,7 +189,7 @@ func content(c *sesapi.Content) *Content {
 
 // checkSendEmail runs the v1 SendEmail checks that need no state: the
 // NotImplemented members, tags, addresses with the message size, and the
-// recipient count (SendChecks; contract 2.1).
+// recipient count (SendChecks).
 func checkSendEmail(in *sesapi.SendEmailInput) *refusal {
 	if r := firstUnimplemented("ses", "SendEmail", []unimplemented{
 		{"ConfigurationSetName", "configuration sets", in.ConfigurationSetName != nil},
@@ -223,8 +223,8 @@ func checkSendEmail(in *sesapi.SendEmailInput) *refusal {
 	return checkRecipientCount(len(d.ToAddresses) + len(d.CcAddresses) + len(d.BccAddresses))
 }
 
-// simpleSize is the bytes of a Simple message's subject and bodies
-// (contract 2.1): AWS counts the assembled MIME, which understudy never
+// simpleSize is the bytes of a Simple message's subject and bodies: AWS
+// counts the assembled MIME, which understudy never
 // builds (ses.md 11.8), so the bound is approximate (SES-29).
 func simpleSize(m *sesapi.Message) int {
 	n := len(m.Subject.Data)

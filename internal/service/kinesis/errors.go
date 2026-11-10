@@ -26,8 +26,7 @@ func errStreamInUse(name, account string) *awserr.Error {
 	return kinesisapi.ErrResourceInUseException("Stream " + name + " under account " + account + " already exists.")
 }
 
-// errNotImplemented is the 501 of a setting slice 1 does not build
-// (contract 3.7).
+// errNotImplemented is the 501 of a setting slice 1 does not build.
 func errNotImplemented(setting, op string) *awserr.Error {
 	return kinesisapi.ErrNotImplemented("understudy does not implement " + setting + " on " + op + ". Run 'understudy coverage --service kinesis' for what is supported.")
 }

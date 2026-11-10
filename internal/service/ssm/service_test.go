@@ -20,7 +20,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// reserved is the clause the coverage notes share (spec "Coverage marks").
+// reserved is the clause the coverage notes share.
 const reserved = "a name under /aws/service/ or /aws/reference/secretsmanager/ makes the call answer 501"
 
 // reservedText is the clause every operation but PutParameter carries for
@@ -29,8 +29,8 @@ const reserved = "a name under /aws/service/ or /aws/reference/secretsmanager/ m
 const reservedText = "unrecorded, understudy's choice: another name whose first level is aws answers PutParameter's recorded " +
 	"AccessDeniedException text (No access to reserved parameter name: <name>.), where AWS's text for this operation may differ"
 
-// The clauses the five value-bearing operations' notes carry once 5b
-// merged (spec "Enforce matrix", the default-key row; conflict 9).
+// The clauses the five value-bearing operations' notes carry for the
+// default key (ssm-parameters.md 5.6) and for a KMS failure.
 const (
 	defaultKeyEncrypt = "under iam.enforce, a SecureString on the default key alias/aws/ssm is encrypted as SSM itself, so an explicit identity-policy deny of kms:Encrypt on that key is not applied"
 	defaultKeyDecrypt = "under iam.enforce, a SecureString on the default key alias/aws/ssm is decrypted as SSM itself, so an explicit identity-policy deny of kms:Decrypt on that key is not applied"
@@ -38,8 +38,8 @@ const (
 	kmsMessage = `a KMS failure carries KMS's message without the KMS client's "(Service: AWSKMS; ...; Request ID: ...; Proxy: null)" suffix AWS appends`
 )
 
-// The thirteen Parameter Store operations are bound Partial with the
-// spec's notes verbatim (ssm-parameters.md 12.1 as the spec amends it);
+// The thirteen Parameter Store operations are bound Partial with their
+// coverage notes verbatim (ssm-parameters.md 12.1);
 // every other SSM operation, the service settings and resource policies
 // included, stays unbound and answers 501 (invariant 3).
 func TestCoverageMarks(t *testing.T) {
@@ -70,7 +70,7 @@ func TestCoverageMarks(t *testing.T) {
 				continue
 			}
 			if bound, ok := status.(kernel.Bound); !ok || bound.Coverage != (registry.Partial{Note: note}) {
-				h.Errorf("%s is %#v, want Partial with the spec's note", op.ID.Name, status)
+				h.Errorf("%s is %#v, want Partial with its coverage note", op.ID.Name, status)
 			}
 		}
 		for _, op := range []string{"GetServiceSetting", "UpdateServiceSetting", "ResetServiceSetting", "PutResourcePolicy", "GetResourcePolicies", "DeleteResourcePolicy"} {
@@ -112,7 +112,7 @@ func TestSwitches(t *testing.T) {
 			got[e.Name] = e
 		}
 		if names := slices.Sorted(maps.Keys(got)); !slices.Equal(names, slices.Sorted(maps.Keys(want))) {
-			h.Errorf("Switches() = %v, want exactly the spec's five", names)
+			h.Errorf("Switches() = %v, want exactly these five", names)
 		}
 		for name, w := range want {
 			e, ok := got[name]
@@ -133,7 +133,7 @@ func TestSwitches(t *testing.T) {
 }
 
 // Resources lists each parameter of the scope by ARN in byte order of
-// names, summarized "<Type>, version <n>" (contract 1). A snapshot export,
+// names, summarized "<Type>, version <n>". A snapshot export,
 // a Reset and an import restore the same answers to the reads; an import
 // of another state version is refused (store.VersionMismatchError).
 func TestResourcesAndSnapshotRoundTrip(t *testing.T) {
@@ -207,9 +207,9 @@ func TestResourcesAndSnapshotRoundTrip(t *testing.T) {
 }
 
 // No SecureString plaintext reaches the journal, the logs or the snapshot,
-// on the success paths or on any refusal (spec Acceptance; contract 5;
-// ssm-parameters.md 12.6: "never keep it outside KMS sealing"), and no
-// error message holds a Value of any type (spec "Coverage marks").
+// on the success paths or on any refusal (ssm-parameters.md 12.6: "never
+// keep it outside KMS sealing"), and no error message holds a Value of any
+// type.
 func TestPlaintextNeverLeaks(t *testing.T) {
 	const marker = "PLAINTEXT-MARKER-7f3a9c"
 	journalPath := filepath.Join(t.TempDir(), "journal.ndjson")

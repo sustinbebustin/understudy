@@ -50,7 +50,7 @@ func TestVerificationMessageIDFollowsItsSwitch(t *testing.T) {
 }
 
 // A repeated VerifyEmailIdentity of a Pending identity sends another
-// verification email with the same link (contract 2.3, inferred SES-09). A
+// verification email with the same link (inferred, SES-09). A
 // DeleteIdentity leaves the recorded messages.
 func TestRepeatedVerifySendsTheSameLink(t *testing.T) {
 	run(t, func(h *harness) {
@@ -76,7 +76,7 @@ func TestRepeatedVerifySendsTheSameLink(t *testing.T) {
 
 // Messages filters by Region and Since, matches To without regard to the
 // domain's case, pages oldest first across Regions, and ClearMessages
-// deletes only what its query selects (contract 3.3).
+// deletes only what its query selects.
 func TestMessagesAcrossScopes(t *testing.T) {
 	run(t, func(h *harness) {
 		east := h.Scope
@@ -156,8 +156,8 @@ func TestEvictedCountIsPerScope(t *testing.T) {
 }
 
 // Export, Reset, Import gives back the messages, and one recorded after the
-// load reads after them (contract 1.3); a reset through the v2 view clears
-// the store both APIs share (spec "Scope").
+// load reads after them; a reset through the v2 view clears the store both
+// APIs share.
 func TestMessagesSnapshotAndV2Reset(t *testing.T) {
 	run(t, func(h *harness) {
 		h.verifyEmail("a@example.com")

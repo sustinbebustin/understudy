@@ -30,8 +30,8 @@ func (r *refusals) Authorize(_ context.Context, c *kernel.Call, q kernel.AuthzQu
 }
 
 // Every SES binding refuses the SES condition keys understudy does not
-// supply, so iam.enforce enforce never takes one as absent (09g-ses spec,
-// enforce matrix): a call of each kind, v1 and v2, carries them.
+// supply, so iam.enforce enforce never takes one as absent: a call of each
+// kind, v1 and v2, carries them.
 func TestEveryBindingRefusesTheSESConditionKeys(t *testing.T) {
 	r := &refusals{got: map[string][]string{}}
 	runVerified(t, ses.Options{}, func(h *harness) {

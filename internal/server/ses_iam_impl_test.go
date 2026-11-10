@@ -16,8 +16,8 @@ import (
 )
 
 // The sender the SES tests send from, verified through
-// ses.verifiedIdentities, and the identity ARN a send touches (ses.md 11.2,
-// contract 2.6).
+// ses.verifiedIdentities, and the identity ARN a send touches (ses.md
+// 11.2).
 const (
 	sesSender      = "sender@example.com"
 	sesSenderARN   = "arn:aws:ses:us-east-1:000000000000:identity/" + sesSender
@@ -52,8 +52,8 @@ const sesV2SimpleBody = `{"FromEmailAddress":"` + sesSender + `","Destination":{
 	`"Content":{"Simple":{"Subject":{"Data":"s"},"Body":{"Text":{"Data":"b"}}}}}`
 
 // GET /iam/policy after a send workload lists each send's action on the
-// sender's identity ARN, the resource every send declares (contract 2.6;
-// 09g-ses spec, enforce matrix): ses:SendEmail for v1 and v2 SendEmail and
+// sender's identity ARN, the resource every send declares:
+// ses:SendEmail for v1 and v2 SendEmail and
 // ses:SendRawEmail for v1 SendRawEmail, beside ses:VerifyEmailIdentity on
 // the identity it verified.
 func TestSESSendWorkloadIAMPolicy(t *testing.T) {
@@ -157,8 +157,8 @@ func TestSESDenialIdentities(t *testing.T) {
 // Under enforce a policy that allows the send but denies it on
 // ses:FromAddress, which understudy does not supply, would let the send
 // through if the key were taken as absent: the call ends 501
-// NotImplemented naming the key instead, in both APIs (09g-ses spec,
-// enforce matrix). Under advise it is served with the advisory.
+// NotImplemented naming the key instead, in both APIs. Under advise it is
+// served with the advisory.
 func TestSESConditionKeysAreRefusedUnderEnforce(t *testing.T) {
 	const doc = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"ses:*","Resource":"*"},` +
 		`{"Sid":"NotBlocked","Effect":"Deny","Action":"ses:SendEmail","Resource":"*","Condition":{"StringLike":{"ses:FromAddress":"*@example.com"}}}]}`

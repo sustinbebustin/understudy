@@ -10,7 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// bindQuota binds GetSendQuota, which names no resource (contract 2.6).
+// bindQuota binds GetSendQuota, which names no resource.
 func (s *Service) bindQuota(b sesapi.Binder) {
 	b.GetSendQuota(s.getSendQuota,
 		registry.Partial{Note: "Max24HourSend and MaxSendRate from the sandbox or production setting; " +

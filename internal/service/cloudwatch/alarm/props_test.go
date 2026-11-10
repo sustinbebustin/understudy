@@ -74,7 +74,7 @@ func transitionTo(o alarm.Outcome, s cloudwatchapi.StateValue) bool {
 	return ok && tr.To == s
 }
 
-// The properties of cloudwatch-alarms.md 12.3 item 2 (contract 1.4).
+// The properties of cloudwatch-alarms.md 12.3 item 2.
 func TestEvaluateProperties(t *testing.T) {
 	// The range must hold every bin the generator draws.
 	followsSwitch(t, "cloudwatch.alarm.evaluation-range", "n-plus-5-for-60s,n-plus-2-otherwise")
@@ -175,8 +175,7 @@ func TestEvaluateProperties(t *testing.T) {
 }
 
 // referenceOutcome is the cwa 3.5 algorithm as the research writes it,
-// followed literally: the decision and the Evidence contract 1.3 and 1.4
-// define. retain reports "retain"; the caller applies unchanged-state.
+// followed literally: the decision and its Evidence. retain reports "retain"; the caller applies unchanged-state.
 func referenceOutcome(cfg alarm.Config, bins []alarm.Bin) (to cloudwatchapi.StateValue, retain bool, ev alarm.Evidence) {
 	breaches := func(v alarm.Value) bool { return cfg.Comparison.Breaches(v.Value, cfg.Threshold) }
 	count := func(vs []alarm.Value) int {

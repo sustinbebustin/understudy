@@ -142,7 +142,7 @@ func configChangeEvent(op alarm.ConfigOp, r alarmRef, a, previous *Alarm) alarmE
 // behalf of parent and admitted at (zero: parent's admission). It runs
 // from the event queue, after the write that made the change, which holds
 // no lock then. A kernel without EventBridge, or a failed send, loses the
-// event with a warning; it is not retried (contract 3.6).
+// event with a warning; it is not retried.
 func (s *Service) sendEvent(ctx context.Context, parent *kernel.Call, at clock.Instant, e *alarmEvent) {
 	lost := func(why string) {
 		s.k.Log().LogAttrs(ctx, slog.LevelWarn, "an alarm event did not reach the default event bus and is not sent again; the alarm's state and actions are unaffected",

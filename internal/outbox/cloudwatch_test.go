@@ -27,7 +27,7 @@ func alarmSource(k *kerneltest.K) delivery.Request {
 // An alarm notification is a Publish with the alarm's Subject as
 // cloudwatch.amazonaws.com, the principal a topic policy grants
 // (cloudwatch-alarms.md 5.3, aws-doc); to a FIFO topic it carries the
-// message group and deduplication ids (5.3; contract 2).
+// message group and deduplication ids (5.3).
 func TestCloudWatchToSNS(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		var publishes recorder[call[snsapi.PublishInput]]

@@ -13,8 +13,8 @@ func withHeader(r Response, name, value string) Response {
 	return r
 }
 
-// Cases the blind tests leave open, each following a rule of the contract's
-// comparison (Compare's documentation).
+// Cases compare_test.go leaves open, each following a rule of Compare's
+// documentation.
 func TestCompareRulesBeyondTheRecordedPairs(t *testing.T) {
 	t.Parallel()
 	errorXML := func(code string) Response {

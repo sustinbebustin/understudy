@@ -141,7 +141,7 @@ func TestAlarmBinsUnits(t *testing.T) {
 }
 
 // A bin whose statistic has no value, the Average of a statistic set of no
-// samples, is Missing (contract 1.3, as GetMetricData leaves it out); a
+// samples, is Missing (as GetMetricData leaves it out); a
 // metric nothing was put to reads only Missing bins (cloudwatch-alarms.md
 // 12.7).
 func TestAlarmBinsMissing(t *testing.T) {

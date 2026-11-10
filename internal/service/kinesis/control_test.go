@@ -15,15 +15,15 @@ import (
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 )
 
-// ---- CreateStream (kinesis.md 4.1, 13.6; contract 3.5) ----.
+// ---- CreateStream (kinesis.md 4.1, 13.6) ----.
 
 // The three modes: ShardCount without a mode is PROVISIONED (kinesis.md
 // 13.6 item 1, finding 4); neither mode nor count is ON_DEMAND with four
 // shards (third-party-recorded, golden 1: localstack@8b9a79f
 // tests/aws/services/kinesis/test_kinesis.snapshot.json:L2-L47, validated
 // 2022-08-26; kinesis.md finding 4); ON_DEMAND alone is four shards. The
-// stream is ACTIVE when CreateStream returns (contract 0: status
-// transitions are final).
+// stream is ACTIVE when CreateStream returns (status transitions are
+// final).
 func TestCreateStreamModes(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("prov", 2)
@@ -49,10 +49,10 @@ func TestCreateStreamModes(t *testing.T) {
 	})
 }
 
-// CreateStream's refusals in the contract's order (contract 3.5; texts (u)
-// or (k), UNVERIFIED: KIN-05, KIN-07, kinesis.md 13.3), the 501s for
+// CreateStream's refusals in order (texts understudy's (u) or kinesalite's
+// (k), UNVERIFIED: KIN-05, KIN-07, kinesis.md 13.3), the 501s for
 // settings without a test-time effect (kinesis.md 13.9: never accepted and
-// ignored; contract 3.7), and a missing name answering 400 (third-party-
+// ignored), and a missing name answering 400 (third-party-
 // recorded status only, golden 6: localstack@8b9a79f
 // tests/aws/services/kinesis/test_kinesis.py:L115-L122, validated
 // 2024-06-10).
@@ -89,7 +89,7 @@ func TestCreateStreamRefusals(t *testing.T) {
 // (kinesis.md 4.4, kinesalite's form [E]), MaxRecordSizeInKiB 1024 by
 // default (aws-doc, kinesis.md 4.1) or as created, the creation instant on
 // the emulator clock (kinesis.md 13.5 item 1), and none of the members
-// contract 3.5 omits (KeyId, WarmThroughput, ConsumerCount, StreamId,
+// understudy omits (KeyId, WarmThroughput, ConsumerCount, StreamId,
 // RecordDistributionStrategy, ChannelCount; KIN-03, the DescribeStream
 // note).
 func TestDescribeStreamSummaryOfAFreshStream(t *testing.T) {
@@ -118,7 +118,7 @@ func TestDescribeStreamSummaryOfAFreshStream(t *testing.T) {
 			h.Errorf("MaxRecordSizeInKiB = %v, want 1024", deref(s.MaxRecordSizeInKiB))
 		}
 		if s.KeyId != nil || s.WarmThroughput != nil || s.ConsumerCount != nil || s.StreamId != nil || s.RecordDistributionStrategy != nil || s.ChannelCount != nil {
-			h.Errorf("summary carries a member contract 3.5 omits: %+v", s)
+			h.Errorf("summary carries a member ListStreams omits: %+v", s)
 		}
 		if got := deref(h.summary("big").MaxRecordSizeInKiB); got != int32(2048) {
 			h.Errorf("MaxRecordSizeInKiB as created = %v, want 2048", got)
@@ -133,7 +133,7 @@ func TestDescribeStreamSummaryOfAFreshStream(t *testing.T) {
 // harness's option) and the layout switch's StartingSequenceNumber, no end
 // and no parent; a page holds min(Limit or 100, 100) shards after
 // ExclusiveStartShardId (kinesis.md 4.4, aws-doc). The stream fields are
-// the summary's, without KeyId (contract 3.5).
+// the summary's, without KeyId.
 func TestDescribeStreamShards(t *testing.T) {
 	for _, o := range []kinesis.Options{{}, {EvenSplit: kinesis.SplitFloorI, SequenceLayout: kinesis.LayoutDecimal56}} {
 		run(t, o, func(h *harness) {
@@ -244,7 +244,7 @@ func TestListShardsPagingAndFilters(t *testing.T) {
 	})
 }
 
-// ListShards' refusals (contract 3.5; (k) texts kinesalite's, (u)
+// ListShards' refusals ((k) texts kinesalite's, (u)
 // understudy's, all UNVERIFIED, KIN-15, ListShards note) and its token
 // lifetime: "Tokens expire after 300 seconds" (aws-doc, kinesis.md 4.6),
 // on the emulator clock (KIN-11).
@@ -318,7 +318,7 @@ func TestListStreams(t *testing.T) {
 		if !slices.Equal(after.StreamNames, []string{"c", "d"}) {
 			h.Errorf("after b = %v", after.StreamNames)
 		}
-		// Contract 3.5: the token never expires.
+		// A ListStreams token never expires.
 		h.advance(24 * time.Hour)
 		if again := call(h, kinesisapi.OpListStreams, &kinesisapi.ListStreamsInput{NextToken: first.NextToken}); !slices.Equal(again.StreamNames, []string{"d"}) {
 			h.Errorf("a day-old token = %v", again.StreamNames)
@@ -381,7 +381,7 @@ func TestRetentionPeriod(t *testing.T) {
 		wantErr(h, "missing stream", fail(h, kinesisapi.OpIncreaseStreamRetentionPeriod, &kinesisapi.IncreaseStreamRetentionPeriodInput{StreamName: new("nope"), RetentionPeriodHours: 48}),
 			"ResourceNotFoundException", 400, notFound("nope", account))
 	})
-	// Flipped: reject refuses an equal value both ways (contract 3.6 texts).
+	// Flipped: reject refuses an equal value both ways.
 	run(t, kinesis.Options{RetentionEqual: kinesis.RetentionEqualReject}, func(h *harness) {
 		h.create("s", 1)
 		invalidArg(h, "equal increase", fail(h, kinesisapi.OpIncreaseStreamRetentionPeriod, &kinesisapi.IncreaseStreamRetentionPeriodInput{StreamName: new("s"), RetentionPeriodHours: 24}),
@@ -441,8 +441,8 @@ func tagPairs(ts []kinesisapi.Tag) []string {
 // 50 tags per stream and no aws: key (aws-doc, kinesis.md 4.10); the
 // refusal is InvalidArgumentException with understudy's text (inferred,
 // KIN-07; tag note), nothing changes on refusal, and CreateStream checks
-// its Tags the same way (contract 3.5). A consumer or channel ARN answers
-// 501 (contract 3.7); another ARN is refused.
+// its Tags the same way. A consumer or channel ARN answers 501; another ARN
+// is refused.
 func TestStreamTagLimits(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 1)
@@ -478,8 +478,8 @@ func TestStreamTagLimits(t *testing.T) {
 
 // ---- DescribeLimits, enhanced monitoring, delete ----.
 
-// DescribeLimits reports the fixed quotas and the scope's counts (contract
-// 3.5; DescribeLimits note: "ShardLimit is 20000 and
+// DescribeLimits reports the fixed quotas and the scope's counts
+// (DescribeLimits note: "ShardLimit is 20000 and
 // OnDemandStreamCountLimit 50 in every region", the documented us-east-1
 // defaults, aws-doc kinesis.md 4.1), and no channel members.
 func TestDescribeLimits(t *testing.T) {
@@ -494,7 +494,7 @@ func TestDescribeLimits(t *testing.T) {
 }
 
 // Enhanced monitoring is stored and reported, nothing published
-// (registry.StoredOnly; contract 3.5): ALL stands for the seven names, the
+// (registry.StoredOnly): ALL stands for the seven names, the
 // output has the metrics before and after in enum order (model MetricsName,
 // kinesis.md 4.4).
 func TestEnhancedMonitoringStored(t *testing.T) {
@@ -529,7 +529,7 @@ func TestEnhancedMonitoringStored(t *testing.T) {
 	})
 }
 
-// DeleteStream removes the stream at once (contract 0; DeleteStream note):
+// DeleteStream removes the stream at once (DeleteStream note):
 // DescribeStreamSummary then answers the not-found text (kinesis.md 13.6
 // item 6), and the name can be used again.
 func TestDeleteStream(t *testing.T) {
@@ -548,7 +548,7 @@ func TestDeleteStream(t *testing.T) {
 	})
 }
 
-// ---- Stream identification (contract 3.3) ----.
+// ---- Stream identification ----.
 
 // Every stream-scoped input names its stream by StreamName, StreamARN or
 // both ("you must use either the StreamARN or the StreamName parameter, or
@@ -590,8 +590,8 @@ func TestStreamIdentification(t *testing.T) {
 	})
 }
 
-// The 24 operations outside slice 1 stay unbound and answer 501 (spec
-// Scope 8b; invariant 3).
+// The 24 operations outside slice 1 stay unbound and answer 501
+// (invariant 3).
 func TestUnboundOperationsAnswer501(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 2)
@@ -609,11 +609,11 @@ func TestUnboundOperationsAnswer501(t *testing.T) {
 	})
 }
 
-// ---- Switches, resources (contract 3.1, 3.8) ----.
+// ---- Switches, resources ----.
 
-// Switches lists the five switches in contract order, each inferred with
+// Switches lists the five switches in a fixed order, each inferred with
 // Ref, Record, Ops and NoScenario, reporting the value the service was
-// built with (spec Fidelity switches; contract 3.8).
+// built with.
 func TestSwitches(t *testing.T) {
 	flipped := kinesis.Options{
 		EvenSplit: kinesis.SplitFloorI, HashByteOrder: kinesis.HashLittleEndianUTF8, SequenceLayout: kinesis.LayoutDecimal56,
@@ -654,8 +654,8 @@ func TestSwitches(t *testing.T) {
 }
 
 // Resources lists one entry per stream in name order, Summary ACTIVE, and
-// Scopes names the scopes holding streams (contract 3.1, 3.9: `understudy
-// resources` lists streams).
+// Scopes names the scopes holding streams (`understudy resources` lists
+// streams).
 func TestResourcesAndScopes(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		if len(h.svc.Scopes()) != 0 {

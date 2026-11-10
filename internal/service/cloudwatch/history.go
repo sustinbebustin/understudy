@@ -168,7 +168,7 @@ type historyRow struct {
 // historyKey orders a listing and keys its pages: by timestamp, then by
 // alarm name, then by write order within the alarm, with the timestamp and
 // the write order inverted for a descending scan, so equal timestamps of
-// one alarm list the newest written first (contract 3.5). The order of
+// one alarm list the newest written first. The order of
 // equal timestamps across alarms is undocumented; by name is understudy's.
 func historyKey(at time.Time, name string, index int, ascending bool) string {
 	t, i := at.UnixNano(), int64(index)

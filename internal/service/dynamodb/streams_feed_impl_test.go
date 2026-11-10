@@ -50,8 +50,8 @@ func (h *streamsHarness) stateChanges(arn string) []string {
 // While drains keep failing, every write's records stay in Local; the
 // drain that finally succeeds stamps them with the first failed write's
 // instant, since Local's records do not say which write made them, and
-// journals the stream back to Draining (contract 5.3; dynamodb-streams.md
-// 11.1 item 3). The emulator-clock retry that fails again re-arms itself.
+// journals the stream back to Draining (dynamodb-streams.md 11.1 item 3).
+// The emulator-clock retry that fails again re-arms itself.
 func TestConsecutiveFailedDrainsKeepTheFirstInstant(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))

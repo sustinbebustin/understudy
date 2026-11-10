@@ -46,7 +46,7 @@ func TestMockRefusesOnlyTheSelectedTemplate(t *testing.T) {
 }
 
 // A template without a statusCode selects the default integration
-// response (contract 7.7 step 11c, inferred; asserted by status).
+// response (inferred; asserted by status).
 func TestMockWithoutStatusSelectsTheDefault(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.mockMethod("r", mock{
@@ -61,7 +61,7 @@ func TestMockWithoutStatusSelectsTheDefault(t *testing.T) {
 
 // A responseParameters target other than a method response header, or a
 // value that is not a static 'value', answers 501 naming it and is
-// journaled (contract 7.7 step 11e).
+// journaled.
 func TestMockRefusesNonHeaderParameters(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, p := range []map[string]string{

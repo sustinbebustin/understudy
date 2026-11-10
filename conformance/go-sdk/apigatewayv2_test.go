@@ -127,7 +127,7 @@ func TestAPIGatewayV2Tags(t *testing.T) {
 // deployment's status message; 3.5: DEPLOYED deployments), and the errors:
 // a duplicate route key ConflictException 409, a timeout outside 50..30000
 // BadRequestException 400 (2.4), a missing route NotFoundException 404, a
-// WebSocket API NotImplemented 501 (the unit's conflict row 4).
+// WebSocket API NotImplemented 501.
 func TestAPIGatewayV2RoutesStagesDeployments(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

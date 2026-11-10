@@ -67,7 +67,7 @@ type member struct {
 
 // refuseUnimplemented refuses the first member the request sets that
 // understudy does not accept on op yet: 501 naming it, nothing changed
-// (CLAUDE.md invariant 3; the unit's conflict row 4). nil when none is set.
+// (CLAUDE.md invariant 3). nil when none is set.
 func refuseUnimplemented(op string, ms ...member) *awserr.Error {
 	for _, m := range ms {
 		if m.set {

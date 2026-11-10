@@ -91,7 +91,7 @@ test_routes_integrations_stages_and_deployments() {
   assert_jq '.DeploymentId' "$dep"
 }
 
-# A valid request understudy does not emulate (the unit's conflict row 4).
+# A valid request understudy does not emulate.
 test_websocket_api_is_not_implemented() {
   aws_error NotImplemented 501 apigatewayv2 create-api --name "$(new_name apigw-ws)" --protocol-type WEBSOCKET \
     --route-selection-expression '$request.body.action'

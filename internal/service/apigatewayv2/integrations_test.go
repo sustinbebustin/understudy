@@ -201,8 +201,7 @@ func TestRequestParametersByteForByte(t *testing.T) {
 }
 
 // Members that only act on WebSocket APIs answer NotImplemented naming
-// them (the unit's conflict row 4; apigateway-http.md 2.4 lists them as
-// WebSocket-only).
+// them (apigateway-http.md 2.4 lists them as WebSocket-only).
 func TestWebSocketOnlyIntegrationMembers(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.apiID("t")

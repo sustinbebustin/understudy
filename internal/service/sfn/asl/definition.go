@@ -326,9 +326,9 @@ func (allOf) isCondition()       {}
 func (anyOf) isCondition()       {}
 func (not) isCondition()         {}
 
-// Feature is a group of definition constructs that lands with one runtime
-// ticket. A construct whose Feature is outside the accepted set is refused
-// with code UNSUPPORTED_BY_UNDERSTUDY.
+// Feature is a group of definition constructs the runtime implements
+// together. A construct whose Feature is outside the accepted set is
+// refused with code UNSUPPORTED_BY_UNDERSTUDY.
 type Feature int
 
 // Features. The zero value is no feature.

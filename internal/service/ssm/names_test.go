@@ -13,7 +13,7 @@ import (
 
 // Name defects AWS documents are refused with a ValidationException. A
 // hand-coded rule raises SSM's own identity com.amazonaws.ssm#ValidationException
-// (spec conflict 1; ssm-parameters.md 12.4), never the Coral identity of a
+// (ssm-parameters.md 12.4), never the Coral identity of a
 // generated constraint. The documented failing examples (ssm-parameters.md
 // 3.1, aws-doc
 // https://docs.aws.amazon.com/systems-manager/latest/userguide/what-is-a-parameter.html#sysman-parameter-name-constraints):
@@ -63,7 +63,7 @@ func TestHierarchyDefectsOnRead(t *testing.T) {
 
 // A constraint of the model (PSParameterName @length(1, 2048),
 // ssm-parameters.md 3.4, 12.4) keeps the generator's Coral identity
-// com.amazon.coral.validate#ValidationException (spec conflict 1; EM 4).
+// com.amazon.coral.validate#ValidationException (error-matrix.md 4).
 func TestGeneratedConstraintsKeepTheCoralIdentity(t *testing.T) {
 	run(t, func(h *harness) {
 		_, err := call(h, ssmapi.OpGetParameter, &ssmapi.GetParameterInput{Name: strings.Repeat("a", 2049)})
@@ -139,7 +139,7 @@ func TestNameLengthIsTheARNLength(t *testing.T) {
 // ssm.name.root-slash-echo (request-spelling), GetParameter and
 // GetParameters echo whichever spelling was asked, DescribeParameters
 // reports the canonical foo for a Name filter in either spelling, and
-// GetParameterHistory reports foo too (spec switch table).
+// GetParameterHistory reports foo too.
 func TestRootParameterSpellingsAreOneParameter(t *testing.T) {
 	run(t, func(h *harness) {
 		h.follows("ssm.name.root-slash-echo", "request-spelling")
@@ -218,7 +218,7 @@ func TestHierarchicalNamesRoundTrip(t *testing.T) {
 
 // A name holding a character outside a-zA-Z0-9_.- and / is refused with
 // SSM's ValidationException wherever the character sits (ssm-parameters.md
-// 3.1, aws-doc; spec conflict 1), and nothing is stored.
+// 3.1, aws-doc), and nothing is stored.
 func TestInvalidCharactersAreRefused(t *testing.T) {
 	run(t, func(h *harness) {
 		rapid.Check(bubbleTB{h.T}, func(rt *rapid.T) {
@@ -241,9 +241,8 @@ func TestInvalidCharactersAreRefused(t *testing.T) {
 // /aws/reference/secretsmanager/ (Secrets Manager references) answer 501
 // NotImplemented on every one of the thirteen operations, before any other
 // hand-coded rule, in any spelling: without the leading slash, with outer
-// spaces, with a selector, or as an ARN (spec "Scope", conflict 4;
-// ssm-parameters.md 12.1, 12.6: never ParameterNotFound, never a faked
-// value).
+// spaces, with a selector, or as an ARN (ssm-parameters.md 12.1, 12.6:
+// never ParameterNotFound, never a faked value).
 func TestReservedNamespacesAnswer501(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/kept", "v")
@@ -273,7 +272,7 @@ func TestReservedNamespacesAnswer501(t *testing.T) {
 			}
 		}
 		// One reserved name makes DeleteParameters 501 as a whole: nothing
-		// is deleted (contract 2.2).
+		// is deleted.
 		if err := h.get("/kept"); err != nil {
 			h.Errorf("/kept after the refused DeleteParameters: %s %q", err.ID.Shape, err.Message)
 		}

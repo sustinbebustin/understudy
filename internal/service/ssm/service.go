@@ -75,9 +75,8 @@ const (
 	reservedText = "unrecorded, understudy's choice: another name whose first level is aws answers PutParameter's recorded " +
 		"AccessDeniedException text (No access to reserved parameter name: <name>.), where AWS's text for this operation may differ"
 
-	// The default key is called as ssm.amazonaws.com (spec conflict 9;
-	// ssm-parameters.md 5.6, inferred), so step 8 never sees the caller's
-	// kms: actions on it.
+	// The default key is called as ssm.amazonaws.com (ssm-parameters.md
+	// 5.6, inferred), so step 8 never sees the caller's kms: actions on it.
 	defaultKeyEncrypt = "under iam.enforce, a SecureString on the default key alias/aws/ssm is encrypted as SSM itself, " +
 		"so an explicit identity-policy deny of kms:Encrypt on that key is not applied"
 	defaultKeyDecrypt = "under iam.enforce, a SecureString on the default key alias/aws/ssm is decrypted as SSM itself, " +
@@ -186,7 +185,7 @@ func (*Service) Switches() []fidelity.Entry {
 }
 
 // errUnsupported answers a request that needs a feature of op understudy
-// does not implement (spec "Scope"; ssm-parameters.md 12.1): 501 naming
+// does not implement (ssm-parameters.md 12.1): 501 naming
 // the feature and where to ask for it.
 func errUnsupported(op, feature string) *awserr.Error {
 	return ssmapi.ErrNotImplemented(fmt.Sprintf(

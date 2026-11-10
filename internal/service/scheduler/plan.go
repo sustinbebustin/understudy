@@ -47,7 +47,7 @@ func updateMembers(in *schedulerapi.UpdateScheduleInput) members {
 }
 
 // plan is what a schedule does, parsed once from its members at the
-// boundary: when it fires and what it invokes (spec "Contract").
+// boundary: when it fires and what it invokes.
 type plan struct {
 	expression expression
 	// loc is the zone an at() or cron() is read in, UTC when none was
@@ -236,7 +236,7 @@ func (atWrite) isAdmission() {}
 func (atLoad) isAdmission()  {}
 
 // accept parses m into the schedule's plan, refusing what AWS refuses and,
-// with 501, what no ticket has built yet. The order is what SCH-04
+// with 501, what is not built. The order is what SCH-04
 // recorded with two faults per request (scheduler.md 4.7): the time zone,
 // then the expression, the flexible window, the dates and the future-fire
 // check (in either State) and the group, then the target; the role's
@@ -479,7 +479,7 @@ const maxInputBytes = 262144
 
 // unimplementedTarget is the name the 501 gives a templated target
 // service understudy does not invoke, by ARN service; false for any other
-// (scheduler.md 6.1, 14.1; spec "Scope").
+// (scheduler.md 6.1, 14.1).
 func unimplementedTarget(service string) (string, bool) {
 	switch service {
 	case "ecs":

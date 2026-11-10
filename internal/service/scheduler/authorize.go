@@ -12,7 +12,7 @@ import (
 
 // The caller's authorization beyond each operation's own action, which
 // step 8 asks about on the schedule or group ARN (WithResources), or on
-// "*" for the two lists (scheduler.md 9, 14.11; spec "Enforce matrix").
+// "*" for the two lists (scheduler.md 9, 14.11).
 
 func schedulerAction(name string) registry.IAMAction {
 	return registry.IAMAction{Prefix: "scheduler", Name: name}

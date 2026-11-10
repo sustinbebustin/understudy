@@ -23,9 +23,9 @@ func keyFixtures(tb testing.TB) map[string][]byte {
 	}
 }
 
-// The replay the spec's sensitivity check describes runs the mutated
-// recording, so a step's own bind reads the mutated value and binds it
-// (contract 2.4): a value the step binds, and its answer holds nowhere
+// The replay the sensitivity check stands for runs the mutated
+// recording, so a step's own bind reads the mutated value and binds it:
+// a value the step binds, and its answer holds nowhere
 // else, is hidden by the bound normalizer and settles nothing. Where the
 // answer repeats it (the key id inside the key's ARN), understudy's repeat
 // then reads the mutated id while AWS's still reads the recorded one, so the

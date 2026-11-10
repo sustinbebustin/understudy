@@ -524,8 +524,9 @@ type EventInvokeConfig struct {
 
 // migrateUnkindedScaling rewrites the data of a version 3 section as
 // version 4: each SQS mapping's scaling member moves into its source kind,
-// and a stream mapping's, always unbounded, is dropped (spec conflict row
-// 6). A version 3 section saved no stream checkpoints, so any stream
+// and a stream mapping's, always unbounded, is dropped
+// (lambda-stream-sources.md 3.4). A version 3 section saved no stream
+// checkpoints, so any stream
 // mappings in it read again from their StartingPosition. The layer store
 // is carried over unchanged.
 func migrateUnkindedScaling(data []byte) ([]byte, error) {

@@ -348,12 +348,12 @@ func (s stepRun) claim(field Path) (ClaimState, error) {
 }
 
 // sensitivity mutates the recorded final response at field and compares it
-// with understudy's captured answer (D6): any unwaived difference settles
+// with understudy's captured answer: any unwaived difference settles
 // the claim; otherwise a waiver hid the field when the mutation changed the
 // unwaived comparison, else a normalizer did.
 //
-// The re-comparison stands in for the replay of the mutated recording the
-// spec describes ("Sensitivity check"), which differs from the first replay
+// The re-comparison stands in for a replay of the mutated recording,
+// which differs from the first replay
 // in one more way: the step's own binds read the mutated value. So they are
 // bound again from it, on the bindings made before the step: a value only
 // the bind carries is hidden by the bound normalizer, and a mutation its

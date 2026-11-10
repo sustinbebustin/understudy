@@ -240,7 +240,7 @@ func TestRetryWaitPersists(t *testing.T) {
 	}
 }
 
-// Spec T12: over generated retriers and error sequences, a state retries
+// Over generated retriers and error sequences, a state retries
 // error e exactly while the first retrier naming e has attempts left, each
 // wait is the 8.3 formula for that retrier's count, and an exhausted or
 // unmatched error is caught.

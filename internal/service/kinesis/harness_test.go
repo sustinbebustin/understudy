@@ -59,8 +59,7 @@ func fail[In, Out any](h *harness, op kernel.Op[In, Out], in *In) *awserr.Error 
 }
 
 // wantErr checks an error's bare __type, status and message. Kinesis
-// errors are the bare shape name, 400, body key message (kinesis.md 2.5;
-// contract 0).
+// errors are the bare shape name, 400, body key message (kinesis.md 2.5).
 func wantErr(tb testing.TB, what string, err *awserr.Error, typ string, status int, msg string) {
 	tb.Helper()
 	switch {
@@ -84,12 +83,12 @@ func notFound(stream, acct string) string {
 	return "Stream " + stream + " under account " + acct + " not found."
 }
 
-// notImplemented is the 501 text of contract 3.7.
+// notImplemented is the 501 text of a setting slice 1 does not build.
 func notImplemented(setting, op string) string {
 	return "understudy does not implement " + setting + " on " + op + ". Run 'understudy coverage --service kinesis' for what is supported."
 }
 
-// wantNotImplemented checks a 501 NotImplemented with the contract 3.7 text.
+// wantNotImplemented checks a 501 NotImplemented with the notImplemented text.
 func wantNotImplemented(tb testing.TB, what string, err *awserr.Error, setting, op string) {
 	tb.Helper()
 	wantErr(tb, what, err, "NotImplemented", 501, notImplemented(setting, op))
@@ -176,7 +175,7 @@ func (h *harness) advance(d time.Duration) {
 }
 
 // sequencer is the kinesis.sequence.layout switch's Sequencer, read from
-// the harness options, never written out (contract 3.1).
+// the harness options, never written out.
 func (h *harness) sequencer() shardlog.Sequencer {
 	if h.opts.SequenceLayout == kinesis.LayoutDecimal56 {
 		return shardlog.DecimalCounter{Digits: 56}

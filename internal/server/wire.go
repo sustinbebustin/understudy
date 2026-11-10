@@ -352,7 +352,7 @@ func bindPolicies(a *enforce.Authorizer, box *outbox.Outbox, k *kernel.Kernel, f
 }
 
 // apigatewayEnforce maps iam.enforce onto the mode REST APIs apply to a
-// resource policy (the 6b enforce matrix).
+// resource policy.
 func apigatewayEnforce(m IAMEnforce) apigateway.EnforceMode {
 	switch m {
 	case IAMEnforceAdvise:

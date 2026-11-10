@@ -190,7 +190,7 @@ func TestIdentityLimitPerRegion(t *testing.T) {
 // GetIdentityNotificationAttributes lists a known identity, which the
 // aws_ses_email_identity data source requires (provider, ses.md 9.1), and
 // omits an unknown one under either value of
-// ses.verification.unknown-identity (contract 1.4).
+// ses.verification.unknown-identity.
 func TestNotificationAttributesListKnownIdentities(t *testing.T) {
 	for _, u := range []ses.UnknownIdentity{ses.UnknownIdentityOmitted, ses.UnknownIdentityNotStarted} {
 		runWith(t, ses.Options{UnknownIdentity: u}, func(h *harness) {
@@ -207,7 +207,7 @@ func TestNotificationAttributesListKnownIdentities(t *testing.T) {
 // that the change is exact is UNVERIFIED, SES-27, so the deadline is read
 // from the constants): a Pending identity turns Failed at its deadline,
 // never Success on its own, and each transition is a StateChange on the
-// identity ARN (contract 2.3).
+// identity ARN.
 func TestPendingIdentitiesFailAtTheirDeadline(t *testing.T) {
 	run(t, func(h *harness) {
 		const addr, domain = "late@example.com", "late.example"
@@ -238,7 +238,7 @@ func TestPendingIdentitiesFailAtTheirDeadline(t *testing.T) {
 
 // An identity named in ses.verifiedIdentities starts Success: exact
 // addresses case-sensitively, domains case-insensitively (ses.md 5.1), and
-// "*@domain" for addresses whose domain matches exactly (contract 6). It
+// "*@domain" for addresses whose domain matches exactly. It
 // does not expire.
 func TestConfiguredIdentitiesStartVerified(t *testing.T) {
 	o := ses.Options{VerifiedIdentities: ses.VerifiedIdentities{
@@ -271,7 +271,7 @@ func TestConfiguredIdentitiesStartVerified(t *testing.T) {
 			}
 		}
 		if got := h.stateChanges(h.identityARN("exact@example.com")); !containsSuffix(got, "->Success") {
-			h.Errorf("StateChanges of a configured identity = %q, want one to Success (contract 6)", got)
+			h.Errorf("StateChanges of a configured identity = %q, want one to Success", got)
 		}
 	})
 }

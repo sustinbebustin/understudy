@@ -9,7 +9,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/apigateway"
 )
 
-// setting is one data-plane setting of the spec's scope list: build makes
+// setting is one data-plane setting understudy stores but cannot serve:
+// build makes
 // an API whose root GET reaches it, deployed to stage s, with a function
 // policy that would allow the invoke; the request must answer 501 naming
 // it and never run the function.
@@ -38,10 +39,10 @@ func (h *harness) proxyRoot(create *apigatewayapi.CreateRestApiInput, adjust fun
 	return id
 }
 
-// settings are the scope list's "501 at invoke while set" entries (spec 6b
-// Scope; enforce matrix rows "Integration credentials" and "Stage-variable
-// uri, STREAM, contentHandling, binaryMediaTypes, disableExecuteApiEndpoint,
-// PRIVATE endpoint"; apigateway-rest.md 3.4, 3.5, 5.1, 5.2, 5.4).
+// settings are the settings that answer 501 at invoke while set:
+// integration credentials, a stage-variable uri, STREAM, contentHandling,
+// binaryMediaTypes, disableExecuteApiEndpoint and a PRIVATE endpoint
+// (apigateway-rest.md 3.4, 3.5, 5.1, 5.2, 5.4).
 func settings() []setting {
 	plain := func() *apigatewayapi.CreateRestApiInput { return &apigatewayapi.CreateRestApiInput{Name: "t"} }
 	deployed := func(h *harness, id string) string {
@@ -85,9 +86,9 @@ func settings() []setting {
 	}
 }
 
-// Every data-plane setting of the scope list answers 501 at invoke when
-// set, naming it, journaled, without running the function, under off,
-// advise and enforce (spec 6b acceptance: "test per setting").
+// Every such data-plane setting answers 501 at invoke when set, naming
+// it, journaled, without running the function, under off, advise and
+// enforce.
 func TestSettingsAnswer501InEveryMode(t *testing.T) {
 	for mode, m := range modes {
 		for _, s := range settings() {
@@ -104,8 +105,7 @@ func TestSettingsAnswer501InEveryMode(t *testing.T) {
 }
 
 // credentials answer 501 before any function policy check: with no
-// permission at all the answer is still 501, never the permission denial
-// (spec 6b enforce matrix: "before any function policy check").
+// permission at all the answer is still 501, never the permission denial.
 func TestCredentialsAnswer501BeforeThePermissionCheck(t *testing.T) {
 	run(t, func(h *harness) {
 		fnARN := h.createFunction("fn")
@@ -121,8 +121,7 @@ func TestCredentialsAnswer501BeforeThePermissionCheck(t *testing.T) {
 }
 
 // binaryMediaTypes are read from the stage's deployment snapshot, while
-// disableExecuteApiEndpoint is read live and takes effect at once (spec
-// 6b scope list; contract 7.1).
+// disableExecuteApiEndpoint is read live and takes effect at once.
 func TestSnapshotAndLiveSettings(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.proxyRoot(&apigatewayapi.CreateRestApiInput{Name: "t"}, nil)
@@ -150,7 +149,7 @@ func (h *harness) proxyRootNamed(name string) string {
 	return *out.Id
 }
 
-// Method authorization (spec 6b enforce matrix, last row): AWS_IAM
+// Method authorization: AWS_IAM
 // answers 501 naming it, apiKeyRequired 403 (status only: inferred), in
 // every mode; neither runs the function.
 func TestMethodAuthorization(t *testing.T) {
@@ -179,7 +178,7 @@ func TestMethodAuthorization(t *testing.T) {
 }
 
 // HTTP, HTTP_PROXY and AWS integrations are stored and answer 501 at
-// invoke naming the type (spec 6b scope).
+// invoke naming the type.
 func TestUnemulatedIntegrationTypes(t *testing.T) {
 	run(t, func(h *harness) {
 		id, root := h.api("t")
@@ -200,10 +199,10 @@ func TestUnemulatedIntegrationTypes(t *testing.T) {
 	})
 }
 
-// The RestApi policy row of the enforce matrix: off serves without
+// A RestApi policy under each iam.enforce mode: off serves without
 // evaluating it; advise serves and records an access-unevaluated Advisory
 // naming the API; enforce answers 501 naming the resource policy and never
-// serves open (spec 6b enforce matrix; contract 7.7 step 6).
+// serves open (apigateway-rest.md 12.2).
 func TestResourcePolicyByMode(t *testing.T) {
 	policy := `{"Version":"2012-10-17","Statement":[{"Effect":"Deny","Principal":"*","Action":"execute-api:Invoke","Resource":"execute-api:/*"}]}`
 	for mode, m := range modes {

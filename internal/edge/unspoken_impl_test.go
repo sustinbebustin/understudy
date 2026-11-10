@@ -10,8 +10,7 @@ import (
 )
 
 // A Kinesis call in CBOR is journaled as Unclaimed, its last reason naming
-// CBOR at rule 6 (contract 4: "journaled as journal.Unclaimed with one
-// reason naming CBOR"; kinesis.md 13.4 item 2), and answered 501 in CBOR
+// CBOR at rule 6 (kinesis.md 13.4 item 2), and answered 501 in CBOR
 // whatever service the edge routes, since no Kinesis service is needed to
 // refuse it. A JSON call with the same target is not refused here.
 func TestKinesisCBORIsJournaledAsUnclaimed(t *testing.T) {
@@ -36,7 +35,7 @@ func TestKinesisCBORIsJournaledAsUnclaimed(t *testing.T) {
 
 // An HTTP/2 preface is journaled as Unclaimed with the diagnostic as its
 // reason, since the client cannot parse the HTTP/1.1 answer and the
-// journal is where it is read (contract 4; kinesis.md 13.9).
+// journal is where it is read (kinesis.md 13.9).
 func TestHTTP2PrefaceReasonCarriesTheDiagnostic(t *testing.T) {
 	f := s3Front(t)
 	r := request(t, "PRI", "/", nil, "", "")

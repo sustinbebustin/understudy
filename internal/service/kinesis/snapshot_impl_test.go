@@ -29,7 +29,7 @@ func (h *harness) saveResetLoad() {
 }
 
 // A reset drops only the scopes it covers: a region reset leaves the other
-// region's streams and their records (kernel.ResetScope; contract 3.9).
+// region's streams and their records (kernel.ResetScope).
 func TestResetDropsOnlyTheScopesItCovers(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		home := h.Scope
@@ -59,7 +59,7 @@ func TestResetDropsOnlyTheScopesItCovers(t *testing.T) {
 }
 
 // A ListShards NextToken issued before a save resumes its listing after the
-// load: the token key is in the snapshot (contract 3.9).
+// load: the token key is in the snapshot.
 func TestListShardsTokenSurvivesALoad(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 2)
@@ -76,8 +76,8 @@ func TestListShardsTokenSurvivesALoad(t *testing.T) {
 }
 
 // A loaded record keeps its arrival instant: the rearmed retention timer
-// trims it 24 hours after its put, not after the load (contract 3.4, 3.9;
-// kinesis.md 13.5 item 4).
+// trims it 24 hours after its put, not after the load (kinesis.md 13.5
+// item 4).
 func TestLoadedRecordsExpireAtTheirRetention(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 1)
@@ -96,7 +96,7 @@ func TestLoadedRecordsExpireAtTheirRetention(t *testing.T) {
 
 // A loaded shard numbers new records after its restored ones, and an
 // iterator issued before the save still expires 5 minutes after it was
-// issued (contract 3.9: "until they expire"; kinesis.md 13.5 item 3).
+// issued (kinesis.md 13.5 item 3).
 func TestLoadContinuesSequenceAndIteratorExpiry(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 1)

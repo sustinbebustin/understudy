@@ -59,7 +59,7 @@ func TestInvalidTagsSendEmailGoldens(t *testing.T) {
 // localstack@8b9a79f tests/aws/services/ses/test_ses.py:L925-L953, validated
 // 2024-07-30). Which other "ses:" names pass is UNVERIFIED (SES-16): the
 // names come from FeedbackIDTagNames, and another ses: name fails tag
-// validation (contract 1.5).
+// validation.
 func TestSpecialTagsSendEmail(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, name := range ses.FeedbackIDTagNames() {
@@ -222,7 +222,7 @@ func TestRecipientCount(t *testing.T) {
 
 // An invalid recipient rejects the whole message, even with valid ones
 // (model documentation of SendEmail, ses.md 4.1). The texts are inferred
-// (SES-04) and read from the constants, in their precedence (contract 1.5).
+// (SES-04) and read from the constants, in their precedence.
 func TestInvalidAddressRejectsTheMessage(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		for addr, text := range map[string]string{
@@ -252,8 +252,7 @@ func TestSendEmailMessageTooLong(t *testing.T) {
 }
 
 // ConfigurationSetName and the sending-authorization ARNs are not
-// implemented and say so, naming the member (invariant 3; spec conflict
-// rows 4 and 6).
+// implemented and say so, naming the member (invariant 3).
 func TestSendEmailNotImplementedMembers(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		for member, set := range map[string]func(*sesapi.SendEmailInput){
@@ -394,7 +393,7 @@ func TestMessageIDRegionCodes(t *testing.T) {
 }
 
 // Under one seed and a frozen clock two runs issue the same MessageIds
-// (ADR 0018; contract 7).
+// (ADR 0018).
 func TestSeededRunsRepeatMessageIDs(t *testing.T) {
 	var runs [2][]string
 	for i := range runs {
@@ -433,7 +432,7 @@ func TestGetSendQuota(t *testing.T) {
 // 6.3); simulator recipients are not counted (aws-doc, ses.md 6.2). A send
 // past Max24HourSend fails Throttling with DailyQuotaText (Code inferred
 // from the overlay, text documented, ses.md 6.3; SES-22). Clearing the
-// message store leaves the counter; a reset zeroes it (contract 2.4).
+// message store leaves the counter; a reset zeroes it.
 func TestDailyQuotaCountsRecipients(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		for batch := range int(ses.SandboxMax24HourSend) / ses.MaxRecipients {

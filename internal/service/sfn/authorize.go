@@ -115,7 +115,7 @@ type roleCheck struct {
 
 // checkExecutionRole asks the Authorizer, under iam.enforce advise and
 // enforce, whether states.amazonaws.com may assume the role, then whether
-// the role may deliver logs (spec "Enforce matrix"). Under off there is no
+// the role may deliver logs. Under off there is no
 // Authorizer and nothing is asked. A denial is SFN's AccessDeniedException:
 // the trust text is understudy's, since AWS checks no trust at create
 // (SFN-08, recorded 2026-11-03), the logging text

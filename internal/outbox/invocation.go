@@ -39,8 +39,8 @@ const targetRoleUnassumableCode = "FAILED_TO_ASSUME_ROLE"
 const keyDeniedCode = "AccessDeniedException"
 
 // authorizeInvocation asks, before a Scheduler delivery's target call,
-// what Scheduler itself checks first (scheduler.md 9, 14.11; spec "Enforce
-// matrix"): that scheduler.amazonaws.com may assume the execution role,
+// what Scheduler itself checks first (scheduler.md 9, 14.11): that
+// scheduler.amazonaws.com may assume the execution role,
 // with aws:SourceArn the schedule group and aws:SourceAccount its account,
 // and, for a schedule with a KmsKeyArn, that the role session may
 // kms:Decrypt with the key. Under iam.enforce=advise the Authorizer

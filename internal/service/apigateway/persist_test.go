@@ -30,7 +30,7 @@ func (h *harness) read(id string) string {
 	return string(b)
 }
 
-// State survives Export, Reset and Import (ADR 0009; contract 7.1): every
+// State survives Export, Reset and Import (ADR 0009): every
 // read answers as before, a stage still serves its deployment and not a
 // later change, and the data plane finds the API by id again.
 func TestExportImportRoundTrip(t *testing.T) {

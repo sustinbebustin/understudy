@@ -9,8 +9,8 @@ import "github.com/sustinbebustin/understudy/internal/aws"
 type EventSourceKind interface{ isEventSourceKind() }
 
 // SQS is an SQS queue; the mapping's source is the queue's ARN. Scaling
-// lives here, so a stream mapping cannot hold one (spec conflict row 6;
-// lambda-stream-sources.md 3.4).
+// lives here, so a stream mapping cannot hold one
+// (lambda-stream-sources.md 3.4).
 type SQS struct {
 	Scaling Scaling `json:"scaling"`
 }

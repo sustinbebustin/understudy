@@ -58,7 +58,7 @@ func sameIterator(a, b shardlog.Iterator) bool {
 
 // Decode(Encode(it)) is it, and the token has DynamoDB Streams' form:
 // "<stream ARN>|1|<token>" (dynamodb-streams.md 4.4, aws-doc examples),
-// the token standard base64 with padding (contract 0), at most 2048
+// the token standard base64 with padding, at most 2048
 // characters (dynamodb-streams.md 3.4, model).
 func TestCodecRoundTrip(t *testing.T) {
 	t.Parallel()
@@ -88,7 +88,7 @@ func TestCodecRoundTrip(t *testing.T) {
 
 // An iterator decodes until 1ns before its 15 minutes end and has expired
 // exactly at them; one issued after now has expired too, as Local refuses
-// an iterator issued in the future (dynamodb-streams.md 4.4; spec A3).
+// an iterator issued in the future (dynamodb-streams.md 4.4).
 func TestCodecExpiresExactlyAtTTL(t *testing.T) {
 	t.Parallel()
 	c := shardlog.NewCodec(testKey, shardlog.ARNPrefixed{})
@@ -116,7 +116,7 @@ func TestCodecExpiresExactlyAtTTL(t *testing.T) {
 }
 
 // A token with a flipped byte, another stream's prefix, or another key's
-// signature is malformed (spec A3; dynamodb-streams.md 11.1 item 4: "A
+// signature is malformed (dynamodb-streams.md 11.1 item 4: "A
 // prefix that disagrees with the token is a malformed iterator").
 func TestCodecRefusesTampering(t *testing.T) {
 	t.Parallel()
@@ -146,7 +146,7 @@ func TestCodecRefusesTampering(t *testing.T) {
 	})
 }
 
-// The contract's error texts.
+// The codec's error texts.
 func TestCodecErrorTexts(t *testing.T) {
 	t.Parallel()
 	issued := epoch
@@ -160,7 +160,7 @@ func TestCodecErrorTexts(t *testing.T) {
 }
 
 // WaitKey is one key per stream, shared by the writers and the poller
-// (contract 2: "shardlog:" + the stream ARN).
+// ("shardlog:" + the stream ARN).
 func TestWaitKey(t *testing.T) {
 	t.Parallel()
 	a := mustARN(t, "arn:aws:dynamodb:us-east-1:111111111111:table/t/stream/2026-10-25T21:13:37.075")

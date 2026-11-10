@@ -13,7 +13,7 @@ import (
 )
 
 // declareAccess states what each call of the 21 bound operations needs
-// from IAM (spec enforce matrix row 1): its own action on the stream it
+// from IAM: its own action on the stream it
 // names, by StreamName in the caller's scope or by StreamARN as sent, and
 // ListStreams and DescribeLimits, which name no stream, on "*".
 // CreateStream adds kinesis:AddTagsToStream only when it carries Tags.

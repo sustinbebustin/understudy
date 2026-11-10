@@ -54,7 +54,7 @@ while true; do
 done
 `
 
-// AWS_PROXY in full against a real function (spec 6b ticket 11): an ANY
+// AWS_PROXY in full against a real function: an ANY
 // method on /{proxy+} gets the REST 1.0 event of a POST with a query and a
 // body (apigateway-rest.md 5.1, 4.5); a response with headers and
 // multiValueHeaders maps per 5.2; a function error and a malformed

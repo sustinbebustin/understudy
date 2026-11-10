@@ -92,7 +92,7 @@ func (s *Service) Scopes() []aws.Scope {
 	return out
 }
 
-// Switches lists the five Kinesis switches (contract 3.8), each inferred
+// Switches lists the five Kinesis switches, each inferred
 // and unrecorded, reporting the value the service was built with.
 func (s *Service) Switches() []fidelity.Entry {
 	sw := func(name, value, ref, record string, ops ...string) fidelity.Entry {
@@ -117,7 +117,7 @@ func (s *Service) Switches() []fidelity.Entry {
 }
 
 // sequencer is the layout's Sequencer: decimal-56 is a 56-digit decimal
-// counter, anything else V2Sequencer (contract 3.1).
+// counter, anything else V2Sequencer.
 func (l SequenceLayout) sequencer() shardlog.Sequencer {
 	if l == LayoutDecimal56 {
 		return shardlog.DecimalCounter{Digits: 56}

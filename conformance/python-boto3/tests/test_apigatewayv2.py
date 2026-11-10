@@ -137,7 +137,7 @@ def test_routes_integrations_stages_and_deployments(apigw: Any, make_api: Callab
 
 
 def test_websocket_apis_are_not_implemented(apigw: Any) -> None:
-    # A valid request understudy does not emulate (the unit's conflict row 4).
+    # A valid request understudy does not emulate.
     with raises("NotImplemented") as err:
         apigw.create_api(Name=uniq("conf-ws"), ProtocolType="WEBSOCKET", RouteSelectionExpression="$request.body.action")
     assert status_of(err.value) == 501

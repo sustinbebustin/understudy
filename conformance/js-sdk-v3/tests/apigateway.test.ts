@@ -161,8 +161,7 @@ describe("API Gateway REST API control plane", () => {
       ["s", deployment, "NOT_AVAILABLE", false, {}],
     ]);
 
-    // A literal MOCK template selects the status and is the body (6.3, spec
-    // 6b VTL decision).
+    // A literal MOCK template selects the status and is the body (6.3).
     const ok = await fetch(restUrl(id, "/s/items"));
     expect({ status: ok.status, body: await ok.json() }).toEqual({ status: 200, body: { mock: true } });
     // An unknown path or method is 403 Missing Authentication Token (finding 3).
@@ -196,7 +195,7 @@ describe("API Gateway REST API control plane", () => {
   });
 
   test("ImportRestApi answers NotImplemented", async () => {
-    // A valid request understudy does not emulate (the unit's conflict row 4).
+    // A valid request understudy does not emulate.
     const body = new TextEncoder().encode('{"openapi":"3.0.1","info":{"title":"t","version":"1"},"paths":{}}');
     await expectFailure(apigw.send(new ImportRestApiCommand({ body })), { name: "NotImplemented", status: 501 });
   });

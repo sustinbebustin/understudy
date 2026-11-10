@@ -27,7 +27,7 @@ func (d *draft) applySES(s *fileSES, where string) *Error {
 	return nil
 }
 
-// add classifies entry into its class (contract 6): "*@domain" is an
+// add classifies entry into its class: "*@domain" is an
 // address domain and an entry without "@" a domain, both lower-cased since
 // domains are case-insensitive (ses.md 5.1); any other entry is an exact
 // address kept as written, since addresses are case-sensitive. The reason

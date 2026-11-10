@@ -93,7 +93,7 @@ func TestCounterWindow(t *testing.T) {
 }
 
 // The recipient counter is snapshot state: it survives Export, Reset and
-// Import even after the messages are cleared (contract 1.3).
+// Import even after the messages are cleared.
 func TestCounterRoundTrips(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		must(h, sesapi.OpSendEmail, email(sender, recipient, "other@"+verifiedDomain))

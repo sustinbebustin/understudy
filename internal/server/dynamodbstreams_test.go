@@ -11,8 +11,7 @@ import (
 )
 
 // With DynamoDB turned off, DynamoDB Streams, served from DynamoDB's stream
-// log, answers 501 naming the same setting (spec 8a scope: "While DynamoDB
-// is disabled, Streams answers 501 naming the same setting").
+// log, answers 501 naming the same setting.
 func TestDynamoDBStreamsDisabledNamesTheSetting(t *testing.T) {
 	srv, _ := build(t, server.Config{Docker: server.DockerDisabled{}, DynamoDB: server.DynamoDBDisabled{}})
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://localhost:4566/", strings.NewReader(`{}`))
@@ -52,14 +51,13 @@ func TestDynamoDBStreamsCoverageNotes(t *testing.T) {
 			"ExpiredIteratorException carries the __type namespace com.amazonaws.dynamodb.v20120810, where AWS's is com.amazonaws.dynamodb.streams.v20120810; " +
 			constraint + "; " + trim + " (dynamodb-streams.md 3.3, 5.5, 6.5, 7.3)",
 	}
-	// The 8a text with the spec's "After 8b" edits: the Kinesis kind in the
+	// The note covers both kinds of stream: the Kinesis kind in the
 	// first clause, the 501 list naming consumers and AT_TIMESTAMP on a
 	// Kinesis stream, and the re-enable clause (lambda-stream-sources.md 7.1)
 	// last in the UNVERIFIED list.
 	esm := "SQS queues, DynamoDB streams and Kinesis data streams; serve polls the source and invokes the function with each batch; Kinesis stream consumers, AT_TIMESTAMP on a Kinesis stream, ParallelizationFactor above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a valid FilterCriteria on a stream and an S3 on-failure destination answer 501; a stream is read as soon as it receives a record rather than at AWS's polling rate (4 per second for DynamoDB, once per second for Kinesis), which is used as the delay before a retry; UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.3, 5.5, 5.6, 7.1): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a Kinesis stream, members of the SQS type being ignored on a stream mapping, an Update refusing the stream type's members on an SQS mapping as Create does, destination existence checked only at delivery, a retried batch keeping its records, the 6 MB limit counted over the serialized event, record age measured from the record's arrival in the stream, RetryAttemptsExhausted reported when the last retry fails after the records have also passed their age, one on-failure record per expired record, an itemIdentifier outside the batch counting as complete failure, batchItemFailures keys matched case-sensitively, records lost to stream retention dropped without an on-failure record, an on-failure record the execution role may not send dropped with a journal entry, LastProcessingResult unchanged by a failure, on-failure messages without attributes, and records written while a Kinesis mapping is disabled being delivered after re-enable; MetricsConfig is stored, no metrics are emitted"
-	// The iam.enforce clause: 5b's SQS sentence, with A11's DynamoDB stream
-	// reads and B6's Kinesis reads (spec "Enforce matrix" rows 2-3;
-	// iam-enforcement-surfaces.md 8.6).
+	// The iam.enforce clause: the SQS sentence, then the DynamoDB stream
+	// reads and the Kinesis reads (iam-enforcement-surfaces.md 8.6).
 	esm += "; under iam.enforce=enforce an SQS mapping's execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage, " +
 		"and a stream mapping's dynamodb:DescribeStream on the stream, and at LATEST dynamodb:GetShardIterator and dynamodb:GetRecords (lambda.esm.create-denied-text); " +
 		"a role lacking only dynamodb:ListStreams, or at TRIM_HORIZON only dynamodb:GetShardIterator or dynamodb:GetRecords, is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +
@@ -87,8 +85,8 @@ func TestDynamoDBStreamsCoverageNotes(t *testing.T) {
 	}
 }
 
-// The five 8a switches are reported by the wired emulator (spec "Fidelity
-// switches"; contract 9). The shape checks every switch must pass are
+// The five switches of DynamoDB Streams and the stream poller are reported
+// by the wired emulator. The shape checks every switch must pass are
 // TestEverySwitchStatesItsOpsAndSettles'.
 func TestDynamoDBStreamsSwitchesAreReported(t *testing.T) {
 	names := map[string]bool{}

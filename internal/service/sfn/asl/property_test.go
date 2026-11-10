@@ -79,7 +79,7 @@ func fingerprint(h []asl.HistoryEvent) string {
 	return b.String()
 }
 
-// Spec T8: over generated definitions the history ids run from 1, every
+// Over generated definitions the history ids run from 1, every
 // previousEventId is smaller than its id, ExecutionStarted is first and
 // one terminal event is last (stepfunctions-asl.md 11.1: ids "numbered
 // sequentially, starting at one"; 11.2 rule 1). Step is deterministic.
@@ -119,7 +119,7 @@ func TestHistoryProperties(t *testing.T) {
 }
 
 // A jsonx round trip of the execution at any step leaves the rest of the
-// run unchanged (contract 5.4, ADR 0009).
+// run unchanged (ADR 0009).
 func TestPersistenceAtAnyStep(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		def, input := machine(t), machineInput(t)

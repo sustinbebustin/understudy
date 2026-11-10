@@ -10,7 +10,7 @@ import (
 
 // Under switch ssm.put.omitted-fields (preserved), an overwrite that leaves
 // out Type, Description and DataType keeps them (ssm-parameters.md 7.1);
-// an empty Description clears it (contract 4.1). The blind
+// an empty Description clears it. The blind
 // TestOmittedFieldsOnOverwrite covers KeyId and AllowedPattern, which need
 // SecureString and patterns.
 func TestOverwriteKeepsOmittedFields(t *testing.T) {

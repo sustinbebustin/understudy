@@ -17,7 +17,7 @@ func (h *harness) mockAPI() (id, root string) {
 	return id, root
 }
 
-// The DeleteDeployment golden (spec 6b acceptance; aws-recorded,
+// The DeleteDeployment golden (aws-recorded,
 // localstack@8b9a79f
 // tests/aws/services/apigateway/test_apigateway_common.snapshot.json:L604-L643,
 // recorded 2023-09-07; apigateway-rest.md finding 12): GetDeployment
@@ -99,8 +99,7 @@ func TestCreateDeploymentWithStageName(t *testing.T) {
 
 // Deploying an API with no methods is refused with BadRequestException
 // (texts inferred, APIGW1-05: identity only); canarySettings answers
-// NotImplemented on CreateDeployment and CreateStage (spec 6b coverage
-// marks).
+// NotImplemented on CreateDeployment and CreateStage.
 func TestDeploymentRefusals(t *testing.T) {
 	run(t, func(h *harness) {
 		empty, _ := h.api("empty")
@@ -120,7 +119,7 @@ func TestDeploymentRefusals(t *testing.T) {
 
 // Stage refusals whose texts are inferred (APIGW1-06; identity only): an
 // unknown deployment id is BadRequestException, a duplicate stage
-// ConflictException, a missing stage NotFoundException (contract 7.6).
+// ConflictException, a missing stage NotFoundException.
 func TestStageRefusals(t *testing.T) {
 	run(t, func(h *harness) {
 		id, _ := h.mockAPI()
@@ -169,8 +168,7 @@ func TestUpdateStage(t *testing.T) {
 	})
 }
 
-// A stage serves only its deployment snapshot (spec 6b acceptance;
-// apigateway-rest.md 3.6: "a deployment freezes the API", aws-doc
+// A stage serves only its deployment snapshot (apigateway-rest.md 3.6: "a deployment freezes the API", aws-doc
 // how-to-deploy-api): a resource added after the deployment is not served
 // (403 Missing Authentication Token, finding 3) until a new deployment,
 // and deleting the live method does not stop the stage serving it.

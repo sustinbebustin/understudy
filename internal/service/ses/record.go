@@ -20,8 +20,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// record is a Message as the "ses" snapshot section holds it (contract
-// 1.3): its scope is the cell's. Raw MIME lives in internal/blob, the
+// record is a Message as the "ses" snapshot section holds it: its scope
+// is the cell's. Raw MIME lives in internal/blob, the
 // record holding one reference on it; Messages reads it back.
 type record struct {
 	// Seq numbers the records of the whole store in the order they were
@@ -59,7 +59,7 @@ type record struct {
 }
 
 // attachmentRecord is an Attachment as a record holds it: its content in
-// internal/blob, one reference held (contract 1.3).
+// internal/blob, one reference held.
 type attachmentRecord struct {
 	FileName                string   `json:"fileName"`
 	ContentType             string   `json:"contentType,omitempty"`

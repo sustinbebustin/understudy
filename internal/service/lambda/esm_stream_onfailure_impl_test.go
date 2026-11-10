@@ -15,8 +15,7 @@ import (
 // discarded with their own RecordAgeExceeded record, counting the
 // invocations made and naming the last invocation's request id, with no
 // responseContext (recorded approximateInvokeCount above 1,
-// lambda-stream-sources.md 5.3, 5.6; one record each, inferred, ESMS-09;
-// contract 7 FailedBatch.RequestID).
+// lambda-stream-sources.md 5.3, 5.6; one record each, inferred, ESMS-09).
 func TestStreamRecordAgeWhileRetryingNamesTheLastInvocation(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		url, dlq := h.queue("dlq", nil)
@@ -50,7 +49,7 @@ func TestStreamRecordAgeWhileRetryingNamesTheLastInvocation(t *testing.T) {
 }
 
 // Records already past their age when read were never invoked, so each
-// record names a request id of its own (contract 7 FailedBatch.RequestID).
+// record names a request id of its own.
 func TestStreamRecordAgeBeforeInvocationHasNewRequestIDs(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		url, dlq := h.queue("dlq", nil)
@@ -77,8 +76,7 @@ func TestStreamRecordAgeBeforeInvocationHasNewRequestIDs(t *testing.T) {
 // the batch is discarded, the failed send is journaled as an esm-to-sqs
 // delivery attempted once, and the reader goes on to the next record
 // (destination existence checked only at delivery, inferred,
-// lambda-stream-sources.md 3.7; spec enforce row 4: the batch counts as
-// discarded).
+// lambda-stream-sources.md 3.7; the batch counts as discarded).
 func TestStreamMissingDestinationStillDiscards(t *testing.T) {
 	runStream(t, esm.StreamFidelity{RetryDelay: esm.RetryImmediately}, func(h *streamHarness) {
 		h.rec.setAnswer(alwaysFail)

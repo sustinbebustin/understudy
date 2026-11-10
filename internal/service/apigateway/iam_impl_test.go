@@ -114,8 +114,8 @@ func TestGeneratedPairsMatchTheResourceTable(t *testing.T) {
 	})
 }
 
-// The control-plane row of the enforce matrix (spec 6b) on the step-8
-// seam, with 5b's evaluator not merged: off installs no Authorizer and
+// A control-plane call under each iam.enforce mode on the step-8 seam,
+// with the policy evaluator not merged: off installs no Authorizer and
 // nothing is asked; advise and enforce as Root let every call through,
 // each asked about once with its 3.10 pair. The call's result is the same
 // under every mode.
@@ -157,7 +157,7 @@ func TestEnforceMatrixControlPlaneRow(t *testing.T) {
 // (AccessDeniedException 403, inferred, APIGW1-22) and changes nothing,
 // while the data plane, never put to IAM, keeps serving: a gate that
 // denies the mutating calls and InvokeRestApi still lets a NONE method
-// reach the function (apigateway-rest.md 3.10, 12.2; the enforce matrix).
+// reach the function (apigateway-rest.md 3.10, 12.2).
 func TestEnforceDeniesTheControlPlaneOnly(t *testing.T) {
 	g := newGate()
 	denyOnly := func(ops ...string) {

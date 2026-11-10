@@ -140,8 +140,7 @@ func TestMethodResponsesImpl(t *testing.T) {
 	})
 }
 
-// A method's members and responses survive an export and import
-// (contract 7.1).
+// A method's members and responses survive an export and import.
 func TestMethodRoundTrip(t *testing.T) {
 	run(t, func(h *harness) {
 		id, root := h.api("t")
@@ -169,7 +168,7 @@ func TestMethodRoundTrip(t *testing.T) {
 }
 
 // An apiKeyRequired method answers 403 at invoke, since no API key can be
-// created (spec 6b enforce matrix), and the function does not run.
+// created, and the function does not run.
 func TestAPIKeyRequiredOnTheRoot(t *testing.T) {
 	run(t, func(h *harness) {
 		id, _ := h.proxyAPI()

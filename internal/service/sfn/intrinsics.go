@@ -8,7 +8,7 @@ import (
 
 // intrinsicSource is the intrinsic.Source of executions: States.UUID and
 // unseeded States.MathRandom draw from their own ids kinds, so a seeded
-// emulator repeats them (spec "Runtime decisions").
+// emulator repeats them.
 type intrinsicSource struct{ ids *ids.Source }
 
 func (s intrinsicSource) UUID() string { return s.ids.UUID(ids.KindSFNUUID).String() }

@@ -287,8 +287,8 @@ func TestDeleteIntegrationARouteTargets(t *testing.T) {
 // UpdateIntegration deploys to the autoDeploy stages before it returns
 // (apigateway-http.md 3.5): credentials on a Lambda integration answer 501
 // at once without running the function, since understudy does not assume
-// the role (the unit's scope), and an empty credentialsArn, which names no
-// role, serves again.
+// the role, and an empty credentialsArn, which names no role, serves
+// again.
 func TestUpdateIntegrationDeploysAtOnce(t *testing.T) {
 	run(t, func(h *harness) {
 		id, integration := h.lambdaAPI("2.0", "GET /a")

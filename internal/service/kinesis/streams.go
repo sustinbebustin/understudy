@@ -55,7 +55,7 @@ const createStreamNote = "ON_DEMAND streams start with four shards and never sca
 
 func (s *Service) createStream(_ context.Context, c *kernel.Call, in *kinesisapi.CreateStreamInput) (*kinesisapi.CreateStreamOutput, *awserr.Error) {
 	// Settings with no test-time effect are refused, never stored without
-	// one (kinesis.md 13.9; contract 3.7).
+	// one (kinesis.md 13.9).
 	if in.WarmThroughputMiBps != nil {
 		return nil, errNotImplemented("WarmThroughputMiBps", "CreateStream")
 	}
@@ -121,8 +121,8 @@ func (s *Service) createStream(_ context.Context, c *kernel.Call, in *kinesisapi
 	return &kinesisapi.CreateStreamOutput{}, nil
 }
 
-// deleteStream removes the stream with its tags and records at once
-// (contract 0) and wakes its readers, which find it gone.
+// deleteStream removes the stream with its tags and records at once and
+// wakes its readers, which find it gone.
 // EnforceConsumerDeletion has nothing to act on: no consumer exists.
 func (s *Service) deleteStream(ctx context.Context, c *kernel.Call, in *kinesisapi.DeleteStreamInput) (*kinesisapi.DeleteStreamOutput, *awserr.Error) {
 	r, err := streamOf(c, in.StreamName, in.StreamARN)
@@ -346,7 +346,7 @@ func (s *Service) decreaseRetention(ctx context.Context, c *kernel.Call, in *kin
 }
 
 // describeLimits reports the fixed quotas with the scope's open shards and
-// ON_DEMAND streams, and no channel members (contract 3.5).
+// ON_DEMAND streams, and no channel members.
 func (s *Service) describeLimits(_ context.Context, c *kernel.Call, _ *kinesisapi.DescribeLimitsInput) (*kinesisapi.DescribeLimitsOutput, *awserr.Error) {
 	out := readState(s, c.Scope(), func(st *State) *kinesisapi.DescribeLimitsOutput {
 		out := &kinesisapi.DescribeLimitsOutput{ShardLimit: shardLimit, OnDemandStreamCountLimit: onDemandStreamLimit}

@@ -23,8 +23,8 @@ func dropped(name string) bool {
 	return false
 }
 
-// outgoing rewrites the recorded request req for understudy (spec "Value
-// binding"): each bound AWS value replaced by understudy's within the
+// outgoing rewrites the recorded request req for understudy: each bound
+// AWS value replaced by understudy's within the
 // decoded URL path segments and query values, header values, form values,
 // JSON string values, or else the raw body text; then re-encoded where a
 // value changed. It signs in region for the signing name of the recorded

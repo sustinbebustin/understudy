@@ -52,10 +52,10 @@ func runGated(t *testing.T, verdict kernel.Verdict, fn func(h *harness, g *gate)
 }
 
 // Step 8 asks about each operation's ssm: action on the parameter ARN it
-// names (contract 7; ssm-parameters.md 3.3 for the ARN): one ARN per name
+// names (ssm-parameters.md 3.3 for the ARN): one ARN per name
 // for GetParameters and DeleteParameters, and ssm:AddTagsToResource beside
 // ssm:PutParameter only when the put carries Tags (iam-enforcement-surfaces.md
-// 12.3; spec enforce matrix). Every binding declares its actions, so no call
+// 12.3). Every binding declares its actions, so no call
 // falls back to the whole generated list.
 func TestStep8AsksAboutTheParameterARNs(t *testing.T) {
 	runGated(t, kernel.Allowed{}, func(h *harness, g *gate) {
@@ -87,8 +87,8 @@ func TestStep8AsksAboutTheParameterARNs(t *testing.T) {
 }
 
 // A call denied at step 8 answers SSM's denial identity, read from the
-// descriptor (AccessDeniedException, 400; spec conflict 5, inferred, IS
-// 12.3), and nothing is written.
+// descriptor (AccessDeniedException, 400; inferred,
+// iam-enforcement-surfaces.md 12.3), and nothing is written.
 func TestDeniedPutStoresNothing(t *testing.T) {
 	runGated(t, kernel.Denied{Message: "User: arn:aws:iam::000000000000:user/u is not authorized to perform: ssm:PutParameter"}, func(h *harness, _ *gate) {
 		denial := ssmapi.Service().Denial.Identity

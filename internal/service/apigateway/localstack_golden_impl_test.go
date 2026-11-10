@@ -18,7 +18,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
-// The goldens below replay the LocalStack snapshots spec 6b lists
+// The goldens below replay LocalStack snapshots
 // (apigateway-rest.md 0 and 10: third-party-recorded, AWS-validated) at
 // the parsed level. Each test cites localstack@8b9a79f
 // tests/aws/services/apigateway/<file>:L<n>, the test id, and that id's
@@ -652,7 +652,7 @@ func lambdaEvent(tb testing.TB, ev map[string]any) map[string]any {
 // path, resource, parameters and request context for each recorded URL
 // (path normalization, apigateway-rest.md 4.2). The recording's
 // integrations carry credentials, which answer 501 until roles are
-// assumed (spec 6b); the replay grants the function policy instead.
+// assumed; the replay grants the function policy instead.
 func TestGoldenLambdaProxyEvents(t *testing.T) {
 	run(t, func(h *harness) {
 		r := h.replay()
@@ -935,7 +935,7 @@ func TestGoldenRouting(t *testing.T) {
 // TestIntegrations::test_mock_integration_response[WHEN_NO_MATCH-UrlType.PATH_BASED-GET],
 // validated 2024-05-30: AWS renders the response template
 // {"statusCode": 200, "id": $input.params().path.id} as {"id": 42,
-// "statusCode": 200}; understudy renders no VTL (spec 6b VTL decision) and
+// "statusCode": 200}; understudy renders no VTL (apigateway-rest.md 12.7) and
 // answers 501 naming the template, journaled.
 func TestGoldenMockVTLIsRefused(t *testing.T) {
 	run(t, func(h *harness) {

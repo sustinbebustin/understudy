@@ -67,11 +67,11 @@ func withDynamoDB(t *testing.T) stackServices {
 	}
 }
 
-// The thin slice end to end (spec A2): one PutItem to a stream-enabled
+// The thin slice end to end: one PutItem to a stream-enabled
 // table on the real DynamoDB Local reaches the mapped function, running in
 // its container, as a one-record event in the Lambda form
 // (dynamodb-streams.md 7.8: eventSourceARN added, eventVersion 1.1,
-// ApproximateCreationDateTime whole epoch seconds; contract 8.3).
+// ApproximateCreationDateTime whole epoch seconds).
 func TestDockerStreamPutItemReachesTheFunction(t *testing.T) {
 	s := newDockerStack(t, withDynamoDB(t))
 	s.x.StartPollers()

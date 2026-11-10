@@ -63,8 +63,7 @@ func TestHistoryLabelsSortedAndPresent(t *testing.T) {
 }
 
 // GetParameterHistory takes an ARN and reports the canonical name
-// (ssm-parameters.md 3.3, 7.6); a selector there is not a valid name
-// (contract 3 rule 2).
+// (ssm-parameters.md 3.3, 7.6); a selector there is not a valid name.
 func TestHistoryByARNAndNoSelector(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/ha/a", "v")
@@ -77,8 +76,7 @@ func TestHistoryByARNAndNoSelector(t *testing.T) {
 	})
 }
 
-// Label and Unlabel take a name only, never an ARN (ssm-parameters.md 7.8;
-// contract 3 rule 10).
+// Label and Unlabel take a name only, never an ARN (ssm-parameters.md 7.8).
 func TestLabelTakesNoARN(t *testing.T) {
 	run(t, func(h *harness) {
 		h.put("/ln/a", "v")

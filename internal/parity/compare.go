@@ -178,7 +178,7 @@ func (c *comparison) field(p Path, exp string, expOK bool, act string, actOK boo
 
 // errorFields compares the error code and message both sides carry,
 // derived from the headers and body as errorCode and errorMessage read them
-// (D4: they are compared beside the body nodes that carry them).
+// (they are compared beside the body nodes that carry them).
 func (c *comparison) errorFields(expected Response, exp body, actual Response, act body) {
 	ec, ecOK := errorCode(expected.Headers, exp.doc)
 	ac, acOK := errorCode(actual.Headers, act.doc)

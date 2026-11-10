@@ -27,7 +27,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 )
 
-// invokeRestAPI is the raw data-plane operation (contract 1).
+// invokeRestAPI is the raw data-plane operation.
 var invokeRestAPI = ref.OperationID{Service: "apigateway", Name: "InvokeRestApi"}
 
 // harness is a kernel with API Gateway's REST APIs, the Lambda control
@@ -50,11 +50,11 @@ func run(t *testing.T, fn func(h *harness), opts ...kerneltest.Option) {
 	runMode(t, apigateway.EnforceOff, fn, opts...)
 }
 
-// modes are the three iam.enforce modes the enforce matrix tests run under.
+// modes are the three iam.enforce modes the per-mode tests run under.
 var modes = map[string]apigateway.EnforceMode{"off": apigateway.EnforceOff, "advise": apigateway.EnforceAdvise, "enforce": apigateway.EnforceEnforce}
 
 // runMode runs fn against the services in a kernel built with opts, the
-// service seeing iam.enforce as mode (contract 7.1, Options.Enforce).
+// service seeing iam.enforce as mode (Options.Enforce).
 func runMode(t *testing.T, mode apigateway.EnforceMode, fn func(h *harness), opts ...kerneltest.Option) {
 	t.Helper()
 	kerneltest.Run(t, func(k *kerneltest.K) {
@@ -123,8 +123,8 @@ var (
 )
 
 // wantError checks an error's identity and status and that it says
-// something; used where the text is inferred (contract preamble: no
-// inferred text asserted).
+// something; used where the text is inferred, since no inferred text is
+// asserted.
 func wantError(tb testing.TB, err *awserr.Error, want awserr.Identity) {
 	tb.Helper()
 	if err == nil {
@@ -145,8 +145,8 @@ func wantText(tb testing.TB, err *awserr.Error, want awserr.Identity, text strin
 }
 
 // wantNotImplemented checks a valid but unemulated member's refusal: 501
-// NotImplemented naming the member and saying nothing was changed (the
-// unit's conflict row 4; CLAUDE.md invariant 3).
+// NotImplemented naming the member and saying nothing was changed
+// (CLAUDE.md invariant 3).
 func wantNotImplemented(tb testing.TB, err *awserr.Error, member string) {
 	tb.Helper()
 	if err == nil {
@@ -293,7 +293,7 @@ func (h *harness) allow(sid, sourceARN string) {
 	})
 }
 
-// proxyAPI builds the tracer bullet's API (spec 6b "Tracer bullet"):
+// proxyAPI builds the tracer bullet's API:
 // function fn, a REST API whose root has GET by AWS_PROXY to it, the
 // given extra resource paths (each with ANY by AWS_PROXY), a permission for
 // every stage, method and path ("${execution_arn}/*/*", apigateway-rest.md
@@ -426,7 +426,7 @@ func payload(p string) *lambdaapi.InvokeOutput {
 }
 
 // pathURL is the execute-api path fallback URL of path on the API id
-// (contract 6: /_understudy/execute-api/<api-id>/<stage>/<rest>).
+// (/_understudy/execute-api/<api-id>/<stage>/<rest>).
 func pathURL(id, path string) string {
 	return "http://localhost:4566/_understudy/execute-api/" + id + path
 }
@@ -464,7 +464,7 @@ func wantRequestIDs(tb testing.TB, rec *httptest.ResponseRecorder, what string) 
 	}
 }
 
-// wantAnswer checks a response API Gateway writes itself (contract 7.7):
+// wantAnswer checks a response API Gateway writes itself:
 // the answer's status and exact body, Content-Type application/json
 // (apigateway-rest.md 4.8), x-amzn-ErrorType when the answer has one
 // (4.7), and the request id headers.
@@ -485,8 +485,7 @@ func wantAnswer(tb testing.TB, rec *httptest.ResponseRecorder, want apigateway.G
 // want501 checks a data-plane request understudy cannot serve as AWS
 // would: 501 in API Gateway's {"message": ...} shape naming the setting
 // (any one of its spellings, compared case-insensitively) and saying
-// nothing was changed (the unit's conflict row 3: never an AWS-shaped 500;
-// contract 7.7).
+// nothing was changed (never an AWS-shaped 500).
 func want501(tb testing.TB, rec *httptest.ResponseRecorder, setting, what string, spellings ...string) {
 	tb.Helper()
 	var body map[string]string
@@ -519,7 +518,7 @@ func (h *harness) invokeCalls() []journal.APICall {
 }
 
 // wantJournaled501 checks that the last InvokeRestApi call is journaled
-// with its 501 (spec 6b: each refusal "answers 501 and is journaled").
+// with its 501: every refusal is journaled.
 func (h *harness) wantJournaled501(what string) {
 	h.Helper()
 	calls := h.invokeCalls()

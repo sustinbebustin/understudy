@@ -138,7 +138,7 @@ def test_mock_method_and_deployments(endpoint: str, apigw: Any, make_api: Callab
         ("s", deployment, "NOT_AVAILABLE", False, {})
     ]
 
-    # A literal MOCK template selects the status and is the body (6.3, spec 6b VTL decision).
+    # A literal MOCK template selects the status and is the body (6.3).
     status, _, body = http_request("GET", rest_url(endpoint, api_id, "/s/items"))
     assert status == 200, body
     assert json.loads(body) == {"mock": True}
@@ -168,7 +168,7 @@ def test_tags_take_the_escaped_arn(apigw: Any, make_api: Callable[..., dict[str,
 
 
 def test_import_rest_api_is_not_implemented(apigw: Any) -> None:
-    # A valid request understudy does not emulate (the unit's conflict row 4).
+    # A valid request understudy does not emulate.
     with raises("NotImplemented") as err:
         apigw.import_rest_api(body=b'{"openapi":"3.0.1","info":{"title":"t","version":"1"},"paths":{}}')
     assert status_of(err.value) == 501

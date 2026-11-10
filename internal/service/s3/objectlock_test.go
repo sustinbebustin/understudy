@@ -1077,7 +1077,7 @@ func TestCopyObjectDoesNotCarryLockState(t *testing.T) {
 
 // TestLockStateSurvivesSnapshotsAndResetDropsIt: a version's retention and
 // hold are state a snapshot keeps, and reset drops the bucket with its
-// locked versions, applying no lock (spec risk: reset clears retention).
+// locked versions, applying no lock.
 func TestLockStateSurvivesSnapshotsAndResetDropsIt(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T

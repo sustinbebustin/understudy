@@ -16,7 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/ses"
 )
 
-// An accepted v1 SendEmail is recorded with the fields of contract 3.1,
+// An accepted v1 SendEmail is recorded with the fields of ses.Message,
 // the envelope To, Cc and Bcc in order, and each simulator recipient
 // mapped to its scenario by local part, labels allowed (ses.md 6.2).
 func TestSendEmailIsRecorded(t *testing.T) {
@@ -83,12 +83,11 @@ func TestSendEmailIsRecorded(t *testing.T) {
 }
 
 // The secret marks message content that a journaled input must not keep
-// (ses.md 11.2; spec acceptance: subject, bodies, attachment contents, raw
-// MIME, template data).
+// (ses.md 11.2): subject, bodies, attachment contents, raw MIME, template
+// data.
 const journalSecret = "journal-secret-content"
 
-// The APICall of a send touches the sender's identity ARN (contract 2.6)
-// and its journaled input carries no message content.
+// The APICall of a send touches the sender's identity ARN and its journaled input carries no message content.
 func TestSendEmailJournalTouchesSenderAndKeepsNoContent(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		in := email(sender, simulator)
@@ -123,7 +122,7 @@ func wantNoSecret(h *harness, input []byte) {
 }
 
 // VerifyEmailIdentity records the verification email (ses.md 5.2: from
-// no-reply-aws@amazon.com, subject naming the Region; contract 3.2): kind
+// no-reply-aws@amazon.com, subject naming the Region): kind
 // verification, to the identity, its text carrying the link built from
 // the request's host. It counts toward no quota.
 func TestVerificationEmailIsRecorded(t *testing.T) {
@@ -148,7 +147,7 @@ func TestVerificationEmailIsRecorded(t *testing.T) {
 			h.Errorf("verification text %+v has no line starting %s", m.Text, link)
 		}
 		if !messageIDPattern.MatchString(m.MessageID) {
-			h.Errorf("verification MessageId %q is not in the send format (contract 3.1)", m.MessageID)
+			h.Errorf("verification MessageId %q is not in the send format", m.MessageID)
 		}
 		if got := h.quota().SentLast24Hours; got != 0 {
 			h.Errorf("SentLast24Hours = %v after a verification email, want 0", got)
@@ -171,7 +170,7 @@ func hasLineWithPrefix(text, prefix string) bool {
 
 // Messages filters by recipient, sender, MessageId and account and Region,
 // returns oldest first and pages by cursor; ClearMessages deletes what the
-// query selects and reports how many (contract 3.3).
+// query selects and reports how many.
 func TestMessagesQueryAndClear(t *testing.T) {
 	runVerified(t, ses.Options{ProductionAccess: true}, func(h *harness) {
 		ids := make([]string, 0, 5)
@@ -237,7 +236,7 @@ func messageIDs(ms []ses.Message) []string {
 }
 
 // A limit outside 1..MaxMessageLimit and a cursor the store did not issue
-// are QueryErrors naming the field (contract 3.3).
+// are QueryErrors naming the field.
 func TestMessagesRefusesBadLimitAndCursor(t *testing.T) {
 	run(t, func(h *harness) {
 		for _, c := range []struct {
@@ -258,7 +257,7 @@ func TestMessagesRefusesBadLimitAndCursor(t *testing.T) {
 }
 
 // The store keeps MaxStoredMessages per account and Region; the next
-// evicts the oldest and counts it (ses.md 11.2; contract 3.3).
+// evicts the oldest and counts it (ses.md 11.2).
 func TestMessageStoreEvictsTheOldest(t *testing.T) {
 	runVerified(t, ses.Options{ProductionAccess: true}, func(h *harness) {
 		first := must(h, sesapi.OpSendEmail, email(sender, simulator)).MessageId

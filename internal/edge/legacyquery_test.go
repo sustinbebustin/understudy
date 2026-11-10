@@ -23,7 +23,7 @@ import (
 // answers 501 NotImplemented in SSM's JSON 1.1 envelope, naming the legacy
 // Query protocol, the action and the X-Amz-Target alternative, never an
 // unknown operation and never a parameter, and it is journaled as
-// Unclaimed (spec conflict 7; ssm-parameters.md 12.1).
+// Unclaimed (ssm-parameters.md 12.1).
 func TestSSMLegacyQueryIsNotImplemented(t *testing.T) {
 	f := newFrontWith(t, nil, func(o *edge.Options) { o.LegacyQuery = []ref.ServiceID{"ssm"} }, ssmapi.Service())
 	rec := httptest.NewRecorder()

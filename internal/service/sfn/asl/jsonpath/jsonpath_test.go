@@ -254,9 +254,7 @@ func identifier() *rapid.Generator[string] {
 }
 
 // referencePath draws a Reference Path of shorthand names and
-// non-negative indexes, written the way String must return it unchanged
-// (contract: "for Reference Paths written with shorthand dot names and
-// indexes only, String() returns the input unchanged").
+// non-negative indexes, written the way String must return it unchanged.
 func referencePath() *rapid.Generator[string] {
 	return rapid.Custom(func(t *rapid.T) string {
 		var b strings.Builder
@@ -277,7 +275,7 @@ func referencePath() *rapid.Generator[string] {
 	})
 }
 
-// Spec T5: Reference Path parse and print round trip.
+// Reference Path parse and print round trip.
 func TestReferencePathRoundTrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		s := referencePath().Draw(t, "path")
@@ -378,7 +376,7 @@ func walk(t *rapid.T, v document.Value) (string, document.Value) {
 	}
 }
 
-// Spec T5: a definite path returns the one node it names, never a list
+// A definite path returns the one node it names, never a list
 // of matches (stepfunctions-asl.md 4.5: a Reference Path "identifies a
 // single node").
 func TestDefinitePathReturnsOneNode(t *testing.T) {

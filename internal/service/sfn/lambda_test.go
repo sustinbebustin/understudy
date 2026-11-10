@@ -27,8 +27,7 @@ func (h *harness) invokeTaskMachine(name, fn string) string {
 
 // A function ARN Task invokes the function synchronously, as the execution
 // role, with the effective input; its payload is the task result
-// (stepfunctions-api.md 9.2 legacy row; spec "Runtime decisions": invoked
-// AsExecutionRole{Role}).
+// (stepfunctions-api.md 9.2 legacy row; invoked AsExecutionRole{Role}).
 func TestFunctionArnTask(t *testing.T) {
 	run(t, func(h *harness) {
 		fn := h.functionArn("worker")
@@ -64,8 +63,7 @@ func TestFunctionArnTask(t *testing.T) {
 
 // The recorded header names of a lambda:invoke result's SdkHttpMetadata
 // (aws-recorded localstack@8b9a79f
-// v2/services/test_lambda_task_service.snapshot.json:L67-L114; spec
-// "Runtime decisions").
+// v2/services/test_lambda_task_service.snapshot.json:L67-L114).
 var recordedHeaders = []string{
 	"Connection", "Content-Length", "Content-Type", "Date", "X-Amz-Executed-Version",
 	"X-Amzn-Trace-Id", "x-amzn-Remapped-Content-Length", "x-amzn-RequestId",

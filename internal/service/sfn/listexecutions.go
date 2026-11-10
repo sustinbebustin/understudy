@@ -16,7 +16,7 @@ import (
 )
 
 // validateListExecutions checks statusFilter, whose check the overlay hands
-// to the service (contract section 0). The violation lists the values in
+// to the service. The violation lists the values in
 // AWS's order rather than the model's (stepfunctions-api.md 3.2;
 // aws-recorded localstack@8b9a79f v2/test_sfn_api.snapshot.json:L1672).
 func validateListExecutions(in *sfnapi.ListExecutionsInput) []awserr.Violation {

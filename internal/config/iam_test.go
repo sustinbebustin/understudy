@@ -10,10 +10,9 @@ import (
 
 // iam.enforce is the one IAM enforcement setting (iam-enforcement-surfaces.md
 // 12.1), spelled --iam-enforce and UNDERSTUDY_IAM_ENFORCE: off (the
-// default), advise or enforce, the spec's settled spelling. Every other
+// default), advise or enforce. Every other
 // text, other cases included, is refused rather than read as one of them
-// (CLAUDE.md invariant 3). The 5a version of this test refused advise and
-// enforce; 5b runs them (contract 9.1).
+// (CLAUDE.md invariant 3).
 func TestIAMEnforceModes(t *testing.T) {
 	if got := load(t, nil, nil, files{}).IAM.Enforce; got != config.EnforceOff {
 		t.Errorf("default iam.enforce = %v, want EnforceOff", got)
@@ -86,7 +85,7 @@ func TestIAMEnforcePrecedence(t *testing.T) {
 
 // The setting is listed for help and docs/configuration.md right after
 // sigv4, the other request-checking mode, beside the file's iam section,
-// with a usage line that says what each mode does (contract 9.1).
+// with a usage line that says what each mode does.
 func TestIAMEnforceIsASetting(t *testing.T) {
 	settings := config.Settings()
 	at := slices.IndexFunc(settings, func(s config.Setting) bool { return s.Key == "iam.enforce" })

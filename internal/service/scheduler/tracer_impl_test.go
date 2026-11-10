@@ -65,8 +65,8 @@ func TestCreateScheduleConflict(t *testing.T) {
 	})
 }
 
-// What tickets 2 to 7 do not build answers 501 and stores nothing
-// (CLAUDE.md invariant 3; spec "Tracer bullet").
+// What is not built answers 501 and stores nothing (CLAUDE.md invariant
+// 3).
 func TestUnbuiltMembersAnswerNotImplemented(t *testing.T) {
 	cases := map[string]func(h *harness, in *schedulerapi.CreateScheduleInput){
 		"other region": func(_ *harness, in *schedulerapi.CreateScheduleInput) {

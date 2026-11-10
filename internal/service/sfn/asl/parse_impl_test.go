@@ -8,8 +8,8 @@ import (
 )
 
 // Every construct of the closed grammar, in one machine, parses with every
-// feature and no diagnostic (spec "Definition grammar"; stepfunctions-asl.md
-// 3.3, 6.2, 7.1, 8.2-8.4, 9.1-9.2).
+// feature and no diagnostic (stepfunctions-asl.md 3.3, 6.2, 7.1, 8.2-8.4,
+// 9.1-9.2).
 func TestParseAcceptsTheWholeGrammar(t *testing.T) {
 	def := `{
 	"Comment": "all", "Version": "1.0", "QueryLanguage": "JSONPath", "TimeoutSeconds": 60, "StartAt": "P",
@@ -96,8 +96,7 @@ func TestParseRefusesStructuralProblems(t *testing.T) {
 
 // Refusals the blind refusal list does not reach: variables in a Choice
 // Variable and in an intrinsic argument, Distributed Map's ExecutionType,
-// and a JSONPath function inside an intrinsic argument (spec "Definition
-// grammar").
+// and a JSONPath function inside an intrinsic argument.
 func TestParseRefusesMoreUnsupportedConstructs(t *testing.T) {
 	tests := []struct{ name, def, location string }{
 		{"variable in a Choice", `{"StartAt":"C","States":{"C":{"Type":"Choice","Choices":[{"Variable":"$v","IsNull":true,"Next":"P"}]},` + terminalP + `}}`, "/States/C/Choices[0]/Variable"},

@@ -111,8 +111,9 @@ func TestRootRoutesAndFirstLiterals(t *testing.T) {
 }
 
 // An empty route table matches no request, so it overlaps nothing, even a
-// table whose route starts with a label (spec: every route of one starts
-// with a literal none of the other's routes can match, vacuously true).
+// table whose route starts with a label (the rule that every route of one
+// starts with a literal none of the other's routes can match holds
+// vacuously).
 func TestAnEmptyRouteTableOverlapsNothing(t *testing.T) {
 	empty := restService(t, "one", "shared")
 	if _, err := registry.New(empty, restService(t, "two", "shared", restRoute{http.MethodGet, "/{Bucket}", "List"})); err != nil {

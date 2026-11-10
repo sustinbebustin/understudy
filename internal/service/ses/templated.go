@@ -20,7 +20,7 @@ const sendTemplatedEmailCoverage = "journal-only as SendEmail; the stored templa
 	"TemplateArn answers NotImplemented"
 
 // bindSendTemplated binds v1 SendTemplatedEmail, whose resource is its
-// sender's identity ARN (contract 2.6).
+// sender's identity ARN.
 func (s *Service) bindSendTemplated(b sesapi.Binder) {
 	b.SendTemplatedEmail(s.sendTemplatedEmail, registry.Partial{Note: sendTemplatedEmailCoverage},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
@@ -80,7 +80,7 @@ func (s *Service) sendTemplatedEmail(ctx context.Context, c *kernel.Call, in *se
 
 // checkSendTemplated runs SendEmail's checks that need no state on a
 // templated send: the NotImplemented members, tags, addresses and the
-// recipient count (SendChecks; contract 2.1). TemplateData's length was
+// recipient count (SendChecks). TemplateData's length was
 // checked by model validation (ses.md 4.3).
 func checkSendTemplated(in *sesapi.SendTemplatedEmailInput) *refusal {
 	if r := firstUnimplemented("ses", "SendTemplatedEmail", []unimplemented{

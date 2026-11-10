@@ -65,7 +65,7 @@ func streamRecord(i, size int) esm.StreamRecord {
 }
 
 // A StreamRecord encodes as its Event: the record as the function receives
-// it (contract 7).
+// it.
 func TestStreamRecordMarshalsAsItsEvent(t *testing.T) {
 	t.Parallel()
 	r := streamRecord(1, 3)
@@ -208,8 +208,8 @@ func TestFailureRecordRecordAgeExceeded(t *testing.T) {
 	}
 }
 
-// An SQS mapping has no on-failure record (contract 7: nil for SQS;
-// lambda-events.md 1.3: a destination on an SQS mapping is refused).
+// An SQS mapping has no on-failure record (lambda-events.md 1.3: a
+// destination on an SQS mapping is refused).
 func TestFailureRecordNilForSQS(t *testing.T) {
 	t.Parallel()
 	if got := esm.FailureRecord(esm.SQS{}, failedBatch(t, esm.RecordAgeExceeded{})); got != nil {
@@ -219,8 +219,7 @@ func TestFailureRecordNilForSQS(t *testing.T) {
 
 // The stream poller's three switches, each inferred with its Ref, Record,
 // Ops and NoScenario, read from the values StreamFidelity holds; flipping
-// each changes only its own Value (spec Fidelity switches; contract 9;
-// lambda-stream-sources.md 12.7).
+// each changes only its own Value (lambda-stream-sources.md 12.7).
 func TestStreamSwitches(t *testing.T) {
 	t.Parallel()
 	type row struct {

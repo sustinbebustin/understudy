@@ -19,8 +19,8 @@ import (
 // it would never apply both end the call 501 NotImplemented naming the key
 // and the statement, matched case-insensitively. Under advise the call is
 // served as before, with the condition-key-unsupplied advisory; a key the
-// binding does not refuse is evaluated as absent as before (09g-ses spec,
-// enforce matrix; iam-evaluation.md 6.14).
+// binding does not refuse is evaluated as absent as before
+// (iam-evaluation.md 6.14).
 func TestRefusedConditionKeysAreNotEvaluatedAsAbsent(t *testing.T) {
 	policies := map[string]string{
 		"allow": `{"Version":"2012-10-17","Statement":[{"Sid":"OnlyFrom","Effect":"Allow","Action":"guard:Run","Resource":"*","Condition":{"StringEquals":{"guard:FromAddress":"a@example.com"}}}]}`,

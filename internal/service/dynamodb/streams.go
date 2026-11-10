@@ -81,8 +81,8 @@ func NewStreams(d kernel.ServiceDeps, svc *Service) *Streams {
 // own action and no other (dynamodb:ReadDataForReplication, also in the
 // generated lists of DescribeStream, GetShardIterator and GetRecords,
 // authorizes global-table replication, not a caller's read), on the stream
-// it addresses; ListStreams addresses no stream, so it is asked on "*"
-// (spec enforce matrix row 1). GetRecords names its stream only in its
+// it addresses; ListStreams addresses no stream, so it is asked on "*".
+// GetRecords names its stream only in its
 // iterator's prefix, which is read before the handler verifies the token.
 func declareStreamsAccess(b *kernel.Binder) {
 	kernel.Declare(b, dynamodbstreamsapi.OpListStreams, kernel.WithoutSecondaryActions())

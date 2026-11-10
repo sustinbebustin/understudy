@@ -81,7 +81,7 @@ type missingDataVector struct {
 // each of the three states: a state cell is a Transition to it from the
 // two others and a Retain from itself (cloudwatch.alarm.unchanged-state,
 // cwa 3.8); a retain cell is a Retain from all three. Evidence.Bins is the
-// input as passed (contract 1.3).
+// input as passed.
 func TestEvaluateMissingDataVectors(t *testing.T) {
 	ok, al, insufficient := string(stateOK), string(stateAlarm), string(stateInsufficient)
 	unagedX2 := switchCase(t, "cloudwatch.alarm.unaged-breach", map[string]string{"alarm-if-aged-in-range-else-retain": al})
@@ -148,7 +148,7 @@ func checkOutcome(t *testing.T, got alarm.Outcome, want string, bins []alarm.Bin
 	}
 }
 
-// The Evidence of each case of the cwa 3.5 algorithm (contract 1.3, 1.4):
+// The Evidence of each case of the cwa 3.5 algorithm:
 // case A counts the N newest real bins and fills nothing, case B counts
 // nothing and fills N, case C counts every real bin of d1..dR and fills
 // N minus their number.
@@ -372,7 +372,7 @@ func TestConfigOfDynamoDBKeepsTheTreatment(t *testing.T) {
 
 // Alarm kinds understudy cannot evaluate are stored and never evaluated,
 // each named by why; the checks run in a fixed order and report the first
-// (cwa 12.1, 12.7; contract 1.2).
+// (cwa 12.1, 12.7).
 func TestConfigOfNotEvaluable(t *testing.T) {
 	wall := cloudwatchapi.EvaluationWindowMemberWallClockWindow{Value: cloudwatchapi.WallClockWindow{Timezone: new("UTC")}}
 	criteria := cloudwatchapi.EvaluationCriteriaMemberPromQLCriteria{}

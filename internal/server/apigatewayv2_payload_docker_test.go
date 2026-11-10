@@ -51,8 +51,8 @@ while true; do
 done
 `
 
-// A Lambda proxy integration per payload format against a real function
-// (the unit's spec, ticket 9): the function gets the event of its
+// A Lambda proxy integration per payload format against a real function:
+// the function gets the event of its
 // integration's format and its response in that format is the client's
 // (apigateway-http.md 5.1-5.4); a function error answers the
 // apigatewayv2.lambda.failure-answers switch's FunctionError, and an

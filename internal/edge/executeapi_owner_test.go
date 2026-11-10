@@ -43,8 +43,8 @@ func rawOp(t *testing.T, svc *registry.Service, id ref.OperationID) *registry.Op
 
 // twoFronts is the edge with both API Gateway services (their generated
 // route tables, ADR 0019) and both execute-api fronts bound, HTTP APIs then
-// REST APIs (contract 8: wire.go's registration order), each answering 200
-// with its service name; v2 and v1 hold the given ids.
+// REST APIs (wire.go's registration order), each answering 200 with its
+// service name; v2 and v1 hold the given ids.
 func twoFronts(t *testing.T, v2, v1 owners) *front {
 	t.Helper()
 	v2svc, v1svc := apigatewayv2api.Service(), apigatewayapi.Service()
@@ -67,8 +67,7 @@ func twoFronts(t *testing.T, v2, v1 owners) *front {
 
 // An execute-api request goes to the raw operation of the one service
 // whose owner holds the API id, on the path fallback (sandboxed, ADR 0020)
-// and on the host form with the id's first label lowercased (spec 6b
-// contract "Edge"; contract 8).
+// and on the host form with the id's first label lowercased.
 func TestExecuteAPIOwnerResolution(t *testing.T) {
 	f := twoFronts(t, owners{"httpapi001": true}, owners{"restapi001": true})
 	for _, c := range []struct {
@@ -100,8 +99,8 @@ func TestExecuteAPIOwnerResolution(t *testing.T) {
 }
 
 // An id no service owns goes to the first registered front, whose handler
-// answers its unknown-API answer (spec 6b contract "Edge": "An id no
-// service owns gets v2's unknown-api answer").
+// answers its unknown-API answer: v2's, as wire.go registers HTTP APIs
+// first.
 func TestExecuteAPIUnownedIDGoesToTheFirstFront(t *testing.T) {
 	f := twoFronts(t, owners{}, owners{})
 	rec := httptest.NewRecorder()
@@ -113,7 +112,7 @@ func TestExecuteAPIUnownedIDGoesToTheFirstFront(t *testing.T) {
 
 // An id two services claim is an understudy bug: the edge answers 500
 // naming both services and saying nothing was changed, as JSON, journaled,
-// and neither handler runs (spec 6b contract "Edge"; contract 8).
+// and neither handler runs.
 func TestExecuteAPIIDClaimedTwiceIsABug(t *testing.T) {
 	f := twoFronts(t, owners{"both000001": true}, owners{"both000001": true})
 	rec := httptest.NewRecorder()

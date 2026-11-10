@@ -54,7 +54,7 @@ func TestCreatePrivateDefaultsToDualstack(t *testing.T) {
 
 // Recorded CreateRestApi refusals (aws-recorded, apigateway-rest.md 2.4
 // table, test_apigateway_api.snapshot.json lines beside each), and
-// cloneFrom's NotImplemented (the unit's conflict row 4).
+// cloneFrom's NotImplemented.
 func TestCreateRestApiRefusals(t *testing.T) {
 	run(t, func(h *harness) {
 		wantText(t, fail(h, apigatewayapi.OpCreateRestApi, &apigatewayapi.CreateRestApiInput{Name: "t", Description: new("")}),

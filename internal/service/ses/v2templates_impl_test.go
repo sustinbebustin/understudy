@@ -170,7 +170,7 @@ func TestListEmailTemplates(t *testing.T) {
 }
 
 // The tag operations act on a template ARN as on an identity's (ses.md
-// 3.2; spec coverage row for the tag operations), and journal it; a
+// 3.2), and journal it; a
 // template the scope does not hold is NotFoundException naming it.
 func TestTagsOnTemplateARNs(t *testing.T) {
 	run(t, func(h *harness) {
@@ -194,7 +194,7 @@ func TestTagsOnTemplateARNs(t *testing.T) {
 }
 
 // CreateEmailTemplate and the other template operations journal the
-// template ARN (contract 2.6).
+// template ARN.
 func TestEmailTemplateOperationsTouchTheTemplate(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createEmailTemplate("t", sesv2api.EmailTemplateContent{})

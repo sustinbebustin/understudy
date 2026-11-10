@@ -17,7 +17,7 @@ import (
 // store v1 shares (switch ses.store.shared-v1-v2, ses.md 2.3). Each uses
 // its primary action alone and touches the template ARN, except
 // CreateEmailTemplate with Tags, which also declares ses:TagResource;
-// ListEmailTemplates names no resource (contract 2.6).
+// ListEmailTemplates names no resource.
 func (v *V2) bindV2Templates(b sesv2api.Binder) {
 	b.CreateEmailTemplate(v.createEmailTemplate, registry.Full{},
 		kernel.WithActions(func(_ *kernel.Call, in *sesv2api.CreateEmailTemplateInput) []registry.IAMAction {

@@ -108,7 +108,7 @@ func wantError(tb testing.TB, err *awserr.Error, want awserr.Identity) {
 
 // The identities the control plane answers with (apigateway-http.md 2.3,
 // the model's httpError traits; the constraint-failure identity is the
-// overlay's inferred BadRequestException, conflict row 5 of the unit).
+// overlay's inferred BadRequestException).
 var (
 	badRequest = apigatewayv2api.IdentityBadRequestException()
 	conflict   = apigatewayv2api.IdentityConflictException()
@@ -420,7 +420,7 @@ func wantAnswer(tb testing.TB, rec *httptest.ResponseRecorder, want apigatewayv2
 
 // want501 checks a data-plane request understudy cannot serve as AWS
 // would: 501 in API Gateway's {"message": ...} shape saying nothing was
-// changed (the unit's conflict row 3: never an AWS-shaped 500).
+// changed (never an AWS-shaped 500).
 func want501(tb testing.TB, rec *httptest.ResponseRecorder, what string) {
 	tb.Helper()
 	var body map[string]string

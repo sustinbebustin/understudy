@@ -44,8 +44,8 @@ const (
 )
 
 // stageVariableRef marks a uri that names a stage variable; it is stored
-// verbatim and its shape is not checked (inferred, contract 6b 7.6), and an
-// invocation that reaches it answers 501 (spec 6b scope list).
+// verbatim and its shape is not checked (inferred), and an invocation
+// that reaches it answers 501.
 const stageVariableRef = "${stageVariables."
 
 // usesStageVariable reports whether the integration's uri names a stage
@@ -125,7 +125,7 @@ func checkURI(t apigatewayapi.IntegrationType, uri string) *awserr.Error {
 }
 
 // checkConnectionType refuses VPC_LINK, which needs a VPC link, and VPC
-// links are unbound (the unit's conflict row 4).
+// links are unbound.
 func checkConnectionType(op string, t apigatewayapi.ConnectionType) *awserr.Error {
 	switch t {
 	case apigatewayapi.ConnectionTypeInternet:
@@ -274,8 +274,8 @@ func (s *Service) updateIntegration(_ context.Context, c *kernel.Call, in *apiga
 // refused on MOCK. An unknown path answers "Invalid patch path <path>"
 // and another op than replace on a replace-only path the
 // OpsOneOf(replace) text, as for UpdateMethod (recorded there, inferred
-// here, contract 6b section 5). The members VPC links, TLS and ALB targets
-// need answer NotImplemented, as on PutIntegration.
+// here). The members VPC links, TLS and ALB targets need answer
+// NotImplemented, as on PutIntegration.
 func integrationPatch() patch.Table[Integration] {
 	add, remove, replace := apigatewayapi.OpAdd, apigatewayapi.OpRemove, apigatewayapi.OpReplace
 	addRemoveReplace := []apigatewayapi.Op{add, remove, replace}

@@ -59,7 +59,7 @@ func TestRawEnvelopeFollowsItsSwitch(t *testing.T) {
 
 // The raw message is recorded as received, with its sender and recipients
 // read from the headers; X-SES-MESSAGE-TAGS (aws-doc event-publishing,
-// ses.md 4.2) are recorded after Tags (contract 3.1).
+// ses.md 4.2) are recorded after Tags.
 func TestSendRawEmailIsRecorded(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		data := mime("body\r\n",
@@ -104,8 +104,8 @@ func TestRawMessageTagsHeaderIsValidated(t *testing.T) {
 }
 
 // The configuration-set and sending-authorization members and headers are
-// not implemented and say so, naming them (invariant 3; spec conflict rows
-// 4 and 6; the headers, ses.md 4.2).
+// not implemented and say so, naming them (invariant 3; the headers,
+// ses.md 4.2).
 func TestSendRawEmailNotImplemented(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		arn := h.identityARN(sender)
@@ -153,8 +153,8 @@ func TestRawLineAndPartLimits(t *testing.T) {
 }
 
 // The size limit is 10 MB on v1 (aws-doc quotas, ses.md 2.2), counted
-// after base64 (contract 2.1); bound and answer inferred (SES-29) and read
-// from the constants.
+// after base64; bound and answer inferred (SES-29) and read from the
+// constants.
 func TestSendRawEmailMessageTooLong(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		line := strings.Repeat("a", 76) + "\r\n"
@@ -175,7 +175,7 @@ func TestSendRawEmailWithoutSender(t *testing.T) {
 }
 
 // The journaled SendRawEmail input keeps no raw bytes, and the call
-// touches the sender's identity ARN (contract 2.1, 2.6).
+// touches the sender's identity ARN.
 func TestSendRawEmailJournalKeepsNoContent(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		data := mime(journalSecret+"\r\n", "From: "+sender, "To: "+simulator, "Subject: "+journalSecret)

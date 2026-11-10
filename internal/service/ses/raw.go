@@ -27,7 +27,7 @@ const sendRawEmailCoverage = "journal-only as SendEmail; the raw MIME is recorde
 	"ConfigurationSetName, X-SES-CONFIGURATION-SET, the ARN members and the X-SES-*-ARN headers answer NotImplemented"
 
 // bindSendRaw binds v1 SendRawEmail, whose resource is its sender's
-// identity ARN: Source, else the first From header address (contract 2.6).
+// identity ARN: Source, else the first From header address.
 func (s *Service) bindSendRaw(b sesapi.Binder) {
 	b.SendRawEmail(s.sendRawEmail, registry.Partial{Note: sendRawEmailCoverage},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
@@ -59,8 +59,7 @@ func rawSenderARN(scope aws.Scope, source *string, data []byte) []aws.ARN {
 
 // sendRawEmail runs v1 SendRawEmail's checks in SendChecks order, model
 // validation having run before the handler, keeps the raw bytes in the blob
-// store and records the accepted message (contract 2.1). Nothing is sent
-// (ses.md 11.8).
+// store and records the accepted message. Nothing is sent (ses.md 11.8).
 func (s *Service) sendRawEmail(ctx context.Context, c *kernel.Call, in *sesapi.SendRawEmailInput) (*sesapi.SendRawEmailOutput, *awserr.Error) {
 	send, r := s.checkSendRawEmail(in)
 	if r != nil {
@@ -96,7 +95,7 @@ type checkedSend struct {
 }
 
 // checkSendRawEmail runs the v1 SendRawEmail checks that need no state
-// (SendChecks; contract 2.1): the NotImplemented members, then checkRaw.
+// (SendChecks): the NotImplemented members, then checkRaw.
 func (s *Service) checkSendRawEmail(in *sesapi.SendRawEmailInput) (*checkedSend, *refusal) {
 	if r := firstUnimplemented("ses", "SendRawEmail", []unimplemented{
 		{"ConfigurationSetName", "configuration sets", in.ConfigurationSetName != nil},
@@ -122,7 +121,7 @@ func (s *Service) checkSendRawEmail(in *sesapi.SendRawEmailInput) (*checkedSend,
 }
 
 // rawRequest is a raw send's members other than its API's NotImplemented
-// ones: v1 SendRawEmail, or v2 SendEmail with Raw content (contract 2.2).
+// ones: v1 SendRawEmail, or v2 SendEmail with Raw content.
 type rawRequest struct {
 	// svc and op name the operation in a NotImplemented answer.
 	svc, op string
@@ -131,7 +130,7 @@ type rawRequest struct {
 	// returnPath is v2 FeedbackForwardingEmailAddress, nil when absent. When
 	// given it stands in for the Return-Path header, as a given Source takes
 	// precedence over that header for feedback (model, ses.md 4.2; inferred
-	// for v2, spec conflict row 9).
+	// for v2).
 	returnPath *string
 	// replyTo is v2 ReplyToAddresses; when given they are recorded in place
 	// of the Reply-To header's (inferred: the model calls them the
@@ -148,7 +147,7 @@ type rawRequest struct {
 }
 
 // checkRaw runs a raw send's checks that need no state, after its API's
-// NotImplemented members (SendChecks; contract 2.1, 2.2): the raw message's
+// NotImplemented members (SendChecks): the raw message's
 // header block and NotImplemented headers, the tags with X-SES-MESSAGE-TAGS
 // after the request's, the addresses, then the size and MIME limits, and
 // the recipient count of the envelope ses.raw.envelope picks.
@@ -250,7 +249,7 @@ func readRaw(data []byte) (*rawMessage, *refusal) {
 
 // notImplemented refuses the first X-SES header standing in for a member
 // understudy does not implement that m carries, naming it in upper case
-// (ses.md 4.2; spec conflict rows 4 and 6).
+// (ses.md 4.2).
 func (m *rawMessage) notImplemented(svc, op string) *refusal {
 	has := func(name string) bool {
 		_, ok := m.header[textproto.CanonicalMIMEHeaderKey(name)]

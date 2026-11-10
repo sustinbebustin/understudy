@@ -19,7 +19,7 @@ func rawV2(data []byte) *sesv2api.SendEmailInput {
 }
 
 // Simple content runs v1 SendEmail's address and recipient-count checks,
-// answering through v2's validation identity (contract 1.6).
+// answering through v2's validation identity.
 func TestV2SimpleAddressAndRecipientChecks(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		_, err := call(h, sesv2api.OpSendEmail, simpleEmail(sender, "no-at-sign"))
@@ -50,7 +50,7 @@ func TestV2HeaderPatternIsValidated(t *testing.T) {
 
 // Raw content takes FromEmailAddress as v1 takes Source, and
 // FeedbackForwardingEmailAddress in place of the Return-Path header: both
-// are sender-checked and recorded (spec conflict row 9; ses.md 4.2).
+// are sender-checked and recorded (ses.md 4.2).
 func TestV2RawSendersAndReturnPath(t *testing.T) {
 	const stranger = "stranger@unverified.test"
 	runVerified(t, ses.Options{}, func(h *harness) {
@@ -76,7 +76,7 @@ func TestV2RawSendersAndReturnPath(t *testing.T) {
 }
 
 // A v2 Raw send's journaled input keeps no raw bytes and touches the From
-// header's identity ARN (contract 2.1, 2.6).
+// header's identity ARN.
 func TestV2RawSendIsRedacted(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		in := rawV2(mime(journalSecret+"\r\n", "From: "+sender, "To: "+simulator, "Subject: "+journalSecret))
@@ -92,7 +92,7 @@ func TestV2RawSendIsRedacted(t *testing.T) {
 
 // Attachment contents live in the blob store: a refused send keeps none,
 // a snapshot names each and round-trips them, and clearing the message
-// releases them (spec Scope).
+// releases them.
 func TestV2AttachmentBlobLifecycle(t *testing.T) {
 	runVerifiedWithBlobs(t, func(h *harness, blobs *blob.Store) {
 		attach := func(in *sesv2api.SendEmailInput) *sesv2api.SendEmailInput {

@@ -36,7 +36,7 @@ type Options struct {
 	// read against, as the edge's; the zero value is AWS's.
 	Regions aws.Regions
 	// Enforce is iam.enforce, which decides what an invocation of an API
-	// with a resource policy does (the spec's enforce matrix).
+	// with a resource policy does.
 	Enforce EnforceMode
 }
 
@@ -73,10 +73,10 @@ var _ kernel.Stateful = (*Service)(nil)
 const baseNote = "an AccessDeniedException body carries message, where AWS sends Message (recorded, APIGW1-22)"
 
 // Coverage notes of the tracer bullet's operations: what each leaves out
-// of the documented behavior until its own ticket.
+// of the documented behavior.
 const (
-	// restAPINote is CreateRestApi's and UpdateRestApi's note: the spec's
-	// (spec 6b coverage marks), plus the enum-list violation text the
+	// restAPINote is CreateRestApi's and UpdateRestApi's note
+	// (apigateway-rest.md 12.2), plus the enum-list violation text the
 	// golden replay of test_create_rest_api_verify_defaults found.
 	restAPINote = "cloneFrom answers NotImplemented; policy is stored and returned escaped, and under iam.enforce=enforce an invocation of an API with a policy answers 501; " +
 		"binaryMediaTypes, disableExecuteApiEndpoint and endpointConfiguration PRIVATE are stored and returned, and an invocation of an API that has them answers 501; " +

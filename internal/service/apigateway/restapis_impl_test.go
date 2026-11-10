@@ -8,7 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayapi"
 )
 
-// UpdateRestApi's table beyond the blind tests: remove /description clears
+// More of UpdateRestApi's patch table: remove /description clears
 // it; an unknown path answers "Invalid patch path <path>" (finding 5); an
 // op other than add, remove or replace on /description or a binary media
 // type answers the three-op text (L4774's shape, inferred here); an empty
@@ -47,8 +47,8 @@ func TestUpdateRestApiTable(t *testing.T) {
 
 // binaryMediaTypes added by UpdateRestApi reach the data plane only through
 // a new deployment, which then answers 501 naming them, journaled, without
-// running the function (spec 6b scope list; the binaryMediaTypes half of
-// TestSnapshotAndLiveSettings, whose other half is ticket 10's).
+// running the function (the binaryMediaTypes half of
+// TestSnapshotAndLiveSettings).
 func TestBinaryMediaTypesFollowTheDeployment(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.proxyRoot(&apigatewayapi.CreateRestApiInput{Name: "t"}, nil)

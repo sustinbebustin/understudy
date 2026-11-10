@@ -11,7 +11,7 @@ import (
 // ses.verifiedIdentities classifies each entry: an exact address kept as
 // written (addresses are case-sensitive, ses.md 5.1), a domain lower-cased
 // (domains are case-insensitive, ses.md 5.1), and "*@domain" as an address
-// domain (contract 6). ses.productionAccess defaults to false.
+// domain. ses.productionAccess defaults to false.
 func TestSESVerifiedIdentitiesAreClassified(t *testing.T) {
 	cfg := load(t, nil, nil, files{config.DefaultConfigFile: `{"ses": {"verifiedIdentities": ["Sender@example.com", "Example.ORG", "*@Example.net"]}}`})
 	v := cfg.SES.VerifiedIdentities
@@ -27,7 +27,7 @@ func TestSESVerifiedIdentitiesAreClassified(t *testing.T) {
 	}
 }
 
-// Any other entry is refused at load, naming it (contract 6).
+// Any other entry is refused at load, naming it.
 func TestSESVerifiedIdentitiesRefusals(t *testing.T) {
 	at := config.DefaultConfigFile + ": ses.verifiedIdentities"
 	for _, entry := range []string{"", "a@", "*", "sender*@example.com", "Name <a@example.com>", "a b@example.com", "*@"} {

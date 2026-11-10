@@ -16,7 +16,7 @@ import (
 const alarmARN = "arn:aws:cloudwatch:us-east-1:000000000000:alarm:cpu"
 
 // putServiceEvent calls PutServiceEventInternal as CloudWatch does: on its
-// own behalf as cloudwatch.amazonaws.com, via the alarm (contract 3.6).
+// own behalf as cloudwatch.amazonaws.com, via the alarm.
 func (h *harness) putServiceEvent(in *eventbridgeapi.PutServiceEventInternalInput) {
 	h.Helper()
 	parent := h.Call(eventbridgeapi.OpPutEvents.Descriptor())
@@ -33,7 +33,7 @@ func (h *harness) putServiceEvent(in *eventbridgeapi.PutServiceEventInternalInpu
 // id, the source, detail-type, resources and detail as sent, the account
 // and region of the scope, and the time to the second with Z
 // (cloudwatch-alarms.md 6.2). Rules match it as they match PutEvents
-// events, and the reserved aws. prefix is not refused (contract 3.6).
+// events, and the reserved aws. prefix is not refused.
 func TestPutServiceEventInternalGoesToTheDefaultBus(t *testing.T) {
 	run(t, func(h *harness) {
 		const pattern = `{"source": ["aws.cloudwatch"], "detail-type": ["CloudWatch Alarm State Change"]}`
@@ -78,7 +78,7 @@ func jsonEqual(a, b any) bool {
 	return errX == nil && errY == nil && bytes.Equal(x, y)
 }
 
-// PutServiceEventInternal is bound Full (contract 3.6).
+// PutServiceEventInternal is bound Full.
 func TestPutServiceEventInternalCoverage(t *testing.T) {
 	run(t, func(h *harness) {
 		if got := h.Kernel.Bindings().Status(eventbridgeapi.OpPutServiceEventInternal.Descriptor()); got != (kernel.Bound{Coverage: registry.Full{}}) {

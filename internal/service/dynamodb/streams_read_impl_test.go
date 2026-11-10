@@ -18,7 +18,7 @@ import (
 // GetRecords floors ApproximateCreationDateTime to the second
 // (dynamodb-streams.md 7.3), but answers an event source mapping's
 // in-process read with the stored arrival, from which the poller measures
-// record age and retention (spec 8a poller, inferred, ESMS-09).
+// record age and retention (inferred, ESMS-09).
 func TestRecordsKeepTheArrivalForAMappingRead(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
 		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
@@ -184,7 +184,7 @@ func TestSingleUseCoversNextShardIterators(t *testing.T) {
 	})
 }
 
-// LocalStack goldens 6 and 7 (spec A5), parsed-level:
+// LocalStack goldens 6 and 7, parsed-level:
 //   - 6: localstack@8b9a79f tests/aws/services/dynamodb/test_dynamodb.snapshot.json:L662-L665
 //     test_dynamodb_streams_describe_with_exclusive_start_shard_id, validated 2025-10-08: an
 //     ExclusiveStartShardId naming a shard leaves that shard out of Shards

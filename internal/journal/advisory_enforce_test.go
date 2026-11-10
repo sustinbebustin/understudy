@@ -6,7 +6,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/journal"
 )
 
-// The advisories iam.enforce writes (contract 7) are appended after the
+// The advisories iam.enforce writes are appended after the
 // kinds journal files already carry, in this order, so a file written by an
 // earlier build still reads back (docs/guide/journal.md), and their wire
 // names round-trip.

@@ -111,7 +111,7 @@ func TestStreamSixMegabyteCut(t *testing.T) {
 
 // A stream found gone at the reader's first read stops the reader: one
 // StreamGone entry, and no further reads when the stream is woken or time
-// passes (lambda-stream-sources.md 7.3; contract 8.4).
+// passes (lambda-stream-sources.md 7.3).
 func TestStreamGoneReaderReadsNothingMore(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		m := h.mapStream(lambdaapi.CreateEventSourceMappingInput{})
@@ -144,7 +144,7 @@ func TestStreamGoneReaderReadsNothingMore(t *testing.T) {
 // A batch being retried whose oldest record reaches the stream's 24 hours
 // (dynamodb-streams.md 5.5) is dropped without an on-failure record and
 // reading resumes at TRIM_HORIZON (aws-doc lambda-stream-sources.md 5.1,
-// 5.3; contract 8.4). The record's age is read from its
+// 5.3). The record's age is read from its
 // ApproximateCreationDateTime, whole seconds.
 func TestStreamRetriedBatchPastRetentionIsDropped(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
@@ -211,8 +211,7 @@ func TestStreamFunctionMissingThenBack(t *testing.T) {
 	})
 }
 
-// A LATEST mapping's checkpoint moves are journaled from LATEST
-// (contract 8.4).
+// A LATEST mapping's checkpoint moves are journaled from LATEST.
 func TestStreamCheckpointJournaledFromLatest(t *testing.T) {
 	runStream(t, esm.StreamFidelity{LatestAnchor: esm.AnchorFirstRead}, func(h *streamHarness) {
 		h.stream.add(h.Clock.Now(), "old")

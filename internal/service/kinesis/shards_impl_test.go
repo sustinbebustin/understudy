@@ -11,7 +11,7 @@ import (
 
 // A ListShards NextToken resumes the listing it came from: by MaxResults
 // on the stream named by ARN, and the later of ExclusiveStartShardId and
-// AFTER_SHARD_ID's ShardId starts it (contract 3.5).
+// AFTER_SHARD_ID's ShardId starts it.
 func TestListShardsTokenResumesItsListing(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 6)
@@ -37,7 +37,7 @@ func TestListShardsTokenResumesItsListing(t *testing.T) {
 
 // A token names its stream by creation instant: once the stream is deleted,
 // or deleted and re-created under the same name, the token's stream is not
-// found (contract 3.5: a token carries stream and creation instant).
+// found (a token carries stream and creation instant).
 func TestListShardsTokenOfAGoneStream(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 2)
@@ -59,7 +59,7 @@ func TestListShardsTokenOfAGoneStream(t *testing.T) {
 }
 
 // Enable adds to the stored metrics and Disable removes only the named
-// ones; both report before and after in enum order (contract 3.5).
+// ones; both report before and after in enum order.
 func TestEnhancedMonitoringMergesAndRemoves(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 1)
