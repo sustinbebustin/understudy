@@ -26,14 +26,18 @@ understudy derives the account from the access key and supports multi-account an
 - The journal links in-function calls to invocations through per-environment minted keys (ADR 0007).
 - Users who want a non-AWS region name must add it to the configuration and set `skip_region_validation` in Terraform.
 
-## Amendments (review, 2026-10-08)
+## Amendment 2026-10-08: the region source is a sum type
 
 - The region source is a sum type: `CredentialScope{Region}` from SigV4, `HostRegion{Region}` from a `<svc>.<region>.<base>` host, `None` for SigV2, presigned-SigV2, unsigned and anonymous requests. Under `None` S3 serves the bucket's home region and sets `x-amz-bucket-region`; non-S3 calls use `us-east-1`. The cross-region rules of ADR 0013 apply only when a region is asserted.
 - IAM and STS cells are keyed by `aws.AccountID`, not by a scope with a zeroed region.
 - Internal calls run under an explicit `PrincipalMode` (ADR 0004), so the access recorder attributes forward-access KMS calls to the caller and Lambda log writes to the execution role.
 
-## Amendments (pre-tag review, 2026-10-13)
+## Amendment 2026-10-13: signature verification under `sigv4: verify`
 
-Decided at the pre-tag review: signature verification is built before the first tag.
+Signature verification is built before the first release. Under `parse` (the default) nothing changes.
 
-- Under `sigv4: verify` the edge verifies every credential form it parses (SigV4 header and presigned, SigV2 header and presigned), after the claim and before decode. The secret of a key understudy minted is its own; `accounts.keys` entries carry theirs; the dummy key `test` and every 12-digit account key verify with the dummy secret `test`, so `AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test` and the account-selecting keys keep working; any other unminted key is refused as AWS refuses an unknown key (JSON `UnrecognizedClientException`, Query `InvalidClientTokenId`, S3 `InvalidAccessKeyId`). A minted `ASIA` key must send its session token (header or query) and must not be past its expiry (JSON `UnrecognizedClientException` / `ExpiredTokenException`, Query `InvalidClientTokenId` / `ExpiredToken`, S3 `InvalidToken` / `ExpiredToken`). Presigned URLs expire on the emulator clock with S3's texts and elements, and signed `aws-chunked` uploads verify their chunk and trailer signatures. Static keys come from configuration at every start and are never exported in snapshots. Under `parse` (the default) nothing changes.
+- Under `sigv4: verify` the edge verifies every credential form it parses (SigV4 header and presigned, SigV2 header and presigned), after the claim and before decode.
+- Secrets: the secret of a key understudy minted is its own, and `accounts.keys` entries carry theirs. The dummy key `test` and every 12-digit account key verify with the dummy secret `test`, so `AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test` and the account-selecting keys keep working. Any other unminted key is refused as AWS refuses an unknown key (JSON `UnrecognizedClientException`, Query `InvalidClientTokenId`, S3 `InvalidAccessKeyId`).
+- A minted `ASIA` key must send its session token (header or query) and must not be past its expiry (JSON `UnrecognizedClientException` / `ExpiredTokenException`, Query `InvalidClientTokenId` / `ExpiredToken`, S3 `InvalidToken` / `ExpiredToken`).
+- Presigned URLs expire on the emulator clock with S3's texts and elements, and signed `aws-chunked` uploads verify their chunk and trailer signatures.
+- Static keys come from configuration at every start and are never exported in snapshots.

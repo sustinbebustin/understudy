@@ -12,7 +12,7 @@ Fault injection runs must be deterministic under a seed, and snapshots must be d
 - KMS key material and SNS signing keys always come from `crypto/rand`, even when seeded.
 - Map iteration for any output, wire or file, always sorts; snapshots use deterministic JSON.
 - Timer firing order is `(due, seq)` (ADR 0006); fan-out order is creation order (ADR 0015).
-- The contract, stated in the docs: same seed, same rule set and same call order give the same journal, the same fault hits and the same snapshot bytes. Concurrent clients make call order nondeterministic; the journal shows what happened either way.
+- The contract, stated in the docs: same seed, same rule set and same call order give the same journal, the same fault hits and the same snapshot bytes. Concurrent clients make call order nondeterministic; the journal shows what happened either way. (Narrowed by the amendment of 2026-10-08.)
 
 ## Alternatives considered
 
@@ -23,9 +23,9 @@ Fault injection runs must be deterministic under a seed, and snapshots must be d
 ## Consequences
 
 - The seed is logged at startup and recorded in snapshots.
-- Every generator is a thin typed wrapper over `ids.Source`, so no package calls `crypto/rand` or `uuid` directly except `ids`, `kms` and `sns` (lint-enforced).
+- Every generator is a thin typed wrapper over `ids.Source`, so no package generates an identifier from `crypto/rand` or `uuid` directly. Key material, tokens and other secrets still come from `crypto/rand`. No lint rule enforces this.
 
-## Amendments (review, 2026-10-08)
+## Amendment 2026-10-08: the contract is narrowed
 
 The contract is narrowed. A single client still fans out into concurrent internal work, Lambda runs on wall time and DynamoDB Local stamps its own timestamps, so "byte-identical journals and snapshots" was overstated. What holds, and what the e2e suite and `understudytest` assert:
 
@@ -33,9 +33,9 @@ The contract is narrowed. A single client still fans out into concurrent interna
 - Snapshot state sections are byte-identical except a named, closed set of wall-domain fields (STS `Expiration`, Lambda REPORT durations, DynamoDB Local timestamps and stream labels); `snapshot diff --normalize` masks them.
 - Journals are equal as canonical trace trees: children sorted by kind, operation and resource, ids replaced by tree positions, `Wall` and `Latency` ignored. Golden fixtures never contain raw event ids.
 - SSE-KMS ETags and every other emulator-minted identifier come from the seeded source; only KMS key material and SNS signing keys do not.
-- A `--deterministic` single-worker mode is not built in phase 1; narrowing the contract was chosen instead.
+- A `--deterministic` single-worker mode is not built; narrowing the contract was chosen instead.
 
-## Amendments (implementation)
+## Amendment 2026-10-10: the `snapshot diff --normalize` set
 
 The closed normalizer set of `snapshot diff --normalize` (`internal/snapshot` package doc, ARCHITECTURE.md 12 and 13) gained these entries:
 
@@ -44,14 +44,12 @@ The closed normalizer set of `snapshot diff --normalize` (`internal/snapshot` pa
 - Member-name rules do not apply inside user-keyed maps of strings persisted as `Tags`, `Variables` or `Metadata` (any case); their values are still normalized as text. An object under one of those names that holds anything other than strings is a record keyed by a user-chosen name and keeps every rule.
 - Normalizing never reorders arrays. State sorted by a masked value sorts by what the mask keeps: identity's export orders keys with `ids.CompareAccessKeys`, which ignores the account bits.
 
-## Amendments (hardening round 3)
+## Amendment 2026-10-13: delivery attempts run in timer order
 
 - Internal delivery calls follow clock firing order: the outbox runs delivery attempts one at a time, in the order their timers fire, so the request-phase fault rules and seeded ids of their target calls (SQS `SendMessage`, SNS `Publish`, Lambda `Invoke` with `Event`) follow that order however goroutines are scheduled (`internal/outbox` package doc).
 - Two kinds of attempt run outside that order, on their own goroutine: an attempt a Delivery-phase latency rule delays, whose order against the others already depends on wall time, and a `RequestResponse` Lambda invoke, which waits for the function. Their target calls draw ids and fault hits in wall-time order.
 - A request-phase latency rule matching an attempt's target call still holds the whole sequencer for its wall time, because `kernel.Invoke` evaluates it and waits before returning. Closing that needs the kernel to report the request-phase decision before it waits (`internal/outbox` package doc).
 
-## Amendments (pre-tag review, 2026-10-13)
-
-Decided at the pre-tag review.
+## Amendment 2026-10-13: drawing from an undeclared kind panics
 
 - Drawing from an undeclared `ids.Kind`, which only a `Kind(n)` conversion can make, panics on both the seeded and the random source. It is a precondition failure, not an error value: no caller can recover from it, and an error on every generator would put an impossible failure on every write path. Such precondition panics are marked with a line-scoped `//nolint:forbidigo` that names the precondition, never with a path exclusion. The kernel's recovery turns one reached in a request into `Internal`.

@@ -4,16 +4,16 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-The main module depends on the standard library only, with `pgregory.net/rapid` pre-approved for tests; any other dependency needs an ADR. The generator needs the AWS Smithy models, the protocol compliance corpus (published only as IDL inside jars, convertible with the Smithy CLI, `smithy-protocol-tests.md 5`), and an operation-to-IAM-action mapping (the AWS Service Reference JSON, whose licence is unstated, `smithy-models.md 8`). S3's ten checksum algorithms include XXHASH64, XXHASH3 and XXHASH128, which the standard library lacks; their wire form is settled (`s3-checksum-residuals-and-record-backlog.md 1`).
+The main module depends on the standard library only, with `pgregory.net/rapid` pre-approved for tests; any other dependency needs an ADR. (Superseded by the dependency policy amendment of 2026-10-14: an allow-list with written criteria.) The generator needs the AWS Smithy models, the protocol compliance corpus (published only as IDL inside jars, convertible with the Smithy CLI, `smithy-protocol-tests.md 5`), and an operation-to-IAM-action mapping (the AWS Service Reference JSON, whose licence is unstated, `smithy-models.md 8`). S3's ten checksum algorithms include XXHASH64, XXHASH3 and XXHASH128, which the standard library lacks; their wire form is settled (`s3-checksum-residuals-and-record-backlog.md 1`).
 
 ## Decision
 
-- `third_party/api-models-aws/`: the 12 phase 1 model files verbatim at commit `1cfdfb4bb9ea858e65623e66d73af04bec353201` with `UPSTREAM.json` (git blob SHA-1 and sha256 per file), LICENSE and NOTICE. `internal/cmd/vendor` fetches by hand and verifies offline in CI. Pins bump deliberately with a coverage-diff review.
+- `third_party/api-models-aws/`: the model files of the first 12 services, verbatim at commit `1cfdfb4bb9ea858e65623e66d73af04bec353201` with `UPSTREAM.json` (git blob SHA-1 and sha256 per file), LICENSE and NOTICE. `internal/cmd/vendor` fetches by hand and verifies offline in CI. Pins bump deliberately with a coverage-diff review.
 - `third_party/smithy-protocol-tests/model.json`: one flattened JSON AST produced by a human with Smithy CLI 1.74.0 (`smithy ast --no-config --flatten` over the six jars), with `PIN.json` recording the Smithy version and the jar and CLI sha256 values. No Java on the test path; no IDL parser.
 - `third_party/aws-service-reference/actions.json`: a derived table of `Operations[].AuthorizedActions` and `Actions[].Annotations` for the 12 services with provenance (service `Version`, `modified`, body sha256). The raw JSON is not vendored until its licence is confirmed.
-- `pgregory.net/rapid` v1.3.0 (MPL-2.0, file-level copyleft, test-only) is the only non-stdlib import; `depguard` enforces it. Committed `testdata/rapid/**` failfiles are regression seeds.
+- `pgregory.net/rapid` v1.3.0 (MPL-2.0, file-level copyleft, test-only) is the only non-stdlib import; `depguard` enforces it. (Superseded by the dependency policy amendment of 2026-10-14, whose table lists four test-only modules.) Committed `testdata/rapid/**` failfiles are regression seeds.
 - XXHASH64, XXHASH3 and XXHASH128 are ported in `internal/checksum` from the xxHash specification (seed 0, default 192-byte secret, big-endian output, XXH3-128 as `high64 || low64`), validated against the published vectors for every length class, with a streaming-equals-one-shot property. CRC combine for full-object multipart is implemented in-repo (`go-toolchain.md 7.4`).
-- The stdlib CBOR subset, XML writer, form codec, SigV4 verifier and Docker Engine client are written in-repo; no library.
+- The stdlib CBOR subset, XML writer, form codec, SigV4 verifier and Docker Engine client are written in-repo; no library. (The dependency policy amendment of 2026-10-14 keeps them in-repo and replaces the reason: fidelity, not size.)
 - Conformance suites are separate modules with their own manifests and pins (aws-sdk-go-v2, boto3, JS v3, AWS CLI, hashicorp/aws 6.68.0) and run only through `scripts/sealed`.
 
 ## Alternatives considered
@@ -29,12 +29,12 @@ The main module depends on the standard library only, with `pgregory.net/rapid` 
 - MPL-2.0 is recorded here because the project is Apache-2.0; the dependency never ships in the binary.
 - The xxHash port is a maintained artifact with its own vector corpus.
 
-## Amendments (review, 2026-10-08)
+## Amendment 2026-10-08: third-party recordings are an input; one evidence label type
 
 - Overlay entries and parity fixtures labelled `third-party-recorded` are derived from LocalStack's snapshot files (Apache-2.0, archived repository). They are a third-party input like the others: `NOTICE` carries the attribution and the pinned commit, and every such overlay entry cites the file and line in its `evidence.source`.
 - `evidence.Label` is one Go type shared by the generator, the fidelity ledger, the protocol-test skip list and the parity replayer.
 
-## Amendments (dependency policy, 2026-10-14)
+## Amendment 2026-10-14: dependency policy
 
 The "standard library only" rule is replaced by an allow-list with written criteria. This supersedes the Context's first sentence, the Decision's "`pgregory.net/rapid` ... is the only non-stdlib import" and "written in-repo; no library" bullets, and the first alternative's reason: measured on the release binary, the candidates add little (the Moby client 0.8 MB, about 2 percent; cobra 0.3 MB; bbolt 0.25 MB). The reason the hand-written code is right is fidelity, which rule 1 states. `depguard`'s two allow-lists in `.golangci.yml` mirror the table's two tiers.
 
@@ -78,27 +78,32 @@ Refused:
 - testify for tests: brings objx and yaml for assertion sugar and has shipped semantic regressions.
 - No standalone aws-chunked decoder or CloudWatch Logs filter library exists to consider.
 
-## Amendment (managed policies, 2026-10-14)
+## Amendment 2026-10-14: managed policies
 
-Evaluating attached AWS managed policies needs their documents, and IAM enforcement ([ROADMAP](../ROADMAP.md) item 5) needs them shipped. The owner decided to ship them as a separate third-party input.
+Evaluating attached AWS managed policies needs their documents, and IAM enforcement ([ROADMAP](../ROADMAP.md)) needs them shipped. The owner decided to ship them as a separate third-party input.
 
-- **Source.** The AWS Managed Policy Reference Guide on docs.aws.amazon.com, read through its `llms.txt` and the `.md` page it lists for each policy. AWS licenses docs.aws.amazon.com documentation under CC BY-SA 4.0 and the code in it under MIT-0, and each policy document is a code block on its page. AWS publishes the `llms.txt` for machine access, and the site's robots.txt does not disallow the path.
+- **Source.** The AWS Managed Policy Reference Guide on docs.aws.amazon.com, read through its `llms.txt` and the `.md` page it lists for each policy. (The managed policies amendment of 2026-10-26 reads the single `full.md` instead.) AWS licenses docs.aws.amazon.com documentation under CC BY-SA 4.0 and the code in it under MIT-0, and each policy document is a code block on its page. AWS publishes the `llms.txt` for machine access, and the site's robots.txt does not disallow the path.
 - **Not used.** The IAM API (`ListPolicies`, `GetPolicyVersion`), whose output is AWS Content under the Customer Agreement and needs an account, and third-party datasets (iam-dataset, MAMIP), whose compilation licences do not change the terms of each document. A third-party dataset may at most be an offline cross-check in tests, never shipped.
 - **Generator.** Maintainer-run, under `internal/cmd`: it reads only the guide's `llms.txt` and the pages it lists, obeys robots.txt and its crawl delay, sends a descriptive User-Agent with the repository URL, and refetches on a release cadence. understudy binaries never fetch anything.
 - **Layout.** `third_party/aws-managed-policies/`, licensed separately from the Apache-2.0 code: its own `LICENSE` (MIT-0 for the documents, a CC BY-SA 4.0 notice for the documentation-derived fields such as name, ARN, version and times), a `NOTICE` keeping the CC BY-SA 4.0 attribution (source URL, copyright Amazon Web Services, Inc. or its affiliates, reformatted to JSON with no other changes), and a per-policy source URL and sha256. The binary embeds the directory; the root `NOTICE` and the README licence section list it. Reformatting is a change of format, not an adaptation, so ShareAlike does not reach the code beside it.
 - **Precedent.** moto (Apache-2.0) has embedded every AWS managed policy document since 2017, fetched from the IAM API, with no objection found.
 - **If AWS objects.** Stop the generator and keep the shipped data, whose CC BY-SA 4.0 grant is irrevocable. If AWS publishes the documents in a separately licensed bundle, switch to it.
-- Building the catalogue is part of IAM enforcement (ROADMAP item 5), not a separate item.
-- **Source, 2026-10-26.** The generator reads the single-file `full.md` that `llms.txt` lists under "Full content", not each policy's page: it holds every page, headings demoted one level, with the same anchors (`docs/research/iam-evaluation.md` 10.4). That makes three requests in all (robots.txt, `llms.txt`, `full.md`), each one within the crawl delay, where per-page reads would take 1,608. `SOURCE.json` still records each policy's page URL from `llms.txt`. The single pages are not fetched, so the generator does not cross-check `full.md` against a sample of them, the check iam-evaluation.md 10.5 suggests.
-- **Embedding, 2026-10-26.** The binary embeds `policies.json` as `policies.json.gz`, its exact bytes gzip-compressed (6.2 MB to 0.65 MB), and the other files of the directory as they are: uncompressed, the catalogue took the stripped binary from 39.3 to 45.8 MiB of its 48 MiB budget, and compressed it takes it to 40.5 MiB (linux/amd64, measured 2026-10-26). The generator writes `policies.json.gz` beside `policies.json`, which stays the reviewable source, and the directory's `LICENSE` and `NOTICE` name it as the compressed copy; `-pack` rewrites both derived files offline and `-verify` fails unless `policies.json.gz` decompresses to `policies.json`. Compression, like the reformatting, is a change of format, not an adaptation.
+- Building the catalogue is part of IAM enforcement, not a separate roadmap entry.
 
-## Amendment (roadmap models, 2026-10-26)
+## Amendment 2026-10-26: managed policies are read from `full.md` and embedded compressed
 
-The roadmap's new services need their models. Nine more files are vendored verbatim from the same `api-models-aws` commit, `1cfdfb4bb9ea858e65623e66d73af04bec353201`, so the twelve phase 1 files are unchanged: API Gateway (`api-gateway`, `apigatewayv2`), DynamoDB Streams, Kinesis, EventBridge Scheduler, SES (`ses`, `sesv2`), Step Functions and SSM. `actions.json` gains their IAM prefixes. Models now share a prefix in three cases (API Gateway v1 and v2 under `apigateway`, SES v1 and v2 under `ses`, DynamoDB Streams under `dynamodb`), so the table keeps each operation's Boto3 client names and a service config may name its client with `sdkService`. A maintainer ran the two networked modes; everything after them is offline as before.
+- **Source.** The generator reads the single-file `full.md` that `llms.txt` lists under "Full content", not each policy's page: it holds every page, headings demoted one level, with the same anchors (`docs/research/iam-evaluation.md` 10.4). That makes three requests in all (robots.txt, `llms.txt`, `full.md`), each one within the crawl delay, where per-page reads would take 1,608. `SOURCE.json` still records each policy's page URL from `llms.txt`. The single pages are not fetched, so the generator does not cross-check `full.md` against a sample of them, the check iam-evaluation.md 10.5 suggests.
+- **Embedding.** The binary embeds `policies.json` as `policies.json.gz`, its exact bytes gzip-compressed (6.2 MB to 0.65 MB), and the other files of the directory as they are: uncompressed, the catalogue took the stripped binary from 39.3 to 45.8 MiB of its 48 MiB budget, and compressed it takes it to 40.5 MiB (linux/amd64, measured 2026-10-26). The generator writes `policies.json.gz` beside `policies.json`, which stays the reviewable source, and the directory's `LICENSE` and `NOTICE` name it as the compressed copy; `-pack` rewrites both derived files offline and `-verify` fails unless `policies.json.gz` decompresses to `policies.json`. Compression, like the reformatting, is a change of format, not an adaptation.
 
-## Amendment (Testcontainers module, 2026-10-26)
+## Amendment 2026-10-26: models for the roadmap's services
 
-The Go Testcontainers module (ADR 0017, amendment 2026-10-26) is a nested module, `testcontainers/go`, with its own `go.mod`, like the conformance suites. Nothing in it links into understudy's binary or the root module's graph: the go tool excludes a nested module from the parent's packages and module zip (testcontainers.md 4.6). The root allow-list and the table above are unchanged. On 2026-10-26 the maintainer approved the dependencies testcontainers.md 8.10 names (9.8): testcontainers-go, moby `api`, understudy for `admin`, and the test-only `service/sqs`, which brings the SDK core, `config` and `credentials` with it as any SDK client does. Three test-only rows go beyond 8.10: `service/lambda` and `service/iam`, which 8.7's Lambda round trip needs, and moby `client`, already in tc-go's own graph, for the teardown listing. The Node package's dev dependencies `@aws-sdk/client-lambda` and `@aws-sdk/client-iam` (`testcontainers/node/package.json`) are the same case beyond 8.10's list. The maintainer approved all five as test-only on 2026-11-05.
+The roadmap's new services need their models. Nine more files are vendored verbatim from the same `api-models-aws` commit, `1cfdfb4bb9ea858e65623e66d73af04bec353201`, so the first twelve files are unchanged: API Gateway (`api-gateway`, `apigatewayv2`), DynamoDB Streams, Kinesis, EventBridge Scheduler, SES (`ses`, `sesv2`), Step Functions and SSM. `actions.json` gains their IAM prefixes. Models now share a prefix in three cases (API Gateway v1 and v2 under `apigateway`, SES v1 and v2 under `ses`, DynamoDB Streams under `dynamodb`), so the table keeps each operation's Boto3 client names and a service config may name its client with `sdkService`. A maintainer ran the two networked modes; everything after them is offline as before.
+
+## Amendment 2026-10-26: Testcontainers module
+
+The Go Testcontainers module (ADR 0017, amendment 2026-10-26) is a nested module, `testcontainers/go`, with its own `go.mod`, like the conformance suites. Nothing in it links into understudy's binary or the root module's graph: the go tool excludes a nested module from the parent's packages and module zip (testcontainers.md 4.6). The root allow-list and its table are unchanged.
+
+On 2026-10-26 the maintainer approved the dependencies testcontainers.md 8.10 names (9.8): testcontainers-go, moby `api`, understudy for `admin`, and the test-only `service/sqs`, which brings the SDK core, `config` and `credentials` with it as any SDK client does. Three test-only rows go beyond 8.10: `service/lambda` and `service/iam`, which 8.7's Lambda round trip needs, and moby `client`, already in tc-go's own graph, for the teardown listing. The Node package's dev dependencies `@aws-sdk/client-lambda` and `@aws-sdk/client-iam` (`testcontainers/node/package.json`) are the same case beyond 8.10's list. The maintainer approved all five as test-only on 2026-11-05.
 
 | Module | Version | Tier | Reason | Licence |
 |---|---|---|---|---|

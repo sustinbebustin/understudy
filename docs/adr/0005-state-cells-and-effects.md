@@ -8,9 +8,9 @@ Handlers mutate state, wake waiters, arm timers and start deliveries. `testing/s
 
 ## Decision
 
-`store.Cell[S]` holds one partition's state behind a mutex; `store.Write(cell, fn)` runs `fn(state, tx)` under the lock and returns typed effects recorded on `tx` (`Wake`, `Arm`, `Disarm`, `Deliver`) that the kernel runs after unlock, in order. `store.Partitioned[K, S]` lazily creates one cell per key: `aws.Scope` by default, a bucket name for S3 buckets plus a partition-wide index cell, one key per account for IAM and STS. A kernel-wide `store.Gate` (`sync.RWMutex`) is taken on the read side by every write and on the write side by snapshot, reset and load.
+`store.Cell[S]` holds one partition's state behind a mutex; `store.Write(cell, fn)` runs `fn(state, tx)` under the lock and returns typed effects recorded on `tx` (`Wake`, `Arm`, `Disarm`, `Deliver`) that the kernel runs after unlock, in order. `store.Partitioned[K, S]` lazily creates one cell per key: `aws.Scope` by default, a bucket name for S3 buckets plus a partition-wide index cell, one key per account for IAM and STS. A kernel-wide `store.Gate` (`sync.RWMutex`) is taken on the read side by every write and on the write side by snapshot, reset and load. (The amendment of 2026-10-08 moves the write entry point to `kernel.Write` and applies `Arm` and `Disarm` inside the critical section.)
 
-Rules: a handler holds at most one cell lock; it never calls `kernel.Invoke` while holding it (synchronous cross-service calls happen before the lock, asynchronous ones are effects); no I/O under a lock (blobs are written first, the cell publishes the blob id); validate first, mutate last, so a returned error leaves the state unchanged; waiting uses wake channels, scheduler channels and `context`, never a mutex hand-off. The kernel marks a `Call` as holding inside `Write`; `Invoke` on a holding call panics under `-tags lockcheck`, which CI runs once.
+Rules: a handler holds at most one cell lock; it never calls `kernel.Invoke` while holding it (synchronous cross-service calls happen before the lock, asynchronous ones are effects); no I/O under a lock (blobs are written first, the cell publishes the blob id); validate first, mutate last, so a returned error leaves the state unchanged; waiting uses wake channels, scheduler channels and `context`, never a mutex hand-off. The kernel marks a `Call` as holding inside `Write`; `Invoke` on a holding call panics under `-tags lockcheck`, which CI runs once. (Superseded by the amendment of 2026-10-08: the check is always on and returns `Internal`.)
 
 ## Alternatives considered
 
@@ -25,7 +25,7 @@ Rules: a handler holds at most one cell lock; it never calls `kernel.Invoke` whi
 - Effects run after commit, so SNS returns `MessageId` before fan-out; the delivery is state in the outbox the moment the call returns (ADR 0015).
 - The S3 bucket-name index cell is the one place two cells are touched in sequence (index, then bucket); it is written as two commits with a tombstone, never nested.
 
-## Amendments (review, 2026-10-08)
+## Amendment 2026-10-08: `store` as a leaf, `kernel.Write` and the lock hierarchy
 
 - `store` is a leaf that knows no effects: `Cell.Update` and `Read`, `Partitioned` (with `Lookup`, `Delete`, `Export`, `Import`, `Reset`), `Waiters` and `Section`. `kernel.Write(c *Call, cell, fn)` is the only write entry point for handlers and timer callbacks: it marks the `Call` as holding (a nested `Write` or `Invoke` returns `Internal`; the check is always on and the `lockcheck` build tag is gone), passes the commit instant read under the lock, stamps the call's `Cause` on effects and counts them in the work tracker.
 - `Arm` and `Disarm` are applied inside the critical section in commit order; only `Wake` and `Deliver` run after unlock. Timer callbacks and `Rearm` re-read state and do nothing when their condition no longer holds. A rapid state machine interleaves receive, delete and change-visibility against timer state.

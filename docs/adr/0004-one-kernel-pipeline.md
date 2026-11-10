@@ -21,9 +21,9 @@ understudy's platform features (journal with causal links, fault injection, acce
 - Every delivery and poll is a journal edge and a fault target for free (`{Service: sqs, Operation: SendMessage, Origin: InternalOnly}` drives the SNS retry and DLQ path).
 - The ESM poller receives through the real `ReceiveMessage` handler with the 10-message ceiling, looping to fill a batch; batching windows are literal on the emulator clock.
 - A handler that needs another service synchronously (S3 to KMS) calls `Invoke` before taking its cell lock (ADR 0005).
-- The DynamoDB proxy needs raw request bytes; `RawHandler` is the one passthrough affordance and still runs every stage (ADR 0014).
+- The DynamoDB proxy needs raw request bytes; `RawHandler` is the one passthrough affordance and still runs every stage (ADR 0014). The amendment of 2026-10-08 says how the bytes reach it.
 
-## Amendments (review, 2026-10-08)
+## Amendment 2026-10-08: one entry point, principal modes and admission instants
 
 - The kernel has one entry point: the edge hands `Dispatch` a `Decoded` value (`Ok{In}` or `Rejected{*awserr.Error}`); the binding lookup, the 501 decision and the rejected-decode outcome are journaled and access-recorded inside the kernel. `Unclaimed` stays the one journal event the edge writes.
 - `Target.As` is a `PrincipalMode`: `AsCaller` for forward-access calls AWS charges to the original principal (S3, Secrets Manager and SQS to KMS), `AsExecutionRole` for ESM polling and Lambda logs, `AsService{name}` for resource-policy-gated deliveries. The access recorder attributes each call accordingly and journals an `Advisory` when a stored resource policy would not allow a delivery.
@@ -32,11 +32,9 @@ understudy's platform features (journal with causal links, fault injection, acce
 - `RawHandler` receives `Wire = FromClient{RawRequest} | Synthesized`; `Call` no longer carries a raw request, and the DynamoDB service encodes `Synthesized` inputs itself so the kernel never imports a codec.
 - Cross-scope references resolve through `kernel.ResolveScope(c, ref)` with per-service mismatch identities.
 
-## Amendments (pre-tag review, 2026-10-13)
-
-Decided at the pre-tag review: access recording.
+## Amendment 2026-10-13: which IAM actions a call records
 
 - `kernel.WithActions[In](func(*Call, *In) []registry.IAMAction)` declares, per input, the secondary IAM actions a call used, evaluated like `WithResources`. The kernel records the primary action (the first in the operation's generated IAM list) always, the declared ones (refusing, and logging as a bug, any outside the generated list) and, for other service prefixes, only actions paired with a touched resource of that service, never on `*` (`iam:PassRole` lands on the passed role, which the handler touches).
 - S3 object operations touch object ARNs (`arn:aws:s3:::<bucket>/<key>`); the generated policy renders object-level resources as `arn:aws:s3:::<bucket>/*`.
 - Internal operations record only declared actions (`logs.PutLogEventsInternal` declares `logs:PutLogEvents`, so the execution role's policy carries it).
-- As built in the pre-tag push: a binding with neither `WithActions` nor `kernel.WithoutSecondaryActions()` is undeclared and records its operation's whole generated list, which over-grants rather than under-grants. SQS, SNS, IAM, KMS, Secrets Manager, CloudWatch and DynamoDB are undeclared until each has an actions audit. `WithoutSecondaryActions` records the decision that no call needs a same-prefix secondary, so the primary is recorded alone. `kernel.Declare(b, op, opts...)` adds `WithResources` and action options to a binding after its bind site; declaring an unbound operation is `BindError` `DeclaredUnbound`, and a raw one `DeclaredRaw`. `iam:PassRole` lands on the passed role because the binding's `WithResources` resolver returns it, not because the handler touches it.
+- As built: a binding with neither `WithActions` nor `kernel.WithoutSecondaryActions()` is undeclared and records its operation's whole generated list, which over-grants rather than under-grants. SQS, SNS, IAM, KMS, Secrets Manager, CloudWatch and DynamoDB are undeclared until each has an actions audit. `WithoutSecondaryActions` records the decision that no call needs a same-prefix secondary, so the primary is recorded alone. `kernel.Declare(b, op, opts...)` adds `WithResources` and action options to a binding after its bind site; declaring an unbound operation is `BindError` `DeclaredUnbound`, and a raw one `DeclaredRaw`. `iam:PassRole` lands on the passed role because the binding's `WithResources` resolver returns it, not because the handler touches it.

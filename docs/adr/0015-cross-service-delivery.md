@@ -4,14 +4,14 @@ Status: accepted, 2026-10-08.
 
 ## Context
 
-SNS fan-out, S3 notifications, EventBridge targets and Lambda async retries all deliver to SQS, Lambda or SNS with retry policies on the emulator clock and DLQ routing (`sns.md 7.2`, `lambda-events.md`, `secrets-logs-events-alarms.md 4`). SNS also supports `http`/`https`, `email`, `sms`, `application` and `firehose` endpoints. An emulator that makes outbound HTTP requests to arbitrary hosts is an SSRF vector and breaks the rule of no network access at runtime. The phase 1 SNS depth row names SQS and Lambda delivery only.
+SNS fan-out, S3 notifications, EventBridge targets and Lambda async retries all deliver to SQS, Lambda or SNS with retry policies on the emulator clock and DLQ routing (`sns.md 7.2`, `lambda-events.md`, `secrets-logs-events-alarms.md 4`). SNS also supports `http`/`https`, `email`, `sms`, `application` and `firehose` endpoints. An emulator that makes outbound HTTP requests to arbitrary hosts is an SSRF vector and breaks the rule of no network access at runtime. SNS was first scoped to SQS and Lambda delivery only.
 
 ## Decision
 
-- `internal/delivery` owns `Target` (`SQSQueue`, `LambdaFunction`, `SNSTopic`), `Request{Source, Target, Payload, Policy, DLQ, Cause}` and `RetryPolicy` (`SNSManaged`, `EventBridgeTarget`, `S3Notification`, `None`). A request is a scheduler task at `now`; attempts, backoff and DLQ routing run on the emulator clock with seeded jitter. Each attempt is a `kernel.Invoke` of the target's real operation as a `ServicePrincipal` with `Origin Internal{Via}`, subject to `Delivery`-phase fault rules, emitting a `journal.Delivery` event whose parent is the source event, and counted by the work tracker. Client-side failures (queue or function missing) go straight to the DLQ; filtered messages never reach a DLQ; fan-out order is deterministic.
+- `internal/delivery` owns `Target` (`SQSQueue`, `LambdaFunction`, `SNSTopic`), `Request{Source, Target, Payload, Policy, DLQ, Cause}` and `RetryPolicy` (`SNSManaged`, `EventBridgeTarget`, `S3Notification`, `None`). (The amendment of 2026-10-08 makes `internal/delivery` a leaf of types, moves the engine to `internal/outbox` and puts the payload in the target; later amendments add targets.) A request is a scheduler task at `now`; attempts, backoff and DLQ routing run on the emulator clock with seeded jitter. Each attempt is a `kernel.Invoke` of the target's real operation as a `ServicePrincipal` with `Origin Internal{Via}`, subject to `Delivery`-phase fault rules, emitting a `journal.Delivery` event whose parent is the source event, and counted by the work tracker. Client-side failures (queue or function missing) go straight to the DLQ; filtered messages never reach a DLQ; fan-out order is deterministic.
 - Envelope and event builders are pure functions owned by the producing service with golden fixtures and rapid properties.
 - One `ruler` engine serves EventBridge patterns, SNS filter policies (behind SNS's allow-list and limits) and ESM filters, compiled at configuration time; the four Ruler-versus-doc conflicts are fidelity switches, default Ruler.
-- SNS `http`/`https` subscriptions: `Subscribe` stores the subscription as pending with a confirmation token readable through the admin API, `ConfirmSubscription` works, and outbound delivery runs only to hosts in `sns.httpDelivery.allow` (empty by default, so disabled). `email` and `email-json` stay pending forever with the token readable. `sms`, `application`, `firehose` and `PublishBatch` to phone numbers or endpoint ARNs return an AWS-shaped error that names the protocol as unimplemented in understudy.
+- SNS `http`/`https` subscriptions: `Subscribe` stores the subscription as pending with a confirmation token readable through the admin API, `ConfirmSubscription` works, and outbound delivery runs only to hosts in `sns.httpDelivery.allow` (empty by default, so disabled). (Postponed by the amendment of 2026-10-08; built by the SNS HTTP delivery amendment of 2026-10-26.) `email` and `email-json` stay pending forever with the token readable. `sms`, `application`, `firehose` and `PublishBatch` to phone numbers or endpoint ARNs return an AWS-shaped error that names the protocol as unimplemented in understudy.
 - Settling: `GET /_understudy/v1/settle` waits for in-flight deliveries, queued async invokes, running invocations and due timers.
 
 ## Alternatives considered
@@ -26,18 +26,18 @@ SNS fan-out, S3 notifications, EventBridge targets and Lambda async retries all 
 - Destinations (Lambda async), DynamoDB Streams and future services are new `Target` variants.
 - The SNS envelope signature needs one RSA key per account-region, persisted in snapshots, with the certificate served under `/_understudy/`.
 
-## Amendments (review, 2026-10-08)
+## Amendment 2026-10-08: the outbox, payloads in the target and the work tracker
 
 - `internal/delivery` is a leaf of types and the engine is `internal/outbox`, a `kernel.Stateful` service with an outbox cell of `{id, request, attempt, nextAt, cause, accepted}`. A `Deliver` effect is an outbox insert the kernel performs before the source call returns, so an accepted delivery is state the moment SNS returns a `MessageId`; the insert arms the attempt timer and `Rearm` restores pending attempts after a load. The insert is a separate cell write after the source cell unlocks, never a nested lock.
 - Payloads live in the target variant: `SQSQueue{ARN, Body, Attributes, GroupID, DedupID}`, `LambdaFunction{ARN, Qualifier, Event, Invocation}`, `SNSTopic{ARN, Message, Attributes, Subject}`. `Mechanism` is a closed enum.
 - A due attempt is tracked work stamped with the due instant (ADR 0006) that invokes the target as `AsService{name}`; ESM polling and Lambda logs run `AsExecutionRole`; forward-access KMS calls run `AsCaller` (ADR 0004). Before an attempt the access recorder checks the target's stored resource policy and journals an `Advisory` when AWS would deny the delivery; the delivery is still attempted.
-- SNS outbound HTTP/S delivery and its allow-list are phase 2. Phase 1 keeps `Subscribe` pending with a readable token, `ConfirmSubscription`, and the unsubscribe and certificate links as raw operations.
+- SNS outbound HTTP/S delivery and its allow-list are not built yet. What is built keeps `Subscribe` pending with a readable token, `ConfirmSubscription`, and the unsubscribe and certificate links as raw operations. (The amendments of 2026-10-26 build the allow-list, egress and then SNS HTTP delivery.)
 - Lambda async throttles and 5xx requeue with 1 s to 5 min backoff for up to 6 h.
 - The work tracker counts a closed `WorkKind` set (`EffectPending`, `DeliveryAttempt`, `AsyncInvokeQueued`, `InvocationRunning`, `TimerDue`); parked waiters never count; on timeout `settle` names what is pending by kind.
 
-## Amendment (2026-10-26): egress, the allow-list key and three targets
+## Amendment 2026-10-26: egress, the allow-list key and three targets
 
-The services on the roadmap need three more delivery targets, and one of them, an HTTP endpoint, is the first delivery that leaves the process. `sns-http-delivery.md 7` sets the rules for that. This amendment records them, the key that names an allow-list, and the targets. It replaces the phase-2 note above for the engine, not for SNS: the allow-list and the engine exist; SNS HTTP subscriptions do not deliver yet.
+The services on the roadmap need three more delivery targets, and one of them, an HTTP endpoint, is the first delivery that leaves the process. `sns-http-delivery.md 7` sets the rules for that. This amendment records them, the key that names an allow-list, and the targets. It replaces the 2026-10-08 amendment's not-built note for the engine, not for SNS: the allow-list and the engine exist; SNS HTTP subscriptions do not deliver yet. (They do since the SNS HTTP delivery amendment of the same date, below.)
 
 Egress (`internal/egress`, the only package that dials outbound HTTP; it imports only `clock`):
 
@@ -57,9 +57,12 @@ Targets (`internal/delivery`), with attempts in `internal/outbox`:
 - `HTTPEndpoint{URL, Headers, Body}`: one POST through egress, on its own goroutine, off the attempt sequencer, since it waits on the network. The classes follow the reading `sns-http-delivery.md 6.1` recommends. 2xx delivers. 429, 5xx and a failed exchange are retried under the request's policy, then dead-lettered or dropped; whether a connection-level failure (refused, reset, DNS or TLS) is retried is UNVERIFIED (SNSH-24). Any other answer is permanent and dead-lettered when the request has a queue; the 3xx and 4xx classes and whether a permanent failure reaches the DLQ are UNVERIFIED (SNSH-05). The dead letter's body is the request body, the form `sns-http-delivery.md 6.5` calls likely (UNVERIFIED, SNSH-08). A header that frames the request (`Host`, `Content-Length`, `Transfer-Encoding`, `Connection`, `Trailer`, `TE`, in any case) is refused at `Enqueue`, since egress writes those itself. An egress refusal, or any request when no client is configured, is the journal outcome `Refused{reason}`: never retried, never dead-lettered, never an AWS-shaped failure (7.3). The `Delivery` event's `To` is the zero ARN, and `Endpoint` names the host and port, never the path, query or userinfo.
 - No `Mechanism` delivers to the three yet. `Enqueue` refuses a target whose kind the mechanism does not deliver to, naming both, so each producer adds its mechanism with its target (DynamoDB Streams and Kinesis to Lambda, SNS to HTTP, SES and Scheduler targets). Snapshot records of the three are additive variants of the outbox's target union; a loaded record passes `Enqueue`'s checks.
 
-Alternatives considered: `http.Client` with a `Control` hook on its dialer (7.4) hands the dialer the URL's host to resolve again inside the transport, and the transport may resend a request it judges replayable; one exchange over a connection to the address the client checked keeps resolution, the dial and the request in one place. A flat flag and file key per producer (`--sns-http-allow`, `snsHttpAllow`, 7.2) was set aside for one dotted shape, so every producer's list reads and validates the same way.
+Alternatives considered for this amendment:
 
-## Amendment (2026-10-26): events-to-events, the forwarded envelope and its context carrier
+- `http.Client` with a `Control` hook on its dialer (7.4): it hands the dialer the URL's host to resolve again inside the transport, and the transport may resend a request it judges replayable. One exchange over a connection to the address the client checked keeps resolution, the dial and the request in one place.
+- A flat flag and file key per producer (`--sns-http-allow`, `snsHttpAllow`, 7.2): set aside for one dotted shape, so every producer's list reads and validates the same way.
+
+## Amendment 2026-10-26: events-to-events, the forwarded envelope and its context carrier
 
 An EventBridge rule's event bus target (`eventbridge-buses.md 6.2, 10.4.12`) is the first producer of `EventBus` deliveries, under the new mechanism `EventsToEvents` (wire name `events-to-events`, `Via` `ref.EventsTarget`, `Target` the registry service ID `eventbridge`, not the ARN namespace `events`).
 
@@ -68,7 +71,7 @@ An EventBridge rule's event bus target (`eventbridge-buses.md 6.2, 10.4.12`) is 
 - An `EventsToEvents` delivery gets no access advisory. AWS authorizes a bus target through its `RoleArn`, or the sender account against the receiving bus's policy (`eventbridge-buses.md 6.2, 6.3`), not through a grant to `events.amazonaws.com`, so the advisory's model would misreport every same-account forward.
 - An `EventBus` delivery takes a dead-letter queue under `EventsToEvents`, as any EventBridge target does (eb-rule-dlq.html, `iam-enforcement-surfaces.md 8.4`). The dead letter's body is the forwarded event as the destination bus would have received it (`delivery.EventEntry.Envelope`, the recorded member order of `secrets-logs-events-alarms.md 4.3`), with the EventBridge dead-letter attributes. That body is inferred: no recording shows a bus target's dead letter, and for a bus in another region it carries the id drawn for that region, which AWS assigns on arrival (`eventbridge-buses.md 6.4`) and may never assign to an event that did not arrive (EBB-08). Under any other mechanism an `EventBus` delivery still takes no queue.
 
-## Amendment (2026-10-26): SNS HTTP delivery
+## Amendment 2026-10-26: SNS HTTP delivery
 
 SNS `http` and `https` subscriptions now deliver (`sns-http-delivery.md 8`). For SNS and `HTTPEndpoint` this replaces the egress amendment's "SNS HTTP subscriptions do not deliver yet", "adds no key and wires no client" and "No `Mechanism` delivers to the three yet".
 
@@ -77,7 +80,7 @@ SNS `http` and `https` subscriptions now deliver (`sns-http-delivery.md 8`). For
 - `SNSToHTTP` delivers to `HTTPEndpoint`, whose `Kind` is a Notification, a SubscriptionConfirmation or an UnsubscribeConfirmation, under the `SNSHTTP` retry policy SNS resolves from the subscription's and the topic's `DeliveryPolicy`. Only a Notification takes a dead-letter queue. `throttlePolicy` pacing is outbox state of the running process, which a reset or snapshot load forgets.
 - The DNS-name rule above applies: a DNS-name entry may reach a private address, never loopback.
 
-## Amendment (2026-10-30): CloudWatch alarm actions
+## Amendment 2026-10-30: CloudWatch alarm actions
 
 A metric alarm's state change runs its SNS and Lambda actions (`cloudwatch-alarms.md 12.4`) through the outbox under two new mechanisms: `CloudWatchToSNS` (wire `cloudwatch-to-sns`, target `sns`) delivers to `SNSTopic`, and `CloudWatchToLambda` (wire `cloudwatch-to-lambda`, target `lambda`) to `LambdaFunction` as an asynchronous invoke. Both have `Via` `ref.CloudWatchAlarm`, `Source` the alarm ARN, and the `None` retry policy with no dead-letter queue: AWS documents no retry of an alarm action and does not report SNS errors (5.3), so a missing topic or function is the outbox's journaled failure and the delivery is dropped.
 
@@ -86,7 +89,7 @@ A metric alarm's state change runs its SNS and Lambda actions (`cloudwatch-alarm
 - EC2, Auto Scaling, Systems Manager and investigation actions are not deliveries: each is journaled as an `alarm-action-not-run` advisory and never run (12.7).
 - The "CloudWatch Alarm State Change" and "Configuration Change" events are not deliveries either. CloudWatch puts them on the default bus with the internal `PutServiceEventInternal` call after its write commits, as `AsPlatform` (12.4).
 
-## Amendment (2026-10-31): EventBridge Scheduler, a delivery principal and a payload rendered per attempt
+## Amendment 2026-10-31: EventBridge Scheduler, a delivery principal and a payload rendered per attempt
 
 A schedule invokes its templated target as a session of its execution role, not as a service principal, and its payload carries the attempt number (`scheduler.md 6.3, 9, 14.4`). Five mechanisms are appended with `Via` `ref.SchedulerTarget` and `Source` the schedule ARN: `SchedulerToLambda` (`scheduler-to-lambda`, `lambda`), `SchedulerToSQS` (`scheduler-to-sqs`, `sqs`), `SchedulerToEvents` (`scheduler-to-events`, `eventbridge`), `SchedulerToSNS` (`scheduler-to-sns`, `sns`) and `SchedulerToStates` (`scheduler-to-states`, `sfn`, the registry's service id), all under the `EventBridgeTarget` policy built from the schedule's `RetryPolicy`.
 
@@ -94,4 +97,4 @@ A schedule invokes its templated target as a session of its execution role, not 
 - Every call of the attempt runs as `kernel.AsExecutionRole{Role, ID, Session}`. `AsExecutionRole` gains `ID` and `Session`; an empty `Session` keeps `understudy`, so event source mapping polls and Lambda log writes are unchanged. Role sessions get no resource-policy advisory, as Lambda deliveries already do: AWS needs no grant to `scheduler.amazonaws.com` (`scheduler.md 1 item 1`). Scheduler resolves the role id through IAM's internal `ResolveRole` as `AsPlatform{scheduler.amazonaws.com}` before its fire write; a role IAM does not hold delivers with no id.
 - The target's payload is rendered from `Invocation` before each attempt, `<aws.scheduler.attempt-number>` being `Entry.Attempt`+1; the rest of the entry, first-attempt timing, the `MaxAge` origin and FIFO lanes are unchanged. One execution id covers an invocation and its retries (inferred, SCH-08).
 - `SchedulerToStates` delivers to a new `Target` variant, `StateMachine{ARN, Input, Name}`: one `states:StartExecution` of a state machine, version or alias ARN, with the payload as the input and the producer's execution name (Scheduler's: the invocation's execution id, so a retry names the same execution; inferred, SCH-07). It persists as the `state-machine` target record.
-- Rejected: a new `PrincipalMode` for Scheduler (`scheduler.md 14.4.4` before ticket 0): a role session is what `AsExecutionRole` already models; and reusing 9b's `Sender`, which is Lambda-only (its `Carries` names a Lambda metric and it forbids retries and a dead-letter queue).
+- Rejected: a new `PrincipalMode` for Scheduler, which an earlier draft of `scheduler.md 14.4.4` proposed, since a role session is what `AsExecutionRole` already models. Also rejected: reusing the Lambda deliveries' `Sender` (`delivery.LambdaSender`), which is Lambda-only (its `Carries` names a Lambda metric and it forbids retries and a dead-letter queue).

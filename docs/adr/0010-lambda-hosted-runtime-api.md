@@ -1,6 +1,6 @@
 # ADR 0010: Lambda runs on an understudy-hosted Runtime API, not the RIE
 
-Status: accepted, 2026-10-08; signed off 2026-10-13 (pre-tag review).
+Status: accepted, 2026-10-08. Confirmed by the amendment of 2026-10-13.
 
 ## Context
 
@@ -8,12 +8,18 @@ Functions were first planned to run in AWS's official Lambda base images with th
 
 ## Decision
 
-understudy serves the Runtime API (`2018-06-01`) itself, one `net/http` listener per execution environment on an ephemeral port bound to the container-facing address, and sets `AWS_LAMBDA_RUNTIME_API` so the official entrypoint execs the official runtime interface client. Contract: always `Content-Type: application/json` on `/next`; `Lambda-Runtime-Deadline-Ms` is wall epoch ms (`dispatch + Timeout`); `/response` and `/error` answer 202 and read chunked bodies and trailers; every `/error` maps to `X-Amz-Function-Error: Unhandled`; `/init/error`, exit before the first `/next`, `die` and `oom` events map to AWS-shaped payloads; late replies get `400 InvalidInvocationId`. One in-flight invocation per environment; concurrency by more environments; the pool key hashes every spec-affecting field and updates bump a generation. Timeouts, durations and idle reaping use monotonic time; a timeout kills the container and the next invoke is cold. START, END and REPORT lines are synthesized with a settle barrier after `/response`. Hot reload is an execution-layer overlay (bind-mounted directory, mtime polling, generation bump) that leaves `CodeSha256` and `LastModified` unchanged so a second `terraform plan` stays empty; enabled through the admin API, the config file or the `hot-reload` bucket convention. The RIE is not on any execution path in phase 1.
+understudy serves the Runtime API (`2018-06-01`) itself, one `net/http` listener per execution environment on an ephemeral port bound to the container-facing address, and sets `AWS_LAMBDA_RUNTIME_API` so the official entrypoint execs the official runtime interface client. The RIE is not on any execution path.
+
+- Contract: always `Content-Type: application/json` on `/next`; `Lambda-Runtime-Deadline-Ms` is wall epoch ms (`dispatch + Timeout`); `/response` and `/error` answer 202 and read chunked bodies and trailers; every `/error` maps to `X-Amz-Function-Error: Unhandled`; `/init/error`, exit before the first `/next`, `die` and `oom` events map to AWS-shaped payloads; late replies get `400 InvalidInvocationId`.
+- Concurrency: one in-flight invocation per environment, and more environments for more concurrency. The pool key hashes every spec-affecting field and updates bump a generation.
+- Time: timeouts, durations and idle reaping use monotonic time. A timeout kills the container and the next invoke is cold.
+- Logs: START, END and REPORT lines are synthesized with a settle barrier after `/response`.
+- Hot reload is an execution-layer overlay (bind-mounted directory, mtime polling, generation bump) that leaves `CodeSha256` and `LastModified` unchanged, so a second `terraform plan` stays empty. It is enabled through the admin API, the config file or the `hot-reload` bucket convention.
 
 ## Alternatives considered
 
 - Stock RIE with workarounds: serialize per container, infer function errors by parsing 200 bodies, detect timeouts by their text, accept the wrong ARN and memory figures, publish a port per container (impossible from a macOS host to a bridge IP). Rejected: it cannot meet the rule that nothing is silently faked.
-- RIE as a documented fallback for images whose entrypoint is not `lambda-entrypoint.sh`-compatible: not built in phase 1; such images must speak the Runtime API anyway.
+- RIE as a documented fallback for images whose entrypoint is not `lambda-entrypoint.sh`-compatible: not built; such images must speak the Runtime API anyway.
 - Host-process runtimes (MiniStack's default): user code would run outside the official image and OS.
 
 ## Consequences
@@ -23,19 +29,17 @@ understudy serves the Runtime API (`2018-06-01`) itself, one `net/http` listener
 - Killing the container on timeout clears `/tmp`, a documented deviation from AWS's suppressed-init reset.
 - The Extensions API is not implemented; extensions are declared unsupported.
 
-## Amendments (review, 2026-10-08)
+## Amendment 2026-10-08: provisioning state, image pulls, hot-reload precedence and function logs
 
 - Function `State` and `LastUpdateStatus` are final before the mutating call returns, in every clock mode, by default; `lambda.stateTransitions: clock` restores the clock-driven intermediates (ADR 0006).
 - A failed image pull moves the function to `State: Failed` with a `StateReasonCode` and a message naming the image and the Docker error. Runtime base images are pinned per release (tag and digest) and `understudy images pull` pre-warms them.
 - `Architectures` is honoured; an `exec format error` or exit 126 becomes a function error naming the declared and host architectures; `doctor` reports binfmt availability.
 - An active hot-reload overlay wins over `UpdateFunctionCode` until it is removed; the update is stored and reported by the API, and the journal records an `Advisory` that it is shadowed. `doctor` and the banner check that hot-reload directories are inside shared paths on Docker Desktop and Colima.
 - Function logs go through the overlay-declared internal operation `logs.PutLogEventsInternal` as `AsExecutionRole`, so the generated policy carries the basic-execution actions.
-- Async `Event` invokes keep their queue in the Lambda cell; throttles and 5xx requeue with 1 s to 5 min backoff for up to 6 h. Containers are not paused between invocations in phase 1; background work between invocations roots its own trace under the execution-role session (pre-tag review amendment, 2026-10-13: in-function calls are children of the `Invoke` call, not of the `Invocation` event).
+- Async `Event` invokes keep their queue in the Lambda cell; throttles and 5xx requeue with 1 s to 5 min backoff for up to 6 h. Containers are not paused between invocations; background work between invocations roots its own trace under the execution-role session. (The amendment of 2026-10-13 makes in-function calls children of the `Invoke` call, not of the `Invocation` event.)
 - The function URL data plane is the raw operation `lambda.InvokeFunctionUrl` (ADR 0003), journaled and faultable.
 
-## Amendments (pre-tag review, 2026-10-13)
+## Amendment 2026-10-13: the design is confirmed; in-function calls are children of the `Invoke` call
 
-Decided at the pre-tag review.
-
-- Sign-off: understudy's own Runtime API in place of the RIE is accepted as the design. The Runtime Interface Emulator fakes function errors, the invoked ARN, memory figures and timeouts, and is absent from non-AWS base images, so it cannot meet the fidelity rule. What is promised: official base images and official runtime interface clients against understudy's Runtime API. An RIE fallback stays out of phase 1.
-- Calls made by function code, init phase included, are children of the `Invoke` call the invocation serves (the `Invocation` event's own parent); a call made between invocations roots its own trace, and its principal, the execution-role session named after the function, ties it to the function (ADR 0007 pre-tag review amendment; ARCHITECTURE.md 10 and 14.7).
+- understudy's own Runtime API in place of the RIE is confirmed as the design. The Runtime Interface Emulator fakes function errors, the invoked ARN, memory figures and timeouts, and is absent from non-AWS base images, so it cannot meet the fidelity rule. What is promised: official base images and official runtime interface clients against understudy's Runtime API. An RIE fallback is not built.
+- Calls made by function code, init phase included, are children of the `Invoke` call the invocation serves (the `Invocation` event's own parent). A call made between invocations roots its own trace, and its principal, the execution-role session named after the function, ties it to the function (ADR 0007, amendment 2026-10-13; ARCHITECTURE.md 10 and 14.7).
