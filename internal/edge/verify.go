@@ -159,8 +159,8 @@ func (h *Handler) resolve(ctx context.Context, a auth.Auth) caller {
 // The checks run in order: temporary credentials must send their session
 // token and be unexpired on the wall clock (STS stamps Expiration in wall
 // time), the key must have a secret (a key understudy minted, a static
-// key, the dummy key or a 12-digit key; ADR 0012 pre-tag review
-// amendment), then the signature must verify. Request skew is judged on the wall
+// key, the dummy key or a 12-digit key; ADR 0012, amendment 2026-10-13),
+// then the signature must verify. Request skew is judged on the wall
 // clock, presigned expiry on the emulator clock: a SigV4 URL's lifetime
 // counts from its X-Amz-Date placed on the emulator timeline (h.timeline),
 // a SigV2 URL's Expires is read as an emulator instant. The body is read

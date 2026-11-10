@@ -1,7 +1,7 @@
 // Admin API answers: errors come as {"error": {"code", "message", "hint"}}
-// with a closed code set (ADR 0017 and its review amendment); a refused or
-// missing admin token is code unauthorized with status 401 (ADR 0017
-// hardening round 1), which is when the page asks for the token.
+// with a closed code set (ADR 0017 and its amendment of 2026-10-08); a
+// refused or missing admin token is code unauthorized with status 401 (ADR
+// 0017, amendment 2026-10-13), which is when the page asks for the token.
 
 import { describe, expect, test } from "bun:test";
 

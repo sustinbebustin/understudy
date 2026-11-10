@@ -484,7 +484,7 @@ func checkBypassHeader(b *Bucket, header *bool) *awserr.Error {
 // x-amz-bypass-governance-retention: true alone bypasses:
 // s3:BypassGovernanceRetention is declared (declareAccess) but not
 // evaluated, as the coverage notes say. This is the seam IAM enforcement
-// (ROADMAP.md item 5) plugs into. false is no bypass (switch
+// plugs into. false is no bypass (switch
 // s3.object-lock.bypass-without-lock). Callers run it before kernel.Write,
 // holding no lock.
 func (*Service) governanceBypass(_ *kernel.Call, header *bool, _ aws.ARN) bool {

@@ -1,7 +1,7 @@
 // What the page refetches when the stream reports a change, so resets,
 // snapshot loads, fault edits and clock moves show without polling: the
 // admin handler journals each as an admin-action or clock-changed event
-// (ADR 0007 pre-tag amendment), and a fired fault rule as fault-injected.
+// (ADR 0007, amendment 2026-10-13), and a fired fault rule as fault-injected.
 // Resources group by account and region, as GET /resources scopes them.
 
 import { describe, expect, test } from "bun:test";

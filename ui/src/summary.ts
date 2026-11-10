@@ -194,8 +194,8 @@ function gap(d: Detail): string | null {
 
 const strings = (v: unknown): readonly string[] => (Array.isArray(v) ? v.filter((s): s is string => typeof s === "string") : []);
 
-// adminAction is one state-changing admin call (ADR 0007 pre-tag
-// amendment): its op and the members that op carries.
+// adminAction is one state-changing admin call (ADR 0007,
+// amendment 2026-10-13): its op and the members that op carries.
 function adminAction(d: Detail): string | null {
   switch (d.op) {
     case "reset": {

@@ -11,7 +11,7 @@ import (
 // eventQueue holds the alarm events waiting to be sent, in the order of the
 // writes that made them, so they reach the default bus, draw their seeded
 // ids and enqueue their rule targets' deliveries in that order however
-// goroutines are scheduled (ADR 0018, hardening round 3). One drainer at a
+// goroutines are scheduled (ADR 0018, amendment 2026-10-13). One drainer at a
 // time sends them: the handler that finds the queue idle, or tracked work
 // started for a timer, which must not block the clock (ADR 0006).
 type eventQueue struct {

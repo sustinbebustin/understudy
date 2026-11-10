@@ -97,8 +97,8 @@ func SecretOf(r Resolution) (ids.SecretAccessKey, bool) {
 // The dummy credentials every quickstart uses: AWS_ACCESS_KEY_ID=test and
 // AWS_SECRET_ACCESS_KEY=test. The key is the default account's root, and
 // DummySecret is also the secret of every 12-digit account key, so both
-// keep working when SigV4 verification is on (ADR 0012 pre-tag review
-// amendment). They are no secret: anyone may sign with them.
+// keep working when SigV4 verification is on (ADR 0012, amendment
+// 2026-10-13). They are no secret: anyone may sign with them.
 const (
 	DummyAccessKeyID ids.AccessKeyID     = "test"
 	DummySecret      ids.SecretAccessKey = "test"

@@ -46,7 +46,7 @@ type Vocabulary struct {
 	// sigv4-checksums-endpoints.md 2.1, is UNVERIFIED.
 	Conflicting awserr.Identity
 	// UnknownKey: the access key names no credentials the emulator holds a
-	// secret for (ADR 0012 pre-tag review amendment).
+	// secret for (ADR 0012, amendment 2026-10-13).
 	UnknownKey awserr.Identity
 	// InvalidToken: temporary credentials sent without their session token,
 	// or with another one.

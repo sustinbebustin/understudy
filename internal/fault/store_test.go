@@ -664,8 +664,8 @@ func TestRemoveAndClear(t *testing.T) {
 }
 
 // RemoveAll deactivates every rule and names them in evaluation order, so
-// DELETE /faults can journal which rules it removed (ADR 0007 pre-tag
-// amendment: one admin action per call); with none it names none. A NextN
+// DELETE /faults can journal which rules it removed (ADR 0007, amendment
+// 2026-10-26: one admin action per call); with none it names none. A NextN
 // rule that left the list on its last hit is not active and not named.
 func TestRemoveAllNamesTheRulesInEvaluationOrder(t *testing.T) {
 	s := newStore(1)

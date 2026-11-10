@@ -1,7 +1,7 @@
 // Which views an event makes stale, so resets, snapshot loads, fault edits
 // and clock moves show without polling: the admin handler journals each as
-// an admin-action or clock-changed event (ADR 0007 pre-tag amendment), and a
-// fired fault rule as fault-injected.
+// an admin-action or clock-changed event (ADR 0007, amendment 2026-10-13),
+// and a fired fault rule as fault-injected.
 
 import type { JournalEvent } from "./journal";
 

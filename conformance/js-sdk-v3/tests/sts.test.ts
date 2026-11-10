@@ -35,7 +35,7 @@ describe("STS GetCallerIdentity", () => {
   });
 
   // Under --sigv4 verify a key understudy holds no secret for is refused as AWS
-  // refuses an unknown key (ADR 0012 pre-tag review amendment).
+  // refuses an unknown key (ADR 0012, amendment 2026-10-13).
   test.skipIf(sigv4Verify)("an arbitrary access key maps to the default account", async () => {
     const client = new STSClient(clientConfig({ accessKeyId: "foobar123" }));
     expect((await client.send(new GetCallerIdentityCommand({}))).Account).toBe(defaultAccount);

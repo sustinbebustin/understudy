@@ -214,7 +214,7 @@ describe("links", () => {
 describe("in-function calls", () => {
   // In-function calls are children of the Invoke call, the Invocation
   // event's own parent, which is written when the invocation ends (ADR
-  // 0007 pre-tag amendment).
+  // 0007, amendment 2026-10-13).
   test("the calls a function makes and its Invocation are all children of the Invoke call, in any arrival order", () => {
     const invoke = event(10, { trace: 10, detail: { op: { service: "lambda", name: "Invoke" }, outcome: { kind: "ok" } } });
     const inFunction = [

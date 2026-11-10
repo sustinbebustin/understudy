@@ -66,7 +66,7 @@
 //     it with AuthorizationHeaderMalformed and the expected region, and the
 //     signing name, so the front door can still route it to S3.
 //   - The Vocabulary also holds the identities of credentials the caller
-//     cannot verify (ADR 0012 pre-tag review amendment): UnknownKey for a
+//     cannot verify (ADR 0012, amendment 2026-10-13): UnknownKey for a
 //     key with no secret, InvalidToken for temporary credentials sent
 //     without their session token or with another, ExpiredToken for expired
 //     ones. Coral answers an unknown key and a wrong token alike, "The

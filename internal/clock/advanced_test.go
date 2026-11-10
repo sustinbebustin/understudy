@@ -26,7 +26,7 @@ func movedBy(t *testing.T, m Mode, d time.Duration) Mode {
 // Advance and AdvanceTo report the mode the shift replaced and the shifted
 // mode, the same kind of mode moved by the advance, so the admin handler
 // journals an advance or set as a clock change whose from and to are
-// exactly that far apart (ADR 0007 pre-tag amendment: clock moves are
+// exactly that far apart (ADR 0007, amendment 2026-10-26: clock moves are
 // journaled).
 func TestAdvanceReportsTheModesItShifted(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {

@@ -43,7 +43,7 @@ func DefaultBaseDomains() []string { return []string{"localhost", "s3.localhost"
 
 // Defaults is the configuration with nothing set: 0.0.0.0:4566 with the
 // published port as the exposure control in a container with its own
-// network namespace (ARCHITECTURE.md 24), else loopback 127.0.0.1:4566.
+// network namespace (ARCHITECTURE.md 22), else loopback 127.0.0.1:4566.
 func Defaults(p Placement) Config {
 	var listen Listen = Loopback{Addr: netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), DefaultPort)}
 	if _, ok := p.(InContainer); ok {

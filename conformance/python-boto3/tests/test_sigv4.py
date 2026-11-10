@@ -1,4 +1,4 @@
-"""Signature verification under --sigv4 verify (ADR 0012 pre-tag review amendment).
+"""Signature verification under --sigv4 verify (ADR 0012, amendment 2026-10-13).
 
 A request signed with the wrong secret, or with a key understudy holds no secret
 for, is refused with each service's own error; the dummy pair test/test and a

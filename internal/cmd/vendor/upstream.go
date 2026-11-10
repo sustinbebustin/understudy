@@ -23,10 +23,10 @@ type model struct {
 	Path string
 }
 
-// pinnedModels are the twelve phase 1 models of smithy-models.md 3.1 and the
-// models of the roadmap's new services (API Gateway, Step Functions,
-// DynamoDB Streams, Kinesis, SSM, SES and EventBridge Scheduler), sorted by
-// directory name.
+// pinnedModels are the twelve models of smithy-models.md 3.1 and the models
+// of the services added since (API Gateway, Step Functions, DynamoDB
+// Streams, Kinesis, SSM, SES and EventBridge Scheduler), sorted by directory
+// name.
 func pinnedModels() []model {
 	return []model{
 		{Dir: "api-gateway", Path: "models/api-gateway/service/2015-07-09/api-gateway-2015-07-09.json"},

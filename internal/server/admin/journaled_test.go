@@ -41,7 +41,7 @@ func ofKind(es []journal.Event, kind journal.Kind) []journal.Event {
 }
 
 // wantAdminEvent checks e is an event the admin handler wrote: no cause,
-// no links, the zero scope (ADR 0007 pre-tag amendment: written by the
+// no links, the zero scope (ADR 0007, amendment 2026-10-13: written by the
 // admin handler like ClockChanged), with detail want.
 func wantAdminEvent(k *kerneltest.K, what string, e journal.Event, want journal.Detail) {
 	k.Helper()
@@ -114,8 +114,9 @@ func typeName(m clock.Mode) string {
 
 // An advance journals one clock change with op advance whose from and to
 // are the mode it replaced and the mode it left, recorded after the advance
-// returns: above every event the timers it fired recorded (ADR 0007
-// pre-tag amendment; spec: a UI that relies on the stream sees clock moves).
+// returns: above every event the timers it fired recorded (ADR 0007,
+// amendment 2026-10-26; spec: a UI that relies on the stream sees clock
+// moves).
 func TestClockAdvanceJournalsAClockChangeAfterTheTimersItFired(t *testing.T) {
 	kerneltest.Run(t, func(k *kerneltest.K) {
 		h := handler(k, "")

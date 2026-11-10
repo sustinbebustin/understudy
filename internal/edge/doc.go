@@ -115,7 +115,7 @@
 //     unsigned.
 //   - A key verifies only when it has a secret: one understudy minted, a
 //     static key from accounts.keys, the dummy key test or a 12-digit key,
-//     whose secret is test (ADR 0012 pre-tag review amendment). Temporary
+//     whose secret is test (ADR 0012, amendment 2026-10-13). Temporary
 //     credentials must send their session token and be unexpired on the
 //     wall clock, as STS stamps Expiration; presigned expiry runs on the
 //     emulator clock. A SigV4 URL's lifetime counts from its X-Amz-Date

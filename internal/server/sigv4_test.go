@@ -185,8 +185,8 @@ func accessKey(t *testing.T, endpoint, name string) signer {
 
 // TestSigV4VerifyAcceptsTheKeysThatHoldASecret: under sigv4 verify the
 // dummy pair test/test, a 12-digit key with secret test, an accounts.keys
-// entry and STS AssumeRole credentials with their token all verify (ADR 0012
-// pre-tag review amendment), and each lands in its own account.
+// entry and STS AssumeRole credentials with their token all verify (ADR 0012,
+// amendment 2026-10-13), and each lands in its own account.
 func TestSigV4VerifyAcceptsTheKeysThatHoldASecret(t *testing.T) {
 	ci, err := aws.ParseAccountID("222222222222")
 	if err != nil {

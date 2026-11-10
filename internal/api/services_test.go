@@ -43,8 +43,8 @@ func services() []*registry.Service {
 	}
 }
 
-// generated is every generated package: the wired services and the
-// roadmap's services that are generated but not wired yet.
+// generated is every generated package: the wired services and those that
+// are generated but not wired yet.
 func generated() []*registry.Service {
 	return append(services(),
 		apigatewayapi.Service(), apigatewayv2api.Service(), dynamodbstreamsapi.Service(), kinesisapi.Service(),

@@ -181,7 +181,7 @@ const (
 	// SigV4Verify also refuses a request whose key has no secret, whose
 	// temporary credentials lack their token or have expired, or whose
 	// signature does not verify, and expires presigned URLs on the
-	// emulator clock (ADR 0012 pre-tag review amendment).
+	// emulator clock (ADR 0012, amendment 2026-10-13).
 	SigV4Verify
 )
 

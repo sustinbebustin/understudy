@@ -7,5 +7,5 @@
 // What is built is listed per operation in docs/coverage.md; every other
 // operation stays unbound and answers 501, and a definition construct not
 // yet built is refused with code UNSUPPORTED_BY_UNDERSTUDY
-// (stepfunctions-asl.md 15.1, Item 7 minimum).
+// (stepfunctions-asl.md 15.1, Step Functions minimum).
 package sfn

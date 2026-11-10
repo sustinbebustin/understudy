@@ -3,7 +3,7 @@
 //
 // The checks are in tests carrying the docker build tag, because they build
 // the image and start containers; the package has no runtime code. TestImage
-// builds the image once and pins (ARCHITECTURE.md 24):
+// builds the image once and pins (ARCHITECTURE.md 22):
 //
 //   - What it is: a static binary on scratch, under 60 MiB unpacked, running
 //     as 65532:65532, declaring the entrypoint, command, port, volume,

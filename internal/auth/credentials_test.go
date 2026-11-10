@@ -19,7 +19,7 @@ func queryVocabulary(t *testing.T) auth.Vocabulary {
 }
 
 // An unknown key, a wrong session token and an expired one carry each
-// family's identity and text (ADR 0012 pre-tag review amendment): Coral
+// family's identity and text (ADR 0012, amendment 2026-10-13): Coral
 // answers an unknown key and a wrong token alike (dynalite index.js
 // L296-L372); S3 has an identity for each and names an unknown key.
 func TestCredentialFailuresPerFamily(t *testing.T) {

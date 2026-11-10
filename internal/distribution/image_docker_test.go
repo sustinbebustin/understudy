@@ -329,7 +329,7 @@ func socketGroup(t *testing.T) string {
 	return strconv.FormatUint(uint64(st.Gid), 10)
 }
 
-// noSocket is the cause ARCHITECTURE.md 24 gives for Docker and DynamoDB
+// noSocket is the cause ARCHITECTURE.md 22 gives for Docker and DynamoDB
 // being disabled in an image started without the Docker socket.
 const noSocket = "no Docker socket"
 

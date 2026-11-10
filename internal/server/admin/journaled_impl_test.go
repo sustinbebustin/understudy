@@ -23,7 +23,7 @@ import (
 
 // A page that follows the stream loads the newest events first: after a
 // reset, the newest admin action the tail answers is that reset (ADR 0007,
-// implementation amendment 2026-10-26).
+// amendment 2026-10-26).
 func TestJournalTailAnswersTheLatestAdminAction(t *testing.T) {
 	kerneltest.Run(t, func(k *kerneltest.K) {
 		svc := &lateService{}

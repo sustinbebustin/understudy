@@ -28,8 +28,8 @@ type Stateful interface {
 }
 
 // Late is implemented by services whose data is not cell state (DynamoDB
-// items). It runs after the cut, outside the gate, through the pipeline with
-// Origin Internal{Via: Snapshot}.
+// items). It runs after the cut, outside the gate and outside the pipeline,
+// so it never matches a fault rule.
 type Late interface {
 	ExportLate(ctx context.Context) ([]store.Section, error)
 	ImportLate(ctx context.Context, ss []store.Section) error

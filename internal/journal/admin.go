@@ -8,8 +8,8 @@ import (
 )
 
 // AdminAction is one state-changing admin call that succeeded, written by
-// the admin handler once the call has done its work (ADR 0007 pre-tag
-// review amendment).
+// the admin handler once the call has done its work (ADR 0007,
+// amendment 2026-10-13).
 type AdminAction struct{ Op AdminOp }
 
 // AdminOp is the admin call an AdminAction records.

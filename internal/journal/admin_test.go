@@ -73,8 +73,8 @@ func sameJSON(t *testing.T, a, b []byte) bool {
 }
 
 // An admin action's NDJSON detail names the op and only the members that
-// op carries, each omitted when empty, false or 0 (ADR 0007 pre-tag
-// amendment: AdminAction, one per action; member names as ARCHITECTURE.md
+// op carries, each omitted when empty, false or 0 (ADR 0007, amendment
+// 2026-10-13: AdminAction, one per action; member names as ARCHITECTURE.md
 // 10 records them).
 func TestAdminActionWireForm(t *testing.T) {
 	cases := []struct {

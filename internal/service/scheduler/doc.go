@@ -8,7 +8,7 @@
 package scheduler
 
 import (
-	// The release image has no zone files (ARCHITECTURE.md 24), so the
+	// The release image has no zone files (ARCHITECTURE.md 22), so the
 	// IANA database time.LoadLocation reads is embedded (scheduler.md 1
 	// item 6, 14.3.2).
 	_ "time/tzdata"

@@ -1,4 +1,4 @@
-# SSM Parameter Store: what roadmap item 9f's Terraform done check names
+# SSM Parameter Store: what the research names for Terraform
 # (docs/research/ssm-parameters.md 10.1, 10.2, 12.5): String, StringList,
 # SecureString under the default key and under a KMS alias, tags,
 # overwrite = true, the Advanced tier, Intelligent-Tiering with a small and

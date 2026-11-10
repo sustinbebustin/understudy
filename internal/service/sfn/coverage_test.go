@@ -17,8 +17,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl"
 )
 
-// The coverage marks and exact notes of the item 7 minimum
-// (stepfunctions-asl.md 15.1 and stepfunctions-api.md 13.1, "Item 7
+// The coverage marks and exact notes of the Step Functions minimum
+// (stepfunctions-asl.md 15.1 and stepfunctions-api.md 13.1, "Step Functions
 // minimum"): 16 operations bound, every other one unbound.
 var wantCoverage = map[string]registry.BindCoverage{
 	"CreateStateMachine":             registry.Partial{Note: "Standard workflows only: type EXPRESS, publish true and a CUSTOMER_MANAGED_KMS_KEY encryptionConfiguration answer 501. Definitions are JSONPath with Pass, Task, Choice, Wait, Succeed, Fail, Parallel and inline Map states, and Task resources are Lambda only (a function ARN or arn:aws:states:::lambda:invoke). These answer InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY: JSONata, Assign and variables, Distributed Map and its fields, Credentials, HeartbeatSeconds, callbacks, activities, every other Task resource, a literal lambda:invoke InvocationType other than RequestResponse, and JSONPath functions such as length(), multi-clause filters and filter scripts, though AWS accepts length() and fails only at run time (ASL-19). ToleratedFailurePercentage, which AWS accepts on an inline Map, is refused with Distributed Map's fields (ASL-01). A dynamodb resource outside getItem, putItem, updateItem and deleteItem answers AWS's SCHEMA_VALIDATION_FAILED text. Every problem in a definition is reported in one message, as AWS joins them; wording for problems no recording covers is understudy's (ASL-01). loggingConfiguration and tracingConfiguration are validated, stored and echoed; no log events or traces are emitted. The role ARN is checked for syntax. AWS checks neither the role's existence nor its trust at create; understudy checks its trust policy under iam.enforce=enforce, with understudy's message (SFN-08)"},
@@ -46,7 +46,7 @@ var wantCoverage = map[string]registry.BindCoverage{
 }
 
 // The 21 operations that stay unbound and answer 501 (stepfunctions-api.md
-// 13.1, Item 7 minimum); nothing is StoredOnly.
+// 13.1, Step Functions minimum); nothing is StoredOnly.
 var wantUnbound = []string{
 	"StartSyncExecution", "SendTaskSuccess", "SendTaskFailure", "SendTaskHeartbeat",
 	"CreateActivity", "DescribeActivity", "DeleteActivity", "ListActivities", "GetActivityTask",

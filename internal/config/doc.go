@@ -77,8 +77,8 @@
 //   - S3 base domains in the file are added to localhost and s3.localhost and
 //     must resolve to loopback by themselves: localhost, names under it, or
 //     localhost.localstack.cloud for LocalStack migrations.
-//   - ARCHITECTURE.md 18's Journal.Bodies is MaxBytes, the byte budget that
-//     bounds the events kept and with them the call bodies recorded.
+//   - Journal.MaxBytes is the byte budget that bounds the events kept and
+//     with them the call bodies recorded.
 //   - Running takes no start time: neither the server nor the clock can start
 //     a running clock anywhere but at wall time.
 //   - The clock starts Running, Frozen{At} or Scaled{Factor}: --clock-scale

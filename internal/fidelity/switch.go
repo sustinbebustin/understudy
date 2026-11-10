@@ -7,8 +7,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/evidence"
 )
 
-// Switch is a behavior chosen without AWS-recorded evidence. It is not
-// user-configurable; the coverage report lists every switch.
+// Switch is a behavior chosen without AWS-recorded evidence. The coverage
+// report lists every switch.
 type Switch[T comparable] struct {
 	Name   string         // "logs.filter.term-boundary"
 	Value  T              // the behavior in effect

@@ -10,7 +10,7 @@ import (
 
 // The admin handler journals each call that changed state, once it has done
 // its work, so a consumer of the stream sees resets, snapshot loads, fault
-// edits and clock moves (ADR 0007, implementation amendment 2026-10-26).
+// edits and clock moves (ADR 0007, amendment 2026-10-26).
 // Each event has no cause, no links and the zero scope. A call that changed
 // nothing, refused or read-only, journals nothing; a reset, snapshot load or
 // fault rule addition that fails after it changed state is journaled before

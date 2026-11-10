@@ -50,7 +50,7 @@ func signedSQS(t *testing.T, key, secret, token string) *http.Request {
 // The forms of credentials that hold a secret verify under sigv4 verify:
 // a minted long-term key, minted temporary credentials with their token, a
 // static key, the dummy pair test/test and a 12-digit key with secret
-// test (ADR 0012 pre-tag review amendment).
+// test (ADR 0012, amendment 2026-10-13).
 func TestVerifyAcceptsEveryKeyWithASecret(t *testing.T) {
 	f, store := verifyingFront(t)
 	acct, err := aws.ParseAccountID("123456789012")

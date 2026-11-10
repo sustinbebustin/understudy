@@ -10,7 +10,7 @@
 // caller logs one warning per key.
 //
 // Every Resolution but Fallback carries the secret SigV4 verification checks
-// a signature against (ADR 0012 pre-tag review amendment): a minted key's
+// a signature against (ADR 0012, amendment 2026-10-13): a minted key's
 // own; a static key's from configuration (accounts.keys, SetStaticKeys);
 // and DummySecret, "test", for the dummy key "test" and every 12-digit
 // account key, the pair every quickstart uses, so AWS_ACCESS_KEY_ID=test
