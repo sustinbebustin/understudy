@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -24,6 +25,27 @@ func TestVersion(t *testing.T) {
 	var out, errOut bytes.Buffer
 	if code := run(t.Context(), []string{"version"}, &out, &errOut); code != admin.ExitOK || out.String() != "understudy dev\n" {
 		t.Errorf("version = %d %q %q", code, out.String(), errOut.String())
+	}
+}
+
+func TestResolveVersion(t *testing.T) {
+	module := func(v string) *debug.BuildInfo { return &debug.BuildInfo{Main: debug.Module{Version: v}} }
+	for _, c := range []struct {
+		name    string
+		stamped string
+		info    *debug.BuildInfo
+		ok      bool
+		want    string
+	}{
+		{"a release build's stamp wins", "0.1.2", module("v0.1.1"), true, "0.1.2"},
+		{"go install at a tag", "dev", module("v0.1.2"), true, "0.1.2"},
+		{"go install at a commit", "dev", module("v0.1.3-0.20261110120000-abcdef123456"), true, "0.1.3-0.20261110120000-abcdef123456"},
+		{"a build from a checkout", "dev", module("(devel)"), true, "dev"},
+		{"no build info", "dev", nil, false, "dev"},
+	} {
+		if got := resolveVersion(c.stamped, c.info, c.ok); got != c.want {
+			t.Errorf("%s: resolveVersion = %q, want %q", c.name, got, c.want)
+		}
 	}
 }
 

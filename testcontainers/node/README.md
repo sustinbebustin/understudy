@@ -2,11 +2,10 @@
 
 Runs [understudy](https://github.com/sustinbebustin/understudy), the local AWS emulator, as a [Testcontainers for Node](https://node.testcontainers.org/) module.
 
-It is released with understudy: version `X.Y.Z` of this package exports `UNDERSTUDY_IMAGE`, `ghcr.io/sustinbebustin/understudy:X.Y.Z`. Nothing is published yet, so build the image with `just image`, pass `understudy:dev`, and install the package from a clone, here at `../understudy`, with your own `testcontainers` (a peer dependency, `^12.2.1`):
+It is released with understudy: version `X.Y.Z` of this package exports `UNDERSTUDY_IMAGE`, `ghcr.io/sustinbebustin/understudy:X.Y.Z`. Install it with your own `testcontainers`, a peer dependency (`^12.2.1`):
 
 ```sh
-(cd ../understudy/testcontainers/node && bun install --frozen-lockfile && bun run build && bun pm pack --destination "$OLDPWD")
-bun add -d ./testcontainers-understudy-0.0.0.tgz testcontainers@^12.2.1
+npm install --save-dev testcontainers-understudy testcontainers@^12.2.1
 ```
 
 The package is ESM and needs Node 22.22 or later. Its tests run on Node; Bun is untested.
@@ -15,12 +14,12 @@ The package is ESM and needs Node 22.22 or later. Its tests run on Node; Bun is 
 
 ```ts
 import { after, before, test } from "node:test";
-import { type StartedUnderstudyContainer, UnderstudyContainer } from "testcontainers-understudy";
+import { type StartedUnderstudyContainer, UNDERSTUDY_IMAGE, UnderstudyContainer } from "testcontainers-understudy";
 
 let understudy: StartedUnderstudyContainer;
 
 before(async () => {
-  understudy = await new UnderstudyContainer("understudy:dev").start();
+  understudy = await new UnderstudyContainer(UNDERSTUDY_IMAGE).start();
   Object.assign(process.env, understudy.getEnv()); // AWS_ENDPOINT_URL, test credentials, us-east-1
 });
 

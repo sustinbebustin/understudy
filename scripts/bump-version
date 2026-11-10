@@ -57,6 +57,8 @@ PINS = (
         re.compile(r'^const DefaultImage = "ghcr\.io/sustinbebustin/understudy:([^"]+)"$', re.M),
     ),
     Pin("testcontainers/go/go.mod", re.compile(r"^\tgithub\.com/sustinbebustin/understudy v(\S+)$", re.M)),
+    # The example workflow pins the release a copy of it installs.
+    Pin("examples/github-actions/understudy-tests.yml", re.compile(r"^      UNDERSTUDY_VERSION: v(\S+)$", re.M)),
 )
 
 Run = Callable[[list[str], Path], object]

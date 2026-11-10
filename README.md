@@ -11,7 +11,7 @@ understudy is one Go binary, or a Docker image of about 11 MB compressed, that s
 The result: tests keep real AWS settings (visibility timeouts, delays, TTLs, schedules) and finish in milliseconds, without an account, a token or network access.
 
 > [!NOTE]
-> Pre-release. No release, package or image is published; build from a clone. Coverage is partial and listed operation by operation in [docs/coverage.md](docs/coverage.md).
+> Pre-1.0: a minor version may break compatibility ([CHANGELOG.md](CHANGELOG.md)). Coverage is partial and listed operation by operation in [docs/coverage.md](docs/coverage.md).
 
 ## Contents
 
@@ -46,21 +46,41 @@ The result: tests keep real AWS settings (visibility timeouts, delays, TTLs, sch
 
 ## Install
 
-### From source
+### Homebrew (macOS and Linux)
 
 ```sh
-go install ./cmd/understudy
+brew install --cask sustinbebustin/tap/understudy
 understudy version
 ```
 
-This puts `understudy` in `$(go env GOPATH)/bin`.
+### Binaries
+
+Each [release](https://github.com/sustinbebustin/understudy/releases) has a `tar.gz` for linux and darwin on amd64 and arm64, and `checksums.txt`:
+
+```sh
+gh release download --repo sustinbebustin/understudy --pattern '*_linux_amd64.tar.gz' --pattern checksums.txt
+sha256sum --check --ignore-missing checksums.txt
+tar -xzf understudy_*_linux_amd64.tar.gz understudy
+./understudy version
+```
+
+The darwin binaries are not notarized. Homebrew clears the quarantine flag; for a download by hand, run `xattr -d com.apple.quarantine ./understudy`.
+
+### Go
+
+```sh
+go install github.com/sustinbebustin/understudy/cmd/understudy@latest
+```
+
+This puts `understudy` in `$(go env GOPATH)/bin`. From a clone, `go install ./cmd/understudy`.
 
 ### Docker
 
 ```sh
-just image
-docker run --rm -p 127.0.0.1:4566:4566 understudy:dev
+docker run --rm -p 127.0.0.1:4566:4566 ghcr.io/sustinbebustin/understudy
 ```
+
+The image is tagged with each version and `latest`, for linux/amd64 and linux/arm64. From a clone, `just image` builds `understudy:dev`.
 
 Inside the container understudy listens on `0.0.0.0:4566` without an admin token, so publishing the port on `127.0.0.1` only is what keeps it private. To keep state across restarts, mount a volume on `/data` and set `UNDERSTUDY_PERSIST=/data`.
 
@@ -70,7 +90,7 @@ To run Lambda functions from the container on Linux, mount the Docker socket and
 docker run --rm -p 127.0.0.1:4566:4566 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   --group-add "$(stat -c %g /var/run/docker.sock)" \
-  understudy:dev
+  ghcr.io/sustinbebustin/understudy
 ```
 
 On Docker Desktop the container sees the Desktop VM's socket, owned by `root:root` with mode 0660, so the group is 0 instead: `--group-add 0`.
@@ -81,7 +101,7 @@ understudy finds Docker the way the Docker CLI does: `DOCKER_HOST`, else `/var/r
 
 ### Testcontainers
 
-Go, Python and Node test suites can start the image themselves with the [Testcontainers](https://testcontainers.com/) modules in [testcontainers/](testcontainers/): [Go](testcontainers/go/), [Python](testcontainers/python/) and [Node](testcontainers/node/). Each publishes the port on `127.0.0.1` only, waits until understudy is ready, returns the environment that points an SDK at it, and has the test session's reaper remove the containers understudy starts. They are not published yet; the [Testcontainers guide](docs/guide/testcontainers-modules.md) installs them from a clone. For Go tests, [`understudytest`](docs/guide/sdks.md#go-tests-with-understudytest) runs understudy in process, without a container.
+Go, Python and Node test suites can start the image themselves with the [Testcontainers](https://testcontainers.com/) modules in [testcontainers/](testcontainers/): [Go](testcontainers/go/), [Python](testcontainers/python/) and [Node](testcontainers/node/). Each publishes the port on `127.0.0.1` only, waits until understudy is ready, returns the environment that points an SDK at it, and has the test session's reaper remove the containers understudy starts. They are released with understudy, as `github.com/sustinbebustin/understudy/testcontainers/go` and as `testcontainers-understudy` on PyPI and npm; the [Testcontainers guide](docs/guide/testcontainers-modules.md) shows each. For Go tests, [`understudytest`](docs/guide/sdks.md#go-tests-with-understudytest) runs understudy in process, without a container.
 
 ## Quick start
 

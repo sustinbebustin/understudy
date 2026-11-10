@@ -2,10 +2,10 @@
 
 Runs [understudy](https://github.com/sustinbebustin/understudy), the local AWS emulator, as a [Testcontainers for Python](https://testcontainers-python.readthedocs.io/) module.
 
-It is released with understudy: version `X.Y.Z` of this package defaults to the image `ghcr.io/sustinbebustin/understudy:X.Y.Z`. Nothing is published yet, so build the image with `just image`, pass `understudy:dev`, and install the package from a clone, here at `../understudy`:
+It is released with understudy: version `X.Y.Z` of this package defaults to the image `ghcr.io/sustinbebustin/understudy:X.Y.Z`.
 
 ```sh
-uv add --dev ../understudy/testcontainers/python
+uv add --dev testcontainers-understudy    # or: pip install testcontainers-understudy
 ```
 
 It needs Python 3.10 or later and `testcontainers>=4.15,<5`.
@@ -20,7 +20,7 @@ from testcontainers_understudy import UnderstudyContainer
 
 @pytest.fixture(scope="session")
 def understudy():
-    with UnderstudyContainer("understudy:dev") as u:
+    with UnderstudyContainer() as u:
         yield u
 
 

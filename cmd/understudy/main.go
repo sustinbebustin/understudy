@@ -9,9 +9,13 @@
 // streams, environment and files, and cancels it on SIGINT and SIGTERM; a
 // second signal during the graceful shutdown kills the process.
 //
-// The version is stamped at link time:
+// A release stamps the version at link time, without the v
+// (.goreleaser.yaml):
 //
-//	go build -ldflags "-X main.version=v0.1.0" ./cmd/understudy
+//	go build -ldflags "-X main.version=0.1.2" ./cmd/understudy
+//
+// Without the stamp, `go install ...@v0.1.2` and a build in a checkout still
+// name a version: the module version the go command records in the binary.
 package main
 
 import (
@@ -19,12 +23,28 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"runtime/debug"
+	"strings"
 	"syscall"
 
 	"github.com/sustinbebustin/understudy/internal/cli"
 )
 
 var version = "dev"
+
+// resolveVersion is the stamped version, else the main module's version from
+// the build info, else "dev". A build in a checkout records one from git (a
+// tag, or a pseudo-version, "+dirty" with local changes); a test binary, or a
+// build without VCS information, records "(devel)".
+func resolveVersion(stamped string, info *debug.BuildInfo, ok bool) string {
+	if stamped != "dev" || !ok || info == nil {
+		return stamped
+	}
+	if v := info.Main.Version; strings.HasPrefix(v, "v") {
+		return strings.TrimPrefix(v, "v")
+	}
+	return stamped
+}
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -46,11 +66,12 @@ func main() {
 
 // run executes one command and returns its exit code.
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	info, ok := debug.ReadBuildInfo()
 	return cli.Run(ctx, args, cli.Options{
 		Stdout:   stdout,
 		Stderr:   stderr,
 		Env:      os.Environ(),
 		ReadFile: os.ReadFile,
-		Version:  version,
+		Version:  resolveVersion(version, info, ok),
 	})
 }
