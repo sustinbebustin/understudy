@@ -151,5 +151,4 @@ After all three are published, open a pull request on `testcontainers/community-
 
 ## 8. After the release
 
-- Install instructions still say to build from a clone: README "Install", `docs/guide/getting-started.md` and `docs/guide/ci.md` gain the binaries, the cask, the GHCR image and the Testcontainers packages.
-- ROADMAP item 4 records the tag.
+The install docs name no version except the example workflow's `UNDERSTUDY_VERSION`, which `scripts/bump-version` moves with the modules, so a release needs no docs change beyond its changelog section.

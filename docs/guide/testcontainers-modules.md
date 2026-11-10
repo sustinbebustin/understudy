@@ -8,7 +8,7 @@ The modules in [testcontainers/](../../testcontainers/) start the understudy ima
 - gives every container understudy starts, Lambda functions and DynamoDB Local, the test session's Testcontainers labels, so the session's reaper removes them too;
 - stops understudy with a 10-second grace period, so it removes its own containers before it exits.
 
-Nothing is published yet, neither the packages nor the image `ghcr.io/sustinbebustin/understudy:0.0.0` their image constants name. Build the image with `just image`, pass `understudy:dev`, and install a module from a clone of this repository, here at `../understudy`. Every snippet on this page was run that way against `understudy:dev`, through `scripts/sealed`.
+Each module is released with understudy: version `X.Y.Z` defaults to the image `ghcr.io/sustinbebustin/understudy:X.Y.Z` (Go's `DefaultImage`, Python's `DEFAULT_IMAGE`, Node's `UNDERSTUDY_IMAGE`). To test unreleased changes, build the image with `just image` and pass `understudy:dev` instead.
 
 ## Go
 
@@ -26,7 +26,7 @@ func TestOrdersInProcess(t *testing.T) {
 
 func TestOrdersInContainer(t *testing.T) {
 	ctx := t.Context()
-	ctr, err := understudy.Run(ctx, "understudy:dev")
+	ctr, err := understudy.Run(ctx, understudy.DefaultImage)
 	if ctr != nil {
 		testcontainers.CleanupContainer(t, ctr.Container)
 	}
@@ -72,22 +72,16 @@ Here the in-process test took 10 to 20 ms, and the container test 1 to 2.5 s wit
 
 `understudy.Run` returns the container together with any error that comes after it was created, so register the cleanup before checking the error. Pass `ctr.Container`, the embedded testcontainers-go container, to `CleanupContainer`: the module's `Endpoint(ctx)` replaces testcontainers-go's `Endpoint(ctx, proto)`, so `*understudy.Container` itself is not a `testcontainers.Container`. `ctr.Admin(ctx)` returns an `admin.Client` with the whole admin API; `Settle`, `AdvanceClock` and `Reset` wrap the common calls.
 
-Add the module from the clone:
-
 ```sh
-go mod edit \
-  -replace github.com/sustinbebustin/understudy=../understudy \
-  -replace github.com/sustinbebustin/understudy/testcontainers/go=../understudy/testcontainers/go
-go get github.com/sustinbebustin/understudy@v0.0.0 github.com/sustinbebustin/understudy/testcontainers/go@v0.0.0
-go mod tidy
+go get github.com/sustinbebustin/understudy/testcontainers/go
 ```
 
-Both replacements are needed, because a `replace` in a dependency's own `go.mod` does not apply to the modules that require it. The module needs Go 1.27, since it imports understudy's `admin` package, and testcontainers-go v0.44.0.
+The module needs Go 1.27, since it imports understudy's `admin` package, and testcontainers-go v0.44.0.
 
 ## Python
 
 ```sh
-uv add --dev ../understudy/testcontainers/python boto3 pytest
+uv add --dev testcontainers-understudy boto3 pytest
 ```
 
 The package `testcontainers-understudy` needs Python 3.10 or later and `testcontainers>=4.15,<5`. A session fixture starts one container for the run, and an autouse fixture points each test at it and resets understudy's state afterwards:
@@ -100,7 +94,7 @@ from testcontainers_understudy import UnderstudyContainer
 
 @pytest.fixture(scope="session")
 def understudy():
-    with UnderstudyContainer("understudy:dev") as u:
+    with UnderstudyContainer() as u:
         yield u
 
 
@@ -133,26 +127,25 @@ def test_reset_dropped_the_queue():
 
 ## Node
 
-Build and pack the package in the clone, then install the tarball with the project's own `testcontainers`, a peer dependency (`^12.2.1`):
+Install it with the project's own `testcontainers`, a peer dependency (`^12.2.1`):
 
 ```sh
-(cd ../understudy/testcontainers/node && bun install --frozen-lockfile && bun run build && bun pm pack --destination "$OLDPWD")
-bun add -d ./testcontainers-understudy-0.0.0.tgz testcontainers@^12.2.1 @aws-sdk/client-sqs
+npm install --save-dev testcontainers-understudy testcontainers@^12.2.1 @aws-sdk/client-sqs
 ```
 
-Installed from the tarball, the package uses the project's own copy of `testcontainers`, as it will when installed from the registry. The package is ESM and needs Node 22.22 or later; its tests run on Node, and Bun is untested.
+The package is ESM and needs Node 22.22 or later; its tests run on Node, and Bun is untested.
 
 ```ts
 // orders.test.ts
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { CreateQueueCommand, ReceiveMessageCommand, SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
-import { type StartedUnderstudyContainer, UnderstudyContainer } from "testcontainers-understudy";
+import { type StartedUnderstudyContainer, UNDERSTUDY_IMAGE, UnderstudyContainer } from "testcontainers-understudy";
 
 let understudy: StartedUnderstudyContainer;
 
 before(async () => {
-  understudy = await new UnderstudyContainer("understudy:dev").start();
+  understudy = await new UnderstudyContainer(UNDERSTUDY_IMAGE).start();
   Object.assign(process.env, understudy.getEnv());
 });
 
@@ -259,7 +252,7 @@ def test_infra():
 
 The module's stop gives understudy 10 seconds to remove the containers it started; with DynamoDB Local running, the whole stop took under a second here. If the test process dies first, Testcontainers' reaper, Ryuk, is meant to remove understudy's container and, through the session labels, the containers understudy started. After a `kill -9` of a Python test process (testcontainers-python 4.15.0, Ryuk 0.8.1), both understudy and its DynamoDB Local container were gone about 10 seconds later in 4 of 5 runs. In the fifth, neither was removed after 90 seconds and no Ryuk container was left; the cause was not found. When that happens, recover as without a reaper, below.
 
-With `TESTCONTAINERS_RYUK_DISABLED=true` there is no reaper, and a killed test process leaves understudy running with every container it started. `docker stop` on the understudy container (`docker ps --filter ancestor=understudy:dev`) still lets it remove them before it exits. Once the understudy container is gone without that stop, for example after `docker rm -f`, its containers stay until you run:
+With `TESTCONTAINERS_RYUK_DISABLED=true` there is no reaper, and a killed test process leaves understudy running with every container it started. `docker stop` on the understudy container (`docker ps --filter ancestor=ghcr.io/sustinbebustin/understudy`) still lets it remove them before it exits. Once the understudy container is gone without that stop, for example after `docker rm -f`, its containers stay until you run:
 
 ```sh
 understudy cleanup --all

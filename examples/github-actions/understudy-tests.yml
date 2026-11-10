@@ -23,7 +23,7 @@ jobs:
     env:
       # The understudy version to install: a release tag or a commit. Pin it
       # so a new understudy release cannot change your build unannounced.
-      UNDERSTUDY_VERSION: main
+      UNDERSTUDY_VERSION: v0.1.2
     steps:
       - uses: actions/checkout@v7
 

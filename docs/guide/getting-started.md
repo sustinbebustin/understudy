@@ -2,13 +2,11 @@
 
 ## Install
 
-understudy is not published yet, so build it from a clone with Go 1.27:
-
 ```sh
-go install ./cmd/understudy
+brew install --cask sustinbebustin/tap/understudy
 ```
 
-This puts `understudy` in `$(go env GOPATH)/bin`. For the Docker image, run `just image`; the [README](../../README.md#docker) shows how to run it.
+The [README](../../README.md#install) also covers the release binaries, `go install` and the image `ghcr.io/sustinbebustin/understudy`.
 
 Lambda functions and DynamoDB need a Docker Engine (`DOCKER_HOST`, a unix socket or a `tcp://` daemon, else `/var/run/docker.sock`). Everything else runs without one.
 

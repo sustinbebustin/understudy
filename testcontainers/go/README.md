@@ -4,14 +4,10 @@ Package `understudy` runs [understudy](../../README.md), the local AWS emulator,
 
 A Go test that needs no container is better served by [`understudytest`](../../docs/guide/sdks.md#go-tests-with-understudytest), which runs understudy in the test process. Use this module when the suite already runs on testcontainers-go and needs understudy as a container, for example next to an application container on a Docker network.
 
-The module is experimental until understudy 1.0 and is released with understudy: understudy `vX.Y.Z` is tagged `testcontainers/go/vX.Y.Z`, and `DefaultImage` names `ghcr.io/sustinbebustin/understudy:X.Y.Z`. Nothing is published yet, so build the image with `just image` and install the module from a clone, here at `../understudy`:
+The module is experimental until understudy 1.0 and is released with understudy: understudy `vX.Y.Z` is tagged `testcontainers/go/vX.Y.Z`, and `DefaultImage` names `ghcr.io/sustinbebustin/understudy:X.Y.Z`.
 
 ```sh
-go mod edit \
-  -replace github.com/sustinbebustin/understudy=../understudy \
-  -replace github.com/sustinbebustin/understudy/testcontainers/go=../understudy/testcontainers/go
-go get github.com/sustinbebustin/understudy@v0.0.0 github.com/sustinbebustin/understudy/testcontainers/go@v0.0.0
-go mod tidy
+go get github.com/sustinbebustin/understudy/testcontainers/go
 ```
 
 It needs Go 1.27 and testcontainers-go v0.44.0.
@@ -21,7 +17,7 @@ It needs Go 1.27 and testcontainers-go v0.44.0.
 ```go
 func TestOrders(t *testing.T) {
 	ctx := t.Context()
-	ctr, err := understudy.Run(ctx, "understudy:dev")
+	ctr, err := understudy.Run(ctx, understudy.DefaultImage)
 	if ctr != nil {
 		testcontainers.CleanupContainer(t, ctr.Container)
 	}

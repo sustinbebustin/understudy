@@ -46,7 +46,7 @@ understudy snapshot save "$RUNNER_TEMP/state.tar.gz"
     understudy snapshot save "$RUNNER_TEMP/state.tar.gz"
 ```
 
-Hosted Ubuntu runners have Docker, so Lambda functions run as they do locally. understudy is not published yet, so a workflow builds it from the repository first; [examples/github-actions](../../examples/github-actions/) has a complete workflow.
+Hosted Ubuntu runners have Docker, so Lambda functions run as they do locally. A workflow installs a pinned release with `go install`; [examples/github-actions](../../examples/github-actions/) has a complete workflow.
 
 ## Parallel jobs on one machine
 
