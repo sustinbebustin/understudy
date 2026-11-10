@@ -30,7 +30,7 @@ class Receiver(http.server.BaseHTTPRequestHandler):
 http.server.HTTPServer(("127.0.0.1", int(sys.argv[1])), Receiver).serve_forever()
 ```
 
-Start understudy with the receiver's host and port in the allow-list and the receiver, each in a terminal of its own, then subscribe the receiver. The `aws` commands run with `eval "$(understudy env)"` in effect:
+Start understudy with the receiver's host and port in the allow-list, start the receiver, each in a terminal of its own, then subscribe the receiver. The `aws` commands run with `eval "$(understudy env)"` in effect:
 
 ```sh
 understudy serve --sns-http-delivery-allow 127.0.0.1:8080
@@ -73,7 +73,13 @@ cat Notification.json
 }
 ```
 
-The body has AWS's members, order and layout, and the headers are AWS's: `x-amz-sns-message-type`, `x-amz-sns-message-id`, `x-amz-sns-topic-arn`, `x-amz-sns-subscription-arn`, and `x-amz-sns-rawdelivery: true` for a subscription with `RawMessageDelivery`, whose body is the message alone. Credentials in the endpoint URL (`http://user:password@host/`) are sent as Basic authentication on every request. The links point at understudy, never at an AWS host: on the TLS listener while one serves ([below](#validating-signatures)), otherwise on the address the client that subscribed or published used. When that address is an AWS name, such as a compose alias `sns.us-east-1.amazonaws.com`, the links are on `localhost` at the port the client used instead; a receiver that cannot reach understudy as `localhost` confirms with `aws sns confirm-subscription --token`.
+The body has AWS's members, order and layout, and the headers are AWS's: `x-amz-sns-message-type`, `x-amz-sns-message-id`, `x-amz-sns-topic-arn`, `x-amz-sns-subscription-arn`, and `x-amz-sns-rawdelivery: true` for a subscription with `RawMessageDelivery`, whose body is the message alone. Credentials in the endpoint URL (`http://user:password@host/`) are sent as Basic authentication on every request.
+
+The links point at understudy, never at an AWS host:
+
+- While the TLS listener serves, they are on it ([Validating signatures](#validating-signatures)).
+- Otherwise they are on the address the client that subscribed or published used.
+- When that address is an AWS name, such as a compose alias `sns.us-east-1.amazonaws.com`, they are on `localhost` at the port the client used. A receiver that cannot reach understudy as `localhost` confirms with `aws sns confirm-subscription --token`.
 
 ## What the allow-list allows
 
@@ -198,7 +204,7 @@ UnsubscribeConfirmation.json The message signature is invalid.
 
 The UnsubscribeConfirmation fails because `sns-validator` 0.3.5 leaves its `Token` out of the string it checks, while AWS signs it with the `Token`. The validator rejects AWS's own UnsubscribeConfirmations the same way. understudy signs AWS's field list and does not change it to suit a validator.
 
-**PHP, `aws-php-sns-message-validator`.** Its pattern is tested against the host without a port: `new MessageValidator(null, '/^localhost$/')`. PHP must trust understudy's certificate, or the first argument must be a certificate client that fetches `SigningCertURL` trusting it. This page did not run the PHP validator; its arguments come from the validator's source.
+**PHP, `aws-php-sns-message-validator`.** Its pattern is tested against the host without a port: `new MessageValidator(null, '/^localhost$/')`. PHP must trust understudy's certificate, or the first argument must be a certificate client that fetches `SigningCertURL` trusting it. The PHP validator is untested against understudy; its arguments come from the validator's source.
 
 **Ruby, `Aws::SNS::MessageVerifier`.** It cannot validate understudy's messages: its host check is a fixed pattern of AWS host names. understudy never puts an AWS host in `SigningCertURL` to pass it, since a validator would then fetch AWS's real certificate.
 
@@ -237,4 +243,22 @@ A signed `aws sns unsubscribe` sends nothing to the endpoint.
 
 ## What is inferred
 
-HTTP delivery was recorded against AWS on 2026-11-03. Each behavior below is a fidelity switch. These match the recording: redirects not followed, identical retry bodies, the dead letter's form, no jitter, dropped messages while pending, the UnsubscribeConfirmation only for an unsigned unsubscribe, no dead letter for confirmations, and `headerContentType` applied to confirmations as to notifications. These differ from it, and are listed in [Differences from AWS](differences.md#sns): the status classes, the backoff curves other than linear, a repeated `Subscribe` resending the same token, and Basic credentials sent before any challenge. `understudy coverage --service sns --switches` lists them with the evidence behind each.
+HTTP delivery was recorded against AWS on 2026-11-03. Each behavior below is a fidelity switch, and `understudy coverage --service sns --switches` lists them with the evidence behind each.
+
+These match the recording:
+
+- redirects not followed
+- identical retry bodies
+- the dead letter's form
+- no jitter
+- dropped messages while pending
+- the UnsubscribeConfirmation only for an unsigned unsubscribe
+- no dead letter for confirmations
+- `headerContentType` applied to confirmations as to notifications
+
+These differ from it, and are listed in [Differences from AWS](differences.md#sns):
+
+- the status classes
+- the backoff curves other than linear
+- a repeated `Subscribe` resending the same token
+- Basic credentials sent before any challenge

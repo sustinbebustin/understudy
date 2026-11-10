@@ -31,7 +31,9 @@ A rule has a match, an action and a trigger.
 
 Each flag repeats to match more values; a rule with no match flags matches every call.
 
-S3 object calls (`GetObject`, `HeadObject`, `GetObjectAttributes`, `PutObject`, `CopyObject`, `DeleteObject`, the object multipart operations `CreateMultipartUpload`, `UploadPart`, `UploadPartCopy`, `CompleteMultipartUpload`, `AbortMultipartUpload` and `ListParts`, the object tagging operations, and each key of `DeleteObjects`) touch the object's ARN, `arn:aws:s3:::<bucket>/<key>`, not the bucket's; a copy touches its source object too. Match the objects of a bucket with `--resource 'arn:aws:s3:::my-bucket/*'`; `--resource arn:aws:s3:::my-bucket` matches bucket calls such as `ListObjectsV2`, `ListMultipartUploads` and `GetBucketTagging` only.
+S3 object calls touch the object's ARN, `arn:aws:s3:::<bucket>/<key>`, not the bucket's, and a copy touches its source object too. The object calls are `GetObject`, `HeadObject`, `GetObjectAttributes`, `PutObject`, `CopyObject`, `DeleteObject`, each key of `DeleteObjects`, the object tagging operations, and the multipart operations `CreateMultipartUpload`, `UploadPart`, `UploadPartCopy`, `CompleteMultipartUpload`, `AbortMultipartUpload` and `ListParts`.
+
+Match the objects of a bucket with `--resource 'arn:aws:s3:::my-bucket/*'`. `--resource arn:aws:s3:::my-bucket` matches only bucket calls, such as `ListObjectsV2`, `ListMultipartUploads` and `GetBucketTagging`.
 
 | Action | Flag | Effect |
 |---|---|---|
@@ -42,7 +44,7 @@ S3 object calls (`GetObject`, `HeadObject`, `GetObjectAttributes`, `PutObject`, 
 | Error in a 200 | `--status-ok SHAPE` | S3's `CopyObject`, `UploadPartCopy` and `CompleteMultipartUpload` only: a 200 response with an error body |
 | Drop | `--drop` | Delivery phase only: the target never receives the delivery |
 | HTTP status | `--http-status 503` | Delivery phase, `sns-to-http` only: the attempt gets this status (100 to 599) without contacting the endpoint |
-| HTTP timeout | `--http-timeout` | Delivery phase, `sns-to-http` only: the attempt ends as a timed-out exchange at once, without contacting the endpoint; its retry is scheduled from the end of the 15-second deadline, which on a running clock is 15 seconds after the attempt |
+| HTTP timeout | `--http-timeout` | Delivery phase, `sns-to-http` only: the attempt ends at once as a timed-out exchange, without contacting the endpoint. Its retry is scheduled from the end of the 15-second deadline |
 
 | Trigger | Flag |
 |---|---|
@@ -98,7 +100,7 @@ aws dynamodb transact-write-items --transact-items file://three-puts.json --cli-
 - Every reason needs a `Code`, and there are 1 to 100 of them. The error is not one the SDKs retry.
 - Reasons that are all `None` are refused. That guard is understudy's own: AWS is not known to cancel a transaction in which no item failed, but no recording settles it.
 - `--after-commit` cannot inject `TransactionCanceledException`, since a cancelled transaction changes nothing.
-- The top-level `Message` key follows the model's spelling and DynamoDB Local, and the bytes of a `None` reason follow the API reference and DynamoDB Local. On `ExecuteTransaction`, the message and reasons take the `TransactWriteItems` form. None of these is recorded from AWS yet.
+- The top-level `Message` key follows the model's spelling and DynamoDB Local, and the bytes of a `None` reason follow the API reference and DynamoDB Local. On `ExecuteTransaction`, the message and reasons take the `TransactWriteItems` form. None of these is recorded from AWS.
 
 ## Delivery faults
 
@@ -108,7 +110,17 @@ A delivery-phase rule acts on understudy's own deliveries between services rathe
 understudy faults add --phase delivery --mechanism sns-to-sqs --drop --next 1
 ```
 
-The mechanisms are `sns-to-sqs`, `sns-to-lambda`, `sns-to-http`, `s3-to-sqs`, `s3-to-sns`, `s3-to-lambda`, `events-to-lambda`, `events-to-sqs`, `events-to-sns`, `events-to-events` (an EventBridge rule's event bus target), and `lambda-to-sqs`, `lambda-to-sns`, `lambda-to-lambda`, `lambda-to-events` and `lambda-to-s3` (an asynchronous invocation's record to a destination, or its event to the function's dead-letter queue or topic), `esm-to-sqs` and `esm-to-sns` (a DynamoDB stream mapping's on-failure record), `cloudwatch-to-sns` and `cloudwatch-to-lambda` (a CloudWatch alarm's action), and `scheduler-to-lambda`, `scheduler-to-sqs`, `scheduler-to-events`, `scheduler-to-sns` and `scheduler-to-states` (an EventBridge Scheduler schedule's target). A request-phase rule with `--origin internal` fails the internal call itself instead, which drives the source's own retry policy: SNS retries a failed SQS delivery on its AWS schedule (on the [emulator clock](clock.md)) and then sends it to the subscription's dead-letter queue.
+| Mechanisms | Delivery |
+|---|---|
+| `sns-to-sqs`, `sns-to-lambda`, `sns-to-http` | An SNS subscription's delivery |
+| `s3-to-sqs`, `s3-to-sns`, `s3-to-lambda` | An S3 event notification |
+| `events-to-lambda`, `events-to-sqs`, `events-to-sns`, `events-to-events` | An EventBridge rule's target; `events-to-events` is an event bus target |
+| `lambda-to-sqs`, `lambda-to-sns`, `lambda-to-lambda`, `lambda-to-events`, `lambda-to-s3` | An asynchronous invocation's record to a destination, or its event to the function's dead-letter queue or topic |
+| `esm-to-sqs`, `esm-to-sns` | A DynamoDB or Kinesis stream mapping's [on-failure record](streams.md) |
+| `cloudwatch-to-sns`, `cloudwatch-to-lambda` | A CloudWatch alarm's action |
+| `scheduler-to-lambda`, `scheduler-to-sqs`, `scheduler-to-events`, `scheduler-to-sns`, `scheduler-to-states` | An EventBridge Scheduler schedule's target |
+
+A request-phase rule with `--origin internal` fails the internal call itself instead, which drives the source's own retry policy: SNS retries a failed SQS delivery on its AWS schedule (on the [emulator clock](clock.md)) and then sends it to the subscription's dead-letter queue.
 
 An HTTP endpoint is in no service, so a rule for `sns-to-http` sets no `--service`. `--http-status` and `--http-timeout` answer such an attempt without a receiver, which drives SNS's HTTP retry schedule ([SNS HTTP delivery](sns-http.md#retries-and-dead-letters)): a 429, a 5xx or a timeout is retried, and any other status is a permanent failure.
 
@@ -125,7 +137,7 @@ understudy faults add: fault rule rejected, no rule was added or changed: match.
 
 AWS SDKs retry throttling errors, 5xx errors and S3's error-in-a-200, and every retry is a call the rule counts. One client call can therefore use up a `--next 3` budget, or retry past a probability rule, and Terraform retries up to 25 times. `faults add` warns when a rule injects a retried error. To see the failure on the first attempt, inject an error the SDKs do not retry, such as `QueueDoesNotExist`.
 
-`--after-commit` and `--status-ok` run the handler before failing, so a retry runs it again against the state the first attempt changed: exactly the duplicate-write case worth testing.
+`--after-commit` and `--status-ok` run the handler before failing, so a retry runs it again against the state the first attempt changed. Use them to test duplicate writes.
 
 ## Managing rules
 

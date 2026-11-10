@@ -1,6 +1,6 @@
 # Configuration
 
-`understudy serve` reads its settings from four places, in this order of precedence: flags, then `UNDERSTUDY_*` environment variables, then a JSON configuration file, then the defaults. The file is `./understudy.json` when it exists, or the one `--config` (`UNDERSTUDY_CONFIG`) names. Every scalar setting has all three forms; a few sections, such as `lambda.hotReload` and `faults`, exist only in the file.
+`understudy serve` reads its settings from four places, in this order of precedence: flags, then `UNDERSTUDY_*` environment variables, then a JSON configuration file, then the defaults. The file is `./understudy.json` when it exists, or the one `--config` (`UNDERSTUDY_CONFIG`) names. Most settings have all three forms. The admin token has no flag, and a few sections, such as `lambda.hotReload` and `faults`, exist only in the file. [Every setting](#every-setting) lists each one with its names.
 
 Loading is strict. An unknown flag, variable or file key is refused with the closest valid name, and a value of the wrong shape says the shape it needs. A setting this build cannot apply yet is refused by name rather than ignored.
 
@@ -30,13 +30,18 @@ The region comes from the SigV4 credential scope. It must be an AWS region name,
 `--sigv4 verify` checks every signed request as AWS does, in the claimed service's own error words:
 
 - The key must have a secret. A key understudy minted has its own; an `accounts.keys` entry has the one it lists; the dummy key `test` and every 12-digit key have the secret `test`, so `AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test` and the account-selecting keys keep working. Any other key is refused as unknown: `UnrecognizedClientException` (JSON services), `InvalidClientTokenId` (Query services), `InvalidAccessKeyId` (S3).
-- Temporary credentials (an `ASIA` key from STS `AssumeRole` or a Lambda execution role) must send their session token and be unexpired: a missing or wrong token is `UnrecognizedClientException`, `InvalidClientTokenId` or `InvalidToken`; an expired key is `ExpiredTokenException`, `ExpiredToken` or, on S3, `ExpiredToken`. Expiry is judged on the wall clock, as STS stamps `Expiration`.
+- Temporary credentials (an `ASIA` key from STS `AssumeRole` or a Lambda execution role) must send their session token and be unexpired: a missing or wrong token is `UnrecognizedClientException` (JSON), `InvalidClientTokenId` (Query) or `InvalidToken` (S3); an expired key is `ExpiredTokenException` (JSON) or `ExpiredToken` (Query and S3). Expiry is judged on the wall clock, as STS stamps `Expiration`.
 - The signature must verify: header-signed SigV4, presigned SigV4 and S3's SigV2 header and presigned forms. A mismatch is `InvalidSignatureException` (JSON), `SignatureDoesNotMatch` (Query), or S3's `SignatureDoesNotMatch` with its signing-debug elements. A request time more than 15 minutes from the wall clock is refused.
 - The body is bound to the signature. S3 checks the streamed bodies of `PutObject` and `UploadPart` against `x-amz-content-sha256` as they arrive; understudy hashes every other body before the call runs. A body that differs from the hash it was signed with is refused (`XAmzContentSHA256Mismatch` on S3) and changes nothing.
-- Presigned S3 URLs expire on the emulator clock. A SigV4 URL lives `X-Amz-Expires` of emulator time from the moment it was signed, so a URL presigned after `understudy clock advance` lives its full lifetime, and advancing the clock past its expiry makes it answer 403 `AccessDenied` "Request has expired", whether the clock is running, frozen or scaled. `X-Amz-Date` has whole-second precision, so under `verify` a clock change takes effect for presigned URLs from the next whole second, and an admin answer given before then (the call that changed the clock, or any other) waits for it; only a URL signed while that call is in flight can be placed on the wrong side of the change. A SigV2 URL carries only its `Expires` instant, not when it was signed, so it is compared with emulator time directly and expires as intended only while the clock has not been moved away from wall time since it was signed; presign with SigV4 when a test moves the clock (boto3 presigns with SigV2 in `us-east-1` unless its client has `Config(signature_version="s3v4")`). Under `parse` a presigned URL never expires.
+- Presigned S3 URLs expire on the emulator clock. Under `parse` a presigned URL never expires.
+  - A SigV4 URL lives `X-Amz-Expires` of emulator time from the moment it was signed, whether the clock is running, frozen or scaled. A URL presigned after `understudy clock advance` lives its full lifetime, and advancing the clock past its expiry makes it answer 403 `AccessDenied` "Request has expired".
+  - `X-Amz-Date` has whole-second precision, so a clock change takes effect for presigned URLs from the next whole second. An admin answer given before then (the call that changed the clock, or any other) waits for it. Only a URL signed while that call is in flight can land on the wrong side of the change.
+  - A SigV2 URL carries only its `Expires` instant, not when it was signed, so it is compared with emulator time directly. It expires as intended only while the clock has not been moved away from wall time since it was signed. Presign with SigV4 when a test moves the clock; boto3 presigns with SigV2 in `us-east-1` unless its client has `Config(signature_version="s3v4")`.
 - Signed `aws-chunked` uploads (`STREAMING-AWS4-HMAC-SHA256-PAYLOAD` and its `-TRAILER` form) verify every chunk and trailer signature.
 
-A function URL refuses in the JSON services' words with status 403, as its front end answers its other refusals; that status for a signature it refuses is inferred from user reports, not recorded. A refused request is journaled as a failed call. Neither mode logs a secret or a session token. Credentials that cannot be read at all are refused in both modes, on every route. The one exception is an `Authorization` header in no AWS scheme, such as `Bearer`, sent to a function URL: it reaches the function unsigned, as AWS passes it to a function whose URL has `AuthType` `NONE`.
+A function URL refuses in the JSON services' words with status 403, as its front end answers its other refusals; that status for a signature it refuses is inferred from user reports, not recorded.
+
+A refused request is journaled as a failed call. Neither mode logs a secret or a session token. Credentials that cannot be read at all are refused in both modes, on every route. The one exception is an `Authorization` header in no AWS scheme, such as `Bearer`, sent to a function URL: it reaches the function unsigned, as AWS passes it to a function whose URL has `AuthType` `NONE`.
 
 ## Browser pages
 
@@ -48,7 +53,11 @@ Lambda and DynamoDB Local run on the Docker Engine `--docker` names, else `DOCKE
 
 A daemon on another host, such as a docker:dind CI service, is detected when the first container is needed: functions reach understudy at its own address on the daemon's network, so understudy must run on that network ([CI guide](guide/ci.md#docker-in-docker)). `understudy doctor` reports the daemon, its transport and the topology.
 
-`--docker-labels` (`UNDERSTUDY_DOCKER_LABELS`, file key `dockerLabels`) adds labels to every container understudy creates, function environments and DynamoDB Local, beside understudy's own `understudy.dev/` labels. `serve` creates no Docker network. The value is a JSON object of string values; the file takes the object itself or a string holding its text, and the source that sets it replaces the others whole. It is how a Testcontainers module that runs understudy in a container hands over the session's reaper labels, such as `{"org.testcontainers.session-id":"<id>"}`, so Ryuk also removes the containers understudy started when the test process dies. Keys under `understudy.dev/` are refused (`label key "understudy.dev/managed" is reserved for understudy's own labels; choose a key outside understudy.dev/`), so the sweeps and `understudy cleanup`, which select only those labels, remove what they did before.
+`--docker-labels` (`UNDERSTUDY_DOCKER_LABELS`, file key `dockerLabels`) adds labels to every container understudy creates, function environments and DynamoDB Local, beside understudy's own `understudy.dev/` labels. `serve` creates no Docker network.
+
+- The value is a JSON object of string values. The file takes the object itself or a string holding its text, and the source that sets it replaces the others whole.
+- A [Testcontainers module](guide/testcontainers-modules.md) that runs understudy in a container uses it to hand over the session's reaper labels, such as `{"org.testcontainers.session-id":"<id>"}`, so Ryuk also removes the containers understudy started when the test process dies.
+- Keys under `understudy.dev/` are refused (`label key "understudy.dev/managed" is reserved for understudy's own labels; choose a key outside understudy.dev/`), so the sweeps and `understudy cleanup`, which select only those labels, are unaffected.
 
 ## Outbound HTTP delivery
 
@@ -62,7 +71,12 @@ Each entry is `host:port`. The host is `localhost`, an IPv4 literal, a bracketed
 
 The source that sets the list replaces the others whole. A malformed entry, or one naming a host understudy never reaches, stops `serve` with exit code 2, naming the entry by its index from 0.
 
-A subscription's URL is allowed when its host, lowercased and without a trailing dot, equals an entry's host, and its port (80 for `http` and 443 for `https` when the URL names none) equals the entry's port or the entry's port is `*`; the scheme does not matter. The address is checked again once the name resolves, and the address checked is the one dialed:
+A subscription's URL is allowed when both of these hold; the scheme does not matter:
+
+- Its host, lowercased and without a trailing dot, equals an entry's host.
+- Its port (80 for `http` and 443 for `https` when the URL names none) equals the entry's port, or the entry's port is `*`.
+
+The address is checked again once the name resolves, and the address checked is the one dialed:
 
 - A `localhost` entry reaches only loopback.
 - An IP literal entry reaches that address.
@@ -82,14 +96,14 @@ While `--tls` serves, the `SubscribeURL`, `UnsubscribeURL` and `SigningCertURL` 
 |---|---|
 | 0 | success |
 | 1 | the operation failed |
-| 2 | usage error: fix the command line or the configuration |
+| 2 | usage error: fix the command line |
 | 3 | understudy is not reachable at the endpoint, or did not answer in time |
 | 4 | a condition was not met, such as `health --wait` or `settle` timing out |
 | 5 | the server refused the admin token (`UNDERSTUDY_ADMIN_TOKEN`) |
 
 ## Every setting
 
-This is what `understudy serve --help` prints under Flags. A test keeps it in step with the binary.
+This is what `understudy serve --help` prints under Flags.
 
 <!-- BEGIN serve --help -->
 ```text

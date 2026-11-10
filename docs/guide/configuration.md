@@ -12,7 +12,7 @@ An unknown flag, variable or key is refused with the closest valid name, and `se
 understudy serve: config: understudy.json: listn: is not a configuration key; the closest valid name is listen; fix or remove the key
 ```
 
-A setting this build cannot apply yet, such as `s3.maxObjectBytes`, is refused by name rather than ignored.
+A setting this build does not support, such as `s3.maxObjectBytes`, is refused by name rather than ignored.
 
 ## A configuration file
 
@@ -94,6 +94,6 @@ A few behaviors are file settings, because AWS's own behavior would slow tests d
 | `s3.crossRegion` | `aws`, `lenient` | `aws` refuses a bucket request signed for another region, as AWS does; `lenient` serves it and journals a warning |
 | `lambda.stateTransitions` | `final`, `clock` | `final` makes functions `Active` before the call returns; `clock` restores `Pending` and `InProgress` on the emulator clock, for SDK waiter tests |
 | `sqs.queueDeletedRecently` | `ignore`, `enforce` | `ignore` frees a deleted queue's name at once; `enforce` refuses re-creating it for 60 seconds, as AWS does |
-| `iam.assumeRole` | `strict`, `lenient` | `strict` refuses `AssumeRole` for a role that does not exist; `lenient` allows it; also `--iam-assume-role`; under `--iam-enforce enforce` such a role is denied whatever this says |
+| `iam.assumeRole` | `strict`, `lenient` | `strict` refuses `AssumeRole` for a role that does not exist; `lenient` allows it. Under `--iam-enforce enforce` such a role is denied whatever this says |
 
-`understudy coverage --switches` lists every fidelity switch, these last three among them, with its value and the evidence behind it. `s3.crossRegion` is a configuration setting only and is not listed there.
+`iam.assumeRole` is also the flag `--iam-assume-role`. `understudy coverage --switches` lists every fidelity switch, the last three above among them, with its value and the evidence behind it. `s3.crossRegion` is a configuration setting only and is not listed there.

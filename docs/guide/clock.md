@@ -1,6 +1,18 @@
 # The clock
 
-Every time-based behavior in understudy runs on one emulator clock: SQS visibility timeouts, delays and retention, SNS and EventBridge delivery retries, Lambda batching windows and asynchronous retries, EventBridge rule schedules, EventBridge Scheduler schedules and their retries, CloudWatch alarm evaluation, DynamoDB TTL, Secrets Manager and KMS deletion windows, log retention, S3 presigned URL expiry (under `--sigv4 verify`, SigV4 URLs only, see [Signature verification](../configuration.md#signature-verification); without `verify` a presigned URL never expires), S3 Object Lock retention ([example](sdks.md#s3-sse-c-and-object-lock)), and the timestamps the APIs return. You can stop it, move it forward, or speed it up. A test keeps AWS's real settings (a 30-second visibility timeout, a 15-minute delay, a 7-day deletion window) and still finishes in milliseconds.
+Every time-based behavior in understudy runs on one emulator clock. You can stop it, move it forward, or speed it up, so a test keeps AWS's real settings (a 30-second visibility timeout, a 15-minute delay, a 7-day deletion window) and still finishes in milliseconds.
+
+The clock drives:
+
+- SQS visibility timeouts, delays and retention
+- SNS and EventBridge delivery retries
+- Lambda batching windows and asynchronous retries
+- EventBridge rule schedules, and EventBridge Scheduler schedules and their retries
+- CloudWatch alarm evaluation
+- DynamoDB TTL, log retention, and Secrets Manager and KMS deletion windows
+- S3 Object Lock retention ([example](sdks.md#s3-sse-c-and-object-lock))
+- S3 presigned URL expiry under `--sigv4 verify`; without `verify` a presigned URL never expires ([Signature verification](../configuration.md#signature-verification) covers SigV2 URLs)
+- the timestamps the APIs return
 
 ## Commands
 
@@ -68,7 +80,9 @@ fired 8 timer(s):
 settled: no tracked work is pending
 ```
 
-A rate schedule without a start date fires once when it is created, so the queue then holds five messages. Fires that come due while understudy is stopped are skipped after a restart or snapshot load, with an `advisory` in the journal; an application that builds an `at()` from its own wall clock sees it fire on emulator time. [EventBridge Scheduler](eventbridge-scheduler.md) has the details.
+A rate schedule without a start date fires once when it is created, so the queue then holds five messages.
+
+Fires that come due while understudy is stopped are skipped after a restart or snapshot load, with an `advisory` in the journal. An application that builds an `at()` from its own wall clock sees it fire on emulator time. [EventBridge Scheduler](eventbridge-scheduler.md) has the details.
 
 ## CloudWatch alarms
 
@@ -121,7 +135,9 @@ aws cloudwatch describe-alarm-history --alarm-name high-load --query 'AlarmHisto
 2026-10-30T12:01:00+00:00	Alarm updated from INSUFFICIENT_DATA to ALARM
 ```
 
-`set-alarm-state` holds only until the next evaluation recomputes the state, as on AWS. To keep a set state on a clock that runs, give the alarm `--treat-missing-data ignore` and no data. An alarm with `--extended-statistic`, `--metrics`, a threshold metric, evaluation criteria or a wall-clock window is stored and never evaluated, and the journal says so with an `alarm-not-evaluated` advisory.
+`set-alarm-state` holds only until the next evaluation recomputes the state, as on AWS. To keep a set state on a clock that runs, give the alarm `--treat-missing-data ignore` and no data.
+
+An alarm with `--extended-statistic`, `--metrics`, a threshold metric, evaluation criteria or a wall-clock window is stored and never evaluated, and the journal says so with an `alarm-not-evaluated` advisory.
 
 Two things differ from an alarm on AWS:
 
@@ -134,7 +150,7 @@ Two things differ from an alarm on AWS:
 understudy serve --clock frozen@2026-01-01T00:00:00Z
 ```
 
-`--clock frozen` freezes at the current time, and `--clock-scale 60` starts scaled. The [configuration file](configuration.md) key is `clock`, the variable `UNDERSTUDY_CLOCK`.
+`--clock frozen` freezes at the current time, and `--clock-scale 60` starts scaled instead. The variables are `UNDERSTUDY_CLOCK` and `UNDERSTUDY_CLOCK_SCALE`, and the [configuration file](configuration.md) keys `clock` and `clockScale`.
 
 ## From a test
 

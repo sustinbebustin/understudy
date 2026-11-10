@@ -45,7 +45,7 @@ Two saves with calls between them also differ in the manifest's counters, which 
 
 Loading replaces all state, stops running Lambda environments, and sets the clock to the snapshot's time, even if that is earlier. DynamoDB tables are exported through DynamoDB Local when the snapshot is saved and re-created from the archive when it is loaded.
 
-Every archive is capped at 1 GiB counted decompressed, so a save that would pass the cap is refused with nothing saved and a larger archive is refused on load, at start or under `--persist`; raise the cap up to 4 GiB with `serve --snapshot-max-bytes` (`UNDERSTUDY_SNAPSHOT_MAX_BYTES`, file key `snapshotMaxBytes`).
+An archive is capped at 1 GiB, counted decompressed. A save that would pass the cap is refused with nothing saved, and a larger archive is refused on load, at start or under `--persist`. Raise the cap up to 4 GiB with `serve --snapshot-max-bytes` (`UNDERSTUDY_SNAPSHOT_MAX_BYTES`, file key `snapshotMaxBytes`).
 
 ## Snapshots as fixtures
 
@@ -55,7 +55,9 @@ Build an expensive state once (a Terraform apply, a seeded dataset), save it, an
 understudy serve --load-snapshot fixtures/base.tar
 ```
 
-or load it between tests with `understudy snapshot load`. The format is version 0 until the first release: an archive whose service sections were written by a different schema version is refused with a message naming both versions, rather than loaded wrongly.
+or load it between tests with `understudy snapshot load`.
+
+The archive format is version 0 until the first release. An archive whose service sections were written by a different schema version is refused with a message naming both versions, never loaded wrongly.
 
 ## Persistence across restarts
 

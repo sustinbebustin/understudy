@@ -1,6 +1,6 @@
 # CI
 
-understudy suits CI: it starts in milliseconds, needs no account, token or network beyond Docker image pulls, and leaves nothing behind when the job ends. The pattern is the same on every CI system: start it in the background, wait for it, export the environment, warm the images, run the tests, and keep the evidence when they fail.
+In CI, understudy starts in milliseconds, needs no account, token or network beyond Docker image pulls, and leaves nothing behind when the job ends. The steps are the same on every CI system: start it in the background, wait for it, export the environment, warm the images, run the tests, and keep the evidence when they fail.
 
 ## The steps
 
@@ -24,7 +24,7 @@ understudy journal --errors --output json > "$RUNNER_TEMP/journal-errors.ndjson"
 understudy snapshot save "$RUNNER_TEMP/state.tar.gz"
 ```
 
-`settle` waits until no delivery, invocation or poll is pending, and exits 4 naming what is still running if the timeout passes. The journal lines and the snapshot are worth uploading as artifacts: `understudy snapshot inspect` and `snapshot load` reproduce the failing state on a laptop.
+`settle` waits until no delivery, invocation or poll is pending, and exits 4 naming what is still running if the timeout passes. Upload the journal lines and the snapshot as artifacts: `understudy snapshot inspect` and `snapshot load` reproduce the failing state on a laptop.
 
 ## GitHub Actions
 
@@ -56,7 +56,9 @@ Either give each job its own server on a free port:
 understudy serve --listen 127.0.0.1:0 --ready-file ready.json
 ```
 
-and read the endpoint from `ready.json` once it appears (`{"endpoint": "http://127.0.0.1:40937", "pid": 1749456}`), passing it to the CLI as `UNDERSTUDY_ENDPOINT`. Or share one server and give each job its own account with a 12-digit access key (`understudy env --account 100000000001`): accounts never see each other's resources.
+Read the endpoint from `ready.json` once it appears (`{"endpoint": "http://127.0.0.1:40937", "pid": 1749456}`), and pass it to the CLI as `UNDERSTUDY_ENDPOINT`.
+
+Or share one server and give each job its own account with a 12-digit access key (`understudy env --account 100000000001`): accounts never see each other's resources.
 
 Go test suites can skip the server process entirely with [`understudytest`](sdks.md#go-tests-with-understudytest), which starts one in-process emulator per test.
 
@@ -66,7 +68,12 @@ Run the image as a service next to the application, with the port published on l
 
 ## Docker-in-Docker
 
-Where the job's Docker is a `docker:dind` service, point `DOCKER_HOST` at it as for the Docker CLI. Without TLS (`DOCKER_TLS_CERTDIR` empty on the service) that is `tcp://docker:2375`; with dind's default TLS, set `DOCKER_HOST=tcp://docker:2376`, `DOCKER_TLS_VERIFY=1` and `DOCKER_CERT_PATH` to the client certificates the service writes to `/certs/client`, which the runner shares with the job (GitLab's `volumes = ["/certs/client"]` runner setting). In GitLab CI, with an image that has `understudy` on its `PATH`:
+Where the job's Docker is a `docker:dind` service, point `DOCKER_HOST` at it as for the Docker CLI:
+
+- Without TLS (`DOCKER_TLS_CERTDIR` empty on the service), set `DOCKER_HOST=tcp://docker:2375`.
+- With dind's default TLS, set `DOCKER_HOST=tcp://docker:2376`, `DOCKER_TLS_VERIFY=1` and `DOCKER_CERT_PATH` to the client certificates the service writes to `/certs/client`, which the runner shares with the job (GitLab's `volumes = ["/certs/client"]` runner setting).
+
+In GitLab CI, with an image that has `understudy` on its `PATH`:
 
 ```yaml
 test:

@@ -1,6 +1,6 @@
 # Differences from AWS
 
-Recordings of real AWS (`testdata/parity/<service>/<item>/`, each item's `notes.md` lists every field compared) show where understudy still answers differently. This page lists those differences by service, with what you will observe and a workaround where one exists. A capture path after an item is relative to `testdata/parity/`. Behavior no recording covers yet is labelled per item on the [coverage page](../coverage.md), and operations understudy does not implement answer 501.
+Recordings of real AWS (`testdata/parity/<service>/<item>/`, each item's `notes.md` lists every field compared) show where understudy answers differently. This page lists those differences by service, with what you will observe and a workaround where one exists. A capture path after an item is relative to `testdata/parity/`. Behavior no recording covers yet is labelled per item on the [coverage page](../coverage.md), and operations understudy does not implement answer 501.
 
 Most differences are in error texts, codes and response details, not in the happy path. A test that asserts an exact AWS error message is the kind most likely to see one.
 
@@ -50,7 +50,7 @@ Most differences are in error texts, codes and response details, not in the happ
 
 ## Event patterns and filter policies
 
-SNS filter policies, EventBridge event patterns and Lambda event source mapping filters share one matching engine. Where AWS's answer was unrecorded, understudy chose one and labelled it a fidelity switch (`understudy coverage` lists them); the recordings settled some differently.
+SNS filter policies, EventBridge event patterns and Lambda event source mapping filters share one matching engine. Where AWS's answer is unrecorded, understudy chose one and labelled it a fidelity switch (`understudy coverage --switches` lists them). Most items below are where a recording contradicts that choice.
 
 - `exactly` is accepted by all three on AWS; understudy refuses it as an unknown operator (`events/R14/H14-*.json`, `sns/R09/H7b-*-subscribe.json`).
 - SNS accepts `equals-ignore-case` under `anything-but`, `prefix` and `suffix` on AWS; understudy refuses them. `{"anything-but":{"prefix":false}}` is "Value of anything-but must be an array or single string/number value." on AWS (`sns/R09/H7b-*-subscribe.json`).
@@ -124,7 +124,7 @@ understudy forwards DynamoDB to DynamoDB Local, so its answers carry Local's beh
 
 ## Kinesis
 
-No recording of Kinesis exists yet, so this page lists no Kinesis difference. What understudy answers that AWS's documentation does not fix, such as most error texts, is labelled per operation on the coverage page, and what it does not do is under [Kinesis limitations](streams.md#kinesis-limitations).
+The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-kinesis.json`), so this page lists no Kinesis difference. What understudy answers that AWS's documentation does not fix, such as most error texts, is labelled per operation on the coverage page, and what it does not do is under [Kinesis limitations](streams.md#kinesis-limitations).
 
 ## Lambda
 
@@ -140,8 +140,17 @@ No recording of Kinesis exists yet, so this page lists no Kinesis difference. Wh
 - A layer version whose last permission statement was removed answers 404 "Layer version <arn> does not have any resource policy." on AWS; understudy answers "No policy is associated with the given resource." (`lambda/LDL-15/06-policy-emptied.json`).
 - `ListLayers` and `ListLayerVersions` items carry `"Description":null`, `"State":null` and `"NextMarker":null` on AWS; understudy leaves unset members out (`lambda/LDL-11/`).
 - Mapping filters: see [Event patterns and filter policies](#event-patterns-and-filter-policies).
-- Asynchronous invocation: a record or dead letter that cannot be delivered is journaled `dropped` with the metric AWS counts it in, `DestinationDeliveryFailures` or `DeadLetterErrors`, and not retried; whether AWS retries is unrecorded. Under the default `--iam-enforce off`, the execution role's permission to reach a destination is not checked and no advisory is journaled for it, nor is a destination's or dead-letter queue's resource policy consulted when it is in another account than the function; under `advise` and `enforce` both are evaluated as the execution role's call. A discarded event with neither an on-failure destination nor a dead-letter queue is only logged.
-- Layers: only layer versions published to understudy exist. An AWS-published layer, such as Powertools or an `awslayer` ARN, is refused with AWS's "Layer version <arn> does not exist." followed by why; publish its content to understudy instead. Another account's layer attaches without a grant from its owner, where AWS refuses it; understudy journals an advisory. The layer operations accept another account's layer ARN as `LayerName` or `Arn` and act in that account with no check and no advisory: publishing, deleting and changing the permissions of its versions, and reading versions its policy does not grant. AWS lets another account only read a version its policy grants (by a test's unrecorded comment, so unverified). `Content.Location` is a link understudy serves the archive at, not a presigned S3 URL. `S3ObjectStorageMode REFERENCE` copies the archive as `COPY` does, the account's code-storage quota is not enforced, and layers are never signed. Two layers with a file and a directory at the same path fail the invoke, since what AWS does is unrecorded.
+- Asynchronous invocation:
+  - A record or dead letter that cannot be delivered is journaled `dropped` with the metric AWS counts it in, `DestinationDeliveryFailures` or `DeadLetterErrors`, and not retried; whether AWS retries is unrecorded.
+  - Under the default `--iam-enforce off`, the execution role's permission to reach a destination is not checked and no advisory is journaled for it, nor is a destination's or dead-letter queue's resource policy consulted when it is in another account than the function. Under `advise` and `enforce` both are evaluated as the execution role's call.
+  - A discarded event with neither an on-failure destination nor a dead-letter queue is only logged.
+- Layers:
+  - Only layer versions published to understudy exist. An AWS-published layer, such as Powertools or an `awslayer` ARN, is refused with AWS's "Layer version <arn> does not exist." followed by why; publish its content to understudy instead.
+  - Another account's layer attaches without a grant from its owner, where AWS refuses it; understudy journals an advisory.
+  - The layer operations accept another account's layer ARN as `LayerName` or `Arn` and act in that account with no check and no advisory: publishing, deleting and changing the permissions of its versions, and reading versions its policy does not grant. That AWS lets another account only read a version its policy grants is unverified.
+  - `Content.Location` is a link understudy serves the archive at, not a presigned S3 URL.
+  - `S3ObjectStorageMode REFERENCE` copies the archive as `COPY` does, the account's code-storage quota is not enforced, and layers are never signed.
+  - Two layers with a file and a directory at the same path fail the invoke, since what AWS does is unrecorded.
 - A runtime's base image is pulled on a zip function's first invoke, not at `CreateFunction`; `understudy images pull` pulls them ahead.
 - `EphemeralStorage` is not enforced: `/tmp` is an unsized volume.
 - Data written to `/tmp` counts against the function's memory until the host writes it to disk. On a host with a slow disk, such as a GitHub-hosted runner, a function that writes a file close to or larger than its memory size without syncing can end in `Runtime.OutOfMemory` where Lambda succeeds. Syncing as it writes (`fsync`), or a larger `MemorySize`, avoids it.
@@ -156,7 +165,7 @@ No recording of Kinesis exists yet, so this page lists no Kinesis difference. Wh
 
 ### Function URL refusals
 
-Under `--sigv4 verify`, an `AWS_IAM` function URL refuses credentials with 403 and a JSON body (`{"message": ...}`), as AWS's front end answers its other refusals. That a refused signature is 403 rests on user reports, not a recording. The Lambda API itself answers auth failures with 400, as the other JSON services do, until recorded.
+Under `--sigv4 verify`, an `AWS_IAM` function URL refuses credentials with 403 and a JSON body (`{"message": ...}`), as AWS's front end answers its other refusals. That a refused signature is 403 rests on user reports, not a recording. The Lambda API itself answers auth failures with 400, as the other JSON services do; AWS's status is unrecorded.
 
 ## EventBridge
 
@@ -166,7 +175,7 @@ Under `--sigv4 verify`, an `AWS_IAM` function URL refuses credentials with 403 a
 
 Custom buses take rules, targets, tags and `PutEvents` as the default bus does, and an event bus target forwards an event one hop, as on AWS. Their differences:
 
-- Bus policies are stored and returned in `DescribeEventBus`'s `Policy`, not enforced. On AWS a bus takes another account's events only when its policy allows that account; understudy delivers them whatever the policy says. Here account 111111111111's `PutEvents`, which the policy does not allow, answers an `EventId` and no failed entry:
+- Under the default `--iam-enforce off`, a bus policy is stored and returned in `DescribeEventBus`'s `Policy`, not evaluated. On AWS a bus takes another account's events only when its policy allows that account; understudy delivers them whatever the policy says. Under `advise` each denial is journaled, and under `enforce` the call is refused ([Policy generation](policy.md#deliveries)). Under `off`, account 111111111111's `PutEvents`, which the policy does not allow, answers an `EventId` and no failed entry:
 
   ```sh
   aws events create-event-bus --name orders
@@ -197,7 +206,16 @@ Custom buses take rules, targets, tags and `PutEvents` as the default bus does, 
 - An event bus target in the rule's own account without a `RoleArn` is accepted. AWS refuses the `PutTargets` call with `ValidationException` "RoleArn is required for target <bus ARN>."
 - AWS writes EventBridge response members sorted by name; understudy writes them in the model's order. JSON clients do not depend on the order.
 - Partner event buses (`CreateEventBus` with `EventSourceName`), archives, replays, connections, API destinations and global endpoints answer 501 `NotImplemented`.
-- Each bus behavior below is a fidelity switch (`understudy coverage --service eventbridge --switches`). Most are now recorded against AWS: `DeleteEventBus` on a bus with rules is refused with `ValidationException` "EventBus can't be deleted since it has rules."; `UpdateEventBus` keeps the members it leaves out; `ListEventBuses` sorts by name, the default bus among the rest; the default bus's `CreationTime` is the first EventBridge write in its account and Region, and until a write, each call reports its own instant; an event forwarded to a bus in the same account and Region keeps its `id`, `time` and `resources`; `PutTargets` accepts an event bus that does not exist; removing a bus's last statement removes its `Policy`, and `RemovePermission` with `RemoveAllPermissions` on a bus without one succeeds. Unrecorded: an event forwarded to a bus that does not exist is dropped as `PutEvents` drops one.
+- Each bus behavior below is a fidelity switch (`understudy coverage --service eventbridge --switches`). These follow recordings of AWS:
+  - `DeleteEventBus` on a bus with rules is refused with `ValidationException` "EventBus can't be deleted since it has rules."
+  - `UpdateEventBus` keeps the members it leaves out.
+  - `ListEventBuses` sorts by name, the default bus among the rest.
+  - The default bus's `CreationTime` is the first EventBridge write in its account and Region; until a write, each call reports its own instant.
+  - An event forwarded to a bus in the same account and Region keeps its `id`, `time` and `resources`.
+  - `PutTargets` accepts an event bus that does not exist.
+  - Removing a bus's last statement removes its `Policy`, and `RemovePermission` with `RemoveAllPermissions` on a bus without one succeeds.
+
+  Unrecorded: an event forwarded to a bus that does not exist is dropped as `PutEvents` drops one.
 
 ## API Gateway HTTP APIs
 
@@ -207,11 +225,11 @@ HTTP APIs were recorded against AWS on 2026-11-03 (`testdata/parity/apigatewayv2
 - `ApiEndpoint` names understudy (`http://<api-id>.execute-api.<region>.localhost:<port>`). Terraform's `invoke_url` still names `amazonaws.com`, and its `execution_arn` has no account under the provider block in [terraform.md](terraform.md).
 - Where AWS's answer is unrecorded, understudy chose one, each a fidelity switch (`understudy coverage --service apigatewayv2 --switches`): an unknown API id and another region's host answer 403 (on AWS the host does not resolve); `HEAD` reaches only `HEAD` and `ANY` routes; of two `{name+}` routes, the one with more segments before its variable wins.
 - AWS answers a body over 10 MiB and headers over 10 KB from a layer in front of the gateway (413 and 431, with neither `Content-Type` nor `apigw-requestid`); understudy answers a body over 10,000,000 bytes with the gateway's 413 and does not limit headers. That cap reads the documented 10 MB as decimal; AWS's exact cap is unrecorded, since any body near it is already over Lambda's 6 MB event limit and gets the same 413.
-- A 1.0 event's header names keep their case as AWS's do (`X-Forwarded-For`, `User-Agent`; `accept` lower case), against AWS's documentation, which says they are lowercased. understudy reads the request through Go's HTTP server, which canonicalizes names, so a client that sends `x-custom` sees `X-Custom` where AWS would report `x-custom`.
+- AWS passes a 1.0 event's header names in the case the client sent (`X-Forwarded-For`, `User-Agent`; `accept` lower case), although its documentation says they are lowercased. understudy reads the request through Go's HTTP server, which canonicalizes names, so a client that sends `x-custom` sees `X-Custom` where AWS would report `x-custom`.
 
 ## API Gateway REST APIs
 
-REST APIs were recorded against AWS on 2026-11-03 (`testdata/parity/apigateway/APIGW1/`), beside LocalStack's recordings of AWS, which tests replay; where both are silent, understudy chose, and the coverage notes name each choice. [REST APIs](apigateway.md#rest-apis) shows the commands.
+REST APIs were recorded against AWS on 2026-11-03 (`testdata/parity/apigateway/APIGW1/`). understudy follows those recordings and LocalStack's recordings of AWS, which tests replay. Where both are silent, understudy chose, and the coverage notes name each choice. [REST APIs](apigateway.md#rest-apis) shows the commands.
 
 - Validation texts are AWS's where recorded (the resource rules, the model and integration URI checks, stage names, the stage patch paths, deployments) and understudy's elsewhere. An `AccessDeniedException` body carries `message` where AWS sends `Message`.
 - There is no `amazonaws.com` invoke URL. Call an API at `http://<api-id>.execute-api.<region>.localhost:<port>/<stage>/` or `/_understudy/execute-api/<api-id>/<stage>/`; Terraform's `invoke_url` names `amazonaws.com`, and its `execution_arn` has no account under the provider block in [terraform.md](terraform.md).
@@ -223,7 +241,7 @@ REST APIs were recorded against AWS on 2026-11-03 (`testdata/parity/apigateway/A
 
 ## Step Functions
 
-understudy's Step Functions behavior comes from a 2026-11-03 recording session against AWS (`testdata/parity/sfn/`), AWS's documentation, and LocalStack's recordings of AWS, which the history tests replay event by event; where all are silent, understudy chose, and each choice is named in the coverage notes with the recording case that will settle it. [Step Functions](stepfunctions.md) shows the commands.
+Step Functions was recorded against AWS on 2026-11-03 (`testdata/parity/sfn/`). understudy follows those recordings, AWS's documentation, and LocalStack's recordings of AWS, which the history tests replay event by event. Where all are silent, understudy chose, and the coverage notes name each choice with the recording case that would settle it. [Step Functions](stepfunctions.md) shows the commands.
 
 - Error and diagnostic texts are AWS's where recorded and understudy's elsewhere. A definition's problems are all reported, joined as AWS joins them; a role whose trust policy does not allow `states.amazonaws.com` is refused under `--iam-enforce enforce` in understudy's words, where AWS checks no trust at create. Compare codes, not messages.
 - JSON member order: AWS writes a success body's members in alphabetical order (`diagnostics`, `result`, `truncated`) and nests a `__type` in some members; understudy writes the model's order. A client that decodes the JSON is unaffected (`sfn/ASL-01/01-missing-next.json`).
@@ -237,7 +255,7 @@ understudy's Step Functions behavior comes from a 2026-11-03 recording session a
 
 ## EventBridge Scheduler
 
-understudy recorded Scheduler against AWS on 2026-11-03 (scheduler.md section 15). Its refusal texts, read shapes, payloads and dead letters follow that recording; where it is silent, understudy chose, and each choice is named in the coverage notes (`understudy coverage --service scheduler`) or is a fidelity switch (`--switches`). [EventBridge Scheduler](eventbridge-scheduler.md) shows the commands.
+Scheduler was recorded against AWS on 2026-11-03 (`testdata/parity/scheduler/SCH/`; [the research note](../research/scheduler.md) describes each case). understudy's refusal texts, read shapes, payloads and dead letters follow that recording. Where it is silent, understudy chose, and each choice is named in the coverage notes (`understudy coverage --service scheduler`) or is a fidelity switch (`--switches`). [EventBridge Scheduler](eventbridge-scheduler.md) shows the commands.
 
 - Refusal texts are AWS's where recorded: the expression, time zone, window, date, target, input, group and role refusals, and `Schedule <name> does not exist.`. Texts that remain understudy's own include the 500-group quota, a foreign `NextToken`, a role ARN that is not a role, a target ARN that is not an ARN or names the wrong resource, and an event bus in another Region or without `EventBridgeParameters`. Compare codes, not messages, for those.
 - AWS checks a universal (`aws-sdk`) target's `Input` against the API at create ("Invalid RequestJson provided. ..."); understudy does not.
@@ -246,7 +264,9 @@ understudy recorded Scheduler against AWS on 2026-11-03 (scheduler.md section 15
 - A deleted group is gone at once; AWS keeps it `DELETING` for a few seconds, and refuses a schedule created in it then.
 - Unrecorded timing, each a choice: a FLEXIBLE window delays each invocation by a seeded whole-second offset (`scheduler.flexible-window.offset`); an update that leaves the expression, zone, dates, window and `State` unchanged keeps its next fire, and any other update restarts the plan at the write instant. AWS delivers 3 to 41 seconds after the scheduled time; understudy delivers at it.
 - Unrecorded delivery details, each a choice: one execution id covers an invocation and its retries; a dead letter's body for a target other than SQS is the payload after substitution; a Step Functions execution is named after the invocation's execution id; `DELETE` removes a schedule in the write that hands its last invocation over, before any retry.
-- `KmsKeyArn` is stored and echoed; the payload is not encrypted. AWS accepted a key that does not exist at create; under `--iam-enforce enforce` understudy evaluates the caller's `kms:DescribeKey`, `kms:GenerateDataKey` and `kms:Decrypt` at create and update, and the execution role's `kms:Decrypt` before each invocation, against identity policies and the key's policy, and a key understudy's KMS does not hold allows nothing, so create the key in understudy first. A repeated create with the same `ClientToken` is a conflict, as on AWS. No `AWS/Scheduler` metrics are published.
+- `KmsKeyArn` is stored and echoed; the payload is not encrypted. AWS accepted a key that does not exist at create. Under `--iam-enforce enforce` understudy evaluates the caller's `kms:DescribeKey`, `kms:GenerateDataKey` and `kms:Decrypt` at create and update, and the execution role's `kms:Decrypt` before each invocation, against identity policies and the key's policy. A key understudy's KMS does not hold allows nothing, so create the key in understudy first.
+- A repeated create with the same `ClientToken` is a conflict, as on AWS.
+- No `AWS/Scheduler` metrics are published.
 - Fires that came due while understudy was stopped are skipped after a restart or snapshot load, each schedule journaling one `advisory`; AWS has no such gap. A `DELETE` schedule the skip leaves with no invocation, such as a past-due `at()`, is deleted then, not invoked.
 
 ## CloudWatch and CloudWatch Logs
@@ -264,7 +284,7 @@ understudy recorded Scheduler against AWS on 2026-11-03 (scheduler.md section 15
 
 ## SES
 
-SES was recorded against AWS on 2026-11-03 from a sandbox account with no verified sender (`testdata/parity/ses/SES-*`), so the answers to sends that pass the sender check are still unrecorded and labelled per item on the [coverage page](../coverage.md#ses). Recorded differences:
+SES was recorded against AWS on 2026-11-03 from a sandbox account with no verified sender (`testdata/parity/ses/SES-*`), so the answers to sends that pass the sender check are unrecorded and labelled per item on the [coverage page](../coverage.md#ses). Recorded differences:
 
 - An unknown v1 `Action` is `InvalidAction` in the `http://webservices.amazon.com/AWSFault/2005-15-09` namespace, "Could not find operation FooBar for version 2010-12-01", on AWS; understudy answers the SES namespace and "The action FooBar is not valid for this endpoint." (`ses/SES-24/01-v1-unknown.json`). An unknown v2 path is a 404 with the body `<UnknownOperationException/>` and no `Content-Type` on AWS; understudy answers `sesv2`'s JSON unknown operation (`ses/SES-24/02-v2-unknown.json`).
 - `ConfigurationSetName` naming a missing set is `ConfigurationSetDoesNotExist` "Configuration set <name> does not exist.", checked before the sender, on AWS; understudy answers 501, since configuration sets are not implemented (`ses/SES-17/02-unverified.json`).
@@ -280,7 +300,7 @@ By design:
 - A raw message is recorded as received, without the `Message-ID` and `Date` headers SES would substitute.
 - `MaxSendRate` is reported but not enforced.
 - A templated send renders only `{{name}}` and dotted paths; any other Handlebars construct, a value the data lacks and a value whose rendering on SES is unrecorded leave their part unrendered and are listed as render gaps, where AWS would render the part or, for a rendering failure, drop the mail after accepting it ([SES](ses-email.md#templated-sends)).
-- Texts not yet recorded, and so possibly different from AWS's: a send's invalid-address answers other than an empty `Source`, recipient-count answers, the daily quota error, and the production quota values -1 and 14. The order of the identities in the unverified-identity `MessageRejected` text follows a rule inferred from two recorded lists (`ses/SES-03`).
+- Unrecorded, and so possibly different from AWS's: a send's invalid-address answers other than an empty `Source`, recipient-count answers, the daily quota error, and the production quota values -1 and 14. The order of the identities in the unverified-identity `MessageRejected` text follows a rule inferred from two recorded lists (`ses/SES-03`).
 - A v2 `SendEmail` with `EndpointId`, which the SDKs sign with SigV4A, answers `sesv2`'s unknown operation, since understudy does not accept SigV4A; AWS would route it to a multi-region endpoint.
 
 ## KMS, Secrets Manager, IAM and STS
@@ -317,7 +337,7 @@ Real AWS was recorded for SSM on 2026-11-03 (`testdata/parity/ssm/`), and unders
 These apply to every service; S3's own refusals are under [S3 auth](#s3-auth).
 
 - Under `--sigv4 verify`, SQS's JSON protocol refuses a request signed outside the 15-minute window with 403, as recorded (`sqs/R18/03-sqs-json-skew-16min.json`); its status for a wrong signature or an unknown key is not recorded, and understudy answers those 400, as DynamoDB does.
-- Header-signed requests are not refused for leaving an `x-amz-*` header unsigned, as AWS refuses them, until the SDK conformance runs confirm every SDK signs those headers. Presigned requests are checked.
+- Header-signed requests are not refused for leaving an `x-amz-*` header unsigned, as AWS refuses them, because it is not confirmed that every SDK signs those headers. Presigned requests are checked.
 - A SigV2 presigned URL carries only its expiry instant, so it expires as intended only while the emulator clock stays at wall time; presign with SigV4 when a test moves the clock ([Signature verification](../configuration.md#signature-verification)).
 - Under `verify`, a clock change takes effect for presigned URLs from the next whole second, so an admin answer can wait up to one second.
 - The texts services other than S3 use for unsigned headers, expired session tokens and conflicting auth mechanisms are not recorded against AWS, so understudy's may differ.

@@ -1,6 +1,6 @@
 # API Gateway
 
-understudy serves API Gateway HTTP APIs (`apigatewayv2`): an API, its routes, integrations and stages, and the data plane that invokes the Lambda function a route targets. It also serves a first set of REST APIs (`apigateway`), described in [REST APIs](#rest-apis) at the end of this page. Invoking a function needs Docker, as Lambda does ([lambda.md](lambda.md)). What each operation supports is in [coverage.md](../coverage.md); this page grows with it.
+understudy serves API Gateway HTTP APIs (`apigatewayv2`): an API, its routes, integrations and stages, and the data plane that invokes the Lambda function a route targets. It also serves REST APIs (`apigateway`) with Lambda proxy and `MOCK` integrations, described in [REST APIs](#rest-apis) at the end of this page. Invoking a function needs Docker, as Lambda does ([lambda.md](lambda.md)). What each operation supports is in [coverage.md](../coverage.md).
 
 ## A Lambda-backed API
 
@@ -74,9 +74,9 @@ curl -i http://localhost:4566/_understudy/execute-api/wfod7wzey6/hello
 # hello from GET /hello
 ```
 
-`http://<api-id>.execute-api.localhost:4566` serves the API too, in its own region; a host naming another region answers `403 {"message":"Forbidden"}`, as an unknown API id does (on AWS such a host does not resolve at all). An API of any account is reached by its id alone.
+`http://<api-id>.execute-api.localhost:4566` serves the API too, in its own region. A host naming another region answers `403 {"message":"Forbidden"}`, as an unknown API id does; on AWS such a host does not resolve at all. An execute-api host is never read as an S3 bucket name. An API of any account is reached by its id alone.
 
-The function gets the event of its integration's payload format. Under 2.0, `rawPath` is the path the API sees, a named stage's segment included, and `requestContext.domainName` is the host the request named, or on the path fallback the `ApiEndpoint` host name. Every answer on the path fallback carries `Content-Security-Policy: sandbox`, since it shares understudy's origin (ADR 0020); the host is an origin of its own and gets none.
+The function gets the event of its integration's payload format. Under 2.0, `rawPath` is the path the API sees, a named stage's segment included, and `requestContext.domainName` is the host the request named, or on the path fallback the `ApiEndpoint` host name. Every answer on the path fallback carries `Content-Security-Policy: sandbox`, since it shares understudy's origin ([ADR 0020](../adr/0020-understudy-namespace.md)); the host is an origin of its own and gets none.
 
 Under `--payload-format-version 1.0` the function gets the 1.0 event and must answer in the 1.0 format (`statusCode`, `headers`, `multiValueHeaders`, `body`, `isBase64Encoded`); any other output, a bare string included, answers `500 {"message":"Internal Server Error"}`. With a handler that returns some of its event's members and `"multiValueHeaders": {"x-many": ["a", "b"]}`:
 
@@ -91,7 +91,13 @@ curl -i 'http://localhost:4566/_understudy/execute-api/nhkese1z20/pets/rex?q=1&q
 #  "multiValueQueryStringParameters": {"q": ["1", "2"]}, "X-H": ["last", ["first", "last"]]}
 ```
 
-The single-value maps keep the last value of a repeated header and of a repeated query parameter, as AWS does (its documented example shows the first query value). Header names keep the client's spelling, as on AWS, and the headers API Gateway adds (`Content-Length`, `X-Forwarded-For`, ...) are in canonical case. `path` includes a named stage's segment, `resource` is the route's path (`$default` for the `$default` route), `requestContext.resourceId` is the route key, and a 1.0 response without a `Content-Type` gets `text/plain; charset=utf-8`, as a 2.0 response with a `statusCode` does.
+In the 1.0 event:
+
+- The single-value maps keep the last value of a repeated header and of a repeated query parameter, as AWS does (its documented example shows the first query value).
+- Header names arrive in canonical case, the headers API Gateway adds (`Content-Length`, `X-Forwarded-For`, ...) included. A client's `x-custom` arrives as `X-Custom`, where AWS keeps the client's spelling ([Differences from AWS](differences.md#api-gateway-http-apis)).
+- `path` includes a named stage's segment, `resource` is the route's path (`$default` for the `$default` route), and `requestContext.resourceId` is the route key.
+
+A 1.0 response without a `Content-Type` gets `text/plain; charset=utf-8`, as a 2.0 response with a `statusCode` does.
 
 `update-api --disable-execute-api-endpoint` turns off both forms from that call on: requests answer `404 {"message":"Not Found"}`, as on AWS, until `--no-disable-execute-api-endpoint`:
 
@@ -122,7 +128,9 @@ curl http://localhost:4566/_understudy/execute-api/pfovz1oe8r/
 # {"message":"Not Found"}
 ```
 
-`create-route` answers the defaults AWS fills, `ApiKeyRequired` false and `AuthorizationType` `NONE`, and `get-route`, `get-routes`, `update-route` and `delete-route` work. Every change serves on an `--auto-deploy` stage by the time the call returns. Members that act only on WebSocket APIs (`--api-key-required`, `--operation-name`, the model and request-parameter members) are stored and returned and change nothing. understudy does not evaluate IAM on requests, so a route with `--authorization-type AWS_IAM` is stored but a request it matches answers 501 and runs nothing; `JWT` and `CUSTOM` name authorizers, which understudy does not emulate, so they are refused:
+`create-route` answers the defaults AWS fills, `ApiKeyRequired` false and `AuthorizationType` `NONE`, and `get-route`, `get-routes`, `update-route` and `delete-route` work. Every change serves on an `--auto-deploy` stage by the time the call returns. Members that act only on WebSocket APIs (`--api-key-required`, `--operation-name`, the model and request-parameter members) are stored and returned and change nothing.
+
+understudy does not evaluate IAM on requests, so a route with `--authorization-type AWS_IAM` is stored but a request it matches answers 501 and runs nothing. `JWT` and `CUSTOM` name authorizers, which understudy does not emulate, so they are refused:
 
 ```sh
 aws apigatewayv2 create-route --api-id vsstkl7iok --route-key 'GET /me' --authorization-type JWT --target integrations/7tvrwuh
@@ -133,7 +141,21 @@ curl http://localhost:4566/_understudy/execute-api/vsstkl7iok/admin
 # {"message":"understudy does not evaluate IAM authorization of requests: route \"GET /admin\" of API vsstkl7iok has authorizationType AWS_IAM, so no integration ran and nothing was changed. ..."}
 ```
 
-A request takes the most specific route, in AWS's documented order: a full match, then a match with a `{name+}` variable, then `$default`; on one path, a literal segment before a variable and the request's own method before `ANY`. A full match on `ANY` beats a `{name+}` match on the request's method, as on AWS; between two `{name+}` routes understudy prefers the one with more segments before its variable. A variable never matches an empty segment, so `/pets/` is not `GET /pets/{id}`. As on AWS, literal segments match case-sensitively, `/pets` and `/pets/` are different paths, `//` collapses to `/`, the path is percent-decoded before matching (so `%2F` separates segments), and a route with no target takes no part in matching. A route key with a trailing slash is refused, as AWS refuses it:
+A request takes the most specific route, in AWS's documented order:
+
+- A full match comes first, then a match with a `{name+}` variable, then `$default`.
+- On one path, a literal segment comes before a variable, and the request's own method before `ANY`.
+- A full match on `ANY` beats a `{name+}` match on the request's method, as on AWS.
+- Between two `{name+}` routes, understudy prefers the one with more segments before its variable.
+
+A variable never matches an empty segment, so `/pets/` is not `GET /pets/{id}`. As on AWS:
+
+- literal segments match case-sensitively;
+- `/pets` and `/pets/` are different paths, and `//` collapses to `/`;
+- the path is percent-decoded before matching, so `%2F` separates segments;
+- a route with no target takes no part in matching.
+
+A route key with a trailing slash is refused, as AWS refuses it:
 
 ```sh
 aws apigatewayv2 create-route --api-id 0x2wsevugv --route-key 'GET /slash/'
@@ -272,9 +294,11 @@ aws apigatewayv2 create-stage --api-id 0x2wsevugv --stage-name auto --auto-deplo
 
 A deployment with `triggers` and `create_before_destroy` is replaced on an update: Terraform creates the new deployment, points the stage at it, then deletes the old one, which understudy refuses while a stage serves it. Hash the attributes that change what the API serves (route keys and targets, integration URIs), not whole resource objects: the provider reads empty maps such as `request_models` back as `{}` on the first refresh after a create, so a hash of the objects changes and the second plan replaces the deployment again.
 
-## What answers NotImplemented for now
+## What answers 501 in an HTTP API
 
-HTTP API requests understudy cannot serve as AWS would are refused with `NotImplemented` (501), naming what is missing, and change nothing; REST APIs have their own list ([What answers 501 in a REST API](#what-answers-501-in-a-rest-api)):
+HTTP API calls understudy cannot serve as AWS would are refused with `NotImplemented` (501), naming what is missing, and change nothing. REST APIs have their own list ([What answers 501 in a REST API](#what-answers-501-in-a-rest-api)).
+
+- requests that reach an `AWS_IAM` route, an integration other than a plain Lambda proxy ([Integrations](#integrations)), or an API with a CORS configuration when they carry an `Origin` header;
 
 - WebSocket APIs (`--protocol-type WEBSOCKET`) and quick create (`create-api` or `update-api` with `--target`, `--route-key` or `--credentials-arn`);
 - authorizers: `--authorization-type JWT` or `CUSTOM`, `--authorizer-id` and `--authorization-scopes` on a route;
@@ -353,7 +377,20 @@ A path no deployed method serves answers `403 Missing Authentication Token`, as 
 
 ### API settings
 
-`create-rest-api` and `update-rest-api` accept every member but `--clone-from`, which answers `NotImplemented`. Some settings change what a request does in ways understudy does not emulate, so a request to an API that has one answers 501 naming it and runs nothing: `--disable-execute-api-endpoint` and an endpoint type `PRIVATE` (read live, so clearing them serves again at once), and `--binary-media-types` (read from the stage's deployment, so deploy again after removing them). A resource policy (`--policy`) is stored and returned as AWS returns it, its quotes escaped and `execute-api:/` resources rewritten to the API's ARN, but never evaluated: under `iam.enforce=off` requests are served, under `advise` each one also records an `access-unevaluated` advisory, and under `enforce` each one answers 501 until the policy is removed with `update-rest-api --patch-operations op=replace,path=/policy,value=''`. VPC endpoint ids, `--security-policy`, `--endpoint-access-mode`, `--api-key-source` and `--minimum-compression-size` are stored without effect, and an `EDGE` API is served as a `REGIONAL` one. `get-rest-apis` and `delete-rest-api` work as on AWS.
+`create-rest-api` and `update-rest-api` accept every member but `--clone-from`, which answers `NotImplemented`. `get-rest-apis` and `delete-rest-api` work as on AWS.
+
+Some settings change what a request does in ways understudy does not emulate, so a request to an API that has one answers 501 naming it and runs nothing:
+
+- `--disable-execute-api-endpoint` and an endpoint type `PRIVATE`. Both are read live, so clearing them serves again at once.
+- `--binary-media-types`. They are read from the stage's deployment, so deploy again after removing them.
+
+A resource policy (`--policy`) is stored and returned as AWS returns it, its quotes escaped and `execute-api:/` resources rewritten to the API's ARN, but never evaluated:
+
+- under `iam.enforce=off`, requests are served;
+- under `advise`, each request is served and records an `access-unevaluated` advisory;
+- under `enforce`, each request answers 501 until the policy is removed with `update-rest-api --patch-operations op=replace,path=/policy,value=''`.
+
+VPC endpoint ids, `--security-policy`, `--endpoint-access-mode`, `--api-key-source` and `--minimum-compression-size` are stored without effect, and an `EDGE` API is served as a `REGIONAL` one.
 
 ### Resources and request matching
 
@@ -422,7 +459,11 @@ An `AWS_PROXY` integration to a Lambda function and a `MOCK` integration run. `H
 
 ### MOCK integrations
 
-A `MOCK` integration answers from its configuration alone, as the common CORS `OPTIONS` method does. The request template the `Content-Type` selects (`application/json` when the request has none) gives the status, read leniently, so `{statusCode: 200}` works as `{"statusCode": 200}` does; under `passthroughBehavior` the request body takes the template's place, or the request answers `415`, per AWS's passthrough table. The status selects the integration response whose `selectionPattern` matches it, the one without a pattern otherwise; its static `responseParameters` set headers and its response template is the body, empty when it has none:
+A `MOCK` integration answers from its configuration alone, as the common CORS `OPTIONS` method does:
+
+1. The request template the `Content-Type` selects (`application/json` when the request has none) gives the status. It is read leniently, so `{statusCode: 200}` works as `{"statusCode": 200}` does. When no template matches, `passthroughBehavior` decides, per AWS's passthrough table: the request body takes the template's place, or the request answers `415`.
+2. The status selects the integration response whose `selectionPattern` matches it, or else the one without a pattern.
+3. That response's static `responseParameters` set headers, and its response template is the body, empty when it has none.
 
 ```sh
 aws apigateway put-method --rest-api-id leb10wzbif --resource-id cwlqnw --http-method OPTIONS --authorization-type NONE
@@ -443,7 +484,15 @@ curl -i -X OPTIONS http://localhost:4566/_understudy/execute-api/leb10wzbif/dev/
 # {"ok": true}
 ```
 
-understudy renders no Velocity: a template is run only when it holds none of `$`, `#` and `\`, so it is the same text before and after rendering. A request that reaches any other template answers `501` naming it, and so do a `selectionPattern` Go's regular expressions cannot compile (a lookaround or a backreference), `contentHandling` on the selected integration response, and a `responseParameters` value that is not a static `'value'`. As on AWS, media types compare by type and subtype, case-insensitively; a pattern must match the whole status code; and of several response templates the one named by the whole `Accept` value answers, else `application/json`, else the first by media type, always sent as `Content-Type: application/json`. A request whose media type no template takes answers AWS's 415:
+understudy renders no Velocity: a template is used only when it holds none of `$`, `#` and `\`, so it is the same text before and after rendering. A request that reaches any other template answers `501` naming it, and so do a `selectionPattern` Go's regular expressions cannot compile (a lookaround or a backreference), `contentHandling` on the selected integration response, and a `responseParameters` value that is not a static `'value'`.
+
+As on AWS:
+
+- media types compare by type and subtype, case-insensitively;
+- a pattern must match the whole status code;
+- of several response templates, the one named by the whole `Accept` value answers, else `application/json`, else the first by media type, always sent as `Content-Type: application/json`.
+
+A request whose media type no template takes answers AWS's 415:
 
 ```sh
 aws apigateway put-integration --rest-api-id i644mvi1ym --resource-id a9u3zj --http-method GET --type MOCK \

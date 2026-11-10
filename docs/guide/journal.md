@@ -30,7 +30,7 @@ Filters combine. `--since` counts back in emulator time. `--limit N` keeps the n
 | Kind | Recorded when |
 |---|---|
 | `api-call` | Any call, from a client or between services, with its outcome |
-| `delivery` | An SNS, S3 or EventBridge delivery attempt, or a Lambda asynchronous invocation's record or dead letter: delivered, filtered, retrying, dead-lettered, dropped or refused |
+| `delivery` | A delivery attempt between services, by any of the [delivery mechanisms](faults.md#delivery-faults): delivered, filtered, retrying, dead-lettered, dropped or refused |
 | `invocation` | A Lambda invocation ends: cold or warm, duration, outcome |
 | `timer-fired` | A timer on the emulator clock fires |
 | `state-change` | A resource changes state |
@@ -41,7 +41,11 @@ Filters combine. `--since` counts back in emulator time. `--limit N` keeps the n
 | `gap` | A stream consumer missed events: it fell behind, or resumed with `?after=` past events the journal has since dropped |
 | `admin-action` | An admin call changed state: a reset, a snapshot saved or loaded, a [fault rule](faults.md) added or removed; `op` in the detail says which |
 
-An [SNS HTTP delivery](sns-http.md) goes to an endpoint rather than a resource, so its line names the endpoint's host and port, never its path or credentials. Its JSON detail adds an `http` member: the answer's status (left out when none came), how it was classed (`success`, `retryable`, `permanent` or `refused`) and the wall time the exchange took, in nanoseconds (left out for an attempt a [fault rule](faults.md) answered):
+An [SNS HTTP delivery](sns-http.md) goes to an endpoint rather than a resource, so its line names the endpoint's host and port, never its path or credentials. Its JSON detail adds an `http` member:
+
+- `status`: the answer's status, left out when none came.
+- `class`: how it was classed, `success`, `retryable`, `permanent` or `refused`.
+- `duration`: the wall time the exchange took, in nanoseconds, left out for an attempt a [fault rule](faults.md) answered.
 
 ```text
 11     2026-10-26T23:44:17.764060058Z  delivery       000000000000/us-east-1 sns-to-http orders -> 127.0.0.1:9000 attempt 1 refused: egress: refused to send to 127.0.0.1:9000 (not-allowed): no entry of sns.httpDelivery.allow allows it; nothing was sent. To allow it, add "127.0.0.1:9000" or "127.0.0.1:*" to sns.httpDelivery.allow.
@@ -78,7 +82,7 @@ A Lambda invocation's tree holds the calls the function made:
   61     2027-01-01T00:01:50.906421813Z  api-call       000000000000/us-east-1 logs.CreateLogGroup ok
 ```
 
-`trace --canonical` prints the tree with ids, times and request ids normalized away, so two runs of the same workload print the same thing; it makes a good test assertion.
+`trace --canonical` prints the tree with ids, times and request ids normalized away, so two runs of the same workload print the same thing and a test can assert on it.
 
 ## Following
 
@@ -95,7 +99,13 @@ understudy journal --errors --follow --output json
 curl -s 'http://127.0.0.1:4566/_understudy/v1/journal/events?kind=delivery&limit=1'
 ```
 
-`/_understudy/v1/journal/events` takes the CLI's filters as query parameters and pages with a cursor, or with `tail=N` answers the newest N matches in one page, oldest first; `/journal/stream` streams NDJSON, resumable with `?after=<event id>`; `/journal/traces/<id>` returns a tree. Go tests use `admin.Client.JournalEvents`, `JournalTail`, `JournalStream` and `Trace`.
+| Path under `/_understudy/v1` | Answers |
+|---|---|
+| `/journal/events` | The events matching the CLI's filters, given as query parameters, paged with a cursor. With `tail=N`, the newest N matches in one page, oldest first |
+| `/journal/stream` | NDJSON as events are recorded, resumable with `?after=<event id>` |
+| `/journal/traces/<id>` | A causal tree |
+
+Go tests use `admin.Client.JournalEvents`, `JournalTail`, `JournalStream` and `Trace`.
 
 ```sh
 understudy reset --service sqs

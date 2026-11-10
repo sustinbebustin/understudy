@@ -2,7 +2,10 @@
 
 Every current AWS SDK and the AWS CLI v2 read `AWS_ENDPOINT_URL`, so `eval "$(understudy env)"` is the whole setup for code that builds its clients from the default configuration. The snippets below were run that way; none of them names understudy.
 
-The one setting no variable carries is S3 path-style addressing in the Go and JS SDKs. At the `http://127.0.0.1:4566` endpoint `understudy env` prints, both SDKs already address S3 path style, since a bucket cannot go in front of an IP address; the setting in the snippets below changes nothing there. It matters at a host-name endpoint: at `http://localhost:4566` the SDKs address S3 virtual-hosted, which works only where `*.localhost` names resolve (`understudy doctor` checks), and need the path-style setting everywhere else. Virtual-hosted requests such as `http://my-bucket.s3.localhost:4566/` need that localhost endpoint.
+The one setting no variable carries is S3 path-style addressing in the Go and JS SDKs:
+
+- At the `http://127.0.0.1:4566` endpoint `understudy env` prints, both SDKs already address S3 path style, since a bucket name cannot go in front of an IP address. The setting in the snippets below changes nothing there.
+- At a host-name endpoint such as `http://localhost:4566`, the SDKs address S3 virtual-hosted (`http://my-bucket.s3.localhost:4566/`). That works only where `*.localhost` names resolve, which `understudy doctor` checks; everywhere else, set path style.
 
 ## Go (aws-sdk-go-v2)
 
@@ -167,7 +170,16 @@ aws s3api get-object --bucket ssec-demo --key secret.txt \
     "SSECustomerKeyMD5": "hRasmdxgYDKV3nvbahU1MA=="
 ```
 
-Without the `put-bucket-encryption` call, the put fails with `AccessDenied` "Access Denied". At the plain HTTP endpoint it fails, with or without that call, with `InvalidArgument` "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection.", and so does a `get-object` sent with SSE-C headers. A `get-object` without the key fails with `InvalidRequest` "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object.", and one with another key fails with `AccessDenied`. understudy never stores the key. It keeps a salted HMAC of the key to check reads, and stores the object's bytes as sent, unencrypted.
+The refusals are AWS's:
+
+| Request | Error |
+|---|---|
+| `put-object` with SSE-C into a bucket that still blocks it | `AccessDenied` "Access Denied" |
+| `put-object` or `get-object` with SSE-C headers over plain HTTP, blocked or not | `InvalidArgument` "Requests specifying Server Side Encryption with Customer provided keys must be made over a secure connection." |
+| `get-object` without the key | `InvalidRequest` "The object was stored using a form of Server Side Encryption. The correct parameters must be provided to retrieve the object." |
+| `get-object` with another key | `AccessDenied` |
+
+understudy never stores the key. It keeps a salted HMAC of the key to check reads, and stores the object's bytes as sent, unencrypted.
 
 Object Lock retention runs on the [emulator clock](clock.md), so a test moves the clock past the retain-until date instead of waiting for it:
 

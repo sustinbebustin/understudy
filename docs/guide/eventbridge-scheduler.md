@@ -40,7 +40,7 @@ aws sqs receive-message --queue-url http://127.0.0.1:4566/000000000000/reminders
   --attribute-names SenderId --query 'Messages[].[Body,Attributes.SenderId]' --output text
 ```
 
-```
+```text
 {"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T08:00:00Z","execution":"57cdcad5-d248-4a2e-ad4b-ab6cb2ae18d0","attempt":"1"}	AROAZHBSKMADL6UPDP5UI:e07cbbec4dc30793aa7b884eed6cb881
 {"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T08:15:00Z","execution":"6fbf7435-364d-4cd3-9806-0c3b09bb9d28","attempt":"1"}	AROAZHBSKMADL6UPDP5UI:b6be941d3d26c8fa4541c9bdc46699a3
 {"schedule":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/every-15m","at":"2026-11-02T08:30:00Z","execution":"21ac0d7d-5085-4514-84a2-44b5a726afc7","attempt":"1"}	AROAZHBSKMADL6UPDP5UI:157dbca4bbed6f7b935c9def176cb677
@@ -50,7 +50,7 @@ aws sqs receive-message --queue-url http://127.0.0.1:4566/000000000000/reminders
 
 Every fire due on the way is delivered, in order, each stamped with its own scheduled time. The four context attributes in `Input` are replaced before each attempt, so a retried attempt carries its own `<aws.scheduler.attempt-number>`; the execution id is a UUID, as on AWS. The `SenderId` is a session of the execution role, `<role id>:<32 hex digits>`, one session per invocation. `understudy journal --kind delivery` lists each one:
 
-```
+```text
 8      2026-11-02T08:00:00.000000000Z  delivery       000000000000/us-east-1 scheduler-to-sqs schedule/default/every-15m -> reminders attempt 1 delivered
 24     2026-11-02T08:15:00.000000000Z  delivery       000000000000/us-east-1 scheduler-to-sqs schedule/default/every-15m -> reminders attempt 1 delivered
 ...
@@ -62,7 +62,15 @@ A schedule without `Input` sends AWS's Scheduled Event, its `time` the scheduled
 {"version":"0","id":"b02874c0-0494-4806-9219-85e32dab05ce","detail-type":"Scheduled Event","source":"aws.scheduler","account":"000000000000","time":"2026-11-02T09:30:00Z","region":"us-east-1","resources":["arn:aws:scheduler:us-east-1:000000000000:schedule/default/plain"],"detail":"{}"}
 ```
 
-An event bus target without `Input` gets `{}` as its `detail` instead. The other targets get what AWS sends each: a Lambda function is invoked asynchronously with the payload as its event; an SQS FIFO queue gets the target's `MessageGroupId` and no deduplication id; an SNS topic gets the payload as the message, with no subject; an event bus gets one event whose `source` and `detail-type` are the target's `EventBridgeParameters` and whose `detail` is the payload; a Step Functions state machine starts one execution with the payload as its input.
+An event bus target without `Input` gets `{}` as its `detail` instead. Each target gets the payload as AWS sends it:
+
+| Target | What it gets |
+|---|---|
+| Lambda function | an asynchronous invocation with the payload as its event |
+| SQS queue | the payload as the message body; a FIFO queue also gets the target's `MessageGroupId`, and no deduplication id |
+| SNS topic | the payload as the message, with no subject |
+| EventBridge event bus | one event whose `source` and `detail-type` are the target's `EventBridgeParameters` and whose `detail` is the payload |
+| Step Functions state machine | one execution with the payload as its input |
 
 ## Time zones, at() and DELETE
 
@@ -87,7 +95,7 @@ aws scheduler list-schedules --query 'Schedules[].[Name,State]' --output text
 
 Noon in New York was 17:00 UTC, and 09:30 in Paris is 08:30 UTC in November. `once` is gone: `get-schedule --name once` answers `ResourceNotFoundException` "Schedule once does not exist.". Without `DELETE` a fired `at()` stays, with its `State` unchanged and no next fire. An `at()` already in the past when it is created fires at once.
 
-With `--flexible-time-window Mode=FLEXIBLE,MaximumWindowInMinutes=N`, each invocation is delayed by a whole-second offset inside the window, drawn from the [seeded](snapshots.md) id streams, so a run with `--seed` repeats it; `<aws.scheduler.scheduled-time>` still carries the scheduled time, and the next fire counts from it.
+With `--flexible-time-window Mode=FLEXIBLE,MaximumWindowInMinutes=N`, each invocation is delayed by a whole-second offset inside the window, drawn from the seeded id streams, so a run with `--seed` repeats it ([Configuration](configuration.md#common-setups)); `<aws.scheduler.scheduled-time>` still carries the scheduled time, and the next fire counts from it.
 
 ## Retries and dead letters
 
@@ -107,7 +115,7 @@ aws sqs receive-message --queue-url http://127.0.0.1:4566/000000000000/schedule-
   | jq -c '{Body, attrs: (.Attrs|with_entries(.value=.value.StringValue))}'
 ```
 
-```
+```text
 {"Body":"{\"MessageBody\":\"hello\",\"QueueUrl\":\"https://sqs.us-east-1.amazonaws.com/000000000000/gone\"}","attrs":{"CONTAINS_INVALID_PAYLOAD":"false","ERROR_CODE":"AWS.SimpleQueueService.NonExistentQueue","ERROR_MESSAGE":"The specified queue does not exist.","EXECUTION_ID":"60a7819c-14cd-4c82-8ba1-eb0a643b1445","IS_PAYLOAD_TRUNCATED":"false","RETRY_ATTEMPTS":"0","SCHEDULED_TIME":"2026-11-04T10:00:00Z","SCHEDULE_ARN":"arn:aws:scheduler:us-east-1:000000000000:schedule/default/to-gone","TARGET_ARN":"arn:aws:sqs:us-east-1:000000000000:gone"}}
 ```
 
@@ -132,7 +140,7 @@ Tags go on groups only, as on AWS. Naming a group that does not exist answers "S
 
 ## What answers 501
 
-Universal targets (`arn:aws:scheduler:::aws-sdk:<service>:<apiAction>`) and the templated targets understudy does not serve (ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector, SageMaker) answer `NotImplemented` at create, and nothing is stored, so no schedule is accepted and then silently never runs. A Lambda, SQS, SNS or Step Functions target in another Region answers the same. A target ARN of a service Scheduler has no target for is AWS's `ValidationException`:
+Universal targets (`arn:aws:scheduler:::aws-sdk:<service>:<apiAction>`) and the templated targets understudy does not serve (ECS, Kinesis, Firehose, CodeBuild, CodePipeline, Inspector, SageMaker) answer `NotImplemented` at create and update, and nothing is stored, so no schedule is accepted and then never runs. A Lambda, SQS, SNS or Step Functions target in another Region answers the same. A target ARN of a service Scheduler has no target for is AWS's `ValidationException`:
 
 ```sh
 aws scheduler create-schedule --name t --schedule-expression 'rate(1 hour)' --flexible-time-window Mode=OFF \

@@ -22,7 +22,12 @@ provider "aws" {
 }
 ```
 
-Both skip settings are required at the `http://127.0.0.1:4566` endpoint `understudy env` prints: with an account id, the provider reads S3 bucket tags through S3 Control at `<account>.<endpoint host>`, which cannot resolve for an IP address, and the refresh fails. The provider has no account id only with both: with credential validation on, it takes the account from its startup `sts:GetCallerIdentity`, which understudy answers with the account the access key selects, whatever `skip_requesting_account_id` says. With `skip_requesting_account_id` alone, the configuration below fails at its bucket with `dial tcp: lookup 000000000000.127.0.0.1: no such host`. `s3_use_path_style` is optional there, since the provider addresses S3 path style at an IP address anyway. If `*.localhost` names resolve on your machine (`understudy doctor` says) and you set `AWS_ENDPOINT_URL=http://localhost:4566` yourself, none of these settings is needed.
+Both skip settings are required at the `http://127.0.0.1:4566` endpoint `understudy env` prints, because the provider must not learn an account id there:
+
+- With an account id, the provider reads S3 bucket tags through S3 Control at `<account>.<endpoint host>`, which cannot resolve for an IP address, and the refresh fails.
+- The provider has no account id only with both settings. With credential validation on, it takes the account from its startup `sts:GetCallerIdentity`, which understudy answers with the account the access key selects, whatever `skip_requesting_account_id` says. With `skip_requesting_account_id` alone, the configuration below fails at its bucket with `dial tcp: lookup 000000000000.127.0.0.1: no such host`.
+
+`s3_use_path_style` is optional there, since the provider addresses S3 path style at an IP address anyway. If `*.localhost` names resolve on your machine (`understudy doctor` says) and you set `AWS_ENDPOINT_URL=http://localhost:4566` yourself, none of these settings is needed.
 
 ## Apply, plan, destroy
 

@@ -1,6 +1,8 @@
 # SES
 
-understudy emulates SES v1 (`aws ses`) and v2 (`aws sesv2`) over one store, so an identity created with one API is read by the other. It sends no mail. An accepted send is recorded instead, and a test reads it back through the admin API or `understudy ses messages`. No delivery, bounce or complaint event or notification is produced, because nothing was delivered. What each operation supports is on [the coverage page](../coverage.md#ses). Configuration sets, receipt rules and sending authorization answer 501.
+understudy emulates SES v1 (`aws ses`) and v2 (`aws sesv2`) over one store, so an identity created with one API is read by the other. It sends no mail. An accepted send is recorded instead, and a test reads it back through the admin API or `understudy ses messages`. No delivery, bounce or complaint event or notification is produced, because nothing was delivered.
+
+What each operation supports is on [the coverage page](../coverage.md#ses). Configuration sets, receipt rules and sending authorization answer 501.
 
 The `aws` commands below run with `eval "$(understudy env)"` in effect, against `understudy serve --clock frozen@2026-10-30T09:00:00Z` with this `understudy.json`:
 
@@ -98,7 +100,7 @@ aws ses get-identity-verification-attributes --identities example.org
 }
 ```
 
-The list applies when an identity is created, and an identity verified this way gets no verification email. Any other entry stops `serve` and names it.
+The list applies when an identity is created, and an identity verified this way gets no verification email. An entry in any other form stops `serve`, which names it.
 
 ### Terraform's 45-minute wait
 
@@ -163,7 +165,7 @@ aws ses get-send-quota
 }
 ```
 
-The production quota values are not recorded from AWS yet. `aws sesv2 get-account` reports the same quota with `ProductionAccessEnabled`.
+The production quota values, -1 and 14, are not recorded from AWS. `aws sesv2 get-account` reports the same quota with `ProductionAccessEnabled`.
 
 ## Reading messages
 
@@ -215,7 +217,7 @@ ACCEPTED              KIND  OPERATION      MESSAGE ID                           
 
 A raw send records its MIME as received (`raw`, base64), and a v2 send its `headers` and `attachments`. `requestId` finds the call with `understudy journal --request-id`. The journal itself keeps no subject, body, attachment or raw MIME.
 
-From a test, read the same page with `GET /_understudy/v1/ses/messages`, which takes the filters as `to`, `from`, `messageId`, `account`, `region`, `since`, `limit` and `cursor`, or with `admin.Client.SESMessages` in Go. `DELETE` with the same filters clears messages between tests (`admin.Client.ClearSESMessages`). It leaves the quota counter alone, since the mail counts as sent:
+From a test, read the same messages with `GET /_understudy/v1/ses/messages`, which takes the filters as `to`, `from`, `messageId`, `account`, `region`, `since`, `limit` and `cursor`, or with `admin.Client.SESMessages` in Go. `DELETE` with the same filters clears messages between tests (`admin.Client.ClearSESMessages`). It leaves the quota counter alone, since the mail counts as sent:
 
 ```sh
 curl -s -X DELETE http://127.0.0.1:4566/_understudy/v1/ses/messages
@@ -235,7 +237,14 @@ The store keeps 10,000 messages per account and region and evicts the oldest; `e
 
 ## Templated sends
 
-`aws ses send-templated-email`, and `aws sesv2 send-email` with `Template` content (a stored template's name or inline content), render `{{name}}` and dotted paths such as `{{order.id}}` from the template data. SES renders with Handlebars; understudy guesses at nothing beyond that subset. Any other construct (`{{#if}}`, `{{#each}}`, `{{{raw}}}`, partials) leaves its part unrendered and is listed under `template.gaps`. So is a value the data lacks, a string holding a character Handlebars escapes (`&`, `<`, `>`, `"`, `'`, `=` and the backtick), and a value that is not a string, boolean or integer, since what SES renders for each is not recorded. The send is accepted either way, as on AWS, which accepts before it renders:
+`aws ses send-templated-email`, and `aws sesv2 send-email` with `Template` content (a stored template's name or inline content), render `{{name}}` and dotted paths such as `{{order.id}}` from the template data. SES renders with Handlebars; understudy renders only that subset. Each of these leaves its part unrendered and is listed under `template.gaps`:
+
+- Any other construct: `{{#if}}`, `{{#each}}`, `{{{raw}}}`, partials.
+- A value the data lacks.
+- A string holding a character Handlebars escapes: `&`, `<`, `>`, `"`, `'`, `=` and the backtick.
+- A value that is not a string, boolean or integer.
+
+What SES renders for the last three is not recorded. The send is accepted either way, as on AWS, which accepts before it renders:
 
 ```sh
 aws ses create-template --template '{"TemplateName":"welcome","SubjectPart":"Hi {{name}}","TextPart":"Your order {{order.id}} has shipped.","HtmlPart":"{{#if vip}}<p>Thanks!</p>{{/if}}"}'
@@ -294,7 +303,16 @@ A v2 template operation on a template the account and region do not hold is `Not
 
 ## Not implemented
 
-A member or header understudy would have to fake answers `NotImplemented` and names it: `ConfigurationSetName`, `X-SES-CONFIGURATION-SET`, the sending-authorization ARNs and their `X-SES-*-ARN` headers, `TemplateArn` (v1) and `Template.TemplateArn` (v2), and v2 `ConfigurationOverrides`, `EndpointId`, `TenantName` and `ListManagementOptions`. The SDKs and the AWS CLI sign a send with `EndpointId` (`--endpoint-id`) with SigV4A, which understudy does not accept, so that send answers `UnknownOperationException` before it reaches SES; only a SigV4-signed request gets the `NotImplemented` naming `EndpointId`. Operations outside [the coverage page](../coverage.md#ses) answer 501:
+A member or header understudy would have to fake answers `NotImplemented` and names it:
+
+- `ConfigurationSetName` and the `X-SES-CONFIGURATION-SET` header.
+- The sending-authorization ARNs and their `X-SES-*-ARN` headers.
+- `TemplateArn` (v1) and `Template.TemplateArn` (v2).
+- v2 `ConfigurationOverrides`, `EndpointId`, `TenantName` and `ListManagementOptions`.
+
+The SDKs and the AWS CLI sign a send with `EndpointId` (`--endpoint-id`) with SigV4A, which understudy does not accept, so that send answers `UnknownOperationException` before it reaches SES. Only a SigV4-signed request gets the `NotImplemented` naming `EndpointId`.
+
+Operations the [coverage page](../coverage.md#ses) lists as unbound answer 501:
 
 ```text
 An error occurred (NotImplemented) when calling the CreateConfigurationSet operation: understudy does not implement ses.CreateConfigurationSet. Run 'understudy coverage --service ses' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=ses.CreateConfigurationSet

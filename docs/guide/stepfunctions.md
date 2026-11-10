@@ -71,7 +71,7 @@ aws stepfunctions list-executions --state-machine-arn arn:aws:states:us-east-1:0
 # first   SUCCEEDED
 ```
 
-A closed execution is kept for 90 days of emulator time, as on AWS. Deleting a machine with running executions leaves it `DELETING` until they end.
+A closed execution is kept for 90 days of emulator time, as on AWS. Deleting a machine with running executions leaves it `DELETING` until they end, and each fails at its next step, as on AWS.
 
 ## A Lambda task
 
@@ -169,7 +169,9 @@ aws stepfunctions create-state-machine --name express --type EXPRESS --role-arn 
 # set it to STANDARD. Run 'understudy coverage --service sfn' for what is supported.
 ```
 
-`start-sync-execution`, the activity, task-token, alias, version, redrive, `TestState` and Map Run operations answer 501 too. Clients send `StartSyncExecution` to the host `sync-<endpoint host>`, so it reaches understudy, and its 501, only with host-prefix injection off: `AWS_DISABLE_HOST_PREFIX_INJECTION=true` for the CLI, `Config(inject_host_prefix=False)` for boto3, `disableHostPrefix: true` for JS v3. Otherwise the call fails before it is sent (`Could not connect to the endpoint URL: "http://sync-127.0.0.1:4566/"`).
+`start-sync-execution`, the activity, task-token, alias, version, redrive, `TestState` and Map Run operations answer 501 too.
+
+Clients send `StartSyncExecution` to the host `sync-<endpoint host>`, so it reaches understudy, and its 501, only with host-prefix injection off: `AWS_DISABLE_HOST_PREFIX_INJECTION=true` for the CLI, `Config(inject_host_prefix=False)` for boto3, `disableHostPrefix: true` for JS v3. Otherwise the call fails before it is sent (`Could not connect to the endpoint URL: "http://sync-127.0.0.1:4566/"`).
 
 ## Terraform
 
@@ -177,4 +179,14 @@ aws stepfunctions create-state-machine --name express --type EXPRESS --role-arn 
 
 ## Where it differs from AWS
 
-Step Functions behavior is not yet recorded against AWS by understudy; it follows AWS's documentation and LocalStack's recordings of AWS. Where both are silent, understudy chose, and the coverage notes name each choice with its recording case. Six of those choices are fidelity switches, listed by `understudy coverage --service sfn --switches`: the error of a Choice with no match and of a missing Choice variable, the error of a failed intrinsic function, the name and cause of a Lambda service error, the status of an access denial, and whether deleting a machine aborts its running executions. See [Differences from AWS](differences.md#step-functions).
+Step Functions behavior follows a recording against AWS made on 2026-11-03, AWS's documentation and LocalStack's recordings of AWS. Where all three are silent, understudy chose, and the coverage notes name each choice with its recording case.
+
+`understudy coverage --service sfn --switches` lists six fidelity switches, each defaulting to what AWS was recorded doing:
+
+- the error of a Choice with no match, and of a missing Choice variable;
+- the error of a failed intrinsic function;
+- the name and cause of a Lambda service error;
+- the status of an access denial;
+- whether deleting a machine fails its running executions.
+
+[Differences from AWS](differences.md#step-functions) lists what still differs.

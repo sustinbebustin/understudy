@@ -66,20 +66,6 @@ An error occurred (NotImplemented) when calling the GetRandomPassword operation:
 
 A call to a service understudy does not emulate at all, such as ECS, fails the same way and names the services it does.
 
-An API Gateway endpoint, `http://<api-id>.execute-api.us-east-1.localhost:4566/...` or its path form `http://localhost:4566/_understudy/execute-api/<api-id>/...`, is API Gateway's ([apigateway.md](apigateway.md)), never an S3 bucket, so an id no API holds gets API Gateway's answer. The path form also carries `Content-Security-Policy: sandbox`, so a page served there cannot script understudy's own origin:
-
-```text
-$ curl -i http://localhost:4566/_understudy/execute-api/abc123/prod/pets
-HTTP/1.1 403 Forbidden
-Apigw-Requestid: B7x29V9wL-kunWE=
-Content-Security-Policy: sandbox
-Content-Type: application/json
-Date: Tue, 27 Oct 2026 02:24:50 GMT
-Content-Length: 23
-
-{"message":"Forbidden"}
-```
-
 ## Start over
 
 ```sh
@@ -97,8 +83,24 @@ A reset keeps the clock and fault rules unless `--clock` or `--faults` says othe
 understudy doctor
 ```
 
-`doctor` checks the server, the configuration, Docker and its socket, the container networking Lambda will use, whether `*.localhost` names resolve (for virtual-hosted S3 and function URLs), binfmt support for the other CPU architecture, hot-reload directories and whether DynamoDB Local can run, and prints a fix for each problem.
+`doctor` prints a fix for each problem it finds. It checks:
+
+- the server and the configuration file;
+- Docker, its socket and the container networking Lambda will use;
+- whether `*.localhost` names resolve, which virtual-hosted S3, function URLs and API Gateway hosts need;
+- binfmt support for the other CPU architecture;
+- hot-reload directories;
+- whether DynamoDB Local can run.
 
 ## Exit codes
 
-Every command shares one table, which `understudy --help` prints: 0 success, 1 the operation failed, 2 usage error, 3 understudy not reachable, 4 a condition not met (such as `health --wait` or `settle` timing out), 5 admin token refused.
+Every command uses the same codes, which `understudy --help` prints:
+
+| Code | Meaning |
+|---|---|
+| 0 | success |
+| 1 | the operation failed |
+| 2 | usage error |
+| 3 | understudy is not reachable, or did not answer in time |
+| 4 | a condition was not met, such as `health --wait` or `settle` timing out |
+| 5 | the server refused the admin token |

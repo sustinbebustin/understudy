@@ -3,7 +3,7 @@
 The modules in [testcontainers/](../../testcontainers/) start the understudy image from a Go, Python or Node test suite on [Testcontainers](https://testcontainers.com/), and remove it when the tests end. Each one:
 
 - publishes port 4566 on `127.0.0.1` only, at a free host port;
-- waits until `GET /_understudy/v1/health` answers 200 with `"ready": true`, and fails at once if understudy exits first: Python and Node put understudy's log in the error, and Go reports the exit code and returns the container, whose `Logs` has it;
+- waits until `GET /_understudy/v1/health` answers 200 with `"ready": true`, and fails at once if understudy exits first (Python and Node put understudy's log in the error; Go reports the exit code and returns the container, whose `Logs` has the log);
 - returns the endpoint and the environment [`understudytest`](sdks.md#go-tests-with-understudytest) returns: `AWS_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID=test`, `AWS_SECRET_ACCESS_KEY=test`, and `AWS_REGION` and `AWS_DEFAULT_REGION` set to `us-east-1`;
 - gives every container understudy starts, Lambda functions and DynamoDB Local, the test session's Testcontainers labels, so the session's reaper removes them too;
 - stops understudy with a 10-second grace period, so it removes its own containers before it exits.
@@ -68,7 +68,7 @@ func testOrders(t *testing.T, env map[string]string) {
 }
 ```
 
-Here the in-process test took 10 to 20 ms, and the container test 1 to 2.5 s with the image already local.
+The in-process test takes 10 to 20 ms, and the container test 1 to 2.5 s with the image already local.
 
 `understudy.Run` returns the container together with any error that comes after it was created, so register the cleanup before checking the error. Pass `ctr.Container`, the embedded testcontainers-go container, to `CleanupContainer`: the module's `Endpoint(ctx)` replaces testcontainers-go's `Endpoint(ctx, proto)`, so `*understudy.Container` itself is not a `testcontainers.Container`. `ctr.Admin(ctx)` returns an `admin.Client` with the whole admin API; `Settle`, `AdvanceClock` and `Reset` wrap the common calls.
 
@@ -177,7 +177,13 @@ Lambda functions and DynamoDB Local need the Docker socket inside the container:
 | Mount the socket | `WithDockerSocket()` | `with_docker_socket()` | `withDockerSocket()` |
 | With an explicit group | `WithDockerSocketGroup(gid)` | `with_docker_socket(gid=gid)` | `withDockerSocket(gid)` |
 
-The option bind-mounts the daemon's socket at `/var/run/docker.sock` and adds the socket's group to the container's user, since the image does not run as root. When the library reaches Docker through a local unix socket, the module reads that group from the socket file, except on Docker Desktop: there a container sees the Desktop VM's socket, owned by `root:root`, so the module adds group 0. For any other daemon, pass the numeric group that owns `/var/run/docker.sock` on the daemon's host; without it, start refuses before creating anything. Once understudy is ready, the module checks that it reports Docker `enabled`, and fails the start otherwise, so a socket understudy cannot use never looks like a working one. With a wrong group, Python's start failed with:
+The option bind-mounts the daemon's socket at `/var/run/docker.sock` and adds the socket's group to the container's user, since the image does not run as root. Where the group comes from depends on the daemon:
+
+- A local unix socket: the module reads the group from the socket file.
+- Docker Desktop: a container sees the Desktop VM's socket, owned by `root:root`, so the module adds group 0.
+- Any other daemon: pass the numeric group that owns `/var/run/docker.sock` on the daemon's host. Without it, start refuses before creating anything.
+
+Once understudy is ready, the module checks that it reports Docker `enabled`, and fails the start otherwise, so a socket understudy cannot use never looks like a working one. With a wrong group, Python's start fails with:
 
 ```text
 understudy: the Docker socket is mounted but understudy reports Docker degraded: Docker at unix:///var/run/docker.sock does not answer, so Lambda functions cannot run and DynamoDB Local cannot start: docker daemon unavailable: permission denied on unix:///var/run/docker.sock; add your user to the docker group and log in again, or set DOCKER_HOST to a socket you can use; Lambda and DynamoDB will not run. Check the socket group (with_docker_socket(gid=...)) or run without with_docker_socket().
@@ -211,10 +217,10 @@ The endpoint's host is the daemon host the library reports, `127.0.0.1` for a lo
 understudy: with_published_on('127.0.0.2') is a loopback address the endpoint never dials: the endpoint and the readiness wait reach port 4566 at the Docker host's address, 127.0.0.1 for a local daemon; publish on 127.0.0.1, or on 0.0.0.0 with with_admin_token().
 ```
 
-Two more publish addresses do not work yet, and start does not refuse them up front:
+Two more publish addresses do not work, and start does not refuse them up front:
 
-- A specific address beyond loopback, such as the host's LAN address, on a local daemon. The start dials `127.0.0.1` and fails after the 60-second timeout. This was seen with `127.0.0.2` in Python, before the option refused it; a LAN address was not run.
-- `::` in Node, on a host whose `localhost` resolves to IPv4 only. testcontainers-node finds no mapped port, and start rejects with its `No host port found for host IP` error after removing the container. Go and Python were not run with `::`.
+- A specific address beyond loopback, such as the host's LAN address, on a local daemon. The start dials `127.0.0.1` and fails after the 60-second timeout. This is inferred from the same failure with `127.0.0.2`; a LAN address is untested.
+- `::` in Node, on a host whose `localhost` resolves to IPv4 only. testcontainers-node finds no mapped port, and start rejects with its `No host port found for host IP` error after removing the container. `::` is untested in Go and Python.
 
 `0.0.0.0` with the token option works in all three.
 
@@ -250,7 +256,9 @@ def test_infra():
 
 ## Cleanup
 
-The module's stop gives understudy 10 seconds to remove the containers it started; with DynamoDB Local running, the whole stop took under a second here. If the test process dies first, Testcontainers' reaper, Ryuk, is meant to remove understudy's container and, through the session labels, the containers understudy started. After a `kill -9` of a Python test process (testcontainers-python 4.15.0, Ryuk 0.8.1), both understudy and its DynamoDB Local container were gone about 10 seconds later in 4 of 5 runs. In the fifth, neither was removed after 90 seconds and no Ryuk container was left; the cause was not found. When that happens, recover as without a reaper, below.
+The module's stop gives understudy 10 seconds to remove the containers it started; with DynamoDB Local running, the whole stop takes under a second.
+
+If the test process dies first, Testcontainers' reaper, Ryuk, removes understudy's container and, through the session labels, the containers understudy started. The reaper is not fully reliable. After a `kill -9` of a Python test process (testcontainers-python 4.15.0, Ryuk 0.8.1), both understudy and its DynamoDB Local container were gone about 10 seconds later in 4 of 5 runs. In the fifth, neither was removed after 90 seconds and no Ryuk container was left, for a cause that is not known. When that happens, recover as you would without a reaper.
 
 With `TESTCONTAINERS_RYUK_DISABLED=true` there is no reaper, and a killed test process leaves understudy running with every container it started. `docker stop` on the understudy container (`docker ps --filter ancestor=ghcr.io/sustinbebustin/understudy`) still lets it remove them before it exits. Once the understudy container is gone without that stop, for example after `docker rm -f`, its containers stay until you run:
 

@@ -236,7 +236,13 @@ aws sqs receive-message --queue-url http://localhost:4566/000000000000/orders-dl
 }
 ```
 
-- A destination is an SQS queue, an SNS topic, a function (invoked asynchronously), an EventBridge bus (default or custom; the event's `source` is `lambda` and its `detail-type` `Lambda Function Invocation Result - Success` or `- Failure`), or, on failure only, an S3 bucket (key `aws/lambda/async/<function>/YYYY/MM/DD/YYYY-MM-DDTHH.MM.SS-<uuid>`). The dead-letter target is an SQS queue or an SNS topic.
+- A destination is one of:
+  - an SQS queue or an SNS topic;
+  - a function, invoked asynchronously;
+  - an EventBridge bus, default or custom. The event's `source` is `lambda` and its `detail-type` is `Lambda Function Invocation Result - Success` or `- Failure`;
+  - on failure only, an S3 bucket. The key is `aws/lambda/async/<function>/YYYY/MM/DD/YYYY-MM-DDTHH.MM.SS-<uuid>`.
+
+  The dead-letter target is an SQS queue or an SNS topic.
 - Retries run on the emulator clock first. With the default two retries, the record waits for an attempt 60 s after the first failure and another 120 s after the second; on a frozen or slow clock, move it:
 
   ```sh
@@ -246,7 +252,7 @@ aws sqs receive-message --queue-url http://localhost:4566/000000000000/orders-dl
 
   The record then has `"approximateInvokeCount": 3`.
 - The configuration of the qualifier invoked applies: `$LATEST`'s for an unqualified invoke, an alias's or version's own otherwise. An alias or version without one gets the defaults and no destination, as on AWS (fidelity switch `lambda.async.qualifier-config`). The dead-letter queue is set per function and serves every version.
-- A destination function, queue or topic that does not exist is refused when you configure it, as on AWS; a missing bucket is refused in S3's words; a missing event bus is accepted, as AWS accepts it (fidelity switch `lambda.destination.config-existence-check`):
+- A destination function, queue or topic that does not exist is refused when you configure it, as on AWS. A missing bucket is refused in S3's words, and a missing event bus is accepted, as AWS accepts it (fidelity switch `lambda.destination.config-existence-check`):
 
   ```text
   An error occurred (InvalidParameterValueException) when calling the PutFunctionEventInvokeConfig operation: The destination ARN arn:aws:sqs:us-east-1:000000000000:no-such-queue is invalid.
@@ -259,7 +265,7 @@ aws sqs receive-message --queue-url http://localhost:4566/000000000000/orders-dl
   understudy journal --kind delivery --errors
   ```
 
-- Records and dead letters are sent as the function's execution role. understudy does not check the role's permissions, but `understudy iam policy --principal <role ARN>` lists the `sqs:SendMessage`, `sns:Publish`, `lambda:InvokeFunction`, `events:PutEvents`, `s3:ListBucket` and `s3:PutObject` statements the deliveries need (see [IAM policy](policy.md)).
+- Records and dead letters are sent as the function's execution role. `understudy iam policy --principal <role ARN>` lists the `sqs:SendMessage`, `sns:Publish`, `lambda:InvokeFunction`, `events:PutEvents`, `s3:ListBucket` and `s3:PutObject` statements the deliveries need ([Policy generation](policy.md)). The role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under `--iam-enforce advise`, which journals each denial, or `enforce`, which fails the delivery.
 - Synchronous invokes and SQS event source mappings produce no record, as on AWS.
 
 ## Logs
@@ -312,7 +318,11 @@ aws lambda add-permission --function-name hello --statement-id url-invoke --acti
   --principal '*' --invoked-via-function-url
 ```
 
-As on AWS, a public URL needs both statements; without them it answers 403. The URL has the form `http://<url-id>.lambda-url.us-east-1.localhost:4566/`. Where `*.localhost` does not resolve, use the path form `http://127.0.0.1:4566/_understudy/lambda-url/<url-id>/`. The path form shares understudy's own origin, so its answers carry `Content-Security-Policy: sandbox`, replacing any policy the function sets: a page served there runs without scripts or forms. HTTP clients and `fetch` calls are unaffected; open a browser app on the host form, its own origin, as on AWS. Payloads use format 2.0; responses are buffered, not streamed.
+As on AWS, a public URL needs both statements; without them it answers 403. Payloads use format 2.0, and responses are buffered, not streamed.
+
+The URL has the form `http://<url-id>.lambda-url.us-east-1.localhost:4566/`. Where `*.localhost` does not resolve, use the path form `http://127.0.0.1:4566/_understudy/lambda-url/<url-id>/`.
+
+The path form shares understudy's own origin, so its answers carry `Content-Security-Policy: sandbox`, replacing any policy the function sets: a page served there runs without scripts or forms. HTTP clients and `fetch` calls are unaffected. Open a browser app on the host form, which is an origin of its own, as on AWS.
 
 ## Networking
 
@@ -331,8 +341,9 @@ On a Linux host functions reach only the AWS API and the read-only health and cl
 
 ## Limitations
 
-- An asynchronous invocation's record or dead letter that cannot be delivered is journaled and not retried. The execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under `--iam-enforce advise`, which journals each denial, or `enforce`, which fails the delivery.
+- An asynchronous invocation's record or dead letter that cannot be delivered is journaled and not retried ([Destinations and dead-letter queues](#destinations-and-dead-letter-queues)).
 - `EphemeralStorage` is validated but not enforced. Reserved concurrency is enforced; the provisioned concurrency operations answer 501.
-- AWS-published layers, such as Powertools, exist only once you publish their content to understudy.
+- AWS-published layers, such as Powertools, exist only once you publish their content to understudy ([Layers](#layers)).
+- An alias's weighted routing is stored but not applied: an invoke always runs the primary version.
 - The LocalStack convention of creating a function from the `hot-reload` bucket is not supported; use `understudy lambda hot-reload` or the configuration file.
 - A fault rule scoped to a resource matches Lambda's `Invoke` only; scope rules on other Lambda operations by operation, account or region.
