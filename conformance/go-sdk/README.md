@@ -46,7 +46,7 @@ scripts/sealed --endpoint http://127.0.0.1:4566 go test ./...    # from conforma
 
 ## Layout
 
-There is one file per service, named after it, so that one person can own and fix one service at a time:
+There is one file per service, named after it, so that a fix can own one service. A large service has further files for a feature:
 
 | File | Service |
 |---|---|
@@ -67,8 +67,13 @@ There is one file per service, named after it, so that one person can own and fi
 | `sts_test.go` | STS |
 | `eventbridge_test.go` | EventBridge |
 | `eventbridge_accounts_test.go` | EventBridge between two accounts, the second selected by a 12-digit access key |
-| `cloudwatch_test.go` | CloudWatch metrics and alarms |
-| `apigatewayv2_test.go` | API Gateway HTTP APIs: the control plane and Lambda proxy invocations through the execute-api path fallback |
+| `scheduler_test.go` | EventBridge Scheduler |
+| `cloudwatch_test.go`, `cloudwatch_alarms_test.go`, `cloudwatch_alarm_notify_test.go` | CloudWatch metrics, alarm evaluation and alarm actions |
+| `ssm_test.go` | SSM Parameter Store |
+| `sfn_test.go` | Step Functions |
+| `ses_test.go`, `ses_templated_test.go` | SES v1 |
+| `sesv2_test.go`, `sesv2_templates_test.go` | SES v2 |
+| `apigatewayv2_test.go`, `apigatewayv2_lifecycle_test.go` | API Gateway HTTP APIs: the control plane and Lambda proxy invocations through the execute-api path fallback |
 | `apigateway_test.go` | API Gateway REST APIs: the control plane and its recorded refusals, a MOCK method and Lambda proxy invocations through the execute-api path fallback |
 
 `main_test.go` holds the shared setup and helpers:
@@ -83,7 +88,7 @@ Each test creates uniquely named resources and deletes them when it ends, so tes
 
 ## What the suite covers
 
-- Every phase 1 operation that understudy binds, for every service understudy emulates, with the error codes of the common failure paths.
+- The operations understudy binds, for every service under Layout, with the error codes of the common failure paths.
 - S3:
   - virtual-hosted (`<bucket>.localhost`) and path-style addressing;
   - the default CRC32 request checksums, as headers over HTTP and as `aws-chunked` trailers over HTTPS;

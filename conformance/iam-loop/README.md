@@ -85,7 +85,7 @@ SKIP root-suites
 
 ## Batches
 
-One invocation of every group can outrun a 10-minute limit on 4 vCPU, so the loop is verified as several invocations, each selecting a subset of groups with `IAM_LOOP_GROUPS` and `IAM_LOOP_ROOT_SUITES=0`, plus one `IAM_LOOP_GROUPS='^$'` invocation for (e) and step 6. A green claim names every batch, its group regex, its result and the commit; the union of the batches covers every group.
+One invocation of every group takes more than ten minutes on 4 vCPUs. Where a run must be shorter, split it: several invocations that each select a subset of groups with `IAM_LOOP_GROUPS` and `IAM_LOOP_ROOT_SUITES=0`, plus one `IAM_LOOP_GROUPS='^$'` invocation for (e) and step 6. The loop has passed only when the batches together cover every group, all on one commit.
 
 ## Tests that need the root
 

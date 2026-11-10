@@ -25,9 +25,9 @@ On failure, `understudy journal --errors` prints every call understudy answered 
 
 ## Before copying
 
-- **Version.** `UNDERSTUDY_VERSION: main` builds the newest commit. Pin a release tag or a commit instead, so a change in understudy cannot change your build unannounced.
+- **Version.** `UNDERSTUDY_VERSION` pins the understudy release the workflow installs, so a new release cannot change your build unannounced. Move it when you choose to upgrade; a commit works too.
 - **Tests.** As written, the workflow runs the [python-worker](../python-worker) suite from the understudy repository. Change `working-directory` and `run` in the test step to run yours.
 
-## How it was checked
+## How it is checked
 
-GitHub Actions cannot run outside GitHub, so `examples/check.sh github-actions` checks the workflow in two parts. It lints the file with [actionlint](https://github.com/rhysd/actionlint). Then it runs the workflow's commands against a local understudy: it loads the output of `understudy env --format github` into the environment and runs `uv run pytest` in `examples/python-worker`. The install step is not run, because it fetches understudy from GitHub.
+GitHub Actions cannot run outside GitHub, so `examples/check.sh github-actions` checks the workflow in two parts. It lints the file with [actionlint](https://github.com/rhysd/actionlint). Then it runs the workflow's commands against an understudy built from this repository: it loads the output of `understudy env --format github` into the environment and runs `uv run pytest` in `examples/python-worker`. The install step is not run, because it fetches understudy from GitHub.

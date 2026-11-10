@@ -1,11 +1,15 @@
-# macOS Docker Desktop run
+# Pre-release manual run: macOS Docker Desktop
 
-For the maintainer, before a tag (ROADMAP item 4). CI only has Linux, so Docker Desktop is supported but not CI-tested (ADR 0011, amendment of 2026-11-06). The first run, on 2026-11-06, answered the four questions below; each later run checks that the answers still hold on the current Desktop:
+The manual run a maintainer does on a Mac before a release ([release runbook](release-runbook.md), section 1). CI has only Linux, so Docker Desktop is supported but not CI-tested (ADR 0011, amendment of 2026-11-06). This run is the only check that understudy still works there.
 
-1. The exact `OperatingSystem` string `docker info` reports on Desktop. Topology detection keys on it containing `Docker Desktop` (`internal/topology/detect.go`), as `docs/research/containers.md` section 2.2 records. If it changes, Desktop is treated as a Linux bridge and functions cannot reach understudy.
-2. Which Engine API call answers "Mounts denied" for a path Desktop does not share, the container create or the start, and with what status. The Lambda launcher falls back to copying the code on either (`internal/service/lambda/launcher/doc.go`), but its tests only fake the daemon's answer.
-3. Whether `*.localhost` names resolve on macOS (`understudy doctor`'s localhost check).
-4. TC-01 (`docs/research/testcontainers.md` 11.1): the uid, gid and mode of the Docker socket as a container sees it on Desktop, whether `--group-add <gid>` lets the image's user 65532 use it, and whether a `127.0.0.1` publish is reachable from macOS.
+understudy depends on four facts about Docker Desktop that no Linux test can observe. Each run confirms they still hold on the current Desktop:
+
+| # | Fact | Why it matters | Recorded 2026-11-06 (Desktop 4.98.0, Engine 29.9.2) |
+|---|---|---|---|
+| 1 | The `OperatingSystem` string `docker info` reports | Topology detection keys on it containing `Docker Desktop` (`internal/topology/detect.go`, `docs/research/containers.md` 2.2). If it changes, Desktop is treated as a Linux bridge and functions cannot reach understudy. | `Docker Desktop` |
+| 2 | Which Engine API call answers "Mounts denied" for a path Desktop does not share, and with what status | The Lambda launcher falls back to copying the code on either call (`internal/service/lambda/launcher/doc.go`), but its tests only fake the daemon's answer. | create answers 201; start answers 500 (`docs/research/containers.md` 5.1) |
+| 3 | Whether `*.localhost` names resolve on macOS | `understudy doctor`'s localhost check, and virtual-hosted S3 addressing. | they resolve to loopback |
+| 4 | TC-01 (`docs/research/testcontainers.md` 11.1): the uid, gid and mode of the Docker socket as a container sees it, whether `--group-add <gid>` lets the image's user 65532 use it, and whether a `127.0.0.1` publish is reachable from macOS | The Testcontainers modules and the README add group 0 on Desktop (`docs/research/testcontainers.md` 8.5). | `uid=0 gid=0 mode=660`; group 0 works; reachable |
 
 Nothing here touches AWS: every AWS CLI call goes through `scripts/sealed`. Allow about 90 minutes; the first run pulls the Lambda base images and DynamoDB Local.
 
@@ -31,7 +35,7 @@ Two tests skip on a Mac by design, with the reason in `-v` output: `TestContaine
    curl -fsSL https://bun.sh/install | bash -s bun-v1.4.3
    ```
 
-3. Use a checkout under your home directory (a path Desktop shares by default), such as a fresh clone or an existing working copy, at the commit under test. Run every command below from the repository root, in Homebrew's `bash`. macOS's login shell is zsh, so start bash first. An agent whose tool calls each start a fresh shell runs each block as `bash -c '...'` and repeats the two exports at the top of every block:
+3. Use a checkout under your home directory (a path Desktop shares by default), such as a fresh clone or an existing working copy, at the commit under test. Run every command below from the repository root, in Homebrew's `bash`. macOS's login shell is zsh, so start bash first. Where each block runs in a fresh shell, as under a script runner or a coding agent, run it as `bash -c '...'` and repeat the two exports at the top of every block:
 
    ```sh
    "$(brew --prefix)/bin/bash"
@@ -57,7 +61,7 @@ Two tests skip on a Mac by design, with the reason in `-v` output: `TestContaine
 } >"$OUT/env.txt" 2>&1
 ```
 
-The `OperatingSystem=` line answers question 1.
+The `OperatingSystem=` line is fact 1.
 
 ## 3. Build, serve and run doctor
 
@@ -72,7 +76,7 @@ grep 'DynamoDB Local is ready' "$OUT/serve.log" >>"$OUT/dynamodb.txt"
 kill %1
 ```
 
-`doctor` reports the Docker socket, the detected topology (`docker-desktop`, with the documented host address `192.168.65.254`), whether `*.localhost` resolves (question 3), the hot-reload paths against Desktop's shared paths, and DynamoDB.
+`doctor` reports the Docker socket, the detected topology (`docker-desktop`, with the documented host address `192.168.65.254`), whether `*.localhost` resolves (fact 3), the hot-reload paths against Desktop's shared paths, and DynamoDB.
 
 On Desktop understudy publishes DynamoDB Local on `127.0.0.1` with an ephemeral host port, because Desktop does not route to container addresses (ADR 0014). `dynamodb.txt` should hold `"TableNames": []` and a `DynamoDB Local is ready` line whose endpoint is `http://127.0.0.1:<port>`.
 
@@ -135,7 +139,7 @@ docker rm -f tc01-with-group tc01-without-group
 stat -L -f 'host socket: uid=%u gid=%g mode=%Lp' /var/run/docker.sock >"$OUT/TC-01/host-stat.txt"
 ```
 
-Record `docker.status` and `docker.reason` from both health files, and whether curl reached `127.0.0.1` at all. The host's own `stat` is kept too, for comparison: on 2026-11-06 the container saw `uid=0 gid=0 mode=660` and the host the user's group, which is why the modules and the README add group 0 on Desktop (testcontainers.md 8.5).
+Record `docker.status` and `docker.reason` from both health files, and whether curl reached `127.0.0.1` at all. The host's own `stat` is kept too, for comparison: on 2026-11-06 the container saw `uid=0 gid=0 mode=660` and the host the user's group, which is why the modules and the README add group 0 on Desktop (`docs/research/testcontainers.md` 8.5).
 
 ## 8. Testcontainers modules
 
@@ -145,11 +149,11 @@ testcontainers/python/run.sh 2>&1 | tee "$OUT/tc-python.log"
 testcontainers/node/run.sh 2>&1 | tee "$OUT/tc-node.log"
 ```
 
-Each suite runs against `understudy:dev` and includes a Lambda case with the socket mounted, with group 0 on Desktop. A failure there with the module's "the Docker socket is mounted but understudy reports Docker ..." message means the socket's ownership changed (step 7). On Linux the Go suite has one known failure, the cleanup of `TestTerminateLeavesNoChildContainer`, which lists containers with an already-canceled context; it passed on Desktop on 2026-11-06. The Node suite skips one case when `localhost` resolves to IPv6 first, as it does on macOS.
+Each suite runs against `understudy:dev` and includes a Lambda case with the socket mounted, with group 0 on Desktop. A failure there with the module's "the Docker socket is mounted but understudy reports Docker ..." message means the socket's ownership changed (step 7). The Node suite skips one case when `localhost` resolves to IPv6 first, as it does on macOS.
 
 ## 9. Which call answers "Mounts denied"
 
-`/opt` is not one of Desktop's shared paths. Ask the Engine API for a bind mount from there, and keep both answers. The two `sudo` lines need your password; an agent asks you to run them:
+`/opt` is not one of Desktop's shared paths. Ask the Engine API for a bind mount from there, and keep both answers. The two `sudo` lines need your password, so run them yourself:
 
 ```sh
 sudo mkdir -p /opt/understudy-mount-probe
@@ -183,7 +187,7 @@ docker image ls --filter label=understudy.dev/test=1
 
 The last two commands should list nothing; anything they list is worth reporting. DynamoDB Local's image stays in Desktop's local cache only: never re-tag, push or save it (ADR 0014).
 
-## 12. What to report back
+## 12. Record the results
 
 Write `$OUT/results.md` with one line per step (pass, fail or skipped, and for each failure the test name and its first error line), then answer:
 
@@ -194,12 +198,12 @@ Write `$OUT/results.md` with one line per step (pass, fail or skipped, and for e
 5. TC-01: the socket's uid, gid and mode in a container and on the host, `docker.status` with and without the group, whether `127.0.0.1` was reachable, and the Testcontainers Lambda results.
 6. Whether DynamoDB answered from the host (`dynamodb.txt`), and the endpoint of the `DynamoDB Local is ready` line.
 7. Every failure not under "Expected failures".
-8. Your decision: is Docker Desktop a tested topology?
+8. Whether any of the four facts differs from its recorded answer at the top of this page.
 
-Send the directory as one archive. It holds no credentials, but it holds local paths and your user name, so it stays out of the repository:
+The run directory holds no credentials, but it holds local paths and your user name, so it stays out of the repository. To hand it to someone else, send it as one archive:
 
 ```sh
 tar -C ~ -czf ~/understudy-macos-run.tgz understudy-macos-run
 ```
 
-The agent that takes it updates ADR 0011, ADR 0014's Desktop line, `docs/research/containers.md` 2.2, `docs/research/testcontainers.md` 10 and 11.1, the README's Docker Desktop line, `docs/guide/lambda.md` and SECURITY.md where the answers change them, and turns each new failure into a fix or a ticket.
+The release goes ahead when every failure is fixed or listed under "Expected failures" and no fact changed. When a fact changed, update what records it before the tag: ADR 0011, ADR 0014's Desktop line, `docs/research/containers.md` 2.2 and 5.1, `docs/research/testcontainers.md` 10 and 11.1, the README's Docker Desktop line, `docs/guide/lambda.md`, SECURITY.md, and the table at the top of this page. A new failure becomes a fix or an issue.

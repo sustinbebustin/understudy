@@ -58,7 +58,7 @@ Every operation of each vendored model (`codegen/services/`, `internal/api/<serv
    b.CreateSecret(s.createSecret, registry.Partial{Note: "AddReplicaRegions (replication) answers NotImplemented"})
    ```
 
-   The note is what `understudy coverage` and `docs/coverage.md` show users. Bind options add a typed validator (`kernel.WithValidator`), a check (`kernel.WithCheck`) or the ARNs the call touches (`kernel.WithResources`), which fault rules, the journal and the access recorder use.
+   The note is what `understudy coverage` and `docs/coverage.md` show users. Bind options after the mark add a typed validator (`kernel.WithValidator`), a check (`kernel.WithCheck`) or the ARNs the call touches (`kernel.WithResources`), which fault rules, the journal and the access recorder use.
 
    If `codegen/services/<service>.json` has a `boundOperations` list, add the operation's name to it, keeping it sorted, and run `just generate`: the schemas of operations it leaves out are generated without members (ADR 0001), and `internal/server` tests fail until the list matches what the kernel binds.
 4. **Constraints the model lacks.** If AWS enforces a limit or an error the Smithy model does not declare, add an entry to `codegen/overlays/<service>.json` with its `dev.understudy#evidence` (label and source), then `just generate`. Limits that depend on state belong in the handler.
@@ -66,7 +66,7 @@ Every operation of each vendored model (`codegen/services/`, `internal/api/<serv
 6. **Test it** through the kernel, in a `kerneltest` bubble, so timers and long polls run on the emulator clock with no sleeps:
 
    ```go
-   func TestTagsRoundTrip(t *testing.T) {
+   func TestQueueTags(t *testing.T) {
    	run(t, func(h *harness) {
    		// h.Invoke(h.Context(), sqsapi.OpTagQueue, ...), then sqsapi.OpListQueueTags, and assert the result
    	})
@@ -114,7 +114,7 @@ A new wire protocol needs an ADR; the protocol compliance corpus already carries
 | Parity replay | `go test -race ./internal/parity` | Real AWS exchanges under `testdata/parity` replayed against an in-process server, as a ratchet over `internal/parity/baseline.json` ([testdata/README.md](testdata/README.md#replay-scenarios)) |
 | Docker integration | `just test-docker` | Lambda execution, DynamoDB Local, container networking, the image |
 | Smoke | `just smoke` | The built binary serves one request per service, over HTTP and TLS |
-| Budgets | `just budgets` | Binary size, startup time, idle memory, build and lint time stay under their ceilings |
+| Budgets | `just budgets` | Binary size, startup time, idle memory, cold build time, lint time and the journal ring's defaults stay under their ceilings |
 | Generated code | `go run ./internal/cmd/gen -all -check` | Regenerating from the vendored inputs reproduces what is committed; CI runs `just generate-check`, which also fails on any uncommitted change |
 | Coverage page | `just coverage-check` | `docs/coverage.md` matches the binary |
 | Web UI | `just ui-check` | The UI's `bun test` passes, and `ui/src/labels.gen.ts` and the embedded build in `internal/server/ui/dist` are what `just ui` produces from the Go enumerations and `ui/`; after changing either, run `just ui` and commit both |
@@ -127,7 +127,7 @@ The parity ratchet fails when a replayed step's outcome or a claim's result chan
 
 ## Conformance suites
 
-Each suite in `conformance/` is its own module or project, builds understudy from the repository, starts it on its own loopback port with a fresh data directory, runs through `scripts/sealed`, and cleans up its containers. Each takes arguments to run a subset, and each runs DynamoDB's tests unless `CONFORMANCE_DYNAMODB=0` ([conformance/README.md](conformance/README.md#dynamodb)):
+Each suite in `conformance/` is its own module or project. Its `run.sh` builds understudy from the repository, starts it on its own loopback port with a fresh data directory, runs the suite through `scripts/sealed`, and cleans up its containers. Each takes arguments to run a subset:
 
 ```sh
 conformance/go-sdk/run.sh -run TestSTS
@@ -143,9 +143,11 @@ conformance/terraform/run.sh iam
 | `js-sdk-v3/` | AWS SDK for JavaScript v3 |
 | `aws-cli/` | AWS CLI v2 |
 | `terraform/` | Terraform: apply, an empty second plan, an update, destroy, nothing left behind |
-| `e2e-pipeline/` | The phase 1 event-driven pipeline end to end, including Lambda workers |
+| `e2e-pipeline/` | An SNS to SQS to Lambda pipeline end to end, with its DynamoDB lock table, S3 bucket, KMS key, secret and logs, on three Lambda workers |
+| `patterns/` | Terraform patterns from aws-samples/serverless-patterns, run as their READMEs say |
+| `iam-loop/` | The aws-cli and go-sdk suites as IAM users: record under `--iam-enforce advise`, attach the rendered policies, run again under `enforce` |
 
-Every suite has one file per service so a fix can own one service. Each suite's README lists its requirements and options. `CONFORMANCE_DYNAMODB` accepts only `0`; any other value exits 2. Under the opt-out the end-to-end suite skips only the tests that make a worker take a DynamoDB lock or read the lock table.
+The SDK, CLI and Terraform suites have one file per service, so a fix can own one service. [conformance/README.md](conformance/README.md) covers what the suites share: the DynamoDB opt-out (`CONFORMANCE_DYNAMODB=0`), the `--sigv4` mode each runs under (`SIGV4`) and the summary every run ends with. Each suite's README lists its requirements and options.
 
 A conformance failure is a finding about understudy, or about the research: fix whichever is wrong, never the test to match understudy.
 
@@ -154,6 +156,8 @@ A conformance failure is a finding about understudy, or about the research: fix 
 - `docs/configuration.md` carries `understudy serve --help` verbatim; a test fails when they differ.
 - `docs/coverage.md` is generated (`just coverage-check`).
 - The guide in `docs/guide/` shows only commands that were run against a build. Update it with any user-visible change.
+- `CHANGELOG.md` gets an entry under `[Unreleased]` for a user-visible change; a release's notes are cut from it ([release runbook](docs/release-runbook.md)).
+- [GLOSSARY.md](GLOSSARY.md) defines the emulator's own terms. Use them as defined in code, comments and docs.
 
 ## Reporting problems
 

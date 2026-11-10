@@ -9,7 +9,7 @@ Suites that check understudy from the outside, each a separate module or project
 | `js-sdk-v3/` | AWS SDK for JavaScript v3 | `conformance/js-sdk-v3/run.sh` |
 | `aws-cli/` | the AWS CLI | `conformance/aws-cli/run.sh` |
 | `terraform/` | Terraform: apply, a no-change plan, an update, destroy | `conformance/terraform/run.sh` |
-| `e2e-pipeline/` | the event-driven pipeline end to end | `conformance/e2e-pipeline/run.sh` |
+| `e2e-pipeline/` | aws-sdk-go-v2 and the `admin` client: an SNS to SQS to Lambda pipeline end to end | `conformance/e2e-pipeline/run.sh` |
 | `patterns/` | serverless-patterns as their READMEs run them, through Terraform | `conformance/patterns/run.sh` |
 | `iam-loop/` | the aws-cli and go-sdk suites as an IAM user: record under `--iam-enforce advise`, attach the rendered policies, re-run under `enforce` | `conformance/iam-loop/run.sh` |
 

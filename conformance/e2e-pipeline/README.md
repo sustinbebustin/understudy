@@ -1,6 +1,6 @@
 # e2e-pipeline
 
-The phase 1 event-driven pipeline, end to end, as a Go test module that talks to a running understudy through aws-sdk-go-v2 and the `admin` client. Tests assert AWS behavior as documented in `docs/research/`; where the research leaves a value unverified, the test does not assert it.
+One event-driven pipeline, end to end: an SNS topic fanning out to SQS queues that feed three Lambda workers, which use DynamoDB, S3, KMS, Secrets Manager and CloudWatch Logs. It is a Go test module that talks to a running understudy through aws-sdk-go-v2 and the `admin` client. Tests assert AWS behavior as documented in `docs/research/`; where the research leaves a value unverified, the test does not assert it.
 
 ## Run
 
@@ -14,7 +14,7 @@ conformance/e2e-pipeline/run.sh -run TestSQS               # extra arguments go 
 
 Requirements: Go, Docker, and network access on first use to pull `public.ecr.aws/lambda/provided:al2023`, `public.ecr.aws/lambda/python:3.13` and `amazon/dynamodb-local`. Every worker takes a DynamoDB lock for each SQS record, so DynamoDB runs by default and `run.sh` exits 1 unless DynamoDB reports `enabled` after startup. `CONFORMANCE_DYNAMODB` set to anything but `0` exits 2 before building.
 
-- `CONFORMANCE_DYNAMODB=0` provisions the pipeline without its lock table. Every test that publishes to the topic, and so makes a worker take a lock, or that reads the lock table skips (`requireDynamoDB`) with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`; the rest run, and DynamoDB Local never starts.
+`CONFORMANCE_DYNAMODB=0` provisions the pipeline without its lock table. Every test that publishes to the topic, and so makes a worker take a lock, or that reads the lock table skips (`requireDynamoDB`) with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`. The rest run, and DynamoDB Local never starts.
 
 The suite also runs against any fresh understudy on a loopback endpoint: `scripts/sealed --endpoint http://127.0.0.1:<port> go test ./...` from this directory. It refuses an endpoint that is not loopback, and expects an empty emulator with a frozen clock.
 
@@ -33,7 +33,7 @@ Emulator time moves only when a test advances the clock, so visibility timeouts,
 
 ## Tests
 
-One file per service, so a fixer can own one service at a time; the platform features have a file each.
+One file per service, so a fix can own one service; the journal, faults and snapshots have a file each.
 
 | File | Covers |
 |---|---|

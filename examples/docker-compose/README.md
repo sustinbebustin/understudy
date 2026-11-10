@@ -18,7 +18,7 @@ What the compose file shows:
 
 ## Run it
 
-You need Docker with the compose plugin, and the AWS CLI for the last step. No release image is published yet, so the first `up` builds understudy's image from this repository (`../..`). It is tagged `understudy:dev`, the same tag `just image` builds.
+You need Docker with the compose plugin, and the AWS CLI for the last step. The example runs understudy as built from this repository, so the first `up` builds its image from `../..`. It is tagged `understudy:dev`, the same tag `just image` builds.
 
 From this directory:
 
@@ -58,7 +58,7 @@ The queue URL names `understudy:4566` because understudy builds queue URLs from 
 Copy `compose.yaml`. Then:
 
 - Replace the `app` service with your own, keeping its `AWS_*` environment and `depends_on`.
-- Once you have built understudy's image, delete the `build:` section under `understudy`.
+- Under `understudy`, delete the `build:` section and set `image:` to a release, `ghcr.io/sustinbebustin/understudy:X.Y.Z`.
 - To run Lambda functions or DynamoDB from compose, understudy needs the Docker socket. Add this to the `understudy` service. DynamoDB then runs on Amazon DynamoDB Local, pulled on first use under [Amazon's licence terms](https://aws.amazon.com/dynamodb/dynamodblocallicense/).
 
   ```yaml

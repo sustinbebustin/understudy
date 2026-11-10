@@ -25,3 +25,47 @@ _Avoid_: background job, task, goroutine
 **Settle**:
 Waiting until no tracked work is pending and no timer is due. A timer not yet due never counts, so a frozen clock settles.
 _Avoid_: drain, flush, quiesce (the test harness's word for a synctest wait followed by a settle)
+
+### Fidelity
+
+**Coverage mark**:
+What an operation's binding declares about it: full, stored-only, partial or unbound. The coverage page shows the mark and its note for every operation.
+_Avoid_: status, support level
+
+**Stored-only**:
+An operation that accepts, stores and returns its input with no runtime effect.
+_Avoid_: no-op, stub, mocked
+
+**Unbound**:
+An operation with no handler. It answers `501 NotImplemented` in AWS's error format and names itself.
+_Avoid_: unsupported, missing, unimplemented
+
+**Evidence label**:
+What backs a claim about AWS's behavior, from strongest to weakest: `aws-recorded`, `third-party-recorded`, `aws-doc`, `sdk-source`, `inferred`.
+_Avoid_: confidence, source type
+
+**Overlay**:
+A constraint AWS enforces that its Smithy model does not declare, written beside the model with an evidence label and applied by the code generator.
+_Avoid_: patch, model fix
+
+**Fidelity switch**:
+A named behavior understudy chose where no recording of AWS settles it, carrying its evidence label and the recording that would settle it.
+_Avoid_: flag, toggle, option
+
+**Recording**:
+A real AWS exchange captured by a maintainer and checked in under `testdata/parity/`.
+_Avoid_: capture, snapshot (a snapshot is an archive of emulator state), golden file
+
+**Replay**:
+Sending a recording's requests to understudy and comparing its answers with AWS's.
+_Avoid_: playback, parity test
+
+### Causality
+
+**Journal**:
+The record of every API call, delivery, invocation, timer and fault, each event carrying the event that caused it.
+_Avoid_: log, audit trail, trace (a trace is one tree of the journal)
+
+**Delivery**:
+One service handing a payload to another on a producer's behalf: an SNS notification to a queue, an event to a rule's target, a batch to a function.
+_Avoid_: dispatch, forward, internal call

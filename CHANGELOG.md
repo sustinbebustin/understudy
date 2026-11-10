@@ -4,23 +4,31 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Fixed
+
+- `understudy version` names the version of a binary installed with `go install github.com/sustinbebustin/understudy/cmd/understudy@vX.Y.Z`, where it said `dev`. Without the release's stamp, the version is the module version the go command records, or the git version of a build in a checkout.
+
 ## [0.1.2] - 2026-11-09
+
+The first complete release.
 
 ### Fixed
 
-- The Homebrew cask and the Testcontainers modules are published. The 0.1.0 and 0.1.1 releases stopped before the cask, each on its tap token template, so they have binaries and images but no cask, and no module on PyPI, npm or the Go proxy.
+- The Homebrew cask and the Testcontainers modules are published: `brew install --cask sustinbebustin/tap/understudy`, the Go module `github.com/sustinbebustin/understudy/testcontainers/go`, and `testcontainers-understudy` on PyPI and npm. Use 0.1.2 or later for any of them: 0.1.0 and 0.1.1 have binaries and images only.
 
 ## [0.1.1] - 2026-11-09
 
 ### Fixed
 
-- A second attempt at publishing the Homebrew cask, which 0.1.0's release stopped before. It stopped at the same step, so 0.1.1 has no cask and no published Testcontainers modules either.
+- A release pipeline fix meant to publish the Homebrew cask, which did not. The binaries and the image are 0.1.0's with a new version; 0.1.1 has no cask and no Testcontainers modules.
 
 ## [0.1.0] - 2026-11-09
 
+The release stopped before its Homebrew cask and Testcontainers modules, which are available from 0.1.2.
+
 ### Added
 
-- First release: one binary and a multi-arch image (`ghcr.io/sustinbebustin/understudy`, linux/amd64 and linux/arm64) that stand in for eighteen AWS services through `AWS_ENDPOINT_URL`: SQS, SNS, S3, DynamoDB and DynamoDB Streams, Kinesis Data Streams, Lambda, CloudWatch Logs, Secrets Manager, KMS, IAM, STS, EventBridge, EventBridge Scheduler, CloudWatch, API Gateway HTTP APIs, SSM Parameter Store, Step Functions and SES. Coverage is partial and listed operation by operation in `docs/coverage.md`; an unimplemented operation answers 501.
+- First release: one binary and a multi-arch image (`ghcr.io/sustinbebustin/understudy`, linux/amd64 and linux/arm64) that stand in for eighteen AWS services through `AWS_ENDPOINT_URL`: SQS, SNS, S3, DynamoDB and DynamoDB Streams, Kinesis Data Streams, Lambda, CloudWatch Logs, Secrets Manager, KMS, IAM, STS, EventBridge, EventBridge Scheduler, CloudWatch, API Gateway (HTTP and REST APIs), SSM Parameter Store, Step Functions and SES. Coverage is partial and listed operation by operation in `docs/coverage.md`; an unimplemented operation answers 501.
 - Binaries for linux and darwin on amd64 and arm64, and a Homebrew cask: `brew install --cask sustinbebustin/tap/understudy`.
 - One emulator clock for every AWS timer, a causal journal of every call and delivery with a web UI, fault injection, snapshots and opt-in persistence.
 - Lambda functions run in AWS's base images through Docker, with DynamoDB Local behind DynamoDB. Docker Desktop on macOS is supported, not CI-tested.

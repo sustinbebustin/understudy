@@ -1,6 +1,6 @@
 # Terraform conformance suite
 
-Checks that the Terraform AWS provider can manage every phase 1 resource type, and API Gateway HTTP and REST APIs, against understudy as it would against AWS. For each service the suite runs:
+Checks that the Terraform AWS provider can manage the resources of every service under [Layout](#layout) against understudy as it would against AWS. For each service the suite runs:
 
 1. `apply` of the initial configuration, then, for `apigatewayv2` and `apigateway`, `check-create`: requests to its routes or methods through the path fallback;
 2. `plan -detailed-exitcode`, which must report no changes (read fidelity);
@@ -45,7 +45,7 @@ Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scrip
 | Path | Contents |
 |---|---|
 | `provider.tf` | Provider and Terraform settings, and the variables every service shares. |
-| `<service>.tf` | One self-contained configuration per service: `sqs`, `sns`, `s3`, `dynamodb`, `kms`, `secretsmanager`, `iam`, `lambda`, `logs`, `events` (EventBridge), `cloudwatch` (metric alarms), `apigatewayv2` (API Gateway HTTP APIs), `dynamodbstreams` (a table's stream read by a Lambda event source mapping), `ssm` (Parameter Store), `sfn` (Step Functions), `kinesis` (a Kinesis data stream read by a Lambda event source mapping), `ses` (email identities) and `apigateway` (API Gateway REST APIs). Resources from other services that a configuration needs, such as the queue an S3 notification targets, are declared in that file and marked as fixtures. |
+| `<service>.tf` | One self-contained configuration per service: `sqs`, `sns`, `s3`, `dynamodb`, `kms`, `secretsmanager`, `iam`, `lambda`, `logs`, `events` (EventBridge), `cloudwatch` (metric alarms), `apigatewayv2` (API Gateway HTTP APIs), `dynamodbstreams` (a table's stream read by a Lambda event source mapping), `ssm` (Parameter Store), `sfn` (Step Functions), `kinesis` (a Kinesis data stream read by a Lambda event source mapping), `ses` (email identities), `apigateway` (API Gateway REST APIs) and `scheduler` (EventBridge Scheduler: a schedule group and a rate schedule sending to SQS). Resources from other services that a configuration needs, such as the queue an S3 notification targets, are declared in that file and marked as fixtures. |
 | `.terraform.lock.hcl` | Pinned provider checksums, copied into every working directory (`init -lockfile=readonly`). |
 | `functions/go-worker` | The Go worker for `provided.al2023`, standard library only, its own module. |
 | `functions/python-handler` | The Python handler for `python3.13`. |

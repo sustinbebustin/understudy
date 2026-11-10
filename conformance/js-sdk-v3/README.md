@@ -36,7 +36,7 @@ The suite refuses any endpoint that is not loopback http.
 
 ## Layout
 
-One file per service, so each can be fixed on its own.
+One file per service, so a fix can own one service.
 
 | File | Service |
 |---|---|
@@ -44,6 +44,7 @@ One file per service, so each can be fixed on its own.
 | `tests/sns.test.ts` | SNS |
 | `tests/sns-http.test.ts` | SNS https delivery, checked by `sns-validator` and `openssl` |
 | `tests/s3.test.ts` | S3, including `lib-storage` multipart uploads, default checksums, presigned URLs, virtual-hosted and path-style addressing |
+| `tests/s3-lock.test.ts` | S3 Object Lock and SSE-C |
 | `tests/dynamodb.test.ts` | DynamoDB, DynamoDB document client |
 | `tests/dynamodbstreams.test.ts` | DynamoDB Streams |
 | `tests/kinesis.test.ts` | Kinesis Data Streams, on an HTTP/1.1 request handler (the client's Node default opens HTTP/2, which understudy does not speak) |
@@ -55,7 +56,12 @@ One file per service, so each can be fixed on its own.
 | `tests/iam.test.ts` | IAM |
 | `tests/sts.test.ts` | STS |
 | `tests/eventbridge.test.ts` | EventBridge |
+| `tests/scheduler.test.ts` | EventBridge Scheduler: a `rate()` schedule with an SQS target, invoked on the emulator clock |
 | `tests/cloudwatch.test.ts` | CloudWatch metrics and alarms |
+| `tests/ssm.test.ts` | SSM Parameter Store |
+| `tests/sfn.test.ts` | Step Functions, Standard workflows |
+| `tests/ses.test.ts` | SES v1 |
+| `tests/sesv2.test.ts`, `tests/sesv2-templates.test.ts` | SES v2: identities, sending, email templates and the deprecated v1 email-address operations |
 | `tests/apigatewayv2.test.ts` | API Gateway HTTP APIs: the control plane and Lambda proxy invocations through the execute-api path fallback |
 | `tests/apigateway.test.ts` | API Gateway REST APIs: the control plane and its recorded refusals, a MOCK method and Lambda proxy invocations through the execute-api path fallback |
 

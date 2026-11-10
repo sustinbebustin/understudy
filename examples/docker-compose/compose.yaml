@@ -9,9 +9,9 @@
 
 services:
   understudy:
-    # Nothing is published yet, so the image is built from this repository's
-    # Dockerfile. Once you have built it (`just image` builds the same tag),
-    # you can drop the build section.
+    # Built from this repository's Dockerfile (`just image` builds the same
+    # tag). To run a release instead, set the image to
+    # ghcr.io/sustinbebustin/understudy and drop the build section.
     image: understudy:dev
     build:
       context: ../..

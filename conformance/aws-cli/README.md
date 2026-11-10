@@ -1,6 +1,6 @@
 # AWS CLI conformance suite
 
-Smoke tests that drive understudy with the AWS CLI v2 and assert what AWS documents. The arbiter is `docs/research/`, never understudy's behavior: a failing test is either an understudy gap or a wrong reading of the research, and either is worth a look.
+Tests that drive understudy with the AWS CLI v2 and assert what AWS documents. The arbiter is `docs/research/`, never understudy's behavior: a failing test is either an understudy gap or a wrong reading of the research, and either is a finding.
 
 ## Run it
 
@@ -32,9 +32,9 @@ DynamoDB runs on DynamoDB Local, pulled on first use, and `run.sh` exits 1 unles
 | `run-suite.sh` | the runner: executes every `test_*` function in `tests/*.sh` (or its shard of them, `UE_SHARD`) in its own shell with a timeout, prints PASS, FAIL or SKIP and records each in `results.tsv` (a skip with its reason) |
 | `lib.sh` | assertions (`assert_eq`, `assert_jq`, `aws_error`, ...) and probes (`require_service`, which also honours `CONFORMANCE_DYNAMODB=0`, and `require_docker`) |
 | `lambda-helpers.sh` | function fixtures shared by `tests/lambda.sh`, `tests/events.sh`, `tests/apigatewayv2.sh` and `tests/apigateway.sh` |
-| `tests/<service>.sh` | one file per service: `apigateway`, `apigatewayv2`, `cloudwatch`, `dynamodb`, `dynamodbstreams`, `events`, `iam`, `kinesis`, `kms`, `lambda`, `logs`, `s3`, `secretsmanager`, `sfn`, `sns`, `sqs`, `ssm`, `sts`; `sns-http`, SNS delivery to an http receiver each test starts on a loopback port, which `run.sh` lists in `sns.httpDelivery.allow`; and `sfn-task`, Step Functions Lambda tasks without Retry or Catch, reusing `sfn`'s helpers |
+| `tests/<service>.sh` | one file per service: `apigateway`, `apigatewayv2`, `cloudwatch`, `dynamodb`, `dynamodbstreams`, `events`, `iam`, `kinesis`, `kms`, `lambda`, `logs`, `s3`, `scheduler`, `secretsmanager`, `ses`, `sesv2`, `sfn`, `sns`, `sqs`, `ssm`, `sts`; `sns-http`, SNS delivery to an http receiver each test starts on a loopback port, which `run.sh` lists in `sns.httpDelivery.allow`; and `sfn-task`, Step Functions Lambda tasks without Retry or Catch, reusing `sfn`'s helpers |
 
-A fixer owns one service by owning one file in `tests/`.
+A fix owns one service by owning one file in `tests/`.
 
 ## Writing a test
 

@@ -42,7 +42,7 @@ Two dependency groups in `pyproject.toml`, resolved into one `uv.lock`:
 
 ## Layout
 
-One file per service, so a fixer can own one service at a time.
+One file per service, so a fix can own one service.
 
 | File | Covers |
 |---|---|
@@ -61,6 +61,15 @@ One file per service, so a fixer can own one service at a time.
 | `tests/test_apigatewayv2.py` | HTTP APIs: create defaults, tags by escaped ARN, routes, integrations, stages and deployments, the documented errors, and Lambda proxy invocations in both payload formats through the execute-api path fallback |
 | `tests/test_apigateway.py` | REST APIs: create defaults, the recorded refusals, tags by escaped ARN, a MOCK method with literal templates, the live-deployment rule, and a Lambda proxy invocation through the execute-api path fallback |
 | `tests/test_events.py` | `put_events` on the default bus; custom buses: lifecycle, default-bus tags, rules and events per bus, the schedule refusal, event bus targets and bus policies |
+| `tests/test_scheduler.py` | EventBridge Scheduler: a `rate()` schedule with an SQS target, invoked on the emulator clock |
+| `tests/test_cloudwatch.py` | alarm evaluation and `GetMetricStatistics` |
+| `tests/test_s3_lock.py` | S3 Object Lock and SSE-C |
+| `tests/test_ssm.py` | SSM Parameter Store |
+| `tests/test_sfn.py` | Step Functions, Standard workflows: create, validate, run on the emulator clock, history, stop, update, delete, and the refusals |
+| `tests/test_ses.py` | SES v1: identities, `SendEmail`, `SendRawEmail`, templates, `SendTemplatedEmail` and the quota |
+| `tests/test_ses_localstack_refusals.py` | the SES operations understudy leaves unbound, each answering 501 `NotImplemented` |
+| `tests/test_sesv2.py`, `tests/test_sesv2_templates.py` | SES v2: identities and their tags, `GetAccount`, `SendEmail`, email templates and the deprecated v1 email-address operations |
+| `tests/test_sigv4.py` | signature verification under `--sigv4 verify`: a wrong secret or an unknown key is refused with each service's own error |
 
 `tests/conftest.py` holds the clients and cleanup fixtures and the `dynamodb` marker; `tests/support.py` holds the admin API client (clock, settle, reset) and shared helpers. Tests that need time to pass move the emulator clock through the admin API rather than sleeping.
 

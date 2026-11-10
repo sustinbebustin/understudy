@@ -11,7 +11,7 @@ Small, runnable projects that use understudy the way an application would. Each 
 
 ## Before you start
 
-`python-worker` and `sns-sqs-lambda-terraform` talk to an understudy running on your machine (`docker-compose` starts its own). From the repository root, with Go 1.27:
+`python-worker` and `sns-sqs-lambda-terraform` talk to an understudy running on your machine (`docker-compose` starts its own). Any installed release serves ([README](../README.md)); to run the checkout instead, from the repository root, with Go 1.27:
 
 ```sh
 go install ./cmd/understudy
