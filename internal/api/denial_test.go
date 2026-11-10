@@ -51,7 +51,7 @@ func TestEveryServiceNamesItsDenialIdentity(t *testing.T) {
 		"apigateway":      {evidence.Inferred, "no source"},
 		"apigatewayv2":    {evidence.Inferred, "no source"},
 		"dynamodbstreams": {evidence.Inferred, "no source; follows dynamodb"},
-		"kinesis":         {evidence.Inferred, "no source"},
+		"kinesis":         {evidence.AWSRecorded, "testdata/parity/kinesis/IAM-ENF/36-kinesis.json"},
 		"scheduler":       {evidence.AWSRecorded, "testdata/parity/scheduler/SCH/10-01-denied-get.json"},
 		"ses":             {evidence.Inferred, "switch ses.denial.identity, cases IAM-ENF-38 and ses.md SES-28; inferred from STS and IAM"},
 		"sesv2":           {evidence.Inferred, "switch ses.denial.identity, cases IAM-ENF-39 and ses.md SES-28"},
