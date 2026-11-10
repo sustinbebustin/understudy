@@ -30,18 +30,5 @@ Do not weaken them. The linter or a test enforces most.
 - A new package needs a row in the import-direction table in `internal/ref/deps_test.go`.
 - For a user-visible change, update `docs/guide/` with commands run against a build. `docs/configuration.md` carries `understudy serve --help` verbatim; a test fails when they differ.
 - `admin/` and `understudytest/` are the public Go API; everything else is `internal/`.
+- Name domain concepts as `GLOSSARY.md` defines them, and say so when a change contradicts an ADR.
 - Commits use the conventional form in the history: `feat:`, `fix:`, `docs:`, `test:`.
-
-## Agent skills
-
-### Issue tracker
-
-Local markdown under `.scratch/<feature>/`, gitignored and never committed. When work comes from a ticket, tick each acceptance checkbox as it passes and set `Status: resolved` at the end. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Default five-role vocabulary, recorded as `Status:` lines. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
