@@ -13,55 +13,42 @@ The result: tests keep real AWS settings (visibility timeouts, delays, TTLs, sch
 > [!NOTE]
 > Pre-1.0: a minor version may break compatibility ([CHANGELOG.md](CHANGELOG.md)). Coverage is partial and listed operation by operation in [docs/coverage.md](docs/coverage.md).
 
-## Contents
-
-- [Why understudy](#why-understudy)
-- [Prerequisites](#prerequisites)
-- [Install](#install)
-- [Quick start](#quick-start)
-- [Services](#services)
-- [Commands](#commands)
-- [DynamoDB and its licence](#dynamodb-and-its-licence)
-- [Choosing an emulator](#choosing-an-emulator)
-- [Limitations](#limitations)
-- [Documentation](#documentation)
-
 ## Why understudy
 
-- **Fidelity generated from AWS's models.** Request and response shapes, error codes and input validation come from AWS's Smithy models. The protocol layer runs against Smithy's official compliance tests, and behavior is checked with the Go v2, boto3 and JS v3 SDKs, the AWS CLI and Terraform.
-- **Nothing silently faked.** An unimplemented operation answers `501 NotImplemented` in AWS's error format and names itself. Settings that are stored but have no effect are marked as such.
-- **A controllable clock.** Visibility timeouts, delays, retention, TTL, batching windows, schedules, secret deletion windows and log retention all run on one emulator clock. Freeze it, advance it an hour, or run it 60 times faster.
-- **A causal journal.** Every API call, delivery, Lambda invocation and timer is recorded with its cause, so `SNS Publish -> SQS SendMessage -> Lambda Invoke -> the function's own calls` is one tree you can query or follow, from the CLI or live in a web UI `serve` links to.
-- **Fault injection.** Rules by service, operation, resource, account or region inject AWS's own errors, throttling or latency, for the next N calls or with a seeded probability.
-- **Snapshots and persistence.** State saves to a deterministic archive you can commit, diff and load. Persistence across restarts is opt-in.
-- **Real Lambda execution.** Functions run in AWS's Lambda base images through Docker: zip and image functions, warm reuse, hot reload from a directory, SDK calls routed back to understudy, logs in CloudWatch Logs.
-- **Least-privilege policies.** understudy records which IAM actions each principal used, on which resources, and prints the policy that record implies. Opt in with `--iam-enforce enforce` to have understudy evaluate identity, resource, trust and key policies and answer with each service's denial error. Attach the printed policy and rerun, and you see what a missing statement breaks.
-- **Small and offline.** A 44 MiB binary, ready in about 30 ms, idling at about 44 MiB (`just budgets` on Linux). No telemetry; the only network access is pulling Docker images for Lambda and DynamoDB Local.
+- **A controllable clock.** Everything AWS times (visibility timeouts, delays, TTL, schedules, retention) runs on one emulator clock you can freeze, advance or scale. [Guide](docs/guide/clock.md).
+- **A causal journal.** Every call, delivery, Lambda invocation and timer is recorded with its cause, so `SNS Publish -> SQS SendMessage -> Lambda Invoke` is one tree, in the CLI or the [web UI](docs/guide/ui.md). [Guide](docs/guide/journal.md).
+- **Nothing silently faked.** Shapes, error codes and validation are generated from AWS's Smithy models. An unimplemented operation answers `501 NotImplemented` and names itself; a setting stored without effect is marked as such.
+- **Fault injection.** Rules inject AWS's own errors, throttling or latency by service, operation or resource. [Guide](docs/guide/faults.md).
+- **Real Lambda execution.** Functions run in AWS's Lambda base images through Docker, with hot reload, and their SDK calls route back to understudy. [Guide](docs/guide/lambda.md).
+- **Least-privilege policies.** understudy records the IAM actions each principal used and prints the policy they imply; `--iam-enforce enforce` makes it deny as AWS would. [Guide](docs/guide/policy.md).
+- **Snapshots.** State saves to a deterministic archive you can commit, diff and load. [Guide](docs/guide/snapshots.md).
+
+It is a 44 MiB binary that is ready in about 20 ms and idles at about 42 MiB (`just budgets` on Linux). It sends no telemetry; its only network access is pulling Docker images for Lambda and DynamoDB Local.
 
 ## Prerequisites
 
-- [Go](https://go.dev/dl/) 1.27 -- to build from source.
 - [Docker Engine](https://docs.docker.com/engine/) -- only for Lambda and DynamoDB. Everything else runs without it. `understudy doctor` checks what this machine provides.
+- [Go](https://go.dev/dl/) 1.27 -- only to build from source.
 - [just](https://just.systems) -- optional; runs the repository's recipes, such as `just image`.
 
 ## Install
+
+Binaries are built for linux and darwin on amd64 and arm64. Each channel follows the [releases](https://github.com/sustinbebustin/understudy/releases); `understudy version` prints what you have.
 
 ### Homebrew (macOS and Linux)
 
 ```sh
 brew install --cask sustinbebustin/tap/understudy
-understudy version
 ```
 
 ### Binaries
 
-Each [release](https://github.com/sustinbebustin/understudy/releases) has a `tar.gz` for linux and darwin on amd64 and arm64, and `checksums.txt`:
+Each release has a `tar.gz` per platform and `checksums.txt`:
 
 ```sh
 gh release download --repo sustinbebustin/understudy --pattern '*_linux_amd64.tar.gz' --pattern checksums.txt
 sha256sum --check --ignore-missing checksums.txt
 tar -xzf understudy_*_linux_amd64.tar.gz understudy
-./understudy version
 ```
 
 The darwin binaries are not notarized. Homebrew clears the quarantine flag; for a download by hand, run `xattr -d com.apple.quarantine ./understudy`.
@@ -72,17 +59,13 @@ The darwin binaries are not notarized. Homebrew clears the quarantine flag; for 
 go install github.com/sustinbebustin/understudy/cmd/understudy@latest
 ```
 
-This puts `understudy` in `$(go env GOPATH)/bin`. From a clone, `go install ./cmd/understudy`.
-
 ### Docker
 
 ```sh
 docker run --rm -p 127.0.0.1:4566:4566 ghcr.io/sustinbebustin/understudy
 ```
 
-The image is tagged with each version and `latest`, for linux/amd64 and linux/arm64. From a clone, `just image` builds `understudy:dev`.
-
-Inside the container understudy listens on `0.0.0.0:4566` without an admin token, so publishing the port on `127.0.0.1` only is what keeps it private. To keep state across restarts, mount a volume on `/data` and set `UNDERSTUDY_PERSIST=/data`.
+The image is tagged with each version and `latest`, for linux/amd64 and linux/arm64. Inside the container understudy listens on `0.0.0.0:4566` without an admin token, so publishing the port on `127.0.0.1` only is what keeps it private. To keep state across restarts, mount a volume on `/data` and set `UNDERSTUDY_PERSIST=/data`.
 
 To run Lambda functions from the container on Linux, mount the Docker socket and give the container user the socket's group:
 
@@ -93,15 +76,11 @@ docker run --rm -p 127.0.0.1:4566:4566 \
   ghcr.io/sustinbebustin/understudy
 ```
 
-On Docker Desktop the container sees the Desktop VM's socket, owned by `root:root` with mode 0660, so the group is 0 instead: `--group-add 0`.
+On Docker Desktop the socket is owned by `root:root`, so use `--group-add 0`. Mounting the socket grants root on the host to whoever controls understudy; see [SECURITY.md](SECURITY.md). For a remote or docker:dind daemon, see the [CI guide](docs/guide/ci.md#docker-in-docker).
 
-Mounting the socket grants root on the host to whoever controls understudy; see [SECURITY.md](SECURITY.md).
+### Test suites
 
-understudy finds Docker the way the Docker CLI does: `DOCKER_HOST`, else `/var/run/docker.sock`; `--docker` (`UNDERSTUDY_DOCKER`) overrides both. A `tcp://` daemon works too, such as a docker:dind service in CI: plain TCP by default, and TLS with the client certificates `ca.pem`, `cert.pem` and `key.pem` from `DOCKER_CERT_PATH` when `DOCKER_TLS_VERIFY` is set. On a daemon on another host, functions reach understudy at its address on the daemon's network, so understudy must run on that network; the [CI guide](docs/guide/ci.md#docker-in-docker) shows the setup. `understudy doctor` names the daemon, the transport and the detected topology.
-
-### Testcontainers
-
-Go, Python and Node test suites can start the image themselves with the [Testcontainers](https://testcontainers.com/) modules in [testcontainers/](testcontainers/): [Go](testcontainers/go/), [Python](testcontainers/python/) and [Node](testcontainers/node/). Each publishes the port on `127.0.0.1` only, waits until understudy is ready, returns the environment that points an SDK at it, and has the test session's reaper remove the containers understudy starts. They are released with understudy, as `github.com/sustinbebustin/understudy/testcontainers/go` and as `testcontainers-understudy` on PyPI and npm; the [Testcontainers guide](docs/guide/testcontainers-modules.md) shows each. For Go tests, [`understudytest`](docs/guide/sdks.md#go-tests-with-understudytest) runs understudy in process, without a container.
+Go, Python and Node suites can start the image themselves with the [Testcontainers modules](docs/guide/testcontainers-modules.md) in [testcontainers/](testcontainers/). Go tests can also run understudy in process, without a container, with [`understudytest`](docs/guide/sdks.md#go-tests-with-understudytest).
 
 ## Quick start
 
@@ -118,7 +97,7 @@ Go, Python and Node test suites can start the image themselves with the [Testcon
    understudy health
    ```
 
-   `understudy env` prints `AWS_ENDPOINT_URL`, dummy credentials and a region, plus comments on settings no variable carries, such as Terraform's `skip_requesting_account_id`.
+   `understudy env` prints `AWS_ENDPOINT_URL`, dummy credentials and a region.
 
 3. Send and receive a message.
 
@@ -145,21 +124,20 @@ Go, Python and Node test suites can start the image themselves with the [Testcon
    understudy journal --service sqs
    ```
 
-   Or open the `ui` URL from `serve`'s banner: the [web UI](docs/guide/ui.md) draws the same events as causal trees as they happen, and shows resources, fault rules, the clock and the IAM policy each principal needs.
+   Or open the `ui` URL from `serve`'s banner to watch the same events as causal trees.
 
 [Getting started](docs/guide/getting-started.md) continues with accounts, regions and resetting state.
 
 ## Services
 
-From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerates. "Stored only" operations accept, store and return their input with no runtime effect; "unbound" ones answer 501.
+Counts are from [docs/coverage.md](docs/coverage.md), which lists every operation. "Stored only" operations accept, store and return their input with no runtime effect; "unbound" ones answer 501.
 
 | Service | Operations | Full | Stored only | Partial | Unbound |
 |---|---|---|---|---|---|
 | SQS | 23 | 16 | 0 | 7 | 0 |
 | SNS | 42 | 12 | 0 | 7 | 23 |
 | S3 | 112 | 22 | 39 | 25 | 26 |
-| DynamoDB | 58 | 4 | 2 | 20 | 32 |
-| DynamoDB Streams | 4 | 0 | 0 | 4 | 0 |
+| DynamoDB (with Streams) | 62 | 5 | 2 | 23 | 32 |
 | Kinesis Data Streams | 45 | 0 | 2 | 19 | 24 |
 | Lambda | 88 | 30 | 2 | 18 | 38 |
 | CloudWatch Logs | 118 | 9 | 0 | 9 | 100 |
@@ -169,15 +147,13 @@ From [docs/coverage.md](docs/coverage.md), which `understudy coverage` regenerat
 | STS | 11 | 1 | 0 | 2 | 8 |
 | EventBridge | 57 | 6 | 1 | 15 | 35 |
 | EventBridge Scheduler | 12 | 0 | 0 | 12 | 0 |
-| CloudWatch | 55 | 1 | 2 | 9 | 43 |
-| API Gateway (HTTP APIs) | 103 | 0 | 2 | 29 | 72 |
+| CloudWatch | 55 | 4 | 0 | 11 | 40 |
+| API Gateway (HTTP and REST APIs) | 227 | 0 | 2 | 68 | 157 |
 | SSM (Parameter Store) | 152 | 0 | 0 | 13 | 139 |
 | Step Functions | 37 | 7 | 0 | 9 | 21 |
 | SES (v1 and v2) | 187 | 17 | 0 | 15 | 155 |
 
-The implemented operations are the ones an event-driven pipeline uses: an API Gateway HTTP API in front of Lambda, a Step Functions Standard workflow calling Lambda, SNS fan-out with filter policies to SQS, SQS with dead-letter queues feeding Lambda, S3 with SSE-KMS, a DynamoDB lock table with TTL, a DynamoDB table's stream feeding Lambda, Secrets Manager and SSM Parameter Store, CloudWatch Logs, EventBridge schedules and custom buses, EventBridge Scheduler schedules with retries and dead-letter queues, SES sends recorded for a test to read, and the IAM, KMS and CloudWatch resources Terraform declares around them.
-
-Behavior the models do not fix rests on evidence that the coverage page labels item by item. Real AWS was recorded for the backlog R01 to R18 (`testdata/parity/`), so 50 of the 350 overlay evidence items are `aws-recorded`; the rest come from AWS's documentation, recordings published by other projects, SDK source, and inference. Per operation, the page shows the weakest evidence behind it, with the verdict of the recordings `internal/parity` replays. Known differences from AWS are listed in [the differences page](docs/guide/differences.md).
+The implemented operations are the ones an event-driven pipeline uses: API Gateway in front of Lambda, SNS fan-out to SQS, queues and DynamoDB or Kinesis streams feeding Lambda, Step Functions workflows, EventBridge rules and schedules, and the IAM, KMS, S3, secrets, parameters and logs around them. Each service has a page in the [guide](docs/guide/README.md).
 
 ## Commands
 
@@ -195,9 +171,12 @@ Behavior the models do not fix rests on evidence that the coverage page labels i
 | `understudy resources` | List every resource by service, account and region |
 | `understudy iam` | Show the actions principals used and the least-privilege policy they need |
 | `understudy ses` | List the messages SES recorded instead of sending them |
+| `understudy lambda hot-reload` | Run a function's code from a host directory, reloaded on every change |
+| `understudy images pull` | Pull the pinned Lambda runtime images now, as a CI warm-up |
 | `understudy coverage` | Report protocol compliance, operation coverage and evidence |
 | `understudy doctor` | Check Docker, networking, `*.localhost`, binfmt and hot-reload paths |
 | `understudy cleanup` | Remove containers and networks a crashed run left behind |
+| `understudy version` | Print the version |
 
 `understudy <command> --help` lists every flag. Exit codes: `0` success, `1` failed, `2` usage error, `3` not reachable, `4` condition not met (such as `health --wait` timing out), `5` admin token refused.
 
@@ -205,51 +184,44 @@ Settings come from flags, then `UNDERSTUDY_*` variables, then `understudy.json`;
 
 ## DynamoDB and its licence
 
-DynamoDB is served by Amazon DynamoDB Local, run in Docker and pulled on the first DynamoDB call. understudy logs a one-line notice naming its licence when it first starts DynamoDB Local: at `serve` when the image is already present, otherwise on that first call.
+DynamoDB is served by Amazon DynamoDB Local, run in Docker and pulled on the first DynamoDB call. It runs under the [Amazon DynamoDB Local License Agreement](https://aws.amazon.com/dynamodb/dynamodblocallicense/), not Apache-2.0. That licence requires an AWS account in good standing, which makes DynamoDB the one service that needs an AWS account.
 
-DynamoDB Local runs under the [Amazon DynamoDB Local License Agreement](https://aws.amazon.com/dynamodb/dynamodblocallicense/), not Apache-2.0. That licence requires an AWS account in good standing, which makes DynamoDB the one service that needs an AWS account. To turn it off, set `"dynamodb": {"enabled": false}` in `understudy.json`; DynamoDB calls then answer 501 and DynamoDB Local is never pulled.
-
-understudy never bundles, mirrors, re-tags, saves, pushes or patches the DynamoDB Local image. Do not run understudy as a multi-user service with DynamoDB Local behind it.
+To turn it off, set `"dynamodb": {"enabled": false}` in `understudy.json`; DynamoDB calls then answer 501 and DynamoDB Local is never pulled. understudy never bundles, mirrors, re-tags, saves, pushes or patches the image. Do not run understudy as a multi-user service with DynamoDB Local behind it.
 
 ## Choosing an emulator
 
-- **LocalStack** when you need services understudy does not emulate, such as ECS, RDS, Step Functions Express workflows and service integrations other than Lambda, API Gateway REST and WebSocket APIs, Cognito or CloudFormation deploys.
+- **understudy** when your system lives in the eighteen services above and you want fast, deterministic, free tests of how they interact, including time, failures and permissions.
+- **LocalStack** when you need services understudy does not emulate, such as ECS, RDS, Cognito, CloudFormation deploys, Step Functions Express workflows or API Gateway WebSocket APIs.
 - **moto** for Python unit tests that should not leave the process.
 - **Real AWS** for final validation. Emulators can pass where the cloud fails, and that applies to understudy too.
-- **understudy** when your system lives in the eighteen services above and you want fast, deterministic, free tests of how they interact, including time, failures and permissions.
 
 ## Limitations
 
-Behavior that differs from AWS in ways a test can observe is listed in [docs/guide/differences.md](docs/guide/differences.md). The broad limits:
+Every difference from AWS a test can observe is listed by service in [docs/guide/differences.md](docs/guide/differences.md). The ones to know before you start:
 
-- **Access control is enforced only on request.** By default IAM, resource and key policies are stored and recorded but deny nothing, and a delivery AWS would deny goes through with an `advisory` journal event. Lambda's asynchronous records and dead letters get no such advisory: by default neither the execution role's permissions nor, for a destination in another account, its resource policy is checked; `--iam-enforce advise` and `enforce` evaluate both as the execution role's call. Calls with the dummy keys act as the account root under every mode. `--iam-enforce advise` journals each denial AWS would issue, and `--iam-enforce enforce` answers with it. Even then, some checks are not made. Groups, KMS grants and the policy simulator are not implemented, and S3 Block Public Access is not applied. Condition keys understudy cannot compute, such as `aws:SourceIp`, are evaluated as absent. The [policy guide](docs/guide/policy.md#what-is-not-enforced) lists every gap. `understudy iam policy` grants more than needed in places; review it as the [policy guide](docs/guide/policy.md#review-before-use) describes.
+- **Access control is off by default.** IAM, resource and key policies are stored and recorded but deny nothing. `--iam-enforce advise` journals each denial AWS would issue and `enforce` answers with it; the [policy guide](docs/guide/policy.md#what-is-not-enforced) lists what is not evaluated even then.
 - **Signatures are parsed, not verified**, unless you start with `--sigv4 verify`. Even then every client may sign with the public dummy pair `test`/`test`, so a signature is not access control.
-- **Lambda function code can reach the admin API** wherever functions call the main listener: when understudy runs in a container, on Docker Desktop, or when `--listen` already binds the address functions reach (`0.0.0.0`, or the bridge gateway). It can reset state, change the clock and read the journal. [SECURITY.md](SECURITY.md) describes the mitigations and where they stop.
-- **Lambda needs a Docker Engine** and is tested on Linux. Docker Desktop on macOS is supported but not CI-tested; a manual run on Docker Desktop 4.98.0 on Apple Silicon (2026-11-06) ran functions from the host and from the image, and DynamoDB Local; rootless Docker and Podman are not supported; Windows works through WSL2 only. Functions of the other architecture need a binfmt handler (`understudy doctor` checks). Functions run against understudy's own Lambda Runtime API, not AWS's Runtime Interface Emulator ([ADR 0010](docs/adr/0010-lambda-hosted-runtime-api.md)). Asynchronous invocations deliver to their destinations and dead-letter queues; layer versions published to understudy attach to functions and fill their `/opt`, and a layer that exists only in AWS is refused.
-- **DynamoDB** inherits DynamoDB Local's documented differences, such as no throughput limits and no parallel scan. Expired items are deleted as soon as the clock passes their TTL, where AWS takes up to a few days. A table's stream has one shard, which never splits ([guide](docs/guide/streams.md#limitations)).
-- **SES** sends no mail: an accepted send is recorded for `understudy ses messages` and the admin API, and no delivery, bounce or complaint event follows. Identities verify only through their verification link or `ses.verifiedIdentities`, never by DNS. Templated sends render `{{name}}` and dotted paths only, recording any other Handlebars construct as a render gap. Configuration sets, receipt rules and sending authorization answer 501 ([guide](docs/guide/ses-email.md)).
-- **SNS** stores HTTP/S and email subscriptions and their confirmation flow but sends them nothing; SMS, mobile push and Firehose subscriptions answer 501.
-- **S3** has no MFA delete or Object Lock event holds, and `s3:BypassGovernanceRetention` is not evaluated. SSE-C works only over `--tls` and on a bucket whose encryption configuration unblocks it, as on AWS since April 2026.
-- **CloudWatch** alarms are stored and never evaluated. `GetMetricStatistics` answers 501, and `GetMetricData` has no metric math.
-- **EventBridge** custom buses take rules, targets and events, and forward events between buses one hop, but their KMS key, dead-letter queue and log settings are stored, not applied. Bus policies are stored and returned, and enforced only under `--iam-enforce enforce`; otherwise another account's `PutEvents` reaches a bus whose policy grants it nothing. Rule, target and `DescribeEventBus` calls on another account's or Region's bus, partner event sources, archives, replays, connections, API destinations and endpoints answer 501.
-- **EventBridge Scheduler** runs rate, cron and at() schedules on the emulator clock against Lambda, SQS, SNS, EventBridge and Step Functions targets in the schedule's Region. Universal targets and the other templated targets answer 501 at create; `KmsKeyArn` is stored and the payload is not encrypted. Fires missed while understudy was stopped are skipped, with an advisory, after a restart or snapshot load ([guide](docs/guide/eventbridge-scheduler.md)).
-- **API Gateway** serves HTTP APIs whose routes reach Lambda proxy integrations, with payload formats 1.0 and 2.0. Authorizers, OpenAPI import and export, custom domain names, REST and WebSocket APIs answer 501; HTTP proxy, AWS service and private integrations, `AWS_IAM` routes and requests to an API with a CORS configuration are stored and answer 501 when a request reaches them. Stage throttling and access logs are stored, not applied.
-- **SSM** serves Parameter Store only. AWS public parameters, Secrets Manager references, parameter policies, Advanced-tier SecureString and the legacy Query protocol answer 501.
-- **Step Functions** runs Standard workflows in JSONPath, with Lambda as the only Task resource. JSONata, variables, Distributed Map, activities, callbacks and other service integrations are refused at create with `UNSUPPORTED_BY_UNDERSTUDY`; Express workflows, versions, aliases and redrive answer 501. Logging and tracing settings are validated and stored; no log events or traces are written.
-- **Terraform** `import` of an SQS queue fails on the queue URL form.
-- **Snapshots** use format version 0: archives from one build may be refused by another until the first release. The TLS listener's certificate is new at every start.
+- **Lambda function code can reach the admin API** in some setups, where it can reset state, change the clock and read the journal. [SECURITY.md](SECURITY.md) says which, and the mitigations.
+- **Lambda needs a Docker Engine** and is CI-tested on Linux only. Rootless Docker and Podman are not supported; Windows works through WSL2. See the [Lambda guide](docs/guide/lambda.md#limitations).
+- **SES sends no mail.** An accepted send is recorded for `understudy ses messages`, and no delivery, bounce or complaint event follows.
+- **Snapshots use format version 0**: archives from one build may be refused by another.
 
 ## Documentation
 
-- [Guide](docs/guide/README.md) -- getting started, configuration, SDKs and the CLI, Terraform, Lambda, API Gateway HTTP APIs, SSM Parameter Store, Step Functions, EventBridge Scheduler, SES, the clock, fault injection, the journal, snapshots, policy generation, CI and Testcontainers.
+- [Guide](docs/guide/README.md) -- task-oriented pages for each service and feature, SDKs, Terraform, CI and Testcontainers.
 - [Configuration reference](docs/configuration.md) -- every flag, variable and file key.
 - [Coverage](docs/coverage.md) -- every operation, fidelity switch and evidence item.
 - [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/adr/) -- the design and its decisions.
 - [Examples](examples/) -- runnable projects: a boto3 worker, SNS -> SQS -> Lambda with Terraform, Docker Compose, GitHub Actions.
 
-## Contributing and security
+## Development
 
-[CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the rules every change follows, adding an operation or a service, and the test layers. Report vulnerabilities as [SECURITY.md](SECURITY.md) describes, not in public issues.
+```sh
+just verify       # gofmt check, vet, golangci-lint, go test -race
+just test-docker  # Lambda, DynamoDB Local, container networking
+```
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the rules every change follows, and adding an operation or a service. Report vulnerabilities as [SECURITY.md](SECURITY.md) describes, not in public issues.
 
 ## License
 
