@@ -530,16 +530,36 @@ prepare() {
   fi
 }
 
-# Init runs one service at a time: the plugin cache is not safe for
-# concurrent installs. The lifecycles then run in parallel.
+# Init runs one service at a time until one succeeds: the plugin cache is not
+# safe for concurrent installs. Every service has the same provider.tf and
+# lock file, so that init installs all a later one needs, and the rest only
+# link from the cache and run in parallel, as the lifecycles then do. The
+# server is a background job too, so it counts as one running job.
 ready=()
+cache_filled=0
+declare -A init_pid=()
 for svc in "${services[@]}"; do
   if [[ ("$svc" == dynamodb || "$svc" == dynamodbstreams) && "$conformance_ddb" == opted-out ]]; then
     skip_rest "$svc" "${phases[0]}" "$conformance_ddb_opt_out_reason"
     continue
   fi
   echo "==> init $svc"
-  if prepare "$svc"; then
+  if ((cache_filled)); then
+    while (($(jobs -rp | wc -l) > max_jobs)); do
+      wait -n || true
+    done
+    prepare "$svc" &
+    init_pid[$svc]=$!
+  elif prepare "$svc"; then
+    cache_filled=1
+    ready+=("$svc")
+  else
+    skip_rest "$svc" "${phases[0]}" "init or validate failed"
+  fi
+done
+for svc in "${services[@]}"; do
+  [[ -n "${init_pid[$svc]:-}" ]] || continue
+  if wait "${init_pid[$svc]}"; then
     ready+=("$svc")
   else
     skip_rest "$svc" "${phases[0]}" "init or validate failed"
