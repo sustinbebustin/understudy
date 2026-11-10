@@ -11,7 +11,15 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request replaces the run of the one before it. Runs
+# on main, and the release branch's dispatched run, each finish.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Saves the race cache (.github/actions/go-cache) that test-docker reads
+  # too: it runs vet, the linters and every package's tests under -race.
   verify:
     runs-on: ubuntu-latest
     steps:
@@ -19,16 +27,28 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.3"
+          cache: false
+      - uses: ./.github/actions/go-cache
+        with:
+          group: race
+      # install-only runs no linter, so the action's own cache would hold
+      # nothing; golangci-lint's cache travels in the race cache.
       - uses: golangci/golangci-lint-action@v9
         with:
           version: v2.15.0
           install-only: true
+          skip-cache: true
       - uses: extractions/setup-just@v4
         with:
           just-version: "1.58.0"
       - uses: astral-sh/setup-uv@v10.2.0
       - run: just verify
       - run: just sealed-test
+      - if: github.event_name == 'push'
+        uses: ./.github/actions/go-cache
+        with:
+          group: race
+          mode: save
 
   # Regenerates every generated package from the vendored models, corpus,
   # actions table and overlays, and fails when the result differs from what
@@ -127,8 +147,9 @@ jobs:
       - run: just smoke
 
   # The tests that need a Docker daemon: Lambda execution, DynamoDB Local,
-  # the container topology and the image contract. The runner's daemon
-  # listens at /var/run/docker.sock.
+  # the container topology and the image contract, in the packages whose
+  # tests the docker tag changes; verify runs every other package's. The
+  # runner's daemon listens at /var/run/docker.sock.
   #
   # DynamoDB Local runs here and in conformance. The repository owner is its
   # licensee for this workflow (ADR 0014, amendment of 2026-10-14). The
@@ -140,6 +161,10 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.3"
+          cache: false
+      - uses: ./.github/actions/go-cache
+        with:
+          group: race
       - uses: extractions/setup-just@v4
         with:
           just-version: "1.58.0"
@@ -201,6 +226,10 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.3"
+          cache: false
+      - uses: ./.github/actions/go-cache
+        with:
+          group: build
       - uses: hashicorp/setup-terraform@v4.0.1
         with:
           terraform_version: "1.16.0"
@@ -215,22 +244,23 @@ jobs:
   # tests on DynamoDB Local, licensed as for test-docker above.
   #
   # Each suite runs under its run.sh's default --sigv4 mode (an empty SIGV4).
-  # aws-cli, terraform and js-sdk-v3 run a second time under verify, so
-  # signature verification is checked against every signer the suites use,
-  # not only boto3's (conformance/README.md, Signature checking). sigv4 is a
-  # matrix axis so that each include adds a job instead of changing the
-  # suite's existing one.
+  # terraform and js-sdk-v3 run a second time under verify, as aws-cli does
+  # in its own jobs below, so signature verification is checked against
+  # every signer the suites use, not only boto3's (conformance/README.md,
+  # Signature checking). sigv4 is a matrix axis so that each include adds a
+  # job instead of changing the suite's existing one.
+  #
+  # The terraform job saves the build cache (.github/actions/go-cache) that
+  # every job building the binary reads.
   conformance:
     name: conformance (${{ matrix.suite }}${{ matrix.sigv4 && format(', SIGV4={0}', matrix.sigv4) || '' }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        suite: [go-sdk, python-boto3, js-sdk-v3, aws-cli, terraform, e2e-pipeline]
+        suite: [go-sdk, python-boto3, js-sdk-v3, terraform, e2e-pipeline]
         sigv4: [""]
         include:
-          - suite: aws-cli
-            sigv4: verify
           - suite: terraform
             sigv4: verify
           - suite: js-sdk-v3
@@ -240,6 +270,10 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: "1.27.3"
+          cache: false
+      - uses: ./.github/actions/go-cache
+        with:
+          group: build
       - uses: astral-sh/setup-uv@v10.2.0
       # The version conformance/js-sdk-v3/bun.lock resolves bun-types to.
       - uses: oven-sh/setup-bun@v2.2.0
@@ -252,6 +286,60 @@ jobs:
       - run: conformance/${{ matrix.suite }}/run.sh
         env:
           SIGV4: ${{ matrix.sigv4 }}
+      - if: github.event_name == 'push' && matrix.suite == 'terraform' && matrix.sigv4 == ''
+        uses: ./.github/actions/go-cache
+        with:
+          group: build
+          mode: save
+
+  # The AWS CLI suite, the longest by far: the CLI takes about a second of
+  # CPU per call and the suite makes thousands. Each mode's tests are dealt
+  # to three jobs (CONFORMANCE_SHARD), and each job deals its share to one
+  # understudy server per CPU (CONFORMANCE_JOBS, conformance/aws-cli/run.sh).
+  conformance-aws-cli:
+    name: conformance (aws-cli${{ matrix.sigv4 && format(', SIGV4={0}', matrix.sigv4) || '' }}, shard ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sigv4: ["", verify]
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+          cache: false
+      - uses: ./.github/actions/go-cache
+        with:
+          group: build
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: CONFORMANCE_JOBS="$(nproc)" conformance/aws-cli/run.sh
+        env:
+          SIGV4: ${{ matrix.sigv4 }}
+          CONFORMANCE_SHARD: ${{ matrix.shard }}/3
+
+  # Reports the aws-cli shards under the names the suite's two jobs had
+  # before it was sharded, which main's ruleset requires. Each fails unless
+  # every shard of both modes passed; always() keeps a failed shard from
+  # skipping it, since a skipped required check counts as passed.
+  conformance-aws-cli-result:
+    name: conformance (aws-cli${{ matrix.sigv4 && format(', SIGV4={0}', matrix.sigv4) || '' }})
+    if: ${{ always() }}
+    needs: conformance-aws-cli
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sigv4: ["", verify]
+    steps:
+      - name: Require every aws-cli shard to have passed
+        run: |
+          if [ "$RESULT" != success ]; then
+            echo "The aws-cli conformance shards ended as '$RESULT', not success; see the jobs named 'conformance (aws-cli, ..., shard K/3)' in this run." >&2
+            exit 1
+          fi
+        env:
+          RESULT: ${{ needs.conformance-aws-cli.result }}
 
   # Builds understudy:dev once, then lints and tests each Testcontainers
   # module against it with the module's run.sh (testcontainers.md 8.7). Each

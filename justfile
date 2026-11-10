@@ -45,9 +45,19 @@ lint:
 test:
     go test -race -exec '{{test_exec}}' ./...
 
-# Run the tests that need a Docker daemon.
+# Run the tests that need a Docker daemon: every package whose test files
+# change under the docker tag. Only test files carry the tag, so in every
+# other package -tags docker runs exactly the tests 'just test' runs.
 test-docker:
-    go test -race -tags docker -exec '{{test_exec}}' ./...
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tests='{{{{.ImportPath}} {{{{.TestGoFiles}} {{{{.XTestGoFiles}}'
+    mapfile -t pkgs < <(comm -13 <(go list -f "$tests" ./... | sort) <(go list -tags docker -f "$tests" ./... | sort) | cut -d' ' -f1)
+    if [ "${#pkgs[@]}" -eq 0 ]; then
+        echo "just test-docker found no package whose test files change under -tags docker; expected the Lambda, DynamoDB and topology tests. Check 'go list -tags docker ./...'." >&2
+        exit 1
+    fi
+    go test -race -tags docker -exec '{{test_exec}}' "${pkgs[@]}"
 
 # Compare internal/ruler with AWS's Java Event Ruler, pinned in
 # internal/ruler/testdata/rulerdiff/pom.xml. Needs Docker, or a JDK 21 with Maven.

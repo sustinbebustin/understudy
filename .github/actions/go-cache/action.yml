@@ -1,0 +1,42 @@
+name: go-cache
+description: >-
+  Restore or save one of the Go caches the ci workflow's jobs share: the build
+  cache, the module cache and golangci-lint's cache. setup-go's own cache has
+  one key for every job, so the first job to finish, one that compiles almost
+  nothing, would fill it for all of them. A job that uses this action sets
+  cache: false on setup-go.
+
+inputs:
+  group:
+    description: >-
+      Which cache: race for go vet, golangci-lint and go test -race, or build
+      for a plain go build of the binary. The two share no compiled package.
+    required: true
+  mode:
+    description: >-
+      restore, before the job compiles, takes the newest cache of the group
+      that this branch or main saved. save, after it, stores the cache under
+      this commit; only one job per group saves, and only on a push to main,
+      so pull requests read main's caches and add none.
+    default: restore
+
+runs:
+  using: composite
+  steps:
+    - if: inputs.mode == 'restore'
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+          ~/.cache/golangci-lint
+        key: go-${{ inputs.group }}-${{ runner.os }}-${{ github.sha }}
+        restore-keys: go-${{ inputs.group }}-${{ runner.os }}-
+    - if: inputs.mode == 'save'
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+          ~/.cache/golangci-lint
+        key: go-${{ inputs.group }}-${{ runner.os }}-${{ github.sha }}

@@ -13,6 +13,11 @@
 #   UE_SKIP           extended regex; skip tests whose name matches, each
 #                     reported as a SKIP naming UE_SKIP (the IAM loop skips
 #                     the tests that need the account root, conformance/iam-loop)
+#   UE_SHARD          K/N; run only shard K of N: the selected test runs are
+#                     dealt out in order, one to each shard in turn, so the N
+#                     shards together run every test once. Each shard needs
+#                     its own understudy, since tests move the emulator clock
+#                     (run.sh's CONFORMANCE_JOBS starts one per shard)
 #   CONFORMANCE_NAME_SEED, CONFORMANCE_ROLE_POLICY_DIR
 #                     read by lib.sh's new_name and make_role (see there)
 #   UE_TRANSFER_CLIENTS
@@ -57,14 +62,27 @@ else
   files=("$here"/tests/*.sh)
 fi
 
-pass=0 fail=0 skipped=0
+shard=1 shards=1
+if [ -n "${UE_SHARD:-}" ]; then
+  if [[ ! $UE_SHARD =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] || [ "${BASH_REMATCH[1]}" -gt "${BASH_REMATCH[2]}" ]; then
+    echo "conformance: UE_SHARD='$UE_SHARD' is not K/N with 1 <= K <= N (for example 2/4). No test ran." >&2
+    exit 2
+  fi
+  shard=${BASH_REMATCH[1]} shards=${BASH_REMATCH[2]}
+fi
+
+pass=0 fail=0 skipped=0 dealt=0
 
 # run_test SVC FILE TEST [CLIENT]: run TEST of FILE in its own shell, with
 # UE_TRANSFER_CLIENT set to CLIENT when given, and record it as TEST, or as
-# TEST[CLIENT].
+# TEST[CLIENT]. A run dealt to another shard (UE_SHARD) does nothing here.
 run_test() {
   local svc=$1 file=$2 t=$3 client=${4:-}
   local name=$t${client:+[$client]}
+  dealt=$((dealt + 1))
+  if [ $(((dealt - 1) % shards + 1)) -ne "$shard" ]; then
+    return
+  fi
   local log="$UE_RESULTS_DIR/$svc.$name.log"
   local start=$SECONDS rc secs reason
   # UE_TEST names the test (and its transfer client) for new_name's seeded

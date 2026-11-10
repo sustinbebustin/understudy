@@ -10,7 +10,11 @@ CONFORMANCE_DYNAMODB=0 conformance/aws-cli/run.sh          # every service but D
 conformance/aws-cli/run.sh sqs sns                         # only these services (test file names)
 UE_ONLY='dlq|redrive' conformance/aws-cli/run.sh sqs       # only tests whose name matches
 UE_TRANSFER_CLIENTS=crt conformance/aws-cli/run.sh s3      # the s3 transfer tests under crt only
+CONFORMANCE_JOBS=8 conformance/aws-cli/run.sh              # eight servers at once, an eighth of the tests each
+CONFORMANCE_SHARD=2/3 conformance/aws-cli/run.sh           # only the second third of the tests
 ```
+
+The suite is slow in sequence, about half an hour on a CI runner, because the CLI takes about a second of CPU per call. `CONFORMANCE_JOBS=J` deals the tests out, in order and one to each job in turn, to `J` understudy servers that run at once; set it to the machine's CPU count. Each job has its own server and data directory, on `CONFORMANCE_PORT + 10*(I-1)` for job `I`, because tests move the emulator clock and reset services, so two tests never share a server at the same time. Each job's output is printed whole, in job order, followed by one summary for all of them. `CONFORMANCE_SHARD=K/N` runs only shard `K` of `N` such shares, and with `CONFORMANCE_JOBS` that shard is what the jobs split: CI runs each `--sigv4` mode as three shards, each with one job per CPU.
 
 The `aws s3` transfer tests (`test_s3_*` and the virtual-hosted ones in `tests/s3.sh`) run once under each AWS CLI transfer client in `UE_TRANSFER_CLIENTS`, default `classic crt`, and report as `<test>[classic]` and `<test>[crt]`. The two clients send different requests (the CRT sends `x-amz-checksum-mode: enabled`, `docs/research/s3.md` 5.8), and which one the CLI picks by itself depends on its version and host. The client reaches the CLI as `preferred_transfer_client` in a config file `lib.sh` writes (`ue_cli_config`), which holds no endpoint or credentials. An empty `UE_TRANSFER_CLIENTS` runs them once, under the CLI's own choice.
 
@@ -24,8 +28,8 @@ DynamoDB runs on DynamoDB Local, pulled on first use, and `run.sh` exits 1 unles
 
 | Path | Purpose |
 |---|---|
-| `run.sh` | build, serve, run, always clean up |
-| `run-suite.sh` | the runner: executes every `test_*` function in `tests/*.sh` in its own shell with a timeout, prints PASS, FAIL or SKIP and records each in `results.tsv` (a skip with its reason) |
+| `run.sh` | build, serve, run, always clean up; under `CONFORMANCE_JOBS`, build once and run itself once per job |
+| `run-suite.sh` | the runner: executes every `test_*` function in `tests/*.sh` (or its shard of them, `UE_SHARD`) in its own shell with a timeout, prints PASS, FAIL or SKIP and records each in `results.tsv` (a skip with its reason) |
 | `lib.sh` | assertions (`assert_eq`, `assert_jq`, `aws_error`, ...) and probes (`require_service`, which also honours `CONFORMANCE_DYNAMODB=0`, and `require_docker`) |
 | `lambda-helpers.sh` | function fixtures shared by `tests/lambda.sh`, `tests/events.sh`, `tests/apigatewayv2.sh` and `tests/apigateway.sh` |
 | `tests/<service>.sh` | one file per service: `apigateway`, `apigatewayv2`, `cloudwatch`, `dynamodb`, `dynamodbstreams`, `events`, `iam`, `kinesis`, `kms`, `lambda`, `logs`, `s3`, `secretsmanager`, `sfn`, `sns`, `sqs`, `ssm`, `sts`; `sns-http`, SNS delivery to an http receiver each test starts on a loopback port, which `run.sh` lists in `sns.httpDelivery.allow`; and `sfn-task`, Step Functions Lambda tasks without Retry or Catch, reusing `sfn`'s helpers |
