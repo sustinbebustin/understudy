@@ -1,6 +1,6 @@
 # Release configuration. A v* tag publishes the GitHub release, the GHCR
 # image and, when HOMEBREW_TAP_TOKEN is set and the tag is not a prerelease,
-# the Homebrew cask (docs/release-runbook.md). A snapshot publishes nothing.
+# the Homebrew cask. A snapshot publishes nothing.
 version: 2
 
 project_name: understudy
@@ -23,7 +23,7 @@ builds:
 # MACOS_* repository secrets, this step signs them with the Developer ID
 # certificate and has Apple notarize them, with quill on the Linux runner,
 # before archiving. Without MACOS_SIGN_P12 it is skipped, as in the snapshot
-# dry run. docs/release-runbook.md "macOS and Gatekeeper" has the steps.
+# dry run.
 notarize:
   macos:
     - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'

@@ -156,7 +156,7 @@ A conformance failure is a finding about understudy, or about the research: fix 
 - `docs/configuration.md` carries `understudy serve --help` verbatim; a test fails when they differ.
 - `docs/coverage.md` is generated (`just coverage-check`).
 - The guide in `docs/guide/` shows only commands that were run against a build. Update it with any user-visible change.
-- `CHANGELOG.md` gets an entry under `[Unreleased]` for a user-visible change; a release's notes are cut from it ([release runbook](docs/release-runbook.md)).
+- `CHANGELOG.md` gets an entry under `[Unreleased]` for a user-visible change; a release's notes are cut from it.
 - [GLOSSARY.md](GLOSSARY.md) defines the emulator's own terms. Use them as defined in code, comments and docs.
 
 ## Reporting problems

@@ -11,7 +11,7 @@
 The Testcontainers modules are released in lockstep with understudy, and each
 module's default image is the release's (testcontainers.md 8.8), so one
 version lives in every file of PINS. A release candidate needs no bump: its
-tag publishes no modules (docs/release-runbook.md 1), so only X.Y.Z is taken.
+tag publishes no modules, so only X.Y.Z is taken.
 """
 
 import argparse

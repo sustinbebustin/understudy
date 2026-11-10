@@ -67,7 +67,7 @@ A `tcp://` daemon (plain, or TLS under `DOCKER_TLS_VERIFY`, `containers.md 2.1`)
 
 ## Amendment 2026-11-06: the macOS Docker Desktop run
 
-The maintainer's Mac ran `docs/release-checklist.md` on Docker Desktop 4.98.0 (Engine 29.9.2, macOS 26.7.1, Apple Silicon, Rosetta on).
+The maintainer ran the pre-release manual run on a Mac, on Docker Desktop 4.98.0 (Engine 29.9.2, macOS 26.7.1, Apple Silicon, Rosetta on).
 
 - Detection holds: `GET /info` reports `OperatingSystem` exactly `Docker Desktop` (`containers.md 2.2`), and `doctor` and `TestDetectOnThisHost` reported `DockerDesktop`. `*.localhost` resolved to loopback.
 - Functions ran from the host: the Docker-tagged Lambda and pool packages passed, as did the smoke workload's invoke. They also ran from the image with the socket mounted, given `--group-add 0`, because a container sees the VM's socket as `root:root` 0660 (`testcontainers.md 8.5`, TC-01).

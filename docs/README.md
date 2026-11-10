@@ -11,7 +11,7 @@
 | See what comes next | [ROADMAP.md](ROADMAP.md) |
 | Change understudy | [CONTRIBUTING.md](../CONTRIBUTING.md), with the domain's terms in [GLOSSARY.md](../GLOSSARY.md) |
 
-For maintainers: [release-runbook.md](release-runbook.md) cuts a release, [release-checklist.md](release-checklist.md) is the manual macOS run that precedes one, and [recording-kit.md](recording-kit.md) records real AWS exchanges for `testdata/parity/`.
+For maintainers: [recording-kit.md](recording-kit.md) records real AWS exchanges for `testdata/parity/`.
 
 ## Research notes
 

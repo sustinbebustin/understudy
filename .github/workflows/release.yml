@@ -3,9 +3,8 @@ name: release
 # Runs GoReleaser on a v* tag: the GitHub release with the archives and
 # checksums, the multi-arch GHCR image, and the Homebrew cask when the
 # HOMEBREW_TAP_TOKEN secret exists and the tag is not a prerelease. The
-# release notes are the tag's section of CHANGELOG.md
-# (docs/release-runbook.md). The archives, checksums and cask are also
-# attached to this workflow run.
+# release notes are the tag's section of CHANGELOG.md. The archives,
+# checksums and cask are also attached to this workflow run.
 #
 # The dry run on every pull request is ci.yml's release-check job.
 #
@@ -113,7 +112,7 @@ jobs:
         run: |
           version=$(uv version --short)
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::testcontainers/python is $version, the tag $GITHUB_REF_NAME; bump the modules in lockstep (docs/release-runbook.md 2)."
+            echo "::error::testcontainers/python is $version, the tag $GITHUB_REF_NAME; bump the modules in lockstep with scripts/bump-version."
             exit 1
           fi
       - run: uv build
@@ -147,7 +146,7 @@ jobs:
         run: |
           version=$(node -p 'require("./package.json").version')
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::testcontainers/node is $version, the tag $GITHUB_REF_NAME; bump the modules in lockstep (docs/release-runbook.md 2)."
+            echo "::error::testcontainers/node is $version, the tag $GITHUB_REF_NAME; bump the modules in lockstep with scripts/bump-version."
             exit 1
           fi
       - run: bun install --frozen-lockfile
@@ -184,7 +183,7 @@ jobs:
         run: |
           required=$(cd testcontainers/go && go list -m -f '{{.Version}}' github.com/sustinbebustin/understudy)
           if [ "$required" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::testcontainers/go requires understudy $required, the tag is $GITHUB_REF_NAME; bump the modules in lockstep (docs/release-runbook.md 2)."
+            echo "::error::testcontainers/go requires understudy $required, the tag is $GITHUB_REF_NAME; bump the modules in lockstep with scripts/bump-version."
             exit 1
           fi
       - name: Tag testcontainers/go

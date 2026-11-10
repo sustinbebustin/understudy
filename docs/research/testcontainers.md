@@ -448,7 +448,7 @@ done
 
 Record `docker.status` and `docker.reason` from both health files, and whether curl reached 127.0.0.1 at all. Cost: USD 0, about 10 minutes. Teardown: `docker rm -f "$P-tc01-with-group" "$P-tc01-without-group"`.
 
-Recorded 2026-11-06 by the macOS Docker Desktop run (`docs/release-checklist.md` step 7), on Docker Desktop 4.98.0, Engine 29.9.2, macOS 26.7.1 on Apple Silicon, with Rosetta on:
+Recorded 2026-11-06 by the maintainer's manual macOS Docker Desktop run, on Docker Desktop 4.98.0, Engine 29.9.2, macOS 26.7.1 on Apple Silicon, with Rosetta on:
 
 - In a container: `uid=0 gid=0 mode=660`. On the host, `stat -L` of `/var/run/docker.sock`, a symlink to the user's Desktop socket: the user's uid, gid 20 (`staff`), mode 755.
 - With `--group-add 0`: `docker.status` `enabled`. Without it: `degraded`, reason `docker daemon unavailable: permission denied on unix:///var/run/docker.sock`.

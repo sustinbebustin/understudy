@@ -2,8 +2,7 @@ name: prepare-release
 
 # Opens the pull request for a release: scripts/bump-version moves every
 # version pin to the version given and cuts CHANGELOG.md. Merge it, then push
-# the tag vX.Y.Z from the merge commit (docs/release-runbook.md 3); the tag
-# runs release.yml.
+# the tag vX.Y.Z from the merge commit; the tag runs release.yml.
 #
 # A pull request opened with this workflow's token starts no pull_request
 # run, so the job dispatches ci.yml on the branch: its jobs report on the
