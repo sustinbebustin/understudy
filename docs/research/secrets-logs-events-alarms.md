@@ -17,7 +17,7 @@ Evidence tiers. Every claim carries an inline link. The tier is stated where it 
 
 Conflict policy: when DOC, MODEL and AWS-REC disagree, the disagreement is listed in section 6 and the choice that real clients observe is recommended. Items not confirmed by any DOC, MODEL, SDK, TF or AWS-REC source are marked **UNVERIFIED**.
 
-Tooling note: the Secrets Manager Smithy model file path was blocked by a sandbox filename filter in this session, so Secrets Manager constraints come from DOC pages (identical content) and TF/AWS-REC, not from direct model reads. All other models were read directly.
+Tooling note: the Secrets Manager Smithy model file was not read directly, so Secrets Manager constraints come from DOC pages (identical content) and TF/AWS-REC, not from direct model reads. All other models were read directly.
 
 LocalStack licensing: the `localstack/localstack` repo is archived and the code-search tool reports its license as unknown. Treat its tests as a reference corpus to re-derive from, not as files to vendor, until the license is confirmed.
 
@@ -391,7 +391,7 @@ Operator table (all work on leaves only, except `$or` and anything-but):
 | suffix, suffix ignore case | `{"suffix":".png"}`, `{"suffix":{"equals-ignore-case":".png"}}` | |
 | equals-ignore-case | `{"equals-ignore-case":"alice"}` | value must be a string |
 | exists | `{"exists":true}` / `{"exists":false}` | leaf nodes only; an event leaf that is an **empty array counts as not existing** (AWS-REC `exists_list_empty_NEG`: `resources: []` does not match `exists:true`); `exists:false` also matches when an intermediate node is absent or is an object ([Event Ruler](https://github.com/aws/event-ruler/blob/main/README.md)) |
-| anything-but | `{"anything-but":"x"}`, `[..strings..]`, `123`, `[..numbers..]` | lists must be all strings or all numbers; `null`/boolean not allowed inside (AWS-REC: "Inside anything but list, start|null|boolean is not supported.") |
+| anything-but | `{"anything-but":"x"}`, `[..strings..]`, `123`, `[..numbers..]` | lists must be all strings or all numbers; `null`/boolean not allowed inside (AWS-REC: "Inside anything but list, start\|null\|boolean is not supported.") |
 | anything-but prefix / suffix | `{"anything-but":{"prefix":"init"}}`, `{"suffix":[..]}` | empty prefix/suffix rejected: "Null prefix/suffix not allowed" |
 | anything-but ignore case | `{"anything-but":{"equals-ignore-case":["a","b"]}}` | no numbers/null/boolean |
 | anything-but wildcard | `{"anything-but":{"wildcard":"*/lib/*"}}` or list | |
@@ -585,7 +585,7 @@ Numbered so they can be cited from ADRs.
 | Q6 | Lambda log stream name format and whether it is `YYYY/MM/DD/[$LATEST]<32 hex>` | Lambda owner | defer to the Lambda research |
 | Q7 | Delivered `time` for PutEvents with explicit `Time` | event fidelity | DOC says honored; accept and document |
 | Q8 | `AWSPENDING` removal mechanism on default PutSecretValue | stage-state machine correctness | only observed in one AWS-REC trace; implement exactly that trace, add a note |
-| Q9 | CloudWatch rpcv2Cbor wire details for query-compatible errors (header casing, `__type` content) and whether Go emits the `x-amzn-query-error` expectation | Terraform second plan on error paths | rely on Smithy spec; test with the real Go SDK in the conformance suite (outside the main module). ANSWERED for the Go client and the spec by G1 ([wire-cbor.md sections 3.4 and 5.2](wire-cbor.md)): `__type` is the absolute shape id, the query code travels in `x-amzn-query-error: Code;Sender|Receiver` only for shapes with `awsQueryError`, the Go client reads the header case-insensitively and uses it to override the error code; AWS-side bytes remain UNVERIFIED (wire-cbor.md U2 to U4) |
+| Q9 | CloudWatch rpcv2Cbor wire details for query-compatible errors (header casing, `__type` content) and whether Go emits the `x-amzn-query-error` expectation | Terraform second plan on error paths | rely on Smithy spec; test with the real Go SDK in the conformance suite (outside the main module). ANSWERED for the Go client and the spec by G1 ([wire-cbor.md sections 3.4 and 5.2](wire-cbor.md)): `__type` is the absolute shape id, the query code travels in `x-amzn-query-error: Code;Sender\|Receiver` only for shapes with `awsQueryError`, the Go client reads the header case-insensitively and uses it to override the error code; AWS-side bytes remain UNVERIFIED (wire-cbor.md U2 to U4) |
 | Q10 | LocalStack snapshot license | whether fixtures may be vendored | confirm repo LICENSE (Apache-2.0 was the historical OSS license) before copying; otherwise re-derive |
 | Q11 | CloudWatch Logs `endTime` inclusivity for FilterLogEvents, and `limit` semantics at page boundaries | pagination fidelity | Narrowed by gap G3 ([logs-filter-patterns.md](logs-filter-patterns.md) section 6): inclusive `startTime` and `endTime` on FilterLogEvents by the literal DOC wording (about 65 percent, no recording; GetLogEvents is `[start, end)`); full pages, `nextToken` only while matching events remain, never an empty page with a token. Cases C8 and C9 record it |
 | Q12 | Throttle/quota enforcement defaults | fault injection | no enforcement in phase 1; expose as fault rules |

@@ -1,6 +1,6 @@
 # Step Functions service API: primary-source research
 
-Scope: the AWS Step Functions control plane and execution API around the ASL interpreter (roadmap item 7): operations, shapes, errors, ARNs, limits, Standard versus Express, the service integrations understudy can serve in-process, the callers that start executions (EventBridge, API Gateway), what Terraform v6.68.0 calls, and whether AWS Step Functions Local can serve as a secondary oracle. State semantics, JSONPath, JSONata, intrinsics and the history event sequence belong to the interpreter's research (stepfunctions-asl.md, its sections 8, 11 and 12 in particular) and appear here only where an API response carries them. Sources: the Smithy model `com.amazonaws.sfn` at the pinned commit, the Step Functions API Reference and Developer Guide, the AWS SDKs and Tools Reference Guide, the Service Authorization Reference, aws-sdk-go-v2, botocore, the AWS CLI v2, aws-sdk-js-v3 and smithy-typescript source, LocalStack's AWS-validated snapshots, the Terraform AWS provider v6.68.0 and Docker Hub. All retrieved 2026-10-25. No AWS endpoint was contacted.
+Scope: the AWS Step Functions control plane and execution API around the ASL interpreter (Step Functions on the roadmap): operations, shapes, errors, ARNs, limits, Standard versus Express, the service integrations understudy can serve in-process, the callers that start executions (EventBridge, API Gateway), what Terraform v6.68.0 calls, and whether AWS Step Functions Local can serve as a secondary oracle. State semantics, JSONPath, JSONata, intrinsics and the history event sequence belong to the interpreter's research (stepfunctions-asl.md, its sections 8, 11 and 12 in particular) and appear here only where an API response carries them. Sources: the Smithy model `com.amazonaws.sfn` at the pinned commit, the Step Functions API Reference and Developer Guide, the AWS SDKs and Tools Reference Guide, the Service Authorization Reference, aws-sdk-go-v2, botocore, the AWS CLI v2, aws-sdk-js-v3 and smithy-typescript source, LocalStack's AWS-validated snapshots, the Terraform AWS provider v6.68.0 and Docker Hub. All retrieved 2026-10-25. No AWS endpoint was contacted.
 
 ## 1. Sources and evidence labels
 
@@ -337,7 +337,7 @@ The execution role's session name in a denial is a random 32-letter string (SFN-
 
 The ` (SDK Attempt Count: 1)` suffix ends AWS SDK integration causes beyond `Sfn`: SFN-11 recorded it for `Sqs` (2026-11-03), and SFN-15 for a function-ARN Lambda Task. The `DynamoDb` and `S3` causes, last recorded 2023-07-27 and 2025-01-22, lack it; that they would carry it now is inferred.
 
-### 9.5 Permissions the execution role needs (for ROADMAP item 5)
+### 9.5 Permissions the execution role needs (for IAM enforcement)
 
 - Lambda `lambda:InvokeFunction` on the function; a qualified call needs `function:<name>:*`, and "An unqualified ARN (without the `:*` suffix) does not grant permission to invoke a specific version or alias" ([D] connect-lambda). SQS `sqs:SendMessage`, SNS `sns:Publish`, DynamoDB `dynamodb:GetItem|PutItem|UpdateItem|DeleteItem`, EventBridge `events:PutEvents` on the target (the per-service pages).
 - `states:startExecution`: `states:StartExecution` on the child state machine; `.sync` adds `states:DescribeExecution` and `states:StopExecution` on `execution:<child>:*` and `events:PutTargets`, `events:PutRule`, `events:DescribeRule` on `rule/StepFunctionsGetEventsForStepFunctionsExecutionRule`; missing event permissions cause a delay, missing polling permissions a stuck task ([D] connect-stepfunctions, [service-integration-iam-templates](https://docs.aws.amazon.com/step-functions/latest/dg/service-integration-iam-templates.html)).
@@ -354,7 +354,7 @@ The ` (SDK Attempt Count: 1)` suffix ends AWS SDK integration causes beyond `Sfn
 
 ### 10.2 API Gateway
 
-HTTP API first-class integrations `StepFunctions-StartExecution` (`StateMachineArn` required; `Name`, `Input`, `Region` optional), `StepFunctions-StartSyncExecution` and `StepFunctions-StopExecution` ([D] [http-api-develop-integrations-aws-services-reference](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-aws-services-reference.html)). They belong to ROADMAP item 6 and call the same operations in-process; the response mapping is in apigateway-http.md 6.
+HTTP API first-class integrations `StepFunctions-StartExecution` (`StateMachineArn` required; `Name`, `Input`, `Region` optional), `StepFunctions-StartSyncExecution` and `StepFunctions-StopExecution` ([D] [http-api-develop-integrations-aws-services-reference](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-aws-services-reference.html)). They belong to API Gateway and call the same operations in-process; the response mapping is in apigateway-http.md 6.
 
 ## 11. Terraform v6.68.0
 
@@ -400,7 +400,7 @@ The Docker Hub description: "AWS Step Functions Local is licensed pursuant to th
 
 ### 12.4 Evaluation under ADR 0014 and ADR 0016
 
-- ADR 0014's licence reasoning (amendment 2026-10-14) would carry over in form: AWS-authored tooling pulls the image for users, the user is the licensee, understudy would be an HTTP client of an unmodified program, CI would run under the owner's account. It does not need to be reached, because the product question differs: DynamoDB Local was adopted because reimplementing DynamoDB was out of scope (ADR 0014, alternatives), while the ASL interpreter is roadmap item 7 itself, and ADR 0016 rule 1 keeps AWS behavior in-repo.
+- ADR 0014's licence reasoning (amendment 2026-10-14) would carry over in form: AWS-authored tooling pulls the image for users, the user is the licensee, understudy would be an HTTP client of an unmodified program, CI would run under the owner's account. It does not need to be reached, because the product question differs: DynamoDB Local was adopted because reimplementing DynamoDB was out of scope (ADR 0014, alternatives), while the ASL interpreter is the Step Functions feature itself, and ADR 0016 rule 1 keeps AWS behavior in-repo.
 - As a test oracle it fails ADR 0016 rule 3: "A differential oracle is admitted only when its output is fixed by a frozen specification". Step Functions Local is frozen only by abandonment; its output is fixed by an unsupported implementation that AWS says lacks parity, not by a specification. The API's error texts and the integration result shapes it would be compared on are service behavior, which no language specification fixes [I].
 - Its account-bound licence would also give CI a second AWS-terms dependency beside DynamoDB Local for no fidelity gain.
 
@@ -414,19 +414,19 @@ Do not adopt it as a runtime backend, a CI oracle or a conformance target. A mai
 
 First slice (tracer bullet): the Terraform set, then executions. Note texts are what the bind site's `registry.Partial` carries.
 
-**Item 7 minimum.** ROADMAP item 7 builds Standard workflows with Lambda tasks and the minimum operations, and binds less than the table below; where they differ, this paragraph wins for item 7 and the table describes a later slice. Partial: `CreateStateMachine`, `UpdateStateMachine`, `ValidateStateMachineDefinition`, `ListStateMachineVersions` (always empty: `publish` true is refused), `StartExecution`, `StopExecution`, `ListExecutions`, `GetExecutionHistory`. Full: `DescribeStateMachine`, `DeleteStateMachine`, `ListStateMachines`, `DescribeExecution`, `DescribeStateMachineForExecution`, `TagResource`, `UntagResource`, `ListTagsForResource`. Unbound (501), 21: `StartSyncExecution` (the Express unit), `SendTaskSuccess`, `SendTaskFailure`, `SendTaskHeartbeat`, the five activity operations, the five alias operations, `PublishStateMachineVersion`, `DeleteStateMachineVersion`, `RedriveExecution`, `TestState`, `DescribeMapRun`, `ListMapRuns`, `UpdateMapRun`. `type` `EXPRESS`, `publish` true (with or without `versionDescription`) and `encryptionConfiguration.type` `CUSTOMER_MANAGED_KMS_KEY` answer 501 `NotImplemented` naming the member; `publish` false, which Terraform always sends, is accepted, and `versionDescription` without `publish` keeps the recorded `ValidationException` (5.1). A Task resource other than a Lambda function ARN or `arn:aws:states:::lambda:invoke` is refused at create with `InvalidDefinition` code `UNSUPPORTED_BY_UNDERSTUDY` (stepfunctions-asl.md 10.4, 15.1), not accepted and failed at run time (13.7). Nothing is `StoredOnly`.
+**Step Functions minimum.** The roadmap's Step Functions feature builds Standard workflows with Lambda tasks and the minimum operations, and binds less than the table below; where they differ, this paragraph wins for the Step Functions minimum and the table describes a later slice. Partial: `CreateStateMachine`, `UpdateStateMachine`, `ValidateStateMachineDefinition`, `ListStateMachineVersions` (always empty: `publish` true is refused), `StartExecution`, `StopExecution`, `ListExecutions`, `GetExecutionHistory`. Full: `DescribeStateMachine`, `DeleteStateMachine`, `ListStateMachines`, `DescribeExecution`, `DescribeStateMachineForExecution`, `TagResource`, `UntagResource`, `ListTagsForResource`. Unbound (501), 21: `StartSyncExecution` (the Express unit), `SendTaskSuccess`, `SendTaskFailure`, `SendTaskHeartbeat`, the five activity operations, the five alias operations, `PublishStateMachineVersion`, `DeleteStateMachineVersion`, `RedriveExecution`, `TestState`, `DescribeMapRun`, `ListMapRuns`, `UpdateMapRun`. `type` `EXPRESS`, `publish` true (with or without `versionDescription`) and `encryptionConfiguration.type` `CUSTOMER_MANAGED_KMS_KEY` answer 501 `NotImplemented` naming the member; `publish` false, which Terraform always sends, is accepted, and `versionDescription` without `publish` keeps the recorded `ValidationException` (5.1). A Task resource other than a Lambda function ARN or `arn:aws:states:::lambda:invoke` is refused at create with `InvalidDefinition` code `UNSUPPORTED_BY_UNDERSTUDY` (stepfunctions-asl.md 10.4, 15.1), not accepted and failed at run time (13.7). Nothing is `StoredOnly`.
 
 | Operation | Coverage | Note |
 |---|---|---|
-| `CreateStateMachine`, `UpdateStateMachine` | Partial | `tracingConfiguration is stored and echoed, no X-Ray trace is emitted; encryptionConfiguration is validated against the KMS key and stored, execution data is not encrypted with it; the execution role is checked for ARN syntax only` (item 7 answers 501 for `CUSTOMER_MANAGED_KMS_KEY` until the KMS validation is built) |
+| `CreateStateMachine`, `UpdateStateMachine` | Partial | `tracingConfiguration is stored and echoed, no X-Ray trace is emitted; encryptionConfiguration is validated against the KMS key and stored, execution data is not encrypted with it; the execution role is checked for ARN syntax only` (the Step Functions minimum answers 501 for `CUSTOMER_MANAGED_KMS_KEY` until the KMS validation is built) |
 | `DescribeStateMachine`, `DeleteStateMachine`, `ListStateMachines`, `TagResource`, `UntagResource`, `ListTagsForResource` | Full | |
 | `ValidateStateMachineDefinition` | Partial | `diagnostics come from understudy's ASL validator; codes and messages are AWS's only for the cases recorded in stepfunctions-api.md 5.6` |
-| `PublishStateMachineVersion`, `ListStateMachineVersions`, `DeleteStateMachineVersion` | Full (later slice; item 7 binds only `ListStateMachineVersions`, always empty) | |
-| `StartExecution`, `StartSyncExecution`, `DescribeExecution`, `DescribeStateMachineForExecution`, `StopExecution`, `GetExecutionHistory` | Full (`StartSyncExecution` in the Express unit; unbound in item 7) | |
+| `PublishStateMachineVersion`, `ListStateMachineVersions`, `DeleteStateMachineVersion` | Full (later slice; the Step Functions minimum binds only `ListStateMachineVersions`, always empty) | |
+| `StartExecution`, `StartSyncExecution`, `DescribeExecution`, `DescribeStateMachineForExecution`, `StopExecution`, `GetExecutionHistory` | Full (`StartSyncExecution` in the Express unit; unbound in the Step Functions minimum) | |
 | `ListExecutions` | Partial | `mapRunArn and redriveFilter are validated; no Map Run or redrive exists, so they never match` |
-| `SendTaskSuccess`, `SendTaskFailure`, `SendTaskHeartbeat` | Full (later slice; unbound in item 7) | |
-| `CreateActivity`, `DescribeActivity`, `DeleteActivity`, `ListActivities`, `GetActivityTask` | Full (second slice; unbound in item 7) | |
-| `CreateStateMachineAlias`, `DescribeStateMachineAlias`, `UpdateStateMachineAlias`, `DeleteStateMachineAlias`, `ListStateMachineAliases` | Full (second slice; unbound in item 7) | routing draws from a seeded `ids` stream of its own (ADR 0018) |
+| `SendTaskSuccess`, `SendTaskFailure`, `SendTaskHeartbeat` | Full (later slice; unbound in the Step Functions minimum) | |
+| `CreateActivity`, `DescribeActivity`, `DeleteActivity`, `ListActivities`, `GetActivityTask` | Full (second slice; unbound in the Step Functions minimum) | |
+| `CreateStateMachineAlias`, `DescribeStateMachineAlias`, `UpdateStateMachineAlias`, `DeleteStateMachineAlias`, `ListStateMachineAliases` | Full (second slice; unbound in the Step Functions minimum) | routing draws from a seeded `ids` stream of its own (ADR 0018) |
 | `TestState` | unbound (501) in the first slice | a later Partial over the interpreter with `mock` input only |
 | `RedriveExecution`, `DescribeMapRun`, `ListMapRuns`, `UpdateMapRun` | unbound (501) | Distributed Map and redrive are out of scope |
 
@@ -434,9 +434,9 @@ Nothing is `StoredOnly`: every stored-only member sits inside an operation that 
 
 ### 13.2 Fidelity switches
 
-"Status in item 7" says how ROADMAP item 7 carries each row: a `fidelity.Switch` (six in all, three of them in stepfunctions-asl.md 15.3), an exact coverage note naming the recording id with an inferred-choice test, a value implemented with its citation and no switch, or a later slice.
+"Status in the Step Functions minimum" says how the Step Functions minimum carries each row: a `fidelity.Switch` (six in all, three of them in stepfunctions-asl.md 15.3), an exact coverage note naming the recording id with an inferred-choice test, a value implemented with its citation and no switch, or a later slice.
 
-| Name | Default | Label | Ground | Status in item 7 |
+| Name | Default | Label | Ground | Status in the Step Functions minimum |
 |---|---|---|---|---|
 | `sfn.definition.compare` | byte-exact for idempotency and storage | third-party-recorded | 5.1 | implemented as documented |
 | `sfn.execution.idempotent-input-compare` | byte-exact | aws-recorded (SFN-03, 2026-11-03) | 6.1 | implemented as recorded |
@@ -449,7 +449,7 @@ Nothing is `StoredOnly`: every stored-only member sits inside an operation that 
 | `sfn.task-token.format` | standard base64, 644 characters, from the seeded stream | aws-recorded length and alphabet (SFN-02, 2026-11-03) | 7.1 | later slice |
 | `sfn.task-token.closed-error` | `TaskTimedOut` `Task Timed Out: 'Provided task does not exist anymore'` after a timeout or completion; `Task Timed Out: 'Provided task does not exist.'` for an unknown well-formed token | aws-recorded (SFN-02, 2026-11-03) | 7.1 | later slice |
 | `sfn.activity.empty-poll-body` | `{}` | aws-recorded (SFN-10, 2026-11-03) | 7.2 | later slice |
-| `sfn.logs.event-timestamp` | epoch milliseconds as a decimal string | inferred (SFN-07: no log event was delivered) | 8.2 | later slice (item 7 emits no log events) |
+| `sfn.logs.event-timestamp` | epoch milliseconds as a decimal string | inferred (SFN-07: no log event was delivered) | 8.2 | later slice (the Step Functions minimum emits no log events) |
 | `sfn.logs.stream-name` | `states/<state machine name>/<yyyy-mm-dd-hh-mm>/<32 hex>` | inferred (SFN-07: no log event was delivered) | 8.2 | later slice |
 | `sfn.logs.validation-stream` | none at create | aws-recorded (SFN-07, 2026-11-03) | 8.2 | later slice |
 | `sfn.history.exclude-data` | `includeExecutionData: false` drops `input`/`output` and `inputDetails`/`outputDetails`, keeps `*EventDetails` | aws-recorded (SFN-05, 2026-11-03) | 6.6 | implemented as recorded |
@@ -470,7 +470,7 @@ Nothing is `StoredOnly`: every stored-only member sits inside an operation that 
 
 ### 13.4 Endpoint and host prefix
 
-This section belongs to the Express unit, which binds `StartSyncExecution`; item 7 leaves it unbound, routes by `X-Amz-Target` as below, and its conformance check of the 501 sends with host-prefix injection off (3.3).
+This section belongs to the Express unit, which binds `StartSyncExecution`; the Step Functions minimum leaves it unbound, routes by `X-Amz-Target` as below, and its conformance check of the 501 sends with host-prefix injection off (3.3).
 
 - Route by `X-Amz-Target` and accept any host the policy allows; never require the `sync-` label.
 - `understudy env` prints `AWS_DISABLE_HOST_PREFIX_INJECTION=true` for boto3 and the AWS CLI (botocore 1.37.5 or later) and `AWS_ENDPOINT_URL_SFN=http://sfn.localhost:<port>` as the setting that also covers Go v2 and JS v3 where `*.localhost` resolves; the guide shows the Go middleware and the JS `disableHostPrefix: true` option for hosts where it does not. `understudy doctor` checks that `sync-sfn.localhost` resolves.
@@ -492,7 +492,7 @@ Bind `CreateStateMachine`, `DescribeStateMachine`, `UpdateStateMachine`, `Delete
 
 ### 13.7 What must never be faked
 
-- An integration or `Resource` understudy does not implement (any `aws-sdk:` service it does not emulate, any optimized service outside 9.2, `.sync` on anything but `states:startExecution`; in item 7 every resource but a Lambda function ARN and `arn:aws:states:::lambda:invoke`) is refused at create with `InvalidDefinition` code `UNSUPPORTED_BY_UNDERSTUDY` (stepfunctions-asl.md 10.4), so the refusal reaches `terraform plan` through `ValidateStateMachineDefinition` and no `Catch` can turn a missing integration into a green workflow. Only what create cannot know fails at run time with `States.Runtime`, which `States.ALL` cannot catch ([D] concepts-error-handling): a path-valued lambda:invoke `InvocationType` that resolves to anything but `RequestResponse` (SFN-13). Coverage lists the integration matrix.
+- An integration or `Resource` understudy does not implement (any `aws-sdk:` service it does not emulate, any optimized service outside 9.2, `.sync` on anything but `states:startExecution`; in the Step Functions minimum every resource but a Lambda function ARN and `arn:aws:states:::lambda:invoke`) is refused at create with `InvalidDefinition` code `UNSUPPORTED_BY_UNDERSTUDY` (stepfunctions-asl.md 10.4), so the refusal reaches `terraform plan` through `ValidateStateMachineDefinition` and no `Catch` can turn a missing integration into a green workflow. Only what create cannot know fails at run time with `States.Runtime`, which `States.ALL` cannot catch ([D] concepts-error-handling): a path-valued lambda:invoke `InvocationType` that resolves to anything but `RequestResponse` (SFN-13). Coverage lists the integration matrix.
 - No X-Ray segments, no KMS encryption of execution data, no role assumption: stated in the Partial notes, never implied by success.
 - Express history is never served through `DescribeExecution` or `GetExecutionHistory`; it is visible through CloudWatch Logs and the journal only.
 - `TestState`, redrive and Distributed Map stay unbound (501) until built.

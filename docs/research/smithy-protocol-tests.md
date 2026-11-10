@@ -308,7 +308,7 @@ Glacier (account id `-` default, checksum headers), API Gateway (`Accept` header
 
 ## 9. The known failures (category `gap`): scope, sources, outcome
 
-Scope: the 15 cases `internal/protocoltest/skips.json` records under category `gap` (roadmap item 3, `docs/ROADMAP.md` L13): what each asserts, what a correct server must do, and what understudy must change to pass it. Retrieved 2026-10-25. Sources:
+Scope: the 15 cases `internal/protocoltest/skips.json` records under category `gap` (the protocol corpus): what each asserts, what a correct server must do, and what understudy must change to pass it. Retrieved 2026-10-25. Sources:
 
 - The Smithy 2.0 specification at tag `1.74.0`, the corpus version (section 1), read as source. A spec citation names the file under https://github.com/smithy-lang/smithy/tree/1.74.0/docs/source-2.0 and its lines, for example `spec/type-refinement-traits.rst L146-L160` (rendered at https://smithy.io/2.0/spec/type-refinement-traits.html#default-value-serialization).
 - The vendored corpus `third_party/smithy-protocol-tests/model.json` (cited by line), the generated cases under `internal/protocoltest/gen`, and the harness in `internal/protocoltest`.

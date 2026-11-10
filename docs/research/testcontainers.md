@@ -1,6 +1,6 @@
 # Testcontainers modules: primary-source research
 
-Scope: the design input for [ROADMAP](../ROADMAP.md) item 4's "Testcontainers modules for Go, Python and JS over `--ready-file` and `/health`". First, the dependency decision the maintainer asked for (section 2): whether to build on the Testcontainers libraries, on something self-maintained, or on another widely used library, per language and with measurements. Then the module design. This note covers no AWS behavior. Its claims are about Testcontainers, Ryuk, the Docker Engine and understudy itself. Sources: the Testcontainers sources at the release tags pinned in 0.2; their module guidelines and the community module registry; Ryuk; Docker's documentation; the Go modules reference; registry metadata from proxy.golang.org, pkg.go.dev, pypi.org, pypistats.org, registry.npmjs.org and api.npmjs.org; the GitHub API; and understudy's own repo files (repo-relative paths). Sources were read on 2026-10-25 and 2026-10-26, and every registry and GitHub number was measured on 2026-10-26. "Last 12 months" means since 2025-10-26.
+Scope: the design input for the first release's "Testcontainers modules for Go, Python and JS over `--ready-file` and `/health`" ([ROADMAP](../ROADMAP.md)). First, the dependency decision the maintainer asked for (section 2): whether to build on the Testcontainers libraries, on something self-maintained, or on another widely used library, per language and with measurements. Then the module design. This note covers no AWS behavior. Its claims are about Testcontainers, Ryuk, the Docker Engine and understudy itself. Sources: the Testcontainers sources at the release tags pinned in 0.2; their module guidelines and the community module registry; Ryuk; Docker's documentation; the Go modules reference; registry metadata from proxy.golang.org, pkg.go.dev, pypi.org, pypistats.org, registry.npmjs.org and api.npmjs.org; the GitHub API; and understudy's own repo files (repo-relative paths). Sources were read on 2026-10-25 and 2026-10-26, and every registry and GitHub number was measured on 2026-10-26. "Last 12 months" means since 2025-10-26.
 
 ## 0. How to read this
 
@@ -82,7 +82,7 @@ What the figures say:
 All figures are [measured] (pypi.org JSON API, pypistats.org `recent`, GitHub API, `uv pip compile`). In the testcontainers tree, certifi is MPL-2.0 (file-level copyleft, which ADR 0016 accepts test-only) and typing-extensions is PSF-2.0. The rest are Apache-2.0, MIT or BSD [measured: PyPI licence fields]. docker-py's downloads include every testcontainers install, since testcontainers depends on it (inferred from the tree above).
 
 - **testcontainers-python leads its category by an order of magnitude**: 14 times pytest-docker's monthly downloads. pytest-docker needs a compose file and the `docker compose` plugin, and has no reaper ([doc] pytest-docker README on the default branch). docker-py is the client testcontainers wraps, not a harness.
-- **The self-maintained route needs a binary distribution that does not exist yet.** A stdlib launcher that runs `understudy serve --listen 127.0.0.1:0 --ready-file F` and reads the endpoint is about 80 lines with no dependency ([repo] `docs/ARCHITECTURE.md` 17, `--ready-file`). But Python users have no way to get the binary from PyPI. GitHub releases and Homebrew are what ROADMAP item 4 plans. A launcher over the docker CLI has no reaper.
+- **The self-maintained route needs a binary distribution that does not exist yet.** A stdlib launcher that runs `understudy serve --listen 127.0.0.1:0 --ready-file F` and reads the endpoint is about 80 lines with no dependency ([repo] `docs/ARCHITECTURE.md` 17, `--ready-file`). But Python users have no way to get the binary from PyPI. GitHub releases and Homebrew are what the first release plans. A launcher over the docker CLI has no reaper.
 
 ### 2.4 JavaScript
 
@@ -153,7 +153,7 @@ Lambda and DynamoDB Local need the Docker Engine. Without a socket in the contai
 
 ### 3.5 Networking from inside a container
 
-`internal/topology` finds understudy's own container through mountinfo IDs, then the hostname. It prefers a user-defined network over `bridge`, and returns `InContainer{Network, Self}` ([repo] `internal/topology/detect.go`, `detectSelf`, `pickNetwork`). Function containers and DynamoDB Local join that network and reach understudy by container IP ([repo] `docs/adr/0011-container-networking.md`, review amendment). Function code reaches the whole admin API in this topology, an exposure accepted as the local Docker trust domain ([repo] ADR 0011, hardening round 3; `README.md`, Limitations).
+`internal/topology` finds understudy's own container through mountinfo IDs, then the hostname. It prefers a user-defined network over `bridge`, and returns `InContainer{Network, Self}` ([repo] `internal/topology/detect.go`, `detectSelf`, `pickNetwork`). Function containers and DynamoDB Local join that network and reach understudy by container IP ([repo] `docs/adr/0011-container-networking.md`, amendment 2026-10-08). Function code reaches the whole admin API in this topology, an exposure accepted as the local Docker trust domain ([repo] ADR 0011, amendment 2026-10-13; `README.md`, Limitations).
 
 ### 3.6 Cleanup that exists today
 
@@ -338,7 +338,7 @@ Every other understudy setting with a `UNDERSTUDY_*` variable is reachable throu
 
 - **Lockstep.** All three modules release with understudy: understudy `vX.Y.Z` tags `testcontainers/go/vX.Y.Z` (4.6), PyPI `testcontainers-understudy==X.Y.Z` and npm `testcontainers-understudy@X.Y.Z`. The default image is `ghcr.io/sustinbebustin/understudy:X.Y.Z`. This is tc-go's and tc-node's lockstep practice (4.6, 6.1).
 - **Image constants.** Python defaults its image argument; Go and Node take it explicitly, by their conventions (4.1, 6.1), and export `DefaultImage` and `UNDERSTUDY_IMAGE` constants.
-- **Order.** Nothing is published before the GHCR image exists ([repo] ROADMAP item 4). The Go module requires a tagged root version for `admin`; in-repo development uses `replace => ../..` as tc-go does (4.6).
+- **Order.** Nothing is published before the GHCR image exists ([repo] ROADMAP, the first release). The Go module requires a tagged root version for `admin`; in-repo development uses `replace => ../..` as tc-go does (4.6).
 
 ### 8.9 Registry listing
 

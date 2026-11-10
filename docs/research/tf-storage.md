@@ -15,7 +15,7 @@ Conventions:
 - SDKs linked by that build: s3 `v1.114.0`, s3control `v1.79.1`, dynamodb `v1.70.0`, kms `v1.61.1`, secretsmanager `v1.50.1`, feature/s3/manager `v1.23.11` ([go.mod L18, L113, L166, L243-L244, L253](https://github.com/hashicorp/terraform-provider-aws/blob/972faab3f6e4e37aff0453fe05366f3bd3fc2b97/go.mod#L243)).
 - Smithy models: `aws/api-models-aws` at `1cfdfb4bb9ea858e65623e66d73af04bec353201`: [S3](https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/s3/service/2006-03-01/s3-2006-03-01.json), [S3 Control](https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/s3-control/service/2018-08-20/s3-control-2018-08-20.json).
 - AWS docs fetched 2026-10-08. The S3 error table is served at [developerguide/ErrorResponses.html](https://docs.aws.amazon.com/AmazonS3/latest/developerguide/ErrorResponses.html); the `API/ErrorResponses.html` URL redirects to the index.
-- PROBE environment: Terraform 1.16.0, provider 6.68.0, moto 5.1.22 on `127.0.0.1` behind a logging reverse proxy, region `us-east-1`, fake credentials. No real AWS was contacted. Trace files and the proxy live in the session scratchpad, not in the repo.
+- PROBE environment: Terraform 1.16.0, provider 6.68.0, moto 5.1.22 on `127.0.0.1` behind a logging reverse proxy, region `us-east-1`, fake credentials. No real AWS was contacted. Trace files and the proxy live in a scratch directory, not in the repo.
 
 ## 1. Provider machinery that shapes emulator behavior
 
