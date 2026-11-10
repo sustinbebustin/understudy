@@ -1,6 +1,6 @@
 # understudy architecture
 
-The design contracts of understudy: package layout, core types, the request lifecycle, code generation, the protocol layer, identity and auth, state and concurrency, the clock, the journal, fault injection, IDs and determinism, snapshots, the Lambda runtime, the DynamoDB Local integration, cross-service delivery, the admin API and CLI, configuration, the testing strategy, the security model and distribution. Decisions with alternatives are recorded as ADRs in [adr/](adr/) (index in section 27). AWS behavior is researched in [research/](research/) and cited as `file.md section`.
+The design contracts of understudy: package layout, core types, the request lifecycle, code generation, the protocol layer, identity and auth, state and concurrency, the clock, the journal, fault injection, IDs and determinism, snapshots, the Lambda runtime, the DynamoDB Local integration, cross-service delivery, the admin API and CLI, configuration, the testing strategy, the security model and distribution. Decisions with alternatives are recorded as ADRs in [adr/](adr/) (index in section 23). AWS behavior is researched in [research/](research/) and cited as `file.md section`.
 
 ## 1. Principles that decide ties
 
@@ -10,7 +10,7 @@ The design contracts of understudy: package layout, core types, the request life
 4. Time has three domains and the type system keeps them apart. Time a container, SDK signer or user code observes is wall time; time only the emulator observes is emulator time; durations of real work are monotonic.
 5. Timers are a function of state. Nothing lives only in the scheduler; snapshots store state and `Rearm` rebuilds timers.
 6. If the answer is a function of the model plus overlay, it is generated. If it depends on state or time, it is hand-written.
-7. A contributor adds an operation by writing one typed function and binding it. No codec work, and no generator run unless `codegen/services/<svc>.json` lists `boundOperations`; then the name is added to that sorted list and `just generate` runs (ADR 0001 amendment).
+7. A contributor adds an operation by writing one typed function and binding it. No codec work, and no generator run unless `codegen/services/<svc>.json` lists `boundOperations`; then the name is added to that sorted list and `just generate` runs (5.3).
 
 ## 2. Package layout
 
@@ -42,7 +42,8 @@ internal/
   journal/                      Event ADT over ref types, ring store with byte accounting, indexes, query, NDJSON stream
   fault/                        Rule, Match, Phase, Action, Trigger, seeded evaluation against an error catalogue interface
   access/                       IAM access recorder (principal modes), resource-policy advisories, least-privilege rendering
-  authz/                        PolicyProvider (stored resource policies by ARN namespace), CheckResource (a request against one resource policy)
+  authz/                        PolicyProvider (stored resource policies by ARN namespace), Decide, CheckResource (a request against one resource policy)
+  enforce/                      the kernel.Authorizer of iam.enforce advise and enforce: gathers policies, asks authz.Decide, journals advisories
   fidelity/                     named behavior switches with evidence.Label provenance; Entry for coverage
   store/                        Gate, Cell[S], Partitioned[K,S], Waiters, WaitKey, Section (no effect types)
   shardlog/                     the stream log DynamoDB Streams and the stream poller share: shard, sequence numbers, positions, iterator codec, wait key
@@ -72,22 +73,27 @@ internal/
   policydoc/                    IAM policy document parse and validate; least-privilege rendering
   policycatalogue/              the AWS managed policy catalogue: validated model, canonical JSON codec, lazy embedded load (gunzip, then parse)
   docker/                       Engine API client over the unix socket: typed errors, stdcopy, progress, events
+  docker/dockertest/            in-process fake of the Engine API on a unix socket
   topology/                     detect Linux bridge, Docker Desktop, rootless, Podman, in-container; derive addresses
   api/<svc>api/                 GENERATED per service: types, schema, serde, validators, errors, ops, binder, routes, iam, redact
   service/<svc>/                hand-written, one package per service:
     sqs/ sns/ s3/ dynamodb/ lambda/ logs/ secretsmanager/ kms/ iam/ sts/ events/ cloudwatch/ apigateway/ apigatewayv2/ sfn/ kinesis/ ssm/ ses/ scheduler/
-    sns/envelope/ sns/filterpolicy/ s3/notify/ events/envelope/ apigateway/patch/ apigateway/resource/ apigatewayv2/route/
-    lambda/runtimeapi/ lambda/pool/ lambda/launcher/ lambda/codestore/ lambda/esm/ lambda/furl/ lambda/hotreload/
+    sns/envelope/ sns/filterpolicy/ s3/notify/ events/envelope/ cloudwatch/alarm/ apigateway/patch/ apigateway/resource/ apigatewayv2/route/
+    lambda/runtimeapi/ lambda/pool/ lambda/pool/pooltest/ lambda/launcher/ lambda/codestore/ lambda/esm/ lambda/furl/ lambda/hotreload/ lambda/destination/
     dynamodb/ddblocal/
     sfn/asl/ sfn/asl/jsonpath/ sfn/asl/intrinsic/   the pure Amazon States Language engine: parser, JSONPath, intrinsics, steps
   codegen/                      generator library: loader, overlay merge, closure, trait classifier, role analysis, IR, emitters
+  codegen/validationpolicy/     hand-written source of the validation policy runtime copied into each generated package (3.3)
+  codegen/serdetest/            test doubles for generated serde: a recording Serializer, a replaying Deserializer
   cmd/gen/                      go run ./internal/cmd/gen
   cmd/vendor/                   vendoring tool (network only when a human runs it; -verify offline)
   cmd/managedpolicies/          AWS managed policy catalogue generator (-fetch reads docs.aws.amazon.com when a human runs it; -pack and -verify offline)
+  cmd/budgets/                  measures the budgets of 5.7 (`just budgets`)
   protocoltest/                 compliance harness, comparators, skip list, checked-in baseline (ratchet)
   protocoltest/gen/             GENERATED synthetic test services and case tables
-  smoke/                        in-repo smoke test: builds and starts the binary, one raw HTTP request per service
+  smoke/                        in-repo smoke test: builds and starts the binary, a few raw HTTP requests per service
   parity/                       parity replay: scenarios, comparison, the baseline.json ratchet; tests replay against internal/server (section 19)
+  distribution/                 tests only: the image built from the Dockerfile (docker tag) and the GoReleaser configuration
 
 codegen/
   services/<svc>.json           per service: package, extra protocols, raw binding, raw operations, route overrides
@@ -99,18 +105,20 @@ third_party/
   aws-service-reference/        derived operation -> IAM action table with provenance
   aws-managed-policies/         AWS managed policies from the AWS Managed Policy Reference Guide (policies.json), its gzip copy policies.json.gz, SOURCE.json, LICENSE, NOTICE; its Go package embeds all but policies.json
 testdata/parity/<svc>/<item>/   parity recordings, one file per step, and where one exists the item's replay scenario (scenario.json)
-scripts/                        sealed (AWS clients against loopback endpoints only), distill-parity, parity-record (record mode, section 19)
+scripts/                        sealed (AWS clients against loopback endpoints only), distill-parity, parity-record (record mode, section 19), bump-version
 conformance/                    separate modules, own manifests, each with a run.sh that goes through scripts/sealed:
-  go-sdk/ python-boto3/ js-sdk-v3/ aws-cli/ terraform/ e2e-pipeline/ patterns/
+  go-sdk/ python-boto3/ js-sdk-v3/ aws-cli/ terraform/ e2e-pipeline/ patterns/ iam-loop/
+testcontainers/                 Testcontainers modules for Go, Python and Node, each with a run.sh against the built image
+examples/                       runnable example projects; check.sh runs them in CI
 ui/                             the web UI's TypeScript source and bun tests, no npm dependencies; `just ui` builds it into internal/server/ui/dist
-Dockerfile, .goreleaser.yaml    distribution (section 24)
+Dockerfile, .goreleaser.yaml    distribution (section 22)
 docs/coverage.md                generated by `understudy coverage --format markdown`, drift-checked
 ```
 
-Dependency direction, checked by a test in `internal/ref` that walks imports with the allowed edges kept as data (`ref/deps_test.go`, landed with the first package):
+Dependency direction is checked by a test in `internal/ref` that walks imports, with the allowed edges kept as data (`ref/deps_test.go`); a new package adds a row there:
 
 - Leaves, in order: `ref` imports only `aws`; `store` imports only `aws` (the shared `aws.Scope` and `aws.AccountID` key codecs); `evidence`, `aws`, `clock`, `ids`, `blob`, `checksum`, `awschunked`, `xmlw`, `cbor`, `form`, `ruler`, `logsfilter`, `schedexpr`, `policydoc`, `docker`, `paging`, `httpevent` import nothing in the repo. `ruler` and `logsfilter` therefore return switch metadata that the owning service wraps in `fidelity.Switch` values. `topology` and `docker/dockertest` import `docker`. `delivery` imports `aws` and `ref`. `shardlog` imports `aws`, `clock` and `store`; DynamoDB, Lambda and `lambda/esm` import it. They all run under `testing/synctest`.
-- `awserr` imports `ref`, `evidence` and `protocol/smithy`; it holds plain values (`Unimplemented{Op ref.OperationID}`, `Injected{Rule ref.RuleID}`) and never a descriptor. `registry` imports `awserr`, `smithy`, `ref`, `aws` and `evidence` (`registry.Denial.Label`, iam-enforcement-surfaces.md 12.3). `journal` imports `ref`, `aws`, `clock`, `ids` and owns its record types; it never imports `kernel`. `fault` imports `ref`, `aws`, `awserr`, `smithy`, `ids`, `delivery` and `jsonx` (rules export through the tagged-union convention). `access` imports `ref`, `aws`, `policydoc` and `registry` (recorder entries carry `registry.IAMAction`). `authz` imports `aws`, `policydoc` and `registry`; a service imports it to implement `authz.PolicyProvider` and to call `authz.CheckResource` (function URLs with AuthType NONE), and `outbox` reads stored policies through `authz.PolicyProvider`.
+- `awserr` imports `ref`, `evidence` and `protocol/smithy`; it holds plain values (`Unimplemented{Op ref.OperationID}`, `Injected{Rule ref.RuleID}`) and never a descriptor. `registry` imports `awserr`, `smithy`, `ref`, `aws` and `evidence` (`registry.Denial.Label`, iam-enforcement-surfaces.md 12.3). `journal` imports `ref`, `aws`, `clock`, `ids` and owns its record types; it never imports `kernel`. `fault` imports `ref`, `aws`, `awserr`, `smithy`, `ids`, `delivery` and `jsonx` (rules export through the tagged-union convention). `access` imports `ref`, `aws`, `policydoc` and `registry` (recorder entries carry `registry.IAMAction`). `authz` imports `aws`, `policydoc` and `registry`; a service imports it to implement `authz.PolicyProvider` and to call `authz.CheckResource` (function URLs with AuthType NONE), and `outbox` reads stored policies through `authz.PolicyProvider`. `enforce` imports `kernel`, `authz`, `policydoc`, `identity`, `journal`, `registry`, `aws`, `awserr`, `clock` and `ref`; only `server` imports it.
 - `kernel` imports `registry`, `journal`, `fault`, `access`, `identity`, `clock`, `ids`, `store`, `delivery`, `awserr`, `ref`, `auth` (the verified credentials on a `Call`, section 7), and `blob` and `docker` for `ServiceDeps` (3.2). Services that need the container topology get it from the container host through the Lambda launcher and Runtime API options, not from `ServiceDeps`. It never imports a codec or `snapshot`.
 - `api/*` (generated) imports only `protocol/smithy`, `awserr`, `registry`, `kernel`, `aws`, `ref`.
 - `service/*` imports `api/*`, `kernel`, `store`, `clock`, `ids`, `blob`, `delivery`, `fidelity`, `paging` and the engines it needs. A service never imports another service; it calls it through `kernel.Invoke` with the other service's generated `Op`. Four exceptions: a service imports `journal` for `Detail` values only, which it records through `kernel.Call.Record` or `kernel.Tx.Record` (section 10); DynamoDB imports `protocol/awsjson` to encode a `Synthesized` call as a client would; S3 imports `protocol/xmlw` and `protocol/restxml` for the bodies and `x-amz-id-2` of its raw S3 Control tag operations; IAM imports `policycatalogue` for the AWS managed policies it serves.
@@ -125,7 +133,7 @@ Dependency direction, checked by a test in `internal/ref` that walks imports wit
 
 Every service package has the same files, so reading one teaches all: `service.go` (struct, `New(kernel.ServiceDeps, Options)`, lifecycle, one `bind<Family>` call per resource family), `state.go` (persisted types with `json` tags and `stateVersion`), one file per resource family, `validate.go` for typed per-operation validators bound with `kernel.WithValidator`, `errors.go` for message builders over the generated constructors (never an `awserr.Identity` literal), `*_test.go` through `kernel.Invoke` inside `kerneltest` bubbles.
 
-Shared helpers have homes, never a utils package: `smithy.Deref` for optional generated members; `fidelity.Inferred` over the structural `fidelity.SwitchMeta` for engine switch metadata (`ruler` stays a leaf and satisfies it with a method); `paging` for keyset listings; `kernel.CellState` for the Stateful boilerplate over `store.Partitioned`; `store.View` for reads that create no cell. Only `paging` is built before the first tag (KMS, Lambda and IAM listings first); the others are not built yet.
+Shared helpers have homes, never a utils package: `paging` holds keyset listings, and `store.Partitioned` carries the `Stateful` export, import and reset every service delegates to.
 
 ## 3. Core types
 
@@ -136,7 +144,7 @@ package aws
 
 type AccountID struct{ digits string } // exactly 12 ASCII digits; ParseAccountID is the only constructor
 type Region struct{ name string }      // member of the region table (real AWS names; config adds more)
-type Partition struct{ name string }   // "aws" in phase 1
+type Partition struct{ name string }   // only the aws partition exists
 
 type Scope struct {
 	Partition Partition
@@ -158,8 +166,9 @@ type User struct{ Account aws.AccountID; Path, Name, ID string }          // ID 
 type AssumedRole struct {
 	Account aws.AccountID
 	Role    RoleRef // name, path, AROA id
-	Session string
-	Source  SessionSource
+	Session    string
+	Source     SessionSource
+	Attributes *SessionAttributes // what AssumeRole passed for the session; nil otherwise
 }
 type ServicePrincipal struct{ Name string } // "sns.amazonaws.com" on internal deliveries
 type Anonymous struct{}                     // unsigned request; function URL with AuthType NONE
@@ -168,9 +177,11 @@ type SessionSource interface{ isSessionSource() }
 type FromAssumeRole struct{}
 type FromExecutionEnvironment struct{ Function aws.ARN; Env EnvID }
 
-// Resolve maps an access key to who is calling. Order: minted key in the store;
-// 12-digit numeric key = that account's root; anything else = default account root.
-func (s *Store) Resolve(key string) Principal
+// Resolve maps an access key to who is calling (section 7). Order: a minted key is its
+// principal; a configured static key or the dummy key is its account's root; a 12-digit
+// numeric key is that account's root; anything else is the default account's root.
+// Resolution says which rule applied: Minted | Static | AccountKey | Fallback.
+func (s *Store) Resolve(key string) (Principal, Resolution)
 ```
 
 ### 3.2 The call and the handler contract
@@ -186,7 +197,7 @@ type Cause struct{ Parent, Trace EventID } // Parent 0 for roots; Trace is the r
 type ProtocolID string                      // awsjson1_0 | awsjson1_1 | awsquery | restjson1 | restxml | rpcv2cbor | raw
 type ListenerKind uint8                     // Main | Container
 
-type Via uint8 // closed: SNSDelivery | LambdaESM | EventsTarget | S3Notification | LambdaLogs | DynamoDBTTL | Timer | Snapshot | Admin | KMSForward | STSAssumeRole | LambdaCode | LambdaDestination
+type Via uint8 // closed: SNSDelivery | LambdaESM | EventsTarget | S3Notification | LambdaLogs | DynamoDBTTL | Timer | Snapshot | Admin | KMSForward | STSAssumeRole | LambdaCode | LambdaDestination | ViaAPIGateway | SFNLogDestination | SFNTask | CloudWatchAlarm | SchedulerTarget
 
 // Origin says where a call came from.
 //
@@ -201,12 +212,15 @@ package kernel
 
 // Call is the context of one operation invocation, external or internal. The edge or Invoke
 // builds it; handlers read it through accessors and may Touch resources. Fields are unexported.
-type Call struct{ /* id, scope, principal, origin, op, event, cause, admitted, endpoint, trace, headers, touched, holding */ }
+type Call struct{ /* id, scope, region source, principal, verified auth, origin, mode, op, event, cause, links, admitted, endpoint, trace, headers, touched, holding */ }
 
 func (c *Call) ID() ids.RequestID
 func (c *Call) Scope() aws.Scope
+func (c *Call) RegionSource() aws.RegionSource // where an external request asserts its region from (section 7)
 func (c *Call) Principal() identity.Principal
+func (c *Call) VerifiedAuth() (auth.Auth, bool) // the credentials the edge verified; false under sigv4: parse (section 7)
 func (c *Call) Origin() ref.Origin
+func (c *Call) Mode() PrincipalMode           // how an internal call is authorized; nil for external and timer calls
 func (c *Call) Op() *registry.Operation
 func (c *Call) Event() ref.EventID            // this call's journal event
 func (c *Call) Cause() ref.Cause              // parent event and trace; zero parent for roots
@@ -214,14 +228,15 @@ func (c *Call) Admitted() clock.Instant       // admission instant: journal time
 func (c *Call) Endpoint() Endpoint            // scheme and host as the client addressed us; canonical for internal calls
 func (c *Call) Trace() string                 // X-Amzn-Trace-Id, or inherited from the parent call
 func (c *Call) Header(name string) (string, bool) // read-only view of a closed set of unmodeled request headers
-func (c *Call) Touch(arns ...aws.ARN)        // the only mutator; feeds the journal and fault matching, and the access recorder up to step 8's pairing
+func (c *Call) Touch(arns ...aws.ARN)        // feeds the journal and fault matching, and the access recorder up to step 8's pairing
+func (c *Call) Record(ctx context.Context, scope aws.Scope, d journal.Detail) // journal an event beside the call's own (section 10)
 
 // Handler implements one AWS operation. Dispatch maps (nil, nil) and (out, err) to Internal,
 // naming the operation; unit outputs are the empty struct, so nil is never legitimate.
 type Handler[In, Out any] func(ctx context.Context, c *Call, in *In) (*Out, *awserr.Error)
 
 // RawHandler is the passthrough form (DynamoDB proxy only, ADR 0014): the typed input is decoded
-// and validated; Wire says whether a client request exists to forward.
+// and validated before the handler runs.
 type RawHandler[In any] func(ctx context.Context, c *Call, in *In, w Wire) (RawResponse, *awserr.Error)
 
 // Wire says whether a client request exists to forward.
@@ -247,6 +262,8 @@ func Bind[In, Out any](b *Binder, op Op[In, Out], h Handler[In, Out], cov regist
 func BindRaw[In any](b *Binder, op Op[In, RawOutput], h RawHandler[In], cov registry.BindCoverage, opts ...BindOption)
 func BindRawHTTP(b *Binder, op *registry.Operation, h RawHTTPHandler, cov registry.BindCoverage)
 func WithValidator[In any](v func(*In) []awserr.Violation) BindOption // stateless; runs at step 7 after the generated validator, before faults
+// The other bind options are WithCheck, WithResources, WithResourcesFor, WithItemCount, WithActions,
+// WithoutSecondaryActions, WithConditionKeys, RefuseConditionKeys and the authorization options of section 4.
 // Binding the same operation twice fails New; binding an operation outside the binder's service fails New.
 
 // Decoded is what the edge hands the kernel: the kernel is the only caller of journal.Begin,
@@ -254,15 +271,17 @@ func WithValidator[In any](v func(*In) []awserr.Violation) BindOption // statele
 //
 //sumtype:decl
 type Decoded interface{ isDecoded() }
-type Ok struct{ In any }
-type Rejected struct{ Err *awserr.Error }
+type Ok struct{ In any; Wire Wire }              // Wire carries the client's request to a BindRaw handler; nil means Synthesized
+type Rejected struct{ Err *awserr.Error }        // a body that does not decode, an operation the service does not model
+type Unauthenticated struct{ Err *awserr.Error } // refused at authentication: journaled like Rejected, no IAM action recorded
 
-// Result is what a handler returns to the pipeline.
+// Result is what the pipeline returns to the edge or to Invoke.
 //
 //sumtype:decl
 type Result interface{ isResult() }
 type Output struct{ Out any; Status int }
 type Failure struct{ Err *awserr.Error }
+type StatusOKFailure struct{ Err *awserr.Error } // S3's 200-with-error answer
 
 func (k *Kernel) Dispatch(ctx context.Context, c *Call, d Decoded) Result
 
@@ -275,10 +294,14 @@ type Target struct {
 	As    PrincipalMode  // who AWS would authorize this call as
 	Via   ref.Via
 	At    clock.Instant  // admission instant for deferred work (the timer's due instant); zero means the parent's Admitted
+	Resume ref.Cause     // a stored cause the call continues, such as an outbox entry's source call (section 10); zero means the parent's event and trace
+	Links []ref.EventID  // related events besides the parent: the other messages of an ESM batch
 }
 
-// PrincipalMode: AsCaller is a forward-access call charged to the original principal (S3, Secrets
-// Manager and SQS to KMS); AsExecutionRole is the function role (ESM polling, Lambda logs);
+// PrincipalMode: AsCaller is a forward-access call charged to the original principal (a service
+// calling KMS for the caller, STS reading the role AssumeRole names, Lambda reading a package from
+// S3); AsExecutionRole is a call made as an execution role (ESM polling and Lambda logs as a
+// function's, Scheduler deliveries as a schedule's);
 // AsService is a resource-policy-gated delivery (SNS, S3, EventBridge to their targets);
 // AsPlatform is a service acting on its own behalf, which no policy grants (an ESM invoking its
 // function, S3's notification destination check, DynamoDB's TTL sweep), so step 8 never asks
@@ -287,12 +310,13 @@ type Target struct {
 //sumtype:decl
 type PrincipalMode interface{ isPrincipalMode() }
 type AsCaller struct{}
-type AsExecutionRole struct{ Role aws.ARN }
-type AsService struct{ Name string; Source aws.ARN } // "sns.amazonaws.com", the topic
+type AsExecutionRole struct{ Role aws.ARN; ID, Session string }                  // the role's AROA id and the session name
+type AsService struct{ Name string; Source aws.ARN; SourceAccount aws.AccountID } // "sns.amazonaws.com", the topic, the aws:SourceAccount it sends
 type AsPlatform struct{ Name string }                 // "dynamodb.amazonaws.com"
 
 // ServiceDeps is what wire.go hands every service constructor; service-specific settings are a
-// per-service Options struct with usable zero values, filled from config by wire.go.
+// per-service Options struct with usable zero values, filled from config by wire.go. Blob is
+// always set; Docker is nil when containers are disabled.
 type ServiceDeps struct{ Kernel *Kernel; Binder *Binder; Clock *clock.Clock; IDs *ids.Source; Blob *blob.Store; Identity *identity.Store; Docker *docker.Client; Log *slog.Logger }
 ```
 
@@ -315,8 +339,9 @@ func (b Binder) SendMessage(h kernel.Handler[SendMessageInput, SendMessageOutput
 package sqs
 
 type Service struct {
-	k     *kernel.Kernel
-	cells *store.Partitioned[aws.Scope, State]
+	k          *kernel.Kernel
+	cells      *store.Partitioned[aws.Scope, State]
+	visibility kernel.HandledKind
 }
 
 func New(d kernel.ServiceDeps, o Options) *Service {
@@ -326,7 +351,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	b.SendMessage(s.sendMessage, registry.Full)
 	b.AddPermission(s.addPermission, registry.Partial("statements stored in Policy; enforced under iam.enforce=enforce"))
 	// unbound operations are Unbound: 501 in the native envelope, listed in coverage
-	d.Kernel.Timers().Handle(TimerVisibility, s.onVisibility)
+	s.visibility = d.Kernel.Timers().Handle(TimerVisibility, s.onVisibility) // the HandledKind Tx.Arm takes
 	return s
 }
 ```
@@ -387,12 +412,13 @@ type Generic struct{}                          // SerializationException, Unknow
 type Validation struct{ Violations []Violation }
 type Unimplemented struct{ Op ref.OperationID }
 type Injected struct{ Rule ref.RuleID }
+type Denial struct{}                           // an authorization refusal (pipeline step 8, kernel.Authorize)
 type Internal struct{ Cause error }            // a bug: 500 InternalFailure; Cause is journaled and logged, never sent
 
 type Violation struct {
 	Path       Path       // lowerCamel segments; indexed (targets.1.member.id) or rolled up (Lambda), per overlay style
 	Value      Rendered   // Java toString rendering; blobs omitted
-	Constraint Constraint // Required | LengthMin | LengthMax | RangeMin | RangeMax | Pattern{Echo} | Enum{Values} | Encoding{InvalidUTF8}
+	Constraint Constraint // Required | LengthMin | LengthMax | RangeMin | RangeMax | Pattern{Echo} | Enum{Values} | Encoding (invalid UTF-8) | Composite
 }
 
 type Style uint8 // Coral (AWS text) | SmithyFramework (fieldList envelope; synthetic test services only)
@@ -405,12 +431,18 @@ func (e *Error) AsError() error
 package kernel // the helpers that need descriptors live here, not in awserr
 
 func NotImplemented(op *registry.Operation) *awserr.Error
-func Validate(op *registry.Operation, v []awserr.Violation) *awserr.Error // picks code and style from the overlay per (operation, member path, constraint kind), then operation, then service; reports the first violation in member order when a set spans two codes
+func Validate[In any](vs []awserr.Violation) *awserr.Error // picks code and style from the overlay per (operation, member path, constraint kind), then operation, then service; reports the first violation in member order when a set spans two codes
 ```
 
-The current contract: `registry.Operation` has no validation-policy field, and generated packages may import only the vocabulary packages (section 2), so the policy runtime is written once in `internal/codegen/validationpolicy` and copied into each `validate_gen.go`. Every generated input type has the method `ValidationError([]awserr.Violation) *awserr.Error`, and `kernel.Validate` reaches the policy by type-asserting the decoded `*In` on that method inside `kernel.NewOp[In, Out]`. Moving the policy types into `awserr` and adding the descriptor field (so the generator emits data only) is not done yet.
+`registry.Operation` has no validation-policy field, and generated packages may import only the vocabulary packages (section 2). The policy runtime is therefore written once in `internal/codegen/validationpolicy` and copied into each `validate_gen.go`. Every generated input type has the method `ValidationError([]awserr.Violation) *awserr.Error`, and `kernel.Validate[In]` reaches the policy by type-asserting `*In` on that method; an input type without it is an `Internal` error.
 
-Generated constructors read like the SDK's: `sqsapi.ErrQueueDoesNotExist(msg)`, `s3api.ErrNoSuchBucketPolicy(bucket)`. No string codes in handler code. A shape with members besides its message also gets `Err<X>Members`, which takes the generated value and sets its message member, if it models one, from the message argument (a shape whose identity is `NoMessage` takes no message): `dynamodbapi.ErrTransactionCanceledExceptionMembers(msg, dynamodbapi.TransactionCanceledException{CancellationReasons: reasons})`. The message-only `Err<X>` stays for every shape, but `dynamodbapi.ErrTransactionCanceledException`, a shape AWS always sends with its reasons (`smithy-protocol-tests.md 12.2, 14.14`), is forbidden outside tests by lint (forbidigo). Each codec writes the value's members into its error body through the serializer it uses for outputs, sends `@httpHeader` members as headers on restJson1 and restXml, and writes `Fields` after the members. It never writes the value's message member, so the message has one source: `MessageFor` under `ID.MessageKey`. A value that does not serialize is answered as `InternalFailure` (`smithy-protocol-tests.md 14.7`). Real-service handlers still set their string members through `Fields`, in recorded wire order, and an error without a value renders byte for byte as it did before values existed. Each generated package's `NewErrorMembers`, reached as `registry.Service.NewErrorMembers`, returns an empty value of an error shape it generates a deserializer for, which is how a fault rule's `members` are checked (section 11). Rules the codecs share, taken from `error-matrix.md 7` (D1 to D10, H1 to H10):
+Generated constructors read like the SDK's: `sqsapi.ErrQueueDoesNotExist(msg)`, `s3api.ErrNoSuchBucketPolicy(bucket)`. No string codes in handler code.
+
+A shape with members besides its message also gets `Err<X>Members`, which takes the generated value and sets its message member, if it models one, from the message argument (a shape whose identity is `NoMessage` takes no message): `dynamodbapi.ErrTransactionCanceledExceptionMembers(msg, dynamodbapi.TransactionCanceledException{CancellationReasons: reasons})`. The message-only `Err<X>` exists for every shape, but `dynamodbapi.ErrTransactionCanceledException`, a shape AWS always sends with its reasons (`smithy-protocol-tests.md 12.2, 14.14`), is forbidden outside tests by lint (forbidigo).
+
+Each codec writes the value's members into its error body through the serializer it uses for outputs, sends `@httpHeader` members as headers on restJson1 and restXml, and writes `Fields` after the members. It never writes the value's message member, so the message has one source: `MessageFor` under `ID.MessageKey`. A value that does not serialize is answered as `InternalFailure` (`smithy-protocol-tests.md 14.7`). Real-service handlers set their string members through `Fields`, in recorded wire order. Each generated package's `NewErrorMembers`, reached as `registry.Service.NewErrorMembers`, returns an empty value of an error shape it generates a deserializer for, which is how a fault rule's `members` are checked (section 11).
+
+Rules the codecs share, taken from `error-matrix.md 7` (D1 to D10, H1 to H10):
 
 - Status comes from `httpError`; SQS `PurgeQueueInProgress` is 403 because the SQS model sets `httpError` equal to `awsQueryError.httpResponseCode` (`sqs.md` finding 4). CloudWatch's 404 under `x-amzn-query-mode: true` is `QueryModeStatus`.
 - Message member spelling is the shape's own (`Message` for Secrets Manager, `message` for KMS); Go v2 drops a differently cased message on modeled errors.
@@ -434,8 +466,12 @@ type Service struct {
 	QueryVersion     string
 	XMLNamespace     string
 	QueryCompatible  bool
+	ResponseCRC32    bool                // overlay responseCrc32
+	QueryErrorEnvelope QueryErrorEnvelope // overlay queryErrorEnvelope
 	MalformedRequestError awserr.Identity // overlay malformedRequestError; zero means the codec's protocol default
 	Denial           Denial          // overlay denialError: the identity an authorization refusal answers with and its evidence label; zero is a 500 naming the missing trait
+	NewErrorMembers  func(smithy.ShapeID) (awserr.DecodableMembers, bool) // an empty value of an error shape, for fault rules (section 11)
+	GenericErrors    func(awserr.Family) []awserr.Identity                // the generic vocabulary per protocol family (3.3)
 	Operations       []*Operation    // every operation, sorted; Ordinal is the index
 	Routes           *RouteTable     // REST services: generated routes plus codegen/services route overrides, ordered by Smithy specificity
 }
@@ -482,7 +518,9 @@ type Label string // aws-recorded | third-party-recorded | aws-doc | sdk-source 
 ```go
 package fidelity
 
-// Switch is a behavior chosen without AWS-recorded evidence. Not user-configurable in phase 1.
+// Switch is a behavior chosen without AWS-recorded evidence; the coverage report lists every
+// switch. Configuration sets four (s3.crossRegion, lambda.stateTransitions,
+// sqs.queueDeletedRecently, iam.assumeRole); the rest are fixed.
 type Switch[T comparable] struct {
 	Name    string         // "logs.filter.term-boundary"
 	Value   T
@@ -498,7 +536,11 @@ func (s Switch[T]) Entry() Entry
 // Every service exposes Switches() []fidelity.Entry; wire.go collects them.
 ```
 
-`understudy coverage` reports three separate numbers, never summed: protocol compliance (Smithy cases passed, skipped with reason, failed per protocol, from the checked-in baseline), operations (Full, StoredOnly, Partial, Unbound per service against the model; internal and raw operations listed separately), evidence (overlay entries and fidelity switches by label; per operation, the weakest label among the overlay items, switches and replayed steps it is claimed by, where the parity baseline turns a claim its recording settles into `aws-recorded (<fixture>)` and one it contradicts into `contradicted (<fixture>)`, section 19).
+`understudy coverage` reports three separate numbers, never summed:
+
+- Protocol compliance: Smithy cases passed, skipped with reason and failed per protocol, from the checked-in baseline.
+- Operations: Full, StoredOnly, Partial and Unbound per service against the model; internal and raw operations are listed separately.
+- Evidence: overlay entries and fidelity switches by label, and per operation the weakest label among the overlay items, switches and replayed steps that claim it. The parity baseline turns a claim its recording settles into `aws-recorded (<fixture>)` and one it contradicts into `contradicted (<fixture>)` (section 19).
 
 ### 3.5 State store
 
@@ -509,7 +551,7 @@ package store // no effects, no kernel, no clock; imports only aws, for the shar
 // they hold a cell; snapshot cut, reset and load take the write side and see a consistent cut.
 type Gate struct{ mu sync.RWMutex }
 
-type Cell[S any] struct{ gate *Gate; mu sync.Mutex; s S; rev uint64 } // rev bumps per mutating Update; drives "dirty"
+type Cell[S any] struct{ gate *Gate; mu sync.Mutex; s S; rev uint64 } // rev counts mutating Updates (Rev)
 
 // Update runs fn under the gate's read side and the cell mutex. It is the primitive kernel.Write
 // builds on; handlers never call it directly (lint: Update is allowed only in kernel and tests).
@@ -558,10 +600,12 @@ func Write[K comparable, S, R any](c *Call, p *store.Partitioned[K, S], key K, f
 
 type Tx struct{ /* effects */ }
 func (tx *Tx) Wake(k store.WaitKey)
-func (tx *Tx) Arm(k clock.TimerKey, at clock.Instant) // replaces the same key; the kind must be registered or New fails
-func (tx *Tx) Disarm(k clock.TimerKey)
+func (tx *Tx) Arm(kind HandledKind, id string, at clock.Instant) // replaces the timer of the same kind and id; HandledKind comes from Timers().Handle, so an unregistered kind cannot be armed
+func (tx *Tx) Disarm(kind HandledKind, id string)
 func (tx *Tx) Deliver(r delivery.Request)              // inserted into the outbox cell before the call returns
+func (tx *Tx) Record(scope aws.Scope, d journal.Detail) // journaled when the write commits (section 10)
 func (tx *Tx) Resume(cause ref.Cause)                  // stamp this write's records and deliveries with a stored cause, as Target.Resume does a call
+func (tx *Tx) Unchanged()                              // fn left the state as it was: the cell's revision does not advance
 ```
 
 The convention, enforced by per-service tests, is validate first, mutate last: if `fn` returns an error the state is unchanged. Timer callbacks and `Rearm` re-read state and do nothing when their condition no longer holds (a visibility timer for a deleted message is a no-op). Writes that start in a timer get a synthetic `Call` with `Origin Internal{Via: Timer}`, so there is one write path.
@@ -574,11 +618,11 @@ External request
          2 auth       auth.Parse -> SigV4Header | SigV4Query | SigV2Header | SigV2Query | Anonymous; verify in step 4a when configured (after the claim, before decode)
          3 identity   principal from the access key; Scope = account from key, region from RegionSource (7)
          4 claim      Route{service, protocol, operation | unknown}  (order in 4.1)
-        4a verify     only with sigv4: verify: every parsed credential form, in the claimed service's dialect; a failure is dispatched as Rejected (section 7)
-         5 decode     codec + generated Deserialize -> Decoded = Ok{*In} | Rejected{Generic error}; streaming members bind the head only
+        4a verify     only with sigv4: verify: every parsed credential form, in the claimed service's dialect; a failure is dispatched as Unauthenticated (section 7)
+         5 decode     codec + generated Deserialize -> Decoded = Ok{*In} | Rejected{Generic error} | Unauthenticated{error}; streaming members bind the head only
   kernel.Dispatch(ctx, call, decoded)                 <-- kernel.Invoke enters here for internal calls
          6 journal.Begin(APICall with redacted input); an unknown operation, an Unbound operation (501) or a Rejected decode ends here, journaled and access-recorded by the same code
-         7 validate   generated Validate, then the bound typed validator -> Violations -> kernel.Validate(op, v)
+         7 validate   generated Validate, then the bound typed validator -> Violations -> kernel.Validate[In](v)
          8 authorize      only with Options.Authorizer, never for BindRawHTTP, AsPlatform or NeverAuthorized calls, and deferred into the handler for AuthorizedAfterResolve ones: one question, the primary action (unless AuthorizedInHandler) plus the declared actions the generated list holds (never the whole list; an internal operation: its declared actions), each paired with the resources of its service its WithResourcesFor options resolved, else with the touched ones, or with AnyResource when it is the operation's service's and it has none; Denied ends the call with the service's denial identity, journaled and access-recorded as Failed, not as a fault
            fault.Before   first matching Request-phase rule may short-circuit (Error, Throttle, Latency)
          9 handler    (pulls a streaming body only after its own pre-checks, so 100-continue and early rejects work; a resource it resolves itself, such as an IAM role by name, it touches and asks the Authorizer about through kernel.Authorize, before kernel.Write and holding no lock)
@@ -589,6 +633,8 @@ External request
 ```
 
 Internal calls skip 1 to 5: `Invoke` builds a `Call` with `Origin Internal{Via}`, the target scope, the principal the `PrincipalMode` resolves to, `Cause{Parent: parent.Event, Trace: parent.Cause.Trace}`, `Admitted = Target.At` when set (deferred work is stamped with the instant that triggered it, never `Now()`), and runs 6 to 12. Validation runs for internal calls too; it is cheap and catches a delivery that builds an input AWS would reject. `Deliver` effects are inserted into the outbox before step 12 returns; `Wake` effects run after unlock; the work tracker counts both.
+
+IAM enforcement is opt-in. Under `iam.enforce` `advise` and `enforce`, `wire.go` sets `kernel.Options.Authorizer` to the `internal/enforce` Authorizer; under `off` it sets none and step 8 asks nothing. For each `(action, resource)` pair the Authorizer reads the principal's identity-based policies (`authz.IdentitySource`) and the resource's stored policy (`authz.StoredPolicyReader`), decides with `authz.Decide` and journals the advisories. A denial answers the service's `registry.Service.Denial` identity. The access recorder gets the same pairs whatever the mode, and `POST /iam/evaluate` (17) answers from the same Authorizer.
 
 Step 8's pairing (`internal/kernel/authorize.go`) follows the access recorder's (17), and its exceptions are declared at the bind site:
 
@@ -612,7 +658,7 @@ Order, first match wins (`wire-json-query.md` Implications 1, `wire-rest.md 5`).
 5. `Smithy-Protocol: rpc-v2-cbor` and a `/service/<Name>/operation/<Op>` path: rpcv2cbor. Reject if `X-Amz-Target` is also present.
 6. `X-Amz-Target`: awsjson; service from the target prefix table, cross-checked against the signing name. Services sharing a signing name differ by prefix (DynamoDB and DynamoDB Streams, ADR 0019). An operation whose credential is scoped to a name AWS refuses for its service (DynamoDB Streams scoped to its endpoint prefix `streams.dynamodb` rather than `dynamodb`, `dynamodb-streams.md` 3.2) is answered here with AWS's 400 `InvalidSignatureException` "Credential should be scoped to correct service: 'dynamodb'. " under either sigv4 mode, a credential-scope check like the region check, and never reaches the service.
 7. Form media type (parameters ignored) or a GET with `Action`: awsquery; service from `(Action, Version)`, confirmed by the signing name; services sharing a signing name differ by Version (ADR 0019). SQS legacy Query is also accepted on `/<account>/<queue>`, taking the queue from the path.
-8. REST: signing name `lambda` is the Lambda route table; `s3`, a presigned query credential or SigV2 is S3; unsigned: a Host matching a configured S3 base domain with a DNS-valid bucket label is S3 virtual-hosted; a `^/\d{4}-\d{2}-\d{2}/` path that matches a Lambda route is Lambda only when no bucket of that name exists (`wire.go` injects `BucketExists(name) bool`, the one routing input that reads state); anything else that is unsigned, SigV2 or scoped to `s3` is S3 path-style. A request signed for any other name that rules 5 to 7 did not claim goes to the route tables of the REST services registered under that name, tried in registration order (ADR 0019): the first match wins, a request none matches is the first one's unknown operation, and a candidate whose codec is not registered is skipped (with every one skipped, rule 9). With no REST service under the name, its first registered service answers with its `unknownOperationError` or `malformedRequestError` identity (SQS GET without `Action`: 404 `UnknownOperationException` XML; DynamoDB without `X-Amz-Target`: 400; wrong Content-Type: 404 `<UnknownOperationException/>`; `sqs.md 2.3`, `error-matrix.md` finding 6 and H7), never by S3. The exception is a JSON service AWS also serves over the legacy Query protocol (`edge.Options.LegacyQuery`, today only SSM, `ssm-parameters.md 2.3`): a POST signed for it with no `X-Amz-Target` and either an `Action` query parameter or a form body answers 501 `NotImplemented` in the service's JSON envelope, naming the legacy Query protocol, the action (when it is in the query string; the edge does not read a form body) and the `X-Amz-Target` that reaches it, and is journaled as `Unclaimed`; it is never the service's unknown operation.
+8. REST: signing name `lambda` is the Lambda route table; `s3`, a presigned query credential or SigV2 is S3; unsigned: a Host matching a configured S3 base domain with a DNS-valid bucket label is S3 virtual-hosted; a `^/\d{4}-\d{2}-\d{2}/` path that matches a Lambda route is Lambda only when no bucket of that name exists (`wire.go` injects `BucketExists(name) bool`, the one routing input that reads state); anything else that is unsigned, SigV2 or scoped to `s3` is S3 path-style. A request signed for any other name that rules 5 to 7 did not claim goes to the route tables of the REST services registered under that name, tried in registration order (ADR 0019): the first match wins, a request none matches is the first one's unknown operation, and a candidate whose codec is not registered is skipped (with every one skipped, rule 9). With no REST service under the name, its first registered service answers with its `unknownOperationError` or `malformedRequestError` identity (SQS GET without `Action`: 404 `UnknownOperationException` XML; DynamoDB without `X-Amz-Target`: 400; wrong Content-Type: 404 `<UnknownOperationException/>`; `sqs.md 2.3`, `error-matrix.md` finding 6 and H7), never by S3. The exception is a JSON service AWS also serves over the legacy Query protocol (`edge.Options.LegacyQuery`, only SSM, `ssm-parameters.md 2.3`): a POST signed for it with no `X-Amz-Target` and either an `Action` query parameter or a form body answers 501 `NotImplemented` in the service's JSON envelope, naming the legacy Query protocol, the action (when it is in the query string; the edge does not read a form body) and the `X-Amz-Target` that reaches it, and is journaled as `Unclaimed`; it is never the service's unknown operation.
 9. Nothing claimed: AWS-shaped 400 and a journal `Unclaimed` event listing why each rule declined. `Unclaimed` is the one journal event the edge writes itself.
 
 Media types match by essence (ignore `; charset=`); header names case-insensitively. Every response carries exactly one `Date` header (wall), `x-amzn-RequestId` or the protocol's equivalent, and S3's `x-amz-request-id` and `x-amz-id-2` (`s3.md` finding 7). The edge is codec-agnostic: codecs register per `ref.ProtocolID` in `wire.go`, and the REST matcher works over `registry.RouteTable` (Smithy specificity: literal beats label beats greedy; path beats query literals; more segments beat fewer; S3 rows add subresource-key presence and required headers).
@@ -623,7 +669,7 @@ Media types match by essence (ignore `; charset=`); header names case-insensitiv
 
 | Input | Location | Pin and integrity |
 |---|---|---|
-| 12 service models, Smithy 2.0 JSON AST, verbatim | `third_party/api-models-aws/` | commit `1cfdfb4bb9ea858e65623e66d73af04bec353201`; `UPSTREAM.json` with git blob SHA-1 and sha256 per file; `cmd/vendor -verify` runs offline in CI (`smithy-models.md 10`) |
+| 21 service models, Smithy 2.0 JSON AST, verbatim | `third_party/api-models-aws/` | commit `1cfdfb4bb9ea858e65623e66d73af04bec353201`; `UPSTREAM.json` with git blob SHA-1 and sha256 per file; `cmd/vendor -verify` runs offline in CI (`smithy-models.md 10`) |
 | Protocol compliance corpus, flattened AST | `third_party/smithy-protocol-tests/model.json` | Smithy 1.74.0; `PIN.json` with the six jar sha256 values and the CLI sha256; regenerated by a human with `smithy ast --no-config --flatten` (`smithy-protocol-tests.md 5`) |
 | Operation to IAM action table, derived | `third_party/aws-service-reference/actions.json` | provenance per service (`Version`, `modified`, body sha256); raw JSON not vendored until its licence is settled (ADR 0016) |
 | AWS managed policy catalogue | `third_party/aws-managed-policies/` | from the AWS Managed Policy Reference Guide's `full.md` (ADR 0016, amendment "managed policies"); `SOURCE.json` with the retrieval date, the three requests' sha256 and the sha256 of each document; the binary embeds `policies.json` as `policies.json.gz`, which `cmd/managedpolicies -pack` rewrites from it offline, with `LICENSE`; `cmd/managedpolicies -verify` checks both offline (`iam-evaluation.md 10`) |
@@ -712,7 +758,12 @@ Overlays are applied after loading and before validation of the merged model. Ap
 
 `model` names the service's directory in `third_party/api-models-aws/UPSTREAM.json`. `iamPrefix` is the IAM action prefix (`cloudwatch` for CloudWatch, `events` for EventBridge, `logs` for CloudWatch Logs; `smithy-models.md 8`), required because the model's `arnNamespace` differs from it for some services. It is kept beside the Service Reference table: generation fails when `actions.json` has no entry under it, and `TestReferencePrefixesMatchTheServiceConfigs` checks it against `cmd/vendor`'s `referencePrefixes()`. An operation's IAM actions come from the Service Reference table; the primary one is the action of the same name, else the single form of a `*Batch` action, else the sole action under the service's own prefix. `iamPrimary` (`[{operation, action, reason}]`) names the primary only where those rules leave it ambiguous (S3 `CopyObject` is `s3:PutObject`, addressed to the destination); a redundant entry fails generation, so the list stays minimal and a Service Reference change that settles the ambiguity is noticed.
 
-Types, serde, validators and a binder method are generated for every operation in the model, so adding an operation needs no generator run unless the file lists `boundOperations`. `boundOperations` (optional, sorted) names the operations a handler binds; other operations' schemas are generated without members (ADR 0001 amendment), so binding an operation there means adding its name, keeping the list sorted, and running `just generate`; `internal/server` tests fail until the list matches what the kernel binds. `rawBinding: true` (DynamoDB only) adds a `<Op>Raw` binder method per operation. `rawOperations` declares synthetic operations outside the model that still need a descriptor, an IAM action, journal, faults and coverage: Lambda `InvokeFunctionUrl` (`lambda:InvokeFunctionUrl`, claimed by the function URL host and path rules), SNS `ConfirmSubscriptionLink`, `UnsubscribeLink` and `SigningCert` (claimed under `/_understudy/`); each gets a `registry.Operation` of kind `Raw` and a `BindRawHTTP` method. `routeOverrides` carries the hand S3 dispatch rows (`wire-rest.md` Implications 2) so the generated `RouteTable` is complete and the edge needs no S3-specific code.
+The optional keys:
+
+- `boundOperations` (sorted) names the operations a handler binds. Without it, types, serde, validators and a binder method are generated for every operation in the model, so adding an operation needs no generator run. With it, other operations' schemas are generated without members (ADR 0001), so binding an operation means adding its name, keeping the list sorted and running `just generate`; `internal/server` tests fail until the list matches what the kernel binds.
+- `rawBinding: true` (DynamoDB only) adds a `<Op>Raw` binder method per operation.
+- `rawOperations` declares synthetic operations outside the model that still need a descriptor, IAM actions, journal, faults and coverage. Each gets a `registry.Operation` of kind `Raw` and a `BindRawHTTP` method: Lambda `InvokeFunctionUrl` (claimed by the function URL host and path rules) and `DownloadFunctionCode`, SNS `ConfirmSubscriptionLink`, `UnsubscribeLink` and `SigningCert`, SES `VerificationLink`, the S3 Control tag operations, and the execute-api fronts `apigatewayv2.InvokeApi` and `apigateway.InvokeRestApi` (4.1).
+- `routeOverrides` carries the hand S3 dispatch rows (`wire-rest.md` Implications 2), so the generated `RouteTable` is complete and the edge needs no S3-specific code.
 
 ### 5.4 Stages
 
@@ -752,13 +803,13 @@ String `length` counts Unicode scalar values (`utf8.RuneCountInString`). `jsonx`
 | `bind_gen.go` | `kernel.Op` handles and the typed `Binder` over `kernel.Binder` |
 | `routes_gen.go` | REST only: `registry.RouteTable` rows: Lambda routes by Smithy specificity; S3 rows `(method, scope, query-key presence, required header)` plus `routeOverrides`, ordered by specificity, `x-id` stripped (`wire-rest.md` Implications 2) |
 | `redact_gen.go` | `Redact()` per input and output type from `sensitive` plus overlay additions |
-| `examples_gen_test.go` | each model `examples` input decoded and validated (260 across 7 services); an over-strict overlay or a bad regex translation fails here |
+| `examples_gen_test.go` | each model `examples` input decoded and validated, for the services whose models carry examples; an over-strict overlay or a bad regex translation fails here |
 
 Header on line 1: `// Code generated by understudy-gen from api-models-aws@1cfdfb4 <file>; DO NOT EDIT.`; no timestamps or paths.
 
 ### 5.6 Protocol-test generation
 
-The same generator runs over the corpus AST and emits `internal/protocoltest/gen/<testsvc>/`: types, schema, serde and binders for the synthetic services (`JsonRpc10`, `QueryCompatibleJsonRpc10`, `JsonProtocol`, `AwsQuery`, `RestJson`, `RestJsonValidation`, `RestXml`, `RestXmlWithNamespace`, the S3 slice, `RpcV2Protocol`) plus `cases_gen.go` with every server-runnable case as a typed Go literal (not a test file, since the harness in `internal/protocoltest` imports the tables and Go never lets one package read another's test files). The corpus uses shape kinds the service models do not (documents, `byte`, `short`, `float`, `bigInteger`, `intEnum`, sparse collections); the generator supports them because the corpus needs them.
+The same generator runs over the corpus AST and emits `internal/protocoltest/gen/<testsvc>/`: types, schema, serde and binders for the synthetic services (`JsonRpc10`, `QueryCompatibleJsonRpc10`, `JsonProtocol`, `AwsQuery`, `RestJson`, `RestJsonValidation`, `RestXml`, `RestXmlWithNamespace`, the corpus's S3 service, `RpcV2Protocol`) plus `cases_gen.go` with every server-runnable case as a typed Go literal (not a test file, since the harness in `internal/protocoltest` imports the tables and Go never lets one package read another's test files). The corpus uses shape kinds the service models do not (documents, `byte`, `short`, `float`, `bigInteger`, `intEnum`, sparse collections); the generator supports them because the corpus needs them.
 
 ### 5.7 Determinism and drift
 
@@ -789,16 +840,18 @@ Adding a service: `cmd/vendor -add <dir>`; `codegen/services/<svc>.json` and `co
 package smithy
 
 type Serializer interface {
-	WriteStruct(s *Schema); CloseStruct()
+	WriteStruct(m *Member, s *Schema); CloseStruct() // m is the member holding a nested structure, nil at the top level
+	WriteUnion(m *Member, s *Schema); CloseUnion()
 	WriteList(m *Member, n int); CloseList()
-	WriteMap(m *Member, n int); CloseMap()
+	WriteMap(m *Member, n int); WriteMapKey(key string); CloseMap()
 	WriteString(m *Member, v string); WriteBool(m *Member, v bool)
-	WriteInt64(m *Member, v int64); WriteFloat64(m *Member, v float64)
+	WriteInt64(m *Member, v int64); WriteFloat64(m *Member, v float64) // and the narrower and big number kinds
 	WriteTimestamp(m *Member, v time.Time) // format from the member's effective trait and protocol default
 	WriteBlob(m *Member, v []byte); WriteDocument(m *Member, v document.Value); WriteNull(m *Member)
+	WriteBody(m *Member, b BodySource) // @streaming blobs
 }
 
-type Deserializer interface { /* mirror; ReadStructMember returns the next member present on the wire */ }
+type Deserializer interface { /* mirror; ReadStructMember returns the next member present on the wire, ReadBody a Body */ }
 
 // Streaming payloads. A @streaming blob member is a Body, never []byte.
 type Body interface {
@@ -815,9 +868,9 @@ REST protocols put `restbind` in front: label, query, header, prefix-header and 
 
 | Codec | Services | Must get right |
 |---|---|---|
-| `awsjson` 1.0 and 1.1 | SQS, DynamoDB, CloudWatch (1.0); Logs, Secrets Manager, KMS, EventBridge (1.1) | accept empty body, `{}`, unknown and `null` members, `charset`, gzip for `PutMetricData`; emit plain-digit integers, epoch-second timestamps with ms precision, padded base64, `{}` for any modeled output; `__type` always (namespaced for 1.0 from the overlay, bare for 1.1); message under the shape's own key; `x-amzn-query-error: <code>;<Sender or Receiver>` on every error from SQS and CloudWatch, regardless of `x-amzn-query-mode`, with the `awsQueryError` code when the shape has the trait, else the shape name, and the catalogue's Query spelling for generic errors (`wire-json-query.md` 11 to 12, `error-matrix.md` 3). Built on `jsonx` only |
-| `awsquery` | SNS, IAM, STS, CloudWatch legacy, SQS legacy | indexed keys sorted numerically (`member.10` after `member.2`), `+` and `%XX`, empty list keys, GET form; always `<OpResponse xmlns><OpResult/><ResponseMetadata><RequestId/></ResponseMetadata></OpResponse>`, Result whenever the op has output, envelope even for `Unit` (boto3 raises on an empty body); lowercase booleans, ms timestamps, percent-encoded IAM policy documents (`+` as `%2B`); SQS legacy from retained `xmlName`/`xmlFlattened` with namespace `http://queue.amazonaws.com/doc/2012-11-05/`; errors `ErrorResponse/Error{Type,Code,Message}` + `RequestId`, `Code` from `awsQueryError`, status from `httpResponseCode`; `ErrorResponse` declares the service's `xmlns` for SNS, IAM, STS, CloudWatch and SQS legacy, and SQS adds an empty `Detail` (overlay facts) |
-| `restjson` | Lambda | labels decoded before matching (`:` arrives as `%3A`); `X-Amzn-Errortype: <Shape>` and a body with the model's exact keys (`Type`, `Message` or `message`); `httpResponseCode` members from the handler (`Invoke` 200/202/204); ESM create, update, delete 202; `Invoke` accepts any `Content-Type` and an empty body; malformed bodies `InvalidRequestContentException` (overlay); the Smithy malformed corpus runs against the synthetic `RestJson` whose overlay says `SerializationException` |
+| `awsjson` 1.0 and 1.1 | SQS, DynamoDB, DynamoDB Streams, CloudWatch, Step Functions (1.0); Logs, Secrets Manager, KMS, EventBridge, Kinesis, SSM (1.1) | accept empty body, `{}`, unknown and `null` members, `charset`, gzip for `PutMetricData`; emit plain-digit integers, epoch-second timestamps with ms precision, padded base64, `{}` for any modeled output; `__type` always (namespaced for 1.0 from the overlay, bare for 1.1); message under the shape's own key; `x-amzn-query-error: <code>;<Sender or Receiver>` on every error from SQS and CloudWatch, regardless of `x-amzn-query-mode`, with the `awsQueryError` code when the shape has the trait, else the shape name, and the catalogue's Query spelling for generic errors (`wire-json-query.md` 11 to 12, `error-matrix.md` 3). Built on `jsonx` only |
+| `awsquery` | SNS, IAM, STS, SES v1, CloudWatch legacy, SQS legacy | indexed keys sorted numerically (`member.10` after `member.2`), `+` and `%XX`, empty list keys, GET form; always `<OpResponse xmlns><OpResult/><ResponseMetadata><RequestId/></ResponseMetadata></OpResponse>`, Result whenever the op has output, envelope even for `Unit` (boto3 raises on an empty body); lowercase booleans, ms timestamps, percent-encoded IAM policy documents (`+` as `%2B`); SQS legacy from retained `xmlName`/`xmlFlattened` with namespace `http://queue.amazonaws.com/doc/2012-11-05/`; errors `ErrorResponse/Error{Type,Code,Message}` + `RequestId`, `Code` from `awsQueryError`, status from `httpResponseCode`; `ErrorResponse` declares the service's `xmlns` for SNS, IAM, STS, CloudWatch and SQS legacy, and SQS adds an empty `Detail` (overlay facts) |
+| `restjson` | Lambda, API Gateway (REST and HTTP APIs), EventBridge Scheduler, SES v2 | labels decoded before matching (`:` arrives as `%3A`); `X-Amzn-Errortype: <Shape>` and a body with the model's exact keys (`Type`, `Message` or `message`); `httpResponseCode` members from the handler (`Invoke` 200/202/204); ESM create, update, delete 202; `Invoke` accepts any `Content-Type` and an empty body; malformed bodies `InvalidRequestContentException` (overlay); the Smithy malformed corpus runs against the synthetic `RestJson` whose overlay says `SerializationException` |
 | `restxml` | S3, S3 Control tags | generated dispatch table; subresource keys tested by presence (`?uploads` and `?uploads=` are the same); `{Key+}` percent-decoded once, `/` preserved, dot segments verbatim; `xmlw` for responses (`xmlns` on success roots, `xsi:type` grantees, flattened lists, SDK escape table incl. NEL and LS); `encoding/xml` only to parse requests on local names; `<Error>` root with context elements, `RequestId`, `HostId`, HEAD status-only; unwrapped `GetBucketLocation`; `encoding-type=url` on every key field; 200-with-error path for `CompleteMultipartUpload`, `CopyObject`, `UploadPartCopy` |
 | `rpcv2cbor` | CloudWatch (Go v2, so Terraform) | claim on `Smithy-Protocol: rpc-v2-cbor` + `/service/{GraniteServiceVersion20100801 or dotted form}/operation/{Op}`; reject `X-Amz-Target`; `protocol/cbor` subset of `wire-cbor.md 7` (decoder accepts indefinite lengths, half floats, non-minimal widths; caps depth 128 and declared lengths; encoder definite minimal; timestamps tag 1); empty body for `Unit` output (any member panics the Go client); errors never empty, `__type` absolute shape id; `Smithy-Protocol` on every response; `DeleteAlarms` of a missing alarm succeeds (`wire-cbor.md 3.5`) |
 
@@ -828,7 +881,7 @@ CloudWatch is served by three codecs and SQS by two; handlers are written once.
 | Situation | Answer |
 |---|---|
 | Operation not in the model | per service from the overlay `unknownOperationError`: JSON `UnknownOperationException` 400; Query `InvalidAction` 400 `The action X is not valid for this endpoint.`; S3 `NotImplemented` 501; Lambda `UnknownOperationException` 404 (UNVERIFIED entries carry that label) |
-| In the model, not bound | 501 in the native envelope; code `NotImplemented`; message `understudy does not implement <Service>.<Operation>. Run 'understudy coverage --service <svc>' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=<Service>.<Operation>` (no trailing period; ADR 0003 pre-tag review amendment) |
+| In the model, not bound | 501 in the native envelope; code `NotImplemented`; message `understudy does not implement <Service>.<Operation>. Run 'understudy coverage --service <svc>' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=<Service>.<Operation>` (no trailing period; ADR 0003) |
 | Signed for a service that no rule claimed | that service's `unknownOperationError` or `malformedRequestError` (4.1 rule 8); a wire golden per service and claim rule |
 
 501 is outside the retry set of Go, botocore and JS, so SDKs fail fast with the message visible (`wire-json-query.md` Implications 15).
@@ -844,20 +897,26 @@ CloudWatch is served by three codecs and SQS by two; handlers are written once.
 | restXml | 101 + 77 (13 S3 cases) |
 | rpcv2Cbor | 39 + 29, plus the G01 to G24 Go vectors |
 
-The skip list (`internal/protocoltest/skips.json`) is seeded from smithy-rs's `ExpectFail`, `BrokenTests` and `DisabledTests` plus `host` and `resolvedHost` cases; every entry has a reason and a category (`corpus-bug`, `client-only`, `aws-differs` with an `evidence.Label`). The same file records known failures under the category `gap`: cases understudy itself fails because a part it builds on cannot yet express what they assert, each reason naming the owning package. A known failure is not a skip: the coverage report counts it as failed and lists it apart, and the ratchet accepts it only until the fix lands and the baseline is rewritten. None is recorded today: of the 15 the corpus pinned, 14 pass, and the restXml `ComplexError` response case is a `corpus-bug`, since its body expects a `<Message>` the shape does not model; a restxml codec test keeps its nested members tested (`smithy-protocol-tests.md 9.1, 14.1`). Validation message text in the Smithy cases is asserted as expected-to-differ (`error-matrix.md` finding 2). The corpus is a ratchet, not a wall: `internal/protocoltest/baseline.json` records the passing case ids per protocol; a run fails when any baseline case fails or when the baseline would shrink, and `just protocoltest-baseline` rewrites it when cases are fixed. The 655 expanded restJson1 malformed cases join the baseline as Lambda needs them.
+The counts above are the corpus's server-runnable cases; `docs/coverage.md` lists the few that belong to no generated synthetic service and the result of every other one.
+
+The skip list (`internal/protocoltest/skips.json`) follows smithy-rs's `ExpectFail`, `BrokenTests` and `DisabledTests` plus the `host` and `resolvedHost` cases. Every entry has a reason and a category: `corpus-bug`, `client-only`, or `aws-differs` with an `evidence.Label`. The restXml `ComplexError` response case is a `corpus-bug`, since its body expects a `<Message>` the shape does not model; a restxml codec test covers its nested members instead (`smithy-protocol-tests.md 9.1, 14.1`). Validation message text in the Smithy cases is asserted as expected-to-differ (`error-matrix.md` finding 2).
+
+The same file can record known failures under the category `gap`: cases understudy itself fails because a part it builds on cannot express what they assert, each reason naming the owning package. A known failure is not a skip: the coverage report counts it as failed and lists it apart, and the ratchet accepts it only until the baseline is rewritten. None is recorded.
+
+The corpus is a ratchet, not a wall. `internal/protocoltest/baseline.json` records the passing case ids per protocol, the expanded restJson1 malformed cases included. A run fails when any baseline case fails, when the baseline would shrink, or when a skipped case passes; `just protocoltest-baseline` rewrites it when cases are fixed.
 
 ## 7. Identity, auth, accounts and regions
 
 - Account from access key (ADR 0012): a key minted by understudy (`CreateAccessKey`, `AssumeRole`, Lambda execution environment) maps to its principal; a 12-digit numeric key is that account's root; anything else, including real-looking `AKIA`/`ASIA` keys and `AKIAIOSFODNN7EXAMPLE`, is the default account `000000000000`. Real-looking keys are never decoded into foreign account numbers; the server logs one warning per such key. Minted keys embed the account with the documented bit layout so they decode correctly in other tools (`iam-sts-kms.md 2.2`).
-- Region: `aws.RegionSource` is `CredentialScope{Region}` from SigV4, `HostRegion{Region}` from a `<svc>.<region>.<base>` host, or `None` for SigV2, presigned-SigV2, unsigned and anonymous requests. Regions are validated against the table of real AWS names (Terraform's `aws_region` data source rejects others, `tf-remaining.md 10`); `regions.extra` adds names. The edge passes the source on the call (`kernel.Call.RegionSource`). With `None`, S3 serves the bucket from its home region and sets `x-amz-bucket-region` (on every error about an existing bucket and on the successes whose output models the header, HeadBucket; a handler cannot add a header to another modeled success yet, see [differences](guide/differences.md)); the cross-region error rules of ADR 0013 apply only when the request asserts a region; non-S3 calls with `None` use the default region `us-east-1`. IAM and STS accept any region in the scope; their cells are keyed by account.
-- Auth is always parsed, verified only with `sigv4: verify`. Verification runs in the edge after the claim (the family vocabulary and S3's path-style form are known then) and before decode; a failure is dispatched as a rejected call so it is journaled. The verified credentials travel on the call (`kernel.Call.VerifiedAuth`), which S3 uses to verify aws-chunked chunk and trailer signatures; under `parse` the call carries none. A presigned SigV4 request's `x-amz-*` query parameters reach the call's headers as if sent in the header (`auth.HoistedHeader`, a header sent wins), so S3 reads hoisted aws-chunked framing in both modes. An operation may refuse credentials in its own vocabulary (`edge.Options.OperationAuth`): Lambda's `InvokeFunctionUrl` answers the JSON family's identities with 403, as the function URL front end refuses (the status for a refused signature is inferred, not recorded). A service may refuse in other words over one protocol than its family does (`edge.Options.ProtocolAuth`, after `ServiceAuth`): SQS over awsJson1_0 answers a request outside the skew window with 403, where DynamoDB answers the same `InvalidSignatureException` with 400 (`testdata/parity/sqs/R18/03-sqs-json-skew-16min.json`). Secrets resolve as ADR 0012's pre-tag review amendment says. The verifier is a pure function over a normalized request with the payload hash as a tagged value (`Hex | Unsigned | StreamingUnsignedTrailer | StreamingSigned | StreamingSignedTrailer | NotSent`); the seven DOC vectors are table tests and a rapid sign-then-verify property covers the rest. Skew checks and the `Date` header use wall time; presign expiry uses the emulator clock (`lambda-runtime-contract.md` rows 9 and 10).
+- Region: `aws.RegionSource` is `CredentialScope{Region}` from SigV4, `HostRegion{Region}` from a `<svc>.<region>.<base>` host, or `None` for SigV2, presigned-SigV2, unsigned and anonymous requests. Regions are validated against the table of real AWS names (Terraform's `aws_region` data source rejects others, `tf-remaining.md 10`); `regions.extra` adds names. The edge passes the source on the call (`kernel.Call.RegionSource`). With `None`, S3 serves the bucket from its home region and sets `x-amz-bucket-region` (on every error about an existing bucket and on the successes whose output models the header, HeadBucket; a handler cannot add a header to another modeled success, see [differences](guide/differences.md)); the cross-region error rules of ADR 0013 apply only when the request asserts a region; non-S3 calls with `None` use the default region `us-east-1`. IAM and STS accept any region in the scope; their cells are keyed by account.
+- Auth is always parsed, verified only with `sigv4: verify`. Verification runs in the edge after the claim (the family vocabulary and S3's path-style form are known then) and before decode; a failure is dispatched as `kernel.Unauthenticated`, so it is journaled but records no IAM action. The verified credentials travel on the call (`kernel.Call.VerifiedAuth`), which S3 uses to verify aws-chunked chunk and trailer signatures; under `parse` the call carries none. A presigned SigV4 request's `x-amz-*` query parameters reach the call's headers as if sent in the header (`auth.HoistedHeader`, a header sent wins), so S3 reads hoisted aws-chunked framing in both modes. An operation may refuse credentials in its own vocabulary (`edge.Options.OperationAuth`): Lambda's `InvokeFunctionUrl` answers the JSON family's identities with 403, as the function URL front end refuses (the status for a refused signature is inferred, not recorded). A service may refuse in other words over one protocol than its family does (`edge.Options.ProtocolAuth`, after `ServiceAuth`): SQS over awsJson1_0 answers a request outside the skew window with 403, where DynamoDB answers the same `InvalidSignatureException` with 400 (`testdata/parity/sqs/R18/03-sqs-json-skew-16min.json`). Secrets resolve by the same rules as principals (`identity.Resolution`, ADR 0012). The verifier is a pure function over a normalized request with the payload hash as a tagged value (`Hex | Unsigned | StreamingUnsignedTrailer | StreamingSigned | StreamingSignedTrailer | NotSent`); the seven DOC vectors are table tests and a rapid sign-then-verify property covers the rest. Skew checks and the `Date` header use wall time; presign expiry uses the emulator clock (`lambda-runtime-contract.md` rows 9 and 10).
 - SigV2 presigned S3 URLs are supported because boto3 emits them by default in the legacy regions (`sigv4-checksums-endpoints.md 2.3`).
 - STS mints `ASIA` credentials with `Expiration = wall now + DurationSeconds`; `AssumeRole` succeeds only if the role exists (`AccessDenied` otherwise; `iam.assumeRole: lenient` relaxes it). The same path mints execution-role credentials for Lambda environments.
 - `GetCallerIdentity` works for every principal shape so the Terraform provider's bootstrap is one call with no `skip_*` flags.
 
 ## 8. State and concurrency
 
-Rules, enforced by tests and an always-on check (a bool compare; no `lockcheck` build tag):
+Rules, enforced by tests and an always-on check (one atomic bool on the `Call`):
 
 1. A handler holds at most one cell lock and never calls `kernel.Invoke` while holding it. Cross-service work is an effect that runs after unlock, or a synchronous `Invoke` made before the lock (S3 and Secrets Manager to KMS). `kernel.Write` marks the `Call` as holding; `Invoke` or a nested `Write` on a holding call returns `Internal` naming both operations.
 2. Lock hierarchy, documented here and in the contributor checklist: the clock's step lock, then the gate, then one cell, then leaf locks (clock mode, scheduler heap, waiters, journal ring, ids streams, fault budgets, outbox cell when the kernel inserts a delivery). Leaf locks never call out and never call back. The scheduler and `Advance` release their data mutex before dispatching a timer, but dispatch runs under the step lock that serializes advances and mode changes; a timer callback takes a cell through `kernel.Write` like any handler. So `Clock.Advance`, `AdvanceTo`, `Freeze`, `Resume` and `Scale` are never called while holding the gate or a cell, nor from inside a timer callback.
@@ -881,7 +940,7 @@ func (s *Service) receiveMessage(ctx context.Context, c *kernel.Call, in *sqsapi
 	}
 	for {
 		woke := s.k.Waiters().Wait(ctx, waitKey(q))           // subscribe before checking: no lost wakeups; ends with ctx
-		msgs, err := kernel.Write(c, s.state, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) ([]Message, *awserr.Error) {
+		msgs, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) ([]Message, *awserr.Error) {
 			return st.receive(q, in, now, tx)                 // now is the commit instant; arms visibility timers via tx; returns copies
 		})                                                    // a cell retired by reset or load is re-resolved inside kernel.Write
 		if err != nil || len(msgs) > 0 {
@@ -950,16 +1009,16 @@ type TimerKey struct{ Kind TimerKind; ID string }          // {sqs.visibility, "
 // Scheduler is a heap ordered by (due, seq) with an index by TimerKey. Arm replaces any timer
 // with the same key; Disarm is idempotent. Timers carry no closure: the scheduler calls the one
 // dispatch function it was built with, and the kernel routes by Kind to the handler the service
-// registered at wiring (Kernel.Timers().Handle(kind, fn)); arming an unregistered kind is an error
-// at bind time, never a silently dropped timer.
-func NewScheduler(dispatch func(k TimerKey, now Instant)) *Scheduler
-func (s *Scheduler) Arm(k TimerKey, at Instant)
+// registered at wiring. Kernel.Timers().Handle(kind, fn) returns the HandledKind that Tx.Arm
+// takes, so a handler-less kind cannot be armed and a timer is never silently dropped.
+func NewScheduler(dispatch func(k TimerKey, due Instant)) *Scheduler
+func (s *Scheduler) Arm(k TimerKey, due Instant)
 func (s *Scheduler) Disarm(k TimerKey)
 ```
 
 Semantics:
 
-- Emulator time never moves backwards. `serve --clock-start <RFC3339>` starts anywhere; afterwards only forward moves. `reset` and `snapshot load` are the only ways to an earlier time.
+- Emulator time never moves backwards. `serve --clock frozen@<RFC3339>` starts a frozen clock anywhere (a running clock starts at wall time); afterwards only forward moves. `reset` and `snapshot load` are the only ways to an earlier time.
 - In every mode a timer with `due <= Now()` fires at once. Frozen only stops `Now()` from moving; SNS fan-out, S3 notifications, EventBridge `PutEvents` deliveries, the first Lambda async attempt and window-0 ESM polls all run on a frozen clock.
 - Timer callbacks never block. A callback may `kernel.Write` and start tracked work (`Kernel.Go`); anything that calls `kernel.Invoke`, waits on a container or long-polls runs as tracked work that carries the due instant as its `Target.At`. A synctest test schedules one task that blocks forever and asserts a later timer still fires on `Advance`.
 - `Advance` is stepwise: due timers fire in `(due, seq)` order and each callback observes `Now() == due`; timers armed by callbacks fire in the same advance if due. Advancing an hour across a `rate(5 minutes)` rule fires twelve events stamped 5, 10, ... 60 minutes later, because the work they start is stamped with the due instant. Waiters are woken once per advance.
@@ -1019,15 +1078,15 @@ type APICall struct {
 	Resources []aws.ARN       // from Call.Touch
 	Outcome   Outcome         // OK | Failed{Identity, Status, Message} | Injected{Rule, Identity}
 	Latency   time.Duration   // wall
-	Input     Redacted        // generated Redact(); sensitive members never stored; bodies only with journal.bodies
+	TraceHeader string        // X-Amzn-Trace-Id when the request carried one
+	Input     Redacted        // generated Redact(); sensitive members never stored
 }
-type Delivery struct{ From, To aws.ARN; Endpoint string; Mechanism delivery.Mechanism; Attempt int; Outcome DeliveryOutcome } // Endpoint: an HTTP delivery's host:port, To then zero; Delivered | Filtered{rule} | Retrying{next} | DeadLettered{dlq} | Dropped{reason} | Refused{reason}
+type Delivery struct{ From, To aws.ARN; Endpoint string; Mechanism delivery.Mechanism; Attempt int; Outcome DeliveryOutcome; HTTP *HTTPExchange } // Endpoint: an HTTP delivery's host:port, To then zero, and HTTP its {Status, Class, Duration}; Delivered | Filtered{rule} | Retrying{next} | DeadLettered{dlq} | Dropped{reason} | Refused{reason}
 type Invocation struct{ Function aws.ARN; Version, Env string; Cold bool; Init, Duration time.Duration; Outcome InvocationOutcome } // OK | FunctionError{Type} | Timeout | ExitError{Code} | OOM | Throttled
 type TimerFired struct{ Key clock.TimerKey }
 type StateChange struct{ Resource aws.ARN; From, To ResourceState } // ResourceState is a closed string type per service, declared next to the state machine
 type FaultInjected struct{ Rule ref.RuleID; Hit, Of int }
-type ClockChanged struct{ From, To clock.Mode; Op ClockOp } // freeze | resume | scale | advance | set | restore (a reset with clock); 0 on lines an earlier build wrote
-type Redrive struct{ From, To aws.ARN; Messages int; Reason RedriveReason } // MaxReceiveCount{Count} | MoveTask{TaskHandle}; post-tag (ADR 0007 pre-tag review amendment)
+type ClockChanged struct{ From, To clock.Mode; Op ClockOp } // freeze | resume | scale | advance | set | restore (a reset with clock)
 type AdminAction struct{ Op AdminOp } // Reset{Services, Accounts, Regions, Clock, Faults} | SnapshotSave{Path} | SnapshotLoad{Path} | FaultRuleAdded{Rule} | FaultRuleRemoved{Rules}
 type Advisory struct{ Kind AdvisoryKind; Resource aws.ARN; Text string } // resource policy would deny a delivery; unminted credentials from a function container; shadowed code update under hot reload; a cross-region request s3.crossRegion lenient served; an IAM decision under iam.enforce advise or enforce (access-would-deny, access-denied, access-unevaluated, condition-key-unsupplied); a call served without a check AWS runs, such as Block Public Access or KMS's lockout check (check-not-run)
 type Unclaimed struct{ Method, Host, Path string; Reasons []string }
@@ -1038,12 +1097,18 @@ How causality survives hops:
 
 - Internal calls inherit `Cause{Parent: caller.Event, Trace: caller.Cause.Trace}`; causes are stamped by the pipeline and by `kernel.Write` on effects, never by handler code. A handler that has more to say than its call's event (a dropped EventBridge delivery, S3's cross-region advisory) describes the event and hands it to the kernel: `Call.Record(ctx, scope, detail)` journals it at once, `Tx.Record(scope, detail)` when its write commits, under the cell's lock and before any timer the write arms can fire; either way the kernel stamps the cause.
 - State carries causes across time: an SQS message stores the event id of the call that enqueued it; the ESM invocation's parent is the earliest message's enqueue event and the rest are `Links`. The same holds for outbox entries, EventBridge target delivery, S3 notifications and async invoke queues.
-- The admin handler records `ClockChanged` and `AdminAction` itself, one for each clock, reset, snapshot save or load and fault rule call that changed state, once the call has done its work, with no cause, no links and the zero scope (ADR 0007, implementation amendment of 2026-10-26); a call that changed nothing, refused or read-only, records nothing. A reset, load or rule addition that fails after it changed state records its events before it answers the error: a reset once it has dropped any service's state, a load that left the state partially loaded. An advance or set records its `ClockChanged` after every event its fired timers recorded; a reset with `clock` records the `restore` `ClockChanged` and then its `AdminAction`; a snapshot load records no `ClockChanged`. Start-up work (`--load-snapshot`, `--persist` restores and checkpoints, preloaded fault rules, `--clock`) records nothing. So a stream consumer such as the web UI sees every reset, load, fault edit and clock move.
+- The admin handler records `ClockChanged` and `AdminAction` itself, one for each clock, reset, snapshot save or load and fault rule call that changed state, once the call has done its work, with no cause, no links and the zero scope (ADR 0007); a call that changed nothing, refused or read-only, records nothing. A reset, load or rule addition that fails after it changed state records its events before it answers the error: a reset once it has dropped any service's state, a load that left the state partially loaded. An advance or set records its `ClockChanged` after every event its fired timers recorded; a reset with `clock` records the `restore` `ClockChanged` and then its `AdminAction`; a snapshot load records no `ClockChanged`. Start-up work (`--load-snapshot`, `--persist` restores and checkpoints, preloaded fault rules, `--clock`) records nothing. So a stream consumer such as the web UI sees every reset, load, fault edit and clock move.
 - Calls made by function code link to the `Invoke` call that the invocation serves (the parent of the `Invocation` event too), init phase included: each execution environment has its own minted credentials and runs one invocation at a time, so the access key on a request identifies the current invocation (`kernel.Linker`). A call made between invocations roots its own trace; its principal, the execution-role session named after the function, ties it to the function. On Linux bridge the request's `RemoteAddr` is a second linking signal, and a call from a function container that carries unminted credentials produces an `Advisory`. No SDK cooperation is needed; `X-Amzn-Trace-Id` is stored when present but correctness does not depend on it.
 
-Storage and query: a bounded ring with per-event byte estimates made in `Append` (events hold slices and redacted inputs, so eviction is by estimated bytes and by count: default 100,000 events or 128 MiB, whichever first) with indexes by trace, resource ARN, operation and request id; with persistence on, events append to `<data-dir>/journal.ndjson` with size-based rotation. A background writer appends to the file, never under the journal's lock; if the disk falls `MaxBytes` estimated bytes behind, the file stops there (a prefix of recording order) and `FileErr` reports the queue-full error (ADR 0007). Query filters: trace, request id (the key users hold from an SDK error or a log line), service, operation, resource ARN glob, kind, outcome, principal, emulator-time range or event-id range, limit with cursor, or the newest N matches (`Journal.Tail`). Stream: NDJSON over a chunked response with the same filters, resumable with `?after=<event id>`; slow consumers get a `Gap` event, never backpressure on the emulator, and a stream resumed after events the ring has evicted starts with one. Redaction is generated from `sensitive` (47 shapes) plus overlay additions (SigV4 `Authorization`, `X-Amz-Security-Token`), so the journal cannot leak what `slog` cannot. The journal is history, not state: snapshots omit it unless `--include-journal`.
+Storage: a bounded ring with indexes by trace, resource ARN, operation and request id. Events hold slices and redacted inputs, so `Append` estimates each event's bytes and eviction is by bytes and by count: 100,000 events or 128 MiB by default, whichever comes first. With persistence on, events also append to `<data-dir>/journal.ndjson` with size-based rotation. A background writer appends to the file, never under the journal's lock; if the disk falls `MaxBytes` estimated bytes behind, the file stops there (a prefix of recording order) and `FileErr` reports the queue-full error (ADR 0007).
 
-The journal is also a test oracle: conformance and e2e tests assert causal chains (`PutObject -> S3 notification -> SQS SendMessage -> ESM ReceiveMessage -> Invoke -> DeleteMessageBatch`) instead of sleeping, and Terraform tests assert call sequences per resource.
+Query filters: trace, request id (the key users hold from an SDK error or a log line), service, operation, resource ARN glob, kind, outcome, principal, emulator-time range or event-id range, limit with cursor, or the newest N matches (`Journal.Tail`).
+
+Stream: NDJSON over a chunked response with the same filters, resumable with `?after=<event id>`. A slow consumer gets a `Gap` event, never backpressure on the emulator, and a stream resumed after events the ring has evicted starts with one.
+
+Redaction is generated from `sensitive` plus overlay additions (SigV4 `Authorization`, `X-Amz-Security-Token`), so the journal cannot leak what `slog` cannot. The journal is history, not state: snapshots omit it unless `--include-journal`.
+
+The journal is also a test oracle: conformance and e2e tests assert causal chains (`PutObject -> S3 notification -> SQS SendMessage -> ESM ReceiveMessage -> Invoke -> DeleteMessageBatch`) instead of sleeping.
 
 ## 11. Fault injection
 
@@ -1051,7 +1116,7 @@ The journal is also a test oracle: conformance and e2e tests assert causal chain
 package fault
 
 type Rule struct {
-	ID      RuleID
+	ID      ref.RuleID
 	Match   Match
 	Phase   Phase   // Request | Delivery
 	Action  Action
@@ -1082,6 +1147,8 @@ type Latency struct{ Wall time.Duration }                // before the handler; 
 type AfterCommit struct{ Shape smithy.ShapeID }          // the side effect happens, the client sees the error
 type StatusOKError struct{ Shape smithy.ShapeID }        // S3 200-with-error (CompleteMultipartUpload, CopyObject, UploadPartCopy)
 type DropDelivery struct{}                               // Delivery phase: the target never receives it
+type HTTPStatus struct{ Status int }                     // Delivery phase, HTTP endpoints: the attempt is answered with this status (16)
+type HTTPTimeout struct{}                                // Delivery phase, HTTP endpoints: the attempt times out (16)
 
 type Trigger interface{ isTrigger() }
 type Always struct{}
@@ -1092,7 +1159,7 @@ type Probability struct{ P float64 } // ChaCha8 stream keyed by hash(global seed
 - Rules are validated at creation: an error shape outside the operation's modeled plus overlay errors is rejected with the list of codes the service really sends; `Throttle{}` resolves to `RequestThrottled` 403 (SQS), `ProvisionedThroughputExceededException` (DynamoDB), `TooManyRequestsException` 429 (Lambda), `SlowDown` 503 (S3) and so on.
 - An `Error` rule's `members` set the shape's members beyond its message. They are decoded at creation into the value `Catalogue.NewMembers` returns, through the shape's generated deserializer, so an unknown member or a wrong type is refused; a shape whose service generates no deserializer for it takes none. A hit carries the decoded value (`awserr.WithMembers`). A DynamoDB `TransactionCanceledException` rule must set `CancellationReasons`; each hit pads them with `{"Code":"None"}` to one reason per item of the call, which the binding counts (`kernel.WithItemCount`), a call with fewer items than the rule's reasons does not match, and a rule without a message gets AWS's text listing the codes (`smithy-protocol-tests.md 12.4, 14.9`).
 - Hook points: pipeline steps 8 and 10 for every call, internal ones included (`{Service: sqs, Operation: SendMessage, Origin: InternalOnly}` makes SNS-to-SQS delivery fail and drives the SNS retry and DLQ path); the delivery engine for `Phase: Delivery`; the DynamoDB proxy before forwarding, so Local never sees the request. The DynamoDB export, import and reset run outside the pipeline, so they never match a rule (ADR 0014).
-- `Store.Evaluate(Hook, MatchInput) Decision` names the hook, not the phase: `BeforeHandler` (step 8 and the DynamoDB proxy: `Error`, `Throttle`, `Latency`), `AfterHandler` (step 10, only after the handler succeeded: `AfterCommit`, `StatusOKError`) and `DeliveryAttempt`. `Decision` is `None | Fail | Delay{Wall, Then} | FailAfterCommit | FailStatusOK | Drop`, each hit carrying `Injection{Rule, Hit, Of}`. `Delay.Then` is evaluated eagerly, so the caller journals its hits even when the client leaves during the hold. Shapes in the `dev.understudy` namespace are never injectable (ADR 0008).
+- `Store.Evaluate(Hook, MatchInput) Decision` names the hook, not the phase: `BeforeHandler` (step 8 and the DynamoDB proxy: `Error`, `Throttle`, `Latency`), `AfterHandler` (step 10, only after the handler succeeded: `AfterCommit`, `StatusOKError`) and `DeliveryAttempt`. `Decision` is `None | Fail | Delay{Wall, Then} | FailAfterCommit | FailStatusOK | Drop | RespondHTTP | TimeOutHTTP`, each hit carrying `Injection{Rule, Hit, Of}`. `Delay.Then` is evaluated eagerly, so the caller journals its hits even when the client leaves during the hold. Shapes in the `dev.understudy` namespace are never injectable (ADR 0008).
 - Typed validators (3.2 `WithValidator`) run before faults, so the SQS limit texts and CloudWatch `InvalidParameterCombination` precede an injected error exactly as generated constraints do.
 - Determinism: same seed, same rule set, same call order gives the same hits. Concurrent clients make call order nondeterministic; `FaultInjected{Hit, Of}` makes every hit visible either way.
 - SDK retries are surfaced: the CLI warns when a rule targets a retryable code (Terraform's SDK retries up to 25 attempts, `tf-compute.md` 14), and the docs give the fail-fast codes.
@@ -1100,9 +1167,15 @@ type Probability struct{ P float64 } // ChaCha8 stream keyed by hash(global seed
 
 ## 12. IDs and determinism
 
-`internal/ids` owns every generated identifier: request ids, SQS message ids and receipt handles, SNS message ids, Lambda request ids, ESM UUIDs, upload ids, version ids, SSE-KMS and SSE-C ETags, SSE-C key salts, KMS key ids, IAM `AROA`/`ANPA`/`AIDA` ids, minted access keys. Default source is `crypto/rand`. With `--seed N` each generator kind draws from its own ChaCha8 stream derived from `(seed, kind)`; stream positions are recorded in snapshots. The stdlib `uuid` package cannot be seeded, so UUIDs are formatted from the stream. KMS key material always comes from `crypto/rand`. Map iteration for output always sorts. Drawing from an undeclared kind panics on either source (ADR 0018, pre-tag review amendment).
+`internal/ids` owns every generated identifier: request ids, SQS message ids and receipt handles, SNS message ids, Lambda request ids, ESM UUIDs, upload ids, version ids, SSE-KMS and SSE-C ETags, SSE-C key salts, KMS key ids, IAM `AROA`/`ANPA`/`AIDA` ids, minted access keys. Default source is `crypto/rand`. With `--seed N` each generator kind draws from its own ChaCha8 stream derived from `(seed, kind)`; stream positions are recorded in snapshots. The stdlib `uuid` package cannot be seeded, so UUIDs are formatted from the stream. KMS key material always comes from `crypto/rand`. Map iteration for output always sorts. Drawing from an undeclared kind panics on either source (ADR 0018).
 
-The determinism contract is narrower than "byte-identical", because one client still fans out into concurrent internal work and Lambda runs on wall time. What holds: with the same seed, rule set and call order, fault hits are identical; snapshot state sections are byte-identical except a named set of wall-domain fields (STS `Expiration`, persisted as `expiry` by identity's export; Lambda REPORT durations; DynamoDB Local timestamps) and, between runs under different accounts, account ids (ARN and URL accounts, `Account`/`AccountId` members, and minted access key ids, whose whole value is masked when `ids.DecodeAccount` finds an account in it); journals are equal as canonical trace trees (children sorted by kind, operation and resource; ids replaced by tree positions; `Wall` and `Latency` ignored). `snapshot diff --normalize` applies the closed normalizer set of `internal/normalize`, which the parity replayer shares (section 19), and the journal's `Canonical()` view gives the tree form above; golden fixtures never contain raw event ids. A `--deterministic` single-worker mode is not built in phase 1.
+The determinism contract is narrower than "byte-identical", because one client still fans out into concurrent internal work and Lambda runs on wall time. With the same seed, rule set and call order:
+
+- Fault hits are identical.
+- Snapshot state sections are byte-identical except a named set of wall-domain fields (STS `Expiration`, persisted as `expiry` by identity's export; Lambda REPORT durations; DynamoDB Local timestamps) and, between runs under different accounts, account ids (ARN and URL accounts, `Account`/`AccountId` members, and minted access key ids, whose whole value is masked when `ids.DecodeAccount` finds an account in it).
+- Journals are equal as canonical trace trees: children sorted by kind, operation and resource; ids replaced by tree positions; `Wall` and `Latency` ignored.
+
+`snapshot diff --normalize` applies the closed normalizer set of `internal/normalize`, which the parity replayer shares (section 19), and the journal's `Canonical()` view gives the tree form above; golden fixtures never contain raw event ids. There is no single-worker deterministic mode.
 
 ## 13. Snapshots and persistence
 
@@ -1144,17 +1217,17 @@ type Late interface { ExportLate(ctx context.Context) ([]store.Section, error); 
 ```
 
 - Save is two-phase: under the gate's write side every `Stateful` exports to memory and pins its blobs (the consistent cut, microseconds); the gate is released; then `Late` exports run and the tar is written. Load is the mirror: `Late` imports first, then reset-then-import under the gate, then `Rearm`. Nothing does I/O or runs the pipeline under the gate.
-- The state structs are the schema: every persisted field has a `json` tag; each service declares `const stateVersion = N`. Until the first tagged release the archive `format` is `0` and a section whose version differs from the running binary's is refused with a message naming both versions and the binary that wrote it; from the first release on, migrations with a golden fixture per past version become mandatory. A newer `format` is always refused, as MiniStack's downgrade guard does.
+- The state structs are the schema: every persisted field has a `json` tag; each service declares `const stateVersion = N`. The archive `format` is `0`, and understudy is pre-release: a section whose version differs from the running binary's is refused with a message naming both versions and the binary that wrote it, and nothing migrates. From the first tagged release, a state version change needs a migration with a golden fixture per past version (ADR 0009). A newer `format` is always refused.
 - Persisted member names follow the normalizer's naming convention: a `ref.EventID` member's JSON name ends in `EventId`, and a member whose value is an account ends in `Account` or `AccountId`. `snapshot diff --normalize` masks values by these names, so a member that breaks the rule shows up as a difference between every two runs; the only listed exception is SQS's `senderId`, an account only for root senders. A member ending in `AccessKeyId` is masked whole when its value encodes an account (`ids.DecodeAccount`), and STS expiry is masked under both `Expiration` and identity's persisted `expiry`. State that sorts by a masked value sorts by what the mask keeps (identity's export orders keys with `ids.CompareAccessKeys`, which ignores the account). Member-name rules do not apply inside user-keyed maps of strings persisted as `Tags`, `Variables` or `Metadata` (any case), whose keys are the user's; a service that persists another user-keyed map of strings uses one of those names, or the snapshot owner extends `scopeOf` in `internal/snapshot/normalize.go` (`internal/snapshot` package doc).
 - Sealed sums in state (message state, ESM state, function state, pool state) serialize through one tagged-union convention in `jsonx`: `{"kind": "<variant>", ...fields}` with a per-sum table; every persisted sum has a rapid round-trip property.
 - `jsonx.Codec.Marshal` sorts every object's members, so equal values give equal bytes. A `jsonx.Verbatim` value keeps the order its `MarshalJSON` writes, for a value whose order is part of it: `fault.Members` is an ordered `document.Map`, so a rule with its members reordered is a different rule, and sorting them would make a rule come back from Export then Import unequal to itself. Equal values still give equal bytes. `fault.Rule` is Verbatim because its own `MarshalJSON` already writes that form, sorted but for the members.
 - Timers are never saved. Visibility deadlines, `nextFireAt`, deletion dates, ESM state and outbox attempts are state; `Rearm` rebuilds every timer and poller after load. A restart test asserts every re-armable thing fires (MiniStack#889 is the bug this prevents).
 - Load drains Lambda environments, stops pollers and clears the scheduler before the cut.
 - Accepted deliveries are state in the outbox, so a save never names deliveries as not captured.
-- DynamoDB: under `--persist` Local runs with `-dbPath <dir>/dynamodb` and owns item data; the periodic archive carries shim state only. An explicit `snapshot save` exports items through the proxy (`DescribeTable` plus paginated `Scan`) as `Late` sections; `snapshot load` and `reset` issue `DeleteTable` per scope against the running container, then `CreateTable` plus `BatchWriteItem` from the sections. Local's SQLite files are never copied. These calls never match fault rules and are not journaled; the admin action is (ADR 0007, `AdminAction`, post-tag).
-- Persistence across restarts is opt-in (`--persist <dir>`): the archive is written atomically to `<dir>/state.snapshot` on graceful shutdown and every 30 s of wall time while any cell is dirty, loaded at startup; blobs live in `<dir>/blobs` and the archive references them, so the blobs the archive on disk names stay pinned until a newer archive replaces it. No write-ahead log in phase 1: a crash loses at most 30 s. The data dir is `flock`ed so two `serve` processes cannot share it. Archives saved through the admin path form live in `<dir>/snapshots`, which cannot reach the lock, the state file, the blobs or DynamoDB Local's files.
+- DynamoDB: under `--persist` Local runs with `-dbPath <dir>/dynamodb` and owns item data; the periodic archive carries shim state only. An explicit `snapshot save` exports items through the proxy (`DescribeTable` plus paginated `Scan`) as `Late` sections; `snapshot load` and `reset` issue `DeleteTable` per scope against the running container, then `CreateTable` plus `BatchWriteItem` from the sections. Local's SQLite files are never copied. These calls never match fault rules and are not journaled; the admin action is (section 10).
+- Persistence across restarts is opt-in (`--persist <dir>`): the archive is written atomically to `<dir>/state.snapshot` on graceful shutdown and at every checkpoint (every 30 s of wall time by default, `--persist-every`) whose cut differs from the last saved one, and loaded at startup. Blobs live in `<dir>/blobs` and the archive references them, so the blobs the archive on disk names stay pinned until a newer archive replaces it. There is no write-ahead log: a crash loses at most one checkpoint interval. The data dir is `flock`ed so two `serve` processes cannot share it. Archives saved through the admin path form live in `<dir>/snapshots`, which cannot reach the lock, the state file, the blobs or DynamoDB Local's files.
 - Archive size: one setting, `snapshotMaxBytes` (`--snapshot-max-bytes`, `UNDERSTUDY_SNAPSHOT_MAX_BYTES`), caps every archive, counted as the uncompressed tar: `snapshot save` and `PUT /snapshots` uploads, `--load-snapshot`, and the `--persist` load and checkpoint. The default is 1 GiB, accepted from 1 MiB to 4 GiB. 4 GiB is also the bound `snapshot inspect` and `diff` read with, so every archive a server writes can be inspected. Writes enforce the cap through `snapshot.WriteOptions.MaxBytes`, so no path writes an archive its own load would refuse. `snapshot.Read` holds an archive in memory, so the setting also bounds a load's memory.
-- `understudy snapshot diff a b [--normalize]` compares archives section by section and prints resource-level differences; `--normalize` applies the closed normalizer set of section 12.
+- `understudy snapshot diff a b [--normalize]` compares archives section by section and prints resource-level differences; `--normalize` applies the normalizer set of section 12.
 
 ## 14. Lambda runtime
 
@@ -1171,10 +1244,11 @@ package pool
 
 type EnvState interface{ isEnvState() }
 type Starting struct{ Elapsed func() time.Duration } // from Clock.Stopwatch: monotonic wall time, never emulator time
+type Reserved struct{}                               // leased to one caller that has not dispatched yet
+type Busy struct{ Invocation ids.LambdaRequestID }   // running one invocation for its leaseholder
 type Idle struct{ Elapsed func() time.Duration }
-type Busy struct{ Invocation InvocationID; Deadline time.Time } // wall deadline as sent to the RIC
-type Draining struct{ Reason DrainReason }  // closed: Idle | Generation | Eviction | Reset | Shutdown
-type Faulted struct{ Cause FaultCause }     // InitError | ExitError{code} | OOM | Timeout | ArchMismatch{Declared, Host}
+type Draining struct{ Reason DrainReason }  // closed: IdleExpired | NewGeneration | Evicted | Reset | Shutdown | Abandoned
+type Faulted struct{ Cause FaultCause }     // InitFailed{Type} | Crashed{Code} | OutOfMemory | TimedOut | WrongArchitecture{Declared, Host}
 type Gone struct{}
 
 // Key is a hash of everything in the container spec. Any config or code update bumps the
@@ -1182,11 +1256,11 @@ type Gone struct{}
 type Key struct{ Function aws.ARN; Version string; Generation uint64; SpecHash [32]byte }
 ```
 
-`Starting -> Idle <-> Busy -> Draining -> Gone`, `Starting|Busy -> Faulted -> Gone`. Exclusive reservation; one in-flight invocation per environment; concurrency by more environments. Start semaphore (default 16), per-function idle cap `max(4, CPUs)`, global cap with LRU eviction, idle timeout on wall time (default 10 minutes). Concurrency limits (account 1000, reserved concurrency) are checked before container work and return the 429 shape. Removal is `DELETE ?force=1&v=1`; the Runtime API listener is removed from the lookup table before the container is deleted. Crash detection comes from one Docker `events` subscription filtered by instance label, with `wait` as a fallback.
+`Starting -> Reserved -> Busy -> Idle -> Reserved ... -> Draining -> Gone`, and `Starting|Reserved|Busy|Idle -> Faulted -> Gone`. Exclusive reservation; one in-flight invocation per environment; concurrency by more environments. Start semaphore (default 16), per-function idle cap `max(4, CPUs)`, global cap with LRU eviction, idle timeout on wall time (default 10 minutes). Concurrency limits (account 1000, reserved concurrency) are checked before container work and return the 429 shape. Removal is `DELETE ?force=1&v=1`; the Runtime API listener is removed from the lookup table before the container is deleted. Crash detection comes from one Docker `events` subscription filtered by instance label, with `wait` as a fallback.
 
 ### 14.3 Code and images
 
-Zip functions extract once per `CodeSha256` into a content-addressed directory under `os.Root`: names must be `filepath.IsLocal`, symlink entries rejected, total and per-entry sizes capped (262,144,000 unzipped), modes normalized (`bootstrap` 0755), `//go:debug zipinsecurepath=0` in `main` as a second layer. Mounted read-only at `/var/task` via `HostConfig.Mounts` (never `Binds`, which silently creates host directories as root). When understudy runs in a container or the path is not daemon-visible, it falls back to tar copy without `ReadonlyRootfs`. A function's layers are extracted the same way and copied, in the order the function lists them, into one merged tree keyed by their digests in that order, a later layer's file replacing an earlier one's; it is mounted read-only at `/opt` (under tar copy, uploaded there after the code), and no search path is set, since the base images and runtimes search the layer directories themselves (`lambda-destinations-layers.md 8.1, 8.2, 11.5`). Images are pulled at `CreateFunction` (state `Pending` until present), never on first invoke, single-flight, with `platform`, digest recorded; local tags are resolved first and ECR URIs that are not present locally fail with `ECR is not emulated in phase 1; tag your local image as <ImageUri>`. A failed pull (offline, registry error) moves the function to `State: Failed` with `StateReasonCode: ImageAccessDenied` or `InvalidImage` and a message naming the image and the Docker error, so Terraform fails fast instead of waiting for its timeout. Runtime base images are pinned per understudy release in `internal/service/lambda/launcher/images.go` (tag plus digest); `understudy images pull [--runtime R]` pre-warms them for CI. `Architectures` is honoured: the container is created for the declared platform; an `exec format error` or exit 126 becomes a function error that names the declared and host architectures, and `doctor` reports binfmt availability.
+Zip functions extract once per `CodeSha256` into a content-addressed directory under `os.Root`: names must be `filepath.IsLocal`, symlink entries rejected, total and per-entry sizes capped (262,144,000 unzipped), modes normalized (`bootstrap` 0755), `//go:debug zipinsecurepath=0` in `main` as a second layer. Mounted read-only at `/var/task` via `HostConfig.Mounts` (never `Binds`, which silently creates host directories as root). When understudy runs in a container or the path is not daemon-visible, it falls back to tar copy without `ReadonlyRootfs`. A function's layers are extracted the same way and copied, in the order the function lists them, into one merged tree keyed by their digests in that order, a later layer's file replacing an earlier one's; it is mounted read-only at `/opt` (under tar copy, uploaded there after the code), and no search path is set, since the base images and runtimes search the layer directories themselves (`lambda-destinations-layers.md 8.1, 8.2, 11.5`). Images are pulled at `CreateFunction` (state `Pending` until present), never on first invoke, single-flight, with `platform`, digest recorded; local tags are resolved first and ECR is not emulated, so an ECR URI that is not present locally fails with an error that says to build or tag the local image as that URI. A failed pull (offline, registry error) moves the function to `State: Failed` with `StateReasonCode: ImageAccessDenied` or `InvalidImage` and a message naming the image and the Docker error, so Terraform fails fast instead of waiting for its timeout. Runtime base images are pinned per understudy release in `internal/service/lambda/launcher/images.go` (tag plus digest); `understudy images pull [--runtime R]` pre-warms them for CI. `Architectures` is honoured: the container is created for the declared platform; an `exec format error` or exit 126 becomes a function error that names the declared and host architectures, and `doctor` reports binfmt availability.
 
 Container spec: `Env` from the reserved set (`lambda-api.md 12.7`) plus minted execution-role credentials, `AWS_ENDPOINT_URL` as an IPv4 literal, `AWS_EC2_METADATA_DISABLED=true`, `TZ=:UTC`; `Memory = MemorySwap`, `PidsLimit`, `nofile` ulimit, `LogConfig` json-file with rotation, labels (section 20), `Tty=false`, no `AutoRemove`, `CapDrop: ["ALL"]`, `no-new-privileges`, read-only code mount, writable `/tmp` as an unsized anonymous volume (removed with the container). A tmpfs would count its pages against the container's memory limit, and the local volume driver sizes only tmpfs volumes, so `EphemeralStorage` is validated against Lambda's range but not enforced (`launcher/doc.go`).
 
@@ -1205,13 +1279,20 @@ package topology
 type Topology interface{ isTopology() }
 type LinuxBridge struct{ Gateway netip.Addr }                  // listener on the gateway IP; ExtraHosts localhost:host-gateway
 type DockerDesktop struct{}                                     // functions are handed Desktop's documented host.docker.internal address, 192.168.65.254 (ADR 0011, amendment 2026-11-06)
-type RootlessDocker struct{ HostAddr netip.Addr }               // host loopback blocked by default; unsupported in phase 1 with a specific error
-type Podman struct{ Rootless bool; Gateway netip.Addr }         // rootless is unsupported in phase 1 (ADR 0011 amendment)
+type RootlessDocker struct{ HostAddr netip.Addr }               // host loopback blocked by default; unsupported, with a specific error
+type Podman struct{ Rootless bool; Gateway netip.Addr }         // rootless is unsupported (ADR 0011)
 type InContainer struct{ Network string; Self netip.Addr }      // function containers and DynamoDB Local join understudy's network
-type Remote struct{ Daemon, Self netip.Addr }                    // tcp:// daemon on another host; listeners on Self, code copied in (ADR 0011 dependency policy amendment)
+type Remote struct{ Daemon, Self netip.Addr }                    // tcp:// daemon on another host; listeners on Self, code copied in (ADR 0011, amendment 2026-10-14)
 ```
 
-Detected once at first Lambda use. The container listener (the topology's address, main port, created on demand) serves the AWS API but not the admin API; per-environment Runtime API listeners bind the same address on ephemeral ports. Neither binds `0.0.0.0`. On Linux and Podman, `ExtraHosts: ["localhost:host-gateway"]` makes `localhost:<port>` URLs minted on the host (Terraform outputs, queue URLs in message bodies) reachable from functions (`lambda-runtime-contract.md 6.2` option D). Docker Desktop: no container listener is created; Desktop forwards a container's connection to `host.docker.internal:<port>` to the host's loopback, so the main listener and the per-environment Runtime API listeners bind `127.0.0.1`. The address handed to functions must still be an IPv4 literal (path-style S3 in every SDK), so understudy hands them Desktop's documented address for `host.docker.internal`, `192.168.65.254` (ADR 0011, amendment 2026-11-06). `InContainer`: the main listener binds `0.0.0.0` inside the container (the published port is the exposure control, see 18), function containers and DynamoDB Local attach to understudy's own network and are addressed by container IP, and this topology is CI-tested alongside Linux bridge by running the smoke test inside the image. Rootful Podman is best effort with `doctor` checks; rootless Docker and rootless Podman are unsupported in phase 1 with a specific error. A missing first `GET /next` within the 10 s init limit is the diagnostic for an unreachable listener: the error names the address handed to the container, the detected topology and the three likely causes. Only the Linux topologies are tested; Docker Desktop is untested until the Docker suite runs on macOS (Docker Desktop, Apple Silicon), [ROADMAP item 4](ROADMAP.md).
+The topology is detected once, at first Lambda use. The container listener (the topology's address, main port, created on demand) serves the AWS API but not the admin API; per-environment Runtime API listeners bind the same address on ephemeral ports. Neither binds `0.0.0.0`.
+
+- Linux bridge and Podman: `ExtraHosts: ["localhost:host-gateway"]` makes `localhost:<port>` URLs minted on the host (Terraform outputs, queue URLs in message bodies) reachable from functions (`lambda-runtime-contract.md 6.2` option D). Rootful Podman is best effort with `doctor` checks.
+- Docker Desktop: no container listener is created. Desktop forwards a container's connection to `host.docker.internal:<port>` to the host's loopback, so the main listener and the per-environment Runtime API listeners bind `127.0.0.1`. The address handed to functions must still be an IPv4 literal (path-style S3 in every SDK), so it is Desktop's documented address for `host.docker.internal`, `192.168.65.254` (ADR 0011).
+- `InContainer`: the main listener binds `0.0.0.0` inside the container (the published port is the exposure control, see 18). Function containers and DynamoDB Local attach to understudy's own network and are addressed by container IP.
+- Rootless Docker and rootless Podman are unsupported and fail with a specific error.
+
+A missing first `GET /next` within the 10 s init limit is the diagnostic for an unreachable listener: the error names the address handed to the container, the detected topology and the three likely causes. CI tests the Linux bridge and, by running the smoke test inside the image, `InContainer`; Docker Desktop is not tested in CI ([ROADMAP](ROADMAP.md)).
 
 ### 14.6 Logs
 
@@ -1219,23 +1300,26 @@ One `logs?follow=1&timestamps=1` stream per environment, opened right after star
 
 ### 14.7 Invoke, async, state machine, function URLs
 
-- RequestResponse 200 with `X-Amz-Executed-Version`; Event 202 into a per-function async queue on the emulator clock, kept in the Lambda execution layer's own per-scope cells rather than the Lambda cell: it is a `Stateful` of its own with `ServiceID` `lambda-async`, listed beside `lambda` in snapshots, resources and reset, and a reset of `lambda` empties it too through the execution layer's `Drain` (retries after 60 s and 120 s on function errors; throttles and 5xx requeue with 1 s to 5 min backoff for up to 6 h, `lambda-events.md 8`; destinations are stretch and plug into `delivery`); DryRun 204. Limits: 6 MB sync, 1 MB async (`lambda-api.md` finding 4; not 256 KB). `X-Amzn-RequestId` always.
+- RequestResponse answers 200 with `X-Amz-Executed-Version`, DryRun 204, and Event 202 into a per-function async queue on the emulator clock. `X-Amzn-RequestId` always. Limits: 6 MB sync, 1 MB async (`lambda-api.md` finding 4; not 256 KB).
+- The async queue retries after 60 s and 120 s on function errors; throttles and 5xx requeue with 1 s to 5 min backoff for up to 6 h (`lambda-events.md 8`). A settled invocation's destination record or dead letter is a `Deliver` effect (16). The queue lives in the Lambda execution layer's own per-scope cells rather than the Lambda cell: it is a `Stateful` of its own with `ServiceID` `lambda-async`, listed beside `lambda` in snapshots, resources and reset, and a reset of `lambda` empties it too through the execution layer's `Drain`.
 - Function state and `LastUpdateStatus` are final before the mutating call returns (`Active`, `Successful`) in every clock mode by default; `lambda.stateTransitions: clock` restores `Pending -> Active` and `InProgress -> Successful` on the emulator clock with a 10 ms delay and the exact `ResourceConflictException` for updates inside the window, for SDK-waiter tests.
 - Docker unavailable: the control plane keeps working (Terraform applies cleanly); Invoke answers 501 NotImplemented, which no SDK retries, naming the Docker endpoint tried and `understudy doctor`.
-- Containers keep running between invocations (AWS freezes the sandbox); background work between invocations belongs to no invocation and roots its own trace under the function's execution-role session. Pausing environments through the Engine API is deferred.
+- Containers keep running between invocations (AWS freezes the sandbox); background work between invocations belongs to no invocation and roots its own trace under the function's execution-role session. Environments are not paused through the Engine API.
 - Function URLs: `http://<url-id>.lambda-url.<region>.localhost:<port>/` (host-header routed; the provider derives `url_id` from the first label) with the path fallback; served by the raw operation `lambda.InvokeFunctionUrl` (IAM `lambda:InvokeFunctionUrl`) so it is journaled, faultable and covered; payload v2.0 builder and response inference per `lambda-events.md 7`; `NONE` auth evaluates the resource-policy statements because the 403 `{"Message":null}` with `x-amzn-ErrorType` is observable; `BUFFERED` only.
 
 ### 14.8 Event source mappings
 
 One poller per enabled mapping, tracked work (`Kernel.Go(InvocationRunning)`) that never parks inside the pipeline: it waits on the queue's `WaitKey` and the batching-window timer, then calls `ReceiveMessage` through `kernel.Invoke` with `WaitTimeSeconds: 0` as `AsExecutionRole` (so the access recorder attributes `sqs:ReceiveMessage`, `DeleteMessage` and `GetQueueAttributes` to the role). Per cycle: receive up to `min(BatchSize, 10)` per call and loop until `BatchSize`, the batching window (emulator time) or 6 MB; window 0 invokes as soon as a message is visible (the 20 s long-poll floor is not modeled). Filters run before invoke with `ruler` under the Lambda allow-list; non-matching messages are deleted without invoking. Partial batch response per `lambda-events.md` Implications 12 (empty, `null`, `{}` or empty list is full success; any malformed or unknown `itemIdentifier` is full failure); deletes go through `DeleteMessageBatch` so the journal links receive, invoke and delete; redrive comes from SQS `maxReceiveCount`. FIFO: one in-flight batch per group; the batching window is accepted and ignored. Control plane returns 202 with `State: Enabled` final before the call returns by default (`lambda.stateTransitions: clock` restores `Creating`, `Enabling`, `Deleting`); responses carry `FunctionResponseTypes: []` and `MaximumBatchingWindowInSeconds: 0` and omit unset `ScalingConfig` and `FilterCriteria`. Mappings survive function deletion but stop invoking, with a journal event saying why.
 
-A mapping on a DynamoDB stream (`EventSourceKind.DynamoDBStream`, `lambda-stream-sources.md 12.5`) shares that lifecycle with a stream reader (`esm_stream_poller.go`). An idle reader waits on the stream's `shardlog.WaitKey`, which every append wakes, so it reads a record as soon as it arrives and a quiet stream never holds a settle; AWS's polling rates (4 per second for DynamoDB) become the delay before a retry, `lambda.esm-stream.retry-delay`. A step reads through an `esm.StreamSource` (`DescribeStream`, `GetShardIterator`, `GetRecords` through `kernel.Invoke` as `AsExecutionRole`) from the mapping's checkpoint, batches into the generic `esm.Batch` until `BatchSize`, the batching window (which opens when the reader starts and when each invocation ends) or 6 MB of serialized event, invokes synchronously `AsPlatform`, and on success moves the checkpoint past the batch. `MaximumRetryAttempts`, `MaximumRecordAgeInSeconds` and `ReportBatchItemFailures` follow the 5.2, 5.3 and 5.5 recordings; a discarded batch sends `esm.FailureRecord` to its SQS or SNS destination through the outbox (`ESMToSQS`, `ESMToSNS`, 16) as the execution role. Checkpoints are Lambda state, so they survive snapshots and a disable and re-enable; a checkpoint behind the 24-hour trim drops the lost records, journals it and resumes at `TRIM_HORIZON`; a stream that is gone stops the reader with a journal entry and the mapping stays `Enabled`. Every checkpoint move is a journaled `StateChange` on the mapping's ARN.
+A mapping on a DynamoDB stream (`lambda-stream-sources.md 12.5`) shares that lifecycle with a stream reader (`esm_stream_poller.go`). An idle reader waits on the stream's `shardlog.WaitKey`, which every append wakes, so it reads a record as soon as it arrives and a quiet stream never holds a settle; AWS's polling rates (4 per second for DynamoDB) become the delay before a retry, `lambda.esm-stream.retry-delay`. A step reads through an `esm.StreamSource` (`DescribeStream`, `GetShardIterator`, `GetRecords` through `kernel.Invoke` as `AsExecutionRole`) from the mapping's checkpoint, batches into the generic `esm.Batch` until `BatchSize`, the batching window (which opens when the reader starts and when each invocation ends) or 6 MB of serialized event, invokes synchronously `AsPlatform`, and on success moves the checkpoint past the batch. `MaximumRetryAttempts`, `MaximumRecordAgeInSeconds` and `ReportBatchItemFailures` follow the 5.2, 5.3 and 5.5 recordings; a discarded batch sends `esm.FailureRecord` to its SQS or SNS destination through the outbox (`ESMToSQS`, `ESMToSNS`, 16) as the execution role. Checkpoints are Lambda state, so they survive snapshots and a disable and re-enable; a checkpoint behind the 24-hour trim drops the lost records, journals it and resumes at `TRIM_HORIZON`; a stream that is gone stops the reader with a journal entry and the mapping stays `Enabled`. Every checkpoint move is a journaled `StateChange` on the mapping's ARN.
+
+A mapping on a Kinesis data stream is the `esm.KinesisStream` kind: the same reader with its own `StreamSource`. `service/kinesis` keeps each shard's records in a `shardlog.Shard`, with the data in the blob store, and issues `shardlog` `Opaque` iterators. A stream mapping is a pull, never a `delivery.Target`. A mapping on any other source answers 501.
 
 ## 15. DynamoDB Local integration (ADR 0014)
 
 DynamoDB is the one service that proxies rather than implements. It still uses the generated `dynamodbapi` package: every request is decoded and validated so the journal, faults, access recorder and Coral-grammar validation run, then the original bytes are forwarded through a `RawHandler`.
 
-- Container: one `amazon/dynamodb-local` pinned by digest (`sha256:ff89bd48ff32cd8d9be5fee8873b65b8854dc408f1afe881be6eb00247bc0dab`, 3.3.1; ECR Public mirror as fallback, same digest), pulled at first use, never bundled, re-tagged or patched. Args `-jar DynamoDBLocal.jar -port 8000 -disableTelemetry` plus `-inMemory` (default) or `-dbPath /data` (persistence); env `DDB_LOCAL_TELEMETRY=0` (only the literal `0` works). Published on `127.0.0.1:0` where the host cannot route to container addresses (Docker Desktop, rootless engines), addressed at its default-bridge IP on a Linux bridge or rootful Podman, or attached to understudy's network and addressed by container IP when the topology is `InContainer` (ADR 0014 dependency-policy amendment); labeled, memory-bounded. Started in the background at `serve` when the image is present, otherwise on first call with a bounded wait.
+- Container: one `amazon/dynamodb-local` pinned by digest (`sha256:ff89bd48ff32cd8d9be5fee8873b65b8854dc408f1afe881be6eb00247bc0dab`, 3.3.1; ECR Public mirror as fallback, same digest), pulled at first use, never bundled, re-tagged or patched. Args `-jar DynamoDBLocal.jar -port 8000 -disableTelemetry` plus `-inMemory` (default) or `-dbPath /data` (persistence); env `DDB_LOCAL_TELEMETRY=0` (only the literal `0` works). Published on `127.0.0.1:0` where the host cannot route to container addresses (Docker Desktop, rootless engines), addressed at its default-bridge IP on a Linux bridge or rootful Podman, or attached to understudy's network and addressed by container IP when the topology is `InContainer` (ADR 0014, amendment 2026-10-14); labeled, memory-bounded. Started in the background at `serve` when the image is present, otherwise on first call with a bounded wait.
 - Licence (ADR 0014 amendment of 2026-10-14): no acceptance gate. DynamoDB runs by default; the first start of DynamoDB Local logs one line saying DynamoDB is served by Amazon DynamoDB Local under Amazon's licence terms, with the licence URL. The config state is one sum type, `Enabled | Disabled`; `dynamodb.enabled: false` turns the service off, and its calls then answer 501 naming that setting, as they do while Docker is disabled. The CLI never prompts. The image is never bundled, mirrored, re-tagged, saved, pushed or patched, and understudy is never offered as a hosted multi-user service with Local behind it.
 - Isolation: the forwarded `Credential=` is rewritten to `<account>/<date>/<region>/dynamodb/aws4_request` so Local partitions by `(account, region)` natively; only regions from understudy's validated table are forwarded (they become file names under `-dbPath`).
 - Before forwarding, understudy answers what Local gets wrong (`error-matrix.md` finding 6): malformed JSON (`com.amazon.coral.service#SerializationException` 400), missing or bad target (`UnknownOperationException` 400), wrong Content-Type (404 XML), missing auth, request too large, generated validation. Unsupported operations are `NotImplemented` before Local sees them. Empty bodies are forwarded as `{}`; `Accept-Encoding` is forced to `identity`.
@@ -1258,10 +1342,10 @@ package delivery // leaf types; the payload lives in the target variant
 type Target interface{ isTarget() }
 type SQSQueue struct{ ARN aws.ARN; Body string; Attributes []MessageAttribute; GroupID, DedupID, TraceHeader string } // TraceHeader: the AWSTraceHeader system attribute
 type LambdaFunction struct{ ARN aws.ARN; Qualifier string; Event []byte; Invocation InvocationType } // Event | RequestResponse (ESM uses Invoke directly, not the outbox)
-type SNSTopic struct{ ARN aws.ARN; Message string; Attributes []MessageAttribute; Subject string }
+type SNSTopic struct{ ARN aws.ARN; Message string; Attributes []MessageAttribute; Subject, GroupID, DedupID string }
 type EventBus struct{ ARN aws.ARN; Entries []EventEntry }           // events:PutEvents, exactly 1 entry; EventEntry.Forwarded is the envelope and hop mark of an event a bus target forwards; DLQ under EventsToEvents and SchedulerToEvents only
 type StateMachine struct{ ARN aws.ARN; Input, Name string }        // states:StartExecution of a state machine, version or alias; SchedulerToStates only
-type S3Object struct{ Bucket, Key string; Body []byte }             // s3:PutObject; no DLQ yet
+type S3Object struct{ Bucket, Key string; Body []byte }             // s3:PutObject; takes no DLQ
 type HTTPEndpoint struct { // POST through internal/egress
 	URL                  url.URL
 	Kind                 HTTPKind // Notification | SubscriptionConfirmation | UnsubscribeConfirmation
@@ -1274,6 +1358,7 @@ type Mechanism uint8 // closed: SNSToSQS | SNSToLambda | S3ToSQS | S3ToSNS | S3T
 
 type Request struct {
 	Source    aws.ARN
+	SourceAccount aws.AccountID // the aws:SourceAccount the delivery sends; zero when it sends none
 	Mechanism Mechanism
 	Target    Target
 	Policy    RetryPolicy // SNSManaged | EventBridgeTarget{MaxAge, MaxAttempts} | S3Notification | SNSHTTP{phase counts, delay targets, BackoffFunction, MaxReceivesPerSecond} | None
@@ -1296,12 +1381,19 @@ type Entry struct {
 	Accepted clock.Instant
 	Seq      uint64 // the order the outbox took deliveries in, drawn under the cell lock
 	Jitter   uint64 // seeds an EventBridge target's retry jitter; 0 for other policies
+	Running  bool   // an attempt is in flight; this process's claim, never saved
 }
 ```
 
 Deliveries to one SQS FIFO queue with one `GroupID` form a lane, attempted one at a time in `Seq` order: only the first pending one is armed, a retry keeps the lane blocked, and a terminal outcome arms the next no earlier than itself (`sns.md 10`). A group on a standard queue is a fair-queue tenant label and forms no lane (`sqs.md 8.5`); deliveries outside a lane run concurrently.
 
-A `Deliver` effect is an outbox insert the kernel performs before the source call returns, so an accepted delivery is state the moment SNS returns a `MessageId`; the insert arms the attempt timer. Attempts, backoff and DLQ routing run on the emulator clock with jitter drawn from the seeded source, so `clock advance` replays a retry storm deterministically. A due attempt is tracked work (`DeliveryAttempt`) stamped `At = due` that calls the target through `kernel.Invoke` as `AsService{name}` (as `AsExecutionRole{Role}` for a Lambda delivery, whose resource-policy advisory is skipped) with `Origin Internal{Via}`, is subject to `Phase: Delivery` rules, emits a `journal.Delivery` event whose parent is the source event, and removes the entry on a terminal outcome. `Rearm` restores every pending attempt after a snapshot load. Client-side failures (queue or function missing) go straight to the DLQ; filtered messages never reach a DLQ. Fan-out order is deterministic (subscription or target creation order). Under `iam.enforce` off, before each attempt the access recorder checks the target's stored resource policy with `access.AdviseWith` and journals a `policy-would-deny` `Advisory` when it would not allow the delivery in AWS (SNS to a queue without a `sqs:SendMessage` statement for the topic, EventBridge to a function without `lambda:InvokeFunction` permission); the delivery is still attempted. Under advise and enforce the attempt is a call that step 8 decides like any other (a Lambda delivery as its execution role), with `aws:SourceArn` and the `aws:SourceAccount` the producer sends (`delivery.Request.SourceAccount`: the topic's account, the bucket owner's, the rule's to a queue or topic, none to a function; iam-enforcement-surfaces.md 8.1). Under enforce a refused attempt fails with the target's denial, which is never retried: it goes to the DLQ when one is set (an EventBridge dead letter's `ERROR_CODE` is `NO_PERMISSIONS`) and is dropped otherwise (iam-enforcement-surfaces.md 8). Stored policies are read through `authz.PolicyProvider`, which each service with resource policies implements: the SQS queue's and SNS topic's `Policy`, the S3 bucket policy (for the bucket and its objects), the Lambda function's permissions, the KMS key policy, the Secrets Manager secret's policy and the IAM role's trust policy (iam-enforcement-surfaces.md 12.2). `internal/server` finds the providers by interface among the collected services and routes each read by the target ARN's namespace. Calls that are not deliveries do not run as `AsService`. S3's check that each notification destination exists (`sqs:GetQueueUrl`, `sns:GetTopicAttributes`, `lambda:GetFunction` at `PutBucketNotificationConfiguration`) is not the test message AWS sends each destination at configuration (iam-enforcement-surfaces.md 8.3). That message needs the same grant as a delivery, so it adds no requirement beyond the delivery's action. understudy checks no destination policy at configuration, where AWS refuses a destination whose policy does not admit S3 (12.4); under enforce the `s3:TestEvent` delivery and each notification are decided at delivery instead, and a refused one is dropped (`s3.notification.delivery-denied`), as `PutBucketNotificationConfiguration`'s coverage note states. DynamoDB's TTL sweep is the service's own deletion (dynamodb-local.md 5.1). Both run as `AsPlatform`, so they are journaled as `platform:<name>`, step 8 never asks about them, they are never advised, and the access record, `GET /iam/usage` and the `resourcePolicies` of `GET /iam/policy` leave them out. An S3-to-SQS notification therefore lists `sqs:SendMessage` alone.
+A `Deliver` effect is an outbox insert the kernel performs before the source call returns, so an accepted delivery is state the moment SNS returns a `MessageId`; the insert arms the attempt timer. Attempts, backoff and DLQ routing run on the emulator clock with jitter drawn from the seeded source, so `clock advance` replays a retry storm deterministically. A due attempt is tracked work (`DeliveryAttempt`) stamped `At = due` that calls the target through `kernel.Invoke` as `AsService{name}` (as `AsExecutionRole{Role}` for a Lambda delivery, whose resource-policy advisory is skipped) with `Origin Internal{Via}`, is subject to `Phase: Delivery` rules, emits a `journal.Delivery` event whose parent is the source event, and removes the entry on a terminal outcome. `Rearm` restores every pending attempt after a snapshot load. Client-side failures (queue or function missing) go straight to the DLQ; filtered messages never reach a DLQ. Fan-out order is deterministic (subscription or target creation order).
+
+Authorization of a delivery depends on `iam.enforce`. Under `off`, before each attempt the access recorder checks the target's stored resource policy with `access.AdviseWith` and journals a `policy-would-deny` `Advisory` when it would not allow the delivery in AWS (SNS to a queue without a `sqs:SendMessage` statement for the topic, EventBridge to a function without `lambda:InvokeFunction` permission); the delivery is still attempted. Under `advise` and `enforce` the attempt is a call that step 8 decides like any other (a Lambda delivery as its execution role), with `aws:SourceArn` and the `aws:SourceAccount` the producer sends (`delivery.Request.SourceAccount`: the topic's account, the bucket owner's, the rule's to a queue or topic, none to a function; iam-enforcement-surfaces.md 8.1). Under `enforce` a refused attempt fails with the target's denial, which is never retried: it goes to the DLQ when one is set (an EventBridge dead letter's `ERROR_CODE` is `NO_PERMISSIONS`) and is dropped otherwise (iam-enforcement-surfaces.md 8).
+
+Stored policies are read through `authz.PolicyProvider`, which each service with resource policies implements: the SQS queue's and SNS topic's `Policy`, the S3 bucket policy (for the bucket and its objects), the Lambda function's permissions, the KMS key policy, the Secrets Manager secret's policy and the IAM role's trust policy (iam-enforcement-surfaces.md 12.2). `internal/server` finds the providers by interface among the collected services and routes each read by the target ARN's namespace.
+
+A service's own housekeeping is not an `AsService` call. S3's check that each notification destination exists (`sqs:GetQueueUrl`, `sns:GetTopicAttributes`, `lambda:GetFunction` at `PutBucketNotificationConfiguration`) is not the test message AWS sends each destination at configuration (iam-enforcement-surfaces.md 8.3). That message needs the same grant as a delivery, so it adds no requirement beyond the delivery's action. understudy checks no destination policy at configuration, where AWS refuses a destination whose policy does not admit S3 (12.4); under enforce the `s3:TestEvent` delivery and each notification are decided at delivery instead, and a refused one is dropped (`s3.notification.delivery-denied`), as `PutBucketNotificationConfiguration`'s coverage note states. DynamoDB's TTL sweep is the service's own deletion (dynamodb-local.md 5.1). Both run as `AsPlatform`, so they are journaled as `platform:<name>`, step 8 never asks about them, they are never advised, and the access record, `GET /iam/usage` and the `resourcePolicies` of `GET /iam/policy` leave them out. An S3-to-SQS notification therefore lists `sqs:SendMessage` alone.
 
 An `EventBus` or `S3Object` attempt is one `events:PutEvents` or `s3:PutObject` through `kernel.Invoke` like the others; an `EventBus` delivery carries one entry, and a failed entry is retried or not as `API_PutEventsResultEntry` classes its code. An `HTTPEndpoint` attempt is the only delivery that leaves the process: it POSTs through `internal/egress` on its own goroutine, off the attempt sequencer, since it waits on the network. Egress refuses, before anything is sent, any scheme but `http` and `https`, any name under an AWS partition suffix, the `aws` top-level domain or `execute-api.com` (in the URL or anywhere in its CNAME chain), metadata, link-local, unspecified and multicast addresses, and understudy's own listeners. A host must match the producer's allow-list, `<service>.<feature>.allow` (empty by default); a DNS-name entry never reaches loopback, which only `localhost` or an IP literal entry lists, but may reach a private address; a `localhost` entry reaches only loopback. Every address is checked after resolution and the checked address is the one dialed, with no proxy, no redirect followed, verified TLS, a bounded response read and one deadline on the clock's wall time (`sns-http-delivery.md 7.2-7.4`, ADR 0015 amendment of 2026-10-26). 2xx delivers; 429, 5xx and a failed exchange retry; other answers are permanent (the reading `sns-http-delivery.md 6.1` recommends, which leaves connection-level failures, 3xx and other 4xx UNVERIFIED); a header that frames the request is refused at `Enqueue`; a refusal is journaled `Refused{reason}`, never retried or dead-lettered, and the `Delivery` event names the endpoint's host and port instead of an ARN. SNS `http` and `https` subscriptions deliver through it to the hosts `sns.httpDelivery.allow` lists; the server also refuses its own listeners, read at each check, and a `tcp://` Docker Engine.
 
@@ -1313,7 +1405,7 @@ SNS to HTTP (`SNSToHTTP`, `sns-http-delivery.md 8.2`) is the one mechanism that 
 | SNS -> Lambda | Publish | async `Invoke` with `Records[0].Sns` | Lambda async retries after acceptance |
 | SNS -> HTTP/S | Subscribe (SubscriptionConfirmation), Publish (Notification), an unsigned `UnsubscribeURL` (UnsubscribeConfirmation) | signed POST through `internal/egress` to a host in `sns.httpDelivery.allow` (none by default) | the DeliveryPolicy's phases, every backoff linear (`sns-http-delivery.md 6.3`), paced by its `throttlePolicy`; a Notification to the RedrivePolicy DLQ; a refusal journaled, never retried |
 | SQS -> Lambda | ESM poller cycle | sync `Invoke`, then internal `DeleteMessageBatch`, both `AsExecutionRole` | visibility timeout; DLQ by `maxReceiveCount` |
-| SQS -> SQS (DLQ) | the receive attempt that exceeds `maxReceiveCount` | inside SQS | a `Redrive` journal event whose parent is the receive (or the move task's step) |
+| SQS -> SQS (DLQ) | the receive attempt that exceeds `maxReceiveCount` | inside SQS | no journal event of its own: the receive's event names both queues, and the moved message's enqueue event is the receive, so what its delivery leads to descends from it |
 | EventBridge -> Lambda, SQS, SNS | schedule timer or `PutEvents` | async `Invoke`, `SendMessage`, `Publish` with `Input`, `InputPath`, `InputTransformer` | stored target retry policy; unknown bus drops with 200 and a journal entry |
 | S3 -> SQS, SNS, Lambda | object commit (`Deliver` effect) | `SendMessage`, `Publish`, async `Invoke` with `Records`; `s3:TestEvent` to SQS and SNS on configuration | async; per-key monotonic `sequencer` |
 | S3, Secrets Manager, SQS (SSE) -> KMS | synchronous, before the caller's lock | `GenerateDataKey`, `Decrypt`, `Encrypt` as `AsCaller` (forward access, `iam-sts-kms.md 5.8`), `Via: KMSForward` | journaled as KMS calls, faultable; recorded against the caller so the generated policy carries `kms:GenerateDataKey` and `kms:Decrypt` |
@@ -1322,7 +1414,12 @@ SNS to HTTP (`SNSToHTTP`, `sns-http-delivery.md 8.2`) is the one mechanism that 
 | CloudWatch alarm -> SNS, Lambda | a state change, by evaluation on the emulator clock or `SetAlarmState`, while `ActionsEnabled` (`Deliver` effect in the transition's write) | `Publish` of the notification JSON with its `Subject` (FIFO topics get group and deduplication ids), async `Invoke` of the alarm event; the state change event goes to the default bus through `PutServiceEventInternal`, not the outbox (ADR 0015 amendment of 2026-10-30) | none: one attempt, no DLQ; a missing topic or function is journaled and dropped (`cloudwatch-alarms.md 12.4`) |
 | Scheduler -> Lambda, SQS, SNS, EventBridge, Step Functions | the `scheduler.fire` timer at a schedule's due instant (`Deliver` effect in the write that moves its plan) | async `Invoke`, `SendMessage` (FIFO with `MessageGroupId`, no dedup id), `Publish` without `Subject`, `PutEvents` of one entry, `StartExecution` named after the invocation's execution id; the `Input` template with the four context attributes rendered before each attempt; all as a session of the execution role, with no resource-policy advisory (`scheduler.md 14.4`) | the target's `RetryPolicy` as `EventBridgeTarget`; client-side errors dead-lettered at once (`scheduler.retry.permanent-errors`); the dead letter is the payload, a bus target's included, cut to 262,144 bytes, with the String attributes of `scheduler.md 7.2`; a missing or refusing DLQ drops and journals (14.5) |
 
-Envelope and event builders are pure functions with golden fixtures and rapid properties, owned by the producing service: `service/sns/envelope` (SQS envelope with the recorded key order, the three HTTP bodies and their headers, FIFO variant without signature fields, Lambda `Records[0].Sns` casing; one RSA key per account-region, persisted, cert at `SigningCertURL`), `service/s3/notify` (`eventVersion 2.1`, URL-encoded key, unquoted `eTag`, `sequencer`), `service/events/envelope` (version `0`, second-precision `time`, `InputPath` and `InputTransformer`), `service/sqs` (shared attribute MD5).
+Synchronous integrations are calls, not deliveries: the caller waits for the answer, so they use `kernel.Invoke` directly and never the outbox or its retry engine.
+
+- Step Functions (Standard workflows): `service/sfn` runs the pure `asl` engine's steps as emulator-clock timers. A Lambda Task is a synchronous `kernel.Invoke` of Lambda's `Invoke` as the execution role (`Via: SFNTask`), made from tracked work that the `sfn.invoke` timer starts. Retry and Catch belong to the engine.
+- API Gateway: the raw operations `apigatewayv2.InvokeApi` (HTTP APIs) and `apigateway.InvokeRestApi` (REST APIs, a second registry service on the same signing name with a disjoint route table, ADR 0019) serve the execute-api claims (4.1). A Lambda proxy integration is a `kernel.Invoke` (`Via: ViaAPIGateway`); a REST `MOCK` integration runs in process. An integration understudy stores but does not run answers 501 when reached (21).
+
+Envelope and event builders are pure functions with golden fixtures and rapid properties, owned by the producing service: `service/sns/envelope` (SQS envelope with the recorded key order, the three HTTP bodies and their headers, FIFO variant without signature fields, Lambda `Records[0].Sns` casing; one RSA key per account-region, persisted, cert at `SigningCertURL`), `service/s3/notify` (`eventVersion 2.1`, URL-encoded key, unquoted `eTag`, `sequencer`), `service/events/envelope` (version `0`, second-precision `time`, `InputPath` and `InputTransformer`), `service/cloudwatch/alarm` (the alarm notification and event), `service/lambda/destination` (the invocation record and dead letter), `service/sqs` (shared attribute MD5).
 
 The shared `ruler` engine serves EventBridge patterns, SNS filter policies (behind SNS's operator allow-list and limits) and ESM filters, compiled once to a typed pattern ADT at configuration time. The four Ruler-versus-doc conflicts (`matching-engines.md 10`) are fidelity switches, default Ruler, strict compile errors for malformed `$or` shapes.
 
@@ -1346,7 +1443,7 @@ Mounted at `/_understudy/v1/` on the main listener; JSON both ways; errors `{"er
 | `GET /ui/session` | `{"valid": true}` when the call carries this run's web UI secret in `Understudy-UI-Session` (20) |
 | `GET /resources` | every resource ARN by service, account, region with a short state summary |
 | `GET /coverage?format=json|markdown` | registry coverage, protocol compliance results, fidelity switches; overlay evidence and parity results only in the offline report (`docs/coverage.md`, `understudy coverage`), since the binary does not carry the overlay files or `internal/parity/baseline.json` |
-| `GET /iam/usage`, `GET /iam/policy?principal=` | access record; least-privilege policy. Contract: one statement per `(service, resource)` with exact ARNs, except that a segment understudy mints renders as the narrowest wildcard matching every AWS-form id (KMS `key/*`, Secrets Manager `secret:<name>-??????`, SNS subscription `<topic arn>:*`, Lambda `event-source-mapping:*`, the log streams Lambda creates `log-group:<group>:log-stream:*`, DynamoDB stream labels `table/<name>/stream/*`, API Gateway API ids `/apis/??????????` and `/restapis/??????????`, an HTTP API's route, integration and deployment ids and a REST API's resource and deployment ids `*`, also inside `/tags/<encoded ARN>`), and `*` only for an action of the called service whose call named no resource of it (deferred, a known over-grant: the first use of an `alias/aws/<service>` alias, which creates that AWS managed key, names no key, since the call is authorized before the key exists, so its `kms:` action is recorded on `*`; recording the key's ARN needs the key created before authorization, which AWS does not document, iam-sts-kms.md 5.4); an action the document grants on `*` without a condition is left out of every other statement, one it grants without a condition on a minted wildcard is left out of a statement on an exact ARN the wildcard matches, and a statement left with no action is dropped (the record itself is unchanged); policy rule (ADR 0004 amendment): the primary action always; same-prefix secondaries when the binding declares them used for the input (`kernel.WithActions`, or none with `kernel.WithoutSecondaryActions`, at the bind site or later through `kernel.Declare`), and the whole generated list for a binding that declares neither (an over-grant, until the service's actions are audited); each action on the resources step 8 pairs it with (4), plus each pair a handler asked through `kernel.Authorize`; other-prefix actions only on a touched resource of their service; `sts:GetCallerIdentity` never, since it needs no permission; S3 object operations touch object ARNs, which the access record keeps, and the usage and policy render, as `<bucket>/*`, so the record grows with buckets rather than keys; calls the edge refused at authentication (sigv4 verify) are not recorded, since on AWS they never reach authorization; failed calls that were not injected are recorded, because the application's handled failures need permissions too; a separate `resourcePolicies` section lists the resource-policy requirements deliveries would need (target ARN, service principal, action, source ARN, and the `aws:SourceAccount` the delivery sends when it sends one) |
+| `GET /iam/usage`, `GET /iam/policy?principal=` | access record; least-privilege policy. Contract: one statement per `(service, resource)` with exact ARNs, except that a segment understudy mints renders as the narrowest wildcard matching every AWS-form id (KMS `key/*`, Secrets Manager `secret:<name>-??????`, SNS subscription `<topic arn>:*`, Lambda `event-source-mapping:*`, the log streams Lambda creates `log-group:<group>:log-stream:*`, DynamoDB stream labels `table/<name>/stream/*`, API Gateway API ids `/apis/??????????` and `/restapis/??????????`, an HTTP API's route, integration and deployment ids and a REST API's resource and deployment ids `*`, also inside `/tags/<encoded ARN>`), and `*` only for an action of the called service whose call named no resource of it (a known over-grant: the first use of an `alias/aws/<service>` alias, which creates that AWS managed key, names no key, since the call is authorized before the key exists, so its `kms:` action is recorded on `*`; recording the key's ARN needs the key created before authorization, which AWS does not document, iam-sts-kms.md 5.4); an action the document grants on `*` without a condition is left out of every other statement, one it grants without a condition on a minted wildcard is left out of a statement on an exact ARN the wildcard matches, and a statement left with no action is dropped (the record itself is unchanged); policy rule (ADR 0004 amendment): the primary action always; same-prefix secondaries when the binding declares them used for the input (`kernel.WithActions`, or none with `kernel.WithoutSecondaryActions`, at the bind site or later through `kernel.Declare`), and the whole generated list for a binding that declares neither (a known over-grant); each action on the resources step 8 pairs it with (4), plus each pair a handler asked through `kernel.Authorize`; other-prefix actions only on a touched resource of their service; `sts:GetCallerIdentity` never, since it needs no permission; S3 object operations touch object ARNs, which the access record keeps, and the usage and policy render, as `<bucket>/*`, so the record grows with buckets rather than keys; calls the edge refused at authentication (sigv4 verify) are not recorded, since on AWS they never reach authorization; failed calls that were not injected are recorded, because the application's handled failures need permissions too; a separate `resourcePolicies` section lists the resource-policy requirements deliveries would need (target ARN, service principal, action, source ARN, and the `aws:SourceAccount` the delivery sends when it sends one) |
 | `POST /iam/evaluate` | decide `(action, resource)` pairs for a principal as advise and enforce would, under every mode, journaling nothing: `{"principal", "identityPolicies"?, "requests": [{"action", "resource"}]}`, where `identityPolicies` replaces the principal's identity-based policies for that evaluation (`[]` is none); each result has the decision (`allowed`, `implicitDeny`, `explicitDeny`, the simulator's spellings), the policy type and ARN that decided it, the denial message and the unsupplied condition keys. No CLI command |
 | `GET /settle?timeout=` | wait for quiescence; `pending` grouped by `WorkKind` on timeout |
 | `POST /lambda/functions/{name}/hot-reload` | bind a host directory |
@@ -1358,9 +1455,9 @@ Mounted at `/_understudy/v1/` on the main listener; JSON both ways; errors `{"er
 
 Unversioned AWS-visible URLs under `/_understudy/` (outside `/v1`): SNS `SigningCertURL`, unsubscribe and confirm links, Lambda code links, the function URL and execute-api path fallbacks. ADR 0020 lists every sub-prefix, who controls its content and the headers it is served with.
 
-The web UI is a static page under `/_understudy/ui/` on the main listener and the TLS listener, never the container listener: `internal/server/ui` serves the build of `ui/` embedded in the binary, `index.html` with `Cache-Control: no-cache` and the content-hashed assets as immutable, every answer with ADR 0020's headers and no token check, since a navigation cannot send one and the files hold no secret. The page follows the journal (`GET /journal/stream`, then `GET /journal/events?tail=500`, deduplicated by id; after a dropped stream, `GET /journal/stream?after=<id>` with the newest id a stream delivered, so the server replays what it missed or starts with a `Gap`), rebuilds trace trees from the events as they arrive, and calls `/resources`, `/faults`, `/clock`, `/iam/usage`, `/iam/policy` and `/coverage` with the session header (20); an `admin-action`, `clock-changed` or `fault-injected` event makes it refetch the views that event changes.
+The web UI is a static page under `/_understudy/ui/` on the main listener and the TLS listener, never the container listener: `internal/server/ui` serves the build of `ui/` embedded in the binary, `index.html` with `Cache-Control: no-cache` and the content-hashed assets as immutable, every answer with ADR 0020's headers and no token check, since a navigation cannot send one and the files hold no secret. The page follows the journal (`GET /journal/stream`, then `GET /journal/events?tail=500`, deduplicated by id; after a dropped stream, `GET /journal/stream?after=<id>` with the newest id a stream delivered, so the server replays what it missed or starts with a `Gap`), rebuilds trace trees from the events as they arrive, and calls `/resources`, `/faults`, `/clock`, `/iam/usage`, `/iam/policy` and `/coverage` with the session header (20); an `admin-action`, `clock-changed` or `fault-injected` event makes it refetch the views that event changes. The stream is read with `fetch`, not `EventSource`, because the session header must travel with it. `ui/` reads the admin API only, through the boundary readers in `ui/src/wire.ts`, so a new view is a new reader and panel over an existing endpoint. The page renders a journal kind it has no label for generically; the label table itself is generated (section 2).
 
-The CLI is a thin client of `admin.Client`. Non-interactive always; `--output text|json` on every command; `--endpoint` or `UNDERSTUDY_ENDPOINT` (default `http://127.0.0.1:4566`); exit codes 0 success, 1 operation failed, 2 usage, 3 emulator unreachable, 4 condition not met (settle timeout, health not ready), 5 admin token missing or rejected; every error names what failed and the next command to try; every `--help` has examples.
+The CLI is a thin client of `admin.Client`. Non-interactive always; `--output text|json` on every command; `--endpoint` or `UNDERSTUDY_ENDPOINT` (default `http://127.0.0.1:4566`); exit codes 0 success, 1 operation failed, 2 usage, 3 emulator unreachable, 4 condition not met (settle timeout, health not ready), 5 admin token missing or rejected; every error names what failed and the next command to try; every `--help` has examples. The command tree, abbreviated (each `--help` is authoritative, and `docs/configuration.md` carries `serve --help` verbatim):
 
 ```
 understudy serve [--config FILE] [--listen 127.0.0.1:4566] [--persist DIR] [--load-snapshot FILE] [--seed N]
@@ -1369,7 +1466,7 @@ understudy serve [--config FILE] [--listen 127.0.0.1:4566] [--persist DIR] [--lo
                  [--ready-file PATH] [--log-format json|text] [--log-level L]
 understudy health [--wait 30s]
 understudy settle [--timeout 30s]
-understudy reset [--service S] [--account A] [--region R]
+understudy reset [--service S] [--account A] [--region R] [--clock] [--faults]
 understudy clock now | freeze | resume | advance 15m [--settle] | set 2026-12-31T23:59:00Z | scale 60
 understudy faults list | add [--service S] [--operation O] [--resource GLOB] [--account A] [--region R] [--origin any|external|internal]
                        [--phase request|delivery] [--mechanism M] (--error SHAPE [--message TEXT] [--members JSON] | --throttle | --latency D
@@ -1377,7 +1474,7 @@ understudy faults list | add [--service S] [--operation O] [--resource GLOB] [--
                        | remove ID | clear | load FILE
 understudy journal [--trace ID] [--request-id ID] [--service S] [--operation O] [--resource ARN] [--errors] [--since 10m] [--follow]
 understudy journal trace (ID | --request-id ID) [--canonical]
-understudy snapshot save FILE | load FILE | inspect FILE | diff A B [--normalize]
+understudy snapshot save FILE [--gzip] [--include-journal] [--on-server] | load FILE | inspect FILE | diff A B [--normalize]
 understudy resources [--service S] [--account A] [--region R]
 understudy coverage [--service S] [--format text|markdown|json] [--switches] [--overlays DIR] [--parity FILE]     # offline from the registry when no server is up
 understudy iam usage [--principal ARN] | iam policy --principal ARN
@@ -1406,15 +1503,21 @@ type Config struct {
 	Snapshot    Snapshot       // MaxBytes: every archive, saved, uploaded, loaded or checkpointed
 	SigV4       SigV4Mode      // ParseOnly | Verify
 	Seed        *uint64
-	Clock       ClockStart     // Running{At?} | Frozen{At}; Scale
+	Clock       ClockStart     // Running | Frozen{At} | Scaled{Factor}; a running clock starts at wall time
 	Accounts    Accounts       // default account, static keys
 	Regions     []aws.Region   // additions to the real-name table
+	Docker      Docker         // DockerSocket{Path} | DockerTCP{Addr} | DockerTLS{Addr, CertDir} | DockerDisabled
 	S3          S3             // BaseDomains (localhost.localstack.cloud may be added); CrossRegion: AWS | Lenient; MaxObjectBytes
-	Lambda      Lambda         // Network: Auto | Bridge{Gateway} | Disabled; StartConcurrency; IdleTimeout; MaxEnvironments; HotReload []Mapping
+	Lambda      Lambda         // Network: Auto | Bridge{Gateway} | Disabled; StartConcurrency; IdleTimeout; MaxEnvironments; StateTransitions; HotReload
+	SQS         SQS            // DeletedRecently: Ignore | Enforce
+	SNS         SNS            // HTTPDelivery: Allow (egress allow-list), CABundle
+	SES         SES            // VerifiedIdentities; ProductionAccess
+	IAM         IAM            // AssumeRole: strict | lenient; Enforce: off | advise | enforce
 	DynamoDB    DynamoDB       // Mode: Enabled | Disabled; Registry: DockerHub | ECRPublic; MemoryLimit
-	Journal     Journal        // Capacity; Bodies; File
+	Journal     Journal        // Capacity (events); MaxBytes; File
 	Faults      []fault.Rule   // preloaded
 	Log         Log            // slog level; JSON or text
+	// also DockerLabels, ReadyFile, LoadSnapshot and the Warnings that serve logs and doctor reports
 }
 ```
 
@@ -1427,7 +1530,7 @@ Shape conformance, behavioral tests and recorded parity are reported separately,
 | Layer | Where | Runs in | Proves |
 |---|---|---|---|
 | Generator golden tests | `internal/codegen` | `go test` | model fragments to expected Go; unknown traits fail; generate twice, compare |
-| Model example tests | generated `examples_gen_test.go` | `go test` | the 260 model examples decode and validate |
+| Model example tests | generated `examples_gen_test.go` | `go test` | every model example decodes and validates |
 | Protocol compliance | `internal/protocoltest` | `go test` | codecs, bindings and error writers against the official corpus (6.4); per-protocol pass, skip, fail counts feed coverage |
 | Codec and engine properties | per package, rapid | `go test` | round trips for every codec; CBOR never panics on mutated input (all 65536 half-float patterns); form index permutations; `aws-chunked` encode and decode over random chunkings with and without trailers; checksums streaming equals one-shot and combine equals whole; Ruler invariants (array and scalar intersection, rule-order independence, numeric never matches strings); log pattern algebra (complement, commutativity); schedule expressions; input transformer output parses; SigV4 sign-then-verify; listing pages concatenate to the unpaginated listing; `encoding-type=url` round trip; SQS MD5 vectors |
 | Service semantics | `internal/service/*` | `go test`, `synctest.Test` via `kerneltest` | AWS-observable behavior on the emulator clock through `kernel.Invoke`: visibility, redrive, FIFO group blocking, dedup, long polls, TTL, retention, schedules, deletion windows, key states; rapid `StateMachineActions` for the SQS queue (interleaving receive, delete and change-visibility against timer state), the DynamoDB TTL shim and the Lambda pool against a fake launcher; golden vectors from research (SQS MD5, CBOR G01 to G24, checksum vectors, Coral texts, Ruler seeds, Logs vectors); identifier-form fanout (name, `name:qualifier`, partial ARN, full ARN, other-region and other-account ARN) and create-then-get echo per resource type |
@@ -1436,23 +1539,31 @@ Shape conformance, behavioral tests and recorded parity are reported separately,
 | Wire goldens | `internal/edge/testdata` | `go test` | exact request lines real SDKs send (Go snapshots, botocore forms, `?uploads` vs `?uploads=`, `x-id`) route to the same operation; `httptest.NewTestServer` inside bubbles |
 | Parity replay | `internal/parity` over the `scenario.json` files in `testdata/parity` | `go test` | real AWS exchanges replayed against an in-process server, re-signed as the masked account's root under both `--sigv4 parse` and `verify`, in recorded order with setup calls, clock advances and bound ids; status, error code and message, selected headers and the whole body compared, hidden only by a per-field waiver or the closed, named normalizer set of `internal/normalize` (request and host ids, timestamps, account and masked identities, credentials, receipt handles, bound values); each step's outcome and each settled claim a ratchet over `internal/parity/baseline.json`. awsJson and awsQuery only: REST (S3, Lambda) and Docker steps are skipped with the reason |
 | Snapshot round trip | per service | `go test` | random state, save, load, save, byte-identical; `Rearm` reproduces the scheduler |
-| Real-client conformance | `conformance/*` | each suite's `run.sh` via `scripts/sealed`; CI `conformance` job | Go v2, boto3, JS v3, AWS CLI; per-SDK wire-capture fixtures that fail when an SDK release changes its wire form; DynamoDB runs unless opted out explicitly (`CONFORMANCE_DYNAMODB=0`), and every skip is listed in the run's summary |
-| Terraform | `conformance/terraform` | `scripts/sealed` | per resource group at provider 6.68.0: apply, `plan -detailed-exitcode` is 0, mutate, apply, plan, destroy; journal call-sequence assertions; per-test account isolation; a non-blocking canary against the latest provider |
-| End to end | `conformance/e2e` (later phase) | `scripts/sealed` | the phase 1 workload with a fixed seed in both Frozen and Running modes; asserts the canonical trace tree and a normalized snapshot diff (section 12) |
-| Docker integration | `-tags docker` | `just test-docker` | Python 3.13 and `provided.al2023`: warm reuse, `Unhandled`, `Runtime.ExitError`, timeout then cold start, OOM, concurrent invokes get separate environments, chunked-trailer errors, the missing `Content-Type` regression, hot reload, crash recovery after `kill -9`, the deadline test (frozen then advanced clock leaves `get_remaining_time_in_millis()` within 100 ms of the timeout; `lambda-runtime-contract.md 1`), DynamoDB Local egress; part of the gate |
-| Smoke | `internal/smoke` | `just smoke` | builds the binary, starts it on `127.0.0.1:0` with `--ready-file`, waits for `/health` ready, drives one raw HTTP request per service (both HTTP and the self-signed TLS listener for the S3 write path with an `aws-chunked` trailer body), asserts the generated policy for the smoke workload, runs inside the Docker image as the `InContainer` check |
+| Real-client conformance | `conformance/{go-sdk,python-boto3,js-sdk-v3,aws-cli}` | each suite's `run.sh` via `scripts/sealed`; CI `conformance` job | Go v2, boto3, JS v3 and the AWS CLI against a served binary, under `--sigv4 parse` and, for all but go-sdk, `verify` (`conformance/README.md`); DynamoDB runs unless opted out explicitly (`CONFORMANCE_DYNAMODB=0`), and every skip is listed in the run's summary |
+| Terraform | `conformance/terraform` | its `run.sh` via `scripts/sealed`; CI `conformance` job | per service at provider 6.68.0: apply, a no-change plan, an update, destroy, then a check that the state is empty and understudy holds nothing in the service's account; one account per service |
+| End to end | `conformance/e2e-pipeline` | its `run.sh` via `scripts/sealed`; CI `conformance` job | the event-driven pipeline (S3, SNS, SQS, Lambda, EventBridge, DynamoDB, KMS, Secrets Manager, Logs) through the Go SDK on a frozen clock: journal causal chains, fault rules, destinations, snapshots |
+| Serverless patterns | `conformance/patterns` | its `run.sh` via `scripts/sealed` | AWS serverless-patterns projects applied through Terraform as their READMEs run them |
+| IAM loop | `conformance/iam-loop` | its `run.sh` via `scripts/sealed` | the aws-cli and go-sdk suites as an IAM user: record under `--iam-enforce advise`, attach the rendered policies, re-run under `enforce` |
+| Testcontainers modules | `testcontainers/{go,python,node}` | `just testcontainers`; CI `testcontainers` job | each module starts the built image and reaches it (`testcontainers.md 8.7`) |
+| Examples | `examples/` | `examples/check.sh`; CI `examples` job | the example projects run as documented |
+| Docker integration | `-tags docker` | `just test-docker` | Python 3.13 and `provided.al2023`: warm reuse, `Unhandled`, `Runtime.ExitError`, timeout then cold start, OOM, concurrent invokes get separate environments, chunked-trailer errors, the missing `Content-Type` regression, hot reload, crash recovery after `kill -9`, the deadline test (frozen then advanced clock leaves `get_remaining_time_in_millis()` within 100 ms of the timeout; `lambda-runtime-contract.md 1`), DynamoDB Local egress; CI `test-docker` job |
+| Smoke | `internal/smoke` | `just smoke` | builds the binary, starts it on `127.0.0.1:0` with `--ready-file`, waits for `/health` ready, drives a few raw HTTP requests per service (both HTTP and the self-signed TLS listener for the S3 write path with an `aws-chunked` trailer body), asserts the generated policy for the smoke workload, runs inside the Docker image as the `InContainer` check |
 
 Behavior tests do not go over HTTP with a hand-rolled client; wire correctness is the job of the compliance suite, the goldens and the real-SDK modules. Time-dependent tests use `synctest` with the emulator clock; no test sleeps on wall time except the Docker and Terraform suites, whose provider floors (55 s per lifecycle configuration, 5 s per Lambda waiter, 25 s and 42 s SQS waits) are documented and sized into their timeouts. Every test gets its own account or region namespace, or its own server on `127.0.0.1:0`. Docker tests carry `understudy.dev/test=1` plus a per-run label, unique names, and delete by name.
 
-A scenario's `settles` entries claim fidelity switches and overlay evidence items for one step's field (`testdata/README.md`, Replay scenarios). A claim is settled only when the step matches and the comparison fails once the recorded value at that field is changed, so a field a waiver or normalizer hides settles nothing; a step that differs contradicts the claim. `understudy coverage --parity internal/parity/baseline.json` (run by `just coverage-check`) attributes the overlay items, switches (by their `Ops`) and replayed steps to operations, shows each operation's weakest claim, labels a settled claim `aws-recorded (<fixture>)` and a contradicted one `contradicted (<fixture>)`, and lists a settled switch or overlay item still labelled lower in code as pending retirement. A drift from the baseline is a finding or an improvement: `just parity-baseline` records it once intended. Record mode is `scripts/parity-record`. By default it prints a scenario's queued `record` commands in the recording kit's `rec` form and runs nothing; `--record` runs them only at a terminal, with no `AWS_ENDPOINT_URL*` set, once `aws sts get-caller-identity` answers with `UNDERSTUDY_RECORD_ACCOUNT` and that account id is typed at its prompt, then rebuilds the fixtures with `scripts/distill-parity`. Agents never run `--record`. Its backlog is R01 to R18 in `s3-checksum-residuals-and-record-backlog.md`.
+A scenario's `settles` entries claim fidelity switches and overlay evidence items for one step's field (`testdata/README.md`, Replay scenarios). A claim is settled only when the step matches and the comparison fails once the recorded value at that field is changed, so a field a waiver or normalizer hides settles nothing; a step that differs contradicts the claim. `understudy coverage --parity internal/parity/baseline.json` (run by `just coverage-check`) attributes the overlay items, switches (by their `Ops`) and replayed steps to operations, shows each operation's weakest claim, labels a settled claim `aws-recorded (<fixture>)` and a contradicted one `contradicted (<fixture>)`, and lists a settled switch or overlay item still labelled lower in code as pending retirement. A drift from the baseline is a finding or an improvement: `just parity-baseline` records it once intended.
 
-Gates: `go vet`, `golangci-lint` (the strict configuration in `go-toolchain.md 13`), `go test -race ./...`, `just generate-check`, the protocol-test and parity replay baseline ratchets, the coverage page drift check, the snapshot round trip across every registered service, `just budgets`, and `just test-docker` once the Lambda runtime exists. The real-SDK conformance suites, Terraform suites, the e2e workload and the scheduled SDK and provider canaries belong to the conformance phase. The human-run R01 to R18 recordings are filed under `testdata/parity/`, captured with the [recording kit](recording-kit.md). CI also runs `examples/check.sh` (the `examples` job) and every conformance suite's run.sh (the `conformance` job, one matrix entry per suite) on pushes to main and pull requests, DynamoDB Local included (ADR 0014 amendment of 2026-10-14). The `testcontainers` job builds the image once and runs each Testcontainers module's run.sh against it (`testcontainers.md 8.7`).
+Record mode is `scripts/parity-record`. By default it prints a scenario's queued `record` commands in the recording kit's `rec` form and runs nothing; `--record` runs them only at a terminal, with no `AWS_ENDPOINT_URL*` set, once `aws sts get-caller-identity` answers with `UNDERSTUDY_RECORD_ACCOUNT` and that account id is typed at its prompt, then rebuilds the fixtures with `scripts/distill-parity`. Agents never run `--record`. Its backlog is R01 to R18 in `s3-checksum-residuals-and-record-backlog.md`.
+
+Gates. `just verify` is the gate for every change: the gofmt check, `go vet`, `golangci-lint` (the strict configuration in `go-toolchain.md 13`) and `go test -race ./...`, which includes the protocol-test and parity replay ratchets and the snapshot round trip across every registered service. CI (`.github/workflows/ci.yml`) adds, on pushes to main and pull requests: `just sealed-test`, `just generate-check`, `just ui-check`, `just coverage-check`, `just budgets`, `just smoke`, `just test-docker`, the image build, `just release-check`, `examples/check.sh`, the conformance suites (go-sdk, python-boto3, js-sdk-v3, aws-cli, terraform and e2e-pipeline, one matrix entry each, DynamoDB Local included) and the Testcontainers modules against one image build. The patterns and iam-loop suites run by hand.
+
+The human-run R01 to R18 recordings are filed under `testdata/parity/`, captured with the [recording kit](recording-kit.md).
 
 ## 20. Security model
 
 - Listeners: main on `127.0.0.1` by default. The container listener and per-environment Runtime API listeners bind only the topology's address, never `0.0.0.0`, exist only while Lambda environments do, and serve no admin API. A non-loopback main listener requires an admin token together with `--allow-unauthenticated-aws-api` (the token guards only `/_understudy/`), except inside a container with its own network namespace outside Kubernetes (`Exposed{ContainerPublished}` validated against the detected placement), where Docker's port publishing is the exposure control; without one of the two, `serve` exits with an error that explains both options. A loopback listener answers only Hosts no outside DNS server can point at it (DNS rebinding); a listener beyond loopback answers every Host from a client that is not a browser, since its clients name it by whatever their network calls it, and holds a browser's request to the loopback names. The Runtime API has no authentication in AWS's protocol; isolation is the per-environment port on the bridge address, documented as within the local Docker trust domain.
 - Pages: user-controlled content under `/_understudy/` (the function URL and execute-api path fallbacks) is served with `Content-Security-Policy: sandbox`, so it runs in an opaque origin and cannot read admin or UI answers; the host forms are origins of their own, as on AWS (ADR 0020).
-- Web UI (ADR 0020): `serve` draws a session secret with `crypto/rand` at every start (`ui.NewSecret`, 26 characters of A-Z and 2-7) and hands it over only in the fragment of the banner's UI URL, which a browser sends neither to a server nor in a `Referer`. The page removes the fragment with `history.replaceState`, keeps the secret in module memory (never a cookie, `localStorage` or `sessionStorage`) and sends it as `Understudy-UI-Session` on every admin call. The admin handler's `refuseBrowser` has exactly one pass beyond today's rule (neither `Origin` nor a `Sec-Fetch-Site` other than `none`): exactly one session header equal to the secret (constant-time compare), `Sec-Fetch-Site` exactly `same-origin`, and `Origin` absent or the request's own `<scheme>://<Host>`. Every call refused without the secret is refused as before, the edge's host policy and `crossSiteAdmin` still run first, and the bearer token is still required where configured; the page asks for it once, on a `401 unauthorized`, and keeps it in memory too. The custom header makes a cross-origin call preflighted, and no preflight is approved. The UI's files are served with `Content-Security-Policy: default-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`, `X-Content-Type-Options: nosniff`, `Cross-Origin-Opener-Policy: same-origin` and `Referrer-Policy: no-referrer`, and the page writes event data as text, never as markup. `crossSiteAdmin` guards the UI's files like the admin API, and answers a cross-site request for them, such as following a link to the UI on another site, with text that says to paste the printed URL. Known limit, not verified in a browser: a page opened at a name that is not loopback (an exposed listener addressed by its network address) sends that name as `Origin` on its POST, PUT and DELETE calls, which `crossSiteAdmin` refuses, and on its module script if the browser sends `Origin` there, which would keep the page from loading; over plain HTTP at such a name the browser sends no `Sec-Fetch-*` headers, so the page's reads would pass as a program's calls rather than through the secret. Loopback names (`localhost`, `127.0.0.1`, names under `localhost`) work fully, over HTTP and over the TLS listener; a remote listener or one bound to one specific address is reached through a port forward from a loopback port.
+- Web UI (ADR 0020): `serve` draws a session secret with `crypto/rand` at every start (`ui.NewSecret`, 26 characters of A-Z and 2-7) and hands it over only in the fragment of the banner's UI URL, which a browser sends neither to a server nor in a `Referer`. The page removes the fragment with `history.replaceState`, keeps the secret in module memory (never a cookie, `localStorage` or `sessionStorage`) and sends it as `Understudy-UI-Session` on every admin call. The admin handler's `refuseBrowser` has exactly one pass beyond its rule for programs (neither `Origin` nor a `Sec-Fetch-Site` other than `none`): exactly one session header equal to the secret (constant-time compare), `Sec-Fetch-Site` exactly `same-origin`, and `Origin` absent or the request's own `<scheme>://<Host>`. Every other browser call is refused, the edge's host policy and `crossSiteAdmin` still run first, and the bearer token is still required where configured; the page asks for it once, on a `401 unauthorized`, and keeps it in memory too. The custom header makes a cross-origin call preflighted, and no preflight is approved. The UI's files are served with `Content-Security-Policy: default-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`, `X-Content-Type-Options: nosniff`, `Cross-Origin-Opener-Policy: same-origin` and `Referrer-Policy: no-referrer`, and the page writes event data as text, never as markup. `crossSiteAdmin` guards the UI's files like the admin API, and answers a cross-site request for them, such as following a link to the UI on another site, with text that says to paste the printed URL. Known limit, not verified in a browser: a page opened at a name that is not loopback (an exposed listener addressed by its network address) sends that name as `Origin` on its POST, PUT and DELETE calls, which `crossSiteAdmin` refuses, and on its module script if the browser sends `Origin` there, which would keep the page from loading; over plain HTTP at such a name the browser sends no `Sec-Fetch-*` headers, so the page's reads would pass as a program's calls rather than through the secret. Loopback names (`localhost`, `127.0.0.1`, names under `localhost`) work fully, over HTTP and over the TLS listener; a remote listener or one bound to one specific address is reached through a port forward from a loopback port.
 - Docker socket access is root-equivalent on the host; the README and `doctor` say so. Function containers: memory limit, `PidsLimit`, `nofile`, `CapDrop: ["ALL"]`, `no-new-privileges`, no privileged mode, no host network, no socket mount, read-only code mounts, labels for sweeping.
 - Filesystem: S3 keys never become paths; zip extraction rejects non-local names and symlinks and caps sizes; extracted trees are content-addressed and read-only once written; the snapshot loader validates every tar entry name with `filepath.IsLocal` before writing; no symlink is ever created from user input.
 - Input limits: body caps per operation, `MaxHeaderBytes`, `MaxHeaderValueCount`, CBOR depth and length checks, JSON and XML decoders with size limits; region strings validated before they reach DynamoDB Local; user metadata 2 KB; S3 single PUT 5 GiB; DynamoDB 413 above 16 MiB.
@@ -1462,31 +1573,37 @@ Gates: `go vet`, `golangci-lint` (the strict configuration in `go-toolchain.md 1
 - Containers: every object labeled with `understudy.dev/managed`, `instance`, `owner`, `function`, `account`, `region`, `generation`; graceful drain on SIGINT and SIGTERM (`DELETE ?force=1&v=1`, Python RIC as PID 1 ignores SIGTERM); startup sweep of this owner's leftovers guarded by the data-dir `flock`; every `serve` also removes, in the background, the containers, networks and temporary directories of runs without persistence whose process is gone, judged by boot id, PID namespace, PID and process start time (`internal/server/runs.go`), and never a run of another boot or PID namespace, which may be live elsewhere; `understudy cleanup` on demand; `understudy.dev/test=1` is set only by test harnesses.
 - `scripts/sealed` is the only way tooling in this repo talks to understudy; conformance suites run through it.
 
-## 21. Phase 2 extension points
+## 21. Extension points
 
-| Extension | Seam that exists in phase 1 |
+What understudy does not do, and the seam each addition would use. Everything in the left column is unbuilt; an operation among them stays unbound or answers 501 (6.3).
+
+| Extension | Seam |
 |---|---|
 | New service | vendor the model, add overlay and service config, `just generate`, copy a skeleton, bind handlers, add a conformance case (5.8) |
 | New protocol | implement `smithy.Serializer` and `Deserializer`, add a claim rule and an error writer; the corpus already carries its cases |
-| IAM enforcement | built, opt-in. `kernel.Options.Authorizer` is asked at pipeline step 8 (4) about every call except raw-HTTP bindings, `AsPlatform` calls and `NeverAuthorized` bindings (`sts:GetCallerIdentity`), and through `kernel.Authorize` by handlers that resolve their resource themselves (`AuthorizedInHandler`: IAM `GetRole`); an operation that names its resource by name (IAM users, roles and instance profiles, KMS keys behind an alias, Secrets Manager secrets) is `AuthorizedAfterResolve`, asked at its first `Write` or `Invoke` or its return, over what it resolved. A denial answers the service's `registry.Service.Denial` identity. Under `iam.enforce` advise and enforce, `wire.go` sets the `internal/enforce` Authorizer, which reads IAM's identity-based policies (`authz.IdentitySource`) and each resource's stored policy (`authz.StoredPolicyReader`), decides with `authz.Decide` and journals the advisories advise and enforce write; under off it sets none. `authz.CheckResource` is the single-policy check function URLs use. The access recorder gets the `(action, resource)` pairs step 8 asks about, scoped by `WithResourcesFor`, and those handlers asked through `kernel.Authorize`, whatever the mode. Deliveries are `AsService` calls decided like any other (16). `POST /iam/evaluate` (17) answers from the same Authorizer. Not built, each with a coverage note: IAM groups, KMS grants and the policy simulator stay unbound, so a group's policies would be one more identity source for `authz.Decide`, and a grant one more KMS policy input; S3 Block Public Access and the KMS lockout check would be checks in the owning service |
-| DynamoDB Streams and Kinesis to Lambda | built (14.8, 15): the understudy-owned stream log in `service/dynamodb` on `internal/shardlog`, and the stream reader behind `esm.StreamSource`. Kinesis Data Streams reuses both: `service/kinesis` keeps each shard's records in a `shardlog.Shard` (data in the blob store) and issues `shardlog` Opaque iterators, and a Kinesis mapping is the `esm.KinesisStream` kind with its own `StreamSource`, read through `kernel.Invoke` as the execution role; a mapping is a pull, not a `delivery.Target`. Not built, each answering 501: CBOR (a body variant of the awsJson codec on `internal/protocol/cbor`) and HTTP/2 prior knowledge (`Server.Protocols` with `UnencryptedHTTP2` on the main listener), which the edge answers with a diagnostic naming the client setting; resharding, whose split and merge would close a `shardlog.Shard` and open its children; enhanced fan-out, which needs an `application/vnd.amazon.eventstream` encoder |
-| EventBridge Kinesis targets | new `delivery.Target` variants and envelope builders; the retry engine and journal edges are shared. Lambda destinations are built that way (16) |
-| Step Functions | Standard workflows are built: `service/sfn` runs the pure `asl` engine's steps as emulator-clock timers, and a Lambda Task is a synchronous `kernel.Invoke` of Lambda's `Invoke` as the execution role, from tracked work the `sfn.invoke` timer starts, not a `delivery.Target` variant: Retry and Catch are the engine's, not the delivery retry engine's. Another integration (SQS, SNS, DynamoDB, nested executions) is one more Task resource in the engine and one more `kernel.Invoke` in the service. A Scheduler or EventBridge target that starts an execution is a `delivery.Target`: Scheduler's is built, `delivery.StateMachine` under `SchedulerToStates`, whose outbox attempt calls `StartExecution` as the execution role's session (16); an EventBridge rule target on a `states` ARN is not served yet and would be one more mechanism over the same variant |
-| API Gateway | HTTP APIs are built: the raw `apigatewayv2.InvokeApi` operation serves the execute-api host and path claims (4.1) and calls Lambda through `kernel.Invoke`. Integrations are synchronous calls, not deliveries, so the SQS and EventBridge subtypes (stored today, answering 501 when reached) become `kernel.Invoke` calls from `InvokeApi`, not `delivery.Target` variants (`apigateway-http.md` 13.8). REST APIs are built as a second registry service, `apigateway`, on the same signing name with a disjoint route table (ADR 0019): the raw `apigateway.InvokeRestApi` operation serves the REST APIs the same claims resolve to (4.1), runs `AWS_PROXY` through `kernel.Invoke` and `MOCK` in process, and answers 501 for `HTTP`, `HTTP_PROXY` and `AWS` integrations and for mapping templates that need Velocity (`apigateway-rest.md` 12.2) |
-| Web UI | built (17, 20): `ui/` reads the admin API only, through the boundary readers in `ui/src/wire.ts`, so a new view is a new reader and panel over an existing endpoint; a new journal kind, Via, Mechanism or ids kind fails `TestLabelTable` until `just ui` regenerates the table, and the page renders a kind it has no label for generically. The stream is read with `fetch`, not `EventSource`, because the session header must travel with it; an SSE variant stays one `Accept` branch for a client that needs one |
+| IAM groups, KMS grants, the IAM policy simulator | inputs to the Authorizer of section 4: a group's policies are one more identity source for `authz.Decide`, a grant one more KMS policy input. Each has a coverage note |
+| S3 Block Public Access, the KMS lockout check | checks in the owning service; a call served without one journals a `check-not-run` advisory (10) |
+| Kinesis over CBOR or HTTP/2 prior knowledge | CBOR is a body variant of the awsJson codec on `internal/protocol/cbor`; HTTP/2 is `Server.Protocols` with `UnencryptedHTTP2` on the main listener. The edge answers both with a 501 diagnostic naming the client setting |
+| Kinesis resharding | a split or merge closes a `shardlog.Shard` and opens its children |
+| Kinesis enhanced fan-out | an `application/vnd.amazon.eventstream` encoder |
+| EventBridge targets on Kinesis streams or Step Functions state machines | a new `delivery.Target` variant and envelope builder for Kinesis; one more mechanism over `delivery.StateMachine` for Step Functions. The retry engine and journal edges are shared (16) |
+| Step Functions Express workflows and Task integrations other than Lambda (SQS, SNS, DynamoDB, nested executions) | one more Task resource in the `asl` engine and one more `kernel.Invoke` in `service/sfn` (16) |
+| HTTP API integration subtypes (SQS, EventBridge) | `kernel.Invoke` calls from `apigatewayv2.InvokeApi`, not `delivery.Target` variants (`apigateway-http.md` 13.8); stored and answering 501 when reached |
+| REST API `HTTP`, `HTTP_PROXY` and `AWS` integrations, Velocity mapping templates | branches of `apigateway.InvokeRestApi` (`apigateway-rest.md` 12.2); answering 501 when reached |
+| Server-sent events for the journal stream | one `Accept` branch on `GET /journal/stream` (17) |
 | Wildcard DNS for containers | `topology` yields addresses; a stdlib DNS responder handed to containers via `HostConfig.Dns` is a new listener behind an ADR |
 | Named-volume code delivery, Ryuk-style reaper, private registries | `lambda/launcher` and `docker` own those decisions; nothing else knows about mounts or auth |
-| SigV4A, signed streaming for non-Go SDKs | `auth` payload-hash sum type already names the variants |
+| SigV4A | `auth.Parse` recognizes the algorithm and refuses it by name (`UnsupportedAlgorithm`); the verifier is a pure function over a normalized request (7) |
 | Scaled-clock ramp semantics for ESM, provisioned concurrency | state-derived scheduler tasks per mapping |
-| Write-ahead log for persistence | `Cell.rev` and the section writers; the archive format is versioned; bbolt is pre-qualified for the log, beside the archive (ADR 0016, dependency policy amendment) |
+| Write-ahead log for persistence | `Cell.Rev` and the section writers; the archive format is versioned; bbolt is pre-qualified for the log, beside the archive (ADR 0016) |
 
-## 24. Distribution
+## 22. Distribution
 
 - Binary: `CGO_ENABLED=0`, `-trimpath`, `-ldflags "-s -w -X main.version=..."`, for `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`. `.goreleaser.yaml` builds the matrix, archives, checksums, the multi-arch image and a Homebrew cask; nothing is published until the maintainer enables it (`docs/release-runbook.md`). `just release-check` runs `goreleaser check` and a snapshot release with publishing skipped, using the pinned GoReleaser from the Go module proxy; CI's `release-check` job runs it on every pull request, and the release workflow runs GoReleaser on `v*` tags.
-- Image: `FROM scratch` plus `ca-certificates` (image pulls over TLS), the static binary, a non-root user (`65532`), `ENTRYPOINT ["/understudy"]`, `CMD ["serve"]`, `EXPOSE 4566`, `HEALTHCHECK` running `understudy health` (which follows `UNDERSTUDY_ENDPOINT`, else the port of `UNDERSTUDY_LISTEN`), labels `org.opencontainers.image.*`. Inside the image `serve` binds `Exposed{0.0.0.0:4566, ContainerPublished}` without a token only when the container has its own network namespace outside Kubernetes; with host networking or in a pod it defaults to loopback with a warning, and listens beyond it only with an admin token. It warns in the banner, and reaches Docker only when `/var/run/docker.sock` is mounted (otherwise Docker and DynamoDB are "disabled: no Docker socket" in `/health`, and Lambda is degraded to its control plane: functions can be created and read, and only Invoke fails). Persistence mounts `/data`. The compose and Testcontainers recipes in the later docs phase build on `--ready-file` and the health endpoint.
+- Image: `FROM scratch` plus `ca-certificates` (image pulls over TLS), the static binary, a non-root user (`65532`), `ENTRYPOINT ["/understudy"]`, `CMD ["serve"]`, `EXPOSE 4566`, `HEALTHCHECK` running `understudy health` (which follows `UNDERSTUDY_ENDPOINT`, else the port of `UNDERSTUDY_LISTEN`), labels `org.opencontainers.image.*`. Inside the image `serve` binds `Exposed{0.0.0.0:4566, ContainerPublished}` without a token only when the container has its own network namespace outside Kubernetes; with host networking or in a pod it defaults to loopback with a warning, and listens beyond it only with an admin token. It warns in the banner, and reaches Docker only when `/var/run/docker.sock` is mounted (otherwise Docker and DynamoDB are "disabled: no Docker socket" in `/health`, and Lambda is degraded to its control plane: functions can be created and read, and only Invoke fails). Persistence mounts `/data`. The compose example (`examples/docker-compose`) and the Testcontainers modules (`testcontainers/`) build on the health endpoint.
 - Platforms: Linux and macOS natively; Windows through WSL2 only. The Docker socket on Windows is a named pipe the standard library cannot dial, and the data-dir lock uses `flock`.
 
-## 27. ADR index
+## 23. ADR index
 
 | ADR | Decision |
 |---|---|
@@ -1498,7 +1615,7 @@ Gates: `go vet`, `golangci-lint` (the strict configuration in `go-toolchain.md 1
 | [0006](adr/0006-clock-domains-and-scheduler.md) | Three time domains, `clock.Instant`, forward-only stepwise clock, heap scheduler, ESM pinning |
 | [0007](adr/0007-causal-journal.md) | Causal journal: typed events, state-carried causes, NDJSON stream, schema-driven redaction |
 | [0008](adr/0008-fault-injection.md) | Fault rules validated against the error catalogue, seeded triggers, request and delivery phases |
-| [0009](adr/0009-snapshot-format.md) | Snapshot format v1, re-arm instead of serialized timers, opt-in persistence without a WAL |
+| [0009](adr/0009-snapshot-format.md) | Snapshot format, re-arm instead of serialized timers, opt-in persistence without a WAL |
 | [0010](adr/0010-lambda-hosted-runtime-api.md) | Lambda runs on an understudy-hosted Runtime API, not the RIE; hot reload as an overlay |
 | [0011](adr/0011-container-networking.md) | Container listener on the bridge gateway, per-environment listeners, IPv4-literal endpoints |
 | [0012](adr/0012-identity-and-defaults.md) | Account from access key policy, default account, port, region table |
