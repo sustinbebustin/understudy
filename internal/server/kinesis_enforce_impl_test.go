@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"slices"
 	"strings"
@@ -34,6 +35,28 @@ func TestKinesisDenialIdentityIsTheModels(t *testing.T) {
 	id := kinesisapi.DenialError()
 	if id.Status != http.StatusBadRequest || !strings.HasSuffix(string(id.Shape), "#AccessDeniedException") {
 		t.Errorf("Kinesis denial identity = %s %d, want AccessDeniedException 400", id.Shape, id.Status)
+	}
+}
+
+// A session of a role with no policy is refused ListStreams with the body
+// IAM-ENF-36 recorded (2026-11-03,
+// testdata/parity/kinesis/IAM-ENF/36-kinesis.json): 400, the bare __type,
+// and the grammar without "on resource:" under the key "Message", where
+// the model's member is "message" (iam-enforcement-surfaces.md 12.3). The
+// caller is understudy's account and role in place of the recording's.
+func TestKinesisDenialBodyMatchesTheRecording(t *testing.T) {
+	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
+	w := kinesisCall(t, sessionOf(t, endpoint, u), endpoint, "ListStreams", `{}`)
+	want := map[string]string{
+		"__type":  "AccessDeniedException",
+		"Message": "User: arn:aws:sts::000000000000:assumed-role/none/enf is not authorized to perform: kinesis:ListStreams because no identity-based policy allows the kinesis:ListStreams action",
+	}
+	var got map[string]string
+	if err := json.Unmarshal([]byte(w.body), &got); err != nil {
+		t.Fatalf("denied ListStreams body %s: %v", w.body, err)
+	}
+	if w.status != http.StatusBadRequest || !maps.Equal(got, want) {
+		t.Errorf("denied ListStreams = %d %s\nwant 400 %v", w.status, w.body, want)
 	}
 }
 

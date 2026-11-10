@@ -783,27 +783,27 @@ Internal operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| DisableEnhancedMonitoring | stored-only | third-party-recorded, 2 of 2 claims | shard-level metrics are stored and reported on the stream; no metrics are published to CloudWatch |
-| EnableEnhancedMonitoring | stored-only | third-party-recorded, 2 of 2 claims | shard-level metrics are stored and reported on the stream; no metrics are published to CloudWatch |
-| AddTagsToStream | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| DisableEnhancedMonitoring | stored-only | third-party-recorded, 2 of 3 claims | shard-level metrics are stored and reported on the stream; no metrics are published to CloudWatch |
+| EnableEnhancedMonitoring | stored-only | third-party-recorded, 2 of 3 claims | shard-level metrics are stored and reported on the stream; no metrics are published to CloudWatch |
+| AddTagsToStream | partial | third-party-recorded, 2 of 3 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
 | CreateStream | partial | inferred, 1 of 3 claims | ON_DEMAND streams start with four shards and never scale; WarmThroughputMiBps and RecordDistributionStrategy AUTO are answered with 501 NotImplemented; a stream that would take the region's shards above 20000 is refused with LimitExceededException, whose text is understudy's and UNVERIFIED (kinesis.md 4.1), and the on-demand stream quota is not enforced; the stream is ACTIVE when CreateStream returns, where AWS reports CREATING first |
-| DecreaseStreamRetentionPeriod | partial | inferred, 1 of 3 claims | error texts follow kinesalite and are UNVERIFIED (kinesis.md 4.7) |
-| DeleteStream | partial | third-party-recorded, 2 of 2 claims | the stream is gone when DeleteStream returns, where AWS reports DELETING first |
+| DecreaseStreamRetentionPeriod | partial | inferred, 1 of 4 claims | error texts follow kinesalite and are UNVERIFIED (kinesis.md 4.7) |
+| DeleteStream | partial | third-party-recorded, 2 of 3 claims | the stream is gone when DeleteStream returns, where AWS reports DELETING first |
 | DescribeLimits | partial | third-party-recorded, 2 of 2 claims | ShardLimit is 20000 and OnDemandStreamCountLimit 50 in every region; CreateStream enforces the shard limit, not the on-demand stream limit |
-| DescribeStream | partial | inferred, 2 of 4 claims | the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5) |
-| DescribeStreamSummary | partial | third-party-recorded, 2 of 2 claims | the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5) |
-| GetRecords | partial | inferred, 2 of 5 claims | per-shard read limits (5 calls/s, 2 MiB/s and the 5-second wait after a 10 MiB read) are not enforced; DryRun answers 501 NotImplemented; the Limit and expired-iterator texts follow kinesalite or are understudy's and are UNVERIFIED (kinesis.md 5.6, 13.3) |
-| GetShardIterator | partial | third-party-recorded, 2 of 2 claims | the five calls per second per shard limit is not enforced; DryRun answers 501 NotImplemented; argument error texts follow kinesalite and are UNVERIFIED (kinesis.md 5.4, 13.3) |
-| IncreaseStreamRetentionPeriod | partial | inferred, 1 of 3 claims | error texts follow kinesalite and are UNVERIFIED (kinesis.md 4.7) |
-| ListShards | partial | inferred, 2 of 4 claims | the errors for NextToken combined with StreamName, StreamCreationTimestamp or ExclusiveStartShardId, or for neither stream nor token, follow kinesalite and are UNVERIFIED (kinesis.md 4.6) |
+| DescribeStream | partial | inferred, 2 of 5 claims | the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5) |
+| DescribeStreamSummary | partial | third-party-recorded, 2 of 3 claims | the optional fields of a fresh stream (EncryptionType NONE, StreamModeDetails, MaxRecordSizeInKiB 1024, no KeyId, WarmThroughput or ConsumerCount) and the not-found text over JSON are inferred; AWS's are UNVERIFIED (kinesis.md 4.4, finding 5) |
+| GetRecords | partial | inferred, 2 of 6 claims | per-shard read limits (5 calls/s, 2 MiB/s and the 5-second wait after a 10 MiB read) are not enforced; DryRun answers 501 NotImplemented; the Limit and expired-iterator texts follow kinesalite or are understudy's and are UNVERIFIED (kinesis.md 5.6, 13.3) |
+| GetShardIterator | partial | third-party-recorded, 2 of 3 claims | the five calls per second per shard limit is not enforced; DryRun answers 501 NotImplemented; argument error texts follow kinesalite and are UNVERIFIED (kinesis.md 5.4, 13.3) |
+| IncreaseStreamRetentionPeriod | partial | inferred, 1 of 4 claims | error texts follow kinesalite and are UNVERIFIED (kinesis.md 4.7) |
+| ListShards | partial | inferred, 2 of 5 claims | the errors for NextToken combined with StreamName, StreamCreationTimestamp or ExclusiveStartShardId, or for neither stream nor token, follow kinesalite and are UNVERIFIED (kinesis.md 4.6) |
 | ListStreams | partial | third-party-recorded, 2 of 2 claims | names are listed in lexical order; AWS's order and token lifetime are UNVERIFIED (kinesis.md 4.5) |
-| ListTagsForResource | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
-| ListTagsForStream | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
-| PutRecord | partial | inferred, 2 of 4 claims | per-shard write limits (1 MiB/s, 1,000 records/s) are not enforced and ProvisionedThroughputExceededException comes only from fault injection; DryRun answers 501 NotImplemented; argument and record-size error texts follow kinesalite or are understudy's and are UNVERIFIED (kinesis.md 13.3) |
-| PutRecords | partial | inferred, 2 of 4 claims | per-shard write limits (1 MiB/s, 1,000 records/s) are not enforced; no entry fails: a fault rule fails the whole call, and entry-level fault injection is not built; argument, record-size and request-size error texts follow kinesalite or are understudy's and are UNVERIFIED (kinesis.md 13.3) |
-| RemoveTagsFromStream | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
-| TagResource | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
-| UntagResource | partial | third-party-recorded, 2 of 2 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| ListTagsForResource | partial | third-party-recorded, 2 of 3 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| ListTagsForStream | partial | third-party-recorded, 2 of 3 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| PutRecord | partial | inferred, 2 of 5 claims | per-shard write limits (1 MiB/s, 1,000 records/s) are not enforced and ProvisionedThroughputExceededException comes only from fault injection; DryRun answers 501 NotImplemented; argument and record-size error texts follow kinesalite or are understudy's and are UNVERIFIED (kinesis.md 13.3) |
+| PutRecords | partial | inferred, 2 of 5 claims | per-shard write limits (1 MiB/s, 1,000 records/s) are not enforced; no entry fails: a fault rule fails the whole call, and entry-level fault injection is not built; argument, record-size and request-size error texts follow kinesalite or are understudy's and are UNVERIFIED (kinesis.md 13.3) |
+| RemoveTagsFromStream | partial | third-party-recorded, 2 of 3 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| TagResource | partial | third-party-recorded, 2 of 3 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
+| UntagResource | partial | third-party-recorded, 2 of 3 claims | a 51st tag and an aws: key answer InvalidArgumentException; AWS's code and text are UNVERIFIED (kinesis.md 4.10) |
 | CreateChannel | unbound | unassessed |  |
 | DeleteChannel | unbound | unassessed |  |
 | DeleteResourcePolicy | unbound | unassessed |  |
@@ -2042,7 +2042,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-362 evidence items: 75 aws-recorded, 111 third-party-recorded, 57 aws-doc, 5 sdk-source, 114 inferred.
+363 evidence items: 76 aws-recorded, 111 third-party-recorded, 57 aws-doc, 5 sdk-source, 114 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2060,6 +2060,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | dynamodbstreams.json | `com.amazonaws.dynamodbstreams#DynamoDBStreams_20120810` | dev.understudy#validationError | testdata/parity/dynamodb/DDBS-02/03-describe-limit-0.json, 07-bad-type.json, 08-missing-type.json, 10-short-shard.json: AWS answers range, enum, required and length violations with 400 com.amazon.coral.validate#ValidationException in the Coral grammar, but without the value ("Value at 'limit' failed to satisfy constraint"), which the generated text quotes (docs/research/dynamodb-streams.md#65-error-and-validation-texts) (validated 2026-11-03) |
 | aws-recorded | eventbridge.json | `com.amazonaws.eventbridge#AWSEvents` | dev.understudy#denialError | testdata/parity/events/IAM-ENF/08-describe.json: an IAM denial answers 400 with __type AccessDeniedException, not the CommonErrors template's 403 (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch events.denial.status) (validated 2026-11-03) |
 | aws-recorded | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#denialError | testdata/parity/iam/IAM-ENF/10-get-role.json: an IAM denial answers 403 with Type Sender and Code AccessDenied in the IAM namespace envelope; the CommonErrors page's AccessDeniedException is a template (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch iam.denial.identity) (validated 2026-11-03) |
+| aws-recorded | kinesis.json | `com.amazonaws.kinesis#AccessDeniedException` |  | testdata/parity/kinesis/IAM-ENF/36-kinesis.json: the model's member is message, the wire key Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
 | aws-recorded | kinesis.json | `com.amazonaws.kinesis#Kinesis_20131202` | dev.understudy#denialError | testdata/parity/kinesis/IAM-ENF/36-kinesis.json: an IAM denial answers 400 with __type AccessDeniedException and the grammar in Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
 | aws-recorded (kms/KMS-alias/01-duplicate.json) | kms.json | `com.amazonaws.kms#AlreadyExistsException` |  | testdata/parity/kms/KMS-alias/02-duplicate-raw.json (validated 2026-10-14) |
 | aws-recorded | kms.json | `com.amazonaws.kms#TrentService` | dev.understudy#denialError | testdata/parity/kms/IAM-ENF/05-describe.json: an IAM denial answers 400 with __type AccessDeniedException, not the CommonErrors template's 403 (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch kms.denial.status) (validated 2026-11-03) |

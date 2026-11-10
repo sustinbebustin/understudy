@@ -7,6 +7,7 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 ### Fixed
 
 - `understudy version` names the version of a binary installed with `go install github.com/sustinbebustin/understudy/cmd/understudy@vX.Y.Z`, where it said `dev`. Without the release's stamp, the version is the module version the go command records, or the git version of a build in a checkout.
+- Under `--iam-enforce enforce`, a denied Kinesis call carries its message under `Message`, as AWS does, where it said `message`.
 
 ## [0.1.2] - 2026-11-09
 
