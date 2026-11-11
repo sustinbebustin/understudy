@@ -759,7 +759,7 @@ func renderedText(r awserr.Rendered) string {
 
 var policyAddPermission = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"label"}, param: "Label"},
 		{segments: []string{"aWSAccountIds"}, param: "AWSAccountIds"},
 		{segments: []string{"aWSAccountIds", "*", "member"}, param: "AWSAccountIds"},
@@ -792,7 +792,7 @@ func (*CancelMessageMoveTaskInput) ValidationError(vs []awserr.Violation) *awser
 
 var policyChangeMessageVisibility = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"receiptHandle"}, param: "ReceiptHandle"},
 		{segments: []string{"visibilityTimeout"}, param: "VisibilityTimeout"},
 	},
@@ -808,7 +808,7 @@ func (*ChangeMessageVisibilityInput) ValidationError(vs []awserr.Violation) *aws
 
 var policyChangeMessageVisibilityBatch = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"entries"}, param: "Entries"},
 		{segments: []string{"entries", "*", "member"}, param: "Entries"},
 		{segments: []string{"entries", "*", "member", "id"}, param: "Id"},
@@ -847,7 +847,7 @@ func (*CreateQueueInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 
 var policyDeleteMessage = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"receiptHandle"}, param: "ReceiptHandle"},
 	},
 	service: []validationRule{{kinds: kindRequired, id: IdentityMissingParameter, style: styleMissingParameter}, {id: IdentityInvalidParameterValue, style: styleCoral}},
@@ -862,7 +862,7 @@ func (*DeleteMessageInput) ValidationError(vs []awserr.Violation) *awserr.Error 
 
 var policyDeleteMessageBatch = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"entries"}, param: "Entries"},
 		{segments: []string{"entries", "*", "member"}, param: "Entries"},
 		{segments: []string{"entries", "*", "member", "id"}, param: "Id"},
@@ -880,7 +880,7 @@ func (*DeleteMessageBatchInput) ValidationError(vs []awserr.Violation) *awserr.E
 
 var policyDeleteQueue = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 	},
 	service: []validationRule{{kinds: kindRequired, id: IdentityMissingParameter, style: styleMissingParameter}, {id: IdentityInvalidParameterValue, style: styleCoral}},
 }
@@ -894,7 +894,7 @@ func (*DeleteQueueInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 
 var policyGetQueueAttributes = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"attributeNames"}, param: "AttributeNames"},
 		{segments: []string{"attributeNames", "*", "member"}, param: "AttributeNames"},
 	},
@@ -942,7 +942,7 @@ func (*HoldVisibilityInput) ValidationError(vs []awserr.Violation) *awserr.Error
 
 var policyListDeadLetterSourceQueues = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"nextToken"}, param: "NextToken"},
 		{segments: []string{"maxResults"}, param: "MaxResults"},
 	},
@@ -973,7 +973,7 @@ func (*ListMessageMoveTasksInput) ValidationError(vs []awserr.Violation) *awserr
 
 var policyListQueueTags = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 	},
 	service: []validationRule{{kinds: kindRequired, id: IdentityMissingParameter, style: styleMissingParameter}, {id: IdentityInvalidParameterValue, style: styleCoral}},
 }
@@ -1019,7 +1019,7 @@ func (*MessageCausesInput) ValidationError(vs []awserr.Violation) *awserr.Error 
 
 var policyPurgeQueue = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 	},
 	service: []validationRule{{kinds: kindRequired, id: IdentityMissingParameter, style: styleMissingParameter}, {id: IdentityInvalidParameterValue, style: styleCoral}},
 }
@@ -1033,7 +1033,7 @@ func (*PurgeQueueInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 
 var policyReceiveMessage = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"attributeNames"}, param: "AttributeNames"},
 		{segments: []string{"attributeNames", "*", "member"}, param: "AttributeNames"},
 		{segments: []string{"messageSystemAttributeNames"}, param: "MessageSystemAttributeNames"},
@@ -1057,7 +1057,7 @@ func (*ReceiveMessageInput) ValidationError(vs []awserr.Violation) *awserr.Error
 
 var policyRemovePermission = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"label"}, param: "Label"},
 	},
 	service: []validationRule{{kinds: kindRequired, id: IdentityMissingParameter, style: styleMissingParameter}, {id: IdentityInvalidParameterValue, style: styleCoral}},
@@ -1072,7 +1072,7 @@ func (*RemovePermissionInput) ValidationError(vs []awserr.Violation) *awserr.Err
 
 var policySendMessage = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"messageBody"}, param: "MessageBody", rules: []validationRule{{kinds: kindLength, id: IdentityMissingParameter, style: styleMissingParameter}}},
 		{segments: []string{"delaySeconds"}, param: "DelaySeconds", rules: []validationRule{{kinds: kindRange, id: IdentityInvalidParameterValue, style: styleParameter, reason: "DelaySeconds must be >= 0 and <= 900."}}},
 		{segments: []string{"messageAttributes"}, param: "MessageAttributes"},
@@ -1110,7 +1110,7 @@ func (*SendMessageInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 
 var policySendMessageBatch = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"entries"}, param: "Entries"},
 		{segments: []string{"entries", "*", "member"}, param: "Entries"},
 		{segments: []string{"entries", "*", "member", "id"}, param: "Id"},
@@ -1151,7 +1151,7 @@ func (*SendMessageBatchInput) ValidationError(vs []awserr.Violation) *awserr.Err
 
 var policySetQueueAttributes = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"attributes"}, param: "Attributes"},
 		{segments: []string{"attributes", "*"}, param: "Attributes"},
 		{segments: []string{"attributes", "*", "member"}, param: "Attributes"},
@@ -1184,7 +1184,7 @@ func (*StartMessageMoveTaskInput) ValidationError(vs []awserr.Violation) *awserr
 
 var policyTagQueue = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"tags"}, param: "Tags"},
 		{segments: []string{"tags", "*"}, param: "Tags"},
 		{segments: []string{"tags", "*", "member"}, param: "Tags"},
@@ -1201,7 +1201,7 @@ func (*TagQueueInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 
 var policyUntagQueue = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"queueUrl"}, param: "QueueUrl"},
+		{segments: []string{"queueUrl"}, param: "QueueUrl", rules: []validationRule{{kinds: kindRequired, id: IdentityQueueDoesNotExist, style: styleFixed, reason: "The specified queue does not exist."}}},
 		{segments: []string{"tagKeys"}, param: "TagKeys"},
 		{segments: []string{"tagKeys", "*", "member"}, param: "TagKeys"},
 	},

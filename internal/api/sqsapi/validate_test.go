@@ -66,7 +66,7 @@ func TestSendMessageRejectsADelayAbove900(t *testing.T) {
 
 // TestSendMessageViolationsFollowMemberOrder: violations come member by
 // member in model order, and the first picks the code: a missing QueueUrl
-// is SQS's MissingParameter although DelaySeconds also fails.
+// is SQS's QueueDoesNotExist although DelaySeconds also fails.
 func TestSendMessageViolationsFollowMemberOrder(t *testing.T) {
 	r := serdetest.NewReplayer([]serdetest.Event{
 		{Op: serdetest.OpWriteStruct, Schema: &schemaSendMessageInput},
@@ -91,7 +91,10 @@ func TestSendMessageViolationsFollowMemberOrder(t *testing.T) {
 		t.Fatalf("first constraint = %T, want Required", got[0].Constraint)
 	}
 	err := in.ValidationError(got)
-	if err.ID != IdentityMissingParameter() || err.Message != "The request must contain the parameter QueueUrl." {
+	// testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: an absent QueueUrl
+	// answers as an unknown queue (recorded for ReceiveMessage, inferred
+	// for SendMessage).
+	if err.ID != IdentityQueueDoesNotExist() || err.Message != "The specified queue does not exist." {
 		t.Fatalf("error = %+v %q", err.ID, err.Message)
 	}
 }

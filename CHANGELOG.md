@@ -16,6 +16,10 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 - `serve --tls --persist` keeps the TLS listener's key and certificate in the data directory and reuses them at the next start, so a CA bundle `env --tls` wrote keeps working across restarts. A kept certificate that is unreadable, expires within a day, or differs from the one the running build issues is replaced, with a warning naming why. Without `--persist` the certificate is still new at every start.
 - `GET /_understudy/v1/health` names the TLS listener as `tlsEndpoint` once it accepts, the value the ready file and the banner give; it is absent without `--tls`. `understudy env --tls` reads it, so it finds a TLS listener on any port without `--tls-endpoint`. It still tries the endpoint's host at port 4567 when health names none or cannot be read, and `--tls-endpoint` still wins.
 
+### Fixed
+
+- An SQS JSON request without `QueueUrl` answers `QueueDoesNotExist` (400, `x-amzn-query-error` `AWS.SimpleQueueService.NonExistentQueue;Sender`, `The specified queue does not exist.`), where it answered `MissingParameter`. It holds under `--iam-enforce enforce`, which resolves the queue before authorizing. Recorded for `ReceiveMessage`; inferred for every other operation that takes `QueueUrl`. A request that names a queue but omits another required member still answers `MissingParameter`.
+
 ### Changed
 
 - `understudy journal --limit N` fetches the newest events in one request, where it paged through every match. The notice for left-out events no longer gives the total: it reads `showing the newest N matching events; ...`, where it read `showing the newest N of M matching events; ...`.

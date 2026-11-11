@@ -1595,27 +1595,27 @@ Raw operations:
 |---|---|---|---|
 | CancelMessageMoveTask | full | third-party-recorded, 2 of 4 claims |  |
 | CreateQueue | full | inferred, 2 of 9 claims |  |
-| DeleteQueue | full | third-party-recorded, 3 of 6 claims |  |
-| GetQueueAttributes | full | third-party-recorded, 3 of 6 claims |  |
+| DeleteQueue | full | inferred, 1 of 7 claims |  |
+| GetQueueAttributes | full | inferred, 1 of 7 claims |  |
 | GetQueueUrl | full | third-party-recorded, 3 of 6 claims |  |
-| ListDeadLetterSourceQueues | full | third-party-recorded, 3 of 6 claims |  |
+| ListDeadLetterSourceQueues | full | inferred, 1 of 7 claims |  |
 | ListMessageMoveTasks | full | third-party-recorded, 2 of 4 claims |  |
-| ListQueueTags | full | third-party-recorded, 3 of 6 claims |  |
+| ListQueueTags | full | inferred, 1 of 7 claims |  |
 | ListQueues | full | third-party-recorded, 2 of 4 claims |  |
-| PurgeQueue | full | third-party-recorded, 3 of 6 claims |  |
-| SendMessage | full | inferred, 4 of 21 claims |  |
-| SendMessageBatch | full | inferred, 4 of 10 claims |  |
-| SetQueueAttributes | full | aws-doc, 1 of 8 claims |  |
+| PurgeQueue | full | inferred, 1 of 7 claims |  |
+| SendMessage | full | inferred, 5 of 22 claims |  |
+| SendMessageBatch | full | inferred, 5 of 11 claims |  |
+| SetQueueAttributes | full | inferred, 1 of 9 claims |  |
 | StartMessageMoveTask | full | aws-doc, 1 of 5 claims |  |
-| TagQueue | full | third-party-recorded, 3 of 6 claims |  |
-| UntagQueue | full | third-party-recorded, 3 of 6 claims |  |
-| AddPermission | partial | aws-doc, 1 of 7 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
-| ChangeMessageVisibility | partial | contradicted (sqs/R01/05-cmv-stale.json), 3 of 12 claims | an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200 |
-| ChangeMessageVisibilityBatch | partial | contradicted (sqs/R01/06-cmv-batch.json), 1 of 10 claims | an older receipt handle of a message received again since, or one of another queue, fails as not available for a visibility change, where AWS reports the first successful and fails the second as not valid for this queue |
-| DeleteMessage | partial | contradicted (sqs/R01/03-recv-after-6s.json), 3 of 16 claims | an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 "The receipt handle has expired." |
-| DeleteMessageBatch | partial | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 9 claims | a receipt handle of another queue is reported successful and deletes nothing, where AWS fails it as not valid for this queue |
-| ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 17 of 31 claims | a message's Attributes are sorted by name, where AWS writes them in an order of its own |
-| RemovePermission | partial | third-party-recorded, 3 of 6 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
+| TagQueue | full | inferred, 1 of 7 claims |  |
+| UntagQueue | full | inferred, 1 of 7 claims |  |
+| AddPermission | partial | inferred, 1 of 8 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
+| ChangeMessageVisibility | partial | contradicted (sqs/R01/05-cmv-stale.json), 3 of 13 claims | an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200 |
+| ChangeMessageVisibilityBatch | partial | contradicted (sqs/R01/06-cmv-batch.json), 1 of 11 claims | an older receipt handle of a message received again since, or one of another queue, fails as not available for a visibility change, where AWS reports the first successful and fails the second as not valid for this queue |
+| DeleteMessage | partial | contradicted (sqs/R01/03-recv-after-6s.json), 3 of 17 claims | an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 "The receipt handle has expired." |
+| DeleteMessageBatch | partial | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 10 claims | a receipt handle of another queue is reported successful and deletes nothing, where AWS fails it as not valid for this queue |
+| ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 17 of 32 claims | a message's Attributes are sorted by name, where AWS writes them in an order of its own |
+| RemovePermission | partial | inferred, 1 of 7 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
 
 Internal operations:
 
@@ -2050,7 +2050,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-378 evidence items: 101 aws-recorded, 110 third-party-recorded, 57 aws-doc, 5 sdk-source, 105 inferred.
+395 evidence items: 102 aws-recorded, 110 third-party-recorded, 57 aws-doc, 5 sdk-source, 121 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2146,6 +2146,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | sqs.json | `com.amazon.coral.service#AccessDenied` |  | testdata/parity/sqs/IAM-ENF/01-raw.json: the JSON body carries the message under Message where the shared shape's member is message; the Query body's Message element is unchanged (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#queryErrorEnvelope | testdata/parity/sqs/R11/05-sqs-query-nonexistent-queue.json (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#denialError | testdata/parity/sqs/IAM-ENF/01-get-attrs.json and testdata/parity/sqs/IAM-ENF/02-query.json: an IAM denial answers 403, over JSON with x-amzn-query-error AccessDenied;Sender and __type com.amazon.coral.service#AccessDeniedException, over Query with Type Sender and Code AccessDenied (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switches sqs.denial.json-identity and sqs.denial.query-text) (validated 2026-11-03) |
+| aws-recorded | sqs.json | `com.amazonaws.sqs#ReceiveMessageRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: a JSON ReceiveMessage with body {} answers 400, x-amzn-query-error AWS.SimpleQueueService.NonExistentQueue;Sender and QueueDoesNotExist, not MissingParameter (validated 2026-11-03) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$DelaySeconds` | dev.understudy#validationError | testdata/parity/sqs/R11/02-send-delay-901.json (validated 2026-10-14) |
 | aws-recorded | ssm.json | `com.amazonaws.ssm#AmazonSSM` | dev.understudy#validationPathStyle | testdata/parity/ssm/SSM-16/02-101-chars.json: a scalar list element's violation is named once at the list, Value '[<label>]' at 'labels' failed to satisfy constraint: Member must satisfy constraint: [Member must have length less than or equal to 100, Member must have length greater than or equal to 1] (docs/research/ssm-parameters.md#124-limits-and-validation-texts; docs/research/error-matrix.md#4-the-aws-validation-message-grammar-coral, style B); inferred: members of structured elements keep their indexed paths as recorded for Lambda and Scheduler, and the rolled-up map forms (Map keys must satisfy constraint, Map value must satisfy constraint) are unrecorded for SSM (validated 2026-11-03) |
 | aws-recorded | ssm.json | `com.amazonaws.ssm#AmazonSSM` | dev.understudy#denialError | testdata/parity/ssm/IAM-ENF/41-raw.json: an IAM denial answers 400 with __type AccessDeniedException, the model's own shape, the message under Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
@@ -2398,21 +2399,37 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | sesv2.json | `com.amazonaws.sesv2#Template$TemplateData` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: TemplateData holds the replacement values of a templated send (4.4), part of the sender's mail, which the journal must not keep; the model marks no send content sensitive |
 | inferred | sfn.json | `com.amazonaws.sfn#AWSStepFunctions` | dev.understudy#throttleError | docs/research/stepfunctions-api.md#32-error-identities-and-statuses: code ThrottlingException, HTTP 400 and SDK retry are documented at https://docs.aws.amazon.com/step-functions/latest/apireference/CommonErrors.html, which shows the bare name only; the awsJson1_0 __type namespace com.amazon.coral.service# is inferred from the recorded Coral denial and validation errors (SFN-15, SFN-08); no recording shows a throttled API call |
 | inferred | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#throttleError | docs/research/error-matrix.md#53-sns-query |
+| inferred | sqs.json | `com.amazonaws.sqs#AddPermissionRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
 | inferred | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#throttleError, dev.understudy#unknownOperationError, dev.understudy#validationError | docs/research/error-matrix.md#51-sqs-json-10 |
+| inferred | sqs.json | `com.amazonaws.sqs#ChangeMessageVisibilityBatchRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
+| inferred | sqs.json | `com.amazonaws.sqs#ChangeMessageVisibilityRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
 | inferred | sqs.json | `com.amazonaws.sqs#CreateQueueRequest$QueueName` | dev.understudy#validationError | Reason text from LocalStack https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/sqs/provider.py#L124-L138 and moto https://github.com/getmoto/moto/blob/636f64616f5efa7ec53a7bbf76cfb2f4bde5eda2/moto/sqs/models.py#L303-L311 (no recording shows AWS's text; docs/research/sqs.md#24-error-catalog); the Value/Reason frame is the one the recorded MessageGroupId and MaxNumberOfMessages texts use. Preferred over the developer guide example 'Must be an alphanumeric String of 1 to 80 in length.', whose frame no recording shows and which contradicts the quotas page that allows hyphens and underscores. |
+| inferred | sqs.json | `com.amazonaws.sqs#DeleteMessageBatchRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
+| inferred | sqs.json | `com.amazonaws.sqs#DeleteMessageRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
+| inferred | sqs.json | `com.amazonaws.sqs#DeleteQueueRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
+| inferred | sqs.json | `com.amazonaws.sqs#GetQueueAttributesRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
 | inferred | sqs.json | `com.amazonaws.sqs#HoldVisibility` |  | docs/adr/0006-clock-domains-and-scheduler.md |
 | inferred | sqs.json | `com.amazonaws.sqs#HoldVisibilityMode` |  | docs/adr/0006-clock-domains-and-scheduler.md |
 | inferred | sqs.json | `com.amazonaws.sqs#HoldVisibilityRequest` |  | docs/adr/0006-clock-domains-and-scheduler.md |
+| inferred | sqs.json | `com.amazonaws.sqs#ListDeadLetterSourceQueuesRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
+| inferred | sqs.json | `com.amazonaws.sqs#ListQueueTagsRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
 | inferred | sqs.json | `com.amazonaws.sqs#MessageCause` |  | docs/adr/0007-causal-journal.md |
 | inferred | sqs.json | `com.amazonaws.sqs#MessageCauseList` |  | docs/adr/0007-causal-journal.md |
 | inferred | sqs.json | `com.amazonaws.sqs#MessageCauses` |  | docs/adr/0007-causal-journal.md: the ESM invocation's parent is the earliest message's enqueue event, the rest are Links |
 | inferred | sqs.json | `com.amazonaws.sqs#MessageCausesRequest` |  | docs/adr/0007-causal-journal.md |
 | inferred | sqs.json | `com.amazonaws.sqs#MessageCausesResult` |  | docs/adr/0007-causal-journal.md |
+| inferred | sqs.json | `com.amazonaws.sqs#PurgeQueueRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
 | inferred | sqs.json | `com.amazonaws.sqs#ReceiptHandleList` |  | docs/adr/0006-clock-domains-and-scheduler.md |
 | inferred | sqs.json | `com.amazonaws.sqs#ReceiveMessageRequest$AttributeNames` |  | docs/research/sqs.md#23-legacy-query-protocol |
 | inferred | sqs.json | `com.amazonaws.sqs#ReceiveMessageRequest$MessageSystemAttributeNames` |  | docs/research/sqs.md#23-legacy-query-protocol |
+| inferred | sqs.json | `com.amazonaws.sqs#RemovePermissionRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
 | inferred | sqs.json | `com.amazonaws.sqs#SendMessage` |  | docs/research/sqs.md#13-implications-for-understudy |
 | inferred | sqs.json | `com.amazonaws.sqs#SendMessageBatch` |  | docs/research/sqs.md#13-implications-for-understudy |
+| inferred | sqs.json | `com.amazonaws.sqs#SendMessageBatchRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
+| inferred | sqs.json | `com.amazonaws.sqs#SendMessageRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
+| inferred | sqs.json | `com.amazonaws.sqs#SetQueueAttributesRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
+| inferred | sqs.json | `com.amazonaws.sqs#TagQueueRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
+| inferred | sqs.json | `com.amazonaws.sqs#UntagQueueRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl |
 | inferred | ssm.json | `com.amazonaws.ssm#AlarmName` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^(?!\s*$).+$ is one or more non-line-terminator characters that are not all ECMA whitespace |
 | inferred | ssm.json | `com.amazonaws.ssm#AmazonSSM` | dev.understudy#throttleError | docs/research/ssm-parameters.md#22-errors: CommonErrors.html gives code ThrottlingException, HTTP 400, as a generic common error with no envelope, and API_PutParameter.html names 'ThrottlingException: Rate exceeded' in prose but not among its errors; the model binds com.amazonaws.ssm#ThrottlingException (Message, QuotaCode, ServiceCode) only to GetAccessToken and StartAccessRequest, so choosing it for Parameter Store over com.amazon.coral.service#ThrottlingException (message) is inference; UNVERIFIED (SSM-01): the message key casing; the SSM queue (ssm-parameters.md 13) has no throttle case, so J14 (error-matrix.md 10) run against ssm settles it |
 | inferred | ssm.json | `com.amazonaws.ssm#CloudConnectorIamRoleArn` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: RE2 caps a repeat at 1000, so {1,1017} is {1,1000}{0,17}; ECMA reads [\w-\/] as \w, - and / |
