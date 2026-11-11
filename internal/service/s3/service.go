@@ -66,6 +66,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindMultipart(b)
 	s.bindNotification(b)
 	declareAccess(d.Binder)
+	s.declareSSEConditionKeys(d.Binder)
 	return s
 }
 
@@ -407,8 +408,8 @@ func (s *Service) Scopes() []aws.Scope {
 
 // Switches lists the behaviors chosen without AWS-recorded evidence, last
 // those of IAM enforcement: S3's denial text (iam-enforcement-surfaces.md
-// 12.8), what becomes of a notification its destination refuses (8.3) and
-// the root's bucket-policy lockout rule (6.3), which governs the bucket
+// 12.8), what becomes of a notification its destination refuses (8.3), the
+// SSE condition keys a bucket default supplies (9.2) and the root's bucket-policy lockout rule (6.3), which governs the bucket
 // policy operations.
 func (s *Service) Switches() []fidelity.Entry {
 	return slices.Concat([]fidelity.Entry{
@@ -426,7 +427,7 @@ func (s *Service) Switches() []fidelity.Entry {
 			"ListObjectsV2 on a missing bucket answered NoSuchBucket, and GetObject on a missing key the s3:ListBucket denial",
 			"every other bucket operation on a missing bucket, HeadObject and GetObjectAttributes on a missing key, and NoSuchKey to a caller allowed s3:ListBucket but denied s3:GetObject",
 			s.k.Bindings().ResolvedFirstOps(s3api.Service())),
-	}, authz.SwitchesOf("s3", []string{"s3.GetBucketPolicy", "s3.PutBucketPolicy", "s3.DeleteBucketPolicy"}))
+	}, sseFromDefaultSwitches(), authz.SwitchesOf("s3", []string{"s3.GetBucketPolicy", "s3.PutBucketPolicy", "s3.DeleteBucketPolicy"}))
 }
 
 // notificationDeliveryDenied is what becomes of a notification whose

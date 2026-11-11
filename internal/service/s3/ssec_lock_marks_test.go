@@ -146,9 +146,10 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 		// at create, tag limits and lifecycle rule limits.
 		// IAM enforcement's follow: the denial text, the refused
 		// notification, the stored account principal, the missing resource
-		// answered before authorization and the root's bucket-policy
-		// lockout.
-		const earlier, enforcement = 5, 5
+		// answered before authorization, the SSE condition keys from the
+		// bucket default (one entry per label) and the root's
+		// bucket-policy lockout.
+		const earlier, enforcement = 5, 7
 		if len(entries) != earlier+len(want)+enforcement {
 			names := make([]string, len(entries))
 			for i, e := range entries {

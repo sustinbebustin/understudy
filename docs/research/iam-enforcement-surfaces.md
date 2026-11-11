@@ -508,7 +508,7 @@ Context per delivery: `aws:SourceArn` always; `aws:SourceAccount` per switches `
 
 ### 12.5 Context keys
 
-Supply the keys of 9.1 and 9.2 from the call, the identity store, the emulator clock and the stored resource; never from the transport for `aws:SourceIp` (absent with an `Advisory`, 12.2). `aws:SecureTransport` follows switch `iam.context.secure-transport` (default true). S3's `s3:x-amz-server-side-encryption*` keys come from the request headers only, per switch `s3.condition.sse-from-default` (default absent); AWS fills `s3:x-amz-server-side-encryption-aws-kms-key-id` from the bucket default too (IAM-ENF-30, recorded 2026-11-03).
+Supply the keys of 9.1 and 9.2 from the call, the identity store, the emulator clock and the stored resource; never from the transport for `aws:SourceIp` (absent with an `Advisory`, 12.2). `aws:SecureTransport` follows switch `iam.context.secure-transport` (default true). S3's `s3:x-amz-server-side-encryption*` keys come from the request headers, and `s3:x-amz-server-side-encryption-aws-kms-key-id` also from an SSE-KMS bucket default for a request without encryption headers, as AWS fills it (switch `s3.condition.sse-from-default` `key-id-only`; IAM-ENF-30, recorded 2026-11-03).
 
 ### 12.6 Least-privilege loop
 
@@ -581,7 +581,7 @@ Leave unbound (501): EventBridge `PutPermission`/`RemovePermission`, Logs `PutRe
 | `lambda.destination.denied-text` | `The function execution role does not have permissions to call <SendMessage\|Publish\|InvokeFunction\|PutEvents> on <arn>` | aws-recorded for Publish and SendMessage (IAM-ENF-27, recorded 2026-11-03); not implemented | 8.5 | IAM-ENF-27 |
 | `s3.sse-kms.denied` | `AccessDenied` 403 with the KMS grammar naming the key ARN | aws-recorded (IAM-ENF-28, recorded 2026-11-03) | 8.7 | IAM-ENF-28 |
 | `sqs.sse-kms.denied-text` | grammar naming the KMS action and the key ARN, then ` (Service: AWSKMS; Status Code: 400; Error Code: AccessDeniedException; Request ID: <uuid>; Proxy: null)` | aws-recorded (IAM-ENF-29, recorded 2026-11-03) | 3.2 | IAM-ENF-29 |
-| `s3.condition.sse-from-default` | `absent` | inferred; AWS fills the key-id key from the bucket default but not `s3:x-amz-server-side-encryption` (IAM-ENF-30, recorded 2026-11-03), a deviation for the key id | 9.2 | IAM-ENF-30 |
+| `s3.condition.sse-from-default` | `key-id-only`: the key-id key from the bucket default, never `s3:x-amz-server-side-encryption` | aws-recorded for `PutObject` (IAM-ENF-30, recorded 2026-11-03); inferred for `CopyObject` and `CreateMultipartUpload` | 9.2 | IAM-ENF-30 |
 | `s3.root.bucket-policy-lockout` | root may Get, Put and Delete the bucket policy despite a Deny | aws-doc (Delete), inferred (Get, Put); UNVERIFIED, not recorded for want of root credentials | 6.3 | IAM-ENF-31 |
 | `s3.get-object-attributes.actions` | `api-reference`: `s3:GetObject` and `s3:GetObjectAttributes` (`s3:GetObjectVersion` and `s3:GetObjectVersionAttributes` with a version ID) | aws-recorded (IAM-ENF-32, recorded 2026-11-03) | 10.3 | IAM-ENF-32 |
 

@@ -1186,8 +1186,8 @@ Internal operations:
 | PutPublicAccessBlock | stored-only | inferred, 1 of 4 claims | the public access block is stored and echoed; not applied under any iam.enforce mode, where AWS refuses PutBucketPolicy with a public policy while BlockPublicPolicy is true and a public ACL while BlockPublicAcls is true; PutBucketPolicy while BlockPublicPolicy is true, and PutBucketAcl granting AllUsers or AuthenticatedUsers while BlockPublicAcls is true, journal a check-not-run advisory |
 | AbortMultipartUpload | partial | inferred, 1 of 4 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
 | CompleteMultipartUpload | partial | inferred, 1 of 9 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
-| CopyObject | partial | inferred, 4 of 19 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
-| CreateMultipartUpload | partial | inferred, 3 of 14 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
+| CopyObject | partial | inferred, 5 of 20 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
+| CreateMultipartUpload | partial | inferred, 4 of 15 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
 | DeleteBucketOwnershipControls | partial | inferred, 1 of 4 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | DeleteBucketPolicy | partial | inferred, 2 of 5 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated, and Block Public Access is not applied (PutPublicAccessBlock) |
 | DeleteObject | partial | inferred, 1 of 6 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
@@ -1204,7 +1204,7 @@ Internal operations:
 | PutBucketOwnershipControls | partial | inferred, 1 of 4 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | PutBucketPolicy | partial | inferred, 2 of 7 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated; BlockPublicPolicy is not checked under any iam.enforce mode, so a public policy put while it is true is stored where AWS answers 403 AccessDenied, and each put while it is true journals a check-not-run advisory |
 | PutBucketVersioning | partial | inferred, 1 of 4 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
-| PutObject | partial | inferred, 3 of 16 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
+| PutObject | partial | inferred, 3 of 17 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
 | PutObjectLockConfiguration | partial | inferred, 1 of 5 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored |
 | PutObjectRetention | partial | inferred, 1 of 9 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent |
 | UploadPart | partial | inferred, 1 of 9 claims | chunk signatures are verified under sigv4 verify |
@@ -1803,7 +1803,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-240 switches: 128 aws-recorded, 1 third-party-recorded, 17 aws-doc, 94 inferred.
+242 switches: 129 aws-recorded, 1 third-party-recorded, 17 aws-doc, 95 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1872,6 +1872,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `lambda.layers.compatibility` | `not-enforced` | aws-recorded | docs/research/lambda-destinations-layers.md#73-compatibility-is-metadata | none: recorded in testdata/parity/lambda/LDL-13; the replayer skips Lambda's REST and Docker steps |
 | `lambda.layers.merge-conflict` | `later-overwrites` | aws-recorded | docs/research/lambda-destinations-layers.md#81-extraction-and-merge-order | none: recorded in testdata/parity/lambda/LDL-12; the replayer skips Lambda's REST and Docker steps |
 | `logs.denial.status` | `AccessDeniedException 400` | aws-recorded | docs/research/iam-enforcement-surfaces.md#3.2 | none: IAM-ENF-07 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
+| `s3.condition.sse-from-default` | `key-id-only` | aws-recorded | docs/research/iam-enforcement-surfaces.md#9.2 | none: s3/IAM-ENF/30-no-header.json, 30-no-header-sse.json and 30-with-header.json are recorded; the replayer skips S3's REST requests |
 | `s3.denial.text` | `the S3 variant of 4.2: a quoted resource on every denial of one, ", with policy ARN:", Access Denied outside the owner's account` | aws-recorded | docs/research/iam-enforcement-surfaces.md#4.2 | none: IAM-ENF-12 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
 | `s3.encryption.after-delete` | `default-sse-s3` | aws-recorded | docs/research/s3-ssec-object-lock.md#2-what-the-repos-recordings-already-settled | none: s3/R06/02-get-encryption-after-delete.json is recorded; the replayer skips S3's REST requests |
 | `s3.encryption.blocked-types-omitted` | `reset-to-new-bucket` | aws-recorded | docs/research/s3-ssec-object-lock.md#42-blocking-and-unblocking | none: S3SOL-11 is recorded; the replayer skips S3's REST requests |
@@ -2005,6 +2006,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `logs.filter.delimited-field-count` | `last-absorbs` | inferred | docs/research/logs-filter-patterns.md#3 | none: logs/R10/03-filter-11.json is recorded; no scenario replays logs/R10 yet |
 | `logs.filter.term-boundary` | `substring` | inferred | docs/research/logs-filter-patterns.md#5 | none: logs/R10/03-filter-01.json is recorded; no scenario replays logs/R10 yet |
 | `s3.bucket.cross-account` | `served` | inferred | UNVERIFIED: no research note or recording shows AWS's answer to a bucket request from an account that does not own the bucket | none: unrecorded: no recording sends a bucket request from an account that does not own the bucket |
+| `s3.condition.sse-from-default` | `key-id-only` | inferred | docs/research/iam-enforcement-surfaces.md#9.2 | none: s3/IAM-ENF/30-no-header.json, 30-no-header-sse.json and 30-with-header.json are recorded; the replayer skips S3's REST requests |
 | `s3.root.bucket-policy-lockout` | `get-put-delete` | inferred | docs/research/iam-enforcement-surfaces.md#6.3 | none: unrecorded: IAM-ENF-31 needs the account's root user, which the 2026-11-03 session, a free-plan project role, could not provide (iam-enforcement-surfaces.md 13.33) |
 | `scheduler.flexible-window.offset` | `seeded-uniform` | inferred | docs/research/scheduler.md#56-precision-and-flexible-time-windows | none: SCH-09 (recorded 2026-11-03) bounds the offsets only: five draws cannot settle a distribution |
 | `secretsmanager.enforce.missing-resource.by-name` | `resolve-first` | inferred | docs/research/iam-enforcement-surfaces.md#5.3 | none: unrecorded: IAM-ENF-14 waits in the recording queue (iam-enforcement-surfaces.md 13) |
