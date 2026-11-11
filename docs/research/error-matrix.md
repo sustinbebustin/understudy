@@ -23,7 +23,7 @@ Every claim carries an inline URL. Tags:
 1. **The claim in [smithy-models.md section 7](smithy-models.md) holds at the pin.** No phase 1 service shape declares `errors`; the per-service error-shape counts match; the listed DynamoDB, KMS, IAM, STS, Secrets Manager gaps exist (section 2). Real AWS nevertheless returns `ValidationException` or `ValidationError` from 10 of the 12 services (all except S3 and SQS, which use `InvalidParameterValue` and `MissingParameter`), so the model cannot be the whole error vocabulary.
 2. **AWS validation text is one grammar across services, and it is not the Smithy-framework grammar.** Real: `1 validation error detected: Value 'x' at 'camelCasePath' failed to satisfy constraint: Member must ...`, violations joined with `; ` ([REC-RAW CloudWatch 2025-09-22](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156), [Lambda 2026-01-12](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8268), [EventBridge 2025-01-08](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/events/test_events.snapshot.json#L234)). Smithy tests expect `1 validation error detected. Value with length 1 at '/blob' failed ... between 2 and 8, inclusive` plus a `fieldList` ([SPEC malformed-length.smithy L57-L58](https://github.com/smithy-lang/smithy/blob/ec88e02aa1e6315f3453b1eb99625352750282f3/smithy-aws-protocol-tests/model/restJson1/validation/malformed-length.smithy#L57-L58), [malformed-required.smithy L40-L41](https://github.com/smithy-lang/smithy/blob/ec88e02aa1e6315f3453b1eb99625352750282f3/smithy-aws-protocol-tests/model/restJson1/validation/malformed-required.smithy#L40-L41)). Use the Smithy cases to test routing and status, never message text.
 3. **The error code for a constraint violation is per operation, not per service.** Same Coral text, different code: Lambda `ValidationException` for most inputs but `InvalidParameterValueException` for `runtime` and a 64-char function name ([REC-SDK 2026-01-12](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7856)); Logs `InvalidParameterException` for `GetLogEvents.limit` and `PutMetricFilter.*` but `ValidationException` for `PutDeliveryDestination.outputFormat` ([REC-SDK 2026-02-03](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/logs/test_logs_events.snapshot.json#L77), [2026-02-04](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/logs/test_logs_delivery.snapshot.json)); SQS `MissingParameter` for a single send without `MessageGroupId` ([REC-SDK 2024-04-30](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L1564)) but `InvalidParameterValue`, same text, for the batch op ([REC-SDK 2024-04-30](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L926)). A hand-owned `(service, operation) -> code` overlay is unavoidable.
-4. **`__type` namespaces are not derivable from the model namespace.** Real values: SQS `com.amazonaws.sqs#` ([DOC](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-json-api-responses.html)), DynamoDB `com.amazonaws.dynamodb.v20120810#` ([DOC](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html)), CloudWatch `com.amazonaws.cloudwatch.v2010_08_01#` with underscores ([REC-RAW 2025-09-22](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156)); the model namespaces are `com.amazonaws.sqs`, `com.amazonaws.dynamodb`, `com.amazonaws.cloudwatch` ([MODEL](https://github.com/aws/api-models-aws/tree/1cfdfb4bb9ea858e65623e66d73af04bec353201/models)). Framework errors use two more namespaces, `com.amazon.coral.validate#ValidationException` ([REC-RAW CloudWatch](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156), [DYN](https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/db/index.js#L866-L874)) and `com.amazon.coral.service#<Name>Exception` for protocol-level failures ([DYN connection.js L148-L172](https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/test/connection.js#L148-L172)). The awsJson1_1 services send the bare shape name (Secrets Manager [REC-RAW 2024-03-15](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/secretsmanager/test_secretsmanager.snapshot.json#L3598); Lambda header [REC-RAW 2024-04-10](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L12287)). CloudWatch's modeled errors do not all use its namespace: `GetMetricStatistics` answered `InvalidParameterCombinationException` and `InvalidParameterValueException` on awsJson1_0 with `__type` `com.amazon.coral.service#<Name>` (CWA-19, recorded 2026-11-03, `testdata/parity/cloudwatch/CWA-19`); which CloudWatch errors take which namespace is otherwise unrecorded. This settles the question left open by [wire-json-query.md section 11](wire-json-query.md): clients strip namespaces, but a fidelity emulator should emit the real strings.
+4. **`__type` namespaces are not derivable from the model namespace.** Real values: SQS `com.amazonaws.sqs#` ([DOC](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-json-api-responses.html)), DynamoDB `com.amazonaws.dynamodb.v20120810#` ([DOC](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html)), CloudWatch `com.amazonaws.cloudwatch.v2010_08_01#` with underscores ([REC-RAW 2025-09-22](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156)); the model namespaces are `com.amazonaws.sqs`, `com.amazonaws.dynamodb`, `com.amazonaws.cloudwatch` ([MODEL](https://github.com/aws/api-models-aws/tree/1cfdfb4bb9ea858e65623e66d73af04bec353201/models)). Framework errors use two more namespaces, `com.amazon.coral.validate#ValidationException` ([REC-RAW CloudWatch](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L156), [DYN](https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/db/index.js#L866-L874)) and `com.amazon.coral.service#<Name>Exception` for protocol-level failures ([DYN connection.js L148-L172](https://github.com/architect/dynalite/blob/c5e5b46ef5e51e7d907411c001db7839dd146088/test/connection.js#L148-L172)). The awsJson1_1 services send the bare shape name (Secrets Manager [REC-RAW 2024-03-15](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/secretsmanager/test_secretsmanager.snapshot.json#L3598); Lambda header [REC-RAW 2024-04-10](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L12287)). CloudWatch's modeled errors do not all use its namespace: `GetMetricStatistics` answered `InvalidParameterCombinationException` and `InvalidParameterValueException` on awsJson1_0 with `__type` `com.amazon.coral.service#<Name>` (CWA-19, recorded 2026-11-03, `testdata/parity/cloudwatch/CWA-19`); which CloudWatch errors take which namespace is otherwise unrecorded (recipe: CWN, section 10.9). This settles the question left open by [wire-json-query.md section 11](wire-json-query.md): clients strip namespaces, but a fidelity emulator should emit the real strings.
 5. **SQS JSON and CloudWatch JSON carry unmodeled error names in `__type`.** boto3 puts the header's query code in `Code` and the sanitized body `__type` in `QueryErrorCode`: SQS `MissingParameter` / `MissingRequiredParameterException`, `InvalidParameterValue` / `InvalidParameterValueException`; CloudWatch `ValidationError` / `ValidationException` ([REC-SDK SQS 2025-09-22](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759), [CloudWatch 2025-09-19](https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json#L222)). Neither `MissingRequiredParameterException` nor `InvalidParameterValueException` is a SQS model shape ([MODEL](https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/sqs/service/2012-11-05/sqs-2012-11-05.json)).
 6. **DynamoDB Local is not a valid oracle for generic errors.** Real DynamoDB (DYN): malformed JSON gives `400 SerializationException`, a missing or wrong target `400 UnknownOperationException`, a wrong Content-Type `404 <UnknownOperationException/>` (XML), no auth `400 com.amazon.coral.service#MissingAuthenticationTokenException`. Local: malformed JSON, empty body and missing target `500 InternalFailure`, no auth `com.amazonaws.dynamodb.v20120810#MissingAuthenticationToken` ([wire-json-query.md section 11](wire-json-query.md)). Because understudy's DynamoDB is a proxy to Local, understudy must answer these itself, before forwarding.
 7. **Pattern echo is derivable; enum order is not.** In 15 of 18 distinct recorded pattern echoes the text is the model pattern with the leading `^` and trailing `$` removed; the other 3 are not derivable (EventBridge `ConnectionArn` verbatim with anchors; Lambda layer ARN with its outer group also removed; Lambda tag-resource ARN absent from the published model). Enum member sets match the model, but their order is neither model order nor alphabetical (section 4).
@@ -365,116 +365,436 @@ Also open, without changing code shape: auth failures and unknown operations for
 
 ## 10. Recording plan: cells only a human can fill
 
-Rules: use a throwaway sandbox account and a dedicated region (`us-east-1`), never production credentials. Every case below is read-only or fails validation before creating anything, except the opt-in cases J14, Q12, S-10 and D-10 (D-10 creates a 1 RCU table that must be deleted afterwards). Set `CASE=<id>` before each call; each result is written to `rec/$CASE-<svc>-<op>.http` (full response headers and body, `curl -i`). Redact account ids and keys, and note the date. Nothing here is run by agents.
+Agents never run these. A maintainer runs them by hand in the recording-kit shell ([recording-kit.md](../recording-kit.md) sections 1 and 2: `$P`, `$R`, `$A`, `$REC`, `$E`, `rec`, `recreq`, `recurl`, the redaction step), in bash, with `jq`, `gzip` and `python3` 3.9 or later. The Region is the kit's `$R`, the recording account's; IAM alone is signed for `us-east-1` (its global endpoint). Every step writes under the item `ERR`, as `$REC/ERR/<case>-<service>[-<variant>]`, so `scripts/distill-parity` files each step under the service its host names, `testdata/parity/<service>/ERR/<step>.json` (kit section 6). The item's `notes.md` holds, per step, the status line, `x-amzn-query-error`, `x-amzn-ErrorType`, `Content-Type`, `x-amz-crc32`, the error code and message as sent, and `matches`, `differs: <what>` or `n/a` against the cell it settles. A call a free-plan SCP denies is noted `n/a (free-plan SCP)` (kit section 1).
 
-```bash
-# env: R=us-east-1  AK/SK/ST = sandbox credentials (ST may be empty)  CASE=<case id>
-mkdir -p rec
-sign() { # service-signing-name; remaining args passed to curl
-  s=$1; shift
-  curl -sS -i --aws-sigv4 "aws:amz:$R:$s" --user "$AK:$SK" ${ST:+-H "x-amz-security-token: $ST"} "$@"
+Run 10.1, the cases and the 10.10 teardown in a kit shell of its own: 10.1 sets `W`, `QU`, `TOPIC`, `BUCKET`, `ROLE` and the request arrays, which other queues set to other values (recording-kit.md 2). Every case is a failed call or a free read, except where its block says otherwise; the opt-in cases J14, Q12, S-10 and D-10 cost more and are marked. Without them, the plan costs under USD 0.05 (one CloudWatch alarm for under an hour, one Lambda function, a few hundred S3, SQS, SNS and DynamoDB requests; recording-kit.md section 4) and takes about four hours, plus S-09's 5 GiB upload.
+
+### 10.1 Setup and helpers
+
+The resources the cases name. Every name starts with `$P`, so the kit's section 5 sweep finds what the teardown misses. `ROLE` trusts the recording account and has no policy: AUTH-04 assumes it, and Q02 to Q04 name it in requests that fail validation first.
+
+```sh
+W=$REC/_work                 # helper inputs; scripts/distill-parity skips directories that start with _
+mkdir -p "$W"
+QU=$(aws sqs create-queue --queue-name "$P-err" --query QueueUrl --output text)
+TOPIC=$(aws sns create-topic --name "$P-err" --query TopicArn --output text)
+BUCKET=$P-err
+if [ "$R" = us-east-1 ]; then aws s3api create-bucket --bucket "$BUCKET"
+else aws s3api create-bucket --bucket "$BUCKET" --create-bucket-configuration LocationConstraint="$R"; fi
+aws iam create-role --role-name "$P-err-role" --assume-role-policy-document \
+  "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"arn:aws:iam::$A:root\"},\"Action\":\"sts:AssumeRole\"}]}"
+ROLE=arn:aws:iam::$A:role/$P-err-role
+YDAY=$(date -u -d yesterday +%Y%m%d 2>/dev/null || date -u -v-1d +%Y%m%d)   # GNU date, then BSD date
+printf '{}' >"$W/empty.json"
+printf 'Action=ListQueues&Version=2012-11-05' >"$W/sqs.form"
+printf 'Action=ListTopics&Version=2010-03-31' >"$W/sns.form"
+printf 'Action=GetCallerIdentity&Version=2011-06-15' >"$W/sts.form"
+printf 'Action=ListRoles&Version=2010-05-08&MaxItems=1' >"$W/iam.form"
+printf 'Action=DescribeAlarms&Version=2010-08-01&MaxRecords=1' >"$W/cw.form"
+big() { head -c "$1" /dev/zero | tr '\0' a; }   # big <n>: n bytes of 'a', for the request-size cases
+```
+
+`ej` sends one awsJson request and `eq` one awsQuery request, both through the kit's `recurl`, which signs every header it sends. A body that starts with `@` is a file (`@$W/<name>`): bodies over about 100 KB must be, since one shell argument holds at most 128 KiB on Linux. `CT` replaces the `Content-Type` and `TARGET` the `X-Amz-Target`; set either to the empty string to send no such header.
+
+```sh
+# ej <case> <signing name> <target prefix> <json version> <operation> <body> [curl args...]
+ej() {
+  local c=$1 s=$2 pre=$3 ver=$4 op=$5 body=$6 data=--data-raw; shift 6
+  local ct=${CT-application/x-amz-json-$ver} tg=${TARGET-$pre.$op}
+  case $body in @*) data=--data-binary ;; esac
+  SVC=$s recurl "ERR/$c-$s-$op" -X POST "https://$s.$R.amazonaws.com/" \
+    -H "Content-Type:${ct:+ $ct}" -H "X-Amz-Target:${tg:+ $tg}" "$data" "$body" "$@"
 }
-json() { # svc signing-name host prefix ctversion op body [extra curl args]
-  svc=$1 sn=$2 host=$3 pre=$4 ver=$5 op=$6 body=$7; shift 7
-  sign "$sn" -X POST "https://$host.$R.amazonaws.com/" \
-    -H "content-type: application/x-amz-json-$ver" -H "x-amz-target: $pre.$op" -d "$body" "$@" \
-    | tee "rec/$CASE-$svc-$op.http"
-}
-query() { # svc signing-name host body [extra curl args]
-  svc=$1 sn=$2 host=$3 body=$4; shift 4
-  sign "$sn" -X POST "https://$host.amazonaws.com/" \
-    -H "content-type: application/x-www-form-urlencoded; charset=utf-8" -d "$body" "$@" \
-    | tee "rec/$CASE-$svc-q.http"
+# eq <step> <signing name> <host> <form body> [curl args...]
+eq() {
+  local st=$1 s=$2 host=$3 body=$4 data=--data-raw; shift 4
+  local ct=${CT-application/x-www-form-urlencoded; charset=utf-8}
+  case $body in @*) data=--data-binary ;; esac
+  SVC=$s recurl "ERR/$st" -X POST "https://$host/" -H "Content-Type:${ct:+ $ct}" "$data" "$body" "$@"
 }
 ```
 
-JSON services: `SQS=(sqs sqs sqs AmazonSQS 1.0)`, `DDB=(ddb dynamodb dynamodb DynamoDB_20120810 1.0)`, `CW=(cw monitoring monitoring GraniteServiceVersion20100801 1.0)`, `KMS=(kms kms kms TrentService 1.1)`, `SM=(sm secretsmanager secretsmanager secretsmanager 1.1)`, `LOGS=(logs logs logs Logs_20140328 1.1)`, `EB=(eb events events AWSEvents 1.1)`. Call as `json "${KMS[@]}" <Op> '<body>'`; the host argument is the endpoint prefix, so the URL is `https://kms.$R.amazonaws.com/`. Capture for every case: status line, `x-amzn-query-error`, `x-amzn-errortype`, `content-type`, `x-amz-crc32`, body bytes (byte-exact, do not pretty print).
+The auth cases (J09, Q10, AUTH, L08) need requests `curl --aws-sigv4` cannot build: a header left out of the signature, credentials in two places, a presigned POST, a skewed clock or scope date. `sigv4.py` signs by hand with the Python standard library and prints the curl arguments; `sigcurl` sends them and keeps the exchange as `recurl` does (`.http`, `.trace`, `.req`). The signer was checked offline on 2026-11-11 with fake credentials against the AWS SigV4 test vectors `get-vanilla` and `get-vanilla-query-order-key-case`, and against botocore's `SigV4Auth` and `SigV4QueryAuth` for a form POST with a session token and an extra query parameter and for a presigned GET; it has never been sent to AWS. Save it as `$W/sigv4.py`:
+
+```python
+"""sigv4.py [options] METHOD URL: print the curl arguments of a SigV4 request signed by hand.
+
+Credentials come from AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_SESSION_TOKEN,
+the signing name from SVC and the Region from R. Output: one curl argument per line,
+-X METHOD, a -H pair per header, then the URL. The URL's path must need no encoding.
+"""
+import argparse, datetime, hashlib, hmac, os, urllib.parse
+
+
+def q(s):
+    return urllib.parse.quote(s, safe="-_.~")
+
+
+def sha(b):
+    return hashlib.sha256(b).hexdigest()
+
+
+def sign(method, url, body, signed, unsigned, query, now, ak, sk, token, region, service,
+         scope_date=None, presign=False, expires="60", no_sign=False):
+    u = urllib.parse.urlsplit(url)
+    path = u.path or "/"
+    amzdate = now.strftime("%Y%m%dT%H%M%SZ")
+    date = scope_date or amzdate[:8]
+    scope = f"{date}/{region}/{service}/aws4_request"
+    headers = {"host": u.netloc} | {k.lower(): v for k, v in signed}
+    query = urllib.parse.parse_qsl(u.query, keep_blank_values=True) + list(query)
+    if no_sign:
+        pass
+    elif presign:
+        query += [("X-Amz-Algorithm", "AWS4-HMAC-SHA256"), ("X-Amz-Credential", f"{ak}/{scope}"), ("X-Amz-Date", amzdate)]
+        query += [("X-Amz-Expires", expires)] if expires != "none" else []
+        query += [("X-Amz-Security-Token", token)] if token else []
+        query.append(("X-Amz-SignedHeaders", ";".join(sorted(headers))))
+    else:
+        headers["x-amz-date"] = amzdate
+        if token:
+            headers["x-amz-security-token"] = token
+    names = sorted(headers)
+    pairs = sorted((q(k), q(v)) for k, v in query)
+    if not no_sign:
+        canonical = "\n".join([method, path, "&".join(f"{k}={v}" for k, v in pairs),
+                               "".join(f"{n}:{' '.join(headers[n].split())}\n" for n in names),
+                               ";".join(names), sha(body)])
+        key = ("AWS4" + sk).encode()
+        for part in (date, region, service, "aws4_request"):
+            key = hmac.new(key, part.encode(), hashlib.sha256).digest()
+        to_sign = "\n".join(["AWS4-HMAC-SHA256", amzdate, scope, sha(canonical.encode())])
+        signature = hmac.new(key, to_sign.encode(), hashlib.sha256).hexdigest()
+        if presign:
+            pairs.append(("X-Amz-Signature", signature))
+        else:
+            headers["authorization"] = (f"AWS4-HMAC-SHA256 Credential={ak}/{scope}, "
+                                        f"SignedHeaders={';'.join(names)}, Signature={signature}")
+    args = ["-X", method]
+    for n, v in [(n, headers[n]) for n in sorted(headers) if n != "host"] + list(unsigned):
+        args += ["-H", f"{n}: {v}"]
+    qs = "&".join(f"{k}={v}" for k, v in pairs)
+    return args + [f"{u.scheme}://{u.netloc}{path}" + (f"?{qs}" if qs else "")]
+
+
+def pair(sep):
+    def parse(text):
+        k, found, v = text.partition(sep)
+        if not found:
+            raise argparse.ArgumentTypeError(f"{text!r} has no {sep!r}")
+        return k.strip(), v.strip()
+    return parse
+
+
+p = argparse.ArgumentParser(description=__doc__)
+p.add_argument("method")
+p.add_argument("url")
+p.add_argument("--body", help="file holding the request body (default: none)")
+p.add_argument("-H", dest="signed", type=pair(":"), action="append", default=[], help="'Name: value', sent and signed")
+p.add_argument("-U", dest="unsigned", type=pair(":"), action="append", default=[], help="'Name: value', sent, not signed")
+p.add_argument("-Q", dest="query", type=pair("="), action="append", default=[], help="'name=value' added to the query")
+p.add_argument("--skew", type=int, default=0, help="sign as of now plus SECONDS (negative: in the past)")
+p.add_argument("--scope-date", help="credential scope date YYYYMMDD instead of X-Amz-Date's")
+p.add_argument("--presign", action="store_true", help="credentials in the query string, no Authorization")
+p.add_argument("--expires", default="60", help="X-Amz-Expires with --presign; 'none' leaves it out")
+p.add_argument("--no-token", action="store_true", help="leave out the session token")
+p.add_argument("--no-sign", action="store_true", help="send the headers and query as given, unsigned")
+
+if __name__ == "__main__":
+    a = p.parse_args()
+    if not os.environ.get("SVC") or not os.environ.get("R"):
+        p.error("set SVC (the signing name) and R (the Region)")
+    now = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=a.skew)
+    body = open(a.body, "rb").read() if a.body else b""
+    token = None if a.no_token else os.environ.get("AWS_SESSION_TOKEN")
+    print("\n".join(sign(a.method, a.url, body, a.signed, a.unsigned, a.query, now, os.environ["AWS_ACCESS_KEY_ID"],
+                         os.environ["AWS_SECRET_ACCESS_KEY"], token, os.environ["R"], os.environ["SVC"],
+                         a.scope_date, a.presign, a.expires, a.no_sign)))
+```
+
+Then the shell side. Each request array is one cheap read with no required input, as `sigcurl`'s trailing arguments; `coral` sends one variant to an awsJson 1.0 service (SQS), an awsJson 1.1 service (KMS) and two awsQuery services (SNS, and SQS's legacy Query), and `t8` sends the T8 variants of one request:
+
+```sh
+# sigcurl <item>/<step> <sigv4.py options...> METHOD URL [-- <curl args...>]: a request signed by
+# sigv4.py, kept as recurl keeps one. SVC is the signing name.
+sigcurl() {
+  local out="$REC/$1" sargs=() cargs=() args signed i; shift
+  while [ $# -gt 0 ] && [ "$1" != -- ]; do sargs+=("$1"); shift; done
+  [ $# -gt 0 ] && shift
+  for i in "${!sargs[@]}"; do [ "${sargs[$i]}" = --body ] && cargs+=(--data-binary "@${sargs[$((i + 1))]}"); done
+  cargs+=("$@")
+  signed=$(python3 -I "$W/sigv4.py" "${sargs[@]}") || return
+  mapfile -t args <<<"$signed"
+  mkdir -p "$(dirname "$out")"
+  recreq "$out" "${cargs[@]}"
+  curl -sS -i -v --http1.1 "${args[@]}" "${cargs[@]}" >"$out.http" 2>"$out.trace"
+}
+
+FORM='Content-Type: application/x-www-form-urlencoded; charset=utf-8'
+JS='Content-Type: application/x-amz-json-1.0'
+J_SQS=(--body "$W/empty.json" -H 'Content-Type: application/x-amz-json-1.0' -H 'X-Amz-Target: AmazonSQS.ListQueues' POST "https://sqs.$R.amazonaws.com/")
+J_DDB=(--body "$W/empty.json" -H 'Content-Type: application/x-amz-json-1.0' -H 'X-Amz-Target: DynamoDB_20120810.ListTables' POST "https://dynamodb.$R.amazonaws.com/")
+J_CW=(--body "$W/empty.json" -H 'Content-Type: application/x-amz-json-1.0' -H 'X-Amz-Target: GraniteServiceVersion20100801.DescribeAlarms' POST "https://monitoring.$R.amazonaws.com/")
+J_KMS=(--body "$W/empty.json" -H 'Content-Type: application/x-amz-json-1.1' -H 'X-Amz-Target: TrentService.ListKeys' POST "https://kms.$R.amazonaws.com/")
+J_SM=(--body "$W/empty.json" -H 'Content-Type: application/x-amz-json-1.1' -H 'X-Amz-Target: secretsmanager.ListSecrets' POST "https://secretsmanager.$R.amazonaws.com/")
+J_LOGS=(--body "$W/empty.json" -H 'Content-Type: application/x-amz-json-1.1' -H 'X-Amz-Target: Logs_20140328.DescribeLogGroups' POST "https://logs.$R.amazonaws.com/")
+J_EB=(--body "$W/empty.json" -H 'Content-Type: application/x-amz-json-1.1' -H 'X-Amz-Target: AWSEvents.ListRules' POST "https://events.$R.amazonaws.com/")
+Q_SQS=(--body "$W/sqs.form" -H "$FORM" POST "https://sqs.$R.amazonaws.com/")
+Q_SNS=(--body "$W/sns.form" -H "$FORM" POST "https://sns.$R.amazonaws.com/")
+Q_STS=(--body "$W/sts.form" -H "$FORM" POST "https://sts.$R.amazonaws.com/")
+Q_IAM=(--body "$W/iam.form" -H "$FORM" POST "https://iam.amazonaws.com/")      # run with R=us-east-1
+Q_CW=(--body "$W/cw.form" -H "$FORM" POST "https://monitoring.$R.amazonaws.com/")
+L_FNS=(GET "https://lambda.$R.amazonaws.com/2015-03-31/functions")
+
+coral() {  # coral <step> <sigv4.py options...>: one variant on SQS (JSON and Query), KMS and SNS
+  local s=$1; shift
+  SVC=sqs sigcurl "ERR/$s-sqsjson" "$@" "${J_SQS[@]}"
+  SVC=kms sigcurl "ERR/$s-kms" "$@" "${J_KMS[@]}"
+  SVC=sns sigcurl "ERR/$s-sns" "$@" "${Q_SNS[@]}"
+  SVC=sqs sigcurl "ERR/$s-sqsquery" "$@" "${Q_SQS[@]}"
+}
+
+t8() {  # SVC=<signing name> t8 <case>-<service> <request...>: the T8 variants of one request
+  local s=$1; shift
+  sigcurl "ERR/$s-control" "$@"
+  sigcurl "ERR/$s-unsigned" --no-sign "$@"
+  sigcurl "ERR/$s-aws4" --no-sign -U 'Authorization: AWS4' "$@"
+  sigcurl "ERR/$s-sigv2" --no-sign -U "Authorization: AWS $AWS_ACCESS_KEY_ID:abc" "$@"
+  AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE AWS_SECRET_ACCESS_KEY=bogus sigcurl "ERR/$s-bogus-key" --no-token "$@"
+  AWS_SECRET_ACCESS_KEY=wrong sigcurl "ERR/$s-wrong-secret" "$@"
+  AWS_SESSION_TOKEN=bogus sigcurl "ERR/$s-bogus-token" "$@"
+  sigcurl "ERR/$s-past-20min" --skew -1200 "$@"
+  sigcurl "ERR/$s-future-20min" --skew 1200 "$@"
+  sigcurl "ERR/$s-scope-yesterday" --scope-date "$YDAY" "$@"
+}
+```
+
+The helpers were tried offline with fake credentials: `coral` and `t8` with curl stubbed out (each wrote the expected step files), and one `sigcurl` against a loopback server, which `scripts/distill-parity` turned into a fixture with the `Authorization` and token headers dropped. The kit's redaction step covers what these requests carry: the session token in `x-amz-security-token` or `X-Amz-Security-Token=`, the key id in `X-Amz-Credential=`, `AWSAccessKeyId=` and the SigV2-style header, and the signature. It also rewrites the documentation key `AKIAIOSFODNN7EXAMPLE` of the bogus-key steps to `AKIAREDACTED`; say in `notes.md` that those steps sent it.
+
+### 10.2 JSON services (J cases)
+
+Call as `ej <case> <signing name> <target prefix> <version> <operation> '<body>'`, with these service arguments: SQS `sqs AmazonSQS 1.0`, DDB `dynamodb DynamoDB_20120810 1.0`, CW `monitoring GraniteServiceVersion20100801 1.0`, KMS `kms TrentService 1.1`, SM `secretsmanager secretsmanager 1.1`, LOGS `logs Logs_20140328 1.1`, EB `events AWSEvents 1.1`. For example `ej J01 kms TrentService 1.1 DescribeKey '{}'` writes `$REC/ERR/J01-kms-DescribeKey`. A case with several requests to one operation adds a variant to the case (`J02-obj`, `J02-arr`, `J08-text`), so each step keeps its own name. The table shows each body as it is sent: a body naming `$QU` or a `$(...)` goes in double quotes with its inner quotes escaped. Each case settles the section 5 cells that name it (`UNVERIFIED (J01-Logs)` is case J01 on LOGS). About 45 minutes, USD 0.
 
 | Case | Trigger | Request (operation, body) per service |
 |---|---|---|
-| J01 | T1 missing required | SQS `SendMessage {"QueueUrl":"$QUEUE_URL"}`; DDB `GetItem {}` and `CreateTable {"TableName":"abc"}`; CW `PutMetricAlarm {}`; KMS `DescribeKey {}`; SM `GetSecretValue {}`; LOGS `CreateLogGroup {}`; EB `PutRule {}` |
-| J02 | T2 wrong type | SQS `ReceiveMessage {"QueueUrl":"$QUEUE_URL","MaxNumberOfMessages":"abc"}`; DDB `ListTables {"Limit":"abc"}`; CW `DescribeAlarms {"MaxRecords":"abc"}`; KMS `GenerateRandom {"NumberOfBytes":"abc"}`; SM `ListSecrets {"MaxResults":"abc"}`; LOGS `DescribeLogGroups {"limit":"abc"}`; EB `ListRules {"Limit":"abc"}`. Repeat with `{"X":{}}` and `{"X":[]}` for the same member |
-| J03 | T3 one violation | SQS `ReceiveMessage {"QueueUrl":"$QUEUE_URL","MaxNumberOfMessages":11}`; DDB `ListTables {"Limit":101}`; CW `DescribeAlarms {"MaxRecords":101}`; KMS `GenerateRandom {"NumberOfBytes":0}`; SM `ListSecrets {"MaxResults":101}`; LOGS `DescribeLogGroups {"limit":51}`; EB `ListRules {"Limit":101}` |
-| J04 | T3m several | SQS `ReceiveMessage {"QueueUrl":"$QUEUE_URL","MaxNumberOfMessages":11,"WaitTimeSeconds":21}`; DDB `ListTables {"Limit":101,"ExclusiveStartTableName":"a;"}`; CW `DescribeAlarms {"MaxRecords":101,"StateValue":"BAD"}`; KMS `CreateKey {"KeySpec":"BAD","KeyUsage":"BAD"}`; SM `ListSecrets {"MaxResults":101,"SortOrder":"bad"}`; LOGS `DescribeLogGroups {"limit":51,"logGroupNamePrefix":"$(printf 'a%.0s' {1..513})"}`; EB `ListRules {"Limit":101,"NamePrefix":"$(printf 'a%.0s' {1..65})"}` |
-| J05 | T4 enum | SQS `GetQueueAttributes {"QueueUrl":"$QUEUE_URL","AttributeNames":["Bad"]}`; DDB `Scan {"TableName":"abc","Select":"BAD"}`; CW `DescribeAlarms {"StateValue":"BAD"}`; KMS `CreateKey {"KeySpec":"BAD"}`; SM `ListSecrets {"SortOrder":"bad"}`; LOGS `DescribeLogGroups {"logGroupClass":"BAD"}`; EB `PutRule {"Name":"x","State":"BAD"}` |
-| J06 | T5 unknown op | every service: `NoSuchOperation {}`; also a wrong prefix (`json kms kms kms AmazonSQS 1.1 ListKeys '{}'`) and a missing `x-amz-target` (call `sign` directly with the same URL and content-type) |
+| J01 | T1 missing required | SQS `SendMessage {"QueueUrl":"$QU"}`; DDB `GetItem {}` and `CreateTable {"TableName":"abc"}`; CW `PutMetricAlarm {}`; KMS `DescribeKey {}`; SM `GetSecretValue {}`; LOGS `CreateLogGroup {}`; EB `PutRule {}` |
+| J02 | T2 wrong type | SQS `ReceiveMessage {"QueueUrl":"$QU","MaxNumberOfMessages":"abc"}`; DDB `ListTables {"Limit":"abc"}`; CW `DescribeAlarms {"MaxRecords":"abc"}`; KMS `GenerateRandom {"NumberOfBytes":"abc"}`; SM `ListSecrets {"MaxResults":"abc"}`; LOGS `DescribeLogGroups {"limit":"abc"}`; EB `ListRules {"Limit":"abc"}`. Repeat with `{"X":{}}` and `{"X":[]}` for the same member |
+| J03 | T3 one violation | SQS `ReceiveMessage {"QueueUrl":"$QU","MaxNumberOfMessages":11}`; DDB `ListTables {"Limit":101}`; CW `DescribeAlarms {"MaxRecords":101}`; KMS `GenerateRandom {"NumberOfBytes":0}`; SM `ListSecrets {"MaxResults":101}`; LOGS `DescribeLogGroups {"limit":51}`; EB `ListRules {"Limit":101}` |
+| J04 | T3m several | SQS `ReceiveMessage {"QueueUrl":"$QU","MaxNumberOfMessages":11,"WaitTimeSeconds":21}`; DDB `ListTables {"Limit":101,"ExclusiveStartTableName":"a;"}`; CW `DescribeAlarms {"MaxRecords":101,"StateValue":"BAD"}`; KMS `CreateKey {"KeySpec":"BAD","KeyUsage":"BAD"}`; SM `ListSecrets {"MaxResults":101,"SortOrder":"bad"}`; LOGS `DescribeLogGroups {"limit":51,"logGroupNamePrefix":"$(printf 'a%.0s' {1..513})"}`; EB `ListRules {"Limit":101,"NamePrefix":"$(printf 'a%.0s' {1..65})"}` |
+| J05 | T4 enum | SQS `GetQueueAttributes {"QueueUrl":"$QU","AttributeNames":["Bad"]}`; DDB `Scan {"TableName":"abc","Select":"BAD"}`; CW `DescribeAlarms {"StateValue":"BAD"}`; KMS `CreateKey {"KeySpec":"BAD"}`; SM `ListSecrets {"SortOrder":"bad"}`; LOGS `DescribeLogGroups {"logGroupClass":"BAD"}`; EB `PutRule {"Name":"x","State":"BAD"}` |
+| J06 | T5 unknown op | every service: `NoSuchOperation {}`; also a wrong prefix (`ej J06-prefix kms AmazonSQS 1.1 ListKeys '{}'`) and a missing `X-Amz-Target` (`TARGET= ej J06-notarget kms TrentService 1.1 ListKeys '{}'`) |
 | J07 | T6 malformed body | every service, valid op, body `{not json`; also empty body `''`; also body `[]`; also `{"X":1}x` |
-| J08 | T7 content type | every service, valid op `{}`: `-H 'content-type: text/plain'`, `application/json`, `application/x-www-form-urlencoded`, the other JSON version (`1.0` vs `1.1`), `application/cbor`; also no `content-type` header |
-| J09 | T8 auth | no signature: `curl -i -X POST ... -H 'x-amz-target: ...' -d '{}'` (no `--aws-sigv4`); `-H 'authorization: AWS4'`; `AK=AKIAIOSFODNN7EXAMPLE SK=bogus` signed; real `AK` with wrong `SK`; `x-amz-security-token: bogus` with real keys; SigV2-style `authorization: AWS $AK:abc` |
-| J13 | T9 too large | per service: SQS `SendMessage` with `MessageBody` of 1,048,577 bytes (`SendMessageBatch` 2 x 524,289); DDB `PutItem` with a 400 KB + 1 item and a 16 MiB + 1 byte raw body; KMS `Encrypt` with 4,097 bytes plaintext; SM `PutSecretValue` with 65,537 bytes; LOGS `PutLogEvents` with 1,048,577 bytes of events; EB `PutEvents` with a 262,145 byte `Detail`; every service: a 17 MiB raw body |
-| J14 | T10 throttle (opt-in) | `for i in $(seq 1 400); do json ... <cheap read op> '{}' & done; wait` per service until a throttle code appears; DDB: a provisioned table with 1 RCU and a burst of `GetItem`; record the first throttled response only |
+| J08 | T7 content type | every service, valid op `{}`, with `CT` set to `text/plain`, `application/json`, `application/x-www-form-urlencoded`, the other JSON version (`application/x-amz-json-1.1` for a 1.0 service and the reverse), `application/cbor`, and empty (no `Content-Type`). AUTH-05 (10.6) adds the error answer under `application/json` |
+| J09 | T8 auth | every service: `SVC=<signing name> t8 J09-<service> "${J_<SERVICE>[@]}"`, for example `SVC=kms t8 J09-kms "${J_KMS[@]}"`: control, unsigned, `Authorization: AWS4`, SigV2-style `Authorization: AWS <key id>:abc`, the documentation key with a bogus secret, the real key with a wrong secret, a bogus session token, a signature 20 minutes in the past and 20 minutes in the future, and a credential scope dated yesterday. AUTH-04 (10.6) adds an expired session token |
+| J13 | T9 too large | per service, each body a file passed as `@$W/<name>` (10.1): SQS `SendMessage` with `MessageBody` of 1,048,577 bytes (`SendMessageBatch` 2 x 524,289); DDB `PutItem` with a 400 KB + 1 item and a 16 MiB + 1 byte raw body; KMS `Encrypt` with 4,097 bytes plaintext; SM `PutSecretValue` with 65,537 bytes; LOGS `PutLogEvents` with 1,048,577 bytes of events; EB `PutEvents` with a 262,145 byte `Detail`; every service: a 17 MiB raw body (`big 17825792 >"$W/17mib"`). For example `{ printf '{"QueueUrl":"%s","MessageBody":"' "$QU"; big 1048577; printf '"}'; } >"$W/j13-sqs.json"`, then `ej J13 sqs AmazonSQS 1.0 SendMessage "@$W/j13-sqs.json"` |
+| J14 | T10 throttle (opt-in) | per service, `for i in $(seq -w 1 400); do ej "J14-$i" <service arguments> <cheap read op> '{}' & done; wait` until a throttle code appears; DDB: D-10's provisioned table and a burst of `GetItem`. Keep the first throttled response: `grep -l -E 'Throttl|RequestLimitExceeded|Rate exceeded' "$REC"/ERR/J14-*.http` lists them; delete every other `J14-*` capture before distilling. Requests at these volumes cost fractions of a cent; about 10 minutes per service |
 
-CloudWatch CBOR (C01-C03), path `/service/GraniteServiceVersion20100801/operation/<Op>`, headers `smithy-protocol: rpc-v2-cbor`, `accept: application/cbor`, `content-type: application/cbor`:
+### 10.3 CloudWatch CBOR (C cases)
 
-```bash
-cbor() { # op [smithy-protocol value]; request body bytes on stdin; raw response (headers + body) in rec/
-  sign monitoring -X POST "https://monitoring.$R.amazonaws.com/service/GraniteServiceVersion20100801/operation/$1" \
-    -H "smithy-protocol: ${2:-rpc-v2-cbor}" -H 'accept: application/cbor' -H 'content-type: application/cbor' \
-    --data-binary @- > "rec/$CASE-cw-cbor.raw"
+Settles the CBOR column of 5.13 (`UNVERIFIED (C01-C03)`). Path `/service/GraniteServiceVersion20100801/operation/<Op>`, headers `smithy-protocol: rpc-v2-cbor`, `Accept: application/cbor`, `Content-Type: application/cbor`. `scripts/distill-parity` keeps the binary response body as `body_base64`; decode it with any CBOR tool for `notes.md`. About 5 minutes, USD 0.
+
+```sh
+cbor() {  # cbor <step> <operation> <body file> [smithy-protocol value]
+  SVC=monitoring recurl "ERR/$1" -X POST "https://monitoring.$R.amazonaws.com/service/GraniteServiceVersion20100801/operation/$2" \
+    -H "smithy-protocol: ${4:-rpc-v2-cbor}" -H 'Accept: application/cbor' -H 'Content-Type: application/cbor' --data-binary "@$3"
 }
-printf '\xa0' | CASE=C01 cbor PutMetricAlarm          # empty map, T1
-printf '\xff' | CASE=C02 cbor PutMetricAlarm          # malformed CBOR, T6
-printf '\xa0' | CASE=C03 cbor PutMetricAlarm rpc-v1   # wrong protocol header, T7
+printf '\xa0' >"$W/map.cbor"
+printf '\xff' >"$W/bad.cbor"
+cbor C01-monitoring PutMetricAlarm "$W/map.cbor"          # empty map, T1
+cbor C02-monitoring PutMetricAlarm "$W/bad.cbor"          # malformed CBOR, T6
+cbor C03-monitoring PutMetricAlarm "$W/map.cbor" rpc-v1   # wrong protocol header, T7
 ```
 
-Decode the body with any CBOR tool and keep the hex alongside the raw file.
+### 10.4 Query services (Q cases)
 
-Query services (third argument is the full host without `.amazonaws.com`): SNS `query sns sns sns.$R`, IAM `query iam iam iam` (global endpoint, signs for `us-east-1`; run with `R=us-east-1`), STS `query sts sts sts` (global endpoint, same), SQS legacy `query sqs sqs sqs.$R`, CloudWatch `query cw monitoring monitoring.$R`; versions `2010-03-31`, `2010-05-08`, `2011-06-15`, `2012-11-05`, `2010-08-01`. Full call: `query sns sns sns.$R "Action=ListTopics&Version=2010-03-31"`.
+Call as `eq <case>-<service> <signing name> <host> '<form body>'`, with these service arguments: SNS `sns "sns.$R.amazonaws.com"`, IAM `iam iam.amazonaws.com` (the global endpoint, signed for `us-east-1`: run as `R=us-east-1 eq ...`), STS `sts "sts.$R.amazonaws.com"` (the Regional endpoint, which current SDKs use by default), SQS legacy `sqs "sqs.$R.amazonaws.com"`, CloudWatch `monitoring "monitoring.$R.amazonaws.com"`; versions `2010-03-31`, `2010-05-08`, `2011-06-15`, `2012-11-05`, `2010-08-01`. For example `eq Q06-sns sns "sns.$R.amazonaws.com" 'Action=NoSuchAction&Version=2010-03-31'`. Name variants as in 10.2 (`Q08-empty-sns`). Rows shorten the bodies: where a row writes `...` or leaves out `Action=` or the `Version` pair, send `Action=<operation>&Version=<version>` in full, and percent-encode a space in a value (`Name=bad%20name!`). Each case settles the section 5 cells that name it. About 40 minutes, USD 0.
 
 | Case | Trigger | Body per service |
 |---|---|---|
-| Q01 | T1 | SNS `Action=Publish&Version=2010-03-31&Message=x` (no TopicArn); IAM `Action=GetRole&Version=2010-05-08`; STS `Action=AssumeRole&Version=2011-06-15`; SQS `Action=SendMessage&Version=2012-11-05&QueueUrl=$QUEUE_URL`; CW `Action=PutMetricAlarm&Version=2010-08-01` |
+| Q01 | T1 | SNS `Action=Publish&Version=2010-03-31&Message=x` (no TopicArn); IAM `Action=GetRole&Version=2010-05-08`; STS `Action=AssumeRole&Version=2011-06-15`; SQS `Action=SendMessage&Version=2012-11-05&QueueUrl=$QU`; CW `Action=PutMetricAlarm&Version=2010-08-01` |
 | Q02 | T2 | SNS `Action=ListTopics&Version=2010-03-31&NextToken[]=a`; IAM `Action=ListRoles&Version=2010-05-08&MaxItems=abc`; STS `Action=AssumeRole&...&DurationSeconds=abc&RoleArn=$ROLE&RoleSessionName=s`; SQS `Action=ReceiveMessage&...&MaxNumberOfMessages=abc`; CW `Action=DescribeAlarms&...&MaxRecords=abc` |
 | Q03 | T3 | IAM `Action=ListRoles&...&MaxItems=1001`; STS `Action=AssumeRole&...&RoleSessionName=Session1:2&RoleArn=$ROLE`; SNS `Action=CreateTopic&Name=$(printf 'a%.0s' {1..257})`; SQS `ReceiveMessage&MaxNumberOfMessages=11`; CW `DescribeAlarms&MaxRecords=101` |
 | Q04 | T3m | IAM `Action=ListRoles&MaxItems=1001&PathPrefix=bad`; STS `AssumeRole&DurationSeconds=1&RoleSessionName=a:b&RoleArn=bad`; SNS `CreateTopic&Name=bad name!&Tags.member.1.Key=`; CW `DescribeAlarms&MaxRecords=101&StateValue=BAD` |
 | Q05 | T4 | IAM `UpdateAccessKey&UserName=u&AccessKeyId=AKIAXXXXXXXXXXXXXXXX&Status=BAD`; SNS `Subscribe&TopicArn=$TOPIC&Protocol=bad&Endpoint=x`; CW `SetAlarmState&AlarmName=x&StateValue=BAD&StateReason=r`; SQS `GetQueueAttributes&AttributeName.1=Bad` |
 | Q06 | T5 | every service: `Action=NoSuchAction&Version=<v>`; and a wrong `Version` (`2000-01-01`) with a valid action; and no `Action` |
 | Q08 | T6 | every service: body `%zz`, body `Action`, body `` (empty), body `Action=ListTopics&Action=ListTopics`, body with invalid UTF-8 `Action=%ff` |
-| Q09 | T7 | every service: valid body with `content-type: application/json`, `text/plain`, `application/x-www-form-urlencoded` with a charset parameter, and none; also `GET /?Action=...&Version=...` |
-| Q10 | T8 | same five variants as J09 (unsigned, `authorization: AWS4`, bogus key, wrong secret, bogus session token), plus an expired signature (sign with `date` 20 minutes in the past using the Python snippet below) |
-| Q11 | T9 | SNS `Publish&Message=<262,145 bytes>`; SQS `SendMessage&MessageBody=<1,048,577 bytes>`; IAM `CreatePolicy` with a 6,145-byte document; STS `AssumeRole&Policy=<2,049 bytes>`; CW `PutMetricData` with 1,001 metric datums; every service: a 17 MiB body |
-| Q12 | T10 | opt-in loop as J14 on `GetCallerIdentity`, `ListTopics`, `ListRoles`, `DescribeAlarms`, `ListQueues` |
+| Q09 | T7 | every service: valid body with `CT` set to `application/json`, `text/plain`, `application/x-www-form-urlencoded` (no charset parameter), and empty (no `Content-Type`); also a GET, `SVC=sns recurl ERR/Q09-get-sns "https://sns.$R.amazonaws.com/?Action=ListTopics&Version=2010-03-31"` and the same for each service |
+| Q10 | T8 | every service: `SVC=<signing name> t8 Q10-<service> "${Q_<SERVICE>[@]}"`, for example `SVC=sns t8 Q10-sns "${Q_SNS[@]}"` and `R=us-east-1 SVC=iam t8 Q10-iam "${Q_IAM[@]}"`: the J09 variants. AUTH-04 (10.6) adds an expired session token |
+| Q11 | T9 | each body a file passed as `@$W/<name>` (10.1): SNS `Publish&Message=<262,145 bytes>`; SQS `SendMessage&MessageBody=<1,048,577 bytes>`; IAM `CreatePolicy` with a 6,145-byte document; STS `AssumeRole&Policy=<2,049 bytes>`; CW `PutMetricData` with 1,001 metric datums; every service: a 17 MiB body |
+| Q12 | T10 | opt-in loop as J14 on `GetCallerIdentity`, `ListTopics`, `ListRoles`, `DescribeAlarms`, `ListQueues`, steps `Q12-<n>-<service>`; keep the first throttled response of each service |
 
-Expired-signature helper (Q10 and J09 variant; needs `uv`; the signing part was run offline with botocore 1.43.109 and produced an `X-Amz-Date` 20 minutes in the past):
+### 10.5 REST services and single cases
 
-```bash
-uv run --no-project --with botocore python -W ignore - <<'PY'
-import datetime, os, subprocess
-from unittest import mock
-import botocore.auth, botocore.awsrequest, botocore.credentials
-creds = botocore.credentials.Credentials(os.environ["AK"], os.environ["SK"], os.environ.get("ST"))
-req = botocore.awsrequest.AWSRequest("POST", "https://sts.amazonaws.com/", data=b"Action=GetCallerIdentity&Version=2011-06-15",
-                                     headers={"content-type": "application/x-www-form-urlencoded; charset=utf-8"})
-past = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=20)
-with mock.patch.object(botocore.auth, "get_current_datetime", lambda: past):
-    botocore.auth.SigV4Auth(creds, "sts", "us-east-1").add_auth(req)
-args = ["curl", "-sS", "-i", "-X", "POST", req.url, "-d", req.body.decode()]
-for k, v in req.headers.items():
-    args += ["-H", f"{k}: {v}"]
-print(subprocess.run(args, capture_output=True, text=True).stdout)
-PY
-```
-
-Repeat with `+20 minutes` (future timestamp) and with the credential scope date changed to the previous day to capture the skew and scope errors.
-
-REST services (Lambda `L`, S3 `S`):
+Lambda requests go through `recurl` with `SVC=lambda`, S3 requests with `SVC=s3` and `-H "x-amz-content-sha256: $E"` (kit section 2) on every bodiless request; a request with a body sends the SHA-256 of its body instead, as R12's additions in the kit do. Step names are `<case>-<service>-<variant>`, for example `SVC=lambda recurl ERR/L01-lambda-empty -X POST "https://lambda.$R.amazonaws.com/2015-03-31/functions" -H 'Content-Type: application/json' -d '{}'`. Each case settles the section 5 cells that name it. About 30 minutes plus S-09's upload, under USD 0.01 (L09 creates a function that lives a few minutes).
 
 | Case | Trigger | Request |
 |---|---|---|
-| L01 | T1 | `sign lambda -X POST https://lambda.$R.amazonaws.com/2015-03-31/functions -H 'content-type: application/json' -d '{}'` and `-d '{"FunctionName":"x"}'` |
-| L02 | T2 | same URL, `-d '{"FunctionName":"x","Runtime":"python3.12","Role":"arn:aws:iam::123456789012:role/r","Handler":"h","Code":{"ZipFile":"AA=="},"MemorySize":"abc"}'` and `"Timeout":[]` |
-| L05 | T5 | `sign lambda -X GET https://lambda.$R.amazonaws.com/2015-03-31/nosuchroute`, `-X PATCH .../2015-03-31/functions`, and an unversioned path `/functions` |
-| L07 | T7 | `PUT .../2015-03-31/functions/x/concurrency` with `-H 'content-type: text/plain'` and with no content-type; `POST .../functions/x/invocations` with `content-type: text/plain`, body `{}` |
-| L08 | T8 | `curl -i -X GET https://lambda.$R.amazonaws.com/2015-03-31/functions` unsigned; `authorization: AWS4`; bogus key; wrong secret |
-| L09 | T9 (Invoke) | `POST .../functions/$FN/invocations` with a 6,291,457-byte JSON body (`RequestResponse`) and a 262,145-byte body with `x-amz-invocation-type: Event` |
-| S-05 | T5 | `sign s3 -X GET "https://$BUCKET.s3.$R.amazonaws.com/?nosuchsubresource"`, `-X POST "https://$BUCKET.s3.$R.amazonaws.com/?nosuchsubresource"`, `-X PATCH https://$BUCKET.s3.$R.amazonaws.com/`, `-X GET https://s3.$R.amazonaws.com/?nosuch` |
-| S-07 | T7 | `PUT https://$BUCKET.s3.$R.amazonaws.com/k` with `content-type: application/x-www-form-urlencoded`, `application/json`, and `PUT ...?tagging` with `content-type: text/plain` and a valid body |
-| S-09 | T9 | `truncate -s 5368709121 big.bin; aws s3api put-object --bucket $BUCKET --key k --body big.bin --debug` (the CLI sends `Expect: 100-continue`; keep the first response and abort); `aws s3api put-object --bucket $BUCKET --key k --metadata big=$(printf 'a%.0s' {1..2049})` (`MetadataTooLarge`); `aws s3api put-object --bucket $BUCKET --key $(printf 'a%.0s' {1..1025}) --body /dev/null` (`KeyTooLongError`) |
-| D-03 | DynamoDB T1/T3 text | `json "${DDB[@]}" CreateTable '{}'`; `CreateTable '{"TableName":"a;"}'`; `CreateTable '{"TableName":"abc;"}'`; `GetItem '{"TableName":"abc"}'` |
-| S-10 | T10 | opt-in: 4,000 parallel `HEAD` requests on one prefix; keep the first `503` |
-| STS-1 | `ExpiredTokenException` status | `AssumeRole` credentials then `GetCallerIdentity` with the session token after expiry (900 s minimum) |
-| D-10 | DynamoDB throttle | create a table with 1 RCU / 1 WCU, burst `PutItem`; capture `ProvisionedThroughputExceededException` incl. `ThrottlingReasons` |
-| Q-SQS | SQS Query raw XML | `query sqs sqs sqs "Action=SendMessage&Version=2012-11-05&QueueUrl=$QUEUE_URL"`; capture bytes to see element order, `Detail`, `xmlns` |
-| L01-hdr | Lambda `ValidationException` wire | any L03-class request; capture `x-amzn-errortype`, body key spelling, whether `Type` exists |
+| L01 | T1 | `POST https://lambda.$R.amazonaws.com/2015-03-31/functions` with `Content-Type: application/json`, body `{}`, and again with `{"FunctionName":"x"}` |
+| L02 | T2 | same URL, body `{"FunctionName":"x","Runtime":"python3.12","Role":"arn:aws:iam::123456789012:role/r","Handler":"h","Code":{"ZipFile":"AA=="},"MemorySize":"abc"}` and the same with `"Timeout":[]` |
+| L05 | T5 | `GET https://lambda.$R.amazonaws.com/2015-03-31/nosuchroute`, `PATCH .../2015-03-31/functions`, and an unversioned path `GET .../functions` |
+| L07 | T7 | `PUT .../2015-03-31/functions/x/concurrency` with `Content-Type: text/plain` and with none (`-H 'Content-Type:'`); `POST .../functions/x/invocations` with `Content-Type: text/plain`, body `{}` |
+| L08 | T8 | 10.7 |
+| L09 | T9 (Invoke) | `POST .../2015-03-31/functions/$P-err-fn/invocations` with a 6,291,457-byte JSON body (`RequestResponse`) and a 262,145-byte body with `X-Amz-Invocation-Type: Event`, each from a file (`--data-binary "@$W/<name>"`). Create the function first and delete it in 10.10; it uses R03's `$P-role` (recording-kit.md 3, Tier 1): `printf 'def handler(event, context):\n    return {}\n' >"$W/fn.py"; (cd "$W" && zip -q fn.zip fn.py)`, then `aws lambda create-function --function-name "$P-err-fn" --runtime python3.13 --handler fn.handler --role "arn:aws:iam::$A:role/$P-role" --zip-file "fileb://$W/fn.zip"` and `aws lambda wait function-active-v2 --function-name "$P-err-fn"` |
+| S-05 | T5 | `GET "https://$BUCKET.s3.$R.amazonaws.com/?nosuchsubresource"`, `POST "https://$BUCKET.s3.$R.amazonaws.com/?nosuchsubresource"`, `PATCH "https://$BUCKET.s3.$R.amazonaws.com/"`, `GET "https://s3.$R.amazonaws.com/?nosuch"` |
+| S-07 | T7 | `PUT "https://$BUCKET.s3.$R.amazonaws.com/k"` with `Content-Type: application/x-www-form-urlencoded` and `application/json`, and `PUT ...?tagging` with `Content-Type: text/plain` and a valid body |
+| S-09 | T9 | `truncate -s 5368709121 "$W/big.bin"; rec ERR/S-09-s3-5gib aws s3api put-object --bucket "$BUCKET" --key k --body "$W/big.bin"` (the CLI sends `Expect: 100-continue`; keep the first response and interrupt the upload); `rec ERR/S-09-s3-metadata aws s3api put-object --bucket "$BUCKET" --key k --metadata big=$(big 2049)` (`MetadataTooLarge`); `rec ERR/S-09-s3-key aws s3api put-object --bucket "$BUCKET" --key $(big 1025) --body /dev/null` (`KeyTooLongError`) |
+| D-03 | DynamoDB T1/T3 text | `ej D-03 dynamodb DynamoDB_20120810 1.0 CreateTable '{}'`; `CreateTable '{"TableName":"a;"}'`; `CreateTable '{"TableName":"abc;"}'`; `GetItem '{"TableName":"abc"}'` (name each variant) |
+| S-10 | T10 | opt-in: 4,000 parallel `HEAD` requests on one prefix; keep the first `503` and delete the other `S-10-*` captures before distilling. About USD 0.002 (S3 GET-class requests), 10 minutes |
+| STS-1 | `ExpiredTokenException` status | AUTH-04 (10.6) records it, as its STS step |
+| D-10 | DynamoDB throttle | opt-in: `aws dynamodb create-table --table-name "$P-err-d10" --attribute-definitions AttributeName=pk,AttributeType=S --key-schema AttributeName=pk,KeyType=HASH --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1`, wait for it, then a burst of `PutItem` (`ej "D-10-$i" dynamodb DynamoDB_20120810 1.0 PutItem "{\"TableName\":\"$P-err-d10\",\"Item\":{\"pk\":{\"S\":\"$i\"}}}" &` for 200 values of `i`); keep the first `ProvisionedThroughputExceededException`, with `ThrottlingReasons`. Under USD 0.01 for the hour the table lives; 10.10 deletes it |
+| Q-SQS | SQS Query raw XML | `eq Q-SQS-sqs sqs "sqs.$R.amazonaws.com" "Action=SendMessage&Version=2012-11-05&QueueUrl=$QU"`; read element order, `Detail` and `xmlns` from the fixture's response body |
+| L01-hdr | Lambda `ValidationException` wire | any L03-class request; read `x-amzn-ErrorType`, the body key spelling and whether `Type` exists |
 
-Closing any cell from this list means: replace its `UNVERIFIED` by `REC-RAW(<date>)` with the committed `rec/<case>.http` as the source, and adjust the matching generator rule in section 7.
+### 10.6 Coral auth texts (AUTH cases)
+
+The auth refusals of the Coral services (the awsJson and awsQuery families) that no recording holds: an unsigned `x-amz-*` header (S3's answer is `HeadersNotSigned`, 5.4 T8), credentials in two places other than the `Authorization` header plus `X-Amz-Algorithm` that DYN records for DynamoDB (5.5 T8), that conflict on a Query service, a presigned non-S3 request without `X-Amz-Expires`, Coral's expired-token text, and the `Content-Type` of an awsJson answer to an `application/json` request. understudy answers these today with inferred texts (`internal/auth`, `internal/awserr`); a recorded answer that differs is a finding (kit section 6, step 2). Each step names what it settles and the line it would mark. All six cost USD 0 and take about 35 minutes together, 16 of them AUTH-04's wait. STS and IAM calls work on a free-plan project (R15 recorded both).
+
+AUTH-01, an `x-amz-*` header sent but not signed. Settles whether Coral refuses it and with which code, status and text, for awsJson 1.0 (SQS), awsJson 1.1 (KMS) and awsQuery (SNS, SQS); a service that accepts it settles that understudy must not refuse it either. Marks 5.1 T8, 5.3 T8 and 5.9 "T5 to T8" (J09, Q10), and the Coral half of the recording kit's section 3 open item.
+
+```sh
+coral AUTH-01-signed -H 'X-Amz-Probe: 1'                  # control: the same header, signed
+coral AUTH-01-unsigned -U 'X-Amz-Probe: 1'
+coral AUTH-01-token-unsigned --no-token -U "X-Amz-Security-Token: $AWS_SESSION_TOKEN"
+SVC=sqs sigcurl ERR/AUTH-01-target-unsigned-sqsjson --body "$W/empty.json" -H 'Content-Type: application/x-amz-json-1.0' \
+  -U 'X-Amz-Target: AmazonSQS.ListQueues' POST "https://sqs.$R.amazonaws.com/"
+SVC=kms sigcurl ERR/AUTH-01-target-unsigned-kms --body "$W/empty.json" -H 'Content-Type: application/x-amz-json-1.1' \
+  -U 'X-Amz-Target: TrentService.ListKeys' POST "https://kms.$R.amazonaws.com/"
+```
+
+AUTH-02, credentials in two places. `auth-algorithm` is the pair DYN records (`InvalidSignatureException` on DynamoDB, 5.5 T8); its `-sns` and `-sqsquery` steps settle that conflict on a Query service. The other pairs settle the code and text for every other combination of the four carriers `internal/auth` checks (an `Authorization` header, `X-Amz-Algorithm`, `X-Amz-Credential` without it, `AWSAccessKeyId`), and which carrier the text names first. Marks 5.5 T8 (the conflict clause, as AWS-recorded for these services), 5.1 T8, 5.2 and 5.3 T8.
+
+```sh
+SCOPE="$AWS_ACCESS_KEY_ID/$(date -u +%Y%m%d)/$R/sqs/aws4_request"
+coral AUTH-02-auth-algorithm -Q X-Amz-Algorithm=AWS4-HMAC-SHA256
+coral AUTH-02-auth-credential -Q "X-Amz-Credential=$SCOPE"
+coral AUTH-02-auth-v2key -Q "AWSAccessKeyId=$AWS_ACCESS_KEY_ID"
+coral AUTH-02-presign-v2key --presign -Q "AWSAccessKeyId=$AWS_ACCESS_KEY_ID"
+coral AUTH-02-credential-v2key --no-sign -Q "X-Amz-Credential=$SCOPE" -Q "AWSAccessKeyId=$AWS_ACCESS_KEY_ID"
+```
+
+AUTH-03, presigned non-S3 requests. Settles the code and text for a missing `X-Amz-Expires` (understudy lists it last among the missing parameters, an inferred order) and for `X-Amz-Expires=0`, on a presigned POST to each `coral` service and on the presigned STS GET that EKS-style tokens use. Marks 5.2 and 5.11 T8 (Q10), 5.1 T8 (J09), and the presign clause of the kit's section 3 open item.
+
+```sh
+coral AUTH-03-presign --presign                          # control: X-Amz-Expires=60
+coral AUTH-03-no-expires --presign --expires none
+coral AUTH-03-expires-0 --presign --expires 0
+STS_GET=(GET "https://sts.$R.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15")
+SVC=sts sigcurl ERR/AUTH-03-presign-sts --presign "${STS_GET[@]}"
+SVC=sts sigcurl ERR/AUTH-03-no-expires-sts --presign --expires none "${STS_GET[@]}"
+SVC=sts sigcurl ERR/AUTH-03-expires-0-sts --presign --expires 0 "${STS_GET[@]}"
+```
+
+AUTH-04, an expired session token. Settles Coral's expired-token code, status and text on each family, STS-1 (the STS code and status: modeled `ExpiredTokenException` 400, documented 403, 5.11), and the Lambda API's answer (10.7). Marks the `ExpiredTokenException` row of the section 3 CommonErrors table, 5.11 "T2, T3m, ..." (STS-1), 5.1 T8, 5.5 T8 and 5.6 T8. The `-fresh` steps run while the session is valid: `ROLE` has no policy, so they show the authorization refusal the expired steps must differ from. A 900-second session is the shortest STS issues.
+
+```sh
+read -r XK XS XT < <(aws sts assume-role --role-arn "$ROLE" --role-session-name "$P-err" --duration-seconds 900 \
+  --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text)
+xcred() { AWS_ACCESS_KEY_ID=$XK AWS_SECRET_ACCESS_KEY=$XS AWS_SESSION_TOKEN=$XT "$@"; }
+xcred coral AUTH-04-fresh
+sleep 960                                                # past the session's expiry
+xcred coral AUTH-04-expired
+SVC=sts xcred sigcurl ERR/AUTH-04-expired-sts "${Q_STS[@]}"
+SVC=dynamodb xcred sigcurl ERR/AUTH-04-expired-dynamodb "${J_DDB[@]}"
+SVC=lambda xcred sigcurl ERR/L08-lambda-expired-token "${L_FNS[@]}"
+unset XK XS XT
+```
+
+AUTH-05, an awsJson request sent as `Content-Type: application/json`. Settles whether each awsJson service accepts it, and whether its answer, success and error alike, comes back as `application/json` or as `application/x-amz-json-1.x`. Marks wire-json-query.md 4.1 (the success `Content-Type`) and its open item on a mismatched `Content-Type`, and the J08 cells of 5.1, 5.7, 5.8, 5.9, 5.12 and 5.13.
+
+```sh
+for s in "sqs AmazonSQS 1.0 ListQueues SendMessage" "dynamodb DynamoDB_20120810 1.0 ListTables GetItem" \
+         "kms TrentService 1.1 ListKeys DescribeKey" "secretsmanager secretsmanager 1.1 ListSecrets GetSecretValue" \
+         "monitoring GraniteServiceVersion20100801 1.0 DescribeAlarms PutMetricAlarm"; do
+  set -- $s
+  CT=application/json ej AUTH-05-ok "$1" "$2" "$3" "$4" '{}'
+  CT=application/json ej AUTH-05-err "$1" "$2" "$3" "$5" '{}'   # a missing required member
+  ej AUTH-05-err-control "$1" "$2" "$3" "$5" '{}'
+done
+```
+
+AUTH-06, the clock and the scope: the `t8` variants `-past-20min`, `-future-20min` and `-scope-yesterday` of J09 and Q10 record them for every JSON and Query service; nothing more to run.
+
+### 10.7 Lambda API auth statuses (L08)
+
+Settles 5.6 T8's "Missing or invalid SigV4 on the API: UNVERIFIED (L08)": the status, `x-amzn-ErrorType`, body key (`message` or `Message`) and `Type` for each refusal, and whether auth is checked before the function lookup (`-missing`, against a function that does not exist). The expired-token step runs in AUTH-04. USD 0, 5 minutes.
+
+```sh
+SVC=lambda t8 L08-lambda "${L_FNS[@]}"
+SVC=lambda t8 L08-lambda-missing GET "https://lambda.$R.amazonaws.com/2015-03-31/functions/$P-err-missing"
+```
+
+### 10.8 A gzip body on an operation without `requestCompression` (GZ)
+
+Settles whether AWS accepts `Content-Encoding: gzip` on an operation the model gives no `requestCompression` trait (wire-json-query.md 3.2: only `PutMetricData` has it). understudy accepts gzip on every operation, a deliberate superset; if AWS refuses, the refusal is ticketed, and if it accepts, the superset stays and its note is deleted. Each step marks wire-json-query.md 3.2. `GZ-*-plain` is the same body uncompressed, the control; `GZ-03` is the operation with the trait, which must succeed. `recurl` signs the compressed bytes and the `Content-Encoding` header, as an SDK does. USD 0 (one SQS message, one metric datapoint), 10 minutes.
+
+```sh
+gz() {  # gz <step> <signing name> <file> <curl args...>: the file gzipped with Content-Encoding, then plain
+  gzip -c "$3" >"$3.gz"
+  SVC=$2 recurl "ERR/$1" -X POST -H 'Content-Encoding: gzip' --data-binary "@$3.gz" "${@:4}"
+  SVC=$2 recurl "ERR/$1-plain" -X POST --data-binary "@$3" "${@:4}"
+}
+printf '{"QueueUrl":"%s","MessageBody":"gz"}' "$QU" >"$W/gz-send.json"
+printf 'Action=SendMessage&Version=2012-11-05&QueueUrl=%s&MessageBody=gz' "$QU" >"$W/gz-send.form"
+printf '{"Namespace":"%s-err","MetricData":[{"MetricName":"gz","Value":1}]}' "$P" >"$W/gz-metric.json"
+printf '{"MaxRecords":1}' >"$W/gz-alarms.json"
+printf '{"Limit":1}' >"$W/gz-tables.json"
+gz GZ-01-sqsjson sqs "$W/gz-send.json" -H "$JS" -H 'X-Amz-Target: AmazonSQS.SendMessage' "https://sqs.$R.amazonaws.com/"
+gz GZ-02-sqsquery sqs "$W/gz-send.form" -H "$FORM" "https://sqs.$R.amazonaws.com/"
+gz GZ-03-cw-PutMetricData monitoring "$W/gz-metric.json" -H "$JS" \
+  -H 'X-Amz-Target: GraniteServiceVersion20100801.PutMetricData' "https://monitoring.$R.amazonaws.com/"
+gz GZ-04-cw-DescribeAlarms monitoring "$W/gz-alarms.json" -H "$JS" \
+  -H 'X-Amz-Target: GraniteServiceVersion20100801.DescribeAlarms' "https://monitoring.$R.amazonaws.com/"
+gz GZ-05-cwquery-DescribeAlarms monitoring "$W/cw.form" -H "$FORM" "https://monitoring.$R.amazonaws.com/"
+gz GZ-06-dynamodb dynamodb "$W/gz-tables.json" -H "$JS" -H 'X-Amz-Target: DynamoDB_20120810.ListTables' "https://dynamodb.$R.amazonaws.com/"
+```
+
+`GZ-06` is DynamoDB, which DynamoDB Local refuses with a 500 (wire-json-query.md 3.1) and which understudy decompresses before forwarding; it settles whether real DynamoDB accepts it.
+
+### 10.9 CloudWatch `__type` namespaces over awsJson 1.0 (CWN)
+
+Settles which namespace each CloudWatch error's `__type` carries on the JSON wire: `com.amazonaws.cloudwatch.v2010_08_01#` (R07's `DashboardNotFoundError` and `ResourceNotFoundException`), `com.amazon.coral.service#` (CWA-19's `InvalidParameterCombinationException` and `InvalidParameterValueException`) or `com.amazon.coral.validate#` (`ValidationException`, 5.13). Each operation is sent twice, with `x-amzn-query-mode: true` as the CLI and boto3 send it (`-qm`) and without, since the not-found status already differs between the two (5.13). Each step marks finding 4 (the sentence that leaves the other errors unrecorded), the H1 namespace row of section 7 and the 5.13 row of the error it raises. The table names the error each request is expected to raise; a different error is recorded as found. One alarm for under an hour, under USD 0.01; 15 minutes.
+
+```sh
+cwn() {  # cwn <step> <operation> <json body>
+  SVC=monitoring recurl "ERR/$1-qm" -X POST "https://monitoring.$R.amazonaws.com/" -H "$JS" \
+    -H "X-Amz-Target: GraniteServiceVersion20100801.$2" -H 'x-amzn-query-mode: true' --data-raw "$3"
+  SVC=monitoring recurl "ERR/$1" -X POST "https://monitoring.$R.amazonaws.com/" -H "$JS" \
+    -H "X-Amz-Target: GraniteServiceVersion20100801.$2" --data-raw "$3"
+}
+aws cloudwatch put-metric-alarm --alarm-name "$P-err" --namespace "$P-err" --metric-name m --statistic Sum \
+  --period 60 --evaluation-periods 1 --threshold 1 --comparison-operator GreaterThanThreshold
+NOW=$(date +%s)
+cwn CWN-01-ValidationException DescribeAlarms '{"StateValue":"BAD"}'
+cwn CWN-02-MissingRequiredParameter PutMetricAlarm "{\"AlarmName\":\"$P-err-x\"}"
+cwn CWN-03-InvalidNextToken DescribeAlarms '{"NextToken":"garbage"}'
+cwn CWN-04-InvalidParameterCombination PutMetricData \
+  "{\"Namespace\":\"$P-err\",\"MetricData\":[{\"MetricName\":\"m\",\"Value\":1,\"Values\":[1]}]}"
+cwn CWN-05-InvalidParameterValue GetMetricStatistics \
+  "{\"Namespace\":\"$P-err\",\"MetricName\":\"m\",\"StartTime\":$((NOW - 3600)),\"EndTime\":$NOW,\"Period\":7,\"Statistics\":[\"Sum\"]}"
+cwn CWN-06-ResourceNotFound SetAlarmState "{\"AlarmName\":\"$P-err-missing\",\"StateValue\":\"OK\",\"StateReason\":\"r\"}"
+cwn CWN-07-InvalidFormat SetAlarmState "{\"AlarmName\":\"$P-err\",\"StateValue\":\"OK\",\"StateReason\":\"r\",\"StateReasonData\":\"{\"}"
+cwn CWN-08-ResourceNotFoundException ListTagsForResource "{\"ResourceARN\":\"arn:aws:cloudwatch:$R:$A:alarm:$P-err-missing\"}"
+cwn CWN-09-DashboardNotFound GetDashboard "{\"DashboardName\":\"$P-err-missing\"}"
+cwn CWN-10-DashboardInvalidInput PutDashboard "{\"DashboardName\":\"$P-err\",\"DashboardBody\":\"{\"}"
+```
+
+`CWN-02` also settles whether a missing required member answers the modeled `MissingRequiredParameterException` (`MissingParameter`) or Coral's `ValidationException`; `CWN-05` repeats CWA-19's request and is the control for the namespace it recorded.
+
+### 10.10 Teardown
+
+```sh
+aws sqs delete-queue --queue-url "$QU"
+aws sns delete-topic --topic-arn "$TOPIC"
+aws s3 rb "s3://$BUCKET" --force
+aws iam delete-role --role-name "$P-err-role"
+aws cloudwatch delete-alarms --alarm-names "$P-err"
+aws cloudwatch delete-dashboards --dashboard-names "$P-err"   # only if CWN-10 was accepted
+aws lambda delete-function --function-name "$P-err-fn"        # L09
+aws logs delete-log-group --log-group-name "/aws/lambda/$P-err-fn"
+aws dynamodb delete-table --table-name "$P-err-d10"           # D-10
+rm -f "$W/big.bin" "$W/17mib"
+```
+
+Then run the kit's section 5 sweep; it does not list CloudWatch dashboards, so check `aws cloudwatch list-dashboards --dashboard-name-prefix "$P"` too. Keep `$W/sigv4.py` for the next session.
+
+Closing a cell from this plan follows the kit's section 6: redact, distill with `scripts/distill-parity "$REC"`, then replace the cell's `UNVERIFIED` with `REC-RAW(<date>)` and the fixture's repo-relative path (`testdata/parity/<service>/ERR/<step>.json`), and adjust the matching generator rule in section 7.

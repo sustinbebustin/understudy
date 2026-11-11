@@ -170,7 +170,7 @@ def test_queue_items_resolve_to_their_primary_service():
         "IAM-ENF": "iam", "IAM-EVAL-35": "iam", "APIGW1": "apigateway", "APIGW2-08": "apigatewayv2",
         "SSM-22": "ssm", "CWA-23": "cloudwatch", "KIN-01": "kinesis", "SES-28": "ses", "SFN-15": "sfn",
         "ASL-09": "sfn", "SCH-10": "scheduler", "DDBS-05": "dynamodb", "ESMS-02": "lambda", "LDL-01": "lambda",
-        "EBB": "events", "SNSH": "sns", "PROTO-05": "dynamodb",
+        "EBB": "events", "SNSH": "sns", "PROTO-05": "dynamodb", "ERR": "sqs",
     }
     assert {item: dp.primary_of(item) for item in cases} == cases
     for unknown in ("R19", "LDL-NN", "TC-01", "ESMS-src", "IAM", "KIN-"):
