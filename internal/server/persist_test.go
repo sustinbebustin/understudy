@@ -252,40 +252,70 @@ func TestCrashAfterADeleteKeepsTheSavedState(t *testing.T) {
 	}
 }
 
-// A restart resumes a Running clock at wall time, since wall time kept
-// passing while no serve ran, unless the saved instant is later, which it
-// keeps so emulator time never moves back. A Frozen clock holds its saved
-// instant, and a Scaled one resumes from it.
+// A restart resumes a Running clock at its offset from wall time at the
+// checkpoint's cut, since wall time kept passing while no serve ran, so an
+// advance ahead of wall time survives however long the server was stopped;
+// never earlier than the saved instant, so emulator time never moves back
+// (ADR 0009 amendment 2026-11-11). A Frozen clock holds its saved instant,
+// and a Scaled one resumes from it.
+//
+// The downtime is simulated by
+// moving the state file's saved instant and cut wall instant back by it,
+// as if the checkpoint had been taken that long ago. An archive without
+// the cut wall instant resumes a Running clock at the later of wall time
+// and its saved instant, absorbing a shorter advance.
 func TestRestartResumesTheClock(t *testing.T) {
-	const downtime = 15 * time.Hour
-	wall := clock.FromWire(time.Now())
+	const (
+		downtime = 15 * time.Hour
+		// advance is shorter than the downtime, long is longer.
+		advance = time.Hour
+		long    = 48 * time.Hour
+	)
+	running := clock.Running{}
 	for _, tc := range []struct {
-		name  string
-		saved clock.Instant
+		name string
+		// ahead is the clock's offset from wall time when it is checkpointed.
+		ahead time.Duration
 		mode  clock.Mode
-		// want is the emulator time the restart starts at.
+		// legacy drops the cut wall instant from the state file, as an
+		// archive written before checkpoints recorded it.
+		legacy bool
+		// want is the emulator time the restart starts at, from the state
+		// file's saved instant and wall time at the restart.
 		want func(saved, wall clock.Instant) clock.Instant
 	}{
-		{"running, saved before the downtime", wall.Add(-downtime), clock.Running{}, func(_, wall clock.Instant) clock.Instant { return wall }},
-		{"running, advanced past wall time", wall.Add(48 * time.Hour), clock.Running{}, func(saved, _ clock.Instant) clock.Instant { return saved }},
-		{"frozen", wall.Add(-downtime), clock.Frozen{}, func(saved, _ clock.Instant) clock.Instant { return saved }},
-		{"scaled", wall.Add(-downtime), clock.Scaled{Factor: 2}, func(saved, _ clock.Instant) clock.Instant { return saved }},
+		{"running", 0, running, false, func(_, wall clock.Instant) clock.Instant { return wall }},
+		{"running, advanced by less than the downtime", advance, running, false, func(_, wall clock.Instant) clock.Instant { return wall.Add(advance) }},
+		{"running, advanced by more than the downtime", long, running, false, func(_, wall clock.Instant) clock.Instant { return wall.Add(long) }},
+		{"running, behind wall time", -advance, running, false, func(_, wall clock.Instant) clock.Instant { return wall.Add(-advance) }},
+		{"running, archive without the cut wall instant", 0, running, true, func(_, wall clock.Instant) clock.Instant { return wall }},
+		{"running, advanced by less than the downtime, archive without the cut wall instant", advance, running, true, func(_, wall clock.Instant) clock.Instant { return wall }},
+		{"running, advanced by more than the downtime, archive without the cut wall instant", long, running, true, func(saved, _ clock.Instant) clock.Instant { return saved }},
+		{"frozen", -downtime, clock.Frozen{}, false, func(saved, _ clock.Instant) clock.Instant { return saved }},
+		{"scaled", -downtime, clock.Scaled{Factor: 2}, false, func(saved, _ clock.Instant) clock.Instant { return saved }},
+		{"scaled, archive without the cut wall instant", -downtime, clock.Scaled{Factor: 2}, true, func(saved, _ clock.Instant) clock.Instant { return saved }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := Config{Persist: PersistDir{Path: t.TempDir()}, Docker: DockerDisabled{}, LogOutput: io.Discard}
+			dir := t.TempDir()
+			cfg := Config{Persist: PersistDir{Path: dir}, Docker: DockerDisabled{}, LogOutput: io.Discard}
 			first, err := New(cfg)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := first.wired.kernel.Clock().Restore(tc.saved, tc.mode); err != nil {
+			start := clock.FromWire(time.Now())
+			if _, err := first.wired.kernel.Clock().Restore(start.Add(tc.ahead), tc.mode); err != nil {
 				t.Fatal(err)
 			}
 			if err := first.wired.persist.checkpoint(t.Context(), true); err != nil {
 				t.Fatal(err)
 			}
+			// A Running clock's offset at the cut trails tc.ahead by at
+			// most the time from start to here.
+			slack := clock.FromWire(time.Now()).Sub(start)
 			if err := first.Close(); err != nil {
 				t.Fatal(err)
 			}
+			saved := stopFor(t, dir, downtime, tc.legacy)
 			before := clock.FromWire(time.Now())
 			second, err := New(cfg)
 			if err != nil {
@@ -298,12 +328,48 @@ func TestRestartResumesTheClock(t *testing.T) {
 			}
 			// A running clock moves between the restore and the read, by
 			// at most the time New took.
-			low, high := tc.want(tc.saved, before), tc.want(tc.saved, after).Add(after.Sub(before))
+			low, high := tc.want(saved, before).Add(-slack), tc.want(saved, after).Add(after.Sub(before))
 			if now.Before(low) || high.Before(now) {
 				t.Errorf("emulator time after the restart = %s, want within [%s, %s]", now, low, high)
 			}
 		})
 	}
+}
+
+// stopFor rewrites the state file under dir as if its checkpoint had been
+// taken d ago: the saved instant and the cut wall instant move back by d.
+// legacy drops the cut wall instant instead of moving it. It returns the
+// saved instant now in the file.
+func stopFor(t *testing.T, dir string, d time.Duration, legacy bool) clock.Instant {
+	t.Helper()
+	path := filepath.Join(dir, stateFile)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := snapshot.Read(bytes.NewReader(b), snapshot.ReadOptions{MaxBytes: int64(len(b))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &a.Manifest
+	if m.CutWall == nil {
+		t.Fatal("the checkpoint recorded no cut wall instant")
+	}
+	m.Clock.At = m.Clock.At.Add(-d)
+	if legacy {
+		m.CutWall = nil
+	} else {
+		cutWall := m.CutWall.Add(-d)
+		m.CutWall = &cutWall
+	}
+	var out bytes.Buffer
+	if err := snapshot.Write(&out, *a, snapshot.WriteOptions{Blobs: snapshot.ExternalBlobs, MaxBytes: int64(len(b)) * 2}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, out.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return m.Clock.At
 }
 
 // A checkpoint whose archive would pass snapshotMaxBytes fails naming the

@@ -41,7 +41,7 @@ understudy needs a versioned, deterministic file for the whole emulator state an
 
 ## Amendment 2026-10-13: the clock on a restart under `--persist`
 
-- A restart under `--persist` resumes the clock from the checkpoint by mode. A Running clock resumes at wall time, or at its saved instant when that is later, so emulator time never trails wall time and never moves back. The manifest records no offset from wall time, so an advance ahead of wall time that is shorter than the downtime is absorbed. A Frozen clock holds its instant. A Scaled clock resumes from its saved instant, since its time across the downtime is undefined. An explicit `snapshot load` keeps the archive's instant in every mode. Keeping an advanced offset exactly would need the manifest to record the wall time of the cut, a format change.
+- A restart under `--persist` resumes the clock from the checkpoint by mode. A Running clock resumes at wall time, or at its saved instant when that is later, so emulator time never trails wall time and never moves back. The manifest records no offset from wall time, so an advance ahead of wall time that is shorter than the downtime is absorbed. A Frozen clock holds its instant. A Scaled clock resumes from its saved instant, since its time across the downtime is undefined. An explicit `snapshot load` keeps the archive's instant in every mode. Keeping an advanced offset exactly would need the manifest to record the wall time of the cut, a format change. (Superseded for a Running clock by the amendment of 2026-11-11: a checkpoint records the wall time of its cut, and the advance survives.)
 
 ## Amendment 2026-10-13: a cut waits for pending effects; load order
 
@@ -58,3 +58,10 @@ understudy needs a versioned, deterministic file for the whole emulator state an
 - The amendment of 2026-10-08 made migrations mandatory "from the first release". The first releases (v0.1.0 to v0.1.2) shipped with `snapshot.Format` still `0`, so that rule moves to 1.0: while understudy is pre-1.0 the archive `format` stays `0`, and a section whose version differs from the running binary's is refused with a message naming both versions and the writing binary.
 - The exceptions that already migrate (the amendment of 2026-10-27) keep migrating.
 - From 1.0 the format becomes `1`, and every state version change adds a migration with a golden fixture for every past version.
+
+## Amendment 2026-11-11: a running clock keeps its advance across a restart
+
+- Supersedes the first amendment of 2026-10-13 for a Running clock, whose advance shorter than the downtime was absorbed. A `--persist` checkpoint records in the manifest the wall instant at which its cut was taken (`cutWall`, optional). A restart resumes a Running clock with it at `wall now + (saved instant - cutWall)`, never earlier than the saved instant, so an advance ahead of wall time survives any downtime. The instant is read just after the cut, so the kept offset errs short by the cut's export time, never ahead.
+- An archive without `cutWall` resumes a Running clock as the 2026-10-13 amendment says. Frozen and Scaled clocks resume as before, and an explicit `snapshot load` keeps the archive's instant in every mode.
+- An explicit `snapshot save` never records `cutWall`, so its bytes still depend only on state and version (ARCHITECTURE.md 13). The checkpoint digest leaves it out, so an idle server still writes nothing.
+- The format stays `0` (the amendment of 2026-11-10); the field is optional, so an archive without it still reads.

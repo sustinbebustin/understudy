@@ -44,6 +44,12 @@ type Manifest struct {
 	ModelPin string
 	// Clock is emulator time at the cut.
 	Clock Clock
+	// CutWall is the wall instant at which the cut was taken, or nil. Only
+	// the --persist checkpoint records it (Cut.SetCutWall), so a restart
+	// can resume a Running clock at its offset from wall time; an explicit
+	// save leaves it out, since its bytes depend only on state and version
+	// (ARCHITECTURE.md 13).
+	CutWall *clock.Instant
 	// Seed is the id source's seed, or nil when ids came from crypto/rand.
 	Seed *uint64
 	// Positions are the seeded id streams' positions; only a seeded source
@@ -125,6 +131,7 @@ type manifestJSON struct {
 	Writer       string              `json:"writer"`
 	ModelPin     string              `json:"modelPin,omitempty"`
 	Clock        clockJSON           `json:"clock"`
+	CutWall      *clock.Instant      `json:"cutWall,omitempty"`
 	Seed         *uint64             `json:"seed,omitempty"`
 	Positions    map[ids.Kind]uint64 `json:"positions,omitempty"`
 	JournalNext  ref.EventID         `json:"journalNext"`
@@ -162,6 +169,7 @@ func encodeManifest(m Manifest) ([]byte, error) {
 		Writer:       m.Writer,
 		ModelPin:     m.ModelPin,
 		Clock:        c,
+		CutWall:      m.CutWall,
 		Seed:         m.Seed,
 		Positions:    m.Positions,
 		JournalNext:  m.JournalNext,
@@ -206,6 +214,7 @@ func decodeManifest(data []byte) (Manifest, error) {
 		Writer:       doc.Writer,
 		ModelPin:     doc.ModelPin,
 		Clock:        c,
+		CutWall:      doc.CutWall,
 		Seed:         doc.Seed,
 		Positions:    doc.Positions,
 		JournalNext:  doc.JournalNext,

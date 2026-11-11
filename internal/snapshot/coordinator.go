@@ -220,6 +220,11 @@ type Cut struct {
 // that WriteAfterCut adds.
 func (c *Cut) Archive() Archive { return c.archive }
 
+// SetCutWall records wall as the cut's Manifest.CutWall, which
+// WriteAfterCut then writes. Only the --persist checkpoint calls it, before
+// WriteAfterCut and from the goroutine that holds the cut.
+func (c *Cut) SetCutWall(wall clock.Instant) { c.archive.Manifest.CutWall = &wall }
+
 // PendingEffects is how many effects of committed writes had still not run
 // when the cut was taken, after Cut waited EffectsWait for them. Zero means
 // the archive holds every committed write's deliveries; otherwise it holds

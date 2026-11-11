@@ -14,6 +14,7 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 - `understudy journal --limit N` fetches the newest events in one request, where it paged through every match. The notice for left-out events no longer gives the total: it reads `showing the newest N matching events; ...`, where it read `showing the newest N of M matching events; ...`.
 - Each release pins the Lambda runtime images to the digests public.ecr.aws serves when the release is prepared, and tests them before the tag. Releases 0.1.0 to 0.1.2 shipped the pins of 2026-10-14.
+- Under `--persist`, a running clock advanced with `understudy clock advance` keeps that advance across a restart, however long the server was stopped. A restart used to resume it at the later of its saved time and wall time, so a downtime longer than the advance absorbed it. Checkpoints now record the wall time of their cut in the manifest (`cutWall`); an explicit `snapshot save` does not, so its archives stay byte-deterministic. A state file written before this resumes as before.
 - `scripts/sealed` writes `provider_installation { direct {} }` into Terraform's sealed CLI config, so providers come only from the registry through the plugin cache and a provider in `~/.terraform.d/plugins` can no longer stand in for one.
 
 ### Removed

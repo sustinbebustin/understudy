@@ -293,7 +293,7 @@ func (p *persister) load(ctx context.Context) (restored bool, err error) {
 		}
 		return false, fmt.Errorf("server: reading the saved state %s; %s: %w", filepath.Join(p.dir.path, stateFile), next, err)
 	}
-	a.Manifest.Clock = resumed(a.Manifest.Clock, clock.FromWire(p.clock.Wall()))
+	a.Manifest.Clock = resumed(a.Manifest.Clock, a.Manifest.CutWall, clock.FromWire(p.clock.Wall()))
 	if err := p.coord.Load(ctx, a); err != nil {
 		released, ok := errors.AsType[*snapshot.BlobReleaseError](err)
 		if !ok {
@@ -312,18 +312,28 @@ func (p *persister) load(ctx context.Context) (restored bool, err error) {
 	return true, p.remember(ctx)
 }
 
-// resumed is the clock a restart restores from the persisted saved one.
-// A Running clock follows wall time, which kept passing while no serve
-// ran, so it resumes at wall time, or at its saved instant when that is
-// later (a clock advanced ahead of wall time), so emulator time never
-// moves back past what the saved state recorded. The archive records no
-// offset from wall time, so an advance shorter than the downtime is
-// absorbed. A Frozen clock holds its instant, and a Scaled one resumes
-// from it, since nothing defines its time across the downtime. An
-// explicit snapshot load keeps the archive's instant in every mode.
-func resumed(saved snapshot.Clock, wall clock.Instant) snapshot.Clock {
-	if _, ok := saved.Mode.(clock.Running); ok && saved.At.Before(wall) {
-		saved.At = wall
+// resumed is the clock a restart restores from the persisted saved one,
+// cut at the wall instant cutWall (nil in an archive that does not record
+// it). A Running clock follows wall time, which kept passing while no
+// serve ran, so it resumes at wall plus its offset from wall time at the
+// cut, keeping an advance however long the downtime; an archive without
+// cutWall resumes it at wall, absorbing an advance shorter than the
+// downtime. Either way it resumes no earlier than its saved instant, so
+// emulator time never moves back past what the saved state recorded (ADR
+// 0009 amendment 2026-11-11). A Frozen clock holds its instant, and a
+// Scaled one resumes from it, since nothing defines its time across the
+// downtime. An explicit snapshot load keeps the archive's instant in every
+// mode.
+func resumed(saved snapshot.Clock, cutWall *clock.Instant, wall clock.Instant) snapshot.Clock {
+	if _, ok := saved.Mode.(clock.Running); !ok {
+		return saved
+	}
+	at := wall
+	if cutWall != nil {
+		at = wall.Add(saved.At.Sub(*cutWall))
+	}
+	if saved.At.Before(at) {
+		saved.At = at
 	}
 	return saved
 }
@@ -356,6 +366,9 @@ func (p *persister) checkpointLocked(ctx context.Context, force bool) (err error
 	if !force && sum == p.last {
 		return cut.Release()
 	}
+	// Read after the cut, so the Running offset a restart derives from it
+	// errs short by the cut's export time, never ahead.
+	cut.SetCutWall(clock.FromWire(p.clock.Wall()))
 	if n := cut.PendingEffects(); n > 0 {
 		p.log.LogAttrs(ctx, slog.LevelWarn, "the checkpoint holds writes whose effects, such as deliveries, had not run; a restart from it does not run them",
 			slog.Int("pending_effects", n))
@@ -489,8 +502,9 @@ func loadSnapshot(path string, maxBytes int64, k *kernel.Kernel, coord *snapshot
 // positions, and the journal's next event id.
 //
 // A field that moves with wall time alone stays out, so an idle server
-// writes nothing: the instant of a Running or Scaled clock, and any
-// wall-time field the manifest gains, such as the wall time of the cut.
+// writes nothing: the instant of a Running or Scaled clock, the wall
+// instant of the cut (Manifest.CutWall), and any wall-time field the
+// manifest gains.
 // Such a field is saved with the next change or at shutdown. The format,
 // writer, model pin and blob placement are fixed for the process, and the
 // section list and late services derive from the sections, so none is
