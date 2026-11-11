@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"maps"
 	"net/http"
@@ -316,11 +315,8 @@ func TestEnforceFailsAnEventBridgeDeliveryToADeletedFunctionOrTopic(t *testing.T
 	setQueuePolicy(t, endpoint, "events-dlq", dlqPolicy)
 	topic := element(t, mustSNS(t, endpoint, url.Values{"Action": {"CreateTopic"}, "Name": {"gone"}}), "TopicArn")
 	mustSNS(t, endpoint, url.Values{"Action": {"DeleteTopic"}, "TopicArn": {topic}})
-	pkg := base64.StdEncoding.EncodeToString(zipped(t, "unused"))
-	body := `{"FunctionName":"gone","Runtime":"provided.al2023","Handler":"bootstrap","Role":"arn:aws:iam::000000000000:role/fn","Code":{"ZipFile":"` + pkg + `"}}`
-	req := newRequest(t, http.MethodPost, endpoint+"/2015-03-31/functions", body)
-	req.Header.Set("Content-Type", "application/json")
-	if w := signedCall(t, dummy, "lambda", req, body); w.status != http.StatusCreated {
+	roleTrustingLambda(t, endpoint, "fn")
+	if w := createFunction(t, dummy, endpoint, "gone"); w.status != http.StatusCreated {
 		t.Fatalf("CreateFunction = %d %s", w.status, w.body)
 	}
 	if w := signedCall(t, dummy, "lambda", newRequest(t, http.MethodDelete, endpoint+"/2015-03-31/functions/gone", ""), ""); w.status != http.StatusNoContent {
@@ -388,6 +384,7 @@ func TestEnforceDeniesAnEventBridgeDeliveryToAFailedFunction(t *testing.T) {
 	dlqPolicy := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sqs:SendMessage",` +
 		`"Resource":"arn:aws:sqs:us-east-1:000000000000:events-dlq","Condition":{"ArnEquals":{"aws:SourceArn":"` + ruleARN + `"}}}]}`
 	setQueuePolicy(t, endpoint, "events-dlq", dlqPolicy)
+	roleTrustingLambda(t, endpoint, "fn")
 	body := `{"FunctionName":"broken","PackageType":"Image","Role":"arn:aws:iam::000000000000:role/fn","Code":{"ImageUri":"local/fn:latest"}}`
 	req := newRequest(t, http.MethodPost, endpoint+"/2015-03-31/functions", body)
 	req.Header.Set("Content-Type", "application/json")

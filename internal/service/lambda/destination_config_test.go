@@ -267,9 +267,15 @@ func TestDeadLetterConfigWithoutATargetKeepsTheQueue(t *testing.T) {
 // and UpdateFunctionConfiguration notes keep the TenancyConfig and
 // DurableConfig refusals 11.1 predates). The event invoke configuration
 // notes lead with the configuration-time role check, recorded for Put and
-// inferred for Update (iam-enforcement-surfaces.md 8.5).
+// inferred for Update (iam-enforcement-surfaces.md 8.5). The CreateFunction
+// and UpdateFunctionConfiguration notes end with the iam:PassRole and
+// execution role trust checks, the trust check recorded for Create and
+// inferred for Update (iam-enforcement-surfaces.md 13.28).
 func TestDestinationAndLayerCoverageMarks(t *testing.T) {
 	const (
+		trust       = " under iam.enforce=enforce the caller needs iam:PassRole on the execution role, asked with iam:PassedToService lambda.amazonaws.com, then the role's trust policy must let lambda.amazonaws.com assume it"
+		trustModes  = ", else InvalidParameterValueException; under advise both are asked and a denial journaled, under off neither"
+		trustUpdate = " (inferred: only CreateFunction's trust check is recorded)"
 		layerFound  = "a layer version is found only if it was published to understudy, which never fetches layers from AWS; "
 		location    = "Content.Location is a link understudy serves the archive at, not a presigned S3 URL"
 		roleChecked = "the execution role's sns:Publish on an SNS destination and sqs:SendMessage on an SQS one are checked when the configuration is stored"
@@ -277,17 +283,19 @@ func TestDestinationAndLayerCoverageMarks(t *testing.T) {
 		delivery    = "the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried"
 	)
 	want := map[string]registry.BindCoverage{
-		"PublishLayerVersion":             registry.Partial{Note: "S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed"},
-		"GetLayerVersion":                 registry.Partial{Note: location},
-		"GetLayerVersionByArn":            registry.Partial{Note: location},
-		"ListLayers":                      registry.Full{},
-		"ListLayerVersions":               registry.Full{},
-		"DeleteLayerVersion":              registry.Full{},
-		"AddLayerVersionPermission":       registry.StoredOnly{Note: "statements are stored and returned by GetLayerVersionPolicy; another account's use of the layer is advised, not refused"},
-		"RemoveLayerVersionPermission":    registry.Full{},
-		"GetLayerVersionPolicy":           registry.Full{},
-		"CreateFunction":                  registry.Partial{Note: layerFound + "PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only"},
-		"UpdateFunctionConfiguration":     registry.Partial{Note: layerFound + "DurableConfig is refused; code signing and VPC networking are stored only"},
+		"PublishLayerVersion":          registry.Partial{Note: "S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed"},
+		"GetLayerVersion":              registry.Partial{Note: location},
+		"GetLayerVersionByArn":         registry.Partial{Note: location},
+		"ListLayers":                   registry.Full{},
+		"ListLayerVersions":            registry.Full{},
+		"DeleteLayerVersion":           registry.Full{},
+		"AddLayerVersionPermission":    registry.StoredOnly{Note: "statements are stored and returned by GetLayerVersionPolicy; another account's use of the layer is advised, not refused"},
+		"RemoveLayerVersionPermission": registry.Full{},
+		"GetLayerVersionPolicy":        registry.Full{},
+		"CreateFunction":               registry.Partial{Note: layerFound + "PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only;" + trust + trustModes},
+		"UpdateFunctionConfiguration": registry.Partial{
+			Note: layerFound + "DurableConfig is refused; code signing and VPC networking are stored only; when the update passes a Role," + trust + trustUpdate + trustModes,
+		},
 		"PutFunctionEventInvokeConfig":    registry.Partial{Note: roleChecked + roleCheck + delivery},
 		"UpdateFunctionEventInvokeConfig": registry.Partial{Note: roleChecked + " (inferred: only PutFunctionEventInvokeConfig's check is recorded)" + roleCheck + delivery},
 	}

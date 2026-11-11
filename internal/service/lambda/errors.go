@@ -585,6 +585,15 @@ func errDestinationRoleDenied(action, arn string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException(esmRoleDeniedText(action, arn)))
 }
 
+// errRoleNotAssumable is CreateFunction's answer when iam.enforce=enforce
+// finds that lambda.amazonaws.com may not assume the execution role
+// (iam-enforcement-surfaces.md 4.3,
+// testdata/parity/lambda/IAM-ENF/26-bad-trust.json);
+// UpdateFunctionConfiguration's is inferred to be the same.
+func errRoleNotAssumable() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("The role defined for the function cannot be assumed by Lambda."))
+}
+
 func errVisibilityTimeout(visibility, timeout int) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("Queue visibility timeout: " + strconv.Itoa(visibility) + " seconds is less than Function timeout: " + strconv.Itoa(timeout) + " seconds"))
 }

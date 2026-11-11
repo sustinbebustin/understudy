@@ -151,8 +151,9 @@ These differences hold under every mode, and each is stated in the operation's c
 
 ### Configuration checks
 
-Some calls that configure a Lambda function check its execution role's permissions, as AWS does, whoever makes the call:
+Some calls that configure a Lambda function check its execution role's trust policy or permissions, as AWS does, whoever makes the call:
 
+- `CreateFunction`, and `UpdateFunctionConfiguration` when it passes a `Role`, ask whether `lambda.amazonaws.com` may assume the role: its trust policy must allow `sts:AssumeRole` for that service principal. A role that does not exist fails the same way. The caller's own `iam:PassRole` on the role is asked first, and its denial is an `AccessDeniedException`. That `UpdateFunctionConfiguration` checks the trust is inferred; only `CreateFunction` was recorded.
 - `CreateEventSourceMapping` and `UpdateEventSourceMapping` ask whether the role may read the mapping's queue or stream.
 - `PutFunctionEventInvokeConfig` and `UpdateFunctionEventInvokeConfig` ask whether the role may call `sns:Publish` on an SNS destination or `sqs:SendMessage` on an SQS one. Function, event bus and S3 bucket destinations are not checked.
 
@@ -167,6 +168,22 @@ aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling th
 ```
 
 Once `aws iam put-role-policy` gives the role `sns:Publish` on the topic, the same call stores the destination.
+
+With the role `worker-role` trusting only the account:
+
+```sh
+aws lambda create-function --function-name worker --runtime python3.13 --handler index.handler \
+  --role arn:aws:iam::000000000000:role/worker-role --zip-file fileb://fn.zip
+```
+
+```text
+aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the CreateFunction operation: The role defined for the function cannot be assumed by Lambda.
+
+Additional error details:
+Type: User
+```
+
+Once `aws iam update-assume-role-policy` lets `lambda.amazonaws.com` assume the role, the same call creates the function.
 
 ### Deliveries
 
@@ -373,7 +390,7 @@ The output is built from what your tests exercised. Check it before it goes into
 
 - **The operation's primary action, always**, on the resources it applies to: `s3:PutObject` for `PutObject`, `sqs:SendMessage` for `SendMessageBatch`.
 - **Other actions of the same service only when the request needs them.** Every operation for which AWS's Service Reference lists more than one action of its service records the others only when the request's members need them. A `PutObject` with `x-amz-tagging` adds `s3:PutObjectTagging`, one with an ACL or grant header `s3:PutObjectAcl`; a `GetObject` or `HeadObject` of a version adds `s3:GetObjectVersion`, a `GetObjectAttributes` of one records `s3:GetObjectVersion` and `s3:GetObjectVersionAttributes` where it would record `s3:GetObject`; an `AssumeRole` with session tags adds `sts:TagSession`, one with a source identity `sts:SetSourceIdentity`; a `CreateQueue`, `CreateRole`, `CreateKey` or `CreateFunction` with tags adds the service's tag action; a `GetLogEvents` with `unmask` adds `logs:Unmask`; a `ReEncrypt` adds `kms:ReEncryptTo`; a PartiQL `INSERT` adds `dynamodb:PartiQLInsert`. A plain `PutObject` records `s3:PutObject` alone. DynamoDB's replication actions, such as `dynamodb:ReadDataForReplication` on `GetItem`, are never recorded. Two operations record a primary AWS does not always need: `TransactWriteItems` records `dynamodb:PutItem` on every table it names, and the PartiQL operations record `dynamodb:PartiQLSelect`, each with every PartiQL action on `"*"` (the coverage notes list both).
-- **Actions of another service only on a resource the call touched.** `CreateFunction` and `UpdateFunctionConfiguration` record `iam:PassRole` on the role they pass, as do EventBridge `PutRule` and `PutTargets` with a `RoleArn`, SNS `CreateTopic` with a delivery status role, S3 `PutBucketReplication` and Step Functions `CreateStateMachine` and `UpdateStateMachine`; a call that passes no role records none. Where understudy sends the `iam:PassedToService` the pass carries, as Step Functions (`states.amazonaws.com`) and IAM `AddRoleToInstanceProfile` (`ec2.amazonaws.com`) do, the `iam:PassRole` statement is granted on that condition: `"Condition":{"StringEquals":{"iam:PassedToService":"states.amazonaws.com"}}`. Actions with no such resource, such as `s3-object-lambda:PutObject` on a `PutObject` that touched no Object Lambda access point, are never recorded.
+- **Actions of another service only on a resource the call touched.** `CreateFunction` and `UpdateFunctionConfiguration` record `iam:PassRole` on the role they pass, as do EventBridge `PutRule` and `PutTargets` with a `RoleArn`, SNS `CreateTopic` with a delivery status role, S3 `PutBucketReplication` and Step Functions `CreateStateMachine` and `UpdateStateMachine`; a call that passes no role records none. Where understudy sends the `iam:PassedToService` the pass carries, as Lambda (`lambda.amazonaws.com`), Step Functions (`states.amazonaws.com`) and IAM `AddRoleToInstanceProfile` (`ec2.amazonaws.com`) do, the `iam:PassRole` statement is granted on that condition: `"Condition":{"StringEquals":{"iam:PassedToService":"states.amazonaws.com"}}`. Actions with no such resource, such as `s3-object-lambda:PutObject` on a `PutObject` that touched no Object Lambda access point, are never recorded.
 - **Each action on the resources it applies to, where understudy knows them.** A `CopyObject` records `s3:GetObject` on the source bucket's objects and `s3:PutObject` on the destination's; a `ReEncrypt` `kms:ReEncryptFrom` on the key that sealed the ciphertext and `kms:ReEncryptTo` on the destination key; a `StartMessageMoveTask` its receive, delete and attribute actions on the dead-letter queue and `sqs:SendMessage` on where the messages go; an `AddRoleToInstanceProfile` `iam:PassRole` on the role and its own action on the profile. Other calls that touch several resources of one service are granted each of their actions on each of them: a `DeleteObjects` with one versioned key grants `s3:DeleteObjectVersion` on every key it named; a `CreateFunction` with a capacity provider grants `lambda:CreateFunction` on the provider and `lambda:PassCapacityProvider` on the function. Trim those statements to the pairs your code needs.
 - **`s3:ListBucket` for a missing key.** A `GetObject`, `HeadObject` or `GetObjectAttributes` of a key that does not exist records `s3:ListBucket` on the bucket: AWS answers `404 NoSuchKey` to a caller with it and `403 AccessDenied` to one without, so a test that reads a missing key needs it.
 - **S3 objects per bucket.** Object operations touch the object's ARN (`journal` shows it), and are recorded, listed by `iam usage` and granted on `arn:aws:s3:::<bucket>/*`. Narrow that to a key prefix if your code only uses one.

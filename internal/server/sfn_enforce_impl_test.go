@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -190,11 +189,8 @@ func TestSFNLoggingNeedsTheRolesLogDelivery(t *testing.T) {
 func TestSFNLambdaTaskDeniedUnderEnforce(t *testing.T) {
 	c, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
 	sfnRoleTrusting(t, endpoint, "states.amazonaws.com")
-	pkg := base64.StdEncoding.EncodeToString(zipped(t, "unused"))
-	body := `{"FunctionName":"fn","Runtime":"provided.al2023","Handler":"bootstrap","Role":"arn:aws:iam::000000000000:role/fn","Code":{"ZipFile":"` + pkg + `"}}`
-	req := newRequest(t, http.MethodPost, endpoint+"/2015-03-31/functions", body)
-	req.Header.Set("Content-Type", "application/json")
-	if w := signedCall(t, dummy, "lambda", req, body); w.status != http.StatusCreated {
+	roleTrustingLambda(t, endpoint, "fn")
+	if w := createFunction(t, dummy, endpoint, "fn"); w.status != http.StatusCreated {
 		t.Fatalf("CreateFunction = %d %s", w.status, w.body)
 	}
 	const fn = "arn:aws:lambda:us-east-1:000000000000:function:fn"
