@@ -352,8 +352,8 @@ func (a *attempt) permanent(ctx context.Context, f failure) (journal.DeliveryOut
 // recommends and SNSH-05 recorded, 429, 5xx and a failed or timed-out
 // exchange are retried; any other answer delivers, 3xx and 4xx included.
 // 6.1 leaves UNVERIFIED whether a connection-level failure is retried
-// (SNSH-24). A
-// request egress refused, or one with no client to send it, is Refused:
+// (SNSH-24); it is, under sns.http.connection-failure. A request egress
+// refused, or one with no client to send it, is Refused:
 // never retried or dead-lettered (7.3). The retry delay runs from the end
 // of the attempt (attemptEnd), waited of wall time after due. The exchange
 // is kept for the attempt's Delivery event.

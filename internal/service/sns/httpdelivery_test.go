@@ -271,6 +271,9 @@ func TestHTTPSwitchesAreListed(t *testing.T) {
 		{"sns.http.control-dlq", "never", rec, "65-dead-letter-queue", "SNSH-17", C},
 		{"sns.http.control-content-type", "as-request-policy", rec, "33-content-type", "SNSH-03", C},
 		{"sns.http.basic-auth", "preemptive", inf, "31-method-url-and-connection", "SNSH-22", A},
+		// A refused or dropped connection is retried; SNSH-24 was n/a
+		// (sns-http-delivery.md 6.1).
+		{"sns.http.connection-failure", "retried", inf, "61-response-classes", "SNSH-24", A},
 	}
 	run(t, func(h *harness) {
 		listed := map[string]fidelity.Entry{}

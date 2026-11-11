@@ -186,7 +186,7 @@ func (objectBody) Trailer(string) (string, bool) { return "", false }
 // are retried; every other status ends the delivery as delivered
 // (statusResult). Whether a connection-level failure (refused, reset, DNS
 // or TLS) is retried is UNVERIFIED (SNSH-24): it is retried under the
-// server-side reading. A redirect is not followed: its 3xx is the answer
+// server-side reading (sns.http.connection-failure). A redirect is not followed: its 3xx is the answer
 // (sns.http.redirects). A request client refuses, or any request when
 // client is nil, is refused (7.3).
 func postHTTP(ctx context.Context, client *egress.Client, t delivery.HTTPEndpoint) httpResult {

@@ -231,7 +231,7 @@ Inferred from the code above:
   - 3xx (301, 302, 307) and 4xx other than 429 (400, 403, 404, 410): one attempt, counted delivered (`NumberOfNotificationsDelivered`), no retry, nothing to the DLQ;
   - 429 and 5xx: retried (3 attempts with `numRetries` 2, 5 s apart);
   - after exhausted retries only 2 of 5 subscriptions (`/auto/s502`, `/auto/s503`) reached the DLQ (`NumberOfNotificationsRedrivenToDlq` 2, `...FailedToRedriveToDlq` 0); `/auto/s500`, `/auto/s429` and `/auto/raw/s500` were not redriven. Not explained, and the Lambda receiver was partly throttled; a re-record with fewer concurrent subscriptions should settle which exhausted deliveries are redriven.
-- The emulator's `sns.http.status-classes` keeps the retries page's reading (`retries-doc`), a recorded deviation until it is changed.
+- The emulator follows the SNSH-05 classes: 429 and 5xx retried, every other status delivered. The `sns.http.status-classes` switch that kept the retries page's reading is retired (2026-11-11). A connection-level failure is retried by the server-side reading, under the inferred switch `sns.http.connection-failure` until SNSH-24 is recorded.
 - Redirects are not followed (SNSH-06, recorded 2026-11-03); under the recorded classes the 3xx then counts as delivered. The emulator never follows one (7.4).
 - Response bodies are not used by any documented behavior; read and discard them (inferred).
 
@@ -360,7 +360,7 @@ Delivery status logging stays stored-only, under the SetTopicAttributes note; th
 
 1. `internal/delivery` gains a `Target` variant `HTTPEndpoint{URL, Kind, Header, Body}`, where `Kind` is a closed enum `Notification | SubscriptionConfirmation | UnsubscribeConfirmation`. It also gains `Mechanism` `SNSToHTTP` and a `RetryPolicy` variant `SNSHTTP` holding the resolved phases (`NoDelay`, `MinDelay`, `Backoff`, `MaxDelay` counts, both delay targets, the backoff function) and `MaxReceivesPerSecond` (0 for none). SNS resolves the policy from the effective policy (6.2) when it enqueues the delivery. When AWS reads the policy is undocumented, and it does not matter to a test that sets the policy before publishing.
 2. An HTTP attempt is tracked work (`DeliveryAttempt`) that calls a new egress package, not `kernel.Invoke`. That package (for example `internal/egress`) is the only code that dials out; it owns the allow-list, the refusals and the client of 7.4, and needs a row in `internal/ref/deps_test.go`. Delivery-phase fault rules run first (ADR 0008), so tests can inject a 500, a 429 or a timeout without a receiver. Each attempt emits a `journal.Delivery` with the host and port, status, class, wall duration and attempt number.
-3. Outcome classes follow 6.1 under `sns.http.status-classes`. A retryable outcome arms the next attempt at the completion instant plus the phase delay (6.3). A permanent outcome, or retries exhausted, goes to the `RedrivePolicy` queue when one is set and is discarded otherwise; filtered messages never go to it (ADR 0015). A refusal is terminal (7.3).
+3. Outcome classes follow 6.1 as SNSH-05 recorded them, with a connection-level failure retried under `sns.http.connection-failure`. A retryable outcome arms the next attempt at the completion instant plus the phase delay (6.3). A delivery whose retries are exhausted goes to the `RedrivePolicy` queue when one is set and is discarded otherwise; filtered messages never go to it (ADR 0015). A refusal is terminal (7.3).
 4. Control messages: `Subscribe` enqueues the `SubscriptionConfirmation`; an unauthenticated unsubscribe enqueues the `UnsubscribeConfirmation` (2.4, `sns.http.unsubscribe-confirmation`). Both retry under the effective policy and never go to a DLQ (`sns.http.control-dlq`).
 5. Throttling: `throttlePolicy` is stored and read back and does not pace attempts (6.4, SNSH-20).
 6. While pending, a subscription is skipped at fan-out and nothing is held for it (`sns.http.pending-messages`, 2.2).
@@ -378,7 +378,7 @@ Delivery status logging stays stored-only, under the SetTopicAttributes note; th
 
 | Name | Default | Label | Grounds | Settled by |
 |---|---|---|---|---|
-| `sns.http.status-classes` | `retries-doc` (2xx success; 429, 5xx, timeout, connection failure retryable; everything else permanent). AWS counts 3xx and other 4xx as delivered (6.1), a recorded deviation | inferred | 6.1 | SNSH-05; SNSH-24 n/a |
+| `sns.http.connection-failure` | `retried` (a refused, reset, DNS or TLS failure is retried under the delivery policy, the server-side reading of 6.1) | inferred | 6.1 | SNSH-24 (n/a) |
 | `sns.http.redirects` | `not-followed` (a 3xx is the attempt's status) | aws-recorded (SNSH-06) | 3.1, 6.1 | SNSH-06 |
 | `sns.http.retry-body` | `identical` (retries resend the first attempt's bytes) | aws-recorded (SNSH-07) | 4.6 | SNSH-07 |
 | `sns.http.dlq-body` | `as-sqs` (envelope, or raw body plus attributes as SQS attributes; the raw form is not recorded) | aws-recorded (SNSH-08) | 6.5 | SNSH-08 |
@@ -389,6 +389,8 @@ Delivery status logging stays stored-only, under the SetTopicAttributes note; th
 | `sns.http.control-dlq` | `never` (failed confirmations are discarded) | aws-recorded (SNSH-17) | 6.5 | SNSH-17 |
 | `sns.http.control-content-type` | `as-request-policy` (`headerContentType` applies to all three types); was `text-plain` until 2026-11-03 | aws-recorded (SNSH-03) | 3.3 | SNSH-03 |
 | `sns.http.basic-auth` | `preemptive` (Basic credentials from the URL on the first request; Digest not implemented). SNSH-22 saw no `authorization` header at all, possibly stripped by its receiver | inferred | 3.1 | SNSH-22 |
+
+`sns.http.status-classes` (`retries-doc`) is retired: every status but 429 and 5xx delivers, as SNSH-05 recorded (6.1).
 
 `sns.http.resubscribe-pending` (`resend-same-token`) is retired: a repeated `Subscribe` while pending sends a new token and every token sent confirms, as SNSH-12 recorded (2.2).
 
@@ -437,7 +439,7 @@ For a human with credentials in the recording-kit shell (`docs/recording-kit.md`
 | SNSH-02 | Version-2 signature over HTTP | 5.2 | A | `A-verify.txt` lines 3 and 4 say `Verified OK` |
 | SNSH-03 | `headerContentType` on confirmations | `sns.http.control-content-type` | A | `content-type` of the `/auto/json` and `/auto/plain` confirmations and their UnsubscribeConfirmations |
 | SNSH-04 | `MessageStructure` key for https | 4.2 | A | the `/auto/a` body of `A-publish-structure` is `for-https` |
-| SNSH-05 | Classes of 2xx, 3xx, 4xx; DLQ for permanent failures | `sns.http.status-classes` | B | attempts per path in `B-receiver`; which paths reached `B-dlq-*` |
+| SNSH-05 | Classes of 2xx, 3xx, 4xx; DLQ for permanent failures | 6.1 (retired `sns.http.status-classes`) | B | attempts per path in `B-receiver`; which paths reached `B-dlq-*` |
 | SNSH-06 | Redirect following | `sns.http.redirects` | B | any POST at `/auto/redirected` |
 | SNSH-07 | Retry body identity | `sns.http.retry-body` | B | `Timestamp`, `Signature`, `MessageId` across `/auto/s500` attempts |
 | SNSH-08 | DLQ message form for HTTP, raw and enveloped | `sns.http.dlq-body` | B | `B-dlq-*` bodies and message attributes |
@@ -456,11 +458,11 @@ For a human with credentials in the recording-kit shell (`docs/recording-kit.md`
 | SNSH-21 | Subscribe checks for loopback, private and unresolvable endpoints | 2.1 | G | `G-subscribe-*` results |
 | SNSH-22 | Basic auth and endpoint masking | `sns.http.basic-auth` | G | `authorization` header per attempt at `/auth/auto`; `Endpoint` in `G-attrs-auth` and `G-list` |
 | SNSH-23 | Delivery status log groups and schema for HTTPS | 6.6 | H | `H-log-groups`, `H-events-*` |
-| SNSH-24 | Retry class of a refused and of a dropped connection | `sns.http.status-classes`, 6.1 | I | `I-failed-*` sums; `I-dlq` `SentTimestamp` against `I-publish-time.txt` |
+| SNSH-24 | Retry class of a refused and of a dropped connection | `sns.http.connection-failure`, 6.1 | I | `I-failed-*` sums; `I-dlq` `SentTimestamp` against `I-publish-time.txt` |
 | SNSH-25 | Code, status and full text of `Unsubscribe` on a pending subscription | 6.7, 8.6 | E | `E-unsubscribe-pending` error |
-| SNSH-26 | Request timeout: endpoints answering after 25, 35 and 50 s | 3.1, 6.3, `sns.http.status-classes` | J | attempts and gaps per `/auto/sleepNN` path in `J-receiver-timeout` |
+| SNSH-26 | Request timeout: endpoints answering after 25, 35 and 50 s | 3.1, 6.1, 6.3 | J | attempts and gaps per `/auto/sleepNN` path in `J-receiver-timeout` |
 | SNSH-27 | Throttle pacing over a 60-message burst | 6.4 | J | `SentTimestamp` of the 60 messages in `J-thr-recv-*` |
-| SNSH-28 | Which exhausted 429 and 5xx deliveries are redriven, one subscription at a time; the raw DLQ body | 6.1, 6.5, `sns.http.status-classes`, `sns.http.dlq-body` | J | `J-dlq-redrive-*` bodies per path; attempts in `J-receiver-redrive-*` |
+| SNSH-28 | Which exhausted 429 and 5xx deliveries are redriven, one subscription at a time; the raw DLQ body | 6.1, 6.5, `sns.http.dlq-body` | J | `J-dlq-redrive-*` bodies per path; attempts in `J-receiver-redrive-*` |
 | SNSH-29 | Backoff curves with two more parameter sets | 6.3, `sns.http.backoff-curves` | J | gaps between attempts per path in `J-receiver-backoff-*` |
 | SNSH-30 | Basic auth through a receiver that keeps `authorization`; whether a function URL strips it | 3.1, `sns.http.basic-auth` | J | `J-receiver-probe`; `authorization` per request at `/auth/auto` in `J-receiver-auth` |
 

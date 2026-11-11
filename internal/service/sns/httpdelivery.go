@@ -272,6 +272,8 @@ func httpSwitches() []fidelity.Switch[string] {
 		httpSwitch("sns.http.control-content-type", "as-request-policy", evidence.AWSRecorded, "33-content-type", "SNSH-03", unreplayed("SNSH-03"), control),
 		httpSwitch("sns.http.basic-auth", "preemptive", evidence.Inferred, "31-method-url-and-connection", "SNSH-22",
 			"recorded in SNSH-22 (2026-11-03): no Authorization header reached the endpoint, which may be the function URL's doing, so the value stays inferred", all),
+		httpSwitch("sns.http.connection-failure", "retried", evidence.Inferred, "61-response-classes", "SNSH-24",
+			"SNSH-24 was n/a on 2026-11-03 (the free plan refused its EC2 receiver), and the documentation both retries an unavailable endpoint and counts an unreachable one a client error, so a refused, reset, DNS or TLS failure is retried by the server-side reading", all),
 	}
 }
 

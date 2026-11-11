@@ -331,6 +331,7 @@ func TestHTTPStatusClassesFollowTheRecording(t *testing.T) {
 		{"429", hookURL, http.StatusTooManyRequests, true},
 		{"500", hookURL, http.StatusInternalServerError, true},
 		{"503", hookURL, http.StatusServiceUnavailable, true},
+		// Inferred, not recorded: sns.http.connection-failure (SNSH-24 n/a).
 		{"a refused connection", "http://127.0.0.1:8090/hook", 0, true},
 	}
 	for _, c := range cases {
