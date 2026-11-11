@@ -289,6 +289,11 @@ func TestSigV4VerifyRefusesSkewAsRecorded(t *testing.T) {
 			t.Errorf("%s signed 16 minutes ago = %d %q, x-amzn-query-error %q; want %d, the recorded body and %q",
 				c.service, res.StatusCode, body, res.Header.Get("X-Amzn-Query-Error"), c.status, c.queryError)
 		}
+		// DynamoDB's answer carries x-amz-crc32 over the body, errors included
+		// (testdata/parity/dynamodb/R18/03-dynamodb-skew-16min.json).
+		if want := strconv.FormatUint(uint64(crc32.ChecksumIEEE(body)), 10); c.service == "dynamodb" && res.Header.Get("X-Amz-Crc32") != want {
+			t.Errorf("dynamodb skew refusal: x-amz-crc32 %q, want %q", res.Header.Get("X-Amz-Crc32"), want)
+		}
 	}
 
 	if got := s3Call(t, dummy, http.MethodPut, endpoint+"/ahead", ""); got.status != http.StatusOK {

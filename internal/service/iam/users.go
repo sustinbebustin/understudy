@@ -69,9 +69,6 @@ func callerUser(c *kernel.Call, name *string) (subject, *awserr.Error) {
 }
 
 func (s *Service) createUser(_ context.Context, c *kernel.Call, in *iamapi.CreateUserInput) (*iamapi.CreateUserOutput, *awserr.Error) {
-	if err := checkPath("path", in.Path); err != nil {
-		return nil, err
-	}
 	tags, err := newTags(foldedKeys, in.Tags)
 	if err != nil {
 		return nil, err
@@ -95,7 +92,7 @@ func (s *Service) createUser(_ context.Context, c *kernel.Call, in *iamapi.Creat
 			}
 		}
 		u.ID = s.ids.UserID()
-		u.Created = now
+		u.Created = createDate(now)
 		st.Users[key(u.Name)] = u
 		return apiUserDetail(account, u), nil
 	})
@@ -155,9 +152,6 @@ func (s *Service) changeUser(c *kernel.Call, name string, change func(st *State,
 
 // updateUser renames a user or moves it to a new path.
 func (s *Service) updateUser(_ context.Context, c *kernel.Call, in *iamapi.UpdateUserInput) (*iamapi.UpdateUserOutput, *awserr.Error) {
-	if err := checkPath("newPath", in.NewPath); err != nil {
-		return nil, err
-	}
 	if err := s.userExists(c, in.UserName); err != nil {
 		return nil, err
 	}

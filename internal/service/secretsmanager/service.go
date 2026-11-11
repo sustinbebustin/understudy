@@ -1,6 +1,8 @@
 package secretsmanager
 
 import (
+	"strings"
+
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -40,7 +42,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 
 	b.CreateSecret(s.createSecret, registry.Partial{Note: "AddReplicaRegions (replication) answers NotImplemented"},
 		kernel.WithCheck(func(in *secretsmanagerapi.CreateSecretInput) *awserr.Error {
-			return firstError(requireToken(in.ClientRequestToken), checkName(in.Name), checkValue(in.SecretString, in.SecretBinary))
+			return firstError(requireToken(in.ClientRequestToken), checkNewName(in.Name), checkValue(in.SecretString, in.SecretBinary))
 		}),
 		// secretsmanager:TagResource only for a secret created with tags,
 		// secretsmanager:ReplicateSecretToRegions only with replica regions:
@@ -100,9 +102,27 @@ func requireToken(token *string) *awserr.Error {
 	return nil
 }
 
+// checkName refuses a SecretId that is a name outside the secret-name
+// character set.
 func checkName(name string) *awserr.Error {
 	if !validName(name) {
 		return errInvalidName()
+	}
+	return nil
+}
+
+// checkNewName refuses a CreateSecret Name in two stages, as AWS does. A
+// character outside the set AWS's ValidationException text lists (the
+// secret-name set plus `!`) gets that text, third-party-recorded for a
+// space, *, ? and ] (secrets-logs-events-alarms.md 2.1). A name that
+// passes it but holds a `!` gets InvalidParameterException
+// (secretsmanager/R15/05-name-bang.json).
+func checkNewName(name string) *awserr.Error {
+	if !validName(strings.ReplaceAll(name, "!", "")) {
+		return errInvalidName()
+	}
+	if !validName(name) {
+		return errInvalidNewName()
 	}
 	return nil
 }
@@ -179,10 +199,10 @@ func (s *Service) Switches() []fidelity.Entry {
 		fidelity.Switch[string]{
 			Name:    "secretsmanager.restore.not-scheduled",
 			Value:   "no-op",
-			Label:   evidence.Inferred,
+			Label:   evidence.AWSRecorded,
 			Ref:     "docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven",
 			Ops:     []string{"secretsmanager.RestoreSecret"},
-			Settles: fidelity.NoScenario{Reason: "secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet"},
+			Settles: fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "secretsmanager/R15", Step: "05-restore-live"}},
 		}.Entry(),
 	}
 }

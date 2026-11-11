@@ -33,6 +33,11 @@ type Service struct {
 	// answer the awsJson codec encodes, success and error, carries
 	// x-amz-crc32, the CRC-32 (IEEE) of its body in decimal.
 	ResponseCRC32 bool
+	// RefuseDuplicateMembers is the overlay's
+	// dev.understudy#refuseDuplicateMembers: the awsJson codec refuses a
+	// request body whose objects repeat a member name, at any depth,
+	// instead of keeping the last value.
+	RefuseDuplicateMembers bool
 	// QueryErrorEnvelope is the overlay's dev.understudy#queryErrorEnvelope:
 	// how the awsQuery ErrorResponse differs from Smithy's example. The zero
 	// value is Smithy's example.

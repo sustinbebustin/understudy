@@ -178,6 +178,75 @@ func TestCoralRendersValidatorBugsAsUnderstudyText(t *testing.T) {
 	}
 }
 
+// A service may leave the value or the enum list out of a Coral entry: IAM
+// omits both (error-matrix.md 5.10 T3 and T4, third-party-recorded),
+// DynamoDB Streams omits the value, null included, and keeps the list
+// (testdata/parity/dynamodb/DDBS-02/03-describe-limit-0.json,
+// 07-bad-type.json, 08-missing-type.json, aws-recorded).
+func TestCoralEntriesLeaveOutWhatTheirEchoOmits(t *testing.T) {
+	omitBoth := awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}
+	omitValue := awserr.CoralEcho{Value: awserr.OmitValue}
+	tests := []struct {
+		name string
+		es   []awserr.CoralEntry
+		want string
+	}{
+		{
+			name: "IAM enum",
+			es: []awserr.CoralEntry{{Echo: omitBoth, Violation: awserr.Violation{
+				Path: awserr.Path{"status"}, Value: awserr.RenderedText{Text: "invalid"},
+				Constraint: awserr.Enum{Values: []string{"Active", "Inactive"}},
+			}}},
+			want: "1 validation error detected: Value at 'status' failed to satisfy constraint: Member must satisfy enum value set",
+		},
+		{
+			name: "IAM pattern",
+			es: []awserr.CoralEntry{{Echo: omitBoth, Violation: awserr.Violation{
+				Path: awserr.Path{"serviceSpecificCredentialId"}, Value: awserr.RenderedText{Text: "x-y"},
+				Constraint: awserr.Pattern{Echo: `[\w]+`},
+			}}},
+			want: `1 validation error detected: Value at 'serviceSpecificCredentialId' failed to satisfy constraint: Member must satisfy regular expression pattern: [\w]+`,
+		},
+		{
+			name: "DynamoDB Streams enum and missing member",
+			es: []awserr.CoralEntry{
+				{Echo: omitValue, Violation: awserr.Violation{
+					Path: awserr.Path{"shardIteratorType"}, Value: awserr.RenderedText{Text: "BOGUS"},
+					Constraint: awserr.Enum{Values: []string{"TRIM_HORIZON", "LATEST"}},
+				}},
+				{Echo: omitValue, Violation: awserr.Violation{
+					Path: awserr.Path{"shardId"}, Value: awserr.RenderedNull{}, Constraint: awserr.Required{},
+				}},
+			},
+			want: "2 validation errors detected: Value at 'shardIteratorType' failed to satisfy constraint: Member must satisfy enum value set: [TRIM_HORIZON, LATEST]; " +
+				"Value at 'shardId' failed to satisfy constraint: Member must not be null",
+		},
+		{
+			name: "an enum rolled up in a composite",
+			es: []awserr.CoralEntry{{Echo: omitBoth, Violation: awserr.Violation{
+				Path: awserr.Path{"architectures"}, Value: awserr.RenderedText{Text: "[X]"},
+				Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{
+					awserr.Enum{Values: []string{"x86_64", "arm64"}},
+				}},
+			}}},
+			want: "1 validation error detected: Value at 'architectures' failed to satisfy constraint: Member must satisfy constraint: [Member must satisfy enum value set]",
+		},
+		{
+			name: "the zero echo prints everything",
+			es: []awserr.CoralEntry{{Violation: awserr.Violation{
+				Path: awserr.Path{"status"}, Value: awserr.RenderedText{Text: "invalid"},
+				Constraint: awserr.Enum{Values: []string{"Active", "Inactive"}},
+			}}},
+			want: "1 validation error detected: Value 'invalid' at 'status' failed to satisfy constraint: Member must satisfy enum value set: [Active, Inactive]",
+		},
+	}
+	for _, tt := range tests {
+		if got := awserr.CoralEntries(tt.es); got != tt.want {
+			t.Errorf("%s:\n got %s\nwant %s", tt.name, got, tt.want)
+		}
+	}
+}
+
 // An empty violation list is a validator bug too: the message must not pass
 // for AWS text with a count of 0.
 func TestCoralMessageRendersNoViolationsAsUnderstudyText(t *testing.T) {

@@ -536,10 +536,10 @@ func (v *CapacityProviderScalingConfig) validate(path awserr.Path, out *[]awserr
 	}
 	if v.ScalingPolicies != nil {
 		if len(v.ScalingPolicies) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "scalingPolicies"), Value: awserr.RenderedText{Text: renderCapacityProviderScalingPoliciesList(v.ScalingPolicies)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "scalingPolicies"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.ScalingPolicies) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "scalingPolicies"), Value: awserr.RenderedText{Text: renderCapacityProviderScalingPoliciesList(v.ScalingPolicies)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "scalingPolicies"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.ScalingPolicies {
 			p2 := at(at(path, "scalingPolicies"), strconv.Itoa(i2+1), "member")
@@ -1125,10 +1125,10 @@ func (v *CreateEventSourceMappingInput) validate(path awserr.Path, out *[]awserr
 	}
 	if v.SourceAccessConfigurations != nil {
 		if len(v.SourceAccessConfigurations) > 23 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedText{Text: renderSourceAccessConfigurations(v.SourceAccessConfigurations)}, Constraint: awserr.LengthMax{Max: 23}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 23}})
 		}
 		if len(v.SourceAccessConfigurations) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedText{Text: renderSourceAccessConfigurations(v.SourceAccessConfigurations)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.SourceAccessConfigurations {
 			p2 := at(at(path, "sourceAccessConfigurations"), strconv.Itoa(i2+1), "member")
@@ -1314,10 +1314,10 @@ func (v *CreateFunctionInput) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.FileSystemConfigs != nil {
 		if len(v.FileSystemConfigs) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedText{Text: renderFileSystemConfigList(v.FileSystemConfigs)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.FileSystemConfigs) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedText{Text: renderFileSystemConfigList(v.FileSystemConfigs)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.FileSystemConfigs {
 			p2 := at(at(path, "fileSystemConfigs"), strconv.Itoa(i2+1), "member")
@@ -4886,10 +4886,10 @@ func (v *UpdateEventSourceMappingInput) validate(path awserr.Path, out *[]awserr
 	}
 	if v.SourceAccessConfigurations != nil {
 		if len(v.SourceAccessConfigurations) > 23 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedText{Text: renderSourceAccessConfigurations(v.SourceAccessConfigurations)}, Constraint: awserr.LengthMax{Max: 23}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 23}})
 		}
 		if len(v.SourceAccessConfigurations) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedText{Text: renderSourceAccessConfigurations(v.SourceAccessConfigurations)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.SourceAccessConfigurations {
 			p2 := at(at(path, "sourceAccessConfigurations"), strconv.Itoa(i2+1), "member")
@@ -5119,10 +5119,10 @@ func (v *UpdateFunctionConfigurationInput) validate(path awserr.Path, out *[]aws
 	}
 	if v.FileSystemConfigs != nil {
 		if len(v.FileSystemConfigs) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedText{Text: renderFileSystemConfigList(v.FileSystemConfigs)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.FileSystemConfigs) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedText{Text: renderFileSystemConfigList(v.FileSystemConfigs)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.FileSystemConfigs {
 			p2 := at(at(path, "fileSystemConfigs"), strconv.Itoa(i2+1), "member")
@@ -5304,13 +5304,15 @@ func (v *WaitOptions) validate(path awserr.Path, out *[]awserr.Violation) {
 // constraintKind is a set of the constraint kinds a rule covers.
 type constraintKind uint8
 
-// constraintKind values, one per generated constraint.
+// constraintKind values, one per generated constraint, plus kindLengthMax,
+// the maximum alone, for a rule whose text answers only an over-long value.
 const (
 	kindRequired constraintKind = 1 << iota
 	kindLength
 	kindRange
 	kindPattern
 	kindEnum
+	kindLengthMax
 )
 
 // validationStyle is the message grammar of a rule.
@@ -5338,6 +5340,7 @@ type validationRule struct {
 	id     func() awserr.Identity
 	style  validationStyle
 	reason string
+	echo   awserr.CoralEcho // what a Coral entry prints; the zero value prints everything
 }
 
 // validationPath is one member path of an operation input; "*" stands for a
@@ -5395,15 +5398,15 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 
 // coralUnder renders, as one Coral message, every violation whose rule is
 // Coral-styled and names the code id, each path under the policy's root
-// when it has one.
+// when it has one and each entry under its rule's echo.
 func (p *validationPolicy) coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
-	var same []awserr.Violation
+	var same []awserr.CoralEntry
 	for i, v := range vs {
 		if rules[i].style == styleCoral && rules[i].id().Shape == id.Shape {
-			same = append(same, p.rooted(v))
+			same = append(same, awserr.CoralEntry{Violation: p.rooted(v), Echo: rules[i].echo})
 		}
 	}
-	return awserr.CoralMessage(same)
+	return awserr.CoralEntries(same)
 }
 
 // rooted is v with its path under the policy's root, unless the policy has
@@ -5464,14 +5467,16 @@ func pathMatches(template []string, path awserr.Path) bool {
 	return true
 }
 
-// constraintKindOf is the kind a filter names for c, or 0 for a constraint
+// constraintKindOf is the kinds a filter names for c, or 0 for a constraint
 // no filter names (Encoding, Composite).
 func constraintKindOf(c awserr.Constraint) constraintKind {
 	switch c.(type) {
 	case awserr.Required:
 		return kindRequired
-	case awserr.LengthMin, awserr.LengthMax:
+	case awserr.LengthMin:
 		return kindLength
+	case awserr.LengthMax:
+		return kindLength | kindLengthMax
 	case awserr.RangeMin, awserr.RangeMax:
 		return kindRange
 	case awserr.Pattern:
@@ -7343,14 +7348,6 @@ func renderArchitecturesList(v []Architecture) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderCapacityProviderScalingPoliciesList(v []TargetTrackingScalingPolicy) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderCapacityProviderSecurityGroupIds(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -7416,14 +7413,6 @@ func renderExecutionStatusList(v []ExecutionStatus) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderFileSystemConfigList(v []FileSystemConfig) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderFunctionResponseTypeList(v []FunctionResponseType) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -7476,14 +7465,6 @@ func renderSigningProfileVersionArns(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderSourceAccessConfigurations(v []SourceAccessConfiguration) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

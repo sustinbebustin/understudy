@@ -7,7 +7,9 @@
 // Resource or NotResource, Condition) into a typed Document;
 // ValidateIdentity and ValidateTrust add the rules IAM applies to identity
 // and trust policies, with the MalformedPolicyDocument texts of
-// docs/research/iam-sts-kms.md 3.3; ValidateIdentityForm applies only the
+// docs/research/iam-sts-kms.md 3.3 or of AWS's recordings where they exist;
+// ValidateSession applies the identity rules to an STS session policy with
+// STS's text for missing actions; ValidateIdentityForm applies only the
 // two that make a document an identity policy, for documents that never
 // went through CreatePolicy. Encode writes a canonical form. Allows evaluates
 // a request against one document for resource-policy advisories and tests;
@@ -19,7 +21,10 @@
 // behavior:
 //
 //   - The texts and their order follow moto's validator, the only wide
-//     public catalogue (UNVERIFIED against AWS): syntax, version, legacy
+//     public catalogue (UNVERIFIED against AWS), except where AWS was
+//     recorded: a trust statement without a principal, checked first, the
+//     trust action text, and STS's text for a session statement without
+//     actions (see the Rule values). moto's order: syntax, version, legacy
 //     parsing, Sid uniqueness, required actions, resource formats, action
 //     vendors, then required resources for identity policies or the trust
 //     actions and the prohibited Resource for trust policies. moto lacks the

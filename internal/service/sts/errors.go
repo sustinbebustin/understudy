@@ -41,14 +41,18 @@ func errOverMaxSession() *awserr.Error {
 }
 
 // errTooManyPolicyARNs answers a request naming more managed session
-// policies than AWS allows, in the grammar of a model violation; the model
-// carries no such limit, and the text and the omitted value are inferred.
+// policies than AWS allows, in AWS's own words (parity capture sts/R15,
+// x-assume-11-policy-arns, aws-recorded 2026-10-14); the model carries no
+// such limit.
 func errTooManyPolicyARNs() *awserr.Error {
-	return stsapi.ErrValidationException(awserr.CoralMessage([]awserr.Violation{{
-		Path:       awserr.Path{"policyArns"},
-		Value:      awserr.RenderedOmitted{},
-		Constraint: awserr.LengthMax{Max: maxPolicyARNs},
-	}}))
+	return stsapi.ErrValidationException("The limit of ARNs for the PolicyArns parameter was exceeded. " + strconv.Itoa(maxPolicyARNs) + " ARNs can be requested at most in an API request.")
+}
+
+// errUndecodableAccessKey answers a GetAccessKeyInfo key id whose account
+// ids.DecodeAccount cannot read. AWS's answer is unrecorded; the text is
+// inferred.
+func errUndecodableAccessKey(key string) *awserr.Error {
+	return stsapi.ErrValidationException("The account of access key id " + key + " cannot be decoded: it is not a 20-character AKIA or ASIA key id that encodes a 12-digit account.")
 }
 
 // errReservedSourceIdentity answers a SourceIdentity with the reserved

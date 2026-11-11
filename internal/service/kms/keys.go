@@ -7,7 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
-	"unicode/utf8"
+	"unicode"
 
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -120,6 +120,19 @@ func keyUsages(spec kmsapi.KeySpec) []kmsapi.KeyUsageType {
 // https://docs.aws.amazon.com/kms/latest/APIReference/API_PutKeyPolicy.html).
 const maxPolicyChars = 32768
 
+// policyChars is the length the quota measures: the characters of policy
+// other than whitespace (kms/R15/03-put-key-policy-too-long.json: a policy
+// of 33136 characters, 14 of them spaces, was "33122 characters long").
+func policyChars(policy string) int {
+	n := 0
+	for _, r := range policy {
+		if !unicode.IsSpace(r) {
+			n++
+		}
+	}
+	return n
+}
+
 // storedPolicy is a checked key policy as KMS stores it in scope: as sent,
 // except that a bare account id named as an AWS principal becomes the
 // account's root ARN (iam-evaluation.md 5.4, IAM-EVAL-27). AWS also lays
@@ -135,7 +148,7 @@ func storedPolicy(policy string, scope aws.Scope) string {
 // statement without Action or Resource is accepted, as AWS accepts it (it
 // has no effect).
 func checkPolicy(policy string) *awserr.Error {
-	if n := utf8.RuneCountInString(policy); n > maxPolicyChars {
+	if n := policyChars(policy); n > maxPolicyChars {
 		return errPolicyTooLong(n, maxPolicyChars)
 	}
 	doc, err := policydoc.Parse([]byte(policy))

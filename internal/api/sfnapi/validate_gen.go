@@ -96,10 +96,10 @@ func (v *CreateStateMachineAliasInput) validate(path awserr.Path, out *[]awserr.
 		*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.RoutingConfiguration) > 2 {
-			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedText{Text: renderRoutingConfigurationList(v.RoutingConfiguration)}, Constraint: awserr.LengthMax{Max: 2}})
+			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}})
 		}
 		if len(v.RoutingConfiguration) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedText{Text: renderRoutingConfigurationList(v.RoutingConfiguration)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.RoutingConfiguration {
 			p2 := at(at(path, "routingConfiguration"), strconv.Itoa(i2+1), "member")
@@ -1324,10 +1324,10 @@ func (v *UpdateStateMachineAliasInput) validate(path awserr.Path, out *[]awserr.
 	}
 	if v.RoutingConfiguration != nil {
 		if len(v.RoutingConfiguration) > 2 {
-			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedText{Text: renderRoutingConfigurationList(v.RoutingConfiguration)}, Constraint: awserr.LengthMax{Max: 2}})
+			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}})
 		}
 		if len(v.RoutingConfiguration) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedText{Text: renderRoutingConfigurationList(v.RoutingConfiguration)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.RoutingConfiguration {
 			p2 := at(at(path, "routingConfiguration"), strconv.Itoa(i2+1), "member")
@@ -1427,13 +1427,15 @@ func (v *ValidateStateMachineDefinitionInput) validate(path awserr.Path, out *[]
 // constraintKind is a set of the constraint kinds a rule covers.
 type constraintKind uint8
 
-// constraintKind values, one per generated constraint.
+// constraintKind values, one per generated constraint, plus kindLengthMax,
+// the maximum alone, for a rule whose text answers only an over-long value.
 const (
 	kindRequired constraintKind = 1 << iota
 	kindLength
 	kindRange
 	kindPattern
 	kindEnum
+	kindLengthMax
 )
 
 // validationStyle is the message grammar of a rule.
@@ -1461,6 +1463,7 @@ type validationRule struct {
 	id     func() awserr.Identity
 	style  validationStyle
 	reason string
+	echo   awserr.CoralEcho // what a Coral entry prints; the zero value prints everything
 }
 
 // validationPath is one member path of an operation input; "*" stands for a
@@ -1518,15 +1521,15 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 
 // coralUnder renders, as one Coral message, every violation whose rule is
 // Coral-styled and names the code id, each path under the policy's root
-// when it has one.
+// when it has one and each entry under its rule's echo.
 func (p *validationPolicy) coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
-	var same []awserr.Violation
+	var same []awserr.CoralEntry
 	for i, v := range vs {
 		if rules[i].style == styleCoral && rules[i].id().Shape == id.Shape {
-			same = append(same, p.rooted(v))
+			same = append(same, awserr.CoralEntry{Violation: p.rooted(v), Echo: rules[i].echo})
 		}
 	}
-	return awserr.CoralMessage(same)
+	return awserr.CoralEntries(same)
 }
 
 // rooted is v with its path under the policy's root, unless the policy has
@@ -1587,14 +1590,16 @@ func pathMatches(template []string, path awserr.Path) bool {
 	return true
 }
 
-// constraintKindOf is the kind a filter names for c, or 0 for a constraint
+// constraintKindOf is the kinds a filter names for c, or 0 for a constraint
 // no filter names (Encoding, Composite).
 func constraintKindOf(c awserr.Constraint) constraintKind {
 	switch c.(type) {
 	case awserr.Required:
 		return kindRequired
-	case awserr.LengthMin, awserr.LengthMax:
+	case awserr.LengthMin:
 		return kindLength
+	case awserr.LengthMax:
+		return kindLength | kindLengthMax
 	case awserr.RangeMin, awserr.RangeMax:
 		return kindRange
 	case awserr.Pattern:
@@ -2258,14 +2263,6 @@ var policyValidateStateMachineDefinition = validationPolicy{
 // when vs is empty.
 func (*ValidateStateMachineDefinitionInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 	return policyValidateStateMachineDefinition.render(vs)
-}
-
-func renderRoutingConfigurationList(v []RoutingConfigurationListItem) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 // at extends a violation path without aliasing the parent's array.

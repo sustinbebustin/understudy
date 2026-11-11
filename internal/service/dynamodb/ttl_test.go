@@ -344,8 +344,13 @@ func TestDisabledTTLAndDeletedTablesAreNotSwept(t *testing.T) {
 	runStore(t, func(h *harness, store *tableStore) {
 		h.lockTable("Off")
 		h.lockTable("Gone")
+		// AWS refuses a second TTL change within the hour of the first.
+		if _, err := h.Clock.Advance(time.Hour); err != nil {
+			h.Fatal(err)
+		}
+		exp := h.Clock.Now().Add(time.Minute).Wire().Unix()
 		for _, table := range []string{"Off", "Gone"} {
-			h.mustCall("PutItem", `{"TableName":"`+table+`","Item":{"id":{"S":"a"},"exp":{"N":"946684860"}}}`)
+			h.mustCall("PutItem", fmt.Sprintf(`{"TableName":%q,"Item":{"id":{"S":"a"},"exp":{"N":"%d"}}}`, table, exp))
 		}
 		h.settle()
 		h.mustCall("UpdateTimeToLive", `{"TableName":"Off","TimeToLiveSpecification":{"AttributeName":"exp","Enabled":false}}`)

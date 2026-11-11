@@ -29,7 +29,8 @@ func SplitIAMPath(rest string) (path, name string) {
 // accept: the IAM model's pathType, "/" or a run of printable ASCII between
 // slashes, at most 512 characters. pathType's own pattern,
 // ^(/)|(/[!-~]+/)$, anchors each alternative on one side only; this is its
-// evident reading.
+// evident reading, the one codegen/overlays/iam.json gives the generated
+// validator.
 func ValidIAMPath(path string) bool {
 	return len(path) <= maxIAMPathLen && iamPath.MatchString(path)
 }

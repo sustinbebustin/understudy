@@ -556,6 +556,13 @@ func (v *validator) rendered(m *MemberIR, x string) string {
 		v.usesFloat = true
 		return "awserr.RenderedText{Text: renderFloat(float64(" + x + "))}"
 	case smithy.TypeList, smithy.TypeMap:
+		// AWS reports a collection of structures or unions with no value
+		// (iam R15/06-tag-role-51, logs R10/06-10001-events). The captures
+		// are Query and JSON; applying the rule to every service and to
+		// maps is inferred.
+		if elem := t.Members[len(t.Members)-1].Target; elem.Type == smithy.TypeStructure || elem.Type == smithy.TypeUnion {
+			return "awserr.RenderedOmitted{}"
+		}
 		v.markRender(t)
 		return "awserr.RenderedText{Text: render" + t.GoName + "(" + x + ")}"
 	case smithy.TypeBlob, smithy.TypeStructure, smithy.TypeUnion, smithy.TypeBoolean, smithy.TypeBigInteger,

@@ -8,7 +8,21 @@
         "dev.understudy#throttleError": "com.amazonaws.dynamodb#ThrottlingException",
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#responseCrc32": {},
+        "dev.understudy#refuseDuplicateMembers": {},
         "dev.understudy#evidence": [
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/dynamodb/R11/06-dynamodb-duplicate-member.json: a DescribeTable body repeating a top-level member answers 400 SerializationException \"Duplicate key found in payload\"; refusing a repeat at any depth, attribute-value maps included, is inferred",
+            "validated": "2026-10-14",
+            "covers": ["dev.understudy#refuseDuplicateMembers"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/dynamodb/R04/07-ttl-missing-table.json, R18/03-dynamodb-skew-16min.json, R11/06-dynamodb-unknown-target.json: DynamoDB answers errors too with x-amz-crc32, the CRC-32 (IEEE, decimal) of the body",
+            "validated": "2026-10-14",
+            "covers": ["dev.understudy#responseCrc32"]
+          },
           {
             "label": "aws-recorded",
             "source": "testdata/parity/dynamodb/IAM-ENF/04-describe.json: an IAM denial answers 400 with __type com.amazon.coral.service#AccessDeniedException (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch dynamodb.denial.type)",

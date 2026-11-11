@@ -105,21 +105,16 @@ A listing without `encoding-type=url` writes a control character or U+FFFE/U+FFF
 
 understudy forwards DynamoDB to DynamoDB Local, so its answers carry Local's behavior, apart from the checks understudy makes first.
 
-- A duplicate JSON member is refused by AWS with 400 `SerializationException` "Duplicate key found in payload"; understudy keeps the last value (`dynamodb/R11/06-dynamodb-duplicate-member.json`).
-- Errors understudy raises itself (validation, not-found, the TTL and tagging shims) carry no `x-amz-crc32`; AWS sends it on every answer, auth errors included (`dynamodb/R04/07-ttl-missing-table.json`, `dynamodb/R18/03-dynamodb-skew-16min.json`).
-- TTL changed again within the interval is refused on AWS: "Time to live has been modified multiple times within a fixed interval" (`dynamodb/R04/03-ttl-disable.json`).
-- `UpdateTable` to `PROVISIONED` stamps `ProvisionedThroughput.LastIncreaseDateTime` in its answer on AWS; `CreateTable` and `DeleteTable` answers omit `WarmThroughput`, and `DeleteTable` omits the key schema (`dynamodb/R04/x-billing-to-provisioned.json`, `dynamodb/R04/01-create-table.json`, `dynamodb/R04/99-delete-table.json`).
+- A TTL change within an hour of the table's last one is refused with 400 `ValidationException` "Time to live has been modified multiple times within a fixed interval", as on AWS (`dynamodb/R04/03-ttl-disable.json`). understudy measures the hour on the emulator clock, so `understudy clock advance 1h` ends it; when AWS's interval starts and ends to the second is not recorded.
 - `Scan` is sequential: DynamoDB Local ignores `Segment` and `TotalSegments`, so there is no parallel scan.
-- `DescribeContributorInsights` is not implemented; AWS answers `DISABLED` (`dynamodb/R04/02-describe-contributor-insights.json`).
 - DynamoDB Streams is served from understudy's own stream log. The recorded Streams calls answer as AWS does: `ListStreams` signed for `dynamodb`, and the 400 `InvalidSignatureException` for a call signed for `streams.dynamodb` (`dynamodb/R11/07-streams-signed-dynamodb.json`, `dynamodb/R11/07-streams-signed-streams.dynamodb.json`).
 - A new on-demand table's stream has 4 shards on AWS and reads `ENABLING`, with no shards, for about 7 seconds; a disabled one reads `DISABLING` for about 8 (`dynamodb/DDBS-05/`). understudy's stream has one shard and changes status at once.
 - AWS replaces each stream shard with a child every 3.5 to 4.5 hours and removes a closed shard whole 24.5 to 26.3 hours after it closed, so an iterator request at a record in it answers `ResourceNotFoundException` "Requested resource not found: Shard does not exist"; no record was trimmed from a shard, and none answered `TrimmedDataAccessException` (`dynamodb/DDBS-14/`, `dynamodb/DDBS-15/`). understudy's one shard never rolls over: it trims each record 24 hours after it arrives and answers `TrimmedDataAccessException`, with the model's text, for a position behind the trim.
 - AWS's stream record sequence numbers are 23 digits, far above the shard's 21-digit `StartingSequenceNumber`; understudy's are 21 digits, one above it (`dynamodb/DDBS-09/`).
 - `ApproximateCreationDateTime` is `1.793723928E9` on AWS; understudy writes a plain epoch-seconds number (`dynamodb/DDBS-10/`).
 - An expired iterator is `com.amazonaws.dynamodb.streams.v20120810#ExpiredIteratorException` on AWS; understudy's `__type` has DynamoDB's namespace (`dynamodb/DDBS-04/04-unused-at-16min.json`).
-- Streams constraint texts omit the value on AWS ("Value at 'limit' failed to satisfy constraint"), and the `ShardIteratorType` enum text lists `AT_TIMESTAMP`; understudy quotes the value and lists four types (`dynamodb/DDBS-02/`).
+- The Streams `ShardIteratorType` enum text lists `AT_TIMESTAMP` on AWS; understudy lists four types (`dynamodb/DDBS-02/07-bad-type.json`).
 - The rest of the stream's behavior, such as its single shard, is on the coverage page and under [DynamoDB Streams limitations](streams.md#limitations).
-- An unknown KMS key is "KMS validation error: com.amazonaws.services.kms.model.NotFoundException: Key '<arn>' does not exist (...)" on AWS (`dynamodb/R04/x-create-table-unknown-kms.json`).
 - Transactions never conflict. AWS cancels a conflicting transaction with `TransactionCanceledException` and the cancellation reason `TransactionConflict`; inject it with a fault rule whose members set `CancellationReasons` ([fault injection](faults.md#errors-with-members)). A conflict on a single-item write is `TransactionConflictException`, which a rule injects on `PutItem`, `UpdateItem` or `DeleteItem`.
 
 ## Kinesis
@@ -269,10 +264,8 @@ Scheduler was recorded against AWS on 2026-11-03 (`testdata/parity/scheduler/SCH
 
 ## CloudWatch and CloudWatch Logs
 
-- A list of structures over its length limit is reported without a rendered value on AWS (Logs `PutLogEvents`, IAM `TagRole`); understudy renders it (`logs/R10/06-10001-events.json`, `iam/R15/06-tag-role-51.json`).
 - `FilterLogEvents` returns `nextToken` on every page with events and ends with an empty page on AWS; understudy leaves the token off the last page with events. `GetLogEvents`' first empty page gets a new forward token on AWS (`logs/R10/05-*.json`).
 - `{ $.n = }` is only "Invalid filter pattern" on AWS; understudy adds the detail and offset (`logs/R10/03-filter-14.json`).
-- Over-length log group and stream names get the generic validation text; AWS answers "Invalid LogGroup or LogStream, both must have length less than or equal to 512.".
 - `ListTagsForResource` on a never-created alarm is 404 `ResourceNotFoundException` with no message on AWS; dashboards are not implemented (`cloudwatch/R07/*.json`).
 - `PutMetricData` with `StrictEntityValidation` false stores the data without the `X-Amzn-Failure-Message` header.
 - understudy publishes no `AWS/*` metrics, so an alarm on one sees only missing data; put the data with `PutMetricData` instead. Data stamped with wall time can fall outside alarm windows while the clock is frozen, set or scaled; leave `Timestamp` out ([CloudWatch alarms](clock.md#cloudwatch-alarms)).
@@ -303,15 +296,10 @@ By design:
 
 ## KMS, Secrets Manager, IAM and STS
 
-- KMS texts on AWS: pending deletion has no "(or pending replica deletion)"; `PendingWindowInDays` out of range is "PendingWindowInDays must be between 7 and 30"; `alias/aws/` is `NotAuthorizedException`; an oversize policy counts non-whitespace characters; a non-default policy name is "Invalid policy name"; a bad `ListKeys` marker has no message (`kms/R15/*.json`).
-- Secrets Manager on AWS: a disabled KMS key is `InvalidParameterException` "The operation failed because the specified KMS key is disabled."; `!` and 513-character names have their own texts; a second `DeleteSecret` reschedules, where understudy refuses it; `DeletedDate` is the request time; `DeleteSecret` and `RestoreSecret` advance `LastChangedDate`; an explicit `alias/aws/secretsmanager` is echoed as `KmsKeyId` (`secretsmanager/R15/05-*.json`, `secretsmanager/R07/06-describe-s-awsalias.json`).
-- IAM on AWS: a trust policy without `Principal` is "Missing required field Principal"; a non-AssumeRole action is "AssumeRole policy may only specify STS AssumeRole actions."; `CreateDate` is whole seconds (`iam/R15/06-*.json`). understudy also refuses case variants such as `sts:assumerole` and `sts:*` in trust policies, which AWS's answer to is unrecorded.
 - AWS refuses a policy naming a principal that does not exist: IAM a trust policy naming a missing role with 400 `MalformedPolicyDocument` "Invalid principal in policy: ...", SQS a queue policy naming a missing user with 400 `InvalidAttributeValue` "Invalid value for the parameter Policy." (`iam/IAM-EVAL-24/01-missing-role.json`, `sqs/IAM-EVAL-24/05-sqs-missing-user.json`). AWS also shows a principal deleted after the save as its `AROA...` unique id (`iam/IAM-EVAL-24/03-after-delete.json`). understudy stores and shows such a policy as sent, so policies naming roles never created in understudy keep working.
 - `GetKeyPolicy` on AWS returns the policy re-laid out with two-space indents and `" : "` separators; understudy returns it in the layout sent (`kms/IAM-EVAL-27/06-account-id-principal.json`). Both store a bare account id principal as `arn:aws:iam::<account>:root`.
-- IAM validation errors echo the value and enum list; AWS leaves them out ("Member must satisfy enum value set").
 - `GetUser` for the root caller sends empty `<Path/>` and `<UserName/>`, which AWS leaves out.
 - AWS managed policies come from the catalogue shipped in `third_party/aws-managed-policies`, taken from the AWS Managed Policy Reference Guide on the date its `SOURCE.json` records: a policy AWS published later answers `NoSuchEntity`. Each has only its default version, dated the policy's `UpdateDate`; dates have minute precision; `PolicyId` is derived from the ARN; every one shows `IsAttachable` `true` and attaches, service-linked role policies included, though the IAM model documents `PolicyNotAttachable` for those and AWS's answer is unrecorded; and `ListPolicies` listing both kinds orders them by name regardless of case, then by ARN.
-- STS on AWS: `GetAccessKeyInfo` is implemented (understudy answers 501) and names the account even for a deleted key; 11 `PolicyArns` is `ValidationError` "The limit of ARNs for the PolicyArns parameter was exceeded. 10 ARNs can be requested at most in an API request."; an inline policy without `Action` is `MalformedPolicyDocument` "Missing required field Action" (`sts/R15/*.json`).
 - `AssumeRole` refuses a role that does not trust the caller only under `--iam-enforce enforce`, where AWS always answers 403 `AccessDenied` (`sts/R15/06-assume-denied.json`). Under `off`, the default, such a role is assumed. Under `advise` it is assumed too, and the denial is journaled. Under `off` and `advise`, the account root may also assume a role, which AWS refuses. Its answer leaves out `PackedPolicySize`, `SessionTokenSize` and `SessionTokenUtilization`, which AWS sends even without a session policy, so an SDK reads them as unset (`sts/R15/06-assume-ok.json`).
 
 ## SSM Parameter Store

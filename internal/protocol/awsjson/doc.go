@@ -14,14 +14,25 @@
 //
 // Input is read leniently, as AWS's front end reads it: an empty body is
 // {}, unknown members (including __type in a union) and null members are
-// absent, null entries of dense lists and maps are skipped, duplicate
-// members keep the last non-null value, Content-Type parameters such as
-// charset are ignored, and a gzip Content-Encoding is decompressed up to
-// the operation's body cap. Two duplicate cases are deliberate: a later
-// null does not clear an earlier value, since null means absent, and a
-// union that repeats its member is refused with a text naming the
-// repeated member, since the first value has already been handed to the
-// input. Strings keep invalid UTF-8 and lone surrogates for the validators
+// absent, null entries of dense lists and maps are skipped, Content-Type
+// parameters such as charset are ignored, and a gzip Content-Encoding is
+// decompressed up to the operation's body cap.
+//
+// A repeated member name is read one of two ways. A service declaring
+// registry.Service.RefuseDuplicateMembers (the overlay's
+// refuseDuplicateMembers, DynamoDB only) refuses the body with
+// SerializationException "Duplicate key found in payload": DynamoDB is
+// recorded refusing a top-level repeat
+// (testdata/parity/dynamodb/R11/06-dynamodb-duplicate-member.json), and the
+// refusal at any depth, attribute-value maps and unmodeled members
+// included, is inferred. Every other service keeps the last non-null
+// value; what their front ends do is unrecorded. Under last-wins two cases
+// are deliberate: a later null does not clear an earlier value, since null
+// means absent, and a union that repeats its member is refused with a text
+// naming the repeated member, since the first value has already been
+// handed to the input.
+//
+// Strings keep invalid UTF-8 and lone surrogates for the validators
 // (see jsonx). A value that does not fit its member is
 // SerializationException with the text Coral sends, as dynalite records it
 // from real DynamoDB (error-matrix.md 5.5 T2; third-party evidence):

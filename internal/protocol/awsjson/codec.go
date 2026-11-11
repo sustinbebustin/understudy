@@ -80,7 +80,7 @@ func (c Codec) Decode(r *http.Request, op *registry.Operation, in smithy.Deseria
 	if aerr != nil {
 		return aerr
 	}
-	d := newDeserializer(body)
+	d := newDeserializer(body, op.Service.RefuseDuplicateMembers)
 	err := in.Deserialize(d)
 	if err == nil {
 		err = d.end()
@@ -89,10 +89,15 @@ func (c Codec) Decode(r *http.Request, op *registry.Operation, in smithy.Deseria
 		return nil
 	}
 	var derr *decodeError
+	var dup *jsonx.DuplicateNameError
 	var serr *jsonx.SyntaxError
 	switch {
 	case errors.As(err, &derr):
 		return malformedRequest(op.Service, derr.Message)
+	case errors.As(err, &dup):
+		// DynamoDB's text (aws-recorded:
+		// testdata/parity/dynamodb/R11/06-dynamodb-duplicate-member.json).
+		return malformedRequest(op.Service, "Duplicate key found in payload")
 	case errors.As(err, &serr):
 		// Coral sends SerializationException with no message for a body
 		// that is not JSON (error-matrix.md 5.5 T6).

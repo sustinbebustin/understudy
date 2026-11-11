@@ -98,10 +98,10 @@ func (v *AssumeRoleInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 50 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMax{Max: 50}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 50}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -174,10 +174,10 @@ func (v *AssumeRoleInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.ProvidedContexts != nil {
 		if len(v.ProvidedContexts) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "providedContexts"), Value: awserr.RenderedText{Text: renderProvidedContextsListType(v.ProvidedContexts)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "providedContexts"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.ProvidedContexts) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "providedContexts"), Value: awserr.RenderedText{Text: renderProvidedContextsListType(v.ProvidedContexts)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "providedContexts"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.ProvidedContexts {
 			p2 := at(at(path, "providedContexts"), strconv.Itoa(i2+1), "member")
@@ -518,10 +518,10 @@ func (v *GetFederationTokenInput) validate(path awserr.Path, out *[]awserr.Viola
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 50 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMax{Max: 50}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 50}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -635,10 +635,10 @@ func (v *GetWebIdentityTokenInput) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 50 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMax{Max: 50}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 50}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -715,13 +715,15 @@ func (v *Tag) validate(path awserr.Path, out *[]awserr.Violation) {
 // constraintKind is a set of the constraint kinds a rule covers.
 type constraintKind uint8
 
-// constraintKind values, one per generated constraint.
+// constraintKind values, one per generated constraint, plus kindLengthMax,
+// the maximum alone, for a rule whose text answers only an over-long value.
 const (
 	kindRequired constraintKind = 1 << iota
 	kindLength
 	kindRange
 	kindPattern
 	kindEnum
+	kindLengthMax
 )
 
 // validationStyle is the message grammar of a rule.
@@ -749,6 +751,7 @@ type validationRule struct {
 	id     func() awserr.Identity
 	style  validationStyle
 	reason string
+	echo   awserr.CoralEcho // what a Coral entry prints; the zero value prints everything
 }
 
 // validationPath is one member path of an operation input; "*" stands for a
@@ -806,15 +809,15 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 
 // coralUnder renders, as one Coral message, every violation whose rule is
 // Coral-styled and names the code id, each path under the policy's root
-// when it has one.
+// when it has one and each entry under its rule's echo.
 func (p *validationPolicy) coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
-	var same []awserr.Violation
+	var same []awserr.CoralEntry
 	for i, v := range vs {
 		if rules[i].style == styleCoral && rules[i].id().Shape == id.Shape {
-			same = append(same, p.rooted(v))
+			same = append(same, awserr.CoralEntry{Violation: p.rooted(v), Echo: rules[i].echo})
 		}
 	}
-	return awserr.CoralMessage(same)
+	return awserr.CoralEntries(same)
 }
 
 // rooted is v with its path under the policy's root, unless the policy has
@@ -875,14 +878,16 @@ func pathMatches(template []string, path awserr.Path) bool {
 	return true
 }
 
-// constraintKindOf is the kind a filter names for c, or 0 for a constraint
+// constraintKindOf is the kinds a filter names for c, or 0 for a constraint
 // no filter names (Encoding, Composite).
 func constraintKindOf(c awserr.Constraint) constraintKind {
 	switch c.(type) {
 	case awserr.Required:
 		return kindRequired
-	case awserr.LengthMin, awserr.LengthMax:
+	case awserr.LengthMin:
 		return kindLength
+	case awserr.LengthMax:
+		return kindLength | kindLengthMax
 	case awserr.RangeMin, awserr.RangeMax:
 		return kindRange
 	case awserr.Pattern:
@@ -1121,26 +1126,10 @@ func (*GetWebIdentityTokenInput) ValidationError(vs []awserr.Violation) *awserr.
 	return policyGetWebIdentityToken.render(vs)
 }
 
-func renderProvidedContextsListType(v []ProvidedContext) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderTagKeyListType(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderTagListType(v []Tag) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

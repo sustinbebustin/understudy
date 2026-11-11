@@ -29,9 +29,11 @@
 // answered from it and never reach Local; in particular a TTL
 // specification never does, so Local's wall-clock sweeper stays off. Every
 // table description Local writes is completed from it (describe.go): the
-// WarmThroughput Terraform waits on, of the table and of each global
-// secondary index, TableId, TableClassSummary, SSEDescription, the
-// timestamps, CREATING on CreateTable and DELETING on DeleteTable. An
+// WarmThroughput Terraform waits on, of the table in DescribeTable and
+// UpdateTable answers and of each global secondary index, TableId,
+// TableClassSummary, SSEDescription, the timestamps, CREATING on
+// CreateTable, UPDATING on UpdateTable and DELETING on DeleteTable, less
+// the members AWS leaves out of each operation's answer. An
 // UpdateTable of only the members the shims own is answered with Local's
 // description instead of Local's "Nothing to update". The TTL sweep runs on
 // the emulator clock (ttl.go), and snapshot export, import and reset reach
@@ -98,7 +100,9 @@
 //   - A KMS key is resolved with a DescribeKey forwarded to KMS as the
 //     caller, and described by the key ARN KMS answers; no key is the AWS
 //     managed key behind alias/aws/dynamodb, and a key KMS does not find
-//     is refused with ValidationException. A server that binds no KMS
+//     is refused with ValidationException in the words of the KMS exception
+//     AWS relays (testdata/parity/dynamodb/R04/x-create-table-unknown-kms.json),
+//     naming the key by its ARN. A server that binds no KMS
 //     describes the ARN of the id, alias or ARN the request names instead.
 //   - A table Local holds that the shim does not record (kept under
 //     --persist without the archive) is adopted by the first tag, TTL,
@@ -122,8 +126,7 @@
 //     (testdata/parity/dynamodb/R04/07-list-tags-missing-table.json,
 //     x-tag-51.json, x-tag-aws-prefix.json). The texts of
 //     TableNotFoundException ("Table not found: <name>"), of the tag size
-//     and character limits and of an unknown KMS key are UNVERIFIED against
-//     AWS, as are Local's TTL refusals reused here, except enabling a
+//     and character limits are UNVERIFIED against AWS, as are Local's TTL refusals reused here, except enabling a
 //     different attribute: "TimeToLive is active on a different
 //     AttributeName: current AttributeName is <attr>" is AWS's text, as
 //     celery records it from the service (t/unit/backends/test_dynamodb.py

@@ -10,7 +10,10 @@
 // KMS calls go through kernel.Invoke as forward access (AsCaller, Via
 // KMSForward), before any cell is held, so they are journaled, faultable and
 // recorded against the caller, and a disabled or deleted key surfaces as
-// EncryptionFailure or DecryptionFailure. An idempotent retry decrypts the
+// EncryptionFailure or DecryptionFailure, except that a write under a
+// disabled key is InvalidParameterException, as AWS answers CreateSecret
+// (secretsmanager/R15/05-create-disabled-kms.json; inferred for the other
+// writes). An idempotent retry decrypts the
 // stored version to compare values, as AWS does; no hash of a secret value
 // is ever stored.
 //
@@ -34,7 +37,7 @@
 //   - Setting or changing a secret's customer KMS key without a value to
 //     seal checks access to the key first (GenerateDataKey and Decrypt with
 //     SecretVersionId RequestToValidateKeyAccess), so an unusable key fails
-//     there with EncryptionFailure rather than at the first put.
+//     there rather than at the first put.
 //   - A default PutSecretValue (and UpdateSecret with a value) takes
 //     AWSPENDING off the version it demotes, the one AWS-recorded trace of
 //     that case; an explicit VersionStages list moves exactly those labels.
@@ -56,7 +59,7 @@
 //     the full ARN given, or the one a secret created under the name by
 //     that call would have.
 //   - RestoreSecret of a secret that is not scheduled for deletion succeeds
-//     and changes nothing.
+//     and changes only LastChangedDate, as secretsmanager/R15 recorded.
 //   - UpdateSecret with a new KmsKeyId moves the data keys of the versions
 //     labeled AWSCURRENT, AWSPREVIOUS and AWSPENDING under the new key (KMS
 //     Decrypt, then Encrypt), as AWS does for a caller with kms:Encrypt on
@@ -70,8 +73,11 @@
 //     documents no other outcome. Versions without labels stay under the
 //     key that sealed them.
 //   - A KmsKeyId naming the AWS managed key aws/secretsmanager by its alias
-//     ARN, key id or key ARN is stored as the default key, as the bare
-//     alias is. A key id or key ARN is recognized by a KMS ListAliases run
+//     ARN, key id or key ARN is stored as the default key, which
+//     DescribeSecret omits; the bare alias is kept and echoed, as AWS
+//     answers (secretsmanager/R07/06-describe-s-awsalias.json), and AWS's
+//     echo of the other names is unrecorded. A key id or key ARN is
+//     recognized by a KMS ListAliases run
 //     as Secrets Manager itself (AsPlatform, so not recorded against the
 //     caller): AWS documents no kms:ListAliases or kms:DescribeKey
 //     permission for Secrets Manager callers. An alias is recognized by

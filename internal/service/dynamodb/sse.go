@@ -75,7 +75,7 @@ func (s *Service) encryption(ctx context.Context, c *kernel.Call, key *string) (
 	case err == nil:
 		return nil, awserr.Internalf(&KeyARNError{Key: id})
 	case err.ID.Shape == kmsapi.IdentityNotFoundException().Shape:
-		return nil, errKeyNotFound(id)
+		return nil, s.errKeyNotFound(c.Scope(), id)
 	case err.ID.Shape == awserr.NotImplemented().Shape:
 		return &SSE{KMSKeyARN: kmsKeyARN(c.Scope(), key)}, nil
 	}
@@ -90,9 +90,17 @@ func (e *KeyARNError) Error() string {
 }
 
 // errKeyNotFound refuses an SSE specification naming a key KMS does not
-// find. The text is UNVERIFIED against AWS.
-func errKeyNotFound(key string) *awserr.Error {
-	return dynamodbapi.ErrValidationException("Invalid KMSMasterKeyId: KMS key " + key + " was not found")
+// find, in the words of the KMS exception DynamoDB relays (recorded in
+// testdata/parity/dynamodb/R04/x-create-table-unknown-kms.json). The key is
+// named by its ARN as given; what AWS prints for a key id or alias input is
+// not recorded, so those are named by the ARN understudy resolves them to.
+// The request id is a uuid drawn from the call's id stream, as AWS's is
+// KMS's own.
+func (s *Service) errKeyNotFound(scope aws.Scope, key string) *awserr.Error {
+	return dynamodbapi.ErrValidationException(fmt.Sprintf(
+		"KMS validation error: com.amazonaws.services.kms.model.NotFoundException: Key '%s' does not exist "+
+			"(Service: AWSKMS; Status Code: 400; Error Code: NotFoundException; Request ID: %s; Proxy: null)",
+		kmsKeyARN(scope, &key), s.kernel.IDs().RequestID()))
 }
 
 // kmsKeyARN describes an SSE specification's key without KMS, for a server

@@ -5,6 +5,7 @@
   "iamPrefix": "sts",
   "boundOperations": [
     "AssumeRole",
+    "GetAccessKeyInfo",
     "GetCallerIdentity",
     "GetSessionToken"
   ]

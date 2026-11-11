@@ -202,7 +202,7 @@ func (s *Service) createTable(ctx context.Context, c *kernel.Call, in *dynamodba
 		return kernel.RawResponse{}, err
 	}
 	a := tableAnswer(in.TableName)
-	a.shim = &shimmed{table: &record, status: dynamodbapi.TableStatusCreating}
+	a.shim = &shimmed{table: &record, of: createAnswer}
 	var minted *Stream
 	if e, ok := streamChangeOf(in.StreamSpecification).(streamEnabled); ok {
 		minted = new(s.mint(c.Scope(), name, e.viewType, c.Admitted()))
@@ -231,7 +231,7 @@ func (s *Service) createTable(ctx context.Context, c *kernel.Call, in *dynamodba
 // (closingStream).
 func (s *Service) deleteTable(ctx context.Context, c *kernel.Call, in *dynamodbapi.DeleteTableInput, w kernel.Wire) (kernel.RawResponse, *awserr.Error) {
 	a := tableAnswer(in.TableName)
-	a.shim = s.described(c.Scope(), in.TableName, dynamodbapi.TableStatusDeleting)
+	a.shim = s.described(c.Scope(), in.TableName, deleteAnswer)
 	name := tableName(in.TableName)
 	release, err := s.closingStream(ctx, c, name)
 	if err != nil {

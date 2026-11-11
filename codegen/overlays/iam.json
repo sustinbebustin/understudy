@@ -6,7 +6,7 @@
       "traits": {
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDenied",
-        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException", "value": "omit", "enumSet": "omit"},
         "dev.understudy#queryErrorEnvelope": {"namespace": true},
         "dev.understudy#evidence": [
           {
@@ -27,7 +27,7 @@
           },
           {
             "label": "third-party-recorded",
-            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/iam/test_iam.snapshot.json#L940",
+            "source": "docs/research/error-matrix.md#510-iam-query: rows T3 and T4, LocalStack test_iam.snapshot.json L940 and L1138: ValidationError, a pattern violation without the value and an enum violation without the value or the value set (\"Value at 'status' failed to satisfy constraint: Member must satisfy enum value set\")",
             "validated": "2025-03-06",
             "covers": ["dev.understudy#validationError"]
           }
@@ -44,6 +44,18 @@
         "dev.understudy#evidence": {
           "label": "inferred",
           "source": "docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[a-z0-9]([a-z0-9]|-(?!-)){1,61}[a-z0-9]$ is 3 to 63 lowercase letters, digits and hyphens, alphanumeric at both ends, with no two hyphens in a row"
+        }
+      }
+    },
+    "com.amazonaws.iam#pathType": {
+      "type": "apply",
+      "replace": true,
+      "traits": {
+        "smithy.api#pattern": "^(\\u002F|\\u002F[\\u0021-\\u007E]+\\u002F)$",
+        "dev.understudy#patternEcho": "(\\u002F)|(\\u002F[\\u0021-\\u007E]+\\u002F)",
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "third_party/api-models-aws/models/iam/service/2010-05-08/iam-2010-05-08.json: every Path member's documentation reads pathType as 'a forward slash (/) by itself or a string that must begin and end with forward slashes', the whole value against either branch of the model's top-level alternation, so '/svc' and 'x/a/' fail it"
         }
       }
     },

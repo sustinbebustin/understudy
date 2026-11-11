@@ -441,7 +441,7 @@ var schemaContributorInsightsMode = smithy.Schema{ID: "com.amazonaws.dynamodb#Co
 
 var schemaContributorInsightsRule = smithy.Schema{ID: "com.amazonaws.dynamodb#ContributorInsightsRule", Type: smithy.TypeString}
 
-var schemaContributorInsightsRuleList = smithy.Schema{ID: "com.amazonaws.dynamodb#ContributorInsightsRuleList", Type: smithy.TypeList}
+var schemaContributorInsightsRuleList = smithy.Schema{ID: "com.amazonaws.dynamodb#ContributorInsightsRuleList", Type: smithy.TypeList, Members: []*smithy.Member{&memberContributorInsightsRuleList_member}}
 
 var memberContributorInsightsRuleList_member = smithy.Member{Name: "member", Index: 0, Target: &schemaContributorInsightsRule}
 
@@ -707,13 +707,13 @@ var schemaDescribeContinuousBackupsOutput = smithy.Schema{ID: "com.amazonaws.dyn
 
 var memberDescribeContinuousBackupsOutput_ContinuousBackupsDescription = smithy.Member{Name: "ContinuousBackupsDescription", Index: 0, Target: &schemaContinuousBackupsDescription}
 
-var schemaDescribeContributorInsightsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeContributorInsightsInput", Type: smithy.TypeStructure}
+var schemaDescribeContributorInsightsInput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeContributorInsightsInput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeContributorInsightsInput_TableName, &memberDescribeContributorInsightsInput_IndexName}}
 
 var memberDescribeContributorInsightsInput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableArn, Required: true}
 
 var memberDescribeContributorInsightsInput_IndexName = smithy.Member{Name: "IndexName", Index: 1, Target: &schemaIndexName}
 
-var schemaDescribeContributorInsightsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeContributorInsightsOutput", Type: smithy.TypeStructure}
+var schemaDescribeContributorInsightsOutput = smithy.Schema{ID: "com.amazonaws.dynamodb#DescribeContributorInsightsOutput", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberDescribeContributorInsightsOutput_TableName, &memberDescribeContributorInsightsOutput_IndexName, &memberDescribeContributorInsightsOutput_ContributorInsightsRuleList, &memberDescribeContributorInsightsOutput_ContributorInsightsStatus, &memberDescribeContributorInsightsOutput_LastUpdateDateTime, &memberDescribeContributorInsightsOutput_FailureException, &memberDescribeContributorInsightsOutput_ContributorInsightsMode}}
 
 var memberDescribeContributorInsightsOutput_TableName = smithy.Member{Name: "TableName", Index: 0, Target: &schemaTableName}
 
@@ -1043,7 +1043,7 @@ var schemaExpressionAttributeValueVariable = smithy.Schema{ID: "com.amazonaws.dy
 
 var schemaFailureCode = smithy.Schema{ID: "com.amazonaws.dynamodb#FailureCode", Type: smithy.TypeString}
 
-var schemaFailureException = smithy.Schema{ID: "com.amazonaws.dynamodb#FailureException", Type: smithy.TypeStructure}
+var schemaFailureException = smithy.Schema{ID: "com.amazonaws.dynamodb#FailureException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberFailureException_ExceptionName, &memberFailureException_ExceptionDescription}}
 
 var memberFailureException_ExceptionName = smithy.Member{Name: "ExceptionName", Index: 0, Target: &schemaExceptionName}
 

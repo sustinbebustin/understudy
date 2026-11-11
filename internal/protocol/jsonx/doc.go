@@ -6,7 +6,8 @@
 // Decoder reads a JSON document as a stream of values, leniently, the way
 // the AWS JSON protocols need: unknown members are the caller's to skip,
 // duplicate object names are all reported (ReadValue keeps the last value,
-// in the first one's position), and numbers come back as their decimal
+// in the first one's position; NewUniqueNamesDecoder refuses them instead),
+// and numbers come back as their decimal
 // text (document.Number) so no precision is lost before a schema decides
 // the type. Strings keep the bytes the client sent: invalid UTF-8 is not
 // replaced, and a \u escape of a lone surrogate becomes the surrogate's

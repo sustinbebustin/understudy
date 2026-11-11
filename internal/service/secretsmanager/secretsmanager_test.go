@@ -163,14 +163,18 @@ func TestTerraformSecretSequence(t *testing.T) {
 		}
 
 		// Destroy the secret with a 7-day window: it stays describable with
-		// DeletedDate, which Terraform reads as gone.
+		// DeletedDate, which Terraform reads as gone. DeletedDate is the
+		// instant of the DeleteSecret call, not the deletion date
+		// (secretsmanager/R15/05-describe-after-delete.json).
 		del := must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, RecoveryWindowInDays: new(int64(7))})
-		due := h.Clock.Now().Add(7 * day).Wire()
+		deleted := h.Clock.Now().Wire()
+		due := deleted.Add(7 * day)
 		if !del.DeletionDate.Equal(due) || val(del.ARN) != arn {
 			h.Errorf("DeleteSecret = %v %s", del.DeletionDate, val(del.ARN))
 		}
-		if d := h.describe(arn); d.DeletedDate == nil || !d.DeletedDate.Equal(due) {
-			h.Errorf("DeletedDate = %v, want %v", d.DeletedDate, due)
+		h.advance(day)
+		if d := h.describe(arn); d.DeletedDate == nil || !d.DeletedDate.Equal(deleted) {
+			h.Errorf("DeletedDate = %v, want %v", d.DeletedDate, deleted)
 		}
 	})
 }
@@ -267,24 +271,25 @@ func TestCreateSecretRetryRacingItsOriginal(t *testing.T) {
 }
 
 // A customer key set without a value, by CreateSecret or by UpdateSecret,
-// is checked at once: a disabled key is EncryptionFailure and is not
+// is checked at once: a disabled key is refused as at a CreateSecret with
+// a value (secretsmanager/R15/05-create-disabled-kms.json) and is not
 // stored. The check is forward access, recorded against the caller.
 func TestKeyAccessCheckedWhenSetWithoutValue(t *testing.T) {
 	run(t, func(h *harness) {
 		usable := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.KeyId
 		disabled := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.KeyId
 		must(h, kmsapi.OpDisableKey, &kmsapi.DisableKeyInput{KeyId: disabled})
-		refused := "Secrets Manager can't encrypt the secret value with the KMS key: DisabledException: arn:aws:kms:us-east-1:000000000000:key/" + disabled + " is disabled."
+		const refused = "The operation failed because the specified KMS key is disabled."
 
 		_, err := call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "bad-key", ClientRequestToken: new(h.token()), KmsKeyId: new(disabled)})
-		wantError(h.T, err, "EncryptionFailure", refused)
+		wantError(h.T, err, "InvalidParameterException", refused)
 		if _, err := call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: "bad-key"}); err == nil {
 			h.Error("CreateSecret under a disabled key stored the secret")
 		}
 
 		must(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "keyed", ClientRequestToken: new(h.token()), KmsKeyId: new(usable)})
 		_, err = call(h, sm.OpUpdateSecret, &sm.UpdateSecretInput{SecretId: "keyed", ClientRequestToken: new(h.token()), KmsKeyId: new(disabled)})
-		wantError(h.T, err, "EncryptionFailure", refused)
+		wantError(h.T, err, "InvalidParameterException", refused)
 		if got := val(h.describe("keyed").KmsKeyId); got != usable {
 			h.Errorf("KmsKeyId after a refused change = %s, want %s", got, usable)
 		}
@@ -317,8 +322,6 @@ func TestDeleteThenRestoreWithinWindow(t *testing.T) {
 		wantError(h.T, err, "InvalidRequestException", "You can't perform this operation on the secret because it was marked for deletion.")
 		_, err = call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "restore/me", ClientRequestToken: new(h.token())})
 		wantError(h.T, err, "InvalidRequestException", "You can't create this secret because a secret with this name is already scheduled for deletion.")
-		_, err = call(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn})
-		wantError(h.T, err, "InvalidRequestException", "You can't perform this operation on the secret because it was marked for deletion.")
 		if n := len(must(h, sm.OpListSecrets, &sm.ListSecretsInput{}).SecretList); n != 0 {
 			h.Errorf("ListSecrets shows %d secrets scheduled for deletion", n)
 		}
@@ -361,6 +364,30 @@ func TestRecoveryWindowElapsesUnderAdvance(t *testing.T) {
 			h.Errorf("the recreated secret has the old ARN %s", arn)
 		}
 		_, err = call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: arn})
+		wantError(h.T, err, "ResourceNotFoundException", "Secrets Manager can't find the specified secret.")
+	})
+}
+
+// A second DeleteSecret of a secret already scheduled for deletion
+// reschedules it to the second call plus its window, as AWS answered in
+// secretsmanager/R15/05-delete-twice: the secret outlives the first date
+// and goes at the second.
+func TestDeleteTwiceReschedules(t *testing.T) {
+	run(t, func(h *harness) {
+		arn := val(h.create("twice", "x").ARN)
+		must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, RecoveryWindowInDays: new(int64(7))})
+		h.advance(day)
+		again := must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, RecoveryWindowInDays: new(int64(7))})
+		due := h.Clock.Now().Add(7 * day).Wire()
+		if val(again.ARN) != arn || val(again.Name) != "twice" || again.DeletionDate == nil || !again.DeletionDate.Equal(due) {
+			h.Errorf("second DeleteSecret = %s %s %v, want %s twice %v", val(again.ARN), val(again.Name), again.DeletionDate, arn, due)
+		}
+		h.advance(6 * day)
+		if h.describe(arn).DeletedDate == nil {
+			h.Fatal("the secret went at the first deletion date")
+		}
+		h.advance(day)
+		_, err := call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: arn})
 		wantError(h.T, err, "ResourceNotFoundException", "Secrets Manager can't find the specified secret.")
 	})
 }
@@ -410,7 +437,8 @@ func TestAccessRecorderHoldsForwardKMSCalls(t *testing.T) {
 }
 
 // A secret under a customer key the caller disables can no longer be read:
-// KMS's refusal surfaces as DecryptionFailure.
+// KMS's refusal surfaces as DecryptionFailure. A new value under it is
+// refused as CreateSecret refuses a disabled key.
 func TestDisabledKeyIsDecryptionFailure(t *testing.T) {
 	run(t, func(h *harness) {
 		key := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.KeyId
@@ -422,8 +450,21 @@ func TestDisabledKeyIsDecryptionFailure(t *testing.T) {
 		_, err := h.get("cmk", "AWSCURRENT")
 		wantError(h.T, err, "DecryptionFailure", "Secrets Manager can't decrypt the secret value with the KMS key: DisabledException: arn:aws:kms:us-east-1:000000000000:key/"+key+" is disabled.")
 		_, err = call(h, sm.OpPutSecretValue, &sm.PutSecretValueInput{SecretId: "cmk", ClientRequestToken: new(h.token()), SecretString: new("y")})
-		if err == nil || err.ID.JSONType != "EncryptionFailure" {
-			h.Errorf("PutSecretValue under a disabled key = %v, want EncryptionFailure", err)
+		wantError(h.T, err, "InvalidParameterException", "The operation failed because the specified KMS key is disabled.")
+	})
+}
+
+// CreateSecret with a value under a disabled customer key is refused with
+// InvalidParameterException, not EncryptionFailure, and stores nothing
+// (aws-recorded, secretsmanager/R15/05-create-disabled-kms.json).
+func TestCreateSecretUnderDisabledKey(t *testing.T) {
+	run(t, func(h *harness) {
+		key := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.KeyId
+		must(h, kmsapi.OpDisableKey, &kmsapi.DisableKeyInput{KeyId: key})
+		_, err := call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "sdis", ClientRequestToken: new(h.token()), KmsKeyId: new(key), SecretString: new("x")})
+		wantError(h.T, err, "InvalidParameterException", "The operation failed because the specified KMS key is disabled.")
+		if _, err := call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: "sdis"}); err == nil {
+			h.Error("CreateSecret under a disabled key stored the secret")
 		}
 	})
 }
@@ -521,10 +562,11 @@ func TestDefaultKeySecretRefusesOtherAccountValues(t *testing.T) {
 
 // Every name of the AWS managed key aws/secretsmanager (alias, alias ARN,
 // key id, key ARN) is the default key, whether CreateSecret or UpdateSecret
-// sends it: DescribeSecret and ListSecrets omit KmsKeyId,
-// ListSecretVersionIds says DefaultEncryptionKey, and another account
-// cannot read the value. Telling a key id is the managed key is not
-// charged to the caller. A customer alias is kept as sent.
+// sends it: ListSecretVersionIds says DefaultEncryptionKey, and another
+// account cannot read the value. DescribeSecret and ListSecrets echo the
+// bare alias as sent (secretsmanager/R07/06-describe-s-awsalias.json) and
+// omit KmsKeyId for the other names. Telling a key id is the managed key
+// is not charged to the caller. A customer alias is kept as sent.
 func TestDefaultKeyByAnyName(t *testing.T) {
 	run(t, func(h *harness) {
 		managed := must(h, kmsapi.OpDescribeKey, &kmsapi.DescribeKeyInput{KeyId: "alias/aws/secretsmanager"}).KeyMetadata
@@ -544,14 +586,15 @@ func TestDefaultKeyByAnyName(t *testing.T) {
 		must(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "customer-alias", ClientRequestToken: new(h.token()), KmsKeyId: new("alias/mine"), SecretString: new("v")})
 
 		for _, e := range must(h, sm.OpListSecrets, &sm.ListSecretsInput{}).SecretList {
-			want := ""
-			if val(e.Name) == "customer-alias" {
-				want = "alias/mine"
-			}
+			want := map[string]string{
+				"customer-alias": "alias/mine",
+				"created-alias":  "alias/aws/secretsmanager",
+				"updated-alias":  "alias/aws/secretsmanager",
+			}[val(e.Name)]
 			if got := val(h.describe(val(e.Name)).KmsKeyId); got != want || val(e.KmsKeyId) != want {
 				h.Errorf("%s: KmsKeyId DescribeSecret %q, ListSecrets %q; want %q", val(e.Name), got, val(e.KmsKeyId), want)
 			}
-			if want != "" {
+			if val(e.Name) == "customer-alias" {
 				continue
 			}
 			for _, v := range must(h, sm.OpListSecretVersionIds, &sm.ListSecretVersionIdsInput{SecretId: val(e.Name)}).Versions {
@@ -574,6 +617,27 @@ func TestDefaultKeyByAnyName(t *testing.T) {
 				h.Errorf("kms:ListAliases recorded for the caller (%T); resolving the managed key is Secrets Manager's own lookup", u.Mode)
 			}
 		}
+	})
+}
+
+// CreateSecret checks a Name in two stages. A character outside the set
+// AWS's ValidationException text lists (letters, digits and -/_+=.@!) gets
+// that text (third-party-recorded for a space, *, ? and ],
+// secrets-logs-events-alarms.md 2.1); a `!`, which that text allows but
+// the documented set does not, gets InvalidParameterException, unlike a
+// SecretId. A Name over 512 characters gets the character-set text rather
+// than the Coral length text (aws-recorded,
+// secretsmanager/R15/05-name-bang.json and 05-name-513.json).
+func TestCreateSecretNameErrors(t *testing.T) {
+	run(t, func(h *harness) {
+		for _, name := range []string{"bad name", "a*b", "a?b", "a]b", "a!b c"} {
+			_, err := call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: name, ClientRequestToken: new(h.token()), SecretString: new("x")})
+			wantError(h.T, err, "ValidationException", "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!")
+		}
+		_, err := call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "a!b", ClientRequestToken: new(h.token()), SecretString: new("x")})
+		wantError(h.T, err, "InvalidParameterException", "You provided an invalid name for the secret.")
+		_, err = call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: strings.Repeat("n", 513), ClientRequestToken: new(h.token()), SecretString: new("x")})
+		wantError(h.T, err, "ValidationException", "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!")
 	})
 }
 
@@ -909,6 +973,19 @@ func TestEveryModificationAdvancesLastChangedDate(t *testing.T) {
 			{"UpdateSecret", func() {
 				must(h, sm.OpUpdateSecret, &sm.UpdateSecretInput{SecretId: "modified", ClientRequestToken: new(h.token()), Description: new("changed")})
 			}},
+			// The deletion lifecycle advances it too, a restore of a
+			// secret not scheduled for deletion included
+			// (secretsmanager/R15/05-describe-before-delete.json,
+			// 05-describe-after-delete.json, 05-describe-after-restore.json).
+			{"RestoreSecret of a live secret", func() {
+				must(h, sm.OpRestoreSecret, &sm.RestoreSecretInput{SecretId: "modified"})
+			}},
+			{"DeleteSecret", func() {
+				must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: "modified"})
+			}},
+			{"RestoreSecret", func() {
+				must(h, sm.OpRestoreSecret, &sm.RestoreSecretInput{SecretId: "modified"})
+			}},
 		}
 		for _, m := range modifications {
 			h.advance(day)
@@ -1174,13 +1251,16 @@ func TestSnapshotRoundTrip(t *testing.T) {
 	}
 }
 
-// A snapshot keeps a secret scheduled for deletion with its date, and Rearm
-// after a load arms the deletion again: with timers cleared and the state
-// imported, the secret still goes when its recovery window ends.
+// A snapshot keeps a secret scheduled for deletion with the instant it was
+// deleted, and Rearm after a load arms the deletion again: with timers
+// cleared and the state imported, the secret still goes when its recovery
+// window ends.
 func TestSnapshotRearmsDeletion(t *testing.T) {
 	run(t, func(h *harness) {
 		arn := val(h.create("doomed", "x").ARN)
-		due := must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, RecoveryWindowInDays: new(int64(7))}).DeletionDate
+		must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, RecoveryWindowInDays: new(int64(7))})
+		deleted := h.Clock.Now().Wire()
+		h.advance(day)
 		sections, err := h.svc.Export()
 		if err != nil {
 			h.Fatal(err)
@@ -1190,11 +1270,11 @@ func TestSnapshotRearmsDeletion(t *testing.T) {
 		if err := h.svc.Import(sections); err != nil {
 			h.Fatal(err)
 		}
-		if d := h.describe(arn); d.DeletedDate == nil || !d.DeletedDate.Equal(*due) {
-			h.Errorf("DeletedDate after import = %v, want %v", d.DeletedDate, *due)
+		if d := h.describe(arn); d.DeletedDate == nil || !d.DeletedDate.Equal(deleted) {
+			h.Errorf("DeletedDate after import = %v, want %v", d.DeletedDate, deleted)
 		}
 		h.svc.Rearm(h.Clock.Now())
-		h.advance(7 * day)
+		h.advance(6 * day)
 		_, derr := call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: arn})
 		wantError(h.T, derr, "ResourceNotFoundException", "Secrets Manager can't find the specified secret.")
 	})

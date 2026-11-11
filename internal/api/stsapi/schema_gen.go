@@ -228,11 +228,11 @@ var memberFederatedUser_FederatedUserId = smithy.Member{Name: "FederatedUserId",
 
 var memberFederatedUser_Arn = smithy.Member{Name: "Arn", Index: 1, Target: &schemaArnType, Required: true}
 
-var schemaGetAccessKeyInfoInput = smithy.Schema{ID: "com.amazonaws.sts#GetAccessKeyInfoRequest", Type: smithy.TypeStructure}
+var schemaGetAccessKeyInfoInput = smithy.Schema{ID: "com.amazonaws.sts#GetAccessKeyInfoRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccessKeyInfoInput_AccessKeyId}}
 
 var memberGetAccessKeyInfoInput_AccessKeyId = smithy.Member{Name: "AccessKeyId", Index: 0, Target: &schemaAccessKeyIdType, Required: true}
 
-var schemaGetAccessKeyInfoOutput = smithy.Schema{ID: "com.amazonaws.sts#GetAccessKeyInfoResponse", Type: smithy.TypeStructure}
+var schemaGetAccessKeyInfoOutput = smithy.Schema{ID: "com.amazonaws.sts#GetAccessKeyInfoResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccessKeyInfoOutput_Account}}
 
 var memberGetAccessKeyInfoOutput_Account = smithy.Member{Name: "Account", Index: 0, Target: &schemaAccountType}
 

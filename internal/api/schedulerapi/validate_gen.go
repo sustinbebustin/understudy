@@ -130,10 +130,10 @@ func (v *CreateScheduleGroupInput) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 200 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 200}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 200}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -396,7 +396,7 @@ func (v *EcsParameters) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.CapacityProviderStrategy != nil {
 		if len(v.CapacityProviderStrategy) > 6 {
-			*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderStrategy"), Value: awserr.RenderedText{Text: renderCapacityProviderStrategy(v.CapacityProviderStrategy)}, Constraint: awserr.LengthMax{Max: 6}})
+			*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderStrategy"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 6}})
 		}
 		for i2, e2 := range v.CapacityProviderStrategy {
 			p2 := at(at(path, "capacityProviderStrategy"), strconv.Itoa(i2+1), "member")
@@ -405,7 +405,7 @@ func (v *EcsParameters) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.PlacementConstraints != nil {
 		if len(v.PlacementConstraints) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "placementConstraints"), Value: awserr.RenderedText{Text: renderPlacementConstraints(v.PlacementConstraints)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "placementConstraints"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		for i2, e2 := range v.PlacementConstraints {
 			p2 := at(at(path, "placementConstraints"), strconv.Itoa(i2+1), "member")
@@ -414,7 +414,7 @@ func (v *EcsParameters) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.PlacementStrategy != nil {
 		if len(v.PlacementStrategy) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "placementStrategy"), Value: awserr.RenderedText{Text: renderPlacementStrategies(v.PlacementStrategy)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "placementStrategy"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		for i2, e2 := range v.PlacementStrategy {
 			p2 := at(at(path, "placementStrategy"), strconv.Itoa(i2+1), "member")
@@ -772,10 +772,10 @@ func (v *SageMakerPipelineParameter) validate(path awserr.Path, out *[]awserr.Vi
 func (v *SageMakerPipelineParameters) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.PipelineParameterList != nil {
 		if len(v.PipelineParameterList) > 200 {
-			*out = append(*out, awserr.Violation{Path: at(path, "pipelineParameterList"), Value: awserr.RenderedText{Text: renderSageMakerPipelineParameterList(v.PipelineParameterList)}, Constraint: awserr.LengthMax{Max: 200}})
+			*out = append(*out, awserr.Violation{Path: at(path, "pipelineParameterList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 200}})
 		}
 		if len(v.PipelineParameterList) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "pipelineParameterList"), Value: awserr.RenderedText{Text: renderSageMakerPipelineParameterList(v.PipelineParameterList)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "pipelineParameterList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.PipelineParameterList {
 			p2 := at(at(path, "pipelineParameterList"), strconv.Itoa(i2+1), "member")
@@ -844,10 +844,10 @@ func (v *TagResourceInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Tags) > 200 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 200}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 200}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -1057,13 +1057,15 @@ func (v *UpdateScheduleInput) validate(path awserr.Path, out *[]awserr.Violation
 // constraintKind is a set of the constraint kinds a rule covers.
 type constraintKind uint8
 
-// constraintKind values, one per generated constraint.
+// constraintKind values, one per generated constraint, plus kindLengthMax,
+// the maximum alone, for a rule whose text answers only an over-long value.
 const (
 	kindRequired constraintKind = 1 << iota
 	kindLength
 	kindRange
 	kindPattern
 	kindEnum
+	kindLengthMax
 )
 
 // validationStyle is the message grammar of a rule.
@@ -1091,6 +1093,7 @@ type validationRule struct {
 	id     func() awserr.Identity
 	style  validationStyle
 	reason string
+	echo   awserr.CoralEcho // what a Coral entry prints; the zero value prints everything
 }
 
 // validationPath is one member path of an operation input; "*" stands for a
@@ -1148,15 +1151,15 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 
 // coralUnder renders, as one Coral message, every violation whose rule is
 // Coral-styled and names the code id, each path under the policy's root
-// when it has one.
+// when it has one and each entry under its rule's echo.
 func (p *validationPolicy) coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
-	var same []awserr.Violation
+	var same []awserr.CoralEntry
 	for i, v := range vs {
 		if rules[i].style == styleCoral && rules[i].id().Shape == id.Shape {
-			same = append(same, p.rooted(v))
+			same = append(same, awserr.CoralEntry{Violation: p.rooted(v), Echo: rules[i].echo})
 		}
 	}
-	return awserr.CoralMessage(same)
+	return awserr.CoralEntries(same)
 }
 
 // rooted is v with its path under the policy's root, unless the policy has
@@ -1217,14 +1220,16 @@ func pathMatches(template []string, path awserr.Path) bool {
 	return true
 }
 
-// constraintKindOf is the kind a filter names for c, or 0 for a constraint
+// constraintKindOf is the kinds a filter names for c, or 0 for a constraint
 // no filter names (Encoding, Composite).
 func constraintKindOf(c awserr.Constraint) constraintKind {
 	switch c.(type) {
 	case awserr.Required:
 		return kindRequired
-	case awserr.LengthMin, awserr.LengthMax:
+	case awserr.LengthMin:
 		return kindLength
+	case awserr.LengthMax:
+		return kindLength | kindLengthMax
 	case awserr.RangeMin, awserr.RangeMax:
 		return kindRange
 	case awserr.Pattern:
@@ -1574,38 +1579,6 @@ func (*UpdateScheduleInput) ValidationError(vs []awserr.Violation) *awserr.Error
 	return policyUpdateSchedule.render(vs)
 }
 
-func renderCapacityProviderStrategy(v []CapacityProviderStrategyItem) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPlacementConstraints(v []PlacementConstraint) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPlacementStrategies(v []PlacementStrategy) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderSageMakerPipelineParameterList(v []SageMakerPipelineParameter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderSecurityGroups(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -1626,14 +1599,6 @@ func renderTagKeyList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderTagList(v []Tag) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

@@ -30,6 +30,9 @@ type ServiceIR struct {
 	// ResponseCRC32 is dev.understudy#responseCrc32: every encoded answer
 	// carries x-amz-crc32.
 	ResponseCRC32 bool
+	// RefuseDuplicateMembers is dev.understudy#refuseDuplicateMembers: a
+	// request body repeating a member name is refused.
+	RefuseDuplicateMembers bool
 	// QueryErrorEnvelope is dev.understudy#queryErrorEnvelope, the zero
 	// value without one.
 	QueryErrorEnvelope registry.QueryErrorEnvelope
@@ -321,6 +324,7 @@ type RuleIR struct {
 	Reason        string
 	EnumPolicy    EnumPolicy
 	PatternPolicy PatternPolicy
+	Echo          awserr.CoralEcho
 }
 
 // PathIR is one member path of an operation input: lowerCamel segments with

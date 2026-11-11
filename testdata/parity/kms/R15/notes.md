@@ -64,3 +64,11 @@
 - 06-assume-ok and 06-get-caller-identity-assumed: matches (Arn `arn:aws:sts::123456789012:assumed-role/<role>/rec`)
 - x-assume-11-policy-arns: differs: AWS 400 `ValidationError` "The limit of ARNs for the PolicyArns parameter was exceeded. 10 ARNs can be requested at most in an API request."; understudy renders a Coral constraint text (internal/service/sts/errors.go:45-48)
 - x-assume-refused-session-policy: differs: AWS 400 `MalformedPolicyDocument` "Missing required field Action"; understudy says "Policy statement must contain actions." (internal/policydoc/validate.go:71)
+
+## Replay (internal/parity)
+
+`scenario.json` replays the KMS steps of 02 and 03 that settle a refusal; internal/parity/baseline.json holds the outcomes.
+
+- Setup: CreateKey with the description 02-pending-describe-key shows, DisableKey and ScheduleKeyDeletion (7 days, as 02-schedule sent) stand for 01 and 02-schedule; CancelKeyDeletion (02-cancel) runs before 02-window-6. 02-cancel and 02-enable-key share a recorded second; 02-enable-key ran first, since it answered "is pending deletion".
+- Not replayed: 02-pending-decrypt and 02-pending-re-encrypt. Their CiphertextBlob is AWS's envelope, which understudy cannot read, and ReEncrypt names a second key the recording does not describe.
+- x-listkeys-garbage-marker is reconstructed: curl's 20-byte request body was not recorded, so the step is not sent. internal/service/kms TestForeignMarkerRefused checks the message-less answer.

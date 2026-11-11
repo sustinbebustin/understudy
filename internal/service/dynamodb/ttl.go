@@ -60,6 +60,13 @@ const ttlPrincipal = "dynamodb.amazonaws.com"
 // emulator time; the items stay until a sweep succeeds.
 const sweepRetry = time.Minute
 
+// ttlInterval is how long after a TTL change AWS refuses another one on
+// the same table, in emulator time. The model's UpdateTimeToLive
+// documentation gives the hour; the refusal follows the same-state checks
+// (dynamodb/R04/03-ttl-disable.json, 03-ttl-enable-after-disable.json).
+const ttlInterval = time.Hour
+
+// updateTimeToLive changes a table's TTL, at most once per ttlInterval.
 func (s *Service) updateTimeToLive(ctx context.Context, c *kernel.Call, in *dynamodbapi.UpdateTimeToLiveInput) (smithy.Serializable, *awserr.Error) {
 	a := tableAnswer(in.TableName)
 	if err := inScope(c.Scope(), []string{in.TableName}, a); err != nil {
@@ -71,19 +78,22 @@ func (s *Service) updateTimeToLive(ctx context.Context, c *kernel.Call, in *dyna
 		return nil, err
 	}
 	spec := in.TimeToLiveSpecification
-	_, err := s.alter(c, name, missing, func(t *Table, _ clock.Instant) *awserr.Error {
+	_, err := s.alter(c, name, missing, func(t *Table, now clock.Instant) *awserr.Error {
 		switch {
 		case spec.Enabled && t.TTL != nil && t.TTL.Attribute == spec.AttributeName:
 			return dynamodbapi.ErrValidationException("TimeToLive is already enabled")
 		case spec.Enabled && t.TTL != nil:
 			return dynamodbapi.ErrValidationException("TimeToLive is active on a different AttributeName: current AttributeName is " + t.TTL.Attribute)
+		case !spec.Enabled && t.TTL == nil:
+			return dynamodbapi.ErrValidationException("TimeToLive is already disabled")
+		case !t.TTLChanged.IsZero() && now.Before(t.TTLChanged.Add(ttlInterval)):
+			return dynamodbapi.ErrValidationException("Time to live has been modified multiple times within a fixed interval")
 		case spec.Enabled:
 			t.TTL = &TTLSpec{Attribute: spec.AttributeName}
-		case t.TTL == nil:
-			return dynamodbapi.ErrValidationException("TimeToLive is already disabled")
 		default:
 			t.TTL = nil
 		}
+		t.TTLChanged = now
 		return nil
 	})
 	if err != nil {

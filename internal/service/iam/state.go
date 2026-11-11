@@ -1,6 +1,8 @@
 package iam
 
 import (
+	"time"
+
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -10,6 +12,13 @@ import (
 
 // stateVersion is the schema version of State in snapshot sections.
 const stateVersion = 1
+
+// createDate is the CreateDate stored for an entity or policy version
+// created at now: whole seconds, as AWS writes a user's and an access key's
+// (testdata/parity/iam/R15/06-create-user.json, 06-create-access-key.json),
+// and inferred for the rest. Whether AWS truncates or rounds is unrecorded.
+// Storing it truncated keeps every answer that shows the date equal.
+func createDate(now clock.Instant) clock.Instant { return now.Truncate(time.Second) }
 
 // State is the IAM state of one account. Entities are keyed by their name
 // in lower case, since IAM names are unique regardless of case while each

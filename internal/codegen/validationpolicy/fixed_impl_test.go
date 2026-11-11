@@ -29,3 +29,28 @@ func TestFixedStyleSendsTheReasonAsTheMessage(t *testing.T) {
 		t.Fatalf("a violation the fixed rule does not cover = %s, want the service code %s", other.ID.Shape, serviceCode().Shape)
 	}
 }
+
+// TestLengthMaxRuleLeavesTheMinimumToTheNextRule: a rule filtered to the
+// length maximum answers an over-long value with its fixed text, as Logs
+// answers a 513-character log group name (secrets-logs-events-alarms.md
+// 3.1), while a too-short value falls through to the service's Coral rule.
+func TestLengthMaxRuleLeavesTheMinimumToTheNextRule(t *testing.T) {
+	const fixed = "Invalid LogGroup or LogStream, both must have length less than or equal to 512."
+	p := &validationPolicy{
+		paths: []validationPath{
+			{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{
+				{kinds: kindLengthMax, id: memberCode, style: styleFixed, reason: fixed},
+			}},
+		},
+		service: []validationRule{{id: serviceCode, style: styleCoral}},
+	}
+	long := p.render([]awserr.Violation{{Path: awserr.Path{"logGroupName"}, Value: text("x"), Constraint: awserr.LengthMax{Max: 512}}})
+	if long.ID != memberCode() || long.Message != fixed {
+		t.Fatalf("over-long = %s %q, want %s %q", long.ID.Shape, long.Message, memberCode().Shape, fixed)
+	}
+	short := p.render([]awserr.Violation{{Path: awserr.Path{"logGroupName"}, Value: text(""), Constraint: awserr.LengthMin{Min: 1}}})
+	want := "1 validation error detected: Value '' at 'logGroupName' failed to satisfy constraint: Member must have length greater than or equal to 1"
+	if short.ID != serviceCode() || short.Message != want {
+		t.Fatalf("too short = %s %q, want %s %q", short.ID.Shape, short.Message, serviceCode().Shape, want)
+	}
+}

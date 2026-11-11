@@ -1085,6 +1085,10 @@ var memberMultiRegionKeyList_member = smithy.Member{Name: "member", Index: 0, Ta
 
 var schemaMultiRegionKeyType = smithy.Schema{ID: "com.amazonaws.kms#MultiRegionKeyType", Type: smithy.TypeEnum}
 
+var schemaNotAuthorizedException = smithy.Schema{ID: "com.amazonaws.kms#NotAuthorizedException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNotAuthorizedException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault}}
+
+var memberNotAuthorizedException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
+
 var schemaNotFoundException = smithy.Schema{ID: "com.amazonaws.kms#NotFoundException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNotFoundException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
 var memberNotFoundException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaErrorMessageType}

@@ -150,7 +150,10 @@ func newFakeTable(in localRequest) *fakeTable {
 		"ItemCount": 0, "TableSizeBytes": 0,
 	}
 	if in.BillingMode == "PAY_PER_REQUEST" {
+		// Local describes an on-demand table with zero throughput
+		// (dynamodb-local.md 4.2).
 		t.desc["BillingModeSummary"] = map[string]any{"BillingMode": "PAY_PER_REQUEST", "LastUpdateToPayPerRequestDateTime": json.Number("1791434323.298")}
+		t.desc["ProvisionedThroughput"] = unchangedThroughput(0, 0)
 	}
 	if in.ProvisionedThroughput != nil {
 		t.desc["ProvisionedThroughput"] = unchangedThroughput(in.ProvisionedThroughput.ReadCapacityUnits, in.ProvisionedThroughput.WriteCapacityUnits)

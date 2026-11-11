@@ -8,16 +8,30 @@ import (
 // Rule is the IAM rule a document breaks.
 type Rule uint8
 
-// Rule values, in the order ValidateIdentity and ValidateTrust check them.
+// Rule values, in the order ValidateIdentity, ValidateSession and
+// ValidateTrust check them.
 const (
+	// RulePrincipalRequired is a trust policy statement without a Principal
+	// or NotPrincipal. ValidateTrust checks it first: AWS refused a statement
+	// lacking both Principal and actions for the Principal
+	// (testdata/parity/iam/R15/06-create-role-invalid-trust.json). Its place
+	// before the legacy and Sid rules is understudy's choice.
+	RulePrincipalRequired Rule = iota + 1
 	// RuleVersion is an identity policy whose Version is not 2012-10-17.
 	// ValidateTrust does not apply it.
-	RuleVersion Rule = iota + 1
+	RuleVersion
 	// RuleLegacy is a Date condition value or a resource that IAM's legacy
 	// parser rejects.
 	RuleLegacy
 	RuleUniqueSid
+	// RuleActionsRequired is a statement without actions in a policy
+	// validated by ValidateIdentity or ValidateTrust. Its text is moto's,
+	// unrecorded for IAM.
 	RuleActionsRequired
+	// RuleSessionActionsRequired is RuleActionsRequired as ValidateSession
+	// reports it, with STS's text
+	// (testdata/parity/sts/R15/x-assume-refused-session-policy.json).
+	RuleSessionActionsRequired
 	RuleResourceARN
 	RuleResourcePartition
 	RuleResourceVendor
@@ -61,6 +75,8 @@ func (e *ValidationError) Error() string {
 // moto's validator).
 func (e *ValidationError) Message() string {
 	switch e.Rule {
+	case RulePrincipalRequired:
+		return "Missing required field Principal"
 	case RuleVersion:
 		return "Policy document must be version 2012-10-17 or greater."
 	case RuleLegacy:
@@ -69,6 +85,8 @@ func (e *ValidationError) Message() string {
 		return "Statement IDs (SID) in a single policy must be unique."
 	case RuleActionsRequired:
 		return "Policy statement must contain actions."
+	case RuleSessionActionsRequired:
+		return "Missing required field Action"
 	case RuleResourceARN:
 		return "Resource " + e.Subject + ` must be in ARN format or "*".`
 	case RuleResourcePartition:
@@ -90,8 +108,8 @@ func (e *ValidationError) Message() string {
 	case RuleResourcesRequired:
 		return "Policy statement must contain resources."
 	case RuleTrustAction:
-		// The double space is moto's.
-		return "Trust Policy statement actions can only be sts:AssumeRole, sts:AssumeRoleWithSAML,  and sts:AssumeRoleWithWebIdentity"
+		// testdata/parity/iam/R15/06-trust-lowercase.json, 06-trust-star.json.
+		return "AssumeRole policy may only specify STS AssumeRole actions."
 	case RuleResourceProhibited:
 		return "Has prohibited field Resource."
 	case RulePrincipalProhibited:
@@ -108,10 +126,25 @@ func (e *ValidationError) Message() string {
 // and none may name a principal. Resource policies of other services are
 // not validated by IAM and need no call.
 func ValidateIdentity(doc Document) *ValidationError {
+	return validateIdentity(doc, RuleActionsRequired)
+}
+
+// ValidateSession applies the rules of ValidateIdentity to an STS session
+// policy, which limits the role's identity policies and so follows their
+// grammar. A statement without actions is RuleSessionActionsRequired, whose
+// text STS was recorded answering, where ValidateIdentity keeps
+// RuleActionsRequired.
+func ValidateSession(doc Document) *ValidationError {
+	return validateIdentity(doc, RuleSessionActionsRequired)
+}
+
+// validateIdentity is ValidateIdentity reporting a statement without
+// actions as actionsRule.
+func validateIdentity(doc Document, actionsRule Rule) *ValidationError {
 	if doc.Version != Version20121017 {
 		return &ValidationError{Rule: RuleVersion}
 	}
-	if err := validate(doc); err != nil {
+	if err := validate(doc, actionsRule); err != nil {
 		return err
 	}
 	for _, st := range doc.Statements {
@@ -146,12 +179,18 @@ func checkNoPrincipal(statements []Statement) *ValidationError {
 }
 
 // ValidateTrust applies, in IAM's order, the rules IAM checks after parsing
-// a role's assume-role policy, and returns the first one doc breaks: on top
-// of the rules every policy follows, its actions are STS actions and no
-// statement may have resources. Any Version is accepted, 2008-10-17 and an
-// absent one included (see the package doc).
+// a role's assume-role policy, and returns the first one doc breaks: every
+// statement names a principal, and on top of the rules every policy follows,
+// its actions are STS actions and no statement may have resources. Any
+// Version is accepted, 2008-10-17 and an absent one included (see the
+// package doc).
 func ValidateTrust(doc Document) *ValidationError {
-	if err := validate(doc); err != nil {
+	for _, st := range doc.Statements {
+		if st.Principal == nil {
+			return &ValidationError{Rule: RulePrincipalRequired}
+		}
+	}
+	if err := validate(doc, RuleActionsRequired); err != nil {
 		return err
 	}
 	if err := checkTrustActions(doc.Statements); err != nil {
@@ -166,8 +205,8 @@ func ValidateTrust(doc Document) *ValidationError {
 }
 
 // validate applies the rules every policy IAM validates follows, in IAM's
-// order.
-func validate(doc Document) *ValidationError {
+// order, reporting a statement without actions as actionsRule.
+func validate(doc Document, actionsRule Rule) *ValidationError {
 	if err := checkLegacyDates(doc.Statements); err != nil {
 		return err
 	}
@@ -180,7 +219,7 @@ func validate(doc Document) *ValidationError {
 	}
 	for _, st := range doc.Statements {
 		if len(actionPatterns(st.Action)) == 0 {
-			return &ValidationError{Rule: RuleActionsRequired}
+			return &ValidationError{Rule: actionsRule}
 		}
 	}
 	if resourceErr != nil {

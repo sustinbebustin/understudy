@@ -132,6 +132,38 @@ func TestGetCallerIdentityOfRoot(t *testing.T) {
 	})
 }
 
+// GetAccessKeyInfo answers the account an AKIA or ASIA key id encodes,
+// whether or not the key exists: AWS answered a deleted key (R15,
+// 06-get-access-key-info-deleted).
+func TestGetAccessKeyInfoAnswersTheEncodedAccount(t *testing.T) {
+	run(t, sts.Options{}, func(h *harness) {
+		must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "u"})
+		key := must(h, iamapi.OpCreateAccessKey, &iamapi.CreateAccessKeyInput{UserName: new("u")}).AccessKey
+		must(h, iamapi.OpDeleteAccessKey, &iamapi.DeleteAccessKeyInput{UserName: new("u"), AccessKeyId: key.AccessKeyId})
+		never, err := h.Kernel.IDs().TemporaryAccessKeyID("123456789012")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for name, id := range map[string]string{"deleted": key.AccessKeyId, "never issued": string(never)} {
+			got := must(h, stsapi.OpGetAccessKeyInfo, &stsapi.GetAccessKeyInfoInput{AccessKeyId: id})
+			want, _ := ids.DecodeAccount(id)
+			if got.Account == nil || *got.Account != want {
+				t.Errorf("%s key: Account = %v, want %s", name, got.Account, want)
+			}
+		}
+	})
+}
+
+// A key id DecodeAccount cannot read has no recorded answer; understudy
+// refuses it, naming the id (inferred).
+func TestGetAccessKeyInfoRefusesAnUndecodableKey(t *testing.T) {
+	run(t, sts.Options{}, func(h *harness) {
+		for _, key := range []string{"AKIAI44QH8DHBEXAMPLE", "AROAJVFVDALUIEJPNG236", "AKIA777777777777777A"} {
+			fails(h, stsapi.OpGetAccessKeyInfo, &stsapi.GetAccessKeyInfoInput{AccessKeyId: key}, "ValidationError", "cannot be decoded")
+		}
+	})
+}
+
 func TestGetCallerIdentityOfUser(t *testing.T) {
 	run(t, sts.Options{}, func(h *harness) {
 		u := must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "Alice", Path: new("/team/")}).User
@@ -312,7 +344,7 @@ func TestAssumeRoleSessionPolicies(t *testing.T) {
 		role := h.role("r", "/", 3600)
 		must(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Policy: new(allow), PolicyArns: arns(10)})
 		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", PolicyArns: arns(11)},
-			"ValidationError", "'policyArns' failed to satisfy constraint: Member must have length less than or equal to 10")
+			"ValidationError", "The limit of ARNs for the PolicyArns parameter was exceeded. 10 ARNs can be requested at most in an API request.")
 		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Policy: new("not json")},
 			"MalformedPolicyDocument", "Syntax errors in policy.")
 		fails(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1", Policy: new(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject"}]}`)},

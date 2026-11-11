@@ -19,7 +19,7 @@ const describeLocal = `{"Table":{"AttributeDefinitions":[{"AttributeName":"LockI
 	`"StreamSpecification":{"StreamEnabled":true,"StreamViewType":"NEW_AND_OLD_IMAGES"},"LatestStreamLabel":"2026-10-08T04:40:16.197",` +
 	`"LatestStreamArn":"arn:aws:dynamodb:ddblocal:000000000000:table/Locks/stream/2026-10-08T04:40:16.197"}}`
 
-// defaultWarm is the WarmThroughput every table description carries,
+// defaultWarm is the WarmThroughput every DescribeTable answer carries,
 // appended after Local's members (dynamodb-local.md 7.2 item 1).
 const defaultWarm = `,"WarmThroughput":{"ReadUnitsPerSecond":12000,"WriteUnitsPerSecond":4000,"Status":"ACTIVE"}}}`
 

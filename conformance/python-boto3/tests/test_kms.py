@@ -354,7 +354,8 @@ def test_cancel_key_deletion_leaves_the_key_disabled(kms: Any, make_key: KeyFact
 
     with raises("KMSInvalidStateException") as exc:
         kms.cancel_key_deletion(KeyId=key["KeyId"])
-    assert exc.value.response["Error"]["Message"] == f"{key['Arn']} is not pending deletion (or pending replica deletion)."
+    # Without "(or pending replica deletion)", inferred from the recorded pending text (kms/R15/02-pending-encrypt.json).
+    assert exc.value.response["Error"]["Message"] == f"{key['Arn']} is not pending deletion."
 
 
 def test_pending_window_must_be_between_7_and_30_days(kms: Any, make_key: KeyFactory) -> None:
