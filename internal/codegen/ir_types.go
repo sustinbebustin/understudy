@@ -30,6 +30,9 @@ type ServiceIR struct {
 	// ResponseCRC32 is dev.understudy#responseCrc32: every encoded answer
 	// carries x-amz-crc32.
 	ResponseCRC32 bool
+	// XMLDeclaration is dev.understudy#xmlDeclaration: every awsQuery body
+	// opens with the XML declaration.
+	XMLDeclaration bool
 	// QueryErrorEnvelope is dev.understudy#queryErrorEnvelope, the zero
 	// value without one.
 	QueryErrorEnvelope registry.QueryErrorEnvelope

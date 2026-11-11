@@ -134,7 +134,7 @@ func s3Dialect(ref.ServiceID) restxml.Dialect {
 
 func (x xmlCodec) Protocol() ref.ProtocolID { return x.c.Protocol() }
 
-func (xmlCodec) Claim(*http.Request, *registry.Registry) edge.Claim {
+func (xmlCodec) Claim(*http.Request, *registry.Registry, string) edge.Claim {
 	return edge.Declined{Reason: "restXml requests are routed by the service's route table"}
 }
 

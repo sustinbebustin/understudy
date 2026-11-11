@@ -33,6 +33,10 @@ type Service struct {
 	// answer the awsJson codec encodes, success and error, carries
 	// x-amz-crc32, the CRC-32 (IEEE) of its body in decimal.
 	ResponseCRC32 bool
+	// XMLDeclaration is the overlay's dev.understudy#xmlDeclaration: every
+	// body the awsQuery codec encodes, success and error, opens with
+	// <?xml version="1.0"?> and no newline after it.
+	XMLDeclaration bool
 	// QueryErrorEnvelope is the overlay's dev.understudy#queryErrorEnvelope:
 	// how the awsQuery ErrorResponse differs from Smithy's example. The zero
 	// value is Smithy's example.

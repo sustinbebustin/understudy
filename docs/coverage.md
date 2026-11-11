@@ -2045,7 +2045,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-401 evidence items: 112 aws-recorded, 106 third-party-recorded, 57 aws-doc, 5 sdk-source, 121 inferred.
+402 evidence items: 113 aws-recorded, 106 third-party-recorded, 57 aws-doc, 5 sdk-source, 121 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2145,6 +2145,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | sqs.json | `com.amazon.coral.service#SerializationException` |  | testdata/parity/sqs/R11/03-string-for-integer.json: a string for an integer answers x-amzn-query-error MalformedInput;Sender; no other query-compatible service's recording shows this code, so it is applied for SQS only (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazon.coral.service#UnknownOperationException` |  | testdata/parity/sqs/R11/03-unknown-operation.json: an unknown AmazonSQS target answers x-amzn-query-error InvalidAction;Sender; no other query-compatible service's recording shows this code, so it is applied for SQS only (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#queryErrorEnvelope | testdata/parity/sqs/R11/05-sqs-query-nonexistent-queue.json (validated 2026-10-14) |
+| aws-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#xmlDeclaration | testdata/parity/sqs/R11/04-deletemessage-query.json and testdata/parity/sqs/R11/05-sqs-query-nonexistent-queue.json: success and error bodies open with <?xml version="1.0"?> and no newline (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#denialError | testdata/parity/sqs/IAM-ENF/01-get-attrs.json and testdata/parity/sqs/IAM-ENF/02-query.json: an IAM denial answers 403, over JSON with x-amzn-query-error AccessDenied;Sender and __type com.amazon.coral.service#AccessDeniedException, over Query with Type Sender and Code AccessDenied (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switches sqs.denial.json-identity and sqs.denial.query-text) (validated 2026-11-03) |
 | aws-recorded (sqs/R01/05-cmv-deleted.json) | sqs.json | `com.amazonaws.sqs#InvalidParameterValue` |  | testdata/parity/sqs/R11/02-receive-max-0.json: 400, x-amzn-query-error InvalidParameterValue;Sender and __type com.amazon.coral.service#InvalidParameterValueException (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#MissingParameter` |  | testdata/parity/sqs/R11/02-send-empty-body.json: 400, x-amzn-query-error MissingParameter;Sender and __type com.amazon.coral.service#MissingRequiredParameterException (validated 2026-10-14) |

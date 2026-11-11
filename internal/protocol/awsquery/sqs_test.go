@@ -25,7 +25,7 @@ func sqsRegistry(t *testing.T) *registry.Registry {
 
 func claimSQS(t *testing.T, r *http.Request) *registry.Operation {
 	t.Helper()
-	claim := awsquery.Codec{}.Claim(r, sqsRegistry(t))
+	claim := awsquery.Codec{}.Claim(r, sqsRegistry(t), "")
 	got, ok := claim.(awsquery.Claimed)
 	if !ok {
 		t.Fatalf("Claim = %#v, want Claimed", claim)
@@ -48,16 +48,49 @@ const (
 // leaves out.
 const sendMessageForm = sendMessageDocForm + "&Version=2012-11-05"
 
-// The documented body as sent, without Version, names no service: the
-// codec finds the service by Version alone and declines it. Confirming a
-// Version-less request against the SigV4 signing name would be the edge's
-// job, and it does not.
-func TestSQSDocumentedFormWithoutVersionIsDeclined(t *testing.T) {
+// AWS accepts a Query SendMessage without Version
+// (testdata/parity/sqs/R11/x-query-sendmessage-no-version.json), so a
+// Version-less request is SQS's when its credential is scoped to sqs or
+// its path is a queue path; with neither, nothing names the service and it
+// is declined.
+func TestSQSFormWithoutVersion(t *testing.T) {
 	t.Parallel()
-	claim := awsquery.Codec{}.Claim(formPost(sendMessageDocQueue, sendMessageDocForm), sqsRegistry(t))
-	d, ok := claim.(awsquery.Declined)
-	if !ok || !strings.Contains(d.Reason, `Version "" names no service`) {
-		t.Errorf("Claim = %#v, want Declined naming the empty Version", claim)
+	const accountRoot = "http://localhost/"
+	for _, c := range []struct {
+		name, target, signedFor string
+	}{
+		{"documented example on its queue path, unsigned", sendMessageDocQueue, ""},
+		{"queue path, signed for sqs", sendMessageDocQueue, "sqs"},
+		{"account root, signed for sqs", accountRoot, "sqs"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			claim := awsquery.Codec{}.Claim(formPost(c.target, sendMessageDocForm), sqsRegistry(t), c.signedFor)
+			if got, ok := claim.(awsquery.Claimed); !ok || got.Op.ID.Name != "SendMessage" || got.Op.Service.ID != "sqs" {
+				t.Errorf("Claim = %#v, want Claimed sqs.SendMessage", claim)
+			}
+		})
+	}
+	t.Run("unknown action signed for sqs", func(t *testing.T) {
+		t.Parallel()
+		claim := awsquery.Codec{}.Claim(formPost(accountRoot, "Action=NoSuchAction"), sqsRegistry(t), "sqs")
+		if u, ok := claim.(awsquery.UnknownOperation); !ok || u.Service.ID != "sqs" || u.Operation != "NoSuchAction" {
+			t.Errorf("Claim = %#v, want UnknownOperation of sqs", claim)
+		}
+	})
+	for _, c := range []struct {
+		name, signedFor string
+	}{
+		{"account root, unsigned", ""},
+		{"account root, signed for sns", "sns"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			claim := awsquery.Codec{}.Claim(formPost(accountRoot, sendMessageDocForm), sqsRegistry(t), c.signedFor)
+			if d, ok := claim.(awsquery.Declined); !ok || !strings.Contains(d.Reason, "no Version") {
+				t.Errorf("Claim = %#v, want Declined naming the missing Version", claim)
+			}
+		})
 	}
 }
 
@@ -87,11 +120,12 @@ func TestSQSLegacySendMessageExchange(t *testing.T) {
 		t.Errorf("Validate = %v", v)
 	}
 
-	// The values of the API reference's Query example response. Two
-	// differences from the documented bytes: the generated Serialize writes
+	// The values of the API reference's Query example response. One
+	// difference from the documented bytes: the generated Serialize writes
 	// the members in model order, MD5s before MessageId, where the example
-	// lists MessageId first, and the codec sends no <?xml version="1.0"?>
-	// declaration, which the example starts with. XML parsers read neither.
+	// lists MessageId first; XML parsers do not read it. The example's
+	// <?xml version="1.0"?> declaration opens the body, as AWS sends it with
+	// no newline after it (testdata/parity/sqs/R11/x-query-sendmessage-no-version.json).
 	md5Body, md5Attrs, id, docRequestID := "fafb00f5732ab283681e124bf8747ed1", "c48838208d2b4e14e3ca0093a8443f09", "374cec7b-d0c8-4a2e-ad0b-67be763cf97e", "7fe4446e-b452-53f7-8f85-181e06f2dd99"
 	resp, aerr := awsquery.Codec{}.Encode(op, docRequestID, &sqsapi.SendMessageOutput{MD5OfMessageBody: &md5Body, MD5OfMessageAttributes: &md5Attrs, MessageId: &id}, http.StatusOK)
 	if aerr != nil {
@@ -100,7 +134,7 @@ func TestSQSLegacySendMessageExchange(t *testing.T) {
 	checkResponse(t, resp, golden{
 		status: 200,
 		header: http.Header{"X-Amzn-Requestid": {docRequestID}},
-		body: `<SendMessageResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><SendMessageResult>` +
+		body: `<?xml version="1.0"?><SendMessageResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><SendMessageResult>` +
 			`<MD5OfMessageBody>fafb00f5732ab283681e124bf8747ed1</MD5OfMessageBody>` +
 			`<MD5OfMessageAttributes>c48838208d2b4e14e3ca0093a8443f09</MD5OfMessageAttributes>` +
 			`<MessageId>374cec7b-d0c8-4a2e-ad0b-67be763cf97e</MessageId>` +
@@ -143,7 +177,7 @@ func TestSQSQueueUrlParameterWins(t *testing.T) {
 func TestSQSAccountActionsOnAQueuePath(t *testing.T) {
 	t.Parallel()
 	for _, action := range []string{"CreateQueue", "ListQueues"} {
-		claim := awsquery.Codec{}.Claim(formPost("http://localhost/123456789012/MyQueue", "Action="+action+"&Version=2012-11-05&QueueName=q"), sqsRegistry(t))
+		claim := awsquery.Codec{}.Claim(formPost("http://localhost/123456789012/MyQueue", "Action="+action+"&Version=2012-11-05&QueueName=q"), sqsRegistry(t), "")
 		if u, ok := claim.(awsquery.UnknownOperation); !ok || u.Operation != action || u.Service.ID != "sqs" {
 			t.Errorf("Claim(%s) = %#v, want UnknownOperation", action, claim)
 		}
@@ -165,7 +199,7 @@ func TestSQSReceiveMessageResults(t *testing.T) {
 	}
 	checkResponse(t, resp, golden{
 		status: 200,
-		body: `<ReceiveMessageResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><ReceiveMessageResult/>` +
+		body: `<?xml version="1.0"?><ReceiveMessageResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><ReceiveMessageResult/>` +
 			`<ResponseMetadata><RequestId>01234567-89ab-cdef-0123-456789abcdef</RequestId></ResponseMetadata></ReceiveMessageResponse>`,
 	})
 
@@ -182,7 +216,7 @@ func TestSQSReceiveMessageResults(t *testing.T) {
 	}
 	checkResponse(t, resp, golden{
 		status: 200,
-		body: `<ReceiveMessageResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><ReceiveMessageResult><Message>` +
+		body: `<?xml version="1.0"?><ReceiveMessageResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><ReceiveMessageResult><Message>` +
 			`<MessageId>m-1</MessageId><Body>hello</Body>` +
 			`<Attribute><Name>SenderId</Name><Value>AIDA</Value></Attribute>` +
 			`<MessageAttribute><Name>k</Name><Value><StringValue>v</StringValue><DataType>String</DataType></Value></MessageAttribute>` +
@@ -215,14 +249,14 @@ func TestSQSSharedAttributeNameKey(t *testing.T) {
 
 // sqs.md 2.3 and error-matrix.md 3: over Query, QueueDoesNotExist says
 // "for this wsdl version" (messageByProtocol), and SQS declares its
-// namespace and sends an empty Detail
+// namespace and sends an empty Detail, after the XML declaration
 // (testdata/parity/sqs/R11/05-sqs-query-nonexistent-queue.json).
 func TestSQSQueueDoesNotExistOverQuery(t *testing.T) {
 	t.Parallel()
 	e := sqsapi.ErrQueueDoesNotExist("The specified queue does not exist.")
 	checkResponse(t, awsquery.Codec{}.EncodeError(sqsapi.Service(), requestID, e), golden{
 		status: 400,
-		body: `<ErrorResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><Error><Type>Sender</Type><Code>AWS.SimpleQueueService.NonExistentQueue</Code>` +
+		body: `<?xml version="1.0"?><ErrorResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><Error><Type>Sender</Type><Code>AWS.SimpleQueueService.NonExistentQueue</Code>` +
 			`<Message>The specified queue does not exist for this wsdl version.</Message><Detail/></Error>` +
 			`<RequestId>01234567-89ab-cdef-0123-456789abcdef</RequestId></ErrorResponse>`,
 	})

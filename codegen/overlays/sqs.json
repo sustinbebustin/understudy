@@ -8,6 +8,7 @@
         "dev.understudy#errorNamespace": "com.amazonaws.sqs",
         "dev.understudy#emptyCollection": "omit",
         "dev.understudy#queryErrorEnvelope": {"namespace": true, "detail": true},
+        "dev.understudy#xmlDeclaration": {},
         "dev.understudy#throttleError": "com.amazonaws.sqs#RequestThrottled",
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDenied",
         "dev.understudy#unknownOperationError": {
@@ -40,6 +41,12 @@
             "source": "testdata/parity/sqs/R11/05-sqs-query-nonexistent-queue.json",
             "validated": "2026-10-14",
             "covers": ["dev.understudy#queryErrorEnvelope"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/sqs/R11/04-deletemessage-query.json and testdata/parity/sqs/R11/05-sqs-query-nonexistent-queue.json: success and error bodies open with <?xml version=\"1.0\"?> and no newline",
+            "validated": "2026-10-14",
+            "covers": ["dev.understudy#xmlDeclaration"]
           },
           {
             "label": "inferred",

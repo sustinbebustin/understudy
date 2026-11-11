@@ -61,7 +61,7 @@ type jsonCodec struct{ c awsjson.Codec }
 
 func (j jsonCodec) Protocol() ref.ProtocolID { return j.c.Protocol() }
 
-func (j jsonCodec) Claim(r *http.Request, reg *registry.Registry) edge.Claim {
+func (j jsonCodec) Claim(r *http.Request, reg *registry.Registry, _ string) edge.Claim {
 	switch c := j.c.Claim(r, reg).(type) {
 	case awsjson.Claimed:
 		return edge.Claimed{Op: c.Op}
@@ -107,8 +107,8 @@ type queryCodec struct{ c awsquery.Codec }
 
 func (q queryCodec) Protocol() ref.ProtocolID { return q.c.Protocol() }
 
-func (q queryCodec) Claim(r *http.Request, reg *registry.Registry) edge.Claim {
-	switch c := q.c.Claim(r, reg).(type) {
+func (q queryCodec) Claim(r *http.Request, reg *registry.Registry, signedFor string) edge.Claim {
+	switch c := q.c.Claim(r, reg, signedFor).(type) {
 	case awsquery.Claimed:
 		return edge.Claimed{Op: c.Op}
 	case awsquery.UnknownOperation:
@@ -158,7 +158,7 @@ func (c cborCodec) Protocol() ref.ProtocolID { return c.c.Protocol() }
 // but breaking a rule of the protocol) to Declined: the edge has no claim
 // that answers with the codec's error, so it answers as for an unclaimed
 // request, whose identity is the same UnknownOperationException.
-func (c cborCodec) Claim(r *http.Request, reg *registry.Registry) edge.Claim {
+func (c cborCodec) Claim(r *http.Request, reg *registry.Registry, _ string) edge.Claim {
 	switch cl := c.c.Claim(r, reg).(type) {
 	case rpcv2cbor.Claimed:
 		return edge.Claimed{Op: cl.Op}
@@ -207,7 +207,7 @@ type restJSONCodec struct{ c restjson.Codec }
 
 func (r restJSONCodec) Protocol() ref.ProtocolID { return r.c.Protocol() }
 
-func (restJSONCodec) Claim(*http.Request, *registry.Registry) edge.Claim {
+func (restJSONCodec) Claim(*http.Request, *registry.Registry, string) edge.Claim {
 	return edge.Declined{Reason: "restJson1 requests are routed by the service's route table, not claimed"}
 }
 
@@ -252,7 +252,7 @@ type restXMLCodec struct{ c restxml.Codec }
 
 func (r restXMLCodec) Protocol() ref.ProtocolID { return r.c.Protocol() }
 
-func (restXMLCodec) Claim(*http.Request, *registry.Registry) edge.Claim {
+func (restXMLCodec) Claim(*http.Request, *registry.Registry, string) edge.Claim {
 	return edge.Declined{Reason: "restXml requests are routed by the service's route table, not claimed"}
 }
 

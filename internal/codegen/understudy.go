@@ -49,6 +49,7 @@ const (
 	utQueryErrorEnvelope  = understudyNamespace + "queryErrorEnvelope"
 	utQueryErrorHeader    = understudyNamespace + "queryErrorHeader"
 	utResponseCRC32       = understudyNamespace + "responseCrc32"
+	utXMLDeclaration      = understudyNamespace + "xmlDeclaration"
 	utEnumOrder           = understudyNamespace + "enumOrder"
 	utValidationInputRoot = understudyNamespace + "validationInputRoot"
 )
@@ -120,6 +121,7 @@ func understudyTraits() map[string]understudyTrait {
 		utQueryErrorEnvelope:  {Honor, siteService, func(r json.RawMessage) error { _, err := parseQueryErrorEnvelope(r); return err }},
 		utQueryErrorHeader:    {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseQueryErrorHeader(r); return err }},
 		utResponseCRC32:       {Honor, siteService, parseAnnotation},
+		utXMLDeclaration:      {Honor, siteService, parseAnnotation},
 		utEnumOrder:           {Honor, siteEnumShape, func(r json.RawMessage) error { _, err := parseEnumOrder(r); return err }},
 		utValidationInputRoot: {Honor, siteService, parseAnnotation},
 	}

@@ -192,7 +192,7 @@ func TestStageFailures(t *testing.T) {
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryErrorHeader dev.understudy#queryKeyAlias " +
 				"dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationAnswer dev.understudy#unknownOperationError dev.understudy#validationError " +
-				"dev.understudy#validationInputRoot dev.understudy#validationPathStyle]",
+				"dev.understudy#validationInputRoot dev.understudy#validationPathStyle dev.understudy#xmlDeclaration]",
 		},
 		{
 			name: "dev.understudy trait on the wrong site",
@@ -908,6 +908,7 @@ func TestClassifyOverlayTraits(t *testing.T) {
 		"dev.understudy#unknownOperationAnswer": codegen.Honor,
 		"dev.understudy#queryErrorEnvelope":     codegen.Honor,
 		"dev.understudy#responseCrc32":          codegen.Honor,
+		"dev.understudy#xmlDeclaration":         codegen.Honor,
 		"dev.understudy#enumOrder":              codegen.Honor,
 		"dev.understudy#validationInputRoot":    codegen.Honor,
 	}

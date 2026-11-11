@@ -459,11 +459,11 @@ type pathCodec struct {
 	uri, path string
 }
 
-func (p *pathCodec) Claim(r *http.Request, reg *registry.Registry) edge.Claim {
+func (p *pathCodec) Claim(r *http.Request, reg *registry.Registry, signedFor string) edge.Claim {
 	p.mu.Lock()
 	p.uri, p.path = r.RequestURI, r.URL.EscapedPath()
 	p.mu.Unlock()
-	return p.Codec.Claim(r, reg)
+	return p.Codec.Claim(r, reg, signedFor)
 }
 
 func (p *pathCodec) seen() (uri, path string) {

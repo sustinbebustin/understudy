@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"slices"
 	"strings"
 	"testing"
@@ -75,6 +76,52 @@ func TestUnknownQueryActionsAreAnsweredInEachServicesForm(t *testing.T) {
 			}
 		})
 	}
+}
+
+// AWS answers a Query SendMessage without Version 200, its body opening
+// with the XML declaration (sqs/R11/x-query-sendmessage-no-version.json):
+// the request reaches SQS when it is signed for sqs, at the account root or
+// on the queue path. With nothing naming the service, the awsQuery rule
+// still declines it.
+func TestQuerySendMessageWithoutVersion(t *testing.T) {
+	f := newFront(t, server.Codecs())
+	form := http.Header{"Content-Type": {"application/x-www-form-urlencoded"}}
+	rec := httptest.NewRecorder()
+	f.handler.ServeHTTP(rec, request(t, http.MethodPost, "/", form, "Action=CreateQueue&QueueName=q11&Version=2012-11-05", "sqs"))
+	var created struct {
+		QueueURL string `xml:"CreateQueueResult>QueueUrl"`
+	}
+	if err := xml.Unmarshal(rec.Body.Bytes(), &created); err != nil || rec.Code != http.StatusOK {
+		t.Fatalf("CreateQueue = %d %s (%v)", rec.Code, rec.Body, err)
+	}
+	queue, err := url.Parse(created.QueueURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = `<?xml version="1.0"?><SendMessageResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><SendMessageResult>`
+	for _, c := range []struct{ name, path, body string }{
+		{"account root", "/", "Action=SendMessage&MessageBody=x&QueueUrl=" + url.QueryEscape(created.QueueURL)},
+		{"queue path", queue.Path, "Action=SendMessage&MessageBody=x"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			f.handler.ServeHTTP(rec, request(t, http.MethodPost, c.path, form, c.body, "sqs"))
+			if rec.Code != http.StatusOK || !strings.HasPrefix(rec.Body.String(), want) {
+				t.Errorf("answer = %d %s, want 200 starting %s", rec.Code, rec.Body, want)
+			}
+		})
+	}
+	t.Run("nothing names the service", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		f.handler.ServeHTTP(rec, request(t, http.MethodPost, "/", form, "Action=SendMessage&MessageBody=x", ""))
+		if rec.Code == http.StatusOK {
+			t.Errorf("answer = %d %s, want the request declined", rec.Code, rec.Body)
+		}
+		reasons := f.unclaimedReasons(t)
+		if !slices.ContainsFunc(reasons, func(r string) bool { return strings.Contains(r, "no Version parameter") }) {
+			t.Errorf("reasons %q do not name the missing Version", reasons)
+		}
+	})
 }
 
 // A REST request signed for ses that no sesv2 route matches is Coral's
