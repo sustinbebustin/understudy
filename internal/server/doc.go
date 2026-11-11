@@ -82,10 +82,12 @@
 //     leftovers.
 //   - Persistence (persist.go) locks <dir>/.lock, keeps blobs in
 //     <dir>/blobs and the archive at <dir>/state.snapshot, loaded in New.
-//     A checkpoint is a snapshot cut whose sections and fault rules are
-//     hashed; it is written only when that digest differs from the last
-//     saved, since the clock, journal counter and id positions move without
-//     any state changing, and always at shutdown. The blob store is synced
+//     A checkpoint is a snapshot cut whose sections, fault rules and
+//     runtime head (clock mode, a Frozen clock's instant, seeded id
+//     positions, journal counter) are hashed; it is written only when that
+//     digest differs from the last saved, and always at shutdown. The
+//     instant of a Running or Scaled clock moves with wall time and is left
+//     out, so an idle server writes nothing. The blob store is synced
 //     before the archive is renamed into place and the directory is synced
 //     after, and the blobs the archive on disk names stay pinned until a
 //     newer one has durably replaced it, so a crash after a delete loses

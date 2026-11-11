@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"syscall"
 	"time"
@@ -470,9 +472,22 @@ func loadSnapshot(path string, maxBytes int64, k *kernel.Kernel, coord *snapshot
 	return nil
 }
 
-// digest identifies the state an archive holds: its sections and fault
-// rules, not the clock, journal counter or id positions, which move
-// without any state changing.
+// digest identifies what a restart from an archive restores: its sections,
+// its fault rules and the runtime head (ADR 0009 amendment 2026-10-13), so
+// a checkpoint counts as a change anything a crash would otherwise lose.
+// The head's fields are listed here one by one rather than hashed as the
+// encoded manifest: the clock's mode name (which carries a Scaled
+// factor), a Frozen clock's instant, the id seed and seeded stream
+// positions, and the journal's next event id.
+//
+// A field that moves with wall time alone stays out, so an idle server
+// writes nothing: the instant of a Running or Scaled clock, and any
+// wall-time field the manifest gains, such as the wall time of the cut.
+// Such a field is saved with the next change or at shutdown. The format,
+// writer, model pin and blob placement are fixed for the process, and the
+// section list and late services derive from the sections, so none is
+// hashed. Any API call records a journal event, so traffic in an interval
+// makes one write, read-only calls included.
 func digest(a snapshot.Archive) [sha256.Size]byte {
 	h := sha256.New()
 	field := func(b []byte) {
@@ -480,6 +495,7 @@ func digest(a snapshot.Archive) [sha256.Size]byte {
 		_, _ = h.Write(binary.BigEndian.AppendUint64(nil, uint64(len(b))))
 		_, _ = h.Write(b)
 	}
+	number := func(n uint64) { field(binary.BigEndian.AppendUint64(nil, n)) }
 	for _, s := range a.Sections {
 		field([]byte(s.Path))
 		field([]byte(strconv.Itoa(s.Version)))
@@ -489,6 +505,22 @@ func digest(a snapshot.Archive) [sha256.Size]byte {
 		}
 	}
 	field(a.Faults)
+
+	m := a.Manifest
+	field([]byte(m.Clock.ModeName()))
+	if _, ok := m.Clock.Mode.(clock.Frozen); ok {
+		field([]byte(m.Clock.At.String()))
+	}
+	if m.Seed != nil {
+		number(*m.Seed)
+	} else {
+		field(nil)
+	}
+	for _, kind := range slices.Sorted(maps.Keys(m.Positions)) {
+		number(uint64(kind))
+		number(m.Positions[kind])
+	}
+	number(uint64(m.JournalNext))
 	var sum [sha256.Size]byte
 	h.Sum(sum[:0])
 	return sum

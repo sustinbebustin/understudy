@@ -16,14 +16,20 @@ import (
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/snapshot"
 )
 
 // A checkpoint writes the state only when it changed since the last save:
-// an unchanged state leaves the file alone, a change rewrites it.
+// an unchanged state leaves the file alone, a change rewrites it. A change
+// to the runtime head counts, since a restart restores it (ADR 0009): the
+// clock's mode, a Frozen clock's instant, a seeded id draw and a journaled
+// event. The instant of a clock that moves with wall time does not, so an
+// idle server writes nothing.
 func TestCheckpointSkipsAnUnchangedState(t *testing.T) {
 	dir := t.TempDir()
-	srv, err := New(Config{Persist: PersistDir{Path: dir}, Docker: DockerDisabled{}, LogOutput: io.Discard})
+	seed := uint64(7)
+	srv, err := New(Config{Persist: PersistDir{Path: dir}, Seed: &seed, Docker: DockerDisabled{}, LogOutput: io.Discard})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,6 +77,63 @@ func TestCheckpointSkipsAnUnchangedState(t *testing.T) {
 	createQueue("b")
 	if again := checkpoint(); again == nil || os.SameFile(saved, again) {
 		t.Fatal("a checkpoint after the second CreateQueue left the old file")
+	}
+
+	k := srv.wired.kernel
+	c := k.Clock()
+	// rewrites reports whether a checkpoint after change replaced the
+	// file, and leaves the file the next step compares against.
+	rewrites := func(change func()) bool {
+		t.Helper()
+		before := checkpoint()
+		change()
+		after := checkpoint()
+		return !os.SameFile(before, after)
+	}
+	unchanged := func() {}
+	advance := func() {
+		t.Helper()
+		if _, err := c.Advance(time.Hour); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, step := range []struct {
+		name   string
+		change func()
+		want   bool
+	}{
+		{"an idle Running clock", unchanged, false},
+		{"an advance of a Running clock", advance, false},
+		{"a scale", func() {
+			if _, err := c.Scale(2); err != nil {
+				t.Fatal(err)
+			}
+		}, true},
+		{"an idle Scaled clock", unchanged, false},
+		{"an advance of a Scaled clock", advance, false},
+		{"a freeze", func() { c.Freeze() }, true},
+		{"an idle Frozen clock", unchanged, false},
+		{"a set of a Frozen clock", func() {
+			if _, err := c.Restore(c.Now().Add(time.Minute), clock.Frozen{}); err != nil {
+				t.Fatal(err)
+			}
+		}, true},
+		{"a seeded id draw", func() { k.IDs().RequestID() }, true},
+		{"a journaled event", func() {
+			if _, err := k.Journal().Append(journal.Event{Detail: journal.TimerFired{Key: clock.TimerKey{Kind: "test.probe", ID: "1"}}}); err != nil {
+				t.Fatal(err)
+			}
+		}, true},
+		{"a resume", func() {
+			if _, err := c.Resume(); err != nil {
+				t.Fatal(err)
+			}
+		}, true},
+		{"an idle Running clock after a resume", unchanged, false},
+	} {
+		if got := rewrites(step.change); got != step.want {
+			t.Errorf("after %s, the checkpoint rewrote the state file = %t, want %t", step.name, got, step.want)
+		}
 	}
 }
 
