@@ -256,6 +256,13 @@ func identityFields(e *ErrorIR) (string, error) {
 	if e.QueryModeStatus != 0 {
 		parts = append(parts, fmt.Sprintf("QueryModeStatus: %d", e.QueryModeStatus))
 	}
+	switch e.QueryErrorWhen {
+	case awserr.QueryErrorAlways:
+	case awserr.QueryErrorInQueryMode:
+		parts = append(parts, "QueryErrorWhen: awserr.QueryErrorInQueryMode")
+	default:
+		return "", failf(StageEmit, string(e.Shape.ID), "awserr.QueryErrorWhen(%d) has no constant; the IR builder sets it from dev.understudy#queryErrorHeader (ir_errors.go)", e.QueryErrorWhen)
+	}
 	parts = append(parts, "Fault: awserr."+e.Fault.String(), "MessageKey: awserr."+key)
 	if e.Retryable {
 		parts = append(parts, "Retryable: true")

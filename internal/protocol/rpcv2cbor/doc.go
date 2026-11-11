@@ -80,7 +80,10 @@
 //     with Identity.QueryCode, as the awsjson codec does; for a shape
 //     without awsQueryError that is the shape name, which is the code the
 //     Go client derives without the header (wire-cbor.md 5.2), and the
-//     corpus forbids neither form.
+//     corpus forbids neither form. An identity whose QueryErrorWhen is
+//     QueryErrorInQueryMode sends it only under x-amzn-query-mode: true,
+//     as over awsJson1_0; only the JSON answer is recorded (CloudWatch's
+//     IAM denial, iam-enforcement-surfaces.md 12.3), so CBOR's is inferred.
 //
 //   - The message goes under the shape's own spelling (Message or
 //     message) when the shape is in the service's namespace, so typed Go

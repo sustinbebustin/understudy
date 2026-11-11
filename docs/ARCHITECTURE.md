@@ -399,6 +399,7 @@ type Identity struct {
 	QueryCode       string         // awsQueryError.code, else shape name
 	Status          int            // httpError, else 400 client / 500 server (statusOverride from overlays)
 	QueryModeStatus int            // awsQueryError.httpResponseCode when x-amzn-query-mode: true (CloudWatch 404)
+	QueryErrorWhen  QueryErrorWhen // QueryErrorAlways | QueryErrorInQueryMode (overlay queryErrorHeader): when JSON/CBOR send x-amzn-query-error
 	Fault           Fault          // Sender | Receiver
 	MessageKey      MessageKey     // MessageLower | MessageUpper | NoMessage, from the shape
 	Retryable       bool           // retryable trait or the throttling catalogue

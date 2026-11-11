@@ -20,7 +20,7 @@ func TestMessageKeyOverridesTheMemberSpelling(t *testing.T) {
 	}
 	errs := files["errors_gen.go"]
 	for _, want := range []string{
-		`Shape: "com.example.golden#KindsFault", JSONType: "com.example.golden.v1#KindsFault", QueryCode: "Kinds.Fault", Status: 409, QueryModeStatus: 404, Fault: awserr.Sender, MessageKey: awserr.MessageLower}`,
+		`Shape: "com.example.golden#KindsFault", JSONType: "com.example.golden.v1#KindsFault", QueryCode: "Kinds.Fault", Status: 409, QueryModeStatus: 404, QueryErrorWhen: awserr.QueryErrorInQueryMode, Fault: awserr.Sender, MessageKey: awserr.MessageLower}`,
 		`MessageKey: awserr.MessageUpper, Retryable: true`,
 		"func ErrThrottled(message string) *awserr.Error {",
 	} {

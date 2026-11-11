@@ -172,6 +172,23 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 			http.StatusForbidden, jsonType, "AccessDeniedException", upper, implicit("cloudwatch:DescribeAlarms", "arn:aws:cloudwatch:us-east-1:000000000000:alarm:*"),
 		},
 		{
+			"cloudwatch/IAM-ENF/09-json.json",
+			func() wire {
+				req := newRequest(t, http.MethodPost, endpoint+"/", "{}")
+				req.Header.Set("Content-Type", "application/x-amz-json-1.0")
+				req.Header.Set("X-Amz-Target", "GraniteServiceVersion20100801.DescribeAlarms")
+				return signedCall(t, s, "monitoring", req, "{}")
+			},
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("cloudwatch:DescribeAlarms", "arn:aws:cloudwatch:us-east-1:000000000000:alarm:*"),
+		},
+		{
+			"cloudwatch/IAM-ENF/09-query.json",
+			func() wire {
+				return queryCall(t, s, endpoint, "monitoring", url.Values{"Action": {"DescribeAlarms"}, "Version": {"2010-08-01"}})
+			},
+			http.StatusForbidden, xmlCode, "AccessDenied", xmlText, implicit("cloudwatch:DescribeAlarms", "arn:aws:cloudwatch:us-east-1:000000000000:alarm:*"),
+		},
+		{
 			"dynamodb/IAM-ENF/35-streams.json",
 			func() wire { return streamsCall(t, s, endpoint, "ListStreams", `{}`) },
 			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("dynamodb:ListStreams", "arn:aws:dynamodb:us-east-1:000000000000:table/*/stream/*"),
@@ -214,11 +231,22 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("ssm:DescribeParameters", "arn:aws:ssm:us-east-1:000000000000:*"),
 		},
 	}
+	// The recorded x-amzn-query-error of CloudWatch's JSON denials: sent only
+	// under x-amzn-query-mode (iam-enforcement-surfaces.md 12.3).
+	queryErrors := map[string]string{
+		"cloudwatch/IAM-ENF/09-json.json":    "",
+		"cloudwatch/IAM-ENF/09-json-qm.json": "AccessDenied;Sender",
+	}
 	for _, p := range probes {
 		t.Run(p.fixture, func(t *testing.T) {
 			w := p.send()
 			if w.status != p.status || p.code(w) != p.want {
 				t.Errorf("denial = %d %q (%s); want the recorded %d %q", w.status, p.code(w), w.body, p.status, p.want)
+			}
+			if want, ok := queryErrors[p.fixture]; ok {
+				if got := strings.Join(w.header.Values("X-Amzn-Query-Error"), ", "); got != want {
+					t.Errorf("x-amzn-query-error = %q; want the recorded %q", got, want)
+				}
 			}
 			if got := p.text(w); got != p.message {
 				t.Errorf("message =\n%q\nwant the recorded\n%q", got, p.message)

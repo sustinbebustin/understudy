@@ -394,21 +394,21 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| DeleteAlarms | full | inferred, 1 of 5 claims |  |
-| DescribeAlarmsForMetric | full | inferred, 1 of 3 claims |  |
-| DisableAlarmActions | full | inferred, 1 of 5 claims |  |
-| EnableAlarmActions | full | inferred, 1 of 5 claims |  |
-| DescribeAlarmHistory | partial | inferred, 1 of 6 claims | StateUpdate items only, kept 30 days on the emulator clock and after the alarm is deleted; ConfigurationUpdate and Action items are never recorded, and AlarmContributorId selects nothing |
-| DescribeAlarms | partial | inferred, 4 of 16 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
-| GetMetricData | partial | inferred, 1 of 4 claims | MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored |
+| DeleteAlarms | full | third-party-recorded, 3 of 5 claims |  |
+| DescribeAlarmsForMetric | full | third-party-recorded, 2 of 3 claims |  |
+| DisableAlarmActions | full | third-party-recorded, 2 of 5 claims |  |
+| EnableAlarmActions | full | third-party-recorded, 2 of 5 claims |  |
+| DescribeAlarmHistory | partial | third-party-recorded, 2 of 6 claims | StateUpdate items only, kept 30 days on the emulator clock and after the alarm is deleted; ConfigurationUpdate and Action items are never recorded, and AlarmContributorId selects nothing |
+| DescribeAlarms | partial | inferred, 3 of 16 claims | metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing |
+| GetMetricData | partial | aws-doc, 1 of 4 claims | MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored |
 | GetMetricStatistics | partial | contradicted (cloudwatch/CWA-19/01-both.json), 10 of 16 claims | Statistics only: ExtendedStatistics answers 501; points are kept until reset, not aged out by resolution |
-| ListMetrics | partial | inferred, 1 of 3 claims | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
-| ListTagsForResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
-| PutMetricAlarm | partial | inferred, 4 of 22 claims | alarms on a Statistic with a sliding window are evaluated on the emulator clock; alarms on an ExtendedStatistic, Metrics, a ThresholdMetricId or EvaluationCriteria, or with a WallClockWindow, are stored and never evaluated; SNS and Lambda actions run, and EC2, Auto Scaling, Systems Manager and investigation actions are journaled and never run; EvaluationState is never reported |
-| PutMetricData | partial | inferred, 2 of 5 claims | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
-| SetAlarmState | partial | inferred, 1 of 12 claims | the state is set and its actions run when it changes; the next evaluation re-derives it, except on alarms that are never evaluated (see PutMetricAlarm) |
-| TagResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
-| UntagResource | partial | inferred, 1 of 3 claims | alarms only: insight rules and metric streams are never stored |
+| ListMetrics | partial | third-party-recorded, 2 of 3 claims | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
+| ListTagsForResource | partial | third-party-recorded, 2 of 3 claims | alarms only: insight rules and metric streams are never stored |
+| PutMetricAlarm | partial | inferred, 3 of 22 claims | alarms on a Statistic with a sliding window are evaluated on the emulator clock; alarms on an ExtendedStatistic, Metrics, a ThresholdMetricId or EvaluationCriteria, or with a WallClockWindow, are stored and never evaluated; SNS and Lambda actions run, and EC2, Auto Scaling, Systems Manager and investigation actions are journaled and never run; EvaluationState is never reported |
+| PutMetricData | partial | inferred, 1 of 5 claims | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
+| SetAlarmState | partial | third-party-recorded, 4 of 12 claims | the state is set and its actions run when it changes; the next evaluation re-derives it, except on alarms that are never evaluated (see PutMetricAlarm) |
+| TagResource | partial | third-party-recorded, 2 of 3 claims | alarms only: insight rules and metric streams are never stored |
+| UntagResource | partial | third-party-recorded, 2 of 3 claims | alarms only: insight rules and metric streams are never stored |
 | AssociateDatasetKmsKey | unbound | unassessed |  |
 | CreateResourceMetricsConfiguration | unbound | unassessed |  |
 | DeleteAlarmMuteRule | unbound | unassessed |  |
@@ -1803,7 +1803,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-238 switches: 124 aws-recorded, 1 third-party-recorded, 17 aws-doc, 96 inferred.
+238 switches: 125 aws-recorded, 1 third-party-recorded, 17 aws-doc, 95 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1827,6 +1827,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `cloudwatch.alarm.unaged-breach` | `alarm-if-aged-in-range-else-retain` | aws-recorded | docs/research/cloudwatch-alarms.md#35-missing-data-the-algorithm | none: CWA-04 recorded (testdata/parity); not replayed: the steps wait on evaluations or read the queues alarm deliveries filled |
 | `cloudwatch.alarm.unchanged-state` | `no-update` | aws-recorded | docs/research/cloudwatch-alarms.md#38-what-a-transition-does-and-what-no-transition-does | none: CWA-05 recorded (testdata/parity); not replayed: the steps wait on evaluations or read the queues alarm deliveries filled |
 | `cloudwatch.alarm.warm-up-end` | `every-period-has-data` | aws-recorded | docs/research/cloudwatch-alarms.md#24-warm-up | none: CWA-22 recorded (testdata/parity); not replayed: the steps wait on evaluations or read the queues alarm deliveries filled |
+| `cloudwatch.denial.identity` | `AccessDenied 403 over Query; __type com.amazon.coral.service#AccessDeniedException over JSON and CBOR, 403 with header AccessDenied;Sender under x-amzn-query-mode, else 400 without it (CBOR inferred from JSON)` | aws-recorded | docs/research/iam-enforcement-surfaces.md#3.2 | none: IAM-ENF-09 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
 | `cloudwatch.get-metric-statistics.datapoint-limit` | `floor-unrounded` | aws-recorded | docs/research/cloudwatch-alarms.md#93-errors-and-limits | none: CWA-20 recorded; cloudwatch/CWA-19 replays its steps, which match on status and message but differ on the JSON body's __type and member order, so none can settle it yet |
 | `dynamodb.denial.type` | `__type com.amazon.coral.service#AccessDeniedException, 400` | aws-recorded | docs/research/iam-enforcement-surfaces.md#3.2 | none: IAM-ENF-04 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
 | `dynamodb.streams.iterator-reuse` | `allowed` | aws-recorded | docs/research/dynamodb-streams.md#44-shard-iterators | none: dynamodb/DDBS-04/02-reuse.json is recorded; the replayer runs without DynamoDB |
@@ -1957,7 +1958,6 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `cloudwatch.alarm.evaluation-phase` | `minute-boundary` | inferred | docs/research/cloudwatch-alarms.md#31-cadence-and-phase | none: AWS evaluates at an arbitrary second, which does not change the data a minute's evaluation reads; no recording can pin it |
 | `cloudwatch.alarm.evaluation-range` | `n-plus-5-for-60s,n-plus-2-otherwise` | inferred | docs/research/cloudwatch-alarms.md#34-evaluation-range-n-and-m | none: CWA-01 recorded the 60 and 300 second ranges; other periods are unrecorded (testdata/parity); not replayed: the steps wait on evaluations or read the queues alarm deliveries filled |
 | `cloudwatch.alarm.mixed-units` | `first-unit-by-name` | inferred | docs/research/cloudwatch-alarms.md#33-which-series-and-which-statistic | none: AWS documents an alarm on a metric of several units without Unit as undefined, so no recording can settle it |
-| `cloudwatch.denial.identity` | `AccessDenied 403 over Query; __type com.amazon.coral.service#AccessDeniedException with header AccessDenied;Sender over JSON and CBOR` | inferred | docs/research/iam-enforcement-surfaces.md#3.2 | none: unrecorded: IAM-ENF-09 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `cloudwatch.get-metric-statistics.order` | `timestamp-ascending,then-unit` | inferred | docs/research/cloudwatch-alarms.md#92-response | none: AWS documents no order ("Data points are not returned in chronological order"), so no recording can pin one |
 | `cloudwatch.put-metric-data.timestamp-window` | `wall-or-emulator` | inferred | docs/research/secrets-logs-events-alarms.md#52-putmetricdata | none: AWS has one clock: which of understudy's two the windows read is understudy's choice, which no recording settles |
 | `dynamodb.streams.sequence-number` | `decimal-21` | inferred | docs/research/dynamodb-streams.md#43-sequence-numbers | none: recorded in dynamodb/DDBS-09: AWS numbers records with 23 digits above a 21-digit StartingSequenceNumber, which neither value does |
@@ -2050,7 +2050,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-373 evidence items: 96 aws-recorded, 110 third-party-recorded, 57 aws-doc, 5 sdk-source, 105 inferred.
+374 evidence items: 97 aws-recorded, 110 third-party-recorded, 57 aws-doc, 5 sdk-source, 105 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2062,8 +2062,9 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | apigatewayv2.json | `com.amazonaws.apigatewayv2#CreateIntegrationRequest$IntegrationType` |  | testdata/parity/apigatewayv2/APIGW2-01/17b-enum-integration-type.json, recorded 2026-11-03 (apigateway-http.md 2.3): IntegrationType HTTPS_PROXY answers BadRequestException 400 'IntegrationType is a required parameter for creating integration.', the unknown value dropped, so the handler answers it |
 | aws-recorded | apigatewayv2.json | `com.amazonaws.apigatewayv2#CreateIntegrationRequest$TimeoutInMillis` |  | testdata/parity/apigatewayv2/APIGW2-01/17-timeout-over.json, recorded 2026-11-03 (apigateway-http.md 2.3): TimeoutInMillis 30001 answers BadRequestException 400 'Timeout should be between 50 ms and 30000 ms' |
 | aws-recorded | apigatewayv2.json | `com.amazonaws.apigatewayv2#UpdateApi` |  | testdata/parity/apigatewayv2/APIGW2-03/09-update-cors.json and 13-braced-selection.json, recorded 2026-11-03 (apigateway-http.md 2.2): PATCH /v2/apis/{ApiId} answers 201 with the Api, where the model's http trait says 200 |
-| aws-recorded | cloudwatch.json | `com.amazon.coral.service#AccessDenied` |  | testdata/parity/cloudwatch/IAM-ENF/09-json-qm.json: the JSON body carries the message under Message where the shared shape's member is message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
-| aws-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#denialError | testdata/parity/cloudwatch/IAM-ENF/09-json-qm.json: over JSON in query mode an IAM denial answers 403 with __type com.amazon.coral.service#AccessDeniedException and x-amzn-query-error AccessDenied;Sender; CloudWatch models no denial shape. The CBOR answer and the non-query-mode JSON answer (recorded 400 without the header) are not what the shape emits yet (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch cloudwatch.denial.identity) (validated 2026-11-03) |
+| aws-recorded | cloudwatch.json | `com.amazon.coral.service#AccessDenied` | dev.understudy#messageKey | testdata/parity/cloudwatch/IAM-ENF/09-json-qm.json: the JSON body carries the message under Message where the shared shape's member is message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
+| aws-recorded | cloudwatch.json | `com.amazon.coral.service#AccessDenied` | dev.understudy#statusOverride, aws.protocols#awsQueryError, dev.understudy#queryErrorHeader | testdata/parity/cloudwatch/IAM-ENF/09-json.json, 09-json-qm.json and 09-query.json: an IAM denial answers 400 without x-amzn-query-error over JSON without x-amzn-query-mode, 403 with x-amzn-query-error AccessDenied;Sender over JSON in query mode, and 403 AccessDenied over Query. rpcv2Cbor follows JSON, inferred: only JSON was recorded (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
+| aws-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#denialError | testdata/parity/cloudwatch/IAM-ENF/09-json-qm.json: over JSON in query mode an IAM denial answers 403 with __type com.amazon.coral.service#AccessDeniedException and x-amzn-query-error AccessDenied;Sender, and 09-json.json: without query mode it answers 400 with no x-amzn-query-error; CloudWatch models no denial shape. The CBOR answer is inferred to follow JSON (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch cloudwatch.denial.identity) (validated 2026-11-03) |
 | aws-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#errorNamespace | testdata/parity/cloudwatch/R07/cw-GetDashboard.json (validated 2026-10-14) |
 | aws-recorded | common.json | `com.amazon.coral.service#AccessDenied` | smithy.api#httpError, dev.understudy#jsonType | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: 403 and the JSON __type com.amazon.coral.service#AccessDeniedException are recorded for the services that answer a denial with this shape (testdata/parity/sqs/IAM-ENF/01-raw.json, testdata/parity/sqs/IAM-ENF/02-query.json, testdata/parity/cloudwatch/IAM-ENF/09-json-qm.json, testdata/parity/iam/IAM-ENF/10-get-role.json, testdata/parity/ses/IAM-ENF/38-raw.json) (validated 2026-11-03) |
 | aws-recorded | dynamodb.json | `com.amazon.coral.service#AccessDeniedException` | dev.understudy#messageKey | testdata/parity/dynamodb/IAM-ENF/04-describe.json: the shared shape's member is message, the wire key Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |

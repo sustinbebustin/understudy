@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -268,6 +269,33 @@ func TestEncodeErrorQueryModeStatus(t *testing.T) {
 		resp := rpcv2cbor.Codec{}.EncodeError(errorRequest(tt.queryMode), tt.svc, "req-1", e)
 		if resp.Status != tt.want {
 			t.Errorf("query mode %t, query compatible %t: status = %d, want %d", tt.queryMode, tt.svc.QueryCompatible, resp.Status, tt.want)
+		}
+	}
+}
+
+// An identity that sends x-amzn-query-error only in query mode answers
+// without it otherwise, and with it and the query-mode status under
+// x-amzn-query-mode: true. AWS recorded this for CloudWatch's IAM denial
+// over awsJson1_0 only; CBOR follows JSON, inferred
+// (iam-enforcement-surfaces.md 12.3).
+func TestEncodeErrorQueryErrorInQueryModeOnly(t *testing.T) {
+	_, cw := newRegistry(t)
+	id := awserr.Identity{
+		Shape: "com.amazon.coral.service#AccessDenied", JSONType: "com.amazon.coral.service#AccessDeniedException", QueryCode: "AccessDenied",
+		Status: 400, QueryModeStatus: 403, QueryErrorWhen: awserr.QueryErrorInQueryMode, Fault: awserr.Sender, MessageKey: awserr.MessageUpper,
+	}
+	e := &awserr.Error{ID: id, Message: "denied", Origin: awserr.Modeled{}}
+	for _, tt := range []struct {
+		queryMode  bool
+		status     int
+		queryError []string
+	}{
+		{queryMode: false, status: http.StatusBadRequest},
+		{queryMode: true, status: http.StatusForbidden, queryError: []string{"AccessDenied;Sender"}},
+	} {
+		resp := rpcv2cbor.Codec{}.EncodeError(errorRequest(tt.queryMode), cw, "req-1", e)
+		if got := resp.Header.Values("X-Amzn-Query-Error"); resp.Status != tt.status || !slices.Equal(got, tt.queryError) {
+			t.Errorf("query mode %t: %d %q; want %d %q", tt.queryMode, resp.Status, got, tt.status, tt.queryError)
 		}
 	}
 }

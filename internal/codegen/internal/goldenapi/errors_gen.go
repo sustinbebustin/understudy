@@ -23,7 +23,7 @@ func (*InvalidInput) ErrorIdentity() awserr.Identity { return IdentityInvalidInp
 
 // IdentityKindsFault returns the identity of com.example.golden#KindsFault.
 func IdentityKindsFault() awserr.Identity {
-	return awserr.Identity{Shape: "com.example.golden#KindsFault", JSONType: "com.example.golden.v1#KindsFault", QueryCode: "Kinds.Fault", Status: 409, QueryModeStatus: 404, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+	return awserr.Identity{Shape: "com.example.golden#KindsFault", JSONType: "com.example.golden.v1#KindsFault", QueryCode: "Kinds.Fault", Status: 409, QueryModeStatus: 404, QueryErrorWhen: awserr.QueryErrorInQueryMode, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
 }
 
 // ErrKindsFault returns a KindsFault error with message.

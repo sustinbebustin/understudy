@@ -45,6 +45,7 @@
       "type": "apply",
       "traits": {
         "dev.understudy#messageByProtocol": {"awsquery": "Kinds failed for this wsdl version."},
+        "dev.understudy#queryErrorHeader": {"send": "query-mode"},
         "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
       }
     },

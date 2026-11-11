@@ -149,6 +149,22 @@ func TestStageFailures(t *testing.T) {
 				`set "namespace" or "detail" to true; an envelope that follows Smithy's example needs no trait`,
 		},
 		{
+			name: "queryErrorHeader that says what its absence says",
+			extra: overlay(`"com.example.golden#Throttled": {"type": "apply", "traits": {
+				"dev.understudy#queryErrorHeader": {"send": "always"}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#Throttled: dev.understudy#queryErrorHeader: " +
+				`"send": "always" is what the absence of the trait already says; drop the trait`,
+		},
+		{
+			name: "queryErrorHeader with an unknown value",
+			extra: overlay(`"com.example.golden#Throttled": {"type": "apply", "traits": {
+				"dev.understudy#queryErrorHeader": {"send": "sometimes"}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#Throttled: dev.understudy#queryErrorHeader: " +
+				`"send" is "sometimes"; the one value is "query-mode"`,
+		},
+		{
 			name: "unknown dev.understudy trait",
 			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "traits": {
 				"dev.understudy#flavor": "vanilla", ` + evidence + `}}`),
@@ -157,7 +173,7 @@ func TestStageFailures(t *testing.T) {
 				"the closed set is [dev.understudy#alwaysEmit dev.understudy#denialError dev.understudy#emptyCollection dev.understudy#enumOrder dev.understudy#errorNamespace " +
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
 				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#patternEcho " +
-				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryKeyAlias " +
+				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryErrorHeader dev.understudy#queryKeyAlias " +
 				"dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationError dev.understudy#validationError " +
 				"dev.understudy#validationInputRoot dev.understudy#validationPathStyle]",

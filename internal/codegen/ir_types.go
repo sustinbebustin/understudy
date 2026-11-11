@@ -296,6 +296,7 @@ type ErrorIR struct {
 	QueryCode       string
 	Status          int
 	QueryModeStatus int
+	QueryErrorWhen  awserr.QueryErrorWhen
 	Fault           awserr.Fault
 	MessageKey      awserr.MessageKey
 	Retryable       bool

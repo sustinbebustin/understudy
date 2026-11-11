@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"cmp"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -248,17 +249,19 @@ func TestEnforceAnswersEachServicesDenialIdentity(t *testing.T) {
 	for _, p := range probes {
 		w := p.send()
 		code := p.code(w)
-		// A JSON answer carries the identity's __type, a Query or XML one
-		// its code.
-		want := p.want.QueryCode
+		// A JSON answer carries the identity's __type and status, a Query or
+		// XML one its code and awsQueryError's status (CloudWatch's 403 where
+		// JSON without query mode answers 400, iam-enforcement-surfaces.md
+		// 12.3).
+		want, status := p.want.QueryCode, cmp.Or(p.want.QueryModeStatus, p.want.Status)
 		if isJSON := strings.HasPrefix(w.header.Get("Content-Type"), "application/x-amz-json") || strings.HasPrefix(w.header.Get("Content-Type"), "application/json"); isJSON {
-			want = shortName(p.want)
+			want, status = shortName(p.want), p.want.Status
 			if j := p.want.JSONType; j != "" {
 				want = j[strings.LastIndex(j, "#")+1:]
 			}
 		}
-		if w.status != p.want.Status || code != want {
-			t.Errorf("%s denial = %d %q (%s); want %d %q", p.service, w.status, code, w.body, p.want.Status, want)
+		if w.status != status || code != want {
+			t.Errorf("%s denial = %d %q (%s); want %d %q", p.service, w.status, code, w.body, status, want)
 		}
 	}
 	if got := snsapi.DenialError(); got.QueryCode != "AuthorizationError" || got.Status != http.StatusForbidden {
