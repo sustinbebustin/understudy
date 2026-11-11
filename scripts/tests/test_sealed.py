@@ -130,13 +130,13 @@ def test_terraform_plugin_cache_override_is_made_absolute(tmp_path, monkeypatch)
     assert env["TF_PLUGIN_CACHE_DIR"] == str(tmp_path / "plugins")
 
 
-def test_prepare_terraform_empties_the_config_and_creates_the_cache(tmp_path):
+def test_prepare_terraform_writes_the_direct_install_block_and_creates_the_cache(tmp_path):
     config = tmp_path / "cache" / "sealed.tfrc"
     config.parent.mkdir()
     config.write_text('credentials "app.terraform.io" { token = "tok" }\n')
     plugins = tmp_path / "plugins"
     sealed.prepare_terraform({"TF_CLI_CONFIG_FILE": str(config), "TF_PLUGIN_CACHE_DIR": str(plugins)})
-    assert config.read_bytes() == b""
+    assert config.read_text() == "provider_installation {\n  direct {}\n}\n"
     assert plugins.is_dir()
     assert (config.parent / ".gitignore").read_text() == "*\n"
 
@@ -193,11 +193,11 @@ def test_command_runs_with_sealed_environment_and_its_exit_status():
     assert r.stdout.strip() == "http://127.0.0.1:4566"
 
 
-def test_command_runs_with_an_empty_terraform_config_and_an_existing_plugin_cache(tmp_path):
+def test_command_runs_with_a_direct_only_terraform_config_and_an_existing_plugin_cache(tmp_path):
     r = run(
         "sh",
         "-c",
-        'test -d "$TF_PLUGIN_CACHE_DIR" && test ! -s "$TF_CLI_CONFIG_FILE" && echo "$TF_PLUGIN_CACHE_DIR $TF_TOKEN_x"',
+        'test -d "$TF_PLUGIN_CACHE_DIR" && grep -q "direct" "$TF_CLI_CONFIG_FILE" && echo "$TF_PLUGIN_CACHE_DIR $TF_TOKEN_x"',
         env={"SEALED_TF_PLUGIN_CACHE": str(tmp_path / "plugins"), "TF_TOKEN_x": "tok"},
     )
     assert r.returncode == 0, r.stderr
