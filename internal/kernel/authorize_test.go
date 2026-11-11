@@ -71,6 +71,7 @@ type guardInput struct {
 	Touch   []aws.ARN
 	Declare []registry.IAMAction
 	Invalid bool
+	Member  string
 }
 
 type guardOutput struct{}

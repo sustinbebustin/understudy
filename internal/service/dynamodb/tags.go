@@ -194,15 +194,3 @@ func errStreamTags() *awserr.Error {
 func errTaggedNotFound(resource string) *awserr.Error {
 	return dynamodbapi.ErrResourceNotFoundException("Requested resource not found: ResourceArn: " + resource + " not found")
 }
-
-// taggedTable names the table a tag operation addresses, so fault rules
-// match it by ARN; an ARN that does not parse names nothing.
-func taggedTable[In any](resource func(*In) string) kernel.BindOption {
-	return kernel.WithResources(func(_ *kernel.Call, in *In) []aws.ARN {
-		arn, err := aws.ParseARN(resource(in))
-		if err != nil {
-			return nil
-		}
-		return []aws.ARN{arn}
-	})
-}

@@ -36,7 +36,6 @@ const (
 // the source and sqs:SendMessage with where the messages go
 // (moveDestinations), never crossed (12.6).
 func (s *Service) bindMoveTasks(b sqsapi.Binder) {
-	source := func(in *sqsapi.StartMessageMoveTaskInput) string { return in.SourceArn }
 	b.StartMessageMoveTask(s.startMessageMoveTask, registry.Full{},
 		kernel.WithCheck(func(in *sqsapi.StartMessageMoveTaskInput) *awserr.Error {
 			if r := in.MaxNumberOfMessagesPerSecond; r != nil && (*r < 1 || *r > maxMoveRate) {
@@ -44,7 +43,7 @@ func (s *Service) bindMoveTasks(b sqsapi.Binder) {
 			}
 			return nil
 		}),
-		queueByARN(source),
+		kernel.WithResources(func(_ *kernel.Call, in *sqsapi.StartMessageMoveTaskInput) []aws.ARN { return queueARNOf(in.SourceArn) }),
 		allActions[sqsapi.StartMessageMoveTaskInput](sqsapi.OpStartMessageMoveTask.Descriptor()),
 		kernel.WithResourcesFor(
 			[]registry.IAMAction{sqsAction("StartMessageMoveTask"), sqsAction("ReceiveMessage"), sqsAction("DeleteMessage"), sqsAction("GetQueueAttributes")},
@@ -59,12 +58,12 @@ func (s *Service) bindMoveTasks(b sqsapi.Binder) {
 			}
 			return nil
 		}),
-		queueByARN(func(in *sqsapi.ListMessageMoveTasksInput) string { return in.SourceArn }),
+		kernel.WithResources(func(_ *kernel.Call, in *sqsapi.ListMessageMoveTasksInput) []aws.ARN { return queueARNOf(in.SourceArn) }),
 		allActions[sqsapi.ListMessageMoveTasksInput](sqsapi.OpListMessageMoveTasks.Descriptor()))
 	b.CancelMessageMoveTask(s.cancelMessageMoveTask, registry.Full{},
-		queueByARN(func(in *sqsapi.CancelMessageMoveTaskInput) string {
+		kernel.WithResources(func(_ *kernel.Call, in *sqsapi.CancelMessageMoveTaskInput) []aws.ARN {
 			h, _ := decodeTaskHandle(in.TaskHandle)
-			return h.SourceArn
+			return queueARNOf(h.SourceArn)
 		}),
 		allActions[sqsapi.CancelMessageMoveTaskInput](sqsapi.OpCancelMessageMoveTask.Descriptor()))
 }
@@ -473,18 +472,6 @@ func (t *MoveTask) entry() sqsapi.ListMessageMoveTasksResultEntry {
 		e.MaxNumberOfMessagesPerSecond = new(*t.Rate)
 	}
 	return e
-}
-
-// queueByARN names the queue an input addresses by ARN as the call's
-// resource, before fault rules run.
-func queueByARN[In any](arnOf func(*In) string) kernel.BindOption {
-	return kernel.WithResources(func(_ *kernel.Call, in *In) []aws.ARN {
-		a, err := aws.ParseARN(arnOf(in))
-		if err != nil || a.Service != "sqs" {
-			return nil
-		}
-		return []aws.ARN{a}
-	})
 }
 
 // taskHandle is what a TaskHandle encodes: base64 of a JSON document with

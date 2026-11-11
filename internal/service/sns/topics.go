@@ -39,13 +39,13 @@ func (s *Service) bindTopics(b snsapi.Binder) {
 			return []registry.IAMAction{{Prefix: "sns", Name: "TagResource"}}
 		}))
 	b.DeleteTopic(s.deleteTopic, registry.Full{},
-		arnResource(func(in *snsapi.DeleteTopicInput) string { return in.TopicArn }))
+		kernel.WithResourceARN(func(in *snsapi.DeleteTopicInput) string { return in.TopicArn }))
 	b.GetTopicAttributes(s.getTopicAttributes, registry.Full{},
-		arnResource(func(in *snsapi.GetTopicAttributesInput) string { return in.TopicArn }))
+		kernel.WithResourceARN(func(in *snsapi.GetTopicAttributesInput) string { return in.TopicArn }))
 	b.SetTopicAttributes(s.setTopicAttributes, registry.Partial{Note: "Policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
 		"KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never applied; " +
 		"the http defaults in DeliveryPolicy apply to http and https subscriptions"},
-		arnResource(func(in *snsapi.SetTopicAttributesInput) string { return in.TopicArn }))
+		kernel.WithResourceARN(func(in *snsapi.SetTopicAttributesInput) string { return in.TopicArn }))
 	b.ListTopics(s.listTopics, registry.Full{})
 }
 
@@ -64,19 +64,6 @@ func feedbackRoles(attributes map[string]string) []aws.ARN {
 		}
 	}
 	return out
-}
-
-// arnResource names the topic or subscription an input's ARN member
-// addresses, for fault rules matched by resource; a malformed ARN names
-// none.
-func arnResource[In any](arn func(*In) string) kernel.BindOption {
-	return kernel.WithResources(func(_ *kernel.Call, in *In) []aws.ARN {
-		a, err := aws.ParseARN(arn(in))
-		if err != nil {
-			return nil
-		}
-		return []aws.ARN{a}
-	})
 }
 
 // createTopic creates a topic, or returns the existing one's ARN when the

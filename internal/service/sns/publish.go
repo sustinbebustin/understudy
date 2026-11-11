@@ -63,7 +63,7 @@ func (s *Service) bindPublish(b snsapi.Binder) {
 			return nil
 		}))
 	b.PublishBatch(s.publishBatch, registry.Partial{Note: note},
-		arnResource(func(in *snsapi.PublishBatchInput) string { return in.TopicArn }))
+		kernel.WithResourceARN(func(in *snsapi.PublishBatchInput) string { return in.TopicArn }))
 }
 
 // message is one checked publish: what every subscription's delivery is

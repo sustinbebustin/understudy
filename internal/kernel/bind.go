@@ -230,6 +230,19 @@ func WithResources[In any](resolve func(c *Call, in *In) []aws.ARN) BindOption {
 	return resourcesOf[*In](resolve)
 }
 
+// WithResourceARN names the resource that one string member of the input
+// parses to as an ARN, as WithResources does. A member that is empty or
+// does not parse names nothing; the handler answers it as usual.
+func WithResourceARN[In any](member func(*In) string) BindOption {
+	return WithResources(func(_ *Call, in *In) []aws.ARN {
+		a, err := aws.ParseARN(member(in))
+		if err != nil {
+			return nil
+		}
+		return []aws.ARN{a}
+	})
+}
+
 // WithItemCount names how many items a transactional call's input carries
 // (DynamoDB TransactItems, TransactStatements), so a fault rule's per-item
 // members line up with them: once the input is valid, the kernel sets

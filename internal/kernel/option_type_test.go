@@ -18,6 +18,7 @@ func typedOptions[In any]() map[string]kernel.BindOption {
 		"WithValidator":     kernel.WithValidator(func(*In) []awserr.Violation { return nil }),
 		"WithCheck":         kernel.WithCheck(func(*In) *awserr.Error { return nil }),
 		"WithResources":     kernel.WithResources(func(*kernel.Call, *In) []aws.ARN { return nil }),
+		"WithResourceARN":   kernel.WithResourceARN(func(*In) string { return "" }),
 		"WithResourcesFor":  kernel.WithResourcesFor(nil, func(*kernel.Call, *In) []aws.ARN { return nil }),
 		"WithItemCount":     kernel.WithItemCount(func(*In) int { return 0 }),
 		"WithActions":       kernel.WithActions(func(*kernel.Call, *In) []registry.IAMAction { return nil }),
