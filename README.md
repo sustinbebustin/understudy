@@ -144,7 +144,7 @@ Counts are from [docs/coverage.md](docs/coverage.md), which lists every operatio
 | Secrets Manager | 23 | 1 | 0 | 14 | 8 |
 | KMS | 54 | 16 | 2 | 9 | 27 |
 | IAM | 180 | 10 | 1 | 53 | 116 |
-| STS | 11 | 1 | 0 | 2 | 8 |
+| STS | 11 | 1 | 0 | 3 | 7 |
 | EventBridge | 57 | 6 | 1 | 15 | 35 |
 | EventBridge Scheduler | 12 | 0 | 0 | 12 | 0 |
 | CloudWatch | 55 | 4 | 0 | 11 | 40 |

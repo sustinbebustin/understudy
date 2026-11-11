@@ -664,10 +664,10 @@
     {
       "scenario": "sts/R15",
       "steps": [
-        {"step": "06-get-access-key-info-deleted", "fixture": "sts/R15/06-get-access-key-info-deleted.json", "operation": "sts.GetAccessKeyInfo", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/GetAccessKeyInfoResponse, body/ErrorResponse"}},
+        {"step": "06-get-access-key-info-deleted", "fixture": "sts/R15/06-get-access-key-info-deleted.json", "operation": "sts.GetAccessKeyInfo", "outcome": {"kind": "match"}},
         {"step": "06-assume-denied", "fixture": "sts/R15/06-assume-denied.json", "operation": "sts.AssumeRole", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/ErrorResponse, body/AssumeRoleResponse"}},
         {"step": "06-assume-ok", "fixture": "sts/R15/06-assume-ok.json", "operation": "sts.AssumeRole", "outcome": {"kind": "differs", "reason": "body/AssumeRoleResponse/AssumeRoleResult/PackedPolicySize, body/AssumeRoleResponse/AssumeRoleResult/SessionTokenSize, body/AssumeRoleResponse/AssumeRoleResult/SessionTokenUtilization"}},
-        {"step": "x-assume-11-policy-arns", "fixture": "sts/R15/x-assume-11-policy-arns.json", "operation": "sts.AssumeRole", "outcome": {"kind": "differs", "reason": "error/message, body/ErrorResponse/Error/Message"}},
+        {"step": "x-assume-11-policy-arns", "fixture": "sts/R15/x-assume-11-policy-arns.json", "operation": "sts.AssumeRole", "outcome": {"kind": "match"}},
         {"step": "x-assume-refused-session-policy", "fixture": "sts/R15/x-assume-refused-session-policy.json", "operation": "sts.AssumeRole", "outcome": {"kind": "match"}}
       ]
     }

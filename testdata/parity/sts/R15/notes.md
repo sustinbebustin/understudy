@@ -54,7 +54,7 @@
 - 06-delete-role-attached / -in-instance-profile / 06-delete-user-with-key (409 DeleteConflict): matches
 - 06-create-policy-version-6 (409 LimitExceeded): matches
 - 06-create-user / 06-create-access-key CreateDate: differs: AWS whole seconds; understudy milliseconds (internal/service/iam/view.go:81, accesskeys.go:77)
-- 06-get-access-key-info-deleted: differs: AWS 200 {Account: 123456789012}; understudy 501 NotImplemented (no sts.GetAccessKeyInfo handler)
+- 06-get-access-key-info-deleted: matches (AWS 200 {Account: 123456789012} for a deleted key). Replay: matches; the scenario mints, then deletes, a key and binds its id
 - 06-trust-lowercase / 06-trust-star (both rejected): differs (text): AWS 400 MalformedPolicyDocument "AssumeRole policy may only specify STS AssumeRole actions."; understudy "Trust Policy statement actions can only be sts:AssumeRole, sts:AssumeRoleWithSAML,  and sts:AssumeRoleWithWebIdentity" (validate.go:92-94)
 - 06-assume-denied / 06-assume-ok / x-assume-11-policy-arns / x-assume-refused-session-policy: n/a (never sent; CLI refused `--role-session-name s`, min length 2, exit 252; re-record)
 
@@ -62,7 +62,7 @@
 ### Re-recorded 2026-10-14 (session name `rec`; the first run used `s`, which the CLI refuses)
 - 06-assume-denied: matches (403 AccessDenied "User: <caller arn> is not authorized to perform: sts:AssumeRole on resource: <role arn>"; internal/service/sts/errors.go:27). Replay: differs: understudy assumes the role (200), since it evaluates no trust policy (internal/service/sts/doc.go); the text above is the one it sends for a role it does not hold
 - 06-assume-ok and 06-get-caller-identity-assumed: matches (Arn `arn:aws:sts::123456789012:assumed-role/<role>/rec`). Replay of 06-assume-ok: differs: understudy leaves out `PackedPolicySize` (AWS 21), `SessionTokenSize` (888) and `SessionTokenUtilization` (21)
-- x-assume-11-policy-arns: differs: AWS 400 `ValidationError` "The limit of ARNs for the PolicyArns parameter was exceeded. 10 ARNs can be requested at most in an API request."; understudy renders a Coral constraint text (internal/service/sts/errors.go:45-48)
+- x-assume-11-policy-arns: matches (AWS 400 `ValidationError` "The limit of ARNs for the PolicyArns parameter was exceeded. 10 ARNs can be requested at most in an API request."). Replay: matches
 - x-assume-refused-session-policy: differs: AWS 400 `MalformedPolicyDocument` "Missing required field Action"; understudy says "Policy statement must contain actions." (internal/policydoc/validate.go:71)
 
 ## Replay (internal/parity)

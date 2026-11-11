@@ -139,7 +139,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
 | sqs | 23 | 16 | 0 | 7 | 0 | 2 | 0 |
 | ssm | 152 | 0 | 0 | 13 | 139 | 0 | 0 |
-| sts | 11 | 1 | 0 | 2 | 8 | 0 | 0 |
+| sts | 11 | 1 | 0 | 3 | 7 | 0 | 0 |
 
 ### apigateway
 
@@ -1786,13 +1786,13 @@ Internal operations:
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | GetCallerIdentity | full | third-party-recorded, 2 of 2 claims |  |
-| AssumeRole | partial | contradicted (sts/R15/06-assume-denied.json), 3 of 8 claims | the role's trust policy, the caller's sts:AssumeRole permission and the session policies, tags and source identity stored on the session are evaluated only when iam.enforce is advise, which journals each denial, or enforce, which answers it; PolicyArns are not checked to exist in the role's account, which AWS requires (iam-evaluation.md 2.7); a chained session inherits its caller's transitive tags and source identity, and a request that sets a tag key or source identity its caller passes on keeps its own value, where AWS's answer is unrecorded; the inline session policy is validated as an IAM identity policy, whose S3 region rule exempts the regional S3 resource types moto refuses, UNVERIFIED (iam-evaluation.md 10.6); MFA is accepted and not checked; the account root user may assume roles when iam.enforce is off or advise, which AWS refuses, because unminted keys resolve to root (ADR 0012), and is refused when it is enforce; the answer leaves out PackedPolicySize, SessionTokenSize and SessionTokenUtilization, which AWS sends |
+| AssumeRole | partial | contradicted (sts/R15/06-assume-denied.json), 2 of 8 claims | the role's trust policy, the caller's sts:AssumeRole permission and the session policies, tags and source identity stored on the session are evaluated only when iam.enforce is advise, which journals each denial, or enforce, which answers it; PolicyArns are not checked to exist in the role's account, which AWS requires (iam-evaluation.md 2.7); a chained session inherits its caller's transitive tags and source identity, and a request that sets a tag key or source identity its caller passes on keeps its own value, where AWS's answer is unrecorded; the inline session policy is validated as an IAM identity policy, whose S3 region rule exempts the regional S3 resource types moto refuses, UNVERIFIED (iam-evaluation.md 10.6); MFA is accepted and not checked; the account root user may assume roles when iam.enforce is off or advise, which AWS refuses, because unminted keys resolve to root (ADR 0012), and is refused when it is enforce; the answer leaves out PackedPolicySize, SessionTokenSize and SessionTokenUtilization, which AWS sends |
+| GetAccessKeyInfo | partial | third-party-recorded, 2 of 3 claims | answers the account an AKIA or ASIA key id encodes, whether or not the key exists, as AWS did for a deleted key; a key id that does not decode (another prefix, invalid base32 such as the documentation's AKIAI44QH8DHBEXAMPLE, or a number over twelve digits) is refused with ValidationError in understudy's own text, INFERRED: AWS's answer is unrecorded |
 | GetSessionToken | partial | third-party-recorded, 2 of 2 claims | MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused |
 | AssumeRoleWithSAML | unbound | unassessed |  |
 | AssumeRoleWithWebIdentity | unbound | unassessed |  |
 | AssumeRoot | unbound | unassessed |  |
 | DecodeAuthorizationMessage | unbound | unassessed |  |
-| GetAccessKeyInfo | unbound | contradicted (sts/R15/06-get-access-key-info-deleted.json), 1 of 1 claim |  |
 | GetDelegatedAccessToken | unbound | unassessed |  |
 | GetFederationToken | unbound | unassessed |  |
 | GetWebIdentityToken | unbound | unassessed |  |
