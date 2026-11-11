@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"net/http"
+	"net/http/httptrace"
 	"strconv"
 	"strings"
 	"sync"
@@ -164,13 +164,13 @@ func (r *runner) follow(ctx context.Context, c *admin.Client, q admin.JournalQue
 	// The buffer holds what the stream delivers while the query prints;
 	// beyond it the server's own buffer reports a gap rather than block.
 	s := &subscription{subscribed: make(chan struct{}), events: make(chan admin.JournalEvent, 1024)}
-	// The stream's headers come once the server subscribes, so the
+	// The stream's answer starts once the server subscribes, so c's
 	// answer bound holds; the body that follows is not bounded.
-	sc, err := r.clientWith(&http.Client{Transport: &onResponse{base: newAnswerBound(r.answer), done: s.subscribed}})
-	if err != nil {
-		return err
-	}
-	go s.read(ctx, sc.JournalStream(ctx, q, 0))
+	var once sync.Once
+	subscribing := httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+		GotFirstResponseByte: func() { once.Do(func() { close(s.subscribed) }) },
+	})
+	go s.read(ctx, c.JournalStream(subscribing, q, 0))
 	if !s.ready() {
 		return followEnd(ctx, s.err)
 	}
@@ -255,22 +255,6 @@ func followEnd(ctx context.Context, err error) error {
 	default:
 		return err
 	}
-}
-
-// onResponse closes done once a request through it has its response
-// headers: for the journal stream, the server has subscribed by then.
-type onResponse struct {
-	base http.RoundTripper
-	done chan struct{}
-	once sync.Once
-}
-
-func (t *onResponse) RoundTrip(req *http.Request) (*http.Response, error) {
-	resp, err := t.base.RoundTrip(req)
-	if err == nil {
-		t.once.Do(func() { close(t.done) })
-	}
-	return resp, err
 }
 
 // writeEvent prints one event: an NDJSON line, or a text line.

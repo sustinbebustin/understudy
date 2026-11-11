@@ -1,6 +1,7 @@
 package admin_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -55,6 +56,9 @@ func TestExitCodeOfOtherResults(t *testing.T) {
 	}
 	if got := admin.ExitCode(&admin.UnreachableError{Endpoint: "http://127.0.0.1:1", Err: errors.New("refused")}); got != admin.ExitUnreachable {
 		t.Errorf("ExitCode(unreachable) = %d", got)
+	}
+	if got := admin.ExitCode(&admin.NoAnswerError{Endpoint: "http://127.0.0.1:1", Within: time.Minute, Err: errors.New("timeout")}); got != admin.ExitUnreachable {
+		t.Errorf("ExitCode(no answer) = %d", got)
 	}
 	if got := admin.ExitCode(errors.New("other")); got != admin.ExitFailed {
 		t.Errorf("ExitCode(other) = %d", got)
@@ -300,9 +304,84 @@ func TestClientReportsUnreachableServers(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = c.Health(t.Context())
-	if admin.ExitCode(err) != admin.ExitUnreachable {
-		t.Fatalf("Health against a closed port = %v, want unreachable", err)
+	if _, ok := errors.AsType[*admin.UnreachableError](err); !ok || admin.ExitCode(err) != admin.ExitUnreachable {
+		t.Fatalf("Health against a closed port = %v, want an UnreachableError, exit code 3", err)
 	}
+}
+
+// silentServer is a listener that accepts a call and never answers it.
+func silentServer(t *testing.T) string {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	t.Cleanup(srv.Close)
+	return srv.URL
+}
+
+// A call the server took and did not answer within the client's response
+// bound is a NoAnswerError naming the bound, exit code 3, and not an
+// UnreachableError, whose text says to start a server that is running.
+func TestClientReportsAServerThatSendsNoAnswer(t *testing.T) {
+	const within = 50 * time.Millisecond
+	for name, hc := range map[string]*http.Client{
+		"transport response header timeout": {Transport: &http.Transport{ResponseHeaderTimeout: within}},
+		"client timeout":                    {Timeout: within},
+	} {
+		endpoint := silentServer(t)
+		c, err := admin.New(endpoint, admin.Options{HTTPClient: hc})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = c.Health(t.Context())
+		noAnswer, ok := errors.AsType[*admin.NoAnswerError](err)
+		if !ok || noAnswer.Endpoint != endpoint || noAnswer.Within != within {
+			t.Errorf("%s: Health against a silent listener = %#v, want a NoAnswerError for %s within %s", name, err, endpoint, within)
+			continue
+		}
+		if _, unreachable := errors.AsType[*admin.UnreachableError](err); unreachable {
+			t.Errorf("%s: Health against a silent listener = %v, which is also an UnreachableError", name, err)
+		}
+		if got := admin.ExitCode(err); got != admin.ExitUnreachable {
+			t.Errorf("%s: ExitCode(%v) = %d, want %d", name, err, got, admin.ExitUnreachable)
+		}
+		if want := "took the call but sent no answer within 50ms"; !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: error text %q does not say %q", name, err, want)
+		}
+	}
+}
+
+// A call the caller's context ended before an answer came fails with an
+// error that names the call and is the context's error, not an
+// UnreachableError or a NoAnswerError: the server may be running fine.
+func TestClientReportsTheCallersContextEnding(t *testing.T) {
+	endpoint := silentServer(t)
+	c, err := admin.New(endpoint, admin.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(name string, ctx context.Context, want error) {
+		t.Helper()
+		_, err := c.Settle(ctx, time.Minute)
+		if !errors.Is(err, want) {
+			t.Errorf("%s: Settle = %v, want an error that is %v", name, err, want)
+		}
+		if _, ok := errors.AsType[*admin.UnreachableError](err); ok {
+			t.Errorf("%s: Settle = %v, an UnreachableError", name, err)
+		}
+		if _, ok := errors.AsType[*admin.NoAnswerError](err); ok {
+			t.Errorf("%s: Settle = %v, a NoAnswerError", name, err)
+		}
+		if err != nil && !strings.Contains(err.Error(), "GET /settle") {
+			t.Errorf("%s: error text %q does not name the call GET /settle", name, err)
+		}
+	}
+	cancelled, cancel := context.WithCancel(t.Context())
+	cancel()
+	check("cancelled", cancelled, context.Canceled)
+	expired, cancelExpired := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancelExpired()
+	check("expired", expired, context.DeadlineExceeded)
 }
 
 // Health reads a 503 readiness answer as a server still starting, and any

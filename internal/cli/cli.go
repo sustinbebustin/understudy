@@ -9,10 +9,8 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httptrace"
 	"net/netip"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/sustinbebustin/understudy/admin"
@@ -225,45 +223,7 @@ const (
 	answerTimeout = time.Minute
 )
 
-// answerBound is the transport of client's calls: a call sent and not
-// answered within the bound fails with a *noAnswerError, since the server
-// took the connection and is not down.
-type answerBound struct {
-	base   http.RoundTripper
-	within time.Duration
-}
-
-func newAnswerBound(within time.Duration) *answerBound {
-	return &answerBound{base: adminTransport(within), within: within}
-}
-
-func (t *answerBound) RoundTrip(req *http.Request) (*http.Response, error) {
-	var sent atomic.Bool
-	trace := &httptrace.ClientTrace{WroteRequest: func(w httptrace.WroteRequestInfo) { sent.Store(w.Err == nil) }}
-	resp, err := t.base.RoundTrip(req.WithContext(httptrace.WithClientTrace(req.Context(), trace)))
-	if timeout, ok := errors.AsType[net.Error](err); ok && timeout.Timeout() && sent.Load() && req.Context().Err() == nil {
-		return nil, &noAnswerError{endpoint: req.URL.Scheme + "://" + req.URL.Host, within: t.within, err: err}
-	}
-	return resp, err
-}
-
-// noAnswerError is an admin call the server at endpoint took but did not
-// answer within the CLI's bound: it is busy with a long call, wedged, or
-// not understudy. Like an unreachable server it exits 3.
-type noAnswerError struct {
-	endpoint string
-	within   time.Duration
-	err      error
-}
-
-func (e *noAnswerError) Error() string {
-	return fmt.Sprintf("the server at %s took the call but sent no answer within %s; it may still be working on it, it may be wedged, or the program on that port may not be understudy",
-		e.endpoint, e.within)
-}
-
-func (e *noAnswerError) Unwrap() error { return e.err }
-
-// noAnswerNext is the step to take after a *noAnswerError.
+// noAnswerNext is the step to take after an *admin.NoAnswerError.
 const noAnswerNext = "check the server with 'understudy health' and its log, then run the command again"
 
 // adminTransport is the transport of the CLI's admin calls: Go's default
@@ -283,10 +243,11 @@ func adminTransport(answer time.Duration) *http.Transport {
 }
 
 // client is the admin client for the selected endpoint, for calls the
-// server answers promptly: it gives up after r.answer without an answer.
-// A streamed answer's body, such as the journal stream's, is not bounded.
+// server answers promptly: a call the server took and did not answer
+// within r.answer fails with an *admin.NoAnswerError. A streamed answer's
+// body, such as the journal stream's, is not bounded.
 func (r *runner) client() (*admin.Client, error) {
-	return r.clientWith(&http.Client{Transport: newAnswerBound(r.answer)})
+	return r.clientWith(&http.Client{Transport: adminTransport(r.answer)})
 }
 
 // slowClient is the admin client for calls the server may work on for
@@ -353,12 +314,7 @@ func (r *runner) fail(err error) int {
 		adminErr = r.unauthorized(adminErr)
 		err = adminErr
 	}
-	noAnswer, isNoAnswer := errors.AsType[*noAnswerError](err)
-	if isNoAnswer {
-		// admin wraps it as unreachable, whose text says to start a server
-		// that is running.
-		err = noAnswer
-	}
+	_, isNoAnswer := errors.AsType[*admin.NoAnswerError](err)
 	local, isLocal := errors.AsType[*localError](err)
 	if r.output == outputJSON {
 		body := errorBody{Code: "failed", Message: err.Error(), Exit: code}

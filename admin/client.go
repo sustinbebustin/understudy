@@ -10,10 +10,13 @@ import (
 	"io"
 	"iter"
 	"maps"
+	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -36,13 +39,19 @@ type Options struct {
 	// Token is the admin token a non-loopback server requires, sent as
 	// Authorization: Bearer <token>.
 	Token string
-	// HTTPClient sends the requests; nil means http.DefaultClient.
+	// HTTPClient sends the requests; nil means http.DefaultClient. Its
+	// transport's ResponseHeaderTimeout, or its Timeout, bounds the wait
+	// for an answer and is the bound a *NoAnswerError names; without
+	// either a call waits as long as its context allows.
 	HTTPClient *http.Client
 }
 
 // Client calls the admin API of one running understudy. Every method
-// returns an *Error for an error the server answered, an *UnreachableError
-// when no answer came, and ExitCode maps either to the CLI's exit code.
+// returns an *Error for an error the server answered, a *NoAnswerError
+// when the server took the call and sent no answer within the response
+// bound, an *UnreachableError when no server could be reached, and an
+// error wrapping the context's error when the caller's context ended
+// first. ExitCode maps each to the CLI's exit code.
 type Client struct {
 	base  url.URL
 	token string
@@ -483,7 +492,8 @@ func (c *Client) call(ctx context.Context, method, path string, v url.Values, in
 	return c.decode(resp, out)
 }
 
-// send makes one request. No answer is an *UnreachableError. An answer
+// send makes one request. A request that got no answer fails as failed
+// classifies it. An answer
 // outside 2xx is the *Error its envelope holds, or an Unavailable *Error
 // when it has none, returned with the response, whose body is buffered so
 // a caller that reads past the error can read it again. On a 2xx answer
@@ -517,9 +527,11 @@ func (c *Client) sendHeader(ctx context.Context, method, path string, v url.Valu
 		req.Header.Set("Authorization", "Bearer "+c.token)
 	}
 	maps.Copy(req.Header, header)
-	resp, err := c.hc.Do(req)
+	var sent atomic.Bool
+	trace := &httptrace.ClientTrace{WroteRequest: func(w httptrace.WroteRequestInfo) { sent.Store(w.Err == nil) }}
+	resp, err := c.hc.Do(req.WithContext(httptrace.WithClientTrace(ctx, trace)))
 	if err != nil {
-		return nil, &UnreachableError{Endpoint: c.base.String(), Err: err}
+		return nil, c.failed(ctx, method, path, sent.Load(), err)
 	}
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return resp, nil
@@ -527,7 +539,7 @@ func (c *Client) sendHeader(ctx context.Context, method, path string, v url.Valu
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxErrorBytes))
 	closeErr := resp.Body.Close()
 	if err := errors.Join(err, closeErr); err != nil {
-		return nil, &UnreachableError{Endpoint: c.base.String(), Err: err}
+		return nil, c.failed(ctx, method, path, false, err)
 	}
 	resp.Body = io.NopCloser(bytes.NewReader(data))
 	var env Envelope
@@ -539,6 +551,33 @@ func (c *Client) sendHeader(ctx context.Context, method, path string, v url.Valu
 		}
 	}
 	return resp, env.Error
+}
+
+// failed classifies err, the failure of the method path call: the caller's
+// context ending is that context's error, a timeout after the request was
+// sent (sent) is a *NoAnswerError, and anything else an *UnreachableError.
+func (c *Client) failed(ctx context.Context, method, path string, sent bool, err error) error {
+	timeout, isNetErr := errors.AsType[net.Error](err)
+	switch {
+	case ctx.Err() != nil:
+		return fmt.Errorf("admin: %s %s at %s was given up before an answer came, because the caller's context ended; the server may still be working on it: %w",
+			method, path, c.base.String(), ctx.Err())
+	case isNetErr && timeout.Timeout() && sent:
+		return &NoAnswerError{Endpoint: c.base.String(), Within: responseBound(c.hc), Err: err}
+	default:
+		return &UnreachableError{Endpoint: c.base.String(), Err: err}
+	}
+}
+
+// responseBound is how long hc waits for an answer once a request is sent:
+// the smaller of its transport's ResponseHeaderTimeout and its Timeout,
+// or 0 when neither is set or the transport is not an *http.Transport.
+func responseBound(hc *http.Client) time.Duration {
+	bound := hc.Timeout
+	if t, ok := hc.Transport.(*http.Transport); ok && t.ResponseHeaderTimeout > 0 && (bound == 0 || t.ResponseHeaderTimeout < bound) {
+		bound = t.ResponseHeaderTimeout
+	}
+	return bound
 }
 
 // maxErrorBytes bounds an error body the client reads.

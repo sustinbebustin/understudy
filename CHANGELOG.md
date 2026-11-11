@@ -12,6 +12,7 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 - `understudy version` names the version of a binary installed with `go install github.com/sustinbebustin/understudy/cmd/understudy@vX.Y.Z`, where it said `dev`. Without the release's stamp, the version is the module version the go command records, or the git version of a build in a checkout.
 - Under `--iam-enforce enforce`, a denied Kinesis call carries its message under `Message`, as AWS does, where it said `message`.
+- The Go `admin.Client` no longer tells a caller to start a server that is running. A call whose context ended, such as an `understudytest` `Settle` in a test that timed out, fails with an error naming the call that wraps the context's error, so `errors.Is` sees `context.Canceled` or `context.DeadlineExceeded`. A call the server took and did not answer within the HTTP client's response bound is the new `*admin.NoAnswerError`, exit code 3. Only a failure to reach a server is still `*admin.UnreachableError`.
 
 ## [0.1.2] - 2026-11-09
 
