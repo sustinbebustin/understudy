@@ -1,11 +1,11 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"io/fs"
-	"slices"
 	"strings"
+
+	"github.com/sustinbebustin/understudy/internal/containermarker"
 )
 
 // Placement is where the process runs, which decides the default listener
@@ -51,9 +51,8 @@ const (
 	initialOnlySysctl  = "/proc/sys/net/core/netdev_max_backlog"
 )
 
-// DetectPlacement reads the container markers internal/topology reads
-// (containers.md 8.3): /.dockerenv, /run/.containerenv, or a container
-// runtime named in /proc/1/cgroup, where kubepods means a Kubernetes pod.
+// DetectPlacement reads the container markers internal/containermarker
+// reports (containers.md 8.3), where a kubepods cgroup means a Kubernetes pod.
 // A container is InContainer only when /proc/sys/net shows a namespace of
 // its own; one that cannot be confirmed counts as HostNetworkContainer.
 // KUBERNETES_SERVICE_HOST set in env ("NAME=value" pairs) is a pod too.
@@ -64,22 +63,12 @@ func DetectPlacement(readFile func(path string) ([]byte, error), env []string) P
 			return InPod{}
 		}
 	}
-	cgroup, err := readFile("/proc/1/cgroup")
-	if err != nil {
-		cgroup = nil
-	}
-	if bytes.Contains(cgroup, []byte("kubepods")) {
+	found := containermarker.Read(readFile)
+	if found.Names("kubepods") {
 		return InPod{}
 	}
-	marked := slices.ContainsFunc([]string{"/.dockerenv", "/run/.containerenv"}, func(marker string) bool {
-		_, err := readFile(marker)
-		return err == nil
-	})
-	runtime := slices.ContainsFunc([]string{"docker", "containerd", "libpod"}, func(word string) bool {
-		return bytes.Contains(cgroup, []byte(word))
-	})
 	switch {
-	case !marked && !runtime:
+	case !found.Any():
 		return OnHost{}
 	case ownNetworkNamespace(readFile):
 		return InContainer{}
