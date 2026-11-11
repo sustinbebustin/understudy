@@ -148,6 +148,25 @@ These differences hold under every mode, and each is stated in the operation's c
 - A function URL with `AuthType` `AWS_IAM` checks only the signature, never a policy. An `AuthType` `NONE` URL checks its resource policy under every mode.
 - Groups, KMS grants and the IAM policy simulator are not implemented, and answer 501.
 
+### Configuration checks
+
+Some calls that configure a Lambda function check its execution role's permissions, as AWS does, whoever makes the call:
+
+- `CreateEventSourceMapping` and `UpdateEventSourceMapping` ask whether the role may read the mapping's queue or stream.
+- `PutFunctionEventInvokeConfig` and `UpdateFunctionEventInvokeConfig` ask whether the role may call `sns:Publish` on an SNS destination or `sqs:SendMessage` on an SQS one. Function, event bus and S3 bucket destinations are not checked.
+
+Under `enforce` a refusal fails the call with `InvalidParameterValueException`; under `advise` the call is served and journals `access-would-deny`; under `off` nothing is asked. With the function `worker` and the topic `alerts`, and a role with no policy:
+
+```sh
+aws lambda put-function-event-invoke-config --function-name worker --destination-config '{"OnSuccess":{"Destination":"arn:aws:sns:us-east-1:000000000000:alerts"}}'
+```
+
+```text
+aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the PutFunctionEventInvokeConfig operation: The function execution role does not have permissions to call Publish on arn:aws:sns:us-east-1:000000000000:alerts
+```
+
+Once `aws iam put-role-policy` gives the role `sns:Publish` on the topic, the same call stores the destination.
+
 ### Deliveries
 
 Under `advise` and `enforce`, deliveries between services are decided the same way as calls. SNS, S3 and EventBridge call the target as their service principal, with `aws:SourceArn` the topic, bucket or rule, and `aws:SourceAccount` the topic's account, the bucket owner's or the rule's. A rule that forwards to an event bus sends no `aws:SourceAccount`.

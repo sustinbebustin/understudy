@@ -265,12 +265,16 @@ func TestDeadLetterConfigWithoutATargetKeepsTheQueue(t *testing.T) {
 // The operations this unit binds or changes carry the coverage marks and
 // notes of lambda-destinations-layers.md 11.1, verbatim (the CreateFunction
 // and UpdateFunctionConfiguration notes keep the TenancyConfig and
-// DurableConfig refusals 11.1 predates).
+// DurableConfig refusals 11.1 predates). The event invoke configuration
+// notes lead with the configuration-time role check, recorded for Put and
+// inferred for Update (iam-enforcement-surfaces.md 8.5).
 func TestDestinationAndLayerCoverageMarks(t *testing.T) {
 	const (
 		layerFound  = "a layer version is found only if it was published to understudy, which never fetches layers from AWS; "
 		location    = "Content.Location is a link understudy serves the archive at, not a presigned S3 URL"
-		eventInvoke = "the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried"
+		roleChecked = "the execution role's sns:Publish on an SNS destination and sqs:SendMessage on an SQS one are checked when the configuration is stored"
+		roleCheck   = ", under iam.enforce=enforce, which refuses it, or advise, which journals the denial; function, event bus and S3 bucket destinations are not checked there (unrecorded); "
+		delivery    = "the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried"
 	)
 	want := map[string]registry.BindCoverage{
 		"PublishLayerVersion":             registry.Partial{Note: "S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed"},
@@ -284,8 +288,8 @@ func TestDestinationAndLayerCoverageMarks(t *testing.T) {
 		"GetLayerVersionPolicy":           registry.Full{},
 		"CreateFunction":                  registry.Partial{Note: layerFound + "PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only"},
 		"UpdateFunctionConfiguration":     registry.Partial{Note: layerFound + "DurableConfig is refused; code signing and VPC networking are stored only"},
-		"PutFunctionEventInvokeConfig":    registry.Partial{Note: eventInvoke},
-		"UpdateFunctionEventInvokeConfig": registry.Partial{Note: eventInvoke},
+		"PutFunctionEventInvokeConfig":    registry.Partial{Note: roleChecked + roleCheck + delivery},
+		"UpdateFunctionEventInvokeConfig": registry.Partial{Note: roleChecked + " (inferred: only PutFunctionEventInvokeConfig's check is recorded)" + roleCheck + delivery},
 	}
 	runLookups(t, func(h *harness, _ *lookups) {
 		for name, cov := range want {
