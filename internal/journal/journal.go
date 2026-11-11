@@ -2,6 +2,7 @@ package journal
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -450,17 +451,18 @@ func (j *Journal) FileErr() error {
 // memory but not written; the first one makes FileErr report a write
 // *FileError wrapping os.ErrClosed.
 //
-// Close has no deadline of its own: a Write that never returns, as on a hung
-// network or FUSE mount, makes it wait forever. A caller with a shutdown
-// deadline runs Close in a goroutine and stops waiting for it at the
-// deadline; the writer then dies with the process, and the file holds a
-// prefix of recording order whose last record may be torn, which the next
-// open ends as one unreadable line.
-func (j *Journal) Close() error {
+// Close returns when ctx ends, too: a Write that never returns, as on a
+// hung network or FUSE mount, cannot hold it. It then returns a FileClose
+// *FileError wrapping an *UnwrittenError that counts the events the file may
+// lack, joined with the first failure, if any. The writer starts no further
+// write, so the file holds a prefix of recording order whose last record may
+// be torn by the write in progress, which the next open ends as one
+// unreadable line. The writer goroutine stays until that write returns.
+func (j *Journal) Close(ctx context.Context) error {
 	if j.file == nil {
 		return nil
 	}
-	return j.file.close()
+	return j.file.close(ctx)
 }
 
 // checkIDs refuses e when no id is left to give it, when its cause or a link

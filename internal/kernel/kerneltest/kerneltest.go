@@ -119,7 +119,7 @@ func Run(t *testing.T, fn func(k *K), opts ...Option) {
 			if err := k.Kernel.BindErr(); err != nil {
 				t.Errorf("bind mistakes: %v", err)
 			}
-			if err := k.Journal.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			if err := k.Journal.Close(context.Background()); err != nil && !errors.Is(err, os.ErrClosed) {
 				t.Errorf("journal file: %v", err)
 			}
 		}()

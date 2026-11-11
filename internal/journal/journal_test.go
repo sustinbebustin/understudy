@@ -291,7 +291,7 @@ func TestFileReceivesEveryRecordedEventInRecordingOrder(t *testing.T) {
 	if err := j.End(parent, OK{}, time.Millisecond); err != nil {
 		t.Fatal(err)
 	}
-	if err := j.Close(); err != nil {
+	if err := j.Close(t.Context()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
 	got := decodeFile(t, path)
@@ -317,7 +317,7 @@ func TestFileRotatesBySize(t *testing.T) {
 	for range 5 {
 		mustAppend(t, j, timerEvent())
 	}
-	if err := j.Close(); err != nil {
+	if err := j.Close(t.Context()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
 	rotated, current := decodeFile(t, path+".1"), decodeFile(t, path)
@@ -350,7 +350,7 @@ func TestRecordedEventsEqualTheirFileRecords(t *testing.T) {
 // record in the file at path.
 func heldEqualsFile(t rapid.TB, j *Journal, path string) {
 	t.Helper()
-	if err := j.Close(); err != nil {
+	if err := j.Close(context.Background()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
 	held := map[ref.EventID]Event{}
@@ -415,7 +415,7 @@ func TestFileReopenedAfterATornRecordKeepsLaterEventsReadable(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "journal.ndjson")
 	j := newTestJournal(t, Options{File: &FileOptions{Path: path}})
 	first := mustAppend(t, j, timerEvent())
-	if err := j.Close(); err != nil {
+	if err := j.Close(t.Context()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
 	// A crash mid-write leaves the start of a record without its newline.
@@ -435,7 +435,7 @@ func TestFileReopenedAfterATornRecordKeepsLaterEventsReadable(t *testing.T) {
 		t.Fatal(err)
 	}
 	later := []ref.EventID{mustAppend(t, restarted, timerEvent()), mustAppend(t, restarted, timerEvent())}
-	if err := restarted.Close(); err != nil {
+	if err := restarted.Close(t.Context()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
 
@@ -544,7 +544,7 @@ func TestRecordingRefusesEventsNoConsumerCouldRead(t *testing.T) {
 		t.Errorf("memory holds %d events after refusals, want none", n)
 	}
 	good := mustAppend(t, j, timerEvent())
-	if err := j.Close(); err != nil {
+	if err := j.Close(t.Context()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
 	if ids := eventIDs(decodeFile(t, path)); !slices.Equal(ids, []ref.EventID{good}) {
@@ -595,7 +595,7 @@ func stallingJournal(t *testing.T, o Options) (*Journal, *memoryDisk) {
 	t.Cleanup(func() {
 		disk.release()
 		// The test checks Close's error itself when it gets that far.
-		_ = j.Close()
+		_ = j.Close(context.Background())
 	})
 	return j, disk
 }
@@ -678,11 +678,59 @@ func TestRecordingDoesNotWaitForAStalledDisk(t *testing.T) {
 			t.Fatalf("memory holds %d events, want the %d recorded", n, len(recorded))
 		}
 		disk.release()
-		if err := j.Close(); err != nil {
+		if err := j.Close(t.Context()); err != nil {
 			t.Fatalf("Close: %v", err)
 		}
 		if got := disk.ids(t); !slices.Equal(got, recorded) {
 			t.Fatalf("file holds %v, want %v in recording order", got, recorded)
+		}
+	})
+}
+
+// Close under a context that ends returns, naming the file and how many
+// events it may lack, and the writer starts no further write: only the one
+// already in progress reaches the file, so the file stays a prefix of
+// recording order (ADR 0007).
+func TestCloseReturnsWhenItsContextEndsOnAStalledDisk(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		j, disk := stallingJournal(t, Options{File: &FileOptions{Path: memoryPath}})
+		first := mustAppend(t, j, timerEvent())
+		mustAppend(t, j, timerEvent())
+		mustAppend(t, j, timerEvent())
+		synctest.Wait() // the writer is stalled in the write of the first event
+
+		ctx, cancel := context.WithCancel(t.Context())
+		closed := make(chan error, 1)
+		go func() { closed <- j.Close(ctx) }()
+		synctest.Wait()
+		select {
+		case err := <-closed:
+			t.Fatalf("Close = %v before its context ended, want it to wait for the disk", err)
+		default:
+		}
+		cancel()
+		synctest.Wait()
+		var err error
+		select {
+		case err = <-closed:
+		default:
+			t.Fatal("Close is still blocked after its context ended")
+		}
+		var fileErr *FileError
+		var unwritten *UnwrittenError
+		if !errors.As(err, &fileErr) || fileErr.Op != FileClose || fileErr.Path != memoryPath || !errors.As(err, &unwritten) {
+			t.Fatalf("Close = %v, want a close *FileError for %s wrapping an *UnwrittenError", err, memoryPath)
+		}
+		if unwritten.Queued != 3 {
+			t.Errorf("UnwrittenError.Queued = %d, want the 3 events not confirmed written", unwritten.Queued)
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("Close = %v, want it to wrap the context's cause", err)
+		}
+		disk.release()
+		synctest.Wait()
+		if got := disk.ids(t); !slices.Equal(got, []ref.EventID{first}) {
+			t.Fatalf("file holds %v after the disk came back, want only the write in progress, %d", got, first)
 		}
 	})
 }
@@ -707,7 +755,7 @@ func TestFileStopsWhenTheDiskFallsTooFarBehind(t *testing.T) {
 		}
 		mustAppend(t, j, timerEvent())
 		disk.release()
-		if err := j.Close(); !errors.Is(err, fileErr) {
+		if err := j.Close(t.Context()); !errors.Is(err, fileErr) {
 			t.Fatalf("Close = %v, want the error FileErr reported", err)
 		}
 		written := disk.events(t)
@@ -779,7 +827,7 @@ func TestFileBoundCountsOnlyEventsNotYetWritten(t *testing.T) {
 		}
 
 		disk.release()
-		if err := j.Close(); !errors.Is(err, fileErr) {
+		if err := j.Close(t.Context()); !errors.Is(err, fileErr) {
 			t.Fatalf("Close = %v, want the error FileErr reported", err)
 		}
 		want := make([]ref.EventID, last)
@@ -811,7 +859,7 @@ func TestFileErrReportsAStoppedFileWhileRunning(t *testing.T) {
 		if n := len(j.Query(Filter{}).Events); n != 3 {
 			t.Fatalf("memory holds %d events, want all 3 although the file stopped", n)
 		}
-		if err := j.Close(); !errors.Is(err, fileErr) {
+		if err := j.Close(t.Context()); !errors.Is(err, fileErr) {
 			t.Fatalf("Close = %v, want the error FileErr reported", err)
 		}
 		if ids := disk.ids(t); !slices.Equal(ids, []ref.EventID{written}) {
@@ -824,7 +872,7 @@ func TestEventRecordedAfterCloseIsReportedMissingFromTheFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "journal.ndjson")
 	j := newTestJournal(t, Options{File: &FileOptions{Path: path}})
 	written := mustAppend(t, j, timerEvent())
-	if err := j.Close(); err != nil {
+	if err := j.Close(t.Context()); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
 	if err := j.FileErr(); err != nil {

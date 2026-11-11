@@ -566,7 +566,7 @@ func TestHealthReportsAJournalFileFailure(t *testing.T) {
 		if st := healthOf(k, h).Journal; st != (admin.ServiceStatus{}) {
 			k.Fatalf("journal health while recording = %+v, want absent", st)
 		}
-		if err := k.Journal.Close(); err != nil {
+		if err := k.Journal.Close(context.Background()); err != nil {
 			k.Fatal(err)
 		}
 		if _, err := k.Journal.Append(clockEvent()); err != nil {
