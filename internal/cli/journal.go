@@ -107,28 +107,18 @@ func eachEvent(ctx context.Context, c *admin.Client, q admin.JournalQuery, f fun
 // end of a long session is what a query is usually after. In text, a
 // notice on stderr says when events were left out or none matched.
 func (r *runner) printNewest(ctx context.Context, c *admin.Client, q admin.JournalQuery, limit int) error {
-	// newest is a ring of the last limit events seen; matched counts them
-	// all, so matched % limit is the oldest kept once it is full.
-	var newest []admin.JournalEvent
-	matched := 0
-	err := eachEvent(ctx, c, q, func(e *admin.JournalEvent) error {
-		if len(newest) < limit {
-			newest = append(newest, *e)
-		} else {
-			newest[matched%limit] = *e
-		}
-		matched++
-		return nil
-	})
+	// One event beyond the limit tells whether older matches exist; the
+	// tail does not count the matches.
+	events, err := c.JournalTail(ctx, q, limit+1)
 	if err != nil {
 		return err
 	}
-	start := 0
-	if matched > limit {
-		start = matched % limit
+	leftOut := len(events) > limit
+	if leftOut {
+		events = events[len(events)-limit:]
 	}
-	for i := range newest {
-		if err := r.writeEvent(&newest[(start+i)%len(newest)]); err != nil {
+	for i := range events {
+		if err := r.writeEvent(&events[i]); err != nil {
 			return err
 		}
 	}
@@ -136,10 +126,10 @@ func (r *runner) printNewest(ctx context.Context, c *admin.Client, q admin.Journ
 		return nil
 	}
 	switch {
-	case matched == 0:
+	case len(events) == 0:
 		_, err = fmt.Fprintln(r.o.Stderr, "no events matched")
-	case matched > limit:
-		_, err = fmt.Fprintf(r.o.Stderr, "showing the newest %d of %d matching events; raise --limit, narrow with --since, --service or --errors, or use --follow\n", limit, matched)
+	case leftOut:
+		_, err = fmt.Fprintf(r.o.Stderr, "showing the newest %d matching events; raise --limit, narrow with --since, --service or --errors, or use --follow\n", limit)
 	}
 	return err
 }

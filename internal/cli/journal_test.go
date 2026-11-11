@@ -11,6 +11,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -47,7 +48,7 @@ func TestJournalQueryPrintsTheNewest(t *testing.T) {
 		t.Errorf("journal --limit 3 --output json = %d, events %v, stderr %q; want the newest %v and a quiet stderr", js.code, got, js.stderr, all[2:])
 	}
 	text := runCLI(t.Context(), inst.Endpoint(), nil, "journal", "--operation", "sqs.CreateQueue", "--limit", "3")
-	if text.code != admin.ExitOK || strings.Count(text.stdout, "\n") != 3 || !strings.Contains(text.stderr, "showing the newest 3 of 5 matching events") {
+	if text.code != admin.ExitOK || strings.Count(text.stdout, "\n") != 3 || !strings.Contains(text.stderr, "showing the newest 3 matching events; ") || strings.Contains(text.stderr, " of 5") {
 		t.Errorf("journal --limit 3 = %d\nstdout %s\nstderr %q", text.code, text.stdout, text.stderr)
 	}
 	whole := runCLI(t.Context(), inst.Endpoint(), nil, "journal", "--operation", "sqs.CreateQueue", "--limit", "5")
@@ -57,6 +58,45 @@ func TestJournalQueryPrintsTheNewest(t *testing.T) {
 	none := runCLI(t.Context(), inst.Endpoint(), nil, "journal", "--operation", "sqs.DeleteQueue")
 	if none.code != admin.ExitOK || none.stdout != "" || !strings.Contains(none.stderr, "no events matched") {
 		t.Errorf("journal matching nothing = %d, stdout %q, stderr %q", none.code, none.stdout, none.stderr)
+	}
+}
+
+// A journal query without --follow asks the journal once, for the newest
+// --limit+1 events (the extra one tells whether older matches exist), however
+// many events match.
+func TestJournalQuerySendsOneTailRequest(t *testing.T) {
+	inst := start(t)
+	for _, name := range []string{"q0", "q1", "q2", "q3", "q4"} {
+		createQueue(t, inst.Endpoint(), name)
+	}
+	target, err := url.Parse(inst.Endpoint())
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	var mu sync.Mutex
+	var queries []url.Values
+	front := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == admin.Prefix+"/journal/events" {
+			mu.Lock()
+			queries = append(queries, r.URL.Query())
+			mu.Unlock()
+		}
+		proxy.ServeHTTP(w, r)
+	}))
+	t.Cleanup(front.Close)
+	for _, limit := range []string{"2", "5", "9"} {
+		mu.Lock()
+		queries = nil
+		mu.Unlock()
+		res := runCLI(t.Context(), front.URL, nil, "journal", "--operation", "sqs.CreateQueue", "--limit", limit)
+		mu.Lock()
+		got := slices.Clone(queries)
+		mu.Unlock()
+		wantTail := map[string]string{"2": "3", "5": "6", "9": "10"}[limit]
+		if res.code != admin.ExitOK || len(got) != 1 || got[0].Get("tail") != wantTail || got[0].Get("operation") != "sqs.CreateQueue" {
+			t.Errorf("journal --limit %s = %d sent %v; want one journal request with tail=%s and the operation filter", limit, res.code, got, wantTail)
+		}
 	}
 }
 

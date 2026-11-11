@@ -25,7 +25,13 @@ Each line is one event: its id, emulator time, kind, account and region, and a s
 42     2027-01-01T00:00:58.638705835Z  delivery       000000000000/us-east-1 sns-to-sqs orders -> orders-worker attempt 0 filtered by {"kind":["order"]}
 ```
 
-Filters combine. `--since` counts back in emulator time. `--limit N` keeps the newest N matches (1000 by default). `--output json` prints one JSON object per line, with the call's redacted input, its principal, the client's user agent and the request id.
+Filters combine. `--since` counts back in emulator time. `--limit N` keeps the newest N matches (1000 by default), asking the journal for them in one request. When older matches were left out, a notice on stderr says so, without counting them:
+
+```text
+showing the newest 2 matching events; raise --limit, narrow with --since, --service or --errors, or use --follow
+```
+
+`--output json` prints one JSON object per line, with the call's redacted input, its principal, the client's user agent and the request id.
 
 | Kind | Recorded when |
 |---|---|

@@ -10,6 +10,7 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 ### Changed
 
+- `understudy journal --limit N` fetches the newest events in one request, where it paged through every match. The notice for left-out events no longer gives the total: it reads `showing the newest N matching events; ...`, where it read `showing the newest N of M matching events; ...`.
 - Each release pins the Lambda runtime images to the digests public.ecr.aws serves when the release is prepared, and tests them before the tag. Releases 0.1.0 to 0.1.2 shipped the pins of 2026-10-14.
 - `scripts/sealed` writes `provider_installation { direct {} }` into Terraform's sealed CLI config, so providers come only from the registry through the plugin cache and a provider in `~/.terraform.d/plugins` can no longer stand in for one.
 
