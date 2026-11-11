@@ -742,12 +742,90 @@ func TestTimeToLiveChangesFollowLocalsRules(t *testing.T) {
 				h.Errorf("UpdateTimeToLive %s = %d %s, want %q", body, got.Status, got.Body, message)
 			}
 		}
+		if _, err := h.Clock.Advance(time.Hour); err != nil {
+			h.Fatal(err)
+		}
 		h.mustCall("UpdateTimeToLive", spec("ExpiresAt", false))
 		if got := h.call("UpdateTimeToLive", spec("ExpiresAt", false)); parseError(h, got.Body).Message != "TimeToLive is already disabled" {
 			h.Errorf("disabling twice = %d %s", got.Status, got.Body)
 		}
 		if got := h.mustCall("DescribeTimeToLive", `{"TableName":"Jobs"}`); !equalJSON(got, disabled) {
 			h.Errorf("DescribeTimeToLive after disabling = %v", got)
+		}
+	})
+}
+
+// ttlUpdate is one UpdateTimeToLive and AWS's answer to it.
+type ttlUpdate struct {
+	step, body string
+	status     int
+	answer     string
+}
+
+// r04TTLChanges are the R04 rows 03 UpdateTimeToLive calls in order, with
+// AWS's answers (dynamodb/R04/03-ttl-*.json): a change inside the one-hour
+// interval is refused after the same-state checks, so the refused disable
+// leaves TTL enabled.
+var r04TTLChanges = []ttlUpdate{
+	{
+		"03-ttl-enable", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"ExpiresAt"}}`,
+		http.StatusOK, `{"TimeToLiveSpecification":{"AttributeName":"ExpiresAt","Enabled":true}}`,
+	},
+	{
+		"03-ttl-enable-again", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"ExpiresAt"}}`,
+		http.StatusBadRequest, `{"__type":"com.amazon.coral.validate#ValidationException","message":"TimeToLive is already enabled"}`,
+	},
+	{
+		"03-ttl-disable", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":false,"AttributeName":"ExpiresAt"}}`,
+		http.StatusBadRequest, `{"__type":"com.amazon.coral.validate#ValidationException","message":"Time to live has been modified multiple times within a fixed interval"}`,
+	},
+	{
+		"03-ttl-disable-again", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":false,"AttributeName":"ExpiresAt"}}`,
+		http.StatusBadRequest, `{"__type":"com.amazon.coral.validate#ValidationException","message":"Time to live has been modified multiple times within a fixed interval"}`,
+	},
+	{
+		"03-ttl-enable-after-disable", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"ExpiresAt"}}`,
+		http.StatusBadRequest, `{"__type":"com.amazon.coral.validate#ValidationException","message":"TimeToLive is already enabled"}`,
+	},
+}
+
+// replayTTL makes each call of updates and checks AWS's answer.
+func replayTTL(h *harness, updates []ttlUpdate) {
+	h.Helper()
+	for _, u := range updates {
+		got := h.call("UpdateTimeToLive", u.body)
+		var gotBody, wantBody any
+		if err := json.Unmarshal([]byte(got.Body), &gotBody); err != nil {
+			h.Fatalf("%s: body %q: %v", u.step, got.Body, err)
+		}
+		if err := json.Unmarshal([]byte(u.answer), &wantBody); err != nil {
+			h.Fatal(err)
+		}
+		if got.Status != u.status || !equalJSON(gotBody, wantBody) {
+			h.Errorf("%s = %d %s, want %d %s", u.step, got.Status, got.Body, u.status, u.answer)
+		}
+	}
+}
+
+// TestTimeToLiveChangesOncePerHour: after a change, a further change to
+// the table's TTL within one hour of emulator time is refused, and one
+// after the hour is served (the UpdateTimeToLive documentation: "Any
+// additional UpdateTimeToLive calls for the same table during this one
+// hour duration result in a ValidationException").
+func TestTimeToLiveChangesOncePerHour(t *testing.T) {
+	runStore(t, func(h *harness, _ *tableStore) {
+		h.mustCall("CreateTable", `{"AttributeDefinitions":[{"AttributeName":"id","AttributeType":"S"}],"TableName":"Jobs","KeySchema":[{"AttributeName":"id","KeyType":"HASH"}]}`)
+		replayTTL(h, r04TTLChanges)
+		if _, err := h.Clock.Advance(time.Hour - time.Second); err != nil {
+			h.Fatal(err)
+		}
+		replayTTL(h, r04TTLChanges[2:3])
+		if _, err := h.Clock.Advance(time.Second); err != nil {
+			h.Fatal(err)
+		}
+		h.mustCall("UpdateTimeToLive", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":false,"AttributeName":"ExpiresAt"}}`)
+		if got := h.mustCall("DescribeTimeToLive", `{"TableName":"Jobs"}`); !equalJSON(got, map[string]any{"TimeToLiveDescription": map[string]any{"TimeToLiveStatus": "DISABLED"}}) {
+			h.Errorf("DescribeTimeToLive after the hour's disable = %v", got)
 		}
 	})
 }

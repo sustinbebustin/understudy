@@ -266,7 +266,7 @@ func answered[In any](s *Service, fn func(ctx context.Context, c *kernel.Call, i
 // Coverage notes of the operations the shims answer.
 const (
 	ttlNote = "aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; " +
-		"the one change per hour AWS allows is not enforced"
+		"a second TTL change to a table within an hour of emulator time is refused, as on AWS"
 	pitrNote = "point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented"
 )
 

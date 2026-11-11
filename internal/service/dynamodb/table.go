@@ -29,6 +29,9 @@ type Table struct {
 	// TTL is the time-to-live specification; nil while TTL is disabled.
 	// It never reaches Local, so Local's wall-clock sweeper stays off.
 	TTL *TTLSpec `json:"ttl,omitempty"`
+	// TTLChanged is when an UpdateTimeToLive last changed TTL; zero when
+	// none did. Another change is refused until ttlInterval has passed.
+	TTLChanged clock.Instant `json:"ttlChanged,omitzero"`
 	// PITR is point-in-time recovery; nil while it is disabled.
 	PITR *PITR `json:"pitr,omitempty"`
 	// Class is the table class a CreateTable or UpdateTable set; nil when
