@@ -567,11 +567,11 @@ The API Gateway entry of `docs/ROADMAP.md` says "add SQS, SNS and EventBridge di
 
 ## 14. Recording queue
 
-Every case below was recorded on 2026-11-03 (us-east-2, `testdata/parity/apigatewayv2/APIGW2-NN/`, with `notes.md` beside most); the sections each case settles carry its results. The fixtures are evidence only: the parity replayer does not route `execute-api` requests. One recipe line changed since: 14.1 no longer creates `GET /slash/`, which AWS refuses (APIGW2-05). APIGW2-02 drew no 429 at its rate, so its shape stays open. For a human with credentials, in the recording-kit shell (`docs/recording-kit.md` sections 1 and 2: `$P`, `$R`, `$A`, `$Q`, `rec`, `recurl`, the redaction step). Agents never run these. Run the cases in order after 14.1; each builds on the shared API. Run 14.1 through the 14.17 teardown in a kit shell of its own: 14.1 sets `TRUST` and `FN`, 14.5 `SH` and 14.7 `G`, which other queues set to other values (recording-kit.md 2). Costs: HTTP API requests bill USD 1.00 per million in the first tier, metered in 512 KB increments, with one million free a month in the first 12 months ([API Gateway pricing](https://aws.amazon.com/api-gateway/pricing/)); the queue makes a few hundred requests, the large uploads of APIGW2-10 counting as about 20 each. Lambda, SQS, EventBridge and CloudWatch Logs stay in the free tier at these volumes. The queue costs under USD 0.01 in total and takes about 2 h 25 min. On a free-plan project, a call the guardrail denies is noted `n/a (free-plan SCP)` (kit section 1). Add `aws apigatewayv2 get-apis --query "Items[?starts_with(Name, '$P')].Name"` to the kit's section 5 sweep when this queue lands.
+Every case below was recorded on 2026-11-03 (us-east-2, `testdata/parity/apigatewayv2/APIGW2-NN/`, with `notes.md` beside most); the sections each case settles carry its results. The fixtures are evidence only: the parity replayer does not route `execute-api` requests. Changed since: 14.1 no longer creates `GET /slash/`, which AWS refuses (APIGW2-05). On 2026-11-11, steps were added for the questions the 2026-11-03 run left open: a parallel burst for the 429 that APIGW2-02 did not draw, distinguishable HEAD answers and greedy depth in APIGW2-05, the 1.0 header merge in APIGW2-09, and `MessageAttributes`, `Resources` and an untrusted role in APIGW2-14. Each case says which steps are new. For a human with credentials, in the recording-kit shell (`docs/recording-kit.md` sections 1 and 2: `$P`, `$R`, `$A`, `$Q`, `rec`, `recurl`, the redaction step). Agents never run these. Run the cases in order after 14.1; each builds on the shared API. Run 14.1 through the 14.17 teardown in a kit shell of its own: 14.1 sets `TRUST` and `FN`, 14.5 `SH` and 14.7 `G`, which other queues set to other values (recording-kit.md 2). Costs: HTTP API requests bill USD 1.00 per million in the first tier, metered in 512 KB increments, with one million free a month in the first 12 months ([API Gateway pricing](https://aws.amazon.com/api-gateway/pricing/)); the queue makes a few hundred requests, the large uploads of APIGW2-10 counting as about 20 each. Lambda, SQS, EventBridge and CloudWatch Logs stay in the free tier at these volumes. The queue costs under USD 0.01 in total and takes about 2 h 40 min. On a free-plan project, a call the guardrail denies is noted `n/a (free-plan SCP)` (kit section 1). Add `aws apigatewayv2 get-apis --query "Items[?starts_with(Name, '$P')].Name"` to the kit's section 5 sweep when this queue lands.
 
 ### 14.1 Shared setup
 
-Ten minutes. Creates a function that echoes its event or returns a shape chosen by the `mode` query parameter (and a second copy, `$P-gw-perm`, with no permission for APIGW2-11), an API `$P-gw` with routes for every case, a `$default` auto-deploy stage, the queue `$P-gw-q`, the API Gateway roles `$P-gw-int` and `$P-gw-none`, and the helper `gw` for unsigned data-plane requests.
+Ten minutes. Creates a function that echoes its event or returns a shape chosen by the `mode` query parameter (and a second copy, `$P-gw-perm`, with no permission for APIGW2-11), an API `$P-gw` with routes for every case, a `$default` auto-deploy stage, the queue `$P-gw-q`, the API Gateway roles `$P-gw-int` and `$P-gw-none`, and the helper `gw` for unsigned data-plane requests. Mode `marker` names the route that served a request, for APIGW2-05's HEAD steps; mode `merge` is APIGW2-09's 1.0 header merge.
 
 ```sh
 mkdir -p "$REC/_work/APIGW2"
@@ -594,6 +594,8 @@ SHAPES = {
     "status-999": {"statusCode": 999, "body": "x"},
     "status-string": {"statusCode": "201", "body": "x"},
     "cors": {"statusCode": 200, "headers": {"access-control-allow-origin": "https://fn.example"}, "body": "x"},
+    "merge": {"statusCode": 200, "headers": {"x-h": "single", "X-C": "single"},
+              "multiValueHeaders": {"x-h": ["m1", "m2"], "x-c": ["m1", "m2"]}, "body": "x"},
 }
 
 def handler(event, context):
@@ -602,6 +604,9 @@ def handler(event, context):
         raise Exception("boom")
     if mode == "sleep":
         time.sleep(3)
+    if mode == "marker":   # a HEAD answer has no body: its Content-Length and x-route name the route
+        key = event.get("routeKey", "")
+        return {"statusCode": 200, "headers": {"x-route": key}, "body": "g" if key.startswith("GET ") else "any-route"}
     if mode in SHAPES:
         return SHAPES[mode]
     return {"statusCode": 200, "headers": {"content-type": "application/json"}, "body": json.dumps(event)}
@@ -706,15 +711,21 @@ Teardown: none; anything created here goes with `$P-gw` in 14.17.
 
 ### 14.3 APIGW2-02: the 429 shape
 
-Settles: `TooManyRequestsException` or `LimitExceededException` on the wire, its `limitType`, and the `CreateDeployment` quota (2.3, 3.9). Two minutes, USD 0.
+Settles: `TooManyRequestsException` or `LimitExceededException` on the wire, its `limitType`, and the `CreateDeployment` quota (2.3, 3.9). Three minutes, USD 0.
 
 ```sh
 for i in 1 2 3; do
   rec "APIGW2-02/0$i-create-deployment" env AWS_MAX_ATTEMPTS=1 aws apigatewayv2 create-deployment --api-id "$API"
 done
+for i in $(seq -w 1 20); do   # 20 raw requests at once, with no CLI start-up between them
+  SVC=apigateway recurl "APIGW2-02/burst-$i" -X POST -H 'Content-Type: application/json' -d '{}' \
+    "https://apigateway.$R.amazonaws.com/v2/apis/$API/deployments" &
+done
+wait
+head -qn1 "$REC"/APIGW2-02/burst-*.http | sort | uniq -c   # the status lines: any 429 is the shape
 ```
 
-`AWS_MAX_ATTEMPTS=1` keeps the CLI from retrying the throttle. Teardown: none.
+`AWS_MAX_ATTEMPTS=1` keeps the CLI from retrying the throttle. Amended 2026-11-11: the `burst-NN` steps are new. The 2026-11-03 run sent three CLI calls about a second apart, and all three answered 201. The burst sends 20 signed `CreateDeployment` requests in parallel, which should go well past the documented "1 request every 5 seconds" quota and any burst allowance. A `burst-NN.http` with status 429 settles the shape: its `x-amzn-ErrorType`, body `message` and `limitType` mark 2.3's "which name AWS sends in `x-amzn-ErrorType` is UNVERIFIED" sentence. The count of 201 answers before the first 429 bounds the burst in 3.9. If all 20 answer 201, write that in `notes.md`: the quota is not enforced at this rate either, and the shape stays open. Teardown: none (the deployments go with `$P-gw` in 14.17).
 
 ### 14.4 APIGW2-03: create and read defaults, quick create, CORS case
 
@@ -817,7 +828,22 @@ for s in "01 GET /pets/dog/1" "02 GET /pets/dog/2" "03 GET /pets/cat/1" "04 POST
   set -- $s
   if [ "$2" = HEAD ]; then gw "APIGW2-05/$1" --head "$GW$3"; else gw "APIGW2-05/$1" -X "$2" "$GW$3"; fi
 done
+for k in 'GET /g1/{proxy+}' 'GET /g1/a/{proxy+}' 'GET /g2/a/{proxy+}' 'GET /g2/{proxy+}'; do route "$k" "$I2" >/dev/null; done
+sleep 20                                   # the automatic deployment
+gw APIGW2-05/23-get-marker "$GW/any?mode=marker"
+gw APIGW2-05/24-post-marker -X POST "$GW/any?mode=marker"
+gw APIGW2-05/25-head-get-and-any --head "$GW/any?mode=marker"
+gw APIGW2-05/26-head-get-only --head "$GW/pets/dog/1?mode=marker"
+gw APIGW2-05/27-greedy-deep-created-second "$GW/g1/a/b"
+gw APIGW2-05/28-greedy-deep-created-first "$GW/g2/a/b"
+gw APIGW2-05/29-greedy-shallow-g1 "$GW/g1/x"
+gw APIGW2-05/30-greedy-shallow-g2 "$GW/g2/x"
 ```
+
+Amended 2026-11-11: steps 23 to 30 are new. Two minutes, USD 0.
+
+- HEAD (4.4, "Whether `HEAD` matches a `GET` route stays UNVERIFIED"): `mode=marker` answers with an `x-route` header naming the route, and a body of a different length per route: `g` (1 byte) from a GET route, `any-route` (9 bytes) from any other. A `HEAD` answer keeps the header and the `Content-Length`. Steps 23 and 24 are the controls for the two lengths. Step 25 shows whether `HEAD /any` goes to `GET /any` or to `ANY /any`. Step 26, where no `ANY` route exists for the path, shows whether `HEAD` takes `GET /pets/dog/1` or falls through to `ANY /{proxy+}`. If the answers carry no `Content-Length`, `x-route` alone settles it.
+- Greedy depth (4.3, "The order between two greedy routes of different depth and the same method stays UNVERIFIED"): `/g1` creates the shallower route first and `/g2` the deeper one first. The `routeKey` echoed by steps 27 and 28 shows which route takes `/a/b`. The same deeper route in both means depth decides, and different routes mean creation order decides. Steps 29 and 30 are the controls.
 
 Teardown: none.
 
@@ -905,10 +931,12 @@ Settles: sections 5.3 and 5.4; switch `apigatewayv2.payload.unrecorded`, its res
 for m in string object body-no-status object-body number-header nulls mvh no-ctype b64 cookies status-999 status-string; do
   gw "APIGW2-09/2.0-$m" "$GW/r?mode=$m"
 done
-for m in string body-no-status mvh no-ctype; do
+for m in string body-no-status mvh no-ctype merge; do
   gw "APIGW2-09/1.0-$m" "$GW/v1/r?mode=$m"
 done
 ```
+
+Amended 2026-11-11: `1.0-merge` is new. It settles 5.4's "How `headers` and `multiValueHeaders` merge when both name a header stays UNVERIFIED". The `merge` shape names `x-h` in both maps with the same spelling, and `X-C` in `headers` against `x-c` in `multiValueHeaders`. In `notes.md`, write the `x-h` and `x-c` header lines the response carries. `single` alone means `headers` wins. `m1` and `m2` alone mean `multiValueHeaders` wins. All three values mean the maps are concatenated. Whether the `X-C`/`x-c` pair behaves like `x-h` shows if the merge folds case. One minute more, USD 0.
 
 Teardown: none.
 
@@ -1024,7 +1052,7 @@ Teardown: the last line.
 
 ### 14.15 APIGW2-14: service integrations
 
-Settles: sections 6.2 to 6.4 and finding 2's retry question; 13.4's out-of-scope `service-integration.response` item. In `notes.md`, write the time bash prints for steps 03 to 05: an answer much slower than step 01 suggests retries. Fifteen minutes, USD 0.
+Settles: sections 6.2 to 6.4 and finding 2's retry question; 13.4's out-of-scope `service-integration.response` item. In `notes.md`, write the time bash prints for steps 03 to 05: an answer much slower than step 01 suggests retries. Fifteen minutes for steps 01 to 09, USD 0.
 
 The queue `$P-gw-q` and the roles `$P-gw-int` (allowed) and `$P-gw-none` (no policy) come from 14.1.
 
@@ -1054,6 +1082,60 @@ gw APIGW2-14/07-events -H 'x-source: p.test' -H 'Content-Type: application/json'
 gw APIGW2-14/08-events-text-detail -H 'x-source: p.test' --data-binary 'not json' "$GW/events"
 gw APIGW2-14/09-events-without-source --data-binary '{"a":1}' "$GW/events"
 ```
+
+The steps below were added on 2026-11-11. Each create is recorded, because the control plane may refuse a value before any request is sent. Ten minutes, USD 0.
+
+```sh
+svcrec() {  # svcrec <step> <route key> <subtype> <role arn> <request parameters JSON>: svc, keeping the create's answer
+  local i
+  rec "APIGW2-14/$1" aws apigatewayv2 create-integration --api-id "$API" --integration-type AWS_PROXY --integration-subtype "$3" \
+    --payload-format-version 1.0 --credentials-arn "$4" --request-parameters "$5"
+  i=$(sed -n 's/^ *"IntegrationId": "\([^"]*\)".*/\1/p' "$REC/APIGW2-14/$1.out")
+  [ -n "$i" ] && route "$2" "$i" >/dev/null
+}
+GQ="$Q/$P-gw-q"; GQA="arn:aws:sqs:$R:$A:$P-gw-q"
+# MessageAttributes: a static JSON string and one mapped from the body.
+svcrec 10-attrs-static-create 'POST /sqs-attrs-static' SQS-SendMessage "$ROLE" "$(jq -nc --arg q "$GQ" \
+  '{QueueUrl:$q,MessageBody:"attrs-static",MessageAttributes:({k:{DataType:"String",StringValue:"v"}}|tostring)}')"
+svcrec 11-attrs-mapped-create 'POST /sqs-attrs-mapped' SQS-SendMessage "$ROLE" "$(jq -nc --arg q "$GQ" \
+  '{QueueUrl:$q,MessageBody:"attrs-mapped",MessageAttributes:"$request.body"}')"
+# Resources: one ARN as a plain string, and a JSON array mapped from the body. A rule copies the events to the queue.
+RULE=$(aws events put-rule --name "$P-gw-res" --event-pattern "{\"source\":[\"$P.gw.res\"]}" --query RuleArn --output text)
+aws sqs set-queue-attributes --queue-url "$GQ" --attributes "$(jq -nc --arg p "$(jq -nc --arg q "$GQA" --arg r "$RULE" \
+  '{Version:"2012-10-17",Statement:[{Effect:"Allow",Principal:{Service:"events.amazonaws.com"},Action:"sqs:SendMessage",Resource:$q,Condition:{ArnEquals:{"aws:SourceArn":$r}}}]}')" '{Policy:$p}')"
+aws events put-targets --rule "$P-gw-res" --targets "[{\"Id\":\"q\",\"Arn\":\"$GQA\"}]" >/dev/null
+svcrec 12-resources-string-create 'POST /events-res-string' EventBridge-PutEvents "$ROLE" "$(jq -nc --arg s "$P.gw.res" --arg r "arn:aws:s3:::$P-gw-res" \
+  '{Source:$s,DetailType:"res-string",Detail:"{}",Resources:$r}')"
+svcrec 13-resources-mapped-create 'POST /events-res-mapped' EventBridge-PutEvents "$ROLE" "$(jq -nc --arg s "$P.gw.res" \
+  '{Source:$s,DetailType:"res-mapped",Detail:"{}",Resources:"$request.body"}')"
+# An integration role whose trust policy names Lambda, not API Gateway.
+aws iam create-role --role-name "$P-gw-untrusted" --assume-role-policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}' >/dev/null
+aws iam put-role-policy --role-name "$P-gw-untrusted" --policy-name gw --policy-document "$(jq -nc --arg q "$GQA" \
+  '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:"sqs:SendMessage",Resource:$q}]}')"
+sleep 15                                   # the new role must propagate
+svcrec 14-untrusted-create 'POST /sqs-untrusted' SQS-SendMessage "arn:aws:iam::$A:role/$P-gw-untrusted" "$(jq -nc --arg q "$GQ" \
+  '{QueueUrl:$q,MessageBody:"$request.body"}')"
+sleep 60                                   # the automatic deployment, and the queue policy (sqs.md 4)
+gw APIGW2-14/15-attrs-static --data-binary 'x' "$GW/sqs-attrs-static"
+gw APIGW2-14/16-attrs-mapped -H 'Content-Type: application/json' \
+  --data-binary '{"k":{"DataType":"Number","StringValue":"7"}}' "$GW/sqs-attrs-mapped"
+gw APIGW2-14/17-resources-string --data-binary 'x' "$GW/events-res-string"
+gw APIGW2-14/18-resources-mapped -H 'Content-Type: application/json' \
+  --data-binary "[\"arn:aws:s3:::$P-gw-a\",\"arn:aws:s3:::$P-gw-b\"]" "$GW/events-res-mapped"
+time gw APIGW2-14/19-sqs-role-untrusted --data-binary 'untrusted' "$GW/sqs-untrusted"
+sleep 30
+for n in 1 2 3; do
+  rec "APIGW2-14/20-queue-$n" aws sqs receive-message --queue-url "$GQ" --max-number-of-messages 10 \
+    --message-attribute-names All --wait-time-seconds 10
+done
+```
+
+What each settles (6.2's "`MessageAttributes` and `Resources` stay UNVERIFIED", 6.3's "An untrusted role was not tried"):
+
+- `MessageAttributes` (steps 10, 11, 15, 16): whether the control plane accepts a JSON string for this map-typed member, static or mapped, and whether SQS gets typed attributes. In the `20-queue-N` reads, the messages with bodies `attrs-static` and `attrs-mapped` carry `MessageAttributes` `k` with its `DataType` (`String` and `Number`) when AWS parses the value as JSON. A refused create or a 400 answer means it does not.
+- `Resources` (steps 12, 13, 17, 18): whether a plain string is taken as a one-element list and a mapped JSON array as a list. The events copied to the queue carry `resources`, which shows what EventBridge received: `["arn:aws:s3:::<prefix>-gw-res"]`, the two ARNs, or the array as one string. A refused create, a relayed `FailedEntryCount` 1 or no event in the queue settles it the other way.
+- Untrusted role (steps 14, 19): whether the create checks the trust policy, and what the client gets when API Gateway cannot assume the role. Compare it with step 05's 500 for a role that does not exist and step 04's relayed SQS `AccessDenied`. A message `untrusted` in the queue would mean the trust policy was not checked.
 
 Teardown: in 14.17.
 
@@ -1111,11 +1193,13 @@ for f in "$P-gw" "$P-gw-perm"; do
   aws lambda delete-function --function-name "$f"
   aws logs delete-log-group --log-group-name "/aws/lambda/$f"
 done
+aws events remove-targets --rule "$P-gw-res" --ids q; aws events delete-rule --name "$P-gw-res"
 aws sqs delete-queue --queue-url "$Q/$P-gw-q"
 aws iam detach-role-policy --role-name "$P-gw-fn" \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 aws iam delete-role-policy --role-name "$P-gw-int" --policy-name gw
-for r in "$P-gw-fn" "$P-gw-int" "$P-gw-none" "$P-gw-caller"; do aws iam delete-role --role-name "$r"; done
+aws iam delete-role-policy --role-name "$P-gw-untrusted" --policy-name gw
+for r in "$P-gw-fn" "$P-gw-int" "$P-gw-none" "$P-gw-caller" "$P-gw-untrusted"; do aws iam delete-role --role-name "$r"; done
 rm -rf "$REC/_work/APIGW2"
 aws apigatewayv2 get-apis --query "Items[?starts_with(Name, '$P-gw')].Name"   # expect []
 ```

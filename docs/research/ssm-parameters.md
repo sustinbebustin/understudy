@@ -962,10 +962,15 @@ rec SSM-12/03-2048-chars aws ssm put-parameter --name "$N/s12c" --type String --
 rec SSM-12/04-2049-chars aws ssm put-parameter --name "$N/s12d" --type String --tier Standard --value "${e2048}é"
 rec SSM-12/05-advanced-8192 aws ssm put-parameter --name "$N/s12e" --type String --tier Advanced --value "$a8192"
 rec SSM-12/06-advanced-8193 aws ssm put-parameter --name "$N/s12f" --type String --tier Advanced --value "${a8192}a"
+# added after 2026-11-03: the same 4098 bytes as a SecureString
+rec SSM-12/07-securestring-2049-chars aws ssm put-parameter --name "$N/s12g" --type SecureString --tier Standard --value "${e2048}é"
+rec SSM-12/08-securestring-2049-chars-get aws ssm get-parameter --name "$N/s12g" --with-decryption
 ssmsweep
 ```
 
-Step 04 is 2049 characters but 4098 bytes: accepted means a character limit. Cost under USD 0.01 (one advanced parameter for minutes), 3 min.
+Step 04 is 2049 characters but 4098 bytes: accepted means a character limit. Recorded 2026-11-03: accepted (4.2).
+
+Steps 07 and 08 settle the SecureString half of 4.2, which SSM-12 recorded only for `String`: the value passes the 4096-character check, but a SecureString is encrypted under `alias/aws/ssm`, and the KMS guide caps a Standard parameter at 4096 bytes (4.2 table). Step 07 is refused, with the code and text to record (a `ValidationException` from Parameter Store, or KMS's error as an `InvalidKeyId` like those of 5.5), or accepted; if accepted, step 08 shows whether the 2049 characters come back intact. If 07 is refused, 08 records the `ParameterNotFound` of a parameter never created. Cost under USD 0.01 (one advanced parameter for minutes), 3 min.
 
 ### 13.14 SSM-13: Intelligent-Tiering, downgrade, omitted tier
 
@@ -1019,7 +1024,7 @@ rec SSM-15/04-invalid aws ssm put-parameter --name "$N/a15d" --type String --val
 ssmsweep
 ```
 
-Cost USD 0, 2 min.
+Carry the "Replay (scenario.json)" paragraph of `testdata/parity/ssm/SSM-15/notes.md` into `$REC/SSM-15/notes.md` before distilling (recording-kit.md 6). Cost USD 0, 2 min.
 
 ### 13.17 SSM-16: label rules
 
@@ -1163,7 +1168,7 @@ aws kms delete-alias --alias-name "alias/$P-ssm"
 aws kms schedule-key-deletion --key-id "$K" --pending-window-in-days 7
 ```
 
-Step 03 expects 400 `AccessDeniedException` (`no resource-based policy allows the kms:Decrypt action`): the default key's policy admits a caller only through Systems Manager (5.6; recorded 2026-11-03). An earlier version of this recipe expected `Plaintext` `cw==`. Step 07 settles the answer to a read with decryption on a customer managed key by a caller without `kms:Decrypt` (recorded: `AccessDeniedException` with KMS's message, 5.5). Step 08 settles 5.6: understudy expects both calls to succeed, since the AWS managed key's policy admits the caller through Systems Manager. Cost at most USD 0.25 (one customer key at USD 1 per month, prorated, if the 7-day window is billed), 6 min.
+Step 03 expects 400 `AccessDeniedException` (`no resource-based policy allows the kms:Decrypt action`): the default key's policy admits a caller only through Systems Manager (5.6; recorded 2026-11-03). An earlier version of this recipe expected `Plaintext` `cw==`. Step 07 settles the answer to a read with decryption on a customer managed key by a caller without `kms:Decrypt` (recorded: `AccessDeniedException` with KMS's message, 5.5). Step 08 settles 5.6: understudy expects both calls to succeed, since the AWS managed key's policy admits the caller through Systems Manager. Carry the "Replay (scenario.json)" paragraph of `testdata/parity/ssm/SSM-22/notes.md` into `$REC/SSM-22/notes.md` before distilling (recording-kit.md 6). Cost at most USD 0.25 (one customer key at USD 1 per month, prorated, if the 7-day window is billed), 6 min.
 
 ### 13.24 SSM-23: Secrets Manager references
 

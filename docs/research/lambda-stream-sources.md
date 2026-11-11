@@ -787,6 +787,46 @@ lraw ESMS-03/11-kinesis-queues "$K,\"Queues\":[\"q\"]"
 
 For an accepted step, record whether the 202 body echoes the member. Expected cost USD 0, about 10 minutes. Teardown: `aws sqs delete-queue --queue-url "$Q/$P-esms-q"`.
 
+Follow-up, Update and check order (SQS only, so a free-plan account can run it). Steps 01-07 sent one stream member at a time to Create. This settles the rest of 3.4's UNVERIFIED line on the SQS side: Update's answer to each stream member on an SQS mapping, which member is named when several are set (and whether that follows the JSON key order), and whether the cross-type check comes before a range check or the SQS batch-window rule. understudy refuses on Update as on Create, in a fixed member order (`refuseOnSQS` in `internal/service/lambda/esm_stream_config.go`, which marks both choices inferred). Mark the 3.4 UNVERIFIED line, and that comment, from the fixtures. Run it after steps 01-07 and before their teardown, in the same shell (13.1's helpers):
+
+```sh
+aws sqs create-queue --queue-name "$P-esms-q" >/dev/null   # idempotent; steps 01-07 made it
+S="\"EventSourceArn\":\"arn:aws:sqs:$R:$A:$P-esms-q\""
+lupd() {  # lupd <step> <JSON members>: a raw signed update of mapping $U; waits for Enabled again if AWS accepts it
+  SVC=lambda recurl "ESMS-03/$1" -X PUT -H 'Content-Type: application/json' \
+    -d "{$2}" "https://lambda.$R.amazonaws.com/2015-03-31/event-source-mappings/$U"
+  if head -1 "$REC/ESMS-03/$1.http" | grep -q ' 202'; then until_state Enabled; fi
+}
+esm ESMS-03/12-create-sqs --function-name "$F" --event-source-arn "arn:aws:sqs:$R:$A:$P-esms-q" --batch-size 1
+until_state Enabled
+lupd 13-update-parallelization '"ParallelizationFactor":2'
+lupd 14-update-bisect '"BisectBatchOnFunctionError":true'
+lupd 15-update-retries '"MaximumRetryAttempts":1'
+lupd 16-update-record-age '"MaximumRecordAgeInSeconds":60'
+lupd 17-update-tumbling '"TumblingWindowInSeconds":60'
+lupd 18-update-on-failure "\"DestinationConfig\":$ONF"
+lupd 19-update-several '"ParallelizationFactor":2,"BisectBatchOnFunctionError":true,"MaximumRetryAttempts":1,"MaximumRecordAgeInSeconds":60,"TumblingWindowInSeconds":60'
+lupd 20-update-several-reversed '"TumblingWindowInSeconds":60,"MaximumRecordAgeInSeconds":60,"MaximumRetryAttempts":1,"BisectBatchOnFunctionError":true,"ParallelizationFactor":2'
+lupd 21-update-parallelization-11 '"ParallelizationFactor":11'
+lupd 22-update-batch-11-and-parallelization '"BatchSize":11,"ParallelizationFactor":2'
+rec ESMS-03/23-get-after aws lambda get-event-source-mapping --uuid "$U"
+esm_rm
+lraw ESMS-03/24-create-several "$S,\"StartingPosition\":\"LATEST\",\"ParallelizationFactor\":2,\"TumblingWindowInSeconds\":60"
+lraw ESMS-03/25-create-several-reversed "$S,\"TumblingWindowInSeconds\":60,\"ParallelizationFactor\":2,\"StartingPosition\":\"LATEST\""
+```
+
+What each step settles:
+
+- 12: the mapping the updates act on; nothing to compare.
+- 13-18: Update's status, `x-amzn-ErrorType` and message for each member alone, against Create's texts in steps 02-07 (`StartingPosition` is not an Update member).
+- 19 and 20: which member a refusal names when all five are set, in two key orders. The same name both times means a fixed order (compare it with `refuseOnSQS`'s); a name that follows the first key means AWS reads them in request order.
+- 21: whether the model's range (1 to 10) is checked before the cross-type rule (a `ValidationException` naming the range) or after it (the `Unsupported ParallelizationFactor ...` text).
+- 22: whether the SQS rule for `BatchSize` above 10 without a batching window (lambda-events.md 1.3) comes before or after the cross-type rule.
+- 23: whether the refused updates left the mapping as step 12 created it (`BatchSize` 1, no stream members), or any of them was applied in part. If an update was accepted, note which.
+- 24 and 25: the same order question on Create, with `StartingPosition`, whose refusal text differs from the others.
+
+Expected cost USD 0, about 10 minutes. Teardown: `esm_rm` above removes the mapping; then the queue goes with steps 01-07's teardown.
+
 ### 13.5 ESMS-04: AT_TIMESTAMP rules and the timestamp's echo
 
 Settles 3.2 and the `AT_TIMESTAMP` part of 3.5.
