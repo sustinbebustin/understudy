@@ -1543,7 +1543,7 @@ Raw operations:
 | DeleteTopic | full | inferred, 1 of 5 claims |  |
 | GetSubscriptionAttributes | full | inferred, 1 of 5 claims |  |
 | GetTopicAttributes | full | third-party-recorded, 2 of 4 claims |  |
-| ListSubscriptions | full | third-party-recorded, 3 of 5 claims |  |
+| ListSubscriptions | full | inferred, 1 of 6 claims |  |
 | ListSubscriptionsByTopic | full | third-party-recorded, 3 of 5 claims |  |
 | ListTagsForResource | full | third-party-recorded, 2 of 4 claims |  |
 | ListTopics | full | third-party-recorded, 2 of 4 claims |  |

@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"net/http"
 	"net/url"
 	"slices"
 	"strconv"
@@ -472,6 +473,47 @@ func TestPublishBatch(t *testing.T) {
 			{Id: "a", Message: strings.Repeat("x", 600)}, {Id: "b", Message: strings.Repeat("x", 600)},
 		}})
 		wantError(h, err, "BatchRequestTooLong", "The length of all the messages put together is more than the limit.")
+	})
+}
+
+// TestPublishBatchFailsOnlyABadSubjectsEntry replays sns/R16
+// 02-subject-101 and 02-invalid-attribute: a 101-character Subject fails
+// only its entry, in Failed, and the other entry is published; an invalid
+// message attribute still fails the whole call.
+func TestPublishBatchFailsOnlyABadSubjectsEntry(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		h.subscribe(topic, "sqs", queueARN, map[string]string{"RawMessageDelivery": "true"})
+		out := must(h, snsapi.OpPublishBatch, &snsapi.PublishBatchInput{TopicArn: topic, PublishBatchRequestEntries: []snsapi.PublishBatchRequestEntry{
+			{Id: "ok", Message: "x"},
+			{Id: "bad", Message: "x", Subject: new(strings.Repeat("s", 101))},
+		}})
+		wantFailed := []snsapi.BatchResultErrorEntry{{Id: "bad", Code: "InvalidParameter", Message: new("Invalid parameter: Subject"), SenderFault: true}}
+		if len(out.Failed) != 1 || out.Failed[0].Id != wantFailed[0].Id || out.Failed[0].Code != wantFailed[0].Code ||
+			out.Failed[0].Message == nil || *out.Failed[0].Message != *wantFailed[0].Message || !out.Failed[0].SenderFault {
+			h.Errorf("Failed = %+v, want %+v", out.Failed, wantFailed)
+		}
+		if len(out.Successful) != 1 || *out.Successful[0].Id != "ok" || out.Successful[0].MessageId == nil {
+			h.Errorf("Successful = %+v, want the one entry ok with a MessageId", out.Successful)
+		}
+		got := h.sink.all()
+		if len(got) != 1 {
+			h.Fatalf("outbox took %d deliveries, want the ok entry's one", len(got))
+		}
+		if q, ok := got[0].Request.Target.(delivery.SQSQueue); !ok || q.Body != "x" {
+			h.Errorf("delivery target = %+v, want the raw message x to the queue", got[0].Request.Target)
+		}
+
+		_, err := call(h, snsapi.OpPublishBatch, &snsapi.PublishBatchInput{TopicArn: topic, PublishBatchRequestEntries: []snsapi.PublishBatchRequestEntry{
+			{Id: "ok", Message: "x"},
+			{Id: "bad", Message: "x", MessageAttributes: map[string]snsapi.MessageAttributeValue{"n": attr("Number", "abc")}},
+		}})
+		if err == nil || err.ID.QueryCode != "ParameterValueInvalid" || err.ID.Status != http.StatusBadRequest {
+			h.Errorf("PublishBatch with an invalid attribute = %+v, want the whole call refused 400 ParameterValueInvalid", err)
+		}
+		if n := len(h.sink.all()); n != 1 {
+			h.Errorf("outbox took %d deliveries after the refused batch, want still 1", n)
+		}
 	})
 }
 

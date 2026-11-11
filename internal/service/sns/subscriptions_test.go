@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -435,9 +436,11 @@ func TestConfirmLinkChecksTheTokensScope(t *testing.T) {
 // TestDeletedTopicsSubscriptionsStayReadable replays LocalStack's
 // test_delete_subscriptions_on_delete_topic (AWS-recorded): after
 // DeleteTopic its subscription still reads back with every attribute, its
-// TopicArn naming the deleted topic. It is not listed, receives nothing
+// TopicArn naming the deleted topic. ListSubscriptions still lists it, as
+// sns/R16 06-list-subscriptions-after-delete records. It receives nothing
 // from a topic recreated under the name, Unsubscribe removes it, and it is
-// gone once detached-retention passes.
+// gone, from GetSubscriptionAttributes and ListSubscriptions alike, once
+// detached-retention passes.
 func TestDeletedTopicsSubscriptionsStayReadable(t *testing.T) {
 	run(t, func(h *harness) {
 		topic := h.topic("events", nil)
@@ -448,8 +451,9 @@ func TestDeletedTopicsSubscriptionsStayReadable(t *testing.T) {
 		if after := h.subscriptionAttributes(arn); !maps.Equal(after, before) {
 			h.Errorf("GetSubscriptionAttributes after DeleteTopic =\n%v\nwant\n%v", after, before)
 		}
-		if listed := must(h, snsapi.OpListSubscriptions, &snsapi.ListSubscriptionsInput{}).Subscriptions; len(listed) != 0 {
-			h.Errorf("ListSubscriptions = %+v, want none", listed)
+		want := snsapi.Subscription{SubscriptionArn: &arn, Owner: new("000000000000"), Protocol: new("sqs"), Endpoint: new(queueARN), TopicArn: &topic}
+		if listed := must(h, snsapi.OpListSubscriptions, &snsapi.ListSubscriptionsInput{}).Subscriptions; len(listed) != 1 || !reflect.DeepEqual(listed[0], want) {
+			h.Errorf("ListSubscriptions = %+v, want the detached subscription %+v", listed, want)
 		}
 		h.topic("events", nil)
 		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
@@ -466,9 +470,15 @@ func TestDeletedTopicsSubscriptionsStayReadable(t *testing.T) {
 		must(h, snsapi.OpDeleteTopic, &snsapi.DeleteTopicInput{TopicArn: topic})
 		h.advance(48*time.Hour - time.Millisecond)
 		h.subscriptionAttributes(other)
+		if listed := must(h, snsapi.OpListSubscriptions, &snsapi.ListSubscriptionsInput{}).Subscriptions; len(listed) != 1 || *listed[0].SubscriptionArn != other {
+			h.Errorf("ListSubscriptions inside detached-retention = %+v, want %s", listed, other)
+		}
 		h.advance(time.Millisecond)
 		_, err = call(h, snsapi.OpGetSubscriptionAttributes, &snsapi.GetSubscriptionAttributesInput{SubscriptionArn: other})
 		wantError(h, err, "NotFound", "Subscription does not exist")
+		if listed := must(h, snsapi.OpListSubscriptions, &snsapi.ListSubscriptionsInput{}).Subscriptions; len(listed) != 0 {
+			h.Errorf("ListSubscriptions after detached-retention = %+v, want none", listed)
+		}
 	})
 }
 

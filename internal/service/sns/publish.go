@@ -245,8 +245,12 @@ func publishTarget(c *kernel.Call, in *snsapi.PublishInput) (topicRef, *awserr.E
 	return topicRef{}, errReason("TopicArn or TargetArn", "no value for required parameter")
 }
 
-// publishBatch publishes up to ten messages to a topic. Every check fails
-// the whole call: no recorded case puts an entry in Failed (sns.md 4.4).
+// publishBatch publishes up to ten messages to a topic. An entry whose
+// Subject is invalid fails alone, in Failed, and the others are published
+// (sns/R16 02-subject-101); every other check fails the whole call, an
+// invalid message attribute among them (02-invalid-attribute, sns.md 4.4).
+// Subject is the only member recorded to fail its entry alone; the
+// whole-call checks of every entry run before it, which is inferred.
 func (s *Service) publishBatch(_ context.Context, c *kernel.Call, in *snsapi.PublishBatchInput) (*snsapi.PublishBatchOutput, *awserr.Error) {
 	if err := checkBatchEntries(in.PublishBatchRequestEntries); err != nil {
 		return nil, err
@@ -257,12 +261,29 @@ func (s *Service) publishBatch(_ context.Context, c *kernel.Call, in *snsapi.Pub
 	}
 	msgs := make([]message, 0, len(in.PublishBatchRequestEntries))
 	for _, e := range in.PublishBatchRequestEntries {
-		m, err := newMessage(e.Message, e.Subject, e.MessageStructure, e.MessageAttributes, e.MessageGroupId, e.MessageDeduplicationId)
+		m, err := newMessage(e.Message, nil, e.MessageStructure, e.MessageAttributes, e.MessageGroupId, e.MessageDeduplicationId)
 		if err != nil {
 			return nil, err
 		}
 		msgs = append(msgs, m)
 	}
+	out := &snsapi.PublishBatchOutput{Successful: []snsapi.PublishBatchResultEntry{}, Failed: []snsapi.BatchResultErrorEntry{}}
+	// ids[i] is the entry msgs[i] publishes once the failed entries are
+	// left out.
+	ids := make([]string, 0, len(msgs))
+	kept := make([]message, 0, len(msgs))
+	for i, e := range in.PublishBatchRequestEntries {
+		if e.Subject != nil {
+			if !validSubject(*e.Subject) {
+				out.Failed = append(out.Failed, failedEntry(e.Id, errInvalidParameter("Subject")))
+				continue
+			}
+			msgs[i].subject = *e.Subject
+		}
+		ids = append(ids, e.Id)
+		kept = append(kept, msgs[i])
+	}
+	msgs = kept
 	published, err := s.fanOut(c, ref, msgs, func(t *Topic) *awserr.Error {
 		total := 0
 		for i := range msgs {
@@ -276,15 +297,19 @@ func (s *Service) publishBatch(_ context.Context, c *kernel.Call, in *snsapi.Pub
 	if err != nil {
 		return nil, err
 	}
-	out := &snsapi.PublishBatchOutput{Successful: make([]snsapi.PublishBatchResultEntry, 0, len(published)), Failed: []snsapi.BatchResultErrorEntry{}}
 	for i, p := range published {
 		out.Successful = append(out.Successful, snsapi.PublishBatchResultEntry{
-			Id:             new(in.PublishBatchRequestEntries[i].Id),
+			Id:             new(ids[i]),
 			MessageId:      new(p.messageID),
 			SequenceNumber: p.sequence,
 		})
 	}
 	return out, nil
+}
+
+// failedEntry is the Failed member of the batch entry id that err refused.
+func failedEntry(id string, err *awserr.Error) snsapi.BatchResultErrorEntry {
+	return snsapi.BatchResultErrorEntry{Id: id, Code: err.ID.QueryCode, Message: new(err.Message), SenderFault: err.ID.Fault == awserr.Sender}
 }
 
 // checkBatchEntries checks a batch's shape (sns.md 4.4): one to ten

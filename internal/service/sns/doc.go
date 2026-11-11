@@ -58,9 +58,10 @@
 //     the SNS message id stream of internal/ids, so a seeded run repeats
 //     them; ids has no stream of their own.
 //   - DeleteTopic detaches the topic's subscriptions: they receive
-//     nothing and are not listed, but GetSubscriptionAttributes still
-//     reads them, as AWS-recorded, and Unsubscribe removes them, for 48
-//     hours of emulator time (the fidelity switch
+//     nothing, but ListSubscriptions still lists them and
+//     GetSubscriptionAttributes still reads them, as AWS-recorded, and
+//     Unsubscribe removes them, for 48 hours of emulator time (the
+//     fidelity switch
 //     sns.delete-topic.detached-retention).
 //   - FIFO. A duplicate inside the five-minute window gets a fresh
 //     MessageId and the topic's next SequenceNumber and is not delivered

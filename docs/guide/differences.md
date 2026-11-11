@@ -18,13 +18,10 @@ Most differences are in error texts, codes and response details, not in the happ
 
 ## SNS
 
-- `FilterPolicy` reads back compacted on AWS; understudy returns it as sent (`sns/R05/05-get-sub-attrs.json`).
-- `PublishBatch` with a 101-character `Subject` reports that entry in `Failed` and sends the rest on AWS; understudy fails the whole call (`sns/R16/02-subject-101.json`).
 - `MessageStructure=json` with a duplicate `default` key is accepted on AWS, last value winning; understudy refuses it as unparseable (`sns/R16/03-x-message-structure-duplicate-key.json`).
 - Texts that differ: "Could not cast message attribute 'n' value to number.", "Message attribute names starting with 'AWS.' or 'Amazon.' are reserved for use by Amazon.", "Invalid parameter: Invalid protocol type: lambda" for a Lambda subscription to a FIFO topic (`sns/R16/03-*.json`, `sns/R16/04-subscribe-fifo-lambda.json`).
 - An `application` endpoint that is not an ARN is 400 "Invalid parameter: Application endpoint arn invalid:not-an-arn" on AWS; understudy answers 501, since mobile push is not implemented (`sns/R16/05-application-non-arn.json`).
 - `DeliveryPolicy` refusals: malformed JSON gets Jackson's message with its location on AWS, and an unknown member "Unexpected JSON member: http.nope"; understudy uses its own texts (`sns/R16/x-delivery-policy-*.json`).
-- Subscriptions of a deleted topic still appear in `ListSubscriptions` on AWS; understudy leaves them out (`sns/R16/06-list-subscriptions-after-delete.json`).
 - Lambda deliveries: AWS types `Number` and `String.Array` attributes as `String`, puts `Subject` after `SigningCertUrl`, and orders `MessageAttributes` as a Java HashMap does; understudy keeps the published types and its own order (`logs/R16/01-lambda-events.json`).
 - The 10,000 filter policies per account quota is not enforced.
 - HTTP and HTTPS endpoints (`sns/SNSH`, recorded 2026-11-03):

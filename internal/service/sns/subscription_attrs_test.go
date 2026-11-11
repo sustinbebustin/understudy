@@ -297,6 +297,30 @@ func wantFirstLine(h *harness, err *awserr.Error, message string) {
 	}
 }
 
+// TestFilterPolicyReadsBackCompacted replays sns/R05 05-subscribe and
+// 05-get-sub-attrs: a FilterPolicy reads back with its whitespace removed
+// and its keys in the order sent, while a RedrivePolicy reads back as sent.
+// SetSubscriptionAttributes is inferred to store it as Subscribe does.
+func TestFilterPolicyReadsBackCompacted(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		const redrive = `{"deadLetterTargetArn": "arn:aws:sqs:us-east-1:000000000000:orders-dlq"}`
+		arn := h.subscribe(topic, "sqs", queueARN, map[string]string{"FilterPolicy": `{ "a": ["x"] }`, "RawMessageDelivery": "true", "RedrivePolicy": redrive})
+		got := h.subscriptionAttributes(arn)
+		if got["FilterPolicy"] != `{"a":["x"]}` {
+			h.Errorf("FilterPolicy = %s, want {\"a\":[\"x\"]}", got["FilterPolicy"])
+		}
+		if got["RedrivePolicy"] != redrive {
+			h.Errorf("RedrivePolicy = %s, want %s as sent", got["RedrivePolicy"], redrive)
+		}
+
+		must(h, snsapi.OpSetSubscriptionAttributes, &snsapi.SetSubscriptionAttributesInput{SubscriptionArn: arn, AttributeName: "FilterPolicy", AttributeValue: new("{\n  \"z\": [\"a b\"],\n  \"a\": [{\"prefix\": \"x\"}]\n}")})
+		if got := h.subscriptionAttributes(arn)["FilterPolicy"]; got != `{"z":["a b"],"a":[{"prefix":"x"}]}` {
+			h.Errorf("FilterPolicy = %s, want {\"z\":[\"a b\"],\"a\":[{\"prefix\":\"x\"}]}", got)
+		}
+	})
+}
+
 // TestFilterPolicyQuotaPerTopic: a topic holds at most 200 subscriptions
 // with a filter policy (sns.md 6.5). The 201st policy is refused with
 // FilterPolicyLimitExceeded (403) and not stored, replacing one of the 200

@@ -26,8 +26,8 @@ type State struct {
 	// ever made (sns.md Implications 7).
 	Signing *SigningKey `json:"signing,omitempty"`
 	// Detached are the subscriptions of deleted topics, oldest first.
-	// GetSubscriptionAttributes and Unsubscribe still find them until they
-	// are gone; nothing is delivered to them.
+	// ListSubscriptions, GetSubscriptionAttributes and Unsubscribe still
+	// find them until they are gone; nothing is delivered to them.
 	Detached []DetachedSubscription `json:"detached,omitempty"`
 }
 

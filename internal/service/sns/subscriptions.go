@@ -675,7 +675,9 @@ func mayUnsubscribe(sub *Subscription, by caller) *awserr.Error {
 // region, those it owns on another account's topic included: "Returns a
 // list of the requester's subscriptions" (API_ListSubscriptions.html). A
 // subscription another account made on the caller's topic is that
-// account's. They come ordered by subscription ARN.
+// account's. The subscriptions of a deleted topic are listed until they
+// are gone (sns/R16 06-list-subscriptions-after-delete, detachedRetention).
+// They come ordered by subscription ARN.
 func (s *Service) listSubscriptions(_ context.Context, c *kernel.Call, in *snsapi.ListSubscriptionsInput) (*snsapi.ListSubscriptionsOutput, *awserr.Error) {
 	own := c.Scope()
 	owner := own.Account.String()
@@ -691,6 +693,12 @@ func (s *Service) listSubscriptions(_ context.Context, c *kernel.Call, in *snsap
 				t := st.Topics[name]
 				t.Subscriptions = slices.DeleteFunc(slices.Clone(t.Subscriptions), func(sub Subscription) bool { return sub.OwnerAccountID != owner })
 				out = append(out, listed(topicRef{scope: scope, name: name}, &t, now)...)
+			}
+			for i := range st.Detached {
+				d := &st.Detached[i]
+				if d.Subscription.OwnerAccountID == owner && !d.gone(now) {
+					out = append(out, listedOne(topicRef{scope: scope, name: d.Topic}, &d.Subscription))
+				}
 			}
 			return out
 		})
@@ -735,25 +743,29 @@ func (l listedSubscription) key() string { return l.arn }
 // (sns.md 3.4), and an endpoint's password is masked (maskedEndpoint).
 func listed(ref topicRef, t *Topic, now clock.Instant) []listedSubscription {
 	out := make([]listedSubscription, 0, len(t.Subscriptions))
-	topicARN := ref.arn().String()
-	for _, sub := range t.Subscriptions {
-		if sub.expired(now) {
-			continue
+	for i := range t.Subscriptions {
+		if !t.Subscriptions[i].expired(now) {
+			out = append(out, listedOne(ref, &t.Subscriptions[i]))
 		}
-		own := subscriptionRef{topic: ref, id: sub.ID}.arn().String()
-		shown := own
-		if _, pending := sub.Status.(Pending); pending {
-			shown = pendingInListings().Value
-		}
-		out = append(out, listedSubscription{arn: own, api: snsapi.Subscription{
-			SubscriptionArn: new(shown),
-			Owner:           new(sub.OwnerAccountID),
-			Protocol:        new(sub.Protocol.String()),
-			Endpoint:        new(maskedEndpoint(sub.Endpoint)),
-			TopicArn:        new(topicARN),
-		}})
 	}
 	return out
+}
+
+// listedOne renders sub, a subscription to the topic ref names, for a
+// listing.
+func listedOne(ref topicRef, sub *Subscription) listedSubscription {
+	own := subscriptionRef{topic: ref, id: sub.ID}.arn().String()
+	shown := own
+	if _, pending := sub.Status.(Pending); pending {
+		shown = pendingInListings().Value
+	}
+	return listedSubscription{arn: own, api: snsapi.Subscription{
+		SubscriptionArn: new(shown),
+		Owner:           new(sub.OwnerAccountID),
+		Protocol:        new(sub.Protocol.String()),
+		Endpoint:        new(maskedEndpoint(sub.Endpoint)),
+		TopicArn:        new(ref.arn().String()),
+	}}
 }
 
 // subscriptionsPage is the page of listing l that token names, as the

@@ -1,7 +1,9 @@
 package sns
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -98,8 +100,8 @@ func storedSubscriptionAttribute(name, value string) subscriptionSetting {
 // RedrivePolicy (tf-messaging.md 3.5). detail is the text after "Invalid
 // parameter: " (after "Attributes Reason: " at Subscribe), recorded where
 // sns.md has it and inferred otherwise; it is "" when the setting is good.
-// FilterPolicy is stored as given once it compiles for the scope in
-// effect; a DeliveryPolicy that parses as a JSON object and keeps
+// FilterPolicy is stored compacted (compactPolicy) once it compiles for the
+// scope in effect; a DeliveryPolicy that parses as a JSON object and keeps
 // checkSubscriptionDeliveryPolicy's constraints is stored as
 // storedSubscriptionDeliveryPolicy shapes it.
 func (s *Service) subscriptionAttribute(sub subscriber, name string, value *string) (set subscriptionSetting, detail string) {
@@ -124,6 +126,7 @@ func (s *Service) subscriptionAttribute(sub subscriber, name string, value *stri
 		if _, err := s.policies.Compile(v, sub.scope); err != nil {
 			return subscriptionSetting{}, err.Reason
 		}
+		return storedSubscriptionAttribute(name, compactPolicy(v)), ""
 	case attrFilterPolicyScope:
 		if detail := s.checkFilterPolicyScope(sub, v); detail != "" {
 			return subscriptionSetting{}, detail
@@ -142,6 +145,17 @@ func (s *Service) subscriptionAttribute(sub subscriber, name string, value *stri
 		return subscriptionSetting{}, "AttributeName"
 	}
 	return storedSubscriptionAttribute(name, v), ""
+}
+
+// compactPolicy is a FilterPolicy as AWS stores it: whitespace removed, key
+// order and string escapes kept (sns/R05 05-get-sub-attrs). A policy that
+// compiled is JSON, so the fallback to v as given is never taken.
+func compactPolicy(v string) string {
+	var b bytes.Buffer
+	if err := json.Compact(&b, []byte(v)); err != nil {
+		return v
+	}
+	return b.String()
 }
 
 // subscriptionDeliveryPolicy checks a subscription DeliveryPolicy: "" unsets

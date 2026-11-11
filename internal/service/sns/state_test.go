@@ -24,7 +24,7 @@ func TestStateCodecRoundTrips(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		st := newState(aws.Scope{})
 		if rapid.Bool().Draw(t, "signed") {
-			st.Signing = &SigningKey{Private: bytes(t, "private"), Certificate: bytes(t, "certificate")}
+			st.Signing = &SigningKey{Private: someBytes(t, "private"), Certificate: someBytes(t, "certificate")}
 		}
 		for i := range rapid.IntRange(0, 3).Draw(t, "topics") {
 			name := "t" + strconv.Itoa(i)
@@ -141,7 +141,7 @@ func stringMap(t *rapid.T, label string) map[string]string {
 	return rapid.MapOfN(rapid.StringMatching(`[A-Za-z]{1,8}`), rapid.String(), 1, 3).Draw(t, label+"Entries")
 }
 
-func bytes(t *rapid.T, label string) []byte {
+func someBytes(t *rapid.T, label string) []byte {
 	return rapid.SliceOfN(rapid.Byte(), 1, 16).Draw(t, label)
 }
 
