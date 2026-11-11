@@ -7,6 +7,12 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"unicode"
+
+	"pgregory.net/rapid"
+
+	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/codegen"
 )
 
 // overlayValidators reads every dev.understudy#patternValidator of
@@ -252,4 +258,53 @@ func TestPatternValidatorsAgreeWithTheirLookarounds(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestIAMPathPatternIsValidIAMPath: the IAM overlay's pathType pattern, as
+// the generated validator compiles it, accepts exactly the paths
+// aws.ValidIAMPath does, so identity, access recording and STS agree with
+// every operation's validation. The model's own pattern,
+// ^(/)|(/[!-~]+/)$, anchors each alternative on one side and passes "/svc"
+// and "x/a/". Strings stay within pathType's 512-character @length, which
+// is checked apart from the pattern.
+func TestIAMPathPatternIsValidIAMPath(t *testing.T) {
+	raw, err := os.ReadFile("../../codegen/overlays/iam.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Shapes map[string]struct {
+			Traits struct {
+				Pattern string `json:"smithy.api#pattern"`
+			} `json:"traits"`
+		} `json:"shapes"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	ecma := doc.Shapes["com.amazonaws.iam#pathType"].Traits.Pattern
+	if ecma == "" {
+		t.Fatal("codegen/overlays/iam.json gives com.amazonaws.iam#pathType no smithy.api#pattern")
+	}
+	re2, err := codegen.TranslatePattern(ecma)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pattern := regexp.MustCompile(re2)
+	agree := func(t interface{ Errorf(string, ...any) }, s string) {
+		if got, want := pattern.MatchString(s), aws.ValidIAMPath(s); got != want {
+			t.Errorf("the pathType pattern %q matches %q: %v, aws.ValidIAMPath: %v", ecma, s, got, want)
+		}
+	}
+	t.Run("examples", func(t *testing.T) {
+		for _, s := range []string{"/", "/a/", "/a/b/", "/!~/", "", "//", "/svc", "x/a/", "a", "/a b/", "/a\x7f/", "/a/\n"} {
+			agree(t, s)
+		}
+	})
+	t.Run("ascii", func(t *testing.T) {
+		ascii := rapid.OneOf(rapid.Just('/'), rapid.RuneFrom(nil, &unicode.RangeTable{R16: []unicode.Range16{{Lo: 0, Hi: 0x7f, Stride: 1}}}))
+		rapid.Check(t, func(rt *rapid.T) {
+			agree(rt, rapid.StringOfN(ascii, 0, 512, -1).Draw(rt, "path"))
+		})
+	})
 }

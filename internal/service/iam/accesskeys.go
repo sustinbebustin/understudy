@@ -70,7 +70,7 @@ func (s *Service) createAccessKey(_ context.Context, c *kernel.Call, in *iamapi.
 		if merr != nil {
 			return created{}, awserr.Internalf(merr)
 		}
-		k := AccessKey{ID: creds.AccessKeyID, Status: iamapi.StatusTypeActive, Created: now}
+		k := AccessKey{ID: creds.AccessKeyID, Status: iamapi.StatusTypeActive, Created: createDate(now)}
 		u.AccessKeys = append(slices.Clone(u.AccessKeys), k)
 		st.Users[key(u.Name)] = u
 		return created{user: u, key: iamapi.AccessKey{
@@ -78,7 +78,7 @@ func (s *Service) createAccessKey(_ context.Context, c *kernel.Call, in *iamapi.
 			AccessKeyId:     string(k.ID),
 			Status:          k.Status,
 			SecretAccessKey: string(creds.SecretAccessKey),
-			CreateDate:      new(now.Wire()),
+			CreateDate:      new(k.Created.Wire()),
 		}}, nil
 	})
 	if err != nil {

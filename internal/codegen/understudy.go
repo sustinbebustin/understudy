@@ -50,6 +50,7 @@ const (
 	utQueryErrorHeader    = understudyNamespace + "queryErrorHeader"
 	utResponseCRC32       = understudyNamespace + "responseCrc32"
 	utXMLDeclaration      = understudyNamespace + "xmlDeclaration"
+	utRefuseDuplicates    = understudyNamespace + "refuseDuplicateMembers"
 	utEnumOrder           = understudyNamespace + "enumOrder"
 	utValidationInputRoot = understudyNamespace + "validationInputRoot"
 )
@@ -122,6 +123,7 @@ func understudyTraits() map[string]understudyTrait {
 		utQueryErrorHeader:    {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseQueryErrorHeader(r); return err }},
 		utResponseCRC32:       {Honor, siteService, parseAnnotation},
 		utXMLDeclaration:      {Honor, siteService, parseAnnotation},
+		utRefuseDuplicates:    {Honor, siteService, parseAnnotation},
 		utEnumOrder:           {Honor, siteEnumShape, func(r json.RawMessage) error { _, err := parseEnumOrder(r); return err }},
 		utValidationInputRoot: {Honor, siteService, parseAnnotation},
 	}
@@ -474,13 +476,16 @@ func validationStyles() map[string]ValidationStyle {
 // ConstraintKind filters the violations a validationError rule covers.
 type ConstraintKind uint8
 
-// ConstraintKind values, one per generated constraint.
+// ConstraintKind values, one per generated constraint, plus KindLengthMax,
+// the length maximum alone, which a rule selects with {constraints:
+// ["length"], bound: max} rather than by a constraint name.
 const (
 	KindRequired ConstraintKind = 1 << iota
 	KindLength
 	KindRange
 	KindPattern
 	KindEnum
+	KindLengthMax
 )
 
 func constraintKinds() map[string]ConstraintKind {
@@ -533,6 +538,29 @@ type ValidationRule struct {
 	Reason        string
 	EnumPolicy    EnumPolicy    // 0 when the rule does not set one
 	PatternPolicy PatternPolicy // 0 when the rule does not set one
+	Echo          awserr.CoralEcho
+}
+
+// parseEcho reads a coral rule's value and enumSet options: what each entry
+// prints of the value and of an enum's value set. "" keeps the default,
+// which prints it.
+func parseEcho(value, enumSet string) (awserr.CoralEcho, error) {
+	var e awserr.CoralEcho
+	switch value {
+	case "", "echo":
+	case "omit":
+		e.Value = awserr.OmitValue
+	default:
+		return e, fmt.Errorf("value %q is not echo or omit", value)
+	}
+	switch enumSet {
+	case "", "list":
+	case "omit":
+		e.Enum = awserr.OmitEnum
+	default:
+		return e, fmt.Errorf("enumSet %q is not list or omit", enumSet)
+	}
+	return e, nil
 }
 
 // parseValidationRules accepts one rule object or an array of them; rules
@@ -588,14 +616,42 @@ func parsePolicies(enum, pattern string) (EnumPolicy, PatternPolicy, error) {
 	return e, p, nil
 }
 
+// parseKinds reads a rule's constraints filter and its bound: "max" narrows
+// a ["length"] filter to the length maximum, for a text the service sends
+// only for an over-long value; "" leaves the filter as named.
+func parseKinds(constraints []string, bound string) (ConstraintKind, error) {
+	var kinds ConstraintKind
+	for _, c := range constraints {
+		k, ok := constraintKinds()[c]
+		if !ok {
+			return 0, fmt.Errorf("constraint %q is not one of %v", c, slices.Sorted(maps.Keys(constraintKinds())))
+		}
+		kinds |= k
+	}
+	switch bound {
+	case "":
+		return kinds, nil
+	case "max":
+		if !slices.Equal(constraints, []string{"length"}) {
+			return 0, errors.New(`bound applies only to a rule whose constraints are ["length"] alone; split the other constraints into a rule of their own`)
+		}
+		return KindLengthMax, nil
+	default:
+		return 0, fmt.Errorf("bound %q is not max; leave bound out to cover both length limits", bound)
+	}
+}
+
 func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 	var v struct {
 		Code          string   `json:"code"`
 		Style         string   `json:"style"`
 		Constraints   []string `json:"constraints"`
+		Bound         string   `json:"bound"`
 		Reason        string   `json:"reason"`
 		EnumPolicy    string   `json:"enumPolicy"`
 		PatternPolicy string   `json:"patternPolicy"`
+		Value         string   `json:"value"`
+		EnumSet       string   `json:"enumSet"`
 	}
 	if err := decodeTrait(raw, &v); err != nil {
 		return ValidationRule{}, err
@@ -605,8 +661,11 @@ func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 	if r.EnumPolicy, r.PatternPolicy, err = parsePolicies(v.EnumPolicy, v.PatternPolicy); err != nil {
 		return r, err
 	}
+	if r.Echo, err = parseEcho(v.Value, v.EnumSet); err != nil {
+		return r, err
+	}
 	if v.Code == "" {
-		if (r.EnumPolicy == 0 && r.PatternPolicy == 0) || v.Style != "" || len(v.Constraints) > 0 || v.Reason != "" {
+		if (r.EnumPolicy == 0 && r.PatternPolicy == 0) || v.Style != "" || len(v.Constraints) > 0 || v.Reason != "" || v.Value != "" || v.EnumSet != "" {
 			return r, errors.New(`"code" is required unless the rule only sets enumPolicy or patternPolicy`)
 		}
 		return r, nil
@@ -624,12 +683,8 @@ func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 		}
 		r.Style = s
 	}
-	for _, c := range v.Constraints {
-		k, ok := constraintKinds()[c]
-		if !ok {
-			return r, fmt.Errorf("constraint %q is not one of %v", c, slices.Sorted(maps.Keys(constraintKinds())))
-		}
-		r.Kinds |= k
+	if r.Kinds, err = parseKinds(v.Constraints, v.Bound); err != nil {
+		return r, err
 	}
 	r.Reason = v.Reason
 	needsReason := r.Style == StyleParameter || r.Style == StyleSNSParameter || r.Style == StyleFixed
@@ -638,6 +693,8 @@ func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 		return r, fmt.Errorf("style %s needs a reason", v.Style)
 	case !needsReason && r.Reason != "":
 		return r, fmt.Errorf("style %s takes no reason", cmp.Or(v.Style, "coral"))
+	case r.Style != StyleCoral && (v.Value != "" || v.EnumSet != ""):
+		return r, fmt.Errorf("value and enumSet shape the coral style's entries; style %s prints none", v.Style)
 	}
 	return r, nil
 }

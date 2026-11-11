@@ -48,6 +48,12 @@ Compared against understudy built on 2026-10-14, replayed with scripts/sealed (d
 - 06 create-secret responses: matches ({ARN, Name, VersionId} only)
 - 06 describe-secret KmsKeyId, no key given: matches (absent)
 - 06 describe-secret KmsKeyId, bare key id / key ARN / customer alias: matches (each echoed exactly as sent)
-- 06 describe-secret KmsKeyId, alias/aws/secretsmanager given explicitly: differs: AWS "KmsKeyId":"alias/aws/secretsmanager"; understudy omits it (internal/service/secretsmanager/values.go:101-110 maps every name of the managed key to nil; state.go:47-49)
+- 06 describe-secret KmsKeyId, alias/aws/secretsmanager given explicitly: differs: AWS "KmsKeyId":"alias/aws/secretsmanager"; understudy omits it (internal/service/secretsmanager/values.go:101-110 maps every name of the managed key to nil; state.go:47-49). Replay: matches; understudy now keeps the bare alias and echoes it (internal/parity/baseline.json, secretsmanager/R07#06-describe-s-awsalias)
 - 06 describe-secret other fields: matches (ARN, Name, CreatedDate, LastChangedDate, VersionIdsToStages; no RotationEnabled, no LastAccessedDate). AWS writes the timestamps as 1.791960356241E9, wire-only
+
+## Replay (internal/parity)
+
+`scenario.json` replays the Secrets Manager steps without a customer key, 06-create-s-none, 06-describe-s-none, 06-create-s-awsalias and 06-describe-s-awsalias; internal/parity/baseline.json holds the outcomes. Each create binds the ARN, whose six-character suffix understudy draws on its own.
+
+- Not replayed yet: the bare, ARN and alias steps, which need a customer key and alias set up and bound first.
 

@@ -29,6 +29,9 @@ type Table struct {
 	// TTL is the time-to-live specification; nil while TTL is disabled.
 	// It never reaches Local, so Local's wall-clock sweeper stays off.
 	TTL *TTLSpec `json:"ttl,omitempty"`
+	// TTLChanged is when an UpdateTimeToLive last changed TTL; zero when
+	// none did. Another change is refused until ttlInterval has passed.
+	TTLChanged clock.Instant `json:"ttlChanged,omitzero"`
 	// PITR is point-in-time recovery; nil while it is disabled.
 	PITR *PITR `json:"pitr,omitempty"`
 	// Class is the table class a CreateTable or UpdateTable set; nil when
@@ -299,6 +302,24 @@ func (t Table) updated(in *dynamodbapi.UpdateTableInput, now clock.Instant, sse 
 		t.Throughput = new(provisioned(t.Throughput, in.ProvisionedThroughput, now))
 	}
 	return t.indexesUpdated(in.GlobalSecondaryIndexUpdates, now)
+}
+
+// switchAnswered is t, the record after an UpdateTable admitted at now on
+// top of a table billed was, as that UpdateTable's answer describes it. A
+// switch from PAY_PER_REQUEST to PROVISIONED stamps LastIncreaseDateTime
+// with now in that answer only; a later DescribeTable reports none
+// (testdata/parity/dynamodb/R04/x-billing-to-provisioned.json,
+// x-describe-post-billing.json), so the record keeps no increase.
+func (t Table) switchAnswered(was Billing, now clock.Instant) Table {
+	_, fromOnDemand := was.(OnDemand)
+	_, toProvisioned := t.Billing.(Provisioned)
+	if !fromOnDemand || !toProvisioned || t.Throughput == nil {
+		return t
+	}
+	stamped := *t.Throughput
+	stamped.Increased = now
+	t.Throughput = &stamped
+	return t
 }
 
 // indexesUpdated is t after updates, an UpdateTable's

@@ -7,7 +7,7 @@
         "dev.understudy#errorNamespace": "com.amazonaws.dynamodb.v20120810",
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
-        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException", "value": "omit"},
         "dev.understudy#responseCrc32": {},
         "dev.understudy#evidence": [
           {
@@ -35,7 +35,7 @@
           },
           {
             "label": "aws-recorded",
-            "source": "testdata/parity/dynamodb/DDBS-02/03-describe-limit-0.json, 07-bad-type.json, 08-missing-type.json, 10-short-shard.json: AWS answers range, enum, required and length violations with 400 com.amazon.coral.validate#ValidationException in the Coral grammar, but without the value (\"Value at 'limit' failed to satisfy constraint\"), which the generated text quotes (docs/research/dynamodb-streams.md#65-error-and-validation-texts)",
+            "source": "testdata/parity/dynamodb/DDBS-02/03-describe-limit-0.json, 07-bad-type.json, 08-missing-type.json, 10-short-shard.json: AWS answers range, enum, required and length violations with 400 com.amazon.coral.validate#ValidationException in the Coral grammar, without the value, a missing member's null included (\"Value at 'limit' failed to satisfy constraint\"), and an enum violation lists the value set (docs/research/dynamodb-streams.md#65-error-and-validation-texts)",
             "validated": "2026-11-03",
             "covers": ["dev.understudy#validationError"]
           }

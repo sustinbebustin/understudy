@@ -39,6 +39,129 @@
         ]
       }
     },
+    "com.amazonaws.cloudwatchlogs#CreateLogGroupRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {
+          "label": "third-party-recorded",
+          "source": "https://github.com/localstack/localstack/blob/main/tests/aws/services/logs/test_logs_groups.snapshot.json: an over-length log group name at CreateLogGroup answers InvalidParameterException \"Invalid LogGroup or LogStream, both must have length less than or equal to 512.\", not the Coral length text; AWS's answer to an empty name is unrecorded, so the rule covers the maximum only (docs/research/secrets-logs-events-alarms.md#31-resources-names-arns)",
+          "validated": "2026-10-08"
+        }
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#CreateLogStreamRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#CreateLogStreamRequest$logStreamName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#DeleteLogGroupRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#DeleteLogStreamRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#DeleteLogStreamRequest$logStreamName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#DeleteRetentionPolicyRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#DescribeLogStreamsRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#FilterLogEventsRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#GetLogEventsRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#GetLogEventsRequest$logStreamName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#ListTagsLogGroupRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#PutLogEventsRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#PutLogEventsRequest$logStreamName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#PutRetentionPolicyRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#TagLogGroupRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
+    "com.amazonaws.cloudwatchlogs#UntagLogGroupRequest$logGroupName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.cloudwatchlogs#InvalidParameterException", "style": "fixed", "constraints": ["length"], "bound": "max", "reason": "Invalid LogGroup or LogStream, both must have length less than or equal to 512."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike"}
+      }
+    },
     "com.amazonaws.cloudwatchlogs#PutLogEventsInternal": {
       "type": "operation",
       "input": {"target": "com.amazonaws.cloudwatchlogs#PutLogEventsInternalRequest"},

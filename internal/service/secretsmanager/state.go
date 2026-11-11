@@ -11,7 +11,9 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 2
+// Version 3 holds the instant a scheduled deletion was requested; a section
+// of an older version is refused rather than read (ADR 0009).
+const stateVersion = 3
 
 // State is the Secrets Manager state of one account and region. Records are
 // values: a handler copies a Secret out, changes the copy and stores it
@@ -45,9 +47,8 @@ type Secret struct {
 	// retried CreateSecret repeats.
 	CreateToken string  `json:"createToken"`
 	Description *string `json:"description,omitempty"`
-	// KMSKeyID is the KmsKeyId as the caller sent it; nil is the AWS
-	// managed key aws/secretsmanager, however the caller named it
-	// (resolveKey), which DescribeSecret does not show.
+	// KMSKeyID is the secret's key in its stored form (storedKey), read
+	// through key. DescribeSecret shows what is stored.
 	KMSKeyID *string       `json:"kmsKeyId,omitempty"`
 	Type     *string       `json:"type,omitempty"`
 	Created  clock.Instant `json:"created"`
@@ -90,6 +91,12 @@ type Version struct {
 func (s *Secret) arn(scope aws.Scope) aws.ARN {
 	return secretARN(scope, s.Name, s.Suffix)
 }
+
+// key is the secret's KMS key, as its KMSKeyID reads.
+func (s *Secret) key() encryptionKey { return keyOf(s.KMSKeyID) }
+
+// key is the KMS key the version was made under, as its KMSKeyID reads.
+func (v *Version) key() encryptionKey { return keyOf(v.KMSKeyID) }
 
 // labels returns the staging labels on version id, sorted, as AWS lists
 // them; nil when the version has none, which AWS calls deprecated.
@@ -141,6 +148,9 @@ type lifecycle interface{ isLifecycle() }
 type active struct{}
 
 type scheduled struct {
+	// DeletedDate is when DeleteSecret scheduled the deletion, which
+	// DescribeSecret reports as DeletedDate.
+	DeletedDate clock.Instant `json:"deletedDate"`
 	// DeletionDate is when the secret is deleted for good.
 	DeletionDate clock.Instant `json:"deletionDate"`
 }

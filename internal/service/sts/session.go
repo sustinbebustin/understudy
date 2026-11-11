@@ -77,15 +77,14 @@ func checkTagKeys(tags []stsapi.Tag, transitive []string) *awserr.Error {
 	return nil
 }
 
-// checkSessionPolicy validates an inline session policy as IAM validates
-// an identity policy: a session policy limits the role's identity
-// policies, so it follows their grammar.
+// checkSessionPolicy validates an inline session policy with the identity
+// policy rules (policydoc.ValidateSession).
 func checkSessionPolicy(doc string) *awserr.Error {
 	parsed, perr := policydoc.Parse([]byte(doc))
 	if perr != nil {
 		return stsapi.ErrMalformedPolicyDocumentException(perr.Message())
 	}
-	if verr := policydoc.ValidateIdentity(parsed); verr != nil {
+	if verr := policydoc.ValidateSession(parsed); verr != nil {
 		return stsapi.ErrMalformedPolicyDocumentException(verr.Message())
 	}
 	return nil

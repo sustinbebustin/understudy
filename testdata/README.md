@@ -82,6 +82,9 @@ Its tests run with `just sealed-test`.
 - `events/R14`: step 04, a schedule on a custom bus its setup creates, and the `TestEventPattern` cases H1, H8, H9 and H14.
 - `iam/IAM-EVAL-35` and `iam/IAM-EVAL-36`: the CreatePolicy refusals. An accepted CreatePolicy is left out, since AWS writes the `Policy` members in an order understudy does not follow.
 - `kms/KMS-alias`, `sqs/R01` and `sts/R15`.
+- `kms/R15`: the key-state, alias, key policy and `ScheduleKeyDeletion` refusals of steps 02 and 03, and the `ListKeys` marker refusal.
+- `secretsmanager/R07`: step 06 without a customer key, an absent `KmsKeyId` and an explicit `alias/aws/secretsmanager`.
+- `secretsmanager/R15`: step 05's CreateSecret refusals, a disabled KMS key its setup creates and invalid or over-long names.
 - The SES items `ses/SES-00`, `ses/SES-01`, `ses/SES-03`, `ses/SES-04`, `ses/SES-08`, `ses/SES-10`, `ses/SES-11`, `ses/SES-15`, `ses/SES-16`, `ses/SES-17`, `ses/SES-18`, `ses/SES-20`, `ses/SES-24`, `ses/SES-27` and `ses/SES-29`: their v1 awsQuery steps; the v2 REST steps are skipped. A request to `email.<region>.amazonaws.com` is signed for `ses`, SES's signing name.
 - The Step Functions items `sfn/ASL-01` (step 16, a CreateStateMachine that joins every definition problem), `sfn/ASL-09` (step 05, a Wait `Seconds` over the maximum), `sfn/ASL-14` (steps 05 and 06, an Express execution ARN refused), `sfn/SFN-01` (Step Functions' error `__type` and `InvalidArn` texts) and `sfn/SFN-08` (steps 03 to 05, CreateStateMachine's role ARN, name and definition errors).
 - The SSM Parameter Store items `ssm/SSM-01`, `ssm/SSM-02`, `ssm/SSM-03`, `ssm/SSM-04`, `ssm/SSM-05`, `ssm/SSM-06`, `ssm/SSM-07`, `ssm/SSM-08`, `ssm/SSM-09`, `ssm/SSM-10`, `ssm/SSM-11`, `ssm/SSM-12`, `ssm/SSM-13`, `ssm/SSM-15`, `ssm/SSM-16`, `ssm/SSM-17`, `ssm/SSM-18`, `ssm/SSM-19`, `ssm/SSM-20`, `ssm/SSM-21`, `ssm/SSM-22`, `ssm/SSM-25`, `ssm/SSM-26`, `ssm/SSM-27`, `ssm/SSM-28`, `ssm/SSM-29` and `ssm/SSM-32`.

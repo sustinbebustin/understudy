@@ -69,9 +69,6 @@ func (st *State) boundary(account aws.AccountID, arn string, named awsPolicy) *a
 }
 
 func (s *Service) createRole(_ context.Context, c *kernel.Call, in *iamapi.CreateRoleInput) (*iamapi.CreateRoleOutput, *awserr.Error) {
-	if err := checkPath("path", in.Path); err != nil {
-		return nil, err
-	}
 	if err := checkTrustPolicy(in.AssumeRolePolicyDocument); err != nil {
 		return nil, err
 	}
@@ -110,7 +107,7 @@ func (s *Service) createRole(_ context.Context, c *kernel.Call, in *iamapi.Creat
 			}
 		}
 		r.ID = s.ids.RoleID()
-		r.Created = now
+		r.Created = createDate(now)
 		st.Roles[key(r.Name)] = r
 		// CreateRole shows neither RoleLastUsed nor MaxSessionDuration,
 		// which GetRole and ListRoles return (LocalStack's AWS-recorded

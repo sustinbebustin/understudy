@@ -88,14 +88,14 @@ func crossAccountManagementError() fidelity.Switch[string] {
 // pendingCryptoError is the error a cryptographic operation gets from a key
 // pending deletion: AWS's key-state page documents both
 // KMSInvalidStateException and DisabledException with the pending text;
-// understudy answers the first.
+// kms/R15#02-pending-encrypt recorded the first.
 func pendingCryptoError() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:    "kms.pending-deletion.crypto-error",
 		Value:   "KMSInvalidStateException",
-		Label:   evidence.AWSDoc,
+		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix",
 		Ops:     []string{"kms.Encrypt", "kms.Decrypt", "kms.ReEncrypt", "kms.GenerateDataKey", "kms.GenerateDataKeyWithoutPlaintext"},
-		Settles: fidelity.NoScenario{Reason: "kms/R15/02-pending-encrypt.json and the other 02-pending steps are recorded; no scenario replays kms/R15 yet"},
+		Settles: fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "kms/R15", Step: "02-pending-encrypt"}},
 	}
 }

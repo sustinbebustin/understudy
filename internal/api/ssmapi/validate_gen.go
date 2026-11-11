@@ -181,10 +181,10 @@ func (v *AddTagsToResourceInput) validate(path awserr.Path, out *[]awserr.Violat
 		*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -214,10 +214,10 @@ func (v *AlarmConfiguration) validate(path awserr.Path, out *[]awserr.Violation)
 		*out = append(*out, awserr.Violation{Path: at(path, "alarms"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Alarms) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "alarms"), Value: awserr.RenderedText{Text: renderAlarmList(v.Alarms)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "alarms"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.Alarms) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "alarms"), Value: awserr.RenderedText{Text: renderAlarmList(v.Alarms)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "alarms"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Alarms {
 			p2 := at(at(path, "alarms"), strconv.Itoa(i2+1), "member")
@@ -455,10 +455,10 @@ func (v *AutomationExecutionInputs) validate(path awserr.Path, out *[]awserr.Vio
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderAutomationTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderAutomationTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -521,10 +521,10 @@ func (v *AutomationExecutionInputs) validate(path awserr.Path, out *[]awserr.Vio
 	}
 	if v.TargetLocations != nil {
 		if len(v.TargetLocations) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.TargetLocations) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.TargetLocations {
 			p2 := at(at(path, "targetLocations"), strconv.Itoa(i2+1), "member")
@@ -679,10 +679,10 @@ func (v *BaselineOverride) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Sources != nil {
 		if len(v.Sources) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedText{Text: renderPatchSourceList(v.Sources)}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if len(v.Sources) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedText{Text: renderPatchSourceList(v.Sources)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Sources {
 			p2 := at(at(path, "sources"), strconv.Itoa(i2+1), "member")
@@ -920,10 +920,10 @@ func validateConfigurationTargets(path awserr.Path, u ConfigurationTargets, out 
 	switch x := u.(type) {
 	case ConfigurationTargetsMemberSubscriptions:
 		if len(x.Value) > 75 {
-			*out = append(*out, awserr.Violation{Path: at(path, "subscriptions"), Value: awserr.RenderedText{Text: renderAzureSubscriptionList(x.Value)}, Constraint: awserr.LengthMax{Max: 75}})
+			*out = append(*out, awserr.Violation{Path: at(path, "subscriptions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 75}})
 		}
 		if len(x.Value) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "subscriptions"), Value: awserr.RenderedText{Text: renderAzureSubscriptionList(x.Value)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "subscriptions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range x.Value {
 			p2 := at(at(path, "subscriptions"), strconv.Itoa(i2+1), "member")
@@ -980,10 +980,10 @@ func (v *CreateActivationInput) validate(path awserr.Path, out *[]awserr.Violati
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -1011,7 +1011,7 @@ func (v *CreateAssociationBatchInput) validate(path awserr.Path, out *[]awserr.V
 		*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Entries) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderCreateAssociationBatchRequestEntries(v.Entries)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Entries {
 			p2 := at(at(path, "entries"), strconv.Itoa(i2+1), "member")
@@ -1059,10 +1059,10 @@ func (v *CreateAssociationBatchRequestEntry) validate(path awserr.Path, out *[]a
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -1119,10 +1119,10 @@ func (v *CreateAssociationBatchRequestEntry) validate(path awserr.Path, out *[]a
 	}
 	if v.TargetLocations != nil {
 		if len(v.TargetLocations) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.TargetLocations) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.TargetLocations {
 			p2 := at(at(path, "targetLocations"), strconv.Itoa(i2+1), "member")
@@ -1232,10 +1232,10 @@ func (v *CreateAssociationInput) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -1300,10 +1300,10 @@ func (v *CreateAssociationInput) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.TargetLocations != nil {
 		if len(v.TargetLocations) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.TargetLocations) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.TargetLocations {
 			p2 := at(at(path, "targetLocations"), strconv.Itoa(i2+1), "member")
@@ -1382,10 +1382,10 @@ func (v *CreateAssociationInput) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -1474,10 +1474,10 @@ func (v *CreateCloudConnectorInput) validate(path awserr.Path, out *[]awserr.Vio
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -1504,7 +1504,7 @@ func (v *CreateDocumentInput) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.Requires != nil {
 		if len(v.Requires) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "requires"), Value: awserr.RenderedText{Text: renderDocumentRequiresList(v.Requires)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "requires"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Requires {
 			p2 := at(at(path, "requires"), strconv.Itoa(i2+1), "member")
@@ -1513,10 +1513,10 @@ func (v *CreateDocumentInput) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.Attachments != nil {
 		if len(v.Attachments) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "attachments"), Value: awserr.RenderedText{Text: renderAttachmentsSourceList(v.Attachments)}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "attachments"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if len(v.Attachments) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "attachments"), Value: awserr.RenderedText{Text: renderAttachmentsSourceList(v.Attachments)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "attachments"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Attachments {
 			p2 := at(at(path, "attachments"), strconv.Itoa(i2+1), "member")
@@ -1569,10 +1569,10 @@ func (v *CreateDocumentInput) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -1655,10 +1655,10 @@ func (v *CreateMaintenanceWindowInput) validate(path awserr.Path, out *[]awserr.
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -1698,7 +1698,7 @@ func (v *CreateOpsItemInput) validate(path awserr.Path, out *[]awserr.Violation)
 			}
 			return false
 		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "operationalData"), Value: awserr.RenderedText{Text: renderOpsItemOperationalData(v.OperationalData)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 128}, awserr.LengthMin{Min: 1}}}})
+			*out = append(*out, awserr.Violation{Path: at(path, "operationalData"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 128}, awserr.LengthMin{Min: 1}}}})
 		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.OperationalData)) {
 			e2, vp2 := v.OperationalData[k2], at(at(path, "operationalData"), k2, "member")
@@ -1747,10 +1747,10 @@ func (v *CreateOpsItemInput) validate(path awserr.Path, out *[]awserr.Violation)
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -1810,10 +1810,10 @@ func (v *CreateOpsMetadataInput) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.Metadata != nil {
 		if len(v.Metadata) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metadata"), Value: awserr.RenderedText{Text: renderMetadataMap(v.Metadata)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metadata"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Metadata) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metadata"), Value: awserr.RenderedText{Text: renderMetadataMap(v.Metadata)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metadata"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		if func() bool {
 			for k2 := range v.Metadata {
@@ -1823,7 +1823,7 @@ func (v *CreateOpsMetadataInput) validate(path awserr.Path, out *[]awserr.Violat
 			}
 			return false
 		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "metadata"), Value: awserr.RenderedText{Text: renderMetadataMap(v.Metadata)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 1}}}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metadata"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 1}}}})
 		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.Metadata)) {
 			e2, vp2 := v.Metadata[k2], at(at(path, "metadata"), k2, "member")
@@ -1832,10 +1832,10 @@ func (v *CreateOpsMetadataInput) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -1933,10 +1933,10 @@ func (v *CreatePatchBaselineInput) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.Sources != nil {
 		if len(v.Sources) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedText{Text: renderPatchSourceList(v.Sources)}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if len(v.Sources) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedText{Text: renderPatchSourceList(v.Sources)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Sources {
 			p2 := at(at(path, "sources"), strconv.Itoa(i2+1), "member")
@@ -1958,10 +1958,10 @@ func (v *CreatePatchBaselineInput) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -2531,7 +2531,7 @@ func (v *DescribeAssociationExecutionTargetsInput) validate(path awserr.Path, ou
 	}
 	if v.Filters != nil {
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderAssociationExecutionTargetsFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -2566,7 +2566,7 @@ func (v *DescribeAssociationExecutionsInput) validate(path awserr.Path, out *[]a
 	}
 	if v.Filters != nil {
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderAssociationExecutionFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -2625,10 +2625,10 @@ func (v *DescribeAutomationExecutionsInput) Validate() []awserr.Violation {
 func (v *DescribeAutomationExecutionsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Filters != nil {
 		if len(v.Filters) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderAutomationExecutionFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderAutomationExecutionFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -2666,10 +2666,10 @@ func (v *DescribeAutomationStepExecutionsInput) validate(path awserr.Path, out *
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 6 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderStepExecutionFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 6}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 6}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderStepExecutionFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -2697,10 +2697,10 @@ func (v *DescribeAvailablePatchesInput) Validate() []awserr.Violation {
 func (v *DescribeAvailablePatchesInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderPatchOrchestratorFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderPatchOrchestratorFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -2873,7 +2873,7 @@ func (v *DescribeInstanceInformationInput) Validate() []awserr.Violation {
 func (v *DescribeInstanceInformationInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.InstanceInformationFilterList != nil {
 		if len(v.InstanceInformationFilterList) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "instanceInformationFilterList"), Value: awserr.RenderedText{Text: renderInstanceInformationFilterList(v.InstanceInformationFilterList)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "instanceInformationFilterList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.InstanceInformationFilterList {
 			p2 := at(at(path, "instanceInformationFilterList"), strconv.Itoa(i2+1), "member")
@@ -2882,7 +2882,7 @@ func (v *DescribeInstanceInformationInput) validate(path awserr.Path, out *[]aws
 	}
 	if v.Filters != nil {
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderInstanceInformationStringFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -2923,10 +2923,10 @@ func (v *DescribeInstancePatchStatesForPatchGroupInput) validate(path awserr.Pat
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 4 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderInstancePatchStateFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 4}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 4}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderInstancePatchStateFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3000,10 +3000,10 @@ func (v *DescribeInstancePatchesInput) validate(path awserr.Path, out *[]awserr.
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderPatchOrchestratorFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderPatchOrchestratorFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3031,10 +3031,10 @@ func (v *DescribeInstancePropertiesInput) Validate() []awserr.Violation {
 func (v *DescribeInstancePropertiesInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.InstancePropertyFilterList != nil {
 		if len(v.InstancePropertyFilterList) > 40 {
-			*out = append(*out, awserr.Violation{Path: at(path, "instancePropertyFilterList"), Value: awserr.RenderedText{Text: renderInstancePropertyFilterList(v.InstancePropertyFilterList)}, Constraint: awserr.LengthMax{Max: 40}})
+			*out = append(*out, awserr.Violation{Path: at(path, "instancePropertyFilterList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 40}})
 		}
 		if len(v.InstancePropertyFilterList) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "instancePropertyFilterList"), Value: awserr.RenderedText{Text: renderInstancePropertyFilterList(v.InstancePropertyFilterList)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "instancePropertyFilterList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.InstancePropertyFilterList {
 			p2 := at(at(path, "instancePropertyFilterList"), strconv.Itoa(i2+1), "member")
@@ -3043,10 +3043,10 @@ func (v *DescribeInstancePropertiesInput) validate(path awserr.Path, out *[]awse
 	}
 	if v.FiltersWithOperator != nil {
 		if len(v.FiltersWithOperator) > 40 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filtersWithOperator"), Value: awserr.RenderedText{Text: renderInstancePropertyStringFilterList(v.FiltersWithOperator)}, Constraint: awserr.LengthMax{Max: 40}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filtersWithOperator"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 40}})
 		}
 		if len(v.FiltersWithOperator) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filtersWithOperator"), Value: awserr.RenderedText{Text: renderInstancePropertyStringFilterList(v.FiltersWithOperator)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filtersWithOperator"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.FiltersWithOperator {
 			p2 := at(at(path, "filtersWithOperator"), strconv.Itoa(i2+1), "member")
@@ -3124,10 +3124,10 @@ func (v *DescribeMaintenanceWindowExecutionTaskInvocationsInput) validate(path a
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3168,10 +3168,10 @@ func (v *DescribeMaintenanceWindowExecutionTasksInput) validate(path awserr.Path
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3212,10 +3212,10 @@ func (v *DescribeMaintenanceWindowExecutionsInput) validate(path awserr.Path, ou
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3254,10 +3254,10 @@ func (v *DescribeMaintenanceWindowScheduleInput) validate(path awserr.Path, out 
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -3271,10 +3271,10 @@ func (v *DescribeMaintenanceWindowScheduleInput) validate(path awserr.Path, out 
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderPatchOrchestratorFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderPatchOrchestratorFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3312,10 +3312,10 @@ func (v *DescribeMaintenanceWindowTargetsInput) validate(path awserr.Path, out *
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3356,10 +3356,10 @@ func (v *DescribeMaintenanceWindowTasksInput) validate(path awserr.Path, out *[]
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3389,10 +3389,10 @@ func (v *DescribeMaintenanceWindowsForTargetInput) validate(path awserr.Path, ou
 		*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -3424,10 +3424,10 @@ func (v *DescribeMaintenanceWindowsInput) Validate() []awserr.Violation {
 func (v *DescribeMaintenanceWindowsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3511,10 +3511,10 @@ func (v *DescribePatchBaselinesInput) Validate() []awserr.Violation {
 func (v *DescribePatchBaselinesInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderPatchOrchestratorFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderPatchOrchestratorFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3574,10 +3574,10 @@ func (v *DescribePatchGroupsInput) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderPatchOrchestratorFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderPatchOrchestratorFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3650,10 +3650,10 @@ func (v *DescribeSessionsInput) validate(path awserr.Path, out *[]awserr.Violati
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 6 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderSessionFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 6}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 6}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderSessionFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -3783,10 +3783,10 @@ func (v *DocumentReviews) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Comment != nil {
 		if len(v.Comment) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "comment"), Value: awserr.RenderedText{Text: renderDocumentReviewCommentList(v.Comment)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "comment"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.Comment) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "comment"), Value: awserr.RenderedText{Text: renderDocumentReviewCommentList(v.Comment)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "comment"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Comment {
 			p2 := at(at(path, "comment"), strconv.Itoa(i2+1), "member")
@@ -4051,10 +4051,10 @@ func (v *GetInventoryInput) Validate() []awserr.Violation {
 func (v *GetInventoryInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderInventoryFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderInventoryFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -4063,10 +4063,10 @@ func (v *GetInventoryInput) validate(path awserr.Path, out *[]awserr.Violation) 
 	}
 	if v.Aggregators != nil {
 		if len(v.Aggregators) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderInventoryAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Aggregators) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderInventoryAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Aggregators {
 			p2 := at(at(path, "aggregators"), strconv.Itoa(i2+1), "member")
@@ -4075,10 +4075,10 @@ func (v *GetInventoryInput) validate(path awserr.Path, out *[]awserr.Violation) 
 	}
 	if v.ResultAttributes != nil {
 		if len(v.ResultAttributes) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "resultAttributes"), Value: awserr.RenderedText{Text: renderResultAttributeList(v.ResultAttributes)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "resultAttributes"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.ResultAttributes) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "resultAttributes"), Value: awserr.RenderedText{Text: renderResultAttributeList(v.ResultAttributes)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "resultAttributes"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.ResultAttributes {
 			p2 := at(at(path, "resultAttributes"), strconv.Itoa(i2+1), "member")
@@ -4374,10 +4374,10 @@ func (v *GetOpsSummaryInput) validate(path awserr.Path, out *[]awserr.Violation)
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderOpsFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderOpsFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -4386,10 +4386,10 @@ func (v *GetOpsSummaryInput) validate(path awserr.Path, out *[]awserr.Violation)
 	}
 	if v.Aggregators != nil {
 		if len(v.Aggregators) > 12 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderOpsAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMax{Max: 12}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 12}})
 		}
 		if len(v.Aggregators) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderOpsAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Aggregators {
 			p2 := at(at(path, "aggregators"), strconv.Itoa(i2+1), "member")
@@ -4398,7 +4398,7 @@ func (v *GetOpsSummaryInput) validate(path awserr.Path, out *[]awserr.Violation)
 	}
 	if v.ResultAttributes != nil {
 		if len(v.ResultAttributes) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "resultAttributes"), Value: awserr.RenderedText{Text: renderOpsResultAttributeList(v.ResultAttributes)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "resultAttributes"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.ResultAttributes {
 			p2 := at(at(path, "resultAttributes"), strconv.Itoa(i2+1), "member")
@@ -4812,10 +4812,10 @@ func (v *InventoryAggregator) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.Aggregators != nil {
 		if len(v.Aggregators) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderInventoryAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Aggregators) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderInventoryAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Aggregators {
 			p2 := at(at(path, "aggregators"), strconv.Itoa(i2+1), "member")
@@ -4824,10 +4824,10 @@ func (v *InventoryAggregator) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.Groups != nil {
 		if len(v.Groups) > 15 {
-			*out = append(*out, awserr.Violation{Path: at(path, "groups"), Value: awserr.RenderedText{Text: renderInventoryGroupList(v.Groups)}, Constraint: awserr.LengthMax{Max: 15}})
+			*out = append(*out, awserr.Violation{Path: at(path, "groups"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 15}})
 		}
 		if len(v.Groups) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "groups"), Value: awserr.RenderedText{Text: renderInventoryGroupList(v.Groups)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "groups"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Groups {
 			p2 := at(at(path, "groups"), strconv.Itoa(i2+1), "member")
@@ -4879,10 +4879,10 @@ func (v *InventoryGroup) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderInventoryFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderInventoryFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -5076,7 +5076,7 @@ func (v *ListAssociationsInput) Validate() []awserr.Violation {
 func (v *ListAssociationsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.AssociationFilterList != nil {
 		if len(v.AssociationFilterList) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "associationFilterList"), Value: awserr.RenderedText{Text: renderAssociationFilterList(v.AssociationFilterList)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "associationFilterList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.AssociationFilterList {
 			p2 := at(at(path, "associationFilterList"), strconv.Itoa(i2+1), "member")
@@ -5112,10 +5112,10 @@ func (v *ListCloudConnectorsInput) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 2 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderCloudConnectorFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 2}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderCloudConnectorFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -5156,10 +5156,10 @@ func (v *ListCommandInvocationsInput) validate(path awserr.Path, out *[]awserr.V
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderCommandFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderCommandFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -5200,10 +5200,10 @@ func (v *ListCommandsInput) validate(path awserr.Path, out *[]awserr.Violation) 
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderCommandFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderCommandFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -5367,7 +5367,7 @@ func (v *ListDocumentsInput) Validate() []awserr.Violation {
 func (v *ListDocumentsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.DocumentFilterList != nil {
 		if len(v.DocumentFilterList) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "documentFilterList"), Value: awserr.RenderedText{Text: renderDocumentFilterList(v.DocumentFilterList)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "documentFilterList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.DocumentFilterList {
 			p2 := at(at(path, "documentFilterList"), strconv.Itoa(i2+1), "member")
@@ -5376,10 +5376,10 @@ func (v *ListDocumentsInput) validate(path awserr.Path, out *[]awserr.Violation)
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 6 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderDocumentKeyValuesFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 6}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 6}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderDocumentKeyValuesFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -5427,10 +5427,10 @@ func (v *ListInventoryEntriesInput) validate(path awserr.Path, out *[]awserr.Vio
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderInventoryFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderInventoryFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -5466,10 +5466,10 @@ func (v *ListNodesInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderNodeFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderNodeFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -5505,10 +5505,10 @@ func (v *ListNodesSummaryInput) validate(path awserr.Path, out *[]awserr.Violati
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderNodeFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderNodeFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -5519,10 +5519,10 @@ func (v *ListNodesSummaryInput) validate(path awserr.Path, out *[]awserr.Violati
 		*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Aggregators) > 2 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderNodeAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMax{Max: 2}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}})
 		}
 		if len(v.Aggregators) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderNodeAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Aggregators {
 			p2 := at(at(path, "aggregators"), strconv.Itoa(i2+1), "member")
@@ -5605,10 +5605,10 @@ func (v *ListOpsMetadataInput) Validate() []awserr.Violation {
 func (v *ListOpsMetadataInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Filters != nil {
 		if len(v.Filters) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderOpsMetadataFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderOpsMetadataFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -6043,10 +6043,10 @@ func (v *NodeAggregator) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Aggregators != nil {
 		if len(v.Aggregators) > 2 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderNodeAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMax{Max: 2}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}})
 		}
 		if len(v.Aggregators) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderNodeAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Aggregators {
 			p2 := at(at(path, "aggregators"), strconv.Itoa(i2+1), "member")
@@ -6171,10 +6171,10 @@ func (v *OpsAggregator) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderOpsFilterList(v.Filters)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Filters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderOpsFilterList(v.Filters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -6183,10 +6183,10 @@ func (v *OpsAggregator) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Aggregators != nil {
 		if len(v.Aggregators) > 12 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderOpsAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMax{Max: 12}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 12}})
 		}
 		if len(v.Aggregators) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedText{Text: renderOpsAggregatorList(v.Aggregators)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "aggregators"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Aggregators {
 			p2 := at(at(path, "aggregators"), strconv.Itoa(i2+1), "member")
@@ -6476,10 +6476,10 @@ func (v *PatchFilterGroup) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "patchFilters"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.PatchFilters) > 4 {
-			*out = append(*out, awserr.Violation{Path: at(path, "patchFilters"), Value: awserr.RenderedText{Text: renderPatchFilterList(v.PatchFilters)}, Constraint: awserr.LengthMax{Max: 4}})
+			*out = append(*out, awserr.Violation{Path: at(path, "patchFilters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 4}})
 		}
 		if len(v.PatchFilters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "patchFilters"), Value: awserr.RenderedText{Text: renderPatchFilterList(v.PatchFilters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "patchFilters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.PatchFilters {
 			p2 := at(at(path, "patchFilters"), strconv.Itoa(i2+1), "member")
@@ -6545,10 +6545,10 @@ func (v *PatchRuleGroup) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "patchRules"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.PatchRules) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "patchRules"), Value: awserr.RenderedText{Text: renderPatchRuleList(v.PatchRules)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "patchRules"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.PatchRules) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "patchRules"), Value: awserr.RenderedText{Text: renderPatchRuleList(v.PatchRules)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "patchRules"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.PatchRules {
 			p2 := at(at(path, "patchRules"), strconv.Itoa(i2+1), "member")
@@ -6648,10 +6648,10 @@ func (v *PutComplianceItemsInput) validate(path awserr.Path, out *[]awserr.Viola
 		*out = append(*out, awserr.Violation{Path: at(path, "items"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Items) > 10000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "items"), Value: awserr.RenderedText{Text: renderComplianceItemEntryList(v.Items)}, Constraint: awserr.LengthMax{Max: 10000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "items"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10000}})
 		}
 		if len(v.Items) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "items"), Value: awserr.RenderedText{Text: renderComplianceItemEntryList(v.Items)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "items"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Items {
 			p2 := at(at(path, "items"), strconv.Itoa(i2+1), "member")
@@ -6693,10 +6693,10 @@ func (v *PutInventoryInput) validate(path awserr.Path, out *[]awserr.Violation) 
 		*out = append(*out, awserr.Violation{Path: at(path, "items"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Items) > 30 {
-			*out = append(*out, awserr.Violation{Path: at(path, "items"), Value: awserr.RenderedText{Text: renderInventoryItemList(v.Items)}, Constraint: awserr.LengthMax{Max: 30}})
+			*out = append(*out, awserr.Violation{Path: at(path, "items"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 30}})
 		}
 		if len(v.Items) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "items"), Value: awserr.RenderedText{Text: renderInventoryItemList(v.Items)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "items"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Items {
 			p2 := at(at(path, "items"), strconv.Itoa(i2+1), "member")
@@ -6765,10 +6765,10 @@ func (v *PutParameterInput) validate(path awserr.Path, out *[]awserr.Violation) 
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -6920,10 +6920,10 @@ func (v *RegisterTargetWithMaintenanceWindowInput) validate(path awserr.Path, ou
 		*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -6991,10 +6991,10 @@ func (v *RegisterTaskWithMaintenanceWindowInput) validate(path awserr.Path, out 
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -7208,10 +7208,10 @@ func (v *ResourceDataSyncAwsOrganizationsSource) validate(path awserr.Path, out 
 	}
 	if v.OrganizationalUnits != nil {
 		if len(v.OrganizationalUnits) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "organizationalUnits"), Value: awserr.RenderedText{Text: renderResourceDataSyncOrganizationalUnitList(v.OrganizationalUnits)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "organizationalUnits"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.OrganizationalUnits) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "organizationalUnits"), Value: awserr.RenderedText{Text: renderResourceDataSyncOrganizationalUnitList(v.OrganizationalUnits)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "organizationalUnits"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.OrganizationalUnits {
 			p2 := at(at(path, "organizationalUnits"), strconv.Itoa(i2+1), "member")
@@ -7428,10 +7428,10 @@ func (v *Runbook) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -7516,10 +7516,10 @@ func (v *Runbook) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.TargetLocations != nil {
 		if len(v.TargetLocations) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.TargetLocations) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.TargetLocations {
 			p2 := at(at(path, "targetLocations"), strconv.Itoa(i2+1), "member")
@@ -7653,10 +7653,10 @@ func (v *SendCommandInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -7804,10 +7804,10 @@ func (v *StartAccessRequestInput) validate(path awserr.Path, out *[]awserr.Viola
 		*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -7816,10 +7816,10 @@ func (v *StartAccessRequestInput) validate(path awserr.Path, out *[]awserr.Viola
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -7947,10 +7947,10 @@ func (v *StartAutomationExecutionInput) validate(path awserr.Path, out *[]awserr
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderAutomationTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderAutomationTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -8035,10 +8035,10 @@ func (v *StartAutomationExecutionInput) validate(path awserr.Path, out *[]awserr
 	}
 	if v.TargetLocations != nil {
 		if len(v.TargetLocations) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.TargetLocations) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.TargetLocations {
 			p2 := at(at(path, "targetLocations"), strconv.Itoa(i2+1), "member")
@@ -8047,10 +8047,10 @@ func (v *StartAutomationExecutionInput) validate(path awserr.Path, out *[]awserr
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -8152,10 +8152,10 @@ func (v *StartChangeRequestExecutionInput) validate(path awserr.Path, out *[]aws
 		*out = append(*out, awserr.Violation{Path: at(path, "runbooks"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Runbooks) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "runbooks"), Value: awserr.RenderedText{Text: renderRunbooks(v.Runbooks)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "runbooks"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.Runbooks) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "runbooks"), Value: awserr.RenderedText{Text: renderRunbooks(v.Runbooks)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "runbooks"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Runbooks {
 			p2 := at(at(path, "runbooks"), strconv.Itoa(i2+1), "member")
@@ -8164,10 +8164,10 @@ func (v *StartChangeRequestExecutionInput) validate(path awserr.Path, out *[]aws
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 1000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMax{Max: 1000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1000}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -8452,10 +8452,10 @@ func (v *TargetLocation) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderAutomationTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderAutomationTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -8590,10 +8590,10 @@ func (v *UpdateAssociationInput) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -8652,10 +8652,10 @@ func (v *UpdateAssociationInput) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.TargetLocations != nil {
 		if len(v.TargetLocations) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.TargetLocations) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedText{Text: renderTargetLocations(v.TargetLocations)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targetLocations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.TargetLocations {
 			p2 := at(at(path, "targetLocations"), strconv.Itoa(i2+1), "member")
@@ -8870,10 +8870,10 @@ func (v *UpdateDocumentInput) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.Attachments != nil {
 		if len(v.Attachments) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "attachments"), Value: awserr.RenderedText{Text: renderAttachmentsSourceList(v.Attachments)}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "attachments"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if len(v.Attachments) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "attachments"), Value: awserr.RenderedText{Text: renderAttachmentsSourceList(v.Attachments)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "attachments"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Attachments {
 			p2 := at(at(path, "attachments"), strconv.Itoa(i2+1), "member")
@@ -9066,10 +9066,10 @@ func (v *UpdateMaintenanceWindowTargetInput) validate(path awserr.Path, out *[]a
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -9142,10 +9142,10 @@ func (v *UpdateMaintenanceWindowTaskInput) validate(path awserr.Path, out *[]aws
 	}
 	if v.Targets != nil {
 		if len(v.Targets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Targets) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargets(v.Targets)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -9301,7 +9301,7 @@ func (v *UpdateOpsItemInput) validate(path awserr.Path, out *[]awserr.Violation)
 			}
 			return false
 		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "operationalData"), Value: awserr.RenderedText{Text: renderOpsItemOperationalData(v.OperationalData)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 128}, awserr.LengthMin{Min: 1}}}})
+			*out = append(*out, awserr.Violation{Path: at(path, "operationalData"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 128}, awserr.LengthMin{Min: 1}}}})
 		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.OperationalData)) {
 			e2, vp2 := v.OperationalData[k2], at(at(path, "operationalData"), k2, "member")
@@ -9404,10 +9404,10 @@ func (v *UpdateOpsMetadataInput) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.MetadataToUpdate != nil {
 		if len(v.MetadataToUpdate) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metadataToUpdate"), Value: awserr.RenderedText{Text: renderMetadataMap(v.MetadataToUpdate)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metadataToUpdate"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.MetadataToUpdate) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metadataToUpdate"), Value: awserr.RenderedText{Text: renderMetadataMap(v.MetadataToUpdate)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metadataToUpdate"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		if func() bool {
 			for k2 := range v.MetadataToUpdate {
@@ -9417,7 +9417,7 @@ func (v *UpdateOpsMetadataInput) validate(path awserr.Path, out *[]awserr.Violat
 			}
 			return false
 		}() {
-			*out = append(*out, awserr.Violation{Path: at(path, "metadataToUpdate"), Value: awserr.RenderedText{Text: renderMetadataMap(v.MetadataToUpdate)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 1}}}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metadataToUpdate"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 1}}}})
 		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.MetadataToUpdate)) {
 			e2, vp2 := v.MetadataToUpdate[k2], at(at(path, "metadataToUpdate"), k2, "member")
@@ -9539,10 +9539,10 @@ func (v *UpdatePatchBaselineInput) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.Sources != nil {
 		if len(v.Sources) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedText{Text: renderPatchSourceList(v.Sources)}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if len(v.Sources) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedText{Text: renderPatchSourceList(v.Sources)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sources"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Sources {
 			p2 := at(at(path, "sources"), strconv.Itoa(i2+1), "member")
@@ -9658,13 +9658,15 @@ func (v *ValidateCloudConnectorInput) validate(path awserr.Path, out *[]awserr.V
 // constraintKind is a set of the constraint kinds a rule covers.
 type constraintKind uint8
 
-// constraintKind values, one per generated constraint.
+// constraintKind values, one per generated constraint, plus kindLengthMax,
+// the maximum alone, for a rule whose text answers only an over-long value.
 const (
 	kindRequired constraintKind = 1 << iota
 	kindLength
 	kindRange
 	kindPattern
 	kindEnum
+	kindLengthMax
 )
 
 // validationStyle is the message grammar of a rule.
@@ -9692,6 +9694,7 @@ type validationRule struct {
 	id     func() awserr.Identity
 	style  validationStyle
 	reason string
+	echo   awserr.CoralEcho // what a Coral entry prints; the zero value prints everything
 }
 
 // validationPath is one member path of an operation input; "*" stands for a
@@ -9749,15 +9752,15 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 
 // coralUnder renders, as one Coral message, every violation whose rule is
 // Coral-styled and names the code id, each path under the policy's root
-// when it has one.
+// when it has one and each entry under its rule's echo.
 func (p *validationPolicy) coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
-	var same []awserr.Violation
+	var same []awserr.CoralEntry
 	for i, v := range vs {
 		if rules[i].style == styleCoral && rules[i].id().Shape == id.Shape {
-			same = append(same, p.rooted(v))
+			same = append(same, awserr.CoralEntry{Violation: p.rooted(v), Echo: rules[i].echo})
 		}
 	}
-	return awserr.CoralMessage(same)
+	return awserr.CoralEntries(same)
 }
 
 // rooted is v with its path under the policy's root, unless the policy has
@@ -9818,14 +9821,16 @@ func pathMatches(template []string, path awserr.Path) bool {
 	return true
 }
 
-// constraintKindOf is the kind a filter names for c, or 0 for a constraint
+// constraintKindOf is the kinds a filter names for c, or 0 for a constraint
 // no filter names (Encoding, Composite).
 func constraintKindOf(c awserr.Constraint) constraintKind {
 	switch c.(type) {
 	case awserr.Required:
 		return kindRequired
-	case awserr.LengthMin, awserr.LengthMax:
+	case awserr.LengthMin:
 		return kindLength
+	case awserr.LengthMax:
+		return kindLength | kindLengthMax
 	case awserr.RangeMin, awserr.RangeMax:
 		return kindRange
 	case awserr.Pattern:
@@ -13383,38 +13388,6 @@ func renderAccounts(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderAlarmList(v []Alarm) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderAssociationExecutionFilterList(v []AssociationExecutionFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderAssociationExecutionTargetsFilterList(v []AssociationExecutionTargetsFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderAssociationFilterList(v []AssociationFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderAssociationIdList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -13423,26 +13396,10 @@ func renderAssociationIdList(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderAttachmentsSourceList(v []AttachmentsSource) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderAttachmentsSourceValues(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderAutomationExecutionFilterList(v []AutomationExecutionFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -13472,42 +13429,10 @@ func renderAutomationParameterValueList(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderAutomationTargets(v []Target) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderAzureSubscriptionList(v []AzureSubscription) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderCloudConnectorFilterList(v []CloudConnectorFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderCloudConnectorFilterValues(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderCommandFilterList(v []CommandFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -13519,14 +13444,6 @@ func renderComplianceItemDetails(v map[string]string) string {
 		parts = append(parts, k+"="+e)
 	}
 	return "{" + strings.Join(parts, ", ") + "}"
-}
-
-func renderComplianceItemEntryList(v []ComplianceItemEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 func renderComplianceResourceIdList(v []string) string {
@@ -13553,50 +13470,10 @@ func renderComplianceStringFilterValueList(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderCreateAssociationBatchRequestEntries(v []CreateAssociationBatchRequestEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderDocumentFilterList(v []DocumentFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderDocumentKeyValuesFilterList(v []DocumentKeyValuesFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderDocumentKeyValuesFilterValues(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderDocumentRequiresList(v []DocumentRequires) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderDocumentReviewCommentList(v []DocumentReviewCommentSource) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -13617,34 +13494,10 @@ func renderInstanceIdList(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderInstanceInformationFilterList(v []InstanceInformationFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderInstanceInformationFilterValueSet(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderInstanceInformationStringFilterList(v []InstanceInformationStringFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderInstancePatchStateFilterList(v []InstancePatchStateFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -13657,14 +13510,6 @@ func renderInstancePatchStateFilterValues(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderInstancePropertyFilterList(v []InstancePropertyFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderInstancePropertyFilterValueSet(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -13673,42 +13518,10 @@ func renderInstancePropertyFilterValueSet(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderInstancePropertyStringFilterList(v []InstancePropertyStringFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderInventoryAggregatorList(v []InventoryAggregator) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderInventoryFilterList(v []InventoryFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderInventoryFilterValueList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderInventoryGroupList(v []InventoryGroup) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -13739,26 +13552,10 @@ func renderInventoryItemEntryList(v []map[string]string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderInventoryItemList(v []InventoryItem) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderKeyList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderMaintenanceWindowFilterList(v []MaintenanceWindowFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -13779,30 +13576,6 @@ func renderMetadataKeysToDeleteList(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderMetadataMap(v map[string]MetadataValue) string {
-	parts := make([]string, 0, len(v))
-	for _, k := range slices.Sorted(maps.Keys(v)) {
-		parts = append(parts, k+"="+"")
-	}
-	return "{" + strings.Join(parts, ", ") + "}"
-}
-
-func renderNodeAggregatorList(v []NodeAggregator) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderNodeFilterList(v []NodeFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderNodeFilterValueList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -13819,14 +13592,6 @@ func renderNotificationEventList(v []NotificationEvent) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderOpsAggregatorList(v []OpsAggregator) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderOpsAggregatorValueMap(v map[string]string) string {
 	parts := make([]string, 0, len(v))
 	for _, k := range slices.Sorted(maps.Keys(v)) {
@@ -13834,14 +13599,6 @@ func renderOpsAggregatorValueMap(v map[string]string) string {
 		parts = append(parts, k+"="+e)
 	}
 	return "{" + strings.Join(parts, ", ") + "}"
-}
-
-func renderOpsFilterList(v []OpsFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 func renderOpsFilterValueList(v []string) string {
@@ -13860,34 +13617,10 @@ func renderOpsItemEventFilterValues(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderOpsItemOperationalData(v map[string]OpsItemDataValue) string {
-	parts := make([]string, 0, len(v))
-	for _, k := range slices.Sorted(maps.Keys(v)) {
-		parts = append(parts, k+"="+"")
-	}
-	return "{" + strings.Join(parts, ", ") + "}"
-}
-
-func renderOpsMetadataFilterList(v []OpsMetadataFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderOpsMetadataFilterValueList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderOpsResultAttributeList(v []OpsResultAttribute) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -13924,14 +13657,6 @@ func renderParametersFilterValueList(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderPatchFilterList(v []PatchFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderPatchFilterValueList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -13948,34 +13673,10 @@ func renderPatchIdList(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderPatchOrchestratorFilterList(v []PatchOrchestratorFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderPatchOrchestratorFilterValues(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPatchRuleList(v []PatchRule) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPatchSourceList(v []PatchSource) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -13996,42 +13697,10 @@ func renderRegions(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderResourceDataSyncOrganizationalUnitList(v []ResourceDataSyncOrganizationalUnit) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderResourceDataSyncSourceRegionList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderResultAttributeList(v []ResultAttribute) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderRunbooks(v []Runbook) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderSessionFilterList(v []SessionFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -14053,34 +13722,10 @@ func renderSessionManagerParameters(v map[string][]string) string {
 	return "{" + strings.Join(parts, ", ") + "}"
 }
 
-func renderStepExecutionFilterList(v []StepExecutionFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderStepExecutionFilterValueList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderTagList(v []Tag) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderTargetLocations(v []TargetLocation) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -14114,14 +13759,6 @@ func renderTargetValues(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderTargets(v []Target) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

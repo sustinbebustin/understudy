@@ -217,6 +217,30 @@ func TestGroupErrors(t *testing.T) {
 	})
 }
 
+// An over-length log group or stream name answers AWS's fixed text, not the
+// Coral length text (secrets-logs-events-alarms.md 3.1: CreateLogGroup is
+// third-party-recorded, CreateLogStream inferred). An empty name keeps the
+// generated Coral text, since AWS's answer to one is unrecorded.
+func TestNameLengthErrors(t *testing.T) {
+	const overLength = "Invalid LogGroup or LogStream, both must have length less than or equal to 512."
+	long := strings.Repeat("a", 513)
+	run(t, func(h *harness) {
+		h.group("g")
+		_, err := call(h, logsapi.OpCreateLogGroup, &logsapi.CreateLogGroupInput{LogGroupName: long})
+		wantError(h.T, err, "InvalidParameterException", overLength)
+		_, err = call(h, logsapi.OpCreateLogStream, &logsapi.CreateLogStreamInput{LogGroupName: "g", LogStreamName: long})
+		wantError(h.T, err, "InvalidParameterException", overLength)
+
+		_, err = call(h, logsapi.OpCreateLogGroup, &logsapi.CreateLogGroupInput{LogGroupName: ""})
+		wantError(h.T, err, "InvalidParameterException", "2 validation errors detected: "+
+			`Value '' at 'logGroupName' failed to satisfy constraint: Member must satisfy regular expression pattern: [\.\-_/#A-Za-z0-9]+; `+
+			"Value '' at 'logGroupName' failed to satisfy constraint: Member must have length greater than or equal to 1")
+		_, err = call(h, logsapi.OpCreateLogStream, &logsapi.CreateLogStreamInput{LogGroupName: "g", LogStreamName: ""})
+		wantError(h.T, err, "InvalidParameterException", "1 validation error detected: "+
+			"Value '' at 'logStreamName' failed to satisfy constraint: Member must have length greater than or equal to 1")
+	})
+}
+
 // A log group ARN of another partition names no group, though its
 // account, region and name match the caller's group.
 func TestGroupARNOfAnotherPartitionNamesNoGroup(t *testing.T) {

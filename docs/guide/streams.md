@@ -208,7 +208,7 @@ The mapping reads the stream as its execution role. `understudy iam policy --pri
 - On a stream mapping, `ParallelizationFactor` above 1, `BisectBatchOnFunctionError`, `TumblingWindowInSeconds` above 0, a `FilterCriteria` pattern that compiles and an S3 on-failure destination answer 501 `NotImplemented`, naming the setting. A pattern that does not compile answers AWS's `InvalidParameterValueException`.
 - Stream ARNs cannot be tagged: `TagResource`, `UntagResource` and `ListTagsOfResource` on one answer 501. AWS tags existing streams.
 - More than two concurrent readers of a shard are never throttled; inject `LimitExceededException` with a [fault rule](faults.md).
-- The error texts are AWS's as recorded, except that a constraint violation's text quotes the value AWS's omits, and `ExpiredIteratorException` carries DynamoDB's `__type` namespace where AWS's is `com.amazonaws.dynamodb.streams.v20120810`. `understudy coverage --service dynamodbstreams` lists each operation's differences, and [Differences from AWS](differences.md#dynamodb) the recorded ones.
+- The error texts are AWS's as recorded, except that the `ShardIteratorType` enum text lists four types where AWS's lists five, and `ExpiredIteratorException` carries DynamoDB's `__type` namespace where AWS's is `com.amazonaws.dynamodb.streams.v20120810`. `understudy coverage --service dynamodbstreams` lists each operation's differences, and [Differences from AWS](differences.md#dynamodb) the recorded ones.
 
 ## Kinesis Data Streams
 

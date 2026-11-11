@@ -21,8 +21,9 @@
 //     deleting lazily on read, so the key and its aliases are gone the
 //     instant an Advance passes the date and snapshots re-arm it (Rearm).
 //   - A cryptographic operation on a key pending deletion answers
-//     KMSInvalidStateException; AWS documents DisabledException too (the
-//     fidelity switch kms.pending-deletion.crypto-error).
+//     KMSInvalidStateException, as kms/R15 recorded; AWS documents
+//     DisabledException too (the fidelity switch
+//     kms.pending-deletion.crypto-error).
 //   - An alias/aws/<service> alias of an AWS service names an AWS managed
 //     key, created on first use by an operation of the key's own account
 //     that resolves the alias; an alias ARN from another account and the

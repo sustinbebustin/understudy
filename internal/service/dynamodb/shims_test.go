@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -173,8 +174,13 @@ func replayTerraform(h *harness, p terraformProbe) {
 		"CreationDateTime": created2000,
 	}
 	maps.Copy(active, p.want(managed))
+	// AWS's CreateTable answer has no WarmThroughput and no switch to
+	// PAY_PER_REQUEST (testdata/parity/dynamodb/R04/01-create-table.json).
 	creating := maps.Clone(active)
-	creating["TableStatus"], creating["WarmThroughput"] = "CREATING", warmDefault("CREATING")
+	creating["TableStatus"], creating["WarmThroughput"] = "CREATING", nil
+	if billing, ok := creating["BillingModeSummary"].(map[string]any); ok {
+		creating["BillingModeSummary"] = map[string]any{"BillingMode": billing["BillingMode"]}
+	}
 	want := creating
 	// A table CREATING has its indexes CREATING too.
 	wantIndex := maps.Clone(p.index)
@@ -362,6 +368,63 @@ func TestUnknownKMSKeysAreRefused(t *testing.T) {
 			h.Errorf("SSEDescription after a refused update = %v, want none", desc)
 		}
 	}, withKMS)
+}
+
+// unknownKMSKeyText is AWS's refusal of an SSE key KMS does not find
+// (testdata/parity/dynamodb/R04/x-create-table-unknown-kms.json), with the
+// key and the request id left as groups.
+var unknownKMSKeyText = regexp.MustCompile(`^KMS validation error: com\.amazonaws\.services\.kms\.model\.NotFoundException: Key '(.+)' does not exist ` +
+	`\(Service: AWSKMS; Status Code: 400; Error Code: NotFoundException; Request ID: ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}); Proxy: null\)$`)
+
+// TestUnknownKMSKeyRefusalIsInKMSsWords: CreateTable and UpdateTable naming
+// a key ARN KMS does not find are refused with the text AWS recorded, the
+// ARN as given and a uuid request id; an alias is named by its ARN.
+func TestUnknownKMSKeyRefusalIsInKMSsWords(t *testing.T) {
+	const keyARN = "arn:aws:kms:us-east-2:123456789012:key/00000000-0000-0000-0000-000000000000"
+	runStore(t, func(h *harness, _ *tableStore) {
+		check := func(what, body, wantKey string) {
+			h.Helper()
+			got := h.call(what, body)
+			e := parseError(h, got.Body)
+			m := unknownKMSKeyText.FindStringSubmatch(e.Message)
+			if got.Status != http.StatusBadRequest || e.Type != "com.amazon.coral.validate#ValidationException" || m == nil {
+				h.Fatalf("%s = %d %s, want ValidationException in KMS's words", what, got.Status, got.Body)
+			}
+			if wantKey != "" && m[1] != wantKey {
+				h.Errorf("%s names key %q, want %q", what, m[1], wantKey)
+			}
+			if wantKey == "" && !strings.HasPrefix(m[1], "arn:aws:kms:") {
+				h.Errorf("%s names key %q, want its ARN", what, m[1])
+			}
+		}
+		create := `{"AttributeDefinitions":[{"AttributeName":"k","AttributeType":"S"}],"TableName":"Jobs","KeySchema":[{"AttributeName":"k","KeyType":"HASH"}],` +
+			`"SSESpecification":{"Enabled":true,"SSEType":"KMS","KMSMasterKeyId":"`
+		check("CreateTable", create+keyARN+`"}}`, keyARN)
+		check("CreateTable", create+`alias/missing"}}`, "")
+		h.mustCall("CreateTable", `{"AttributeDefinitions":[{"AttributeName":"k","AttributeType":"S"}],"TableName":"Jobs","KeySchema":[{"AttributeName":"k","KeyType":"HASH"}]}`)
+		check("UpdateTable", `{"TableName":"Jobs","SSESpecification":{"Enabled":true,"SSEType":"KMS","KMSMasterKeyId":"`+keyARN+`"}}`, keyARN)
+	}, withKMS)
+}
+
+// TestDescribeContributorInsightsIsAlwaysDisabled: an existing table
+// answers the recorded body (testdata/parity/dynamodb/R04/
+// 02-describe-contributor-insights.json) without Local; a missing table
+// gets the not-found answer of the TTL shim.
+func TestDescribeContributorInsightsIsAlwaysDisabled(t *testing.T) {
+	runStore(t, func(h *harness, _ *tableStore) {
+		h.mustCall("CreateTable", `{"AttributeDefinitions":[{"AttributeName":"id","AttributeType":"S"}],"TableName":"Jobs","KeySchema":[{"AttributeName":"id","KeyType":"HASH"}]}`)
+		got := h.call("DescribeContributorInsights", `{"TableName":"Jobs"}`)
+		if want := `{"ContributorInsightsStatus":"DISABLED","TableName":"Jobs"}`; got.Status != http.StatusOK || got.Body != want {
+			h.Errorf("DescribeContributorInsights = %d %s, want %s", got.Status, got.Body, want)
+		}
+		got = h.call("DescribeContributorInsights", `{"TableName":"Absent"}`)
+		if e := parseError(h, got.Body); got.Status != http.StatusBadRequest || e.Type != "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException" || e.Message != "Requested resource not found: Table: Absent not found" {
+			h.Errorf("DescribeContributorInsights of a missing table = %d %s", got.Status, got.Body)
+		}
+		if n := h.localSaw("DescribeContributorInsights"); n != 0 {
+			h.Errorf("Local received %d DescribeContributorInsights requests; the shim answers it", n)
+		}
+	})
 }
 
 // TestUpdateTableAnswerAgreesWithDescribeOnAMovingClock: the UpdateTable
@@ -653,6 +716,79 @@ func TestLastSwitchToPayPerRequestStaysOnTheEmulatorClock(t *testing.T) {
 	})
 }
 
+// memberSet lists the members of v, a decoded table description, as dotted
+// paths into its nested structures, sorted; lists are not entered.
+func memberSet(v any) []string {
+	var paths []string
+	var walk func(prefix string, v any)
+	walk = func(prefix string, v any) {
+		m, isMap := v.(map[string]any)
+		if !isMap {
+			return
+		}
+		for k, child := range m {
+			paths = append(paths, prefix+k)
+			walk(prefix+k+".", child)
+		}
+	}
+	walk("", v)
+	slices.Sort(paths)
+	return paths
+}
+
+// TestTableAnswersCarryAWSMembers replays R04's lock table against a fake
+// Local: the CreateTable answer, the UpdateTable answer switching
+// PAY_PER_REQUEST to PROVISIONED, the DescribeTable after it and the
+// DeleteTable answer each carry the members AWS's does, leaving aside
+// AWS's TableThroughputModeSummary, which the model lacks
+// (testdata/parity/dynamodb/R04/01-create-table.json,
+// x-billing-to-provisioned.json, x-describe-post-billing.json,
+// 99-delete-table.json). Only the UpdateTable answer stamps
+// LastIncreaseDateTime, with the update's instant.
+func TestTableAnswersCarryAWSMembers(t *testing.T) {
+	runStore(t, func(h *harness, _ *tableStore) {
+		check := func(what string, desc any, want []string) {
+			h.Helper()
+			if got := memberSet(desc); !slices.Equal(got, want) {
+				h.Errorf("%s members:\n got %v\nwant %v", what, got, want)
+			}
+		}
+		created := h.mustCall("CreateTable", `{"AttributeDefinitions":[{"AttributeName":"LockID","AttributeType":"S"}],"TableName":"usr-rec-20261014-lock",`+
+			`"KeySchema":[{"AttributeName":"LockID","KeyType":"HASH"}],"BillingMode":"PAY_PER_REQUEST"}`)
+		check("CreateTable", path(created, "TableDescription"), []string{
+			"AttributeDefinitions", "BillingModeSummary", "BillingModeSummary.BillingMode", "CreationDateTime", "DeletionProtectionEnabled",
+			"ItemCount", "KeySchema", "ProvisionedThroughput", "ProvisionedThroughput.NumberOfDecreasesToday",
+			"ProvisionedThroughput.ReadCapacityUnits", "ProvisionedThroughput.WriteCapacityUnits",
+			"TableArn", "TableId", "TableName", "TableSizeBytes", "TableStatus",
+		})
+		if _, err := h.Clock.Advance(time.Minute); err != nil {
+			h.Fatal(err)
+		}
+		const switched = created2000 + 60
+		updated := path(h.mustCall("UpdateTable", `{"TableName":"usr-rec-20261014-lock","BillingMode":"PROVISIONED",`+
+			`"ProvisionedThroughput":{"ReadCapacityUnits":1,"WriteCapacityUnits":1}}`), "TableDescription")
+		described := []string{
+			"AttributeDefinitions", "BillingModeSummary", "BillingModeSummary.BillingMode", "BillingModeSummary.LastUpdateToPayPerRequestDateTime",
+			"CreationDateTime", "DeletionProtectionEnabled", "ItemCount", "KeySchema", "ProvisionedThroughput",
+			"ProvisionedThroughput.NumberOfDecreasesToday", "ProvisionedThroughput.ReadCapacityUnits", "ProvisionedThroughput.WriteCapacityUnits",
+			"TableArn", "TableId", "TableName", "TableSizeBytes", "TableStatus",
+			"WarmThroughput", "WarmThroughput.ReadUnitsPerSecond", "WarmThroughput.Status", "WarmThroughput.WriteUnitsPerSecond",
+		}
+		check("UpdateTable", updated, slices.Sorted(slices.Values(append(slices.Clone(described), "ProvisionedThroughput.LastIncreaseDateTime"))))
+		if got := path(updated, "ProvisionedThroughput", "LastIncreaseDateTime"); got != switched {
+			h.Errorf("UpdateTable LastIncreaseDateTime = %v, want %v, the update's instant", got, switched)
+		}
+		check("DescribeTable after the switch", path(h.mustCall("DescribeTable", `{"TableName":"usr-rec-20261014-lock"}`), "Table"), described)
+		deleted := h.mustCall("DeleteTable", `{"TableName":"usr-rec-20261014-lock"}`)
+		check("DeleteTable", path(deleted, "TableDescription"), []string{
+			"BillingModeSummary", "BillingModeSummary.BillingMode", "BillingModeSummary.LastUpdateToPayPerRequestDateTime",
+			"DeletionProtectionEnabled", "ItemCount", "ProvisionedThroughput",
+			"ProvisionedThroughput.NumberOfDecreasesToday", "ProvisionedThroughput.ReadCapacityUnits", "ProvisionedThroughput.WriteCapacityUnits",
+			"TableArn", "TableId", "TableName", "TableSizeBytes", "TableStatus",
+		})
+	})
+}
+
 // TestAddedIndexesReportWarmThroughput: an index an UpdateTable adds is
 // described with a WarmThroughput in the index's status, which Terraform
 // waits on after adding one, though Local describes none: what the
@@ -742,12 +878,90 @@ func TestTimeToLiveChangesFollowLocalsRules(t *testing.T) {
 				h.Errorf("UpdateTimeToLive %s = %d %s, want %q", body, got.Status, got.Body, message)
 			}
 		}
+		if _, err := h.Clock.Advance(time.Hour); err != nil {
+			h.Fatal(err)
+		}
 		h.mustCall("UpdateTimeToLive", spec("ExpiresAt", false))
 		if got := h.call("UpdateTimeToLive", spec("ExpiresAt", false)); parseError(h, got.Body).Message != "TimeToLive is already disabled" {
 			h.Errorf("disabling twice = %d %s", got.Status, got.Body)
 		}
 		if got := h.mustCall("DescribeTimeToLive", `{"TableName":"Jobs"}`); !equalJSON(got, disabled) {
 			h.Errorf("DescribeTimeToLive after disabling = %v", got)
+		}
+	})
+}
+
+// ttlUpdate is one UpdateTimeToLive and AWS's answer to it.
+type ttlUpdate struct {
+	step, body string
+	status     int
+	answer     string
+}
+
+// r04TTLChanges are the R04 rows 03 UpdateTimeToLive calls in order, with
+// AWS's answers (dynamodb/R04/03-ttl-*.json): a change inside the one-hour
+// interval is refused after the same-state checks, so the refused disable
+// leaves TTL enabled.
+var r04TTLChanges = []ttlUpdate{
+	{
+		"03-ttl-enable", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"ExpiresAt"}}`,
+		http.StatusOK, `{"TimeToLiveSpecification":{"AttributeName":"ExpiresAt","Enabled":true}}`,
+	},
+	{
+		"03-ttl-enable-again", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"ExpiresAt"}}`,
+		http.StatusBadRequest, `{"__type":"com.amazon.coral.validate#ValidationException","message":"TimeToLive is already enabled"}`,
+	},
+	{
+		"03-ttl-disable", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":false,"AttributeName":"ExpiresAt"}}`,
+		http.StatusBadRequest, `{"__type":"com.amazon.coral.validate#ValidationException","message":"Time to live has been modified multiple times within a fixed interval"}`,
+	},
+	{
+		"03-ttl-disable-again", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":false,"AttributeName":"ExpiresAt"}}`,
+		http.StatusBadRequest, `{"__type":"com.amazon.coral.validate#ValidationException","message":"Time to live has been modified multiple times within a fixed interval"}`,
+	},
+	{
+		"03-ttl-enable-after-disable", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":true,"AttributeName":"ExpiresAt"}}`,
+		http.StatusBadRequest, `{"__type":"com.amazon.coral.validate#ValidationException","message":"TimeToLive is already enabled"}`,
+	},
+}
+
+// replayTTL makes each call of updates and checks AWS's answer.
+func replayTTL(h *harness, updates []ttlUpdate) {
+	h.Helper()
+	for _, u := range updates {
+		got := h.call("UpdateTimeToLive", u.body)
+		var gotBody, wantBody any
+		if err := json.Unmarshal([]byte(got.Body), &gotBody); err != nil {
+			h.Fatalf("%s: body %q: %v", u.step, got.Body, err)
+		}
+		if err := json.Unmarshal([]byte(u.answer), &wantBody); err != nil {
+			h.Fatal(err)
+		}
+		if got.Status != u.status || !equalJSON(gotBody, wantBody) {
+			h.Errorf("%s = %d %s, want %d %s", u.step, got.Status, got.Body, u.status, u.answer)
+		}
+	}
+}
+
+// TestTimeToLiveChangesOncePerHour: after a change, a further change to
+// the table's TTL within one hour of emulator time is refused, and one
+// after the hour is served (the UpdateTimeToLive documentation: "Any
+// additional UpdateTimeToLive calls for the same table during this one
+// hour duration result in a ValidationException").
+func TestTimeToLiveChangesOncePerHour(t *testing.T) {
+	runStore(t, func(h *harness, _ *tableStore) {
+		h.mustCall("CreateTable", `{"AttributeDefinitions":[{"AttributeName":"id","AttributeType":"S"}],"TableName":"Jobs","KeySchema":[{"AttributeName":"id","KeyType":"HASH"}]}`)
+		replayTTL(h, r04TTLChanges)
+		if _, err := h.Clock.Advance(time.Hour - time.Second); err != nil {
+			h.Fatal(err)
+		}
+		replayTTL(h, r04TTLChanges[2:3])
+		if _, err := h.Clock.Advance(time.Second); err != nil {
+			h.Fatal(err)
+		}
+		h.mustCall("UpdateTimeToLive", `{"TableName":"Jobs","TimeToLiveSpecification":{"Enabled":false,"AttributeName":"ExpiresAt"}}`)
+		if got := h.mustCall("DescribeTimeToLive", `{"TableName":"Jobs"}`); !equalJSON(got, map[string]any{"TimeToLiveDescription": map[string]any{"TimeToLiveStatus": "DISABLED"}}) {
+			h.Errorf("DescribeTimeToLive after the hour's disable = %v", got)
 		}
 	})
 }

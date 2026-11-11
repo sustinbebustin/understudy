@@ -117,6 +117,68 @@
       ]
     },
     {
+      "scenario": "kms/R15",
+      "steps": [
+        {"step": "02-pending-encrypt", "fixture": "kms/R15/02-pending-encrypt.json", "operation": "kms.Encrypt", "outcome": {"kind": "match"}},
+        {"step": "02-pending-generate-data-key", "fixture": "kms/R15/02-pending-generate-data-key.json", "operation": "kms.GenerateDataKey", "outcome": {"kind": "match"}},
+        {"step": "02-pending-describe-key", "fixture": "kms/R15/02-pending-describe-key.json", "operation": "kms.DescribeKey", "outcome": {"kind": "match"}},
+        {"step": "02-pending-enable-key-rotation", "fixture": "kms/R15/02-pending-enable-key-rotation.json", "operation": "kms.EnableKeyRotation", "outcome": {"kind": "match"}},
+        {"step": "02-pending-get-key-rotation-status", "fixture": "kms/R15/02-pending-get-key-rotation-status.json", "operation": "kms.GetKeyRotationStatus", "outcome": {"kind": "match"}},
+        {"step": "02-pending-create-alias", "fixture": "kms/R15/02-pending-create-alias.json", "operation": "kms.CreateAlias", "outcome": {"kind": "match"}},
+        {"step": "02-pending-put-key-policy", "fixture": "kms/R15/02-pending-put-key-policy.json", "operation": "kms.PutKeyPolicy", "outcome": {"kind": "match"}},
+        {"step": "02-schedule-again", "fixture": "kms/R15/02-schedule-again.json", "operation": "kms.ScheduleKeyDeletion", "outcome": {"kind": "match"}},
+        {"step": "02-enable-key", "fixture": "kms/R15/02-enable-key.json", "operation": "kms.EnableKey", "outcome": {"kind": "match"}},
+        {"step": "02-window-6", "fixture": "kms/R15/02-window-6.json", "operation": "kms.ScheduleKeyDeletion", "outcome": {"kind": "match"}},
+        {"step": "02-window-31", "fixture": "kms/R15/02-window-31.json", "operation": "kms.ScheduleKeyDeletion", "outcome": {"kind": "match"}},
+        {"step": "03-create-alias-aws-prefix", "fixture": "kms/R15/03-create-alias-aws-prefix.json", "operation": "kms.CreateAlias", "outcome": {"kind": "match"}},
+        {"step": "03-put-key-policy-too-long", "fixture": "kms/R15/03-put-key-policy-too-long.json", "operation": "kms.PutKeyPolicy", "outcome": {"kind": "match"}},
+        {"step": "03-put-key-policy-name", "fixture": "kms/R15/03-put-key-policy-name.json", "operation": "kms.PutKeyPolicy", "outcome": {"kind": "match"}},
+        {"step": "x-listkeys-garbage-marker", "fixture": "kms/R15/x-listkeys-garbage-marker.json", "outcome": {"kind": "reconstructed"}}
+      ],
+      "claims": [
+        {"target": {"kind": "switch", "name": "kms.pending-deletion.crypto-error"}, "step": "02-pending-encrypt", "field": "error/code", "result": {"kind": "settled"}},
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.kms#ScheduleKeyDeletionRequest$PendingWindowInDays", "covers": ["dev.understudy#validationError"]}, "step": "02-window-6", "field": "error/message", "result": {"kind": "settled"}},
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.kms#NotAuthorizedException"}, "step": "03-create-alias-aws-prefix", "field": "body/__type", "result": {"kind": "settled"}}
+      ]
+    },
+    {
+      "scenario": "secretsmanager/R07",
+      "steps": [
+        {"step": "06-create-s-none", "fixture": "secretsmanager/R07/06-create-s-none.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}},
+        {"step": "06-describe-s-none", "fixture": "secretsmanager/R07/06-describe-s-none.json", "operation": "secretsmanager.DescribeSecret", "outcome": {"kind": "match"}},
+        {"step": "06-create-s-awsalias", "fixture": "secretsmanager/R07/06-create-s-awsalias.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}},
+        {"step": "06-describe-s-awsalias", "fixture": "secretsmanager/R07/06-describe-s-awsalias.json", "operation": "secretsmanager.DescribeSecret", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "secretsmanager/R15",
+      "steps": [
+        {"step": "05-create-disabled-kms", "fixture": "secretsmanager/R15/05-create-disabled-kms.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}},
+        {"step": "05-create", "fixture": "secretsmanager/R15/05-create.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}},
+        {"step": "05-create-duplicate", "fixture": "secretsmanager/R15/05-create-duplicate.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}},
+        {"step": "05-put-token-1", "fixture": "secretsmanager/R15/05-put-token-1.json", "operation": "secretsmanager.PutSecretValue", "outcome": {"kind": "match"}},
+        {"step": "05-put-token-same-value", "fixture": "secretsmanager/R15/05-put-token-same-value.json", "operation": "secretsmanager.PutSecretValue", "outcome": {"kind": "match"}},
+        {"step": "05-put-token-different-value", "fixture": "secretsmanager/R15/05-put-token-different-value.json", "operation": "secretsmanager.PutSecretValue", "outcome": {"kind": "match"}},
+        {"step": "05-restore-live", "fixture": "secretsmanager/R15/05-restore-live.json", "operation": "secretsmanager.RestoreSecret", "outcome": {"kind": "match"}},
+        {"step": "05-describe-before-delete", "fixture": "secretsmanager/R15/05-describe-before-delete.json", "operation": "secretsmanager.DescribeSecret", "outcome": {"kind": "match"}},
+        {"step": "05-delete-window-6", "fixture": "secretsmanager/R15/05-delete-window-6.json", "operation": "secretsmanager.DeleteSecret", "outcome": {"kind": "match"}},
+        {"step": "05-delete-window-31", "fixture": "secretsmanager/R15/05-delete-window-31.json", "operation": "secretsmanager.DeleteSecret", "outcome": {"kind": "match"}},
+        {"step": "05-delete-window-0", "fixture": "secretsmanager/R15/05-delete-window-0.json", "operation": "secretsmanager.DeleteSecret", "outcome": {"kind": "match"}},
+        {"step": "05-delete", "fixture": "secretsmanager/R15/05-delete.json", "operation": "secretsmanager.DeleteSecret", "outcome": {"kind": "match"}},
+        {"step": "05-describe-after-delete", "fixture": "secretsmanager/R15/05-describe-after-delete.json", "operation": "secretsmanager.DescribeSecret", "outcome": {"kind": "match"}},
+        {"step": "05-delete-twice", "fixture": "secretsmanager/R15/05-delete-twice.json", "operation": "secretsmanager.DeleteSecret", "outcome": {"kind": "match"}},
+        {"step": "05-get-scheduled", "fixture": "secretsmanager/R15/05-get-scheduled.json", "operation": "secretsmanager.GetSecretValue", "outcome": {"kind": "match"}},
+        {"step": "05-restore", "fixture": "secretsmanager/R15/05-restore.json", "operation": "secretsmanager.RestoreSecret", "outcome": {"kind": "match"}},
+        {"step": "05-describe-after-restore", "fixture": "secretsmanager/R15/05-describe-after-restore.json", "operation": "secretsmanager.DescribeSecret", "outcome": {"kind": "match"}},
+        {"step": "05-name-bang", "fixture": "secretsmanager/R15/05-name-bang.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}},
+        {"step": "05-name-513", "fixture": "secretsmanager/R15/05-name-513.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}}
+      ],
+      "claims": [
+        {"target": {"kind": "switch", "name": "secretsmanager.restore.not-scheduled"}, "step": "05-restore-live", "field": "status", "result": {"kind": "settled"}},
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.secretsmanager#CreateSecretRequest$Name"}, "step": "05-name-513", "field": "error/message", "result": {"kind": "settled"}}
+      ]
+    },
+    {
       "scenario": "ses/SES-00",
       "steps": [
         {"step": "01-verify-me", "fixture": "ses/SES-00/01-verify-me.json", "operation": "ses.VerifyEmailIdentity", "outcome": {"kind": "match"}},
@@ -620,11 +682,11 @@
     {
       "scenario": "sts/R15",
       "steps": [
-        {"step": "06-get-access-key-info-deleted", "fixture": "sts/R15/06-get-access-key-info-deleted.json", "operation": "sts.GetAccessKeyInfo", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/GetAccessKeyInfoResponse, body/ErrorResponse"}},
+        {"step": "06-get-access-key-info-deleted", "fixture": "sts/R15/06-get-access-key-info-deleted.json", "operation": "sts.GetAccessKeyInfo", "outcome": {"kind": "match"}},
         {"step": "06-assume-denied", "fixture": "sts/R15/06-assume-denied.json", "operation": "sts.AssumeRole", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/ErrorResponse, body/AssumeRoleResponse"}},
         {"step": "06-assume-ok", "fixture": "sts/R15/06-assume-ok.json", "operation": "sts.AssumeRole", "outcome": {"kind": "differs", "reason": "body/AssumeRoleResponse/AssumeRoleResult/PackedPolicySize, body/AssumeRoleResponse/AssumeRoleResult/SessionTokenSize, body/AssumeRoleResponse/AssumeRoleResult/SessionTokenUtilization"}},
-        {"step": "x-assume-11-policy-arns", "fixture": "sts/R15/x-assume-11-policy-arns.json", "operation": "sts.AssumeRole", "outcome": {"kind": "differs", "reason": "error/message, body/ErrorResponse/Error/Message"}},
-        {"step": "x-assume-refused-session-policy", "fixture": "sts/R15/x-assume-refused-session-policy.json", "operation": "sts.AssumeRole", "outcome": {"kind": "differs", "reason": "error/message, body/ErrorResponse/Error/Message"}}
+        {"step": "x-assume-11-policy-arns", "fixture": "sts/R15/x-assume-11-policy-arns.json", "operation": "sts.AssumeRole", "outcome": {"kind": "match"}},
+        {"step": "x-assume-refused-session-policy", "fixture": "sts/R15/x-assume-refused-session-policy.json", "operation": "sts.AssumeRole", "outcome": {"kind": "match"}}
       ]
     }
   ]

@@ -45,9 +45,6 @@ func (st *State) instanceProfile(name string) (InstanceProfile, *awserr.Error) {
 }
 
 func (s *Service) createInstanceProfile(_ context.Context, c *kernel.Call, in *iamapi.CreateInstanceProfileInput) (*iamapi.CreateInstanceProfileOutput, *awserr.Error) {
-	if err := checkPath("path", in.Path); err != nil {
-		return nil, err
-	}
 	tags, err := newTags(exactKeys, in.Tags)
 	if err != nil {
 		return nil, err
@@ -59,7 +56,7 @@ func (s *Service) createInstanceProfile(_ context.Context, c *kernel.Call, in *i
 			return iamapi.InstanceProfile{}, errInstanceProfileExists(p.Name)
 		}
 		p.ID = s.ids.InstanceProfileID()
-		p.Created = now
+		p.Created = createDate(now)
 		st.InstanceProfiles[key(p.Name)] = p
 		return apiInstanceProfile(account, st, p), nil
 	})

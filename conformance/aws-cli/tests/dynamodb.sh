@@ -386,13 +386,15 @@ test_ttl_enable_and_describe() {
   assert_jq '.TimeToLiveDescription.AttributeName' 'ExpiresAt'
 }
 
-test_ttl_disable() {
+# AWS refuses a second TTL change within an hour of the first, and the
+# table keeps TTL enabled (testdata/parity/dynamodb/R04/03-ttl-disable.json).
+test_ttl_disable_within_the_hour_is_refused() {
   new_table
   aws_ok dynamodb update-time-to-live --table-name "$TABLE" --time-to-live-specification Enabled=true,AttributeName=ExpiresAt
-  aws_ok dynamodb update-time-to-live --table-name "$TABLE" --time-to-live-specification Enabled=false,AttributeName=ExpiresAt
-  assert_jq '.TimeToLiveSpecification.Enabled' 'false'
+  aws_error ValidationException 400 dynamodb update-time-to-live --table-name "$TABLE" --time-to-live-specification Enabled=false,AttributeName=ExpiresAt
+  aws_error_message_contains 'Time to live has been modified multiple times within a fixed interval'
   aws_ok dynamodb describe-time-to-live --table-name "$TABLE"
-  assert_jq_match '.TimeToLiveDescription.TimeToLiveStatus' '^(DISABLING|DISABLED)$'
+  assert_jq_match '.TimeToLiveDescription.TimeToLiveStatus' '^(ENABLING|ENABLED)$'
 }
 
 test_ttl_on_missing_table() {

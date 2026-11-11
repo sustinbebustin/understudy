@@ -116,10 +116,10 @@ func (v *AddKeys) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Entries) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderAddKeyEntries(v.Entries)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Entries) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderAddKeyEntries(v.Entries)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Entries {
 			p2 := at(at(path, "entries"), strconv.Itoa(i2+1), "member")
@@ -292,10 +292,10 @@ func (v *CopyValue) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Entries) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderCopyValueEntries(v.Entries)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Entries) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderCopyValueEntries(v.Entries)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Entries {
 			p2 := at(at(path, "entries"), strconv.Itoa(i2+1), "member")
@@ -3190,10 +3190,10 @@ func (v *ListAggregateLogGroupSummariesInput) validate(path awserr.Path, out *[]
 	}
 	if v.DataSources != nil {
 		if len(v.DataSources) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dataSources"), Value: awserr.RenderedText{Text: renderDataSourceFilters(v.DataSources)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dataSources"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.DataSources) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dataSources"), Value: awserr.RenderedText{Text: renderDataSourceFilters(v.DataSources)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dataSources"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.DataSources {
 			p2 := at(at(path, "dataSources"), strconv.Itoa(i2+1), "member")
@@ -3420,10 +3420,10 @@ func (v *ListLogGroupsInput) validate(path awserr.Path, out *[]awserr.Violation)
 	}
 	if v.DataSources != nil {
 		if len(v.DataSources) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dataSources"), Value: awserr.RenderedText{Text: renderDataSourceFilters(v.DataSources)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dataSources"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.DataSources) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dataSources"), Value: awserr.RenderedText{Text: renderDataSourceFilters(v.DataSources)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dataSources"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.DataSources {
 			p2 := at(at(path, "dataSources"), strconv.Itoa(i2+1), "member")
@@ -3452,10 +3452,10 @@ func (v *ListLogGroupsInput) validate(path awserr.Path, out *[]awserr.Violation)
 	}
 	if v.LogGroupTags != nil {
 		if len(v.LogGroupTags) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "logGroupTags"), Value: awserr.RenderedText{Text: renderTagFilters(v.LogGroupTags)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "logGroupTags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.LogGroupTags) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "logGroupTags"), Value: awserr.RenderedText{Text: renderTagFilters(v.LogGroupTags)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "logGroupTags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.LogGroupTags {
 			p2 := at(at(path, "logGroupTags"), strconv.Itoa(i2+1), "member")
@@ -3833,10 +3833,10 @@ func (v *MoveKeys) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Entries) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderMoveKeyEntries(v.Entries)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Entries) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderMoveKeyEntries(v.Entries)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Entries {
 			p2 := at(at(path, "entries"), strconv.Itoa(i2+1), "member")
@@ -4577,10 +4577,10 @@ func (v *PutLogEventsInput) validate(path awserr.Path, out *[]awserr.Violation) 
 		*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.LogEvents) > 10000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedText{Text: renderInputLogEvents(v.LogEvents)}, Constraint: awserr.LengthMax{Max: 10000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10000}})
 		}
 		if len(v.LogEvents) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedText{Text: renderInputLogEvents(v.LogEvents)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.LogEvents {
 			p2 := at(at(path, "logEvents"), strconv.Itoa(i2+1), "member")
@@ -4636,10 +4636,10 @@ func (v *PutLogEventsInternalInput) validate(path awserr.Path, out *[]awserr.Vio
 		*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.LogEvents) > 10000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedText{Text: renderInputLogEvents(v.LogEvents)}, Constraint: awserr.LengthMax{Max: 10000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10000}})
 		}
 		if len(v.LogEvents) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedText{Text: renderInputLogEvents(v.LogEvents)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "logEvents"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.LogEvents {
 			p2 := at(at(path, "logEvents"), strconv.Itoa(i2+1), "member")
@@ -4724,10 +4724,10 @@ func (v *PutMetricFilterInput) validate(path awserr.Path, out *[]awserr.Violatio
 		*out = append(*out, awserr.Violation{Path: at(path, "metricTransformations"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.MetricTransformations) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metricTransformations"), Value: awserr.RenderedText{Text: renderMetricTransformations(v.MetricTransformations)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metricTransformations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.MetricTransformations) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metricTransformations"), Value: awserr.RenderedText{Text: renderMetricTransformations(v.MetricTransformations)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metricTransformations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.MetricTransformations {
 			p2 := at(at(path, "metricTransformations"), strconv.Itoa(i2+1), "member")
@@ -4813,10 +4813,10 @@ func (v *PutQueryDefinitionInput) validate(path awserr.Path, out *[]awserr.Viola
 	}
 	if v.Parameters != nil {
 		if len(v.Parameters) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderQueryParameterList(v.Parameters)}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if len(v.Parameters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderQueryParameterList(v.Parameters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Parameters {
 			p2 := at(at(path, "parameters"), strconv.Itoa(i2+1), "member")
@@ -5021,10 +5021,10 @@ func (v *PutTransformerInput) validate(path awserr.Path, out *[]awserr.Violation
 		*out = append(*out, awserr.Violation{Path: at(path, "transformerConfig"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.TransformerConfig) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "transformerConfig"), Value: awserr.RenderedText{Text: renderProcessors(v.TransformerConfig)}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "transformerConfig"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if len(v.TransformerConfig) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "transformerConfig"), Value: awserr.RenderedText{Text: renderProcessors(v.TransformerConfig)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "transformerConfig"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.TransformerConfig {
 			p2 := at(at(path, "transformerConfig"), strconv.Itoa(i2+1), "member")
@@ -5093,10 +5093,10 @@ func (v *RenameKeys) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Entries) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderRenameKeyEntries(v.Entries)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Entries) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderRenameKeyEntries(v.Entries)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Entries {
 			p2 := at(at(path, "entries"), strconv.Itoa(i2+1), "member")
@@ -5170,10 +5170,10 @@ func (v *SplitString) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Entries) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderSplitStringEntries(v.Entries)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Entries) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderSplitStringEntries(v.Entries)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Entries {
 			p2 := at(at(path, "entries"), strconv.Itoa(i2+1), "member")
@@ -5399,10 +5399,10 @@ func (v *SubstituteString) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Entries) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderSubstituteStringEntries(v.Entries)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Entries) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderSubstituteStringEntries(v.Entries)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Entries {
 			p2 := at(at(path, "entries"), strconv.Itoa(i2+1), "member")
@@ -5650,10 +5650,10 @@ func (v *TestTransformerInput) validate(path awserr.Path, out *[]awserr.Violatio
 		*out = append(*out, awserr.Violation{Path: at(path, "transformerConfig"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.TransformerConfig) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "transformerConfig"), Value: awserr.RenderedText{Text: renderProcessors(v.TransformerConfig)}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "transformerConfig"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if len(v.TransformerConfig) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "transformerConfig"), Value: awserr.RenderedText{Text: renderProcessors(v.TransformerConfig)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "transformerConfig"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.TransformerConfig {
 			p2 := at(at(path, "transformerConfig"), strconv.Itoa(i2+1), "member")
@@ -5702,10 +5702,10 @@ func (v *TypeConverter) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Entries) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderTypeConverterEntries(v.Entries)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.Entries) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderTypeConverterEntries(v.Entries)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Entries {
 			p2 := at(at(path, "entries"), strconv.Itoa(i2+1), "member")
@@ -6139,13 +6139,15 @@ func (v *UpperCaseString) validate(path awserr.Path, out *[]awserr.Violation) {
 // constraintKind is a set of the constraint kinds a rule covers.
 type constraintKind uint8
 
-// constraintKind values, one per generated constraint.
+// constraintKind values, one per generated constraint, plus kindLengthMax,
+// the maximum alone, for a rule whose text answers only an over-long value.
 const (
 	kindRequired constraintKind = 1 << iota
 	kindLength
 	kindRange
 	kindPattern
 	kindEnum
+	kindLengthMax
 )
 
 // validationStyle is the message grammar of a rule.
@@ -6173,6 +6175,7 @@ type validationRule struct {
 	id     func() awserr.Identity
 	style  validationStyle
 	reason string
+	echo   awserr.CoralEcho // what a Coral entry prints; the zero value prints everything
 }
 
 // validationPath is one member path of an operation input; "*" stands for a
@@ -6230,15 +6233,15 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 
 // coralUnder renders, as one Coral message, every violation whose rule is
 // Coral-styled and names the code id, each path under the policy's root
-// when it has one.
+// when it has one and each entry under its rule's echo.
 func (p *validationPolicy) coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
-	var same []awserr.Violation
+	var same []awserr.CoralEntry
 	for i, v := range vs {
 		if rules[i].style == styleCoral && rules[i].id().Shape == id.Shape {
-			same = append(same, p.rooted(v))
+			same = append(same, awserr.CoralEntry{Violation: p.rooted(v), Echo: rules[i].echo})
 		}
 	}
-	return awserr.CoralMessage(same)
+	return awserr.CoralEntries(same)
 }
 
 // rooted is v with its path under the policy's root, unless the policy has
@@ -6299,14 +6302,16 @@ func pathMatches(template []string, path awserr.Path) bool {
 	return true
 }
 
-// constraintKindOf is the kind a filter names for c, or 0 for a constraint
+// constraintKindOf is the kinds a filter names for c, or 0 for a constraint
 // no filter names (Encoding, Composite).
 func constraintKindOf(c awserr.Constraint) constraintKind {
 	switch c.(type) {
 	case awserr.Required:
 		return kindRequired
-	case awserr.LengthMin, awserr.LengthMax:
+	case awserr.LengthMin:
 		return kindLength
+	case awserr.LengthMax:
+		return kindLength | kindLengthMax
 	case awserr.RangeMin, awserr.RangeMax:
 		return kindRange
 	case awserr.Pattern:
@@ -6479,7 +6484,7 @@ func (*CreateLogAnomalyDetectorInput) ValidationError(vs []awserr.Violation) *aw
 
 var policyCreateLogGroup = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"kmsKeyId"}, param: "kmsKeyId"},
 		{segments: []string{"tags"}, param: "tags"},
 		{segments: []string{"tags", "*"}, param: "tags"},
@@ -6499,8 +6504,8 @@ func (*CreateLogGroupInput) ValidationError(vs []awserr.Violation) *awserr.Error
 
 var policyCreateLogStream = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
-		{segments: []string{"logStreamName"}, param: "logStreamName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
+		{segments: []string{"logStreamName"}, param: "logStreamName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
 }
@@ -6721,7 +6726,7 @@ func (*DeleteLogAnomalyDetectorInput) ValidationError(vs []awserr.Violation) *aw
 
 var policyDeleteLogGroup = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
 }
@@ -6735,8 +6740,8 @@ func (*DeleteLogGroupInput) ValidationError(vs []awserr.Violation) *awserr.Error
 
 var policyDeleteLogStream = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
-		{segments: []string{"logStreamName"}, param: "logStreamName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
+		{segments: []string{"logStreamName"}, param: "logStreamName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
 }
@@ -6809,7 +6814,7 @@ func (*DeleteResourcePolicyInput) ValidationError(vs []awserr.Violation) *awserr
 
 var policyDeleteRetentionPolicy = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
 }
@@ -7092,7 +7097,7 @@ func (*DescribeLogGroupsInput) ValidationError(vs []awserr.Violation) *awserr.Er
 
 var policyDescribeLogStreams = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"logGroupIdentifier"}, param: "logGroupIdentifier"},
 		{segments: []string{"logStreamNamePrefix"}, param: "logStreamNamePrefix"},
 		{segments: []string{"orderBy"}, param: "orderBy"},
@@ -7245,7 +7250,7 @@ func (*DisassociateSourceFromS3TableIntegrationInput) ValidationError(vs []awser
 
 var policyFilterLogEvents = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"logGroupIdentifier"}, param: "logGroupIdentifier"},
 		{segments: []string{"logStreamNames"}, param: "logStreamNames"},
 		{segments: []string{"logStreamNames", "*", "member"}, param: "logStreamNames"},
@@ -7369,9 +7374,9 @@ func (*GetLogAnomalyDetectorInput) ValidationError(vs []awserr.Violation) *awser
 
 var policyGetLogEvents = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"logGroupIdentifier"}, param: "logGroupIdentifier"},
-		{segments: []string{"logStreamName"}, param: "logStreamName"},
+		{segments: []string{"logStreamName"}, param: "logStreamName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"startTime"}, param: "startTime"},
 		{segments: []string{"endTime"}, param: "endTime"},
 		{segments: []string{"nextToken"}, param: "nextToken"},
@@ -7727,7 +7732,7 @@ func (*ListTagsForResourceInput) ValidationError(vs []awserr.Violation) *awserr.
 
 var policyListTagsLogGroup = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
 }
@@ -7921,8 +7926,8 @@ func (*PutIntegrationInput) ValidationError(vs []awserr.Violation) *awserr.Error
 
 var policyPutLogEvents = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
-		{segments: []string{"logStreamName"}, param: "logStreamName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
+		{segments: []string{"logStreamName"}, param: "logStreamName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"logEvents"}, param: "logEvents"},
 		{segments: []string{"logEvents", "*", "member"}, param: "logEvents"},
 		{segments: []string{"logEvents", "*", "member", "timestamp"}, param: "timestamp"},
@@ -8054,7 +8059,7 @@ func (*PutResourcePolicyInput) ValidationError(vs []awserr.Violation) *awserr.Er
 
 var policyPutRetentionPolicy = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"retentionInDays"}, param: "retentionInDays"},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
@@ -8298,7 +8303,7 @@ func (*StopQueryInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 
 var policyTagLogGroup = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"tags"}, param: "tags"},
 		{segments: []string{"tags", "*"}, param: "tags"},
 		{segments: []string{"tags", "*", "member"}, param: "tags"},
@@ -8469,7 +8474,7 @@ func (*TestTransformerInput) ValidationError(vs []awserr.Violation) *awserr.Erro
 
 var policyUntagLogGroup = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"tags"}, param: "tags"},
 		{segments: []string{"tags", "*", "member"}, param: "tags"},
 	},
@@ -8625,34 +8630,10 @@ func renderAccountIds(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderAddKeyEntries(v []AddKeyEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderColumns(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderCopyValueEntries(v []CopyValueEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderDataSourceFilters(v []DataSourceFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -8731,14 +8712,6 @@ func renderIndexCategories(v []IndexCategory) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderInputLogEvents(v []InputLogEvent) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderInputLogStreamNames(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -8771,50 +8744,10 @@ func renderMatchPatterns(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderMetricTransformations(v []MetricTransformation) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderMoveKeyEntries(v []MoveKeyEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderProcessors(v []Processor) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderQueryParameterList(v []QueryParameter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderRecordFields(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderRenameKeyEntries(v []RenameKeyEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -8835,14 +8768,6 @@ func renderScheduledQueryLogGroupIdentifiers(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderSplitStringEntries(v []SplitStringEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderStartLiveTailLogGroupIdentifiers(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -8851,26 +8776,10 @@ func renderStartLiveTailLogGroupIdentifiers(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderSubstituteStringEntries(v []SubstituteStringEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderTagFilterValues(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderTagFilters(v []TagFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -8912,14 +8821,6 @@ func renderTrimStringWithKeys(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderTypeConverterEntries(v []TypeConverterEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

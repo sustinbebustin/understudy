@@ -580,7 +580,9 @@ def test_tables_without_ttl_keep_expired_items(dynamodb: Any, make_table: Callab
 def test_disabling_ttl_stops_deletions(dynamodb: Any, make_table: Callable[..., str], clock: Admin) -> None:
     name = make_table()
     enable_ttl(dynamodb, name)
-    dynamodb.put_item(TableName=name, Item=ddb_item(pk="k", ExpiresAt=int(time.time()) + 600))
+    # AWS refuses a second TTL change within the hour of the first.
+    clock.advance(3600)
+    dynamodb.put_item(TableName=name, Item=ddb_item(pk="k", ExpiresAt=int(time.time()) + 3600 + 600))
     dynamodb.update_time_to_live(TableName=name, TimeToLiveSpecification={"Enabled": False, "AttributeName": "ExpiresAt"})
     clock.advance(1200)
     clock.settle()

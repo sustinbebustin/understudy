@@ -421,8 +421,11 @@ def test_disabled_customer_key_blocks_reads_and_writes(
     with raises("DecryptionFailure") as read:
         secretsmanager.get_secret_value(SecretId=created["Name"])
     assert status_of(read.value) == 400
-    with raises("EncryptionFailure"):
+    # AWS answered CreateSecret under a disabled key with InvalidParameterException, not the documented
+    # EncryptionFailure (secretsmanager/R15/05-create-disabled-kms.json); other writes are inferred alike.
+    with raises("InvalidParameterException") as write:
         secretsmanager.put_secret_value(SecretId=created["Name"], SecretString="new")
+    assert write.value.response["Error"]["Message"] == "The operation failed because the specified KMS key is disabled."
 
     kms.enable_key(KeyId=key["KeyId"])
     assert secretsmanager.get_secret_value(SecretId=created["Name"])["SecretString"] == "encrypted"

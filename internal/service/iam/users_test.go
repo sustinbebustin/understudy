@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -96,6 +97,36 @@ func (h *harness) stableUser(name string) iamapi.User {
 		h.Errorf("second GetUser(%s) = %+v, first %+v", name, again, first)
 	}
 	return first
+}
+
+// AWS writes a user's and an access key's CreateDate in whole seconds
+// (testdata/parity/iam/R15/06-create-user.json, 06-create-access-key.json);
+// whether it truncates or rounds is unrecorded, and understudy truncates.
+func TestCreateDateIsWholeSeconds(t *testing.T) {
+	run(t, func(h *harness) {
+		h.advance(1500 * time.Millisecond)
+		now := h.Clock.Now().Wire()
+		if now.Nanosecond() == 0 {
+			t.Fatalf("clock at %v, want a sub-second time", now)
+		}
+		want := now.Truncate(time.Second)
+
+		user := must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "u"}).User
+		got := must(h, iamapi.OpGetUser, &iamapi.GetUserInput{UserName: new("u")}).User
+		key := must(h, iamapi.OpCreateAccessKey, &iamapi.CreateAccessKeyInput{UserName: new("u")}).AccessKey
+		keys := must(h, iamapi.OpListAccessKeys, &iamapi.ListAccessKeysInput{UserName: new("u")}).AccessKeyMetadata
+		if len(keys) != 1 {
+			t.Fatalf("ListAccessKeys = %+v, want one key", keys)
+		}
+		for name, d := range map[string]time.Time{
+			"CreateUser": user.CreateDate, "GetUser": got.CreateDate,
+			"CreateAccessKey": *key.CreateDate, "ListAccessKeys": *keys[0].CreateDate,
+		} {
+			if !d.Equal(want) {
+				t.Errorf("%s CreateDate = %v, want %v", name, d, want)
+			}
+		}
+	})
 }
 
 // TestTerraformAccessKeyLifecycle replays aws_iam_access_key

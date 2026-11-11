@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/identity"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 )
 
@@ -35,6 +36,18 @@ func (s *Service) getCallerIdentity(_ context.Context, c *kernel.Call, _ *stsapi
 		Account: new(account.String()),
 		Arn:     new(identity.Render(c.Principal())),
 	}, nil
+}
+
+// getAccessKeyInfo answers the account an access key id encodes, for any
+// AKIA or ASIA id, whether or not the key still exists (parity capture
+// sts/R15, 06-get-access-key-info-deleted; iam-sts-kms.md 2.2). An id
+// ids.DecodeAccount cannot read has no recorded answer and is refused.
+func (s *Service) getAccessKeyInfo(_ context.Context, _ *kernel.Call, in *stsapi.GetAccessKeyInfoInput) (*stsapi.GetAccessKeyInfoOutput, *awserr.Error) {
+	account, ok := ids.DecodeAccount(in.AccessKeyId)
+	if !ok {
+		return nil, errUndecodableAccessKey(in.AccessKeyId)
+	}
+	return &stsapi.GetAccessKeyInfoOutput{Account: new(account)}, nil
 }
 
 // Session lengths of GetSessionToken (iam-sts-kms.md 4).

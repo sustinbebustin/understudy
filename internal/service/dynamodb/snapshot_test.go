@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/dynamodb"
@@ -142,6 +144,42 @@ func TestUnrecordedTablesSurviveSaveAndLoad(t *testing.T) {
 		if got := h.mustCall("DescribeTimeToLive", `{"TableName":"Kept"}`); path(got, "TimeToLiveDescription", "TimeToLiveStatus") != "DISABLED" {
 			h.Errorf("DescribeTimeToLive of the reloaded table = %v, want it adopted with TTL disabled", got)
 		}
+	})
+}
+
+// TestSnapshotKeepsTheTTLChangeInterval: a snapshot taken within the hour
+// after a TTL change and loaded still refuses the next change until the
+// hour has passed (dynamodb/R04/03-ttl-disable.json).
+func TestSnapshotKeepsTheTTLChangeInterval(t *testing.T) {
+	runStore(t, func(h *harness, _ *tableStore) {
+		seedTables(h)
+		items, err := h.svc.ExportLate(h.Context())
+		if err != nil {
+			h.Fatal(err)
+		}
+		cells, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		if err := h.svc.ResetLate(h.Context(), kernel.ResetScope{}); err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.ImportLate(h.Context(), items); err != nil {
+			h.Fatal(err)
+		}
+		if err := h.svc.Import(cells); err != nil {
+			h.Fatal(err)
+		}
+		disable := `{"TableName":"Locks","TimeToLiveSpecification":{"AttributeName":"exp","Enabled":false}}`
+		got := h.call("UpdateTimeToLive", disable)
+		if e := parseError(h, got.Body); got.Status != http.StatusBadRequest || e.Message != "Time to live has been modified multiple times within a fixed interval" {
+			h.Errorf("disable after the load = %d %s, want the interval refusal", got.Status, got.Body)
+		}
+		if _, err := h.Clock.Advance(time.Hour); err != nil {
+			h.Fatal(err)
+		}
+		h.mustCall("UpdateTimeToLive", disable)
 	})
 }
 

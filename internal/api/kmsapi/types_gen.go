@@ -2113,6 +2113,11 @@ func (MultiRegionKeyType) Values() []MultiRegionKeyType {
 	}
 }
 
+// NotAuthorizedException is the error com.amazonaws.kms#NotAuthorizedException.
+type NotAuthorizedException struct {
+	Message *string
+}
+
 // NotFoundException is the error com.amazonaws.kms#NotFoundException.
 type NotFoundException struct {
 	Message *string

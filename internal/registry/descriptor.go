@@ -37,6 +37,11 @@ type Service struct {
 	// body the awsQuery codec encodes, success and error, opens with
 	// <?xml version="1.0"?> and no newline after it.
 	XMLDeclaration bool
+	// RefuseDuplicateMembers is the overlay's
+	// dev.understudy#refuseDuplicateMembers: the awsJson codec refuses a
+	// request body whose objects repeat a member name, at any depth,
+	// instead of keeping the last value.
+	RefuseDuplicateMembers bool
 	// QueryErrorEnvelope is the overlay's dev.understudy#queryErrorEnvelope:
 	// how the awsQuery ErrorResponse differs from Smithy's example. The zero
 	// value is Smithy's example.

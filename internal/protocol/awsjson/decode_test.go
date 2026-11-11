@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/protocol/awsjson"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 func mustDecode(t *testing.T, body string, header ...string) dynStruct {
@@ -194,6 +195,49 @@ func TestDecodeRejectsWithCoralText(t *testing.T) {
 			t.Errorf("Decode(%s) = %v, want SerializationException with no message", body, aerr)
 		}
 	}
+}
+
+// A service declaring dev.understudy#refuseDuplicateMembers (DynamoDB)
+// refuses a body that repeats a member name with Coral's text, at any
+// depth: a top-level repeat is aws-recorded
+// (testdata/parity/dynamodb/R11/06-dynamodb-duplicate-member.json), the
+// nested cases are inferred. A repeat counts whatever its value and whether
+// or not the member is modeled; a body that stops being JSON before any
+// repeat still gets no message.
+func TestDecodeRefusesDuplicateMembersWhenTheServiceDoes(t *testing.T) {
+	f := newFixture(t)
+	f.sink.Service.RefuseDuplicateMembers = true
+	for _, body := range []string{
+		`{"String":"a","String":"b"}`,
+		`{"Integer":1,"Integer":null}`,
+		`{"Nested":{"String":"a","String":"b"}}`,
+		`{"Map":{"k":1,"k":2}}`,
+		`{"Choices":{"k":{"Text":"a","Text":"b"}}}`,
+		`{"Entries":[{"Id":"a","Id":"b"}]}`,
+		`{"Document":{"a":1,"a":2}}`,
+		`{"Unknown":{"x":1,"x":2}}`,
+		`{"Unknown":1,"Unknown":2}`,
+	} {
+		_, aerr := decode(f.sink, []byte(body))
+		if aerr == nil || aerr.ID != awserr.SerializationException() || aerr.Message != "Duplicate key found in payload" {
+			t.Errorf("Decode(%s) = %v, want SerializationException %q", body, aerr, "Duplicate key found in payload")
+		}
+	}
+	if _, aerr := decode(f.sink, []byte(`{"String":"a",,"String":"b"}`)); aerr == nil || aerr.ID != awserr.SerializationException() || aerr.Message != "" {
+		t.Errorf("Decode(truncated) = %v, want SerializationException with no message", aerr)
+	}
+	if v := mustDecodeOp(t, f.sink, `{"Nested":{"String":"a"},"String":"a"}`); len(v.fields) != 2 {
+		t.Errorf("a name repeated in another object is not a duplicate: got %v", v.fields)
+	}
+}
+
+func mustDecodeOp(t *testing.T, op *registry.Operation, body string) dynStruct {
+	t.Helper()
+	v, aerr := decode(op, []byte(body))
+	if aerr != nil {
+		t.Fatalf("Decode(%s) = %s: %q", body, aerr.ID.Shape, aerr.Message)
+	}
+	return v
 }
 
 // A service whose overlay sets malformedRequestError answers an undecodable

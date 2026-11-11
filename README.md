@@ -137,14 +137,14 @@ Counts are from [docs/coverage.md](docs/coverage.md), which lists every operatio
 | SQS | 23 | 15 | 0 | 8 | 0 |
 | SNS | 42 | 12 | 0 | 7 | 23 |
 | S3 | 112 | 22 | 39 | 25 | 26 |
-| DynamoDB (with Streams) | 62 | 5 | 2 | 23 | 32 |
+| DynamoDB (with Streams) | 62 | 6 | 2 | 23 | 31 |
 | Kinesis Data Streams | 45 | 0 | 2 | 19 | 24 |
 | Lambda | 88 | 30 | 2 | 18 | 38 |
 | CloudWatch Logs | 118 | 9 | 0 | 9 | 100 |
 | Secrets Manager | 23 | 1 | 0 | 14 | 8 |
 | KMS | 54 | 16 | 2 | 9 | 27 |
 | IAM | 180 | 10 | 1 | 53 | 116 |
-| STS | 11 | 1 | 0 | 2 | 8 |
+| STS | 11 | 1 | 0 | 3 | 7 |
 | EventBridge | 57 | 6 | 1 | 15 | 35 |
 | EventBridge Scheduler | 12 | 0 | 0 | 12 | 0 |
 | CloudWatch | 55 | 4 | 0 | 11 | 40 |

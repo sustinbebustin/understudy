@@ -591,6 +591,21 @@ func (*MissingAuthenticationTokenException) ErrorIdentity() awserr.Identity {
 	return IdentityMissingAuthenticationTokenException()
 }
 
+// IdentityNotAuthorizedException returns the identity of com.amazonaws.kms#NotAuthorizedException.
+func IdentityNotAuthorizedException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.kms#NotAuthorizedException", JSONType: "NotAuthorizedException", QueryCode: "NotAuthorizedException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrNotAuthorizedException returns a NotAuthorizedException error with message.
+func ErrNotAuthorizedException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityNotAuthorizedException(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.kms#NotAuthorizedException.
+func (*NotAuthorizedException) ErrorIdentity() awserr.Identity {
+	return IdentityNotAuthorizedException()
+}
+
 // IdentityNotFoundException returns the identity of com.amazonaws.kms#NotFoundException.
 func IdentityNotFoundException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.kms#NotFoundException", JSONType: "NotFoundException", QueryCode: "NotFound", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}

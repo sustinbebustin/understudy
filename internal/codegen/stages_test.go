@@ -190,7 +190,7 @@ func TestStageFailures(t *testing.T) {
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
 				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#patternEcho " +
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryErrorHeader dev.understudy#queryKeyAlias " +
-				"dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
+				"dev.understudy#refuseDuplicateMembers dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationAnswer dev.understudy#unknownOperationError dev.understudy#validationError " +
 				"dev.understudy#validationInputRoot dev.understudy#validationPathStyle dev.understudy#xmlDeclaration]",
 		},
@@ -266,6 +266,48 @@ func TestStageFailures(t *testing.T) {
 			want: "understudy-gen ir: com.example.golden#Nested$Code: dev.understudy#validationError code com.example.golden#Nested " +
 				"is not an error structure in the model or an overlay",
 		},
+		{
+			name: "validation bound that is not max",
+			extra: overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+				"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "style": "fixed",
+					"constraints": ["length"], "bound": "min", "reason": "Too long."}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#PutKindsRequest$Secret: dev.understudy#validationError: rule 0: " +
+				`bound "min" is not max; leave bound out to cover both length limits`,
+		},
+		{
+			name: "validation bound on a rule not filtered to length alone",
+			extra: overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+				"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "style": "fixed",
+					"constraints": ["length", "pattern"], "bound": "max", "reason": "Too long."}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#PutKindsRequest$Secret: dev.understudy#validationError: rule 0: " +
+				`bound applies only to a rule whose constraints are ["length"] alone; split the other constraints into a rule of their own`,
+		},
+		{
+			name: "validation value that is not echo or omit",
+			extra: overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+				"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "value": "hide"}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#PutKindsRequest$Secret: dev.understudy#validationError: rule 0: " +
+				`value "hide" is not echo or omit`,
+		},
+		{
+			name: "validation enumSet that is not list or omit",
+			extra: overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+				"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "enumSet": "none"}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#PutKindsRequest$Secret: dev.understudy#validationError: rule 0: " +
+				`enumSet "none" is not list or omit`,
+		},
+		{
+			name: "validation value on a hand-text style",
+			extra: overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+				"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "style": "fixed", "reason": "Bad.", "value": "omit"}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#PutKindsRequest$Secret: dev.understudy#validationError: rule 0: " +
+				"value and enumSet shape the coral style's entries; style fixed prints none",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -302,6 +344,45 @@ func TestPatternPolicyHandlerDropsTheGeneratedCheck(t *testing.T) {
 	}
 	if bytes.Contains(handled["validate_gen.go"], []byte("[a-z]+/[a-z]+")) {
 		t.Fatalf("with patternPolicy handler the pattern is still checked:\n%s", handled["validate_gen.go"])
+	}
+}
+
+// TestLengthBoundMaxFiltersTheRuleToTheMaximum: a member-level rule with
+// {constraints: ["length"], bound: max} covers only the length maximum, so
+// Logs' fixed over-length text leaves a too-short name to the service rule
+// (secrets-logs-events-alarms.md 3.1).
+func TestLengthBoundMaxFiltersTheRuleToTheMaximum(t *testing.T) {
+	files, err := codegen.Generate(goldenInputs(t, overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+		"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "style": "fixed",
+			"constraints": ["length"], "bound": "max", "reason": "Too long."}, `+evidence+`}}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = `{kinds: kindLengthMax, id: IdentityInvalidInput, style: styleFixed, reason: "Too long."}`
+	if !bytes.Contains(files["validate_gen.go"], []byte(want)) {
+		t.Fatalf("validate_gen.go has no rule %s:\n%s", want, files["validate_gen.go"])
+	}
+}
+
+// TestCoralEchoOptionsReachTheRuntimeRule: {value: omit, enumSet: omit}
+// emits the rule's echo, as IAM's service rule needs (error-matrix.md 5.10
+// T3 and T4), and the options are independent, as DynamoDB Streams omits
+// only the value (dynamodb-streams.md 6.5).
+func TestCoralEchoOptionsReachTheRuntimeRule(t *testing.T) {
+	for _, tt := range []struct{ options, want string }{
+		{`"value": "omit", "enumSet": "omit"`, `{id: IdentityInvalidInput, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}`},
+		{`"value": "omit", "enumSet": "list"`, `{id: IdentityInvalidInput, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue}}`},
+		{`"value": "echo", "enumSet": "omit"`, `{id: IdentityInvalidInput, style: styleCoral, echo: awserr.CoralEcho{Enum: awserr.OmitEnum}}`},
+		{`"value": "echo", "enumSet": "list"`, `{id: IdentityInvalidInput, style: styleCoral}`},
+	} {
+		files, err := codegen.Generate(goldenInputs(t, overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+			"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", `+tt.options+`}, `+evidence+`}}`)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(files["validate_gen.go"], []byte("rules: []validationRule{"+tt.want+"}")) {
+			t.Errorf("%s: validate_gen.go has no rule %s", tt.options, tt.want)
+		}
 	}
 }
 
@@ -421,6 +502,36 @@ func TestRolledUpPathsReportAtTheCollection(t *testing.T) {
 	if bytes.Contains(src, []byte(`at(path, "tags"), strconv.Itoa(`)) {
 		t.Fatalf("rolled-up validators still index the tags elements:\n%s", src)
 	}
+}
+
+// TestCollectionOfStructuresIsReportedWithoutAValue: a list or map whose
+// elements are structures fails its length with no value, as in the IAM
+// TagRole and Logs PutLogEvents captures, while a list of strings keeps its
+// rendered text.
+func TestCollectionOfStructuresIsReportedWithoutAValue(t *testing.T) {
+	in := goldenInputs(t)
+	model := string(in.Model.Content)
+	const anchor = `"Hints": {"target": "com.example.golden#SparseSecrets"}`
+	const shapes = `"com.example.golden#SparseSecrets": {`
+	for _, a := range []string{anchor, shapes} {
+		if n := strings.Count(model, a); n != 1 {
+			t.Fatalf("the fixture model holds %s %d times, want once; update the anchor", a, n)
+		}
+	}
+	model = strings.Replace(model, anchor, anchor+`, "Records": {"target": "com.example.golden#RecordList"}, "Registry": {"target": "com.example.golden#RecordMap"}`, 1)
+	model = strings.Replace(model, shapes, `"com.example.golden#RecordList": {"type": "list", "member": {"target": "com.example.golden#Nested"}, "traits": {"smithy.api#length": {"max": 2}}},
+		"com.example.golden#RecordMap": {"type": "map", "key": {"target": "com.example.golden#String"}, "value": {"target": "com.example.golden#Nested"}, "traits": {"smithy.api#length": {"max": 2}}},
+		`+shapes, 1)
+	in.Model.Content = []byte(model)
+	files, err := codegen.Generate(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustContain(t, "validate_gen.go", files["validate_gen.go"],
+		`Path: at(path, "records"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}`,
+		`Path: at(path, "registry"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}`,
+		`Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}`,
+	)
 }
 
 // TestASensitiveMapKeyHidesTheWholeMap: no copy of a map can keep its keys
@@ -909,6 +1020,7 @@ func TestClassifyOverlayTraits(t *testing.T) {
 		"dev.understudy#queryErrorEnvelope":     codegen.Honor,
 		"dev.understudy#responseCrc32":          codegen.Honor,
 		"dev.understudy#xmlDeclaration":         codegen.Honor,
+		"dev.understudy#refuseDuplicateMembers": codegen.Honor,
 		"dev.understudy#enumOrder":              codegen.Honor,
 		"dev.understudy#validationInputRoot":    codegen.Honor,
 	}

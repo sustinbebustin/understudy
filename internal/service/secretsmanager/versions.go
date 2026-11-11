@@ -70,8 +70,8 @@ func (s *Service) write(ctx context.Context, c *kernel.Call, id string, meta fun
 func (s *Service) writeMeta(ctx context.Context, c *kernel.Call, r secretRef, sec Secret, meta func(sec *Secret)) (Secret, *awserr.Error) {
 	next := sec
 	meta(&next)
-	if rekeyed(sec.KMSKeyID, next.KMSKeyID) {
-		if err := s.checkKeyAccess(ctx, c, r.scope, sec.arn(r.scope).String(), next.KMSKeyID); err != nil {
+	if rekeyed(sec.key(), next.key()) {
+		if err := s.checkKeyAccess(ctx, c, r.scope, sec.arn(r.scope).String(), next.key()); err != nil {
 			return Secret{}, err
 		}
 	}
@@ -89,10 +89,10 @@ func (s *Service) writeMeta(ctx context.Context, c *kernel.Call, r secretRef, se
 // moveKey re-encrypts the labeled versions of sec under next's key when
 // next has another key than sec (rewrap); nil when the key is the same.
 func (s *Service) moveKey(ctx context.Context, c *kernel.Call, scope aws.Scope, sec, next Secret) (map[string]rewrapped, *awserr.Error) {
-	if keyRef(sec.KMSKeyID) == keyRef(next.KMSKeyID) {
+	if keyRef(sec.key()) == keyRef(next.key()) {
 		return nil, nil
 	}
-	return s.rewrap(ctx, c, scope, sec, next.KMSKeyID)
+	return s.rewrap(ctx, c, scope, sec, next.key())
 }
 
 // writeVersion is write with a value: sec, as read, gives the key to seal
@@ -105,7 +105,7 @@ func (s *Service) writeVersion(ctx context.Context, c *kernel.Call, r secretRef,
 	}
 	next := sec
 	meta(&next)
-	box, err := s.seal(ctx, c, r.scope, sec.arn(r.scope).String(), nv.token, next.KMSKeyID, nv.value)
+	box, err := s.seal(ctx, c, r.scope, sec.arn(r.scope).String(), nv.token, next.key(), nv.value)
 	if err != nil {
 		return Secret{}, false, err
 	}
@@ -136,7 +136,7 @@ func (s *Service) writeVersion(ctx context.Context, c *kernel.Call, r secretRef,
 		}
 		after := cur
 		meta(&after)
-		if keyRef(after.KMSKeyID) != keyRef(next.KMSKeyID) {
+		if keyRef(after.key()) != keyRef(next.key()) {
 			tx.Unchanged()
 			return written{rekeyed: true}, nil
 		}
@@ -175,8 +175,8 @@ func (s *Service) reused(ctx context.Context, c *kernel.Call, scope aws.Scope, s
 // rekeyed reports a change of a secret's KMS key to a customer key named by
 // next; a move to the default key needs no access check, since every caller
 // can use the AWS managed key.
-func rekeyed(cur, next *string) bool {
-	return next != nil && (cur == nil || *cur != *next)
+func rekeyed(cur, next encryptionKey) bool {
+	return isCustomerKey(next) && keyRef(cur) != keyRef(next)
 }
 
 // modify replaces the usable secret r names with what fn makes of a copy
@@ -342,8 +342,8 @@ func (s *Service) listSecretVersionIDs(_ context.Context, c *kernel.Call, in *se
 	for _, id := range p.items {
 		v := sec.Versions[id]
 		key := defaultKeyName
-		if v.KMSKeyID != nil {
-			key = *v.KMSKeyID
+		if ck, ok := v.key().(customerKey); ok {
+			key = ck.id
 		}
 		out.Versions = append(out.Versions, secretsmanagerapi.SecretVersionsListEntry{
 			VersionId: new(v.ID), VersionStages: sec.labels(v.ID), CreatedDate: new(v.Created.Wire()),

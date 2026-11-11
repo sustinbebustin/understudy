@@ -35,6 +35,20 @@ func TestPreForwardChecksAnswerBeforeLocal(t *testing.T) {
 			status: 400, want: `{"__type":"com.amazon.coral.service#SerializationException","Message":"STRING_VALUE cannot be converted to Integer"}`,
 		},
 		{
+			// aws-recorded: testdata/parity/dynamodb/R11/06-dynamodb-duplicate-member.json
+			name: "duplicate top-level member", header: target("DescribeTable"), body: `{"TableName":"Locks","TableName":"Other"}`, from: defaultCaller(),
+			status: 400, want: `{"__type":"com.amazon.coral.service#SerializationException","Message":"Duplicate key found in payload"}`,
+		},
+		{
+			// Inferred from the top-level recording.
+			name: "duplicate member in an attribute value", header: target("PutItem"), body: `{"TableName":"Locks","Item":{"k":{"S":"a","S":"b"}}}`, from: defaultCaller(),
+			status: 400, want: `{"__type":"com.amazon.coral.service#SerializationException","Message":"Duplicate key found in payload"}`,
+		},
+		{
+			name: "duplicate attribute name", header: target("PutItem"), body: `{"TableName":"Locks","Item":{"k":{"S":"a"},"k":{"S":"b"}}}`, from: defaultCaller(),
+			status: 400, want: `{"__type":"com.amazon.coral.service#SerializationException","Message":"Duplicate key found in payload"}`,
+		},
+		{
 			name: "T5 missing target", header: jsonHeader("", "application/x-amz-json-1.0"), body: `{}`, from: defaultCaller(),
 			status: 400, want: `{"__type":"com.amazon.coral.service#UnknownOperationException"}`,
 		},
@@ -76,6 +90,38 @@ func TestPreForwardChecksAnswerBeforeLocal(t *testing.T) {
 				}
 				if seen := h.local.requests(); len(seen) != 0 {
 					h.Errorf("Local received %d requests, want none: %+v", len(seen), seen)
+				}
+			})
+		})
+	}
+}
+
+// TestRefusalsCarryCRC32: every error understudy raises itself carries
+// x-amz-crc32 over the body sent, as AWS does (aws-recorded:
+// testdata/parity/dynamodb/R04/07-ttl-missing-table.json,
+// R11/06-dynamodb-unknown-target.json). The clock-skew refusal is checked
+// in internal/server, where the edge verifies signatures.
+func TestRefusalsCarryCRC32(t *testing.T) {
+	tests := []struct {
+		name   string
+		header http.Header
+		body   string
+		from   *caller
+		want   string
+	}{
+		{"shim refusal", target("UpdateTimeToLive"), `{"TableName":"Missing","TimeToLiveSpecification":{"AttributeName":"exp","Enabled":true}}`, defaultCaller(), "ResourceNotFoundException"},
+		{"generated validation", target("ListTables"), `{"Limit":101}`, defaultCaller(), "ValidationException"},
+		{"unknown target", target("ListTablez"), `{}`, defaultCaller(), "UnknownOperationException"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			run(t, func(h *harness) {
+				got := h.post(tt.header, tt.body, tt.from)
+				if got.Status != http.StatusBadRequest || !strings.Contains(got.Body, tt.want) {
+					h.Fatalf("answer = %d %s, want 400 %s", got.Status, got.Body, tt.want)
+				}
+				if sums := got.Header.Values("X-Amz-Crc32"); len(sums) != 1 || sums[0] != crc(got.Body) {
+					h.Errorf("x-amz-crc32 = %q, want exactly one, %q, the checksum of %s", sums, crc(got.Body), got.Body)
 				}
 			})
 		})

@@ -198,20 +198,68 @@ func TestCreateRoleDefaultsAndConflicts(t *testing.T) {
 	})
 }
 
+// CreateRole refuses the recorded trust policies with AWS's texts
+// (testdata/parity/iam/R15/06-create-role-invalid-trust.json,
+// 06-trust-lowercase.json, 06-trust-star.json).
+func TestCreateRoleRefusesRecordedTrustPolicies(t *testing.T) {
+	tests := []struct{ name, doc, want string }{
+		{"invalid-trust", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow"}]}`, "Missing required field Principal"},
+		{"lowercase", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:root"},"Action":"sts:assumerole"}]}`, "AssumeRole policy may only specify STS AssumeRole actions."},
+		{"star", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:root"},"Action":"sts:*"}]}`, "AssumeRole policy may only specify STS AssumeRole actions."},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, func(h *harness) {
+				_, err := call(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "bad", AssumeRolePolicyDocument: tc.doc})
+				if err == nil || err.ID.QueryCode != "MalformedPolicyDocument" || err.Message != tc.want {
+					t.Errorf("CreateRole = %v, want MalformedPolicyDocument %q", err, tc.want)
+				}
+			})
+		})
+	}
+}
+
+// CreatePolicy keeps moto's text for a statement without actions: IAM's is
+// unrecorded, and STS's "Missing required field Action" is for session
+// policies only.
+func TestCreatePolicyWithoutActions(t *testing.T) {
+	run(t, func(h *harness) {
+		_, err := call(h, iamapi.OpCreatePolicy, &iamapi.CreatePolicyInput{PolicyName: "p", PolicyDocument: `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"*"}]}`})
+		if err == nil || err.ID.QueryCode != "MalformedPolicyDocument" || err.Message != "Policy statement must contain actions." {
+			t.Errorf("CreatePolicy = %v, want MalformedPolicyDocument %q", err, "Policy statement must contain actions.")
+		}
+	})
+}
+
 // The model's pathType pattern, ^(/)|(/[!-~]+/)$, anchors each alternative
 // on one side only; IAM reads it as "/" or a run of printable ASCII between
-// slashes, and refuses the rest before storing anything.
+// slashes, as every Path member's documentation says, and refuses the rest
+// before storing anything, in every input that targets pathType. IAM's
+// validation text leaves the value out (error-matrix.md 5.10 T3).
 func TestPathsMustBeginAndEndWithASlash(t *testing.T) {
 	run(t, func(h *harness) {
-		const text = "Member must satisfy regular expression pattern: (\\u002F)|(\\u002F[\\u0021-\\u007E]+\\u002F)"
+		// refused checks one 400 ValidationError naming member and path.
+		refused := func(err *awserr.Error, op, member, path string) {
+			h.Helper()
+			want := "1 validation error detected: Value at '" + member + "' failed to satisfy constraint: " +
+				"Member must satisfy regular expression pattern: (\\u002F)|(\\u002F[\\u0021-\\u007E]+\\u002F)"
+			if err == nil || err.ID.QueryCode != "ValidationError" || err.ID.Status != 400 || err.Message != want {
+				h.Errorf("%s(%s %q) = %+v, want 400 ValidationError %q", op, member, path, err, want)
+			}
+		}
 		must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "u"})
+		must(h, iamapi.OpCreatePolicy, &iamapi.CreatePolicyInput{PolicyName: "p", PolicyDocument: allowLogs})
 		for _, path := range []string{"/svc", "/a b/", "x/a/", "svc/"} {
-			at := "Value '" + path + "' at 'path' failed to satisfy constraint: " + text
-			fails(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "r", Path: new(path), AssumeRolePolicyDocument: trustLambda}, "ValidationError", at)
-			fails(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "v", Path: new(path)}, "ValidationError", at)
-			fails(h, iamapi.OpCreateInstanceProfile, &iamapi.CreateInstanceProfileInput{InstanceProfileName: "p", Path: new(path)}, "ValidationError", at)
-			fails(h, iamapi.OpUpdateUser, &iamapi.UpdateUserInput{UserName: "u", NewPath: new(path)}, "ValidationError",
-				"Value '"+path+"' at 'newPath' failed to satisfy constraint: "+text)
+			_, err := call(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "r", Path: new(path), AssumeRolePolicyDocument: trustLambda})
+			refused(err, "CreateRole", "path", path)
+			_, err = call(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "v", Path: new(path)})
+			refused(err, "CreateUser", "path", path)
+			_, err = call(h, iamapi.OpCreateInstanceProfile, &iamapi.CreateInstanceProfileInput{InstanceProfileName: "p", Path: new(path)})
+			refused(err, "CreateInstanceProfile", "path", path)
+			_, err = call(h, iamapi.OpUpdateUser, &iamapi.UpdateUserInput{UserName: "u", NewPath: new(path)})
+			refused(err, "UpdateUser", "newPath", path)
+			_, err = call(h, iamapi.OpListEntitiesForPolicy, &iamapi.ListEntitiesForPolicyInput{PolicyArn: "arn:aws:iam::000000000000:policy/p", PathPrefix: new(path)})
+			refused(err, "ListEntitiesForPolicy", "pathPrefix", path)
 		}
 		fails(h, iamapi.OpGetRole, &iamapi.GetRoleInput{RoleName: "r"}, "NoSuchEntity", "")
 		fails(h, iamapi.OpGetUser, &iamapi.GetUserInput{UserName: new("v")}, "NoSuchEntity", "")
@@ -223,6 +271,18 @@ func TestPathsMustBeginAndEndWithASlash(t *testing.T) {
 		r := must(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "r", Path: new("/svc/"), AssumeRolePolicyDocument: trustLambda}).Role
 		if r.Arn != "arn:aws:iam::000000000000:role/svc/r" {
 			t.Errorf("CreateRole(Path /svc/).Arn = %q, want arn:aws:iam::000000000000:role/svc/r", r.Arn)
+		}
+	})
+}
+
+// An unknown enum value is refused without the value and without the value
+// set (error-matrix.md 5.10 T4).
+func TestEnumViolationOmitsValueAndValueSet(t *testing.T) {
+	run(t, func(h *harness) {
+		_, err := call(h, iamapi.OpUpdateAccessKey, &iamapi.UpdateAccessKeyInput{AccessKeyId: "AKIAAAAAAAAAAAAAAAAA", Status: "invalid"})
+		const want = "1 validation error detected: Value at 'status' failed to satisfy constraint: Member must satisfy enum value set"
+		if err == nil || err.ID.QueryCode != "ValidationError" || err.ID.Status != 400 || err.Message != want {
+			h.Errorf("UpdateAccessKey(Status invalid) = %+v, want 400 ValidationError %q", err, want)
 		}
 	})
 }

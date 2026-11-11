@@ -43,6 +43,21 @@
         }
       }
     },
+    "com.amazonaws.kms#NotAuthorizedException": {
+      "type": "structure",
+      "members": {
+        "message": {"target": "smithy.api#String"}
+      },
+      "traits": {
+        "smithy.api#error": "client",
+        "dev.understudy#messageKey": "Message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/kms/R15/03-create-alias-aws-prefix.json: the model declares no such shape; CreateAlias with an alias/aws/ name answers 400, code NotAuthorizedException, the message under the key Message",
+          "validated": "2026-10-14"
+        }
+      }
+    },
     "com.amazonaws.kms#AlreadyExistsException": {
       "type": "apply",
       "traits": {
@@ -100,10 +115,20 @@
       "replace": true,
       "traits": {
         "smithy.api#range": {"min": 7, "max": 30},
-        "dev.understudy#evidence": {
-          "label": "aws-doc",
-          "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_ScheduleKeyDeletion.html"
-        }
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException", "style": "fixed", "constraints": ["range"], "reason": "PendingWindowInDays must be between 7 and 30"},
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/kms/latest/APIReference/API_ScheduleKeyDeletion.html",
+            "covers": ["smithy.api#range"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/kms/R15/02-window-6.json and 02-window-31.json: PendingWindowInDays 6 and 31 answer ValidationException \"PendingWindowInDays must be between 7 and 30\", not the Coral range text",
+            "validated": "2026-10-14",
+            "covers": ["dev.understudy#validationError"]
+          }
+        ]
       }
     },
     "com.amazonaws.kms#DependencyTimeoutException": {

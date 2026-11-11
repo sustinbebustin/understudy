@@ -114,7 +114,7 @@ func TestEveryOperationLocalServesIsBound(t *testing.T) {
 		}
 		shimmed := []string{
 			"UpdateTimeToLive", "DescribeTimeToLive", "TagResource", "UntagResource", "ListTagsOfResource",
-			"DescribeContinuousBackups", "UpdateContinuousBackups",
+			"DescribeContinuousBackups", "UpdateContinuousBackups", "DescribeContributorInsights",
 		}
 		labelled := []string{"CreateTable", "DescribeTable", "UpdateTable"}
 		for _, op := range dynamodbapi.Service().Operations {

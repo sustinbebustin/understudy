@@ -472,6 +472,7 @@ type Service struct {
 	QueryCompatible  bool
 	ResponseCRC32    bool                // overlay responseCrc32
 	XMLDeclaration   bool                // overlay xmlDeclaration
+	RefuseDuplicateMembers bool          // overlay refuseDuplicateMembers
 	QueryErrorEnvelope QueryErrorEnvelope // overlay queryErrorEnvelope
 	UnknownOperationAnswer UnknownOperationAnswer // overlay unknownOperationAnswer; zero is unknownOperationError's identity in the protocol's envelope
 	MalformedRequestError awserr.Identity // overlay malformedRequestError; zero means the codec's protocol default
@@ -724,7 +725,7 @@ The closed set of `dev.understudy#` traits; the generator fails on anything else
 | `jsonType` | error shape | `__type` override for unmodeled names: a bare name, or an absolute `namespace#Name` whose namespace an awsJson1_0 `__type` carries (SQS `com.amazon.coral.service#InvalidParameterValueException`) |
 | `messageByProtocol` | error shape | per-protocol message text (`{"awsquery": "... for this wsdl version."}`) |
 | `messageKey` | error shape | the body key of the message, `message` or `Message`, where AWS's differs from the model member's spelling or the shape declares none (SSM `ValidationException` sends `message`, member-less `InvalidFilterKey` sends `Message`; `ssm-parameters.md 2.2`) |
-| `validationError` | service, operation or member | constraint-failure code and text style; on a member: `{code, style?, constraints?: [...], reason?: "template", enumPolicy?: closed/open/handler}` |
+| `validationError` | service, operation or member | constraint-failure code and text style; on a member: `{code, style?, constraints?: [...], bound?: max, reason?: "template", enumPolicy?: closed/open/handler, value?: echo/omit, enumSet?: list/omit}`; `bound: max` narrows `constraints: ["length"]` to the length maximum (Logs' over-length name text); `value: omit` and `enumSet: omit`, independent and coral style only, leave the value and an enum's value set out of each entry (IAM omits both, DynamoDB Streams the value; `error-matrix.md 5.10`, `dynamodb-streams.md 6.5`) |
 | `validationPathStyle` | service | `indexed` or `rolledUp` (Lambda) |
 | `validationInputRoot` | service | annotation: a Coral validation message names a member not bound to the URI under `<operation>Input` and a URI label bare (API Gateway `updateRestApiInput.patchOperations.1.member.op`, but `statusCode`; `apigateway-rest.md 2.4`) |
 | `enumOrder` | enum shape | the enum's values in the order an enum violation lists them, when AWS's differs from the model's; a permutation of the values (API Gateway `Op`, `IntegrationType`; `apigateway-rest.md 3.8`) |
@@ -745,6 +746,7 @@ The closed set of `dev.understudy#` traits; the generator fails on anything else
 | `unknownOperationAnswer` | service | `"awsFault"` (awsQuery) or `"notFound"` (REST): the form the edge answers an unknown operation in, emitted as `registry.Service.UnknownOperationAnswer`. `awsFault` is the identity in Coral's `AWSFault/2005-15-09` envelope with `Could not find operation X for version V` (SNS, SES v1); `notFound` is Coral's 404 `<UnknownOperationException/>` with no `Content-Type` (SES v2; `ses.md 3.1`, `3.2`) |
 | `responseCrc32` | awsJson service | annotation: every answer the codec encodes, success and error, carries `x-amz-crc32`, the CRC-32 (IEEE) of its body in decimal, emitted as `registry.Service.ResponseCRC32` (DynamoDB Streams; `dynamodb-streams.md 3.1`) |
 | `xmlDeclaration` | awsQuery service | annotation: every body the codec encodes, success and error, opens with `<?xml version="1.0"?>` and no newline, emitted as `registry.Service.XMLDeclaration` (SQS; SNS sends none, `testdata/parity/sqs/R11/notes.md`) |
+| `refuseDuplicateMembers` | awsJson service | annotation: a request body repeating a member name in any object is refused with `SerializationException` "Duplicate key found in payload" instead of keeping the last value, emitted as `registry.Service.RefuseDuplicateMembers` (DynamoDB; recorded for a top-level repeat in `testdata/parity/dynamodb/R11/06-dynamodb-duplicate-member.json`, deeper repeats inferred) |
 | `queryErrorEnvelope` | awsQuery service | `{namespace?, detail?}`: how `ErrorResponse` differs from Smithy's example, emitted as `registry.Service.QueryErrorEnvelope` (CloudWatch and IAM declare the service's `xmlns`, SQS sends an empty `<Detail/>`; `error-matrix.md 3`) |
 
 Overlays are applied after loading and before validation of the merged model. Applying a trait the vendored model already has with a different value is an error unless the entry says `"replace": true`, so a model bump that fixes a gap surfaces as a failing generate.

@@ -25,19 +25,18 @@ const (
 
 // shimmed completes the table description in one of Local's answers from
 // the shim (dynamodb-local.md 7.3): WarmThroughput, which Terraform waits
-// on, always; TableId, TableClassSummary, SSEDescription and the emulator
-// clock's timestamps (creation, the switch to PAY_PER_REQUEST, the table
-// class update and each throughput increase and decrease) when the shim
-// records the table.
+// on, in the answers AWS gives one; TableId, TableClassSummary,
+// SSEDescription and the emulator clock's timestamps (creation, the switch
+// to PAY_PER_REQUEST, the table class update and each throughput increase
+// and decrease) when the shim records the table. It then leaves out what
+// AWS's answer to the operation leaves out (answerOf.shape).
 type shimmed struct {
 	// table is the shim's record; nil for a table Local holds that the shim
 	// never saw created, which gets WarmThroughput only.
 	table *Table
-	// status replaces Local's TableStatus; empty keeps it. CreateTable sets
-	// CREATING, UpdateTable UPDATING and DeleteTable DELETING where Local
-	// answers ACTIVE (dynamodb-local.md 4.2). A table CREATING has its
-	// global secondary indexes CREATING too.
-	status dynamodbapi.TableStatus
+	// of is the operation answered, which sets the TableStatus and the
+	// members the answer carries.
+	of answerOf
 	// under renames the member holding the description: an UpdateTable
 	// answered from Local's DescribeTable moves Table to TableDescription.
 	under string
@@ -47,6 +46,68 @@ type shimmed struct {
 	// seen, when set, receives what Local's description says of the
 	// stream the call enables, before stream replaces it.
 	seen *localStreamSeen
+}
+
+// answerOf is the operation whose answer holds a table description:
+// DescribeTable, CreateTable, UpdateTable or DeleteTable. AWS gives each its
+// own members (shape; testdata/parity/dynamodb/R04/01-create-table.json,
+// 02-describe-table.json, x-billing-to-provisioned.json,
+// 99-delete-table.json).
+type answerOf int
+
+const (
+	describeAnswer answerOf = iota
+	createAnswer
+	updateAnswer
+	deleteAnswer
+)
+
+// answerShape is what one operation's answer makes of the table
+// description Local gives.
+type answerShape struct {
+	// status is the TableStatus the answer reports where Local answers
+	// ACTIVE (dynamodb-local.md 4.2); empty keeps Local's.
+	status dynamodbapi.TableStatus
+	// indexStatus is the IndexStatus of each global secondary index;
+	// empty keeps Local's.
+	indexStatus dynamodbapi.IndexStatus
+	// warm says the answer carries the table's WarmThroughput.
+	warm bool
+	// drops are the members AWS leaves out of the answer, each a path from
+	// the description.
+	drops [][]string
+}
+
+// shape is the one place each answer's members are set.
+func (o answerOf) shape() answerShape {
+	switch o {
+	case describeAnswer:
+		return answerShape{warm: true}
+	case createAnswer:
+		// No WarmThroughput, and no switch to PAY_PER_REQUEST in
+		// BillingModeSummary.
+		return answerShape{
+			status:      dynamodbapi.TableStatusCreating,
+			indexStatus: dynamodbapi.IndexStatusCreating,
+			drops:       [][]string{{"BillingModeSummary", "LastUpdateToPayPerRequestDateTime"}},
+		}
+	case updateAnswer:
+		return answerShape{status: dynamodbapi.TableStatusUpdating, warm: true}
+	case deleteAnswer:
+		return answerShape{
+			status: dynamodbapi.TableStatusDeleting,
+			drops:  [][]string{{"AttributeDefinitions"}, {"KeySchema"}, {"CreationDateTime"}},
+		}
+	}
+	return answerShape{}
+}
+
+// trimmed is desc without the members AWS leaves out of the answer.
+func (a answerShape) trimmed(desc document.Map) document.Map {
+	for _, path := range a.drops {
+		desc = removePath(desc, path)
+	}
+	return desc
 }
 
 // localStreamSeen is what the feed needs from Local's description of a
@@ -81,8 +142,8 @@ func (l *localStreamSeen) read(desc document.Map) {
 }
 
 // described is how the description of name in scope is completed.
-func (s *Service) described(scope aws.Scope, name string, status dynamodbapi.TableStatus) *shimmed {
-	d := &shimmed{status: status, stream: s.latestStream(scope, tableName(name))}
+func (s *Service) described(scope aws.Scope, name string, of answerOf) *shimmed {
+	d := &shimmed{of: of, stream: s.latestStream(scope, tableName(name))}
 	if t, ok := s.lookup(scope, tableName(name)); ok {
 		d.table = &t
 	}
@@ -92,7 +153,7 @@ func (s *Service) described(scope aws.Scope, name string, status dynamodbapi.Tab
 // describeTable forwards DescribeTable and completes the description.
 func (s *Service) describeTable(ctx context.Context, c *kernel.Call, in *dynamodbapi.DescribeTableInput, w kernel.Wire) (kernel.RawResponse, *awserr.Error) {
 	a := tableAnswer(in.TableName)
-	a.shim = s.described(c.Scope(), in.TableName, "")
+	a.shim = s.described(c.Scope(), in.TableName, describeAnswer)
 	return s.forward(ctx, c, in, w, a, []string{in.TableName})
 }
 
@@ -109,7 +170,7 @@ func (d *shimmed) complete(answer document.Map) bool {
 		if !ok {
 			return false
 		}
-		answer[i].Value = d.patch(desc)
+		answer[i].Value = d.of.shape().trimmed(d.patch(desc))
 		if d.under != "" {
 			answer[i].Key = d.under
 		}
@@ -125,21 +186,20 @@ func (d *shimmed) patch(desc document.Map) document.Map {
 	if !reported {
 		status = document.String(dynamodbapi.TableStatusActive)
 	}
-	if d.status != "" {
-		status = document.String(d.status)
+	shape := d.of.shape()
+	if shape.status != "" {
+		status = document.String(shape.status)
 		desc = setMember(desc, "TableStatus", status)
 	}
-	warm := Warm{Reads: defaultWarmReads, Writes: defaultWarmWrites}
-	if t := d.table; t != nil && t.Warm != nil {
-		warm = *t.Warm
+	if shape.warm {
+		warm := Warm{Reads: defaultWarmReads, Writes: defaultWarmWrites}
+		if t := d.table; t != nil && t.Warm != nil {
+			warm = *t.Warm
+		}
+		desc = setMember(desc, "WarmThroughput", warmDescription(warm, status))
 	}
-	desc = setMember(desc, "WarmThroughput", warmDescription(warm, status))
 	t := d.table
-	var indexStatus dynamodbapi.IndexStatus
-	if d.status == dynamodbapi.TableStatusCreating {
-		indexStatus = dynamodbapi.IndexStatusCreating
-	}
-	patchIndexes(desc, t, indexStatus)
+	patchIndexes(desc, t, shape.indexStatus)
 	if d.seen != nil {
 		d.seen.read(desc)
 	}
@@ -294,6 +354,22 @@ func setMember(m document.Map, key string, v document.Value) document.Map {
 // removeMember removes m's member key in place, if it has one.
 func removeMember(m document.Map, key string) document.Map {
 	return slices.DeleteFunc(m, func(e document.Entry) bool { return e.Key == key })
+}
+
+// removePath removes the member path names from m in place, if it has
+// one: its last key from the map its earlier keys lead to.
+func removePath(m document.Map, path []string) document.Map {
+	switch len(path) {
+	case 0:
+		return m
+	case 1:
+		return removeMember(m, path[0])
+	}
+	inner, ok := member(m, path[0]).(document.Map)
+	if !ok {
+		return m
+	}
+	return setMember(m, path[0], removePath(inner, path[1:]))
 }
 
 // epochSeconds is i as DynamoDB writes a timestamp: Unix seconds with

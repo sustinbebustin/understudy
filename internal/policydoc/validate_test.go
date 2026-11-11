@@ -247,19 +247,48 @@ func TestValidateReportsIAMMessages(t *testing.T) {
 			name:     "trust policy with a non-STS action",
 			validate: policydoc.ValidateTrust,
 			in:       `{"Version":"2012-10-17","Statement":{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":["sts:AssumeRole","s3:GetObject"]}}`,
-			want:     "Trust Policy statement actions can only be sts:AssumeRole, sts:AssumeRoleWithSAML,  and sts:AssumeRoleWithWebIdentity",
+			want:     "AssumeRole policy may only specify STS AssumeRole actions.",
 		},
 		{
 			name:     "trust policy with NotAction",
 			validate: policydoc.ValidateTrust,
 			in:       `{"Version":"2012-10-17","Statement":{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"NotAction":"sts:AssumeRole"}}`,
-			want:     "Trust Policy statement actions can only be sts:AssumeRole, sts:AssumeRoleWithSAML,  and sts:AssumeRoleWithWebIdentity",
+			want:     "AssumeRole policy may only specify STS AssumeRole actions.",
 		},
 		{
 			name:     "trust actions outrank the prohibited resource",
 			validate: policydoc.ValidateTrust,
 			in:       `{"Version":"2012-10-17","Statement":{"Effect":"Allow","Principal":"*","Action":"iam:PassRole","Resource":"*"}}`,
-			want:     "Trust Policy statement actions can only be sts:AssumeRole, sts:AssumeRoleWithSAML,  and sts:AssumeRoleWithWebIdentity",
+			want:     "AssumeRole policy may only specify STS AssumeRole actions.",
+		},
+		{
+			// testdata/parity/iam/R15/06-trust-lowercase.json
+			name:     "trust policy with a lower-case AssumeRole",
+			validate: policydoc.ValidateTrust,
+			in:       `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:root"},"Action":"sts:assumerole"}]}`,
+			want:     "AssumeRole policy may only specify STS AssumeRole actions.",
+		},
+		{
+			// testdata/parity/iam/R15/06-trust-star.json
+			name:     "trust policy with every STS action",
+			validate: policydoc.ValidateTrust,
+			in:       `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:root"},"Action":"sts:*"}]}`,
+			want:     "AssumeRole policy may only specify STS AssumeRole actions.",
+		},
+		{
+			// testdata/parity/iam/R15/06-create-role-invalid-trust.json: the
+			// statement lacks actions too, and AWS names the principal.
+			name:     "trust policy without a principal",
+			validate: policydoc.ValidateTrust,
+			in:       `{"Version":"2012-10-17","Statement":[{"Effect":"Allow"}]}`,
+			want:     "Missing required field Principal",
+		},
+		{
+			// testdata/parity/sts/R15/x-assume-refused-session-policy.json
+			name:     "session policy without actions",
+			validate: policydoc.ValidateSession,
+			in:       `{"Version":"2012-10-17","Statement":[{"Effect":"Allow"}]}`,
+			want:     "Missing required field Action",
 		},
 	}
 	for _, tc := range tests {
