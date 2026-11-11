@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"encoding/xml"
 	"net/url"
 	"regexp"
 	"slices"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -323,7 +325,7 @@ func TestHTTPCoverageNotes(t *testing.T) {
 			"KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never applied; " +
 			"the http defaults in DeliveryPolicy apply to http and https subscriptions"},
 		"UnsubscribeLink": registry.Partial{Note: "the UnsubscribeConfirmation reaches the endpoint only when its host and port are in sns.httpDelivery.allow; " +
-			"its Token and SubscribeURL do not restore the subscription"},
+			"its Token and SubscribeURL restore the subscription for two days of emulator time, an inferred lifetime"},
 		"ConfirmSubscription":       registry.Full{},
 		"Unsubscribe":               registry.Full{},
 		"GetSubscriptionAttributes": registry.Full{},
@@ -719,10 +721,6 @@ func TestUnsubscribeLinkSendsAnUnsubscribeConfirmation(t *testing.T) {
 			h.Errorf("UnsubscribeConfirmation headers = %v", hs)
 		}
 		noAWSHost(h, "the UnsubscribeConfirmation", string(tg.Body))
-		// Re-confirmation is UNVERIFIED (2.4, SNSH-16); understudy's token
-		// restores nothing, as its UnsubscribeLink coverage note says.
-		_, err := call(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: b.Token})
-		wantError(h, err, "InvalidParameter", "Invalid parameter: Token")
 
 		other := h.subscribe(topic, "http", "http://127.0.0.1:8080/other", nil)
 		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(other)})
@@ -750,6 +748,184 @@ func TestRefusedUnsubscribeLinkSendsNothing(t *testing.T) {
 		}
 		if _, us := ofKind(h, delivery.HTTPUnsubscribeConfirmation); len(us) != 0 {
 			h.Errorf("%d UnsubscribeConfirmations after a refused link, want none", len(us))
+		}
+	})
+}
+
+// unsubscribeByLink GETs arn's UnsubscribeURL and returns the
+// UnsubscribeConfirmation it sent the endpoint.
+func unsubscribeByLink(h *harness, arn string) httpBody {
+	h.Helper()
+	before, _ := ofKind(h, delivery.HTTPUnsubscribeConfirmation)
+	if _, aerr := h.link("UnsubscribeLink", "/_understudy/sns/UnsubscribeLink?Action=Unsubscribe&SubscriptionArn="+url.QueryEscape(arn)); aerr != nil {
+		h.Fatalf("UnsubscribeLink = %s %q", aerr.ID.QueryCode, aerr.Message)
+	}
+	_, ts := ofKind(h, delivery.HTTPUnsubscribeConfirmation)
+	if len(ts) != len(before)+1 {
+		h.Fatalf("%d UnsubscribeConfirmations, want %d", len(ts), len(before)+1)
+	}
+	return parseBody(h, ts[len(ts)-1].Body)
+}
+
+// followSubscribeURL GETs subscribeURL and returns the subscription ARN
+// its ConfirmSubscriptionResponse carries.
+func followSubscribeURL(h *harness, subscribeURL string) (string, *awserr.Error) {
+	h.Helper()
+	u, err := url.Parse(subscribeURL)
+	if err != nil {
+		h.Fatal(err)
+	}
+	rec, aerr := h.link("ConfirmSubscriptionLink", u.RequestURI())
+	if aerr != nil {
+		return "", aerr
+	}
+	var doc struct {
+		XMLName xml.Name `xml:"ConfirmSubscriptionResponse"`
+		ARN     string   `xml:"ConfirmSubscriptionResult>SubscriptionArn"`
+	}
+	if rec.Code != 200 {
+		h.Fatalf("ConfirmSubscriptionLink answered HTTP %d", rec.Code)
+	}
+	if err := xml.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		h.Fatalf("ConfirmSubscriptionLink answered %s: %v", rec.Body, err)
+	}
+	return doc.ARN, nil
+}
+
+// listedARNs returns the subscription ARNs ListSubscriptionsByTopic shows
+// for topic.
+func listedARNs(h *harness, topic string) []string {
+	h.Helper()
+	listed := must(h, snsapi.OpListSubscriptionsByTopic, &snsapi.ListSubscriptionsByTopicInput{TopicArn: topic}).Subscriptions
+	out := make([]string, 0, len(listed))
+	for _, s := range listed {
+		out = append(out, *s.SubscriptionArn)
+	}
+	return out
+}
+
+// Visiting an UnsubscribeConfirmation's SubscribeURL restores the
+// subscription under its old ARN: 200 ConfirmSubscriptionResponse with
+// that ARN, PendingConfirmation and ConfirmationWasAuthenticated false,
+// listed again (sns-http-delivery.md 2.4, SNSH-16, AWS-recorded). A
+// second visit answers the same ARN, as confirming is idempotent (2.3).
+// Until then the subscription is gone and receives nothing, which is
+// inferred: AWS did not record what the old ARN answers in between.
+// Keeping its attributes across the restore is inferred too, as the
+// recorded subscription had only defaults; delivery after the restore is
+// inferred from it being confirmed again.
+func TestUnsubscribeConfirmationLinkRestoresTheSubscription(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "http", hookURL, map[string]string{"RawMessageDelivery": "true"})
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
+		u := unsubscribeByLink(h, arn)
+
+		_, err := call(h, snsapi.OpGetSubscriptionAttributes, &snsapi.GetSubscriptionAttributesInput{SubscriptionArn: arn})
+		wantError(h, err, "NotFound", "Subscription does not exist")
+		if listed := listedARNs(h, topic); len(listed) != 0 {
+			h.Errorf("listed while unsubscribed: %v", listed)
+		}
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "while-gone"})
+		if ns, _ := ofKind(h, delivery.HTTPNotification); len(ns) != 0 {
+			h.Errorf("%d Notifications while unsubscribed, want none", len(ns))
+		}
+
+		restored, aerr := followSubscribeURL(h, u.SubscribeURL)
+		if aerr != nil {
+			h.Fatalf("SubscribeURL = %s %q", aerr.ID.QueryCode, aerr.Message)
+		}
+		if restored != arn {
+			h.Errorf("SubscribeURL answered ARN %s, want %s", restored, arn)
+		}
+		attrs := h.subscriptionAttributes(arn)
+		want := map[string]string{
+			"SubscriptionArn": arn, "TopicArn": topic, "Protocol": "http", "Endpoint": hookURL,
+			"PendingConfirmation": "false", "ConfirmationWasAuthenticated": "false", "RawMessageDelivery": "true",
+		}
+		for k, v := range want {
+			if attrs[k] != v {
+				h.Errorf("%s after the restore = %q, want %q", k, attrs[k], v)
+			}
+		}
+		if listed := listedARNs(h, topic); !slices.Equal(listed, []string{arn}) {
+			h.Errorf("listed after the restore: %v, want [%s]", listed, arn)
+		}
+		if again, aerr := followSubscribeURL(h, u.SubscribeURL); aerr != nil || again != arn {
+			h.Errorf("a second visit = %s, %v; want %s", again, aerr, arn)
+		}
+
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "after-restore"})
+		_, ns := ofKind(h, delivery.HTTPNotification)
+		if len(ns) != 1 || ns[0].URL.String() != hookURL || string(ns[0].Body) != "after-restore" {
+			h.Errorf("Notifications after the restore = %+v, want the raw message at %s", ns, hookURL)
+		}
+	})
+}
+
+// Two days after the unsubscribe the UnsubscribeConfirmation's SubscribeURL
+// answers as an unknown token does (sns-http-delivery.md 2.3); the two
+// days are the confirmation token's lifetime (2.2), as AWS did not record
+// this token's, so the lifetime is inferred.
+func TestUnsubscribeConfirmationLinkLastsTwoDays(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "http", hookURL, nil)
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
+		early := h.subscribe(topic, "http", "http://127.0.0.1:8080/early", nil)
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(early)})
+		u, earlyU := unsubscribeByLink(h, arn), unsubscribeByLink(h, early)
+		h.advance(48*time.Hour - time.Second)
+		if restored, aerr := followSubscribeURL(h, earlyU.SubscribeURL); aerr != nil || restored != early {
+			h.Fatalf("a second before two days the link = %s, %v; want %s", restored, aerr, early)
+		}
+		h.advance(time.Second)
+		_, err := followSubscribeURL(h, u.SubscribeURL)
+		wantError(h, err, "InvalidParameter", "Invalid parameter: Token")
+		if listed := listedARNs(h, topic); !slices.Equal(listed, []string{early}) {
+			h.Errorf("listed after the link expired: %v, want [%s]", listed, early)
+		}
+	})
+}
+
+// ConfirmSubscription with the UnsubscribeConfirmation's Token restores
+// the subscription as its SubscribeURL does, the link being that call
+// without credentials (sns-http-delivery.md 2.3); with credentials it
+// reads ConfirmationWasAuthenticated true. AWS recorded only the link, so
+// this is inferred.
+func TestUnsubscribeConfirmationTokenRestoresThroughTheCall(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "http", hookURL, nil)
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
+		u := unsubscribeByLink(h, arn)
+		restored := must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: u.Token})
+		if *restored.SubscriptionArn != arn {
+			h.Errorf("ConfirmSubscription = %s, want %s", *restored.SubscriptionArn, arn)
+		}
+		if got := h.subscriptionAttributes(arn)["ConfirmationWasAuthenticated"]; got != "true" {
+			h.Errorf("ConfirmationWasAuthenticated after the call = %q, want true", got)
+		}
+	})
+}
+
+// A topic that subscribed the endpoint again before the restore holds the
+// new subscription only: the old token answers as an unknown one, which is
+// inferred, since AWS did not record it.
+func TestUnsubscribeConfirmationLinkAfterResubscribing(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "http", hookURL, nil)
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
+		u := unsubscribeByLink(h, arn)
+		again := h.subscribe(topic, "http", hookURL, nil)
+		if again == arn {
+			h.Fatalf("the new Subscribe reused the unsubscribed ARN %s", arn)
+		}
+		_, err := followSubscribeURL(h, u.SubscribeURL)
+		wantError(h, err, "InvalidParameter", "Invalid parameter: Token")
+		if listed := listedARNs(h, topic); !slices.Equal(listed, []string{"PendingConfirmation"}) {
+			h.Errorf("listed = %v, want the new pending subscription only", listed)
 		}
 	})
 }

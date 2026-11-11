@@ -37,6 +37,7 @@ func TestStateCodecRoundTrips(t *testing.T) {
 				Tags:               stringMap(t, "tags"),
 				Subscriptions:      subscriptions(t),
 				Unsubscribed:       rapid.IntRange(0, 100).Draw(t, "unsubscribed"),
+				Restorable:         restorables(t),
 			}
 		}
 		for _, sub := range subscriptions(t) {
@@ -92,6 +93,19 @@ func subscriptions(t *rapid.T) []Subscription {
 			sub.Status = Pending{Tokens: tokens(t, 1, "tokens"), Expires: instant(t, "expires")}
 		}
 		out = append(out, sub)
+	}
+	return out
+}
+
+// restorables draws nil or subscriptions with the tokens that restore them.
+func restorables(t *rapid.T) []RestorableSubscription {
+	subs := subscriptions(t)
+	if len(subs) == 0 {
+		return nil
+	}
+	out := make([]RestorableSubscription, 0, len(subs))
+	for _, sub := range subs {
+		out = append(out, RestorableSubscription{Subscription: sub, Token: rapid.StringMatching(`[0-9a-f]{8}`).Draw(t, "restoreToken"), Until: instant(t, "restorableUntil")})
 	}
 	return out
 }

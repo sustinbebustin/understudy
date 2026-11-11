@@ -25,7 +25,7 @@ const linkPrefix = "/_understudy/sns/"
 func (s *Service) bindLinks(b snsapi.Binder) {
 	b.SigningCert(s.signingCert, registry.Full{})
 	b.UnsubscribeLink(s.unsubscribeLink, registry.Partial{Note: "the UnsubscribeConfirmation reaches the endpoint only when its host and port are in sns.httpDelivery.allow; " +
-		"its Token and SubscribeURL do not restore the subscription"})
+		"its Token and SubscribeURL restore the subscription for two days of emulator time, an inferred lifetime"})
 	b.ConfirmSubscriptionLink(s.confirmLink, registry.Full{})
 }
 
@@ -169,7 +169,9 @@ func (s *Service) confirmsUnsubscribe(ref subscriptionRef) bool {
 
 // confirmLink serves the SubscribeURL of a confirmation message:
 // ConfirmSubscription without credentials, from the TopicArn and Token
-// query members, so ConfirmationWasAuthenticated reads false. As with the
+// query members, so ConfirmationWasAuthenticated reads false. The
+// SubscribeURL of an UnsubscribeConfirmation restores the subscription it
+// removed (RestorableSubscription). As with the
 // call, only the ARN's scope matters, not its topic name; a token held in
 // another scope, such as the same topic in another region, is "Invalid
 // parameter: Topic" (LocalStack test_subscribe_external_http_endpoint,
@@ -194,12 +196,15 @@ func (s *Service) confirmLink(_ context.Context, c *kernel.Call, r *http.Request
 	return nil
 }
 
-// tokenScope returns the scope with SNS state where token confirms a
-// subscription; false when it confirms none anywhere.
+// tokenScope returns the scope with SNS state where token confirms or
+// restores a subscription; false when it does neither anywhere.
 func (s *Service) tokenScope(token string) (aws.Scope, bool) {
 	now := s.clock.Now()
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
-		if held := store.View(s.cells, scope, func(st *State) bool { _, _, ok := st.holder(token, now); return ok }); held {
+		if held := store.View(s.cells, scope, func(st *State) bool {
+			_, _, ok := st.holder(token, now)
+			return ok || st.restores(token, now)
+		}); held {
 			return scope, true
 		}
 	}

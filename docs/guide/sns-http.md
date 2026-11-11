@@ -228,18 +228,33 @@ Each prints `Verified OK`. The UnsubscribeConfirmation checked over `sns-validat
 
 ## Unsubscribing
 
-A GET of a Notification's `UnsubscribeURL` removes the subscription and sends it an UnsubscribeConfirmation. AWS documents that visiting that message's `SubscribeURL` re-confirms the subscription; understudy's `Token` and `SubscribeURL` do not restore it, a difference the `UnsubscribeLink` coverage note records. Whether AWS restores the same subscription ARN is not recorded. understudy answers that token as it answers any unknown one:
+A GET of a Notification's `UnsubscribeURL` removes the subscription and sends it an UnsubscribeConfirmation. The subscription is then gone: it is not listed, `get-subscription-attributes` answers `NotFound`, and nothing is delivered to it. Visiting the UnsubscribeConfirmation's `SubscribeURL` restores it, as on AWS, under the same ARN and with its attributes:
 
 ```sh
-aws sns confirm-subscription --topic-arn arn:aws:sns:us-east-1:000000000000:orders \
-  --token "$(jq -r .Token UnsubscribeConfirmation.json)"
+curl -s "$(jq -r .UnsubscribeURL Notification.json)"
+understudy settle
+curl -s "$(jq -r .SubscribeURL UnsubscribeConfirmation.json)"
+aws sns list-subscriptions-by-topic --topic-arn arn:aws:sns:us-east-1:000000000000:orders
 ```
 
 ```text
-aws: [ERROR]: An error occurred (InvalidParameter) when calling the ConfirmSubscription operation: Invalid parameter: Token
+<ConfirmSubscriptionResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/"><ConfirmSubscriptionResult><SubscriptionArn>arn:aws:sns:us-east-1:000000000000:orders:8eab1859-80e3-4ecf-8cfe-ffa5728d4717</SubscriptionArn></ConfirmSubscriptionResult><ResponseMetadata><RequestId>2c05d9c6-372c-429e-915e-a8ac3143fb60</RequestId></ResponseMetadata></ConfirmSubscriptionResponse>
+{
+    "Subscriptions": [
+        {
+            "SubscriptionArn": "arn:aws:sns:us-east-1:000000000000:orders:8eab1859-80e3-4ecf-8cfe-ffa5728d4717",
+            "Owner": "000000000000",
+            "Protocol": "http",
+            "Endpoint": "http://127.0.0.1:8080/orders",
+            "TopicArn": "arn:aws:sns:us-east-1:000000000000:orders"
+        }
+    ]
+}
 ```
 
-A signed `aws sns unsubscribe` sends nothing to the endpoint.
+The restored subscription is confirmed, with `ConfirmationWasAuthenticated` `false`, and receives what is published from then on; what was published while it was gone is not delivered. `aws sns confirm-subscription` with the message's `Token` restores it too. AWS does not record how long that token lasts. understudy keeps it for two days of emulator time, the documented lifetime of a confirmation token, after which it answers `InvalidParameter` `Invalid parameter: Token`, as an unknown token does. It answers the same once the topic has subscribed the endpoint again.
+
+A signed `aws sns unsubscribe` sends nothing to the endpoint, and leaves nothing to restore.
 
 ## What is inferred
 

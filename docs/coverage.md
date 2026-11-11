@@ -1587,7 +1587,7 @@ Raw operations:
 |---|---|---|---|
 | ConfirmSubscriptionLink | full | unassessed |  |
 | SigningCert | full | unassessed |  |
-| UnsubscribeLink | partial | inferred, 3 of 9 claims | the UnsubscribeConfirmation reaches the endpoint only when its host and port are in sns.httpDelivery.allow; its Token and SubscribeURL do not restore the subscription |
+| UnsubscribeLink | partial | inferred, 3 of 9 claims | the UnsubscribeConfirmation reaches the endpoint only when its host and port are in sns.httpDelivery.allow; its Token and SubscribeURL restore the subscription for two days of emulator time, an inferred lifetime |
 
 ### sqs
 

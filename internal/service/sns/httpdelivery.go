@@ -198,35 +198,34 @@ func (s *Service) httpConfirmation(st *State, ref topicRef, t *Topic, sub *Subsc
 // unsigned GET of the UnsubscribeURL of sub, a confirmed http or https
 // subscription of the topic ref names, sends its endpoint, due at now
 // (sns-http-delivery.md 2.4, 4.4): a new MessageId and a new token, signed
-// over the confirmation field list with Token (5.1). AWS documents its
-// SubscribeURL as the one to visit to re-confirm the subscription (2.4,
-// aws-doc). understudy keeps the token nowhere, so its SubscribeURL
-// confirms nothing, a deviation the UnsubscribeLink coverage note records;
-// whether AWS restores the same subscription ARN, and how long the token
-// lasts, are UNVERIFIED (2.4, SNSH-16). A stored endpoint that is not a URL
-// gets nothing, journaled as Dropped, and the unsubscribe still succeeds.
+// over the confirmation field list with Token (5.1). It adds sub to t's
+// Restorable for that token's lifetime from now (RestorableSubscription);
+// t must not alias a cell. A stored endpoint that is not a URL gets
+// nothing, journaled as Dropped, is not restorable, and the unsubscribe
+// still succeeds.
 func (s *Service) sendUnsubscribeConfirmation(tx *kernel.Tx, st *State, ref subscriptionRef, t *Topic, sub *Subscription, l links, now clock.Instant) *awserr.Error {
 	to, bad := httpEndpointOf(sub)
 	if bad != nil {
 		tx.Record(ref.topic.scope, unusableEndpoint(ref.topic.arn(), bad))
 		return nil
 	}
-	r, err := s.unsubscribeConfirmation(st, ref, t, sub, to, l, now)
+	token := hex.EncodeToString(s.ids.Draw(ids.KindSNSMessageID, tokenBytes))
+	r, err := s.unsubscribeConfirmation(st, ref, t, sub, to, token, l, now)
 	if err != nil {
 		return err
 	}
+	t.Restorable = append(t.Restorable, RestorableSubscription{Subscription: sub.clone(), Token: token, Until: now.Add(tokenValidity)})
 	tx.Deliver(r)
 	return nil
 }
 
 // unsubscribeConfirmation is the delivery of sendUnsubscribeConfirmation's
-// message to to, sub's endpoint.
-func (s *Service) unsubscribeConfirmation(st *State, ref subscriptionRef, t *Topic, sub *Subscription, to httpEndpoint, l links, now clock.Instant) (delivery.Request, *awserr.Error) {
+// message of token to to, sub's endpoint.
+func (s *Service) unsubscribeConfirmation(st *State, ref subscriptionRef, t *Topic, sub *Subscription, to httpEndpoint, token string, l links, now clock.Instant) (delivery.Request, *awserr.Error) {
 	signing, err := s.signing(st.Signing, ref.topic, t.signatureVersion(), l)
 	if err != nil {
 		return delivery.Request{}, err
 	}
-	token := hex.EncodeToString(s.ids.Draw(ids.KindSNSMessageID, tokenBytes))
 	topicARN := ref.topic.arn().String()
 	u := envelope.UnsubscribeConfirmation{
 		MessageID:       string(s.ids.SNSMessageID()),

@@ -458,9 +458,10 @@ func (s *Service) confirmSubscription(_ context.Context, c *kernel.Call, in *sns
 // by's token, as by says, and returns its ARN. Confirming again with the
 // token it was confirmed with succeeds and changes nothing; any other of
 // its tokens is 403 AuthorizationError "Subscription already confirmed"
-// (sns-http-delivery.md 2.2, SNSH-12, AWS-recorded). A token with a
-// character that is not hex is "Invalid token"; any other token that
-// confirms nothing, expired included, is "Invalid parameter: Token"
+// (sns-http-delivery.md 2.2, SNSH-12, AWS-recorded). The token of an
+// UnsubscribeConfirmation restores the subscription it removed (restore).
+// A token with a character that is not hex is "Invalid token"; any other
+// token that confirms nothing, expired included, is "Invalid parameter: Token"
 // (LocalStack test_sns_confirm_subscription_wrong_token and
 // test_subscribe_external_http_endpoint, AWS-recorded). Which text an
 // odd-length hex token gets is inferred: none was recorded.
@@ -472,7 +473,7 @@ func (s *Service) confirm(c *kernel.Call, scope aws.Scope, by tokenConfirmation)
 	ref, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, tx *kernel.Tx) (subscriptionRef, *awserr.Error) {
 		name, i, ok := st.holder(token, now)
 		if !ok {
-			return subscriptionRef{}, errInvalidParameter("Token")
+			return st.restore(scope, token, by, now)
 		}
 		ref := subscriptionRef{topic: topicRef{scope: scope, name: name}, id: st.Topics[name].Subscriptions[i].ID}
 		pending, isPending := st.Topics[name].Subscriptions[i].Status.(Pending)
@@ -516,6 +517,54 @@ func (s *State) holder(token string, now clock.Instant) (topic string, index int
 		}
 	}
 	return "", 0, false
+}
+
+// restore puts back, confirmed as by says, the restorable subscription of
+// any topic of scope that token restores, and returns its ref
+// (RestorableSubscription). A token that restores none, gone by now
+// included, is "Invalid parameter: Token", as any token that confirms
+// nothing (2.3). So is one whose topic has subscribed the same endpoint
+// again since, which would otherwise hold it twice; that answer is
+// inferred. A FilterPolicy the topic's quota no longer has room for
+// refuses the restore with the quota error and keeps it restorable, which
+// is inferred too.
+func (s *State) restore(scope aws.Scope, token string, by tokenConfirmation, now clock.Instant) (subscriptionRef, *awserr.Error) {
+	for _, name := range slices.Sorted(maps.Keys(s.Topics)) {
+		if existing := s.Topics[name]; existing.restorableIndex(token, now) < 0 {
+			continue
+		}
+		t, _ := s.writable(name, now)
+		j := t.restorableIndex(token, now)
+		sub := t.Restorable[j].Subscription
+		if _, again := t.subscribed(sub.Protocol, sub.Endpoint); again {
+			return subscriptionRef{}, errInvalidParameter("Token")
+		}
+		if _, filtered := sub.Attributes[attrFilterPolicy]; filtered {
+			if err := t.checkFilterPolicyQuota(sub.ID); err != nil {
+				return subscriptionRef{}, err
+			}
+		}
+		sub.Status = Confirmed{By: by}
+		t.Restorable = slices.Delete(t.Restorable, j, j+1)
+		if len(t.Restorable) == 0 {
+			t.Restorable = nil
+		}
+		t.Subscriptions = append(t.Subscriptions, sub)
+		s.Topics[name] = t
+		return subscriptionRef{topic: topicRef{scope: scope, name: name}, id: sub.ID}, nil
+	}
+	return subscriptionRef{}, errInvalidParameter("Token")
+}
+
+// restores reports whether token restores a subscription of s, unless
+// gone by now.
+func (s *State) restores(token string, now clock.Instant) bool {
+	for _, t := range s.Topics {
+		if t.restorableIndex(token, now) >= 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // confirmedWith reports a subscription confirmed with token.
@@ -568,7 +617,8 @@ const (
 // by an authenticated caller. Under sns.http.unsubscribe-confirmation an
 // unauthenticated caller that removes an http or https subscription still
 // attached to its topic sends its endpoint an UnsubscribeConfirmation
-// (sns-http-delivery.md 2.4); a detached one, whose topic is gone, sends
+// (sns-http-delivery.md 2.4), whose token then restores it
+// (RestorableSubscription); a detached one, whose topic is gone, sends
 // nothing, which is inferred.
 func (s *Service) unsubscribe(c *kernel.Call, ref subscriptionRef, by caller) *awserr.Error {
 	l := s.httpLinks(c.Endpoint())
