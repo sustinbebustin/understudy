@@ -92,7 +92,9 @@ func SQSFIFO(n Notification, sequenceNumber string) []byte {
 // Lambda renders the event a function subscribed to a standard topic is
 // invoked with (sns.md 5.4). It is signed with the topic's SignatureVersion
 // but always labelled "1": AWS signs a version 2 topic's event with
-// SHA256withRSA and still reports SignatureVersion "1".
+// SHA256withRSA and still reports SignatureVersion "1". Subject follows
+// SigningCertUrl, and Number and String.Array attributes are typed String
+// with their published values (logs/R16/01-lambda-events.json).
 func Lambda(n Notification, subscriptionARN string, s Signing) ([]byte, error) {
 	signature, err := sign(s.Signer, s.Version, n)
 	if err != nil {
@@ -104,12 +106,6 @@ func Lambda(n Notification, subscriptionARN string, s Signing) ([]byte, error) {
 	b = jsonx.AppendString(b, n.MessageID)
 	b = append(b, `,"TopicArn":`...)
 	b = jsonx.AppendString(b, n.TopicARN)
-	b = append(b, `,"Subject":`...)
-	if n.Subject == "" {
-		b = append(b, "null"...)
-	} else {
-		b = jsonx.AppendString(b, n.Subject)
-	}
 	b = append(b, `,"Message":`...)
 	b = jsonx.AppendString(b, n.Message)
 	b = append(b, `,"Timestamp":`...)
@@ -118,6 +114,12 @@ func Lambda(n Notification, subscriptionARN string, s Signing) ([]byte, error) {
 	b = jsonx.AppendString(b, signature)
 	b = append(b, `,"SigningCertUrl":`...)
 	b = jsonx.AppendString(b, s.CertURL)
+	b = append(b, `,"Subject":`...)
+	if n.Subject == "" {
+		b = append(b, "null"...)
+	} else {
+		b = jsonx.AppendString(b, n.Subject)
+	}
 	b = append(b, `,"UnsubscribeUrl":`...)
 	b = jsonx.AppendString(b, n.UnsubscribeURL)
 	b = append(b, `,"MessageAttributes":{`...)
@@ -127,6 +129,9 @@ func Lambda(n Notification, subscriptionARN string, s Signing) ([]byte, error) {
 		}
 		b = jsonx.AppendString(b, a.Name)
 		b = append(b, ':')
+		if a.Type == "Number" || a.Type == "String.Array" {
+			a.Type = "String"
+		}
 		b = appendAttributeValue(b, a)
 	}
 	return append(b, "}}}]}"...), nil

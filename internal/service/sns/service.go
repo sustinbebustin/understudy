@@ -93,20 +93,6 @@ func fifoSequence() fidelity.Switch[string] {
 	}
 }
 
-// lambdaAttributeTypes is the DataType a Lambda event carries for Number
-// and String.Array attributes: the published one, where the docs say
-// String (sns.md 9).
-func lambdaAttributeTypes() fidelity.Switch[string] {
-	return fidelity.Switch[string]{
-		Name:    "sns.lambda.attribute-type",
-		Value:   "as-published",
-		Label:   evidence.Inferred,
-		Ref:     "docs/research/sns.md#9-conflicts-between-sources",
-		Ops:     publishOps(),
-		Settles: fidelity.NoScenario{Reason: "logs/R16/01-lambda-events.json is recorded; no scenario replays it, as the delivery runs a Lambda function under Docker"},
-	}
-}
-
 // fifoDuplicate is what a FIFO publish inside the deduplication window
 // answers: a fresh MessageId and SequenceNumber with no delivery, as the
 // research recommends; no recording shows whether AWS returns the
@@ -146,7 +132,7 @@ func detachedRetention() fidelity.Switch[time.Duration] {
 // deliveries (iam-enforcement-surfaces.md 12.8) among them.
 func (s *Service) Switches() []fidelity.Entry {
 	entries := []fidelity.Entry{
-		pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry(),
+		pendingInListings().Entry(), fifoSequence().Entry(), fifoDuplicate().Entry(),
 		detachedRetention().Entry(),
 		authz.AccountIDPrincipalSwitch("sns", "IAM-EVAL-25", []string{"sns.CreateTopic", "sns.SetTopicAttributes"}),
 		// The code and status are the model's AuthorizationErrorException

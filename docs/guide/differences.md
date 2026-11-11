@@ -17,7 +17,7 @@ Most differences are in error texts, codes and response details, not in the happ
 ## SNS
 
 - `DeliveryPolicy` malformed JSON gets Jackson's message with its location on AWS; understudy answers "Invalid parameter: DeliveryPolicy: failed to parse JSON." (`sns/R16/x-delivery-policy-malformed.json`, `sns/SNSH/E-malformed.json`).
-- Lambda deliveries: AWS types `Number` and `String.Array` attributes as `String`, puts `Subject` after `SigningCertUrl`, and orders `MessageAttributes` as a Java HashMap does; understudy keeps the published types and its own order (`logs/R16/01-lambda-events.json`).
+- Lambda deliveries: AWS orders `MessageAttributes` as a Java HashMap does; understudy sorts them by name (`logs/R16/01-lambda-events.json`).
 - The 10,000 filter policies per account quota is not enforced.
 - HTTP and HTTPS endpoints (`sns/SNSH`, recorded 2026-11-03):
   - AWS counts a 3xx and a 4xx other than 429 as delivered; understudy treats them as permanent failures and dead-letters them.

@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"io"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -199,9 +200,9 @@ func TestLambdaEventMatchesTheRecordedCasing(t *testing.T) {
 		UnsubscribeURL: "https://sns.us-east-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=" + sub,
 	}
 	const golden = `{"Records":[{"EventSource":"aws:sns","EventVersion":"1.0","EventSubscriptionArn":"arn:aws:sns:us-east-1:123456789012:sns-lambda:21be56ed-a058-49f5-8c98-aedd2564c486",` +
-		`"Sns":{"Type":"Notification","MessageId":"95df01b4-ee98-5cb9-9903-4c221d41eb5e","TopicArn":"arn:aws:sns:us-east-1:123456789012:sns-lambda","Subject":"TestInvoke",` +
+		`"Sns":{"Type":"Notification","MessageId":"95df01b4-ee98-5cb9-9903-4c221d41eb5e","TopicArn":"arn:aws:sns:us-east-1:123456789012:sns-lambda",` +
 		`"Message":"Hello from SNS!","Timestamp":"2019-01-02T12:45:07.000Z","SignatureVersion":"1","Signature":"RVhBTVBMRQ==",` +
-		`"SigningCertUrl":"https://sns.us-east-1.amazonaws.com/SimpleNotificationService-ac565b8b1a6c5d002d285f9598aa1d9b.pem",` +
+		`"SigningCertUrl":"https://sns.us-east-1.amazonaws.com/SimpleNotificationService-ac565b8b1a6c5d002d285f9598aa1d9b.pem","Subject":"TestInvoke",` +
 		`"UnsubscribeUrl":"https://sns.us-east-1.amazonaws.com/?Action=Unsubscribe&SubscriptionArn=arn:aws:sns:us-east-1:123456789012:sns-lambda:21be56ed-a058-49f5-8c98-aedd2564c486",` +
 		`"MessageAttributes":{"Test":{"Type":"String","Value":"TestString"},"TestBinary":{"Type":"Binary","Value":"VGVzdEJpbmFyeQ=="}}}}]}`
 	signer := &stubSigner{}
@@ -218,6 +219,62 @@ func TestLambdaEventMatchesTheRecordedCasing(t *testing.T) {
 	}
 	if signer.version != envelope.V1 {
 		t.Errorf("Lambda signature version = %s, want 1", signer.version)
+	}
+}
+
+// TestLambdaEventMatchesTheR16Capture: with a subject, Subject follows
+// SigningCertUrl, and Number and String.Array attributes are typed String
+// with their published values (logs/R16/01-lambda-events.json). Attributes
+// are sorted by name, where AWS writes Java HashMap order.
+func TestLambdaEventMatchesTheR16Capture(t *testing.T) {
+	n := example()
+	n.Subject = "subj"
+	n.Attributes = []envelope.Attribute{
+		{Name: "a", Type: "String.Array", Value: `["x",1]`},
+		{Name: "b", Type: "Binary", Value: "AAEC"},
+		{Name: "n", Type: "Number", Value: "1.5"},
+		{Name: "s", Type: "String", Value: "v"},
+	}
+	got, err := envelope.Lambda(n, exampleTopic+":sub", envelope.Signing{Version: envelope.V1, Signer: &stubSigner{}, CertURL: exampleCertURL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var order []string
+	dec := json.NewDecoder(bytes.NewReader(got))
+	var event struct {
+		Records []struct {
+			Sns json.RawMessage
+		}
+	}
+	if err := dec.Decode(&event); err != nil {
+		t.Fatal(err)
+	}
+	sns := json.NewDecoder(bytes.NewReader(event.Records[0].Sns))
+	if _, err := sns.Token(); err != nil {
+		t.Fatal(err)
+	}
+	for sns.More() {
+		key, err := sns.Token()
+		if err != nil {
+			t.Fatal(err)
+		}
+		name, ok := key.(string)
+		if !ok {
+			t.Fatalf("Sns member name is %T, want string", key)
+		}
+		order = append(order, name)
+		var skip json.RawMessage
+		if err := sns.Decode(&skip); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := []string{"Type", "MessageId", "TopicArn", "Message", "Timestamp", "SignatureVersion", "Signature", "SigningCertUrl", "Subject", "UnsubscribeUrl", "MessageAttributes"}
+	if !slices.Equal(order, want) {
+		t.Errorf("Sns members = %v, want %v", order, want)
+	}
+	const attrs = `"MessageAttributes":{"a":{"Type":"String","Value":"[\"x\",1]"},"b":{"Type":"Binary","Value":"AAEC"},"n":{"Type":"String","Value":"1.5"},"s":{"Type":"String","Value":"v"}}}}]}`
+	if !strings.HasSuffix(string(got), attrs) {
+		t.Errorf("Lambda event %s: want suffix %s", got, attrs)
 	}
 }
 

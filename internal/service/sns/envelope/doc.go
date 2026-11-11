@@ -9,10 +9,11 @@
 //   - SQSFIFO is the FIFO-topic body: SequenceNumber after MessageId and no
 //     SignatureVersion, Signature or SigningCertURL (5.3).
 //   - Lambda is the Records event of an SNS-triggered function: compact, with
-//     SigningCertUrl and UnsubscribeUrl in the recorded casing, Subject null
-//     when absent, MessageAttributes {} when empty, and SignatureVersion "1"
-//     whatever the topic says, though the signature follows the topic's
-//     version (5.4).
+//     SigningCertUrl and UnsubscribeUrl in the recorded casing, Subject
+//     after SigningCertUrl and null when absent, Number and String.Array
+//     attributes typed String, MessageAttributes {} when empty, and
+//     SignatureVersion "1" whatever the topic says, though the signature
+//     follows the topic's version (5.4).
 //   - SQSConfirmation is the SubscriptionConfirmation an SQS endpoint gets
 //     when its subscription waits for ConfirmSubscription: the members of
 //     5.5 in the layout of SQS, signed.
@@ -41,7 +42,8 @@
 //     UnsubscribeConfirmation bodies take the notification's layout, which
 //     is inferred: no recording shows their bytes, nor those of any HTTP
 //     body (SNSH-01). Attributes are written in the order given; the SNS
-//     service sorts them by name, since AWS's own order is not stable.
+//     service sorts them by name. AWS's own order is deterministic, Java
+//     HashMap order, which is out of scope: a documented deviation.
 //   - Strings are escaped as jsonx.AppendString escapes them: the quote, the
 //     backslash and control characters. AWS's Jackson writer may spell a
 //     control character's escape with upper-case hex.
