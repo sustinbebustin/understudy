@@ -126,6 +126,10 @@ type attempt struct {
 	// dropped.
 	took     time.Duration
 	exchange *journal.HTTPExchange
+	// onLatency hands the sequencer on when a request-phase latency rule
+	// holds one of the attempt's calls (kernel.Target.OnLatency); nil for an
+	// attempt on its own goroutine or on a sequencer that does not release.
+	onLatency func()
 }
 
 // blocks reports whether the attempt would hold the sequencer for wall
@@ -482,7 +486,9 @@ func (a *attempt) advise(ctx context.Context) {
 // and caused by the source call, like the attempt's Delivery event. A dead
 // letter is sent the same way: AWS documents only aws:SourceArn for an
 // EventBridge dead letter (iam-enforcement-surfaces.md 8.1), so its
-// aws:SourceAccount following the delivery's is inferred.
+// aws:SourceAccount following the delivery's is inferred. A request-phase
+// latency on any of these calls, the dead letter's included, hands the
+// sequencer on (sequencer).
 func (a *attempt) as(scope aws.Scope) kernel.Target {
 	req := a.entry.Request
 	var as kernel.PrincipalMode = kernel.AsService{Name: servicePrincipal(req.Mechanism), Source: req.Source, SourceAccount: req.SourceAccount}
@@ -495,11 +501,12 @@ func (a *attempt) as(scope aws.Scope) kernel.Target {
 	case nil:
 	}
 	return kernel.Target{
-		Scope:  scope,
-		As:     as,
-		Via:    req.Mechanism.Via(),
-		At:     a.due,
-		Resume: a.entry.Cause,
+		Scope:     scope,
+		As:        as,
+		Via:       req.Mechanism.Via(),
+		At:        a.due,
+		Resume:    a.entry.Cause,
+		OnLatency: a.onLatency,
 	}
 }
 

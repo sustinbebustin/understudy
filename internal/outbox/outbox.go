@@ -101,6 +101,7 @@ func (o *Outbox) Bind(k *kernel.Kernel, opts Options) error {
 		faults:   opts.Faults,
 		policies: opts.Policies,
 		egress:   opts.Egress,
+		ready:    sequencer{releases: true},
 	}
 	e.attempt = k.Timers().Handle(TimerAttempt, e.onAttempt)
 	o.e.Store(e)

@@ -33,6 +33,13 @@ type Target struct {
 	// an event source mapping's invocation links the batch's other
 	// messages' enqueue events (ADR 0007).
 	Links []ref.EventID
+	// OnLatency, when set, is called once if a request-phase latency rule
+	// holds the call: after the rules are evaluated and their hits
+	// journaled, before the call waits out the latency. The outbox uses it
+	// to let the next delivery attempt start while this one waits (ADR 0018,
+	// amendment 2026-11-11). It runs on the call's goroutine and must not
+	// block. Calls the handler makes do not inherit it.
+	OnLatency func()
 }
 
 // PrincipalMode says whom AWS authorizes an internal call as.
@@ -193,6 +200,7 @@ func (k *Kernel) internalCall(parent *Call, id ref.OperationID, t Target) *Call 
 		label:     id.String(),
 		cause:     cause,
 		links:     t.Links,
+		onLatency: t.OnLatency,
 		admitted:  at,
 		endpoint:  parent.endpoint,
 		trace:     parent.trace,

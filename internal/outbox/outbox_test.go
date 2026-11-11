@@ -31,6 +31,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/outbox"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -92,21 +93,38 @@ type queues struct {
 	answer func(n int, in *sqsapi.SendMessageInput) *awserr.Error
 }
 
-func stubQueues(k *kerneltest.K, answer func(n int, in *sqsapi.SendMessageInput) *awserr.Error) *queues {
+// stubQueues binds the SendMessage stub with opts, such as
+// resolvingQueues.
+func stubQueues(k *kerneltest.K, answer func(n int, in *sqsapi.SendMessageInput) *awserr.Error, opts ...kernel.BindOption) *queues {
 	q := &queues{answer: answer}
-	k.Stub(sqsapi.OpSendMessage, func(_ context.Context, c *kernel.Call, in *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
-		n := q.calls.add(sent{
-			at: c.Admitted(), queue: in.QueueUrl[strings.LastIndexByte(in.QueueUrl, '/')+1:], in: *in,
-			principal: c.Principal(), origin: c.Origin(),
-		})
-		if err := q.answer(n, in); err != nil {
-			return nil, err
-		}
-		id := "m"
-		return &sqsapi.SendMessageOutput{MessageId: &id}, nil
-	})
+	kernel.Bind(k.Kernel.Binder(sqsapi.OpSendMessage.Descriptor().Service), sqsapi.OpSendMessage,
+		func(_ context.Context, c *kernel.Call, in *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
+			n := q.calls.add(sent{
+				at: c.Admitted(), queue: queueName(in.QueueUrl), in: *in,
+				principal: c.Principal(), origin: c.Origin(),
+			})
+			if err := q.answer(n, in); err != nil {
+				return nil, err
+			}
+			id := "m"
+			return &sqsapi.SendMessageOutput{MessageId: &id}, nil
+		}, registry.Full{}, opts...)
+	if err := k.Kernel.BindErr(); err != nil {
+		k.Fatalf("binding the SendMessage stub: %v", err)
+	}
 	return q
 }
+
+// resolvingQueues makes the SendMessage stub touch the queue its URL
+// names, as SQS does, so a rule can match one queue's calls.
+func resolvingQueues() kernel.BindOption {
+	return kernel.WithResources(func(_ *kernel.Call, in *sqsapi.SendMessageInput) []aws.ARN {
+		return []aws.ARN{arn("sqs", queueName(in.QueueUrl))}
+	})
+}
+
+// queueName is the last path segment of a queue URL.
+func queueName(url string) string { return url[strings.LastIndexByte(url, '/')+1:] }
 
 func (q *queues) sent() []sent { return q.calls.all() }
 
@@ -644,6 +662,128 @@ func TestDelayedAttemptDoesNotBlockOthers(t *testing.T) {
 		settled(k)
 		if got := q.sent(); len(got) != 2 || got[1].queue != "slow" {
 			k.Errorf("sent %+v, want slow delivered once its wait ended", got)
+		}
+	})
+}
+
+// slowSendMessage adds a request-phase rule that holds every SendMessage
+// to the queue slow for latency of wall time.
+func slowSendMessage(k *kerneltest.K, latency time.Duration) {
+	k.Helper()
+	if _, rerr := k.Faults.Add(fault.Rule{
+		Match: fault.Match{
+			Operations: []ref.OperationID{sqsapi.OpSendMessage.Descriptor().ID},
+			Resource:   fault.NewARNGlob(arn("sqs", "slow").String()),
+		},
+		Phase:   fault.Request,
+		Action:  fault.Latency{Wall: latency},
+		Trigger: fault.Always{},
+	}); rerr != nil {
+		k.Fatal(rerr)
+	}
+}
+
+// A request-phase latency rule on one queue's SendMessage holds that
+// target call alone: the kernel signals the delay before it waits, the
+// outbox then releases the sequencer, and a delivery to another queue due
+// after it is made and recorded while the latency runs (ADR 0018,
+// amendment 2026-11-11).
+func TestRequestPhaseLatencyDoesNotBlockOthers(t *testing.T) {
+	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil }, resolvingQueues())
+		slowSendMessage(k, 2*time.Second)
+		cause := source(k)
+		start := k.Clock.Wall()
+		enqueue(k, o, toQueue("slow", delivery.None{}), cause)
+		enqueue(k, o, toQueue("fast", delivery.None{}), cause)
+		synctest.Wait()
+		if got := q.sent(); len(got) != 1 || got[0].queue != "fast" {
+			k.Fatalf("sent %+v while slow's SendMessage waits, want the delivery to fast", got)
+		}
+		if events := deliveries(k); len(events) != 1 || detail[journal.Delivery](k, events[0]).To != arn("sqs", "fast") {
+			k.Fatalf("Delivery events %+v while slow's SendMessage waits, want fast's attempt recorded", events)
+		}
+		if waited := k.Clock.Wall().Sub(start); waited >= 2*time.Second {
+			k.Fatalf("fast was delivered after %v of wall time, want before slow's 2s latency ended", waited)
+		}
+		settled(k)
+		if got := q.sent(); len(got) != 2 || got[1].queue != "slow" {
+			k.Errorf("sent %+v, want slow delivered once its latency ended", got)
+		}
+		if waited := k.Clock.Wall().Sub(start); waited < 2*time.Second {
+			k.Errorf("slow was delivered after %v of wall time, want its 2s latency waited out", waited)
+		}
+	})
+}
+
+// Releasing the sequencer on a request-phase latency keeps the fault draws
+// in sequencer order, because the kernel evaluates every request-phase rule
+// before it signals: under one seed, a Probability rule on SendMessage hits
+// the same attempts whether or not a latency rule delays one of them.
+func TestRequestPhaseLatencyKeepsSeededFaultHits(t *testing.T) {
+	names := []string{"a", "b", "slow", "c", "d", "e", "f", "g", "h"}
+	delivered := func(latency bool) []string {
+		var got []string
+		run(t, func(k *kerneltest.K, o *outbox.Outbox) {
+			q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil }, resolvingQueues())
+			// Added first, so it is the same rule, on the same seeded stream,
+			// in both runs.
+			if _, rerr := k.Faults.Add(fault.Rule{
+				Match:   fault.Match{Operations: []ref.OperationID{sqsapi.OpSendMessage.Descriptor().ID}},
+				Phase:   fault.Request,
+				Action:  fault.Throttle{},
+				Trigger: fault.Probability{P: 0.5},
+			}); rerr != nil {
+				k.Fatal(rerr)
+			}
+			if latency {
+				slowSendMessage(k, 2*time.Second)
+			}
+			cause := source(k)
+			for _, name := range names {
+				enqueue(k, o, toQueue(name, delivery.None{}), cause)
+			}
+			settled(k)
+			for _, s := range q.sent() {
+				if s.queue != "slow" {
+					got = append(got, s.queue)
+				}
+			}
+			slices.Sort(got)
+		}, kerneltest.Seed(42))
+		return got
+	}
+	want := delivered(false)
+	if len(want) == 0 || len(want) == len(names)-1 {
+		t.Fatalf("delivered %v without the latency rule: the seed must throttle some attempts and not others", want)
+	}
+	for range 10 {
+		if got := delivered(true); !slices.Equal(got, want) {
+			t.Errorf("delivered %v with slow's SendMessage delayed, want %v as without the delay", got, want)
+		}
+	}
+}
+
+// A direct call under the same rule waits out the latency before it
+// returns, as it always has: only a delivery attempt's target call lets
+// the outbox move on early.
+func TestRequestPhaseLatencyHoldsADirectCall(t *testing.T) {
+	run(t, func(k *kerneltest.K, _ *outbox.Outbox) {
+		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil }, resolvingQueues())
+		slowSendMessage(k, 2*time.Second)
+		start := k.Clock.Wall()
+		url := "https://sqs.us-east-1.amazonaws.com/000000000000/slow"
+		if _, err := k.Invoke(k.Context(), sqsapi.OpSendMessage, &sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "hello"}); err != nil {
+			k.Fatal(err.AsError())
+		}
+		if waited := k.Clock.Wall().Sub(start); waited < 2*time.Second {
+			k.Errorf("the call returned after %v of wall time, want its 2s latency waited out", waited)
+		}
+		if got := q.sent(); len(got) != 1 || got[0].queue != "slow" {
+			k.Errorf("sent %+v, want the one SendMessage to slow", got)
+		}
+		if hits := k.Journal.Query(journal.Filter{Kind: journal.KindFaultInjected}).Events; len(hits) != 1 {
+			k.Errorf("fault events = %+v, want one", hits)
 		}
 	})
 }

@@ -50,12 +50,15 @@ type Call struct {
 	cause ref.Cause
 	// links are the related events an internal call's Target named; the
 	// call's journal event carries them.
-	links    []ref.EventID
-	admitted clock.Instant
-	endpoint Endpoint
-	trace    string
-	headers  http.Header
-	elapsed  func() time.Duration
+	links []ref.EventID
+	// onLatency is the internal call's Target.OnLatency; nil for every
+	// other call, and once called.
+	onLatency func()
+	admitted  clock.Instant
+	endpoint  Endpoint
+	trace     string
+	headers   http.Header
+	elapsed   func() time.Duration
 
 	holding atomic.Bool
 	// deferred is the authorization an AuthorizedAfterResolve binding's

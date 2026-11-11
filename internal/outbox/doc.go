@@ -132,10 +132,17 @@
 // that order: one a Delivery-phase latency rule delays, whose order
 // against the others depends on wall time anyway, a RequestResponse
 // invoke, which waits for the function (no producer enqueues one), and a
-// POST to an HTTP endpoint, which waits on the network. The attempts of a
-// throttled SNS HTTP subscription run on a sequencer of their own instead,
-// one at a time in the order they start, so one Advance that starts
-// several journals them in that order.
+// POST to an HTTP endpoint, which waits on the network. A request-phase
+// latency rule that holds one of an attempt's calls, its target call or
+// its dead letter, is decided inside kernel.Invoke; the kernel signals it
+// (kernel.Target.OnLatency) after evaluating the rules and before the
+// wait, and the sequencer moves on to the next attempt while the held one
+// finishes alone. Its fault draws keep the firing order; the ids its
+// target draws after the wait fall in wall-time order, as after a
+// Delivery-phase delay (ADR 0018). The attempts of a throttled SNS HTTP
+// subscription run on a sequencer of their own instead, one at a time in
+// the order they start, so one Advance that starts several journals them
+// in that order; a latency does not release it.
 // A delivery has at most one attempt in flight: the attempt claims its
 // entry (Entry.Running) until it records its outcome, so a timer that fires
 // again meanwhile, as a Rearm does for every armable entry, starts
@@ -174,13 +181,6 @@
 // the queue receives them in the reverse of their SNS sequence numbers.
 // Closing the gap needs the kernel to stamp each delivery with an order
 // drawn under the source cell's lock and hand it over in kernel.Delivery.
-//
-// A request-phase latency rule matching a target call holds the sequencer
-// for its wall time, so every delivery due after it waits too, not only
-// those to the matched resource. The outbox cannot hand the call off once
-// its fault decision is taken, because the kernel evaluates request-phase
-// rules inside kernel.Invoke and reports nothing before the delay; closing
-// the gap needs the kernel to signal that decision.
 //
 // The attempt's journal events (Delivery, Advisory, FaultInjected) and its
 // target call carry the source call's cause: the call resumes the entry's
