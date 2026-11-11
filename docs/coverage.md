@@ -1603,8 +1603,8 @@ Raw operations:
 | ListQueueTags | full | inferred, 1 of 7 claims |  |
 | ListQueues | full | aws-recorded, 4 of 4 claims |  |
 | PurgeQueue | full | inferred, 1 of 7 claims |  |
-| SendMessage | full | inferred, 5 of 22 claims |  |
-| SendMessageBatch | full | inferred, 5 of 11 claims |  |
+| SendMessage | full | inferred, 7 of 25 claims |  |
+| SendMessageBatch | full | inferred, 7 of 14 claims |  |
 | SetQueueAttributes | full | inferred, 1 of 9 claims |  |
 | StartMessageMoveTask | full | aws-recorded, 4 of 4 claims |  |
 | TagQueue | full | inferred, 1 of 7 claims |  |
@@ -1803,7 +1803,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-233 switches: 132 aws-recorded, 1 third-party-recorded, 16 aws-doc, 84 inferred.
+236 switches: 133 aws-recorded, 1 third-party-recorded, 16 aws-doc, 86 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1934,6 +1934,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sqs.enforce.missing-resource` | `resolve-first` | aws-recorded | docs/research/iam-enforcement-surfaces.md#5.3 | none: IAM-ENF-14 recorded 2026-11-03 (testdata/parity); recorded: GetQueueAttributes on a missing queue answered QueueDoesNotExist; inferred: every other operation that names a queue; the recorded caller is a role session, and the replay signs only as the account's root |
 | `sqs.enforce.missing-resource.delivery` | `resolve-first` | aws-recorded | docs/research/iam-enforcement-surfaces.md#8.2 | none: IAM-ENF-18 recorded 2026-11-03 (testdata/parity); the recorded outcome is a delivery between services, which the replay cannot send |
 | `sqs.resource-policy.account-id-principal` | `root-arn` | aws-recorded | docs/research/iam-evaluation.md#5.4 | none: IAM-EVAL-25 recorded 2026-11-03 (testdata/parity); the capture is the read-back only; the put that stored the policy ran unrecorded, so the replay has no policy to read |
+| `sqs.sse-kms.denied-text` | `KmsAccessDenied, KMS.AccessDeniedException;Sender, 400, KMS's message then (Service: AWSKMS; Status Code: <status>; Error Code: <code>; Request ID: <id>; Proxy: null)` | aws-recorded | docs/research/iam-enforcement-surfaces.md#3.2 | none: IAM-ENF-29 recorded 2026-11-03 (testdata/parity); recorded: SendMessage; inferred: SendMessageBatch, refused whole with the same answer; the recorded caller is a role session, and the replay signs only as the account's root |
 | `ssm.error.parameter-not-found-message` | `empty-except-label` | aws-recorded (ssm/SSM-02/03-label.json) | docs/research/ssm-parameters.md#22-errors | ssm/SSM-02#03-label |
 | `ssm.kms.key-id-echo` | `verbatim` | aws-recorded (ssm/SSM-22/01-describe.json) | docs/research/ssm-parameters.md#54-keyid-in-metadata | ssm/SSM-22#01-describe |
 | `ssm.name.root-slash-echo` | `request-spelling` | aws-recorded (ssm/SSM-07/02-get-slash.json) | docs/research/ssm-parameters.md#32-root-parameters-and-the-leading-slash | ssm/SSM-07#02-get-slash |
@@ -2038,6 +2039,8 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sqs.fifo.receipt-expiry` | `delete-and-change-visibility` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | none: sqs/R01#07-fifo-delete-expired records the DeleteMessage half only; ChangeMessageVisibility on an expired FIFO handle is unrecorded |
 | `sqs.fifo.sequence-number` | `20-digit-decimal-per-queue` | inferred | docs/research/sqs.md#3-identifiers-and-formats | none: sqs/R01#07-fifo-recv1 records the 20-digit form but not how the numbers count |
 | `sqs.queueDeletedRecently` | `ignore` | inferred | docs/ARCHITECTURE.md#9-the-clock | none: a deliberate departure from AWS (ARCHITECTURE.md 9), which a recording does not change |
+| `sqs.sse-kms.data-key` | `generate-on-every-send` | inferred | docs/research/sqs.md#4-queue-attributes | none: unrecorded: IAM-ENF-29 records a first send only |
+| `sqs.sse-kms.key-error` | `KmsNotFound, KmsDisabled or KmsInvalidState, KMS's message then the AWSKMS suffix` | inferred | docs/research/sqs.md#4-queue-attributes | none: unrecorded: IAM-ENF-29 records the denial only |
 | `sqs.visibility.ceiling-from` | `latest-receive` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | none: unrecorded: no recording reaches the 12-hour ceiling |
 | `ssm.list.order` | `name-ascending` | contradicted (ssm/SSM-20/01-default-page.json) | docs/research/ssm-parameters.md#74-getparametersbypath | ssm/SSM-20#01-default-page |
 

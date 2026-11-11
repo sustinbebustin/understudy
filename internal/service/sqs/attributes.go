@@ -20,7 +20,9 @@ import (
 // Attributes are the settable attributes every queue has. Policy is
 // checked for form, size and statement count, KmsDataKeyReusePeriodSeconds
 // for range, and KmsMasterKeyId not at all; all three are stored and
-// echoed and have no runtime effect.
+// echoed. Messages are not encrypted, but a send to a queue with a
+// KmsMasterKeyId asks KMS for a data key as the caller (Service.dataKey);
+// KmsDataKeyReusePeriodSeconds has no runtime effect.
 type Attributes struct {
 	DelaySeconds                  int32  `json:"delaySeconds"`
 	MaximumMessageSize            int32  `json:"maximumMessageSize"`

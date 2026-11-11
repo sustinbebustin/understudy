@@ -140,6 +140,12 @@ func TestSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 			// A missing queue answers QueueDoesNotExist before
 			// authorization (iam-enforcement-surfaces.md 5.3, IAM-ENF-14).
 			"sqs.enforce.missing-resource": "resolve-first",
+			// A send the queue's key refuses answers KMS's denial with the
+			// KMS client's suffix (iam-enforcement-surfaces.md 3.2,
+			// IAM-ENF-29, recorded 2026-11-03).
+			"sqs.sse-kms.denied-text": "KmsAccessDenied, KMS.AccessDeniedException;Sender, 400, KMS's message then (Service: AWSKMS; Status Code: <status>; Error Code: <code>; Request ID: <id>; Proxy: null)",
+			"sqs.sse-kms.key-error":   "KmsNotFound, KmsDisabled or KmsInvalidState, KMS's message then the AWSKMS suffix",
+			"sqs.sse-kms.data-key":    "generate-on-every-send",
 		}
 		if !maps.Equal(got, want) {
 			h.Errorf("switches = %v, want %v", got, want)

@@ -410,9 +410,12 @@ func contentDedupID(body string) string {
 }
 
 // sendMessage enqueues a message, visible after its delay (sqs.md 6.1).
-func (s *Service) sendMessage(_ context.Context, c *kernel.Call, in *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
+func (s *Service) sendMessage(ctx context.Context, c *kernel.Call, in *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
 	q, err := s.existingQueue(c, in.QueueUrl)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.dataKey(ctx, c, q); err != nil {
 		return nil, err
 	}
 	o := newOutgoing(c, in.MessageBody, in.MessageAttributes, in.MessageSystemAttributes, in.MessageGroupId, in.MessageDeduplicationId, in.DelaySeconds)
@@ -446,10 +449,14 @@ type entryResult struct {
 
 // sendMessageBatch enqueues up to ten messages in entry order. A FIFO
 // entry without a MessageGroupId or a needed deduplication id fails the
-// whole request; any other problem fails its entry only (sqs.md 6.2).
-func (s *Service) sendMessageBatch(_ context.Context, c *kernel.Call, in *sqsapi.SendMessageBatchInput) (*sqsapi.SendMessageBatchOutput, *awserr.Error) {
+// whole request; any other problem fails its entry only (sqs.md 6.2). A
+// KMS refusal of the queue's key fails the whole request too (inferred).
+func (s *Service) sendMessageBatch(ctx context.Context, c *kernel.Call, in *sqsapi.SendMessageBatchInput) (*sqsapi.SendMessageBatchOutput, *awserr.Error) {
 	q, err := s.existingQueue(c, in.QueueUrl)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.dataKey(ctx, c, q); err != nil {
 		return nil, err
 	}
 	entries := make([]batchSend, len(in.Entries))
