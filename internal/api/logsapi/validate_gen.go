@@ -6139,13 +6139,15 @@ func (v *UpperCaseString) validate(path awserr.Path, out *[]awserr.Violation) {
 // constraintKind is a set of the constraint kinds a rule covers.
 type constraintKind uint8
 
-// constraintKind values, one per generated constraint.
+// constraintKind values, one per generated constraint, plus kindLengthMax,
+// the maximum alone, for a rule whose text answers only an over-long value.
 const (
 	kindRequired constraintKind = 1 << iota
 	kindLength
 	kindRange
 	kindPattern
 	kindEnum
+	kindLengthMax
 )
 
 // validationStyle is the message grammar of a rule.
@@ -6299,14 +6301,16 @@ func pathMatches(template []string, path awserr.Path) bool {
 	return true
 }
 
-// constraintKindOf is the kind a filter names for c, or 0 for a constraint
+// constraintKindOf is the kinds a filter names for c, or 0 for a constraint
 // no filter names (Encoding, Composite).
 func constraintKindOf(c awserr.Constraint) constraintKind {
 	switch c.(type) {
 	case awserr.Required:
 		return kindRequired
-	case awserr.LengthMin, awserr.LengthMax:
+	case awserr.LengthMin:
 		return kindLength
+	case awserr.LengthMax:
+		return kindLength | kindLengthMax
 	case awserr.RangeMin, awserr.RangeMax:
 		return kindRange
 	case awserr.Pattern:
@@ -6479,7 +6483,7 @@ func (*CreateLogAnomalyDetectorInput) ValidationError(vs []awserr.Violation) *aw
 
 var policyCreateLogGroup = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"kmsKeyId"}, param: "kmsKeyId"},
 		{segments: []string{"tags"}, param: "tags"},
 		{segments: []string{"tags", "*"}, param: "tags"},
@@ -6499,8 +6503,8 @@ func (*CreateLogGroupInput) ValidationError(vs []awserr.Violation) *awserr.Error
 
 var policyCreateLogStream = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
-		{segments: []string{"logStreamName"}, param: "logStreamName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
+		{segments: []string{"logStreamName"}, param: "logStreamName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
 }
@@ -6721,7 +6725,7 @@ func (*DeleteLogAnomalyDetectorInput) ValidationError(vs []awserr.Violation) *aw
 
 var policyDeleteLogGroup = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
 }
@@ -6735,8 +6739,8 @@ func (*DeleteLogGroupInput) ValidationError(vs []awserr.Violation) *awserr.Error
 
 var policyDeleteLogStream = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
-		{segments: []string{"logStreamName"}, param: "logStreamName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
+		{segments: []string{"logStreamName"}, param: "logStreamName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
 }
@@ -6809,7 +6813,7 @@ func (*DeleteResourcePolicyInput) ValidationError(vs []awserr.Violation) *awserr
 
 var policyDeleteRetentionPolicy = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
 }
@@ -7092,7 +7096,7 @@ func (*DescribeLogGroupsInput) ValidationError(vs []awserr.Violation) *awserr.Er
 
 var policyDescribeLogStreams = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"logGroupIdentifier"}, param: "logGroupIdentifier"},
 		{segments: []string{"logStreamNamePrefix"}, param: "logStreamNamePrefix"},
 		{segments: []string{"orderBy"}, param: "orderBy"},
@@ -7245,7 +7249,7 @@ func (*DisassociateSourceFromS3TableIntegrationInput) ValidationError(vs []awser
 
 var policyFilterLogEvents = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"logGroupIdentifier"}, param: "logGroupIdentifier"},
 		{segments: []string{"logStreamNames"}, param: "logStreamNames"},
 		{segments: []string{"logStreamNames", "*", "member"}, param: "logStreamNames"},
@@ -7369,9 +7373,9 @@ func (*GetLogAnomalyDetectorInput) ValidationError(vs []awserr.Violation) *awser
 
 var policyGetLogEvents = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"logGroupIdentifier"}, param: "logGroupIdentifier"},
-		{segments: []string{"logStreamName"}, param: "logStreamName"},
+		{segments: []string{"logStreamName"}, param: "logStreamName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"startTime"}, param: "startTime"},
 		{segments: []string{"endTime"}, param: "endTime"},
 		{segments: []string{"nextToken"}, param: "nextToken"},
@@ -7727,7 +7731,7 @@ func (*ListTagsForResourceInput) ValidationError(vs []awserr.Violation) *awserr.
 
 var policyListTagsLogGroup = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
 }
@@ -7921,8 +7925,8 @@ func (*PutIntegrationInput) ValidationError(vs []awserr.Violation) *awserr.Error
 
 var policyPutLogEvents = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
-		{segments: []string{"logStreamName"}, param: "logStreamName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
+		{segments: []string{"logStreamName"}, param: "logStreamName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"logEvents"}, param: "logEvents"},
 		{segments: []string{"logEvents", "*", "member"}, param: "logEvents"},
 		{segments: []string{"logEvents", "*", "member", "timestamp"}, param: "timestamp"},
@@ -8054,7 +8058,7 @@ func (*PutResourcePolicyInput) ValidationError(vs []awserr.Violation) *awserr.Er
 
 var policyPutRetentionPolicy = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"retentionInDays"}, param: "retentionInDays"},
 	},
 	service: []validationRule{{id: IdentityInvalidParameterException, style: styleCoral}},
@@ -8298,7 +8302,7 @@ func (*StopQueryInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 
 var policyTagLogGroup = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"tags"}, param: "tags"},
 		{segments: []string{"tags", "*"}, param: "tags"},
 		{segments: []string{"tags", "*", "member"}, param: "tags"},
@@ -8469,7 +8473,7 @@ func (*TestTransformerInput) ValidationError(vs []awserr.Violation) *awserr.Erro
 
 var policyUntagLogGroup = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"logGroupName"}, param: "logGroupName"},
+		{segments: []string{"logGroupName"}, param: "logGroupName", rules: []validationRule{{kinds: kindLengthMax, id: IdentityInvalidParameterException, style: styleFixed, reason: "Invalid LogGroup or LogStream, both must have length less than or equal to 512."}}},
 		{segments: []string{"tags"}, param: "tags"},
 		{segments: []string{"tags", "*", "member"}, param: "tags"},
 	},

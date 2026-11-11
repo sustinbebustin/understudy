@@ -250,6 +250,24 @@ func TestStageFailures(t *testing.T) {
 			want: "understudy-gen ir: com.example.golden#Nested$Code: dev.understudy#validationError code com.example.golden#Nested " +
 				"is not an error structure in the model or an overlay",
 		},
+		{
+			name: "validation bound that is not max",
+			extra: overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+				"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "style": "fixed",
+					"constraints": ["length"], "bound": "min", "reason": "Too long."}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#PutKindsRequest$Secret: dev.understudy#validationError: rule 0: " +
+				`bound "min" is not max; leave bound out to cover both length limits`,
+		},
+		{
+			name: "validation bound on a rule not filtered to length alone",
+			extra: overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+				"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "style": "fixed",
+					"constraints": ["length", "pattern"], "bound": "max", "reason": "Too long."}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#PutKindsRequest$Secret: dev.understudy#validationError: rule 0: " +
+				`bound applies only to a rule whose constraints are ["length"] alone; split the other constraints into a rule of their own`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -286,6 +304,23 @@ func TestPatternPolicyHandlerDropsTheGeneratedCheck(t *testing.T) {
 	}
 	if bytes.Contains(handled["validate_gen.go"], []byte("[a-z]+/[a-z]+")) {
 		t.Fatalf("with patternPolicy handler the pattern is still checked:\n%s", handled["validate_gen.go"])
+	}
+}
+
+// TestLengthBoundMaxFiltersTheRuleToTheMaximum: a member-level rule with
+// {constraints: ["length"], bound: max} covers only the length maximum, so
+// Logs' fixed over-length text leaves a too-short name to the service rule
+// (secrets-logs-events-alarms.md 3.1).
+func TestLengthBoundMaxFiltersTheRuleToTheMaximum(t *testing.T) {
+	files, err := codegen.Generate(goldenInputs(t, overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+		"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "style": "fixed",
+			"constraints": ["length"], "bound": "max", "reason": "Too long."}, `+evidence+`}}`)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = `{kinds: kindLengthMax, id: IdentityInvalidInput, style: styleFixed, reason: "Too long."}`
+	if !bytes.Contains(files["validate_gen.go"], []byte(want)) {
+		t.Fatalf("validate_gen.go has no rule %s:\n%s", want, files["validate_gen.go"])
 	}
 }
 

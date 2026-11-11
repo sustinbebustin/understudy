@@ -426,13 +426,16 @@ func validationStyles() map[string]ValidationStyle {
 // ConstraintKind filters the violations a validationError rule covers.
 type ConstraintKind uint8
 
-// ConstraintKind values, one per generated constraint.
+// ConstraintKind values, one per generated constraint, plus KindLengthMax,
+// the length maximum alone, which a rule selects with {constraints:
+// ["length"], bound: max} rather than by a constraint name.
 const (
 	KindRequired ConstraintKind = 1 << iota
 	KindLength
 	KindRange
 	KindPattern
 	KindEnum
+	KindLengthMax
 )
 
 func constraintKinds() map[string]ConstraintKind {
@@ -540,11 +543,37 @@ func parsePolicies(enum, pattern string) (EnumPolicy, PatternPolicy, error) {
 	return e, p, nil
 }
 
+// parseKinds reads a rule's constraints filter and its bound: "max" narrows
+// a ["length"] filter to the length maximum, for a text the service sends
+// only for an over-long value; "" leaves the filter as named.
+func parseKinds(constraints []string, bound string) (ConstraintKind, error) {
+	var kinds ConstraintKind
+	for _, c := range constraints {
+		k, ok := constraintKinds()[c]
+		if !ok {
+			return 0, fmt.Errorf("constraint %q is not one of %v", c, slices.Sorted(maps.Keys(constraintKinds())))
+		}
+		kinds |= k
+	}
+	switch bound {
+	case "":
+		return kinds, nil
+	case "max":
+		if !slices.Equal(constraints, []string{"length"}) {
+			return 0, errors.New(`bound applies only to a rule whose constraints are ["length"] alone; split the other constraints into a rule of their own`)
+		}
+		return KindLengthMax, nil
+	default:
+		return 0, fmt.Errorf("bound %q is not max; leave bound out to cover both length limits", bound)
+	}
+}
+
 func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 	var v struct {
 		Code          string   `json:"code"`
 		Style         string   `json:"style"`
 		Constraints   []string `json:"constraints"`
+		Bound         string   `json:"bound"`
 		Reason        string   `json:"reason"`
 		EnumPolicy    string   `json:"enumPolicy"`
 		PatternPolicy string   `json:"patternPolicy"`
@@ -576,12 +605,8 @@ func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 		}
 		r.Style = s
 	}
-	for _, c := range v.Constraints {
-		k, ok := constraintKinds()[c]
-		if !ok {
-			return r, fmt.Errorf("constraint %q is not one of %v", c, slices.Sorted(maps.Keys(constraintKinds())))
-		}
-		r.Kinds |= k
+	if r.Kinds, err = parseKinds(v.Constraints, v.Bound); err != nil {
+		return r, err
 	}
 	r.Reason = v.Reason
 	needsReason := r.Style == StyleParameter || r.Style == StyleSNSParameter || r.Style == StyleFixed

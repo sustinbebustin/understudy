@@ -994,22 +994,22 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| CreateLogStream | full | aws-recorded, 1 of 1 claim |  |
-| DeleteLogGroup | full | inferred, 1 of 2 claims |  |
-| DeleteLogStream | full | aws-recorded, 1 of 1 claim |  |
-| DeleteRetentionPolicy | full | aws-recorded, 1 of 1 claim |  |
-| DescribeLogStreams | full | inferred, 1 of 2 claims |  |
-| ListTagsLogGroup | full | aws-recorded, 1 of 1 claim |  |
+| CreateLogStream | full | inferred, 2 of 3 claims |  |
+| DeleteLogGroup | full | inferred, 2 of 3 claims |  |
+| DeleteLogStream | full | inferred, 2 of 3 claims |  |
+| DeleteRetentionPolicy | full | inferred, 1 of 2 claims |  |
+| DescribeLogStreams | full | inferred, 2 of 3 claims |  |
+| ListTagsLogGroup | full | inferred, 1 of 2 claims |  |
 | PutLogGroupDeletionProtection | full | aws-recorded, 2 of 2 claims |  |
-| TagLogGroup | full | aws-recorded, 1 of 1 claim |  |
-| UntagLogGroup | full | aws-recorded, 1 of 1 claim |  |
-| CreateLogGroup | partial | inferred, 1 of 3 claims | kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it; a statement on log-group:<name>:* allows it, as AWS does, without the x-amzn-log-group-authz: outdated header AWS adds (switch logs.authz.outdated-header; secrets-logs-events-alarms.md 3.10) |
+| TagLogGroup | full | inferred, 1 of 2 claims |  |
+| UntagLogGroup | full | inferred, 1 of 2 claims |  |
+| CreateLogGroup | partial | inferred, 1 of 4 claims | kmsKeyId must name an enabled KMS key and is stored and echoed; events are not encrypted with it; a statement on log-group:<name>:* allows it, as AWS does, without the x-amzn-log-group-authz: outdated header AWS adds (switch logs.authz.outdated-header; secrets-logs-events-alarms.md 3.10) |
 | DescribeLogGroups | partial | aws-doc, 1 of 2 claims | no linked accounts: accountIdentifiers and includeLinkedAccounts select nothing more |
-| FilterLogEvents | partial | inferred, 3 of 5 claims | unmask is ignored: no data protection policies; logStreamNames that name no stream are skipped |
-| GetLogEvents | partial | aws-doc, 1 of 2 claims | unmask is ignored: no data protection policies |
+| FilterLogEvents | partial | inferred, 4 of 6 claims | unmask is ignored: no data protection policies; logStreamNames that name no stream are skipped |
+| GetLogEvents | partial | inferred, 2 of 4 claims | unmask is ignored: no data protection policies |
 | ListTagsForResource | partial | aws-recorded, 1 of 1 claim | log groups only; destination and delivery ARNs name no resource |
-| PutLogEvents | partial | aws-doc, 1 of 2 claims | entity is accepted and ignored; sequenceToken is ignored, as AWS documents |
-| PutRetentionPolicy | partial | inferred, 1 of 3 claims | events expire exactly at timestamp plus retention on the emulator clock, not lazily within 72 hours |
+| PutLogEvents | partial | inferred, 2 of 4 claims | entity is accepted and ignored; sequenceToken is ignored, as AWS documents |
+| PutRetentionPolicy | partial | inferred, 2 of 4 claims | events expire exactly at timestamp plus retention on the emulator clock, not lazily within 72 hours |
 | TagResource | partial | aws-recorded, 1 of 1 claim | log groups only; destination and delivery ARNs name no resource |
 | UntagResource | partial | aws-recorded, 1 of 1 claim | log groups only; destination and delivery ARNs name no resource |
 | AssociateKmsKey | unbound | unassessed |  |
@@ -2054,7 +2054,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-380 evidence items: 102 aws-recorded, 110 third-party-recorded, 58 aws-doc, 5 sdk-source, 105 inferred.
+397 evidence items: 102 aws-recorded, 111 third-party-recorded, 58 aws-doc, 5 sdk-source, 121 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2198,6 +2198,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#LayerVersionArn` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8368-L8377: AWS prints the pattern without the model's anchors and without its outer group (docs/research/lambda-destinations-layers.md#64-getlayerversion-and-getlayerversionbyarn) (validated 2026-01-12) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#ListLayersRequest$CompatibleRuntime` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L8296: the filter is checked against a 56-value internal list, not the model's enum (docs/research/lambda-destinations-layers.md#65-listlayers-and-listlayerversions) (validated 2026-01-12) |
 | third-party-recorded | lambda.json | `com.amazonaws.lambda#NumericLatestPublishedOrAliasQualifier` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/lambda_/test_lambda_api.snapshot.json#L7779: AWS matches the whole value against either branch of the model's top-level alternation, so 'invalid-qualifier-with-?-char' fails it (validated 2025-11-25) |
+| third-party-recorded | logs.json | `com.amazonaws.cloudwatchlogs#CreateLogGroupRequest$logGroupName` |  | https://github.com/localstack/localstack/blob/main/tests/aws/services/logs/test_logs_groups.snapshot.json: an over-length log group name at CreateLogGroup answers InvalidParameterException "Invalid LogGroup or LogStream, both must have length less than or equal to 512.", not the Coral length text; AWS's answer to an empty name is unrecorded, so the rule covers the maximum only (docs/research/secrets-logs-events-alarms.md#31-resources-names-arns) (validated 2026-10-08) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2880 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#AmazonS3` | dev.understudy#malformedRequestError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L1526 (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#AuthorizationHeaderMalformed` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L18208 (validated 2026-02-21) |
@@ -2359,9 +2360,25 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | lambda.json | `com.amazonaws.lambda#ListLayerVersionsRequest$CompatibleRuntime` |  | docs/research/lambda-destinations-layers.md#65-listlayers-and-listlayerversions: ListLayers' filter is recorded against a 56-value internal list (test_lambda_api.snapshot.json#L8296); ListLayerVersions shares the member's name and target, so it is taken to share the list |
 | inferred | lambda.json | `com.amazonaws.lambda#S3Bucket` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: ^[0-9A-Za-z\.\-_]*(?<!\.)$ is the class repeated, not ending in a dot |
 | inferred | lambda.json | `com.amazonaws.lambda#UpdateFunctionConfigurationRequest$Runtime` |  | docs/research/lambda-api.md#42-runtime-enum-and-deprecation: the deprecation text covers creating or updating functions, so the update answers like the create |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#CreateLogStreamRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#CreateLogStreamRequest$logStreamName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#DeleteLogGroupRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#DeleteLogStreamRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#DeleteLogStreamRequest$logStreamName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#DeleteRetentionPolicyRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#DescribeLogStreamsRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#FilterLogEventsRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#GetLogEventsRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#GetLogEventsRequest$logStreamName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#ListTagsLogGroupRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
 | inferred | logs.json | `com.amazonaws.cloudwatchlogs#Logs_20140328` | dev.understudy#throttleError | docs/research/error-matrix.md#57-cloudwatch-logs-json-11 |
 | inferred | logs.json | `com.amazonaws.cloudwatchlogs#PutLogEventsInternal` |  | docs/ARCHITECTURE.md#146-logs |
 | inferred | logs.json | `com.amazonaws.cloudwatchlogs#PutLogEventsInternalRequest` |  | docs/ARCHITECTURE.md#146-logs |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#PutLogEventsRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#PutLogEventsRequest$logStreamName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#PutRetentionPolicyRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#TagLogGroupRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
+| inferred | logs.json | `com.amazonaws.cloudwatchlogs#UntagLogGroupRequest$logGroupName` |  | docs/research/secrets-logs-events-alarms.md#31-resources-names-arns: recorded at CreateLogGroup only; the text names both members, so every operation taking a log group or stream name is inferred to answer alike |
 | inferred | protocoltests.json | `aws.protocoltests.json#JsonProtocol` |  | docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in |
 | inferred | protocoltests.json | `aws.protocoltests.json10#JsonRpc10` |  | docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in |
 | inferred | protocoltests.json | `aws.protocoltests.json10#QueryCompatibleJsonRpc10` |  | docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in |

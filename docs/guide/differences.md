@@ -270,7 +270,6 @@ Scheduler was recorded against AWS on 2026-11-03 (`testdata/parity/scheduler/SCH
 
 - `FilterLogEvents` returns `nextToken` on every page with events and ends with an empty page on AWS; understudy leaves the token off the last page with events. `GetLogEvents`' first empty page gets a new forward token on AWS (`logs/R10/05-*.json`).
 - `{ $.n = }` is only "Invalid filter pattern" on AWS; understudy adds the detail and offset (`logs/R10/03-filter-14.json`).
-- Over-length log group and stream names get the generic validation text; AWS answers "Invalid LogGroup or LogStream, both must have length less than or equal to 512.".
 - `ListTagsForResource` on a never-created alarm is 404 `ResourceNotFoundException` with no message on AWS; dashboards are not implemented (`cloudwatch/R07/*.json`).
 - `PutMetricData` with `StrictEntityValidation` false stores the data without the `X-Amzn-Failure-Message` header.
 - understudy publishes no `AWS/*` metrics, so an alarm on one sees only missing data; put the data with `PutMetricData` instead. Data stamped with wall time can fall outside alarm windows while the clock is frozen, set or scaled; leave `Timestamp` out ([CloudWatch alarms](clock.md#cloudwatch-alarms)).

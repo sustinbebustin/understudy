@@ -158,7 +158,7 @@ func kindsLit(k ConstraintKind) string {
 	for _, c := range []struct {
 		kind ConstraintKind
 		name string
-	}{{KindRequired, "kindRequired"}, {KindLength, "kindLength"}, {KindRange, "kindRange"}, {KindPattern, "kindPattern"}, {KindEnum, "kindEnum"}} {
+	}{{KindRequired, "kindRequired"}, {KindLength, "kindLength"}, {KindRange, "kindRange"}, {KindPattern, "kindPattern"}, {KindEnum, "kindEnum"}, {KindLengthMax, "kindLengthMax"}} {
 		if k&c.kind != 0 {
 			names = append(names, c.name)
 		}
