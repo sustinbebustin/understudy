@@ -21,6 +21,7 @@ var service = registry.Service{
 	Protocols:             []ref.ProtocolID{ref.AWSJSON10},
 	JSONTargetPrefix:      "DynamoDB_20120810",
 	XMLNamespace:          "http://dynamodb.amazonaws.com/doc/2012-08-10/",
+	ResponseCRC32:         true,
 	MalformedRequestError: IdentitySerializationException(),
 	ThrottleError:         IdentityThrottlingException(),
 	UnknownOperationError: UnknownOperationError,

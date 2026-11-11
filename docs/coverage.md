@@ -2054,7 +2054,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-378 evidence items: 101 aws-recorded, 110 third-party-recorded, 57 aws-doc, 5 sdk-source, 105 inferred.
+379 evidence items: 102 aws-recorded, 110 third-party-recorded, 57 aws-doc, 5 sdk-source, 105 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2074,6 +2074,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | cloudwatch.json | `com.amazonaws.cloudwatch#GraniteServiceVersion20100801` | dev.understudy#errorNamespace | testdata/parity/cloudwatch/R07/cw-GetDashboard.json (validated 2026-10-14) |
 | aws-recorded | common.json | `com.amazon.coral.service#AccessDenied` | smithy.api#httpError, dev.understudy#jsonType | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: 403 and the JSON __type com.amazon.coral.service#AccessDeniedException are recorded for the services that answer a denial with this shape (testdata/parity/sqs/IAM-ENF/01-raw.json, testdata/parity/sqs/IAM-ENF/02-query.json, testdata/parity/cloudwatch/IAM-ENF/09-json-qm.json, testdata/parity/iam/IAM-ENF/10-get-role.json, testdata/parity/ses/IAM-ENF/38-raw.json) (validated 2026-11-03) |
 | aws-recorded | dynamodb.json | `com.amazon.coral.service#AccessDeniedException` | dev.understudy#messageKey | testdata/parity/dynamodb/IAM-ENF/04-describe.json: the shared shape's member is message, the wire key Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
+| aws-recorded | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#responseCrc32 | testdata/parity/dynamodb/R04/07-ttl-missing-table.json, R18/03-dynamodb-skew-16min.json, R11/06-dynamodb-unknown-target.json: DynamoDB answers errors too with x-amz-crc32, the CRC-32 (IEEE, decimal) of the body (validated 2026-10-14) |
 | aws-recorded | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#denialError | testdata/parity/dynamodb/IAM-ENF/04-describe.json: an IAM denial answers 400 with __type com.amazon.coral.service#AccessDeniedException (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch dynamodb.denial.type) (validated 2026-11-03) |
 | aws-recorded | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#errorNamespace | testdata/parity/dynamodb/R04/07-ttl-missing-table.json (validated 2026-10-14) |
 | aws-recorded | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#validationError | testdata/parity/dynamodb/R04/03-ttl-long-name.json (validated 2026-10-14) |

@@ -106,7 +106,6 @@ A listing without `encoding-type=url` writes a control character or U+FFFE/U+FFF
 understudy forwards DynamoDB to DynamoDB Local, so its answers carry Local's behavior, apart from the checks understudy makes first.
 
 - A duplicate JSON member is refused by AWS with 400 `SerializationException` "Duplicate key found in payload"; understudy keeps the last value (`dynamodb/R11/06-dynamodb-duplicate-member.json`).
-- Errors understudy raises itself (validation, not-found, the TTL and tagging shims) carry no `x-amz-crc32`; AWS sends it on every answer, auth errors included (`dynamodb/R04/07-ttl-missing-table.json`, `dynamodb/R18/03-dynamodb-skew-16min.json`).
 - TTL changed again within the interval is refused on AWS: "Time to live has been modified multiple times within a fixed interval" (`dynamodb/R04/03-ttl-disable.json`).
 - `UpdateTable` to `PROVISIONED` stamps `ProvisionedThroughput.LastIncreaseDateTime` in its answer on AWS; `CreateTable` and `DeleteTable` answers omit `WarmThroughput`, and `DeleteTable` omits the key schema (`dynamodb/R04/x-billing-to-provisioned.json`, `dynamodb/R04/01-create-table.json`, `dynamodb/R04/99-delete-table.json`).
 - `Scan` is sequential: DynamoDB Local ignores `Segment` and `TotalSegments`, so there is no parallel scan.

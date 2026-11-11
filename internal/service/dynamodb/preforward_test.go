@@ -82,7 +82,39 @@ func TestPreForwardChecksAnswerBeforeLocal(t *testing.T) {
 	}
 }
 
-// TestBodyOver16MiBIsRefusedWith413: DynamoDB answers 413 above 16 MiB
+// TestRefusalsCarryCRC32: every error understudy raises itself carries
+// x-amz-crc32 over the body sent, as AWS does (aws-recorded:
+// testdata/parity/dynamodb/R04/07-ttl-missing-table.json,
+// R11/06-dynamodb-unknown-target.json). The clock-skew refusal is checked
+// in internal/server, where the edge verifies signatures.
+func TestRefusalsCarryCRC32(t *testing.T) {
+	tests := []struct {
+		name   string
+		header http.Header
+		body   string
+		from   *caller
+		want   string
+	}{
+		{"shim refusal", target("UpdateTimeToLive"), `{"TableName":"Missing","TimeToLiveSpecification":{"AttributeName":"exp","Enabled":true}}`, defaultCaller(), "ResourceNotFoundException"},
+		{"generated validation", target("ListTables"), `{"Limit":101}`, defaultCaller(), "ValidationException"},
+		{"unknown target", target("ListTablez"), `{}`, defaultCaller(), "UnknownOperationException"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			run(t, func(h *harness) {
+				got := h.post(tt.header, tt.body, tt.from)
+				if got.Status != http.StatusBadRequest || !strings.Contains(got.Body, tt.want) {
+					h.Fatalf("answer = %d %s, want 400 %s", got.Status, got.Body, tt.want)
+				}
+				if sums := got.Header.Values("X-Amz-Crc32"); len(sums) != 1 || sums[0] != crc(got.Body) {
+					h.Errorf("x-amz-crc32 = %q, want exactly one, %q, the checksum of %s", sums, crc(got.Body), got.Body)
+				}
+			})
+		})
+	}
+}
+
+// TestBodyOver16MiBIsRefusedWith413:DynamoDB answers 413 above 16 MiB
 // (error-matrix.md 5.5 T9); Local never reads the body.
 func TestBodyOver16MiBIsRefusedWith413(t *testing.T) {
 	run(t, func(h *harness) {
