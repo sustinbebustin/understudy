@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 )
 
@@ -56,7 +57,7 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 	if err := ref.unqualified(errQualifierNotAccepted("CreateFunction")); err != nil {
 		return nil, err
 	}
-	packageType := deref(in.PackageType)
+	packageType := smithy.Deref(in.PackageType)
 	if packageType == "" {
 		packageType = lambdaapi.PackageTypeZip
 	}

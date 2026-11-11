@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // maxURLConfigsPage caps a ListFunctionUrlConfigs page (lambda-api.md 7.6).
@@ -62,7 +63,7 @@ func (s *Service) createFunctionURLConfig(_ context.Context, c *kernel.Call, in 
 		if _, ok := f.URLs[ref.qualifier]; ok {
 			return URLConfig{}, errURLConfigExists(ref.qualifiedARN())
 		}
-		u := URLConfig{ID: st.urlID(ref.scope, c.ID()), AuthType: string(in.AuthType), InvokeMode: string(deref(in.InvokeMode)), Cors: fromCors(in.Cors), Created: now, Modified: now}
+		u := URLConfig{ID: st.urlID(ref.scope, c.ID()), AuthType: string(in.AuthType), InvokeMode: string(smithy.Deref(in.InvokeMode)), Cors: fromCors(in.Cors), Created: now, Modified: now}
 		f = f.clone()
 		if f.URLs == nil {
 			f.URLs = map[string]URLConfig{}

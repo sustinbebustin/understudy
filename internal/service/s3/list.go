@@ -10,6 +10,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // maxListKeys is the default and the cap of max-keys (s3.md 9.1).
@@ -160,7 +161,7 @@ func readListParams(prefix, delimiter *string, maxKeys *int32, encoding *s3api.E
 	if err != nil {
 		return listParams{}, err
 	}
-	return listParams{prefix: deref(prefix), delimiter: deref(delimiter), limit: limit, encoding: enc}, nil
+	return listParams{prefix: smithy.Deref(prefix), delimiter: smithy.Deref(delimiter), limit: limit, encoding: enc}, nil
 }
 
 // query is the page query that starts after after.
@@ -225,7 +226,7 @@ func listObjects(in *s3api.ListObjectsInput, b *Bucket) (*s3api.ListObjectsOutpu
 	if err != nil {
 		return nil, err
 	}
-	marker := deref(in.Marker)
+	marker := smithy.Deref(in.Marker)
 	entries, truncated := page(liveKeys(b.Objects), p.query(marker))
 	contents, prefixes := listedObjects(b, entries, true)
 	out := &s3api.ListObjectsOutput{
@@ -245,7 +246,7 @@ func listObjectsV2(in *s3api.ListObjectsV2Input, b *Bucket) (*s3api.ListObjectsV
 	if err != nil {
 		return nil, err
 	}
-	after := deref(in.StartAfter)
+	after := smithy.Deref(in.StartAfter)
 	if in.ContinuationToken != nil {
 		key, err := parseContinuationToken(*in.ContinuationToken)
 		if err != nil {
@@ -274,7 +275,7 @@ func listObjectVersions(in *s3api.ListObjectVersionsInput, b *Bucket) (*s3api.Li
 	if err != nil {
 		return nil, err
 	}
-	keyMarker, versionMarker := deref(in.KeyMarker), deref(in.VersionIdMarker)
+	keyMarker, versionMarker := smithy.Deref(in.KeyMarker), smithy.Deref(in.VersionIdMarker)
 	if versionMarker != "" && keyMarker == "" {
 		return nil, errInvalidArgument(versionMarkerWithoutKeyMessage, "version-id-marker", versionMarker)
 	}

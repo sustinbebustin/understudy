@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 )
 
@@ -110,7 +111,7 @@ func (p *pollers) delete(ctx context.Context, c *kernel.Call, pl *poller, target
 				}
 			}
 			p.x.k.Log().LogAttrs(ctx, slog.LevelWarn, "an event source mapping could not delete some processed messages; they return to the queue when their visibility timeout ends",
-				pl.attrs(slog.Int("failed", len(out.Failed)), slog.String("error", deref(out.Failed[0].Message)))...)
+				pl.attrs(slog.Int("failed", len(out.Failed)), slog.String("error", smithy.Deref(out.Failed[0].Message)))...)
 		}
 	}
 	return undeleted

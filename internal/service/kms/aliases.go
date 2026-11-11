@@ -8,6 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -216,7 +217,7 @@ func (s *Service) listAliases(_ context.Context, c *kernel.Call, in *kmsapi.List
 		}
 		return out
 	})
-	name := func(e kmsapi.AliasListEntry) string { return deref(e.AliasName) }
+	name := func(e kmsapi.AliasListEntry) string { return smithy.Deref(e.AliasName) }
 	p, err := page(listingAliases, entries, name, in.Limit, limits{def: 50, max: 100}, in.Marker)
 	if err != nil {
 		return nil, err

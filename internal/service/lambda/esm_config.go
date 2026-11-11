@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
@@ -220,7 +221,7 @@ func (u mappingSettings) applyScaling(m *Mapping) *awserr.Error {
 	case u.scaling != nil:
 		kind.Scaling = esm.Unbounded{}
 	case u.pollers != nil:
-		kind.Scaling = esm.ProvisionedPollers{Minimum: u.pollers.MinimumPollers, Maximum: u.pollers.MaximumPollers, Group: deref(u.pollers.PollerGroupName)}
+		kind.Scaling = esm.ProvisionedPollers{Minimum: u.pollers.MinimumPollers, Maximum: u.pollers.MaximumPollers, Group: smithy.Deref(u.pollers.PollerGroupName)}
 	}
 	m.SourceKind = kind
 	return nil
@@ -275,7 +276,7 @@ func (s *Service) checkQueue(ctx context.Context, c *kernel.Call, queue aws.ARN,
 	}
 	t := kernel.Target{Scope: scope, As: kernel.AsExecutionRole{Role: role}, Via: ref.LambdaESM}
 	attrs, err := kernel.Invoke(ctx, s.k, c, sqsapi.OpGetQueueAttributes, t, &sqsapi.GetQueueAttributesInput{
-		QueueUrl: deref(url.QueueUrl), AttributeNames: []sqsapi.QueueAttributeName{sqsapi.QueueAttributeNameVisibilityTimeout},
+		QueueUrl: smithy.Deref(url.QueueUrl), AttributeNames: []sqsapi.QueueAttributeName{sqsapi.QueueAttributeNameVisibilityTimeout},
 	})
 	if err != nil {
 		if _, denied := err.Origin.(awserr.Denial); denied {

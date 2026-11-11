@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // defaultPageSize is the page size of the listings when MaxResults is
@@ -201,7 +202,7 @@ func matchesValue(sec Secret, key secretsmanagerapi.FilterNameStringType, v stri
 	case secretsmanagerapi.FilterNameStringTypeName:
 		return strings.HasPrefix(sec.Name, v)
 	case secretsmanagerapi.FilterNameStringTypeDescription:
-		return matchesDescription(deref(sec.Description), v)
+		return matchesDescription(smithy.Deref(sec.Description), v)
 	case secretsmanagerapi.FilterNameStringTypeTagKey:
 		return slices.ContainsFunc(sec.Tags, func(t Tag) bool { return strings.HasPrefix(t.Key, v) })
 	case secretsmanagerapi.FilterNameStringTypeTagValue:
@@ -234,7 +235,7 @@ func matchesDescription(desc, v string) bool {
 // secret"); the prefix match within a word is the fidelity switch
 // secretsmanager.list-secrets.all-filter-match.
 func matchesAnyWord(sec Secret, v string) bool {
-	attrs := append(words(sec.Name), words(deref(sec.Description))...)
+	attrs := append(words(sec.Name), words(smithy.Deref(sec.Description))...)
 	for _, t := range sec.Tags {
 		attrs = append(attrs, words(t.Key)...)
 		attrs = append(attrs, words(t.Value)...)

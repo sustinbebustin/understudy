@@ -18,6 +18,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 )
@@ -148,7 +149,7 @@ func (s *Service) put(ctx context.Context, c *kernel.Call, name, arn *string, en
 		out := make([]appended, len(plan))
 		for i, p := range plan {
 			e, aerr := cur.Shards[p.shard].log.Append(now, Record{
-				PartitionKey: deref(p.entry.key), Data: refs[i], Size: len(p.entry.data), ExplicitHashKey: deref(p.entry.ehk),
+				PartitionKey: smithy.Deref(p.entry.key), Data: refs[i], Size: len(p.entry.data), ExplicitHashKey: smithy.Deref(p.entry.ehk),
 			})
 			if aerr != nil {
 				// Unreachable: every target shard was checked open above.
@@ -176,7 +177,7 @@ func (s *Service) plan(str Stream, entries []putEntry, batch bool) ([]placed, *a
 	if batch {
 		total := 0
 		for _, e := range entries {
-			total += len(e.data) + len(deref(e.key))
+			total += len(e.data) + len(smithy.Deref(e.key))
 		}
 		if total > maxPutRecordsBytes {
 			return nil, errPutRecordsTooLarge(total)
@@ -589,12 +590,4 @@ func newest(log *shardlog.Shard[Record], fallback clock.Instant) clock.Instant {
 		return fallback
 	}
 	return es[0].Arrival
-}
-
-// deref reads an optional string as "" when it is absent.
-func deref(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }

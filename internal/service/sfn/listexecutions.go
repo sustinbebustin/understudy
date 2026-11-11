@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -54,7 +55,7 @@ func (s *Service) listExecutions(_ context.Context, c *kernel.Call, in *sfnapi.L
 		}
 		return empty, nil
 	}
-	ref, all, err := s.machineExecutions(c, deref(in.StateMachineArn), in.StatusFilter)
+	ref, all, err := s.machineExecutions(c, smithy.Deref(in.StateMachineArn), in.StatusFilter)
 	if err != nil {
 		return nil, err
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 func (s *Service) bindAliases(b lambdaapi.Binder) {
@@ -39,7 +40,7 @@ func (s *Service) createAlias(_ context.Context, c *kernel.Call, in *lambdaapi.C
 		if err != nil {
 			return lambdaapi.AliasConfiguration{}, err
 		}
-		a := Alias{Name: in.Name, Version: in.FunctionVersion, Description: deref(in.Description), Weights: weights, RevisionID: st.revision(ref.scope)}
+		a := Alias{Name: in.Name, Version: in.FunctionVersion, Description: smithy.Deref(in.Description), Weights: weights, RevisionID: st.revision(ref.scope)}
 		f = f.clone()
 		if f.Aliases == nil {
 			f.Aliases = map[string]Alias{}
@@ -203,7 +204,7 @@ func (s *Service) listAliases(_ context.Context, c *kernel.Call, in *lambdaapi.L
 	if err != nil {
 		return nil, err
 	}
-	p, err := page(listingAliases, aliases, func(a lambdaapi.AliasConfiguration) string { return deref(a.Name) }, in.MaxItems, listPageCap, in.Marker)
+	p, err := page(listingAliases, aliases, func(a lambdaapi.AliasConfiguration) string { return smithy.Deref(a.Name) }, in.MaxItems, listPageCap, in.Marker)
 	if err != nil {
 		return nil, err
 	}

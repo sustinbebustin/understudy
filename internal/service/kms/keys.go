@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -150,7 +151,7 @@ func (s *Service) createKey(ctx context.Context, c *kernel.Call, in *kmsapi.Crea
 	}
 	scope := c.Scope()
 	k, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (Key, *awserr.Error) {
-		k, err := s.newKey(scope, now, kmsapi.KeyManagerTypeCustomer, deref(in.Description), policy)
+		k, err := s.newKey(scope, now, kmsapi.KeyManagerTypeCustomer, smithy.Deref(in.Description), policy)
 		if err != nil {
 			return Key{}, err
 		}
@@ -401,11 +402,4 @@ func parseKeyARN(s string) (aws.Scope, string, bool) {
 		return aws.Scope{}, "", false
 	}
 	return scope, id, true
-}
-
-func deref(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }

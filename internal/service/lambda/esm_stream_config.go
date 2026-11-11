@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
@@ -189,11 +190,11 @@ func (u streamSettings) applyDestinations(settings *esm.StreamSettings, noun str
 	if d == nil {
 		return nil
 	}
-	if d.OnSuccess != nil && deref(d.OnSuccess.Destination) != "" {
+	if d.OnSuccess != nil && smithy.Deref(d.OnSuccess.Destination) != "" {
 		return errUnsupportedDestination()
 	}
 	if d.OnFailure != nil {
-		dest, err := streamOnFailure(deref(d.OnFailure.Destination), noun)
+		dest, err := streamOnFailure(smithy.Deref(d.OnFailure.Destination), noun)
 		if err != nil {
 			return err
 		}

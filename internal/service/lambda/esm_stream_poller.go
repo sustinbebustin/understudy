@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
@@ -549,7 +550,7 @@ func (p *pollers) invokeStream(ctx context.Context, c *kernel.Call, pl *poller, 
 	for i, r := range records {
 		seqs[i] = string(r.Seq)
 	}
-	response := esm.RetryAttemptsExhausted{StatusCode: int(out.StatusCode), ExecutedVersion: deref(out.ExecutedVersion), FunctionError: deref(out.FunctionError)}
+	response := esm.RetryAttemptsExhausted{StatusCode: int(out.StatusCode), ExecutedVersion: smithy.Deref(out.ExecutedVersion), FunctionError: smithy.Deref(out.FunctionError)}
 	switch v := streamVerdict(out, m.ReportFailures, seqs).(type) {
 	case esm.Failed:
 		p.x.k.Log().LogAttrs(ctx, slog.LevelInfo, "an event source mapping's stream batch failed",

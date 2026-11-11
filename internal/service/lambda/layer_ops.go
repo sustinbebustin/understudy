@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // The nine layer operations over the store of layers.go, with the marks and
@@ -57,11 +58,11 @@ func (s *Service) publishLayerVersion(ctx context.Context, c *kernel.Call, in *l
 	v, err := write(s, c, ref.scope, func(st *State, now clock.Instant, _ *kernel.Tx) (LayerVersion, *awserr.Error) {
 		v := LayerVersion{
 			Number:                  st.Layers[ref.name].LastVersion + 1,
-			Description:             deref(in.Description),
+			Description:             smithy.Deref(in.Description),
 			CompatibleRuntimes:      nameList(in.CompatibleRuntimes),
 			CompatibleArchitectures: nameList(in.CompatibleArchitectures),
 			LicenseInfo:             clonePtr(in.LicenseInfo),
-			StorageMode:             string(deref(in.Content.S3ObjectStorageMode)),
+			StorageMode:             string(smithy.Deref(in.Content.S3ObjectStorageMode)),
 			Created:                 now,
 			Sha256:                  code.Sha256,
 			Size:                    code.Size,
@@ -155,7 +156,7 @@ func (s *Service) listLayers(_ context.Context, c *kernel.Call, in *lambdaapi.Li
 		}
 		return out, nil
 	})
-	p, err := page(listingLayers, items, func(i lambdaapi.LayersListItem) string { return deref(i.LayerName) }, in.MaxItems, listPageCap, in.Marker)
+	p, err := page(listingLayers, items, func(i lambdaapi.LayersListItem) string { return smithy.Deref(i.LayerName) }, in.MaxItems, listPageCap, in.Marker)
 	if err != nil {
 		return nil, err
 	}
