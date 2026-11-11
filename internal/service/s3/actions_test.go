@@ -139,9 +139,32 @@ func TestEveryMultiActionOperationDeclaresItsActions(t *testing.T) {
 	})
 }
 
-// GetObjectAttributes reads the object, s3:GetObject, without a version
-// and s3:GetObjectVersion with one, never both (GetObjectAttributes,
-// Permissions).
+// Heading a version needs s3:GetObjectVersion (HeadObject, Permissions;
+// iam-enforcement-surfaces.md 5.1), which the Service Reference omits; a
+// HeadObject without a version records s3:GetObject alone.
+func TestHeadObjectRecordsTheReadOfItsVersion(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("bkt")
+		h.put("bkt", "k", "x")
+		h.Access.Reset()
+		ok(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "bkt", Key: "k"})
+		want := []string{"s3:GetObject on arn:aws:s3:::bkt/*"}
+		if got := h.rootUses("s3"); !slices.Equal(got, want) {
+			t.Errorf("unversioned s3 uses = %v, want %v", got, want)
+		}
+		h.Access.Reset()
+		ok(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "bkt", Key: "k", VersionId: new("null")})
+		want = []string{"s3:GetObject on arn:aws:s3:::bkt/*", "s3:GetObjectVersion on arn:aws:s3:::bkt/*"}
+		if got := h.rootUses("s3"); !slices.Equal(got, want) {
+			t.Errorf("versioned s3 uses = %v, want %v", got, want)
+		}
+	})
+}
+
+// GetObjectAttributes needs s3:GetObject and s3:GetObjectAttributes without
+// a version, s3:GetObjectVersion and s3:GetObjectVersionAttributes with one
+// (GetObjectAttributes, Permissions; iam-enforcement-surfaces.md 10.3). The
+// primary s3:GetObjectAttributes is recorded either way.
 func TestGetObjectAttributesRecordsTheReadOfItsVersion(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		h.createBucket("bkt")
@@ -155,7 +178,7 @@ func TestGetObjectAttributesRecordsTheReadOfItsVersion(t *testing.T) {
 		}
 		h.Access.Reset()
 		ok(h, who{}, s3api.OpGetObjectAttributes, &s3api.GetObjectAttributesInput{Bucket: "bkt", Key: "k", VersionId: new("null"), ObjectAttributes: attrs})
-		want = []string{"s3:GetObjectAttributes on arn:aws:s3:::bkt/*", "s3:GetObjectVersion on arn:aws:s3:::bkt/*"}
+		want = []string{"s3:GetObjectAttributes on arn:aws:s3:::bkt/*", "s3:GetObjectVersion on arn:aws:s3:::bkt/*", "s3:GetObjectVersionAttributes on arn:aws:s3:::bkt/*"}
 		if got := h.rootUses("s3"); !slices.Equal(got, want) {
 			t.Errorf("versioned s3 uses = %v, want %v", got, want)
 		}

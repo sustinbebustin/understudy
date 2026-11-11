@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/admin"
@@ -229,6 +230,53 @@ func TestAddRoleToInstanceProfilePassesItsRole(t *testing.T) {
 	wantUses(t, userUses(t, c),
 		[]string{"iam:PassRole on " + role, "iam:AddRoleToInstanceProfile on " + profile},
 		[]string{"iam:AddRoleToInstanceProfile on " + role, "iam:PassRole on " + profile})
+}
+
+// SetTopicAttributes, Subscribe and SetSubscriptionAttributes record
+// iam:PassRole on the role their attributes pass, and a call that passes none
+// records none (iam-enforcement-surfaces.md 10.2, 10.4).
+func TestSNSAttributeCallsRecordPassRoleOnlyOnTheRolesTheyPass(t *testing.T) {
+	c, endpoint, u := enforced(t, server.IAMEnforceOff)
+	const topic = "arn:aws:sns:us-east-1:000000000000:alerts"
+	const feedback = "arn:aws:iam::000000000000:role/feedback"
+	const subRole = "arn:aws:iam::000000000000:role/sub"
+	const subRole2 = "arn:aws:iam::000000000000:role/sub2"
+	sns := func(form url.Values) wire {
+		t.Helper()
+		form.Set("Version", "2010-03-31")
+		w := queryCall(t, u, endpoint, "sns", form)
+		if w.status != http.StatusOK {
+			t.Fatalf("SNS %s = %d %s", form.Get("Action"), w.status, w.body)
+		}
+		return w
+	}
+	passRoles := func() []string {
+		var out []string
+		for _, use := range userUses(t, c) {
+			if strings.HasPrefix(use, "iam:PassRole on ") {
+				out = append(out, use)
+			}
+		}
+		return out
+	}
+	sns(url.Values{"Action": {"CreateTopic"}, "Name": {"alerts"}})
+	sns(url.Values{"Action": {"SetTopicAttributes"}, "TopicArn": {topic}, "AttributeName": {"DisplayName"}, "AttributeValue": {"x"}})
+	if got := passRoles(); len(got) != 0 {
+		t.Fatalf("calls that pass no role recorded %q", got)
+	}
+
+	sns(url.Values{"Action": {"SetTopicAttributes"}, "TopicArn": {topic}, "AttributeName": {"LambdaSuccessFeedbackRoleArn"}, "AttributeValue": {feedback}})
+	wantUses(t, userUses(t, c), []string{"iam:PassRole on " + feedback}, nil)
+
+	subscribed := sns(url.Values{
+		"Action": {"Subscribe"}, "TopicArn": {topic}, "Protocol": {"sqs"}, "Endpoint": {"arn:aws:sqs:us-east-1:000000000000:q"},
+		"Attributes.entry.1.key": {"SubscriptionRoleArn"}, "Attributes.entry.1.value": {subRole},
+	})
+	wantUses(t, userUses(t, c), []string{"iam:PassRole on " + subRole}, nil)
+
+	arn := xmlElement(t, subscribed.body, "SubscriptionArn")
+	sns(url.Values{"Action": {"SetSubscriptionAttributes"}, "SubscriptionArn": {arn}, "AttributeName": {"SubscriptionRoleArn"}, "AttributeValue": {subRole2}})
+	wantUses(t, userUses(t, c), []string{"iam:PassRole on " + subRole2}, nil)
 }
 
 // A create records its tag action only when it sends tags, and CreateTopic

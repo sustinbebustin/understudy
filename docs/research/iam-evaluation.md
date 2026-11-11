@@ -1129,7 +1129,7 @@ The maintainer's `-fetch` of 2026-10-26 (`third_party/aws-managed-policies/SOURC
 | iam AttachUserPolicy, AttachRolePolicy, PutUserPermissionsBoundary, PutRolePermissionsBoundary | partial | the attachment is stored and enforced only with iam.enforce on; AWS managed policy ARNs must be in the shipped catalogue (iam-evaluation.md 10) |
 | iam CreateRole, UpdateAssumeRolePolicy | partial | the trust policy is validated and stored and enforced on AssumeRole only with iam.enforce on; named principals are not checked for existence unless iam.policy.principal-existence is checked |
 | iam GetPolicy, GetPolicyVersion, ListPolicies (AWS managed) | partial | AWS managed policies come from the shipped catalogue (iam-evaluation.md 10): CreateDate and UpdateDate have minute precision, PolicyId is derived, AttachmentCount counts this emulator's attachments, and only the default version exists, so another VersionId answers NoSuchEntity |
-| kms CreateKey, PutKeyPolicy | partial | the key policy is stored verbatim; with iam.enforce on it is enforced and the lockout safety check runs (iam-evaluation.md 4.5); principals are not checked for existence unless iam.policy.principal-existence is checked; grants are not implemented |
+| kms CreateKey, PutKeyPolicy | partial | the key policy is stored as sent, a bare account id principal as the account's root ARN (5.4); with iam.enforce on it is enforced and the lockout safety check runs (iam-evaluation.md 4.5); principals are not checked for existence unless iam.policy.principal-existence is checked; grants are not implemented |
 | sqs AddPermission, SetQueueAttributes (Policy); sns AddPermission, SetTopicAttributes (Policy); s3 PutBucketPolicy; lambda AddPermission; secretsmanager PutResourcePolicy | keep current mark | append to the current note: "; enforced only with iam.enforce on (iam-evaluation.md 2.3)" |
 | sts GetFederationToken, AssumeRoleWithWebIdentity, AssumeRoleWithSAML, AssumeRoot, DecodeAuthorizationMessage | stay unbound (501) | federated, OIDC and SAML principals, centralized root sessions and encoded authorization messages are not modeled (2.7, 5.4) |
 | kms CreateGrant, ListGrants, RetireGrant, RevokeGrant | unbound (501) | 4.6 |
@@ -1157,8 +1157,8 @@ Binding `SimulateCustomPolicy` also gives the conformance suite a parity harness
 | `iam.wildcard-principal.service` | `matches`, `excludes` | `matches` | aws-recorded | 2.9; IAM-EVAL-33, recorded 2026-11-03 |
 | `iam.resource-tag.case-duplicates` | `absent`, `first`, `exact-case` | `exact-case` | aws-recorded | 6.13; IAM-EVAL-31, recorded 2026-11-03 for a lower-case key; not registered, since `aws:ResourceTag/` is unsupplied (8.2) |
 | `iam.principal-tag.case-duplicates` | `absent`, `first`, `exact-case` | `exact-case` | inferred | 6.13; follows IAM-EVAL-31's resource-tag lookup, including spellings it did not record |
-| `iam.policy.principal-existence` | `unchecked`, `checked` | `unchecked` | inferred | 3.4; AWS checks (IAM-EVAL-24, recorded 2026-11-03): not registered, a deviation listed in the follow-ups |
-| `iam.resource-policy.account-id-principal` | `verbatim`, `root-arn` | `verbatim` | inferred | 5.4; AWS stores `root-arn` (IAM-EVAL-25, recorded 2026-11-03): not registered, a deviation listed in the follow-ups |
+| `iam.policy.principal-existence` | `unchecked`, `checked` | `unchecked` | inferred | 3.4; AWS checks (IAM-EVAL-24, recorded 2026-11-03). Amended 2026-11-11: registered at `unchecked` as a disclosed deviation on IAM `CreateRole` and `UpdateAssumeRolePolicy`, so that setups naming roles never created in understudy keep working; `checked` is not implemented |
+| `<service>.resource-policy.account-id-principal` | `verbatim`, `root-arn` | `root-arn` | aws-recorded | 5.4; IAM-EVAL-25 (SQS, SNS, S3) and IAM-EVAL-27 step 06 (KMS), recorded 2026-11-03. Amended 2026-11-11: registered per service as `sqs.`, `sns.`, `s3.` and `kms.resource-policy.account-id-principal`, since a switch governs the operations of the service that declares it; planned as `iam.resource-policy.account-id-principal` |
 | `kms.key-policy.role-boundary` | `limited`, `not-limited` | `limited` | aws-recorded | 4.3; IAM-EVAL-27, recorded 2026-11-03 |
 | `kms.key-policy.lockout-check` | `with-enforcement`, `always`, `never` | `with-enforcement` | aws-doc | 4.5 |
 | `kms.cross-account.management-error` (exists) | `NotFoundException` | `NotFoundException` | inferred | 4.4; IAM-EVAL-30 |
@@ -1625,7 +1625,7 @@ Expected: 01 `MalformedPolicyDocument` with `Invalid principal in policy`; 03 an
 
 ### 13.26 IAM-EVAL-25: account-id principals after a save
 
-Settles 5.4, switch `iam.resource-policy.account-id-principal`. (Lambda `AddPermission` is in the existing backlog, `docs/research/s3-checksum-residuals-and-record-backlog.md` 2.4; KMS is step 06 of IAM-EVAL-27.)
+Settles 5.4, switches `<service>.resource-policy.account-id-principal` (12.3). (Lambda `AddPermission` is in the existing backlog, `docs/research/s3-checksum-residuals-and-record-backlog.md` 2.4; KMS is step 06 of IAM-EVAL-27.)
 
 ```sh
 QA=arn:aws:sqs:$R:$A:$P-eval-star

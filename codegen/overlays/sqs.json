@@ -55,6 +55,17 @@
         ]
       }
     },
+    "com.amazon.coral.service#AccessDenied": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "Message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/IAM-ENF/01-raw.json: the JSON body carries the message under Message where the shared shape's member is message; the Query body's Message element is unchanged (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
     "com.amazonaws.sqs#QueueDoesNotExist": {
       "type": "apply",
       "traits": {

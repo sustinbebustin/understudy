@@ -1,6 +1,7 @@
 package sqs
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -201,13 +202,24 @@ func writeQueue[R any](s *Service, c *kernel.Call, q queueRef, fn func(st *State
 
 // queueByURL names the queue an input addresses by URL as the call's
 // resource, before fault rules run; a URL that names no queue names
-// nothing, and the handler answers it.
-func queueByURL[In any](queueURLOf func(*In) string) kernel.BindOption {
-	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
-		q, err := resolveURL(c, queueURLOf(in))
-		if err != nil {
-			return nil
-		}
-		return []aws.ARN{q.arn()}
-	})
+// nothing, and the handler answers it. A queue that does not exist answers
+// QueueDoesNotExist before authorization, as IAM-ENF-14 recorded for
+// GetQueueAttributes; every other queue operation follows it by inference
+// (iam-enforcement-surfaces.md 5.3, sqs.enforce.missing-resource).
+func queueByURL[In any](s *Service, queueURLOf func(*In) string) kernel.BindOption {
+	return kernel.BindOptions(
+		kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
+			q, err := resolveURL(c, queueURLOf(in))
+			if err != nil {
+				return nil
+			}
+			return []aws.ARN{q.arn()}
+		}),
+		kernel.ResolveFirst(func(_ context.Context, c *kernel.Call, in *In) *awserr.Error {
+			q, err := resolveURL(c, queueURLOf(in))
+			if err != nil || s.exists(q) {
+				return nil
+			}
+			return errQueueDoesNotExist()
+		}))
 }

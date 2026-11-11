@@ -1,6 +1,17 @@
 {
   "smithy": "2.0",
   "shapes": {
+    "com.amazon.coral.service#AccessDeniedException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "Message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/apigateway/IAM-ENF/33-apigateway.json: the SDK form (Accept: application/json) carries the message under Message where the shared shape's member is message; curl's Accept: */* got application/vnd.error+json with message and logref (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
     "com.amazonaws.apigateway#BackplaneControlService": {
       "type": "apply",
       "traits": {
@@ -22,8 +33,9 @@
             "covers": ["dev.understudy#validationInputRoot"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the API Gateway REST denial and its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException, 403, answers; UNVERIFIED until recording APIGW1-22 (docs/research/apigateway-rest.md#1323-apigw1-22-control-plane-iam-denials-and-resources, whose step 01 repeats IAM-ENF-33) or IAM-ENF-33, either of which settles status, error type and text",
+            "label": "aws-recorded",
+            "source": "testdata/parity/apigateway/IAM-ENF/33-apigateway.json: the SDK form (Accept: application/json) of an IAM denial answers 403 with x-amzn-ErrorType AccessDeniedException; its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException answers (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; docs/research/apigateway-rest.md#1323-apigw1-22-control-plane-iam-denials-and-resources)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#denialError"]
           },
           {

@@ -317,6 +317,16 @@ func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 		// of iam-enforcement-surfaces.md 12.3 (switch sfn.denial.status).
 		"sfn": {"com.amazon.coral.service#AccessDeniedException": 400},
 	}
+	// An IAM denial names its message "Message" where the shared shape's
+	// member is "message" (iam-enforcement-surfaces.md 12.3).
+	keyOverrides := map[ref.ServiceID]map[string]awserr.MessageKey{
+		"apigateway":      {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
+		"dynamodb":        {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
+		"dynamodbstreams": {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
+		"scheduler":       {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
+		"sesv2":           {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
+		"sfn":             {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
+	}
 	generic := map[ref.ServiceID]func(awserr.Family) []awserr.Identity{
 		"cloudwatch": cloudwatchapi.GenericErrors, "dynamodb": dynamodbapi.GenericErrors, "eventbridge": eventbridgeapi.GenericErrors,
 		"iam": iamapi.GenericErrors, "kms": kmsapi.GenericErrors, "lambda": lambdaapi.GenericErrors, "logs": logsapi.GenericErrors,
@@ -359,6 +369,12 @@ func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 			for shape, status := range statusOverrides[svc.ID] {
 				if id, ok := wantByShape[shape]; ok {
 					id.Status = status
+					wantByShape[shape] = id
+				}
+			}
+			for shape, key := range keyOverrides[svc.ID] {
+				if id, ok := wantByShape[shape]; ok {
+					id.MessageKey = key
 					wantByShape[shape] = id
 				}
 			}

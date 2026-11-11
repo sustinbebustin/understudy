@@ -55,10 +55,11 @@ func (g *roleGate) denyRole(arn aws.ARN, message string) {
 func (g *roleGate) askedAbout(action registry.IAMAction, resource aws.ARN) []kernel.AuthzQuery {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	pair := kernel.Pair{Action: action, Resource: kernel.ResourceARN{ARN: resource}}
 	var out []kernel.AuthzQuery
 	for _, q := range g.asked {
-		if slices.Contains(q.Pairs, pair) {
+		if slices.ContainsFunc(q.Pairs, func(p kernel.Pair) bool {
+			return p.Action == action && p.Resource == kernel.ResourceRef(kernel.ResourceARN{ARN: resource})
+		}) {
 			out = append(out, q)
 		}
 	}
@@ -138,7 +139,7 @@ func TestGetRoleAsksAboutTheRoleItRead(t *testing.T) {
 			h.Fatalf("GetRole = %+v %q (origin %T), want IAM's denial identity with the Authorizer's message", err.ID, err.Message, err.Origin)
 		}
 
-		want := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: getRole, Resource: kernel.ResourceARN{ARN: role}}}}
+		want := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: getRole, Resource: kernel.ResourceARN{ARN: role}, DenialResource: "role worker"}}}
 		if got := gate.askedAbout(getRole, role); len(got) != 1 || !reflect.DeepEqual(got[0], want) {
 			h.Errorf("questions about the role = %+v, want once %+v", got, want)
 		}
@@ -202,31 +203,33 @@ func TestGetRoleIsRecordedOnTheRoleOnly(t *testing.T) {
 	})
 }
 
-// A role that does not exist answers NoSuchEntity before any in-handler
-// authorization: there is no role ARN to ask about (iam-enforcement-surfaces.md
-// 12.1, existence checks stay in handlers; the order against authorization
-// is switch iam.enforce.missing-resource, case IAM-ENF-14). An allowed
-// GetRole reads the role as before.
-func TestGetRoleOfAMissingRoleIsNoSuchEntityBeforeAuthorization(t *testing.T) {
+// GetRole of a role that does not exist is denied before IAM says it is
+// missing, naming the resource "role <name>" (iam-enforcement-surfaces.md
+// 5.3, IAM-ENF-14). The pair is asked on the role's ARN at the path "/",
+// which the request implies (inferred: which string AWS evaluates is
+// unrecorded), so a caller allowed iam:GetRole on that ARN, on role/* or on
+// "*" gets NoSuchEntity (iam-sts-kms.md 3.4: "The role with name <name>
+// cannot be found.").
+func TestGetRoleOfAMissingRoleIsDeniedFirst(t *testing.T) {
 	gate := &roleGate{}
 	runGated(t, gate, func(h *harness) {
 		absent := parseARN(h, "arn:aws:iam::000000000000:role/absent")
-		gate.denyRole(absent, "denied")
-		// iam-sts-kms.md 3.4 (role missing): NoSuchEntity, "The role with
-		// name <name> cannot be found."
-		fails(h, iamapi.OpGetRole, &iamapi.GetRoleInput{RoleName: "absent"}, "NoSuchEntity", "The role with name absent cannot be found.")
-		if got := gate.askedAbout(getRole, absent); len(got) != 0 {
-			h.Errorf("questions about the missing role = %+v, want none", got)
+		const message = "User: arn:aws:iam::000000000000:user/reader is not authorized to perform: iam:GetRole on resource: role absent"
+		gate.denyRole(absent, message)
+		c := h.Call(iamapi.OpGetRole.Descriptor())
+		_, err := kerneltest.Dispatch[iamapi.GetRoleInput, iamapi.GetRoleOutput](h.Context(), h.K, c, &iamapi.GetRoleInput{RoleName: "absent"})
+		if err == nil {
+			h.Fatal("GetRole of a missing role succeeded, want the denial")
+		}
+		if _, denied := err.Origin.(awserr.Denial); !denied || err.Message != message {
+			h.Fatalf("GetRole of a missing role = %+v %q, want the denial", err.ID, err.Message)
+		}
+		want := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: getRole, Resource: kernel.ResourceARN{ARN: absent}, DenialResource: "role absent"}}}
+		if got := gate.askedAbout(getRole, absent); len(got) != 1 || !reflect.DeepEqual(got[0], want) {
+			h.Errorf("questions about the missing role = %+v, want once %+v", got, want)
 		}
 
-		created := h.role("reader")
-		role := parseARN(h, created.Arn)
-		gate.denyRole(absent, "denied")
-		if got := must(h, iamapi.OpGetRole, &iamapi.GetRoleInput{RoleName: "reader"}).Role; got.Arn != created.Arn {
-			h.Errorf("GetRole Arn = %s, want %s", got.Arn, created.Arn)
-		}
-		if got := gate.askedAbout(getRole, role); len(got) != 1 {
-			h.Errorf("questions about the role = %+v, want one from GetRole", got)
-		}
+		gate.denyRole(aws.ARN{}, "")
+		fails(h, iamapi.OpGetRole, &iamapi.GetRoleInput{RoleName: "absent"}, "NoSuchEntity", "The role with name absent cannot be found.")
 	})
 }

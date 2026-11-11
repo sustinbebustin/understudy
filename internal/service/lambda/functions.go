@@ -34,12 +34,19 @@ const listPageCap = 50
 func (s *Service) bindFunctions(b lambdaapi.Binder) {
 	// The layer clause is lambda-destinations-layers.md 11.1's.
 	const layerFound = "a layer version is found only if it was published to understudy, which never fetches layers from AWS; "
-	b.CreateFunction(s.createFunction, partial(layerFound+"PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only"),
+	// The trust check is recorded for CreateFunction only
+	// (iam-enforcement-surfaces.md 13.28).
+	const (
+		trust       = " under iam.enforce=enforce the caller needs iam:PassRole on the execution role, asked with iam:PassedToService lambda.amazonaws.com, then the role's trust policy must let lambda.amazonaws.com assume it"
+		trustModes  = ", else InvalidParameterValueException; under advise both are asked and a denial journaled, under off neither"
+		trustUpdate = " (inferred: only CreateFunction's trust check is recorded)"
+	)
+	b.CreateFunction(s.createFunction, partial(layerFound+"PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only;"+trust+trustModes),
 		kernel.WithValidator(validateCreateFunction), kernel.WithCheck(checkCreateFunction))
 	b.GetFunction(s.getFunction, partial("Code.Location is a link understudy serves the package at, not a presigned S3 URL"))
 	b.GetFunctionConfiguration(s.getFunctionConfiguration, full())
 	b.ListFunctions(s.listFunctions, full())
-	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial(layerFound+"DurableConfig is refused; code signing and VPC networking are stored only"),
+	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial(layerFound+"DurableConfig is refused; code signing and VPC networking are stored only; when the update passes a Role,"+trust+trustUpdate+trustModes),
 		kernel.WithValidator(validateUpdateConfiguration), kernel.WithCheck(checkUpdateConfiguration))
 	b.UpdateFunctionCode(s.updateFunctionCode, partial(publishToRefused), kernel.WithValidator(validateUpdateCode),
 		kernel.WithCheck(func(in *lambdaapi.UpdateFunctionCodeInput) *awserr.Error {
@@ -56,6 +63,9 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 		return nil, err
 	}
 	if err := ref.unqualified(errQualifierNotAccepted("CreateFunction")); err != nil {
+		return nil, err
+	}
+	if err := checkRoleTrust(ctx, c, ref, &in.Role); err != nil {
 		return nil, err
 	}
 	packageType := smithy.Deref(in.PackageType)
@@ -328,6 +338,9 @@ func (s *Service) updateFunctionConfiguration(ctx context.Context, c *kernel.Cal
 		return nil, err
 	}
 	if err := ref.unqualified(errQualifierNotAccepted("UpdateFunctionConfiguration")); err != nil {
+		return nil, err
+	}
+	if err := checkRoleTrust(ctx, c, ref, in.Role); err != nil {
 		return nil, err
 	}
 	att, err := s.layersForUpdate(ctx, ref, in.Layers)

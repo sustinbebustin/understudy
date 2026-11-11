@@ -95,6 +95,50 @@ func scope(scoped []scopedResources, c *Call, in any) (scoping, []aws.ARN) {
 // awserr.Denial through unchanged.
 func AuthorizedAfterResolve() BindOption { return authorizationOption(afterResolve) }
 
+// ResolveFirst names the not-found answer of a call whose resource does not
+// exist, which AWS gives before it authorizes: an SQS queue, an S3 bucket
+// or key (iam-enforcement-surfaces.md 5.3, IAM-ENF-14). Once the input is
+// valid and its resources touched, and before step 8 asks anything, the
+// kernel runs exists; a non-nil error ends the call, unauthorized, and the
+// handler does not run. exists returns nil for a resource that exists, and
+// for any answer that is not the resource's absence, which step 8 and the
+// handler then decide as usual. It runs only when an Authorizer is set and
+// the call is not a platform call: without authorization the handler
+// answers the missing resource itself. exists may ask kernel.Authorize, as
+// S3 asks s3:ListBucket about a missing key. Several options run in order;
+// the first error ends the call.
+func ResolveFirst[In any](exists func(ctx context.Context, c *Call, in *In) *awserr.Error) BindOption {
+	return existsOf[*In](exists)
+}
+
+func existsOf[P any](exists func(context.Context, *Call, P) *awserr.Error) BindOption {
+	var token P
+	f := func(ctx context.Context, c *Call, in any) *awserr.Error {
+		typed, ok := in.(P)
+		if !ok {
+			return nil
+		}
+		return exists(ctx, c, typed)
+	}
+	return typedOption{in: token, add: func(c *bindConfig) { c.exists = append(c.exists, f) }}
+}
+
+// resolveFirst runs the binding's ResolveFirst options over the valid input
+// in, before step 8, and returns the error the call ends with; nil when the
+// call goes on to step 8, and always without an Authorizer, for a raw HTTP
+// binding and for a platform call.
+func (k *Kernel) resolveFirst(ctx context.Context, c *Call, bnd *binding, in any) *awserr.Error {
+	if _, platform := c.mode.(AsPlatform); k.authorizer == nil || bnd.raw || platform {
+		return nil
+	}
+	for _, exists := range bnd.exists {
+		if err := exists(ctx, c, in); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // AuthorizedAfterResolveForDeliveries asks a delivery (an AsService call)
 // as AuthorizedAfterResolve does, existence first, and every other call at
 // step 8, deny-first. It is for an operation that receives deliveries to a
@@ -119,6 +163,32 @@ func WithConditionKeys[In any](supply func(c *Call, in *In) ConditionKeys) BindO
 	return keysOf[*In](supply)
 }
 
+// WithDenialResource names, from a call's valid input, the resource a
+// denial of the operation's primary action names in its message when that
+// is not the ARN the pair is evaluated on, such as the wildcard a list
+// operation's denial names while its pair is on any resource
+// (iam-enforcement-surfaces.md 12.3). It sets Pair.DenialResource on the
+// primary action's pairs that step 8, a deferred authorization, or the
+// handler's Authorize forms, such as IAM GetRole's "role <name>"; the evaluation and the access record keep the pair's resource. "" names
+// the pair's resource. With several, the last applies.
+func WithDenialResource[In any](name func(c *Call, in *In) string) BindOption {
+	return denialResourceOf[*In](name)
+}
+
+// named returns pairs with the call's denial resource text on each pair of
+// the operation's primary action; pairs unchanged without one.
+func (c *Call) named(pairs []Pair) []Pair {
+	if c.denialResource == "" || c.op.Kind == registry.Internal || len(c.op.IAM) == 0 {
+		return pairs
+	}
+	for i := range pairs {
+		if pairs[i].Action == c.op.IAM[0] {
+			pairs[i].DenialResource = c.denialResource
+		}
+	}
+	return pairs
+}
+
 // conditionKeys returns the union of every WithConditionKeys option's keys
 // in keys for the valid input in, a later option's key replacing an earlier
 // one's; nil without an option.
@@ -129,6 +199,50 @@ func conditionKeys(keys []func(*Call, any) ConditionKeys, c *Call, in any) Condi
 	out := ConditionKeys{}
 	for _, supply := range keys {
 		maps.Copy(out, supply(c, in))
+	}
+	return out
+}
+
+// scopedKeys is one WithConditionKeysFor option, type-erased as
+// scopedResources is: the actions it names and how to supply their keys
+// from a valid input.
+type scopedKeys struct {
+	actions []registry.IAMAction
+	supply  func(c *Call, in any) ConditionKeys
+}
+
+// WithConditionKeysFor supplies, from a call's valid input, request
+// condition keys AWS sends only with the named actions, such as the SSE
+// keys of s3:PutObject, which a CopyObject's read of its source does not
+// carry (iam-enforcement-surfaces.md 9.2). Step 8, and an
+// AuthorizedAfterResolve binding's authorization, pass them as
+// AuthzQuery.ActionKeys under each named action, later options replacing
+// earlier ones key by key; a pair of a named action carries them over the
+// WithConditionKeys keys (AuthzQuery.KeysFor). A key with no values is one
+// the request does not carry. Every other action's pairs see the
+// WithConditionKeys keys alone, and a key neither supplies stays as the
+// Authorizer would have it without the option.
+func WithConditionKeysFor[In any](actions []registry.IAMAction, supply func(c *Call, in *In) ConditionKeys) BindOption {
+	return actionKeysOf[*In](actions, supply)
+}
+
+// actionConditionKeys returns, by action, the union of every
+// WithConditionKeysFor option's keys in scoped naming it, for the valid
+// input in, a later option's key replacing an earlier one's; nil without
+// an option.
+func actionConditionKeys(scoped []scopedKeys, c *Call, in any) ActionKeys {
+	if len(scoped) == 0 {
+		return nil
+	}
+	out := ActionKeys{}
+	for _, o := range scoped {
+		keys := o.supply(c, in)
+		for _, a := range o.actions {
+			if out[a] == nil {
+				out[a] = ConditionKeys{}
+			}
+			maps.Copy(out[a], keys)
+		}
 	}
 	return out
 }
@@ -167,11 +281,11 @@ func (c *Call) authorizeDeferred() *awserr.Error {
 		return nil
 	}
 	d.once.Do(func() {
-		pairs := pairsOf(authorizedActions(c.op, d.used), c.op.Service.IAMPrefix, c.fixPairing(), c.scoped)
+		pairs := c.named(pairsOf(authorizedActions(c.op, d.used), c.op.Service.IAMPrefix, c.fixPairing(), c.scoped))
 		if c.k.authorizer == nil || len(pairs) == 0 {
 			return
 		}
-		d.err = verdictError(c, c.k.authorizer.Authorize(d.ctx, c, AuthzQuery{Pairs: pairs, Keys: d.keys, Refused: d.refused}))
+		d.err = verdictError(c, c.k.authorizer.Authorize(d.ctx, c, AuthzQuery{Pairs: pairs, Keys: d.keys, ActionKeys: c.actionKeys, Refused: d.refused}))
 	})
 	return d.err
 }

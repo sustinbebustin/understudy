@@ -35,6 +35,11 @@ type Denial struct {
 	Action    registry.IAMAction
 	Resource  Resource
 	Decision  Decision
+	// ResourceText is the resource the message names when it is not the
+	// evaluated Resource's ARN, such as a list operation's wildcard
+	// (iam-enforcement-surfaces.md 12.3); "" names Resource. It changes
+	// the text only, never the decision.
+	ResourceText string
 }
 
 // Message renders d in g, one line (iam-evaluation.md 2.11); "" when
@@ -53,7 +58,8 @@ type Denial struct {
 //   - GrammarSTS: "User: P is not authorized to perform: A on resource: R",
 //     with no reason (4.3, aws-recorded, IAM-ENF-16).
 //
-// An unknown Grammar renders as GrammarIAM.
+// R is d.ResourceText when set, whatever d.Resource is. An unknown Grammar
+// renders as GrammarIAM.
 func (d Denial) Message(g Grammar) string {
 	action := d.Action.String()
 	switch g {
@@ -74,7 +80,11 @@ func (d Denial) Message(g Grammar) string {
 		return ""
 	}
 	head := "User: " + identity.Render(d.Principal) + " is not authorized to perform: " + action
-	arn, onResource := d.Resource.(OnResource)
+	resource := d.ResourceText
+	if arn, ok := d.Resource.(OnResource); ok && resource == "" {
+		resource = arn.ARN.String()
+	}
+	onResource := resource != ""
 	switch g {
 	case GrammarS3:
 		if account, ok := identity.AccountOf(d.Principal); !ok || account != ownerOf(d.Resource) {
@@ -82,7 +92,7 @@ func (d Denial) Message(g Grammar) string {
 		}
 		s := head
 		if onResource {
-			s += ` on resource: "` + arn.ARN.String() + `"`
+			s += ` on resource: "` + resource + `"`
 		}
 		s += reason
 		if policyARN != "" {
@@ -91,14 +101,14 @@ func (d Denial) Message(g Grammar) string {
 		return s
 	case GrammarSTS:
 		if onResource {
-			return head + " on resource: " + arn.ARN.String()
+			return head + " on resource: " + resource
 		}
 		return head
 	case GrammarIAM, GrammarSQS, GrammarSNS:
 	}
 	s := head
 	if onResource {
-		s += " on resource: " + arn.ARN.String()
+		s += " on resource: " + resource
 	}
 	s += reason
 	if policyARN != "" {

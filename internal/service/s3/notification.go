@@ -30,20 +30,21 @@ func (s *Service) bindNotification(b s3api.Binder) {
 	get := func(in *s3api.GetBucketNotificationConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
-	b.GetBucketNotificationConfiguration(reader(s, get, getNotification), registry.Full{}, touches(get))
+	b.GetBucketNotificationConfiguration(reader(s, get, getNotification), registry.Full{}, touches(s, get))
 	put := func(in *s3api.PutBucketNotificationConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
-	b.PutBucketNotificationConfiguration(s.putNotification, registry.Partial{Note: notificationNote}, touches(put))
+	b.PutBucketNotificationConfiguration(s.putNotification, registry.Partial{Note: notificationNote}, touches(s, put))
 }
 
 // notificationNote is PutBucketNotificationConfiguration's coverage note.
 // AWS refuses a destination whose policy does not admit S3 at validation
-// (iam-enforcement-surfaces.md 8.3); understudy checks no policy there, so
-// under iam.enforce=enforce the refusal comes at each delivery instead.
+// (iam-enforcement-surfaces.md 8.3); understudy does so only under
+// iam.enforce=enforce, like its other configuration-time checks.
 const notificationNote = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
-	"destination validation checks existence and refuses FIFO queues and topics, not permissions, where AWS refuses a destination whose policy does not admit S3; " +
-	"under iam.enforce=enforce such a destination refuses each notification, which is dropped (s3.notification.delivery-denied); " +
+	"destination validation checks existence, refuses FIFO queues and topics, and asks whether each destination's policy admits s3.amazonaws.com from the bucket: " +
+	"under iam.enforce=enforce a refusal fails the call, under advise it is journaled, and under off it is not asked, where AWS refuses in every case; " +
+	"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied); " +
 	"s3:ObjectRetention:Put is stored but sends nothing"
 
 // notificationPut is a configuration that passed admission and its own
@@ -84,7 +85,8 @@ func (s *Service) putNotification(ctx context.Context, c *kernel.Call, in *s3api
 	cfg := put.cfg
 	validate := in.SkipDestinationValidation == nil || !*in.SkipDestinationValidation
 	if validate {
-		if err := s.checkDestinations(ctx, c, &cfg); err != nil {
+		src := kernel.AsService{Name: s3Principal, Source: bucketARN(in.Bucket), SourceAccount: put.home.OwnerAccount}
+		if err := s.checkDestinations(ctx, c, src, &cfg); err != nil {
 			return nil, inRegion(err, put.home)
 		}
 	}
@@ -157,12 +159,15 @@ type unvalidated struct {
 	name, value string
 }
 
+// s3Principal is the service principal S3 delivers notifications as.
+const s3Principal = "s3.amazonaws.com"
+
 // checkDestinations looks up every destination as S3 would before it
 // accepts the configuration, and refuses it naming each one that does not
 // exist or is a FIFO queue or topic, which S3 does not deliver to (s3.md
-// 13.1). understudy enforces no IAM, so the permission half of AWS's check
-// is not made.
-func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, cfg *notify.Config) *awserr.Error {
+// 13.1), or whose resource policy does not let src, S3 delivering from the
+// bucket, call the delivery's action (destinationAllows).
+func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, src kernel.AsService, cfg *notify.Config) *awserr.Error {
 	var failed []unvalidated
 	for i := range cfg.Rules {
 		r := &cfg.Rules[i]
@@ -176,6 +181,14 @@ func (s *Service) checkDestinations(ctx context.Context, c *kernel.Call, cfg *no
 		}
 		if !exists {
 			failed = append(failed, unvalidatedOf(r))
+			continue
+		}
+		allowed, err := destinationAllows(ctx, c, src, r)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			failed = append(failed, deniedOf(r))
 		}
 	}
 	if len(failed) == 0 {
@@ -204,6 +217,49 @@ func unvalidatedOf(r *notify.Rule) unvalidated {
 	return unvalidated{name: arn, value: "The destination queue does not exist"}
 }
 
+// deniedOf is the recorded wording of an existing destination whose policy
+// refuses S3 (iam-enforcement-surfaces.md 8.3: IAM-ENF-20); a function's is
+// the same as a missing one's.
+func deniedOf(r *notify.Rule) unvalidated {
+	switch r.Kind {
+	case notify.Queue:
+		return unvalidated{name: r.ARN.String(), value: "Permissions on the destination queue do not allow S3 to publish notifications from this bucket"}
+	case notify.Topic:
+		return unvalidated{name: r.ARN.String(), value: "Permissions on the destination topic do not allow S3 to publish notifications from this bucket"}
+	case notify.Function:
+	}
+	return unvalidatedOf(r)
+}
+
+// destinationAllows asks whether the destination's resource policy lets
+// src call the action a delivery to it needs: sqs:SendMessage,
+// sns:Publish or lambda:InvokeFunction, with aws:SourceArn the bucket and
+// aws:SourceAccount its owner, as each delivery sends them
+// (iam-enforcement-surfaces.md 8.1). AWS asks it through the test message
+// it sends (8.3, 12.4). Under iam.enforce=enforce a refusal is false;
+// advise journals it and answers true, and off asks nothing
+// (kernel.AuthorizeAs).
+func destinationAllows(ctx context.Context, c *kernel.Call, src kernel.AsService, r *notify.Rule) (bool, *awserr.Error) {
+	var action registry.IAMAction
+	switch r.Kind {
+	case notify.Queue:
+		action = registry.IAMAction{Prefix: "sqs", Name: "SendMessage"}
+	case notify.Topic:
+		action = registry.IAMAction{Prefix: "sns", Name: "Publish"}
+	case notify.Function:
+		action = registry.IAMAction{Prefix: "lambda", Name: "InvokeFunction"}
+	}
+	q := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: action, Resource: kernel.ResourceARN{ARN: r.ARN}}}}
+	err := kernel.AuthorizeAs(ctx, c, src, q)
+	if err == nil {
+		return true, nil
+	}
+	if _, denied := err.Origin.(awserr.Denial); denied {
+		return false, nil
+	}
+	return false, err
+}
+
 // fifoOf is the refusal of a FIFO queue or topic, whose name ends in
 // .fifo; the wording is inferred, as no recording shows it.
 func fifoOf(r *notify.Rule) (unvalidated, bool) {
@@ -227,8 +283,8 @@ func fifoOf(r *notify.Rule) (unvalidated, bool) {
 // action. This lookup is not that message, so it runs as the platform: it
 // is not access-recorded, and GET /iam/policy's resourcePolicies for the
 // notification name only the delivery's action. Step 8 never asks about a
-// platform call, so under enforcement the destination's policy must be
-// checked for the test message explicitly (12.4). Only the destination
+// platform call, so the destination's policy is asked about separately
+// (destinationAllows, 12.4). Only the destination
 // service's not-found answer means "does not exist"; any other failure (an
 // injected fault, an emulator bug) is the call's InternalError.
 func (s *Service) destinationExists(ctx context.Context, c *kernel.Call, r *notify.Rule) (bool, *awserr.Error) {
@@ -236,7 +292,7 @@ func (s *Service) destinationExists(ctx context.Context, c *kernel.Call, r *noti
 	if serr != nil {
 		return false, nil
 	}
-	t := kernel.Target{Scope: scope, As: kernel.AsPlatform{Name: "s3.amazonaws.com"}, Via: ref.S3Notification}
+	t := kernel.Target{Scope: scope, As: kernel.AsPlatform{Name: s3Principal}, Via: ref.S3Notification}
 	var (
 		err      *awserr.Error
 		notFound awserr.Identity

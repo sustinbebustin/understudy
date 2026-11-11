@@ -131,7 +131,8 @@ type Bucket struct {
 	Versioning *s3api.VersioningConfiguration `json:"versioning,omitempty"`
 	CORS       *s3api.CORSConfiguration       `json:"cors,omitempty"`
 	Website    *s3api.WebsiteConfiguration    `json:"website,omitempty"`
-	// Policy is the policy document as sent; empty when none is set.
+	// Policy is the policy document as sent, a bare account id principal
+	// written as the root ARN (putBucketPolicy); empty when none is set.
 	Policy  string                `json:"policy,omitempty"`
 	Logging *s3api.LoggingEnabled `json:"logging,omitempty"`
 	// Lifecycle is stored exactly as sent: Terraform deep-compares what it

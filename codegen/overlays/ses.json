@@ -10,8 +10,9 @@
         "dev.understudy#queryErrorEnvelope": {"namespace": true},
         "dev.understudy#evidence": [
           {
-            "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the SES v1 denial and its model declares none; it takes the Query services' AccessDenied, 403, as STS answers (recorded) and IAM is inferred to; UNVERIFIED until recording IAM-ENF-38",
+            "label": "aws-recorded",
+            "source": "testdata/parity/ses/IAM-ENF/38-raw.json: an IAM denial answers 403 with Type Sender and Code AccessDenied in the SES namespace envelope; its model declares no denial shape (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#denialError"]
           },
           {

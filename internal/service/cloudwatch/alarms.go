@@ -46,7 +46,11 @@ func (s *Service) bindAlarms(b cloudwatchapi.Binder) {
 		}))
 	b.DescribeAlarms(s.describeAlarms,
 		registry.Partial{Note: "metric alarms only: composite and log alarms are never stored, so ChildrenOfAlarmName and ParentsOfAlarmName select nothing"},
-		kernel.WithCheck(checkDescribeAlarms))
+		kernel.WithCheck(checkDescribeAlarms),
+		// A denial names alarm:* (iam-enforcement-surfaces.md 12.3, IAM-ENF-09).
+		kernel.WithDenialResource(func(c *kernel.Call, _ *cloudwatchapi.DescribeAlarmsInput) string {
+			return c.Scope().ARN("cloudwatch", "alarm:*").String()
+		}))
 	b.DescribeAlarmsForMetric(s.describeAlarmsForMetric, registry.Full{})
 	b.DescribeAlarmHistory(s.describeAlarmHistory,
 		registry.Partial{Note: "StateUpdate items only, kept 30 days on the emulator clock and after the alarm is deleted; ConfigurationUpdate and Action items are never recorded, and AlarmContributorId selects nothing"})

@@ -215,7 +215,7 @@ func policyTags(account aws.AccountID, arn string, named awsPolicy) tagsOf {
 // bindTags binds the tag operations of roles, users, managed policies and
 // instance profiles.
 func (s *Service) bindTags(b iamapi.Binder) {
-	named := resolvedPartial()
+	named := byNamePartial()
 	b.TagRole(func(_ context.Context, c *kernel.Call, in *iamapi.TagRoleInput) (*iamapi.TagRoleOutput, *awserr.Error) {
 		return unit[iamapi.TagRoleOutput](s.tag(c, roleTagged(c.Scope().Account, in.RoleName), in.Tags))
 	}, named)

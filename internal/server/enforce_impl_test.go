@@ -43,8 +43,10 @@ func TestEnforceDecidesIAMWritesOnTheResolvedARN(t *testing.T) {
 	if w := iamCall(url.Values{"Action": {"TagUser"}, "UserName": {"keep"}, "Tags.member.1.Key": {"k"}, "Tags.member.1.Value": {"v"}}); w.status != http.StatusForbidden {
 		t.Errorf("TagUser of another user = %d %s, want the IAM denial", w.status, w.body)
 	}
-	if w := iamCall(url.Values{"Action": {"DeleteUser"}, "UserName": {"gone"}}); w.status != http.StatusNotFound || parseXMLError(t, w).Code != "NoSuchEntity" {
-		t.Errorf("DeleteUser of a missing user = %d %s, want NoSuchEntity before authorization", w.status, w.body)
+	// A missing user is denied first, as GetRole of a missing role is
+	// (inferred from IAM-ENF-14, iam-enforcement-surfaces.md 5.3).
+	if w := iamCall(url.Values{"Action": {"DeleteUser"}, "UserName": {"gone"}}); w.status != http.StatusForbidden || !strings.Contains(parseXMLError(t, w).Message, "iam:DeleteUser on resource: user gone ") {
+		t.Errorf("DeleteUser of a missing user = %d %s, want the IAM denial naming user gone", w.status, w.body)
 	}
 	if w := iamCall(url.Values{"Action": {"DeleteUser"}, "UserName": {"drop"}}); w.status != http.StatusOK {
 		t.Errorf("DeleteUser of the granted user = %d %s, want 200", w.status, w.body)
@@ -92,10 +94,12 @@ func TestEnforceDecidesKMSKeyOperationsOnTheirKey(t *testing.T) {
 }
 
 // A Secrets Manager call by name is decided on the secret's full ARN once
-// resolved, so a policy granting secret:<name>-* covers it; a secret that
-// does not exist answers ResourceNotFoundException first. GetSecretValue is
-// asked at its first KMS call, and its own denial reaches the caller
-// unwrapped, not as a DecryptionFailure. (Root creates the secrets under
+// resolved, so a policy granting secret:<name>-* covers it. A secret that
+// does not exist is decided on the ARN its SecretId implies, without a
+// suffix (inferred; iam-enforcement-surfaces.md 5.3, IAM-ENF-14): denied
+// first when the policy does not cover it, ResourceNotFoundException when
+// it does. GetSecretValue's own denial reaches the caller unwrapped, not as
+// a DecryptionFailure. (Root creates the secrets under
 // aws/secretsmanager, whose policy admits the account's principals only
 // through Secrets Manager: kms:ViaService.)
 func TestEnforceDecidesSecretsByNameOnTheirARN(t *testing.T) {
@@ -119,8 +123,11 @@ func TestEnforceDecidesSecretsByNameOnTheirARN(t *testing.T) {
 		!strings.Contains(w.body, "secretsmanager:GetSecretValue") {
 		t.Errorf("GetSecretValue of another secret = %d %s, want the Secrets Manager denial, unwrapped", w.status, w.body)
 	}
-	if w := sm(u, "GetSecretValue", `{"SecretId":"ghost"}`); jsonType(w) != "ResourceNotFoundException" {
-		t.Errorf("GetSecretValue of a missing secret = %d %s, want ResourceNotFoundException before authorization", w.status, w.body)
+	if w := sm(u, "GetSecretValue", `{"SecretId":"ghost"}`); jsonType(w) != "AccessDeniedException" {
+		t.Errorf("GetSecretValue of a missing, ungranted secret = %d %s, want the Secrets Manager denial first", w.status, w.body)
+	}
+	if w := sm(u, "GetSecretValue", `{"SecretId":"db-ghost"}`); jsonType(w) != "ResourceNotFoundException" {
+		t.Errorf("GetSecretValue of a missing secret the policy covers = %d %s, want ResourceNotFoundException", w.status, w.body)
 	}
 }
 

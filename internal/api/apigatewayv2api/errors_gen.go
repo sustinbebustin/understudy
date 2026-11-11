@@ -9,7 +9,7 @@ import (
 
 // IdentityAccessDeniedException returns the identity of com.amazonaws.apigatewayv2#AccessDeniedException.
 func IdentityAccessDeniedException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.apigatewayv2#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+	return awserr.Identity{Shape: "com.amazonaws.apigatewayv2#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrAccessDeniedException returns an AccessDeniedException error with message.
@@ -281,7 +281,7 @@ func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
 func ThrottleError() awserr.Identity { return IdentityTooManyRequestsException() }
 
 // DenialError returns the identity this service answers an authorization
-// refusal with (dev.understudy#denialError), evidence inferred.
+// refusal with (dev.understudy#denialError), evidence aws-recorded.
 func DenialError() awserr.Identity { return IdentityAccessDeniedException() }
 
 // UnknownOperationError returns the identity this service answers for an

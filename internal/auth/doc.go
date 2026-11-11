@@ -38,11 +38,14 @@
 //     refused in every family (HeadersNotSigned), as SigV4 requires. S3
 //     names the headers in its HeadersNotSigned element; the Coral answer,
 //     unrecorded, names them in the message instead, since Coral has no such
-//     member, and its text is understudy's own (UNVERIFIED). Header-signed
-//     requests are not checked, although S3 refuses them too (REC
-//     test_put_object_with_md5_and_chunk_signature_bad_headers): until the
-//     SDK conformance runs show every SDK signs every x-amz-* header it
-//     sends, the check could refuse real clients.
+//     member, and its text is understudy's own (UNVERIFIED). A header-signed
+//     S3 request is refused alike, as S3 refuses it (REC
+//     test_put_object_with_md5_and_chunk_signature_bad_headers), with the
+//     same SSE-C key and key-MD5 exemption; botocore, aws-sdk-go-v2 and
+//     @smithy/signature-v4 sign every x-amz-* header they send. A
+//     header-signed request to a Coral family is not checked: AWS's answer
+//     there is unrecorded (UNVERIFIED), so the check is not inferred for
+//     them.
 //   - A presigned request whose signed header and query parameter of the
 //     same name differ in value is refused in every family (Conflicting), but
 //     only once its signature verifies: S3 answers a mismatch first (REC

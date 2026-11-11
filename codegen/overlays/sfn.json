@@ -17,7 +17,7 @@
           },
           {
             "label": "aws-recorded",
-            "source": "testdata/parity/sfn/SFN-15/01-denied-list.json: an IAM denial answers 400 with __type com.amazon.coral.service#AccessDeniedException (docs/research/stepfunctions-api.md#32-error-identities-and-statuses); its message key is the capital Message, which the shared shape does not spell yet",
+            "source": "testdata/parity/sfn/SFN-15/01-denied-list.json: an IAM denial answers 400 with __type com.amazon.coral.service#AccessDeniedException (docs/research/stepfunctions-api.md#32-error-identities-and-statuses); its message key is the capital Message, which the shared shape's messageKey trait spells",
             "validated": "2026-11-03",
             "covers": ["dev.understudy#denialError"]
           },
@@ -73,9 +73,10 @@
       "type": "apply",
       "traits": {
         "dev.understudy#statusOverride": 400,
+        "dev.understudy#messageKey": "Message",
         "dev.understudy#evidence": {
           "label": "aws-recorded",
-          "source": "testdata/parity/sfn/SFN-15/01-denied-list.json: HTTP/1.1 400 Bad Request (switch sfn.denial.status; docs/research/stepfunctions-api.md#1416-sfn-15-denials-and-lambda-service-errors)",
+          "source": "testdata/parity/sfn/SFN-15/01-denied-list.json: HTTP/1.1 400 Bad Request (switch sfn.denial.status; docs/research/stepfunctions-api.md#1416-sfn-15-denials-and-lambda-service-errors), the message under the key Message where the shared shape's member is message",
           "validated": "2026-11-03"
         }
       }

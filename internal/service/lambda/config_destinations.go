@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/destination"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -129,6 +130,41 @@ func (st *State) checkFunctionDestination(fn functionRef, scope aws.Scope, arn s
 	return nil
 }
 
+// checkDestinationRoles asks whether role, the execution role of the
+// version the configuration is for, may write to each SNS or SQS
+// destination: sns:Publish on a topic, sqs:SendMessage on a queue. Under
+// iam.enforce=enforce a refusal is errDestinationRoleDenied; advise
+// journals it and accepts, and off asks nothing (kernel.AuthorizeAs).
+// AWS's answer for a topic and a queue is recorded
+// (iam-enforcement-surfaces.md 8.5: IAM-ENF-27); whether it checks a
+// function, bus or bucket is unrecorded, so they are not checked.
+func checkDestinationRoles(ctx context.Context, c *kernel.Call, role string, dests []configuredDestination) *awserr.Error {
+	for _, d := range dests {
+		var action registry.IAMAction
+		var resource aws.ARN
+		switch dest := d.dest.(type) {
+		case destination.Topic:
+			action, resource = registry.IAMAction{Prefix: "sns", Name: "Publish"}, dest.ARN
+		case destination.Queue:
+			action, resource = registry.IAMAction{Prefix: "sqs", Name: "SendMessage"}, dest.ARN
+		case destination.Function, destination.Bus, destination.Bucket:
+			continue
+		}
+		roleARN, perr := aws.ParseARN(role)
+		if perr != nil {
+			return awserr.Internalf(fmt.Errorf("lambda: the function's stored execution role %q is not an ARN, so its permission on the destination %s cannot be checked: %w", role, d.arn, perr))
+		}
+		q := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: action, Resource: kernel.ResourceARN{ARN: resource}}}}
+		if err := kernel.AuthorizeAs(ctx, c, kernel.AsExecutionRole{Role: roleARN}, q); err != nil {
+			if _, denied := err.Origin.(awserr.Denial); denied {
+				return errDestinationRoleDenied(action.Name, d.arn)
+			}
+			return err
+		}
+	}
+	return nil
+}
+
 // recheckDestination repeats, in the write that stores the configuration,
 // the check of a destination function in fn's own scope, which st holds
 // and which may have been deleted since checkDestination. Every other
@@ -147,8 +183,8 @@ func (st *State) recheckDestination(fn functionRef, d configuredDestination) *aw
 
 // lookUpDestination asks the service of the destination arn whether it
 // exists in scope, as Lambda on its own behalf (kernel.AsPlatform) over
-// the destination mechanism: the execution role's permission is not
-// checked at configuration (lambda-destinations-layers.md 11.1). AWS
+// the destination mechanism; the execution role's permission is asked
+// separately (checkDestinationRoles). AWS
 // looks up queues, topics and buckets (aws-recorded, 2.3: LDL-08; switch
 // lambda.destination.config-existence-check). Only that service's
 // not-found answer means the destination is missing, which is refused

@@ -171,7 +171,9 @@ func (Codec) Encode(op *registry.Operation, requestID string, out smithy.Seriali
 // error's absolute shape id, then the message, the members of the value e
 // carries as the output serializer writes them (smithy-protocol-tests.md
 // 11.2) and the error's extra fields; and for a query-compatible service,
-// x-amzn-query-error: <QueryCode>;<Sender or Receiver>. The message goes
+// x-amzn-query-error: <QueryCode>;<Sender or Receiver>, unless the
+// identity sends it only in query mode (awserr.Identity.QueryErrorHeader)
+// and r did not send x-amzn-query-mode: true. The message goes
 // under the shape's own spelling when the shape is in svc's namespace,
 // which the client's error registry knows; any other shape (the generic
 // catalogue, understudy's NotImplemented) reaches the client as an unknown
@@ -188,14 +190,15 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 	h := header(requestID, len(body))
 	h.Set("Content-Type", mediaType)
 	queryCompatible := svc != nil && svc.QueryCompatible
-	if queryCompatible {
-		h.Set("X-Amzn-Query-Error", e.ID.QueryCode+";"+e.ID.Fault.String())
+	queryMode := strings.EqualFold(r.Header.Get("X-Amzn-Query-Mode"), "true")
+	if v, ok := e.ID.QueryErrorHeader(queryMode); queryCompatible && ok {
+		h.Set("X-Amzn-Query-Error", v)
 	}
 	for _, x := range e.Headers {
 		h.Add(x.Name, x.Value)
 	}
 	status := e.ID.Status
-	if queryCompatible && e.ID.QueryModeStatus != 0 && strings.EqualFold(r.Header.Get("X-Amzn-Query-Mode"), "true") {
+	if queryCompatible && e.ID.QueryModeStatus != 0 && queryMode {
 		status = e.ID.QueryModeStatus
 	}
 	return Response{Status: status, Header: h, Body: body}

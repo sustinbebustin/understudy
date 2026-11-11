@@ -27,15 +27,15 @@ const (
 // bindObjectTagging binds the object tagging operations.
 func (s *Service) bindObjectTagging(b s3api.Binder) {
 	get := func(in *s3api.GetObjectTaggingInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.GetObjectTagging(reader(s, get, getObjectTagging), registry.Full{}, touches(get))
+	b.GetObjectTagging(reader(s, get, getObjectTagging), registry.Full{}, touches(s, get))
 	put := func(in *s3api.PutObjectTaggingInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutObjectTagging(s.putObjectTagging, registry.Full{}, touches(put),
+	b.PutObjectTagging(s.putObjectTagging, registry.Full{}, touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutObjectTaggingInput) *awserr.Error {
 			_, err := objectTagSet(in.Tagging.TagSet)
 			return err
 		}))
 	del := func(in *s3api.DeleteObjectTaggingInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.DeleteObjectTagging(s.deleteObjectTagging, registry.Full{}, touches(del))
+	b.DeleteObjectTagging(s.deleteObjectTagging, registry.Full{}, touches(s, del))
 }
 
 func getObjectTagging(in *s3api.GetObjectTaggingInput, b *Bucket) (*s3api.GetObjectTaggingOutput, *awserr.Error) {

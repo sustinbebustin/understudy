@@ -147,6 +147,7 @@ func (s *Service) Switches() []fidelity.Entry {
 	entries := []fidelity.Entry{
 		pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry(),
 		detachedRetention().Entry(),
+		authz.AccountIDPrincipalSwitch("sns", "IAM-EVAL-25", []string{"sns.CreateTopic", "sns.SetTopicAttributes"}),
 		// The code and status are the model's AuthorizationErrorException
 		// (aws-doc); the recorded message writes the action "SNS:<Name>".
 		authz.RecordedSwitch("sns.denial.text", "AuthorizationError 403 with the grammar of 4.1, the action's prefix written SNS", "3.2", "IAM-ENF-03",

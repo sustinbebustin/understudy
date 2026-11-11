@@ -46,6 +46,7 @@ const (
 	utStatusOverride      = understudyNamespace + "statusOverride"
 	utUnknownOperation    = understudyNamespace + "unknownOperationError"
 	utQueryErrorEnvelope  = understudyNamespace + "queryErrorEnvelope"
+	utQueryErrorHeader    = understudyNamespace + "queryErrorHeader"
 	utResponseCRC32       = understudyNamespace + "responseCrc32"
 	utEnumOrder           = understudyNamespace + "enumOrder"
 	utValidationInputRoot = understudyNamespace + "validationInputRoot"
@@ -115,6 +116,7 @@ func understudyTraits() map[string]understudyTrait {
 		utStatusOverride:      {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
 		utUnknownOperation:    {Honor, siteService, func(r json.RawMessage) error { _, err := parseUnknownOperation(r); return err }},
 		utQueryErrorEnvelope:  {Honor, siteService, func(r json.RawMessage) error { _, err := parseQueryErrorEnvelope(r); return err }},
+		utQueryErrorHeader:    {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseQueryErrorHeader(r); return err }},
 		utResponseCRC32:       {Honor, siteService, parseAnnotation},
 		utEnumOrder:           {Honor, siteEnumShape, func(r json.RawMessage) error { _, err := parseEnumOrder(r); return err }},
 		utValidationInputRoot: {Honor, siteService, parseAnnotation},
@@ -149,6 +151,27 @@ func parseQueryErrorEnvelope(raw json.RawMessage) (registry.QueryErrorEnvelope, 
 		return registry.QueryErrorEnvelope{}, errors.New(`set "namespace" or "detail" to true; an envelope that follows Smithy's example needs no trait`)
 	}
 	return registry.QueryErrorEnvelope{Namespace: v.Namespace, Detail: v.Detail}, nil
+}
+
+// parseQueryErrorHeader reads dev.understudy#queryErrorHeader, {send}: when
+// a query-compatible service's JSON or CBOR answer sends the error's
+// x-amzn-query-error. "query-mode" sends it only when the request sent
+// x-amzn-query-mode: true. Sending it on every error is the absence of the
+// trait, so "always" is refused.
+func parseQueryErrorHeader(raw json.RawMessage) (awserr.QueryErrorWhen, error) {
+	var v struct {
+		Send string `json:"send"`
+	}
+	if err := decodeTrait(raw, &v); err != nil {
+		return 0, err
+	}
+	switch v.Send {
+	case "query-mode":
+		return awserr.QueryErrorInQueryMode, nil
+	case "always":
+		return 0, errors.New(`"send": "always" is what the absence of the trait already says; drop the trait`)
+	}
+	return 0, fmt.Errorf(`"send" is %q; the one value is "query-mode"`, v.Send)
 }
 
 // Evidence is one item of dev.understudy#evidence: what backs an overlay

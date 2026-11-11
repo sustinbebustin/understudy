@@ -24,23 +24,23 @@ import (
 // bindMultipart binds the multipart upload operations.
 func (s *Service) bindMultipart(b s3api.Binder) {
 	create := func(in *s3api.CreateMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.CreateMultipartUpload(s.createMultipartUpload, registry.Partial{Note: "an object ACL a bucket accepts is not stored; no lifecycle abort date; " + eventHoldNote}, touches(create))
+	b.CreateMultipartUpload(s.createMultipartUpload, registry.Partial{Note: "an object ACL a bucket accepts is not stored; no lifecycle abort date; " + eventHoldNote}, touches(s, create))
 	part := func(in *s3api.UploadPartInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.UploadPart(s.uploadPart, registry.Partial{Note: "chunk signatures are verified under sigv4 verify"}, touches(part))
+	b.UploadPart(s.uploadPart, registry.Partial{Note: "chunk signatures are verified under sigv4 verify"}, touches(s, part))
 	partCopy := func(in *s3api.UploadPartCopyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.UploadPartCopy(s.uploadPartCopy, registry.Partial{Note: "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"}, touches(partCopy))
+	b.UploadPartCopy(s.uploadPartCopy, registry.Partial{Note: "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"}, touches(s, partCopy))
 	complete := func(in *s3api.CompleteMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.CompleteMultipartUpload(s.completeMultipartUpload, registry.Partial{Note: "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"}, touches(complete))
+	b.CompleteMultipartUpload(s.completeMultipartUpload, registry.Partial{Note: "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"}, touches(s, complete))
 	abort := func(in *s3api.AbortMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.AbortMultipartUpload(s.abortMultipartUpload, registry.Partial{Note: "x-amz-if-match-initiated-time, a directory bucket header, answers 501"}, touches(abort))
+	b.AbortMultipartUpload(s.abortMultipartUpload, registry.Partial{Note: "x-amz-if-match-initiated-time, a directory bucket header, answers 501"}, touches(s, abort))
 	lp := func(in *s3api.ListPartsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListParts(func(ctx context.Context, c *kernel.Call, in *s3api.ListPartsInput) (*s3api.ListPartsOutput, *awserr.Error) {
 		return read(ctx, s, c, lp(in), func(b *Bucket) (*s3api.ListPartsOutput, *awserr.Error) {
 			return listParts(in, b, c.Endpoint().Scheme)
 		})
-	}, registry.Full{}, touches(lp))
+	}, registry.Full{}, touches(s, lp))
 	lu := func(in *s3api.ListMultipartUploadsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.ListMultipartUploads(reader(s, lu, listMultipartUploads), registry.Full{}, touches(lu))
+	b.ListMultipartUploads(reader(s, lu, listMultipartUploads), registry.Full{}, touches(s, lu))
 }
 
 // Uploads is a bucket's multipart uploads in progress, by upload id. Like

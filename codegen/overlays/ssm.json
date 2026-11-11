@@ -16,8 +16,9 @@
             "covers": ["dev.understudy#validationPathStyle"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the SSM denial; the model's own AccessDeniedException is taken; UNVERIFIED until recording IAM-ENF-41",
+            "label": "aws-recorded",
+            "source": "testdata/parity/ssm/IAM-ENF/41-raw.json: an IAM denial answers 400 with __type AccessDeniedException, the model's own shape, the message under Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#denialError"]
           },
           {

@@ -35,6 +35,9 @@ type harness struct {
 	// verified is the credentials the edge verified the calls with, under
 	// sigv4 verify; nil under sigv4 parse.
 	verified auth.Auth
+	// signer is how the identity store resolved the signing key, in both
+	// modes; nil when the principal was set directly.
+	signer identity.Resolution
 }
 
 func run(t *testing.T, o sts.Options, fn func(h *harness)) {
@@ -55,6 +58,7 @@ func call[In, Out any](h *harness, op kernel.Op[In, Out], in *In) (*Out, *awserr
 		Scope:     h.Scope,
 		Principal: h.principal,
 		Verified:  h.verified,
+		Signer:    h.signer,
 		Origin:    ref.External{Protocol: ref.AWSQuery, Listener: ref.ListenerMain},
 		Admitted:  h.Clock.Now(),
 		Endpoint:  h.Endpoint,
@@ -85,7 +89,7 @@ func fails[In, Out any](h *harness, op kernel.Op[In, Out], in *In, code, text st
 // signWith makes later calls signed with an access key, as the edge
 // resolves it.
 func (h *harness) signWith(key string) {
-	h.principal, _ = h.Identity.Resolve(key)
+	h.principal, h.signer = h.Identity.Resolve(key)
 	h.verified = nil
 }
 
@@ -437,6 +441,24 @@ func TestGetSessionToken(t *testing.T) {
 		session := must(h, stsapi.OpAssumeRole, &stsapi.AssumeRoleInput{RoleArn: role.Arn, RoleSessionName: "s1"}).Credentials
 		h.signWith(session.AccessKeyId)
 		fails(h, stsapi.OpGetSessionToken, &stsapi.GetSessionTokenInput{}, "AccessDenied", "session credentials")
+	})
+}
+
+// Under sigv4 parse the edge verifies nothing but still resolves the signing
+// key, so the same refusal holds; a long-term key and an unminted dummy key
+// still ask.
+func TestGetSessionTokenRefusesSessionCredentialsUnderParse(t *testing.T) {
+	run(t, sts.Options{}, func(h *harness) {
+		must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "u"})
+		key := must(h, iamapi.OpCreateAccessKey, &iamapi.CreateAccessKeyInput{UserName: new("u")}).AccessKey
+		h.signWith(key.AccessKeyId)
+		session := must(h, stsapi.OpGetSessionToken, &stsapi.GetSessionTokenInput{}).Credentials
+		h.signWith(session.AccessKeyId)
+		fails(h, stsapi.OpGetSessionToken, &stsapi.GetSessionTokenInput{}, "AccessDenied", "session credentials")
+		h.signWith(key.AccessKeyId)
+		must(h, stsapi.OpGetSessionToken, &stsapi.GetSessionTokenInput{})
+		h.signWith("AKIAIOSFODNN7EXAMPLE")
+		must(h, stsapi.OpGetSessionToken, &stsapi.GetSessionTokenInput{})
 	})
 }
 

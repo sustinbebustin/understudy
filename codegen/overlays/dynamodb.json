@@ -39,10 +39,20 @@
       "type": "apply",
       "traits": {
         "dev.understudy#statusOverride": 400,
-        "dev.understudy#evidence": {
-          "label": "aws-doc",
-          "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html: AccessDeniedException is listed under HTTP status code 400 (docs/research/iam-enforcement-surfaces.md#32-per-service-identity)"
-        }
+        "dev.understudy#messageKey": "Message",
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-doc",
+            "source": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html: AccessDeniedException is listed under HTTP status code 400 (docs/research/iam-enforcement-surfaces.md#32-per-service-identity)",
+            "covers": ["dev.understudy#statusOverride"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/dynamodb/IAM-ENF/04-describe.json: the shared shape's member is message, the wire key Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#messageKey"]
+          }
+        ]
       }
     }
   }

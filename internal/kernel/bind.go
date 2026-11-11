@@ -21,12 +21,29 @@ type Binder struct {
 
 // BindOption adjusts one binding: WithValidator, WithCheck, WithResources,
 // WithResourcesFor, WithItemCount, WithActions, WithoutSecondaryActions,
-// WithConditionKeys, RefuseConditionKeys, AuthorizedInHandler,
-// NeverAuthorized and AuthorizedAfterResolve build them.
+// WithConditionKeys, WithConditionKeysFor, RefuseConditionKeys,
+// ResolveFirst, AuthorizedInHandler, NeverAuthorized and
+// AuthorizedAfterResolve build them, and BindOptions groups them.
 type BindOption interface {
 	// apply adds the option to cfg, the *bindConfig of the operation's input
 	// type, and reports false when the option is for another input type.
 	apply(cfg any) bool
+}
+
+// BindOptions is opts as one option, applied in order, for a service
+// helper that gives each binding it serves several options at once, such
+// as the resource a queue URL names and the queue's not-found answer.
+func BindOptions(opts ...BindOption) BindOption { return optionGroup(slices.Clone(opts)) }
+
+// optionGroup is the option BindOptions returns.
+type optionGroup []BindOption
+
+func (g optionGroup) apply(cfg any) bool {
+	ok := true
+	for _, o := range g {
+		ok = o.apply(cfg) && ok
+	}
+	return ok
 }
 
 // bindConfig is what the options of one binding add to it. It is not
@@ -52,17 +69,23 @@ type bindConfig struct {
 	authorization authorization
 	// refused are every RefuseConditionKeys option's keys.
 	refused []string
+	// exists are every ResolveFirst option's checks.
+	exists []func(context.Context, *Call, any) *awserr.Error
 }
 
-// erasedConfig is what WithResourcesFor and WithConditionKeys add: what the
-// binding hands on to step 8 and the access record as is.
+// erasedConfig is what WithResourcesFor, WithConditionKeys,
+// WithConditionKeysFor and WithDenialResource add: what the binding hands
+// on to step 8 and the access record as is.
 type erasedConfig struct {
-	scoped []scopedResources
-	keys   []func(*Call, any) ConditionKeys
+	scoped     []scopedResources
+	keys       []func(*Call, any) ConditionKeys
+	actionKeys []scopedKeys
+	// denialResource is the last WithDenialResource; nil without one.
+	denialResource func(*Call, any) string
 }
 
 func (e erasedConfig) clone() erasedConfig {
-	return erasedConfig{scoped: slices.Clone(e.scoped), keys: slices.Clone(e.keys)}
+	return erasedConfig{scoped: slices.Clone(e.scoped), keys: slices.Clone(e.keys), actionKeys: slices.Clone(e.actionKeys), denialResource: e.denialResource}
 }
 
 // validate runs step 7 over in: the generated validator and the typed
@@ -97,8 +120,8 @@ func (cfg *bindConfig) resolve(c *Call, in any) []aws.ARN {
 }
 
 // typedOption is a WithValidator, WithCheck, WithResources,
-// WithResourcesFor, WithItemCount, WithActions or WithConditionKeys option,
-// erased where it is built: in is the (*In)(nil) of its input type, and add
+// WithResourcesFor, WithItemCount, WithActions, WithConditionKeys or
+// WithConditionKeysFor option, erased where it is built: in is the (*In)(nil) of its input type, and add
 // adds it to a bindConfig of that type.
 type typedOption struct {
 	in  any
@@ -202,6 +225,30 @@ func keysOf[P any](supply func(*Call, P) ConditionKeys) BindOption {
 		return supply(c, typed)
 	}
 	return typedOption{in: token, add: func(c *bindConfig) { c.erased.keys = append(c.erased.keys, f) }}
+}
+
+func actionKeysOf[P any](actions []registry.IAMAction, supply func(*Call, P) ConditionKeys) BindOption {
+	var token P
+	s := scopedKeys{actions: slices.Clone(actions), supply: func(c *Call, in any) ConditionKeys {
+		typed, ok := in.(P)
+		if !ok {
+			return nil
+		}
+		return supply(c, typed)
+	}}
+	return typedOption{in: token, add: func(c *bindConfig) { c.erased.actionKeys = append(c.erased.actionKeys, s) }}
+}
+
+func denialResourceOf[P any](name func(*Call, P) string) BindOption {
+	var token P
+	f := func(c *Call, in any) string {
+		typed, ok := in.(P)
+		if !ok {
+			return ""
+		}
+		return name(c, typed)
+	}
+	return typedOption{in: token, add: func(c *bindConfig) { c.erased.denialResource = f }}
 }
 
 // WithValidator adds a stateless, typed validator that runs at pipeline
@@ -389,6 +436,7 @@ func (cfg *bindConfig) clone() bindConfig {
 		count:         cfg.count,
 		authorization: cfg.authorization,
 		refused:       slices.Clone(cfg.refused),
+		exists:        slices.Clone(cfg.exists),
 	}
 }
 
@@ -421,13 +469,16 @@ func configured(b *Binder, id ref.OperationID, base bindConfig, opts []BindOptio
 			}
 			return cfg.count(in)
 		},
-		keys:          cfg.erased.keys,
-		scoped:        cfg.erased.scoped,
-		redact:        t.redact,
-		run:           t.run,
-		extend:        func(more []BindOption) *binding { return configured(b, id, cfg, more, t) },
-		authorization: cfg.authorization,
-		refused:       cfg.refused,
+		keys:           cfg.erased.keys,
+		actionKeys:     cfg.erased.actionKeys,
+		scoped:         cfg.erased.scoped,
+		denialResource: cfg.erased.denialResource,
+		redact:         t.redact,
+		run:            t.run,
+		extend:         func(more []BindOption) *binding { return configured(b, id, cfg, more, t) },
+		authorization:  cfg.authorization,
+		refused:        cfg.refused,
+		exists:         cfg.exists,
 	}
 	if len(cfg.actions) > 0 {
 		bnd.actions = func(c *Call, in any) []registry.IAMAction {
@@ -486,6 +537,11 @@ type binding struct {
 	// (WithConditionKeys); nil without the option and for raw HTTP
 	// bindings.
 	keys []func(c *Call, in any) ConditionKeys
+	// actionKeys supply, per named action, the request condition keys of a
+	// valid input that only that action's pairs carry
+	// (WithConditionKeysFor); nil without the option and for raw HTTP
+	// bindings.
+	actionKeys []scopedKeys
 	// scoped name, for a valid input, the resources each named action
 	// applies to (WithResourcesFor); nil without the option and for raw HTTP
 	// bindings.
@@ -506,6 +562,22 @@ type binding struct {
 	// (RefuseConditionKeys); nil without the option and for raw HTTP
 	// bindings.
 	refused []string
+	// denialResource names, for a valid input, the resource a denial of the
+	// primary action names (WithDenialResource); nil without the option and
+	// for raw HTTP bindings.
+	denialResource func(c *Call, in any) string
+	// exists are the binding's ResolveFirst checks, run before step 8;
+	// nil without the option and for raw HTTP bindings.
+	exists []func(ctx context.Context, c *Call, in any) *awserr.Error
+}
+
+// denialResourceOf returns the resource text the binding's
+// WithDenialResource gives the valid input in; "" without the option.
+func (bnd *binding) denialResourceOf(c *Call, in any) string {
+	if bnd.denialResource == nil {
+		return ""
+	}
+	return bnd.denialResource(c, in)
 }
 
 // scoping resolves the binding's WithResourcesFor options for the valid
@@ -519,6 +591,13 @@ func (bnd *binding) scoping(c *Call, in any) (scoping, []aws.ARN) {
 // WithConditionKeys options supply for the valid input in; nil without one.
 func (bnd *binding) conditionKeys(c *Call, in any) ConditionKeys {
 	return conditionKeys(bnd.keys, c, in)
+}
+
+// actionConditionKeys returns the request condition keys the binding's
+// WithConditionKeysFor options supply for the valid input in, by action;
+// nil without one.
+func (bnd *binding) actionConditionKeys(c *Call, in any) ActionKeys {
+	return actionConditionKeys(bnd.actionKeys, c, in)
 }
 
 // Bindings is a kernel's binding table, indexed by service and
@@ -619,8 +698,9 @@ const (
 	// NotRaw is a BindRawHTTP of an operation not of kind raw.
 	NotRaw
 	// OptionType is a WithValidator, WithCheck, WithResources,
-	// WithResourcesFor, WithItemCount, WithActions or WithConditionKeys
-	// option for another input type than the operation's.
+	// WithResourcesFor, WithItemCount, WithActions, WithConditionKeys or
+	// WithConditionKeysFor option for another input type than the
+	// operation's.
 	OptionType
 	// DeclaredUnbound is a Declare for an operation not bound yet, so no
 	// binding takes its options.
@@ -653,7 +733,7 @@ func (e *BindError) Error() string {
 	case NotRaw:
 		why = "BindRawHTTP binds only operations of kind raw"
 	case OptionType:
-		why = "a WithValidator, WithCheck, WithResources, WithResourcesFor, WithItemCount, WithActions or WithConditionKeys option is for another input type than the operation's; build it for the operation's input"
+		why = "a WithValidator, WithCheck, WithResources, WithResourcesFor, WithItemCount, WithActions, WithConditionKeys or WithConditionKeysFor option is for another input type than the operation's; build it for the operation's input"
 	case DeclaredUnbound:
 		why = "Declare names an operation that is not bound, so its options are not applied; call Declare after the operation's bind site"
 	case DeclaredRaw:

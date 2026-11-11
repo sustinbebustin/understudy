@@ -26,7 +26,7 @@ const maxVisibility = 43200
 func (s *Service) bindReceives(b sqsapi.Binder) {
 	b.ReceiveMessage(s.receiveMessage, registry.Partial{Note: "a message's Attributes are sorted by name, where AWS writes them in an order of its own"},
 		kernel.WithCheck(checkReceiveMessage),
-		queueByURL(func(in *sqsapi.ReceiveMessageInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.ReceiveMessageInput) string { return in.QueueUrl }))
 }
 
 // checkReceiveMessage checks the VisibilityTimeout range (sqs.md 7.1) and

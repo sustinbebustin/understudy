@@ -152,7 +152,8 @@ func (b *builder) errorByID(trait string, id smithy.ShapeID) (*ErrorIR, error) {
 // status from httpError or the fault default, then statusOverride; the
 // Query code from awsQueryError, else the shape name; __type from jsonType
 // or the shape name, namespaced for awsJson1_0; the message key from the
-// shape's own member spelling, then messageKey.
+// shape's own member spelling, then messageKey; when a query-compatible
+// answer sends x-amzn-query-error from queryErrorHeader, else always.
 func (b *builder) errorIR(s *ShapeIR, src *Shape, namespace string) (*ErrorIR, error) {
 	subject := string(s.ID)
 	e := &ErrorIR{Shape: s, QueryCode: s.ID.Name(), Retryable: src.Traits.Has(traitRetryable), Generic: s.ID.Namespace() != b.cfg.Service.Namespace()}
@@ -166,6 +167,16 @@ func (b *builder) errorIR(s *ShapeIR, src *Shape, namespace string) (*ErrorIR, e
 		// awsQueryError's status applies over awsQuery and under
 		// x-amzn-query-mode; KMS's legacy traits name a 404 neither reaches.
 		e.QueryModeStatus = 0
+	}
+	if raw, ok := src.Traits[utQueryErrorHeader]; ok {
+		if !b.ir.QueryCompatible {
+			return nil, failf(StageIR, subject, "%s says when x-amzn-query-error is sent, but %s is not awsQueryCompatible and sends none; drop the trait", utQueryErrorHeader, b.ir.ID)
+		}
+		when, err := parseQueryErrorHeader(raw)
+		if err != nil {
+			return nil, failf(StageIR, subject, "%w", err)
+		}
+		e.QueryErrorWhen = when
 	}
 	name := s.ID.Name()
 	if raw, ok := src.Traits[utJSONType]; ok {

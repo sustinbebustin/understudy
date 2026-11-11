@@ -19,26 +19,26 @@ import (
 // queue and only the latest is matched (sqs.receipt.stale-handle).
 func (s *Service) bindVisibility(b sqsapi.Binder) {
 	b.DeleteMessage(s.deleteMessage, registry.Partial{Note: "an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 \"The receipt handle has expired.\""},
-		queueByURL(func(in *sqsapi.DeleteMessageInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.DeleteMessageInput) string { return in.QueueUrl }))
 	b.DeleteMessageBatch(s.deleteMessageBatch, registry.Partial{Note: "a receipt handle of another queue is reported successful and deletes nothing, where AWS fails it as not valid for this queue"},
 		kernel.WithCheck(func(in *sqsapi.DeleteMessageBatchInput) *awserr.Error {
 			return checkBatchIDs("DeleteMessageBatchRequestEntry", entryIDs(in.Entries, func(e *sqsapi.DeleteMessageBatchRequestEntry) string { return e.Id }))
 		}),
-		queueByURL(func(in *sqsapi.DeleteMessageBatchInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.DeleteMessageBatchInput) string { return in.QueueUrl }))
 	b.ChangeMessageVisibility(s.changeMessageVisibility, registry.Partial{Note: "an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200"},
 		kernel.WithCheck(func(in *sqsapi.ChangeMessageVisibilityInput) *awserr.Error {
 			return checkVisibility(in.VisibilityTimeout)
 		}),
-		queueByURL(func(in *sqsapi.ChangeMessageVisibilityInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.ChangeMessageVisibilityInput) string { return in.QueueUrl }))
 	b.ChangeMessageVisibilityBatch(s.changeMessageVisibilityBatch, registry.Partial{Note: "an older receipt handle of a message received again since, or one of another queue, fails as not available for a visibility change, where AWS reports the first successful and fails the second as not valid for this queue"},
 		kernel.WithCheck(func(in *sqsapi.ChangeMessageVisibilityBatchInput) *awserr.Error {
 			return checkBatchIDs("ChangeMessageVisibilityBatchRequestEntry", entryIDs(in.Entries, func(e *sqsapi.ChangeMessageVisibilityBatchRequestEntry) string { return e.Id }))
 		}),
-		queueByURL(func(in *sqsapi.ChangeMessageVisibilityBatchInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.ChangeMessageVisibilityBatchInput) string { return in.QueueUrl }))
 	b.HoldVisibility(s.holdVisibility, registry.Full{},
-		queueByURL(func(in *sqsapi.HoldVisibilityInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.HoldVisibilityInput) string { return in.QueueUrl }))
 	b.MessageCauses(s.messageCauses, registry.Full{},
-		queueByURL(func(in *sqsapi.MessageCausesInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.MessageCausesInput) string { return in.QueueUrl }))
 }
 
 // messageCauses answers the internal MessageCauses: the journal event that

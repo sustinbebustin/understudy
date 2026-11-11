@@ -427,10 +427,15 @@ func imageSha256(code ImageCode) string {
 func (s *Service) bindEventInvokeConfigs(b lambdaapi.Binder) {
 	// Asynchronous invocations apply MaximumRetryAttempts,
 	// MaximumEventAgeInSeconds and DestinationConfig (async.go); the gaps
-	// are lambda-destinations-layers.md 11.1's.
-	const note = "the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried"
-	b.PutFunctionEventInvokeConfig(s.putEventInvokeConfig, partial(note))
-	b.UpdateFunctionEventInvokeConfig(s.updateEventInvokeConfig, partial(note))
+	// are lambda-destinations-layers.md 11.1's. The configuration-time
+	// role check is recorded for Put only (iam-enforcement-surfaces.md 8.5).
+	const (
+		checked  = "the execution role's sns:Publish on an SNS destination and sqs:SendMessage on an SQS one are checked when the configuration is stored"
+		check    = ", under iam.enforce=enforce, which refuses it, or advise, which journals the denial; function, event bus and S3 bucket destinations are not checked there (unrecorded); "
+		delivery = "the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried"
+	)
+	b.PutFunctionEventInvokeConfig(s.putEventInvokeConfig, partial(checked+check+delivery))
+	b.UpdateFunctionEventInvokeConfig(s.updateEventInvokeConfig, partial(checked+" (inferred: only PutFunctionEventInvokeConfig's check is recorded)"+check+delivery))
 	b.GetFunctionEventInvokeConfig(s.getEventInvokeConfig, full())
 	b.DeleteFunctionEventInvokeConfig(s.deleteEventInvokeConfig, full())
 	b.ListFunctionEventInvokeConfigs(s.listEventInvokeConfigs, full())
@@ -468,9 +473,12 @@ func (r functionRef) eventInvokeNotFound() *awserr.Error {
 
 // storeEventInvoke stores a configuration: replaced whole by Put, merged
 // by Update into one that must exist (lambda-api.md 7.7). The function is
-// checked first, then each destination (checkDestinations); the write
+// checked first, then each destination (checkDestinations), then the
+// execution role's permission on it (checkDestinationRoles); the write
 // checks the function and its own scope's destination functions again,
 // since they may change while other services are asked about the rest.
+// That the existence check comes before the role's is inferred: the
+// recording's destinations existed (IAM-ENF-27).
 func (s *Service) storeEventInvoke(ctx context.Context, c *kernel.Call, name string, qualifier *string, in eventInvokeInput, replace bool) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
 	ref, err := parseFunctionRef(c, name, qualifier)
 	if err != nil {
@@ -479,7 +487,11 @@ func (s *Service) storeEventInvoke(ctx context.Context, c *kernel.Call, name str
 	if in.retries == nil && in.age == nil && in.dest == nil {
 		return nil, errEventInvokeNoSettings()
 	}
-	if _, err := store.View2(s.cells, ref.scope, func(st *State) (EventInvokeConfig, *awserr.Error) { return st.eventInvokeBase(ref, replace) }); err != nil {
+	role, err := store.View2(s.cells, ref.scope, func(st *State) (string, *awserr.Error) {
+		_, role, err := st.eventInvokeBase(ref, replace)
+		return role, err
+	})
+	if err != nil {
 		return nil, err
 	}
 	var dests []configuredDestination
@@ -487,9 +499,12 @@ func (s *Service) storeEventInvoke(ctx context.Context, c *kernel.Call, name str
 		if dests, err = s.checkDestinations(ctx, c, ref, in.dest); err != nil {
 			return nil, err
 		}
+		if err := checkDestinationRoles(ctx, c, role, dests); err != nil {
+			return nil, err
+		}
 	}
 	out, err := write(s, c, ref.scope, func(st *State, now clock.Instant, _ *kernel.Tx) (lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
-		cfg, err := st.eventInvokeBase(ref, replace)
+		cfg, _, err := st.eventInvokeBase(ref, replace)
 		if err != nil {
 			return lambdaapi.FunctionEventInvokeConfig{}, err
 		}
@@ -518,19 +533,20 @@ func (s *Service) storeEventInvoke(ctx context.Context, c *kernel.Call, name str
 // eventInvokeBase is the configuration a Put or Update starts from:
 // nothing for Put, which replaces it whole, and for Update the stored one,
 // which must exist. The function and its qualifier must exist for both.
-func (st *State) eventInvokeBase(ref functionRef, replace bool) (EventInvokeConfig, *awserr.Error) {
-	f, _, err := st.lookup(ref)
+// role is the execution role of the version the qualifier names.
+func (st *State) eventInvokeBase(ref functionRef, replace bool) (cfg EventInvokeConfig, role string, err *awserr.Error) {
+	f, v, err := st.lookup(ref)
 	if err != nil {
-		return EventInvokeConfig{}, errEventInvokeFunctionMissing()
+		return EventInvokeConfig{}, "", errEventInvokeFunctionMissing()
 	}
 	cfg, stored := f.EventInvoke[ref.eventInvokeKey()]
 	switch {
 	case replace:
-		return EventInvokeConfig{}, nil
+		return EventInvokeConfig{}, v.Config.Role, nil
 	case !stored:
-		return EventInvokeConfig{}, ref.eventInvokeNotFound()
+		return EventInvokeConfig{}, "", ref.eventInvokeNotFound()
 	}
-	return cfg, nil
+	return cfg, v.Config.Role, nil
 }
 
 // with returns cfg updated with the settings that in carries; with

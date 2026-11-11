@@ -29,8 +29,6 @@ import (
 // recording case named beside it settles it.
 func TestEveryServiceNamesItsDenialIdentity(t *testing.T) {
 	// grounds names the 12.3 row's switch and recording case, or its source.
-	// The services after sts and secretsmanager were added after the note:
-	// 12.3 has no source for any of them, so none is stronger than inferred.
 	type row struct {
 		label   evidence.Label
 		grounds string
@@ -42,21 +40,21 @@ func TestEveryServiceNamesItsDenialIdentity(t *testing.T) {
 		"lambda":          {evidence.AWSRecorded, "testdata/parity/lambda/IAM-ENF/11-get.json"},
 		"dynamodb":        {evidence.AWSRecorded, "testdata/parity/dynamodb/IAM-ENF/04-describe.json"},
 		"eventbridge":     {evidence.AWSRecorded, "testdata/parity/events/IAM-ENF/08-describe.json"},
-		"cloudwatch":      {evidence.Inferred, "switch cloudwatch.denial.identity, case IAM-ENF-09"},
-		"logs":            {evidence.ThirdPartyRecorded, "switch logs.denial.status, case IAM-ENF-07"},
+		"cloudwatch":      {evidence.AWSRecorded, "testdata/parity/cloudwatch/IAM-ENF/09-json-qm.json"},
+		"logs":            {evidence.AWSRecorded, "testdata/parity/logs/IAM-ENF/07-streams.json"},
 		"iam":             {evidence.AWSRecorded, "testdata/parity/iam/IAM-ENF/10-get-role.json"},
 		"sts":             {evidence.AWSRecorded, "testdata/parity/sts/R15/06-assume-denied.json"},
 		"kms":             {evidence.AWSRecorded, "testdata/parity/kms/IAM-ENF/05-describe.json"},
 		"secretsmanager":  {evidence.ThirdPartyRecorded, "switch secretsmanager.denial.status, case IAM-ENF-06"},
-		"apigateway":      {evidence.Inferred, "no source"},
-		"apigatewayv2":    {evidence.Inferred, "no source"},
-		"dynamodbstreams": {evidence.Inferred, "no source; follows dynamodb"},
+		"apigateway":      {evidence.AWSRecorded, "testdata/parity/apigateway/IAM-ENF/33-apigateway.json"},
+		"apigatewayv2":    {evidence.AWSRecorded, "testdata/parity/apigatewayv2/IAM-ENF/34-apigatewayv2.json"},
+		"dynamodbstreams": {evidence.AWSRecorded, "testdata/parity/dynamodb/IAM-ENF/35-streams.json"},
 		"kinesis":         {evidence.AWSRecorded, "testdata/parity/kinesis/IAM-ENF/36-kinesis.json"},
 		"scheduler":       {evidence.AWSRecorded, "testdata/parity/scheduler/SCH/10-01-denied-get.json"},
-		"ses":             {evidence.Inferred, "switch ses.denial.identity, cases IAM-ENF-38 and ses.md SES-28; inferred from STS and IAM"},
-		"sesv2":           {evidence.Inferred, "switch ses.denial.identity, cases IAM-ENF-39 and ses.md SES-28"},
+		"ses":             {evidence.AWSRecorded, "testdata/parity/ses/IAM-ENF/38-raw.json"},
+		"sesv2":           {evidence.AWSRecorded, "testdata/parity/ses/IAM-ENF/39-sesv2.json"},
 		"sfn":             {evidence.AWSRecorded, "testdata/parity/sfn/SFN-15/01-denied-list.json"},
-		"ssm":             {evidence.Inferred, "no source"},
+		"ssm":             {evidence.AWSRecorded, "testdata/parity/ssm/IAM-ENF/41-raw.json"},
 	}
 	for _, svc := range generated() {
 		d := svc.Denial
@@ -122,8 +120,8 @@ func TestDocumentedDenialIdentities(t *testing.T) {
 			// HTTP/1.1 400 with __type
 			// com.amazon.coral.service#AccessDeniedException
 			// (testdata/parity/sfn/SFN-15/01-denied-list.json, aws-recorded).
-			// AWS's message key there is "Message", which the shared Coral
-			// shape does not spell; that is not asserted here.
+			// The message key there is "Message", which the overlay's
+			// messageKey trait spells (internal/server's recorded denials).
 			"sfn", sfnapi.Service().Denial.Identity,
 			func(id awserr.Identity) bool {
 				return id == sfnapi.IdentityAccessDeniedException() && id.JSONType == "com.amazon.coral.service#AccessDeniedException" &&

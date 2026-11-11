@@ -46,7 +46,15 @@ func (s *Service) bindTopics(b snsapi.Binder) {
 	b.SetTopicAttributes(s.setTopicAttributes, registry.Partial{Note: "Policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
 		"KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never applied; " +
 		"the http defaults in DeliveryPolicy apply to http and https subscriptions"},
-		kernel.WithResourceARN(func(in *snsapi.SetTopicAttributesInput) string { return in.TopicArn }))
+		kernel.WithResourceARN(func(in *snsapi.SetTopicAttributesInput) string { return in.TopicArn }),
+		// iam:PassRole applies to the delivery-status role the attribute
+		// passes (iam-enforcement-surfaces.md 10.2, 10.4).
+		kernel.WithResources(func(_ *kernel.Call, in *snsapi.SetTopicAttributesInput) []aws.ARN {
+			if in.AttributeValue == nil {
+				return nil
+			}
+			return feedbackRoles(map[string]string{in.AttributeName: *in.AttributeValue})
+		}))
 	b.ListTopics(s.listTopics, registry.Full{})
 }
 
@@ -67,6 +75,17 @@ func feedbackRoles(attributes map[string]string) []aws.ARN {
 	return out
 }
 
+// subscriptionRole is the IAM role a SubscriptionRoleArn value passes; a
+// value that is not an IAM ARN passes none. The role is passed whatever the
+// protocol, as SetSubscriptionAttributes stores it for firehose too
+// (iam-enforcement-surfaces.md 10.2, 10.4).
+func subscriptionRole(value string) []aws.ARN {
+	if a, err := aws.ParseARN(value); err == nil && a.Service == "iam" {
+		return []aws.ARN{a}
+	}
+	return nil
+}
+
 // createTopic creates a topic, or returns the existing one's ARN when the
 // request's attributes and tags agree with it (sns.md 2.1).
 func (s *Service) createTopic(_ context.Context, c *kernel.Call, in *snsapi.CreateTopicInput) (*snsapi.CreateTopicOutput, *awserr.Error) {
@@ -77,7 +96,7 @@ func (s *Service) createTopic(_ context.Context, c *kernel.Call, in *snsapi.Crea
 	if err != nil {
 		return nil, err
 	}
-	settings, err := createSettings(fifo, in.Attributes)
+	settings, err := createSettings(fifo, c.Scope().Partition, in.Attributes)
 	if err != nil {
 		return nil, err
 	}
@@ -151,13 +170,13 @@ func fifoRequested(name string, attrs map[string]string) (bool, *awserr.Error) {
 
 // createSettings checks CreateTopic's attributes other than FifoTopic, in
 // name order so the first bad one is reported the same way every time.
-func createSettings(fifo bool, attrs map[string]string) ([]topicSetting, *awserr.Error) {
+func createSettings(fifo bool, partition aws.Partition, attrs map[string]string) ([]topicSetting, *awserr.Error) {
 	var out []topicSetting
 	for _, name := range slices.Sorted(maps.Keys(attrs)) {
 		if name == attrFifoTopic {
 			continue
 		}
-		set, detail := topicAttribute(fifo, name, attrs[name])
+		set, detail := topicAttribute(fifo, partition, name, attrs[name])
 		if detail != "" {
 			return nil, errReason("Attributes", detail)
 		}
@@ -217,7 +236,7 @@ func (s *Service) setTopicAttributes(_ context.Context, c *kernel.Call, in *snsa
 	if in.AttributeValue != nil {
 		value = *in.AttributeValue
 	}
-	set, detail := topicAttribute(ref.fifo(), in.AttributeName, value)
+	set, detail := topicAttribute(ref.fifo(), ref.scope.Partition, in.AttributeName, value)
 	if detail != "" {
 		return nil, errInvalidParameter(detail)
 	}

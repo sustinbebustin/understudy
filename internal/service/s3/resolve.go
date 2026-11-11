@@ -48,17 +48,74 @@ func at(name string, owner *string) access {
 	return a
 }
 
-// touches names what an input addresses as the call's resources, so fault
+// touches names what an input addresses as the call's resources, as names
+// does, and answers a bucket or key that does not exist before the call is
+// authorized (missing).
+func touches[In any](s *Service, of func(*In) access) kernel.BindOption {
+	return kernel.BindOptions(names(of), kernel.ResolveFirst(func(ctx context.Context, c *kernel.Call, in *In) *awserr.Error {
+		return s.missing(ctx, c, of(in).name, in)
+	}))
+}
+
+// names gives what an input addresses as the call's resources, so fault
 // rules scoped to them match before the handler runs and the access record
 // pairs the call's actions with them: the objects of an object operation
 // (objectsAddressed), the bucket of any other.
-func touches[In any](of func(*In) access) kernel.BindOption {
+func names[In any](of func(*In) access) kernel.BindOption {
 	return kernel.WithResources(func(_ *kernel.Call, in *In) []aws.ARN {
 		if objects, ok := objectsAddressed(in); ok {
 			return objects
 		}
 		return []aws.ARN{bucketARN(of(in).name)}
 	})
+}
+
+// missing is the answer AWS gives before it authorizes a request about a
+// bucket that does not exist, NoSuchBucket, or a read of a key that does
+// not exist in an existing bucket, the s3:ListBucket question of
+// missingKey, so a caller denied s3:ListBucket gets its denial and one
+// allowed it NoSuchKey whatever s3:GetObject allows. IAM-ENF-14 recorded
+// ListObjectsV2 and GetObject; every other bucket operation, and HeadObject
+// and GetObjectAttributes on a key, follow by inference
+// (iam-enforcement-surfaces.md 5.1, 5.3; s3.enforce.missing-resource). A
+// read naming a version keeps the order of step 8. nil for an existing
+// resource.
+func (s *Service) missing(ctx context.Context, c *kernel.Call, bucket string, in any) *awserr.Error {
+	key, read := keyRead(in)
+	cell, ok := s.buckets.Lookup(bucket)
+	if !ok {
+		return errNoSuchBucket(bucket)
+	}
+	err := store.Read(cell, func(bc *BucketCell) *awserr.Error {
+		switch {
+		case bc.Bucket == nil:
+			return errNoSuchBucket(bucket)
+		case !read:
+			return nil
+		}
+		if _, live := bc.Bucket.Objects.live(key); !live {
+			return errNoSuchKeyAt(bc.Bucket, key)
+		}
+		return nil
+	})
+	if err == nil {
+		return nil
+	}
+	return missingKey(ctx, c, bucket, err)
+}
+
+// keyRead is the key a GetObject, HeadObject or GetObjectAttributes input
+// reads when it names no version; false for every other input.
+func keyRead(in any) (string, bool) {
+	switch in := in.(type) {
+	case *s3api.GetObjectInput:
+		return in.Key, in.VersionId == nil
+	case *s3api.HeadObjectInput:
+		return in.Key, in.VersionId == nil
+	case *s3api.GetObjectAttributesInput:
+		return in.Key, in.VersionId == nil
+	}
+	return "", false
 }
 
 // objectResource is the ARN of the object key in bucket,

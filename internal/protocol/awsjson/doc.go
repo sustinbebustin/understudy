@@ -48,7 +48,8 @@
 // member set, and an empty body for an operation whose output is
 // smithy.api#Unit (SQS DeleteMessage answers Content-Length: 0, sqs.md
 // 2.1). Errors carry __type always, x-amzn-query-error on every error of a
-// query-compatible service, and the message under the shape's own spelling
+// query-compatible service unless the identity limits it to query mode,
+// and the message under the shape's own spelling
 // (wire-json-query.md 5 and 6).
 //
 // Decisions the architecture leaves open:
@@ -85,7 +86,10 @@
 //     errors (boto3 derives Code from it), as ARCHITECTURE.md 6.2 and
 //     wire-json-query.md Implication 12 state.
 //     Smithy's QueryCompatibleAwsJson10NoCustomCodeError response test
-//     sets no forbidHeaders, so the header stays corpus-compliant.
+//     sets no forbidHeaders, so the header stays corpus-compliant. An
+//     identity whose QueryErrorWhen is QueryErrorInQueryMode sends it only
+//     under x-amzn-query-mode: true; CloudWatch's IAM denial is the one
+//     recorded case (iam-enforcement-surfaces.md 12.3).
 //
 //   - Claim accepts application/json as well as the version's media type,
 //     as DynamoDB does (error-matrix.md 5.5 T6), and declines any other

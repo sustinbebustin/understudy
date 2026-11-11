@@ -66,7 +66,7 @@ func (s *Service) bindVersioning(b s3api.Binder) {
 			out.MFADelete = new(s3api.MFADeleteStatus(*v.MFADelete))
 		}
 		return out, nil
-	}), registry.Full{}, touches(get))
+	}), registry.Full{}, touches(s, get))
 	put := func(in *s3api.PutBucketVersioningInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketVersioning(writer[s3api.PutBucketVersioningInput, s3api.PutBucketVersioningOutput](s, put, func(in *s3api.PutBucketVersioningInput, b *Bucket) *awserr.Error {
 		cfg := in.VersioningConfiguration
@@ -75,7 +75,7 @@ func (s *Service) bindVersioning(b s3api.Binder) {
 		}
 		b.Versioning = &cfg
 		return nil
-	}), registry.Partial{Note: "MFA delete is stored, not enforced, and the x-amz-mfa header is not verified"}, touches(put),
+	}), registry.Partial{Note: "MFA delete is stored, not enforced, and the x-amz-mfa header is not verified"}, touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketVersioningInput) *awserr.Error {
 			st := in.VersioningConfiguration.Status
 			switch {
@@ -92,9 +92,9 @@ func (s *Service) bindACL(b s3api.Binder) {
 	get := func(in *s3api.GetBucketAclInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetBucketAcl(reader(s, get, func(_ *s3api.GetBucketAclInput, b *Bucket) (*s3api.GetBucketAclOutput, *awserr.Error) {
 		return &s3api.GetBucketAclOutput{Owner: &s3api.Owner{ID: new(canonicalID(b.Home.OwnerAccount))}, Grants: b.Grants}, nil
-	}), stored("the access control list is"), touches(get))
+	}), stored("the access control list is"), touches(s, get))
 	put := func(in *s3api.PutBucketAclInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutBucketAcl(s.putBucketACL, registry.StoredOnly{Note: publicACLNote}, touches(put),
+	b.PutBucketAcl(s.putBucketACL, registry.StoredOnly{Note: publicACLNote}, touches(s, put),
 		kernel.WithCheck(checkACLRequest))
 }
 
@@ -169,12 +169,12 @@ func (s *Service) bindCORS(b s3api.Binder) {
 			return nil, notConfigured(s3api.NotConfiguredGetBucketCors(noSuchCORSMessage), b)
 		}
 		return &s3api.GetBucketCorsOutput{CORSRules: b.CORS.CORSRules}, nil
-	}), stored("the CORS configuration is"), touches(get))
+	}), stored("the CORS configuration is"), touches(s, get))
 	put := func(in *s3api.PutBucketCorsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketCors(writer[s3api.PutBucketCorsInput, s3api.PutBucketCorsOutput](s, put, func(in *s3api.PutBucketCorsInput, b *Bucket) *awserr.Error {
 		b.CORS = &in.CORSConfiguration
 		return nil
-	}), stored("the CORS configuration is"), touches(put),
+	}), stored("the CORS configuration is"), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketCorsInput) *awserr.Error {
 			for _, r := range in.CORSConfiguration.CORSRules {
 				for _, m := range r.AllowedMethods {
@@ -189,7 +189,7 @@ func (s *Service) bindCORS(b s3api.Binder) {
 	b.DeleteBucketCors(writer[s3api.DeleteBucketCorsInput, s3api.DeleteBucketCorsOutput](s, del, func(_ *s3api.DeleteBucketCorsInput, b *Bucket) *awserr.Error {
 		b.CORS = nil
 		return nil
-	}), stored("the CORS configuration is"), touches(del))
+	}), stored("the CORS configuration is"), touches(s, del))
 }
 
 func (s *Service) bindWebsite(b s3api.Binder) {
@@ -203,17 +203,17 @@ func (s *Service) bindWebsite(b s3api.Binder) {
 			RedirectAllRequestsTo: w.RedirectAllRequestsTo, IndexDocument: w.IndexDocument,
 			ErrorDocument: w.ErrorDocument, RoutingRules: w.RoutingRules,
 		}, nil
-	}), stored("the website configuration is"), touches(get))
+	}), stored("the website configuration is"), touches(s, get))
 	put := func(in *s3api.PutBucketWebsiteInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketWebsite(writer[s3api.PutBucketWebsiteInput, s3api.PutBucketWebsiteOutput](s, put, func(in *s3api.PutBucketWebsiteInput, b *Bucket) *awserr.Error {
 		b.Website = &in.WebsiteConfiguration
 		return nil
-	}), stored("the website configuration is"), touches(put))
+	}), stored("the website configuration is"), touches(s, put))
 	del := func(in *s3api.DeleteBucketWebsiteInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketWebsite(writer[s3api.DeleteBucketWebsiteInput, s3api.DeleteBucketWebsiteOutput](s, del, func(_ *s3api.DeleteBucketWebsiteInput, b *Bucket) *awserr.Error {
 		b.Website = nil
 		return nil
-	}), stored("the website configuration is"), touches(del))
+	}), stored("the website configuration is"), touches(s, del))
 }
 
 // The MalformedPolicy texts (s3.md 4.2.5).
@@ -234,14 +234,14 @@ func (s *Service) bindPolicy(b s3api.Binder) {
 			return nil, notConfigured(s3api.NotConfiguredGetBucketPolicy(noSuchBucketPolicyMessage), b)
 		}
 		return &s3api.GetBucketPolicyOutput{Policy: new(b.Policy)}, nil
-	}), evaluated, touches(get))
-	b.PutBucketPolicy(s.putBucketPolicy, putNote, touches(put),
+	}), evaluated, touches(s, get))
+	b.PutBucketPolicy(s.putBucketPolicy, putNote, touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketPolicyInput) *awserr.Error { return checkPolicy(in.Policy) }))
 	del := func(in *s3api.DeleteBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketPolicy(writer[s3api.DeleteBucketPolicyInput, s3api.DeleteBucketPolicyOutput](s, del, func(_ *s3api.DeleteBucketPolicyInput, b *Bucket) *awserr.Error {
 		b.Policy = ""
 		return nil
-	}), evaluated, touches(del))
+	}), evaluated, touches(s, del))
 }
 
 // checkPolicy checks a bucket policy's form only: a JSON object with a
@@ -269,12 +269,12 @@ func (s *Service) bindLogging(b s3api.Binder) {
 			return s3api.NotConfiguredGetBucketLogging(), nil
 		}
 		return &s3api.GetBucketLoggingOutput{LoggingEnabled: b.Logging}, nil
-	}), stored("the logging configuration is"), touches(get))
+	}), stored("the logging configuration is"), touches(s, get))
 	put := func(in *s3api.PutBucketLoggingInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketLogging(writer[s3api.PutBucketLoggingInput, s3api.PutBucketLoggingOutput](s, put, func(in *s3api.PutBucketLoggingInput, b *Bucket) *awserr.Error {
 		b.Logging = in.BucketLoggingStatus.LoggingEnabled
 		return nil
-	}), stored("the logging configuration is"), touches(put))
+	}), stored("the logging configuration is"), touches(s, put))
 }
 
 func (s *Service) bindLifecycle(b s3api.Binder) {
@@ -287,19 +287,19 @@ func (s *Service) bindLifecycle(b s3api.Binder) {
 			return nil, notConfigured(s3api.NotConfiguredGetBucketLifecycleConfiguration(noSuchLifecycleMessage), b)
 		}
 		return &s3api.GetBucketLifecycleConfigurationOutput{Rules: l.Rules, TransitionDefaultMinimumObjectSize: new(l.TransitionDefaultMinimumObjectSize)}, nil
-	}), stored("the lifecycle rules are"), touches(get))
+	}), stored("the lifecycle rules are"), touches(s, get))
 	put := func(in *s3api.PutBucketLifecycleConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.PutBucketLifecycleConfiguration(writer[s3api.PutBucketLifecycleConfigurationInput, s3api.PutBucketLifecycleConfigurationOutput](s, put, func(in *s3api.PutBucketLifecycleConfigurationInput, b *Bucket) *awserr.Error {
 		b.Lifecycle = &Lifecycle{Rules: in.LifecycleConfiguration.Rules, TransitionDefaultMinimumObjectSize: transitionDefault(in)}
 		return nil
-	}), stored("the lifecycle rules are"), touches(put), kernel.WithCheck(checkLifecycle))
+	}), stored("the lifecycle rules are"), touches(s, put), kernel.WithCheck(checkLifecycle))
 	del := func(in *s3api.DeleteBucketLifecycleInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketLifecycle(writer[s3api.DeleteBucketLifecycleInput, s3api.DeleteBucketLifecycleOutput](s, del, func(_ *s3api.DeleteBucketLifecycleInput, b *Bucket) *awserr.Error {
 		b.Lifecycle = nil
 		return nil
-	}), stored("the lifecycle rules are"), touches(del))
+	}), stored("the lifecycle rules are"), touches(s, del))
 }
 
 // transitionDefault is the x-amz-transition-default-minimum-object-size a
@@ -508,7 +508,7 @@ func (s *Service) bindReplication(b s3api.Binder) {
 			return nil, notConfigured(s3api.NotConfiguredGetBucketReplication(noSuchReplicationMessage), b)
 		}
 		return &s3api.GetBucketReplicationOutput{ReplicationConfiguration: b.Replication}, nil
-	}), stored("the replication configuration is"), touches(get))
+	}), stored("the replication configuration is"), touches(s, get))
 	put := func(in *s3api.PutBucketReplicationInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketReplication(writer[s3api.PutBucketReplicationInput, s3api.PutBucketReplicationOutput](s, put, func(in *s3api.PutBucketReplicationInput, b *Bucket) *awserr.Error {
 		if b.versioning() != versionsEnabled {
@@ -516,19 +516,19 @@ func (s *Service) bindReplication(b s3api.Binder) {
 		}
 		b.Replication = &in.ReplicationConfiguration
 		return nil
-	}), stored("the replication configuration is"), touches(put))
+	}), stored("the replication configuration is"), touches(s, put))
 	del := func(in *s3api.DeleteBucketReplicationInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketReplication(writer[s3api.DeleteBucketReplicationInput, s3api.DeleteBucketReplicationOutput](s, del, func(_ *s3api.DeleteBucketReplicationInput, b *Bucket) *awserr.Error {
 		b.Replication = nil
 		return nil
-	}), stored("the replication configuration is"), touches(del))
+	}), stored("the replication configuration is"), touches(s, del))
 }
 
 func (s *Service) bindEncryption(b s3api.Binder) {
 	get := func(in *s3api.GetBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetBucketEncryption(reader(s, get, func(_ *s3api.GetBucketEncryptionInput, b *Bucket) (*s3api.GetBucketEncryptionOutput, *awserr.Error) {
 		return &s3api.GetBucketEncryptionOutput{ServerSideEncryptionConfiguration: encryptionRead(b)}, nil
-	}), registry.Full{}, touches(get))
+	}), registry.Full{}, touches(s, get))
 	put := func(in *s3api.PutBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketEncryption(writer[s3api.PutBucketEncryptionInput, s3api.PutBucketEncryptionOutput](s, put, func(in *s3api.PutBucketEncryptionInput, b *Bucket) *awserr.Error {
 		// The rule is kept without BlockedEncryptionTypes, which the bucket
@@ -544,7 +544,7 @@ func (s *Service) bindEncryption(b s3api.Binder) {
 		rule.BlockedEncryptionTypes = nil
 		b.Encryption = &s3api.ServerSideEncryptionConfiguration{Rules: []s3api.ServerSideEncryptionRule{rule}}
 		return nil
-	}), registry.Full{}, touches(put), kernel.WithCheck(checkEncryption))
+	}), registry.Full{}, touches(s, put), kernel.WithCheck(checkEncryption))
 	del := func(in *s3api.DeleteBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketEncryption(writer[s3api.DeleteBucketEncryptionInput, s3api.DeleteBucketEncryptionOutput](s, del, func(_ *s3api.DeleteBucketEncryptionInput, b *Bucket) *awserr.Error {
 		// The SSE-C block goes back to a new bucket's: SSE-C blocked after
@@ -554,7 +554,7 @@ func (s *Service) bindEncryption(b s3api.Binder) {
 		b.Encryption = nil
 		b.BlockedEncryption = newBucketBlock(b.Home.Region)
 		return nil
-	}), registry.Full{}, touches(del))
+	}), registry.Full{}, touches(s, del))
 }
 
 // checkEncryption checks a default encryption configuration (s3.md 4.2.2):
@@ -591,7 +591,7 @@ func (s *Service) bindObjectLock(b s3api.Binder) {
 			return nil, notConfigured(s3api.NotConfiguredGetObjectLockConfiguration(noSuchObjectLockMessage), b)
 		}
 		return &s3api.GetObjectLockConfigurationOutput{ObjectLockConfiguration: b.ObjectLock}, nil
-	}), registry.Full{}, touches(get))
+	}), registry.Full{}, touches(s, get))
 	put := func(in *s3api.PutObjectLockConfigurationInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	// The rule's default retention applies to versions written afterwards
 	// (lockOnWrite); existing versions keep theirs (s3-ssec-object-lock.md
@@ -602,7 +602,7 @@ func (s *Service) bindObjectLock(b s3api.Binder) {
 		}
 		b.ObjectLock = in.ObjectLockConfiguration
 		return nil
-	}), registry.Partial{Note: "DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored"}, touches(put), kernel.WithCheck(checkObjectLock))
+	}), registry.Partial{Note: "DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored"}, touches(s, put), kernel.WithCheck(checkObjectLock))
 }
 
 // checkObjectLock checks an Object Lock configuration (s3.md 4.2.10;
@@ -658,12 +658,12 @@ func (s *Service) bindRequestPayment(b s3api.Binder) {
 			return s3api.NotConfiguredGetBucketRequestPayment(), nil
 		}
 		return &s3api.GetBucketRequestPaymentOutput{Payer: new(b.RequestPayment.Payer)}, nil
-	}), stored("the payer is"), touches(get))
+	}), stored("the payer is"), touches(s, get))
 	put := func(in *s3api.PutBucketRequestPaymentInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketRequestPayment(writer[s3api.PutBucketRequestPaymentInput, s3api.PutBucketRequestPaymentOutput](s, put, func(in *s3api.PutBucketRequestPaymentInput, b *Bucket) *awserr.Error {
 		b.RequestPayment = &in.RequestPaymentConfiguration
 		return nil
-	}), stored("the payer is"), touches(put))
+	}), stored("the payer is"), touches(s, put))
 }
 
 func (s *Service) bindAccelerate(b s3api.Binder) {
@@ -675,14 +675,14 @@ func (s *Service) bindAccelerate(b s3api.Binder) {
 			return s3api.NotConfiguredGetBucketAccelerateConfiguration(), nil
 		}
 		return &s3api.GetBucketAccelerateConfigurationOutput{Status: b.Accelerate.Status}, nil
-	}), stored("the transfer acceleration status is"), touches(get))
+	}), stored("the transfer acceleration status is"), touches(s, get))
 	put := func(in *s3api.PutBucketAccelerateConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.PutBucketAccelerateConfiguration(writer[s3api.PutBucketAccelerateConfigurationInput, s3api.PutBucketAccelerateConfigurationOutput](s, put, func(in *s3api.PutBucketAccelerateConfigurationInput, b *Bucket) *awserr.Error {
 		b.Accelerate = &in.AccelerateConfiguration
 		return nil
-	}), stored("the transfer acceleration status is"), touches(put))
+	}), stored("the transfer acceleration status is"), touches(s, put))
 }
 
 func (s *Service) bindPublicAccessBlock(b s3api.Binder) {
@@ -692,12 +692,12 @@ func (s *Service) bindPublicAccessBlock(b s3api.Binder) {
 			return nil, notConfigured(s3api.NotConfiguredGetPublicAccessBlock(noSuchPublicAccessMessage), b)
 		}
 		return &s3api.GetPublicAccessBlockOutput{PublicAccessBlockConfiguration: b.PublicAccessBlock}, nil
-	}), stored("the public access block is"), touches(get))
+	}), stored("the public access block is"), touches(s, get))
 	put := func(in *s3api.PutPublicAccessBlockInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutPublicAccessBlock(writer[s3api.PutPublicAccessBlockInput, s3api.PutPublicAccessBlockOutput](s, put, func(in *s3api.PutPublicAccessBlockInput, b *Bucket) *awserr.Error {
 		b.PublicAccessBlock = publicAccessBlock(in.PublicAccessBlockConfiguration)
 		return nil
-	}), registry.StoredOnly{Note: blockPublicAccessNote}, touches(put),
+	}), registry.StoredOnly{Note: blockPublicAccessNote}, touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutPublicAccessBlockInput) *awserr.Error {
 			if c := in.PublicAccessBlockConfiguration; c.BlockPublicAcls == nil && c.IgnorePublicAcls == nil && c.BlockPublicPolicy == nil && c.RestrictPublicBuckets == nil {
 				return errInvalidRequest("Must specify at least one configuration.")
@@ -708,7 +708,7 @@ func (s *Service) bindPublicAccessBlock(b s3api.Binder) {
 	b.DeletePublicAccessBlock(writer[s3api.DeletePublicAccessBlockInput, s3api.DeletePublicAccessBlockOutput](s, del, func(_ *s3api.DeletePublicAccessBlockInput, b *Bucket) *awserr.Error {
 		b.PublicAccessBlock = nil
 		return nil
-	}), stored("the public access block is"), touches(del))
+	}), stored("the public access block is"), touches(s, del))
 }
 
 // blockPublicAccessNote is PutPublicAccessBlock's coverage note; why
@@ -734,12 +734,12 @@ func (s *Service) bindOwnership(b s3api.Binder) {
 			return nil, notConfigured(s3api.NotConfiguredGetBucketOwnershipControls(noSuchOwnershipMessage), b)
 		}
 		return &s3api.GetBucketOwnershipControlsOutput{OwnershipControls: b.Ownership}, nil
-	}), registry.Partial{Note: "BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build"}, touches(get))
+	}), registry.Partial{Note: "BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build"}, touches(s, get))
 	put := func(in *s3api.PutBucketOwnershipControlsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutBucketOwnershipControls(writer[s3api.PutBucketOwnershipControlsInput, s3api.PutBucketOwnershipControlsOutput](s, put, func(in *s3api.PutBucketOwnershipControlsInput, b *Bucket) *awserr.Error {
 		b.Ownership = &in.OwnershipControls
 		return nil
-	}), registry.Partial{Note: "BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build"}, touches(put),
+	}), registry.Partial{Note: "BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build"}, touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketOwnershipControlsInput) *awserr.Error {
 			rules := in.OwnershipControls.Rules
 			if len(rules) != 1 || !rules[0].ObjectOwnership.Known() {
@@ -753,7 +753,7 @@ func (s *Service) bindOwnership(b s3api.Binder) {
 	b.DeleteBucketOwnershipControls(writer[s3api.DeleteBucketOwnershipControlsInput, s3api.DeleteBucketOwnershipControlsOutput](s, del, func(_ *s3api.DeleteBucketOwnershipControlsInput, b *Bucket) *awserr.Error {
 		b.Ownership = nil
 		return nil
-	}), registry.Partial{Note: "BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build"}, touches(del))
+	}), registry.Partial{Note: "BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build"}, touches(s, del))
 }
 
 // family is one of the configuration families a bucket keys by Id:
@@ -807,26 +807,26 @@ func (s *Service) bindMetrics(b s3api.Binder) {
 			return nil, err
 		}
 		return &s3api.GetBucketMetricsConfigurationOutput{MetricsConfiguration: c}, nil
-	}), cov, touches(get))
+	}), cov, touches(s, get))
 	put := func(in *s3api.PutBucketMetricsConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.PutBucketMetricsConfiguration(writer[s3api.PutBucketMetricsConfigurationInput, s3api.PutBucketMetricsConfigurationOutput](s, put, func(in *s3api.PutBucketMetricsConfigurationInput, b *Bucket) *awserr.Error {
 		f.put(b, in.Id, in.MetricsConfiguration)
 		return nil
-	}), cov, touches(put))
+	}), cov, touches(s, put))
 	del := func(in *s3api.DeleteBucketMetricsConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.DeleteBucketMetricsConfiguration(writer[s3api.DeleteBucketMetricsConfigurationInput, s3api.DeleteBucketMetricsConfigurationOutput](s, del, func(in *s3api.DeleteBucketMetricsConfigurationInput, b *Bucket) *awserr.Error {
 		return f.remove(b, in.Id)
-	}), cov, touches(del))
+	}), cov, touches(s, del))
 	list := func(in *s3api.ListBucketMetricsConfigurationsInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.ListBucketMetricsConfigurations(reader(s, list, func(in *s3api.ListBucketMetricsConfigurationsInput, b *Bucket) (*s3api.ListBucketMetricsConfigurationsOutput, *awserr.Error) {
 		return &s3api.ListBucketMetricsConfigurationsOutput{IsTruncated: new(false), ContinuationToken: in.ContinuationToken, MetricsConfigurationList: f.list(b)}, nil
-	}), cov, touches(list))
+	}), cov, touches(s, list))
 }
 
 func (s *Service) bindAnalytics(b s3api.Binder) {
@@ -844,26 +844,26 @@ func (s *Service) bindAnalytics(b s3api.Binder) {
 			return nil, err
 		}
 		return &s3api.GetBucketAnalyticsConfigurationOutput{AnalyticsConfiguration: c}, nil
-	}), cov, touches(get))
+	}), cov, touches(s, get))
 	put := func(in *s3api.PutBucketAnalyticsConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.PutBucketAnalyticsConfiguration(writer[s3api.PutBucketAnalyticsConfigurationInput, s3api.PutBucketAnalyticsConfigurationOutput](s, put, func(in *s3api.PutBucketAnalyticsConfigurationInput, b *Bucket) *awserr.Error {
 		f.put(b, in.Id, in.AnalyticsConfiguration)
 		return nil
-	}), cov, touches(put))
+	}), cov, touches(s, put))
 	del := func(in *s3api.DeleteBucketAnalyticsConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.DeleteBucketAnalyticsConfiguration(writer[s3api.DeleteBucketAnalyticsConfigurationInput, s3api.DeleteBucketAnalyticsConfigurationOutput](s, del, func(in *s3api.DeleteBucketAnalyticsConfigurationInput, b *Bucket) *awserr.Error {
 		return f.remove(b, in.Id)
-	}), cov, touches(del))
+	}), cov, touches(s, del))
 	list := func(in *s3api.ListBucketAnalyticsConfigurationsInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.ListBucketAnalyticsConfigurations(reader(s, list, func(in *s3api.ListBucketAnalyticsConfigurationsInput, b *Bucket) (*s3api.ListBucketAnalyticsConfigurationsOutput, *awserr.Error) {
 		return &s3api.ListBucketAnalyticsConfigurationsOutput{IsTruncated: new(false), ContinuationToken: in.ContinuationToken, AnalyticsConfigurationList: f.list(b)}, nil
-	}), cov, touches(list))
+	}), cov, touches(s, list))
 }
 
 func (s *Service) bindInventory(b s3api.Binder) {
@@ -881,26 +881,26 @@ func (s *Service) bindInventory(b s3api.Binder) {
 			return nil, err
 		}
 		return &s3api.GetBucketInventoryConfigurationOutput{InventoryConfiguration: c}, nil
-	}), cov, touches(get))
+	}), cov, touches(s, get))
 	put := func(in *s3api.PutBucketInventoryConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.PutBucketInventoryConfiguration(writer[s3api.PutBucketInventoryConfigurationInput, s3api.PutBucketInventoryConfigurationOutput](s, put, func(in *s3api.PutBucketInventoryConfigurationInput, b *Bucket) *awserr.Error {
 		f.put(b, in.Id, in.InventoryConfiguration)
 		return nil
-	}), cov, touches(put))
+	}), cov, touches(s, put))
 	del := func(in *s3api.DeleteBucketInventoryConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.DeleteBucketInventoryConfiguration(writer[s3api.DeleteBucketInventoryConfigurationInput, s3api.DeleteBucketInventoryConfigurationOutput](s, del, func(in *s3api.DeleteBucketInventoryConfigurationInput, b *Bucket) *awserr.Error {
 		return f.remove(b, in.Id)
-	}), cov, touches(del))
+	}), cov, touches(s, del))
 	list := func(in *s3api.ListBucketInventoryConfigurationsInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.ListBucketInventoryConfigurations(reader(s, list, func(in *s3api.ListBucketInventoryConfigurationsInput, b *Bucket) (*s3api.ListBucketInventoryConfigurationsOutput, *awserr.Error) {
 		return &s3api.ListBucketInventoryConfigurationsOutput{IsTruncated: new(false), ContinuationToken: in.ContinuationToken, InventoryConfigurationList: f.list(b)}, nil
-	}), cov, touches(list))
+	}), cov, touches(s, list))
 }
 
 func (s *Service) bindIntelligentTiering(b s3api.Binder) {
@@ -918,24 +918,24 @@ func (s *Service) bindIntelligentTiering(b s3api.Binder) {
 			return nil, err
 		}
 		return &s3api.GetBucketIntelligentTieringConfigurationOutput{IntelligentTieringConfiguration: c}, nil
-	}), cov, touches(get))
+	}), cov, touches(s, get))
 	put := func(in *s3api.PutBucketIntelligentTieringConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.PutBucketIntelligentTieringConfiguration(writer[s3api.PutBucketIntelligentTieringConfigurationInput, s3api.PutBucketIntelligentTieringConfigurationOutput](s, put, func(in *s3api.PutBucketIntelligentTieringConfigurationInput, b *Bucket) *awserr.Error {
 		f.put(b, in.Id, in.IntelligentTieringConfiguration)
 		return nil
-	}), cov, touches(put))
+	}), cov, touches(s, put))
 	del := func(in *s3api.DeleteBucketIntelligentTieringConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.DeleteBucketIntelligentTieringConfiguration(writer[s3api.DeleteBucketIntelligentTieringConfigurationInput, s3api.DeleteBucketIntelligentTieringConfigurationOutput](s, del, func(in *s3api.DeleteBucketIntelligentTieringConfigurationInput, b *Bucket) *awserr.Error {
 		return f.remove(b, in.Id)
-	}), cov, touches(del))
+	}), cov, touches(s, del))
 	list := func(in *s3api.ListBucketIntelligentTieringConfigurationsInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
 	b.ListBucketIntelligentTieringConfigurations(reader(s, list, func(in *s3api.ListBucketIntelligentTieringConfigurationsInput, b *Bucket) (*s3api.ListBucketIntelligentTieringConfigurationsOutput, *awserr.Error) {
 		return &s3api.ListBucketIntelligentTieringConfigurationsOutput{IsTruncated: new(false), ContinuationToken: in.ContinuationToken, IntelligentTieringConfigurationList: f.list(b)}, nil
-	}), cov, touches(list))
+	}), cov, touches(s, list))
 }

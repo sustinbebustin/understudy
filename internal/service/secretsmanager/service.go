@@ -64,7 +64,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 		kernel.WithResources(func(c *kernel.Call, in *secretsmanagerapi.CreateSecretInput) []aws.ARN {
 			return []aws.ARN{s.createTarget(c, in.Name)}
 		}))
-	named := registry.Partial{Note: resolvedFirst}
+	named := registry.Partial{Note: byName}
 	b.DescribeSecret(s.describeSecret, named)
 	b.ListSecrets(s.listSecrets, registry.Full{})
 	b.UpdateSecret(s.updateSecret, named,
@@ -74,7 +74,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	b.DeleteSecret(s.deleteSecret, named, kernel.WithCheck(checkDelete))
 	b.RestoreSecret(s.restoreSecret, named)
 
-	b.PutSecretValue(s.putSecretValue, registry.Partial{Note: "RotationToken is accepted and ignored: rotation is not implemented; " + resolvedFirst},
+	b.PutSecretValue(s.putSecretValue, registry.Partial{Note: "RotationToken is accepted and ignored: rotation is not implemented; " + byName},
 		kernel.WithCheck(func(in *secretsmanagerapi.PutSecretValueInput) *awserr.Error {
 			return firstError(requireToken(in.ClientRequestToken), checkValue(in.SecretString, in.SecretBinary))
 		}))
@@ -84,7 +84,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 
 	b.TagResource(s.tagResource, named)
 	b.UntagResource(s.untagResource, named)
-	b.PutResourcePolicy(s.putResourcePolicy, registry.Partial{Note: "the policy is parsed and stored verbatim, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; BlockPublicPolicy is not evaluated under any mode, so a broad policy sent with BlockPublicPolicy true is stored where AWS answers PublicPolicyException, and each put sending it true journals a check-not-run advisory; " + resolvedFirst})
+	b.PutResourcePolicy(s.putResourcePolicy, registry.Partial{Note: "the policy is parsed and stored verbatim, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; BlockPublicPolicy is not evaluated under any mode, so a broad policy sent with BlockPublicPolicy true is stored where AWS answers PublicPolicyException, and each put sending it true journals a check-not-run advisory; " + byName})
 	b.GetResourcePolicy(s.getResourcePolicy, named)
 	b.DeleteResourcePolicy(s.deleteResourcePolicy, named)
 	s.declareAuthorization(d.Binder)
@@ -139,12 +139,15 @@ func firstError(errs ...*awserr.Error) *awserr.Error {
 // Switches lists the behaviors chosen without AWS-recorded evidence, with
 // the status of a denial (iam-enforcement-surfaces.md 12.8;
 // third-party-recorded for a denial that is not IAM's) and the operations
-// that answer a missing secret before authorization (resolvedFirst).
+// that take a SecretId, which deny a missing secret first (byName).
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		authz.RecordedSwitch("secretsmanager.denial.status", "AccessDeniedException 400, body key Message", "3.2", "IAM-ENF-06", authz.SessionUnreplayed,
 			s.k.Bindings().AuthorizedOps(secretsmanagerapi.Service())),
-		authz.ResolveFirstSwitch("secretsmanager", s.k.Bindings().ResolvedFirstOps(secretsmanagerapi.Service())),
+		authz.RecordedDenyFirstSwitch("secretsmanager.enforce.missing-resource.by-name",
+			"DescribeSecret of a missing secret, and of an existing one (IAM-ENF-06), naming the SecretId as given",
+			"the other operations that take a SecretId, and the ARN a missing secret is evaluated on, without a suffix (impliedARN)",
+			s.k.Bindings().NamedDenialOps(secretsmanagerapi.Service())),
 		fidelity.Switch[string]{
 			Name:    "secretsmanager.list-secrets.filter-combination",
 			Value:   "and-across-filters,or-across-values",

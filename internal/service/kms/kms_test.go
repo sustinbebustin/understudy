@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -169,6 +170,40 @@ func TestKeyPolicyStatementNeedsPrincipal(t *testing.T) {
 		lenient := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","NotPrincipal":{"AWS":"arn:aws:iam::000000000000:root"}}]}`
 		must(h, kmsapi.OpPutKeyPolicy, &kmsapi.PutKeyPolicyInput{KeyId: id, Policy: lenient})
 		must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{Policy: new(lenient)})
+	})
+}
+
+// A key policy naming a bare account id reads back with the account's root
+// ARN, at CreateKey and PutKeyPolicy alike (iam-evaluation.md 5.4,
+// IAM-EVAL-27/06-account-id-principal, recorded 2026-11-03). AWS also
+// re-lays the document out; understudy keeps the layout as sent, so the
+// recorded document is compared as JSON.
+func TestKeyPolicyStoresAnAccountPrincipalAsItsRootARN(t *testing.T) {
+	run(t, func(h *harness) {
+		sent := `{"Version":"2012-10-17","Statement":[{"Sid":"acct","Effect":"Allow","Principal":{"AWS":"000000000000"},"Action":"kms:*","Resource":"*"}]}`
+		want := `{"Version":"2012-10-17","Statement":[{"Sid":"acct","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::000000000000:root"},"Action":"kms:*","Resource":"*"}]}`
+		recorded := "{\n  \"Version\" : \"2012-10-17\",\n  \"Statement\" : [ {\n    \"Sid\" : \"acct\",\n    \"Effect\" : \"Allow\",\n    \"Principal\" : {\n" +
+			"      \"AWS\" : \"arn:aws:iam::000000000000:root\"\n    },\n    \"Action\" : \"kms:*\",\n    \"Resource\" : \"*\"\n  } ]\n}"
+		check := func(at, id string) {
+			got := deref(must(h, kmsapi.OpGetKeyPolicy, &kmsapi.GetKeyPolicyInput{KeyId: id, PolicyName: new("default")}).Policy)
+			if got != want {
+				h.Errorf("GetKeyPolicy after %s = %s\nwant %s", at, got, want)
+			}
+			var gotDoc, recordedDoc any
+			if err := json.Unmarshal([]byte(got), &gotDoc); err != nil {
+				h.Fatal(err)
+			}
+			if err := json.Unmarshal([]byte(recorded), &recordedDoc); err != nil {
+				h.Fatal(err)
+			}
+			if !reflect.DeepEqual(gotDoc, recordedDoc) {
+				h.Errorf("GetKeyPolicy after %s = %s, want the recorded document %s", at, got, recorded)
+			}
+		}
+		check("CreateKey", must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{Policy: new(sent)}).KeyMetadata.KeyId)
+		id := h.key()
+		must(h, kmsapi.OpPutKeyPolicy, &kmsapi.PutKeyPolicyInput{KeyId: id, PolicyName: new("default"), Policy: sent})
+		check("PutKeyPolicy", id)
 	})
 }
 

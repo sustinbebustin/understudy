@@ -135,6 +135,7 @@ Each decision that is not a plain allow is journaled as an `advisory` event (`un
 understudy never assumes that a condition holds:
 
 - Some keys AWS would send are ones understudy cannot compute: `aws:SourceIp`, the resource's tags (`aws:ResourceTag/...`), and the called service's own keys that it does not supply, such as `s3:prefix`. A condition on such a key is evaluated as if the key were absent, which is how AWS evaluates a key a request does not carry. Each evaluation that tests one journals `condition-key-unsupplied` naming the key.
+- The S3 keys understudy supplies are `s3:x-amz-server-side-encryption`, `s3:x-amz-server-side-encryption-aws-kms-key-id` and `s3:x-amz-server-side-encryption-customer-algorithm`, on `PutObject`, `CopyObject` and `CreateMultipartUpload`, each from its request header and absent without it. A request with no encryption header into a bucket whose default encryption is SSE-KMS takes `s3:x-amz-server-side-encryption-aws-kms-key-id` from the default's key, but not `s3:x-amz-server-side-encryption`, as on AWS (the `s3.condition.sse-from-default` switch). So AWS's "require SSE-KMS" bucket policy, a deny of `s3:PutObject` when the key-id key is `Null`, lets a header-less upload into such a bucket through, and a deny on the algorithm key refuses it. On AWS only `PutObject` was recorded; the other two operations are inferred.
 - understudy never sends the VPC, organization and MFA keys (`aws:MultiFactorAuthPresent` is `false` in a session), so a condition on one gets AWS's own answer for a request made over the public endpoint, from outside an organization, without MFA.
 
 Where AWS's denial text, status or behavior is not recorded, understudy follows a fidelity switch. `understudy coverage --switches` lists them, and the `iam.*` and `*.denial.*` switches cover enforcement.
@@ -143,16 +144,69 @@ Where AWS's denial text, status or behavior is not recorded, understudy follows 
 
 These differences hold under every mode, and each is stated in the operation's coverage note (`understudy coverage --service <name>`):
 
-- An operation that finds its resource by name answers that the resource does not exist before it is authorized. These are IAM users, roles and instance profiles, KMS keys addressed by alias, and Secrets Manager secrets. AWS denies first, before saying whether the resource exists (the `iam.enforce.missing-resource.by-name`, `kms.enforce.missing-resource.by-name` and `secretsmanager.enforce.missing-resource.by-name` switches).
+- KMS operations that take only a key id, such as `GetKeyPolicy` and `EnableKey`, deny a missing key first. AWS answered `NotFoundException` first to `DescribeKey` on a missing key id, as understudy does for the operations that also take an alias (`kms.enforce.missing-resource.by-name`).
+
+SQS queues, S3 buckets and S3 keys answer not-found first, as AWS does: a missing queue is `QueueDoesNotExist` and a missing bucket `NoSuchBucket`, whatever the caller may do. A read of a missing key asks `s3:ListBucket` on the bucket before `s3:GetObject`, so a caller without it gets the `s3:ListBucket` denial and one with it `NoSuchKey` (the `sqs.enforce.missing-resource` and `s3.enforce.missing-resource` switches name the operations AWS recorded and those that follow by inference). S3 Control's tag operations still deny a missing bucket first.
+
+IAM and Secrets Manager deny first, as AWS does: a caller not allowed `iam:GetRole` gets the denial whether or not the role exists, naming it `role <name>`, and Secrets Manager names the secret as the `SecretId` gave it, existing or not. A caller allowed the action gets `NoSuchEntity` or `ResourceNotFoundException`. Which ARN AWS evaluates for a missing resource is unrecorded: understudy asks about a missing user, role or instance profile on its ARN at the path `/`, and a missing secret on the ARN its `SecretId` implies, without a suffix, so a grant on `*`, `role/*` or `secret:*` covers it (the `iam.enforce.missing-resource.by-name` and `secretsmanager.enforce.missing-resource.by-name` switches).
 - S3 Block Public Access and Secrets Manager's `BlockPublicPolicy` are stored and not applied, and KMS's key-policy lockout check is not run. Under `enforce` a public policy or ACL, or a key policy that locks out its caller, is stored where AWS refuses it. Each call AWS would check journals `check-not-run`: `PutBucketPolicy` while `BlockPublicPolicy` is true, `PutBucketAcl` granting `AllUsers` or `AuthenticatedUsers` while `BlockPublicAcls` is true, `PutResourcePolicy` with `BlockPublicPolicy` true, and a key policy sent to `CreateKey` or `PutKeyPolicy` without `BypassPolicyLockoutSafetyCheck`.
+- A principal a policy names is not checked for existence. AWS refuses a trust policy or a queue policy that names a role or user that does not exist; understudy stores it, so policies naming roles never created in understudy keep working (the `iam.policy.principal-existence` switch).
 - A function URL with `AuthType` `AWS_IAM` checks only the signature, never a policy. An `AuthType` `NONE` URL checks its resource policy under every mode.
 - Groups, KMS grants and the IAM policy simulator are not implemented, and answer 501.
+
+### Configuration checks
+
+Some calls that configure a Lambda function check its execution role's trust policy or permissions, as AWS does, whoever makes the call:
+
+- `CreateFunction`, and `UpdateFunctionConfiguration` when it passes a `Role`, ask whether `lambda.amazonaws.com` may assume the role: its trust policy must allow `sts:AssumeRole` for that service principal. A role that does not exist fails the same way. The caller's own `iam:PassRole` on the role is asked first, and its denial is an `AccessDeniedException`. That `UpdateFunctionConfiguration` checks the trust is inferred; only `CreateFunction` was recorded.
+- `CreateEventSourceMapping` and `UpdateEventSourceMapping` ask whether the role may read the mapping's queue or stream.
+- `PutFunctionEventInvokeConfig` and `UpdateFunctionEventInvokeConfig` ask whether the role may call `sns:Publish` on an SNS destination or `sqs:SendMessage` on an SQS one. Function, event bus and S3 bucket destinations are not checked.
+
+Under `enforce` a refusal fails the call with `InvalidParameterValueException`; under `advise` the call is served and journals `access-would-deny`; under `off` nothing is asked. With the function `worker` and the topic `alerts`, and a role with no policy:
+
+```sh
+aws lambda put-function-event-invoke-config --function-name worker --destination-config '{"OnSuccess":{"Destination":"arn:aws:sns:us-east-1:000000000000:alerts"}}'
+```
+
+```text
+aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the PutFunctionEventInvokeConfig operation: The function execution role does not have permissions to call Publish on arn:aws:sns:us-east-1:000000000000:alerts
+```
+
+Once `aws iam put-role-policy` gives the role `sns:Publish` on the topic, the same call stores the destination.
+
+With the role `worker-role` trusting only the account:
+
+```sh
+aws lambda create-function --function-name worker --runtime python3.13 --handler index.handler \
+  --role arn:aws:iam::000000000000:role/worker-role --zip-file fileb://fn.zip
+```
+
+```text
+aws: [ERROR]: An error occurred (InvalidParameterValueException) when calling the CreateFunction operation: The role defined for the function cannot be assumed by Lambda.
+
+Additional error details:
+Type: User
+```
+
+Once `aws iam update-assume-role-policy` lets `lambda.amazonaws.com` assume the role, the same call creates the function.
+
+`PutBucketNotificationConfiguration` checks each destination's resource policy, as AWS does: it asks whether the queue, topic or function lets `s3.amazonaws.com` call `sqs:SendMessage`, `sns:Publish` or `lambda:InvokeFunction`, with the keys a delivery sends ([Deliveries](#deliveries)). `x-amz-skip-destination-validation: true` skips the check, as it skips the existence check. Under `enforce` a refusal fails the call with `InvalidArgument`, naming each refused destination in `ArgumentName1`, `ArgumentValue1` and so on; under `advise` the call is served and journals `access-would-deny`; under `off` nothing is asked. With the bucket `uploads` and the queue `uploads`, which has no policy:
+
+```sh
+aws s3api put-bucket-notification-configuration --bucket uploads --notification-configuration '{"QueueConfigurations":[{"QueueArn":"arn:aws:sqs:us-east-1:000000000000:uploads","Events":["s3:ObjectCreated:*"]}]}'
+```
+
+```text
+aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketNotificationConfiguration operation: Unable to validate the following destination configurations
+```
+
+The body names the queue in `ArgumentName1`, with `ArgumentValue1` `Permissions on the destination queue do not allow S3 to publish notifications from this bucket`. Once the queue's policy allows `s3.amazonaws.com` to call `sqs:SendMessage` from `arn:aws:s3:::uploads`, the same call stores the configuration.
 
 ### Deliveries
 
 Under `advise` and `enforce`, deliveries between services are decided the same way as calls. SNS, S3 and EventBridge call the target as their service principal, with `aws:SourceArn` the topic, bucket or rule, and `aws:SourceAccount` the topic's account, the bucket owner's or the rule's. A rule that forwards to an event bus sends no `aws:SourceAccount`.
 
-Under `enforce`, a delivery the target's policy refuses is not retried. It goes to the subscription's or target's dead-letter queue when one is set, and an EventBridge dead letter carries `ERROR_CODE` `NO_PERMISSIONS`; otherwise it is dropped. `Subscribe` and `PutTargets` neither check nor change the target's policy. With a queue that has no policy subscribed to a topic, a published message is dropped:
+Under `enforce`, a delivery the target's policy refuses is not retried. It goes to the subscription's or target's dead-letter queue when one is set, and an EventBridge dead letter carries `ERROR_CODE` `NO_PERMISSIONS`; otherwise it is dropped. Of the calls that configure a delivery, only S3's `PutBucketNotificationConfiguration` checks the target's policy ([Configuration checks](#configuration-checks)); `Subscribe` and `PutTargets` neither check nor change it. With a queue that has no policy subscribed to a topic, a published message is dropped:
 
 ```sh
 aws sqs create-queue --queue-name orders
@@ -352,19 +406,13 @@ The destination check is still in the journal: `understudy journal --operation s
 The output is built from what your tests exercised. Check it before it goes into a real account. What each call records:
 
 - **The operation's primary action, always**, on the resources it applies to: `s3:PutObject` for `PutObject`, `sqs:SendMessage` for `SendMessageBatch`.
-- **Other actions of the same service only when the request needs them.** Every operation for which AWS's Service Reference lists more than one action of its service records the others only when the request's members need them. A `PutObject` with `x-amz-tagging` adds `s3:PutObjectTagging`, one with an ACL or grant header `s3:PutObjectAcl`; a `GetObject` of a version adds `s3:GetObjectVersion`; an `AssumeRole` with session tags adds `sts:TagSession`, one with a source identity `sts:SetSourceIdentity`; a `CreateQueue`, `CreateRole`, `CreateKey` or `CreateFunction` with tags adds the service's tag action; a `GetLogEvents` with `unmask` adds `logs:Unmask`; a `ReEncrypt` adds `kms:ReEncryptTo`; a PartiQL `INSERT` adds `dynamodb:PartiQLInsert`. A plain `PutObject` records `s3:PutObject` alone. DynamoDB's replication actions, such as `dynamodb:ReadDataForReplication` on `GetItem`, are never recorded. Two operations record a primary AWS does not always need: `TransactWriteItems` records `dynamodb:PutItem` on every table it names, and the PartiQL operations record `dynamodb:PartiQLSelect`, each with every PartiQL action on `"*"` (the coverage notes list both).
-- **Actions of another service only on a resource the call touched.** `CreateFunction` and `UpdateFunctionConfiguration` record `iam:PassRole` on the role they pass, as do EventBridge `PutRule` and `PutTargets` with a `RoleArn`, SNS `CreateTopic` with a delivery status role, S3 `PutBucketReplication` and Step Functions `CreateStateMachine` and `UpdateStateMachine`; a call that passes no role records none. Where understudy sends the `iam:PassedToService` the pass carries, as Step Functions (`states.amazonaws.com`) and IAM `AddRoleToInstanceProfile` (`ec2.amazonaws.com`) do, the `iam:PassRole` statement is granted on that condition: `"Condition":{"StringEquals":{"iam:PassedToService":"states.amazonaws.com"}}`. Actions with no such resource, such as `s3-object-lambda:PutObject` on a `PutObject` that touched no Object Lambda access point, are never recorded.
+- **Other actions of the same service only when the request needs them.** Every operation for which AWS's Service Reference lists more than one action of its service records the others only when the request's members need them. A `PutObject` with `x-amz-tagging` adds `s3:PutObjectTagging`, one with an ACL or grant header `s3:PutObjectAcl`; a `GetObject` or `HeadObject` of a version adds `s3:GetObjectVersion`, a `GetObjectAttributes` of one records `s3:GetObjectVersion` and `s3:GetObjectVersionAttributes` where it would record `s3:GetObject`; an `AssumeRole` with session tags adds `sts:TagSession`, one with a source identity `sts:SetSourceIdentity`; a `CreateQueue`, `CreateRole`, `CreateKey` or `CreateFunction` with tags adds the service's tag action; a `GetLogEvents` with `unmask` adds `logs:Unmask`; a `ReEncrypt` adds `kms:ReEncryptTo`; a PartiQL `INSERT` adds `dynamodb:PartiQLInsert`. A plain `PutObject` records `s3:PutObject` alone. DynamoDB's replication actions, such as `dynamodb:ReadDataForReplication` on `GetItem`, are never recorded. Two operations record a primary AWS does not always need: `TransactWriteItems` records `dynamodb:PutItem` on every table it names, and the PartiQL operations record `dynamodb:PartiQLSelect`, each with every PartiQL action on `"*"` (the coverage notes list both).
+- **Actions of another service only on a resource the call touched.** `CreateFunction` and `UpdateFunctionConfiguration` record `iam:PassRole` on the role they pass, as do EventBridge `PutRule` and `PutTargets` with a `RoleArn`, SNS `CreateTopic` and `SetTopicAttributes` with a delivery status role and `Subscribe` and `SetSubscriptionAttributes` with a `SubscriptionRoleArn`, S3 `PutBucketReplication` and Step Functions `CreateStateMachine` and `UpdateStateMachine`; a call that passes no role records none. Where understudy sends the `iam:PassedToService` the pass carries, as Lambda (`lambda.amazonaws.com`), Step Functions (`states.amazonaws.com`) and IAM `AddRoleToInstanceProfile` (`ec2.amazonaws.com`) do, the `iam:PassRole` statement is granted on that condition: `"Condition":{"StringEquals":{"iam:PassedToService":"states.amazonaws.com"}}`. Actions with no such resource, such as `s3-object-lambda:PutObject` on a `PutObject` that touched no Object Lambda access point, are never recorded.
 - **Each action on the resources it applies to, where understudy knows them.** A `CopyObject` records `s3:GetObject` on the source bucket's objects and `s3:PutObject` on the destination's; a `ReEncrypt` `kms:ReEncryptFrom` on the key that sealed the ciphertext and `kms:ReEncryptTo` on the destination key; a `StartMessageMoveTask` its receive, delete and attribute actions on the dead-letter queue and `sqs:SendMessage` on where the messages go; an `AddRoleToInstanceProfile` `iam:PassRole` on the role and its own action on the profile. Other calls that touch several resources of one service are granted each of their actions on each of them: a `DeleteObjects` with one versioned key grants `s3:DeleteObjectVersion` on every key it named; a `CreateFunction` with a capacity provider grants `lambda:CreateFunction` on the provider and `lambda:PassCapacityProvider` on the function. Trim those statements to the pairs your code needs.
 - **`s3:ListBucket` for a missing key.** A `GetObject`, `HeadObject` or `GetObjectAttributes` of a key that does not exist records `s3:ListBucket` on the bucket: AWS answers `404 NoSuchKey` to a caller with it and `403 AccessDenied` to one without, so a test that reads a missing key needs it.
 - **S3 objects per bucket.** Object operations touch the object's ARN (`journal` shows it), and are recorded, listed by `iam usage` and granted on `arn:aws:s3:::<bucket>/*`. Narrow that to a key prefix if your code only uses one.
 - **Lambda log delivery** records `logs:CreateLogGroup`, `logs:CreateLogStream` and `logs:PutLogEvents` for the function's execution role.
 - **`*` for the first use of an AWS managed key.** The first call that uses an `alias/aws/<service>` alias creates that key, such as an SSE-KMS `PutObject` without a key id (`alias/aws/s3`) or a `CreateSecret` without `KmsKeyId` (`alias/aws/secretsmanager`). understudy authorizes the call before the key exists, so `kms:GenerateDataKey`, `kms:Encrypt`, `kms:GenerateDataKeyWithoutPlaintext`, `kms:DescribeKey` or `kms:ReEncryptTo` is recorded on `*`, and the policy grants it on `*`. Later uses are recorded on the key. Replace `*` with the key's ARN, which `aws kms describe-key --key-id alias/aws/<service>` prints.
-
-The record does not carry these actions, which AWS needs; add them yourself:
-
-- `iam:PassRole` on the roles SNS `SetTopicAttributes`, `Subscribe` and `SetSubscriptionAttributes` pass in their attributes (such as `LambdaSuccessFeedbackRoleArn` or `SubscriptionRoleArn`).
-- `s3:GetObjectVersionAttributes` on a `GetObjectAttributes` with a version ID, which the Service Reference does not list for the operation.
-- `s3:GetObjectVersion` on a `HeadObject` with a version ID, which the Service Reference does not list for the operation.
 
 Only code paths your tests ran appear. A branch that never ran, or a request member your tests never sent, needs permissions the record cannot know.
 

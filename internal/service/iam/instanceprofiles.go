@@ -16,12 +16,12 @@ import (
 // bindInstanceProfiles binds instance profiles and their one role.
 func (s *Service) bindInstanceProfiles(b iamapi.Binder) {
 	b.CreateInstanceProfile(s.createInstanceProfile, registry.Full{})
-	b.GetInstanceProfile(s.getInstanceProfile, resolvedPartial())
-	b.DeleteInstanceProfile(s.deleteInstanceProfile, resolvedPartial())
-	b.AddRoleToInstanceProfile(s.addRoleToInstanceProfile, resolvedPartial())
-	b.RemoveRoleFromInstanceProfile(s.removeRoleFromInstanceProfile, resolvedPartial())
+	b.GetInstanceProfile(s.getInstanceProfile, byNamePartial())
+	b.DeleteInstanceProfile(s.deleteInstanceProfile, byNamePartial())
+	b.AddRoleToInstanceProfile(s.addRoleToInstanceProfile, byNamePartial())
+	b.RemoveRoleFromInstanceProfile(s.removeRoleFromInstanceProfile, byNamePartial())
 	b.ListInstanceProfiles(s.listInstanceProfiles, registry.Full{})
-	b.ListInstanceProfilesForRole(s.listInstanceProfilesForRole, resolvedPartial())
+	b.ListInstanceProfilesForRole(s.listInstanceProfilesForRole, byNamePartial())
 }
 
 // apiInstanceProfiles lists the profiles keep accepts, by name, as the

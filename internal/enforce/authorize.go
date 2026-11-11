@@ -12,7 +12,8 @@ import (
 )
 
 // Authorize implements kernel.Authorizer: each pair of q is decided by
-// authz.Decide in order, every condition key understudy cannot supply is
+// authz.Decide in order, with the condition keys q supplies for the pair's
+// action (kernel.AuthzQuery.KeysFor), every condition key understudy cannot supply is
 // journaled, and the first denying pair ends the question: answered with
 // the service's denial under Enforce, journaled and served under Advise
 // (iam-enforcement-surfaces.md 12.1, 12.2). Under Enforce a pair whose
@@ -29,7 +30,7 @@ func (a *Authorizer) Authorize(ctx context.Context, c *kernel.Call, q kernel.Aut
 	}
 	principal := c.Principal()
 	ids, idErr := s.identity(principal)
-	base := authz.ContextInput{Now: c.Admitted(), Region: callRegion(c), Via: via(c), Keys: q.Keys}
+	base := authz.ContextInput{Now: c.Admitted(), Region: callRegion(c), Via: via(c)}
 	base.UserAgent, _ = c.Header("User-Agent")
 	base.Referer, _ = c.Header("Referer")
 	for _, pair := range q.Pairs {
@@ -38,7 +39,9 @@ func (a *Authorizer) Authorize(ctx context.Context, c *kernel.Call, q kernel.Aut
 		err := idErr
 		var decided evaluation
 		if err == nil {
-			decided, err = s.evaluate(request{principal: principal, ids: ids, pair: pair, account: c.Scope().Account, context: base})
+			in := base
+			in.Keys = q.KeysFor(pair.Action)
+			decided, err = s.evaluate(request{principal: principal, ids: ids, pair: pair, account: c.Scope().Account, context: in})
 		}
 		if err != nil {
 			cause := &UnevaluableError{Pair: pair, Cause: err}

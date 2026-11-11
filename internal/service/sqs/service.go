@@ -223,6 +223,7 @@ func (s *Service) Switches() []fidelity.Entry {
 		visibilityCeiling().Entry(), fifoReceiptExpiry().Entry(), fifoDuplicate().Entry(),
 		contentDedupFormat().Entry(), sequenceFormat().Entry(), batchUnsetVisibility().Entry(),
 		policyLimits().Entry(),
+		authz.AccountIDPrincipalSwitch("sqs", "IAM-EVAL-25", []string{"sqs.CreateQueue", "sqs.SetQueueAttributes"}),
 		authz.RecordedSwitch("sqs.denial.json-identity", "header AccessDenied;Sender, __type com.amazon.coral.service#AccessDeniedException, 403",
 			"3.2", "IAM-ENF-01", authz.SessionUnreplayed, authorized),
 		// The Query text is the grammar SQS writes over JSON, not the
@@ -231,6 +232,9 @@ func (s *Service) Switches() []fidelity.Entry {
 			"4.3", "IAM-ENF-02", authz.SessionUnreplayed, authorized),
 		authz.RecordedSwitch("sqs.enforce.missing-resource.delivery", "resolve-first", "8.2", "IAM-ENF-18", authz.DeliveryUnreplayed,
 			s.k.Bindings().DeliveryResolvedFirstOps(sqsapi.Service())),
+		authz.RecordedResolveFirstSwitch("sqs.enforce.missing-resource",
+			"GetQueueAttributes on a missing queue answered QueueDoesNotExist", "every other operation that names a queue",
+			s.k.Bindings().ResolvedFirstOps(sqsapi.Service())),
 	}
 }
 

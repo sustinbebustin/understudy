@@ -15,7 +15,7 @@ var noRecord = map[string]bool{"iam.context.secure-transport": true}
 // (iam-evaluation.md 13, iam-enforcement-surfaces.md 13), except the
 // documented exemptions, which give the reason in Settles instead.
 func TestSwitchesNameTheirRecordingItem(t *testing.T) {
-	entries := append(authz.Switches(), authz.ResolveFirstSwitch("iam", nil))
+	entries := append(authz.Switches(), authz.RecordedDenyFirstSwitch("iam.enforce.missing-resource.by-name", "GetRole", "the other operations", nil))
 	for _, e := range entries {
 		switch {
 		case noRecord[e.Name] && e.Record != "":

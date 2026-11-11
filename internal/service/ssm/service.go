@@ -43,7 +43,11 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	b.GetParameters(s.getParameters, registry.Partial{Note: noteGetParameters},
 		byNames(func(in *ssmapi.GetParametersInput) []string { return in.Names }))
 	b.GetParametersByPath(s.getParametersByPath, registry.Partial{Note: noteGetParametersByPath}, byPath())
-	b.DescribeParameters(s.describeParameters, registry.Partial{Note: noteDescribeParameters})
+	b.DescribeParameters(s.describeParameters, registry.Partial{Note: noteDescribeParameters},
+		// A denial names arn:aws:ssm:<region>:<account>:* (iam-enforcement-surfaces.md 12.3, IAM-ENF-41).
+		kernel.WithDenialResource(func(c *kernel.Call, _ *ssmapi.DescribeParametersInput) string {
+			return c.Scope().ARN("ssm", "*").String()
+		}))
 	b.GetParameterHistory(s.getParameterHistory, registry.Partial{Note: noteGetParameterHistory},
 		byName(func(in *ssmapi.GetParameterHistoryInput) string { return in.Name }))
 	b.DeleteParameter(s.deleteParameter, registry.Partial{Note: noteDeleteParameter},

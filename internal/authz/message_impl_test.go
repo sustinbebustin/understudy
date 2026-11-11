@@ -73,6 +73,18 @@ func TestDenialMessageEdgeForms(t *testing.T) {
 			"User: arn:aws:iam::123456789012:user/MaryMajor is not authorized to perform: SNS:ListTopics because no identity-based policy allows the SNS:ListTopics action",
 		},
 		{
+			// A list operation's denial names its wildcard, though the
+			// pair is on no resource (iam-enforcement-surfaces.md 12.3,
+			// IAM-ENF-40).
+			"a resource text on no resource",
+			authz.Denial{
+				Principal: mary, Action: actionOf("states:ListStateMachines"), Resource: anyIn("123456789012"),
+				Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}, ResourceText: "arn:aws:states:us-east-2:123456789012:stateMachine:*",
+			},
+			authz.GrammarIAM,
+			"User: arn:aws:iam::123456789012:user/MaryMajor is not authorized to perform: states:ListStateMachines on resource: arn:aws:states:us-east-2:123456789012:stateMachine:* because no identity-based policy allows the states:ListStateMachines action",
+		},
+		{
 			"an unknown grammar renders as IAM's",
 			authz.Denial{Principal: mary, Action: actionOf("sqs:SendMessage"), Resource: anyIn("123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
 			authz.Grammar(200),

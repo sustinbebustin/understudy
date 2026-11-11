@@ -677,6 +677,43 @@ func TestSigV4VerifyExpiresPresignedURLsOnTheClock(t *testing.T) {
 	}
 }
 
+// unsignedAmzHeaderPut is a header-signed S3 PutObject that adds an
+// x-amz-meta-* header after signing.
+func unsignedAmzHeaderPut(t *testing.T, target string) reply {
+	t.Helper()
+	req := newRequest(t, http.MethodPut, target, "object-body")
+	auth.Sign(req, []byte("object-body"), dummy.scoped("s3"), time.Now())
+	req.Header.Set("X-Amz-Meta-Extra", "1")
+	return sigv4Do(t, req)
+}
+
+// Under sigv4 verify S3 refuses a header-signed request carrying an
+// x-amz-* header it did not sign with 403 AccessDenied "There were headers
+// present in the request which were not signed" and the HeadersNotSigned
+// element (error-matrix.md 5.4 T8; s3.md 12). Under parse it is served.
+func TestSigV4VerifyRefusesUnsignedAmzHeadersOnHeaderSignedS3Requests(t *testing.T) {
+	_, endpoint, _ := sigv4Server(t, server.Config{SigV4: server.SigV4Verify})
+	if got := s3Call(t, dummy, http.MethodPut, endpoint+"/unsigned", ""); got.status != http.StatusOK {
+		t.Fatalf("CreateBucket = %d %s", got.status, got.body)
+	}
+	got := unsignedAmzHeaderPut(t, endpoint+"/unsigned/key")
+	wantAnswer(t, "a header-signed PutObject with an unsigned x-amz-meta-* header", got, 403, "<Code>AccessDenied</Code>")
+	if want := "<Message>There were headers present in the request which were not signed</Message><HeadersNotSigned>x-amz-meta-extra</HeadersNotSigned>"; !strings.Contains(got.body, want) {
+		t.Errorf("the refusal lacks %s: %s", want, got.body)
+	}
+	if head := s3Call(t, dummy, http.MethodHead, endpoint+"/unsigned/key", ""); head.status != http.StatusNotFound {
+		t.Errorf("HeadObject after the refused PutObject = %d, want 404: the refusal must store nothing", head.status)
+	}
+
+	_, parseEndpoint, _ := sigv4Server(t, server.Config{})
+	if got := s3Call(t, dummy, http.MethodPut, parseEndpoint+"/unsigned", ""); got.status != http.StatusOK {
+		t.Fatalf("CreateBucket under parse = %d %s", got.status, got.body)
+	}
+	if got := unsignedAmzHeaderPut(t, parseEndpoint+"/unsigned/key"); got.status != http.StatusOK {
+		t.Errorf("the same PutObject under parse = %d %s; want 200", got.status, got.body)
+	}
+}
+
 // A SigV4 URL's lifetime counts from the emulator instant it was signed
 // at: one presigned after the clock moved an hour ahead is served, and
 // expires once the clock passes its lifetime, whether the clock is frozen

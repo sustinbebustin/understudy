@@ -44,8 +44,8 @@ func wiredSwitch(t *testing.T, c *admin.Client, name string) string {
 // ARN once IAM resolved it, so a policy granting iam:GetUser on the
 // caller's own ARN allows reading itself and no other user (the policy's
 // Resource matches the request's resource, iam-evaluation.md 5.3); a user
-// that does not exist answers NoSuchEntity first (switch
-// iam.enforce.missing-resource).
+// that does not exist is denied first, as GetRole of a missing role is
+// (switch iam.enforce.missing-resource.by-name, inferred from IAM-ENF-14).
 func TestEnforceDecidesIAMCallsOnTheResolvedUser(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
 	accessKey(t, endpoint, "v")
@@ -59,8 +59,8 @@ func TestEnforceDecidesIAMCallsOnTheResolvedUser(t *testing.T) {
 	if w := get("v"); w.status != http.StatusForbidden || parseXMLError(t, w).Code != "AccessDenied" {
 		t.Errorf("GetUser of another user = %d %s, want the IAM denial", w.status, w.body)
 	}
-	if w := get("ghost"); w.status != http.StatusNotFound || parseXMLError(t, w).Code != "NoSuchEntity" {
-		t.Errorf("GetUser of a missing user = %d %s, want NoSuchEntity", w.status, w.body)
+	if w := get("ghost"); w.status != http.StatusForbidden || !strings.Contains(parseXMLError(t, w).Message, "iam:GetUser on resource: user ghost ") {
+		t.Errorf("GetUser of a missing user = %d %s, want the IAM denial naming user ghost", w.status, w.body)
 	}
 }
 

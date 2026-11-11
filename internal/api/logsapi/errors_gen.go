@@ -9,7 +9,7 @@ import (
 
 // IdentityAccessDeniedException returns the identity of com.amazonaws.cloudwatchlogs#AccessDeniedException.
 func IdentityAccessDeniedException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.cloudwatchlogs#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.cloudwatchlogs#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
 }
 
 // ErrAccessDeniedException returns an AccessDeniedException error with message.
@@ -541,7 +541,7 @@ func NewErrorMembers(id smithy.ShapeID) (awserr.DecodableMembers, bool) {
 func ThrottleError() awserr.Identity { return IdentityThrottlingException() }
 
 // DenialError returns the identity this service answers an authorization
-// refusal with (dev.understudy#denialError), evidence third-party-recorded.
+// refusal with (dev.understudy#denialError), evidence aws-recorded.
 func DenialError() awserr.Identity { return IdentityAccessDeniedException() }
 
 // UnknownOperationError returns the identity this service answers for an

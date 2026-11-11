@@ -66,6 +66,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindMultipart(b)
 	s.bindNotification(b)
 	declareAccess(d.Binder)
+	s.declareSSEConditionKeys(d.Binder)
 	return s
 }
 
@@ -138,25 +139,24 @@ func declareAccess(b *kernel.Binder) {
 	}), kernel.WithResourcesFor(s3api.OpGetObject.Descriptor().IAM, func(_ *kernel.Call, in *s3api.GetObjectInput) []aws.ARN {
 		return []aws.ARN{objectResource(in.Bucket, in.Key)}
 	}))
-	// HeadObject declares no secondary, for the same reason as GetObject's
-	// lock actions. Heading a version needs s3:GetObjectVersion on AWS
-	// (HeadObject, Permissions), but its generated list has no
-	// s3:GetObjectVersion, so a versioned call's record lacks it; the
-	// policy guide lists the gap. Its actions apply to the object alone, as
-	// GetObject's.
-	kernel.Declare(b, s3api.OpHeadObject, kernel.WithoutSecondaryActions(),
-		kernel.WithResourcesFor(s3api.OpHeadObject.Descriptor().IAM, func(_ *kernel.Call, in *s3api.HeadObjectInput) []aws.ARN {
-			return []aws.ARN{objectResource(in.Bucket, in.Key)}
-		}))
+	// Heading a version needs s3:GetObjectVersion (HeadObject,
+	// Permissions), which codegen/services/s3.json adds to the generated
+	// list. HeadObject declares no lock action, for the same reason as
+	// GetObject. Its actions apply to the object alone, as GetObject's.
+	kernel.Declare(b, s3api.OpHeadObject, kernel.WithActions(func(_ *kernel.Call, in *s3api.HeadObjectInput) []registry.IAMAction {
+		return versioned(in.VersionId, s3Action("GetObjectVersion"))
+	}), kernel.WithResourcesFor(s3api.OpHeadObject.Descriptor().IAM, func(_ *kernel.Call, in *s3api.HeadObjectInput) []aws.ARN {
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}
+	}))
 	// GetObjectAttributes needs s3:GetObject and s3:GetObjectAttributes
 	// without a version, s3:GetObjectVersion and
 	// s3:GetObjectVersionAttributes with one (GetObjectAttributes,
-	// Permissions). The primary s3:GetObjectAttributes is recorded either
-	// way; s3:GetObjectVersionAttributes is not in the generated list, so a
-	// versioned call's record lacks it.
+	// Permissions); codegen/services/s3.json adds
+	// s3:GetObjectVersionAttributes to the generated list. The primary
+	// s3:GetObjectAttributes is recorded either way.
 	kernel.Declare(b, s3api.OpGetObjectAttributes, kernel.WithActions(func(_ *kernel.Call, in *s3api.GetObjectAttributesInput) []registry.IAMAction {
 		if anySet(in.VersionId) {
-			return []registry.IAMAction{s3Action("GetObjectVersion")}
+			return []registry.IAMAction{s3Action("GetObjectVersion"), s3Action("GetObjectVersionAttributes")}
 		}
 		return []registry.IAMAction{s3Action("GetObject")}
 	}), kernel.WithResourcesFor(s3api.OpGetObjectAttributes.Descriptor().IAM, func(_ *kernel.Call, in *s3api.GetObjectAttributesInput) []aws.ARN {
@@ -408,8 +408,8 @@ func (s *Service) Scopes() []aws.Scope {
 
 // Switches lists the behaviors chosen without AWS-recorded evidence, last
 // those of IAM enforcement: S3's denial text (iam-enforcement-surfaces.md
-// 12.8), what becomes of a notification its destination refuses (8.3) and
-// the root's bucket-policy lockout rule (6.3), which governs the bucket
+// 12.8), what becomes of a notification its destination refuses (8.3), the
+// SSE condition keys a bucket default supplies (9.2) and the root's bucket-policy lockout rule (6.3), which governs the bucket
 // policy operations.
 func (s *Service) Switches() []fidelity.Entry {
 	return slices.Concat([]fidelity.Entry{
@@ -422,7 +422,12 @@ func (s *Service) Switches() []fidelity.Entry {
 		authz.RecordedSwitch("s3.denial.text", "the S3 variant of 4.2: a quoted resource on every denial of one, \", with policy ARN:\", Access Denied outside the owner's account",
 			"4.2", "IAM-ENF-12", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(s3api.Service())),
 		notificationDeliveryDenied(),
-	}, authz.SwitchesOf("s3", []string{"s3.GetBucketPolicy", "s3.PutBucketPolicy", "s3.DeleteBucketPolicy"}))
+		authz.AccountIDPrincipalSwitch("s3", "IAM-EVAL-25", []string{"s3.PutBucketPolicy"}),
+		authz.RecordedResolveFirstSwitch("s3.enforce.missing-resource",
+			"ListObjectsV2 on a missing bucket answered NoSuchBucket, and GetObject on a missing key the s3:ListBucket denial",
+			"every other bucket operation on a missing bucket, HeadObject and GetObjectAttributes on a missing key, and NoSuchKey to a caller allowed s3:ListBucket but denied s3:GetObject",
+			s.k.Bindings().ResolvedFirstOps(s3api.Service())),
+	}, sseFromDefaultSwitches(), authz.SwitchesOf("s3", []string{"s3.GetBucketPolicy", "s3.PutBucketPolicy", "s3.DeleteBucketPolicy"}))
 }
 
 // notificationDeliveryDenied is what becomes of a notification whose
