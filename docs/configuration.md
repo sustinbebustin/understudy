@@ -226,8 +226,6 @@ setting has one; any key may be left out:
   journal.file               NDJSON file every event is appended to (default none)
   faults                     rules as 'understudy faults list --output json' prints each "rule"
 
-Not supported yet: this build refuses s3.maxObjectBytes, dynamodb.registry rather than ignore them.
-
 Accounts: a request signed with a 12-digit access key id is in that account; an accounts.keys
 entry is in its account; any other key not minted by understudy, test among them, is in the
 default account, 000000000000 unless accounts.default sets another. Under --sigv4 verify, test

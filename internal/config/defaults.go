@@ -16,7 +16,6 @@ const (
 	DefaultPort             = 4566
 	DefaultTLSPort          = 4567
 	DefaultSaveEvery        = 30 * time.Second
-	DefaultMaxObjectBytes   = 5 << 30
 	DefaultStartConcurrency = 16
 	DefaultMaxEnvironments  = 64
 	DefaultIdleTimeout      = 10 * time.Minute
@@ -59,9 +58,8 @@ func Defaults(p Placement) Config {
 		Accounts:    Accounts{Default: aws.DefaultAccount()},
 		Docker:      DockerSocket{Path: DefaultDockerSocket},
 		S3: S3{
-			BaseDomains:    DefaultBaseDomains(),
-			CrossRegion:    CrossRegionAWS,
-			MaxObjectBytes: DefaultMaxObjectBytes,
+			BaseDomains: DefaultBaseDomains(),
+			CrossRegion: CrossRegionAWS,
 		},
 		Lambda: Lambda{
 			Network:          NetworkAuto{},
@@ -72,7 +70,7 @@ func Defaults(p Placement) Config {
 		},
 		SQS:      SQS{DeletedRecently: DeletedRecentlyIgnore},
 		IAM:      IAM{AssumeRole: AssumeRoleStrict},
-		DynamoDB: DynamoDB{Mode: DynamoDBEnabled{}, Registry: RegistryDockerHub, MemoryLimit: DefaultDynamoDBMemory},
+		DynamoDB: DynamoDB{Mode: DynamoDBEnabled{}, MemoryLimit: DefaultDynamoDBMemory},
 		Journal:  Journal{Capacity: DefaultJournalCapacity, MaxBytes: DefaultJournalMaxBytes},
 		Log:      Log{Level: slog.LevelInfo, Format: LogText},
 	}

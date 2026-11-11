@@ -135,12 +135,6 @@ func (d *draft) applyS3(s *fileS3, where string) *Error {
 			return err
 		}
 	}
-	if s.MaxObjectBytes != nil {
-		if *s.MaxObjectBytes <= 0 || *s.MaxObjectBytes > DefaultMaxObjectBytes {
-			return &Error{Where: where + ".maxObjectBytes", Reason: strconv.FormatInt(*s.MaxObjectBytes, 10) + " is not between 1 and 5 GiB (5368709120), S3's single PUT limit"}
-		}
-		d.cfg.S3.MaxObjectBytes = *s.MaxObjectBytes
-	}
 	return nil
 }
 
@@ -305,11 +299,6 @@ func (d *draft) applyDynamoDB(s *fileDynamoDB, where string) *Error {
 	}
 	if s.Enabled != nil && !*s.Enabled {
 		d.dynamoOff = true
-	}
-	if s.Registry != nil {
-		if err := choose(*s.Registry, where+".registry", map[string]Registry{"docker-hub": RegistryDockerHub, "ecr-public": RegistryECRPublic}, &d.cfg.DynamoDB.Registry); err != nil {
-			return err
-		}
 	}
 	if s.MemoryLimit != nil {
 		if *s.MemoryLimit < 256<<20 {

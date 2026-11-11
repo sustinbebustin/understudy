@@ -16,10 +16,7 @@ import (
 // whole, so what serve loads is what egress allows.
 func TestServeMapsSNSHTTPDelivery(t *testing.T) {
 	cfg := loadFile(t, []string{"--sns-http-delivery-allow", "127.0.0.1:*,receiver.default.svc.cluster.local:8080"}, `{}`)
-	s, err := serverConfig(cfg, "test")
-	if err != nil {
-		t.Fatalf("serverConfig = %v", err)
-	}
+	s := serverConfig(cfg, "test")
 	entries := s.SNSHTTPDelivery.Allow.Entries()
 	got := make([]string, 0, len(entries))
 	for _, e := range entries {

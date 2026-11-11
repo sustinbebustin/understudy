@@ -50,13 +50,7 @@ func serveFlags(w io.Writer) error {
 	b.WriteString("\nPrecedence: flags, then UNDERSTUDY_* variables, then the file, then the defaults.\n" +
 		"\nThe file also holds sections no flag sets. This file shows each, with the defaults where a\n" +
 		"setting has one; any key may be left out:\n\n" + exampleFile + "\n" + sectionChoices)
-	unsupported := unappliedSettings()
-	refused := make([]string, len(unsupported))
-	for i, s := range unsupported {
-		refused[i] = s.name
-	}
-	b.WriteString("\nNot supported yet: this build refuses " + strings.Join(refused, ", ") + " rather than ignore them.\n" +
-		"\nAccounts: a request signed with a 12-digit access key id is in that account; an accounts.keys\n" +
+	b.WriteString("\nAccounts: a request signed with a 12-digit access key id is in that account; an accounts.keys\n" +
 		"entry is in its account; any other key not minted by understudy, test among them, is in the\n" +
 		"default account, 000000000000 unless accounts.default sets another. Under --sigv4 verify, test\n" +
 		"and every 12-digit key sign with the secret test, an accounts.keys entry with its own secret,\n" +
@@ -68,7 +62,7 @@ func serveFlags(w io.Writer) error {
 
 // exampleFile is the configuration file serve --help shows: every section
 // config reads, with its defaults where a setting has one and sample
-// values elsewhere. It leaves out the settings serve refuses.
+// values elsewhere.
 const exampleFile = `  {
     "listen": "127.0.0.1:4566",
     "accounts": {"default": "000000000000"},
@@ -127,10 +121,7 @@ func runServe(ctx context.Context, r *runner, args []string) error {
 	if cfg.Log.Format == config.LogJSON {
 		r.output = outputJSON
 	}
-	scfg, err := serverConfig(cfg, r.o.Version)
-	if err != nil {
-		return err
-	}
+	scfg := serverConfig(cfg, r.o.Version)
 	scfg.LogOutput = r.o.Stderr
 	logWarnings(ctx, cfg, r.o.Stderr)
 	srv, err := server.New(scfg) //nolint:contextcheck // server.New takes no context: wiring does no I/O a caller could cancel
@@ -244,13 +235,8 @@ func logWarnings(ctx context.Context, cfg config.Config, w io.Writer) {
 	}
 }
 
-// serverConfig maps the configuration onto what this build's server
-// applies. A setting the server does not apply yet is refused by name
-// rather than ignored, so nothing configured is silently dropped.
-func serverConfig(cfg config.Config, version string) (server.Config, error) {
-	if err := unapplied(cfg); err != nil {
-		return server.Config{}, err
-	}
+// serverConfig maps the configuration onto what the server applies.
+func serverConfig(cfg config.Config, version string) server.Config {
 	s := server.Config{
 		Listen:           cfg.Listen.AddrPort(),
 		Seed:             cfg.Seed,
@@ -320,7 +306,7 @@ func serverConfig(cfg config.Config, version string) (server.Config, error) {
 	}
 	s.StaticKeys = mapStaticKeys(cfg.Accounts.Keys)
 	s.TLS, s.Persist, s.ClockStart, s.Docker, s.DynamoDB = mapTLS(cfg.TLS), mapPersistence(cfg.Persistence), mapClock(cfg.Clock), mapDocker(cfg.Docker), mapDynamoDB(cfg.DynamoDB.Mode)
-	return s, nil
+	return s
 }
 
 // mapStaticKeys maps accounts.keys onto the server's static keys.
@@ -406,37 +392,4 @@ func mapDynamoDB(m config.DynamoDBMode) server.DynamoDB {
 	case config.DynamoDBEnabled:
 	}
 	return server.DynamoDBEnabled{}
-}
-
-// unappliedSetting is a setting this build's server does not apply yet.
-type unappliedSetting struct {
-	name string
-	// where says where the setting may have been set, for its removal.
-	where string
-	set   func(cfg, def config.Config) bool
-}
-
-// unappliedSettings are the settings serve refuses rather than ignore.
-func unappliedSettings() []unappliedSetting {
-	const file = "the configuration file"
-	return []unappliedSetting{
-		{"s3.maxObjectBytes", file, func(cfg, def config.Config) bool { return cfg.S3.MaxObjectBytes != def.S3.MaxObjectBytes }},
-		{"dynamodb.registry", file, func(cfg, def config.Config) bool { return cfg.DynamoDB.Registry != def.DynamoDB.Registry }},
-	}
-}
-
-// unapplied refuses the settings this build's server does not apply yet,
-// naming each one set away from its default and where it may be set.
-func unapplied(cfg config.Config) error {
-	def := config.Defaults(config.OnHost{})
-	var names []string
-	for _, s := range unappliedSettings() {
-		if s.set(cfg, def) {
-			names = append(names, s.name+" (from "+s.where+")")
-		}
-	}
-	if len(names) == 0 {
-		return nil
-	}
-	return &usageError{msg: "this build of serve does not apply " + strings.Join(names, ", ") + " yet; remove the setting there to run with its default"}
 }
