@@ -71,7 +71,7 @@ func envCmd() *command {
 			fs.StringVar(&f.region, "region", "us-east-1", "the region the clients sign for")
 			fs.StringVar(&f.account, "account", "", "the 12-digit account the clients act in, which their access key id names (default the server's default account, 000000000000 unless accounts.default sets another)")
 			fs.BoolVar(&f.tls, "tls", false, "point the clients at the TLS listener of 'serve --tls', trusting its self-signed certificate through AWS_CA_BUNDLE (and NODE_EXTRA_CA_CERTS for JS)")
-			fs.StringVar(&f.tlsEndpoint, "tls-endpoint", "", "the TLS listener's URL, as the banner and the ready file's tlsEndpoint name it; implies --tls (default the endpoint's host at port 4567, serve --tls's default)")
+			fs.StringVar(&f.tlsEndpoint, "tls-endpoint", "", "the TLS listener's URL, as the banner and the ready file's tlsEndpoint name it; implies --tls (default the URL the server's health names, else the endpoint's host at port 4567, serve --tls's default)")
 			fs.StringVar(&f.caFile, "ca-file", "", "where to write the TLS listener's certificate (default understudy/ca-<port>.pem in the user cache directory)")
 			return func(ctx context.Context, r *runner, args []string) error {
 				if err := wantArgs(args, 0, "no arguments"); err != nil {
@@ -163,11 +163,10 @@ func (res *envResult) trust(caFile, sdk string) {
 func (r *runner) trustTLS(ctx context.Context, f envFlags) (tlsTrust, error) {
 	endpoint := f.tlsEndpoint
 	if endpoint == "" {
-		u, err := url.Parse(r.endpointURL())
-		if err != nil {
-			return tlsTrust{}, &usageError{msg: fmt.Sprintf("the endpoint %q is not a URL: %v", r.endpointURL(), err)}
+		var err error
+		if endpoint, err = r.defaultTLSEndpoint(ctx); err != nil {
+			return tlsTrust{}, err
 		}
-		endpoint = "https://" + net.JoinHostPort(u.Hostname(), strconv.Itoa(config.DefaultTLSPort))
 	}
 	u, err := url.Parse(endpoint)
 	if err != nil || u.Scheme != "https" || u.Hostname() == "" {
@@ -199,6 +198,21 @@ func (r *runner) trustTLS(ctx context.Context, f envFlags) (tlsTrust, error) {
 		return tlsTrust{}, &localError{op: "writing the certificate to " + caFile, err: err, next: "pass a writable path with --ca-file"}
 	}
 	return tlsTrust{endpoint: strings.TrimSuffix(u.String(), "/"), caFile: caFile}, nil
+}
+
+// defaultTLSEndpoint is the TLS listener's URL when --tls-endpoint is not
+// given: the one health names, else, for a server whose health names none
+// or that cannot be read, the endpoint's host at serve --tls's default
+// port.
+func (r *runner) defaultTLSEndpoint(ctx context.Context) (string, error) {
+	if h := r.healthNow(ctx); h != nil && h.TLSEndpoint != "" {
+		return h.TLSEndpoint, nil
+	}
+	u, err := url.Parse(r.endpointURL())
+	if err != nil {
+		return "", &usageError{msg: fmt.Sprintf("the endpoint %q is not a URL: %v", r.endpointURL(), err)}
+	}
+	return "https://" + net.JoinHostPort(u.Hostname(), strconv.Itoa(config.DefaultTLSPort)), nil
 }
 
 // peerCertificate is the certificate the TLS listener at host:port

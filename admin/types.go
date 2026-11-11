@@ -53,6 +53,9 @@ type Health struct {
 	// Listener is the main listener's bound address, such as 0.0.0.0:4566;
 	// absent until it accepts.
 	Listener string `json:"listener,omitempty"`
+	// TLSEndpoint is the TLS listener's URL, the value the ready file and
+	// the banner give; absent until it accepts and without serve --tls.
+	TLSEndpoint string `json:"tlsEndpoint,omitempty"`
 	// Clock is the emulator clock: its mode, emulator time and, when
 	// scaled, its factor, as GET /clock reports it; absent until ready.
 	Clock ClockState `json:"clock,omitzero"`

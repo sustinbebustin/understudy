@@ -81,7 +81,7 @@ func handlerWith(k *kerneltest.K, set func(*serveradmin.Options)) *serveradmin.H
 	if err != nil {
 		k.Fatal(err)
 	}
-	h.SetReady(netip.MustParseAddrPort("127.0.0.1:4566"))
+	h.SetReady(netip.MustParseAddrPort("127.0.0.1:4566"), "")
 	return h
 }
 
@@ -526,6 +526,30 @@ func healthOf(k *kerneltest.K, h http.Handler) admin.Health {
 		k.Fatal(err)
 	}
 	return out
+}
+
+// Health names the TLS listener once it accepts and leaves it out
+// without one.
+func TestHealthReportsTheTLSListener(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		h := handler(k, "")
+		if got := healthOf(k, h).TLSEndpoint; got != "" {
+			k.Errorf("health tlsEndpoint without a TLS listener = %q, want absent", got)
+		}
+		if body := serve(k, h, http.MethodGet, admin.Prefix+"/health").Body.String(); strings.Contains(body, "tlsEndpoint") {
+			k.Errorf("health without a TLS listener = %s, want no tlsEndpoint key", body)
+		}
+		const want = "https://127.0.0.1:4567"
+		h.SetReady(netip.MustParseAddrPort("127.0.0.1:4566"), want)
+		if got := healthOf(k, h).TLSEndpoint; got != want {
+			k.Errorf("health tlsEndpoint = %q, want %q", got, want)
+		}
+		h.SetNotReady()
+		h.SetReady(netip.MustParseAddrPort("127.0.0.1:4566"), "")
+		if got := healthOf(k, h).TLSEndpoint; got != "" {
+			k.Errorf("health tlsEndpoint after the TLS listener went = %q, want absent", got)
+		}
+	})
 }
 
 // clockEvent is an event any journal accepts.

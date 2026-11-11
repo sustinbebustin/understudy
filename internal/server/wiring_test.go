@@ -161,6 +161,46 @@ func presentedCertificate(t *testing.T, r *running) (tlsEndpoint string, cert *x
 	return doc.TLSEndpoint, cert
 }
 
+// Health names the TLS listener as the ready file does, and names none
+// without --tls.
+func TestHealthNamesTheTLSListener(t *testing.T) {
+	health := func(t *testing.T, endpoint string) admin.Health {
+		t.Helper()
+		c, err := admin.New(endpoint, admin.Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		h, err := c.Health(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return *h
+	}
+	readyDocOf := func(t *testing.T, path string) readyDoc {
+		t.Helper()
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc readyDoc
+		if err := json.Unmarshal(data, &doc); err != nil {
+			t.Fatal(err)
+		}
+		return doc
+	}
+	withTLS := launch(t, server.Config{TLS: server.TLSSelfSigned{Listen: netip.MustParseAddrPort("127.0.0.1:0")}})
+	withTLS.stopOnCleanup(t)
+	doc := readyDocOf(t, withTLS.ready)
+	if got := health(t, withTLS.endpoint).TLSEndpoint; doc.TLSEndpoint == "" || got != doc.TLSEndpoint {
+		t.Errorf("health tlsEndpoint = %q, want the ready file's %q", got, doc.TLSEndpoint)
+	}
+	plain := launch(t, server.Config{})
+	plain.stopOnCleanup(t)
+	if got := health(t, plain.endpoint).TLSEndpoint; got != "" {
+		t.Errorf("health tlsEndpoint without --tls = %q, want absent", got)
+	}
+}
+
 // ContainerPublished stands in for an admin token only inside a
 // container.
 func TestContainerPublishedNeedsAContainer(t *testing.T) {
