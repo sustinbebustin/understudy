@@ -8,7 +8,7 @@
     scripts/repin-runtime-images
 
 Every release runs the runtime images it was tested with (ARCHITECTURE.md
-14.3), so this runs before a release is committed: each tag in
+14.3), so prepare-release.yml runs this before it commits: each tag in
 internal/service/lambda/launcher/images.go is resolved to its current
 multi-architecture index digest, and the table's digests and "served on"
 date are rewritten. A tag that does not resolve, or resolves to a
@@ -142,7 +142,7 @@ def repin(root: Path, date: str, fetch: Fetch) -> list[tuple[Pin, str]]:
 
 
 def report(resolved: list[tuple[Pin, str]]) -> str:
-    """The Markdown for the release pull request: a sentence saying
+    """The Markdown prepare-release.yml puts in the pull request: a sentence saying
     whether any pin moved, a blank line, then one line per pin."""
     rows = "\n".join(
         f"- {pin.runtime} ({pin.ref}): "
