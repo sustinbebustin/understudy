@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
@@ -111,6 +112,8 @@ func TestNDJSONRoundTripsEveryVariant(t *testing.T) {
 		AdminAction{Op: FaultRuleAdded{Rule: "orders-throttle"}},
 		AdminAction{Op: FaultRuleRemoved{Rules: []ref.RuleID{"a", "b"}}},
 		AdminAction{Op: FaultRuleRemoved{}},
+		Redrive{From: queue, To: arn("sqs", "orders-dlq"), Messages: []ids.MessageID{"m-1", "m-2"}, Reason: MaxReceiveCount{Count: 3}},
+		Redrive{From: arn("sqs", "orders-dlq"), To: queue, Messages: []ids.MessageID{"m-1"}, Reason: MoveTask{TaskHandle: "eyJ0YXNrSWQiOiJ0In0="}},
 	}
 	for _, d := range details {
 		e := Event{ID: 7, Cause: ref.Cause{Parent: 3, Trace: 1}, Links: []ref.EventID{4, 5}, At: at, Wall: wall0, Scope: scope(), Detail: d}

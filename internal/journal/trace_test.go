@@ -248,7 +248,7 @@ func withWallNoise(t *rapid.T, d Detail, label string) Detail {
 			d.To = s
 		}
 		return d
-	case Delivery, TimerFired, StateChange, FaultInjected, Advisory, Unclaimed, Gap, AdminAction:
+	case Delivery, TimerFired, StateChange, FaultInjected, Advisory, Unclaimed, Gap, AdminAction, Redrive:
 		return d
 	}
 	return d

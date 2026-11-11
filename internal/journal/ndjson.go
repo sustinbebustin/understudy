@@ -255,6 +255,32 @@ type (
 		Op    string       `json:"op"`
 		Rules []ref.RuleID `json:"rules,omitempty"`
 	}
+	// A redrive's reason is a nested sum tagged by "kind". Decoding reads
+	// "kind", then the reason strictly as that kind's form, so a member the
+	// other reason owns is refused.
+	wireRedrive struct {
+		From     string          `json:"from"`
+		To       string          `json:"to"`
+		Messages []ids.MessageID `json:"messages,omitempty"`
+		Reason   json.RawMessage `json:"reason"`
+	}
+	wireRedriveKind struct {
+		Kind string `json:"kind"`
+	}
+	wireMaxReceiveCount struct {
+		Kind  string `json:"kind"`
+		Count int    `json:"count"`
+	}
+	wireMoveTask struct {
+		Kind       string `json:"kind"`
+		TaskHandle string `json:"taskHandle"`
+	}
+)
+
+// Wire names of the RedriveReason variants: a redrive reason's "kind".
+const (
+	reasonMaxReceiveCount = "max-receive-count"
+	reasonMoveTask        = "move-task"
 )
 
 // Wire names of the AdminOp variants: an admin action's "op".
@@ -390,8 +416,27 @@ func encodeDetail(d Detail) (any, error) {
 		return wireGap(d), nil
 	case AdminAction:
 		return encodeAdminOp(d.Op)
+	case Redrive:
+		return encodeRedrive(d)
 	}
 	return nil, &missingError{What: "Detail"}
+}
+
+func encodeRedrive(d Redrive) (any, error) {
+	var reason any
+	switch r := d.Reason.(type) {
+	case MaxReceiveCount:
+		reason = wireMaxReceiveCount{Kind: reasonMaxReceiveCount, Count: r.Count}
+	case MoveTask:
+		reason = wireMoveTask{Kind: reasonMoveTask, TaskHandle: r.TaskHandle}
+	default:
+		return nil, &missingError{What: "Redrive.Reason"}
+	}
+	raw, err := json.Marshal(reason)
+	if err != nil {
+		return nil, err
+	}
+	return wireRedrive{From: arnText(d.From), To: arnText(d.To), Messages: d.Messages, Reason: raw}, nil
 }
 
 func encodeAdminOp(op AdminOp) (any, error) {
@@ -638,8 +683,55 @@ func decodeDetail(k Kind, raw json.RawMessage) (Detail, error) {
 		return Gap(w), err
 	case KindAdminAction:
 		return decodeAdminAction(raw)
+	case KindRedrive:
+		return decodeRedrive(raw)
 	}
 	return nil, &KindError{Text: k.String()}
+}
+
+func decodeRedrive(raw json.RawMessage) (Detail, error) {
+	var w wireRedrive
+	if err := strict(raw, &w); err != nil {
+		return nil, err
+	}
+	from, err := parseARNText(w.From)
+	if err != nil {
+		return nil, err
+	}
+	to, err := parseARNText(w.To)
+	if err != nil {
+		return nil, err
+	}
+	reason, err := decodeRedriveReason(w.Reason)
+	if err != nil {
+		return nil, err
+	}
+	return Redrive{From: from, To: to, Messages: w.Messages, Reason: reason}, nil
+}
+
+func decodeRedriveReason(raw json.RawMessage) (RedriveReason, error) {
+	if len(raw) == 0 {
+		return nil, &missingError{What: "Redrive.Reason"}
+	}
+	var head wireRedriveKind
+	if err := json.Unmarshal(raw, &head); err != nil {
+		return nil, err
+	}
+	switch head.Kind {
+	case reasonMaxReceiveCount:
+		var w wireMaxReceiveCount
+		if err := strict(raw, &w); err != nil {
+			return nil, err
+		}
+		return MaxReceiveCount{Count: w.Count}, nil
+	case reasonMoveTask:
+		var w wireMoveTask
+		if err := strict(raw, &w); err != nil {
+			return nil, err
+		}
+		return MoveTask{TaskHandle: w.TaskHandle}, nil
+	}
+	return nil, &tagError{Sum: "redrive reason", Kind: head.Kind}
 }
 
 // adminOpError reports an admin action whose op names no AdminOp.

@@ -151,6 +151,7 @@ func (Advisory) isDetail()      {}
 func (Unclaimed) isDetail()     {}
 func (Gap) isDetail()           {}
 func (AdminAction) isDetail()   {}
+func (Redrive) isDetail()       {}
 
 // Kind names a Detail variant; queries filter on it.
 type Kind uint8
@@ -168,6 +169,7 @@ const (
 	KindUnclaimed
 	KindGap
 	KindAdminAction
+	KindRedrive
 
 	// endKind follows the last kind and is no kind: ParseKind, MarshalText
 	// and the KindError text count up to it, so a new kind is one line
@@ -200,6 +202,8 @@ func KindOf(d Detail) Kind {
 		return KindGap
 	case AdminAction:
 		return KindAdminAction
+	case Redrive:
+		return KindRedrive
 	}
 	return 0
 }
@@ -229,6 +233,8 @@ func (k Kind) String() string {
 		return "gap"
 	case KindAdminAction:
 		return "admin-action"
+	case KindRedrive:
+		return "redrive"
 	default:
 		return fmt.Sprintf("Kind(%d)", uint8(k))
 	}
@@ -292,8 +298,8 @@ func (k *Kind) UnmarshalText(text []byte) error {
 
 // resourcesOf returns the ARNs an event is about: the ARNs an API call
 // touched, both ends and the dead-letter queue of a delivery, the function of
-// an invocation, the resource of a state change or advisory. A zero ARN is
-// no resource, so it is left out.
+// an invocation, the resource of a state change or advisory, both queues of
+// a redrive. A zero ARN is no resource, so it is left out.
 func resourcesOf(d Detail) []aws.ARN {
 	var all []aws.ARN
 	switch d := d.(type) {
@@ -310,6 +316,8 @@ func resourcesOf(d Detail) []aws.ARN {
 		all = []aws.ARN{d.Resource}
 	case Advisory:
 		all = []aws.ARN{d.Resource}
+	case Redrive:
+		all = []aws.ARN{d.From, d.To}
 	case TimerFired, FaultInjected, ClockChanged, Unclaimed, Gap, AdminAction:
 	}
 	if !slices.Contains(all, aws.ARN{}) {

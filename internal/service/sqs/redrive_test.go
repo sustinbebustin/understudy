@@ -3,6 +3,7 @@ package sqs_test
 import (
 	"encoding/base64"
 	"encoding/json"
+	"reflect"
 	"slices"
 	"strconv"
 	"testing"
@@ -12,8 +13,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/service/sqs"
 )
 
 const arnPrefix = "arn:aws:sqs:us-east-1:000000000000:"
@@ -70,7 +73,42 @@ func TestRedriveMovesAfterMaxReceiveCount(t *testing.T) {
 		if got := enqueueEvents(h, "dlq"); !slices.Equal(got, []ref.EventID{receive}) {
 			h.Errorf("dead-letter enqueue causes = %v, want the receive %d", got, receive)
 		}
+
+		// ADR 0007, amendment 2026-10-13: the receive records one Redrive,
+		// its child, naming both queues, the moved message and the policy's
+		// maxReceiveCount.
+		redrives := h.Journal.Query(journal.Filter{Kind: journal.KindRedrive}).Events
+		want := journal.Redrive{
+			From: mustARN(h, arnPrefix+"src"), To: mustARN(h, arnPrefix+"dlq"),
+			Messages: []ids.MessageID{ids.MessageID(val(sent.MessageId))}, Reason: journal.MaxReceiveCount{Count: 2},
+		}
+		if len(redrives) != 1 || !reflect.DeepEqual(redrives[0].Detail, want) || redrives[0].Cause.Parent != receive {
+			h.Errorf("redrive events = %+v, want one %+v parented on the receive %d", redrives, want, receive)
+		}
 	})
+}
+
+func mustARN(h *harness, s string) aws.ARN {
+	h.Helper()
+	a, err := aws.ParseARN(s)
+	if err != nil {
+		h.Fatal(err)
+	}
+	return a
+}
+
+// redrivesFrom returns the Redrive events whose messages left queue name,
+// oldest first.
+func redrivesFrom(h *harness, name string) []journal.Event {
+	h.Helper()
+	var out []journal.Event
+	events := h.Journal.Query(journal.Filter{Kind: journal.KindRedrive}).Events
+	for i := range events {
+		if r, ok := events[i].Detail.(journal.Redrive); ok && r.From.String() == arnPrefix+name {
+			out = append(out, events[i])
+		}
+	}
+	return out
 }
 
 // enqueueEvents reads the enqueue event of each message of queue name from
@@ -244,11 +282,64 @@ func TestMoveTaskMovesAtItsRateUnderAdvance(t *testing.T) {
 		if val(done.Status) != "COMPLETED" || done.TaskHandle != nil || *done.MaxNumberOfMessagesPerSecond != 2 || done.DestinationArn != nil {
 			h.Errorf("finished task = %+v", done)
 		}
+		// ADR 0007, amendment 2026-10-13: each step that moves messages
+		// records one Redrive, a child of the step's own event (the task's
+		// timer firing), with the task's handle as its reason.
+		var moveTimers []ref.EventID
+		fired := h.Journal.Query(journal.Filter{Kind: journal.KindTimerFired}).Events
+		for i := range fired {
+			if f, ok := fired[i].Detail.(journal.TimerFired); ok && f.Key.Kind == sqs.TimerMoveTask {
+				moveTimers = append(moveTimers, fired[i].ID)
+			}
+		}
+		steps := redrivesFrom(h, "dlq")
+		if len(steps) != 3 {
+			h.Fatalf("redrives from the dead-letter queue = %+v, want one per step, 3", steps)
+		}
+		for i, wantMoved := range []int{2, 2, 1} {
+			e := steps[i]
+			r, ok := e.Detail.(journal.Redrive)
+			if !ok || r.To.String() != arnPrefix+"src" || len(r.Messages) != wantMoved || r.Reason != (journal.MoveTask{TaskHandle: handle}) {
+				h.Errorf("step %d redrive = %+v, want %d messages to src for task %s", i, e.Detail, wantMoved, handle)
+			}
+			if !slices.Contains(moveTimers, e.Cause.Parent) {
+				h.Errorf("step %d redrive's parent = %d, want one of the task's TimerFired events %v", i, e.Cause.Parent, moveTimers)
+			}
+		}
 		if h.count(src) != "5" || h.count(dlq) != "0" {
 			h.Errorf("source holds %s and the dead-letter queue %s, want 5 and 0", h.count(src), h.count(dlq))
 		}
 		if _, err := h.Invoke(h.Context(), sqsapi.OpCancelMessageMoveTask, &sqsapi.CancelMessageMoveTaskInput{TaskHandle: handle}); err == nil || err.ID.QueryCode != "ResourceNotFoundException" {
 			h.Errorf("cancelling a finished task = %v, want ResourceNotFoundException", err)
+		}
+	})
+}
+
+// A Redrive has one destination (ADR 0007, amendment 2026-10-13), so a step
+// that sends messages back to two source queues records one per queue,
+// both children of the step's event, each naming only its own messages.
+func TestMoveTaskStepToTwoSourcesRecordsARedriveEach(t *testing.T) {
+	run(t, func(h *harness) {
+		h.queue("dlq", nil)
+		a := h.queue("a", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "0", "RedrivePolicy": redrivePolicy("dlq", 1)})
+		b := h.queue("b", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "0", "RedrivePolicy": redrivePolicy("dlq", 1)})
+		h.deadLetterMessages(a, 2)
+		h.deadLetterMessages(b, 1)
+		if _, err := h.startTask(&sqsapi.StartMessageMoveTaskInput{SourceArn: arnPrefix + "dlq"}); err != nil {
+			h.Fatal(err.Message)
+		}
+		steps := redrivesFrom(h, "dlq")
+		if len(steps) != 2 || steps[0].Cause.Parent != steps[1].Cause.Parent {
+			h.Fatalf("redrives from the dead-letter queue = %+v, want two with one parent", steps)
+		}
+		got := map[string]int{}
+		for i := range steps {
+			if r, ok := steps[i].Detail.(journal.Redrive); ok {
+				got[r.To.String()] = len(r.Messages)
+			}
+		}
+		if want := map[string]int{arnPrefix + "a": 2, arnPrefix + "b": 1}; !reflect.DeepEqual(got, want) {
+			h.Errorf("messages moved per destination = %v, want %v", got, want)
 		}
 	})
 }

@@ -243,7 +243,8 @@ button.danger {
   color: var(--api);
 }
 
-.kind-delivery {
+.kind-delivery,
+.kind-redrive {
   color: var(--delivery);
 }
 

@@ -322,6 +322,8 @@ func summary(e *admin.JournalEvent) (text, requestID string) {
 		text, ok = gapSummary(e.Detail)
 	case "admin-action":
 		text, ok = adminActionSummary(e.Detail)
+	case "redrive":
+		text, ok = redriveSummary(e.Detail)
 	}
 	if ok {
 		return text, requestID
@@ -523,6 +525,32 @@ func adminActionSummary(detail json.RawMessage) (string, bool) {
 			return "no fault rules to remove", true
 		}
 		return "fault rule(s) " + strings.Join(d.Rules, ", ") + " removed", true
+	}
+	return "", false
+}
+
+// redriveSummary is SQS moving messages between queues: "src -> dlq 2
+// message(s) past maxReceiveCount 3" or "dlq -> src 1 message(s) by move
+// task".
+func redriveSummary(detail json.RawMessage) (string, bool) {
+	d, ok := decodeDetail[struct {
+		From     string   `json:"from"`
+		To       string   `json:"to"`
+		Messages []string `json:"messages"`
+		Reason   struct {
+			Kind  string `json:"kind"`
+			Count int    `json:"count"`
+		} `json:"reason"`
+	}](detail)
+	if !ok {
+		return "", false
+	}
+	text := fmt.Sprintf("%s -> %s %d message(s)", shortARN(d.From), shortARN(d.To), len(d.Messages))
+	switch d.Reason.Kind {
+	case "max-receive-count":
+		return fmt.Sprintf("%s past maxReceiveCount %d", text, d.Reason.Count), true
+	case "move-task":
+		return text + " by move task", true
 	}
 	return "", false
 }

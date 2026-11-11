@@ -63,6 +63,15 @@ func detailSize(d Detail) int {
 		return 0
 	case AdminAction:
 		return adminOpSize(d.Op)
+	case Redrive:
+		n := arns(d.From, d.To)
+		for _, m := range d.Messages {
+			n += strs(string(m))
+		}
+		if mt, ok := d.Reason.(MoveTask); ok {
+			n += strs(mt.TaskHandle)
+		}
+		return n
 	}
 	return 0
 }

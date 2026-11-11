@@ -40,6 +40,7 @@ Filters combine. `--since` counts back in emulator time. `--limit N` keeps the n
 | `unclaimed` | A request no service claimed, with why each routing rule declined it |
 | `gap` | A stream consumer missed events: it fell behind, or resumed with `?after=` past events the journal has since dropped |
 | `admin-action` | An admin call changed state: a reset, a snapshot saved or loaded, a [fault rule](faults.md) added or removed; `op` in the detail says which |
+| `redrive` | SQS moved messages between queues: a receive past a queue's `maxReceiveCount` moved them to its dead-letter queue, or a step of a message move task moved them on. Its parent is that receive's `api-call` or the move task's `timer-fired`; the detail names both queues, the ids of the moved messages as the source queue held them, and the `reason` (`max-receive-count` with its `count`, or `move-task` with its `taskHandle`) |
 
 An [SNS HTTP delivery](sns-http.md) goes to an endpoint rather than a resource, so its line names the endpoint's host and port, never its path or credentials. Its JSON detail adds an `http` member:
 

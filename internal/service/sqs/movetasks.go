@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -288,7 +289,10 @@ func (s *Service) onMoveTask(c *kernel.Call, key clock.TimerKey, due clock.Insta
 // each message to its destination, then takes every one it copied out of
 // source in one pass, so a step that moves a whole queue costs one pass
 // over it. The destination queues change through working copies, stored
-// back once the step ends.
+// back once the step ends. A step that moves messages records one
+// journal.Redrive per queue it moved them to, a child of the step's timer
+// event (ADR 0007, amendment 2026-10-13); a task without a destination can
+// send one step's messages back to several source queues.
 func (s *Service) step(c *kernel.Call, st *State, src queueRef, source *Queue, t *MoveTask, due, now clock.Instant, tx *kernel.Tx) {
 	budget := t.ToMove - t.Moved
 	if t.Rate != nil {
@@ -296,6 +300,10 @@ func (s *Service) step(c *kernel.Call, st *State, src queueRef, source *Queue, t
 	}
 	dests := map[string]*Queue{}
 	var moved []int
+	// movedTo holds the ids moved to each destination, in source order;
+	// order lists the destinations in the order they were first used.
+	movedTo := map[queueRef][]ids.MessageID{}
+	var order []queueRef
 	failed := false
 	for i := range source.Messages {
 		if int64(len(moved)) == budget {
@@ -314,6 +322,10 @@ func (s *Service) step(c *kernel.Call, st *State, src queueRef, source *Queue, t
 			failed = true
 			break
 		}
+		if _, seen := movedTo[to]; !seen {
+			order = append(order, to)
+		}
+		movedTo[to] = append(movedTo[to], m.ID)
 		s.moveMessage(c, m, to, dest, now, tx)
 		moved = append(moved, i)
 	}
@@ -321,6 +333,12 @@ func (s *Service) step(c *kernel.Call, st *State, src queueRef, source *Queue, t
 		st.Queues[name] = *q
 	}
 	s.removeMessages(tx, src, source, moved)
+	if len(order) > 0 {
+		handle := encodeTaskHandle(t)
+		for _, to := range order {
+			tx.Record(src.scope, journal.Redrive{From: src.arn(), To: to.arn(), Messages: movedTo[to], Reason: journal.MoveTask{TaskHandle: handle}})
+		}
+	}
 	t.Moved += int64(len(moved))
 	switch {
 	case failed:

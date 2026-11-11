@@ -27,12 +27,18 @@ describe("labels", () => {
   }
 
   // Kinds in value order, api-call first and a kind added later appended
-  // (internal/journal/kind_wire_test.go); gap and admin-action from ADR 0007.
-  test("the generated journal kinds are in value order and hold gap and admin-action", () => {
+  // (internal/journal/kind_wire_test.go); gap, admin-action and redrive from
+  // ADR 0007.
+  test("the generated journal kinds are in value order and hold gap, admin-action and redrive", () => {
     const names: readonly string[] = journalKinds;
     expect(names).toContain("gap");
     expect(names).toContain("admin-action");
+    expect(names).toContain("redrive");
     expect(names[0]).toBe("api-call");
+  });
+
+  test("a redrive is labelled as one", () => {
+    expect(label(kindLabels, "redrive")).toBe("Redrive");
   });
 
   test("label falls back to the wire name", () => {

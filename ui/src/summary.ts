@@ -235,6 +235,22 @@ function adminAction(d: Detail): string | null {
   }
 }
 
+// redrive is SQS moving messages between queues (ADR 0007,
+// amendment 2026-10-13): past a receive's maxReceiveCount, or by a move
+// task.
+function redrive(d: Detail): string | null {
+  const reason = member(d.reason);
+  const out = `${shortARN(text(d.from) ?? "")} -> ${shortARN(text(d.to) ?? "")} ${String(strings(d.messages).length)} message(s)`;
+  switch (reason.kind) {
+    case "max-receive-count":
+      return isCount(reason.count) ? `${out} past maxReceiveCount ${String(reason.count)}` : null;
+    case "move-task":
+      return `${out} by move task`;
+    default:
+      return null;
+  }
+}
+
 function known(e: JournalEvent): string | null {
   const d = e.detail;
   switch (e.kind) {
@@ -260,6 +276,8 @@ function known(e: JournalEvent): string | null {
       return gap(d);
     case "admin-action":
       return adminAction(d);
+    case "redrive":
+      return redrive(d);
     default:
       return null;
   }

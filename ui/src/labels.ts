@@ -13,6 +13,7 @@ export const kindLabels: Readonly<Record<string, string>> = {
   unclaimed: "Unclaimed request",
   gap: "Gap",
   "admin-action": "Admin action",
+  redrive: "Redrive",
 };
 
 // ref.Via: who made a call on whose behalf (internal/ref/via.go).

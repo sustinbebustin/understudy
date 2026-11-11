@@ -476,7 +476,7 @@ func ResultOf(d Detail) (Result, bool) {
 		return 0, false
 	case Unclaimed:
 		return ResultError, true
-	case TimerFired, StateChange, FaultInjected, ClockChanged, Advisory, Gap, AdminAction:
+	case TimerFired, StateChange, FaultInjected, ClockChanged, Advisory, Gap, AdminAction, Redrive:
 		return 0, false
 	}
 	return 0, false

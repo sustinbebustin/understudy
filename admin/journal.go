@@ -20,7 +20,8 @@ type JournalEvent struct {
 	Scope Scope     `json:"scope"`
 	// Kind names the variant of Detail: "api-call", "delivery",
 	// "invocation", "timer-fired", "state-change", "fault-injected",
-	// "clock-changed", "advisory", "unclaimed", "gap" or "admin-action".
+	// "clock-changed", "advisory", "unclaimed", "gap", "admin-action" or
+	// "redrive".
 	Kind   string          `json:"kind"`
 	Detail json.RawMessage `json:"detail"`
 }

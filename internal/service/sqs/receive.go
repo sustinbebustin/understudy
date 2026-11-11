@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/ids"
+	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
@@ -295,16 +296,20 @@ func redriveLimit(st *State, q queueRef, queue *Queue) int {
 // ARN. A moved message keeps its id, body, attributes and receive count
 // and gains DeadLetterQueueSourceArn; a FIFO one restarts its retention
 // and takes its id as its deduplication id (sqs.md 9.2). The receive is
-// the cause of its enqueue there. The dead-letter queue changes through a
-// working copy stored back at the end; redriveLimit made sure it exists
-// and is not queue itself.
+// the cause of its enqueue there, and it records one journal.Redrive, its
+// child (ADR 0007, amendment 2026-10-13). The dead-letter queue changes
+// through a working copy stored back at the end; redriveLimit made sure it
+// exists and is not queue itself.
 func (s *Service) deadLetter(c *kernel.Call, st *State, q queueRef, queue *Queue, move []int, now clock.Instant, tx *kernel.Tx) aws.ARN {
-	dq := queue.Attributes.RedrivePolicy.DeadLetterTarget
+	policy := queue.Attributes.RedrivePolicy
+	dq := policy.DeadLetterTarget
 	stored := st.Queues[dq.name]
 	dlq := stored.clone()
 	slices.Sort(move)
+	moved := make([]ids.MessageID, 0, len(move))
 	for _, i := range move {
 		m := queue.Messages[i].clone()
+		moved = append(moved, m.ID)
 		m.DeadLetterSource = &q
 		m.dropHandle()
 		m.VisibleAt, m.Enqueued, m.EnqueuedTrace = now, c.Event(), c.Cause().Trace
@@ -316,6 +321,7 @@ func (s *Service) deadLetter(c *kernel.Call, st *State, q queueRef, queue *Queue
 	}
 	st.Queues[dq.name] = dlq
 	s.removeMessages(tx, q, queue, move)
+	tx.Record(q.scope, journal.Redrive{From: q.arn(), To: dq.arn(), Messages: moved, Reason: journal.MaxReceiveCount{Count: policy.MaxReceiveCount}})
 	return dq.arn()
 }
 

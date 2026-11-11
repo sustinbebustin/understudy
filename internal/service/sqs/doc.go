@@ -37,12 +37,14 @@
 //     (sqs.md 9.2). A policy whose dead-letter queue no longer exists, or
 //     names the queue itself, moves nothing. The receive's journal event
 //     names both queues, and the moved message's enqueue event is the
-//     receive, so what its delivery leads to descends from the receive. No
-//     journal event records the move itself, nor a move task's moves, so
-//     the journal edge from the receive to the dead-letter send that
-//     ARCHITECTURE.md 10 lists is missing: a journal.Delivery needs a
-//     delivery.Mechanism, and the closed set of ARCHITECTURE.md 16 has
-//     none for a move inside SQS.
+//     receive, so what its delivery leads to descends from the receive.
+//     The receive records the move as one journal.Redrive with reason
+//     MaxReceiveCount, its child, and each move-task step records one per
+//     queue it moved messages to, with reason MoveTask, a child of the
+//     step's TimerFired event (ADR 0007, amendment 2026-10-13). A move
+//     inside SQS is never a journal.Delivery: the closed set of
+//     delivery.Mechanism values of ARCHITECTURE.md 16 names outbox paths
+//     only.
 //   - On a standard queue whose maxReceiveCount is above 3, AWS moves a
 //     message received 3 or more times to the back of the queue
 //     (sqs-dead-letter-queues.html). A receive offers such messages after

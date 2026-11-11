@@ -25,6 +25,7 @@ var kindNames = []struct {
 	{KindUnclaimed, "unclaimed"},
 	{KindGap, "gap"},
 	{KindAdminAction, "admin-action"},
+	{KindRedrive, "redrive"},
 }
 
 // declaredKinds walks the kinds from the first until String falls back to

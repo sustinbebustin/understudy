@@ -4,6 +4,10 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Added
+
+- The journal records SQS moves between queues as `redrive` events: a receive that moves messages past a queue's `maxReceiveCount` to its dead-letter queue, and each step of a message move task. Each names both queues, the moved message ids and why, and is a child of the receive or the move task's timer, so `understudy journal --kind redrive` and traces show how a message reached a dead-letter queue. The CLI and the web UI summarize them.
+
 ### Changed
 
 - Each release pins the Lambda runtime images to the digests public.ecr.aws serves when the release is prepared, and tests them before the tag. Releases 0.1.0 to 0.1.2 shipped the pins of 2026-10-14.

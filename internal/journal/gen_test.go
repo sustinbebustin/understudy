@@ -357,6 +357,25 @@ func genDetailOf(text *rapid.Generator[string]) *rapid.Generator[Detail] {
 		}),
 		rapid.Custom(func(t *rapid.T) Detail { return Gap{Missed: rapid.Uint64().Draw(t, "missed")} }),
 		rapid.Custom(func(t *rapid.T) Detail { return AdminAction{Op: genAdminOp(text).Draw(t, "op")} }),
+		rapid.Custom(func(t *rapid.T) Detail {
+			messages := rapid.SliceOfN(rapid.Map(text, func(s string) ids.MessageID { return ids.MessageID(s) }), 0, 3).Draw(t, "messages")
+			return Redrive{
+				From:     genARN().Draw(t, "from"),
+				To:       genARN().Draw(t, "to"),
+				Messages: nilIfEmpty(messages),
+				Reason:   genRedriveReason(text).Draw(t, "reason"),
+			}
+		}),
+	)
+}
+
+// genRedriveReason draws any RedriveReason variant.
+func genRedriveReason(text *rapid.Generator[string]) *rapid.Generator[RedriveReason] {
+	return rapid.OneOf(
+		rapid.Custom(func(t *rapid.T) RedriveReason {
+			return MaxReceiveCount{Count: rapid.IntRange(1, 1000).Draw(t, "count")}
+		}),
+		rapid.Custom(func(t *rapid.T) RedriveReason { return MoveTask{TaskHandle: text.Draw(t, "taskHandle")} }),
 	)
 }
 
