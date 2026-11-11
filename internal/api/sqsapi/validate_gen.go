@@ -364,6 +364,14 @@ func (v *ReceiveMessageInput) validate(path awserr.Path, out *[]awserr.Violation
 			*out = append(*out, awserr.Violation{Path: at(path, "maxNumberOfMessages"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(*v.MaxNumberOfMessages), 10)}, Constraint: awserr.RangeMax{Max: "10"}})
 		}
 	}
+	if v.VisibilityTimeout != nil {
+		if int64(*v.VisibilityTimeout) < 0 {
+			*out = append(*out, awserr.Violation{Path: at(path, "visibilityTimeout"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(*v.VisibilityTimeout), 10)}, Constraint: awserr.RangeMin{Min: "0"}})
+		}
+		if int64(*v.VisibilityTimeout) > 43200 {
+			*out = append(*out, awserr.Violation{Path: at(path, "visibilityTimeout"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(*v.VisibilityTimeout), 10)}, Constraint: awserr.RangeMax{Max: "43200"}})
+		}
+	}
 	if v.WaitTimeSeconds != nil {
 		if int64(*v.WaitTimeSeconds) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "waitTimeSeconds"), Value: awserr.RenderedText{Text: strconv.FormatInt(int64(*v.WaitTimeSeconds), 10)}, Constraint: awserr.RangeMin{Min: "0"}})
@@ -1041,7 +1049,7 @@ var policyReceiveMessage = validationPolicy{
 		{segments: []string{"messageAttributeNames"}, param: "MessageAttributeNames"},
 		{segments: []string{"messageAttributeNames", "*", "member"}, param: "MessageAttributeNames"},
 		{segments: []string{"maxNumberOfMessages"}, param: "MaxNumberOfMessages", rules: []validationRule{{kinds: kindRange, id: IdentityInvalidParameterValue, style: styleParameter, reason: "Must be between 1 and 10, if provided."}}},
-		{segments: []string{"visibilityTimeout"}, param: "VisibilityTimeout"},
+		{segments: []string{"visibilityTimeout"}, param: "VisibilityTimeout", rules: []validationRule{{kinds: kindRange, id: IdentityInvalidParameterValue, style: styleParameter, reason: "Must be between 0 and 43200, if provided."}}},
 		{segments: []string{"waitTimeSeconds"}, param: "WaitTimeSeconds", rules: []validationRule{{kinds: kindRange, id: IdentityInvalidParameterValue, style: styleParameter, reason: "Must be >= 0 and <= 20, if provided."}}},
 		{segments: []string{"receiveRequestAttemptId"}, param: "ReceiveRequestAttemptId"},
 	},

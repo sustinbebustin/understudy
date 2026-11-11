@@ -706,8 +706,8 @@ Smithy JSON AST fragments: `apply` entries for traits on existing shapes and mem
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
         "aws.protocols#awsQueryError": {"code": "InvalidParameterValue", "httpResponseCode": 400},
-        "dev.understudy#jsonType": "InvalidParameterValueException",
-        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759", "validated": "2025-09-22"}
+        "dev.understudy#jsonType": "com.amazon.coral.service#InvalidParameterValueException",
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/sqs/R11/02-receive-max-0.json", "validated": "2026-10-14"}
       }
     }
   }
@@ -720,7 +720,7 @@ The closed set of `dev.understudy#` traits; the generator fails on anything else
 |---|---|---|
 | `evidence` | any overlay entry | `{label, source, validated?}`; required; labels are `evidence.Label` values: `aws-recorded`, `third-party-recorded`, `aws-doc`, `sdk-source`, `inferred` |
 | `errorNamespace` | service | awsJson1_0 `__type` namespace (`com.amazonaws.sqs`, `com.amazonaws.dynamodb.v20120810`, `com.amazonaws.cloudwatch.v2010_08_01`) |
-| `jsonType` | error shape | `__type` override for unmodeled names |
+| `jsonType` | error shape | `__type` override for unmodeled names: a bare name, or an absolute `namespace#Name` whose namespace an awsJson1_0 `__type` carries (SQS `com.amazon.coral.service#InvalidParameterValueException`) |
 | `messageByProtocol` | error shape | per-protocol message text (`{"awsquery": "... for this wsdl version."}`) |
 | `messageKey` | error shape | the body key of the message, `message` or `Message`, where AWS's differs from the model member's spelling or the shape declares none (SSM `ValidationException` sends `message`, member-less `InvalidFilterKey` sends `Message`; `ssm-parameters.md 2.2`) |
 | `validationError` | service, operation or member | constraint-failure code and text style; on a member: `{code, style?, constraints?: [...], reason?: "template", enumPolicy?: closed/open/handler}` |

@@ -310,8 +310,8 @@
         {"step": "05-cmv-stale", "fixture": "sqs/R01/05-cmv-stale.json", "operation": "sqs.ChangeMessageVisibility", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body"}},
         {"step": "05-cmv-current", "fixture": "sqs/R01/05-cmv-current.json", "operation": "sqs.ChangeMessageVisibility", "outcome": {"kind": "match"}},
         {"step": "05-delete", "fixture": "sqs/R01/05-delete.json", "operation": "sqs.DeleteMessage", "outcome": {"kind": "match"}},
-        {"step": "05-cmv-deleted", "fixture": "sqs/R01/05-cmv-deleted.json", "operation": "sqs.ChangeMessageVisibility", "outcome": {"kind": "differs", "reason": "body/__type"}},
-        {"step": "05-cmv-stale-deleted", "fixture": "sqs/R01/05-cmv-stale-deleted.json", "operation": "sqs.ChangeMessageVisibility", "outcome": {"kind": "differs", "reason": "body/__type"}},
+        {"step": "05-cmv-deleted", "fixture": "sqs/R01/05-cmv-deleted.json", "operation": "sqs.ChangeMessageVisibility", "outcome": {"kind": "match"}},
+        {"step": "05-cmv-stale-deleted", "fixture": "sqs/R01/05-cmv-stale-deleted.json", "operation": "sqs.ChangeMessageVisibility", "outcome": {"kind": "match"}},
         {"step": "06a-send", "fixture": "sqs/R01/06a-send.json", "operation": "sqs.SendMessage", "outcome": {"kind": "match"}},
         {"step": "06a-recv1", "fixture": "sqs/R01/06a-recv1.json", "operation": "sqs.ReceiveMessage", "outcome": {"kind": "differs", "reason": "body/Messages/0/Attributes"}},
         {"step": "06a-recv2", "fixture": "sqs/R01/06a-recv2.json", "operation": "sqs.ReceiveMessage", "outcome": {"kind": "differs", "reason": "body/Messages/0/Attributes"}},
@@ -319,7 +319,7 @@
         {"step": "06-delete-batch", "fixture": "sqs/R01/06-delete-batch.json", "operation": "sqs.DeleteMessageBatch", "outcome": {"kind": "differs", "reason": "body/Failed/1, body/Successful/2"}},
         {"step": "07-fifo-send", "fixture": "sqs/R01/07-fifo-send.json", "operation": "sqs.SendMessage", "outcome": {"kind": "match"}},
         {"step": "07-fifo-recv1", "fixture": "sqs/R01/07-fifo-recv1.json", "operation": "sqs.ReceiveMessage", "outcome": {"kind": "differs", "reason": "body/Messages/0/Attributes"}},
-        {"step": "07-fifo-delete-expired", "fixture": "sqs/R01/07-fifo-delete-expired.json", "operation": "sqs.DeleteMessage", "outcome": {"kind": "differs", "reason": "body/__type"}},
+        {"step": "07-fifo-delete-expired", "fixture": "sqs/R01/07-fifo-delete-expired.json", "operation": "sqs.DeleteMessage", "outcome": {"kind": "match"}},
         {"step": "07-fifo-recv2", "fixture": "sqs/R01/07-fifo-recv2.json", "operation": "sqs.ReceiveMessage", "outcome": {"kind": "differs", "reason": "body/Messages/0/Attributes"}},
         {"step": "07-fifo-delete-h1-after-rereceive", "fixture": "sqs/R01/07-fifo-delete-h1-after-rereceive.json", "operation": "sqs.DeleteMessage", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, header/x-amzn-query-error, body"}},
         {"step": "07-fifo-delete-h2", "fixture": "sqs/R01/07-fifo-delete-h2.json", "operation": "sqs.DeleteMessage", "outcome": {"kind": "match"}},
@@ -332,7 +332,7 @@
       ],
       "claims": [
         {"target": {"kind": "switch", "name": "sqs.receipt.stale-handle"}, "step": "03-recv-after-6s", "field": "body/Messages", "result": {"kind": "contradicted"}},
-        {"target": {"kind": "overlay", "shape": "com.amazonaws.sqs#AmazonSQS", "covers": ["dev.understudy#errorNamespace"]}, "step": "05-cmv-deleted", "field": "body/__type", "result": {"kind": "contradicted"}}
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.sqs#InvalidParameterValue"}, "step": "05-cmv-deleted", "field": "body/__type", "result": {"kind": "settled"}}
       ]
     },
     {

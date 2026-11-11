@@ -241,7 +241,8 @@ func TestRequestsSignedForAServiceAreAnsweredByIt(t *testing.T) {
 		// Content-Type too.
 		{"signed-dynamodb-json-1.1-content-type", http.MethodPost, "/", jsonHeader("DynamoDB_20120810.ListTables", "application/x-amz-json-1.1"), `{}`, "dynamodb"},
 		// A target of another service than the one signed is the signed
-		// service's to answer.
+		// service's to answer, without its x-amzn-query-error
+		// (testdata/parity/sqs/R11/03-wrong-target-prefix.json).
 		{"signed-sqs-with-dynamodb-target", http.MethodPost, "/", jsonHeader("DynamoDB_20120810.ListTables", "application/x-amz-json-1.0"), `{}`, "sqs"},
 	}
 	for _, tt := range cases {
@@ -312,7 +313,9 @@ func TestSmithyProtocolPathMayCarryAPrefix(t *testing.T) {
 }
 
 // SQS binds every operation, so the unbound one is a CloudWatch Logs
-// operation of a registered service nothing binds.
+// operation of a registered service nothing binds. SQS's unknown target
+// sends x-amzn-query-error InvalidAction;Sender
+// (testdata/parity/sqs/R11/03-unknown-operation.json).
 func TestUnknownAndUnboundOperations(t *testing.T) {
 	f := newFront(t, nil, logsapi.Service())
 	golden(t, "json-unknown-operation", f.serve(t, request(t, http.MethodPost, "/", jsonHeader("AmazonSQS.Bogus", "application/x-amz-json-1.0"), `{}`, "sqs")))

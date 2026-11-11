@@ -173,6 +173,10 @@ func TestCreateQueueRefusesBadNamesAndAttributes(t *testing.T) {
 			// (invalid-attribute-content-based-deduplication).
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"ContentBasedDeduplication": "false"}}, "InvalidAttributeName", "Unknown Attribute ContentBasedDeduplication."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"DelaySeconds": "901"}}, "InvalidAttributeValue", "Invalid value for the parameter DelaySeconds."},
+			// testdata/parity/sqs/R11/02-create-max-size-1023.json
+			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"MaximumMessageSize": "1023"}}, "InvalidAttributeValue", "Invalid value for the parameter MaximumMessageSize."},
+			// testdata/parity/sqs/R11/02-create-visibility-minus-1.json
+			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "-1"}}, "InvalidAttributeValue", "Invalid value for the parameter VisibilityTimeout."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"KmsMasterKeyId": "alias/k", "SqsManagedSseEnabled": "true"}}, "InvalidAttributeName", "You can use one type of server-side encryption (SSE) at one time. You can either enable KMS SSE or SQS SSE."},
 			{redrive(`{"maxReceiveCount":3}`), "InvalidParameterValue", "The required parameter 'deadLetterTargetArn' is missing"},
 			{redrive(`{"deadLetterTargetArn":"arn:aws:sqs:us-east-1:000000000000:dlq"}`), "InvalidParameterValue", "The required parameter 'maxReceiveCount' is missing"},

@@ -111,7 +111,14 @@ func (h *Handler) answerForService(ctx context.Context, x *exchange, svc *regist
 				continue
 			}
 			if codec, ok := h.opts.Codecs[p]; ok {
-				h.write(ctx, x, codec.EncodeError(x.r, svc, string(x.id), h.unknownOperation(svc, p, "")))
+				// No operation of svc claimed the request, so its
+				// query-compatible x-amzn-query-error is not sent (recorded
+				// for a wrong target prefix,
+				// testdata/parity/sqs/R11/03-wrong-target-prefix.json;
+				// inferred for the other unclaimed POSTs).
+				e := h.unknownOperation(svc, p, "")
+				e.ID.QueryErrorWhen = awserr.QueryErrorNever
+				h.write(ctx, x, codec.EncodeError(x.r, svc, string(x.id), e))
 				return
 			}
 		}

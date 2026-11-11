@@ -29,13 +29,9 @@ func (s *Service) bindReceives(b sqsapi.Binder) {
 		queueByURL(s, func(in *sqsapi.ReceiveMessageInput) string { return in.QueueUrl }))
 }
 
-// checkReceiveMessage checks the VisibilityTimeout range (sqs.md 7.1) and
-// the form of ReceiveRequestAttemptId (sqs.md 8.3), whose hand texts no
-// overlay template renders.
+// checkReceiveMessage checks the form of ReceiveRequestAttemptId
+// (sqs.md 8.3), whose hand text no overlay template renders.
 func checkReceiveMessage(in *sqsapi.ReceiveMessageInput) *awserr.Error {
-	if v := in.VisibilityTimeout; v != nil && (*v < 0 || *v > maxVisibility) {
-		return errReceiveVisibilityTimeout(*v)
-	}
 	if id := in.ReceiveRequestAttemptId; id != nil && !validFIFOID(*id) {
 		return errInvalidAttemptID(*id)
 	}

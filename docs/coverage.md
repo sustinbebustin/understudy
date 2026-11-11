@@ -1593,28 +1593,28 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| CancelMessageMoveTask | full | third-party-recorded, 2 of 4 claims |  |
+| CancelMessageMoveTask | full | aws-recorded, 4 of 4 claims |  |
 | CreateQueue | full | inferred, 2 of 9 claims |  |
 | DeleteQueue | full | inferred, 1 of 7 claims |  |
 | GetQueueAttributes | full | inferred, 1 of 7 claims |  |
-| GetQueueUrl | full | third-party-recorded, 3 of 6 claims |  |
+| GetQueueUrl | full | third-party-recorded, 1 of 6 claims |  |
 | ListDeadLetterSourceQueues | full | inferred, 1 of 7 claims |  |
-| ListMessageMoveTasks | full | third-party-recorded, 2 of 4 claims |  |
+| ListMessageMoveTasks | full | aws-recorded, 4 of 4 claims |  |
 | ListQueueTags | full | inferred, 1 of 7 claims |  |
-| ListQueues | full | third-party-recorded, 2 of 4 claims |  |
+| ListQueues | full | aws-recorded, 4 of 4 claims |  |
 | PurgeQueue | full | inferred, 1 of 7 claims |  |
 | SendMessage | full | inferred, 5 of 22 claims |  |
 | SendMessageBatch | full | inferred, 5 of 11 claims |  |
 | SetQueueAttributes | full | inferred, 1 of 9 claims |  |
-| StartMessageMoveTask | full | third-party-recorded, 2 of 4 claims |  |
+| StartMessageMoveTask | full | aws-recorded, 4 of 4 claims |  |
 | TagQueue | full | inferred, 1 of 7 claims |  |
 | UntagQueue | full | inferred, 1 of 7 claims |  |
 | AddPermission | partial | inferred, 1 of 8 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
-| ChangeMessageVisibility | partial | contradicted (sqs/R01/05-cmv-stale.json), 3 of 13 claims | an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200 |
+| ChangeMessageVisibility | partial | contradicted (sqs/R01/05-cmv-stale.json), 1 of 13 claims | an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200 |
 | ChangeMessageVisibilityBatch | partial | contradicted (sqs/R01/06-cmv-batch.json), 1 of 11 claims | an older receipt handle of a message received again since, or one of another queue, fails as not available for a visibility change, where AWS reports the first successful and fails the second as not valid for this queue |
-| DeleteMessage | partial | contradicted (sqs/R01/03-recv-after-6s.json), 3 of 17 claims | an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 "The receipt handle has expired." |
+| DeleteMessage | partial | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 17 claims | an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 "The receipt handle has expired." |
 | DeleteMessageBatch | partial | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 10 claims | a receipt handle of another queue is reported successful and deletes nothing, where AWS fails it as not valid for this queue |
-| ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 17 of 32 claims | a message's Attributes are sorted by name, where AWS writes them in an order of its own |
+| ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 17 of 33 claims | a message's Attributes are sorted by name, where AWS writes them in an order of its own |
 | RemovePermission | partial | inferred, 1 of 7 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
 
 Internal operations:
@@ -2049,7 +2049,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-398 evidence items: 105 aws-recorded, 110 third-party-recorded, 57 aws-doc, 5 sdk-source, 121 inferred.
+401 evidence items: 112 aws-recorded, 106 third-party-recorded, 57 aws-doc, 5 sdk-source, 121 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2146,9 +2146,16 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#queryErrorEnvelope | testdata/parity/sns/R16/02-invalid-id.json (validated 2026-10-14) |
 | aws-recorded | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#unknownOperationAnswer | testdata/parity/sns/R11/05-sns-unknown-action.json (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazon.coral.service#AccessDenied` |  | testdata/parity/sqs/IAM-ENF/01-raw.json: the JSON body carries the message under Message where the shared shape's member is message; the Query body's Message element is unchanged (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
+| aws-recorded | sqs.json | `com.amazon.coral.service#SerializationException` |  | testdata/parity/sqs/R11/03-string-for-integer.json: a string for an integer answers x-amzn-query-error MalformedInput;Sender; no other query-compatible service's recording shows this code, so it is applied for SQS only (validated 2026-10-14) |
+| aws-recorded | sqs.json | `com.amazon.coral.service#UnknownOperationException` |  | testdata/parity/sqs/R11/03-unknown-operation.json: an unknown AmazonSQS target answers x-amzn-query-error InvalidAction;Sender; no other query-compatible service's recording shows this code, so it is applied for SQS only (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#queryErrorEnvelope | testdata/parity/sqs/R11/05-sqs-query-nonexistent-queue.json (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#denialError | testdata/parity/sqs/IAM-ENF/01-get-attrs.json and testdata/parity/sqs/IAM-ENF/02-query.json: an IAM denial answers 403, over JSON with x-amzn-query-error AccessDenied;Sender and __type com.amazon.coral.service#AccessDeniedException, over Query with Type Sender and Code AccessDenied (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switches sqs.denial.json-identity and sqs.denial.query-text) (validated 2026-11-03) |
+| aws-recorded (sqs/R01/05-cmv-deleted.json) | sqs.json | `com.amazonaws.sqs#InvalidParameterValue` |  | testdata/parity/sqs/R11/02-receive-max-0.json: 400, x-amzn-query-error InvalidParameterValue;Sender and __type com.amazon.coral.service#InvalidParameterValueException (validated 2026-10-14) |
+| aws-recorded | sqs.json | `com.amazonaws.sqs#MissingParameter` |  | testdata/parity/sqs/R11/02-send-empty-body.json: 400, x-amzn-query-error MissingParameter;Sender and __type com.amazon.coral.service#MissingRequiredParameterException (validated 2026-10-14) |
+| aws-recorded | sqs.json | `com.amazonaws.sqs#ReceiveMessageRequest$MaxNumberOfMessages` |  | testdata/parity/sqs/R11/02-receive-max-0.json and testdata/parity/sqs/R11/02-receive-max-11.json (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#ReceiveMessageRequest$QueueUrl` |  | testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: a JSON ReceiveMessage with body {} answers 400, x-amzn-query-error AWS.SimpleQueueService.NonExistentQueue;Sender and QueueDoesNotExist, not MissingParameter (validated 2026-11-03) |
+| aws-recorded | sqs.json | `com.amazonaws.sqs#ReceiveMessageRequest$VisibilityTimeout` |  | testdata/parity/sqs/R11/02-receive-visibility-43201.json: 43201 is refused with the reason that states the range (validated 2026-10-14) |
+| aws-recorded | sqs.json | `com.amazonaws.sqs#ReceiveMessageRequest$WaitTimeSeconds` |  | testdata/parity/sqs/R11/02-receive-wait-21.json (validated 2026-10-14) |
 | aws-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$DelaySeconds` | dev.understudy#validationError | testdata/parity/sqs/R11/02-send-delay-901.json (validated 2026-10-14) |
 | aws-recorded | ssm.json | `com.amazonaws.ssm#AmazonSSM` | dev.understudy#validationPathStyle | testdata/parity/ssm/SSM-16/02-101-chars.json: a scalar list element's violation is named once at the list, Value '[<label>]' at 'labels' failed to satisfy constraint: Member must satisfy constraint: [Member must have length less than or equal to 100, Member must have length greater than or equal to 1] (docs/research/ssm-parameters.md#124-limits-and-validation-texts; docs/research/error-matrix.md#4-the-aws-validation-message-grammar-coral, style B); inferred: members of structured elements keep their indexed paths as recorded for Lambda and Scheduler, and the rolled-up map forms (Map keys must satisfy constraint, Map value must satisfy constraint) are unrecorded for SSM (validated 2026-11-03) |
 | aws-recorded | ssm.json | `com.amazonaws.ssm#AmazonSSM` | dev.understudy#denialError | testdata/parity/ssm/IAM-ENF/41-raw.json: an IAM denial answers 400 with __type AccessDeniedException, the model's own shape, the message under Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
@@ -2258,11 +2265,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | sfn.json | `com.amazonaws.sfn#ListExecutionsInput$statusFilter` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/stepfunctions/v2/test_sfn_api.snapshot.json#L1672: Member must satisfy enum value set: [SUCCEEDED, TIMED_OUT, PENDING_REDRIVE, ABORTED, FAILED, RUNNING], not model order, so the handler renders the recorded order (docs/research/stepfunctions-api.md#32-error-identities-and-statuses) (validated 2024-03-14) |
 | third-party-recorded | sns.json | `com.amazonaws.sns#AmazonSimpleNotificationService` | dev.understudy#validationError | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sns/test_sns.snapshot.json#L1823 (validated 2024-11-15) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#emptyCollection | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json |
-| third-party-recorded | sqs.json | `com.amazonaws.sqs#InvalidParameterValue` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L2 (validated 2024-04-30) |
-| third-party-recorded | sqs.json | `com.amazonaws.sqs#MissingParameter` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759 (validated 2025-09-22) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#QueueDoesNotExist` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json |
-| third-party-recorded | sqs.json | `com.amazonaws.sqs#ReceiveMessageRequest$MaxNumberOfMessages` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L2 (validated 2024-04-30) |
-| third-party-recorded | sqs.json | `com.amazonaws.sqs#ReceiveMessageRequest$WaitTimeSeconds` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3599 (validated 2025-02-10) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$MessageBody` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759 (validated 2025-09-22) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$MessageDeduplicationId` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L4033 (validated 2025-07-30) |
 | third-party-recorded | sqs.json | `com.amazonaws.sqs#SendMessageRequest$MessageGroupId` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L4033 (validated 2025-07-30) |
@@ -2329,7 +2332,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | sdk-source | s3.json | `com.amazonaws.s3#GetObjectAnnotationRequest$ChecksumMode` |  | https://github.com/awslabs/aws-c-s3/blob/07262f7ec17186712d56bccdb7c6eed744e31fb7/source/s3_util.c#L51-L52: the CRT S3 client sends x-amz-checksum-mode: enabled, which S3 takes as ENABLED on GetObject and HeadObject (s3.md 5.8); GetObjectAnnotation shares the member and is unbound, so a handler that binds it judges the value the same way |
 | sdk-source | s3.json | `com.amazonaws.s3#GetObjectRequest$ChecksumMode` |  | https://github.com/awslabs/aws-c-s3/blob/07262f7ec17186712d56bccdb7c6eed744e31fb7/source/s3_util.c#L51-L52: the CRT S3 client behind the AWS CLI's s3 commands sends x-amz-checksum-mode: enabled on GetObject (source/s3_auto_ranged_get.c L496-L531, source/s3_default_meta_request.c L387-L390), and its tests against real S3 assert the response checksum was validated (tests/s3_data_plane_tests.c L6388-L6471); LocalStack compares the value upper-cased (https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/s3/provider.py#L1042); a value that is no case variant of ENABLED is refused with the enum's InvalidArgument, AWS's answer to it UNVERIFIED (s3.md 5.8, recording S3-01) |
 | sdk-source | s3.json | `com.amazonaws.s3#HeadObjectRequest$ChecksumMode` |  | https://github.com/awslabs/aws-c-s3/blob/07262f7ec17186712d56bccdb7c6eed744e31fb7/source/s3_util.c#L51-L52: the CRT S3 client behind the AWS CLI's s3 commands sends x-amz-checksum-mode: enabled on the HeadObject that opens a download (source/s3_auto_ranged_get.c L496-L531), and its tests against real S3 assert that HEAD came first and the response checksum was validated (tests/s3_data_plane_tests.c L6388-L6471); LocalStack compares the value upper-cased (https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/localstack-core/localstack/services/s3/provider.py#L1168); a value that is no case variant of ENABLED is refused with the enum's InvalidArgument, AWS's answer to it UNVERIFIED (s3.md 5.8, recording S3-01) |
-| contradicted (sqs/R01/05-cmv-deleted.json) | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#errorNamespace | https://github.com/boto/botocore/blob/develop/tests/functional/test_sqs.py |
+| sdk-source | sqs.json | `com.amazonaws.sqs#AmazonSQS` | dev.understudy#errorNamespace | https://github.com/boto/botocore/blob/develop/tests/functional/test_sqs.py |
 | inferred | apigateway.json | `com.amazonaws.apigateway#BackplaneControlService` | dev.understudy#validationError | docs/research/apigateway-rest.md#24-errors: code ValidationException and status 400 are recorded (https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4067, AWS-validated 2025-06-18), but the recording carries only botocore's Error.Message, so the lower-case body key `message` written from the Coral shape is UNVERIFIED until recording APIGW1-01 (APIGW1/01-validation) settles it |
 | inferred | apigatewayv2.json | `com.amazonaws.apigatewayv2#ApiGatewayV2` | dev.understudy#throttleError | docs/research/apigateway-http.md#23-errors: the model's only 429 shape is TooManyRequestsException while the API Reference names the 429 model LimitExceededException; which name AWS sends is UNVERIFIED until recording APIGW2-02 |
 | inferred | apigatewayv2.json | `com.amazonaws.apigatewayv2#UpdateIntegrationRequest$TimeoutInMillis` |  | testdata/parity/apigatewayv2/APIGW2-01/17-timeout-over.json recorded CreateIntegration's text, 2026-11-03 (apigateway-http.md 2.3); UpdateIntegration is taken to check the same member alike |

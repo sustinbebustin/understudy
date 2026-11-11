@@ -97,7 +97,7 @@ func understudyTraits() map[string]understudyTrait {
 	return map[string]understudyTrait{
 		utEvidence:            {GenerationOnly, siteAnyShape | siteMember, func(r json.RawMessage) error { _, err := parseEvidence(r); return err }},
 		utErrorNamespace:      {Honor, siteService, func(r json.RawMessage) error { _, err := parseErrorNamespace(r); return err }},
-		utJSONType:            {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseNonEmptyString(r); return err }},
+		utJSONType:            {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseJSONType(r); return err }},
 		utMessageByProtocol:   {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseMessageByProtocol(r); return err }},
 		utMessageKey:          {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseMessageKey(r); return err }},
 		utValidationError:     {Honor, siteService | siteOperation | siteMember, func(r json.RawMessage) error { _, err := parseValidationRules(r); return err }},
@@ -306,6 +306,33 @@ func parseAnnotation(raw json.RawMessage) error {
 		return errors.New("an annotation trait takes {}")
 	}
 	return nil
+}
+
+// jsonType is dev.understudy#jsonType: the error's __type name, and the
+// namespace an awsJson1_0 __type carries when the value is an absolute
+// namespace#Name (SQS's com.amazon.coral.service#InvalidParameterValueException,
+// testdata/parity/sqs/R11/02-receive-max-0.json). An empty Namespace keeps
+// the service's or the shape's.
+type jsonType struct {
+	Namespace string
+	Name      string
+}
+
+// parseJSONType reads dev.understudy#jsonType: a bare name, or an absolute
+// shape ID when the namespace differs too.
+func parseJSONType(raw json.RawMessage) (jsonType, error) {
+	s, err := parseNonEmptyString(raw)
+	if err != nil {
+		return jsonType{}, err
+	}
+	if !strings.Contains(s, "#") {
+		return jsonType{Name: s}, nil
+	}
+	id, err := smithy.Parse(s)
+	if err != nil {
+		return jsonType{}, fmt.Errorf("%w; or give a bare name such as InvalidParameterValueException", err)
+	}
+	return jsonType{Namespace: id.Namespace(), Name: id.Name()}, nil
 }
 
 func parseNonEmptyString(raw json.RawMessage) (string, error) {

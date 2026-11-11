@@ -52,10 +52,11 @@ func TestSendMessageRejectsADelayAbove900(t *testing.T) {
 		t.Fatalf("Validate = %#v, want %#v", got, want)
 	}
 	err := in.ValidationError(got)
-	if err.ID.QueryCode != "InvalidParameterValue" || err.ID.JSONType != "com.amazonaws.sqs#InvalidParameterValueException" {
+	// testdata/parity/sqs/R11/02-send-delay-901.json: Coral's __type, SQS's
+	// Query code.
+	if err.ID.QueryCode != "InvalidParameterValue" || err.ID.JSONType != "com.amazon.coral.service#InvalidParameterValueException" {
 		t.Fatalf("identity = %+v", err.ID)
 	}
-	// testdata/parity/sqs/R11/02-send-delay-901.json
 	if err.Message != "Value 901 for parameter DelaySeconds is invalid. Reason: DelaySeconds must be >= 0 and <= 900." {
 		t.Fatalf("message = %q", err.Message)
 	}
@@ -99,6 +100,24 @@ func TestSendMessageViolationsFollowMemberOrder(t *testing.T) {
 	}
 }
 
+// TestUnmodeledValidationErrorsCarryCoralTypes: SQS's unmodeled validation
+// errors answer Coral's __type over JSON and SQS's own code over Query
+// (testdata/parity/sqs/R11/02-receive-max-0.json,
+// testdata/parity/sqs/R11/02-send-empty-body.json).
+func TestUnmodeledValidationErrorsCarryCoralTypes(t *testing.T) {
+	for _, tt := range []struct {
+		id                  awserr.Identity
+		jsonType, queryCode string
+	}{
+		{IdentityInvalidParameterValue(), "com.amazon.coral.service#InvalidParameterValueException", "InvalidParameterValue"},
+		{IdentityMissingParameter(), "com.amazon.coral.service#MissingRequiredParameterException", "MissingParameter"},
+	} {
+		if tt.id.JSONType != tt.jsonType || tt.id.QueryCode != tt.queryCode {
+			t.Errorf("%s: JSONType %q, QueryCode %q; want %q, %q", tt.id.Shape, tt.id.JSONType, tt.id.QueryCode, tt.jsonType, tt.queryCode)
+		}
+	}
+}
+
 // TestRecordedSQSParameterTexts are the AWS-recorded rows of sqs.md 2.4.
 func TestRecordedSQSParameterTexts(t *testing.T) {
 	tests := []struct {
@@ -111,12 +130,29 @@ func TestRecordedSQSParameterTexts(t *testing.T) {
 		want string
 	}{
 		{
+			// testdata/parity/sqs/R11/02-receive-max-0.json
+			"MaxNumberOfMessages=0", &ReceiveMessageInput{QueueUrl: "u", MaxNumberOfMessages: new(int32(0))}, IdentityInvalidParameterValue(),
+			"Value 0 for parameter MaxNumberOfMessages is invalid. Reason: Must be between 1 and 10, if provided.",
+		},
+		{
+			// testdata/parity/sqs/R11/02-receive-max-11.json
 			"MaxNumberOfMessages=11", &ReceiveMessageInput{QueueUrl: "u", MaxNumberOfMessages: new(int32(11))}, IdentityInvalidParameterValue(),
 			"Value 11 for parameter MaxNumberOfMessages is invalid. Reason: Must be between 1 and 10, if provided.",
 		},
 		{
+			// testdata/parity/sqs/R11/02-receive-wait-21.json
 			"WaitTimeSeconds=21", &ReceiveMessageInput{QueueUrl: "u", WaitTimeSeconds: new(int32(21))}, IdentityInvalidParameterValue(),
 			"Value 21 for parameter WaitTimeSeconds is invalid. Reason: Must be >= 0 and <= 20, if provided.",
+		},
+		{
+			// testdata/parity/sqs/R11/02-receive-visibility-43201.json
+			"VisibilityTimeout=43201", &ReceiveMessageInput{QueueUrl: "u", VisibilityTimeout: new(int32(43201))}, IdentityInvalidParameterValue(),
+			"Value 43201 for parameter VisibilityTimeout is invalid. Reason: Must be between 0 and 43200, if provided.",
+		},
+		{
+			// The range's lower bound, the documented 0 to 43200 (API_ReceiveMessage).
+			"VisibilityTimeout=-1", &ReceiveMessageInput{QueueUrl: "u", VisibilityTimeout: new(int32(-1))}, IdentityInvalidParameterValue(),
+			"Value -1 for parameter VisibilityTimeout is invalid. Reason: Must be between 0 and 43200, if provided.",
 		},
 		{
 			"WaitTimeSeconds=-1", &ReceiveMessageInput{QueueUrl: "u", WaitTimeSeconds: new(int32(-1))}, IdentityInvalidParameterValue(),

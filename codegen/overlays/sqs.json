@@ -66,6 +66,28 @@
         }
       }
     },
+    "com.amazon.coral.service#SerializationException": {
+      "type": "apply",
+      "traits": {
+        "aws.protocols#awsQueryError": {"code": "MalformedInput", "httpResponseCode": 400},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/03-string-for-integer.json: a string for an integer answers x-amzn-query-error MalformedInput;Sender; no other query-compatible service's recording shows this code, so it is applied for SQS only",
+          "validated": "2026-10-14"
+        }
+      }
+    },
+    "com.amazon.coral.service#UnknownOperationException": {
+      "type": "apply",
+      "traits": {
+        "aws.protocols#awsQueryError": {"code": "InvalidAction", "httpResponseCode": 400},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/03-unknown-operation.json: an unknown AmazonSQS target answers x-amzn-query-error InvalidAction;Sender; no other query-compatible service's recording shows this code, so it is applied for SQS only",
+          "validated": "2026-10-14"
+        }
+      }
+    },
     "com.amazonaws.sqs#QueueDoesNotExist": {
       "type": "apply",
       "traits": {
@@ -85,11 +107,11 @@
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
         "aws.protocols#awsQueryError": {"code": "InvalidParameterValue", "httpResponseCode": 400},
-        "dev.understudy#jsonType": "InvalidParameterValueException",
+        "dev.understudy#jsonType": "com.amazon.coral.service#InvalidParameterValueException",
         "dev.understudy#evidence": {
-          "label": "third-party-recorded",
-          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L2",
-          "validated": "2024-04-30"
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/02-receive-max-0.json: 400, x-amzn-query-error InvalidParameterValue;Sender and __type com.amazon.coral.service#InvalidParameterValueException",
+          "validated": "2026-10-14"
         }
       }
     },
@@ -102,11 +124,11 @@
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
         "aws.protocols#awsQueryError": {"code": "MissingParameter", "httpResponseCode": 400},
-        "dev.understudy#jsonType": "MissingRequiredParameterException",
+        "dev.understudy#jsonType": "com.amazon.coral.service#MissingRequiredParameterException",
         "dev.understudy#evidence": {
-          "label": "third-party-recorded",
-          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759",
-          "validated": "2025-09-22"
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/02-send-empty-body.json: 400, x-amzn-query-error MissingParameter;Sender and __type com.amazon.coral.service#MissingRequiredParameterException",
+          "validated": "2026-10-14"
         }
       }
     },
@@ -351,9 +373,9 @@
           "reason": "Must be between 1 and 10, if provided."
         },
         "dev.understudy#evidence": {
-          "label": "third-party-recorded",
-          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L2",
-          "validated": "2024-04-30"
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/02-receive-max-0.json and testdata/parity/sqs/R11/02-receive-max-11.json",
+          "validated": "2026-10-14"
         }
       }
     },
@@ -368,9 +390,26 @@
           "reason": "Must be >= 0 and <= 20, if provided."
         },
         "dev.understudy#evidence": {
-          "label": "third-party-recorded",
-          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3599",
-          "validated": "2025-02-10"
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/02-receive-wait-21.json",
+          "validated": "2026-10-14"
+        }
+      }
+    },
+    "com.amazonaws.sqs#ReceiveMessageRequest$VisibilityTimeout": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#range": {"min": 0, "max": 43200},
+        "dev.understudy#validationError": {
+          "code": "com.amazonaws.sqs#InvalidParameterValue",
+          "style": "parameter",
+          "constraints": ["range"],
+          "reason": "Must be between 0 and 43200, if provided."
+        },
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/02-receive-visibility-43201.json: 43201 is refused with the reason that states the range",
+          "validated": "2026-10-14"
         }
       }
     },

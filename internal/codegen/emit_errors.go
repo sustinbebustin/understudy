@@ -260,6 +260,8 @@ func identityFields(e *ErrorIR) (string, error) {
 	case awserr.QueryErrorAlways:
 	case awserr.QueryErrorInQueryMode:
 		parts = append(parts, "QueryErrorWhen: awserr.QueryErrorInQueryMode")
+	case awserr.QueryErrorNever:
+		return "", failf(StageEmit, string(e.Shape.ID), "awserr.QueryErrorNever is the edge's for an unclaimed request; no overlay trait sets it on a generated identity")
 	default:
 		return "", failf(StageEmit, string(e.Shape.ID), "awserr.QueryErrorWhen(%d) has no constant; the IR builder sets it from dev.understudy#queryErrorHeader (ir_errors.go)", e.QueryErrorWhen)
 	}

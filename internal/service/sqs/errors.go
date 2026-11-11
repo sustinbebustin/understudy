@@ -174,13 +174,6 @@ func errSystemAttributeName(name string) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value " + name + " for parameter MessageSystemAttributeName is invalid. Reason: AWSTraceHeader is the only system attribute a message can be sent with.")
 }
 
-// errReceiveVisibilityTimeout refuses a ReceiveMessage VisibilityTimeout
-// out of range (recorded,
-// testdata/parity/sqs/R11/02-receive-visibility-43201.json).
-func errReceiveVisibilityTimeout(v int32) *awserr.Error {
-	return sqsapi.ErrInvalidParameterValue("Value " + strconv.Itoa(int(v)) + " for parameter VisibilityTimeout is invalid. Reason: Must be between 0 and " + strconv.Itoa(maxVisibility) + ", if provided.")
-}
-
 // errVisibilityTimeout refuses a ChangeMessageVisibility timeout out of
 // range. It frames the documented range in the recorded "Value X for
 // parameter P is invalid" form; the exact text is unrecorded, and the

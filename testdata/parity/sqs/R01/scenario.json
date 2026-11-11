@@ -518,10 +518,7 @@
       "field": "body/Messages"
     },
     {
-      "overlay": "com.amazonaws.sqs#AmazonSQS",
-      "covers": [
-        "dev.understudy#errorNamespace"
-      ],
+      "overlay": "com.amazonaws.sqs#InvalidParameterValue",
       "step": "05-cmv-deleted",
       "field": "body/__type"
     }
