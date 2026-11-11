@@ -177,7 +177,7 @@ aws apigatewayv2 create-integration --api-id vsstkl7iok --integration-type AWS_P
 # "TimeoutInMillis": 30000, ...
 ```
 
-`--integration-uri` names the function by its ARN or by the invoke URI Terraform's `invoke_arn` gives. `--payload-format-version` is required, as on AWS: `1.0` or `2.0` for a Lambda integration and `1.0` for anything else. An AWS service integration (`--integration-subtype`) needs every request parameter AWS lists as required for its subtype. `--request-parameters` and `--response-parameters` come back exactly as sent; on `update-integration` a request parameter sent with an empty value, or a response status sent as `{}`, is removed. `delete-integration` is refused while a route targets the integration, with AWS's text:
+`--integration-uri` names the function by its ARN or by the invoke URI Terraform's `invoke_arn` gives. `--payload-format-version` is required, as on AWS: `1.0` or `2.0` for a Lambda integration and `1.0` for anything else. An AWS service integration (`--integration-subtype`) needs every request parameter AWS lists as required for its subtype, and an `update-integration` of one that sends `--request-parameters` must send every required parameter again, as Terraform does; one that sends only some is refused with AWS's `Invalid integration URI specified` and changes nothing (inferred from one recorded case). `--request-parameters` and `--response-parameters` come back exactly as sent; on `update-integration` a request parameter sent with an empty value, or a response status sent as `{}`, is removed. `delete-integration` is refused while a route targets the integration, with AWS's text:
 
 ```sh
 aws apigatewayv2 delete-integration --api-id 0x2wsevugv --integration-id q6si386

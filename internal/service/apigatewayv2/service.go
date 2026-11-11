@@ -69,6 +69,10 @@ const (
 		"a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; " +
 		"tlsConfig is stored without effect; " +
 		"requestTemplates, templateSelectionExpression and contentHandlingStrategy answer NotImplemented (WebSocket API members)"
+	// subtypeUpdateNote is checkSentParameters' rule, inferred from the one
+	// partial update APIGW2-01 recorded (apigateway-http.md 6.2).
+	subtypeUpdateNote = "requestParameters sent to an integration with a subtype must give every required parameter of the subtype a value, " +
+		"or the update is refused with AWS's text Invalid integration URI specified (inferred from one recorded case, APIGW2-01 case 22)"
 	stageNote = "accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); " +
 		"an automatic deployment completes before the call returns, where AWS served it within 1 to 2 s (APIGW2-04); " +
 		"clientCertificateId answers NotImplemented (WebSocket APIs only)"
@@ -141,7 +145,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.GetIntegrationsInput) string { return in.ApiId }, "integrations")))
 	b.GetIntegration(s.getIntegration, registry.Partial{Note: baseNote},
 		kernel.WithResources(childItem(func(in *apigatewayv2api.GetIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
-	b.UpdateIntegration(s.updateIntegration, partial(integrationNote), kernel.WithCheck(checkUpdateIntegration),
+	b.UpdateIntegration(s.updateIntegration, partial(integrationNote+"; "+subtypeUpdateNote), kernel.WithCheck(checkUpdateIntegration),
 		kernel.WithResources(childItem(func(in *apigatewayv2api.UpdateIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
 	b.DeleteIntegration(s.deleteIntegration, registry.Partial{Note: baseNote},
 		kernel.WithResources(childItem(func(in *apigatewayv2api.DeleteIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
