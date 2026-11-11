@@ -49,9 +49,11 @@
 //   - Reset, snapshot save and snapshot load are serialized by one handler
 //     lock, held from the drain or cut through the late steps, so a reset's
 //     late reset cannot land between a save's cut and its late exports, or
-//     inside a load. The coordinator already serializes save against load;
-//     the periodic --persist checkpoint runs outside this handler and
-//     writes without late data, so it does not take the lock.
+//     inside a load. Every whole-state cut runs under this lock, the
+//     --persist checkpoints included (WithStateLock), so none saves a state
+//     a reset is part-way through. A checkpoint still writes without late
+//     data; only the startup cut of the loaded state is outside the lock,
+//     since no reset can run before serve starts.
 //   - Every route lists the query parameters it reads, and any other is
 //     refused with invalid_request before the endpoint runs; a route that
 //     reads none, such as POST /reset, refuses every parameter, so a filter

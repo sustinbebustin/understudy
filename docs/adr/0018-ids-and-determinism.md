@@ -53,3 +53,9 @@ The closed normalizer set of `snapshot diff --normalize` (`internal/snapshot` pa
 ## Amendment 2026-10-13: drawing from an undeclared kind panics
 
 - Drawing from an undeclared `ids.Kind`, which only a `Kind(n)` conversion can make, panics on both the seeded and the random source. It is a precondition failure, not an error value: no caller can recover from it, and an error on every generator would put an impossible failure on every write path. Such precondition panics are marked with a line-scoped `//nolint:forbidigo` that names the precondition, never with a path exclusion. The kernel's recovery turns one reached in a request into `Internal`.
+
+## Amendment 2026-11-11: a request-phase latency releases the sequencer
+
+- The gap the first 2026-10-13 amendment names is closed. `kernel.Invoke` signals a request-phase latency decision through `kernel.Target.OnLatency`, after it has evaluated every request-phase rule and journaled their hits and before it waits out the latency. The outbox sets the hook on each call of an attempt on its sequencer, its target call and its dead letter alike, and on the signal starts the next attempt while the held one finishes on its own goroutine (`internal/outbox` package doc).
+- Fault draws keep sequencer order, because evaluation precedes the signal. The ids the target handler draws after the latency fall in wall-time order: the trade-off this ADR already accepts for an attempt a Delivery-phase latency delays.
+- A direct call has no hook and waits as before. A throttled SNS HTTP subscription's own sequencer does not release, so it keeps journaling its attempts in the order they start, as it does through a Delivery-phase delay.

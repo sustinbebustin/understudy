@@ -149,6 +149,22 @@ func TestWrongShapesSayWhatIsExpected(t *testing.T) {
 	}
 }
 
+// s3.maxObjectBytes and dynamodb.registry are unknown keys: S3 enforces
+// AWS's single-PUT limit and DynamoDB Local falls back to the ECR Public
+// mirror, so neither has anything to configure.
+func TestRemovedSettingsAreUnknownKeys(t *testing.T) {
+	cases := []struct{ file, where string }{
+		{`{"s3": {"maxObjectBytes": 1024}}`, "understudy.json: s3.maxObjectBytes"},
+		{`{"dynamodb": {"registry": "ecr-public"}}`, "understudy.json: dynamodb.registry"},
+	}
+	for _, c := range cases {
+		err := loadErr(t, nil, nil, files{config.DefaultConfigFile: c.file})
+		if err.Where != c.where || err.Reason != "is not a configuration key" {
+			t.Errorf("%s: error at %q reason %q, want %q is not a configuration key (%v)", c.file, err.Where, err.Reason, c.where, err)
+		}
+	}
+}
+
 // An unknown key, at the top or inside a section, is refused with the
 // closest valid key at that depth.
 func TestUnknownKeysNameTheClosest(t *testing.T) {
@@ -364,7 +380,6 @@ func TestRefusedValues(t *testing.T) {
 		{env: []string{"UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1"}, where: "UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE"},
 		{args: []string{"--accept-dynamodb-local-license"}, where: "--accept-dynamodb-local-license"},
 		{file: `{"s3": {"baseDomains": ["example.com"]}}`, where: "understudy.json: s3.baseDomains[0]"},
-		{file: `{"s3": {"maxObjectBytes": "big"}}`, where: "understudy.json: s3.maxObjectBytes"},
 		{file: `{"lambda": {"network": "bridge"}}`, where: "understudy.json: lambda.bridgeGateway"},
 		{file: `{"lambda": {"network": "bridge", "bridgeGateway": "fd00::1"}}`, where: "understudy.json: lambda.bridgeGateway"},
 		{file: `{"lambda": {"hotReload": [{"function": "f", "dir": "relative"}]}}`, where: "understudy.json: lambda.hotReload[0].dir"},
@@ -464,7 +479,7 @@ func TestFileSections(t *testing.T) {
 		           "hotReload": [{"function": "worker", "dir": "/src/worker"}, {"function": "edge", "dir": "/src/edge", "account": "333333333333", "region": "local-1"}]},
 		"sqs": {"queueDeletedRecently": "enforce"},
 		"iam": {"assumeRole": "lenient"},
-		"dynamodb": {"registry": "ecr-public", "memoryLimit": 536870912},
+		"dynamodb": {"memoryLimit": 536870912},
 		"journal": {"capacity": 10, "file": "/tmp/j.ndjson"},
 		"faults": [{"id": "slow", "phase": "request", "match": {"operations": ["sqs.SendMessage"]}, "action": {"kind": "throttle"}, "trigger": {"kind": "always"}}]
 	}`
@@ -491,7 +506,6 @@ func TestFileSections(t *testing.T) {
 		{"sqs", cfg.SQS.DeletedRecently, config.DeletedRecentlyEnforce},
 		{"iam", cfg.IAM.AssumeRole, config.AssumeRoleLenient},
 		{"dynamodb", cfg.DynamoDB.Mode, config.DynamoDBEnabled{}},
-		{"registry", cfg.DynamoDB.Registry, config.RegistryECRPublic},
 		{"memory", cfg.DynamoDB.MemoryLimit, int64(512 << 20)},
 		{"journal", cfg.Journal, config.Journal{Capacity: 10, MaxBytes: config.DefaultJournalMaxBytes, File: "/tmp/j.ndjson"}},
 		{"faults", string(cfg.Faults[0].ID), "slow"},

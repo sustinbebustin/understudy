@@ -46,6 +46,16 @@ describe("summary of known kinds", () => {
       ["advisory", { advisory: "policy-would-deny", resource: "q1", text: "the queue policy denies sns" }, "policy-would-deny: the queue policy denies sns"],
       ["unclaimed", { method: "GET", host: "localhost:4566", path: "/x", reasons: ["no service", "no prefix"] }, "GET localhost:4566/x: no service; no prefix"],
       ["gap", { missed: 42 }, "missed 42 event(s)"],
+      [
+        "redrive",
+        { from: "arn:aws:sqs:us-east-1:000000000000:q1", to: "arn:aws:sqs:us-east-1:000000000000:dlq", messages: ["m-1", "m-2"], reason: { kind: "max-receive-count", count: 3 } },
+        "q1 -> dlq 2 message(s) past maxReceiveCount 3",
+      ],
+      [
+        "redrive",
+        { from: "arn:aws:sqs:us-east-1:000000000000:dlq", to: "arn:aws:sqs:us-east-1:000000000000:q1", messages: ["m-1"], reason: { kind: "move-task", taskHandle: "eyJ0In0=" } },
+        "dlq -> q1 1 message(s) by move task",
+      ],
       ["admin-action", { op: "reset", services: ["sqs", "sns"], clock: true, faults: 2 }, "reset sqs, sns; every account; every region; clock restored; 2 fault rule(s) removed"],
       ["admin-action", { op: "reset", services: ["sqs"], accounts: ["111111111111"], regions: ["us-east-1"] }, "reset sqs; accounts 111111111111; regions us-east-1"],
       ["admin-action", { op: "snapshot-save", path: "before.tar" }, "snapshot saved to before.tar"],
@@ -72,6 +82,7 @@ describe("summary of known kinds", () => {
       ["admin-action", { op: "future-op" }],
       ["admin-action", { op: "fault-rule-added" }],
       ["gap", { missed: -1 }],
+      ["redrive", { from: "", to: "", reason: { kind: "expired" } }],
     ] as const) {
       expect(summary(event(1, { kind, detail }))).toBe(`${kind} ${JSON.stringify(detail)}`);
     }

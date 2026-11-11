@@ -77,7 +77,7 @@ type Options struct {
 	// UISecret is this run's web UI session secret (ADR 0020). A call a web
 	// page makes passes refuseBrowser only when it carries this value in
 	// admin.UISessionHeader and is same-origin; empty means no session, so
-	// every such call is refused as before.
+	// every such call is refused.
 	UISecret string
 	// Version and ModelPin are reported by the health endpoint.
 	Version  string
@@ -134,6 +134,9 @@ type Handler struct {
 	// listener is the main listener's bound address while it accepts, and
 	// nil before and after: health is ready exactly while it is set.
 	listener atomic.Pointer[netip.AddrPort]
+	// tlsEndpoint is the TLS listener's URL, stored before listener so a
+	// ready health never lacks it; nil before SetReady, "" without TLS.
+	tlsEndpoint atomic.Pointer[string]
 	// stateOps serializes reset, snapshot save and snapshot load, each held
 	// from its drain or cut to its last late step, so none runs in another's
 	// gap between the gate and the late data.
@@ -177,8 +180,22 @@ func New(o Options) (*Handler, error) {
 }
 
 // SetReady reports that the main listener accepts on listener, which
-// health then reports as ready and names.
-func (h *Handler) SetReady(listener netip.AddrPort) { h.listener.Store(&listener) }
+// health then reports as ready and names. tlsEndpoint is the TLS
+// listener's URL, which health also names; empty without one.
+func (h *Handler) SetReady(listener netip.AddrPort, tlsEndpoint string) {
+	h.tlsEndpoint.Store(&tlsEndpoint)
+	h.listener.Store(&listener)
+}
+
+// WithStateLock runs fn holding the state lock that reset, snapshot save
+// and snapshot load share, so a whole-state cut inside fn never lands in
+// the middle of a reset. fn must not call a handler operation that takes
+// the lock.
+func (h *Handler) WithStateLock(fn func() error) error {
+	h.stateOps.Lock()
+	defer h.stateOps.Unlock()
+	return fn()
+}
 
 // SetNotReady reports that the main listener no longer accepts.
 func (h *Handler) SetNotReady() { h.listener.Store(nil) }

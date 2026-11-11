@@ -392,6 +392,28 @@ func TestWriteWithExternalBlobsWritesNone(t *testing.T) {
 
 // Write always records the format it writes, so it never produces an archive
 // this binary refuses.
+// The wall instant of the cut is optional: a --persist checkpoint records
+// it, an explicit save leaves the manifest without the member, and either
+// reads back as written.
+func TestManifestCutWallIsOptional(t *testing.T) {
+	t.Parallel()
+	without := write(t, sample(t), false)
+	if bytes.Contains(without, []byte(`"cutWall"`)) {
+		t.Error("an archive without a cut wall instant wrote a cutWall member")
+	}
+	if got := read(t, without).Manifest.CutWall; got != nil {
+		t.Errorf("CutWall read back %v; want nil", got)
+	}
+
+	a := sample(t)
+	wall := instant(t, "2026-10-09T11:00:00.5Z")
+	a.Manifest.CutWall = &wall
+	got := read(t, write(t, a, false)).Manifest.CutWall
+	if got == nil || *got != wall {
+		t.Errorf("CutWall read back %v; want %v", got, wall)
+	}
+}
+
 func TestWriteStampsItsOwnFormat(t *testing.T) {
 	t.Parallel()
 	for _, format := range []int{snapshot.Format + 1, -1} {
@@ -458,6 +480,10 @@ func drawArchive(t *rapid.T) snapshot.Archive {
 		for _, k := range rapid.SliceOf(rapid.SampledFrom(kinds)).Draw(t, "kinds") {
 			m.Positions[k] = rapid.Uint64Range(0, ids.MaxPosition).Draw(t, "position")
 		}
+	}
+	if rapid.Bool().Draw(t, "cut wall") {
+		wall := clock.FromWire(time.Unix(rapid.Int64Range(0, 4e9).Draw(t, "cut wall at"), rapid.Int64Range(0, 999_999_999).Draw(t, "cut wall ns")).UTC())
+		m.CutWall = &wall
 	}
 	a := snapshot.Archive{Manifest: m, Sections: cut, Late: late, Blobs: bs}
 	if rapid.Bool().Draw(t, "faults") {

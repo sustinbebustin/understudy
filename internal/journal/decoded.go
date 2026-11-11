@@ -71,6 +71,15 @@ func asDecoded(d Detail) Detail {
 	case AdminAction:
 		d.Op = adminOpAsDecoded(d.Op)
 		return d
+	case Redrive:
+		d.From, d.To = arnAsDecoded(d.From), arnAsDecoded(d.To)
+		d.Messages = mapAsDecoded(d.Messages, func(m ids.MessageID) ids.MessageID { return ids.MessageID(wireText(string(m))) })
+		switch r := d.Reason.(type) {
+		case MoveTask:
+			d.Reason = MoveTask{TaskHandle: wireText(r.TaskHandle)}
+		case MaxReceiveCount:
+		}
+		return d
 	}
 	return d
 }

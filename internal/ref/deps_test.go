@@ -103,7 +103,10 @@ func importRules() []importRule {
 		{"internal/ref", []string{"internal/aws"}},
 		{"internal/store", []string{"internal/aws"}}, // key codecs for aws.Scope and aws.AccountID
 		{"internal/fidelity", []string{"internal/evidence"}},
-		{"internal/topology", []string{"internal/docker"}},
+		// Placement and topology both read the container markers it reports
+		// (containers.md 8.3); it imports nothing in the repo.
+		{"internal/containermarker", nil},
+		{"internal/topology", []string{"internal/docker", "internal/containermarker"}},
 		{"internal/docker/dockertest", []string{"internal/docker"}},
 		{"internal/delivery", []string{"internal/aws", "internal/ref"}},
 		// The shared stream log: pure, keyed by stream ARN, with instants of
@@ -258,7 +261,7 @@ func importRules() []importRule {
 		// through aws, carries the fault rules to preload as fault.Rule, and
 		// parses sns.httpDelivery.allow with egress at load, so a bad entry
 		// stops serve (ADR 0015 amendment).
-		{"internal/config", []string{"internal/aws", "internal/fault", "internal/egress"}},
+		{"internal/config", []string{"internal/aws", "internal/fault", "internal/egress", "internal/containermarker"}},
 		// Docker-tagged tests reach the daemon serve would use, resolved by
 		// config; only test files import it.
 		{"internal/config/configtest", []string{"internal/config", "internal/docker"}},

@@ -31,7 +31,7 @@ func benchJournal(b *testing.B, mode, state string, open Event, record func(*Jou
 	}
 	j := newTestJournal(b, o)
 	b.Cleanup(func() {
-		if err := j.Close(); err != nil {
+		if err := j.Close(b.Context()); err != nil {
 			b.Error(err)
 		}
 	})

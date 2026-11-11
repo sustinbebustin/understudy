@@ -242,15 +242,21 @@ func TestAppendRefusesAClockOpOutsideItsValues(t *testing.T) {
 	}
 }
 
-// Kinds lists every declared kind in value order, admin-action last
-// (kind_wire_test.go: a kind added later is appended).
+// Kinds lists every declared kind in value order, admin-action and then
+// redrive last.
 func TestKindsListsEveryDeclaredKind(t *testing.T) {
 	named, _ := declaredKinds()
 	if got := Kinds(); !slices.Equal(got, named) {
 		t.Fatalf("Kinds() = %v, want %v", got, named)
 	}
-	if named[len(named)-1] != KindAdminAction || KindOf(AdminAction{Op: Reset{}}) != KindAdminAction {
-		t.Errorf("last declared kind = %v, KindOf(AdminAction) = %v; want admin-action for both", named[len(named)-1], KindOf(AdminAction{Op: Reset{}}))
+	if tail := named[len(named)-2:]; !slices.Equal(tail, []Kind{KindAdminAction, KindRedrive}) {
+		t.Errorf("last declared kinds = %v, want admin-action then redrive", tail)
+	}
+	if got := KindOf(AdminAction{Op: Reset{}}); got != KindAdminAction {
+		t.Errorf("KindOf(AdminAction) = %v, want admin-action", got)
+	}
+	if got := KindOf(Redrive{Reason: MaxReceiveCount{Count: 1}}); got != KindRedrive {
+		t.Errorf("KindOf(Redrive) = %v, want redrive", got)
 	}
 }
 

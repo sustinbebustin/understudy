@@ -92,6 +92,15 @@ func advertised(scheme string, ln net.Listener) string {
 	return scheme + "://" + netip.AddrPortFrom(loopback, addr.Port()).String()
 }
 
+// advertisedTLS is the TLS listener's URL as clients should dial it, empty
+// without one.
+func advertisedTLS(secure net.Listener) string {
+	if secure == nil {
+		return ""
+	}
+	return advertised("https", secure)
+}
+
 // drain closes every listener and waits up to shutdownGrace for requests
 // in flight, all listeners at once.
 func (l *listeners) drain(ctx context.Context) error {

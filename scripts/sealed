@@ -22,9 +22,16 @@ their place it gets:
 - the AWS CLI pager and auto-prompt turned off, so nothing waits on a terminal.
 
 Terraform is sealed the same way. Inherited TF_TOKEN_* and TF_CLOUD_* variables
-are removed, TF_CLI_CONFIG_FILE points at an empty file sealed rewrites on every
-run (so ~/.terraformrc and its credentials and host blocks are never read), and
-TF_PLUGIN_CACHE_DIR points at <repo>/.cache/terraform-plugins, or at
+are removed, TF_CLI_CONFIG_FILE points at a file sealed rewrites on every run
+(so ~/.terraformrc and its credentials and host blocks are never read). The file
+holds only `provider_installation { direct {} }`: an explicit block turns off
+Terraform's implied local mirrors (~/.terraform.d/plugins and the XDG data
+terraform/plugins directories), so providers come only from the registry,
+through the plugin cache. HOME is not overridden, because --print-env seals an
+interactive shell and every other tool reads HOME. So
+~/.terraform.d/credentials.tfrc.json is still read: only HOME moves it, and its
+tokens go only to the registry and HCP hosts it names, never to AWS, so
+invariant 1 holds. TF_PLUGIN_CACHE_DIR points at <repo>/.cache/terraform-plugins, or at
 SEALED_TF_PLUGIN_CACHE when set. An inherited TF_PLUGIN_CACHE_DIR is replaced,
 with a note on stderr naming SEALED_TF_PLUGIN_CACHE. <repo>/.cache ignores
 itself in git. CHECKPOINT_DISABLE=1 stops Terraform's version check to
@@ -54,6 +61,7 @@ DEFAULT_ACCESS_KEY_ID = "test"
 
 REPO = Path(__file__).resolve().parent.parent
 CACHE = REPO / ".cache"
+PROVIDER_INSTALLATION = "provider_installation {\n  direct {}\n}\n"
 
 # Inherited Terraform settings that carry credentials for, or point at, HCP
 # Terraform and private registries.
@@ -147,7 +155,10 @@ def plugin_cache_notice(inherited: Mapping[str, str], env: Mapping[str, str]) ->
 
 
 def prepare_terraform(env: Mapping[str, str]) -> None:
-    """Create the empty CLI config file and the plugin cache env points Terraform at.
+    """Write the CLI config file and create the plugin cache env points Terraform at.
+
+    The config file holds only `provider_installation { direct {} }`, replacing
+    whatever it held before.
 
     The config file's directory gets a .gitignore of "*", as pytest and ruff do
     for their caches, so provider binaries cached beside it never reach git.
@@ -157,7 +168,7 @@ def prepare_terraform(env: Mapping[str, str]) -> None:
     try:
         config.parent.mkdir(parents=True, exist_ok=True)
         (config.parent / ".gitignore").write_text("*\n")
-        config.write_bytes(b"")
+        config.write_text(PROVIDER_INSTALLATION)
     except OSError as e:
         raise SealError(
             f"sealed: cannot write Terraform's sealed CLI config in {config.parent}: {e}. "

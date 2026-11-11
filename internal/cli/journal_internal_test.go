@@ -78,6 +78,15 @@ func TestJournalLinesSummarizeEveryKind(t *testing.T) {
 		{"unclaimed", `{"method":"GET","host":"localhost:4566","path":"/x","reasons":["no service claims the path"]}`, "GET localhost:4566/x: no service claims the path"},
 		{"gap", `{"missed":12}`, "missed 12 event(s)"},
 		{
+			"redrive", `{"from":"` + queue + `","to":"arn:aws:sqs:us-east-1:000000000000:dlq","messages":["m-1","m-2"],"reason":{"kind":"max-receive-count","count":3}}`,
+			"q1 -> dlq 2 message(s) past maxReceiveCount 3",
+		},
+		{
+			"redrive", `{"from":"arn:aws:sqs:us-east-1:000000000000:dlq","to":"` + queue + `","messages":["m-1"],"reason":{"kind":"move-task","taskHandle":"eyJ0In0="}}`,
+			"dlq -> q1 1 message(s) by move task",
+		},
+		{"redrive", `{"from":"","to":"","reason":{"kind":"expired"}}`, `{"from":"","to":"","reason":{"kind":"expired"}}`},
+		{
 			"from-a-newer-server", `{"field":"` + strings.Repeat("x", 200) + `"}`,
 			`{"field":"` + strings.Repeat("x", 147) + "... (--output json has the full detail)",
 		},

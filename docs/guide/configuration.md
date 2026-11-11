@@ -12,8 +12,6 @@ An unknown flag, variable or key is refused with the closest valid name, and `se
 understudy serve: config: understudy.json: listn: is not a configuration key; the closest valid name is listen; fix or remove the key
 ```
 
-A setting this build does not support, such as `s3.maxObjectBytes`, is refused by name rather than ignored.
-
 ## A configuration file
 
 ```json

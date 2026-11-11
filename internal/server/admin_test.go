@@ -22,6 +22,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/coverage"
 	"github.com/sustinbebustin/understudy/internal/server"
+	"github.com/sustinbebustin/understudy/internal/snapshot"
 )
 
 // frozenAt is where the admin tests freeze the emulator clock.
@@ -482,6 +483,41 @@ func TestAdminSnapshotPathForm(t *testing.T) {
 	plain, _ := adminServer(t, server.Config{})
 	_, err = plain.SaveSnapshotTo(t.Context(), "x.tar", admin.SaveOptions{})
 	wantCode(t, err, admin.Unavailable)
+}
+
+// An explicit save's bytes depend only on state and version
+// (ARCHITECTURE.md 13), also under --persist: it carries no cut wall
+// instant, which only the --persist checkpoint records. The save request
+// itself moves the journal counter and the request-id stream, so two saves
+// differ in those manifest counters alone.
+func TestAdminSnapshotSaveIsDeterministicUnderPersist(t *testing.T) {
+	c, endpoint := adminServer(t, server.Config{Persist: server.PersistDir{Path: t.TempDir()}})
+	queue(t, endpoint, "p", "m")
+	save := func() *snapshot.Archive {
+		t.Helper()
+		var b bytes.Buffer
+		if _, err := c.SaveSnapshot(t.Context(), &b, admin.SaveOptions{}); err != nil {
+			t.Fatal(err)
+		}
+		a, err := snapshot.Read(bytes.NewReader(b.Bytes()), snapshot.ReadOptions{MaxBytes: int64(b.Len())})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return a
+	}
+	first, second := save(), save()
+	if first.Manifest.CutWall != nil {
+		t.Errorf("an explicit save recorded the cut wall instant %v", first.Manifest.CutWall)
+	}
+	diffs, err := snapshot.Diff(first, second, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range diffs {
+		if d.Counter() == snapshot.NoCounter {
+			t.Errorf("two explicit saves of one state differ beyond the manifest counters: %s", d)
+		}
+	}
 }
 
 // The path form is rooted in <data dir>/snapshots: a save named after a

@@ -1,7 +1,6 @@
 package topology
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io/fs"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/containermarker"
 	"github.com/sustinbebustin/understudy/internal/docker"
 )
 
@@ -136,18 +136,9 @@ func hostOf(a net.Addr) netip.Addr {
 // /.dockerenv, /run/.containerenv, or a container runtime named in
 // /proc/1/cgroup (containers.md 8.3).
 func RunsInContainer(root fs.FS) bool {
-	for _, marker := range []string{".dockerenv", "run/.containerenv"} {
-		if _, err := fs.Stat(root, marker); err == nil {
-			return true
-		}
-	}
-	cgroup, err := fs.ReadFile(root, "proc/1/cgroup")
-	if err != nil {
-		return false
-	}
-	return slices.ContainsFunc([]string{"docker", "kubepods", "containerd", "libpod"}, func(word string) bool {
-		return bytes.Contains(cgroup, []byte(word))
-	})
+	return containermarker.Read(func(path string) ([]byte, error) {
+		return fs.ReadFile(root, strings.TrimPrefix(path, "/"))
+	}).Any()
 }
 
 // detectSelf finds understudy's own container and the network functions

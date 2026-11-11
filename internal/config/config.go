@@ -259,9 +259,8 @@ func (DockerDisabled) isDocker() {}
 // S3 holds the S3 settings.
 type S3 struct {
 	// BaseDomains are the hosts virtual-hosted addresses end in.
-	BaseDomains    []string
-	CrossRegion    CrossRegion
-	MaxObjectBytes int64
+	BaseDomains []string
+	CrossRegion CrossRegion
 }
 
 // CrossRegion is the s3.crossRegion switch.
@@ -411,8 +410,7 @@ const (
 
 // DynamoDB holds the DynamoDB Local settings.
 type DynamoDB struct {
-	Mode     DynamoDBMode
-	Registry Registry
+	Mode DynamoDBMode
 	// MemoryLimit is the container's memory limit in bytes.
 	MemoryLimit int64
 }
@@ -433,15 +431,6 @@ type DynamoDBDisabled struct{}
 
 func (DynamoDBEnabled) isDynamoDBMode()  {}
 func (DynamoDBDisabled) isDynamoDBMode() {}
-
-// Registry is where DynamoDB Local is pulled from first.
-type Registry uint8
-
-// Registry values.
-const (
-	RegistryDockerHub Registry = iota
-	RegistryECRPublic
-)
 
 // Journal holds the event journal settings.
 type Journal struct {

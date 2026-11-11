@@ -67,7 +67,7 @@ Persistence is off by default. With `--persist`, understudy keeps its state in a
 understudy serve --persist ./.understudy
 ```
 
-It writes a checkpoint every 30 seconds of wall time while state changes (`--persist-every`) and on a clean shutdown, so a crash loses at most that interval. The directory is locked while a server uses it. Under `--persist`, DynamoDB Local keeps its tables in the same directory.
+It writes a checkpoint every 30 seconds of wall time while state changes (`--persist-every`) and on a clean shutdown, so a crash loses at most that interval. A change is anything a restart restores: resources, fault rules, the clock's mode or a frozen clock's time, a seeded id draw, or a journaled event, so any API call counts, read-only ones included. Emulator time passing on a running or scaled clock, and an advance of one, are not changes on their own: an idle server writes nothing, and such an advance is saved with the next change or at shutdown. On a restart, a running clock keeps its offset from wall time at the last checkpoint, so an `understudy clock advance` survives however long the server was stopped; a frozen clock holds its time, and a scaled one resumes from its saved time. `snapshot load` keeps the archive's time in every mode. The directory is locked while a server uses it. Under `--persist`, DynamoDB Local keeps its tables in the same directory.
 
 With persistence on, `--on-server` saves to and loads from the server's own `<dir>/snapshots/`, which avoids sending the archive over the connection:
 

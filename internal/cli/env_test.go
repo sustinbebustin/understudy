@@ -3,7 +3,9 @@ package cli_test
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -222,4 +224,54 @@ func noteLine(s, prefix string) string {
 		}
 	}
 	return ""
+}
+
+// Without --tls-endpoint, env --tls takes the TLS listener's URL from
+// health, so a listener on any port is found.
+func TestEnvTLSFindsTheListenerFromHealth(t *testing.T) {
+	s := serve(t, "--tls")
+	defer s.stop()
+	ca := filepath.Join(t.TempDir(), "ca.pem")
+	r := runCLI(t.Context(), s.endpoint, nil, "env", "--tls", "--sdk", "go", "--format", "dotenv", "--ca-file", ca)
+	if got := stripComments(r.stdout); r.code != admin.ExitOK || !strings.Contains(got, "AWS_ENDPOINT_URL="+s.tlsEndpoint+"\n") || !strings.Contains(got, "AWS_CA_BUNDLE="+ca+"\n") {
+		t.Fatalf("env --tls without --tls-endpoint = %d, want the endpoint %s and a CA bundle:\n%s%s", r.code, s.tlsEndpoint, r.stdout, r.stderr)
+	}
+	if _, err := os.Stat(ca); err != nil {
+		t.Errorf("env --tls wrote no CA file: %v", err)
+	}
+}
+
+// healthStub answers GET /health as a ready server whose body is body.
+func healthStub(t *testing.T, body string) string {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := io.WriteString(w, body); err != nil {
+			t.Errorf("writing the health stub's answer: %v", err)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv.URL
+}
+
+// Health that names no TLS listener leaves env --tls at the endpoint's
+// host and port 4567.
+func TestEnvTLSFallsBackToThePortServeDefaultsTo(t *testing.T) {
+	endpoint := healthStub(t, `{"ready":true}`)
+	r := runCLI(t.Context(), endpoint, nil, "env", "--tls", "--ca-file", filepath.Join(t.TempDir(), "ca.pem"))
+	if r.code == admin.ExitOK || !strings.Contains(r.stderr, "127.0.0.1:4567") {
+		t.Errorf("env --tls against health naming no TLS listener = %d, want a failure about 127.0.0.1:4567:\n%s%s", r.code, r.stdout, r.stderr)
+	}
+}
+
+// --tls-endpoint wins over what health names.
+func TestEnvTLSEndpointFlagOverridesHealth(t *testing.T) {
+	s := serve(t, "--tls")
+	defer s.stop()
+	endpoint := healthStub(t, `{"ready":true,"tlsEndpoint":"https://127.0.0.1:1"}`)
+	ca := filepath.Join(t.TempDir(), "ca.pem")
+	r := runCLI(t.Context(), endpoint, nil, "env", "--tls-endpoint", s.tlsEndpoint, "--sdk", "go", "--format", "dotenv", "--ca-file", ca)
+	if got := stripComments(r.stdout); r.code != admin.ExitOK || !strings.Contains(got, "AWS_ENDPOINT_URL="+s.tlsEndpoint+"\n") {
+		t.Errorf("env --tls-endpoint %s against health naming another = %d:\n%s%s", s.tlsEndpoint, r.code, r.stdout, r.stderr)
+	}
 }

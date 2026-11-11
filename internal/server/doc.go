@@ -82,10 +82,12 @@
 //     leftovers.
 //   - Persistence (persist.go) locks <dir>/.lock, keeps blobs in
 //     <dir>/blobs and the archive at <dir>/state.snapshot, loaded in New.
-//     A checkpoint is a snapshot cut whose sections and fault rules are
-//     hashed; it is written only when that digest differs from the last
-//     saved, since the clock, journal counter and id positions move without
-//     any state changing, and always at shutdown. The blob store is synced
+//     A checkpoint is a snapshot cut whose sections, fault rules and
+//     runtime head (clock mode, a Frozen clock's instant, seeded id
+//     positions, journal counter) are hashed; it is written only when that
+//     digest differs from the last saved, and always at shutdown. The
+//     instant of a Running or Scaled clock moves with wall time and is left
+//     out, so an idle server writes nothing. The blob store is synced
 //     before the archive is renamed into place and the directory is synced
 //     after, and the blobs the archive on disk names stay pinned until a
 //     newer one has durably replaced it, so a crash after a delete loses
@@ -98,12 +100,19 @@
 //     re-run against the then-current version.
 //     Extracted function code lives in <dir>/code, or in the run's
 //     temporary directory without persistence.
-//   - The TLS listener's certificate is generated at every start
-//     (ECDSA P-256, its own CA, SANs localhost, *.localhost, 127.0.0.1,
-//     with critical name constraints to localhost, names under it and
-//     loopback addresses, so as a trust root it vouches for nothing else),
-//     and its URL is the ready file's tlsEndpoint. The certificate is not
-//     written to disk; a client trusts it by reading it from the handshake.
+//   - The TLS listener's certificate (ECDSA P-256, its own CA, SANs
+//     localhost, *.localhost, 127.0.0.1, with critical name constraints to
+//     localhost, names under it and loopback addresses, so as a trust root
+//     it vouches for nothing else) is generated at every start without
+//     persistence, and nothing is written. With persistence the key (mode
+//     0600) and certificate are stored in the data directory as tls.key and
+//     tls.crt and reused at the next start, unless they do not parse or
+//     match, the certificate is not exactly what this build issues, or it
+//     is not valid for at least another day of wall time; then a new pair
+//     replaces them with a Warn log line naming why. A pair that cannot be
+//     stored is logged and the new certificate served. Its URL is the
+//     ready file's tlsEndpoint; a client trusts it by reading it from the
+//     handshake.
 //   - Each service is one row of the wiring table, wiredServices: its
 //     generated API and its constructor. The registry, the constructed
 //     services, the collected Stateful views and the checks all read the

@@ -22,11 +22,7 @@ func TestServerConfigMapsIAMEnforce(t *testing.T) {
 		{[]string{"--iam-enforce", "enforce"}, server.IAMEnforceEnforce},
 	}
 	for _, c := range cases {
-		s, err := serverConfig(loadFile(t, c.args, `{}`), "test")
-		if err != nil {
-			t.Errorf("%q: serverConfig = %v", c.args, err)
-			continue
-		}
+		s := serverConfig(loadFile(t, c.args, `{}`), "test")
 		if s.IAMEnforce != c.want {
 			t.Errorf("%q: IAMEnforce = %v, want %v", c.args, s.IAMEnforce, c.want)
 		}

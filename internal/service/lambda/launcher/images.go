@@ -23,7 +23,8 @@ func (r RuntimeImage) Ref() string { return r.Repository + "@" + r.Digest }
 
 // RuntimeImages is the pinned table of the runtimes understudy supports
 // (lambda-api.md 4.2): each tag's multi-architecture index digest as
-// public.ecr.aws served it on 2026-10-14.
+// public.ecr.aws served it on 2026-10-14. scripts/repin-runtime-images
+// rewrites the digests and that date when a release is prepared.
 func RuntimeImages() []RuntimeImage {
 	const repo = "public.ecr.aws/lambda/"
 	return []RuntimeImage{

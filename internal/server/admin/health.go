@@ -48,6 +48,9 @@ func (h *Handler) health(w http.ResponseWriter, r *http.Request, _ []string) {
 		Listener: listener.String(),
 		Clock:    h.state(),
 	}
+	if tls := h.tlsEndpoint.Load(); tls != nil {
+		out.TLSEndpoint = *tls
+	}
 	if h.o.Components != nil {
 		c := h.o.Components.Components(r.Context())
 		out.Docker, out.DynamoDBLocal, out.Topology = c.Docker, c.DynamoDBLocal, c.Topology

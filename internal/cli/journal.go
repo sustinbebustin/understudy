@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"net/http"
+	"net/http/httptrace"
 	"strconv"
 	"strings"
 	"sync"
@@ -107,28 +107,18 @@ func eachEvent(ctx context.Context, c *admin.Client, q admin.JournalQuery, f fun
 // end of a long session is what a query is usually after. In text, a
 // notice on stderr says when events were left out or none matched.
 func (r *runner) printNewest(ctx context.Context, c *admin.Client, q admin.JournalQuery, limit int) error {
-	// newest is a ring of the last limit events seen; matched counts them
-	// all, so matched % limit is the oldest kept once it is full.
-	var newest []admin.JournalEvent
-	matched := 0
-	err := eachEvent(ctx, c, q, func(e *admin.JournalEvent) error {
-		if len(newest) < limit {
-			newest = append(newest, *e)
-		} else {
-			newest[matched%limit] = *e
-		}
-		matched++
-		return nil
-	})
+	// One event beyond the limit tells whether older matches exist; the
+	// tail does not count the matches.
+	events, err := c.JournalTail(ctx, q, limit+1)
 	if err != nil {
 		return err
 	}
-	start := 0
-	if matched > limit {
-		start = matched % limit
+	leftOut := len(events) > limit
+	if leftOut {
+		events = events[len(events)-limit:]
 	}
-	for i := range newest {
-		if err := r.writeEvent(&newest[(start+i)%len(newest)]); err != nil {
+	for i := range events {
+		if err := r.writeEvent(&events[i]); err != nil {
 			return err
 		}
 	}
@@ -136,10 +126,10 @@ func (r *runner) printNewest(ctx context.Context, c *admin.Client, q admin.Journ
 		return nil
 	}
 	switch {
-	case matched == 0:
+	case len(events) == 0:
 		_, err = fmt.Fprintln(r.o.Stderr, "no events matched")
-	case matched > limit:
-		_, err = fmt.Fprintf(r.o.Stderr, "showing the newest %d of %d matching events; raise --limit, narrow with --since, --service or --errors, or use --follow\n", limit, matched)
+	case leftOut:
+		_, err = fmt.Fprintf(r.o.Stderr, "showing the newest %d matching events; raise --limit, narrow with --since, --service or --errors, or use --follow\n", limit)
 	}
 	return err
 }
@@ -164,13 +154,13 @@ func (r *runner) follow(ctx context.Context, c *admin.Client, q admin.JournalQue
 	// The buffer holds what the stream delivers while the query prints;
 	// beyond it the server's own buffer reports a gap rather than block.
 	s := &subscription{subscribed: make(chan struct{}), events: make(chan admin.JournalEvent, 1024)}
-	// The stream's headers come once the server subscribes, so the
+	// The stream's answer starts once the server subscribes, so c's
 	// answer bound holds; the body that follows is not bounded.
-	sc, err := r.clientWith(&http.Client{Transport: &onResponse{base: newAnswerBound(r.answer), done: s.subscribed}})
-	if err != nil {
-		return err
-	}
-	go s.read(ctx, sc.JournalStream(ctx, q, 0))
+	var once sync.Once
+	subscribing := httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+		GotFirstResponseByte: func() { once.Do(func() { close(s.subscribed) }) },
+	})
+	go s.read(ctx, c.JournalStream(subscribing, q, 0))
 	if !s.ready() {
 		return followEnd(ctx, s.err)
 	}
@@ -257,22 +247,6 @@ func followEnd(ctx context.Context, err error) error {
 	}
 }
 
-// onResponse closes done once a request through it has its response
-// headers: for the journal stream, the server has subscribed by then.
-type onResponse struct {
-	base http.RoundTripper
-	done chan struct{}
-	once sync.Once
-}
-
-func (t *onResponse) RoundTrip(req *http.Request) (*http.Response, error) {
-	resp, err := t.base.RoundTrip(req)
-	if err == nil {
-		t.once.Do(func() { close(t.done) })
-	}
-	return resp, err
-}
-
 // writeEvent prints one event: an NDJSON line, or a text line.
 func (r *runner) writeEvent(e *admin.JournalEvent) error {
 	if r.output == outputJSON {
@@ -338,6 +312,8 @@ func summary(e *admin.JournalEvent) (text, requestID string) {
 		text, ok = gapSummary(e.Detail)
 	case "admin-action":
 		text, ok = adminActionSummary(e.Detail)
+	case "redrive":
+		text, ok = redriveSummary(e.Detail)
 	}
 	if ok {
 		return text, requestID
@@ -539,6 +515,32 @@ func adminActionSummary(detail json.RawMessage) (string, bool) {
 			return "no fault rules to remove", true
 		}
 		return "fault rule(s) " + strings.Join(d.Rules, ", ") + " removed", true
+	}
+	return "", false
+}
+
+// redriveSummary is SQS moving messages between queues: "src -> dlq 2
+// message(s) past maxReceiveCount 3" or "dlq -> src 1 message(s) by move
+// task".
+func redriveSummary(detail json.RawMessage) (string, bool) {
+	d, ok := decodeDetail[struct {
+		From     string   `json:"from"`
+		To       string   `json:"to"`
+		Messages []string `json:"messages"`
+		Reason   struct {
+			Kind  string `json:"kind"`
+			Count int    `json:"count"`
+		} `json:"reason"`
+	}](detail)
+	if !ok {
+		return "", false
+	}
+	text := fmt.Sprintf("%s -> %s %d message(s)", shortARN(d.From), shortARN(d.To), len(d.Messages))
+	switch d.Reason.Kind {
+	case "max-receive-count":
+		return fmt.Sprintf("%s past maxReceiveCount %d", text, d.Reason.Count), true
+	case "move-task":
+		return text + " by move task", true
 	}
 	return "", false
 }

@@ -2,6 +2,7 @@ package s3_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5" //nolint:gosec // SSE-C sends the MD5 of the customer key; the test recomputes it
 	"encoding/base64"
 	"encoding/hex"
@@ -913,7 +914,7 @@ func TestSSECKeyNeverStored(t *testing.T) {
 				t.Errorf("snapshot section %s holds %q", sec.Path, l)
 			}
 		}
-		if err := k.Journal.Close(); err != nil {
+		if err := k.Journal.Close(context.Background()); err != nil {
 			t.Fatalf("closing the journal: %v", err)
 		}
 		journal, rerr := os.ReadFile(journalPath)

@@ -125,8 +125,11 @@ type wiring struct {
 	clockFrom clockOrigin
 	// own are understudy's own addresses, which SNS HTTP delivery refuses;
 	// Serve records its listeners there.
-	own     *ownAddrs
-	stopped sync.Once
+	own *ownAddrs
+	// journalGrace bounds how long close waits for the journal file's
+	// queue to drain.
+	journalGrace time.Duration
+	stopped      sync.Once
 }
 
 // wire builds the registry, the kernel with its clock, journal, faults,
@@ -135,7 +138,7 @@ type wiring struct {
 // state. Each service constructor gets kernel.ServiceDeps and its Options;
 // this file is the only place that names every service.
 func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
-	w = &wiring{clockFrom: clockSetting{}}
+	w = &wiring{clockFrom: clockSetting{}, journalGrace: journalCloseTimeout}
 	defer func() {
 		if err != nil {
 			err = errors.Join(err, w.close(context.Background()))
@@ -674,7 +677,7 @@ func (w *wiring) load(cfg Config, snapshots *snapshot.Coordinator, log *slog.Log
 		if every <= 0 {
 			every = DefaultSaveEvery
 		}
-		w.persist = &persister{dir: w.data, coord: snapshots, blobs: w.blobs, clock: w.kernel.Clock(), log: log, every: every, maxBytes: snapshotMaxBytes(cfg)}
+		w.persist = &persister{dir: w.data, coord: snapshots, admin: w.admin, blobs: w.blobs, clock: w.kernel.Clock(), log: log, every: every, maxBytes: snapshotMaxBytes(cfg)}
 		restored, err := w.persist.load(context.Background())
 		if err != nil {
 			return err
@@ -1061,6 +1064,11 @@ const drainTimeout = 30 * time.Second
 // after the drain.
 const removeOwnTimeout = 10 * time.Second
 
+// journalCloseTimeout bounds how long closing waits for the journal file's
+// queue to drain, so a disk that has stopped answering cannot hold
+// shutdown. Events still queued then may be missing from the file.
+const journalCloseTimeout = 5 * time.Second
+
 // stopContainers removes the Lambda environments and DynamoDB Local, once:
 // at shutdown while the kernel still runs, or when a wiring that never
 // served is closed.
@@ -1115,7 +1123,9 @@ func (w *wiring) close(ctx context.Context) error {
 		errs = append(errs, w.data.close())
 	}
 	if w.journal != nil {
-		errs = append(errs, w.journal.Close())
+		jctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), w.journalGrace)
+		errs = append(errs, w.journal.Close(jctx))
+		cancel()
 	}
 	if err := errors.Join(errs...); err != nil {
 		return fmt.Errorf("server: releasing the emulator's resources: %w", err)

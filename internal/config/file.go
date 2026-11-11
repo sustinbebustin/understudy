@@ -47,9 +47,8 @@ type fileKey struct {
 }
 
 type fileS3 struct {
-	BaseDomains    []string `json:"baseDomains"`
-	CrossRegion    *string  `json:"crossRegion"`
-	MaxObjectBytes *int64   `json:"maxObjectBytes"`
+	BaseDomains []string `json:"baseDomains"`
+	CrossRegion *string  `json:"crossRegion"`
 }
 
 type fileLambda struct {
@@ -96,9 +95,8 @@ type fileIAM struct {
 }
 
 type fileDynamoDB struct {
-	Enabled     *bool   `json:"enabled"`
-	Registry    *string `json:"registry"`
-	MemoryLimit *int64  `json:"memoryLimit"`
+	Enabled     *bool  `json:"enabled"`
+	MemoryLimit *int64 `json:"memoryLimit"`
 }
 
 type fileJournal struct {

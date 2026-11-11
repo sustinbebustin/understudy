@@ -43,9 +43,7 @@
 //     warnings about them on stderr; their JSON carries each rule's warning.
 //   - snapshot save gzips an archive whose name ends in .gz or .tgz.
 //   - serve parses its own flags through internal/config and maps the result
-//     onto server.Config with serverConfig. A setting this build's server
-//     does not apply yet (s3.maxObjectBytes, dynamodb.registry) is refused
-//     by name with exit 2 rather than ignored. serve takes --output as
+//     onto server.Config with serverConfig. serve takes --output as
 //     another name for --log-format, its logs go to stderr, and with JSON
 //     asked for, by flag or UNDERSTUDY_LOG_FORMAT, a configuration error is
 //     the JSON envelope too. The configuration's
@@ -81,15 +79,15 @@
 //     github format, which holds assignments only), with why DynamoDB Local
 //     is disabled when it is: Docker, or the server's reason. env --tls
 //     (ADR 0013) points AWS_ENDPOINT_URL at the TLS listener, by default the
-//     endpoint's host at port 4567 as serve --tls binds it, reads the
+//     URL the server's health names as tlsEndpoint, else the endpoint's host
+//     at port 4567 as serve --tls binds it, and --tls-endpoint overrides
+//     both; it reads the
 //     certificate the listener presents, accepts it only when it is
 //     self-signed, valid for that host and name-constrained to localhost and
 //     loopback addresses, writes it as PEM (--ca-file, default
 //     understudy/ca-<port>.pem in the user cache directory, not the shared
 //     temporary one) and prints AWS_CA_BUNDLE, plus NODE_EXTRA_CA_CERTS for
-//     JS, whose SDK does not read AWS_CA_BUNDLE. The health endpoint does not name the TLS
-//     listener, so a non-default one is passed with --tls-endpoint.
-//   - doctor and cleanup read the machine settings with config.LoadHost, so
+//     JS, whose SDK does not read AWS_CA_BUNDLE.//   - doctor and cleanup read the machine settings with config.LoadHost, so
 //     UNDERSTUDY_ADMIN_TOKEN, the CLI's own credential, does not fail them.
 //   - doctor checks the server, the configuration and its warnings, Docker
 //     (socket and permissions, through internal/docker), the topology

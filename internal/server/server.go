@@ -235,10 +235,7 @@ func (s *Server) Serve(ctx context.Context) error {
 		s.setPhase(built)
 		return err
 	}
-	eps := Endpoints{Main: advertised("http", main)}
-	if secure != nil {
-		eps.TLS = advertised("https", secure)
-	}
+	eps := Endpoints{Main: advertised("http", main), TLS: advertisedTLS(secure)}
 	sess, err := s.start(ctx, main, secure)
 	if err != nil {
 		return errors.Join(err, s.shutdown(ctx, sess))
@@ -291,7 +288,7 @@ func (s *Server) listen(ctx context.Context) (main, secure net.Listener, err err
 	if !ok {
 		return main, nil, nil
 	}
-	cert, err := selfSigned(s.wired.kernel.Clock().Wall())
+	cert, err := listenerCertificate(ctx, s.wired.data, s.wired.kernel.Clock().Wall(), s.log)
 	if err != nil {
 		return nil, nil, errors.Join(err, main.Close())
 	}
@@ -382,7 +379,7 @@ func (s *Server) start(ctx context.Context, main, secure net.Listener) (*session
 		w.local.startInBackground(bg)
 	})
 	sess.background.Go(func() { w.sweepGone(bg, s.log) })
-	w.admin.SetReady(bound)
+	w.admin.SetReady(bound, advertisedTLS(secure))
 	return sess, nil
 }
 

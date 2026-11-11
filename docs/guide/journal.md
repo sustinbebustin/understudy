@@ -25,7 +25,13 @@ Each line is one event: its id, emulator time, kind, account and region, and a s
 42     2027-01-01T00:00:58.638705835Z  delivery       000000000000/us-east-1 sns-to-sqs orders -> orders-worker attempt 0 filtered by {"kind":["order"]}
 ```
 
-Filters combine. `--since` counts back in emulator time. `--limit N` keeps the newest N matches (1000 by default). `--output json` prints one JSON object per line, with the call's redacted input, its principal, the client's user agent and the request id.
+Filters combine. `--since` counts back in emulator time. `--limit N` keeps the newest N matches (1000 by default), asking the journal for them in one request. When older matches were left out, a notice on stderr says so, without counting them:
+
+```text
+showing the newest 2 matching events; raise --limit, narrow with --since, --service or --errors, or use --follow
+```
+
+`--output json` prints one JSON object per line, with the call's redacted input, its principal, the client's user agent and the request id.
 
 | Kind | Recorded when |
 |---|---|
@@ -40,6 +46,7 @@ Filters combine. `--since` counts back in emulator time. `--limit N` keeps the n
 | `unclaimed` | A request no service claimed, with why each routing rule declined it |
 | `gap` | A stream consumer missed events: it fell behind, or resumed with `?after=` past events the journal has since dropped |
 | `admin-action` | An admin call changed state: a reset, a snapshot saved or loaded, a [fault rule](faults.md) added or removed; `op` in the detail says which |
+| `redrive` | SQS moved messages between queues: a receive past a queue's `maxReceiveCount` moved them to its dead-letter queue, or a step of a message move task moved them on. Its parent is that receive's `api-call` or the move task's `timer-fired`; the detail names both queues, the ids of the moved messages as the source queue held them, and the `reason` (`max-receive-count` with its `count`, or `move-task` with its `taskHandle`) |
 
 An [SNS HTTP delivery](sns-http.md) goes to an endpoint rather than a resource, so its line names the endpoint's host and port, never its path or credentials. Its JSON detail adds an `http` member:
 

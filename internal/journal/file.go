@@ -1,6 +1,7 @@
 package journal
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -28,7 +29,9 @@ type sink struct {
 	mu      sync.Mutex
 	queue   []queued
 	pending int   // estimated bytes of the events queued or taken by the writer and not yet written
+	waiting int   // the events counted in pending
 	closed  bool  // close was called; the writer exits once the queue is empty
+	abandon bool  // close gave up waiting; the writer starts no further write
 	err     error // the first failure; nothing is queued once it is set
 
 	// Owned by the writer goroutine once it starts.
@@ -106,6 +109,25 @@ func (o FileOp) String() string {
 		return fmt.Sprintf("FileOp(%d)", uint8(o))
 	}
 }
+
+// UnwrittenError is the cause of the FileClose failure of a Close whose
+// context ended before the writer drained the queue. The file holds a
+// prefix of recording order: Queued events, in the order recorded, were not
+// confirmed written, and at most the first of them is being written when
+// Close returns. Cause is the context's cause.
+type UnwrittenError struct {
+	Queued int
+	Cause  error
+}
+
+func (e *UnwrittenError) Error() string {
+	return fmt.Sprintf("gave up waiting for the disk after %v; the file may lack the %d events still queued for it, "+
+		"and holds every event recorded before them, so it ends at an event boundary except for a write in progress; "+
+		"memory, queries and streams are unaffected; check that the disk holding the file is not stalled or full",
+		e.Cause, e.Queued)
+}
+
+func (e *UnwrittenError) Unwrap() error { return e.Cause }
 
 // QueueFullError is the cause of a FileQueue failure: the disk fell so far
 // behind that queueing Event would take the estimated bytes waiting to be
@@ -213,6 +235,7 @@ func (s *sink) enqueue(e Event, size int) {
 	default:
 		s.queue = append(s.queue, queued{event: e, size: size})
 		s.pending += size
+		s.waiting++
 	}
 	s.mu.Unlock()
 	s.signal()
@@ -250,6 +273,7 @@ func (s *sink) run() {
 func (s *sink) written(size int) {
 	s.mu.Lock()
 	s.pending -= size
+	s.waiting--
 	s.mu.Unlock()
 }
 
@@ -271,11 +295,19 @@ func (s *sink) take() ([]queued, bool) {
 	}
 }
 
-// write appends one line unless a failure stopped the file. An encoding,
-// write or rotation failure stops it. Append and Begin refuse events that
-// cannot be encoded, so an encoding failure here is a journal bug.
+// abandoned reports whether close gave up waiting for the writer.
+func (s *sink) abandoned() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.abandon
+}
+
+// write appends one line unless a failure stopped the file or close gave up
+// waiting. An encoding, write or rotation failure stops it. Append and Begin
+// refuse events that cannot be encoded, so an encoding failure here is a
+// journal bug.
 func (s *sink) write(e Event) {
-	if s.f == nil {
+	if s.f == nil || s.abandoned() {
 		return
 	}
 	line, err := e.MarshalJSON()
@@ -344,12 +376,28 @@ func (s *sink) failure() error {
 }
 
 // close waits for the writer to write every queued event and close the
-// file, then returns the first failure. Calling it again returns the same.
-func (s *sink) close() error {
+// file, then returns the first failure. When ctx ends first it stops the
+// writer from starting another write and returns a FileClose *FileError
+// wrapping an *UnwrittenError, joined with the first failure if there is
+// one. Calling it again returns the same once the writer is done.
+func (s *sink) close(ctx context.Context) error {
 	s.mu.Lock()
 	s.closed = true
 	s.mu.Unlock()
 	s.signal()
-	<-s.done
-	return s.failure()
+	select {
+	case <-s.done:
+		return s.failure()
+	case <-ctx.Done():
+	}
+	s.mu.Lock()
+	s.abandon = true
+	queued := s.waiting
+	s.mu.Unlock()
+	select {
+	case <-s.done: // the writer finished while close gave up
+		return s.failure()
+	default:
+	}
+	return errors.Join(s.failure(), &FileError{Path: s.path, Op: FileClose, Err: &UnwrittenError{Queued: queued, Cause: context.Cause(ctx)}})
 }

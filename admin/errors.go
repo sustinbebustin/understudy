@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // ErrorCode is the closed set of admin API error codes. The CLI maps each to
@@ -157,7 +158,7 @@ type Envelope struct {
 	Error *Error `json:"error"`
 }
 
-// UnreachableError is an admin call that got no HTTP response: the
+// UnreachableError is an admin call that could not reach a server: the
 // emulator is not running at Endpoint, or the connection failed.
 type UnreachableError struct {
 	Endpoint string
@@ -171,9 +172,33 @@ func (e *UnreachableError) Error() string {
 
 func (e *UnreachableError) Unwrap() error { return e.Err }
 
+// NoAnswerError is an admin call the server at Endpoint took but did not
+// answer: the client's response bound, Within, ran out, or the connection
+// failed after the request was sent. The server may be busy with a long
+// call, wedged, stopped, or not understudy. Within is 0 when no known
+// bound ran out: the bound is not known, or the call ended another way,
+// such as the server closing the connection.
+type NoAnswerError struct {
+	Endpoint string
+	Within   time.Duration
+	Err      error
+}
+
+func (e *NoAnswerError) Error() string {
+	if e.Within > 0 {
+		return fmt.Sprintf("the server at %s took the call but sent no answer within %s; it may still be working on it, it may be wedged, or the program on that port may not be understudy",
+			e.Endpoint, e.Within)
+	}
+	return fmt.Sprintf("the server at %s took the call but sent no answer (%v); it may still be working on it, it may have stopped, or the program on that port may not be understudy",
+		e.Endpoint, e.Err)
+}
+
+func (e *NoAnswerError) Unwrap() error { return e.Err }
+
 // ExitCode returns the CLI exit code for the result of an admin call: 0 for
 // nil, the code's own exit code for an *Error, 3 for an *UnreachableError
-// and 1 for anything else.
+// or a *NoAnswerError and 1 for anything else, such as a call whose
+// context ended.
 func ExitCode(err error) int {
 	if err == nil {
 		return ExitOK
@@ -182,6 +207,9 @@ func ExitCode(err error) int {
 		return adminErr.Code.ExitCode()
 	}
 	if unreachable, ok := errors.AsType[*UnreachableError](err); ok && unreachable != nil {
+		return ExitUnreachable
+	}
+	if noAnswer, ok := errors.AsType[*NoAnswerError](err); ok && noAnswer != nil {
 		return ExitUnreachable
 	}
 	return ExitFailed

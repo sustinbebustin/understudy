@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"syscall"
 	"time"
@@ -204,6 +206,14 @@ func (d *dataDir) close() error {
 	return nil
 }
 
+// stateLocker runs fn under the state lock that reset and snapshot save
+// and load share: *serveradmin.Handler.WithStateLock. It is an interface
+// so a test can see that a checkpoint's whole cut and write run inside
+// it, which no amount of watching a blocked goroutine shows.
+type stateLocker interface {
+	WithStateLock(fn func() error) error
+}
+
 // persister loads the state at start and checkpoints it while it changes
 // (ARCHITECTURE.md 13): the archive at state.snapshot with its blobs left
 // in the blob store and without DynamoDB's items, which DynamoDB Local
@@ -211,6 +221,8 @@ func (d *dataDir) close() error {
 type persister struct {
 	dir   *dataDir
 	coord *snapshot.Coordinator
+	// admin owns the state lock that a checkpoint's cut runs under.
+	admin stateLocker
 	blobs *blob.Store
 	// clock is the emulator clock, whose wall time a restart resumes a
 	// Running clock at.
@@ -289,7 +301,7 @@ func (p *persister) load(ctx context.Context) (restored bool, err error) {
 		}
 		return false, fmt.Errorf("server: reading the saved state %s; %s: %w", filepath.Join(p.dir.path, stateFile), next, err)
 	}
-	a.Manifest.Clock = resumed(a.Manifest.Clock, clock.FromWire(p.clock.Wall()))
+	a.Manifest.Clock = resumed(a.Manifest.Clock, a.Manifest.CutWall, clock.FromWire(p.clock.Wall()))
 	if err := p.coord.Load(ctx, a); err != nil {
 		released, ok := errors.AsType[*snapshot.BlobReleaseError](err)
 		if !ok {
@@ -308,18 +320,28 @@ func (p *persister) load(ctx context.Context) (restored bool, err error) {
 	return true, p.remember(ctx)
 }
 
-// resumed is the clock a restart restores from the persisted saved one.
-// A Running clock follows wall time, which kept passing while no serve
-// ran, so it resumes at wall time, or at its saved instant when that is
-// later (a clock advanced ahead of wall time), so emulator time never
-// moves back past what the saved state recorded. The archive records no
-// offset from wall time, so an advance shorter than the downtime is
-// absorbed. A Frozen clock holds its instant, and a Scaled one resumes
-// from it, since nothing defines its time across the downtime. An
-// explicit snapshot load keeps the archive's instant in every mode.
-func resumed(saved snapshot.Clock, wall clock.Instant) snapshot.Clock {
-	if _, ok := saved.Mode.(clock.Running); ok && saved.At.Before(wall) {
-		saved.At = wall
+// resumed is the clock a restart restores from the persisted saved one,
+// cut at the wall instant cutWall (nil in an archive that does not record
+// it). A Running clock follows wall time, which kept passing while no
+// serve ran, so it resumes at wall plus its offset from wall time at the
+// cut, keeping an advance however long the downtime; an archive without
+// cutWall resumes it at wall, absorbing an advance shorter than the
+// downtime. Either way it resumes no earlier than its saved instant, so
+// emulator time never moves back past what the saved state recorded (ADR
+// 0009 amendment 2026-11-11). A Frozen clock holds its instant, and a
+// Scaled one resumes from it, since nothing defines its time across the
+// downtime. An explicit snapshot load keeps the archive's instant in every
+// mode.
+func resumed(saved snapshot.Clock, cutWall *clock.Instant, wall clock.Instant) snapshot.Clock {
+	if _, ok := saved.Mode.(clock.Running); !ok {
+		return saved
+	}
+	at := wall
+	if cutWall != nil {
+		at = wall.Add(saved.At.Sub(*cutWall))
+	}
+	if saved.At.Before(at) {
+		saved.At = at
 	}
 	return saved
 }
@@ -337,7 +359,13 @@ func (p *persister) remember(ctx context.Context) error {
 // checkpoint writes the state to state.snapshot atomically when it
 // differs from the last saved, or always when force is set, and moves the
 // blob pin from the replaced archive to the new one.
-func (p *persister) checkpoint(ctx context.Context, force bool) (err error) {
+func (p *persister) checkpoint(ctx context.Context, force bool) error {
+	return p.admin.WithStateLock(func() error { return p.checkpointLocked(ctx, force) })
+}
+
+// checkpointLocked is checkpoint's body, run under the handler's state
+// lock so no cut lands inside a reset (ADR 0009).
+func (p *persister) checkpointLocked(ctx context.Context, force bool) (err error) {
 	cut, err := p.coord.Cut(ctx)
 	if err != nil {
 		return fmt.Errorf("server: checkpoint: %w", err)
@@ -346,6 +374,9 @@ func (p *persister) checkpoint(ctx context.Context, force bool) (err error) {
 	if !force && sum == p.last {
 		return cut.Release()
 	}
+	// Read after the cut, so the Running offset a restart derives from it
+	// errs short by the cut's export time, never ahead.
+	cut.SetCutWall(clock.FromWire(p.clock.Wall()))
 	if n := cut.PendingEffects(); n > 0 {
 		p.log.LogAttrs(ctx, slog.LevelWarn, "the checkpoint holds writes whose effects, such as deliveries, had not run; a restart from it does not run them",
 			slog.Int("pending_effects", n))
@@ -470,9 +501,23 @@ func loadSnapshot(path string, maxBytes int64, k *kernel.Kernel, coord *snapshot
 	return nil
 }
 
-// digest identifies the state an archive holds: its sections and fault
-// rules, not the clock, journal counter or id positions, which move
-// without any state changing.
+// digest identifies what a restart from an archive restores: its sections,
+// its fault rules and the runtime head (ADR 0009 amendment 2026-10-13), so
+// a checkpoint counts as a change anything a crash would otherwise lose.
+// The head's fields are listed here one by one rather than hashed as the
+// encoded manifest: the clock's mode name (which carries a Scaled
+// factor), a Frozen clock's instant, the id seed and seeded stream
+// positions, and the journal's next event id.
+//
+// A field that moves with wall time alone stays out, so an idle server
+// writes nothing: the instant of a Running or Scaled clock, the wall
+// instant of the cut (Manifest.CutWall), and any wall-time field the
+// manifest gains.
+// Such a field is saved with the next change or at shutdown. The format,
+// writer, model pin and blob placement are fixed for the process, and the
+// section list and late services derive from the sections, so none is
+// hashed. Any API call records a journal event, so traffic in an interval
+// makes one write, read-only calls included.
 func digest(a snapshot.Archive) [sha256.Size]byte {
 	h := sha256.New()
 	field := func(b []byte) {
@@ -480,6 +525,7 @@ func digest(a snapshot.Archive) [sha256.Size]byte {
 		_, _ = h.Write(binary.BigEndian.AppendUint64(nil, uint64(len(b))))
 		_, _ = h.Write(b)
 	}
+	number := func(n uint64) { field(binary.BigEndian.AppendUint64(nil, n)) }
 	for _, s := range a.Sections {
 		field([]byte(s.Path))
 		field([]byte(strconv.Itoa(s.Version)))
@@ -489,6 +535,22 @@ func digest(a snapshot.Archive) [sha256.Size]byte {
 		}
 	}
 	field(a.Faults)
+
+	m := a.Manifest
+	field([]byte(m.Clock.ModeName()))
+	if _, ok := m.Clock.Mode.(clock.Frozen); ok {
+		field([]byte(m.Clock.At.String()))
+	}
+	if m.Seed != nil {
+		number(*m.Seed)
+	} else {
+		field(nil)
+	}
+	for _, kind := range slices.Sorted(maps.Keys(m.Positions)) {
+		number(uint64(kind))
+		number(m.Positions[kind])
+	}
+	number(uint64(m.JournalNext))
 	var sum [sha256.Size]byte
 	h.Sum(sum[:0])
 	return sum

@@ -13,6 +13,7 @@ export const journalKinds = [
   "unclaimed",
   "gap",
   "admin-action",
+  "redrive",
 ] as const;
 
 export const vias = [

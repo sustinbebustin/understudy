@@ -79,11 +79,7 @@ func TestServerConfigMapsAppliedSettings(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		s, err := serverConfig(loadFile(t, c.args, c.file), "test")
-		if err != nil {
-			t.Errorf("%s: serverConfig = %v", c.name, err)
-			continue
-		}
+		s := serverConfig(loadFile(t, c.args, c.file), "test")
 		if got := c.get(s); !reflect.DeepEqual(got, c.want) {
 			t.Errorf("%s = %#v, want %#v", c.name, got, c.want)
 		}
@@ -94,9 +90,7 @@ func TestServerConfigMapsAppliedSettings(t *testing.T) {
 // in it, and the values it calls defaults are the defaults.
 func TestServeHelpExampleFileLoads(t *testing.T) {
 	cfg := loadFile(t, nil, exampleFile)
-	if _, err := serverConfig(cfg, "test"); err != nil {
-		t.Fatalf("serverConfig of the example file = %v", err)
-	}
+	serverConfig(cfg, "test")
 	def := config.Defaults(config.OnHost{})
 	cases := map[string]struct{ got, want any }{
 		"listen":                    {cfg.Listen, def.Listen},
@@ -161,19 +155,16 @@ func TestConfigurationReferenceMatchesServeHelp(t *testing.T) {
 // (testcontainers.md 9.3).
 func TestServeCarriesDockerLabels(t *testing.T) {
 	labels := map[string]string{"org.testcontainers.session-id": "6f1b8c2e-1d7a-4c39-9a51-0d2f3b4c5e6f", "com.example/team": "payments"}
-	s, err := serverConfig(loadFile(t, []string{"--docker-labels", `{"org.testcontainers.session-id": "6f1b8c2e-1d7a-4c39-9a51-0d2f3b4c5e6f", "com.example/team": "payments"}`}, `{}`), "test")
-	if err != nil {
-		t.Fatalf("serverConfig = %v", err)
-	}
+	s := serverConfig(loadFile(t, []string{"--docker-labels", `{"org.testcontainers.session-id": "6f1b8c2e-1d7a-4c39-9a51-0d2f3b4c5e6f", "com.example/team": "payments"}`}, `{}`), "test")
 	if !maps.Equal(s.DockerLabels, labels) {
 		t.Errorf("DockerLabels = %v, want %v", s.DockerLabels, labels)
 	}
-	s, err = serverConfig(loadFile(t, nil, `{"dockerLabels": {"com.example/team": "payments"}}`), "test")
-	if err != nil || !maps.Equal(s.DockerLabels, map[string]string{"com.example/team": "payments"}) {
-		t.Errorf("serverConfig of the file key = %v, %v; want the file's labels", s.DockerLabels, err)
+	s = serverConfig(loadFile(t, nil, `{"dockerLabels": {"com.example/team": "payments"}}`), "test")
+	if !maps.Equal(s.DockerLabels, map[string]string{"com.example/team": "payments"}) {
+		t.Errorf("serverConfig of the file key = %v; want the file's labels", s.DockerLabels)
 	}
-	if s, err := serverConfig(loadFile(t, nil, `{}`), "test"); err != nil || len(s.DockerLabels) != 0 {
-		t.Errorf("serverConfig without the setting = %v, %v; want no labels", s.DockerLabels, err)
+	if s := serverConfig(loadFile(t, nil, `{}`), "test"); len(s.DockerLabels) != 0 {
+		t.Errorf("serverConfig without the setting = %v; want no labels", s.DockerLabels)
 	}
 	var help strings.Builder
 	if err := serveFlags(&help); err != nil {
@@ -184,27 +175,5 @@ func TestServeCarriesDockerLabels(t *testing.T) {
 	labelsAt := strings.Index(h, "\n  --docker-labels JSON\n")
 	if docker < 0 || labelsAt < docker || !strings.Contains(h, "      variable UNDERSTUDY_DOCKER_LABELS, file key \"dockerLabels\"\n") {
 		t.Errorf("serve --help does not list --docker-labels JSON, variable UNDERSTUDY_DOCKER_LABELS and file key dockerLabels after --docker:\n%s", h)
-	}
-}
-
-// serverConfig refuses, by name and where it may be set, each setting
-// this build's server does not apply; serve's help lists them.
-func TestServerConfigRefusesUnappliedSettings(t *testing.T) {
-	cases := map[string]struct{ file, where string }{
-		"s3.maxObjectBytes": {`{"s3": {"maxObjectBytes": 1024}}`, "the configuration file"},
-		"dynamodb.registry": {`{"dynamodb": {"registry": "ecr-public"}}`, "the configuration file"},
-	}
-	var help strings.Builder
-	if err := serveFlags(&help); err != nil {
-		t.Fatal(err)
-	}
-	for name, c := range cases {
-		_, err := serverConfig(loadFile(t, nil, c.file), "test")
-		if err == nil || !strings.Contains(err.Error(), name+" (from "+c.where+")") {
-			t.Errorf("serverConfig with %s = %v, want it refused by name, from %s", c.file, err, c.where)
-		}
-		if !strings.Contains(help.String(), name) {
-			t.Errorf("serve --help does not say %s is not supported yet:\n%s", name, help.String())
-		}
 	}
 }

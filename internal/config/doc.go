@@ -31,8 +31,8 @@
 //     ignored; UNDERSTUDY_ENDPOINT, the CLI's, is allowed. An empty variable is
 //     unset.
 //   - Where understudy runs decides the default listener: DetectPlacement
-//     reads the container markers internal/topology reads (/.dockerenv,
-//     /run/.containerenv, /proc/1/cgroup) and the network sysctls under
+//     reads the container markers internal/containermarker reports
+//     (/.dockerenv, /run/.containerenv, /proc/1/cgroup) and the network sysctls under
 //     /proc/sys/net through Load's readFile, which tests replace, and
 //     KUBERNETES_SERVICE_HOST from its env. Inside a container with its own network
 //     namespace, outside Kubernetes, the default is Exposed{0.0.0.0:4566,

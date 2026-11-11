@@ -176,7 +176,7 @@ curl -s --cacert "$AWS_CA_BUNDLE" "$(jq -r .UnsubscribeURL Notification.json)"
 understudy settle
 ```
 
-`env --tls` sets `AWS_CA_BUNDLE`, and `NODE_EXTRA_CA_CERTS` for Node, to understudy's certificate, which is new at every start. The receiver now holds all three message types, each with `"SigningCertURL" : "https://localhost:4567/_understudy/sns/SigningCert/..."`.
+`env --tls` sets `AWS_CA_BUNDLE`, and `NODE_EXTRA_CA_CERTS` for Node, to understudy's certificate, which is new at every start unless `serve --persist` keeps it in the data directory ([SDKs](sdks.md)). The receiver now holds all three message types, each with `"SigningCertURL" : "https://localhost:4567/_understudy/sns/SigningCert/..."`.
 
 **JavaScript, `sns-validator`.** Its host pattern is tested against the host with its port:
 

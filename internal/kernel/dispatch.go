@@ -196,7 +196,9 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 // before runs the request-phase fault rules (step 8) on a call whose input
 // carries items transaction items (WithItemCount). It reports stop when a
 // rule answers the call; a latency rule holds the call for its wall time
-// and lets the rules after it decide.
+// and lets the rules after it decide. Evaluate decides every rule at once,
+// so the call's Target.OnLatency is signalled, before the first hold, only
+// once the call has drawn all its fault hits.
 func (k *Kernel) before(ctx context.Context, c *Call, items int) (Result, *fault.Injection, bool) {
 	if k.faults == nil {
 		return nil, nil, false
@@ -209,6 +211,10 @@ func (k *Kernel) before(ctx context.Context, c *Call, items int) (Result, *fault
 			return Failure{Err: d.Err}, &d.Injection, true
 		case fault.Delay:
 			k.journalFault(ctx, c, d.Injection)
+			if signal := c.onLatency; signal != nil {
+				c.onLatency = nil
+				signal()
+			}
 			if err := k.wallDelay(ctx, d.Wall); err != nil {
 				k.journalSpent(ctx, c, d.Then)
 				return Failure{Err: err}, nil, true
