@@ -34,8 +34,9 @@ type Vocabulary struct {
 	Skewed awserr.Identity
 	// Expired: a presigned URL is past its expiry.
 	Expired awserr.Identity
-	// HeadersNotSigned: a presigned URL's request carries x-amz-* headers
-	// it did not sign. S3 answers AccessDenied.
+	// HeadersNotSigned: a presigned URL's request, or a header-signed S3
+	// request, carries x-amz-* headers it did not sign. S3 answers
+	// AccessDenied.
 	HeadersNotSigned awserr.Identity
 	// Conflicting: a presigned URL's request carries a signed header and a
 	// query parameter of the same name with different values, and its
@@ -237,10 +238,19 @@ func Missing(v Vocabulary) *awserr.Error {
 // time, because the client signed with its own clock), the scope date must
 // be the request date, and the signature must match the canonical request
 // over exactly the client's signed headers. The checks run in that order,
-// as Coral's do.
+// as Coral's do. Under S3Dialect every x-amz-* header the request carries
+// must be signed too, checked after the skew as a presigned URL's is after
+// its expiry (error-matrix.md 5.4 T8). The Coral families' answer to an
+// unsigned x-amz-* header is unrecorded, so they are not checked
+// (UNVERIFIED).
 func Verify(a SigV4Header, req Normalized, secret string, wallNow time.Time, v Vocabulary) *awserr.Error {
 	if err := checkSkew(a.Time, iso(a.Time), wallNow, v); err != nil {
 		return err
+	}
+	if v.Dialect == S3Dialect {
+		if err := checkAllAmzHeadersSigned(req, a.SignedHeaders, v); err != nil {
+			return err
+		}
 	}
 	if err := checkScopeDate(a.Credential, a.Time, v); err != nil {
 		return err
@@ -372,18 +382,19 @@ func expired(expiry time.Time, emuNow clock.Instant, v Vocabulary, lifetime ...a
 	return err
 }
 
-// s3UnsignedExempt reports whether S3 lets a presigned request carry the
-// lower-case x-amz-* header name unsigned: the SSE-C key and its MD5. With
+// s3UnsignedExempt reports whether S3 lets a request carry the lower-case
+// x-amz-* header name unsigned: the SSE-C key and its MD5. With
 // all three SSE-C headers unsigned S3 named only the algorithm (S3SOL-09
 // 09-presign-unsigned-ssec, recorded 2026-11-03; s3-ssec-object-lock.md
 // 3.10), and it names every unsigned header it does refuse
-// (error-matrix.md 5.4 T8).
+// (error-matrix.md 5.4 T8). That a header-signed request is exempt alike is
+// inferred.
 func s3UnsignedExempt(name string) bool {
 	return name == "x-amz-server-side-encryption-customer-key" || name == "x-amz-server-side-encryption-customer-key-md5"
 }
 
-// checkAllAmzHeadersSigned refuses a presigned request carrying x-amz-*
-// headers it did not sign, naming them as S3 does: sorted, joined with ", "
+// checkAllAmzHeadersSigned refuses a request carrying x-amz-* headers it
+// did not sign, naming them as S3 does: sorted, joined with ", "
 // (error-matrix.md 5.4 T8). S3 names them in its HeadersNotSigned element;
 // no recording shows a Coral answer, so the Coral text, which names them in
 // the message since Coral has no such member, is understudy's own

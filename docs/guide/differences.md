@@ -337,7 +337,7 @@ Real AWS was recorded for SSM on 2026-11-03 (`testdata/parity/ssm/`), and unders
 These apply to every service; S3's own refusals are under [S3 auth](#s3-auth).
 
 - Under `--sigv4 verify`, SQS's JSON protocol refuses a request signed outside the 15-minute window with 403, as recorded (`sqs/R18/03-sqs-json-skew-16min.json`); its status for a wrong signature or an unknown key is not recorded, and understudy answers those 400, as DynamoDB does.
-- Header-signed requests are not refused for leaving an `x-amz-*` header unsigned, as AWS refuses them, because it is not confirmed that every SDK signs those headers. Presigned requests are checked.
+- Under `verify`, a header-signed request to a service other than S3 is not refused for leaving an `x-amz-*` header unsigned. AWS's answer for those services is not recorded, so understudy does not check. S3 refuses such requests, header-signed or presigned, as AWS does.
 - A SigV2 presigned URL carries only its expiry instant, so it expires as intended only while the emulator clock stays at wall time; presign with SigV4 when a test moves the clock ([Signature verification](../configuration.md#signature-verification)).
 - Under `verify`, a clock change takes effect for presigned URLs from the next whole second, so an admin answer can wait up to one second.
 - The texts services other than S3 use for unsigned headers, expired session tokens and conflicting auth mechanisms are not recorded against AWS, so understudy's may differ.
