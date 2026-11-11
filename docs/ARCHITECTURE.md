@@ -1509,13 +1509,13 @@ type Config struct {
 	Accounts    Accounts       // default account, static keys
 	Regions     []aws.Region   // additions to the real-name table
 	Docker      Docker         // DockerSocket{Path} | DockerTCP{Addr} | DockerTLS{Addr, CertDir} | DockerDisabled
-	S3          S3             // BaseDomains (localhost.localstack.cloud may be added); CrossRegion: AWS | Lenient; MaxObjectBytes
+	S3          S3             // BaseDomains (localhost.localstack.cloud may be added); CrossRegion: AWS | Lenient
 	Lambda      Lambda         // Network: Auto | Bridge{Gateway} | Disabled; StartConcurrency; IdleTimeout; MaxEnvironments; StateTransitions; HotReload
 	SQS         SQS            // DeletedRecently: Ignore | Enforce
 	SNS         SNS            // HTTPDelivery: Allow (egress allow-list), CABundle
 	SES         SES            // VerifiedIdentities; ProductionAccess
 	IAM         IAM            // AssumeRole: strict | lenient; Enforce: off | advise | enforce
-	DynamoDB    DynamoDB       // Mode: Enabled | Disabled; Registry: DockerHub | ECRPublic; MemoryLimit
+	DynamoDB    DynamoDB       // Mode: Enabled | Disabled; MemoryLimit
 	Journal     Journal        // Capacity (events); MaxBytes; File
 	Faults      []fault.Rule   // preloaded
 	Log         Log            // slog level; JSON or text

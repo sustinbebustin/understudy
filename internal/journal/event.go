@@ -59,7 +59,7 @@ type Delivery struct {
 	// Endpoint is an HTTP delivery's host:port, the port defaulted to 80 or
 	// 443, and "" for every other target; never the path, query or
 	// userinfo. NDJSON writes it as "endpoint", omitted when "", so the
-	// lines of other deliveries read as before.
+	// lines of other deliveries are unchanged.
 	Endpoint  string
 	Mechanism delivery.Mechanism
 	Attempt   int

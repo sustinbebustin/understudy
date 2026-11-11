@@ -77,7 +77,7 @@ type Options struct {
 	// UISecret is this run's web UI session secret (ADR 0020). A call a web
 	// page makes passes refuseBrowser only when it carries this value in
 	// admin.UISessionHeader and is same-origin; empty means no session, so
-	// every such call is refused as before.
+	// every such call is refused.
 	UISecret string
 	// Version and ModelPin are reported by the health endpoint.
 	Version  string

@@ -765,8 +765,8 @@ func TestRequestPhaseLatencyKeepsSeededFaultHits(t *testing.T) {
 }
 
 // A direct call under the same rule waits out the latency before it
-// returns, as it always has: only a delivery attempt's target call lets
-// the outbox move on early.
+// returns: only a delivery attempt's target call lets the outbox move on
+// early.
 func TestRequestPhaseLatencyHoldsADirectCall(t *testing.T) {
 	run(t, func(k *kerneltest.K, _ *outbox.Outbox) {
 		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil }, resolvingQueues())

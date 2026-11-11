@@ -13,7 +13,8 @@ internal/service/lambda/launcher/images.go is resolved to its current
 multi-architecture index digest, and the table's digests and "served on"
 date are rewritten. A tag that does not resolve, or resolves to a
 single-architecture manifest, fails the run naming the tag, and the table
-is left as it was.
+is left as it was. On success it prints the pull request's pins section:
+whether any pin moved, then each pin's old and new digest.
 
 It reads only public.ecr.aws's anonymous OCI distribution API, the registry
 `understudy images pull` pulls from; it calls no AWS API.
@@ -140,6 +141,27 @@ def repin(root: Path, date: str, fetch: Fetch) -> list[tuple[Pin, str]]:
     return resolved
 
 
+def report(resolved: list[tuple[Pin, str]]) -> str:
+    """The Markdown prepare-release.yml puts in the pull request: a sentence saying
+    whether any pin moved, a blank line, then one line per pin."""
+    rows = "\n".join(
+        f"- {pin.runtime} ({pin.ref}): "
+        + (f"{pin.digest} -> {digest}" if digest != pin.digest else f"unchanged at {digest}")
+        for pin, digest in resolved
+    )
+    if any(digest != pin.digest for pin, digest in resolved):
+        lead = (
+            f"The Lambda runtime image pins in {TABLE} moved to the index digests {REGISTRY} serves today "
+            "(scripts/repin-runtime-images); test-docker tests them on this branch:"
+        )
+    else:
+        lead = (
+            f"The Lambda runtime image pins in {TABLE} were checked against the index digests {REGISTRY} serves "
+            "today (scripts/repin-runtime-images) and are unchanged; only the table's served-on date moved:"
+        )
+    return f"{lead}\n\n{rows}"
+
+
 def _fetch(req: urllib.request.Request) -> Response:
     with urllib.request.urlopen(req, timeout=30) as resp:
         return Response(
@@ -156,9 +178,7 @@ def main() -> int:
     except RepinError as e:
         print(f"repin-runtime-images: {e}\nNothing was changed: {TABLE} keeps its pins.", file=sys.stderr)
         return 1
-    for pin, digest in resolved:
-        moved = f"{pin.digest} -> {digest}" if digest != pin.digest else f"unchanged at {digest}"
-        print(f"- {pin.runtime} ({pin.ref}): {moved}")
+    print(report(resolved))
     return 0
 
 

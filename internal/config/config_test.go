@@ -149,9 +149,9 @@ func TestWrongShapesSayWhatIsExpected(t *testing.T) {
 	}
 }
 
-// s3.maxObjectBytes and dynamodb.registry were removed: S3 always enforces
-// AWS's single-PUT limit and DynamoDB Local always falls back to the ECR
-// Public mirror. A file that still names either fails as an unknown key.
+// s3.maxObjectBytes and dynamodb.registry are unknown keys: S3 enforces
+// AWS's single-PUT limit and DynamoDB Local falls back to the ECR Public
+// mirror, so neither has anything to configure.
 func TestRemovedSettingsAreUnknownKeys(t *testing.T) {
 	cases := []struct{ file, where string }{
 		{`{"s3": {"maxObjectBytes": 1024}}`, "understudy.json: s3.maxObjectBytes"},

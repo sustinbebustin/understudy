@@ -351,6 +351,42 @@ func TestClientReportsAServerThatSendsNoAnswer(t *testing.T) {
 	}
 }
 
+// A call the server read and then dropped, closing the connection without
+// an answer, is a NoAnswerError, exit code 3: a server took the call, so
+// the UnreachableError's advice to start one would be false. No response
+// bound ran out, so the error names none.
+func TestClientReportsAServerThatClosesWithoutAnAnswer(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		conn, _, err := http.NewResponseController(w).Hijack()
+		if err != nil {
+			t.Errorf("hijacking the connection: %v", err)
+			return
+		}
+		if err := conn.Close(); err != nil {
+			t.Errorf("closing the hijacked connection: %v", err)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	c, err := admin.New(srv.URL, admin.Options{HTTPClient: &http.Client{Transport: &http.Transport{ResponseHeaderTimeout: time.Minute}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Health(t.Context())
+	noAnswer, ok := errors.AsType[*admin.NoAnswerError](err)
+	if !ok || noAnswer.Endpoint != srv.URL || noAnswer.Within != 0 {
+		t.Fatalf("Health against a server that closes without answering = %#v, want a NoAnswerError for %s naming no bound", err, srv.URL)
+	}
+	if _, unreachable := errors.AsType[*admin.UnreachableError](err); unreachable {
+		t.Errorf("Health against a server that closes without answering = %v, which is also an UnreachableError", err)
+	}
+	if got := admin.ExitCode(err); got != admin.ExitUnreachable {
+		t.Errorf("ExitCode(%v) = %d, want %d", err, got, admin.ExitUnreachable)
+	}
+	if text := err.Error(); !strings.Contains(text, "took the call but sent no answer") || strings.Contains(text, "within") || strings.Contains(text, "in time") {
+		t.Errorf("error text %q: want it to say no answer came without naming a time bound", text)
+	}
+}
+
 // A call the caller's context ended before an answer came fails with an
 // error that names the call and is the context's error, not an
 // UnreachableError or a NoAnswerError: the server may be running fine.

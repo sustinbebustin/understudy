@@ -48,8 +48,9 @@ type Options struct {
 
 // Client calls the admin API of one running understudy. Every method
 // returns an *Error for an error the server answered, a *NoAnswerError
-// when the server took the call and sent no answer within the response
-// bound, an *UnreachableError when no server could be reached, and an
+// when the server took the call and sent no answer, whether the response
+// bound ran out or the connection failed after the request was sent, an
+// *UnreachableError when no server could be reached, and an
 // error wrapping the context's error when the caller's context ended
 // first. ExitCode maps each to the CLI's exit code.
 type Client struct {
@@ -539,7 +540,7 @@ func (c *Client) sendHeader(ctx context.Context, method, path string, v url.Valu
 	data, err := io.ReadAll(io.LimitReader(resp.Body, maxErrorBytes))
 	closeErr := resp.Body.Close()
 	if err := errors.Join(err, closeErr); err != nil {
-		return nil, c.failed(ctx, method, path, false, err)
+		return nil, c.failed(ctx, method, path, true, err)
 	}
 	resp.Body = io.NopCloser(bytes.NewReader(data))
 	var env Envelope
@@ -554,16 +555,21 @@ func (c *Client) sendHeader(ctx context.Context, method, path string, v url.Valu
 }
 
 // failed classifies err, the failure of the method path call: the caller's
-// context ending is that context's error, a timeout after the request was
-// sent (sent) is a *NoAnswerError, and anything else an *UnreachableError.
+// context ending is that context's error, any failure after the request
+// was sent (sent) is a *NoAnswerError, naming the response bound only when
+// a timeout ended the call, and a failure before the send an
+// *UnreachableError.
 func (c *Client) failed(ctx context.Context, method, path string, sent bool, err error) error {
-	timeout, isNetErr := errors.AsType[net.Error](err)
 	switch {
 	case ctx.Err() != nil:
 		return fmt.Errorf("admin: %s %s at %s was given up before an answer came, because the caller's context ended; the server may still be working on it: %w",
 			method, path, c.base.String(), ctx.Err())
-	case isNetErr && timeout.Timeout() && sent:
-		return &NoAnswerError{Endpoint: c.base.String(), Within: responseBound(c.hc), Err: err}
+	case sent:
+		var within time.Duration
+		if netErr, ok := errors.AsType[net.Error](err); ok && netErr.Timeout() {
+			within = responseBound(c.hc)
+		}
+		return &NoAnswerError{Endpoint: c.base.String(), Within: within, Err: err}
 	default:
 		return &UnreachableError{Endpoint: c.base.String(), Err: err}
 	}

@@ -243,7 +243,7 @@ func TestAppendRefusesAClockOpOutsideItsValues(t *testing.T) {
 }
 
 // Kinds lists every declared kind in value order, admin-action and then
-// redrive last (kind_wire_test.go: a kind added later is appended).
+// redrive last.
 func TestKindsListsEveryDeclaredKind(t *testing.T) {
 	named, _ := declaredKinds()
 	if got := Kinds(); !slices.Equal(got, named) {

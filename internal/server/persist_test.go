@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	goruntime "runtime"
 	"strings"
 	"testing"
 	"time"
@@ -21,10 +20,17 @@ import (
 	"github.com/sustinbebustin/understudy/internal/snapshot"
 )
 
-// A checkpoint is a whole-state cut, so it waits for the admin handler's
+// stateLockFunc is a stateLocker made of a function.
+type stateLockFunc func(fn func() error) error
+
+func (f stateLockFunc) WithStateLock(fn func() error) error { return f(fn) }
+
+// A checkpoint is a whole-state cut, so it runs under the admin handler's
 // state lock: a reset holds it from the drain to the fault clear, and a cut
-// between those steps would save a half-reset state.
-func TestCheckpointWaitsForTheStateLock(t *testing.T) {
+// between those steps would save a half-reset state. The checkpoint takes
+// the lock once, writes nothing before it holds it, and writes the state
+// file before it lets go.
+func TestCheckpointRunsUnderTheStateLock(t *testing.T) {
 	dir := t.TempDir()
 	srv, err := New(Config{Persist: PersistDir{Path: dir}, Docker: DockerDisabled{}, LogOutput: io.Discard})
 	if err != nil {
@@ -35,44 +41,45 @@ func TestCheckpointWaitsForTheStateLock(t *testing.T) {
 			t.Errorf("Close = %v", err)
 		}
 	})
-	state := filepath.Join(dir, stateFile)
-	done := make(chan error, 1)
-	started := make(chan struct{})
-	holdErr := srv.wired.admin.WithStateLock(func() error {
-		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://localhost:4566/", strings.NewReader(`{"QueueName":"a"}`))
-		req.Header.Set("Content-Type", "application/x-amz-json-1.0")
-		req.Header.Set("X-Amz-Target", "AmazonSQS.CreateQueue")
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("CreateQueue = %d %s", rec.Code, rec.Body)
-		}
-		go func() {
-			close(started)
-			done <- srv.wired.persist.checkpoint(t.Context(), false)
-		}()
-		<-started
-		for range 1000000 {
-			goruntime.Gosched()
-			select {
-			case err := <-done:
-				t.Fatalf("a checkpoint finished (err %v) while the state lock was held", err)
-			default:
-			}
-		}
-		if _, err := os.Stat(state); !errors.Is(err, fs.ErrNotExist) {
-			t.Errorf("a checkpoint wrote the state file while the state lock was held: stat err %v", err)
-		}
-		return nil
-	})
-	if holdErr != nil {
-		t.Fatal(holdErr)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://localhost:4566/", strings.NewReader(`{"QueueName":"a"}`))
+	req.Header.Set("Content-Type", "application/x-amz-json-1.0")
+	req.Header.Set("X-Amz-Target", "AmazonSQS.CreateQueue")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("CreateQueue = %d %s", rec.Code, rec.Body)
 	}
-	if err := <-done; err != nil {
+	state := filepath.Join(dir, stateFile)
+	var locks int
+	var beforeLock, insideLock error
+	var written []byte
+	srv.wired.persist.admin = stateLockFunc(func(fn func() error) error {
+		locks++
+		_, beforeLock = os.Stat(state)
+		return srv.wired.admin.WithStateLock(func() error {
+			err := fn()
+			written, insideLock = os.ReadFile(state)
+			return err
+		})
+	})
+	if err := srv.wired.persist.checkpoint(t.Context(), false); err != nil {
 		t.Fatalf("checkpoint = %v", err)
 	}
-	if _, err := os.Stat(state); err != nil {
-		t.Fatalf("a checkpoint after the lock was released wrote no state file: %v", err)
+	if locks != 1 {
+		t.Fatalf("a checkpoint took the state lock %d times, want 1", locks)
+	}
+	if !errors.Is(beforeLock, fs.ErrNotExist) {
+		t.Errorf("the state file existed before the checkpoint held the state lock: stat err %v", beforeLock)
+	}
+	if insideLock != nil {
+		t.Fatalf("the checkpoint wrote no state file while it held the state lock: %v", insideLock)
+	}
+	after, err := os.ReadFile(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(after, written) {
+		t.Errorf("the state file changed after the checkpoint let go of the state lock: %d bytes under the lock, %d after", len(written), len(after))
 	}
 }
 

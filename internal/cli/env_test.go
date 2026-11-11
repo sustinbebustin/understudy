@@ -254,8 +254,8 @@ func healthStub(t *testing.T, body string) string {
 	return srv.URL
 }
 
-// Health that names no TLS listener, as an older server's, leaves env
-// --tls at the endpoint's host and port 4567, as before.
+// Health that names no TLS listener leaves env --tls at the endpoint's
+// host and port 4567.
 func TestEnvTLSFallsBackToThePortServeDefaultsTo(t *testing.T) {
 	endpoint := healthStub(t, `{"ready":true}`)
 	r := runCLI(t.Context(), endpoint, nil, "env", "--tls", "--ca-file", filepath.Join(t.TempDir(), "ca.pem"))

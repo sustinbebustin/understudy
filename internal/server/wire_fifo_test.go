@@ -60,6 +60,8 @@ func TestCloseDoesNotWaitForAStalledJournalFile(t *testing.T) {
 	closed := make(chan error, 1)
 	go func() { closed <- w.close(context.Background()) }()
 	var closeErr error
+	// A wall-clock backstop, not synctest: a goroutine blocked writing a
+	// pipe is not durably blocked, as in internal/journal/stream_test.go.
 	select {
 	case closeErr = <-closed:
 	case <-time.After(time.Minute):

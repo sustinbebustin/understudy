@@ -206,6 +206,14 @@ func (d *dataDir) close() error {
 	return nil
 }
 
+// stateLocker runs fn under the state lock that reset and snapshot save
+// and load share: *serveradmin.Handler.WithStateLock. It is an interface
+// so a test can see that a checkpoint's whole cut and write run inside
+// it, which no amount of watching a blocked goroutine shows.
+type stateLocker interface {
+	WithStateLock(fn func() error) error
+}
+
 // persister loads the state at start and checkpoints it while it changes
 // (ARCHITECTURE.md 13): the archive at state.snapshot with its blobs left
 // in the blob store and without DynamoDB's items, which DynamoDB Local
@@ -214,7 +222,7 @@ type persister struct {
 	dir   *dataDir
 	coord *snapshot.Coordinator
 	// admin owns the state lock that a checkpoint's cut runs under.
-	admin *serveradmin.Handler
+	admin stateLocker
 	blobs *blob.Store
 	// clock is the emulator clock, whose wall time a restart resumes a
 	// Running clock at.

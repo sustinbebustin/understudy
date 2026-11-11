@@ -9,9 +9,11 @@
 //   - the caller's context ended: an error naming the call that wraps the
 //     context's error, so errors.Is sees context.Canceled or
 //     context.DeadlineExceeded;
-//   - the server took the call and sent no answer within the client's
-//     response bound: *NoAnswerError;
-//   - no server could be reached: *UnreachableError.
+//   - the server took the call and sent no answer, because the client's
+//     response bound ran out or the connection failed after the request
+//     was sent: *NoAnswerError;
+//   - the connection failed before the request was sent, so no server
+//     could be reached: *UnreachableError.
 //
 // ExitCode maps each result to the CLI's exit code, an *Error through the
 // one table in ErrorCode. Sums (ClockOp, FaultAction, FaultTrigger, TraceKey) are sealed

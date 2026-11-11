@@ -103,6 +103,34 @@ def test_repin_rewrites_every_digest_and_the_date(tmp_path):
         assert row.group(1) == digest_of(body)
 
 
+OLD = "sha256:" + "a" * 64
+NEW = "sha256:" + "b" * 64
+
+
+def pin(runtime: str, digest: str) -> "rp.Pin":
+    return rp.Pin(runtime, "lambda/python", runtime.removeprefix("python"), digest, 0, 0)
+
+
+def test_report_says_the_pins_moved_when_any_digest_changed():
+    report = rp.report([(pin("python3.13", OLD), NEW), (pin("python3.12", OLD), OLD)])
+    lead, rows = report.split("\n\n")
+    assert " moved to " in lead and "unchanged" not in lead
+    assert rows.splitlines() == [
+        f"- python3.13 (public.ecr.aws/lambda/python:3.13): {OLD} -> {NEW}",
+        f"- python3.12 (public.ecr.aws/lambda/python:3.12): unchanged at {OLD}",
+    ]
+
+
+def test_report_says_the_pins_are_unchanged_when_no_digest_changed():
+    report = rp.report([(pin("python3.13", OLD), OLD), (pin("python3.12", NEW), NEW)])
+    lead, rows = report.split("\n\n")
+    assert "checked" in lead and "unchanged" in lead and " moved to " not in lead
+    assert rows.splitlines() == [
+        f"- python3.13 (public.ecr.aws/lambda/python:3.13): unchanged at {OLD}",
+        f"- python3.12 (public.ecr.aws/lambda/python:3.12): unchanged at {NEW}",
+    ]
+
+
 def test_repin_names_an_unresolvable_tag_and_changes_nothing(tmp_path):
     root = tree(tmp_path)
     before = (root / TABLE).read_text()

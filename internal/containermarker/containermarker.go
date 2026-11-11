@@ -1,8 +1,7 @@
 // Package containermarker reads the signs that a process runs inside a
 // container: the marker files Docker and Podman leave and the container
 // runtime a cgroup names (containers.md 8.3). It only reports what it found;
-// callers decide what a finding means, for example that kubepods is a
-// Kubernetes pod to config's placement and a container to topology.
+// callers decide what a finding means.
 package containermarker
 
 import (
