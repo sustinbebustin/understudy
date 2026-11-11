@@ -259,8 +259,6 @@ func httpSwitches() []fidelity.Switch[string] {
 	all := []string{"sns.Subscribe", "sns.Publish", "sns.PublishBatch", "sns.UnsubscribeLink"}
 	control := []string{"sns.Subscribe", "sns.UnsubscribeLink"}
 	return []fidelity.Switch[string]{
-		httpSwitch("sns.http.status-classes", "retries-doc", evidence.Inferred, "61-response-classes", "SNSH-05, SNSH-24",
-			"recorded in SNSH-05 (2026-11-03): AWS counts 3xx and 4xx other than 429 as delivered, which understudy does not yet; SNSH-24 is unrecorded", all),
 		httpSwitch("sns.http.redirects", "not-followed", evidence.AWSRecorded, "31-method-url-and-connection", "SNSH-06", unreplayed("SNSH-06"), all),
 		httpSwitch("sns.http.retry-body", "identical", evidence.AWSRecorded, "46-field-values", "SNSH-07", unreplayed("SNSH-07"), all),
 		httpSwitch("sns.http.dlq-body", "as-sqs", evidence.AWSRecorded, "65-dead-letter-queue", "SNSH-08", unreplayed("SNSH-08"), publishOps()),

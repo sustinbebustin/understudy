@@ -338,17 +338,24 @@ func TestPostHTTPSendsTheDelivery(t *testing.T) {
 	})
 }
 
-// The answer's class follows the retries page: 2xx delivers, and SNS
-// "considers all 5XX errors and 429 (too many requests sent) errors as
-// retryable", as is a timeout (sns-http-delivery.md 6.1, aws-doc). The
-// classes of 3xx and of other 4xx are UNVERIFIED there and are not pinned
-// here.
+// The answer's class follows the retries page and the SNSH-05 recording:
+// 429, every 5xx and a timeout are retried; every other answer, 2xx, 3xx
+// and the 4xx AWS recorded as delivered (301, 302, 307, 400, 403, 404,
+// 410), ends the delivery with the status kept (sns-http-delivery.md 6.1,
+// testdata/parity/sns/SNSH/notes.md SNSH-05).
 func TestPostHTTPClassifiesTheAnswer(t *testing.T) {
 	cases := []struct {
 		status int
 		retry  bool
 	}{
 		{http.StatusOK, false},
+		{http.StatusMovedPermanently, false},
+		{http.StatusFound, false},
+		{http.StatusTemporaryRedirect, false},
+		{http.StatusBadRequest, false},
+		{http.StatusForbidden, false},
+		{http.StatusNotFound, false},
+		{http.StatusGone, false},
 		{http.StatusTooManyRequests, true},
 		{http.StatusInternalServerError, true},
 		{http.StatusBadGateway, true},
@@ -365,14 +372,14 @@ func TestPostHTTPClassifiesTheAnswer(t *testing.T) {
 				switch r := got.(type) {
 				case httpAccepted:
 					if c.retry || r.status != c.status {
-						t.Errorf("result = %#v, want a retry", r)
+						t.Errorf("result = %#v, want a retry, or %d delivered", r, c.status)
 					}
 				case httpRetry:
 					if !c.retry || r.reason == "" {
-						t.Errorf("result = %#v, want %d accepted, or a retry with a reason", r, c.status)
+						t.Errorf("result = %#v, want %d delivered, or a retry with a reason", r, c.status)
 					}
-				case httpPermanent, httpRefused:
-					t.Errorf("result = %#v, want %d accepted or retried", r, c.status)
+				case httpRefused:
+					t.Errorf("result = %#v, want %d delivered or retried", r, c.status)
 				}
 			})
 		})

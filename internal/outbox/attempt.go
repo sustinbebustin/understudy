@@ -349,11 +349,10 @@ func (a *attempt) permanent(ctx context.Context, f failure) (journal.DeliveryOut
 
 // endHTTP is the outcome of an HTTPEndpoint attempt that ended as r; false
 // when the kernel stopped first. By the reading sns-http-delivery.md 6.1
-// recommends, a 2xx delivers; 429, 5xx and a failed or timed-out exchange
-// are retried; any other answer is a permanent failure, dead-lettered when
-// the delivery has a queue. 6.1 leaves UNVERIFIED whether a
-// connection-level failure is retried (SNSH-24), and the class of 3xx and
-// other 4xx and whether a permanent failure goes to the DLQ (SNSH-05). A
+// recommends and SNSH-05 recorded, 429, 5xx and a failed or timed-out
+// exchange are retried; any other answer delivers, 3xx and 4xx included.
+// 6.1 leaves UNVERIFIED whether a connection-level failure is retried
+// (SNSH-24). A
 // request egress refused, or one with no client to send it, is Refused:
 // never retried or dead-lettered (7.3). The retry delay runs from the end
 // of the attempt (attemptEnd), waited of wall time after due. The exchange
@@ -372,8 +371,6 @@ func (a *attempt) endHTTP(ctx context.Context, r httpResult, waited time.Duratio
 			ended = attemptEnd(a.e.k.Clock().Mode(), a.due, waited)
 		}
 		return a.retry(ctx, endpointError{reason: r.reason}, ended)
-	case httpPermanent:
-		return a.deadLetter(ctx, endpointError{reason: statusText(r.status)}, refused)
 	case httpRefused:
 		return journal.Refused{Reason: r.reason}, true
 	}

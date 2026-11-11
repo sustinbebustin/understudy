@@ -19,7 +19,6 @@ Most differences are in error texts, codes and response details, not in the happ
 - Lambda deliveries: AWS orders `MessageAttributes` as a Java HashMap does; understudy sorts them by name (`logs/R16/01-lambda-events.json`).
 - The 10,000 filter policies per account quota is not enforced.
 - HTTP and HTTPS endpoints (`sns/SNSH`, recorded 2026-11-03):
-  - AWS counts a 3xx and a 4xx other than 429 as delivered; understudy treats them as permanent failures and dead-letters them.
   - AWS's `arithmetic`, `geometric` and `exponential` backoff curves are not linear; understudy steps every curve linearly.
   - AWS waited at least 20 seconds for an answer; understudy gives up after 15.
   - `throttlePolicy.maxReceivesPerSecond` is stored, not applied; AWS's pacing above a burst of 10 is unrecorded (a 10-message burst at rate 1 was not paced, `sns/SNSH` SNSH-20).

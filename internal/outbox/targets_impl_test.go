@@ -368,9 +368,7 @@ func TestEndHTTPOutcomes(t *testing.T) {
 		{"retries exhausted", delivery.None{}, httpRetry{reason: "HTTP 503 Service Unavailable"}, func(o journal.DeliveryOutcome) bool {
 			return o == journal.Dropped{Reason: "no dead-letter queue is set and its retries are exhausted; the last attempt failed with HTTP 503 Service Unavailable"}
 		}},
-		{"permanent with retries left", delivery.SNSManaged{}, httpPermanent{status: 404}, func(o journal.DeliveryOutcome) bool {
-			return o == journal.Dropped{Reason: "no dead-letter queue is set and the endpoint's answer is a permanent failure, which is not retried: HTTP 404 Not Found"}
-		}},
+		{"a 404 answer, which AWS counts as delivered", delivery.SNSManaged{}, httpAccepted{status: 404}, func(o journal.DeliveryOutcome) bool { return o == journal.Delivered{} }},
 	}
 	for _, c := range cases {
 		got, ok := httpAttempt(t, c.policy).endHTTP(t.Context(), c.result, 0)
@@ -385,16 +383,15 @@ func TestEndHTTPOutcomes(t *testing.T) {
 	}
 }
 
-// A 4xx other than 429 is a permanent failure under the retries page's
-// reading, which sns-http-delivery.md 6.1 recommends; the endpoint
-// preparation page conflicts, and the class is UNVERIFIED (SNSH-05).
-func TestPostHTTPClassifiesA404AsPermanent(t *testing.T) {
+// A 404 is a delivered answer, as AWS recorded in SNSH-05, with its status
+// kept (sns-http-delivery.md 6.1).
+func TestPostHTTPCountsA404AsDelivered(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		e := &endpoint{status: http.StatusNotFound}
 		got := postHTTP(t.Context(), egressTo(t, e), hook(t, "http://127.0.0.1:8080/hook"))
 		synctest.Wait()
-		if r, ok := got.(httpPermanent); !ok || r.status != http.StatusNotFound {
-			t.Errorf("postHTTP to a 404 = %#v, want permanent 404", got)
+		if r, ok := got.(httpAccepted); !ok || r.status != http.StatusNotFound {
+			t.Errorf("postHTTP to a 404 = %#v, want delivered with status 404", got)
 		}
 	})
 }
@@ -409,7 +406,7 @@ func TestHTTPDeadLetterCarriesTheBody(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := &Entry{Request: delivery.Request{Mechanism: delivery.SNSToSQS, Target: delivery.HTTPEndpoint{URL: *hook, Body: []byte("hook body")}}}
-	m := deadLetterMessage(e, dlq, endpointError{reason: "HTTP 404 Not Found"}, refused)
+	m := deadLetterMessage(e, dlq, endpointError{reason: "HTTP 503 Service Unavailable"}, exhausted)
 	if m.body != "hook body" || m.queue != dlq || len(m.attributes) != 0 {
 		t.Errorf("dead letter = %+v, want the body alone in %s", m, dlq)
 	}

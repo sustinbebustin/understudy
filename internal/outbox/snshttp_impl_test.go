@@ -57,45 +57,52 @@ func TestSNSHTTPSettleWaitsForTheAttemptInFlight(t *testing.T) {
 	})
 }
 
-// A permanent answer, a 4xx other than 429 under sns.http.status-classes,
-// is not retried: the notification goes to its dead-letter queue at once
-// (sns-http-delivery.md 6.1, 6.5), and the attempt's exchange is classed
-// permanent with the endpoint's status.
-func TestSNSHTTPPermanentAnswerGoesToTheDLQAtOnce(t *testing.T) {
-	r := answeringHook(http.StatusNotFound)
-	runHTTP(t, r, func(k *kerneltest.K, o *outbox.Outbox) {
-		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
-		dlq := arn("sqs", "orders-dlq")
-		req := toHook(k, "http://127.0.0.1:8080/hook", delivery.HTTPNotification, defaultHTTPPolicy())
-		req.DLQ = &dlq
-		enqueue(k, o, req, source(k))
-		settled(k)
-		advance(k, time.Hour)
-		if n := len(r.requests()); n != 1 {
-			k.Errorf("the endpoint got %d requests, want 1: a permanent failure is not retried", n)
-		}
-		if got := q.sent(); len(got) != 1 || got[0].queue != "orders-dlq" {
-			k.Errorf("SendMessage calls = %+v, want one dead letter to orders-dlq", got)
-		}
-		_, ds := httpDeliveries(k)
-		if len(ds) != 1 || ds[0].Outcome != (journal.DeadLettered{DLQ: dlq}) {
-			k.Fatalf("deliveries = %+v, want one attempt dead-lettered to %s", ds, dlq)
-		}
-		if x := ds[0].HTTP; x == nil || x.Status != http.StatusNotFound || x.Class != journal.HTTPPermanent {
-			k.Errorf("exchange = %+v, want status 404 classed permanent", x)
-		}
-	})
+// A 3xx, or a 4xx other than 429, counts as delivered, as AWS recorded in
+// SNSH-05: one attempt, no retry, nothing to the dead-letter queue, and
+// the attempt's exchange keeps the endpoint's status (sns-http-delivery.md
+// 6.1; testdata/parity/sns/SNSH/notes.md).
+func TestSNSHTTPNonRetryableAnswerIsDeliveredOnce(t *testing.T) {
+	for _, status := range []int{
+		http.StatusMovedPermanently, http.StatusFound, http.StatusTemporaryRedirect,
+		http.StatusBadRequest, http.StatusForbidden, http.StatusNotFound, http.StatusGone,
+	} {
+		t.Run(strconv.Itoa(status), func(t *testing.T) {
+			r := answeringHook(status)
+			runHTTP(t, r, func(k *kerneltest.K, o *outbox.Outbox) {
+				q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
+				dlq := arn("sqs", "orders-dlq")
+				req := toHook(k, "http://127.0.0.1:8080/hook", delivery.HTTPNotification, defaultHTTPPolicy())
+				req.DLQ = &dlq
+				enqueue(k, o, req, source(k))
+				settled(k)
+				advance(k, time.Hour)
+				if n := len(r.requests()); n != 1 {
+					k.Errorf("the endpoint got %d requests, want 1: the answer is not retried", n)
+				}
+				if got := q.sent(); len(got) != 0 {
+					k.Errorf("SendMessage calls = %+v, want no dead letter", got)
+				}
+				_, ds := httpDeliveries(k)
+				if len(ds) != 1 || ds[0].Outcome != (journal.Delivered{}) {
+					k.Fatalf("deliveries = %+v, want one delivered attempt", ds)
+				}
+				if x := ds[0].HTTP; x == nil || x.Status != status || x.Class != journal.HTTPSuccess {
+					k.Errorf("exchange = %+v, want status %d classed success", x, status)
+				}
+			})
+		})
+	}
 }
 
 // A raw notification's dead letter is its body with the message attributes
 // as SQS message attributes, and nothing else: no error attributes
 // (sns.http.dlq-body as-sqs, sns-http-delivery.md 6.5, 8.8).
 func TestSNSHTTPDeadLetterCarriesTheRawAttributes(t *testing.T) {
-	r := answeringHook(http.StatusBadRequest)
+	r := answeringHook(http.StatusServiceUnavailable)
 	runHTTP(t, r, func(k *kerneltest.K, o *outbox.Outbox) {
 		q := stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
 		dlq := arn("sqs", "orders-dlq")
-		req := toHook(k, "http://127.0.0.1:8080/hook", delivery.HTTPNotification, defaultHTTPPolicy())
+		req := toHook(k, "http://127.0.0.1:8080/hook", delivery.HTTPNotification, noRetryHTTPPolicy())
 		target, ok := req.Target.(delivery.HTTPEndpoint)
 		if !ok {
 			k.Fatal("target is not an HTTPEndpoint")
@@ -170,7 +177,7 @@ func TestSNSHTTPFaultAnsweredAttemptsDeadLetterInFiringOrder(t *testing.T) {
 	runHTTP(t, r, func(k *kerneltest.K, o *outbox.Outbox) {
 		if _, err := k.Faults.Add(fault.Rule{
 			Match: fault.Match{Mechanisms: []delivery.Mechanism{delivery.SNSToHTTP}}, Phase: fault.Delivery,
-			Action: fault.HTTPStatus{Status: http.StatusNotFound}, Trigger: fault.Always{},
+			Action: fault.HTTPStatus{Status: http.StatusServiceUnavailable}, Trigger: fault.Always{},
 		}); err != nil {
 			k.Fatal(err)
 		}
@@ -179,7 +186,7 @@ func TestSNSHTTPFaultAnsweredAttemptsDeadLetterInFiringOrder(t *testing.T) {
 		cause := source(k)
 		want := make([]string, n)
 		for i := range n {
-			req := toHook(k, "http://127.0.0.1:8080/hook", delivery.HTTPNotification, defaultHTTPPolicy())
+			req := toHook(k, "http://127.0.0.1:8080/hook", delivery.HTTPNotification, noRetryHTTPPolicy())
 			target, ok := req.Target.(delivery.HTTPEndpoint)
 			if !ok {
 				k.Fatal("target is not an HTTPEndpoint")

@@ -71,9 +71,6 @@ func (e ending) reason(f failure) string {
 	if e == exhausted {
 		return "its retries are exhausted; the last attempt failed with " + describeFailure(f)
 	}
-	if ep, ok := f.(endpointError); ok {
-		return "the endpoint's answer is a permanent failure, which is not retried: " + ep.reason
-	}
 	return "the target refused it with a client-side error, which is not retried: " + describeFailure(f)
 }
 

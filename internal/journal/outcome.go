@@ -82,18 +82,17 @@ func (Dropped) isDeliveryOutcome()      {}
 func (Refused) isDeliveryOutcome()      {}
 
 // HTTPClass is how an HTTP delivery attempt's answer is classed
-// (sns.http.status-classes, sns-http-delivery.md 6.1).
+// (sns-http-delivery.md 6.1, SNSH-05).
 type HTTPClass uint8
 
 // HTTPClass values.
 const (
-	// HTTPSuccess is a 2xx answer.
+	// HTTPSuccess is any answer but a 429 or 5xx, a 3xx or 4xx included: AWS
+	// counts it as delivered. The exchange's Status tells them apart.
 	HTTPSuccess HTTPClass = iota + 1
 	// HTTPRetryable is a 429 or 5xx answer, or a failed or timed-out
 	// exchange.
 	HTTPRetryable
-	// HTTPPermanent is any other status.
-	HTTPPermanent
 	// HTTPRefused is a request egress refused, or one with no client.
 	HTTPRefused
 )
@@ -105,8 +104,6 @@ func (c HTTPClass) String() string {
 		return "success"
 	case HTTPRetryable:
 		return "retryable"
-	case HTTPPermanent:
-		return "permanent"
 	case HTTPRefused:
 		return "refused"
 	default:
@@ -120,7 +117,7 @@ type HTTPClassError struct {
 }
 
 func (e *HTTPClassError) Error() string {
-	return fmt.Sprintf("%q names no HTTP class; known names are success, retryable, permanent and refused", e.Text)
+	return fmt.Sprintf("%q names no HTTP class; known names are success, retryable and refused", e.Text)
 }
 
 // ParseHTTPClass returns the HTTPClass named s, compared exactly.

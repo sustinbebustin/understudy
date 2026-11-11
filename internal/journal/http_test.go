@@ -16,16 +16,14 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
-// The classes of an HTTP attempt's answer under sns.http.status-classes
-// (sns-http-delivery.md 6.1), and egress's refusal (7.3), by their wire
-// names.
+// The classes of an HTTP attempt's answer (sns-http-delivery.md 6.1,
+// SNSH-05), and egress's refusal (7.3), by their wire names.
 var httpClassNames = []struct {
 	c    HTTPClass
 	name string
 }{
 	{HTTPSuccess, "success"},
 	{HTTPRetryable, "retryable"},
-	{HTTPPermanent, "permanent"},
 	{HTTPRefused, "refused"},
 }
 
@@ -69,7 +67,7 @@ func TestParseHTTPClassRefusesEveryOtherText(t *testing.T) {
 			t.Fatalf("ParseHTTPClass(%q) error = %v, want *HTTPClassError", text, err)
 		}
 		// Quoted as Go quotes it, like the package's other enum errors.
-		want := strconv.Quote(text) + " names no HTTP class; known names are success, retryable, permanent and refused"
+		want := strconv.Quote(text) + " names no HTTP class; known names are success, retryable and refused"
 		if ce.Text != text || err.Error() != want {
 			t.Fatalf("error = %q (Text %q)\nwant    %q", err, ce.Text, want)
 		}

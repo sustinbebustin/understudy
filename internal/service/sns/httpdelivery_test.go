@@ -261,7 +261,6 @@ func TestHTTPSwitchesAreListed(t *testing.T) {
 		anchor, record string
 		ops            []string
 	}{
-		{"sns.http.status-classes", "retries-doc", inf, "61-response-classes", "SNSH-05, SNSH-24", A},
 		{"sns.http.redirects", "not-followed", rec, "31-method-url-and-connection", "SNSH-06", A},
 		{"sns.http.retry-body", "identical", rec, "46-field-values", "SNSH-07", A},
 		{"sns.http.dlq-body", "as-sqs", rec, "65-dead-letter-queue", "SNSH-08", P},

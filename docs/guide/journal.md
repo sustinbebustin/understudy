@@ -51,7 +51,7 @@ showing the newest 2 matching events; raise --limit, narrow with --since, --serv
 An [SNS HTTP delivery](sns-http.md) goes to an endpoint rather than a resource, so its line names the endpoint's host and port, never its path or credentials. Its JSON detail adds an `http` member:
 
 - `status`: the answer's status, left out when none came.
-- `class`: how it was classed, `success`, `retryable`, `permanent` or `refused`.
+- `class`: how it was classed, `success` (any answer but a 429 or 5xx, which AWS counts as delivered), `retryable` or `refused`.
 - `duration`: the wall time the exchange took, in nanoseconds, left out for an attempt a [fault rule](faults.md) answered.
 
 ```text

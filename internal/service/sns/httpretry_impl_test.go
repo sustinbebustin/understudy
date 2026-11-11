@@ -103,12 +103,12 @@ func TestHTTPRetryScheduleReplaysUnderAdvanceAndSettle(t *testing.T) {
 	}
 }
 
-// Under sns.http.status-classes 429, 5xx and a refused connection are
-// retried under the DeliveryPolicy set after the subscription was
-// confirmed, and once the retries are spent the message goes to the
-// RedrivePolicy queue; any other status goes there at once
-// (sns-http-delivery.md 6.1, 6.5). TestHTTPStatusClassesFollowTheSwitch
-// asserts the same without a settle after its advance.
+// 429, 5xx and a refused connection are retried under the DeliveryPolicy
+// set after the subscription was confirmed, and once the retries are spent
+// the message goes to the RedrivePolicy queue; any other status delivers
+// at once with no dead letter (sns-http-delivery.md 6.1, 6.5; SNSH-05).
+// TestHTTPStatusClassesFollowTheRecording asserts the same without a
+// settle after its advance.
 func TestHTTPStatusClassesAfterASettle(t *testing.T) {
 	const dlq = "arn:aws:sqs:us-east-1:000000000000:orders-dlq"
 	cases := []struct {
@@ -127,9 +127,6 @@ func TestHTTPStatusClassesAfterASettle(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			s := confirmingThen(func(int) (int, http.Header) { return c.status, nil })
 			onTheWire(t, s, func(h *harness) {
-				if v := switchValue(h, "sns.http.status-classes"); v != "retries-doc" {
-					noExpectation(h, "sns.http.status-classes", v)
-				}
 				topic := h.topic("events", nil)
 				arn := h.subscribe(topic, "http", c.endpoint, map[string]string{"RedrivePolicy": `{"deadLetterTargetArn":"` + dlq + `"}`})
 				h.settle()
@@ -150,18 +147,20 @@ func TestHTTPStatusClassesAfterASettle(t *testing.T) {
 					h.Fatalf("attempts at %v, want %v", at, want)
 				}
 				last := ds[len(ds)-1]
-				if last.Outcome != (journal.DeadLettered{DLQ: mustARN(h, dlq)}) {
-					h.Errorf("last attempt outcome = %#v, want dead-lettered to %s", last.Outcome, dlq)
-				}
-				wantClass := journal.HTTPPermanent
+				var wantOutcome journal.DeliveryOutcome = journal.Delivered{}
+				wantClass := journal.HTTPSuccess
+				wantSent := 0
 				if c.retried {
-					wantClass = journal.HTTPRetryable
+					wantOutcome, wantClass, wantSent = journal.DeadLettered{DLQ: mustARN(h, dlq)}, journal.HTTPRetryable, 1
+				}
+				if last.Outcome != wantOutcome {
+					h.Errorf("last attempt outcome = %#v, want %#v", last.Outcome, wantOutcome)
 				}
 				if last.HTTP == nil || last.HTTP.Class != wantClass || last.HTTP.Status != c.status {
 					h.Errorf("last exchange = %+v, want status %d classed %v", last.HTTP, c.status, wantClass)
 				}
-				if sent := h.sent.all(); len(sent) != 1 || !strings.HasSuffix(sent[0].QueueUrl, "/orders-dlq") {
-					h.Errorf("SendMessage calls = %+v, want one dead letter", sent)
+				if sent := h.sent.all(); len(sent) != wantSent || (wantSent == 1 && !strings.HasSuffix(sent[0].QueueUrl, "/orders-dlq")) {
+					h.Errorf("SendMessage calls = %+v, want %d dead letters", sent, wantSent)
 				}
 			})
 		})

@@ -118,7 +118,7 @@ With `--output json`, each attempt also carries `"http": {"status": 200, "class"
 
 ## Retries and dead letters
 
-A 2xx answer delivers. A 429, a 5xx, a failed connection and no answer within 15 seconds are retried; any other status is a permanent failure. Retries follow the subscription's `DeliveryPolicy`, over its topic's `http.defaultHealthyRetryPolicy`, over AWS's default of three retries 20 seconds apart. They run on the [emulator clock](clock.md) and resend the same bytes. A [fault rule](faults.md#delivery-faults) can answer an attempt without a receiver:
+A 429, a 5xx, a failed connection and no answer within 15 seconds are retried; any other status delivers, a 3xx or a 4xx such as 404 included, with one attempt, no retry and no dead letter. The journal still records the status. Retries follow the subscription's `DeliveryPolicy`, over its topic's `http.defaultHealthyRetryPolicy`, over AWS's default of three retries 20 seconds apart. They run on the [emulator clock](clock.md) and resend the same bytes. A [fault rule](faults.md#delivery-faults) can answer an attempt without a receiver:
 
 ```sh
 understudy faults add --id unavailable --phase delivery --mechanism sns-to-http --http-status 503 --next 1
@@ -140,8 +140,8 @@ The 503 is retried 20 seconds after the attempt. The injected timeout stands for
 
 - The phases `numNoDelayRetries`, `numMinDelayRetries`, the backoff retries and `numMaxDelayRetries` run in that order. AWS does not document its backoff curves, so every `backoffFunction` steps linearly from `minDelayTarget` to `maxDelayTarget`, without jitter.
 - `throttlePolicy.maxReceivesPerSecond` is validated, stored and returned by `GetSubscriptionAttributes`, but does not pace deliveries.
-- A Notification that fails permanently or runs out of retries goes to the subscription's `RedrivePolicy` queue: the envelope, or for raw delivery the message with its attributes as SQS message attributes. Without a queue it is dropped. A SubscriptionConfirmation or UnsubscribeConfirmation is retried the same way but never goes to a queue.
-- Redirects are not followed: a 3xx is a permanent failure.
+- A Notification that runs out of retries goes to the subscription's `RedrivePolicy` queue: the envelope, or for raw delivery the message with its attributes as SQS message attributes. Without a queue it is dropped. A SubscriptionConfirmation or UnsubscribeConfirmation is retried the same way but never goes to a queue.
+- Redirects are not followed: a 3xx is the attempt's answer, and it delivers.
 - `sicklyRetryPolicy` and `guaranteed` are stored and never applied.
 
 `DeliveryPolicy` is validated as AWS validates it. A retry policy (`healthyRetryPolicy`, `sicklyRetryPolicy`, or a topic's `http.defaultHealthyRetryPolicy` and `http.defaultSicklyRetryPolicy`) must carry `numRetries` and `minDelayTarget`, so a partial one is refused. This includes a Terraform `delivery_policy` that sets only some members:

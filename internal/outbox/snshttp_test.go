@@ -150,6 +150,11 @@ func defaultHTTPPolicy() delivery.SNSHTTP {
 	return delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * time.Second, MaxDelayTarget: 20 * time.Second, BackoffFunction: delivery.BackoffLinear}
 }
 
+// noRetryHTTPPolicy makes one attempt: a retryable answer exhausts it.
+func noRetryHTTPPolicy() delivery.SNSHTTP {
+	return delivery.SNSHTTP{MinDelayTarget: time.Second, MaxDelayTarget: time.Second, BackoffFunction: delivery.BackoffLinear}
+}
+
 var hookHeaders = []delivery.HTTPHeader{
 	{Name: "x-amz-sns-message-type", Value: "Notification"},
 	{Name: "x-amz-sns-message-id", Value: "22b80b92-fdea-4c2c-8f9d-bdfb0c7bf324"},
