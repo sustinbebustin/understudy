@@ -685,18 +685,18 @@ i 11 "States.Format('{} {}', 1)"
 
 Expected: per step, either an `InvalidDefinition` from the create (a check AWS makes up front) or a run whose error the Parallel catcher saw (catchable) or that failed the execution with `States.Runtime`; and the cause.
 
-**ASL-06. Intrinsic results** (settles 5.2: `ArrayUnique`, `ArrayContains` equality, `MathRandom` range, `Format`/`JsonToString` numbers, `sfn.intrinsic.math-random`). USD 0.01, 10 minutes.
+**ASL-06. Intrinsic results** (settles 5.2: `ArrayUnique` including objects whose members come in another order, `ArrayContains` equality, `MathRandom` range, `Format`/`JsonToString` numbers, `sfn.intrinsic.math-random`). USD 0.01, 10 minutes.
 
 ```sh
 asl_create ASL-06/00-create intr '{"StartAt":"A","States":{"A":{"Type":"Pass","Parameters":{
  "unique.$":"States.ArrayUnique($.u)","contains1.$":"States.ArrayContains($.c, 1)","fmt.$":"States.Format($.tpl, $.f[0], $.f[1], $.f[2], $.f[3], $.f[4])",
  "json.$":"States.JsonToString($.f)","seeded1.$":"States.MathRandom(0, 1000, 7)","seeded2.$":"States.MathRandom(0, 1000, 7)","frac.$":"States.MathRandom(0.6, 2.4)","r.$":"$.r"},"Next":"M"},
  "M":{"Type":"Map","ItemsPath":"$.r","ItemSelector":{"v.$":"States.MathRandom(0, 2)"},"ItemProcessor":{"StartAt":"S","States":{"S":{"Type":"Succeed"}}},"ResultPath":"$.randoms","End":true}}}'
-asl_run ASL-06/01 intr "{\"tpl\":\"{} {} {} {} {}\",\"u\":[1,1.0,\"1\",[1],[1],{\"a\":1},{\"a\":1},null,null,true,true],\"c\":[1.0,\"1\"],\"f\":[1.0,1e21,-0.0,0.1,100000000000000000000],\"r\":$(seq -s, 1 100 | sed 's/^/[/;s/$/]/')}"
+asl_run ASL-06/01 intr "{\"tpl\":\"{} {} {} {} {}\",\"u\":[1,1.0,\"1\",[1],[1],{\"a\":1},{\"a\":1},{\"m\":1,\"n\":2},{\"n\":2,\"m\":1},null,null,true,true],\"c\":[1.0,\"1\"],\"f\":[1.0,1e21,-0.0,0.1,100000000000000000000],\"r\":$(seq -s, 1 100 | sed 's/^/[/;s/$/]/')}"
 asl_rm intr
 ```
 
-Expected: `unique` (is `1` equal to `1.0`?), `contains1`, the rendering of `1.0`, `1e21`, `-0.0`, `0.1` in `fmt` and `json`, `seeded1 == seeded2`, `frac`'s rounding, and whether `randoms` ever contains `2`. The 2026-11-03 run lacked `"r.$":"$.r"`, so Pass `A` dropped `r` and the Map failed `States.ReferencePathConflict` before `randoms` existed; rerun for that answer only.
+Expected: `unique` (is `1` equal to `1.0`? do `{"m":1,"n":2}` and `{"n":2,"m":1}` both stay, or one?), `contains1`, the rendering of `1.0`, `1e21`, `-0.0`, `0.1` in `fmt` and `json`, `seeded1 == seeded2`, `frac`'s rounding, and whether `randoms` ever contains `2`. The 2026-11-03 run lacked `"r.$":"$.r"`, so Pass `A` dropped `r` and the Map failed `States.ReferencePathConflict` before `randoms` existed. Rerun for two answers: `randoms` (100 draws of `MathRandom(0, 2)`: no `2` among them marks the end-exclusivity line of 5.2 recorded) and the member-order pair (marks the `ArrayUnique` UNVERIFIED line of 5.2). The other values were recorded on 2026-11-03; a difference from them is a finding.
 
 **ASL-07. Timestamps and StringMatches in Choice** (settles 6.2 `IsTimestamp`, `Timestamp*` precision, 6.3). USD 0.01, 10 minutes.
 
@@ -766,7 +766,7 @@ Expected: the timestamps between each `ParallelStateFailed` (or equivalent) and 
 
 ```sh
 ACT=$(aws stepfunctions create-activity --name "$P-hb" --query activityArn --output text)
-asl_create ASL-11/00-create hb "$(jq -nc --arg a "$ACT" '{StartAt:"T",States:{T:{Type:"Task",Resource:$a,HeartbeatSeconds:5,TimeoutSeconds:120,Catch:[{ErrorEquals:["States.HeartbeatTimeout"],Next:"HB"},{ErrorEquals:["States.Timeout"],Next:"TO"}],End:true},HB:{Type:"Pass",Result:"heartbeat",End:true},TO:{Type:"Pass",Result:"timeout",End:true}}}')"
+asl_create ASL-11/00-create hb "$(jq -nc --arg a "$ACT" '{StartAt:"T",States:{T:{Type:"Task",Resource:$a,HeartbeatSeconds:5,TimeoutSeconds:120,Catch:[{ErrorEquals:["States.Timeout"],Next:"TO"},{ErrorEquals:["States.HeartbeatTimeout"],Next:"HB"}],End:true},HB:{Type:"Pass",Result:"heartbeat",End:true},TO:{Type:"Pass",Result:"timeout",End:true}}}')"
 X=$(aws stepfunctions start-execution --state-machine-arn "$(asl_arn hb)" --query executionArn --output text)
 aws stepfunctions get-activity-task --activity-arn "$ACT" --worker-name rec >/dev/null   # starts the task; never heartbeat
 sleep 20
@@ -775,7 +775,7 @@ aws stepfunctions delete-activity --activity-arn "$ACT"
 asl_rm hb
 ```
 
-Expected: which catcher (`HB` or `TO`) ran, and the `ActivityTimedOut` error and cause.
+Expected: which catcher (`HB` or `TO`) ran, and the `ActivityTimedOut` error and cause. The `States.Timeout` catcher is listed first (amended after 2026-11-03, whose run listed `States.HeartbeatTimeout` first and so could only show that it matches): `TO` running means a heartbeat expiry matches `States.Timeout` too and the first matching catcher wins; `HB` running means a `States.HeartbeatTimeout` catcher wins over an earlier one naming `States.Timeout`, or that `States.Timeout` does not match a heartbeat expiry (the recorded error name is `States.Timeout`, so the first reading is the likelier). Either answer marks the UNVERIFIED line of 8.6 recorded.
 
 **ASL-12. Execution timeout history** (settles 8.6). USD 0.00, 5 minutes.
 
@@ -895,6 +895,44 @@ asl_rm jp
 ```
 
 Expected: whether creation accepts each construct (record the create error if not, then remove that key and retry), and each value. The 2026-11-03 run also had `"len.$":"$.a.length()"`: creation accepted it and the run failed on it, `States.Runtime` (4.5), before any other value was written; it is dropped here.
+
+**ASL-20. Map sibling abort for Task and nested siblings** (settles the Map half of 9.1 beyond Wait siblings, and 9.2 "stops the others"). Under USD 0.01, 10 minutes. ASL-13 recorded only siblings waiting in a Wait; this case fails item 0 while item 1 waits on a pending Lambda call, item 2 on an activity no worker polls, item 3 inside a nested Parallel and item 4 inside a nested Map. It adds a function, its role and an inline policy on `$P-sfn`, all removed in its teardown.
+
+```sh
+aws iam create-role --role-name "$P-asl20-fn" --assume-role-policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}' >/dev/null
+mkdir -p "$REC/_work/ASL-20"   # helper inputs stay out of the item directory
+printf 'import time\ndef handler(event, context):\n    print("start")\n    time.sleep(30)\n    print("end")\n    return {}\n' >"$REC/_work/ASL-20/slow.py"
+(cd "$REC/_work/ASL-20" && zip -q slow.zip slow.py)
+sleep 15
+FN=$(aws lambda create-function --function-name "$P-asl20" --runtime python3.13 --handler slow.handler --timeout 60 \
+  --role "arn:aws:iam::$A:role/$P-asl20-fn" --zip-file "fileb://$REC/_work/ASL-20/slow.zip" --query FunctionArn --output text)
+aws lambda wait function-active-v2 --function-name "$P-asl20"
+aws iam put-role-policy --role-name "$P-sfn" --policy-name asl20 --policy-document \
+  "$(jq -nc --arg f "$FN" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:"lambda:InvokeFunction",Resource:$f}]}')"
+ACT=$(aws stepfunctions create-activity --name "$P-asl20" --query activityArn --output text)
+sleep 15
+W30='{"Type":"Wait","Seconds":30,"End":true}'
+asl_create ASL-20/00-create sib "$(jq -nc --arg f "$FN" --arg a "$ACT" --argjson w "$W30" '{StartAt:"M",States:{M:{Type:"Map",ItemProcessor:{StartAt:"C",States:{
+  C:{Type:"Choice",Choices:[{Variable:"$",NumericEquals:0,Next:"Pause"},{Variable:"$",NumericEquals:1,Next:"Lam"},
+     {Variable:"$",NumericEquals:2,Next:"Act"},{Variable:"$",NumericEquals:3,Next:"Par"}],Default:"Inner"},
+  Pause:{Type:"Wait",Seconds:10,Next:"F"},F:{Type:"Fail",Error:"ItemErr",Cause:"c"},
+  Lam:{Type:"Task",Resource:"arn:aws:states:::lambda:invoke",Parameters:{FunctionName:$f},End:true},
+  Act:{Type:"Task",Resource:$a,End:true},
+  Par:{Type:"Parallel",Branches:[{StartAt:"PW",States:{PW:$w}}],End:true},
+  Inner:{Type:"Map",ItemsPath:"$.x",ItemProcessor:{StartAt:"IW",States:{IW:$w}},End:true}}},End:true}}}')"
+asl_run ASL-20/01 sib '[0,1,2,3,{"x":[1,2]}]'
+sleep 40   # let the function's 30-second call end, if it was not stopped
+rec ASL-20/02-function-log aws logs filter-log-events --log-group-name "/aws/lambda/$P-asl20"
+asl_rm sib
+aws stepfunctions delete-activity --activity-arn "$ACT"
+aws iam delete-role-policy --role-name "$P-sfn" --policy-name asl20
+aws lambda delete-function --function-name "$P-asl20"
+aws logs delete-log-group --log-group-name "/aws/lambda/$P-asl20"
+aws iam delete-role --role-name "$P-asl20-fn"
+```
+
+Expected, read from `01-history.http` per iteration index: the events each sibling gets after item 0's `FailStateEntered` (for item 1 a `TaskStateAborted` or nothing after `TaskStarted`, for item 2 the same after `ActivityScheduled`, for item 3 `ParallelStateAborted` and the inner `WaitStateAborted`, for item 4 `MapStateAborted` and its iterations' `MapIterationAborted` and `WaitStateAborted`), in what order, and which event each points at; and from `02-function-log`, whether the Lambda call still ran to `end` (9.1: running Lambda functions are not stopped). The answers mark the Map sibling line of 9.1 recorded for Task and nested siblings; until then understudy's abort of those siblings is inferred from the Wait case.
 
 ### 16.3 Teardown for the session
 

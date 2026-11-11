@@ -521,7 +521,7 @@ v2 SES-02/02-raw POST /v2/email/outbound-emails "{\"FromEmailAddress\":\"$P-nobo
 ```
 Cost 0, 3 min. Teardown: none.
 
-**SES-03: which identities the sandbox error lists.** Settles 6.1 and the order part of `ses.error.unverified.text`. Needs the account in the sandbox (step 00 records `ProductionAccessEnabled` false).
+**SES-03: which identities the sandbox error lists.** Settles 6.1 and the order part of `ses.error.unverified.text`. Needs the account in the sandbox (step 00 records `ProductionAccessEnabled` false). Steps 01 and 04 send from `$M` and need it verified (12.4).
 
 ```sh
 v2 SES-03/00-sandbox GET /v2/email/account
@@ -529,8 +529,18 @@ rec SES-03/01-rcpt-only aws ses send-email --from "$M" --destination "ToAddresse
 rec SES-03/02-both aws ses send-email --from "$P-nobody@example.com" --destination "ToAddresses=$P-r1@example.com,CcAddresses=$P-r2@example.com" --return-path "$P-rp@example.com" --message "$MSG"
 rec SES-03/03-v2-both aws sesv2 send-email --from-email-address "$P-nobody@example.com" --destination "ToAddresses=$P-r1@example.com" --content "Simple={$MSG}"
 rec SES-03/04-reply-to aws ses send-email --from "$M" --destination ToAddresses=success@simulator.amazonses.com --reply-to-addresses "$P-rt@example.com" --message "$MSG"
+to=(); i=0
+for a in "$P-r1@example.com" "$P-r2@example.com" "$P-r3@example.com" "$P-r4@example.com" "$P-r5@example.com" "$P-r6@example.com" \
+         "$P-r7@example.com" "$P-r8@example.com" "$P-r9@example.com" "$P-r10@example.com" "$P-R1@example.com" "R Two <$P-r2@example.com>" "$P-r11@example.com"; do
+  i=$((i+1)); to+=("Destination.ToAddresses.member.$i=$a")
+done
+q SES-03/05-fourteen SendEmail "Source=$P-nobody@example.com" "${to[@]}" Message.Subject.Data=s Message.Body.Text.Data=b
+to=(); for i in $(seq 1 30); do to+=("Destination.ToAddresses.member.$i=$P-m$i@example.com"); done
+q SES-03/06-thirty-one SendEmail "Source=$P-nobody@example.com" "${to[@]}" Message.Subject.Data=s Message.Body.Text.Data=b
 ```
-Step 4 settles whether an unverified Reply-To is checked (section 10). Cost at most USD 0.0001 (step 4, if accepted), 3 min. Teardown: none.
+Step 4 settles whether an unverified Reply-To is checked (section 10). Steps 05 and 06 (added after 2026-11-03) settle the order behind `ses.error.unverified.text` past 12 identities, where the inferred `HashSet` has 32 buckets or more (6.1): step 05 sends 14 unverified strings, the sender first, including `$P-R1` beside `$P-r1` (does the check fold case and list one, or list both?) and `R Two <$P-r2@...>` beside the bare `$P-r2` (one entry or two, and written how?); step 06 sends 31, which may also show the ellipsis 6.1 quotes for a list SES cannot show in full. In `notes.md`, write each step's strings in request order and the order the message lists them, then the iteration order of a `java.util.HashSet<String>` built in `jshell` by adding the same strings one at a time (sender first, then recipients in request order; strings sharing a bucket keep their insertion order, so where the lists differ only there, try the recipients first too). A match on both steps marks the `HashSet` inference of 6.1 recorded; a mismatch is a finding for the switch. Cost 0 (both rejected), 3 min.
+
+Cost at most USD 0.0001 (step 4, if accepted), 6 min. Teardown: none.
 
 **SES-04: invalid address texts.** Settles 4.6 and 11.5 address texts.
 
@@ -808,6 +818,55 @@ rec SES-29/template-over aws ses create-template --cli-input-json "file://$REC/t
 ```
 The `--max-items` of the CLI is client-side paging, so the raw calls are the evidence for `MaxItems`. Whether 500 KB means 512,000 or 500,000 bytes is part of what this settles; if the 512,001-byte template is accepted, rerun with 500,001 bytes and record both. Cost 0 if all are rejected, else USD 0.0001 per accepted send, 10 min. Teardown: `aws ses delete-template --template-name "$P-big"` if it was created, and the shared teardown.
 
+**SES-30: SendRawEmail condition keys when the raw headers and the parameters disagree.** Settles where AWS takes `ses:FromAddress`, `ses:Recipients`, `ses:FeedbackAddress` and `ses:FromDisplayName` from for `SendRawEmail` (4.2): the `From`, `To` and `Return-Path` headers of the raw message, or the `Source` and `Destinations` parameters. understudy cannot derive them today, so every SES binding refuses them under `enforce` (`internal/service/ses/iam.go`, 501 `NotImplemented` naming the key). No other section of this note covers SES condition keys yet; a section on them should point here. Each step sends one raw message whose headers name one set of addresses and whose parameters name another, as a session of the role `$P-ses-ck` whose session policy allows `ses:SendRawEmail` and denies it under one condition. A denial (the SES-28 form) means the condition matched; `MessageRejected` (the addresses are unverified) means it did not, and nothing is sent.
+
+```sh
+mkdir -p "$REC/_work/SES-30"
+aws iam create-role --role-name "$P-ses-ck" --assume-role-policy-document \
+  "$(jq -nc --arg a "arn:aws:iam::$A:root" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Principal:{AWS:$a},Action:"sts:AssumeRole"}]}')" >/dev/null
+aws iam put-role-policy --role-name "$P-ses-ck" --policy-name send --policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"ses:SendRawEmail","Resource":"*"}]}'
+sleep 15
+H="$P-hdr@example.com" S="$P-src@example.com" RH="$P-rcpt-hdr@example.com" RD="$P-rcpt-dst@example.com" FB="$P-fb-hdr@example.com"
+printf 'From: "Header Name" <%s>\r\nTo: %s\r\nReturn-Path: <%s>\r\nSubject: ck\r\n\r\nb\r\n' "$H" "$RH" "$FB" >"$REC/_work/SES-30/ck.eml"
+CKMSG="{\"Data\":\"$(b64 "$REC/_work/SES-30/ck.eml")\"}"
+BOTH=(--source "Source Name <$S>" --destinations "$RD")
+ck() {  # ck <step> <condition JSON> [send-raw-email args]: send ck.eml as a session denied SendRawEmail under the condition
+  local pol k s t
+  pol=$(jq -nc --argjson c "$2" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:"ses:SendRawEmail",Resource:"*"},
+    {Effect:"Deny",Action:"ses:SendRawEmail",Resource:"*",Condition:$c}]}')
+  read -r k s t <<<"$(aws sts assume-role --role-arn "arn:aws:iam::$A:role/$P-ses-ck" --role-session-name ck --policy "$pol" \
+    --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text)"
+  [ -n "$t" ] || { echo "ck: assume-role failed for $1; nothing was sent, run the step again" >&2; return 1; }
+  rec "SES-30/$1" env -u AWS_PROFILE AWS_ACCESS_KEY_ID="$k" AWS_SECRET_ACCESS_KEY="$s" AWS_SESSION_TOKEN="$t" \
+    aws ses send-raw-email --raw-message "$CKMSG" "${@:3}"
+}
+ck 01-from-any           '{"StringLike":{"ses:FromAddress":"*"}}' "${BOTH[@]}"
+ck 02-from-header        "{\"StringLike\":{\"ses:FromAddress\":\"*$H*\"}}" "${BOTH[@]}"
+ck 03-from-source        "{\"StringLike\":{\"ses:FromAddress\":\"*$S*\"}}" "${BOTH[@]}"
+ck 04-from-header-alone  "{\"StringLike\":{\"ses:FromAddress\":\"*$H*\"}}" --destinations "$RD"
+ck 05-rcpt-any           '{"ForAnyValue:StringLike":{"ses:Recipients":"*"}}' "${BOTH[@]}"
+ck 06-rcpt-header        "{\"ForAnyValue:StringLike\":{\"ses:Recipients\":\"*$RH*\"}}" "${BOTH[@]}"
+ck 07-rcpt-destinations  "{\"ForAnyValue:StringLike\":{\"ses:Recipients\":\"*$RD*\"}}" "${BOTH[@]}"
+ck 08-rcpt-header-alone  "{\"ForAnyValue:StringLike\":{\"ses:Recipients\":\"*$RH*\"}}" --source "$S"
+ck 09-feedback-any       '{"StringLike":{"ses:FeedbackAddress":"*"}}' "${BOTH[@]}"
+ck 10-feedback-header    "{\"StringLike\":{\"ses:FeedbackAddress\":\"*$FB*\"}}" "${BOTH[@]}"
+ck 11-feedback-source    "{\"StringLike\":{\"ses:FeedbackAddress\":\"*$S*\"}}" "${BOTH[@]}"
+ck 12-feedback-alone     "{\"StringLike\":{\"ses:FeedbackAddress\":\"*$FB*\"}}" --destinations "$RD"
+ck 13-display-any        '{"StringLike":{"ses:FromDisplayName":"*"}}' "${BOTH[@]}"
+ck 14-display-header     '{"StringLike":{"ses:FromDisplayName":"*Header Name*"}}' "${BOTH[@]}"
+ck 15-display-source     '{"StringLike":{"ses:FromDisplayName":"*Source Name*"}}' "${BOTH[@]}"
+ck 16-display-header-alone '{"StringLike":{"ses:FromDisplayName":"*Header Name*"}}' --destinations "$RD"
+```
+
+The `*...*` patterns match the key whatever form it takes (bare address, with display name, quoted). Read per key: the `-any` step must be denied, or AWS does not supply the key for `SendRawEmail` at all and the key's other steps say nothing (note it). Then the header step and the parameter step: exactly one denied tells which input AWS uses when both are given; both denied means it uses both (for `ses:Recipients`, the union); neither, with the `-any` step denied, means a form the patterns missed. The `-alone` step shows whether the header is used when the parameter is absent. The answers give understudy the derivation that would let those keys be supplied instead of refused; record them in 4.2 with the fixture paths, or in the SES condition-key section once it exists. Cost 0 (every send is denied or rejected), 15 min. Teardown:
+
+```sh
+aws iam delete-role-policy --role-name "$P-ses-ck" --policy-name send
+aws iam delete-role --role-name "$P-ses-ck"
+rm -f "$REC/_work/SES-30/ck.eml"
+```
+
 ### 12.3 Results of 2026-11-03
 
 Recorded in us-east-2 from a sandbox account (`ProductionAccessEnabled` false, quota 200 and 1, plan `ESSENTIALS`) with no verified identity and no readable mailbox: `$M` was `us1103-me@example.com`, which stayed `Pending`, so every step that sends from `$M` is n/a. Fixtures and per-step verdicts are under `testdata/parity/ses/<case>/`; the v1 steps of the cases marked replayed run in `internal/parity` (the v2 REST steps are skipped until the replayer routes REST).
@@ -837,6 +896,39 @@ Recorded in us-east-2 from a sandbox account (`ProductionAccessEnabled` false, q
 | SES-27 | step 01 recorded (replayed); step 02 deferred | the 25-hour wait; the identity was deleted in the teardown, so a later session restarts at step 01 |
 | SES-28 | recorded; message and v2 key differ (11.4) | |
 | SES-29 | `MaxItems` and template-size cases recorded (11.5, 7; replayed) | message size, line length, MIME parts: `From: $M`; 500,000 against 512,000 bytes |
+
+### 12.4 Re-record with a verified, readable mailbox
+
+Every "send from `$M`" and "mailbox click" gap in the 12.3 table closes once `$M` is an address whose inbox you can read. No recipe changes: rerun the steps below from their cases in 12.2, in this order, after the 12.1 setup and the gate. About 60 minutes, at most USD 0.003 without SES-22 and USD 0.025 with it.
+
+```sh
+rec SES-00/01-verify-me aws ses verify-email-identity --email-address "$M"
+# open the verification link in that inbox, then:
+until [ "$(aws ses get-identity-verification-attributes --identities "$M" \
+  --query "VerificationAttributes.\"$M\".VerificationStatus" --output text)" = Success ]; do sleep 10; done
+rec SES-00/02-me-verified aws ses get-identity-verification-attributes --identities "$M"
+```
+
+Do not go past the gate while `$M` reads `Pending`: every step below would record the unverified-sender rejection again, as on 2026-11-03.
+
+| Case | Steps to run | What each settles (the line it marks) |
+|---|---|---|
+| SES-03 | 01, 04 | recipient-only failures (6.1); whether an unverified `Reply-To` is checked (6.1, section 10) |
+| SES-04 | the address loop | the v1 and v2 invalid-address texts (4.6, 11.5) |
+| SES-05 | all | no recipients and an empty `Body` (4.1, 4.6) |
+| SES-06 | all | the 51-recipient text (4.1) |
+| SES-07 | all | the `MessageId` format of each API (4.7, `ses.message-id.format`) |
+| SES-09 | all, last among the sending cases | repeat verification and the legacy list (5.3) |
+| SES-17 | 01, 03, 04 | configuration set against the other checks (6.4, `ses.send.check-order`) |
+| SES-18 | 04, 07, and 02 and 06 as amended | the template send texts and the `AlreadyExists` texts (7) |
+| SES-19 | all | simulator matching and labeled recipients (6.2); `labeled-me` lands in the inbox |
+| SES-20 | 01, 02, 04 | the raw envelope (4.2, `ses.raw.envelope`) |
+| SES-21 | all | the send-rate burst and status (6.3, `ses.quota.send-rate`) |
+| SES-23 | 01, 02 | the v2 content-shape texts (4.4) |
+| SES-29 | message size, line length, MIME parts | those limits' texts (11.5) |
+| SES-22 (optional) | all | the daily-quota code and status (6.3); 201 messages to the inbox |
+
+For the steps that deliver to the inbox (SES-19 `labeled-me`, SES-22), save the received message's full source from the mail client as `$REC/<case>/<step>-received.txt` beside the capture (`.txt`, a side observation `scripts/distill-parity` copies; it refuses other extensions): its `Message-ID`, `Date` and `Return-Path` show what SES wrote (4.2). It carries your address and your mail provider's headers: replace the address with `me@example.com` and drop the provider's `Received` lines before anything leaves your machine. Then update the 12.3 table, mark each settled line recorded with its fixture path, and run the shared teardown.
 
 [m1]: https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/ses/service/2010-12-01/ses-2010-12-01.json
 [m2]: https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/sesv2/service/2019-09-27/sesv2-2019-09-27.json
