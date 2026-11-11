@@ -486,7 +486,7 @@ WARNING: COMPLIANCE retention cannot be shortened or removed by anyone. Only S3S
 
 ```sh
 export SVC=s3
-B=$P-ssec; BB=$P-ssec-blk; BR=$P-ssec-rule; L=$P-olock; LY=$P-olock-y; N=$P-nolock
+B=$P-ssec; BB=$P-ssec-blk; BR=$P-ssec-rule; L=$P-olock; LY=$P-olock-y; LE=$P-olock-e; N=$P-nolock
 K1=0123456789abcdef0123456789abcdef   # public throwaway keys: never protect real data with them
 K1B=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=; K1M=hRasmdxgYDKV3nvbahU1MA==
 K2=fedcba9876543210fedcba9876543210
@@ -528,12 +528,12 @@ empty_versions() { local b=$1; shift
   aws s3api delete-bucket --bucket "$b"; }
 for b in "$B" "$BB" "$BR"; do aws s3 rb "s3://$b" --force; done
 empty_versions "$N"
-for b in "$L" "$LY"; do empty_versions "$b" --bypass-governance-retention; done
+for b in "$L" "$LY" "$LE"; do empty_versions "$b" --bypass-governance-retention; done   # $LE exists only after S3SOL-25
 ```
 
 A `delete-object` that still fails names a version under COMPLIANCE (wait for its date) or an event hold (release it, S3SOL-24).
 
-Index, priority first: S3SOL-01, -10, -05, -12, -23, -02, then the rest in order.
+Index, priority first: S3SOL-01, -10, -05, -12, -23, -02, then the rest in order. S3SOL-25 to -28 were added after the 2026-11-03 session, for what it left open; a rerun may run 12.1, those cases and the teardown alone, since `scripts/distill-parity` rewrites only the steps `$REC` holds. It does replace the committed `testdata/parity/s3/S3SOL/notes.md` with `$REC/S3SOL/notes.md` (recording-kit.md 6), so start the raw notes from the committed file and add the new lines to it.
 
 ### 12.2 S3SOL-01. SSE-C write to a bucket that blocks SSE-C
 
@@ -900,3 +900,126 @@ rec S3SOL/24-get-released aws s3api get-object-retention --bucket "$L" --key e24
 ```
 
 Expected: four 400s (codes and texts to record), then the hold, its read forms, and the release fixing a date one day out. Recorded 2026-11-03: as expected; the 400s are one `InvalidRequest`, two `MalformedXML` and one `InvalidArgument` (6.9). Cost under USD 0.01, 2 minutes. Teardown: the release step must succeed before 12.1 can delete `e24` with bypass.
+
+### 12.26 S3SOL-25. Event holds: header path, Years bounds, OFF with a duration, decreasing, bucket default
+
+Settles the event-hold behavior S3SOL-24 left unrecorded (6.9) and so the refusals understudy answers with 501 (11.1, 11.3, 11.7): the PutObject header path, the `Years` bounds, a duration with `EventHold` `OFF`, `OFF` on a version never held, decreasing a duration while the hold is on, and `DefaultEventHold`. Needs the CLI of S3SOL-24 for the body steps. Every hold is GOVERNANCE, and the case releases each one, so 12.1's teardown can delete the versions with bypass.
+
+```sh
+hp() {  # hp <step> <key> <header args...>: PutObject to $L with these lock headers and a Content-MD5
+  local step=$1 key=$2; shift 2
+  recurl "S3SOL/25-$step" -X PUT -H "x-amz-content-sha256: $U" -H "Content-MD5: $MD" "$@" \
+    --data-binary @"$REC/body10" "$(url "$L" "$key")"
+}
+EH='x-amz-object-lock-event-hold'; MODE=(-H 'x-amz-object-lock-mode: GOVERNANCE')
+hp hdr-no-duration   h25 "${MODE[@]}" -H "$EH: ON"
+hp hdr-no-mode       h25 -H "$EH: ON" -H "$EH-duration-days: 1"
+hp hdr-both-units    h25 "${MODE[@]}" -H "$EH: ON" -H "$EH-duration-days: 1" -H "$EH-duration-years: 1"
+hp hdr-days-36501    h25 "${MODE[@]}" -H "$EH: ON" -H "$EH-duration-days: 36501"
+hp hdr-years-0       h25 "${MODE[@]}" -H "$EH: ON" -H "$EH-duration-years: 0"
+hp hdr-years-101     h25 "${MODE[@]}" -H "$EH: ON" -H "$EH-duration-years: 101"
+hp hdr-off-duration  h25 "${MODE[@]}" -H "$EH: OFF" -H "$EH-duration-days: 1"
+hp hdr-ok            h25ok "${MODE[@]}" -H "$EH: ON" -H "$EH-duration-days: 1"
+rec S3SOL/25-hdr-head aws s3api head-object --bucket "$L" --key h25ok
+
+aws s3api put-object --bucket "$L" --key e25 --body "$REC/body10"
+pr25() { rec "S3SOL/25-$1" aws s3api put-object-retention --bucket "$L" --key "$2" --retention "$3" "${@:4}"; }
+pr25 days-0         e25 '{"Mode":"GOVERNANCE","EventHold":"ON","EventHoldDuration":{"Days":0}}'
+pr25 years-0        e25 '{"Mode":"GOVERNANCE","EventHold":"ON","EventHoldDuration":{"Years":0}}'
+pr25 years-101      e25 '{"Mode":"GOVERNANCE","EventHold":"ON","EventHoldDuration":{"Years":101}}'
+pr25 off-duration   e25 '{"Mode":"GOVERNANCE","EventHold":"OFF","EventHoldDuration":{"Days":1}}'
+pr25 off-never-held e25 '{"Mode":"GOVERNANCE","EventHold":"OFF"}'
+aws s3api put-object --bucket "$L" --key y25 --body "$REC/body10"
+pr25 years-1        y25 '{"Mode":"GOVERNANCE","EventHold":"ON","EventHoldDuration":{"Years":1}}'
+rec S3SOL/25-years-1-get aws s3api get-object-retention --bucket "$L" --key y25
+aws s3api put-object --bucket "$L" --key d25 --body "$REC/body10"
+pr25 decrease-start d25 '{"Mode":"GOVERNANCE","EventHold":"ON","EventHoldDuration":{"Days":2}}'
+pr25 decrease       d25 '{"Mode":"GOVERNANCE","EventHold":"ON","EventHoldDuration":{"Days":1}}'
+rec S3SOL/25-decrease-get aws s3api get-object-retention --bucket "$L" --key d25
+pr25 decrease-bypass d25 '{"Mode":"GOVERNANCE","EventHold":"ON","EventHoldDuration":{"Days":1}}' --bypass-governance-retention
+rec S3SOL/25-decrease-bypass-get aws s3api get-object-retention --bucket "$L" --key d25
+
+mb "$LE" --object-lock-enabled-for-bucket
+lc() { rec "S3SOL/25-$1" aws s3api put-object-lock-configuration --bucket "$LE" --object-lock-configuration "$2"; }
+lc default-hold-only '{"ObjectLockEnabled":"Enabled","Rule":{"DefaultRetention":{"Mode":"GOVERNANCE","DefaultEventHold":{"Days":1}}}}'
+lc default-hold-days '{"ObjectLockEnabled":"Enabled","Rule":{"DefaultRetention":{"Mode":"GOVERNANCE","Days":1,"DefaultEventHold":{"Days":1}}}}'
+lc default-hold-years-101 '{"ObjectLockEnabled":"Enabled","Rule":{"DefaultRetention":{"Mode":"GOVERNANCE","DefaultEventHold":{"Years":101}}}}'
+rec S3SOL/25-default-get aws s3api get-object-lock-configuration --bucket "$LE"
+rec S3SOL/25-default-put aws s3api put-object --bucket "$LE" --key o25 --body "$REC/body10"
+rec S3SOL/25-default-head aws s3api head-object --bucket "$LE" --key o25
+rec S3SOL/25-default-get-retention aws s3api get-object-retention --bucket "$LE" --key o25
+```
+
+Expected, per step (none is recorded; the docs give only "a `400 Bad Request` response", 6.9). The header steps against S3SOL-24's body answers: `hdr-no-duration` its `InvalidRequest` "EventHold:ON must be supplied with an EventHoldDuration.", `hdr-days-36501` its `InvalidArgument` "Event hold duration must be at most 36500 days." (with the header's name in `ArgumentName`, or `Days`), and `hdr-no-mode` and `hdr-both-units` a header-path refusal where the body got `MalformedXML`; record each status, code, text and element. `hdr-years-0`, `hdr-years-101`, `years-0` and `years-101` settle the `Years` bounds (1 to 100, 6.9) and their texts; `days-0` the lower `Days` bound. `hdr-off-duration` and `off-duration` settle a duration with `OFF`; `off-never-held` settles `OFF` with no date on a version that never had a hold (the docs refuse "`OFF` with no date"; S3SOL-24's release was of a held version). `hdr-ok` and `hdr-head` show whether the header path places a hold and HEAD reports it as S3SOL-24's `24-head` did; `years-1-get` shows a `Years` duration's read form. `decrease` settles whether a shorter duration is accepted while the hold is on, without bypass and then with it, and `decrease-get`, `decrease-bypass-get` whether GetObjectRetention then reports the read time plus 1 day or keeps 2 ("decreasing the duration never moves the date earlier", 6.9). The `lc` steps settle whether `DefaultEventHold` is accepted alone or only beside `Days` or `Years`, its range text, and its GET form, which is also the configuration in force for the put (the last `lc` step S3 accepted); `default-put` (the CLI sends its default checksum, so the 6.3 rule is met), `default-head` and `default-get-retention` whether a new version is held by the default, and for how long. Each answer replaces the 501 understudy gives that input today (11.3). Cost under USD 0.01, 4 minutes.
+
+Teardown, before 12.1's: release every hold this case placed, then 12.1 deletes the versions with bypass (`$LE` is in its loop).
+
+```sh
+for k in h25ok y25 d25; do
+  aws s3api put-object-retention --bucket "$L" --key "$k" --retention '{"Mode":"GOVERNANCE","EventHold":"OFF"}'
+done
+aws s3api put-object-retention --bucket "$LE" --key o25 --retention '{"Mode":"GOVERNANCE","EventHold":"OFF"}'
+```
+
+A release that fails names a version whose hold did not take, which needs nothing.
+
+### 12.27 S3SOL-26. `x-amz-version-id` on a plain retention or legal-hold put
+
+Settles the last line of 6.9: the model's `PutObjectRetentionOutput` and `PutObjectLegalHoldOutput` carry no version id, yet S3 sent `x-amz-version-id` on the event-hold puts of S3SOL-24 (`24-ok`, `24-release`). These are plain puts, by key and by version id.
+
+```sh
+aws s3api put-object --bucket "$L" --key v26 --body "$REC/body10"
+V26=$(aws s3api head-object --bucket "$L" --key v26 --query VersionId --output text)
+rec S3SOL/26-retention aws s3api put-object-retention --bucket "$L" --key v26 \
+  --retention "{\"Mode\":\"GOVERNANCE\",\"RetainUntilDate\":\"$(soon 3600)\"}"
+rec S3SOL/26-retention-version aws s3api put-object-retention --bucket "$L" --key v26 --version-id "$V26" \
+  --retention "{\"Mode\":\"GOVERNANCE\",\"RetainUntilDate\":\"$(soon 7200)\"}"
+rec S3SOL/26-legal-hold-on aws s3api put-object-legal-hold --bucket "$L" --key v26 --legal-hold Status=ON
+rec S3SOL/26-legal-hold-off-version aws s3api put-object-legal-hold --bucket "$L" --key v26 --version-id "$V26" --legal-hold Status=OFF
+```
+
+Expected: the response headers of each step in its `.http` debug log; for each, whether `x-amz-version-id` is present and equals `$V26`. Present on all four means understudy's PutObjectRetention and PutObjectLegalHold answers need the header, which the model cannot carry (an overlay or a hand-written header); absent means it is particular to event holds. Cost under USD 0.01, 1 minute. Teardown: 12.1 (GOVERNANCE, bypass; the hold is off).
+
+### 12.28 S3SOL-27. Header retain-until dates in other ISO 8601 forms
+
+Settles the 6.2 UNVERIFIED line: whether the `ArgumentValue` of a refused header date is the text as sent or the parsed date rendered again. S3SOL-18 sent `2020-07-01T00:00:00Z`, which reads the same either way. These past dates differ from their rendering; `recurl` sends them as written (the CLI would normalize them).
+
+```sh
+pd() {  # pd <step> <retain-until date>: PutObject to $L with GOVERNANCE and that past date
+  recurl "S3SOL/27-$1" -X PUT -H "x-amz-content-sha256: $U" -H "Content-MD5: $MD" -H 'x-amz-object-lock-mode: GOVERNANCE' \
+    -H "x-amz-object-lock-retain-until-date: $2" --data-binary @"$REC/body10" "$(url "$L" p27)"
+}
+pd millis-zero   2020-07-01T00:00:00.000Z
+pd millis        2020-07-01T00:00:00.5Z
+pd offset        2020-07-01T02:00:00+02:00
+pd no-seconds    2020-07-01T00:00Z
+```
+
+Expected: each 400 `InvalidArgument` "The retain until date must be in the future!" with `ArgumentName=x-amz-object-lock-retain-until-date`. The `ArgumentValue` decides: the four texts as sent mean S3 echoes the header, and understudy's switch `s3.object-lock.header-texts` should echo it too; `2020-07-01T00:00:00Z` for the first, third and fourth (and `2020-07-01T00:00:00.500Z` for the second) mean S3 renders the parsed date, as understudy does now (6.2). A step answered "must be provided in ISO 8601 format" instead shows a form S3 does not parse (likely `no-seconds`): note it. Cost under USD 0.01, 1 minute. Teardown: none (nothing is created).
+
+### 12.29 S3SOL-28. Bypass by a principal without `s3:BypassGovernanceRetention`
+
+Settles 6.6 and the DeleteObject, DeleteObjects and PutObjectRetention coverage notes of 11.1, which say understudy does not evaluate `s3:BypassGovernanceRetention`: what S3 answers a bypass header from a caller whose policy allows the delete but not the bypass. The role trusts the account, and its one inline policy omits the bypass action.
+
+```sh
+TRUST28=$(jq -nc --arg a "arn:aws:iam::$A:root" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Principal:{AWS:$a},Action:"sts:AssumeRole"}]}')
+aws iam create-role --role-name "$P-s3sol-nobypass" --assume-role-policy-document "$TRUST28" >/dev/null
+aws iam put-role-policy --role-name "$P-s3sol-nobypass" --policy-name p --policy-document "$(jq -nc --arg o "arn:aws:s3:::$L/*" \
+  '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:["s3:DeleteObject","s3:DeleteObjectVersion","s3:GetObject","s3:GetObjectVersion","s3:PutObjectRetention"],Resource:$o}]}')"
+sleep 15   # role propagation
+aws s3api put-object --bucket "$L" --key b28 --body "$REC/body10" --object-lock-mode GOVERNANCE --object-lock-retain-until-date "$(soon 3600)"
+V28=$(aws s3api head-object --bucket "$L" --key b28 --query VersionId --output text)
+read -r k28 s28 t28 <<<"$(aws sts assume-role --role-arn "arn:aws:iam::$A:role/$P-s3sol-nobypass" --role-session-name s3sol \
+  --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text)"
+as28() {  # as28 <aws args...>: the AWS CLI as the role session; refuses if assume-role failed
+  [ -n "$t28" ] || { echo "as28: assume-role failed; nothing was sent" >&2; return 1; }
+  env -u AWS_PROFILE AWS_ACCESS_KEY_ID="$k28" AWS_SECRET_ACCESS_KEY="$s28" AWS_SESSION_TOKEN="$t28" aws "$@"
+}
+rec S3SOL/28-delete-bypass as28 s3api delete-object --bucket "$L" --key b28 --version-id "$V28" --bypass-governance-retention
+rec S3SOL/28-delete-no-bypass as28 s3api delete-object --bucket "$L" --key b28 --version-id "$V28"
+rec S3SOL/28-retention-remove-bypass as28 s3api put-object-retention --bucket "$L" --key b28 --version-id "$V28" \
+  --retention '{}' --bypass-governance-retention
+rec S3SOL/28-head aws s3api head-object --bucket "$L" --key b28 --version-id "$V28"
+```
+
+Expected: `delete-no-bypass` is the control, the lock 403 "Access Denied because object protected by object lock." (7.1). `delete-bypass` and `retention-remove-bypass` are refused too, since the caller lacks the bypass permission ([lock](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html)); record each status, code and text: the lock text, or an IAM denial naming `s3:BypassGovernanceRetention`, which decides the text understudy gives once it evaluates the permission. `head` shows the version still under GOVERNANCE and its date. A `delete-bypass` that deletes the version (204) means S3 does not check the permission on this path: note it, and `head` then answers 404. Cost under USD 0.01 (IAM is free), 2 minutes. Teardown: `aws iam delete-role-policy --role-name "$P-s3sol-nobypass" --policy-name p; aws iam delete-role --role-name "$P-s3sol-nobypass"`; the object by 12.1.

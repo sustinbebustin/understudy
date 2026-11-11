@@ -304,21 +304,24 @@ rec R12/15-lifecycle-glacier-then-onezone-ia aws s3api put-bucket-lifecycle-conf
   --lifecycle-configuration '{"Rules":[{"ID":"path","Status":"Enabled","Filter":{"Prefix":""},"Transitions":[{"Days":30,"StorageClass":"GLACIER"},{"Days":60,"StorageClass":"ONEZONE_IA"}]}]}'
 ```
 
-The control-character steps, also on `$P-edge`, after step 13. Step 13 showed U+0001 as `&#x1;` and U+FFFE as raw bytes in one listing. These add the other characters `internal/protocol/xmlw` writes as numeric references (tab, LF, CR, U+001F, DEL, NEL U+0085 and U+FFFF), the same listing with `encoding-type=url`, and an error body that names such a key, where no encoding option exists:
+The control-character steps, also on `$P-edge`, after step 13. Step 13 showed U+0001 as `&#x1;` and U+FFFE as raw bytes in one listing. These add the other characters `internal/protocol/xmlw` writes as numeric references (tab, LF, CR, other C0 controls U+0008, U+000B, U+000C, U+001B and U+001F, DEL, the C1 controls U+0080, NEL U+0085 and U+009F, and U+FFFF), the same listing with `encoding-type=url`, and error bodies that name such keys, where no encoding option exists. None has been recorded yet (`testdata/parity/s3/R12` stops at step 15):
 
 ```sh
-for k in $'tab\tkey' $'lf\nkey' $'cr\rkey' $'us\x1fkey' $'del\x7fkey' $'nel\xc2\x85key' $'nonchar\xef\xbf\xbfkey'; do
+for k in $'tab\tkey' $'lf\nkey' $'cr\rkey' $'bs\x08key' $'vt\x0bkey' $'ff\x0ckey' $'esc\x1bkey' $'us\x1fkey' \
+         $'del\x7fkey' $'pad\xc2\x80key' $'nel\xc2\x85key' $'apc\xc2\x9fkey' $'nonchar\xef\xbf\xbfkey'; do
   aws s3api put-object --bucket "$P-edge" --key "$k" --body /dev/null
 done
 SVC=s3 recurl R12/16-list-control-without-encoding -H "x-amz-content-sha256: $E" \
   "https://$P-edge.s3.$R.amazonaws.com/?list-type=2"
 SVC=s3 recurl R12/17-list-control-encoding-url -H "x-amz-content-sha256: $E" \
   "https://$P-edge.s3.$R.amazonaws.com/?list-type=2&encoding-type=url"
-SVC=s3 recurl R12/18-get-missing-control-key -H "x-amz-content-sha256: $E" \
-  "https://$P-edge.s3.$R.amazonaws.com/missing%01key"
+for m in 01:%01 tab:%09 lf:%0A cr:%0D del:%7F nel:%C2%85 nonchar:%EF%BF%BF; do
+  SVC=s3 recurl "R12/18-get-missing-${m%%:*}-key" -H "x-amz-content-sha256: $E" \
+    "https://$P-edge.s3.$R.amazonaws.com/missing${m#*:}key"
+done
 ```
 
-In `notes.md`, for each key in steps 16 and 18, write how the character arrives: a numeric reference (and its form, `&#x9;` or `&#9;`), the raw byte, U+FFFD, dropped, or the request refused. For step 17, write each key's percent-encoded form. R12's backlog teardown removes these keys with the bucket.
+Step 16 settles which of these characters S3 writes as a numeric reference in a listing, and in which form, against `internal/protocol/xmlw`, which writes each as one; step 17 settles their percent-encoded forms under `encoding-type=url` (wire-rest.md 3.4); the step 18 group settles how a `NoSuchKey` body's `Key` element carries each one, where the listing's option does not apply. In `notes.md`, for each key in steps 16 and 18, write how the character arrives: a numeric reference (and its form, `&#x9;` or `&#9;`), the raw byte, U+FFFD, dropped, or the request refused (a refused `put-object` means the key cannot exist: note it and expect it absent from 16 and 17). For step 17, write each key's percent-encoded form. These steps add about 5 minutes and fractions of a cent in requests to R12. R12's backlog teardown removes these keys with the bucket.
 
 The R14 additions. `test-event-pattern` needs no resources and settles matching. `PutRule` may enforce the complexity and combination caps that `test-event-pattern` skips, so the validation cases go through `put-rule` on one throwaway rule, which each call overwrites:
 
@@ -336,11 +339,10 @@ Use `ebmatch` for H1, H8, H9 and H14, and `ebrule` for H10, H11 and H12 (then `e
 
 #### Open items with no script yet
 
-These are recorded only once someone writes the request. Draft each script from the cited research before a recording session. A coding agent may write the script; it never runs it.
+These are recorded only once someone writes the request. Draft each script from the cited research before a recording session. A coding agent may write the script; it never runs it. Two former items now have scripts: the S3 error for an XML request body over the size limit ([s3.md 15.4](research/s3.md#154-s3-04-an-xml-request-body-over-s3s-limit)), and S3's texts for an unknown `Authorization` scheme, an `Authorization` header plus `X-Amz-Algorithm`, and a credential-scope date that differs from `X-Amz-Date` ([s3.md 15.3](research/s3.md#153-s3-03-s3s-auth-texts)).
 
-- The S3 error for an XML request body over the size limit.
 - The S3 `copy-object` error for a source over 5 GiB. It needs a 5 GiB upload first.
-- Coral texts for an unsigned `x-amz-*` header (`HeadersNotSigned`), for an `Authorization` header plus `X-Amz-Algorithm` (on SQS over Query, and on S3), and for a presigned non-S3 request with no `X-Amz-Expires` or with `X-Amz-Expires=0` (`error-matrix.md` 5.5). Also S3's texts for an unknown `Authorization` scheme, for a credential-scope date that differs from `X-Amz-Date`, and for a presigned URL dated in the future, and whether `awsJson` errors echo `Content-Type: application/json`. `curl --aws-sigv4` signs every header it sends, so these need a hand-built signer like the one in R08 step 3.
+- Coral texts for an unsigned `x-amz-*` header (`HeadersNotSigned`), for an `Authorization` header plus `X-Amz-Algorithm` on SQS over Query, and for a presigned non-S3 request with no `X-Amz-Expires` or with `X-Amz-Expires=0` (`error-matrix.md` 5.5). Also S3's text for a presigned URL dated in the future, and whether `awsJson` errors echo `Content-Type: application/json`. `curl --aws-sigv4` signs every header it sends, so these need a hand-built signer like the one in R08 step 3.
 
 ## 4. Costs
 
