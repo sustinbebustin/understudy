@@ -19,8 +19,11 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the version of the service's snapshot sections.
-const stateVersion = 1
+// stateVersion is the version of the service's snapshot sections. Version
+// 2 dropped the API sequence numbers (GetApis sorts by id,
+// apigateway-http.md 3.1); before 1.0 a section of another version is
+// refused, not migrated (ADR 0009).
+const stateVersion = 2
 
 // Options configure the service.
 type Options struct {
@@ -112,7 +115,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	b := apigatewayv2api.NewBinder(d.Binder)
 	b.CreateApi(s.createAPI, partial(apiNote+"; "+tagsNote), kernel.WithCheck(checkCreateAPI),
 		kernel.WithResources(apisCollection[apigatewayv2api.CreateApiInput]))
-	b.GetApis(s.getAPIs, registry.Partial{Note: baseNote},
+	b.GetApis(s.getAPIs, partial("lists by id ascending, inferred: APIGW2-03 recorded one page, so the order is not recorded, but the nextToken form is"),
 		kernel.WithResources(apisCollection[apigatewayv2api.GetApisInput]))
 	b.GetApi(s.getAPI, registry.Partial{Note: baseNote},
 		kernel.WithResources(apiItem(func(in *apigatewayv2api.GetApiInput) string { return in.ApiId })))

@@ -46,8 +46,9 @@ func TestCoverageMarks(t *testing.T) {
 		stageNote         = "accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); an automatic deployment completes before the call returns, where AWS served it within 1 to 2 s (APIGW2-04); clientCertificateId answers NotImplemented (WebSocket APIs only)"
 		// The route order and HEAD are what APIGW2-05 left open
 		// (apigateway-http.md 4.3, 4.4); the header case is net/http's.
-		invokeNote = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented and recorded (APIGW2-05, APIGW2-06); the order of two greedy routes of one method is inferred: more segments before the variable first, then the leftmost literal segment; HEAD reaches only HEAD and ANY routes (inferred, unrecorded); AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; parameter mapping, access logging and throttling are not applied; headers over 10,240 bytes are not refused with 431; a 1.0 event reports header names as Go's HTTP server canonicalizes them, where AWS keeps the client's spelling"
-		storedNote = "the settings they remove are stored without effect; " + baseNote
+		invokeNote  = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented and recorded (APIGW2-05, APIGW2-06); the order of two greedy routes of one method is inferred: more segments before the variable first, then the leftmost literal segment; HEAD reaches only HEAD and ANY routes (inferred, unrecorded); AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; parameter mapping, access logging and throttling are not applied; headers over 10,240 bytes are not refused with 431; a 1.0 event reports header names as Go's HTTP server canonicalizes them, where AWS keeps the client's spelling"
+		getAPIsNote = "lists by id ascending, inferred: APIGW2-03 recorded one page, so the order is not recorded, but the nextToken form is"
+		storedNote  = "the settings they remove are stored without effect; " + baseNote
 		// AWS's body for a tag over the length limits escapes its quotes
 		// as \', which JSON does not allow (APIGW2-01 steps 24, 25;
 		// apigateway-http.md 3.6).
@@ -55,7 +56,7 @@ func TestCoverageMarks(t *testing.T) {
 	)
 	want := map[string]registry.BindCoverage{
 		"CreateApi": partial(apiNote + "; " + tagsNote), "UpdateApi": partial(apiNote),
-		"GetApi": partial(""), "GetApis": partial(""), "DeleteApi": partial(""), "DeleteCorsConfiguration": partial(""),
+		"GetApi": partial(""), "GetApis": partial(getAPIsNote), "DeleteApi": partial(""), "DeleteCorsConfiguration": partial(""),
 		"CreateRoute": partial(routeNote), "UpdateRoute": partial(routeNote),
 		"GetRoute": partial(""), "GetRoutes": partial(""), "DeleteRoute": partial(""),
 		"CreateIntegration": partial(integrationNote), "UpdateIntegration": partial(integrationNote + "; " + subtypeUpdateNote),

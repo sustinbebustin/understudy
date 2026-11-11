@@ -1,7 +1,6 @@
 package apigatewayv2
 
 import (
-	"cmp"
 	"context"
 	"maps"
 	"net"
@@ -116,7 +115,7 @@ func (s *Service) createAPI(_ context.Context, c *kernel.Call, in *apigatewayv2a
 	id := s.newAPIID(scope)
 	api, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (API, *awserr.Error) {
 		a := API{
-			ID: id, Seq: st.NextSeq, Name: in.Name, Description: clonePtr(in.Description), Version: clonePtr(in.Version),
+			ID: id, Name: in.Name, Description: clonePtr(in.Description), Version: clonePtr(in.Version),
 			RouteSelectionExpression:  deref(in.RouteSelectionExpression, defaultRouteSelection),
 			APIKeySelectionExpression: deref(in.ApiKeySelectionExpression, defaultAPIKeySelection),
 			CORS:                      corsIn(in.CorsConfiguration),
@@ -131,7 +130,6 @@ func (s *Service) createAPI(_ context.Context, c *kernel.Call, in *apigatewayv2a
 		if err := a.CORS.check(); err != nil {
 			return API{}, err
 		}
-		st.NextSeq++
 		st.APIs[id] = a
 		// Set again in case a Reset dropped the reservation before the
 		// write. Inside the write, the gate's shared side orders it against
@@ -174,14 +172,13 @@ func (s *Service) getAPI(_ context.Context, c *kernel.Call, in *apigatewayv2api.
 	return out, nil
 }
 
-// getAPIs lists the APIs of the caller's account and region in creation
-// order (inferred, APIGW2-03), a page at a time.
+// getAPIs lists the APIs of the caller's account and region by id ascending
+// (inferred: APIGW2-03 recorded one page of one, so the order is not
+// recorded; the nextToken form is), a page at a time.
 func (s *Service) getAPIs(_ context.Context, c *kernel.Call, in *apigatewayv2api.GetApisInput) (*apigatewayv2api.GetApisOutput, *awserr.Error) {
 	scope := c.Scope()
-	apis := store.View(s.cells, scope, func(st *State) []API {
-		return slices.SortedFunc(maps.Values(st.APIs), func(x, y API) int { return cmp.Or(cmp.Compare(x.Seq, y.Seq), cmp.Compare(x.ID, y.ID)) })
-	})
-	items, next, err := page(apis, func(a API) uint64 { return a.Seq }, in.MaxResults, in.NextToken)
+	apis := store.View(s.cells, scope, func(st *State) []API { return slices.Collect(maps.Values(st.APIs)) })
+	items, next, err := pageByID(apis, func(a API) string { return a.ID }, in.MaxResults, in.NextToken)
 	if err != nil {
 		return nil, err
 	}

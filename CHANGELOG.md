@@ -42,6 +42,7 @@ The first complete release.
 
 ### Fixed
 
+- API Gateway HTTP API `GetApis` lists APIs by id ascending, where it listed them in creation order, and its `nextToken` is AWS's form (the URL-escaped base64 of `id=S` and the page's last id), as REST `GetResources` already was. The id order is inferred from one recorded page; the token form is recorded. `GetRoutes`, `GetIntegrations` and the other lists keep creation order and their own tokens, which are unrecorded. The API Gateway HTTP API snapshot section moves to state version 2, so a snapshot or `--persist` state file holding HTTP APIs written by an earlier version is refused with a message naming both versions.
 - The Homebrew cask and the Testcontainers modules are published: `brew install --cask sustinbebustin/tap/understudy`, the Go module `github.com/sustinbebustin/understudy/testcontainers/go`, and `testcontainers-understudy` on PyPI and npm. Use 0.1.2 or later for any of them: 0.1.0 and 0.1.1 have binaries and images only.
 
 ## [0.1.1] - 2026-11-09

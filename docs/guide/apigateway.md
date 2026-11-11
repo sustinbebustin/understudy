@@ -34,7 +34,7 @@ aws apigatewayv2 create-api --name hello --protocol-type HTTP --description 'dem
 # "Tags": {"team": "payments"}, ...
 ```
 
-`get-api`, `get-apis` (in creation order; the CLI pages through it, so `--page-size` and `--max-items` work), `update-api`, `delete-api` and `delete-cors-configuration` work, and so do `tag-resource`, `untag-resource` and `get-tags` on an API's or a stage's ARN, `arn:aws:apigateway:us-east-1::/apis/<api-id>[/stages/<stage-name>]`. `--ip-address-type` is stored and changes nothing.
+`get-api`, `get-apis` (by id ascending, inferred from one recorded page; the CLI pages through it, so `--page-size` and `--max-items` work), `update-api`, `delete-api` and `delete-cors-configuration` work, and so do `tag-resource`, `untag-resource` and `get-tags` on an API's or a stage's ARN, `arn:aws:apigateway:us-east-1::/apis/<api-id>[/stages/<stage-name>]`. `--ip-address-type` is stored and changes nothing.
 
 With `--auto-deploy` the stage serves every change to the API's routes and integrations by the time the call that made it returns; `create-stage` answers the deployment it made (`"LastDeploymentStatusMessage": "Successfully deployed stage with deployment ID '8axhjs'"`).
 
