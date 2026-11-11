@@ -266,7 +266,6 @@ func TestHTTPSwitchesAreListed(t *testing.T) {
 		{"sns.http.backoff-curves", "linear-for-all", inf, "63-retry-schedule", "SNSH-09", A},
 		{"sns.http.retry-jitter", "none", rec, "63-retry-schedule", "SNSH-10", A},
 		{"sns.http.pending-messages", "dropped", rec, "22-the-confirmation-post-and-the-pending-period", "SNSH-11", P},
-		{"sns.http.resubscribe-pending", "resend-same-token", inf, "22-the-confirmation-post-and-the-pending-period", "SNSH-12", []string{"sns.Subscribe"}},
 		{"sns.http.unsubscribe-confirmation", "unauthenticated-only", rec, "24-unsubscribing-and-the-unsubscribeconfirmation", "SNSH-15", []string{"sns.Unsubscribe", "sns.UnsubscribeLink"}},
 		{"sns.http.control-dlq", "never", rec, "65-dead-letter-queue", "SNSH-17", C},
 		{"sns.http.control-content-type", "as-request-policy", rec, "33-content-type", "SNSH-03", C},
@@ -276,6 +275,11 @@ func TestHTTPSwitchesAreListed(t *testing.T) {
 		listed := map[string]fidelity.Entry{}
 		for _, e := range h.svc.Switches() {
 			listed[e.Name] = e
+		}
+		// SNSH-12 settled the repeated Subscribe of a pending endpoint as
+		// AWS does it (2.2), so it is no longer a switch.
+		if _, ok := listed["sns.http.resubscribe-pending"]; ok {
+			h.Error("switch sns.http.resubscribe-pending is listed, want it gone")
 		}
 		for _, w := range want {
 			e, ok := listed[w.name]
@@ -597,45 +601,60 @@ func TestPendingHTTPSubscriptionMissesWhatIsPublished(t *testing.T) {
 	})
 }
 
-// A repeated Subscribe of a pending endpoint resends its confirmation under
-// sns.http.resubscribe-pending: the same token, a new MessageId, the
-// current Timestamp; once confirmed, a repeat sends nothing
-// (sns-http-delivery.md 2.2).
+// A repeated Subscribe of a pending endpoint returns the same ARN and sends
+// a second confirmation with a new token, a new MessageId and the current
+// Timestamp; either token confirms, and the other then answers 403
+// AuthorizationError "Subscription already confirmed"; once confirmed, a
+// repeat sends nothing (sns-http-delivery.md 2.2, SNSH-12).
 func TestResubscribingAPendingEndpoint(t *testing.T) {
-	run(t, func(h *harness) {
-		topic := h.topic("events", nil)
-		arn := h.subscribe(topic, "http", hookURL, nil)
-		h.advance(time.Minute)
-		again := h.subscribe(topic, "http", hookURL, nil)
-		if again != arn {
-			h.Fatalf("the repeat Subscribe returned %s, want the pending subscription %s", again, arn)
-		}
-		_, cs := ofKind(h, delivery.HTTPSubscriptionConfirmation)
-		switch v := switchValue(h, "sns.http.resubscribe-pending"); v {
-		case "resend-same-token":
-			if len(cs) != 2 {
-				h.Fatalf("%d SubscriptionConfirmations, want one per Subscribe", len(cs))
-			}
-			first, second := parseBody(h, cs[0].Body), parseBody(h, cs[1].Body)
-			if second.Token != first.Token || second.Token != h.token(arn) || second.SubscribeURL != first.SubscribeURL {
-				h.Errorf("the second confirmation's token %q and link %q, want the first's %q and %q", second.Token, second.SubscribeURL, first.Token, first.SubscribeURL)
-			}
-			if second.MessageID == first.MessageID {
-				h.Errorf("both confirmations have MessageId %s", first.MessageID)
-			}
-			if ts := timestampOf(h, second); !ts.Equal(h.clock.Now().Wire()) {
-				h.Errorf("the second confirmation's Timestamp %s, want now", second.Timestamp)
-			}
-		default:
-			noExpectation(h, "sns.http.resubscribe-pending", v)
-		}
-		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
-		before := len(h.sink.all())
-		h.subscribe(topic, "http", hookURL, nil)
-		if n := len(h.sink.all()); n != before {
-			h.Errorf("a Subscribe of the confirmed endpoint took %d deliveries, want none", n-before)
-		}
-	})
+	for _, confirmWith := range []string{"first", "second"} {
+		t.Run("confirmed with the "+confirmWith+" token", func(t *testing.T) {
+			run(t, func(h *harness) {
+				topic := h.topic("events", nil)
+				arn := h.subscribe(topic, "http", hookURL, nil)
+				h.advance(time.Minute)
+				again := h.subscribe(topic, "http", hookURL, nil)
+				if again != arn {
+					h.Fatalf("the repeat Subscribe returned %s, want the pending subscription %s", again, arn)
+				}
+				_, cs := ofKind(h, delivery.HTTPSubscriptionConfirmation)
+				if len(cs) != 2 {
+					h.Fatalf("%d SubscriptionConfirmations, want one per Subscribe", len(cs))
+				}
+				first, second := parseBody(h, cs[0].Body), parseBody(h, cs[1].Body)
+				if second.Token == first.Token || second.SubscribeURL == first.SubscribeURL {
+					h.Errorf("the second confirmation repeats the first's token %q and link %q, want new ones", first.Token, first.SubscribeURL)
+				}
+				if want := base + "ConfirmSubscriptionLink?Action=ConfirmSubscription&TopicArn=" + topic + "&Token=" + second.Token; second.SubscribeURL != want {
+					h.Errorf("the second SubscribeURL = %q, want %q", second.SubscribeURL, want)
+				}
+				if second.MessageID == first.MessageID {
+					h.Errorf("both confirmations have MessageId %s", first.MessageID)
+				}
+				if ts := timestampOf(h, second); !ts.Equal(h.clock.Now().Wire()) {
+					h.Errorf("the second confirmation's Timestamp %s, want now", second.Timestamp)
+				}
+				used, other := first.Token, second.Token
+				if confirmWith == "second" {
+					used, other = other, used
+				}
+				confirmed := must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: used})
+				if *confirmed.SubscriptionArn != arn {
+					h.Errorf("ConfirmSubscription = %s, want %s", *confirmed.SubscriptionArn, arn)
+				}
+				_, err := call(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: other})
+				wantError(h, err, "AuthorizationError", "Subscription already confirmed")
+				if err.ID.Status != 403 {
+					h.Errorf("the other token answers HTTP %d, want 403", err.ID.Status)
+				}
+				before := len(h.sink.all())
+				h.subscribe(topic, "http", hookURL, nil)
+				if n := len(h.sink.all()); n != before {
+					h.Errorf("a Subscribe of the confirmed endpoint took %d deliveries, want none", n-before)
+				}
+			})
+		})
+	}
 }
 
 // An unsigned GET of a confirmed subscription's UnsubscribeURL sends the

@@ -86,14 +86,24 @@ func subscriptions(t *rapid.T) []Subscription {
 			Principal:          rapid.SampledFrom([]string{"", "arn:aws:iam::000000000000:root"}).Draw(t, "principal"),
 			RawMessageDelivery: rapid.Bool().Draw(t, "raw"),
 			Attributes:         stringMap(t, "subscriptionAttributes"),
-			Status:             Confirmed{By: confirmedBy(t)},
+			Status:             Confirmed{By: confirmedBy(t), Unused: tokens(t, 0, "unused")},
 		}
 		if rapid.Bool().Draw(t, "pending") {
-			sub.Status = Pending{Token: rapid.StringMatching(`[0-9a-f]{8}`).Draw(t, "token"), Expires: instant(t, "expires")}
+			sub.Status = Pending{Tokens: tokens(t, 1, "tokens"), Expires: instant(t, "expires")}
 		}
 		out = append(out, sub)
 	}
 	return out
+}
+
+// tokens draws nil when least is 0 and it draws none, else least to 3
+// tokens.
+func tokens(t *rapid.T, least int, label string) []string {
+	n := rapid.IntRange(least, 3).Draw(t, label)
+	if n == 0 {
+		return nil
+	}
+	return rapid.SliceOfN(rapid.StringMatching(`[0-9a-f]{8}`), n, n).Draw(t, label+"Values")
 }
 
 // confirmedBy draws one of the ways a subscription can be confirmed.

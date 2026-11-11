@@ -271,8 +271,6 @@ func httpSwitches() []fidelity.Switch[string] {
 			"recorded in SNSH-09 (2026-11-03): linear matches, and AWS's arithmetic, geometric and exponential curves differ, which understudy does not model yet", all),
 		httpSwitch("sns.http.retry-jitter", "none", evidence.AWSRecorded, "63-retry-schedule", "SNSH-10", unreplayed("SNSH-10"), all),
 		httpSwitch("sns.http.pending-messages", "dropped", evidence.AWSRecorded, "22-the-confirmation-post-and-the-pending-period", "SNSH-11", unreplayed("SNSH-11"), publishOps()),
-		httpSwitch("sns.http.resubscribe-pending", "resend-same-token", evidence.Inferred, "22-the-confirmation-post-and-the-pending-period", "SNSH-12",
-			"recorded in SNSH-12 (2026-11-03): AWS sends a new token and the first stays valid, which understudy does not yet", []string{"sns.Subscribe"}),
 		httpSwitch("sns.http.unsubscribe-confirmation", "unauthenticated-only", evidence.AWSRecorded, "24-unsubscribing-and-the-unsubscribeconfirmation", "SNSH-15",
 			unreplayed("SNSH-15"), []string{"sns.Unsubscribe", "sns.UnsubscribeLink"}),
 		httpSwitch("sns.http.control-dlq", "never", evidence.AWSRecorded, "65-dead-letter-queue", "SNSH-17", unreplayed("SNSH-17"), control),

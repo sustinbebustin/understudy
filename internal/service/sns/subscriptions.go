@@ -164,9 +164,9 @@ type added struct {
 // endpoint when settings agree with it. A new subscription whose
 // FilterPolicy would pass the topic's quota is still stored, without the
 // policy, and Subscribe answers the quota error, as AWS still creates it
-// (sns.md 3.1). Under sns.http.resubscribe-pending a repeat for a pending
-// http or https subscription sends its endpoint the SubscriptionConfirmation
-// again, with the same token and expiry (sns-http-delivery.md 2.2).
+// (sns.md 3.1). A repeat for a pending http or https subscription gives it
+// token as a further token and sends its endpoint a SubscriptionConfirmation
+// carrying it (sns-http-delivery.md 2.2).
 func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscription, settings []subscriptionSetting, route confirmRoute) (Subscription, *awserr.Error) {
 	token := ""
 	if route != confirmedAtSubscribe {
@@ -187,11 +187,10 @@ func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscr
 			return added{}, errTopicNotFound()
 		}
 		if existing, ok := t.subscribed(candidate.Protocol, candidate.Endpoint); ok {
-			tx.Unchanged()
-			return added{sub: existing}, s.resubscribe(tx, route, st, ref, &t, &existing, settings, l, now)
+			return added{sub: existing}, s.resubscribe(tx, route, st, ref, &t, &existing, settings, token, l, now)
 		}
 		if route != confirmedAtSubscribe {
-			candidate.Status = Pending{Token: token, Expires: now.Add(tokenValidity)}
+			candidate.Status = Pending{Tokens: []string{token}, Expires: now.Add(tokenValidity)}
 		}
 		refused := t.admitFilterPolicy(&candidate)
 		t.Subscriptions = append(t.Subscriptions, candidate)
@@ -212,20 +211,30 @@ func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscr
 
 // resubscribe answers a repeated Subscribe of existing, the topic's
 // subscription of the same protocol and endpoint: the conflict when
-// settings disagree with it, else nil. Under sns.http.resubscribe-pending a
-// pending http or https subscription's endpoint gets its
-// SubscriptionConfirmation again, with the same token and expiry, a new
-// MessageId and the current Timestamp (sns-http-delivery.md 2.2); a
-// confirmed one gets nothing.
-func (s *Service) resubscribe(tx *kernel.Tx, route confirmRoute, st *State, ref topicRef, t *Topic, existing *Subscription, settings []subscriptionSetting, l links, now clock.Instant) *awserr.Error {
+// settings disagree with it, else nil. A pending http or https subscription
+// keeps its tokens and expiry, gains token, and its endpoint gets a
+// SubscriptionConfirmation carrying token, with a new MessageId and the
+// current Timestamp; each of its tokens then confirms it
+// (sns-http-delivery.md 2.2, SNSH-12). Keeping the expiry is inferred:
+// SNSH-12 did not record whether the repeat extends it. A confirmed
+// subscription, or one of another protocol, gets nothing and is unchanged.
+func (s *Service) resubscribe(tx *kernel.Tx, route confirmRoute, st *State, ref topicRef, t *Topic, existing *Subscription, settings []subscriptionSetting, token string, l links, now clock.Instant) *awserr.Error {
 	if err := existing.agrees(settings); err != nil {
 		return err
 	}
 	pending, isPending := existing.Status.(Pending)
 	if !isPending || route != confirmedFromEndpoint {
+		tx.Unchanged()
 		return nil
 	}
-	return s.sendConfirmation(tx, route, st, ref, t, existing, pending.Token, l, now)
+	pending.Tokens = append(slices.Clone(pending.Tokens), token)
+	existing.Status = pending
+	t.Subscriptions[t.indexOf(existing.ID)].Status = pending
+	if err := s.sendConfirmation(tx, route, st, ref, t, existing, token, l, now); err != nil {
+		return err
+	}
+	st.Topics[ref.name] = *t
+	return nil
 }
 
 // sendConfirmation hands tx the SubscriptionConfirmation of token that
@@ -446,7 +455,9 @@ func (s *Service) confirmSubscription(_ context.Context, c *kernel.Call, in *sns
 
 // confirm confirms the subscription of any topic of scope that waits for
 // by's token, as by says, and returns its ARN. Confirming again with the
-// token it was confirmed with succeeds and changes nothing. A token with a
+// token it was confirmed with succeeds and changes nothing; any other of
+// its tokens is 403 AuthorizationError "Subscription already confirmed"
+// (sns-http-delivery.md 2.2, SNSH-12, AWS-recorded). A token with a
 // character that is not hex is "Invalid token"; any other token that
 // confirms nothing, expired included, is "Invalid parameter: Token"
 // (LocalStack test_sns_confirm_subscription_wrong_token and
@@ -463,12 +474,16 @@ func (s *Service) confirm(c *kernel.Call, scope aws.Scope, by tokenConfirmation)
 			return subscriptionRef{}, errInvalidParameter("Token")
 		}
 		ref := subscriptionRef{topic: topicRef{scope: scope, name: name}, id: st.Topics[name].Subscriptions[i].ID}
-		if _, pending := st.Topics[name].Subscriptions[i].Status.(Pending); !pending {
+		pending, isPending := st.Topics[name].Subscriptions[i].Status.(Pending)
+		if !isPending {
 			tx.Unchanged()
-			return ref, nil
+			if st.Topics[name].Subscriptions[i].confirmedWith(token) {
+				return ref, nil
+			}
+			return subscriptionRef{}, errAlreadyConfirmed()
 		}
 		t, _ := st.writable(name, now)
-		t.Subscriptions[t.indexOf(ref.id)].Status = Confirmed{By: by}
+		t.Subscriptions[t.indexOf(ref.id)].Status = Confirmed{By: by, Unused: pending.othersThan(token)}
 		st.Topics[name] = t
 		return ref, nil
 	})
@@ -478,28 +493,38 @@ func (s *Service) confirm(c *kernel.Call, scope aws.Scope, by tokenConfirmation)
 	return ref.arn(), nil
 }
 
-// holder finds the subscription token confirms: the pending one waiting
-// for it, unless expired by now, or the one already confirmed with it. It
-// returns the topic's name and the subscription's index in it; topics are
-// searched in name order, though a token drawn from 144 random bytes is in
-// at most one of them.
+// holder finds the subscription that holds token: the pending one with it
+// among its tokens, unless expired by now, or the confirmed one that was
+// confirmed with it or held it unused. It returns the topic's name and the
+// subscription's index in it; topics are searched in name order, though a
+// token drawn from 144 random bytes is in at most one of them.
 func (s *State) holder(token string, now clock.Instant) (topic string, index int, ok bool) {
 	for _, name := range slices.Sorted(maps.Keys(s.Topics)) {
 		subs := s.Topics[name].Subscriptions
 		for i := range subs {
 			switch status := subs[i].Status.(type) {
 			case Pending:
-				if status.Token == token && !subs[i].expired(now) {
+				if slices.Contains(status.Tokens, token) && !subs[i].expired(now) {
 					return name, i, true
 				}
 			case Confirmed:
-				if prior, ok := status.By.(tokenConfirmation); ok && prior.token() == token {
+				if subs[i].confirmedWith(token) || slices.Contains(status.Unused, token) {
 					return name, i, true
 				}
 			}
 		}
 	}
 	return "", 0, false
+}
+
+// confirmedWith reports a subscription confirmed with token.
+func (sub *Subscription) confirmedWith(token string) bool {
+	c, ok := sub.Status.(Confirmed)
+	if !ok {
+		return false
+	}
+	prior, ok := c.By.(tokenConfirmation)
+	return ok && prior.token() == token
 }
 
 // hexText reports whether s holds hex digits only.

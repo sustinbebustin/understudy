@@ -13,7 +13,7 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 2
+const stateVersion = 3
 
 // State is the SNS state of one account and region: its topics by name and
 // the key notifications from them are signed with. Records are values,
@@ -175,15 +175,36 @@ type Confirmation interface{ isConfirmation() }
 // Confirmed is a subscription that receives notifications.
 type Confirmed struct {
 	By ConfirmedBy `json:"by"`
+	// Unused are the tokens it held while pending other than the one it
+	// was confirmed with. ConfirmSubscription answers each with
+	// "Subscription already confirmed" (sns-http-delivery.md 2.2); that
+	// they keep that answer past the two days a token is valid is inferred.
+	Unused []string `json:"unused,omitempty"`
 }
 
-// Pending is a subscription waiting for ConfirmSubscription with Token.
+// Pending is a subscription waiting for ConfirmSubscription with any of
+// Tokens.
 type Pending struct {
-	Token string `json:"token"`
-	// Expires is when the token stops confirming and the subscription is
-	// gone: two days after Subscribe.
+	// Tokens are its tokens in the order they were sent, never empty: one
+	// from Subscribe, and one more from each repeat of it while pending
+	// (sns-http-delivery.md 2.2).
+	Tokens []string `json:"tokens"`
+	// Expires is when the tokens stop confirming and the subscription is
+	// gone: two days after the first Subscribe.
 	Expires clock.Instant `json:"expires"`
 }
+
+// othersThan returns p's tokens other than token, nil when there are none.
+func (p Pending) othersThan(token string) []string {
+	others := slices.DeleteFunc(slices.Clone(p.Tokens), func(t string) bool { return t == token })
+	if len(others) == 0 {
+		return nil
+	}
+	return others
+}
+
+// latest is the token p was given last, the one its endpoint got last.
+func (p Pending) latest() string { return p.Tokens[len(p.Tokens)-1] }
 
 func (Confirmed) isConfirmation() {}
 func (Pending) isConfirmation()   {}

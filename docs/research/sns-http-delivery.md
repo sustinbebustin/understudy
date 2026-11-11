@@ -385,11 +385,12 @@ Delivery status logging stays stored-only, under the SetTopicAttributes note; th
 | `sns.http.backoff-curves` | `linear-for-all` (each backoff retry steps evenly from `minDelayTarget` to `maxDelayTarget`; one backoff retry waits `minDelayTarget`). Linear and the one-retry rule match; AWS's other three curves differ (6.3), a recorded deviation | inferred | 6.3 | SNSH-09 |
 | `sns.http.retry-jitter` | `none` | aws-recorded (SNSH-10) | 6.3 | SNSH-10 |
 | `sns.http.pending-messages` | `dropped` | aws-recorded (SNSH-11) | 2.2 | SNSH-11 |
-| `sns.http.resubscribe-pending` | `resend-same-token`. AWS sends a new token and the first stays valid (2.2), a recorded deviation | inferred | 2.2 | SNSH-12 |
 | `sns.http.unsubscribe-confirmation` | `unauthenticated-only` (sent for an unsigned unsubscribe, not for a signed one) | aws-recorded (SNSH-15) | 2.4 | SNSH-15 |
 | `sns.http.control-dlq` | `never` (failed confirmations are discarded) | aws-recorded (SNSH-17) | 6.5 | SNSH-17 |
 | `sns.http.control-content-type` | `as-request-policy` (`headerContentType` applies to all three types); was `text-plain` until 2026-11-03 | aws-recorded (SNSH-03) | 3.3 | SNSH-03 |
 | `sns.http.basic-auth` | `preemptive` (Basic credentials from the URL on the first request; Digest not implemented). SNSH-22 saw no `authorization` header at all, possibly stripped by its receiver | inferred | 3.1 | SNSH-22 |
+
+`sns.http.resubscribe-pending` (`resend-same-token`) is retired: a repeated `Subscribe` while pending sends a new token and every token sent confirms, as SNSH-12 recorded (2.2).
 
 `linear-for-all` is deliberately not a guess at the other three curves: it stays inside the documented bounds and the coverage note says so. No switch is needed for attempts = 1 + `numRetries` (recorded, SNSH-09). The 15 s timeout is aws-doc, and SNSH-05 saw AWS wait at least 20 s (3.1), a deviation.
 
