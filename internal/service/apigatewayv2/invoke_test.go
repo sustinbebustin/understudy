@@ -3,6 +3,7 @@ package apigatewayv2_test
 import (
 	"maps"
 	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strings"
 	"testing"
@@ -718,6 +719,62 @@ func TestSizeLimits(t *testing.T) {
 			t.Errorf("a 1 MiB body = %d %s, want the function's 200", rec.Code, rec.Body)
 		}
 	})
+}
+
+// The layer in front of the gateway answers a request line plus headers
+// over 10,240 bytes, the documented quota, with 431 and a body over 10 MiB
+// with 413, each with apigw-requestid and no Content-Type (APIGW2-10 steps
+// 07 and 05). A body over the gateway's cap but not over 10 MiB, or over
+// Lambda's 6 MB event limit, keeps the gateway's 413 with Content-Type
+// (step 06).
+func TestFrontLayerLimits(t *testing.T) {
+	fa := apigatewayv2.FailureAnswersSwitch().Value
+	run(t, func(h *harness) {
+		id, _ := h.lambdaAPI("2.0", "GET /e", "POST /e")
+		host := id + ".execute-api." + region + ".localhost"
+		// withHeaders is a GET whose request line and header lines, each
+		// with its CRLF, add up to n bytes.
+		withHeaders := func(n int) *http.Request {
+			r := h.request(http.MethodGet, hostURL(host, "/e"), "")
+			fixed := len("GET /e HTTP/1.1\r\n") + len("Host: "+host+":4566\r\n") + len("X-Big: \r\n")
+			r.Header.Set("X-Big", strings.Repeat("a", n-fixed))
+			return r
+		}
+		if rec := h.send(withHeaders(10_240)); rec.Code != http.StatusOK {
+			t.Errorf("a request line plus headers of 10,240 bytes = %d %s, want the function's 200", rec.Code, rec.Body)
+		}
+		wantFrontAnswer(t, h.send(withHeaders(10_241)), http.StatusRequestHeaderFieldsTooLarge, "Request Header Fields Too Large", "a request line plus headers of 10,241 bytes")
+		post := func(size int) *http.Request {
+			r := h.request(http.MethodPost, hostURL(host, "/e"), strings.Repeat("x", size))
+			r.Header.Set("Content-Type", "text/plain")
+			return r
+		}
+		wantFrontAnswer(t, h.send(post(10_485_761)), http.StatusRequestEntityTooLarge, "Request Entity Too Large", "a body of 10,485,761 bytes")
+		wantAnswer(t, h.send(post(10_485_760)), fa.TooLarge, "a body of 10,485,760 bytes")
+		wantAnswer(t, h.send(post(7_000_000)), fa.TooLarge, "a body of 7,000,000 bytes")
+	})
+}
+
+// wantFrontAnswer checks an answer of the layer in front of the gateway as
+// APIGW2-10 steps 05 and 07 recorded it: status, the body
+// {"message":"<message>"}, and the headers apigw-requestid and Date, with
+// no Content-Type (the server adds Content-Length and Connection).
+func wantFrontAnswer(tb testing.TB, rec *httptest.ResponseRecorder, status int, message, what string) {
+	tb.Helper()
+	body := `{"message":"` + message + `"}`
+	if rec.Code != status || rec.Body.String() != body {
+		tb.Errorf("%s: response %d %s, want %d %s", what, rec.Code, rec.Body, status, body)
+	}
+	var names []string
+	for name, values := range rec.Header() {
+		if len(values) > 0 {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	if !slices.Equal(names, []string{"Apigw-Requestid", "Date"}) {
+		tb.Errorf("%s: headers %v, want only Apigw-Requestid and Date (no Content-Type)", what, rec.Header())
+	}
 }
 
 // What understudy stores but does not run answers 501 when a request

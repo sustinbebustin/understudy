@@ -92,7 +92,7 @@ const (
 		"the order of two greedy routes of one method is inferred: more segments before the variable first, then the leftmost literal segment; " +
 		"HEAD reaches only HEAD and ANY routes (inferred, unrecorded); " +
 		"AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; " +
-		"parameter mapping, access logging and throttling are not applied; headers over 10,240 bytes are not refused with 431; " +
+		"parameter mapping, access logging and throttling are not applied; " +
 		"a 1.0 event reports header names as Go's HTTP server canonicalizes them, where AWS keeps the client's spelling"
 )
 

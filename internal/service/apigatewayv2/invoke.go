@@ -41,13 +41,18 @@ func (s *Service) invoke(ctx context.Context, c *kernel.Call, r *http.Request, w
 	requestID := string(ids.APIGatewayRequestIDFor(c.ID()))
 	w.Header().Set("Apigw-Requestid", requestID)
 	failures := FailureAnswersSwitch().Value
-	// The payload quota comes first, before the API is looked up
-	// (apigateway-http.md 4.7).
-	body, tooLarge, err := lambdaproxy.ReadBody(r, failures.MaxBody)
+	// The front layer's limits come first, then the payload quota, all
+	// before the API is looked up (apigateway-http.md 4.5, 4.7).
+	if headerBytes(r) > failures.Front.MaxHeaders {
+		return writeFrontAnswer(w, failures.Front.HeadersTooLarge)
+	}
+	body, tooLarge, err := lambdaproxy.ReadBody(r, failures.Front.MaxBody)
 	switch {
 	case err != nil:
 		return err
 	case tooLarge:
+		return writeFrontAnswer(w, failures.Front.BodyTooLarge)
+	case len(body) > failures.MaxBody:
 		return writeAnswer(w, failures.TooLarge)
 	}
 	addr, ok := s.resolve(r)
@@ -535,15 +540,55 @@ func (t toFunction) sourceARN(fnRegion aws.Region) aws.ARN {
 // status, the body {"message":"<Message>"} and the Content-Type of the
 // apigatewayv2.front.answers switch (apigateway-http.md 4.5).
 func writeAnswer(w http.ResponseWriter, a GatewayAnswer) *awserr.Error {
+	return writeMessage(w, a, []string{FrontAnswersSwitch().Value.ContentType})
+}
+
+// writeFrontAnswer writes an answer of the layer in front of the gateway:
+// a's status and body, with the apigw-requestid header already set and no
+// Content-Type (APIGW2-10 steps 05, 07). A nil Content-Type keeps net/http
+// from sniffing one.
+func writeFrontAnswer(w http.ResponseWriter, a GatewayAnswer) *awserr.Error {
+	return writeMessage(w, a, nil)
+}
+
+// writeMessage writes a's status and the body {"message":"<Message>"}
+// with contentType as the Content-Type header's values.
+func writeMessage(w http.ResponseWriter, a GatewayAnswer, contentType []string) *awserr.Error {
 	body, err := json.Marshal(struct {
 		Message string `json:"message"`
 	}{a.Message})
 	if err != nil {
 		return awserr.Internalf(err)
 	}
-	w.Header().Set("Content-Type", FrontAnswersSwitch().Value.ContentType)
+	w.Header()["Content-Type"] = contentType
 	w.WriteHeader(a.Status)
 	// A failed write means the client went away; nothing else can be sent.
 	_, _ = w.Write(body) //nolint:errcheck // the client is gone when this fails
 	return nil
+}
+
+// headerBytes is the size of r's request line plus headers as the front
+// layer's quota counts them (apigateway-http.md 4.7): the request line and
+// each header line, Host included, with its CRLF, the blank line that ends
+// the headers not counted. The request target is the one the client sent,
+// so on the path fallback it includes /_understudy/execute-api/<api-id>.
+func headerBytes(r *http.Request) int {
+	target := lambdaproxy.EscapedPath(r)
+	if r.URL.RawQuery != "" {
+		target += "?" + r.URL.RawQuery
+	}
+	const crlf = len("\r\n")
+	const sep = len(": ")
+	n := len(r.Method) + 1 + len(target) + 1 + len(r.Proto) + crlf
+	n += len("Host") + sep + len(r.Host) + crlf
+	for name, values := range r.Header {
+		for _, v := range values {
+			n += len(name) + sep + len(v) + crlf
+		}
+	}
+	// net/http moves Transfer-Encoding out of the header map.
+	for _, te := range r.TransferEncoding {
+		n += len("Transfer-Encoding") + sep + len(te) + crlf
+	}
+	return n
 }
