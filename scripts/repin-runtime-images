@@ -1,0 +1,166 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = []
+# ///
+"""Re-pin the Lambda runtime images to the index digests public.ecr.aws serves today.
+
+    scripts/repin-runtime-images
+
+Every release runs the runtime images it was tested with (ARCHITECTURE.md
+14.3), so prepare-release.yml runs this before it commits: each tag in
+internal/service/lambda/launcher/images.go is resolved to its current
+multi-architecture index digest, and the table's digests and "served on"
+date are rewritten. A tag that does not resolve, or resolves to a
+single-architecture manifest, fails the run naming the tag, and the table
+is left as it was.
+
+It reads only public.ecr.aws's anonymous OCI distribution API, the registry
+`understudy images pull` pulls from; it calls no AWS API.
+"""
+
+import datetime
+import hashlib
+import json
+import re
+import sys
+import urllib.error
+import urllib.request
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+
+TABLE = "internal/service/lambda/launcher/images.go"
+REGISTRY = "public.ecr.aws"
+
+# The table's repository prefix, its rows, and the date its comment gives.
+PREFIX = re.compile(r'^\tconst repo = "public\.ecr\.aws/([^"]+)"$', re.M)
+ROW = re.compile(
+    r'\{Runtime: "(?P<runtime>[^"]+)", Repository: repo \+ "(?P<name>[^"]+)", '
+    r'Tag: "(?P<tag>[^"]+)", Digest: "(?P<digest>sha256:[0-9a-f]{64})"\}'
+)
+SERVED = re.compile(r"public\.ecr\.aws served it on (\d{4}-\d{2}-\d{2})\.")
+
+# The media types of a multi-architecture index: one pin serves x86_64 and arm64.
+INDEX_TYPES = (
+    "application/vnd.oci.image.index.v1+json",
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+)
+
+
+class RepinError(Exception):
+    """A re-pin refused before the table changed."""
+
+
+@dataclass(frozen=True)
+class Pin:
+    """One row of the table: `repository` is the path in the registry, such as lambda/python."""
+
+    runtime: str
+    repository: str
+    tag: str
+    digest: str
+    start: int
+    end: int
+
+    @property
+    def ref(self) -> str:
+        return f"{REGISTRY}/{self.repository}:{self.tag}"
+
+
+@dataclass(frozen=True)
+class Response:
+    """What the registry answered: the Content-Type and Docker-Content-Digest headers, and the body."""
+
+    content_type: str
+    digest: str | None
+    body: bytes
+
+
+Fetch = Callable[[urllib.request.Request], Response]
+
+
+def read_pins(text: str) -> list[Pin]:
+    prefix = PREFIX.search(text)
+    if prefix is None:
+        raise RepinError(f"{TABLE}: no line matches {PREFIX.pattern}")
+    pins = [
+        Pin(m["runtime"], prefix.group(1) + m["name"], m["tag"], m["digest"], m.start("digest"), m.end("digest"))
+        for m in ROW.finditer(text)
+    ]
+    if not pins:
+        raise RepinError(f"{TABLE}: no row matches {ROW.pattern}")
+    return pins
+
+
+def resolve(pin: Pin, fetch: Fetch) -> str:
+    """The digest of the index `pin`'s tag names now, or RepinError naming the tag."""
+    try:
+        token_url = f"https://{REGISTRY}/token/?scope=repository:{pin.repository}:pull"
+        token = json.loads(fetch(urllib.request.Request(token_url)).body)["token"]
+        req = urllib.request.Request(
+            f"https://{REGISTRY}/v2/{pin.repository}/manifests/{pin.tag}",
+            headers={"Authorization": f"Bearer {token}", "Accept": ", ".join(INDEX_TYPES)},
+        )
+        answer = fetch(req)
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        raise RepinError(f"{pin.ref} ({pin.runtime}) did not resolve: {e}") from e
+    media_type = answer.content_type.split(";")[0].strip()
+    if media_type not in INDEX_TYPES:
+        raise RepinError(
+            f"{pin.ref} ({pin.runtime}) resolves to {media_type or 'no media type'}, not a multi-architecture "
+            f"index ({' or '.join(INDEX_TYPES)}); the pin must serve both x86_64 and arm64"
+        )
+    digest = "sha256:" + hashlib.sha256(answer.body).hexdigest()
+    if answer.digest is not None and answer.digest != digest:
+        raise RepinError(f"{pin.ref} ({pin.runtime}): the registry says {answer.digest}, but its body hashes to {digest}")
+    return digest
+
+
+def repin(root: Path, date: str, fetch: Fetch) -> list[tuple[Pin, str]]:
+    """Rewrite every digest and the date; every tag resolves before the table is written."""
+    path = root / TABLE
+    text = path.read_text()
+    if SERVED.search(text) is None:
+        raise RepinError(f"{TABLE}: no comment matches {SERVED.pattern}")
+    pins = read_pins(text)
+    resolved: list[tuple[Pin, str]] = []
+    failures: list[str] = []
+    for pin in pins:
+        try:
+            resolved.append((pin, resolve(pin, fetch)))
+        except RepinError as e:
+            failures.append(str(e))
+    if failures:
+        raise RepinError("\n".join(failures))
+    for pin, digest in reversed(resolved):
+        text = text[: pin.start] + digest + text[pin.end :]
+    text = SERVED.sub(f"public.ecr.aws served it on {date}.", text, count=1)
+    path.write_text(text)
+    return resolved
+
+
+def _fetch(req: urllib.request.Request) -> Response:
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return Response(
+            content_type=resp.headers.get("Content-Type", ""),
+            digest=resp.headers.get("Docker-Content-Digest"),
+            body=resp.read(),
+        )
+
+
+def main() -> int:
+    root = Path(__file__).resolve().parent.parent
+    try:
+        resolved = repin(root, datetime.date.today().isoformat(), _fetch)
+    except RepinError as e:
+        print(f"repin-runtime-images: {e}\nNothing was changed: {TABLE} keeps its pins.", file=sys.stderr)
+        return 1
+    for pin, digest in resolved:
+        moved = f"{pin.digest} -> {digest}" if digest != pin.digest else f"unchanged at {digest}"
+        print(f"- {pin.runtime} ({pin.ref}): {moved}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

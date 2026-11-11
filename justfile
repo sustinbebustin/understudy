@@ -188,6 +188,7 @@ aws *ARGS:
 tf *ARGS:
     scripts/sealed terraform "$@"
 
-# Test the scripts: the sealed wrapper, distill-parity and parity-record.
+# Test the scripts: the sealed wrapper, distill-parity, parity-record,
+# bump-version and repin-runtime-images.
 sealed-test:
     uv run --with pytest pytest scripts/tests

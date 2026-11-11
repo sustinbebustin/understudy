@@ -4,6 +4,10 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Changed
+
+- Each release pins the Lambda runtime images to the digests public.ecr.aws serves when the release is prepared, and tests them before the tag. Releases 0.1.0 to 0.1.2 shipped the pins of 2026-10-14.
+
 ### Removed
 
 - The `s3.maxObjectBytes` and `dynamodb.registry` configuration keys. `serve` parsed them and then refused to start, because nothing applied either. A file that names them now fails as an unknown key, naming it. S3 already enforces AWS's 5 GiB single-PUT limit, and DynamoDB Local already falls back from Docker Hub to the ECR Public mirror when a pull fails.
