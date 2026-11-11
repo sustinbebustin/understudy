@@ -17,7 +17,7 @@ var descGetThing = registry.Operation{
 	Input:       &schemaGetThingInput,
 	Output:      &schemaGetThingOutput,
 	Errors:      []awserr.Identity{IdentityInvalidInput()},
-	IAM:         []registry.IAMAction{{Prefix: "golden", Name: "GetThing"}},
+	IAM:         []registry.IAMAction{{Prefix: "golden", Name: "GetThing"}, {Prefix: "golden", Name: "GetThingVersion"}},
 	SuccessCode: 200,
 	Readonly:    true,
 }

@@ -83,12 +83,13 @@ func (b *builder) wiring() error {
 // access-recorded and get none; raw ones state theirs in codegen/services.
 func (b *builder) iamActions() error {
 	config := "codegen/services/" + string(b.cfg.ID) + ".json"
-	mapped := map[string]IAMPrimary{}
-	for _, p := range b.cfg.IAMPrimary {
-		if !slices.ContainsFunc(b.ir.Operations, func(o *OperationIR) bool { return o.Kind == registry.Modeled && o.Name == p.Operation }) {
-			return failf(StageIR, config, "iamPrimary names %s, which is not a modeled operation of %s", p.Operation, b.cfg.Service)
-		}
-		mapped[p.Operation] = p
+	mapped, err := byModeledOperation(b, "iamPrimary", b.cfg.IAMPrimary, func(p *IAMPrimary) string { return p.Operation })
+	if err != nil {
+		return err
+	}
+	added, err := byModeledOperation(b, "iamAdditions", b.cfg.IAMAdditions, func(a *IAMAddition) string { return a.Operation })
+	if err != nil {
+		return err
 	}
 	for _, o := range b.ir.Operations {
 		if o.Kind != registry.Modeled {
@@ -105,9 +106,25 @@ func (b *builder) iamActions() error {
 		if err != nil {
 			return failf(StageIR, string(o.ID), "%w", err)
 		}
-		o.IAM = ordered
+		if o.IAM, err = extend(config, ordered, added[o.Name]); err != nil {
+			return failf(StageIR, string(o.ID), "%w", err)
+		}
 	}
 	return nil
+}
+
+// byModeledOperation indexes the entries of a service config list by the
+// operation each names, refusing one that names no modeled operation.
+func byModeledOperation[T any](b *builder, field string, entries []T, operation func(*T) string) (map[string]*T, error) {
+	out := make(map[string]*T, len(entries))
+	for i := range entries {
+		name := operation(&entries[i])
+		if !slices.ContainsFunc(b.ir.Operations, func(o *OperationIR) bool { return o.Kind == registry.Modeled && o.Name == name }) {
+			return nil, failf(StageIR, b.configName(), "%s names %s, which is not a modeled operation of %s", field, name, b.cfg.Service)
+		}
+		out[name] = &entries[i]
+	}
+	return out, nil
 }
 
 func (b *builder) operationTraits(o *OperationIR, op *Shape) error {

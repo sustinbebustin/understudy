@@ -3,5 +3,13 @@
   "package": "goldenapi",
   "model": "golden",
   "iamPrefix": "golden",
-  "extraProtocols": ["aws.protocols#awsQuery"]
+  "extraProtocols": ["aws.protocols#awsQuery"],
+  "iamAdditions": [
+    {
+      "operation": "GetThing",
+      "actions": ["golden:GetThingVersion"],
+      "reason": "the fixture's Service Reference row omits the version read",
+      "evidence": {"label": "inferred", "source": "internal/codegen/testdata/golden/golden.service.json"}
+    }
+  ]
 }

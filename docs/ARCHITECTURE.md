@@ -750,6 +750,7 @@ Overlays are applied after loading and before validation of the merged model. Ap
   "model": "sqs",
   "iamPrefix": "sqs",
   "iamPrimary": [],
+  "iamAdditions": [],
   "extraProtocols": ["aws.protocols#awsQuery"],
   "rawBinding": false,
   "rawOperations": [],
@@ -757,7 +758,7 @@ Overlays are applied after loading and before validation of the merged model. Ap
 }
 ```
 
-`model` names the service's directory in `third_party/api-models-aws/UPSTREAM.json`. `iamPrefix` is the IAM action prefix (`cloudwatch` for CloudWatch, `events` for EventBridge, `logs` for CloudWatch Logs; `smithy-models.md 8`), required because the model's `arnNamespace` differs from it for some services. It is kept beside the Service Reference table: generation fails when `actions.json` has no entry under it, and `TestReferencePrefixesMatchTheServiceConfigs` checks it against `cmd/vendor`'s `referencePrefixes()`. An operation's IAM actions come from the Service Reference table; the primary one is the action of the same name, else the single form of a `*Batch` action, else the sole action under the service's own prefix. `iamPrimary` (`[{operation, action, reason}]`) names the primary only where those rules leave it ambiguous (S3 `CopyObject` is `s3:PutObject`, addressed to the destination); a redundant entry fails generation, so the list stays minimal and a Service Reference change that settles the ambiguity is noticed.
+`model` names the service's directory in `third_party/api-models-aws/UPSTREAM.json`. `iamPrefix` is the IAM action prefix (`cloudwatch` for CloudWatch, `events` for EventBridge, `logs` for CloudWatch Logs; `smithy-models.md 8`), required because the model's `arnNamespace` differs from it for some services. It is kept beside the Service Reference table: generation fails when `actions.json` has no entry under it, and `TestReferencePrefixesMatchTheServiceConfigs` checks it against `cmd/vendor`'s `referencePrefixes()`. An operation's IAM actions come from the Service Reference table; the primary one is the action of the same name, else the single form of a `*Batch` action, else the sole action under the service's own prefix. `iamPrimary` (`[{operation, action, reason}]`) names the primary only where those rules leave it ambiguous (S3 `CopyObject` is `s3:PutObject`, addressed to the destination); a redundant entry fails generation, so the list stays minimal and a Service Reference change that settles the ambiguity is noticed. `iamAdditions` (`[{operation, actions, reason, evidence}]`) appends actions the Service Reference omits and AWS needs after the operation's own (S3 `HeadObject` adds `s3:GetObjectVersion`), since `kernel.WithActions` keeps only actions in the generated list. `evidence` is one overlay evidence object (`{label, source, validated?}`, 5.2), the shape for every service config entry that carries evidence. An entry adding an action the table already lists, or extending an operation that lists none, fails generation.
 
 The optional keys:
 

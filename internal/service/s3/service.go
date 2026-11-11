@@ -138,25 +138,24 @@ func declareAccess(b *kernel.Binder) {
 	}), kernel.WithResourcesFor(s3api.OpGetObject.Descriptor().IAM, func(_ *kernel.Call, in *s3api.GetObjectInput) []aws.ARN {
 		return []aws.ARN{objectResource(in.Bucket, in.Key)}
 	}))
-	// HeadObject declares no secondary, for the same reason as GetObject's
-	// lock actions. Heading a version needs s3:GetObjectVersion on AWS
-	// (HeadObject, Permissions), but its generated list has no
-	// s3:GetObjectVersion, so a versioned call's record lacks it; the
-	// policy guide lists the gap. Its actions apply to the object alone, as
-	// GetObject's.
-	kernel.Declare(b, s3api.OpHeadObject, kernel.WithoutSecondaryActions(),
-		kernel.WithResourcesFor(s3api.OpHeadObject.Descriptor().IAM, func(_ *kernel.Call, in *s3api.HeadObjectInput) []aws.ARN {
-			return []aws.ARN{objectResource(in.Bucket, in.Key)}
-		}))
+	// Heading a version needs s3:GetObjectVersion (HeadObject,
+	// Permissions), which codegen/services/s3.json adds to the generated
+	// list. HeadObject declares no lock action, for the same reason as
+	// GetObject. Its actions apply to the object alone, as GetObject's.
+	kernel.Declare(b, s3api.OpHeadObject, kernel.WithActions(func(_ *kernel.Call, in *s3api.HeadObjectInput) []registry.IAMAction {
+		return versioned(in.VersionId, s3Action("GetObjectVersion"))
+	}), kernel.WithResourcesFor(s3api.OpHeadObject.Descriptor().IAM, func(_ *kernel.Call, in *s3api.HeadObjectInput) []aws.ARN {
+		return []aws.ARN{objectResource(in.Bucket, in.Key)}
+	}))
 	// GetObjectAttributes needs s3:GetObject and s3:GetObjectAttributes
 	// without a version, s3:GetObjectVersion and
 	// s3:GetObjectVersionAttributes with one (GetObjectAttributes,
-	// Permissions). The primary s3:GetObjectAttributes is recorded either
-	// way; s3:GetObjectVersionAttributes is not in the generated list, so a
-	// versioned call's record lacks it.
+	// Permissions); codegen/services/s3.json adds
+	// s3:GetObjectVersionAttributes to the generated list. The primary
+	// s3:GetObjectAttributes is recorded either way.
 	kernel.Declare(b, s3api.OpGetObjectAttributes, kernel.WithActions(func(_ *kernel.Call, in *s3api.GetObjectAttributesInput) []registry.IAMAction {
 		if anySet(in.VersionId) {
-			return []registry.IAMAction{s3Action("GetObjectVersion")}
+			return []registry.IAMAction{s3Action("GetObjectVersion"), s3Action("GetObjectVersionAttributes")}
 		}
 		return []registry.IAMAction{s3Action("GetObject")}
 	}), kernel.WithResourcesFor(s3api.OpGetObjectAttributes.Descriptor().IAM, func(_ *kernel.Call, in *s3api.GetObjectAttributesInput) []aws.ARN {

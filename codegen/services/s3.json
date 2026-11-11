@@ -53,6 +53,20 @@
       "reason": "the request is addressed to the destination upload it writes; s3:GetObject is the read of the copy source (smithy-models.md 8)"
     }
   ],
+  "iamAdditions": [
+    {
+      "operation": "GetObjectAttributes",
+      "actions": ["s3:GetObjectVersionAttributes"],
+      "reason": "the Service Reference row lists s3:GetObject and s3:GetObjectVersion only; with a version ID the call needs s3:GetObjectVersion and s3:GetObjectVersionAttributes",
+      "evidence": {"label": "aws-doc", "source": "iam-enforcement-surfaces.md 10.3: the GetObjectAttributes API reference, Permissions; IAM-ENF-32 recorded that AWS evaluates its unversioned pair"}
+    },
+    {
+      "operation": "HeadObject",
+      "actions": ["s3:GetObjectVersion"],
+      "reason": "the Service Reference row omits it; heading a version needs s3:GetObjectVersion",
+      "evidence": {"label": "aws-doc", "source": "https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html, Permissions"}
+    }
+  ],
   "boundOperations": [
     "AbortMultipartUpload",
     "CompleteMultipartUpload",

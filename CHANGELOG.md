@@ -33,6 +33,7 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 - `understudy version` names the version of a binary installed with `go install github.com/sustinbebustin/understudy/cmd/understudy@vX.Y.Z`, where it said `dev`. Without the release's stamp, the version is the module version the go command records, or the git version of a build in a checkout.
 - Under `--iam-enforce enforce`, a denied Kinesis call carries its message under `Message`, as AWS does, where it said `message`.
 - Under `--iam-enforce enforce`, a denied call to API Gateway (REST), CloudWatch (JSON), DynamoDB, DynamoDB Streams, EventBridge, KMS, CloudWatch Logs, Scheduler, SES v2, Step Functions or SQS (JSON) carries its message under `Message`, and API Gateway v2 under `message`, as AWS does, where each said the other.
+- The access record and generated policies hold the version actions AWS needs for a versioned S3 read: a `HeadObject` with a version ID records `s3:GetObjectVersion`, and a `GetObjectAttributes` with one records `s3:GetObjectVersion` and `s3:GetObjectVersionAttributes`. The Service Reference omits them, so a generated policy lacked them and failed on AWS.
 
 ## [0.1.2] - 2026-11-09
 
