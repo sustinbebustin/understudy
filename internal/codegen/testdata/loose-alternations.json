@@ -1,0 +1,14 @@
+[
+  {"shape": "com.amazonaws.cloudwatch#AnomalyDetectorMetricStat", "reason": "confirmed: find semantics kept, inferred: no recording shows AWS reading the alternation as whole-value"},
+  {"shape": "com.amazonaws.eventbridge#RedshiftSecretManagerArn", "reason": "confirmed: find semantics kept, inferred: no recording shows AWS reading the alternation as whole-value"},
+  {"shape": "com.amazonaws.lambda#CapacityProviderName", "reason": "confirmed: find semantics kept, inferred: no recording shows AWS reading the alternation as whole-value"},
+  {"shape": "com.amazonaws.lambda#DestinationArn", "reason": "confirmed: find semantics kept, inferred: docs/research/lambda-destinations-layers.md records the echo of a failing value but no value that separates the two readings"},
+  {"shape": "com.amazonaws.lambda#KMSKeyArn", "reason": "confirmed: find semantics kept, inferred: no recording shows AWS reading the alternation as whole-value"},
+  {"shape": "com.amazonaws.lambda#LayerName", "reason": "confirmed: find semantics kept, inferred: no recording shows AWS reading the alternation as whole-value"},
+  {"shape": "com.amazonaws.lambda#LayerPermissionAllowedPrincipal", "reason": "confirmed: find semantics kept, inferred: no recording shows AWS reading the alternation as whole-value"},
+  {"shape": "com.amazonaws.lambda#MasterRegion", "reason": "confirmed: find semantics kept, inferred: no recording shows AWS reading the alternation as whole-value"},
+  {"shape": "com.amazonaws.lambda#ResourceArn", "reason": "confirmed: find semantics kept, inferred: no recording shows AWS reading the alternation as whole-value"},
+  {"shape": "com.amazonaws.scheduler#Source", "reason": "confirmed: find semantics kept, inferred: the recorded refusal of 'aws.x' (testdata/parity/scheduler/SCH/04-aws-source.json) fails under both readings, so it does not settle which AWS applies; the hand validator in codegen/overlays/scheduler.json renders the model's find semantics"},
+  {"shape": "com.amazonaws.ssm#AccountId", "reason": "confirmed: find semantics kept, inferred: no recording shows AWS reading the alternation as whole-value"},
+  {"shape": "com.amazonaws.ssm#TargetKey", "reason": "confirmed: find semantics kept, inferred: no recording shows AWS reading the alternation as whole-value"}
+]
