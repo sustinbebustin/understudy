@@ -63,7 +63,10 @@ func (s *Sources) evaluate(r request) (evaluation, error) {
 	)
 	return evaluation{
 		outcome: outcome,
-		denial:  authz.Denial{Principal: r.principal, Action: r.pair.Action, Resource: resource, Decision: outcome.Decision},
+		denial: authz.Denial{
+			Principal: r.principal, Action: r.pair.Action, Resource: resource, Decision: outcome.Decision,
+			ResourceText: r.pair.DenialResource,
+		},
 	}, nil
 }
 

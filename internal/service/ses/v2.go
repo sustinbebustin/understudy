@@ -55,7 +55,9 @@ func (v *V2) bindV2(b sesv2api.Binder) {
 	b.DeleteEmailIdentity(v.deleteEmailIdentity, registry.Full{},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesv2api.DeleteEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
-	b.ListEmailIdentities(v.listEmailIdentities, registry.Partial{Note: listEmailIdentitiesCoverage}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
+	b.ListEmailIdentities(v.listEmailIdentities, registry.Partial{Note: listEmailIdentitiesCoverage}, kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		// A denial names * (iam-enforcement-surfaces.md 12.3, IAM-ENF-39).
+		kernel.WithDenialResource(func(*kernel.Call, *sesv2api.ListEmailIdentitiesInput) string { return "*" }))
 	b.TagResource(v.tagResource, registry.Partial{Note: v2TagsCoverage},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		resourceNamed(func(in *sesv2api.TagResourceInput) string { return in.ResourceArn }))

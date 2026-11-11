@@ -69,7 +69,11 @@ func NewStreams(d kernel.ServiceDeps, svc *Service) *Streams {
 	// Every ListStreams answer DDBS-03, DDBS-08 and DDBS-17 recorded is
 	// AWS's (dynamodb-streams.md 6.1); its Limit and TableName constraint
 	// texts are the generated ones (6.5).
-	b.ListStreams(s.listStreams, notes(constraintTexts+" (dynamodb-streams.md 6.5)"))
+	b.ListStreams(s.listStreams, notes(constraintTexts+" (dynamodb-streams.md 6.5)"),
+		// A denial names table/*/stream/* (iam-enforcement-surfaces.md 12.3, IAM-ENF-35).
+		kernel.WithDenialResource(func(c *kernel.Call, _ *dynamodbstreamsapi.ListStreamsInput) string {
+			return c.Scope().ARN("dynamodb", "table/*/stream/*").String()
+		}))
 	b.DescribeStream(s.describeStream, notes(describeStreamNote))
 	b.GetShardIterator(s.getShardIterator, notes(getShardIteratorNote))
 	b.GetRecords(s.getRecords, notes(getRecordsNote))

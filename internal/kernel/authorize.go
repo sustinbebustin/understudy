@@ -38,6 +38,10 @@ type AuthzQuery struct {
 type Pair struct {
 	Action   registry.IAMAction
 	Resource ResourceRef
+	// DenialResource is the resource a denial of the pair names when it is
+	// not Resource's ARN (WithDenialResource); "" names Resource. It is
+	// text only: the pair is evaluated, and access-recorded, on Resource.
+	DenialResource string
 }
 
 // ResourceRef is what a pair's action is performed on.
@@ -238,7 +242,7 @@ func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used seco
 			return nil
 		}
 	}
-	pairs := pairsOf(actions, c.op.Service.IAMPrefix, c.fixPairing(), c.scoped)
+	pairs := c.named(pairsOf(actions, c.op.Service.IAMPrefix, c.fixPairing(), c.scoped))
 	if k.authorizer == nil || len(pairs) == 0 {
 		return nil
 	}

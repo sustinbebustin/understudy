@@ -119,6 +119,32 @@ func WithConditionKeys[In any](supply func(c *Call, in *In) ConditionKeys) BindO
 	return keysOf[*In](supply)
 }
 
+// WithDenialResource names, from a call's valid input, the resource a
+// denial of the operation's primary action names in its message when that
+// is not the ARN the pair is evaluated on, such as the wildcard a list
+// operation's denial names while its pair is on any resource
+// (iam-enforcement-surfaces.md 12.3). It sets Pair.DenialResource on the
+// primary action's pairs that step 8, or a deferred authorization, forms;
+// the evaluation and the access record keep the pair's resource. "" names
+// the pair's resource. With several, the last applies.
+func WithDenialResource[In any](name func(c *Call, in *In) string) BindOption {
+	return denialResourceOf[*In](name)
+}
+
+// named returns pairs with the call's denial resource text on each pair of
+// the operation's primary action; pairs unchanged without one.
+func (c *Call) named(pairs []Pair) []Pair {
+	if c.denialResource == "" || c.op.Kind == registry.Internal || len(c.op.IAM) == 0 {
+		return pairs
+	}
+	for i := range pairs {
+		if pairs[i].Action == c.op.IAM[0] {
+			pairs[i].DenialResource = c.denialResource
+		}
+	}
+	return pairs
+}
+
 // conditionKeys returns the union of every WithConditionKeys option's keys
 // in keys for the valid input in, a later option's key replacing an earlier
 // one's; nil without an option.
@@ -167,7 +193,7 @@ func (c *Call) authorizeDeferred() *awserr.Error {
 		return nil
 	}
 	d.once.Do(func() {
-		pairs := pairsOf(authorizedActions(c.op, d.used), c.op.Service.IAMPrefix, c.fixPairing(), c.scoped)
+		pairs := c.named(pairsOf(authorizedActions(c.op, d.used), c.op.Service.IAMPrefix, c.fixPairing(), c.scoped))
 		if c.k.authorizer == nil || len(pairs) == 0 {
 			return
 		}

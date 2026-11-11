@@ -73,6 +73,9 @@ type Call struct {
 	// keys are the binding's WithConditionKeys for the input, set once at
 	// step 8; the access record keeps iam:PassedToService from them.
 	keys ConditionKeys
+	// denialResource is the binding's WithDenialResource for the input,
+	// set once at step 7; "" without the option.
+	denialResource string
 
 	mu      sync.Mutex
 	touched []aws.ARN

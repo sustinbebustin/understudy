@@ -47,6 +47,11 @@ type Scope struct {
 	Region Region
 }
 
+// ARN is arn:<partition>:<service>:<region>:<account>:<resource> in s.
+func (s Scope) ARN(service, resource string) ARN {
+	return ARN{Partition: s.Partition.String(), Service: service, Region: s.Region.String(), Account: s.Account.String(), Resource: resource}
+}
+
 // ScopePart is the part of a scope a ScopeError is about.
 type ScopePart uint8
 

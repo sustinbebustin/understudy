@@ -86,6 +86,15 @@ func Switches() []fidelity.Entry {
 		// Denial.Message: the phrases and the one reason are aws-doc, and
 		// every recorded denial writes "on resource:" (iam-enforcement-surfaces.md 4.1).
 		recordedSwitch("iam.denial.grammar", grammarValue, enforcementNote, "4.1", "IAM-ENF-15", SessionUnreplayed),
+		// Denial.ResourceText (kernel.WithDenialResource): the text is
+		// recorded, what AWS evaluates against it is not (12.3).
+		fidelity.Switch[string]{
+			Name: "iam.denial.list-resource", Value: listResourceValue, Label: inferred,
+			Ref: "docs/research/" + enforcementNote + "#12.3", Record: "IAM-ENF-41",
+			Settles: fidelity.NoScenario{Reason: "IAM-ENF-35, IAM-ENF-37 and IAM-ENF-39 to IAM-ENF-41 recorded " + recordedOn + " the wildcard resource a list operation's denial names " +
+				"(IAM-ENF-36 and IAM-ENF-38: none for Kinesis ListStreams and SES v1 ListIdentities); inferred: whether AWS matches a policy's Resource against that wildcard " +
+				"rather than \"*\" is unrecorded, so evaluation and the access record keep \"*\" (" + enforcementNote + " 12.3)"},
+		}.Entry(),
 		// The kernel's step 8.
 		researchSwitch("iam.enforce.order", "validate-first", inferred, enforcementNote, "5.3", "IAM-ENF-13"),
 		researchSwitch("iam.enforce.missing-resource", "deny-first", inferred, enforcementNote, "5.3", "IAM-ENF-14"),
@@ -169,6 +178,12 @@ func DeliveryResolveFirstSwitch(service, section, record string, ops []string) f
 // written on every denial of a pair on a resource, as every recorded
 // denial writes it (IAM-ENF-15).
 const grammarValue = "iam-4.1, one reason, on resource whenever the pair has a resource"
+
+// listResourceValue is switch iam.denial.list-resource's value: a denied
+// list operation names its service's wildcard resource, such as
+// arn:aws:states:<region>:<account>:stateMachine:*, while its pair is
+// evaluated on "*" (iam-enforcement-surfaces.md 12.3).
+const listResourceValue = "names the service wildcard, evaluated on *"
 
 // recordedOn is the date of the session that recorded the IAM-ENF and
 // IAM-EVAL items (testdata/parity/<service>/IAM-ENF, iam/IAM-EVAL-*).

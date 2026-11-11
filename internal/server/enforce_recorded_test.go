@@ -2,8 +2,11 @@ package server_test
 
 import (
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/server"
@@ -46,7 +49,8 @@ func jsonMessageAt(key string) func(wire) string {
 // on an implicit denial too, the action in lower case for SQS over JSON and
 // Query alike, the prefix "SNS" for SNS, the key ARN for kms:DescribeKey,
 // and S3's quoted resource (iam-enforcement-surfaces.md 3.2, 4.1 to 4.3).
-// The probes address resources the recordings did, in understudy's
+// A list operation names its service's wildcard resource, or none for
+// Kinesis and SES v1 (12.3, IAM-ENF-35 to IAM-ENF-41). The probes address resources the recordings did, in understudy's
 // account and Region; a probe on a missing resource stands for one on an
 // existing one where IAM-ENF-14 recorded the same denial for both.
 func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
@@ -75,10 +79,6 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 	// Every recorded JSON denial but API Gateway v2's names its message
 	// "Message".
 	upper, lower := jsonMessageAt("Message"), jsonMessageAt("message")
-	// A probe with an empty message is a list operation: it compares status,
-	// code and key, and expects some text under the key. The text names a
-	// wildcard resource understudy does not write yet (iam-enforcement-parity
-	// ticket 08).
 	probes := []struct {
 		fixture string
 		send    func() wire
@@ -169,12 +169,17 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 				req.Header.Set("X-Amzn-Query-Mode", "true")
 				return signedCall(t, s, "monitoring", req, "{}")
 			},
-			http.StatusForbidden, jsonType, "AccessDeniedException", upper, "",
+			http.StatusForbidden, jsonType, "AccessDeniedException", upper, implicit("cloudwatch:DescribeAlarms", "arn:aws:cloudwatch:us-east-1:000000000000:alarm:*"),
 		},
 		{
 			"dynamodb/IAM-ENF/35-streams.json",
 			func() wire { return streamsCall(t, s, endpoint, "ListStreams", `{}`) },
-			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, "",
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("dynamodb:ListStreams", "arn:aws:dynamodb:us-east-1:000000000000:table/*/stream/*"),
+		},
+		{
+			"scheduler/IAM-ENF/37-raw.json",
+			func() wire { return restGet(t, s, "scheduler", endpoint+"/schedules") },
+			http.StatusForbidden, jsonType, "AccessDeniedException", upper, implicit("scheduler:ListSchedules", "arn:aws:scheduler:us-east-1:000000000000:schedule/*/*"),
 		},
 		{
 			"scheduler/SCH/10-01-denied-get.json",
@@ -188,25 +193,25 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 				req.Header.Set("Content-Type", "application/json")
 				return signedCall(t, s, "ses", req, "{}")
 			},
-			http.StatusForbidden, jsonType, "AccessDeniedException", upper, "",
+			http.StatusForbidden, jsonType, "AccessDeniedException", upper, implicit("ses:ListEmailIdentities", "*"),
 		},
 		{
-			// SES v1 answers in XML; the probe stands for the relabel only.
 			"ses/IAM-ENF/38-raw.json",
 			func() wire {
 				return queryCall(t, s, endpoint, "ses", url.Values{"Action": {"ListIdentities"}, "Version": {"2010-12-01"}})
 			},
-			http.StatusForbidden, xmlCode, "AccessDenied", xmlText, "",
+			http.StatusForbidden, xmlCode, "AccessDenied", xmlText,
+			caller + "ses:ListIdentities because no identity-based policy allows the ses:ListIdentities action",
 		},
 		{
-			"sfn/SFN-15/01-denied-list.json",
+			"sfn/IAM-ENF/40-raw.json",
 			func() wire { return sfnCall(t, s, endpoint, "ListStateMachines", `{}`) },
-			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, "",
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("states:ListStateMachines", "arn:aws:states:us-east-1:000000000000:stateMachine:*"),
 		},
 		{
 			"ssm/IAM-ENF/41-raw.json",
 			func() wire { return ssmCall(t, s, endpoint, "DescribeParameters", `{}`) },
-			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, "",
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("ssm:DescribeParameters", "arn:aws:ssm:us-east-1:000000000000:*"),
 		},
 	}
 	for _, p := range probes {
@@ -215,13 +220,47 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 			if w.status != p.status || p.code(w) != p.want {
 				t.Errorf("denial = %d %q (%s); want the recorded %d %q", w.status, p.code(w), w.body, p.status, p.want)
 			}
-			got := p.text(w)
-			switch {
-			case p.message == "" && got == "":
-				t.Errorf("no message under the recorded key in %s", w.body)
-			case p.message != "" && got != p.message:
+			if got := p.text(w); got != p.message {
 				t.Errorf("message =\n%q\nwant the recorded\n%q", got, p.message)
 			}
 		})
+	}
+}
+
+// The wildcard a list operation's denial names is text only: a policy
+// allowing the action on "*" lets the call past authorization, and the
+// access record's policy grants it on "*" (iam-enforcement-surfaces.md
+// 12.3; whether AWS evaluates the wildcard is unrecorded, so understudy
+// keeps "*"). DynamoDB Streams answers 501 without Docker, after
+// authorization, so a call passes when it is not a denial.
+func TestListDenialWildcardLeavesEvaluationOnAnyResource(t *testing.T) {
+	c, endpoint, u := enforced(t, server.IAMEnforceEnforce)
+	calls := map[string]func() wire{
+		"cloudwatch:DescribeAlarms": func() wire {
+			req := newRequest(t, http.MethodPost, endpoint+"/", "{}")
+			req.Header.Set("Content-Type", "application/x-amz-json-1.0")
+			req.Header.Set("X-Amz-Target", "GraniteServiceVersion20100801.DescribeAlarms")
+			req.Header.Set("X-Amzn-Query-Mode", "true")
+			return signedCall(t, u, "monitoring", req, "{}")
+		},
+		"dynamodb:ListStreams":     func() wire { return streamsCall(t, u, endpoint, "ListStreams", `{}`) },
+		"scheduler:ListSchedules":  func() wire { return restGet(t, u, "scheduler", endpoint+"/schedules") },
+		"states:ListStateMachines": func() wire { return sfnCall(t, u, endpoint, "ListStateMachines", `{}`) },
+		"ssm:DescribeParameters":   func() wire { return ssmCall(t, u, endpoint, "DescribeParameters", `{}`) },
+		"ses:ListEmailIdentities": func() wire {
+			req := newRequest(t, http.MethodPost, endpoint+"/v2/email/list-identities", "{}")
+			req.Header.Set("Content-Type", "application/json")
+			return signedCall(t, u, "ses", req, "{}")
+		},
+	}
+	actions := slices.Sorted(maps.Keys(calls))
+	putUserPolicy(t, endpoint, `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["`+strings.Join(actions, `","`)+`"],"Resource":"*"}]}`)
+	for _, action := range actions {
+		if w := calls[action](); strings.Contains(w.body, "AccessDenied") {
+			t.Errorf("%s allowed on * = %d %s, want it past authorization", action, w.status, w.body)
+		}
+	}
+	if got := granted(t, c, userU)["*"]; !slices.Equal(got, actions) {
+		t.Errorf("generated policy grants on * %q, want %q", got, actions)
 	}
 }

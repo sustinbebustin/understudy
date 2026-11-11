@@ -54,15 +54,18 @@ type bindConfig struct {
 	refused []string
 }
 
-// erasedConfig is what WithResourcesFor and WithConditionKeys add: what the
-// binding hands on to step 8 and the access record as is.
+// erasedConfig is what WithResourcesFor, WithConditionKeys and
+// WithDenialResource add: what the binding hands on to step 8 and the
+// access record as is.
 type erasedConfig struct {
 	scoped []scopedResources
 	keys   []func(*Call, any) ConditionKeys
+	// denialResource is the last WithDenialResource; nil without one.
+	denialResource func(*Call, any) string
 }
 
 func (e erasedConfig) clone() erasedConfig {
-	return erasedConfig{scoped: slices.Clone(e.scoped), keys: slices.Clone(e.keys)}
+	return erasedConfig{scoped: slices.Clone(e.scoped), keys: slices.Clone(e.keys), denialResource: e.denialResource}
 }
 
 // validate runs step 7 over in: the generated validator and the typed
@@ -202,6 +205,18 @@ func keysOf[P any](supply func(*Call, P) ConditionKeys) BindOption {
 		return supply(c, typed)
 	}
 	return typedOption{in: token, add: func(c *bindConfig) { c.erased.keys = append(c.erased.keys, f) }}
+}
+
+func denialResourceOf[P any](name func(*Call, P) string) BindOption {
+	var token P
+	f := func(c *Call, in any) string {
+		typed, ok := in.(P)
+		if !ok {
+			return ""
+		}
+		return name(c, typed)
+	}
+	return typedOption{in: token, add: func(c *bindConfig) { c.erased.denialResource = f }}
 }
 
 // WithValidator adds a stateless, typed validator that runs at pipeline
@@ -421,13 +436,14 @@ func configured(b *Binder, id ref.OperationID, base bindConfig, opts []BindOptio
 			}
 			return cfg.count(in)
 		},
-		keys:          cfg.erased.keys,
-		scoped:        cfg.erased.scoped,
-		redact:        t.redact,
-		run:           t.run,
-		extend:        func(more []BindOption) *binding { return configured(b, id, cfg, more, t) },
-		authorization: cfg.authorization,
-		refused:       cfg.refused,
+		keys:           cfg.erased.keys,
+		scoped:         cfg.erased.scoped,
+		denialResource: cfg.erased.denialResource,
+		redact:         t.redact,
+		run:            t.run,
+		extend:         func(more []BindOption) *binding { return configured(b, id, cfg, more, t) },
+		authorization:  cfg.authorization,
+		refused:        cfg.refused,
 	}
 	if len(cfg.actions) > 0 {
 		bnd.actions = func(c *Call, in any) []registry.IAMAction {
@@ -506,6 +522,19 @@ type binding struct {
 	// (RefuseConditionKeys); nil without the option and for raw HTTP
 	// bindings.
 	refused []string
+	// denialResource names, for a valid input, the resource a denial of the
+	// primary action names (WithDenialResource); nil without the option and
+	// for raw HTTP bindings.
+	denialResource func(c *Call, in any) string
+}
+
+// denialResourceOf returns the resource text the binding's
+// WithDenialResource gives the valid input in; "" without the option.
+func (bnd *binding) denialResourceOf(c *Call, in any) string {
+	if bnd.denialResource == nil {
+		return ""
+	}
+	return bnd.denialResource(c, in)
 }
 
 // scoping resolves the binding's WithResourcesFor options for the valid

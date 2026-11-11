@@ -159,6 +159,7 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	c.Touch(resolved...)
 	*used = bnd.secondaries(c, in.In)
 	c.keys = bnd.conditionKeys(c, in.In)
+	c.denialResource = bnd.denialResourceOf(c, in.In)
 	if err := k.authorize(ctx, c, bnd, *used, c.keys); err != nil {
 		return Failure{Err: err}, nil
 	}
