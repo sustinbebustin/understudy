@@ -100,12 +100,19 @@
 //     re-run against the then-current version.
 //     Extracted function code lives in <dir>/code, or in the run's
 //     temporary directory without persistence.
-//   - The TLS listener's certificate is generated at every start
-//     (ECDSA P-256, its own CA, SANs localhost, *.localhost, 127.0.0.1,
-//     with critical name constraints to localhost, names under it and
-//     loopback addresses, so as a trust root it vouches for nothing else),
-//     and its URL is the ready file's tlsEndpoint. The certificate is not
-//     written to disk; a client trusts it by reading it from the handshake.
+//   - The TLS listener's certificate (ECDSA P-256, its own CA, SANs
+//     localhost, *.localhost, 127.0.0.1, with critical name constraints to
+//     localhost, names under it and loopback addresses, so as a trust root
+//     it vouches for nothing else) is generated at every start without
+//     persistence, and nothing is written. With persistence the key (mode
+//     0600) and certificate are stored in the data directory as tls.key and
+//     tls.crt and reused at the next start, unless they do not parse or
+//     match, the certificate is not exactly what this build issues, or it
+//     is not valid for at least another day of wall time; then a new pair
+//     replaces them with a Warn log line naming why. A pair that cannot be
+//     stored is logged and the new certificate served. Its URL is the
+//     ready file's tlsEndpoint; a client trusts it by reading it from the
+//     handshake.
 //   - Each service is one row of the wiring table, wiredServices: its
 //     generated API and its constructor. The registry, the constructed
 //     services, the collected Stateful views and the checks all read the

@@ -7,6 +7,7 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 ### Added
 
 - The journal records SQS moves between queues as `redrive` events: a receive that moves messages past a queue's `maxReceiveCount` to its dead-letter queue, and each step of a message move task. Each names both queues, the moved message ids and why, and is a child of the receive or the move task's timer, so `understudy journal --kind redrive` and traces show how a message reached a dead-letter queue. The CLI and the web UI summarize them.
+- `serve --tls --persist` keeps the TLS listener's key and certificate in the data directory and reuses them at the next start, so a CA bundle `env --tls` wrote keeps working across restarts. A kept certificate that is unreadable, expires within a day, or differs from the one the running build issues is replaced, with a warning naming why. Without `--persist` the certificate is still new at every start.
 
 ### Changed
 

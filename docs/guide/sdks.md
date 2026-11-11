@@ -145,7 +145,11 @@ understudy serve --tls
 eval "$(understudy env --tls)"
 ```
 
-The TLS listener is on port 4567. `env --tls` writes the certificate to the user cache directory (or `--ca-file`) and sets `AWS_CA_BUNDLE`, and `NODE_EXTRA_CA_CERTS` for Node. The certificate is new at every start, so run `env --tls` again after a restart.
+The TLS listener is on port 4567. `env --tls` writes the certificate to the user cache directory (or `--ca-file`) and sets `AWS_CA_BUNDLE`, and `NODE_EXTRA_CA_CERTS` for Node. Without `--persist` the certificate is new at every start, so run `env --tls` again after a restart. With `--persist` it is kept in the data directory (`tls.crt`, and `tls.key` readable by its owner only) and the CA bundle keeps working across restarts. A start replaces a kept certificate that is unreadable, expires within a day, or differs from the one this build issues, and logs why at warn level:
+
+```
+level=WARN msg="replaced the stored TLS certificate with a new one; a CA bundle written before this start is stale, so run understudy env --tls again" reason="tls.crt and tls.key are not a certificate and its key: tls: failed to find any PEM data in certificate input" dir=...
+```
 
 ## S3 SSE-C and Object Lock
 

@@ -86,28 +86,7 @@ type readyDoc struct {
 func TestTLSListenerServesTheAPI(t *testing.T) {
 	r := launch(t, server.Config{TLS: server.TLSSelfSigned{Listen: netip.MustParseAddrPort("127.0.0.1:0")}})
 	r.stopOnCleanup(t)
-	data, err := os.ReadFile(r.ready)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var doc readyDoc
-	if err := json.Unmarshal(data, &doc); err != nil || !strings.HasPrefix(doc.TLSEndpoint, "https://127.0.0.1:") {
-		t.Fatalf("ready file = %s, %v; want a tlsEndpoint", data, err)
-	}
-	addr := strings.TrimPrefix(doc.TLSEndpoint, "https://")
-	dialer := &tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true}} //nolint:gosec // reads the certificate to trust it below
-	conn, err := dialer.DialContext(t.Context(), "tcp", addr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	tlsConn, ok := conn.(*tls.Conn)
-	if !ok {
-		t.Fatalf("tls.Dialer returned %T", conn)
-	}
-	cert := tlsConn.ConnectionState().PeerCertificates[0]
-	if err := conn.Close(); err != nil {
-		t.Fatal(err)
-	}
+	tlsEndpoint, cert := presentedCertificate(t, r)
 	roots := x509.NewCertPool()
 	roots.AddCert(cert)
 	for _, name := range []string{"127.0.0.1", "localhost", "bucket.localhost"} {
@@ -117,7 +96,7 @@ func TestTLSListenerServesTheAPI(t *testing.T) {
 	}
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}}
 	defer client.CloseIdleConnections()
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, doc.TLSEndpoint+"/_understudy/v1/health", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, tlsEndpoint+"/_understudy/v1/health", http.NoBody)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,6 +107,58 @@ func TestTLSListenerServesTheAPI(t *testing.T) {
 	if err := resp.Body.Close(); err != nil || resp.StatusCode != http.StatusOK {
 		t.Fatalf("health over TLS = %d, %v", resp.StatusCode, err)
 	}
+}
+
+// Under --persist the TLS listener's certificate survives a restart, so a
+// CA bundle written before it keeps trusting the listener; without
+// persistence each start presents a new one.
+func TestTLSCertificateSurvivesAPersistRestart(t *testing.T) {
+	tlsOn := server.TLSSelfSigned{Listen: netip.MustParseAddrPort("127.0.0.1:0")}
+	presented := func(t *testing.T, cfg server.Config) *x509.Certificate {
+		t.Helper()
+		r := launch(t, cfg)
+		_, cert := presentedCertificate(t, r)
+		if err := r.stop(); err != nil {
+			t.Fatalf("Serve = %v, want a clean shutdown", err)
+		}
+		return cert
+	}
+	persisted := server.Config{TLS: tlsOn, Persist: server.PersistDir{Path: t.TempDir()}}
+	if first, second := presented(t, persisted), presented(t, persisted); !first.Equal(second) {
+		t.Errorf("two starts on one data directory presented different certificates (serials %s and %s)", first.SerialNumber, second.SerialNumber)
+	}
+	ephemeral := server.Config{TLS: tlsOn}
+	if first, second := presented(t, ephemeral), presented(t, ephemeral); first.Equal(second) {
+		t.Error("two starts without persistence presented the same certificate")
+	}
+}
+
+// presentedCertificate reads r's TLS endpoint from its ready file and
+// returns it with the certificate the listener presents in a handshake.
+func presentedCertificate(t *testing.T, r *running) (tlsEndpoint string, cert *x509.Certificate) {
+	t.Helper()
+	data, err := os.ReadFile(r.ready)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc readyDoc
+	if err := json.Unmarshal(data, &doc); err != nil || !strings.HasPrefix(doc.TLSEndpoint, "https://127.0.0.1:") {
+		t.Fatalf("ready file = %s, %v; want a tlsEndpoint", data, err)
+	}
+	dialer := &tls.Dialer{Config: &tls.Config{InsecureSkipVerify: true}} //nolint:gosec // reads the certificate to trust it
+	conn, err := dialer.DialContext(t.Context(), "tcp", strings.TrimPrefix(doc.TLSEndpoint, "https://"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tlsConn, ok := conn.(*tls.Conn)
+	if !ok {
+		t.Fatalf("tls.Dialer returned %T", conn)
+	}
+	cert = tlsConn.ConnectionState().PeerCertificates[0]
+	if err := conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return doc.TLSEndpoint, cert
 }
 
 // ContainerPublished stands in for an admin token only inside a

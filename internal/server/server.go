@@ -291,7 +291,7 @@ func (s *Server) listen(ctx context.Context) (main, secure net.Listener, err err
 	if !ok {
 		return main, nil, nil
 	}
-	cert, err := selfSigned(s.wired.kernel.Clock().Wall())
+	cert, err := listenerCertificate(ctx, s.wired.data, s.wired.kernel.Clock().Wall(), s.log)
 	if err != nil {
 		return nil, nil, errors.Join(err, main.Close())
 	}
