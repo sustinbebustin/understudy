@@ -182,7 +182,7 @@ func (m *visibilityMachine) deleteGone(t *rapid.T) {
 // deleteUnknown deletes with a well-formed handle no receive minted: it
 // succeeds and deletes nothing.
 func (m *visibilityMachine) deleteUnknown(t *rapid.T) {
-	handle := "AQEB" + rapid.StringMatching(`[A-Za-z0-9]{32}`).Draw(t, "handle")
+	handle := "AQEB" + rapid.StringMatching(`[A-Za-z0-9+/]{405}[AQgw]==`).Draw(t, "handle")
 	if m.minted(handle) {
 		t.Skip("the drawn handle is a minted one")
 	}

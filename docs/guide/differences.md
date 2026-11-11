@@ -6,7 +6,6 @@ Most differences are in error texts, codes and response details, not in the happ
 
 ## SQS
 
-- Receipt handles are 36 characters (`AQEB` and 32 base64 characters); AWS's standard-queue handles are 412 and its FIFO handles 304. Code that stores or validates handles by length sees the difference (`sqs/R01/08-handles.txt`, `sqs/R02/fifo-04-dlq-poll-0s.json`).
 - `Attributes` order: AWS writes a message's `Attributes` as `SenderId`, `ApproximateFirstReceiveTimestamp`, `ApproximateReceiveCount`, `SentTimestamp`, then the FIFO ones; understudy sorts them by name. A client that decodes the JSON is unaffected; one that compares bytes is not (`sqs/R01/02-recv1.json`, `sqs/R01/07-fifo-recv1.json`).
 - understudy cancels a message move task at once, so a task never reads `CANCELLING` before `CANCELLED` (`sqs/R02/07-list-after-cancel.json`).
 - Query-protocol responses: `Accept: application/json` gets a JSON rendering on AWS; understudy always answers XML (`sqs/R11/05-sqs-query-accept-json.json`, `sqs/R11/05-sqs-query-accept-json-error.json`). Current SDKs use the JSON protocol and are unaffected.

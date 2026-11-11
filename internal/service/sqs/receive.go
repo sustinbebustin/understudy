@@ -132,7 +132,12 @@ func (s *Service) receive(c *kernel.Call, st *State, q queueRef, queue *Queue, p
 	take, move := plan(st, q, queue, p.max, now)
 	for _, i := range take {
 		m := queue.Messages.change(i)
-		handle := s.ids.ReceiptHandle()
+		var handle ids.ReceiptHandle
+		if fifo != nil {
+			handle = s.ids.FIFOReceiptHandle()
+		} else {
+			handle = s.ids.ReceiptHandle()
+		}
 		m.receive(handle, now)
 		st.recordIssue(handle, q.name)
 		m.VisibleAt = now.Add(seconds(vt))

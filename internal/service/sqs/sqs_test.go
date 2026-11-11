@@ -710,6 +710,66 @@ func TestDeleteMessageReceiptHandles(t *testing.T) {
 	})
 }
 
+// AWS's receipt handles: base64 of a fixed-size blob starting AQEB, 412
+// characters with == padding from a standard queue (sqs/R01
+// 02-recv1.json) and 304 with = padding from a FIFO queue (sqs/R02
+// fifo-04-dlq-poll-0s.json). The final character before the padding
+// carries only the blob's last bits, so its unused low bits are zero.
+var (
+	standardHandle = regexp.MustCompile(`^AQEB[A-Za-z0-9+/]{405}[AQgw]==$`)
+	fifoHandle     = regexp.MustCompile(`^AQEB[A-Za-z0-9+/]{298}[AEIMQUYcgkosw048]=$`)
+)
+
+func TestReceiptHandlesHaveAWSsLengthAndAlphabet(t *testing.T) {
+	for _, seed := range []uint64{1, 2, 3} {
+		kerneltest.Run(t, func(k *kerneltest.K) {
+			h := &harness{K: k, svc: sqs.New(k.Deps(sqsapi.Service()), sqs.Options{})}
+			standard := h.queue("standard", nil)
+			fifo := h.fifoQueue("handles.fifo", map[sqsapi.QueueAttributeName]string{"ContentBasedDeduplication": "true"})
+			for i := range 10 {
+				h.mustSend(standard, "m"+strconv.Itoa(i))
+				h.sendTo(fifo, "g"+strconv.Itoa(i), "m"+strconv.Itoa(i), nil)
+			}
+			ten := int32(10)
+			for _, m := range h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: standard, MaxNumberOfMessages: &ten}) {
+				if handle := val(m.ReceiptHandle); !standardHandle.MatchString(handle) {
+					h.Errorf("standard-queue handle %q (%d characters) does not match %s", handle, len(handle), standardHandle)
+				}
+			}
+			for _, m := range h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: fifo, MaxNumberOfMessages: &ten}) {
+				if handle := val(m.ReceiptHandle); !fifoHandle.MatchString(handle) {
+					h.Errorf("FIFO handle %q (%d characters) does not match %s", handle, len(handle), fifoHandle)
+				}
+			}
+		}, kerneltest.Services(sqsapi.Service()), kerneltest.Seed(seed))
+	}
+}
+
+// Receipt handles come from the seeded identifier stream: one seed gives
+// the same handles on every run.
+func TestReceiptHandlesRepeatForASeed(t *testing.T) {
+	handles := func() []string {
+		var out []string
+		kerneltest.Run(t, func(k *kerneltest.K) {
+			h := &harness{K: k, svc: sqs.New(k.Deps(sqsapi.Service()), sqs.Options{})}
+			standard := h.queue("standard", nil)
+			fifo := h.fifoQueue("handles.fifo", map[sqsapi.QueueAttributeName]string{"ContentBasedDeduplication": "true"})
+			h.mustSend(standard, "m")
+			h.sendTo(fifo, "g", "m", nil)
+			for _, url := range []string{standard, fifo} {
+				for _, m := range h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url}) {
+					out = append(out, val(m.ReceiptHandle))
+				}
+			}
+		}, kerneltest.Services(sqsapi.Service()), kerneltest.Seed(42))
+		return out
+	}
+	first, second := handles(), handles()
+	if len(first) != 2 || !slices.Equal(first, second) {
+		t.Errorf("handles of two runs with seed 42:\n%q\n%q\nwant two, equal", first, second)
+	}
+}
+
 func TestRetentionDropsOldMessages(t *testing.T) {
 	run(t, func(h *harness) {
 		url := h.queue("short", map[sqsapi.QueueAttributeName]string{"MessageRetentionPeriod": "60"})
@@ -912,6 +972,25 @@ func TestSnapshotKeepsOlderAndForeignHandles(t *testing.T) {
 		h.advance(6 * time.Second)
 		if got := h.receiveBodies(url, 10); len(got) != 0 {
 			h.Fatalf("receive after the older handle's delete = %q, want none", got)
+		}
+	})
+}
+
+// A section of state version 6 holds 36-character receipt handles, which
+// no longer parse, so it is refused rather than migrated (ADR 0009,
+// amendment of 2026-11-10).
+func TestImportRefusesStateWithShortReceiptHandles(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.queue("old", nil)
+		h.mustSend(url, "m")
+		h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url})
+		sections, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		sections[0].Version = 6
+		if err := h.svc.Import(sections); err == nil {
+			h.Fatal("Import of a version 6 section succeeded, want it refused")
 		}
 	})
 }

@@ -28,7 +28,9 @@
 //     Reference; the size counts the body and every message attribute's
 //     name, type and value.
 //   - A receipt handle is well formed when it has the form understudy
-//     mints (AQEB and 32 base64 characters); anything else is
+//     mints: AQEB and padded base64, 412 characters from a standard queue
+//     and 304 from a FIFO one, as AWS's (sqs.md 7.2). Either length is well
+//     formed on either kind of queue, which is inferred; anything else is
 //     ReceiptHandleIsInvalid. A well-formed handle that reaches no message
 //     deletes nothing and succeeds, as recorded for a deleted message; one
 //     another queue issued does the same outside a batch, unrecorded. A

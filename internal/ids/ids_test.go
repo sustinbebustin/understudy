@@ -17,15 +17,20 @@ import (
 )
 
 var (
-	uuidV4        = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
-	uuidV5        = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
-	receiptHandle = regexp.MustCompile(`^AQEB[A-Za-z0-9+/]{32}$`)
-	uploadID      = regexp.MustCompile(`^[A-Za-z0-9_-]{64}$`)
-	versionID     = regexp.MustCompile(`^[A-Za-z0-9._]{32}$`)
-	etag          = regexp.MustCompile(`^[0-9a-f]{32}$`)
-	secretKey     = regexp.MustCompile(`^[A-Za-z0-9+/]{40}$`)
-	sessionToken  = regexp.MustCompile(`^[A-Za-z0-9+/]+$`)
-	base32Body    = regexp.MustCompile(`^[A-Z2-7]+$`)
+	uuidV4 = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+	uuidV5 = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+	// A standard-queue handle (412 characters, sqs/R01 08-handles.txt) or a
+	// FIFO one (304, sqs/R02 fifo-04-dlq-poll-0s): padded base64 whose last
+	// data character has its unused low bits zero.
+	standardReceiptHandle = regexp.MustCompile(`^AQEB[A-Za-z0-9+/]{405}[AQgw]==$`)
+	fifoReceiptHandle     = regexp.MustCompile(`^AQEB[A-Za-z0-9+/]{298}[AEIMQUYcgkosw048]=$`)
+	receiptHandle         = regexp.MustCompile(`^AQEB(?:[A-Za-z0-9+/]{405}[AQgw]==|[A-Za-z0-9+/]{298}[AEIMQUYcgkosw048]=)$`)
+	uploadID              = regexp.MustCompile(`^[A-Za-z0-9_-]{64}$`)
+	versionID             = regexp.MustCompile(`^[A-Za-z0-9._]{32}$`)
+	etag                  = regexp.MustCompile(`^[0-9a-f]{32}$`)
+	secretKey             = regexp.MustCompile(`^[A-Za-z0-9+/]{40}$`)
+	sessionToken          = regexp.MustCompile(`^[A-Za-z0-9+/]+$`)
+	base32Body            = regexp.MustCompile(`^[A-Z2-7]+$`)
 )
 
 func allKinds() []Kind {
@@ -148,7 +153,8 @@ func TestSeededGoldenVectors(t *testing.T) {
 		what, got, want string
 	}{
 		{"request id", string(src.RequestID()), "a4bc63ce-a60c-4eb8-9e89-83aac447bdc2"},
-		{"receipt handle", string(src.ReceiptHandle()), "AQEBMyV9AEH2mkDuT7fJyaw38vwOEpOK5R65"},
+		{"receipt handle", string(src.ReceiptHandle()), "AQEBjHLVPYAER3bmZEPuUzufSTJa8Dd8b/COhOkOCjkRurmgFCg2PBszQiVOjhnlIFkvJdCsIOPfgMm2iyOYpbS0Q8YECXyMF4I1OUKgGwBYPV5594pPeA2pzEjZ3yGdcxoZsiXsH1Tgu/ktgpsZH2G9WzEvMrghpd+BO/lm+C0JJ2eso2o7WY7hVUCp8QHwPABMVbsp9rnkKEn8bWHSPgkLRE9Tq+35dv8GeldxWAdwRErZZLyHQgOX436Aobi4j/5RUxLn1VzbM7etkk7mHiQ2y3d1rHCV45EfjexMQ0cDmZ/9X+xsau5RgvjQeEK+uRb7pYwzUusHkyMgKlVKzyblHaXTjNUsfPuRQVjFE8sEgc2BVv1am0ubibtTb6x1MjHaU847z4712vd5jiVKhG+LoA=="},
+		{"FIFO receipt handle", string(src.FIFOReceiptHandle()), "AQEBiKxyDchhQCShaxoBFtD0G5rl/Z7faumbs3IPccZRwFcy1OkvIjNePuRLHKLu3yDb3KDHzrYQwkpWWtbgq9tuvjsLTtuXcHBtcFS7tWwpA8K+pKnhj9wMEieywFlU0igD6R76LZHM52u3hvPJyrDghDGSInBxMsYoO/OwYQAxHBrGJtf2yNNNp+/yWEVQirK2UqjfDWk962lQRZvjlg8QTt56jSH1/OcMc3+/Uu3NXZw+vrJV8Pv3ieOhE1+SRyqBkFTmTbFf32B6DxdsoDZt9iGxaNvnQA4uxRTXsmjsKZQ="},
 		{"upload id", string(src.UploadID()), "nutefeWQyeJdlUWvAdier4mfn-mgRe-_aLTOIDt5-AhIIiuEho6si0QHQcX8vah-"},
 		{"version id", string(src.VersionID()), "3fJG7OXqS9x43dBPONK7g2DecvkHcPZQ"},
 		{"ETag", string(src.ETag()), "3af1cc4edc99bf6624417cd3b2cbf453"},
@@ -324,7 +330,8 @@ func TestFormats(t *testing.T) {
 				{"ESM UUID", string(src.ESMID()), uuidV4},
 				{"KMS key id", string(src.KMSKeyID()), uuidV4},
 				{"delivery id", string(src.DeliveryID()), uuidV4},
-				{"receipt handle", string(src.ReceiptHandle()), receiptHandle},
+				{"receipt handle", string(src.ReceiptHandle()), standardReceiptHandle},
+				{"FIFO receipt handle", string(src.FIFOReceiptHandle()), fifoReceiptHandle},
 				{"upload id", string(src.UploadID()), uploadID},
 				{"version id", string(src.VersionID()), versionID},
 				{"SSE-KMS ETag", string(src.ETag()), etag},
@@ -348,7 +355,7 @@ func TestFormats(t *testing.T) {
 func TestParseReceiptHandle(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		src := NewSeeded(rapid.Uint64().Draw(t, "seed"))
-		minted := src.ReceiptHandle()
+		minted := rapid.SampledFrom([]func() ReceiptHandle{src.ReceiptHandle, src.FIFOReceiptHandle}).Draw(t, "mint")()
 		if got, ok := ParseReceiptHandle(string(minted)); !ok || got != minted {
 			t.Fatalf("ParseReceiptHandle(%q) = %q, %v; want the handle back", minted, got, ok)
 		}

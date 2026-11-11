@@ -86,8 +86,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           },
           "aws": "AQEBFsoveYoJsTzVY1YqU8qjVdC3Ofe/FzjcyZCUibZJH9an6whoXx9AQR+FxLFJh1mGzG4vLmJIr9eLNdm2ea2xFXv9fbKeMLE1rktIQOswP3e1GocxgklkyJ9tLMK9fQF8w1o8vwdkTazN6NbwCP03Qlv8GiHlkWsN71UZxsDKm1juPjr9LrWwWFdYs9TyIPj4xTwNhmqMIbgtTO/cYhsj2SPYGk3ITptBVWolCwwtUBiGjmxmLfzK6VSYQn95j+Y9DCWWCt5tfQCaiQQN/dYggT3GDIA7zBIWOobmRaK/YS4rcH1nQ6bplmbW8evpTHd+BYNgFjgTySHSWRk+nXY6abTRZ/cqDfTnYix6A9EEWYJqw0x5Bog2EUMFCzGzevm40RHMlOmolRCvSsbVRTb9ew=="
@@ -136,8 +136,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -152,8 +152,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -205,8 +205,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -221,8 +221,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -258,8 +258,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -274,8 +274,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -323,8 +323,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -339,8 +339,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -385,8 +385,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 304,
+            "max": 304,
             "prefix": "AQEB"
           }
         }
@@ -406,8 +406,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 304,
+            "max": 304,
             "prefix": "AQEB"
           }
         }
@@ -434,8 +434,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -451,8 +451,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -468,8 +468,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -485,8 +485,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }
@@ -502,8 +502,8 @@
           "shape": {
             "kind": "id",
             "alphabet": "base64",
-            "min": 36,
-            "max": 1024,
+            "min": 412,
+            "max": 412,
             "prefix": "AQEB"
           }
         }

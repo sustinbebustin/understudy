@@ -15,7 +15,7 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 6
+const stateVersion = 7
 
 // State is the SQS state of one account and region: its queues by name,
 // the names deleted recently and the message move tasks. Records are

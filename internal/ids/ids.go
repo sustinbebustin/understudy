@@ -1,6 +1,7 @@
 package ids
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"log/slog"
 	"strings"
@@ -52,12 +53,18 @@ const (
 	base64URLAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 	versionAlphabet   = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._"
 
-	receiptHandleLen = 32  // after the AQEB prefix
-	uploadIDLen      = 64  // AWS upload ids run past 60 characters
-	versionIDLen     = 32  // s3.md: 32 characters from [A-Za-z0-9._]
-	iamIDLen         = 17  // after the prefix; 21 characters in all
-	secretKeyLen     = 40  // iam-sts-kms.md 2.1
-	sessionTokenLen  = 192 // opaque; AWS says to assume no size
+	// Receipt handles are AQEB and the base64 of this many bytes: 412
+	// characters on a standard queue, 304 on a FIFO queue, as AWS's
+	// (sqs.md 7.2).
+	receiptHandlePrefix  = "AQEB"
+	standardReceiptBytes = 304
+	fifoReceiptBytes     = 224
+
+	uploadIDLen     = 64  // AWS upload ids run past 60 characters
+	versionIDLen    = 32  // s3.md: 32 characters from [A-Za-z0-9._]
+	iamIDLen        = 17  // after the prefix; 21 characters in all
+	secretKeyLen    = 40  // iam-sts-kms.md 2.1
+	sessionTokenLen = 192 // opaque; AWS says to assume no size
 )
 
 // RequestID mints a request id.
@@ -91,23 +98,36 @@ func (r RequestID) ForService(service string) RequestID {
 // MessageID mints an SQS message id.
 func (s *Source) MessageID() MessageID { return MessageID(s.UUID(KindMessageID).String()) }
 
-// ReceiptHandle mints an SQS receipt handle.
+// ReceiptHandle mints a receipt handle of a standard SQS queue.
 func (s *Source) ReceiptHandle() ReceiptHandle {
-	return ReceiptHandle("AQEB" + s.chars(KindReceiptHandle, base64Alphabet, receiptHandleLen))
+	return s.receiptHandle(standardReceiptBytes)
 }
 
-// ParseReceiptHandle accepts s when it has the form ReceiptHandle mints, AQEB
-// and 32 base64 characters, and reports false otherwise. A handle of that
-// form may still name no message.
+// FIFOReceiptHandle mints a receipt handle of a FIFO SQS queue.
+func (s *Source) FIFOReceiptHandle() ReceiptHandle {
+	return s.receiptHandle(fifoReceiptBytes)
+}
+
+// receiptHandle mints AQEB and the base64 of n random bytes. AQEB is
+// itself the base64 of three bytes, so the handle is the padded base64 of
+// one blob, as AWS's are.
+func (s *Source) receiptHandle(n uint) ReceiptHandle {
+	return ReceiptHandle(receiptHandlePrefix + base64.StdEncoding.EncodeToString(s.Draw(KindReceiptHandle, n)))
+}
+
+// ParseReceiptHandle accepts s when it has a form ReceiptHandle or
+// FIFOReceiptHandle mints, on any queue, and reports false otherwise. A
+// handle of that form may still name no message.
 func ParseReceiptHandle(s string) (ReceiptHandle, bool) {
-	rest, ok := strings.CutPrefix(s, "AQEB")
-	if !ok || len(rest) != receiptHandleLen {
+	rest, ok := strings.CutPrefix(s, receiptHandlePrefix)
+	if !ok || (len(rest) != base64.StdEncoding.EncodedLen(standardReceiptBytes) && len(rest) != base64.StdEncoding.EncodedLen(fifoReceiptBytes)) {
 		return "", false
 	}
-	for i := range len(rest) {
-		if strings.IndexByte(base64Alphabet, rest[i]) < 0 {
-			return "", false
-		}
+	// Strict refuses non-zero padding bits. The decoder skips line breaks,
+	// but each one shortens the decoded blob, which the size check refuses.
+	b, err := base64.StdEncoding.Strict().DecodeString(rest)
+	if err != nil || (len(b) != standardReceiptBytes && len(b) != fifoReceiptBytes) {
+		return "", false
 	}
 	return ReceiptHandle(s), true
 }

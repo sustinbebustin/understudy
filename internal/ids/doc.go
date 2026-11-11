@@ -18,9 +18,11 @@
 //     refuses positions above MaxPosition so a corrupt manifest cannot stall
 //     snapshot load, and Positions refuses them too so a snapshot is never
 //     saved that its own binary cannot load. Drawing itself is unlimited.
-//   - Receipt handles are AQEB plus 32 base64 characters, upload ids 64
-//     URL-safe base64 characters, session tokens 192 base64 characters. AWS
-//     documents all three as opaque.
+//   - Receipt handles are AQEB and the padded base64 of random bytes, 412
+//     characters for a standard queue and 304 for a FIFO one, the lengths
+//     of AWS's; their structure beyond length and alphabet is unknown. Upload
+//     ids are 64 URL-safe base64 characters, session tokens 192 base64
+//     characters. AWS documents all three as opaque.
 //   - IAM unique ids are random after the prefix; whether AWS embeds the
 //     account in them is unverified.
 //   - API Gateway ids take the lengths of AWS's samples over [a-z0-9],
