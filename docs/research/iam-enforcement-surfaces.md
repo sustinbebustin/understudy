@@ -569,7 +569,7 @@ Leave unbound (501): EventBridge `PutPermission`/`RemovePermission`, Logs `PutRe
 | `sns.default-policy.direct-calls` | `identity-policy-required` (a direct call carries no `AWS:SourceOwner`) | aws-recorded (IAM-ENF-17, recorded 2026-11-03) | 7.2 | IAM-ENF-17 |
 | `sns.delivery.source-account` | `present` | aws-recorded (IAM-ENF-18, recorded 2026-11-03) | 8.1 | IAM-ENF-18 |
 | `sns.subscribe.policy-check` | `none` | aws-recorded (IAM-ENF-19, recorded 2026-11-03) | 8.2 | IAM-ENF-19 |
-| `s3.notification.denied-text` | queue: `Permissions on the destination queue do not allow S3 to publish notifications from this bucket`; topic: same with `topic`; function: `Not authorized to invoke function [<arn>]` | aws-recorded (IAM-ENF-20, recorded 2026-11-03); not a switch in code, which has only the missing-function text | 4.3, 8.3 | IAM-ENF-20 |
+| `s3.notification.denied-text` | queue: `Permissions on the destination queue do not allow S3 to publish notifications from this bucket`; topic: same with `topic`; function: `Not authorized to invoke function [<arn>]` | aws-recorded (IAM-ENF-20, recorded 2026-11-03); answered under `iam.enforce=enforce` as recorded, so not a switch in code | 4.3, 8.3 | IAM-ENF-20 |
 | `s3.notification.delivery-denied` | `drop` | aws-recorded (IAM-ENF-21, recorded 2026-11-03) | 8.3 | IAM-ENF-21 |
 | `events.delivery.denied-code` | `NO_PERMISSIONS` | aws-recorded (IAM-ENF-22, recorded 2026-11-03) | 8.4 | IAM-ENF-22 |
 | `events.delivery.source-account-lambda` | `present` | aws-recorded (IAM-ENF-22, recorded 2026-11-03), contrary to the troubleshooting page | 8.1 | IAM-ENF-22 |

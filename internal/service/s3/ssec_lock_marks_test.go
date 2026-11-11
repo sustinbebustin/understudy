@@ -39,8 +39,9 @@ func TestSSECAndObjectLockCoverageMarks(t *testing.T) {
 		answeredNote = "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"
 		deleteNote   = "no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention"
 		notifyNote   = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
-			"destination validation checks existence and refuses FIFO queues and topics, not permissions, where AWS refuses a destination whose policy does not admit S3; " +
-			"under iam.enforce=enforce such a destination refuses each notification, which is dropped (s3.notification.delivery-denied); " +
+			"destination validation checks existence, refuses FIFO queues and topics, and asks whether each destination's policy admits s3.amazonaws.com from the bucket: " +
+			"under iam.enforce=enforce a refusal fails the call, under advise it is journaled, and under off it is not asked, where AWS refuses in every case; " +
+			"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied); " +
 			"s3:ObjectRetention:Put is stored but sends nothing"
 	)
 	marks := map[string]registry.BindCoverage{

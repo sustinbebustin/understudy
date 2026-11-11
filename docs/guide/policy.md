@@ -188,11 +188,23 @@ Type: User
 
 Once `aws iam update-assume-role-policy` lets `lambda.amazonaws.com` assume the role, the same call creates the function.
 
+`PutBucketNotificationConfiguration` checks each destination's resource policy, as AWS does: it asks whether the queue, topic or function lets `s3.amazonaws.com` call `sqs:SendMessage`, `sns:Publish` or `lambda:InvokeFunction`, with the keys a delivery sends ([Deliveries](#deliveries)). `x-amz-skip-destination-validation: true` skips the check, as it skips the existence check. Under `enforce` a refusal fails the call with `InvalidArgument`, naming each refused destination in `ArgumentName1`, `ArgumentValue1` and so on; under `advise` the call is served and journals `access-would-deny`; under `off` nothing is asked. With the bucket `uploads` and the queue `uploads`, which has no policy:
+
+```sh
+aws s3api put-bucket-notification-configuration --bucket uploads --notification-configuration '{"QueueConfigurations":[{"QueueArn":"arn:aws:sqs:us-east-1:000000000000:uploads","Events":["s3:ObjectCreated:*"]}]}'
+```
+
+```text
+aws: [ERROR]: An error occurred (InvalidArgument) when calling the PutBucketNotificationConfiguration operation: Unable to validate the following destination configurations
+```
+
+The body names the queue in `ArgumentName1`, with `ArgumentValue1` `Permissions on the destination queue do not allow S3 to publish notifications from this bucket`. Once the queue's policy allows `s3.amazonaws.com` to call `sqs:SendMessage` from `arn:aws:s3:::uploads`, the same call stores the configuration.
+
 ### Deliveries
 
 Under `advise` and `enforce`, deliveries between services are decided the same way as calls. SNS, S3 and EventBridge call the target as their service principal, with `aws:SourceArn` the topic, bucket or rule, and `aws:SourceAccount` the topic's account, the bucket owner's or the rule's. A rule that forwards to an event bus sends no `aws:SourceAccount`.
 
-Under `enforce`, a delivery the target's policy refuses is not retried. It goes to the subscription's or target's dead-letter queue when one is set, and an EventBridge dead letter carries `ERROR_CODE` `NO_PERMISSIONS`; otherwise it is dropped. `Subscribe` and `PutTargets` neither check nor change the target's policy. With a queue that has no policy subscribed to a topic, a published message is dropped:
+Under `enforce`, a delivery the target's policy refuses is not retried. It goes to the subscription's or target's dead-letter queue when one is set, and an EventBridge dead letter carries `ERROR_CODE` `NO_PERMISSIONS`; otherwise it is dropped. Of the calls that configure a delivery, only S3's `PutBucketNotificationConfiguration` checks the target's policy ([Configuration checks](#configuration-checks)); `Subscribe` and `PutTargets` neither check nor change it. With a queue that has no policy subscribed to a topic, a published message is dropped:
 
 ```sh
 aws sqs create-queue --queue-name orders

@@ -96,7 +96,10 @@ func TestEnforceDeliversS3NotificationsWithTheBucketOwnersAccount(t *testing.T) 
 			client, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
 			const queueARN = "arn:aws:sqs:us-east-1:000000000000:uploads"
 			mustSQS(t, endpoint, "CreateQueue", `{"QueueName":"uploads"}`)
-			setQueuePolicy(t, endpoint, "uploads", accountPolicy("s3.amazonaws.com", "uploads", c.account))
+			// The configuration check refuses a policy that does not admit
+			// the bucket, so the case's policy is set once the configuration
+			// is stored, as IAM-ENF-21 changed it (8.3).
+			setQueuePolicy(t, endpoint, "uploads", accountPolicy("s3.amazonaws.com", "uploads", "000000000000"))
 			if got := s3Call(t, dummy, http.MethodPut, endpoint+"/uploads", ""); got.status != http.StatusOK {
 				t.Fatalf("CreateBucket = %d %s", got.status, got.body)
 			}
@@ -105,6 +108,13 @@ func TestEnforceDeliversS3NotificationsWithTheBucketOwnersAccount(t *testing.T) 
 			if got := s3Call(t, dummy, http.MethodPut, endpoint+"/uploads?notification", notification); got.status != http.StatusOK {
 				t.Fatalf("PutBucketNotificationConfiguration = %d %s", got.status, got.body)
 			}
+			setQueuePolicy(t, endpoint, "uploads", accountPolicy("s3.amazonaws.com", "uploads", c.account))
+			// The s3:TestEvent went out under the admitting policy; only the
+			// notifications after the change are judged.
+			if _, err := client.Settle(t.Context(), 10*time.Second); err != nil {
+				t.Fatal(err)
+			}
+			before := len(outcomesTo(t, client, queueARN))
 			if got := s3Call(t, dummy, http.MethodPut, endpoint+"/uploads/a.txt", "abc"); got.status != http.StatusOK {
 				t.Fatalf("PutObject = %d %s", got.status, got.body)
 			}
@@ -113,7 +123,7 @@ func TestEnforceDeliversS3NotificationsWithTheBucketOwnersAccount(t *testing.T) 
 			if created != c.delivered {
 				t.Errorf("queue holds %q; want the ObjectCreated record delivered = %v", bodies, c.delivered)
 			}
-			outcomes := outcomesTo(t, client, queueARN)
+			outcomes := outcomesTo(t, client, queueARN)[before:]
 			if !c.delivered && (len(outcomes) == 0 || slices.ContainsFunc(outcomes, func(k string) bool { return k != "dropped" })) {
 				t.Errorf("delivery outcomes = %q, want every notification dropped", outcomes)
 			}
