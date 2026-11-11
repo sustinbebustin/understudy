@@ -374,7 +374,7 @@ func TestBlobPayload(t *testing.T) {
 }
 
 // A trailer-bound member the head does not carry arrives after the body:
-// read before EOF it is not yet available; after EOF it is the trailer
+// read before EOF it answers nothing; after EOF it is the trailer
 // (ARCHITECTURE.md 6.1, s3.md 6.3).
 func TestTrailerBoundMemberResolvesAtEOF(t *testing.T) {
 	op := operation("/{Bucket}/{Key+}", streamInput, nil)
@@ -390,10 +390,6 @@ func TestTrailerBoundMemberResolvesAtEOF(t *testing.T) {
 	if !ok {
 		t.Fatalf("the payload is a %T, want *restbind.Body", got.Body)
 	}
-	var pending *restbind.PendingError
-	if _, _, err := b.Deferred("x-amz-checksum-crc32"); !errors.As(err, &pending) {
-		t.Errorf("Deferred before EOF = %v, want *PendingError", err)
-	}
 	if _, ok := got.Body.Trailer("x-amz-checksum-crc32"); ok {
 		t.Error("smithy.Body.Trailer before EOF reported a value")
 	}
@@ -403,9 +399,6 @@ func TestTrailerBoundMemberResolvesAtEOF(t *testing.T) {
 	}
 	if data, err := io.ReadAll(rc); err != nil || !bytes.Equal(data, []byte("hello")) {
 		t.Fatalf("body = %q, %v", data, err)
-	}
-	if v, sent, err := b.Deferred("x-amz-checksum-crc32"); err != nil || !sent || v != "NhCmhg==" {
-		t.Errorf("Deferred after EOF = %q, %v, %v", v, sent, err)
 	}
 	if v, ok := got.Body.Trailer("x-amz-checksum-crc32"); !ok || v != "NhCmhg==" {
 		t.Errorf("smithy.Body.Trailer after EOF = %q, %v", v, ok)

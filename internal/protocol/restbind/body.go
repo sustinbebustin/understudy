@@ -9,13 +9,10 @@ import (
 )
 
 // Body is the request body restbind hands a @streaming payload member: the
-// edge's body with its end of stream observed, so a trailer-bound member
-// (S3 x-amz-checksum-* sent as an aws-chunked trailer) resolves only once
-// the handler has read the body through. Until then its value is pending,
-// never "absent": the trailer arrives after the last byte.
-//
-// Deferred tells pending from absent, but handlers see only smithy.Body,
-// whose Trailer answers both the same way, so they cannot tell them apart.
+// edge's body with its end of stream observed. Its Trailer answers nothing
+// until the body has been read to EOF, because a trailer (S3 x-amz-checksum-*
+// sent as an aws-chunked trailer) arrives after the last byte; after EOF it
+// answers the trailer's value and whether the client sent it.
 type Body struct {
 	inner smithy.Body
 	eof   atomic.Bool
@@ -41,25 +38,6 @@ func (b *Body) Trailer(name string) (string, bool) {
 		return "", false
 	}
 	return b.inner.Trailer(name)
-}
-
-// Deferred returns a trailer-bound member's value: *PendingError while the
-// body has not been read to EOF, then the trailer's value and whether the
-// client sent it.
-func (b *Body) Deferred(name string) (value string, sent bool, err error) {
-	if !b.eof.Load() {
-		return "", false, &PendingError{Name: name}
-	}
-	v, ok := b.inner.Trailer(name)
-	return v, ok, nil
-}
-
-// PendingError is a trailer-bound member read before the body that carries
-// it reached EOF: its value is not yet available.
-type PendingError struct{ Name string }
-
-func (e *PendingError) Error() string {
-	return "restbind: trailer " + e.Name + " is not yet available; read the request body to EOF first"
 }
 
 // eofReader records when the underlying reader reports io.EOF.
