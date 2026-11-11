@@ -22,6 +22,7 @@ var service = registry.Service{
 	JSONTargetPrefix:      "QueryCompatibleJsonRpc10",
 	QueryCompatible:       true,
 	MalformedRequestError: IdentitySerializationException(),
+	UnknownOperationError: UnknownOperationError,
 	NewErrorMembers:       NewErrorMembers,
 }
 

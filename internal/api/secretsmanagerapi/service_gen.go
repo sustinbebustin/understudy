@@ -21,6 +21,8 @@ var service = registry.Service{
 	Protocols:             []ref.ProtocolID{ref.AWSJSON11},
 	JSONTargetPrefix:      "secretsmanager",
 	MalformedRequestError: IdentitySerializationException(),
+	ThrottleError:         IdentityThrottlingException(),
+	UnknownOperationError: UnknownOperationError,
 	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "third-party-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

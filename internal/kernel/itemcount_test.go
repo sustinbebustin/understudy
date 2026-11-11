@@ -32,7 +32,7 @@ func TestCatalogueNewMembers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cat := kernel.NewCatalogue(reg, nil)
+	cat := kernel.NewCatalogue(reg)
 	tx := dynamodbapi.OpTransactWriteItemsRaw.Descriptor().ID
 	tce := dynamodbapi.IdentityTransactionCanceledException()
 	v, ok := cat.NewMembers(tx, tce.Shape)

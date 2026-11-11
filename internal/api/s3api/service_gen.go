@@ -21,6 +21,7 @@ var service = registry.Service{
 	Protocols:             []ref.ProtocolID{ref.RESTXML},
 	XMLNamespace:          "http://s3.amazonaws.com/doc/2006-03-01/",
 	MalformedRequestError: IdentityMalformedXML(),
+	ThrottleError:         IdentitySlowDown(),
 	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-doc"},
 	NewErrorMembers:       NewErrorMembers,
 }

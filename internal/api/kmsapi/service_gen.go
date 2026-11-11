@@ -22,6 +22,8 @@ var service = registry.Service{
 	JSONTargetPrefix:      "TrentService",
 	XMLNamespace:          "https://trent.amazonaws.com/doc/2014-11-01/",
 	MalformedRequestError: IdentitySerializationException(),
+	ThrottleError:         IdentityThrottlingException(),
+	UnknownOperationError: UnknownOperationError,
 	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

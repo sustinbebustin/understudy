@@ -21,6 +21,7 @@ var service = registry.Service{
 	Protocols:             []ref.ProtocolID{ref.AWSJSON11},
 	JSONTargetPrefix:      "JsonProtocol",
 	MalformedRequestError: IdentitySerializationException(),
+	UnknownOperationError: UnknownOperationError,
 	NewErrorMembers:       NewErrorMembers,
 }
 

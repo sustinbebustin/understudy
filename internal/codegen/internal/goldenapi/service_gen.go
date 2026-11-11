@@ -24,6 +24,8 @@ var service = registry.Service{
 	QueryCompatible:       true,
 	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: false, Detail: true},
 	MalformedRequestError: IdentitySerializationException(),
+	ThrottleError:         IdentityThrottled(),
+	UnknownOperationError: UnknownOperationError,
 	NewErrorMembers:       NewErrorMembers,
 }
 

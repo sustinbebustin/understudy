@@ -42,6 +42,19 @@ type Service struct {
 	// InvalidRequestContentException). It is the zero Identity when the
 	// overlay sets none; the codec then answers with its protocol's default.
 	MalformedRequestError awserr.Identity
+	// ThrottleError is the overlay's dev.understudy#throttleError, the
+	// identity a throttling fault rule injects (SQS RequestThrottled). It is
+	// the zero Identity on a hand-built descriptor, which then throttles with
+	// the generic ThrottlingException.
+	ThrottleError awserr.Identity
+	// UnknownOperationError returns the overlay's
+	// dev.understudy#unknownOperationError for protocol family f, the
+	// identity for a request naming no operation of the service, or false
+	// for a family the overlay does not name. Generated descriptors set it
+	// to their package's UnknownOperationError when the overlay names one;
+	// it is nil otherwise, and the edge then answers the family's generic
+	// identity.
+	UnknownOperationError func(f awserr.Family) (awserr.Identity, bool)
 	// Denial is the overlay's dev.understudy#denialError, the error an
 	// authorization refusal answers with; zero when the overlay names none.
 	Denial Denial

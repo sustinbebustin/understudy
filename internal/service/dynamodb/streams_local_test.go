@@ -14,7 +14,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/edge"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/protocol/awsjson"
@@ -399,12 +398,6 @@ func runStreams(t *testing.T, opts dynamodb.Options, fn func(h *streamsHarness))
 			Kernel: k.Kernel, Registry: k.Kernel.Registry(), Identity: k.Identity, Regions: aws.KnownRegions(),
 			Codecs:   map[ref.ProtocolID]edge.Codec{ref.AWSJSON10: jsonCodec{awsjson.V10}, ref.AWSJSON11: jsonCodec{awsjson.V11}},
 			Listener: ref.ListenerMain, Unclaimed: ref.AWSJSON10,
-			UnknownOperationError: func(id ref.ServiceID, f awserr.Family) (awserr.Identity, bool) {
-				if id == dynamodbstreamsapi.Service().ID {
-					return dynamodbstreamsapi.UnknownOperationError(f)
-				}
-				return dynamodbapi.UnknownOperationError(f)
-			},
 		})
 		if err != nil {
 			k.Fatal(err)

@@ -22,6 +22,8 @@ var service = registry.Service{
 	JSONTargetPrefix:      "Logs_20140328",
 	XMLNamespace:          "http://monitoring.amazonaws.com/doc/2014-03-28/",
 	MalformedRequestError: IdentitySerializationException(),
+	ThrottleError:         IdentityThrottlingException(),
+	UnknownOperationError: UnknownOperationError,
 	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "third-party-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

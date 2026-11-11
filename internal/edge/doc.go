@@ -79,8 +79,7 @@
 //   - A target or form request whose service differs from the SigV4 signing
 //     name is declined by its rule, so rule 8 answers for the signed
 //     service.
-//   - Options carries what the descriptors do not: the services' overlay
-//     unknownOperationError (UnknownOperationError), the protocol whose
+//   - Options carries what the descriptors do not: the protocol whose
 //     envelope answers an unclaimed request (Unclaimed) and the handler of
 //     the /_understudy/ prefix (Admin). The container listener passes only
 //     GET health and clock to it.

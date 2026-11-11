@@ -21,6 +21,7 @@ var service = registry.Service{
 	Protocols:             []ref.ProtocolID{ref.RPCv2CBOR},
 	QueryCompatible:       true,
 	MalformedRequestError: IdentitySerializationException(),
+	UnknownOperationError: UnknownOperationError,
 	NewErrorMembers:       NewErrorMembers,
 }
 

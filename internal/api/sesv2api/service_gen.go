@@ -20,6 +20,8 @@ var service = registry.Service{
 	ARNNamespace:          "ses",
 	Protocols:             []ref.ProtocolID{ref.RESTJSON1},
 	MalformedRequestError: IdentitySerializationException(),
+	ThrottleError:         IdentityTooManyRequestsException(),
+	UnknownOperationError: UnknownOperationError,
 	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "inferred"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

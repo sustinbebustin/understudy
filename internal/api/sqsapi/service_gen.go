@@ -25,6 +25,8 @@ var service = registry.Service{
 	QueryCompatible:       true,
 	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: true, Detail: true},
 	MalformedRequestError: IdentitySerializationException(),
+	ThrottleError:         IdentityRequestThrottled(),
+	UnknownOperationError: UnknownOperationError,
 	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

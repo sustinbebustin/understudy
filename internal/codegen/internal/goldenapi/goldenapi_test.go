@@ -146,11 +146,17 @@ func TestIdentities(t *testing.T) {
 		}
 	}
 	if ThrottleError() != IdentityThrottled() || MalformedRequestError() != IdentitySerializationException() ||
-		Service().MalformedRequestError != IdentitySerializationException() {
+		Service().MalformedRequestError != IdentitySerializationException() || Service().ThrottleError != IdentityThrottled() {
 		t.Error("service-level identities do not resolve to their shapes")
 	}
 	if _, ok := UnknownOperationError(awserr.QueryFamily); ok {
 		t.Error("the overlay names no Query identity, yet one resolved")
+	}
+	if Service().UnknownOperationError == nil {
+		t.Fatal("the descriptor carries no unknown-operation identity, yet the overlay names one")
+	}
+	if got, ok := Service().UnknownOperationError(awserr.JSONFamily); !ok || got != IdentityUnknownOperationException() {
+		t.Errorf("descriptor's JSON unknown-operation identity = %+v, %t; want UnknownOperationException", got, ok)
 	}
 	if got := ErrKindsFault("boom").MessageFor(ref.AWSQuery); got != "Kinds failed for this wsdl version." {
 		t.Errorf("Query message = %q", got)

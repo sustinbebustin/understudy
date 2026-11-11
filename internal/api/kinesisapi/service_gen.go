@@ -22,6 +22,8 @@ var service = registry.Service{
 	JSONTargetPrefix:      "Kinesis_20131202",
 	XMLNamespace:          "http://kinesis.amazonaws.com/doc/2013-12-02",
 	MalformedRequestError: IdentitySerializationException(),
+	ThrottleError:         IdentityProvisionedThroughputExceededException(),
+	UnknownOperationError: UnknownOperationError,
 	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

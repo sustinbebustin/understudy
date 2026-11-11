@@ -13,18 +13,20 @@ import (
 )
 
 var service = registry.Service{
-	ID:                 "ses",
-	Shape:              "com.amazonaws.ses#SimpleEmailService",
-	SigningName:        "ses",
-	IAMPrefix:          "ses",
-	ARNNamespace:       "ses",
-	Protocols:          []ref.ProtocolID{ref.AWSQuery},
-	QueryVersion:       "2010-12-01",
-	XMLNamespace:       "http://ses.amazonaws.com/doc/2010-12-01/",
-	QueryErrorEnvelope: registry.QueryErrorEnvelope{Namespace: true, Detail: false},
-	Denial:             registry.Denial{Identity: IdentityAccessDenied(), Label: "inferred"},
-	NewErrorMembers:    NewErrorMembers,
-	GenericErrors:      GenericErrors,
+	ID:                    "ses",
+	Shape:                 "com.amazonaws.ses#SimpleEmailService",
+	SigningName:           "ses",
+	IAMPrefix:             "ses",
+	ARNNamespace:          "ses",
+	Protocols:             []ref.ProtocolID{ref.AWSQuery},
+	QueryVersion:          "2010-12-01",
+	XMLNamespace:          "http://ses.amazonaws.com/doc/2010-12-01/",
+	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: true, Detail: false},
+	ThrottleError:         IdentityThrottling(),
+	UnknownOperationError: UnknownOperationError,
+	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "inferred"},
+	NewErrorMembers:       NewErrorMembers,
+	GenericErrors:         GenericErrors,
 }
 
 // The operations point back at the service, so the list is linked once

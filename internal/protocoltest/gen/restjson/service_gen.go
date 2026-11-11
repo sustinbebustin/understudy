@@ -20,6 +20,7 @@ var service = registry.Service{
 	ARNNamespace:          "",
 	Protocols:             []ref.ProtocolID{ref.RESTJSON1},
 	MalformedRequestError: IdentitySerializationException(),
+	UnknownOperationError: UnknownOperationError,
 	NewErrorMembers:       NewErrorMembers,
 }
 

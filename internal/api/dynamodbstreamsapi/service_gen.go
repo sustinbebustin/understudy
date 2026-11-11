@@ -23,6 +23,8 @@ var service = registry.Service{
 	XMLNamespace:          "http://dynamodb.amazonaws.com/doc/2012-08-10/",
 	ResponseCRC32:         true,
 	MalformedRequestError: IdentitySerializationException(),
+	ThrottleError:         IdentityThrottlingException(),
+	UnknownOperationError: UnknownOperationError,
 	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "inferred"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

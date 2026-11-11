@@ -22,6 +22,8 @@ var service = registry.Service{
 	JSONTargetPrefix:      "AmazonSSM",
 	XMLNamespace:          "http://ssm.amazonaws.com/doc/2014-11-06/",
 	MalformedRequestError: IdentitySerializationException(),
+	ThrottleError:         IdentityThrottlingException(),
+	UnknownOperationError: UnknownOperationError,
 	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "inferred"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

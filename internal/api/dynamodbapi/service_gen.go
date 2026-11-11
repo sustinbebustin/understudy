@@ -22,6 +22,8 @@ var service = registry.Service{
 	JSONTargetPrefix:      "DynamoDB_20120810",
 	XMLNamespace:          "http://dynamodb.amazonaws.com/doc/2012-08-10/",
 	MalformedRequestError: IdentitySerializationException(),
+	ThrottleError:         IdentityThrottlingException(),
+	UnknownOperationError: UnknownOperationError,
 	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

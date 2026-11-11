@@ -45,7 +45,7 @@ func newFaultKernel(t *testing.T, local dynamodb.Local) (*kernel.Kernel, *fault.
 	}
 	seed := uint64(1)
 	src := ids.NewSeeded(seed)
-	faults := fault.New(&seed, src, kernel.NewCatalogue(reg, nil))
+	faults := fault.New(&seed, src, kernel.NewCatalogue(reg))
 	k, err := kernel.New(kernel.Options{Registry: reg, Clock: clk, Timers: timers, IDs: src, Journal: j, Faults: faults})
 	if err != nil {
 		t.Fatal(err)

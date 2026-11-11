@@ -13,18 +13,20 @@ import (
 )
 
 var service = registry.Service{
-	ID:                 "sns",
-	Shape:              "com.amazonaws.sns#AmazonSimpleNotificationService",
-	SigningName:        "sns",
-	IAMPrefix:          "sns",
-	ARNNamespace:       "sns",
-	Protocols:          []ref.ProtocolID{ref.AWSQuery},
-	QueryVersion:       "2010-03-31",
-	XMLNamespace:       "http://sns.amazonaws.com/doc/2010-03-31/",
-	QueryErrorEnvelope: registry.QueryErrorEnvelope{Namespace: true, Detail: false},
-	Denial:             registry.Denial{Identity: IdentityAuthorizationErrorException(), Label: "aws-doc"},
-	NewErrorMembers:    NewErrorMembers,
-	GenericErrors:      GenericErrors,
+	ID:                    "sns",
+	Shape:                 "com.amazonaws.sns#AmazonSimpleNotificationService",
+	SigningName:           "sns",
+	IAMPrefix:             "sns",
+	ARNNamespace:          "sns",
+	Protocols:             []ref.ProtocolID{ref.AWSQuery},
+	QueryVersion:          "2010-03-31",
+	XMLNamespace:          "http://sns.amazonaws.com/doc/2010-03-31/",
+	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: true, Detail: false},
+	ThrottleError:         IdentityThrottledException(),
+	UnknownOperationError: UnknownOperationError,
+	Denial:                registry.Denial{Identity: IdentityAuthorizationErrorException(), Label: "aws-doc"},
+	NewErrorMembers:       NewErrorMembers,
+	GenericErrors:         GenericErrors,
 }
 
 // The operations point back at the service, so the list is linked once

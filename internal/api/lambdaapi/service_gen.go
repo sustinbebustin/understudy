@@ -20,6 +20,8 @@ var service = registry.Service{
 	ARNNamespace:          "lambda",
 	Protocols:             []ref.ProtocolID{ref.RESTJSON1},
 	MalformedRequestError: IdentityInvalidRequestContentException(),
+	ThrottleError:         IdentityTooManyRequestsException(),
+	UnknownOperationError: UnknownOperationError,
 	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,
