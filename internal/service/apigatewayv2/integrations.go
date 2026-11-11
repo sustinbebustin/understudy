@@ -198,9 +198,8 @@ func (i *Integration) checkLambda() *awserr.Error {
 // checkSubtype checks an AWS service integration: AWS_PROXY at payload
 // format 1.0, one of the ten subtypes, and every one of its required
 // request parameters ("You must configure all required parameters to
-// create an integration", apigateway-http.md 6.2). On update the merged
-// parameters are checked, as Terraform re-sends them all (6.2; inferred,
-// APIGW2-01 case 22).
+// create an integration", apigateway-http.md 6.2). An update also passes
+// checkSentParameters first.
 func (i *Integration) checkSubtype() *awserr.Error {
 	if i.Type != apigatewayv2api.IntegrationTypeAwsProxy {
 		return errBadRequest("integrationSubtype %q needs integrationType AWS_PROXY, not %s", *i.Subtype, i.Type)
@@ -217,6 +216,27 @@ func (i *Integration) checkSubtype() *awserr.Error {
 		if _, ok := i.RequestParameters[p]; !ok {
 			// AWS's text (APIGW2-01 step 20).
 			return errBadRequest("Operation: %s requires enabling passthrough, or defining all of the following parameters in the parameter mapping: [%s]", *i.Subtype, strings.Join(required, ", "))
+		}
+	}
+	return nil
+}
+
+// checkSentParameters refuses an UpdateIntegration of an AWS service
+// integration whose requestParameters, sent at all, do not on their own
+// give every required parameter of the subtype a value; a parameter sent
+// as "" is a removal and gives none. AWS refused one sending MessageBody
+// alone to an SQS-SendMessage integration with this text and changed
+// nothing, where a merge would have passed (APIGW2-01 case 22). The rule
+// is inferred from that one case. Terraform re-sends every parameter on
+// update (apigateway-http.md 9.3), so its updates pass.
+func (i *Integration) checkSentParameters(sent map[string]string) *awserr.Error {
+	if i.Subtype == nil || sent == nil {
+		return nil
+	}
+	required, _ := subtypeRequired(*i.Subtype)
+	for _, p := range required {
+		if sent[p] == "" {
+			return errBadRequest("Invalid integration URI specified")
 		}
 	}
 	return nil
@@ -255,8 +275,9 @@ func (s *Service) createIntegration(_ context.Context, c *kernel.Call, in *apiga
 }
 
 // updateIntegration replaces the members an UpdateIntegration carries,
-// checks the merged integration as CreateIntegration checks one, and
-// deploys the change.
+// checks the sent request parameters of an AWS service integration and the
+// merged integration as CreateIntegration checks one, and deploys the
+// change.
 func (s *Service) updateIntegration(_ context.Context, c *kernel.Call, in *apigatewayv2api.UpdateIntegrationInput) (*apigatewayv2api.UpdateIntegrationOutput, *awserr.Error) {
 	i, err := writeAPI(s, c, in.ApiId, func(a *API, now clock.Instant) (Integration, *awserr.Error) {
 		k, err := a.integrationIndex(in.IntegrationId)
@@ -264,6 +285,9 @@ func (s *Service) updateIntegration(_ context.Context, c *kernel.Call, in *apiga
 			return Integration{}, err
 		}
 		i := a.Integrations[k].merged(in)
+		if err := i.checkSentParameters(in.RequestParameters); err != nil {
+			return Integration{}, err
+		}
 		if err := i.check(); err != nil {
 			return Integration{}, err
 		}

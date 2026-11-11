@@ -109,25 +109,27 @@ func TestTaskTimeoutSecondsPathFailures(t *testing.T) {
 	}
 }
 
-// An InvocationType path that resolves to anything but RequestResponse
-// fails the Task with States.Runtime before it invokes; RequestResponse
-// invokes.
+// An InvocationType path that resolves to anything but RequestResponse or
+// Event fails the Task with States.Runtime before it invokes; RequestResponse
+// invokes synchronously and Event asynchronously.
 func TestInvocationTypePathSFN13(t *testing.T) {
 	// inferred, SFN-13
 	def := `{"StartAt":"T","States":{"T":{"Type":"Task","Resource":"arn:aws:states:::lambda:invoke",
 		"Parameters":{"FunctionName":"` + functionArn + `","InvocationType.$":"$.it"},"End":true}}}`
 	refused := newDriver(t, def, rules())
-	refused.start(`{"it":"Event"}`)
+	refused.start(`{"it":"DryRun"}`)
 	failedWith(t, refused.runToEnd(10), "States.Runtime", func(c string) bool {
-		return strings.HasPrefix(c, runtimePrefix("T", 2)+"understudy does not implement lambda:invoke with InvocationType \"Event\"")
+		return strings.HasPrefix(c, runtimePrefix("T", 2)+"understudy does not implement lambda:invoke with InvocationType \"DryRun\"")
 	})
 	if len(refused.invoked) != 0 {
-		t.Errorf("an Event invocation was asked for: %#v", refused.invoked)
+		t.Errorf("a DryRun invocation was asked for: %#v", refused.invoked)
 	}
-	allowed := newDriver(t, def, rules())
-	allowed.start(`{"it":"RequestResponse"}`)
-	if _, ok := allowed.runToEnd(10).(asl.Succeeded); !ok || len(allowed.invoked) != 1 {
-		t.Errorf("RequestResponse: %d invocations, history:\n%s", len(allowed.invoked), allowed.shape())
+	for it, want := range map[string]asl.Invocation{"RequestResponse": asl.SyncInvocation, "Event": asl.AsyncInvocation} {
+		allowed := newDriver(t, def, rules())
+		allowed.start(`{"it":"` + it + `"}`)
+		if _, ok := allowed.runToEnd(10).(asl.Succeeded); !ok || len(allowed.invoked) != 1 || allowed.invoked[0].Invocation != want {
+			t.Errorf("%s: invocations %#v, want one with Invocation %d; history:\n%s", it, allowed.invoked, want, allowed.shape())
+		}
 	}
 }
 
@@ -251,5 +253,26 @@ func TestTaskPersistenceRoundTrip(t *testing.T) {
 	ob, okB := b.runToEnd(10).(asl.Succeeded)
 	if !okA || !okB || a.shape() != b.shape() || !equal(oa.Output, ob.Output) {
 		t.Fatalf("after load:\n%s\nwant:\n%s", b.shape(), a.shape())
+	}
+}
+
+// An Event task saved in flight is invoked asynchronously again after load
+// (SFN-13).
+func TestAsyncTaskPersists(t *testing.T) {
+	def := `{"StartAt":"T","States":{"T":{"Type":"Task","Resource":"arn:aws:states:::lambda:invoke",
+		"Parameters":{"FunctionName":"` + functionArn + `","InvocationType":"Event"},"End":true}}}`
+	a := newDriver(t, def, rules())
+	a.start(`{}`)
+	a.runUntilWaiting()
+	raw, err := a.x.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := newDriver(t, def, rules())
+	if err := b.x.UnmarshalJSON(raw); err != nil {
+		t.Fatal(err)
+	}
+	if got := b.x.InFlight(); len(got) != 1 || got[0].Invocation != asl.AsyncInvocation {
+		t.Fatalf("InFlight after load = %#v, want one asynchronous invocation", got)
 	}
 }

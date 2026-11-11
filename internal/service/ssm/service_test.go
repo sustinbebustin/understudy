@@ -30,12 +30,10 @@ const reservedText = "unrecorded, understudy's choice: another name whose first 
 	"AccessDeniedException text (No access to reserved parameter name: <name>.), where AWS's text for this operation may differ"
 
 // The clauses the five value-bearing operations' notes carry for the
-// default key (ssm-parameters.md 5.6) and for a KMS failure.
+// default key (ssm-parameters.md 5.6).
 const (
 	defaultKeyEncrypt = "under iam.enforce, a SecureString on the default key alias/aws/ssm is encrypted as SSM itself, so an explicit identity-policy deny of kms:Encrypt on that key is not applied"
 	defaultKeyDecrypt = "under iam.enforce, a SecureString on the default key alias/aws/ssm is decrypted as SSM itself, so an explicit identity-policy deny of kms:Decrypt on that key is not applied"
-	// kmsMessage is the KMS failure clause (SSM-22).
-	kmsMessage = `a KMS failure carries KMS's message without the KMS client's "(Service: AWSKMS; ...; Request ID: ...; Proxy: null)" suffix AWS appends`
 )
 
 // The thirteen Parameter Store operations are bound Partial with their
@@ -44,17 +42,21 @@ const (
 // included, stays unbound and answers 501 (invariant 3).
 func TestCoverageMarks(t *testing.T) {
 	tagNote := reserved + "; ResourceType Parameter only: the other resource types name nothing understudy stores, so they answer InvalidResourceId"
+	noDescription := `unrecorded, understudy's choice: the Parameter Store Change event of a parameter with no description carries "description": ""`
 	want := map[string]string{
-		"PutParameter":            reserved + "; parameter policies answer 501; DataType aws:ec2:image answers 501, since understudy has no EC2 to validate an AMI; an Advanced-tier SecureString, including an Intelligent-Tiering one that resolves to Advanced, answers 501; AllowedPattern is compiled as Go RE2, where AWS's dialect is Java's: a pattern RE2 cannot compile, such as a lookahead or a possessive quantifier, answers 501, except an unbalanced bracket or parenthesis, a trailing backslash, a repetition without an argument or a reversed character range, which answer InvalidAllowedPatternException; no Parameter Store Change events are sent; the default tier is always Standard (the service setting is unbound); a {{...}} value's refusal leaves out the value AWS's message quotes; " + kmsMessage + "; unrecorded, understudy's choice: the count refusal's message is understudy's own; " + defaultKeyEncrypt,
-		"GetParameter":            "no AWS public parameters: names under /aws/service/ answer 501, where AWS answers AccessDeniedException for a name it does not publish; Secrets Manager references (names under /aws/reference/secretsmanager/) answer 501; the legacy Query protocol (?Action= without X-Amz-Target), which AWS also serves, answers 501 for this and every SSM operation; " + kmsMessage + "; " + defaultKeyDecrypt + "; " + reservedText,
-		"GetParameters":           "no AWS public parameters: a name under /aws/service/ makes the call answer 501; a Secrets Manager reference (a name under /aws/reference/secretsmanager/) makes the call answer 501; unrecorded, understudy's choice: a parameter asked by name and by ARN is answered once per spelling; " + kmsMessage + "; " + defaultKeyDecrypt + "; " + reservedText,
-		"GetParametersByPath":     "no AWS public parameters or Secrets Manager references: paths under /aws/service/ or /aws/reference/secretsmanager/ answer 501; results come in name order across pages, where AWS's pages are ordered within but not across (switch ssm.list.order); " + kmsMessage + "; " + defaultKeyDecrypt,
-		"DescribeParameters":      "AWS public parameters and Secrets Manager references are never listed: a Name or Path filter value under /aws/service/ or /aws/reference/secretsmanager/ answers 501; Shared lists nothing, since no parameter can be shared (resource policies are unbound); the deprecated Filters member alone answers 501 (use ParameterFilters); results come in name order across pages, where AWS's pages are ordered within but not across (switch ssm.list.order); unrecorded, understudy's choice: the values of one filter match any of them",
-		"GetParameterHistory":     reserved + "; " + kmsMessage + "; " + defaultKeyDecrypt + "; " + reservedText,
-		"DeleteParameter":         reserved + "; no Parameter Store Change events are sent; " + reservedText,
-		"DeleteParameters":        reserved + "; no Parameter Store Change events are sent; " + reservedText,
-		"LabelParameterVersion":   reserved + "; no Parameter Store Change events are sent; InvalidLabels lists the refused labels in request order, where AWS's order is its own; " + reservedText,
-		"UnlabelParameterVersion": reserved + "; " + reservedText,
+		"PutParameter":        reserved + "; parameter policies answer 501; DataType aws:ec2:image answers 501, since understudy has no EC2 to validate an AMI; an Advanced-tier SecureString, including an Intelligent-Tiering one that resolves to Advanced, answers 501; AllowedPattern is compiled as Go RE2, where AWS's dialect is Java's: a pattern RE2 cannot compile, such as a lookahead or a possessive quantifier, answers 501, except an unbalanced bracket or parenthesis, a trailing backslash, a repetition without an argument or a reversed character range, which answer InvalidAllowedPatternException; the default tier is always Standard (the service setting is unbound); a {{...}} value's refusal leaves out the value AWS's message quotes; unrecorded, understudy's choice: the count refusal's message is understudy's own; " + noDescription + "; " + defaultKeyEncrypt,
+		"GetParameter":        "no AWS public parameters: names under /aws/service/ answer 501, where AWS answers AccessDeniedException for a name it does not publish; Secrets Manager references (names under /aws/reference/secretsmanager/) answer 501; the legacy Query protocol (?Action= without X-Amz-Target), which AWS also serves, answers 501 for this and every SSM operation; " + defaultKeyDecrypt + "; " + reservedText,
+		"GetParameters":       "no AWS public parameters: a name under /aws/service/ makes the call answer 501; a Secrets Manager reference (a name under /aws/reference/secretsmanager/) makes the call answer 501; unrecorded, understudy's choice: a parameter asked by name and by ARN is answered once per spelling; " + defaultKeyDecrypt + "; " + reservedText,
+		"GetParametersByPath": "no AWS public parameters or Secrets Manager references: paths under /aws/service/ or /aws/reference/secretsmanager/ answer 501; results come in name order across pages, where AWS's pages are ordered within but not across (switch ssm.list.order); " + defaultKeyDecrypt,
+		"DescribeParameters":  "AWS public parameters and Secrets Manager references are never listed: a Name or Path filter value under /aws/service/ or /aws/reference/secretsmanager/ answers 501; Shared lists nothing, since no parameter can be shared (resource policies are unbound); the deprecated Filters member alone answers 501 (use ParameterFilters); results come in name order across pages, where AWS's pages are ordered within but not across (switch ssm.list.order); unrecorded, understudy's choice: the values of one filter match any of them",
+		"GetParameterHistory": reserved + "; " + defaultKeyDecrypt + "; " + reservedText,
+		"DeleteParameter":     reserved + "; " + noDescription + "; " + reservedText,
+		"DeleteParameters": reserved + "; unrecorded, understudy's choice: each deleted parameter sends its own Parameter Store Change Delete event, in request order; " +
+			noDescription + "; " + reservedText,
+		"LabelParameterVersion": reserved + "; InvalidLabels lists the refused labels in request order, where AWS's order is its own; " +
+			"unrecorded, understudy's choice: each label attached or moved sends its own Parameter Store Change event, and a label already on the version sends none; " +
+			noDescription + "; " + reservedText,
+		"UnlabelParameterVersion": reserved + "; unrecorded, understudy's choice: no Parameter Store Change event is sent; " + reservedText,
 		"AddTagsToResource":       tagNote + "; " + reservedText,
 		"RemoveTagsFromResource":  tagNote + "; " + reservedText,
 		"ListTagsForResource":     tagNote + "; TagList lists tags in the order they were first set, where AWS's order is its own; " + reservedText,
@@ -96,14 +98,11 @@ func TestSwitches(t *testing.T) {
 	step := func(item, step string) fidelity.Settles {
 		return fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "ssm/" + item, Step: step}}
 	}
-	recorded := func(steps string) fidelity.Settles {
-		return fidelity.NoScenario{Reason: "recorded as understudy behaves (" + steps + "); the step's replay differs only in JSON member order, which AWS sorts by name"}
-	}
 	want := map[string]sw{
-		"ssm.name.root-slash-echo":              {"request-spelling", "32-root-parameters-and-the-leading-slash", "SSM-07", evidence.AWSRecorded, recorded("SSM-07 steps 01-07"), []string{"ssm.GetParameter", "ssm.GetParameters", "ssm.DescribeParameters", "ssm.GetParameterHistory"}},
+		"ssm.name.root-slash-echo":              {"request-spelling", "32-root-parameters-and-the-leading-slash", "SSM-07", evidence.AWSRecorded, step("SSM-07", "02-get-slash"), []string{"ssm.GetParameter", "ssm.GetParameters", "ssm.DescribeParameters", "ssm.GetParameterHistory"}},
 		"ssm.error.parameter-not-found-message": {"empty-except-label", "22-errors", "SSM-02", evidence.AWSRecorded, step("SSM-02", "03-label"), []string{"ssm.DeleteParameter", "ssm.GetParameterHistory", "ssm.LabelParameterVersion", "ssm.UnlabelParameterVersion"}},
-		"ssm.put.omitted-fields":                {"preserved", "71-putparameter", "SSM-10", evidence.AWSRecorded, recorded("SSM-10 steps 02-03"), []string{"ssm.PutParameter"}},
-		"ssm.kms.key-id-echo":                   {"verbatim", "54-keyid-in-metadata", "SSM-22", evidence.AWSRecorded, recorded("SSM-22 steps 01-02"), []string{"ssm.PutParameter", "ssm.DescribeParameters", "ssm.GetParameterHistory"}},
+		"ssm.put.omitted-fields":                {"preserved", "71-putparameter", "SSM-10", evidence.AWSRecorded, step("SSM-10", "02-describe"), []string{"ssm.PutParameter"}},
+		"ssm.kms.key-id-echo":                   {"verbatim", "54-keyid-in-metadata", "SSM-22", evidence.AWSRecorded, step("SSM-22", "01-describe"), []string{"ssm.PutParameter", "ssm.DescribeParameters", "ssm.GetParameterHistory"}},
 		"ssm.list.order":                        {"name-ascending", "74-getparametersbypath", "SSM-19, SSM-20", evidence.Inferred, step("SSM-20", "01-default-page"), []string{"ssm.GetParametersByPath", "ssm.DescribeParameters"}},
 	}
 	run(t, func(h *harness) {

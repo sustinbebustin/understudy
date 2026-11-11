@@ -68,10 +68,15 @@ func TestSubtypeRequiredParameters(t *testing.T) {
 
 // A service integration is AWS_PROXY at payload format 1.0
 // (apigateway-http.md 2.4, 6.1): 2.0 or HTTP_PROXY with a subtype is a bad
-// request. An update is checked against the merged parameters, which
-// Terraform re-sends whole (6.2; inferred, APIGW2-01 case 22): removing a
-// required one is refused and changes nothing, adding an optional one is
-// stored.
+// request. An update's requestParameters must hold every required
+// parameter of the subtype on their own: AWS refused one sending
+// MessageBody alone with "Invalid integration URI specified" and kept the
+// stored ones (APIGW2-01 case 22; the rule is inferred from that one
+// case). An update sending only the optional DelaySeconds was stored
+// before this rule; it is refused now, as the recorded update is. Terraform
+// re-sends every parameter (apigateway-http.md 9.3), so a full map, with or
+// without an optional one, merges as before, and an update sending no
+// requestParameters is not checked this way.
 func TestSubtypeChecks(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.apiID("t")
@@ -84,39 +89,63 @@ func TestSubtypeChecks(t *testing.T) {
 		wantError(t, fail(h, apigatewayv2api.OpCreateIntegration, proxy), badRequest)
 
 		integration := deref(must(h, apigatewayv2api.OpCreateIntegration, subtypeIn(id, "SQS-SendMessage", params)).IntegrationId)
-		wantError(t, fail(h, apigatewayv2api.OpUpdateIntegration, &apigatewayv2api.UpdateIntegrationInput{
-			ApiId: id, IntegrationId: integration, RequestParameters: map[string]string{"MessageBody": ""},
-		}), badRequest)
+		const recorded = `{"requestParameters": {"MessageBody": "$request.body"}}`
+		// AWS's body is {"message":"Invalid integration URI specified"}. The
+		// member's case is the error writer's, not this check's, and
+		// encoding/json matches it either way.
+		status, body := h.wire(http.MethodPatch, "/v2/apis/"+id+"/integrations/"+integration, recorded)
+		var refusal struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal([]byte(body), &refusal); err != nil || status != http.StatusBadRequest || refusal.Message != "Invalid integration URI specified" {
+			t.Errorf("UpdateIntegration %s = %d %s, want 400 and AWS's recorded message", recorded, status, body)
+		}
+		update := func(sent map[string]string) *apigatewayv2api.UpdateIntegrationInput {
+			return &apigatewayv2api.UpdateIntegrationInput{ApiId: id, IntegrationId: integration, RequestParameters: sent}
+		}
+		for _, sent := range []map[string]string{
+			{"MessageBody": ""},
+			{"DelaySeconds": "5"},
+			{"QueueUrl": params["QueueUrl"], "MessageBody": ""},
+		} {
+			wantText(t, fail(h, apigatewayv2api.OpUpdateIntegration, update(sent)), badRequest, "Invalid integration URI specified")
+		}
 		got := must(h, apigatewayv2api.OpGetIntegration, &apigatewayv2api.GetIntegrationInput{ApiId: id, IntegrationId: integration})
 		if !maps.Equal(got.RequestParameters, params) {
-			t.Errorf("RequestParameters after a refused update = %v, want %v", got.RequestParameters, params)
+			t.Errorf("RequestParameters after the refused updates = %v, want %v", got.RequestParameters, params)
 		}
-		updated := must(h, apigatewayv2api.OpUpdateIntegration, &apigatewayv2api.UpdateIntegrationInput{
-			ApiId: id, IntegrationId: integration, RequestParameters: map[string]string{"DelaySeconds": "5"},
-		})
-		want := maps.Clone(params)
-		want["DelaySeconds"] = "5"
-		if !maps.Equal(updated.RequestParameters, want) || updated.IntegrationUri != nil || updated.IntegrationMethod != nil {
-			t.Errorf("UpdateIntegration = %+v, want parameters %v and still no URI or method", updated, want)
+
+		withOptional := maps.Clone(params)
+		withOptional["DelaySeconds"] = "5"
+		updated := must(h, apigatewayv2api.OpUpdateIntegration, update(withOptional))
+		if !maps.Equal(updated.RequestParameters, withOptional) || updated.IntegrationUri != nil || updated.IntegrationMethod != nil {
+			t.Errorf("UpdateIntegration = %+v, want parameters %v and still no URI or method", updated, withOptional)
+		}
+		if got := must(h, apigatewayv2api.OpUpdateIntegration, update(params)).RequestParameters; !maps.Equal(got, withOptional) {
+			t.Errorf("RequestParameters after re-sending the required ones = %v, want DelaySeconds kept: %v", got, withOptional)
+		}
+		described := must(h, apigatewayv2api.OpUpdateIntegration, &apigatewayv2api.UpdateIntegrationInput{ApiId: id, IntegrationId: integration, Description: new("d")})
+		if !maps.Equal(described.RequestParameters, withOptional) || deref(described.Description) != "d" {
+			t.Errorf("UpdateIntegration with no requestParameters = %+v, want the description set and parameters %v", described, withOptional)
 		}
 	})
 }
 
 // An update's request parameters merge into the stored ones: a key sent
 // with "" is removed, any other key sent is set, and a key not sent is
-// kept (the parameter mapping page, apigateway-http.md 3.3).
+// kept (the parameter mapping page, apigateway-http.md 3.3). On an AWS
+// service integration an update that sends every required parameter, as
+// Terraform does (9.3), merges alike, whatever optional ones it adds or
+// removes.
 func TestRequestParametersMergeProperty(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.apiID("t")
-		key := rapid.SampledFrom([]string{"append:header.a", "overwrite:header.b", "remove:querystring.c", "overwrite:path", "append:querystring.d"})
 		value := rapid.StringMatching(`[a-z$.'/]{1,8}`)
-		rapid.Check(t, func(rt *rapid.T) {
-			stored := rapid.MapOf(key, value).Draw(rt, "stored")
-			sent := rapid.MapOf(key, rapid.OneOf(value, rapid.Just(""))).Draw(rt, "sent")
-			in := httpProxyIn(id)
-			if len(stored) > 0 {
-				in.RequestParameters = stored
-			}
+		sentValue := rapid.OneOf(value, rapid.Just(""))
+		// check creates in, sends sent in an update, and wants the stored
+		// parameters to be stored merged with sent.
+		check := func(rt *rapid.T, in *apigatewayv2api.CreateIntegrationInput, sent map[string]string) {
+			stored := in.RequestParameters
 			integration := deref(must(h, apigatewayv2api.OpCreateIntegration, in).IntegrationId)
 			must(h, apigatewayv2api.OpUpdateIntegration, &apigatewayv2api.UpdateIntegrationInput{ApiId: id, IntegrationId: integration, RequestParameters: sent})
 			want := maps.Clone(stored)
@@ -135,6 +164,25 @@ func TestRequestParametersMergeProperty(t *testing.T) {
 				rt.Fatalf("stored %v, sent %v: RequestParameters = %v, want %v", stored, sent, got, want)
 			}
 			must(h, apigatewayv2api.OpDeleteIntegration, &apigatewayv2api.DeleteIntegrationInput{ApiId: id, IntegrationId: integration})
+		}
+		key := rapid.SampledFrom([]string{"append:header.a", "overwrite:header.b", "remove:querystring.c", "overwrite:path", "append:querystring.d"})
+		rapid.Check(t, func(rt *rapid.T) {
+			in := httpProxyIn(id)
+			if stored := rapid.MapOf(key, value).Draw(rt, "stored"); len(stored) > 0 {
+				in.RequestParameters = stored
+			}
+			check(rt, in, rapid.MapOf(key, sentValue).Draw(rt, "sent"))
+		})
+		// The optional parameters of SQS-SendMessage (6.1).
+		optional := rapid.SampledFrom([]string{"DelaySeconds", "MessageAttributes", "MessageDeduplicationId", "MessageGroupId", "Region"})
+		rapid.Check(t, func(rt *rapid.T) {
+			stored := rapid.MapOf(optional, value).Draw(rt, "stored optional")
+			sent := rapid.MapOf(optional, sentValue).Draw(rt, "sent optional")
+			for _, p := range []string{"QueueUrl", "MessageBody"} {
+				stored[p] = value.Draw(rt, "stored "+p)
+				sent[p] = value.Draw(rt, "sent "+p)
+			}
+			check(rt, subtypeIn(id, "SQS-SendMessage", stored), sent)
 		})
 	})
 }

@@ -355,14 +355,15 @@ func (v *AttachmentsSource) validate(path awserr.Path, out *[]awserr.Violation) 
 		if len(v.Values) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderAttachmentsSourceValues(v.Values)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 1024 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 1024}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 1024 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderAttachmentsSourceValues(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 1024}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.Name != nil {
@@ -389,14 +390,15 @@ func (v *AutomationExecutionFilter) validate(path awserr.Path, out *[]awserr.Vio
 		if len(v.Values) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderAutomationExecutionFilterValueList(v.Values)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 150 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 150}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 150 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderAutomationExecutionFilterValueList(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 150}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -409,29 +411,37 @@ func (v *AutomationExecutionInputs) validate(path awserr.Path, out *[]awserr.Vio
 		if len(v.Parameters) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
+		if func() bool {
+			for k2 := range v.Parameters {
+				if utf8.RuneCountInString(k2) > 50 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
+		}
+		if func() bool {
+			for _, e2 := range v.Parameters {
+				if len(e2) > 50 || len(e2) < 0 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 0}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.Parameters)) {
-			kp2 := at(at(path, "parameters"), k2)
-			if utf8.RuneCountInString(k2) > 50 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.Parameters[k2], at(at(path, "parameters"), k2, "member")
-			if len(e2) > 50 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if len(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMin{Min: 0}})
-			}
-			for i3, e3 := range e2 {
-				p3 := at(vp2, strconv.Itoa(i3+1), "member")
-				if utf8.RuneCountInString(e3) > 512 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMax{Max: 512}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if utf8.RuneCountInString(e3) > 512 || utf8.RuneCountInString(e3) < 1 {
+						return true
+					}
 				}
-				if utf8.RuneCountInString(e3) < 1 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 512}, awserr.LengthMin{Min: 1}}}})
 			}
 		}
 	}
@@ -462,37 +472,49 @@ func (v *AutomationExecutionInputs) validate(path awserr.Path, out *[]awserr.Vio
 		if len(v.TargetMaps) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
+		if func() bool {
+			for _, e2 := range v.TargetMaps {
+				if len(e2) > 20 || len(e2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 20}, awserr.LengthMin{Min: 1}}}})
+		}
 		for i2, e2 := range v.TargetMaps {
 			p2 := at(at(path, "targetMaps"), strconv.Itoa(i2+1), "member")
-			if len(e2) > 20 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMax{Max: 20}})
+			if func() bool {
+				for k3 := range e2 {
+					if utf8.RuneCountInString(k3) > 50 || utf8.RuneCountInString(k3) < 1 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 			}
-			if len(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMin{Min: 1}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if len(e3) > 25 || len(e3) < 0 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 25}, awserr.LengthMin{Min: 0}}}})
 			}
 			for _, k3 := range slices.Sorted(maps.Keys(e2)) {
-				kp3 := at(p2, k3)
-				if utf8.RuneCountInString(k3) > 50 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMax{Max: 50}})
-				}
-				if utf8.RuneCountInString(k3) < 1 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
 				e3, vp3 := e2[k3], at(p2, k3, "member")
-				if len(e3) > 25 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMax{Max: 25}})
-				}
-				if len(e3) < 0 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMin{Min: 0}})
-				}
-				for i4, e4 := range e3 {
-					p4 := at(vp3, strconv.Itoa(i4+1), "member")
-					if utf8.RuneCountInString(e4) > 50 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMax{Max: 50}})
+				if func() bool {
+					for _, e4 := range e3 {
+						if utf8.RuneCountInString(e4) > 50 || utf8.RuneCountInString(e4) < 1 {
+							return true
+						}
 					}
-					if utf8.RuneCountInString(e4) < 1 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMin{Min: 1}})
-					}
+					return false
+				}() {
+					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 				}
 			}
 		}
@@ -616,14 +638,15 @@ func (v *BaselineOverride) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.ApprovedPatches) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "approvedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.ApprovedPatches)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for i2, e2 := range v.ApprovedPatches {
-			p2 := at(at(path, "approvedPatches"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 100 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100}})
+		if func() bool {
+			for _, e2 := range v.ApprovedPatches {
+				if utf8.RuneCountInString(e2) > 100 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "approvedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.ApprovedPatches)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 100}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.ApprovedPatchesComplianceLevel != nil {
@@ -638,14 +661,15 @@ func (v *BaselineOverride) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.RejectedPatches) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "rejectedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.RejectedPatches)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for i2, e2 := range v.RejectedPatches {
-			p2 := at(at(path, "rejectedPatches"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 100 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100}})
+		if func() bool {
+			for _, e2 := range v.RejectedPatches {
+				if utf8.RuneCountInString(e2) > 100 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "rejectedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.RejectedPatches)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 100}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.RejectedPatchesAction != nil {
@@ -698,11 +722,15 @@ func (v *CancelCommandInput) validate(path awserr.Path, out *[]awserr.Violation)
 		if len(v.InstanceIds) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "instanceIds"), Value: awserr.RenderedText{Text: renderInstanceIdList(v.InstanceIds)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for i2, e2 := range v.InstanceIds {
-			p2 := at(at(path, "instanceIds"), strconv.Itoa(i2+1), "member")
-			if !pattern15.MatchString(e2) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: "(^i-(\\w{8}|\\w{17})$)|(^mi-\\w{17}$)"}})
+		if func() bool {
+			for _, e2 := range v.InstanceIds {
+				if !pattern15.MatchString(e2) {
+					return true
+				}
 			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "instanceIds"), Value: awserr.RenderedText{Text: renderInstanceIdList(v.InstanceIds)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(^i-(\\w{8}|\\w{17})$)|(^mi-\\w{17}$)"}}}})
 		}
 	}
 }
@@ -751,14 +779,15 @@ func (v *CloudConnectorFilter) validate(path awserr.Path, out *[]awserr.Violatio
 		if len(v.FilterValues) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "filterValues"), Value: awserr.RenderedText{Text: renderCloudConnectorFilterValues(v.FilterValues)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.FilterValues {
-			p2 := at(at(path, "filterValues"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 256 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 256}})
+		if func() bool {
+			for _, e2 := range v.FilterValues {
+				if utf8.RuneCountInString(e2) > 256 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "filterValues"), Value: awserr.RenderedText{Text: renderCloudConnectorFilterValues(v.FilterValues)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -840,21 +869,25 @@ func (v *ComplianceItemEntry) validate(path awserr.Path, out *[]awserr.Violation
 		}
 	}
 	if v.Details != nil {
-		for _, k2 := range slices.Sorted(maps.Keys(v.Details)) {
-			kp2 := at(at(path, "details"), k2)
-			if utf8.RuneCountInString(k2) > 64 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 64}})
+		if func() bool {
+			for k2 := range v.Details {
+				if utf8.RuneCountInString(k2) > 64 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "details"), Value: awserr.RenderedText{Text: renderComplianceItemDetails(v.Details)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 64}, awserr.LengthMin{Min: 1}}}})
+		}
+		if func() bool {
+			for _, e2 := range v.Details {
+				if utf8.RuneCountInString(e2) > 4096 || utf8.RuneCountInString(e2) < 0 {
+					return true
+				}
 			}
-			e2, vp2 := v.Details[k2], at(at(path, "details"), k2, "member")
-			if utf8.RuneCountInString(e2) > 4096 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 4096}})
-			}
-			if utf8.RuneCountInString(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 0}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "details"), Value: awserr.RenderedText{Text: renderComplianceItemDetails(v.Details)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 4096}, awserr.LengthMin{Min: 0}}}})
 		}
 	}
 }
@@ -1119,37 +1152,49 @@ func (v *CreateAssociationBatchRequestEntry) validate(path awserr.Path, out *[]a
 		if len(v.TargetMaps) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
+		if func() bool {
+			for _, e2 := range v.TargetMaps {
+				if len(e2) > 20 || len(e2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 20}, awserr.LengthMin{Min: 1}}}})
+		}
 		for i2, e2 := range v.TargetMaps {
 			p2 := at(at(path, "targetMaps"), strconv.Itoa(i2+1), "member")
-			if len(e2) > 20 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMax{Max: 20}})
+			if func() bool {
+				for k3 := range e2 {
+					if utf8.RuneCountInString(k3) > 50 || utf8.RuneCountInString(k3) < 1 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 			}
-			if len(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMin{Min: 1}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if len(e3) > 25 || len(e3) < 0 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 25}, awserr.LengthMin{Min: 0}}}})
 			}
 			for _, k3 := range slices.Sorted(maps.Keys(e2)) {
-				kp3 := at(p2, k3)
-				if utf8.RuneCountInString(k3) > 50 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMax{Max: 50}})
-				}
-				if utf8.RuneCountInString(k3) < 1 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
 				e3, vp3 := e2[k3], at(p2, k3, "member")
-				if len(e3) > 25 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMax{Max: 25}})
-				}
-				if len(e3) < 0 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMin{Min: 0}})
-				}
-				for i4, e4 := range e3 {
-					p4 := at(vp3, strconv.Itoa(i4+1), "member")
-					if utf8.RuneCountInString(e4) > 50 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMax{Max: 50}})
+				if func() bool {
+					for _, e4 := range e3 {
+						if utf8.RuneCountInString(e4) > 50 || utf8.RuneCountInString(e4) < 1 {
+							return true
+						}
 					}
-					if utf8.RuneCountInString(e4) < 1 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMin{Min: 1}})
-					}
+					return false
+				}() {
+					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 				}
 			}
 		}
@@ -1288,37 +1333,49 @@ func (v *CreateAssociationInput) validate(path awserr.Path, out *[]awserr.Violat
 		if len(v.TargetMaps) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
+		if func() bool {
+			for _, e2 := range v.TargetMaps {
+				if len(e2) > 20 || len(e2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 20}, awserr.LengthMin{Min: 1}}}})
+		}
 		for i2, e2 := range v.TargetMaps {
 			p2 := at(at(path, "targetMaps"), strconv.Itoa(i2+1), "member")
-			if len(e2) > 20 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMax{Max: 20}})
+			if func() bool {
+				for k3 := range e2 {
+					if utf8.RuneCountInString(k3) > 50 || utf8.RuneCountInString(k3) < 1 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 			}
-			if len(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMin{Min: 1}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if len(e3) > 25 || len(e3) < 0 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 25}, awserr.LengthMin{Min: 0}}}})
 			}
 			for _, k3 := range slices.Sorted(maps.Keys(e2)) {
-				kp3 := at(p2, k3)
-				if utf8.RuneCountInString(k3) > 50 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMax{Max: 50}})
-				}
-				if utf8.RuneCountInString(k3) < 1 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
 				e3, vp3 := e2[k3], at(p2, k3, "member")
-				if len(e3) > 25 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMax{Max: 25}})
-				}
-				if len(e3) < 0 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMin{Min: 0}})
-				}
-				for i4, e4 := range e3 {
-					p4 := at(vp3, strconv.Itoa(i4+1), "member")
-					if utf8.RuneCountInString(e4) > 50 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMax{Max: 50}})
+				if func() bool {
+					for _, e4 := range e3 {
+						if utf8.RuneCountInString(e4) > 50 || utf8.RuneCountInString(e4) < 1 {
+							return true
+						}
 					}
-					if utf8.RuneCountInString(e4) < 1 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMin{Min: 1}})
-					}
+					return false
+				}() {
+					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 				}
 			}
 		}
@@ -1633,17 +1690,17 @@ func (v *CreateOpsItemInput) validate(path awserr.Path, out *[]awserr.Violation)
 		}
 	}
 	if v.OperationalData != nil {
+		if func() bool {
+			for k2 := range v.OperationalData {
+				if !(pattern45All0.MatchString(k2) && !pattern45None0.MatchString(k2)) || utf8.RuneCountInString(k2) > 128 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "operationalData"), Value: awserr.RenderedText{Text: renderOpsItemOperationalData(v.OperationalData)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 128}, awserr.LengthMin{Min: 1}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.OperationalData)) {
-			kp2 := at(at(path, "operationalData"), k2)
-			if !(pattern45All0.MatchString(k2) && !pattern45None0.MatchString(k2)) {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.Pattern{Echo: "(?!\\s*$).+"}})
-			}
-			if utf8.RuneCountInString(k2) > 128 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 128}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.OperationalData[k2], at(at(path, "operationalData"), k2, "member")
 			e2.validate(vp2, out)
 		}
@@ -1758,17 +1815,17 @@ func (v *CreateOpsMetadataInput) validate(path awserr.Path, out *[]awserr.Violat
 		if len(v.Metadata) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "metadata"), Value: awserr.RenderedText{Text: renderMetadataMap(v.Metadata)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
+		if func() bool {
+			for k2 := range v.Metadata {
+				if !(pattern45All0.MatchString(k2) && !pattern45None0.MatchString(k2)) || utf8.RuneCountInString(k2) > 256 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "metadata"), Value: awserr.RenderedText{Text: renderMetadataMap(v.Metadata)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 1}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.Metadata)) {
-			kp2 := at(at(path, "metadata"), k2)
-			if !(pattern45All0.MatchString(k2) && !pattern45None0.MatchString(k2)) {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.Pattern{Echo: "(?!\\s*$).+"}})
-			}
-			if utf8.RuneCountInString(k2) > 256 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 256}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.Metadata[k2], at(at(path, "metadata"), k2, "member")
 			e2.validate(vp2, out)
 		}
@@ -1827,14 +1884,15 @@ func (v *CreatePatchBaselineInput) validate(path awserr.Path, out *[]awserr.Viol
 		if len(v.ApprovedPatches) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "approvedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.ApprovedPatches)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for i2, e2 := range v.ApprovedPatches {
-			p2 := at(at(path, "approvedPatches"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 100 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100}})
+		if func() bool {
+			for _, e2 := range v.ApprovedPatches {
+				if utf8.RuneCountInString(e2) > 100 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "approvedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.ApprovedPatches)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 100}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.ApprovedPatchesComplianceLevel != nil {
@@ -1849,14 +1907,15 @@ func (v *CreatePatchBaselineInput) validate(path awserr.Path, out *[]awserr.Viol
 		if len(v.RejectedPatches) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "rejectedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.RejectedPatches)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for i2, e2 := range v.RejectedPatches {
-			p2 := at(at(path, "rejectedPatches"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 100 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100}})
+		if func() bool {
+			for _, e2 := range v.RejectedPatches {
+				if utf8.RuneCountInString(e2) > 100 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "rejectedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.RejectedPatches)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 100}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.RejectedPatchesAction != nil {
@@ -2181,14 +2240,15 @@ func (v *DeleteParametersInput) validate(path awserr.Path, out *[]awserr.Violati
 		if len(v.Names) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "names"), Value: awserr.RenderedText{Text: renderParameterNameList(v.Names)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Names {
-			p2 := at(at(path, "names"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 2048 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 2048}})
+		if func() bool {
+			for _, e2 := range v.Names {
+				if utf8.RuneCountInString(e2) > 2048 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "names"), Value: awserr.RenderedText{Text: renderParameterNameList(v.Names)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 2048}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -2901,11 +2961,15 @@ func (v *DescribeInstancePatchStatesInput) validate(path awserr.Path, out *[]aws
 		if len(v.InstanceIds) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "instanceIds"), Value: awserr.RenderedText{Text: renderInstanceIdList(v.InstanceIds)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for i2, e2 := range v.InstanceIds {
-			p2 := at(at(path, "instanceIds"), strconv.Itoa(i2+1), "member")
-			if !pattern15.MatchString(e2) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: "(^i-(\\w{8}|\\w{17})$)|(^mi-\\w{17}$)"}})
+		if func() bool {
+			for _, e2 := range v.InstanceIds {
+				if !pattern15.MatchString(e2) {
+					return true
+				}
 			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "instanceIds"), Value: awserr.RenderedText{Text: renderInstanceIdList(v.InstanceIds)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(^i-(\\w{8}|\\w{17})$)|(^mi-\\w{17}$)"}}}})
 		}
 	}
 	if v.MaxResults != nil {
@@ -3646,14 +3710,15 @@ func (v *DocumentKeyValuesFilter) validate(path awserr.Path, out *[]awserr.Viola
 		}
 	}
 	if v.Values != nil {
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 256 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 256}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 256 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderDocumentKeyValuesFilterValues(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -4453,14 +4518,15 @@ func (v *GetParametersInput) validate(path awserr.Path, out *[]awserr.Violation)
 		if len(v.Names) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "names"), Value: awserr.RenderedText{Text: renderParameterNameList(v.Names)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Names {
-			p2 := at(at(path, "names"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 2048 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 2048}})
+		if func() bool {
+			for _, e2 := range v.Names {
+				if utf8.RuneCountInString(e2) > 2048 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "names"), Value: awserr.RenderedText{Text: renderParameterNameList(v.Names)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 2048}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -4591,11 +4657,15 @@ func (v *InstanceInformationFilter) validate(path awserr.Path, out *[]awserr.Vio
 		if len(v.ValueSet) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "valueSet"), Value: awserr.RenderedText{Text: renderInstanceInformationFilterValueSet(v.ValueSet)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.ValueSet {
-			p2 := at(at(path, "valueSet"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
+		if func() bool {
+			for _, e2 := range v.ValueSet {
+				if utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "valueSet"), Value: awserr.RenderedText{Text: renderInstanceInformationFilterValueSet(v.ValueSet)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -4617,11 +4687,15 @@ func (v *InstanceInformationStringFilter) validate(path awserr.Path, out *[]awse
 		if len(v.Values) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderInstanceInformationFilterValueSet(v.Values)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderInstanceInformationFilterValueSet(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -4673,17 +4747,15 @@ func (v *InstancePropertyFilter) validate(path awserr.Path, out *[]awserr.Violat
 		if len(v.ValueSet) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "valueSet"), Value: awserr.RenderedText{Text: renderInstancePropertyFilterValueSet(v.ValueSet)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.ValueSet {
-			p2 := at(at(path, "valueSet"), strconv.Itoa(i2+1), "member")
-			if !(pattern44All0.MatchString(e2)) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: ".{1,100000}"}})
+		if func() bool {
+			for _, e2 := range v.ValueSet {
+				if !(pattern44All0.MatchString(e2)) || utf8.RuneCountInString(e2) > 100000 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) > 100000 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100000}})
-			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "valueSet"), Value: awserr.RenderedText{Text: renderInstancePropertyFilterValueSet(v.ValueSet)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: ".{1,100000}"}, awserr.LengthMax{Max: 100000}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -4711,17 +4783,15 @@ func (v *InstancePropertyStringFilter) validate(path awserr.Path, out *[]awserr.
 		if len(v.Values) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderInstancePropertyFilterValueSet(v.Values)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if !(pattern44All0.MatchString(e2)) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: ".{1,100000}"}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if !(pattern44All0.MatchString(e2)) || utf8.RuneCountInString(e2) > 100000 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) > 100000 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100000}})
-			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderInstancePropertyFilterValueSet(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: ".{1,100000}"}, awserr.LengthMax{Max: 100000}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.Operator != nil {
@@ -4864,29 +4934,37 @@ func (v *InventoryItem) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.Content) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "content"), Value: awserr.RenderedText{Text: renderInventoryItemEntryList(v.Content)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
+		if func() bool {
+			for _, e2 := range v.Content {
+				if len(e2) > 50 || len(e2) < 0 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "content"), Value: awserr.RenderedText{Text: renderInventoryItemEntryList(v.Content)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 0}}}})
+		}
 		for i2, e2 := range v.Content {
 			p2 := at(at(path, "content"), strconv.Itoa(i2+1), "member")
-			if len(e2) > 50 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderInventoryItemEntry(e2)}, Constraint: awserr.LengthMax{Max: 50}})
+			if func() bool {
+				for k3 := range e2 {
+					if utf8.RuneCountInString(k3) > 64 || utf8.RuneCountInString(k3) < 1 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderInventoryItemEntry(e2)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 64}, awserr.LengthMin{Min: 1}}}})
 			}
-			if len(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderInventoryItemEntry(e2)}, Constraint: awserr.LengthMin{Min: 0}})
-			}
-			for _, k3 := range slices.Sorted(maps.Keys(e2)) {
-				kp3 := at(p2, k3)
-				if utf8.RuneCountInString(k3) > 64 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMax{Max: 64}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if utf8.RuneCountInString(e3) > 4096 || utf8.RuneCountInString(e3) < 0 {
+						return true
+					}
 				}
-				if utf8.RuneCountInString(k3) < 1 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
-				e3, vp3 := e2[k3], at(p2, k3, "member")
-				if utf8.RuneCountInString(e3) > 4096 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMax{Max: 4096}})
-				}
-				if utf8.RuneCountInString(e3) < 0 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMin{Min: 0}})
-				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderInventoryItemEntry(e2)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 4096}, awserr.LengthMin{Min: 0}}}})
 			}
 		}
 	}
@@ -4897,21 +4975,25 @@ func (v *InventoryItem) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.Context) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "context"), Value: awserr.RenderedText{Text: renderInventoryItemContentContext(v.Context)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for _, k2 := range slices.Sorted(maps.Keys(v.Context)) {
-			kp2 := at(at(path, "context"), k2)
-			if utf8.RuneCountInString(k2) > 64 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 64}})
+		if func() bool {
+			for k2 := range v.Context {
+				if utf8.RuneCountInString(k2) > 64 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "context"), Value: awserr.RenderedText{Text: renderInventoryItemContentContext(v.Context)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 64}, awserr.LengthMin{Min: 1}}}})
+		}
+		if func() bool {
+			for _, e2 := range v.Context {
+				if utf8.RuneCountInString(e2) > 4096 || utf8.RuneCountInString(e2) < 0 {
+					return true
+				}
 			}
-			e2, vp2 := v.Context[k2], at(at(path, "context"), k2, "member")
-			if utf8.RuneCountInString(e2) > 4096 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 4096}})
-			}
-			if utf8.RuneCountInString(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 0}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "context"), Value: awserr.RenderedText{Text: renderInventoryItemContentContext(v.Context)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 4096}, awserr.LengthMin{Min: 0}}}})
 		}
 	}
 }
@@ -4944,14 +5026,15 @@ func (v *LabelParameterVersionInput) validate(path awserr.Path, out *[]awserr.Vi
 		if len(v.Labels) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "labels"), Value: awserr.RenderedText{Text: renderParameterLabelList(v.Labels)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Labels {
-			p2 := at(at(path, "labels"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 100 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100}})
+		if func() bool {
+			for _, e2 := range v.Labels {
+				if utf8.RuneCountInString(e2) > 100 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "labels"), Value: awserr.RenderedText{Text: renderParameterLabelList(v.Labels)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 100}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -5148,28 +5231,30 @@ func (v *ListComplianceItemsInput) validate(path awserr.Path, out *[]awserr.Viol
 		if len(v.ResourceIds) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "resourceIds"), Value: awserr.RenderedText{Text: renderComplianceResourceIdList(v.ResourceIds)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.ResourceIds {
-			p2 := at(at(path, "resourceIds"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 100 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100}})
+		if func() bool {
+			for _, e2 := range v.ResourceIds {
+				if utf8.RuneCountInString(e2) > 100 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "resourceIds"), Value: awserr.RenderedText{Text: renderComplianceResourceIdList(v.ResourceIds)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 100}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.ResourceTypes != nil {
 		if len(v.ResourceTypes) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "resourceTypes"), Value: awserr.RenderedText{Text: renderComplianceResourceTypeList(v.ResourceTypes)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.ResourceTypes {
-			p2 := at(at(path, "resourceTypes"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 50 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 50}})
+		if func() bool {
+			for _, e2 := range v.ResourceTypes {
+				if utf8.RuneCountInString(e2) > 50 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "resourceTypes"), Value: awserr.RenderedText{Text: renderComplianceResourceTypeList(v.ResourceTypes)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.MaxResults != nil {
@@ -5657,29 +5742,37 @@ func (v *MaintenanceWindowAutomationParameters) validate(path awserr.Path, out *
 		if len(v.Parameters) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
+		if func() bool {
+			for k2 := range v.Parameters {
+				if utf8.RuneCountInString(k2) > 50 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
+		}
+		if func() bool {
+			for _, e2 := range v.Parameters {
+				if len(e2) > 50 || len(e2) < 0 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 0}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.Parameters)) {
-			kp2 := at(at(path, "parameters"), k2)
-			if utf8.RuneCountInString(k2) > 50 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.Parameters[k2], at(at(path, "parameters"), k2, "member")
-			if len(e2) > 50 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if len(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMin{Min: 0}})
-			}
-			for i3, e3 := range e2 {
-				p3 := at(vp2, strconv.Itoa(i3+1), "member")
-				if utf8.RuneCountInString(e3) > 512 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMax{Max: 512}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if utf8.RuneCountInString(e3) > 512 || utf8.RuneCountInString(e3) < 1 {
+						return true
+					}
 				}
-				if utf8.RuneCountInString(e3) < 1 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 512}, awserr.LengthMin{Min: 1}}}})
 			}
 		}
 	}
@@ -5695,14 +5788,15 @@ func (v *MaintenanceWindowFilter) validate(path awserr.Path, out *[]awserr.Viola
 		}
 	}
 	if v.Values != nil {
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 256 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 256}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 256 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderMaintenanceWindowFilterValues(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -5829,14 +5923,15 @@ func (v *MaintenanceWindowTaskInvocationParameters) validate(path awserr.Path, o
 
 func (v *MaintenanceWindowTaskParameterValueExpression) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Values != nil {
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 255 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 255}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 255 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 255}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -5882,11 +5977,15 @@ func (v *ModifyDocumentPermissionInput) validate(path awserr.Path, out *[]awserr
 		if len(v.AccountIdsToAdd) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "accountIdsToAdd"), Value: awserr.RenderedText{Text: renderAccountIdList(v.AccountIdsToAdd)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for i2, e2 := range v.AccountIdsToAdd {
-			p2 := at(at(path, "accountIdsToAdd"), strconv.Itoa(i2+1), "member")
-			if !pattern3.MatchString(e2) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: "(?i)all|[0-9]{12}"}})
+		if func() bool {
+			for _, e2 := range v.AccountIdsToAdd {
+				if !pattern3.MatchString(e2) {
+					return true
+				}
 			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "accountIdsToAdd"), Value: awserr.RenderedText{Text: renderAccountIdList(v.AccountIdsToAdd)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?i)all|[0-9]{12}"}}}})
 		}
 	}
 	if v.AccountIdsToRemove != nil {
@@ -5896,11 +5995,15 @@ func (v *ModifyDocumentPermissionInput) validate(path awserr.Path, out *[]awserr
 		if len(v.AccountIdsToRemove) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "accountIdsToRemove"), Value: awserr.RenderedText{Text: renderAccountIdList(v.AccountIdsToRemove)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for i2, e2 := range v.AccountIdsToRemove {
-			p2 := at(at(path, "accountIdsToRemove"), strconv.Itoa(i2+1), "member")
-			if !pattern3.MatchString(e2) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: "(?i)all|[0-9]{12}"}})
+		if func() bool {
+			for _, e2 := range v.AccountIdsToRemove {
+				if !pattern3.MatchString(e2) {
+					return true
+				}
 			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "accountIdsToRemove"), Value: awserr.RenderedText{Text: renderAccountIdList(v.AccountIdsToRemove)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?i)all|[0-9]{12}"}}}})
 		}
 	}
 	if v.SharedDocumentVersion != nil {
@@ -5969,17 +6072,15 @@ func (v *NodeFilter) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.Values) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderNodeFilterValueList(v.Values)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if !pattern12.MatchString(e2) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: "([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)"}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if !pattern12.MatchString(e2) || utf8.RuneCountInString(e2) > 512 || utf8.RuneCountInString(e2) < 0 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) > 512 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 512}})
-			}
-			if utf8.RuneCountInString(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 0}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderNodeFilterValueList(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)"}, awserr.LengthMax{Max: 512}, awserr.LengthMin{Min: 0}}}})
 		}
 	}
 	if v.Type != nil {
@@ -5991,11 +6092,15 @@ func (v *NodeFilter) validate(path awserr.Path, out *[]awserr.Violation) {
 
 func (v *NotificationConfig) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.NotificationEvents != nil {
-		for i2, e2 := range v.NotificationEvents {
-			p2 := at(at(path, "notificationEvents"), strconv.Itoa(i2+1), "member")
-			if !e2.Known() {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: string(e2)}, Constraint: awserr.Enum{Values: []string{"All", "InProgress", "Success", "TimedOut", "Cancelled", "Failed"}}})
+		if func() bool {
+			for _, e2 := range v.NotificationEvents {
+				if !e2.Known() {
+					return true
+				}
 			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "notificationEvents"), Value: awserr.RenderedText{Text: renderNotificationEventList(v.NotificationEvents)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Enum{Values: []string{"All", "InProgress", "Success", "TimedOut", "Cancelled", "Failed"}}}}})
 		}
 	}
 	if v.NotificationType != nil {
@@ -6043,21 +6148,25 @@ func (v *OpsAggregator) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.Values) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderOpsAggregatorValueMap(v.Values)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for _, k2 := range slices.Sorted(maps.Keys(v.Values)) {
-			kp2 := at(at(path, "values"), k2)
-			if utf8.RuneCountInString(k2) > 32 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 32}})
+		if func() bool {
+			for k2 := range v.Values {
+				if utf8.RuneCountInString(k2) > 32 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderOpsAggregatorValueMap(v.Values)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 32}, awserr.LengthMin{Min: 1}}}})
+		}
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 2048 || utf8.RuneCountInString(e2) < 0 {
+					return true
+				}
 			}
-			e2, vp2 := v.Values[k2], at(at(path, "values"), k2, "member")
-			if utf8.RuneCountInString(e2) > 2048 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 2048}})
-			}
-			if utf8.RuneCountInString(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 0}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderOpsAggregatorValueMap(v.Values)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 2048}, awserr.LengthMin{Min: 0}}}})
 		}
 	}
 	if v.Filters != nil {
@@ -6106,14 +6215,15 @@ func (v *OpsFilter) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.Values) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderOpsFilterValueList(v.Values)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 256 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 256}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 256 || utf8.RuneCountInString(e2) < 0 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 0}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderOpsFilterValueList(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 0}}}})
 		}
 	}
 	if v.Type != nil {
@@ -6147,17 +6257,15 @@ func (v *OpsItemEventFilter) validate(path awserr.Path, out *[]awserr.Violation)
 	if v.missing&(1<<1) != 0 || v.Values == nil {
 		*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if !pattern17.MatchString(e2) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: "(oi)-[0-9a-f]{12}"}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if !pattern17.MatchString(e2) || utf8.RuneCountInString(e2) > 15 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) > 15 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 15}})
-			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderOpsItemEventFilterValues(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(oi)-[0-9a-f]{12}"}, awserr.LengthMax{Max: 15}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.missing&(1<<2) != 0 {
@@ -6232,14 +6340,15 @@ func (v *OpsMetadataFilter) validate(path awserr.Path, out *[]awserr.Violation) 
 		if len(v.Values) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderOpsMetadataFilterValueList(v.Values)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 1024 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 1024}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 1024 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderOpsMetadataFilterValueList(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 1024}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -6289,14 +6398,15 @@ func (v *ParameterStringFilter) validate(path awserr.Path, out *[]awserr.Violati
 		if len(v.Values) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderParameterStringFilterValueList(v.Values)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 1024 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 1024}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 1024 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderParameterStringFilterValueList(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 1024}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -6318,14 +6428,15 @@ func (v *ParametersFilter) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.Values) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderParametersFilterValueList(v.Values)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 1024 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 1024}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 1024 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderParametersFilterValueList(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 1024}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -6347,14 +6458,15 @@ func (v *PatchFilter) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.Values) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderPatchFilterValueList(v.Values)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 64 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 64}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 64 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderPatchFilterValueList(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 64}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -6386,14 +6498,15 @@ func (v *PatchOrchestratorFilter) validate(path awserr.Path, out *[]awserr.Viola
 		}
 	}
 	if v.Values != nil {
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 256 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 256}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 256 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderPatchOrchestratorFilterValues(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -6461,14 +6574,15 @@ func (v *PatchSource) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.Products) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "products"), Value: awserr.RenderedText{Text: renderPatchSourceProductList(v.Products)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Products {
-			p2 := at(at(path, "products"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 128 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 128}})
+		if func() bool {
+			for _, e2 := range v.Products {
+				if utf8.RuneCountInString(e2) > 128 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "products"), Value: awserr.RenderedText{Text: renderPatchSourceProductList(v.Products)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 128}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.missing&(1<<2) != 0 {
@@ -6905,14 +7019,17 @@ func (v *RegisterTaskWithMaintenanceWindowInput) validate(path awserr.Path, out 
 		}
 	}
 	if v.TaskParameters != nil {
+		if func() bool {
+			for k2 := range v.TaskParameters {
+				if utf8.RuneCountInString(k2) > 255 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "taskParameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 255}, awserr.LengthMin{Min: 1}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.TaskParameters)) {
-			kp2 := at(at(path, "taskParameters"), k2)
-			if utf8.RuneCountInString(k2) > 255 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 255}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.TaskParameters[k2], at(at(path, "taskParameters"), k2, "member")
 			e2.validate(vp2, out)
 		}
@@ -7044,17 +7161,15 @@ func (v *RemoveTagsFromResourceInput) validate(path awserr.Path, out *[]awserr.V
 	if v.missing&(1<<2) != 0 || v.TagKeys == nil {
 		*out = append(*out, awserr.Violation{Path: at(path, "tagKeys"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		for i2, e2 := range v.TagKeys {
-			p2 := at(at(path, "tagKeys"), strconv.Itoa(i2+1), "member")
-			if !pattern12.MatchString(e2) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: "([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)"}})
+		if func() bool {
+			for _, e2 := range v.TagKeys {
+				if !pattern12.MatchString(e2) || utf8.RuneCountInString(e2) > 128 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) > 128 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 128}})
-			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "tagKeys"), Value: awserr.RenderedText{Text: renderKeyList(v.TagKeys)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)"}, awserr.LengthMax{Max: 128}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -7199,14 +7314,15 @@ func (v *ResourceDataSyncSource) validate(path awserr.Path, out *[]awserr.Violat
 	if v.missing&(1<<1) != 0 || v.SourceRegions == nil {
 		*out = append(*out, awserr.Violation{Path: at(path, "sourceRegions"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
-		for i2, e2 := range v.SourceRegions {
-			p2 := at(at(path, "sourceRegions"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 64 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 64}})
+		if func() bool {
+			for _, e2 := range v.SourceRegions {
+				if utf8.RuneCountInString(e2) > 64 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "sourceRegions"), Value: awserr.RenderedText{Text: renderResourceDataSyncSourceRegionList(v.SourceRegions)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 64}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -7268,29 +7384,37 @@ func (v *Runbook) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.Parameters) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
+		if func() bool {
+			for k2 := range v.Parameters {
+				if utf8.RuneCountInString(k2) > 50 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
+		}
+		if func() bool {
+			for _, e2 := range v.Parameters {
+				if len(e2) > 50 || len(e2) < 0 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 0}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.Parameters)) {
-			kp2 := at(at(path, "parameters"), k2)
-			if utf8.RuneCountInString(k2) > 50 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.Parameters[k2], at(at(path, "parameters"), k2, "member")
-			if len(e2) > 50 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if len(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMin{Min: 0}})
-			}
-			for i3, e3 := range e2 {
-				p3 := at(vp2, strconv.Itoa(i3+1), "member")
-				if utf8.RuneCountInString(e3) > 512 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMax{Max: 512}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if utf8.RuneCountInString(e3) > 512 || utf8.RuneCountInString(e3) < 1 {
+						return true
+					}
 				}
-				if utf8.RuneCountInString(e3) < 1 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 512}, awserr.LengthMin{Min: 1}}}})
 			}
 		}
 	}
@@ -7321,37 +7445,49 @@ func (v *Runbook) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.TargetMaps) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
+		if func() bool {
+			for _, e2 := range v.TargetMaps {
+				if len(e2) > 20 || len(e2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 20}, awserr.LengthMin{Min: 1}}}})
+		}
 		for i2, e2 := range v.TargetMaps {
 			p2 := at(at(path, "targetMaps"), strconv.Itoa(i2+1), "member")
-			if len(e2) > 20 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMax{Max: 20}})
+			if func() bool {
+				for k3 := range e2 {
+					if utf8.RuneCountInString(k3) > 50 || utf8.RuneCountInString(k3) < 1 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 			}
-			if len(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMin{Min: 1}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if len(e3) > 25 || len(e3) < 0 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 25}, awserr.LengthMin{Min: 0}}}})
 			}
 			for _, k3 := range slices.Sorted(maps.Keys(e2)) {
-				kp3 := at(p2, k3)
-				if utf8.RuneCountInString(k3) > 50 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMax{Max: 50}})
-				}
-				if utf8.RuneCountInString(k3) < 1 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
 				e3, vp3 := e2[k3], at(p2, k3, "member")
-				if len(e3) > 25 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMax{Max: 25}})
-				}
-				if len(e3) < 0 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMin{Min: 0}})
-				}
-				for i4, e4 := range e3 {
-					p4 := at(vp3, strconv.Itoa(i4+1), "member")
-					if utf8.RuneCountInString(e4) > 50 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMax{Max: 50}})
+				if func() bool {
+					for _, e4 := range e3 {
+						if utf8.RuneCountInString(e4) > 50 || utf8.RuneCountInString(e4) < 1 {
+							return true
+						}
 					}
-					if utf8.RuneCountInString(e4) < 1 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMin{Min: 1}})
-					}
+					return false
+				}() {
+					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 				}
 			}
 		}
@@ -7452,29 +7588,37 @@ func (v *SendAutomationSignalInput) validate(path awserr.Path, out *[]awserr.Vio
 		if len(v.Payload) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "payload"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Payload)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
+		if func() bool {
+			for k2 := range v.Payload {
+				if utf8.RuneCountInString(k2) > 50 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "payload"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Payload)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
+		}
+		if func() bool {
+			for _, e2 := range v.Payload {
+				if len(e2) > 50 || len(e2) < 0 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "payload"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Payload)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 0}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.Payload)) {
-			kp2 := at(at(path, "payload"), k2)
-			if utf8.RuneCountInString(k2) > 50 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.Payload[k2], at(at(path, "payload"), k2, "member")
-			if len(e2) > 50 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if len(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMin{Min: 0}})
-			}
-			for i3, e3 := range e2 {
-				p3 := at(vp2, strconv.Itoa(i3+1), "member")
-				if utf8.RuneCountInString(e3) > 512 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMax{Max: 512}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if utf8.RuneCountInString(e3) > 512 || utf8.RuneCountInString(e3) < 1 {
+						return true
+					}
 				}
-				if utf8.RuneCountInString(e3) < 1 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 512}, awserr.LengthMin{Min: 1}}}})
 			}
 		}
 	}
@@ -7496,11 +7640,15 @@ func (v *SendCommandInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.InstanceIds) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "instanceIds"), Value: awserr.RenderedText{Text: renderInstanceIdList(v.InstanceIds)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for i2, e2 := range v.InstanceIds {
-			p2 := at(at(path, "instanceIds"), strconv.Itoa(i2+1), "member")
-			if !pattern15.MatchString(e2) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: "(^i-(\\w{8}|\\w{17})$)|(^mi-\\w{17}$)"}})
+		if func() bool {
+			for _, e2 := range v.InstanceIds {
+				if !pattern15.MatchString(e2) {
+					return true
+				}
 			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "instanceIds"), Value: awserr.RenderedText{Text: renderInstanceIdList(v.InstanceIds)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(^i-(\\w{8}|\\w{17})$)|(^mi-\\w{17}$)"}}}})
 		}
 	}
 	if v.Targets != nil {
@@ -7698,11 +7846,15 @@ func (v *StartAssociationsOnceInput) validate(path awserr.Path, out *[]awserr.Vi
 		if len(v.AssociationIds) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "associationIds"), Value: awserr.RenderedText{Text: renderAssociationIdList(v.AssociationIds)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.AssociationIds {
-			p2 := at(at(path, "associationIds"), strconv.Itoa(i2+1), "member")
-			if !pattern22.MatchString(e2) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"}})
+		if func() bool {
+			for _, e2 := range v.AssociationIds {
+				if !pattern22.MatchString(e2) {
+					return true
+				}
 			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "associationIds"), Value: awserr.RenderedText{Text: renderAssociationIdList(v.AssociationIds)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"}}}})
 		}
 	}
 }
@@ -7735,29 +7887,37 @@ func (v *StartAutomationExecutionInput) validate(path awserr.Path, out *[]awserr
 		if len(v.Parameters) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
+		if func() bool {
+			for k2 := range v.Parameters {
+				if utf8.RuneCountInString(k2) > 50 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
+		}
+		if func() bool {
+			for _, e2 := range v.Parameters {
+				if len(e2) > 50 || len(e2) < 0 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 0}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.Parameters)) {
-			kp2 := at(at(path, "parameters"), k2)
-			if utf8.RuneCountInString(k2) > 50 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.Parameters[k2], at(at(path, "parameters"), k2, "member")
-			if len(e2) > 50 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if len(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMin{Min: 0}})
-			}
-			for i3, e3 := range e2 {
-				p3 := at(vp2, strconv.Itoa(i3+1), "member")
-				if utf8.RuneCountInString(e3) > 512 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMax{Max: 512}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if utf8.RuneCountInString(e3) > 512 || utf8.RuneCountInString(e3) < 1 {
+						return true
+					}
 				}
-				if utf8.RuneCountInString(e3) < 1 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 512}, awserr.LengthMin{Min: 1}}}})
 			}
 		}
 	}
@@ -7804,37 +7964,49 @@ func (v *StartAutomationExecutionInput) validate(path awserr.Path, out *[]awserr
 		if len(v.TargetMaps) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
+		if func() bool {
+			for _, e2 := range v.TargetMaps {
+				if len(e2) > 20 || len(e2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 20}, awserr.LengthMin{Min: 1}}}})
+		}
 		for i2, e2 := range v.TargetMaps {
 			p2 := at(at(path, "targetMaps"), strconv.Itoa(i2+1), "member")
-			if len(e2) > 20 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMax{Max: 20}})
+			if func() bool {
+				for k3 := range e2 {
+					if utf8.RuneCountInString(k3) > 50 || utf8.RuneCountInString(k3) < 1 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 			}
-			if len(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMin{Min: 1}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if len(e3) > 25 || len(e3) < 0 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 25}, awserr.LengthMin{Min: 0}}}})
 			}
 			for _, k3 := range slices.Sorted(maps.Keys(e2)) {
-				kp3 := at(p2, k3)
-				if utf8.RuneCountInString(k3) > 50 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMax{Max: 50}})
-				}
-				if utf8.RuneCountInString(k3) < 1 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
 				e3, vp3 := e2[k3], at(p2, k3, "member")
-				if len(e3) > 25 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMax{Max: 25}})
-				}
-				if len(e3) < 0 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMin{Min: 0}})
-				}
-				for i4, e4 := range e3 {
-					p4 := at(vp3, strconv.Itoa(i4+1), "member")
-					if utf8.RuneCountInString(e4) > 50 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMax{Max: 50}})
+				if func() bool {
+					for _, e4 := range e3 {
+						if utf8.RuneCountInString(e4) > 50 || utf8.RuneCountInString(e4) < 1 {
+							return true
+						}
 					}
-					if utf8.RuneCountInString(e4) < 1 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMin{Min: 1}})
-					}
+					return false
+				}() {
+					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 				}
 			}
 		}
@@ -7923,29 +8095,37 @@ func (v *StartChangeRequestExecutionInput) validate(path awserr.Path, out *[]aws
 		if len(v.Parameters) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
+		if func() bool {
+			for k2 := range v.Parameters {
+				if utf8.RuneCountInString(k2) > 50 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
+		}
+		if func() bool {
+			for _, e2 := range v.Parameters {
+				if len(e2) > 50 || len(e2) < 0 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderAutomationParameterMap(v.Parameters)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 0}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.Parameters)) {
-			kp2 := at(at(path, "parameters"), k2)
-			if utf8.RuneCountInString(k2) > 50 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.Parameters[k2], at(at(path, "parameters"), k2, "member")
-			if len(e2) > 50 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMax{Max: 50}})
-			}
-			if len(e2) < 0 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.LengthMin{Min: 0}})
-			}
-			for i3, e3 := range e2 {
-				p3 := at(vp2, strconv.Itoa(i3+1), "member")
-				if utf8.RuneCountInString(e3) > 512 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMax{Max: 512}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if utf8.RuneCountInString(e3) > 512 || utf8.RuneCountInString(e3) < 1 {
+						return true
+					}
 				}
-				if utf8.RuneCountInString(e3) < 1 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderAutomationParameterValueList(e2)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 512}, awserr.LengthMin{Min: 1}}}})
 			}
 		}
 	}
@@ -8066,23 +8246,27 @@ func (v *StartSessionInput) validate(path awserr.Path, out *[]awserr.Violation) 
 		}
 	}
 	if v.Parameters != nil {
+		if func() bool {
+			for k2 := range v.Parameters {
+				if utf8.RuneCountInString(k2) > 255 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderSessionManagerParameters(v.Parameters)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 255}, awserr.LengthMin{Min: 1}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.Parameters)) {
-			kp2 := at(at(path, "parameters"), k2)
-			if utf8.RuneCountInString(k2) > 255 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 255}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.Parameters[k2], at(at(path, "parameters"), k2, "member")
-			for i3, e3 := range e2 {
-				p3 := at(vp2, strconv.Itoa(i3+1), "member")
-				if utf8.RuneCountInString(e3) > 65535 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMax{Max: 65535}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if utf8.RuneCountInString(e3) > 65535 || utf8.RuneCountInString(e3) < 1 {
+						return true
+					}
 				}
-				if utf8.RuneCountInString(e3) < 1 {
-					*out = append(*out, awserr.Violation{Path: p3, Value: awserr.RenderedText{Text: e3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderSessionManagerParameterValueList(e2)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 65535}, awserr.LengthMin{Min: 1}}}})
 			}
 		}
 	}
@@ -8105,14 +8289,15 @@ func (v *StepExecutionFilter) validate(path awserr.Path, out *[]awserr.Violation
 		if len(v.Values) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderStepExecutionFilterValueList(v.Values)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Values {
-			p2 := at(at(path, "values"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 150 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 150}})
+		if func() bool {
+			for _, e2 := range v.Values {
+				if utf8.RuneCountInString(e2) > 150 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "values"), Value: awserr.RenderedText{Text: renderStepExecutionFilterValueList(v.Values)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 150}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -8254,17 +8439,15 @@ func (v *TargetLocation) validate(path awserr.Path, out *[]awserr.Violation) {
 		if len(v.ExcludeAccounts) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "excludeAccounts"), Value: awserr.RenderedText{Text: renderExcludeAccounts(v.ExcludeAccounts)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.ExcludeAccounts {
-			p2 := at(at(path, "excludeAccounts"), strconv.Itoa(i2+1), "member")
-			if !pattern1.MatchString(e2) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: "((ou-[a-z0-9]{4,32}-[a-z0-9]{8,32})|(\\d{12}))"}})
+		if func() bool {
+			for _, e2 := range v.ExcludeAccounts {
+				if !pattern1.MatchString(e2) || utf8.RuneCountInString(e2) > 68 || utf8.RuneCountInString(e2) < 6 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) > 68 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 68}})
-			}
-			if utf8.RuneCountInString(e2) < 6 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 6}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "excludeAccounts"), Value: awserr.RenderedText{Text: renderExcludeAccounts(v.ExcludeAccounts)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "((ou-[a-z0-9]{4,32}-[a-z0-9]{8,32})|(\\d{12}))"}, awserr.LengthMax{Max: 68}, awserr.LengthMin{Min: 6}}}})
 		}
 	}
 	if v.Targets != nil {
@@ -8355,14 +8538,15 @@ func (v *UnlabelParameterVersionInput) validate(path awserr.Path, out *[]awserr.
 		if len(v.Labels) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "labels"), Value: awserr.RenderedText{Text: renderParameterLabelList(v.Labels)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.Labels {
-			p2 := at(at(path, "labels"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 100 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100}})
+		if func() bool {
+			for _, e2 := range v.Labels {
+				if utf8.RuneCountInString(e2) > 100 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "labels"), Value: awserr.RenderedText{Text: renderParameterLabelList(v.Labels)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 100}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -8501,37 +8685,49 @@ func (v *UpdateAssociationInput) validate(path awserr.Path, out *[]awserr.Violat
 		if len(v.TargetMaps) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
+		if func() bool {
+			for _, e2 := range v.TargetMaps {
+				if len(e2) > 20 || len(e2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "targetMaps"), Value: awserr.RenderedText{Text: renderTargetMaps(v.TargetMaps)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 20}, awserr.LengthMin{Min: 1}}}})
+		}
 		for i2, e2 := range v.TargetMaps {
 			p2 := at(at(path, "targetMaps"), strconv.Itoa(i2+1), "member")
-			if len(e2) > 20 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMax{Max: 20}})
+			if func() bool {
+				for k3 := range e2 {
+					if utf8.RuneCountInString(k3) > 50 || utf8.RuneCountInString(k3) < 1 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 			}
-			if len(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.LengthMin{Min: 1}})
+			if func() bool {
+				for _, e3 := range e2 {
+					if len(e3) > 25 || len(e3) < 0 {
+						return true
+					}
+				}
+				return false
+			}() {
+				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: renderTargetMap(e2)}, Constraint: awserr.Composite{Scope: awserr.MapValueScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 25}, awserr.LengthMin{Min: 0}}}})
 			}
 			for _, k3 := range slices.Sorted(maps.Keys(e2)) {
-				kp3 := at(p2, k3)
-				if utf8.RuneCountInString(k3) > 50 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMax{Max: 50}})
-				}
-				if utf8.RuneCountInString(k3) < 1 {
-					*out = append(*out, awserr.Violation{Path: kp3, Value: awserr.RenderedText{Text: k3}, Constraint: awserr.LengthMin{Min: 1}})
-				}
 				e3, vp3 := e2[k3], at(p2, k3, "member")
-				if len(e3) > 25 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMax{Max: 25}})
-				}
-				if len(e3) < 0 {
-					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.LengthMin{Min: 0}})
-				}
-				for i4, e4 := range e3 {
-					p4 := at(vp3, strconv.Itoa(i4+1), "member")
-					if utf8.RuneCountInString(e4) > 50 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMax{Max: 50}})
+				if func() bool {
+					for _, e4 := range e3 {
+						if utf8.RuneCountInString(e4) > 50 || utf8.RuneCountInString(e4) < 1 {
+							return true
+						}
 					}
-					if utf8.RuneCountInString(e4) < 1 {
-						*out = append(*out, awserr.Violation{Path: p4, Value: awserr.RenderedText{Text: e4}, Constraint: awserr.LengthMin{Min: 1}})
-					}
+					return false
+				}() {
+					*out = append(*out, awserr.Violation{Path: vp3, Value: awserr.RenderedText{Text: renderTargetMapValueList(e3)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 50}, awserr.LengthMin{Min: 1}}}})
 				}
 			}
 		}
@@ -8965,14 +9161,17 @@ func (v *UpdateMaintenanceWindowTaskInput) validate(path awserr.Path, out *[]aws
 		}
 	}
 	if v.TaskParameters != nil {
+		if func() bool {
+			for k2 := range v.TaskParameters {
+				if utf8.RuneCountInString(k2) > 255 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "taskParameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 255}, awserr.LengthMin{Min: 1}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.TaskParameters)) {
-			kp2 := at(at(path, "taskParameters"), k2)
-			if utf8.RuneCountInString(k2) > 255 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 255}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.TaskParameters[k2], at(at(path, "taskParameters"), k2, "member")
 			e2.validate(vp2, out)
 		}
@@ -9094,17 +9293,17 @@ func (v *UpdateOpsItemInput) validate(path awserr.Path, out *[]awserr.Violation)
 		}
 	}
 	if v.OperationalData != nil {
+		if func() bool {
+			for k2 := range v.OperationalData {
+				if !(pattern45All0.MatchString(k2) && !pattern45None0.MatchString(k2)) || utf8.RuneCountInString(k2) > 128 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "operationalData"), Value: awserr.RenderedText{Text: renderOpsItemOperationalData(v.OperationalData)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 128}, awserr.LengthMin{Min: 1}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.OperationalData)) {
-			kp2 := at(at(path, "operationalData"), k2)
-			if !(pattern45All0.MatchString(k2) && !pattern45None0.MatchString(k2)) {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.Pattern{Echo: "(?!\\s*$).+"}})
-			}
-			if utf8.RuneCountInString(k2) > 128 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 128}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.OperationalData[k2], at(at(path, "operationalData"), k2, "member")
 			e2.validate(vp2, out)
 		}
@@ -9210,17 +9409,17 @@ func (v *UpdateOpsMetadataInput) validate(path awserr.Path, out *[]awserr.Violat
 		if len(v.MetadataToUpdate) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "metadataToUpdate"), Value: awserr.RenderedText{Text: renderMetadataMap(v.MetadataToUpdate)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
+		if func() bool {
+			for k2 := range v.MetadataToUpdate {
+				if !(pattern45All0.MatchString(k2) && !pattern45None0.MatchString(k2)) || utf8.RuneCountInString(k2) > 256 || utf8.RuneCountInString(k2) < 1 {
+					return true
+				}
+			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "metadataToUpdate"), Value: awserr.RenderedText{Text: renderMetadataMap(v.MetadataToUpdate)}, Constraint: awserr.Composite{Scope: awserr.MapKeysScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 1}}}})
+		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.MetadataToUpdate)) {
-			kp2 := at(at(path, "metadataToUpdate"), k2)
-			if !(pattern45All0.MatchString(k2) && !pattern45None0.MatchString(k2)) {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.Pattern{Echo: "(?!\\s*$).+"}})
-			}
-			if utf8.RuneCountInString(k2) > 256 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMax{Max: 256}})
-			}
-			if utf8.RuneCountInString(k2) < 1 {
-				*out = append(*out, awserr.Violation{Path: kp2, Value: awserr.RenderedText{Text: k2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
 			e2, vp2 := v.MetadataToUpdate[k2], at(at(path, "metadataToUpdate"), k2, "member")
 			e2.validate(vp2, out)
 		}
@@ -9232,17 +9431,15 @@ func (v *UpdateOpsMetadataInput) validate(path awserr.Path, out *[]awserr.Violat
 		if len(v.KeysToDelete) < 1 {
 			*out = append(*out, awserr.Violation{Path: at(path, "keysToDelete"), Value: awserr.RenderedText{Text: renderMetadataKeysToDeleteList(v.KeysToDelete)}, Constraint: awserr.LengthMin{Min: 1}})
 		}
-		for i2, e2 := range v.KeysToDelete {
-			p2 := at(at(path, "keysToDelete"), strconv.Itoa(i2+1), "member")
-			if !(pattern45All0.MatchString(e2) && !pattern45None0.MatchString(e2)) {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.Pattern{Echo: "(?!\\s*$).+"}})
+		if func() bool {
+			for _, e2 := range v.KeysToDelete {
+				if !(pattern45All0.MatchString(e2) && !pattern45None0.MatchString(e2)) || utf8.RuneCountInString(e2) > 256 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) > 256 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 256}})
-			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "keysToDelete"), Value: awserr.RenderedText{Text: renderMetadataKeysToDeleteList(v.KeysToDelete)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Pattern{Echo: "(?!\\s*$).+"}, awserr.LengthMax{Max: 256}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 }
@@ -9293,14 +9490,15 @@ func (v *UpdatePatchBaselineInput) validate(path awserr.Path, out *[]awserr.Viol
 		if len(v.ApprovedPatches) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "approvedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.ApprovedPatches)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for i2, e2 := range v.ApprovedPatches {
-			p2 := at(at(path, "approvedPatches"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 100 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100}})
+		if func() bool {
+			for _, e2 := range v.ApprovedPatches {
+				if utf8.RuneCountInString(e2) > 100 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "approvedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.ApprovedPatches)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 100}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.ApprovedPatchesComplianceLevel != nil {
@@ -9315,14 +9513,15 @@ func (v *UpdatePatchBaselineInput) validate(path awserr.Path, out *[]awserr.Viol
 		if len(v.RejectedPatches) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "rejectedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.RejectedPatches)}, Constraint: awserr.LengthMin{Min: 0}})
 		}
-		for i2, e2 := range v.RejectedPatches {
-			p2 := at(at(path, "rejectedPatches"), strconv.Itoa(i2+1), "member")
-			if utf8.RuneCountInString(e2) > 100 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMax{Max: 100}})
+		if func() bool {
+			for _, e2 := range v.RejectedPatches {
+				if utf8.RuneCountInString(e2) > 100 || utf8.RuneCountInString(e2) < 1 {
+					return true
+				}
 			}
-			if utf8.RuneCountInString(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: e2}, Constraint: awserr.LengthMin{Min: 1}})
-			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "rejectedPatches"), Value: awserr.RenderedText{Text: renderPatchIdList(v.RejectedPatches)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.LengthMax{Max: 100}, awserr.LengthMin{Min: 1}}}})
 		}
 	}
 	if v.RejectedPatchesAction != nil {
@@ -13313,6 +13512,15 @@ func renderCommandFilterList(v []CommandFilter) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
+func renderComplianceItemDetails(v map[string]string) string {
+	parts := make([]string, 0, len(v))
+	for _, k := range slices.Sorted(maps.Keys(v)) {
+		e := v[k]
+		parts = append(parts, k+"="+e)
+	}
+	return "{" + strings.Join(parts, ", ") + "}"
+}
+
 func renderComplianceItemEntryList(v []ComplianceItemEntry) string {
 	parts := make([]string, 0, len(v))
 	for range v {
@@ -13365,6 +13573,14 @@ func renderDocumentKeyValuesFilterList(v []DocumentKeyValuesFilter) string {
 	parts := make([]string, 0, len(v))
 	for range v {
 		parts = append(parts, "")
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}
+
+func renderDocumentKeyValuesFilterValues(v []string) string {
+	parts := make([]string, 0, len(v))
+	for _, e := range v {
+		parts = append(parts, e)
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -13531,10 +13747,26 @@ func renderInventoryItemList(v []InventoryItem) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
+func renderKeyList(v []string) string {
+	parts := make([]string, 0, len(v))
+	for _, e := range v {
+		parts = append(parts, e)
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}
+
 func renderMaintenanceWindowFilterList(v []MaintenanceWindowFilter) string {
 	parts := make([]string, 0, len(v))
 	for range v {
 		parts = append(parts, "")
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}
+
+func renderMaintenanceWindowFilterValues(v []string) string {
+	parts := make([]string, 0, len(v))
+	for _, e := range v {
+		parts = append(parts, e)
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -13579,6 +13811,14 @@ func renderNodeFilterValueList(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
+func renderNotificationEventList(v []NotificationEvent) string {
+	parts := make([]string, 0, len(v))
+	for _, e := range v {
+		parts = append(parts, string(e))
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}
+
 func renderOpsAggregatorList(v []OpsAggregator) string {
 	parts := make([]string, 0, len(v))
 	for range v {
@@ -13610,6 +13850,22 @@ func renderOpsFilterValueList(v []string) string {
 		parts = append(parts, e)
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
+}
+
+func renderOpsItemEventFilterValues(v []string) string {
+	parts := make([]string, 0, len(v))
+	for _, e := range v {
+		parts = append(parts, e)
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}
+
+func renderOpsItemOperationalData(v map[string]OpsItemDataValue) string {
+	parts := make([]string, 0, len(v))
+	for _, k := range slices.Sorted(maps.Keys(v)) {
+		parts = append(parts, k+"="+"")
+	}
+	return "{" + strings.Join(parts, ", ") + "}"
 }
 
 func renderOpsMetadataFilterList(v []OpsMetadataFilter) string {
@@ -13700,6 +13956,14 @@ func renderPatchOrchestratorFilterList(v []PatchOrchestratorFilter) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
+func renderPatchOrchestratorFilterValues(v []string) string {
+	parts := make([]string, 0, len(v))
+	for _, e := range v {
+		parts = append(parts, e)
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}
+
 func renderPatchRuleList(v []PatchRule) string {
 	parts := make([]string, 0, len(v))
 	for range v {
@@ -13740,6 +14004,14 @@ func renderResourceDataSyncOrganizationalUnitList(v []ResourceDataSyncOrganizati
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
+func renderResourceDataSyncSourceRegionList(v []string) string {
+	parts := make([]string, 0, len(v))
+	for _, e := range v {
+		parts = append(parts, e)
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}
+
 func renderResultAttributeList(v []ResultAttribute) string {
 	parts := make([]string, 0, len(v))
 	for range v {
@@ -13762,6 +14034,23 @@ func renderSessionFilterList(v []SessionFilter) string {
 		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
+}
+
+func renderSessionManagerParameterValueList(v []string) string {
+	parts := make([]string, 0, len(v))
+	for _, e := range v {
+		parts = append(parts, e)
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
+}
+
+func renderSessionManagerParameters(v map[string][]string) string {
+	parts := make([]string, 0, len(v))
+	for _, k := range slices.Sorted(maps.Keys(v)) {
+		e := v[k]
+		parts = append(parts, k+"="+renderSessionManagerParameterValueList(e))
+	}
+	return "{" + strings.Join(parts, ", ") + "}"
 }
 
 func renderStepExecutionFilterList(v []StepExecutionFilter) string {

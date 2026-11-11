@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/paging"
+	"github.com/sustinbebustin/understudy/internal/serviceevent"
 )
 
 // historyPageSize is GetParameterHistory's page without MaxResults
@@ -146,7 +147,7 @@ type labelOutcome struct {
 // another version moves. When the version would then carry more than ten
 // labels nothing is applied. Labeling changes no LastModifiedDate
 // (ssm-parameters.md 6.1; SSM-08 steps 02-03).
-func (s *Service) labelParameterVersion(_ context.Context, c *kernel.Call, in *ssmapi.LabelParameterVersionInput) (*ssmapi.LabelParameterVersionOutput, *awserr.Error) {
+func (s *Service) labelParameterVersion(ctx context.Context, c *kernel.Call, in *ssmapi.LabelParameterVersionInput) (*ssmapi.LabelParameterVersionOutput, *awserr.Error) {
 	if err := checkReserved("LabelParameterVersion", in.Name); err != nil {
 		return nil, err
 	}
@@ -155,6 +156,7 @@ func (s *Service) labelParameterVersion(_ context.Context, c *kernel.Call, in *s
 	if err != nil {
 		return nil, err
 	}
+	var last *serviceevent.Queued
 	o, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (labelOutcome, *awserr.Error) {
 		prev, ok := st.Parameters[n.canonical]
 		if !ok {
@@ -167,8 +169,12 @@ func (s *Service) labelParameterVersion(_ context.Context, c *kernel.Call, in *s
 			return out, err
 		}
 		st.Parameters[n.canonical] = p
+		for _, l := range labelChanges(&prev, &p, in.Labels) {
+			last = s.events.Push(c, clock.Instant{}, changeEvent(scope, &p, opLabel, &l))
+		}
 		return out, nil
 	})
+	s.events.Flush(ctx, last)
 	if err != nil {
 		return nil, err
 	}
@@ -202,13 +208,35 @@ func withLabels(p Parameter, spelling string, version *int64, labels []string) (
 	return p, out, nil
 }
 
+// labelChanges are the labels of asked, in request order, that a label
+// write attached to next where prev had them on another version or not at
+// all; each sends its own LabelParameterVersion event (ssm-parameters.md
+// 9.2; SSM-31 recorded one label per call, so one event per label is
+// inferred, as is no event for a label already on its version).
+func labelChanges(prev, next *Parameter, asked []string) []labelChange {
+	var out []labelChange
+	for _, l := range distinct(asked) {
+		to, attached := next.Labels[l]
+		from, had := prev.Labels[l]
+		switch {
+		case !attached || (had && from == to):
+		case had:
+			out = append(out, labelChange{label: l, from: &from, to: to})
+		default:
+			out = append(out, labelChange{label: l, to: to})
+		}
+	}
+	return out
+}
+
 // unlabelOutcome is what an unlabel write did.
 type unlabelOutcome struct{ removed, invalid []string }
 
 // unlabelParameterVersion removes labels from a version
 // (ssm-parameters.md 6.2, 7.8): the labels attached to it are removed and
 // listed in RemovedLabels, the others in InvalidLabels, both in request
-// order and [] when empty.
+// order and [] when empty. It sends no Parameter Store Change event
+// (inferred: SSM-31 did not record an unlabel).
 func (s *Service) unlabelParameterVersion(_ context.Context, c *kernel.Call, in *ssmapi.UnlabelParameterVersionInput) (*ssmapi.UnlabelParameterVersionOutput, *awserr.Error) {
 	if err := checkReserved("UnlabelParameterVersion", in.Name); err != nil {
 		return nil, err

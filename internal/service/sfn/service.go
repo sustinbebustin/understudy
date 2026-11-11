@@ -57,8 +57,9 @@ const (
 		"Definitions are JSONPath with Pass, Task, Choice, Wait, Succeed, Fail, Parallel and inline Map states, and Task resources are " +
 		"Lambda only (a function ARN or arn:aws:states:::lambda:invoke). These answer InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY: " +
 		"JSONata, Assign and variables, Distributed Map and its fields, Credentials, HeartbeatSeconds, callbacks, activities, " +
-		"every other Task resource, a literal lambda:invoke InvocationType other than RequestResponse, and JSONPath functions such as length(), " +
-		"multi-clause filters and filter scripts, though AWS accepts length() and fails only at run time (ASL-19). " +
+		"every other Task resource, a literal lambda:invoke InvocationType other than RequestResponse or Event (DryRun's AWS answer is unrecorded; SFN-13), and JSONPath " +
+		"multi-clause filters and filter scripts, which AWS accepts (ASL-19). " +
+		"A JSONPath function such as length() is accepted and fails at run time, as AWS fails length() (ASL-19). " +
 		"ToleratedFailurePercentage, which AWS accepts on an inline Map, is refused with Distributed Map's fields (ASL-01). " +
 		"A dynamodb resource outside getItem, putItem, updateItem and deleteItem answers AWS's SCHEMA_VALIDATION_FAILED text. " +
 		"Every problem in a definition is reported in one message, as AWS joins them; wording for problems no recording covers is understudy's (ASL-01). " +
@@ -75,17 +76,17 @@ const (
 		"(at least 45 seconds after its last execution ended; SFN-06, ASL-17)"
 	noteStart = "Standard executions. Unrecorded AWS behavior understudy chooses, each with its recording case: " +
 		"malformed input other than the recorded cases answers 'Invalid execution input.' (SFN-08); " +
+		"an input over 262,144 UTF-8 bytes is checked once the other members pass, so it is not listed beside another member's violation (SFN-08); " +
 		"a missing path in a Task or Parallel template fails with States.Runtime (ASL-04); " +
 		"a ResultPath conflict deeper than one step names the node it stops at (ASL-03); " +
 		"a Wait past the one-year execution limit ends with States.Timeout at the limit (ASL-09); " +
 		"a Task or Map leaves a wider margin before the 25,000-event history limit than the recorded Pass and Choice steps (ASL-16); " +
 		"FULL jitter is drawn uniformly from understudy's seeded stream (ASL-10); " +
-		"IsTimestamp follows the documented RFC 3339 profile (ASL-07). " +
-		"Known differences from AWS: a runtime error's cause quotes the state's input as compact JSON, where AWS quotes the input as sent (ASL-04); " +
-		"JSONPath functions such as length() are refused at create, where AWS accepts them and fails at run time (ASL-19); " +
-		"an input over 262,144 is counted in characters with the 'Member must have length' wording, where AWS counts UTF-8 bytes " +
-		"and says 'Member must have size less than or equal to 262144 bytes in UTF-8 encoding' (SFN-08). " +
-		"A lambda:invoke InvocationType that resolves to anything but RequestResponse fails with States.Runtime (SFN-13). " +
+		"IsTimestamp follows the documented RFC 3339 profile (ASL-07); " +
+		"a JSONPath function other than length() fails at run time as length() does (ASL-19). " +
+		"Known differences from AWS: a runtime error's cause quotes the state's input as compact JSON, where AWS quotes the input as sent (ASL-04). " +
+		"A lambda:invoke InvocationType that resolves to anything but RequestResponse or Event fails with States.Runtime (SFN-13). " +
+		"InvocationType Event invokes the function through Lambda's asynchronous invoke and succeeds at once with StatusCode 202, Payload null and no ExecutedVersion, as recorded (SFN-13). " +
 		"lambda:invoke results carry SdkHttpMetadata with AWS's recorded header names; the X-Amzn-Trace-Id value is understudy's. " +
 		"traceHeader, or the X-Amzn-Trace-Id request header when both are sent, " +
 		"is stored and returned by DescribeExecution; no X-Ray trace is emitted. A Lambda task in flight when a snapshot was saved is invoked again after load. " +
@@ -124,6 +125,7 @@ func (s *Service) bindExecutions(b sfnapi.Binder) {
 	// machine it names (aws-doc service-authorization
 	// list_awsstepfunctions), so a policy scoped to the machine allows it.
 	b.StartExecution(s.startExecution, registry.Partial{Note: noteStart}, kernel.WithoutSecondaryActions(),
+		kernel.WithCheck(checkInputSize),
 		kernel.WithResourceARN(func(in *sfnapi.StartExecutionInput) string { return in.StateMachineArn }))
 	b.StopExecution(s.stopExecution, registry.Full{})
 	b.ListExecutions(s.listExecutions, registry.Partial{Note: noteListExecutions}, kernel.WithValidator(validateListExecutions))

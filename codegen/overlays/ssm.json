@@ -7,7 +7,14 @@
         "dev.understudy#throttleError": "com.amazonaws.ssm#ThrottlingException",
         "dev.understudy#denialError": "com.amazonaws.ssm#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#validationPathStyle": "rolledUp",
         "dev.understudy#evidence": [
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/ssm/SSM-16/02-101-chars.json: a scalar list element's violation is named once at the list, Value '[<label>]' at 'labels' failed to satisfy constraint: Member must satisfy constraint: [Member must have length less than or equal to 100, Member must have length greater than or equal to 1] (docs/research/ssm-parameters.md#124-limits-and-validation-texts; docs/research/error-matrix.md#4-the-aws-validation-message-grammar-coral, style B); inferred: members of structured elements keep their indexed paths as recorded for Lambda and Scheduler, and the rolled-up map forms (Map keys must satisfy constraint, Map value must satisfy constraint) are unrecorded for SSM",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#validationPathStyle"]
+          },
           {
             "label": "aws-recorded",
             "source": "testdata/parity/ssm/IAM-ENF/41-raw.json: an IAM denial answers 400 with __type AccessDeniedException, the model's own shape, the message under Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",

@@ -78,6 +78,10 @@ func importRules() []importRule {
 		// poller share (dynamodb-streams.md 11.1, ADR 0014 amendment of
 		// 2026-10-26).
 		"internal/shardlog",
+		// The commit-ordered queue CloudWatch and Parameter Store send
+		// their own events to the default bus through (ADR 0015 amendment
+		// of 2026-10-30).
+		"internal/serviceevent",
 	}
 	return []importRule{
 		// Leaves.
@@ -155,6 +159,10 @@ func importRules() []importRule {
 			"internal/kernel", "internal/authz", "internal/policydoc", "internal/identity", "internal/journal",
 			"internal/registry", "internal/aws", "internal/awserr", "internal/clock", "internal/ref",
 		}},
+		// A service's own events go to EventBridge through the generated
+		// PutServiceEventInternal op, as kernel.Invoke internal calls
+		// (ADR 0015 amendment of 2026-10-30).
+		{"internal/serviceevent", []string{"internal/kernel", "internal/api/...", "internal/aws", "internal/clock", "internal/ref"}},
 		{"internal/outbox", []string{
 			"internal/kernel", "internal/delivery", "internal/journal", "internal/store", "internal/clock",
 			"internal/api/...", // attempts call the generated SendMessage, Invoke, Publish, PutEvents, StartExecution and PutObject ops
@@ -207,11 +215,23 @@ func importRules() []importRule {
 		// IAM serves AWS managed policies from the shipped catalogue (ADR
 		// 0016, amendment "managed policies").
 		{"internal/service/iam", append(slices.Clone(service), "internal/policycatalogue")},
+		// REST and HTTP APIs run their Lambda proxy integrations through
+		// the plumbing they share (ARCHITECTURE.md 2).
+		{"internal/service/apigateway", append(slices.Clone(service), "internal/lambdaproxy")},
+		{"internal/service/apigatewayv2", append(slices.Clone(service), "internal/lambdaproxy")},
 		// The States Language engine is pure (stepfunctions-asl.md 15.2): JSON
 		// values are documents, persisted sums use jsonx (ARCHITECTURE.md 13).
 		// Never the kernel, clock, ids or store the service row allows; the
 		// service hands it times, draws and events.
 		{"internal/service/sfn/asl/...", []string{"internal/service/sfn/asl/...", "internal/protocol/smithy/document", "internal/protocol/jsonx"}},
+		// The Lambda proxy plumbing of API Gateway's REST and HTTP APIs:
+		// the service vocabulary it shares with them, the httpevent leaf
+		// it builds the event request of, and Lambda's generated Invoke,
+		// never a service (ARCHITECTURE.md 2).
+		{"internal/lambdaproxy", []string{
+			"internal/api/lambdaapi", "internal/kernel", "internal/httpevent", "internal/authz", "internal/policydoc",
+			"internal/registry", "internal/aws", "internal/awserr", "internal/ref",
+		}},
 		// SES is journal-only: nothing is ever sent, so it gets the service
 		// rule and nothing more, in particular never internal/egress (ses.md
 		// 11.8); net/smtp is a depguard deny in .golangci.yml.

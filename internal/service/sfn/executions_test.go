@@ -3,6 +3,7 @@ package sfn_test
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,6 +93,32 @@ func TestStartExecutionInput(t *testing.T) {
 		arn := h.start(machine, "omitted", nil)
 		if d := h.describeExecution(arn); val(d.Input) != "{}" {
 			h.Errorf("omitted input describes as %q, want {}", val(d.Input))
+		}
+	})
+}
+
+// StartExecution input is limited to 262,144 bytes in UTF-8, not
+// characters, and the refusal is Coral's with AWS's "size ... bytes in
+// UTF-8 encoding" wording (aws-recorded testdata/parity/sfn/SFN-08/
+// 07-big-input.json, ASL-15/01-start-over.json). 131,073 two-byte
+// characters are fewer than 262,144 characters but 262,146 bytes.
+func TestStartExecutionInputSizeInUTF8Bytes(t *testing.T) {
+	run(t, func(h *harness) {
+		machine := h.create("m", resultMachine)
+		atLimit := `"` + strings.Repeat("a", 262142) + `"`
+		arn := h.start(machine, "at-limit", &atLimit)
+		if d := h.describeExecution(arn); d.Status != sfnapi.ExecutionStatusSucceeded {
+			h.Errorf("input of 262,144 ASCII bytes: status %s, want SUCCEEDED", d.Status)
+		}
+		for name, in := range map[string]string{
+			"262,145 ASCII bytes":         `"` + strings.Repeat("a", 262143) + `"`,
+			"131,073 two-byte characters": strings.Repeat("é", 131073),
+		} {
+			_, err := call(h, sfnapi.OpStartExecution, &sfnapi.StartExecutionInput{StateMachineArn: machine, Input: &in})
+			wantError(h, err, "ValidationException", 400, "1 validation error detected: Value at 'input' failed to satisfy constraint: Member must have size less than or equal to 262144 bytes in UTF-8 encoding")
+			if got := err.ID.JSONType; got != "com.amazon.coral.validate#ValidationException" {
+				h.Errorf("%s: __type %s, want com.amazon.coral.validate#ValidationException", name, got)
+			}
 		}
 	})
 }

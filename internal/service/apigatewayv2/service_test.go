@@ -21,7 +21,8 @@ import (
 // the refusal texts APIGW2-01 recorded are AWS's, the rest understudy's,
 // and AWS pretty-prints some error bodies (apigateway-http.md 2.3).
 const baseNote = "error texts are AWS's where APIGW2-01 recorded them and understudy's elsewhere; " +
-	"AWS pretty-prints some error bodies (GetApi, GetStage, CreateStage), which understudy sends compact"
+	"AWS pretty-prints some error bodies (GetApi, GetStage, CreateStage), which understudy sends compact; " +
+	"an AccessDeniedException, BadRequestException, NotFoundException or ConflictException body carries Message, where AWS sends message (recorded, APIGW2-01, APIGW2-15)"
 
 func partial(note string) registry.BindCoverage {
 	if note == "" {
@@ -41,11 +42,14 @@ func TestCoverageMarks(t *testing.T) {
 		apiNote         = "HTTP APIs only: protocolType WEBSOCKET and quick create (Target, RouteKey, CredentialsArn) answer NotImplemented; corsConfiguration is stored and returned, and a data-plane request with an Origin header to an API that has one answers 501 (CORS is not applied); ipAddressType is stored without effect; ApiEndpoint names the emulator (http://<api-id>.execute-api.<region>.localhost:<port>), not amazonaws.com"
 		routeNote       = "authorizationType JWT and CUSTOM, authorizerId and authorizationScopes answer NotImplemented (authorizers are not emulated); a route with AWS_IAM is stored and a request it matches answers 501; WebSocket-only members are stored and echoed without effect"
 		integrationNote = "Lambda AWS_PROXY with payload 1.0 and 2.0 runs; integration subtypes, HTTP_PROXY and VPC_LINK connections are stored and a request that reaches them answers 501; a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; tlsConfig is stored without effect; requestTemplates, templateSelectionExpression and contentHandlingStrategy answer NotImplemented (WebSocket API members)"
-		stageNote       = "accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); an automatic deployment completes before the call returns, where AWS served it within 1 to 2 s (APIGW2-04); clientCertificateId answers NotImplemented (WebSocket APIs only)"
+		// APIGW2-01 case 22 recorded one partial update (apigateway-http.md 6.2).
+		subtypeUpdateNote = "requestParameters sent to an integration with a subtype must give every required parameter of the subtype a value, or the update is refused with AWS's text Invalid integration URI specified (inferred from one recorded case, APIGW2-01 case 22)"
+		stageNote         = "accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); an automatic deployment completes before the call returns, where AWS served it within 1 to 2 s (APIGW2-04); clientCertificateId answers NotImplemented (WebSocket APIs only)"
 		// The route order and HEAD are what APIGW2-05 left open
 		// (apigateway-http.md 4.3, 4.4); the header case is net/http's.
-		invokeNote = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented and recorded (APIGW2-05, APIGW2-06); the order of two greedy routes of one method is inferred: more segments before the variable first, then the leftmost literal segment; HEAD reaches only HEAD and ANY routes (inferred, unrecorded); AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; parameter mapping, access logging and throttling are not applied; headers over 10,240 bytes are not refused with 431; a 1.0 event reports header names as Go's HTTP server canonicalizes them, where AWS keeps the client's spelling"
-		storedNote = "the settings they remove are stored without effect; " + baseNote
+		invokeNote  = "Lambda AWS_PROXY with payload 1.0 and 2.0; stage and route selection as documented and recorded (APIGW2-05, APIGW2-06); the order of two greedy routes of one method is inferred: more segments before the variable first, then the leftmost literal segment; HEAD reaches only HEAD and ANY routes (inferred, unrecorded); AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; parameter mapping, access logging and throttling are not applied; a 1.0 event reports header names as Go's HTTP server canonicalizes them, where AWS keeps the client's spelling"
+		getAPIsNote = "lists by id ascending, inferred: APIGW2-03 recorded one page, so the order is not recorded, but the nextToken form is"
+		storedNote  = "the settings they remove are stored without effect; " + baseNote
 		// AWS's body for a tag over the length limits escapes its quotes
 		// as \', which JSON does not allow (APIGW2-01 steps 24, 25;
 		// apigateway-http.md 3.6).
@@ -53,10 +57,10 @@ func TestCoverageMarks(t *testing.T) {
 	)
 	want := map[string]registry.BindCoverage{
 		"CreateApi": partial(apiNote + "; " + tagsNote), "UpdateApi": partial(apiNote),
-		"GetApi": partial(""), "GetApis": partial(""), "DeleteApi": partial(""), "DeleteCorsConfiguration": partial(""),
+		"GetApi": partial(""), "GetApis": partial(getAPIsNote), "DeleteApi": partial(""), "DeleteCorsConfiguration": partial(""),
 		"CreateRoute": partial(routeNote), "UpdateRoute": partial(routeNote),
 		"GetRoute": partial(""), "GetRoutes": partial(""), "DeleteRoute": partial(""),
-		"CreateIntegration": partial(integrationNote), "UpdateIntegration": partial(integrationNote),
+		"CreateIntegration": partial(integrationNote), "UpdateIntegration": partial(integrationNote + "; " + subtypeUpdateNote),
 		"GetIntegration": partial(""), "GetIntegrations": partial(""), "DeleteIntegration": partial(""),
 		"CreateStage": partial(stageNote + "; " + tagsNote), "UpdateStage": partial(stageNote),
 		"GetStage": partial(""), "GetStages": partial(""), "DeleteStage": partial(""),

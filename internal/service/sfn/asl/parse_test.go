@@ -199,9 +199,7 @@ func TestParseRefusalList(t *testing.T) {
 		{"HeartbeatSeconds", task(lambdaTask + `,"HeartbeatSeconds":5`), "/States/T/HeartbeatSeconds", true},
 		{"HeartbeatSecondsPath", task(lambdaTask + `,"HeartbeatSecondsPath":"$.h"`), "/States/T/HeartbeatSecondsPath", true},
 		{"Credentials", task(lambdaTask + `,"Credentials":{"RoleArn":"` + roleArn + `"}`), "/States/T/Credentials", true},
-		{"InvocationType Event", task(`"Type":"Task","Resource":"arn:aws:states:::lambda:invoke","Parameters":{"FunctionName":"` + functionArn + `","InvocationType":"Event"}`), "/States/T", false},
 		{"InvocationType DryRun", task(`"Type":"Task","Resource":"arn:aws:states:::lambda:invoke","Parameters":{"FunctionName":"` + functionArn + `","InvocationType":"DryRun"}`), "/States/T", false},
-		{"JSONPath function", pass(`"InputPath":"$.a.length()",`), "/States/P", false},
 		{"multi-clause filter", pass(`"InputPath":"$.a[?(@.b == 1 && @.c == 2)]",`), "/States/P", false},
 		{"filter script", pass(`"Parameters":{"x.$":"$.a[(@.length-1)]"},`), "/States/P", false},
 	}
@@ -225,11 +223,12 @@ func TestParseRefusalList(t *testing.T) {
 	}
 }
 
-// A literal lambda:invoke InvocationType RequestResponse, and one given by
-// a path, are accepted with FeatLambdaTask.
-func TestParseAcceptsRequestResponseInvocation(t *testing.T) {
+// A literal lambda:invoke InvocationType RequestResponse or Event (SFN-13),
+// and one given by a path, are accepted with FeatLambdaTask.
+func TestParseAcceptsInvocationTypes(t *testing.T) {
 	for _, params := range []string{
 		`{"FunctionName":"` + functionArn + `","InvocationType":"RequestResponse"}`,
+		`{"FunctionName":"` + functionArn + `","InvocationType":"Event"}`,
 		`{"FunctionName":"` + functionArn + `","InvocationType.$":"$.type"}`,
 		`{"FunctionName":"` + functionArn + `:live","Payload.$":"$"}`,
 	} {

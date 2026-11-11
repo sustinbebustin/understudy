@@ -44,6 +44,7 @@ var viaNames = []struct {
 	{ref.SFNTask, "sfn-task"},
 	{ref.CloudWatchAlarm, "cloudwatch-alarm"},
 	{ref.SchedulerTarget, "scheduler-target"},
+	{ref.SSMParameter, "ssm-parameter"},
 }
 
 // declaredVias walks the values from the first until String falls back to

@@ -1,6 +1,7 @@
 package apigatewayv2_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"maps"
@@ -184,10 +185,49 @@ func TestTagLimits(t *testing.T) {
 	})
 }
 
-// Paging through GetApis with any page size lists every API once, in
-// creation order (inferred, APIGW2-03), with no page larger than asked;
-// maxResults that is not a positive integer, and a token no page answered,
-// are BadRequestException (apigateway-http.md 2.2).
+// GetApis lists by id ascending (inferred: APIGW2-03 recorded one page),
+// whatever order the APIs were created in, and a page's nextToken is the
+// URL-escaped base64 of "id=S" and the page's last id (recorded, APIGW2-03,
+// 14-get-apis-page.json: "aWQ9UzlhY2tqbXk3djc%3D" for id "9ackjmy7v7").
+func TestGetApisPagesByIDWithAWSsToken(t *testing.T) {
+	run(t, func(h *harness) {
+		var created []string
+		for i := 0; i < 20 && (len(created) < 3 || slices.IsSorted(created)); i++ {
+			created = append(created, h.apiID("o"+strconv.Itoa(i)))
+		}
+		if slices.IsSorted(created) {
+			t.Fatalf("20 APIs came out in id order, %v: nothing tells id order from creation order", created)
+		}
+		want := slices.Sorted(slices.Values(created))
+		token := func(last string) string {
+			return url.QueryEscape(base64.StdEncoding.EncodeToString([]byte("id=S" + last)))
+		}
+		in := apigatewayv2api.GetApisInput{MaxResults: new("1")}
+		var got []string
+		for range want {
+			page := must(h, apigatewayv2api.OpGetApis, &in)
+			got = append(got, idsOf(page.Items)...)
+			if page.NextToken == nil {
+				break
+			}
+			if wantToken := token(got[len(got)-1]); *page.NextToken != wantToken {
+				t.Errorf("nextToken after %s = %q, want %q", got[len(got)-1], *page.NextToken, wantToken)
+			}
+			in.NextToken = page.NextToken
+		}
+		if !slices.Equal(got, want) {
+			t.Errorf("pages of one listed %v, want every API once in id order, %v", got, want)
+		}
+		if first := must(h, apigatewayv2api.OpGetApis, &apigatewayv2api.GetApisInput{MaxResults: new("1")}); idsOf(first.Items)[0] != want[0] {
+			t.Errorf("first page = %v, want the lowest id %s", idsOf(first.Items), want[0])
+		}
+	})
+}
+
+// Paging through GetApis with any page size lists every API once, in id
+// order (inferred, APIGW2-03), with no page larger than asked; maxResults
+// that is not a positive integer, and a token no page answered, are
+// BadRequestException (apigateway-http.md 2.2).
 func TestGetApisPagingProperty(t *testing.T) {
 	run(t, func(h *harness) {
 		rapid.Check(t, func(rt *rapid.T) {
@@ -198,8 +238,8 @@ func TestGetApisPagingProperty(t *testing.T) {
 				ids = append(ids, h.apiID("p"+strconv.Itoa(i)))
 			}
 			all := idsOf(h.listAPIs(""))
-			if !slices.Equal(all[len(all)-made:], ids) {
-				rt.Fatalf("GetApis ends with %v, want the APIs just made in creation order, %v", all[len(all)-made:], ids)
+			if !slices.IsSorted(all) {
+				rt.Fatalf("GetApis = %v, want id order", all)
 			}
 			if paged := idsOf(h.listAPIs(strconv.Itoa(size))); !slices.Equal(paged, all) {
 				rt.Fatalf("GetApis in pages of %d = %v, want %v", size, paged, all)
@@ -231,6 +271,7 @@ func idsOf(apis []apigatewayv2api.Api) []string {
 func TestGetApisTokenSurvivesADelete(t *testing.T) {
 	run(t, func(h *harness) {
 		ids := []string{h.apiID("a"), h.apiID("b"), h.apiID("c")}
+		slices.Sort(ids)
 		first := must(h, apigatewayv2api.OpGetApis, &apigatewayv2api.GetApisInput{MaxResults: new("1")})
 		if got := idsOf(first.Items); !slices.Equal(got, ids[:1]) || first.NextToken == nil {
 			t.Fatalf("first page = %v with token %v, want [%s] and a token", got, first.NextToken, ids[0])

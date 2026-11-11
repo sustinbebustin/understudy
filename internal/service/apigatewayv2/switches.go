@@ -15,9 +15,24 @@ type GatewayAnswer struct {
 	Message string
 }
 
+// FrontLimits are the limits a layer in front of the gateway enforces
+// before the gateway sees the request (apigateway-http.md 4.5, 4.7). Its
+// answers carry apigw-requestid and no Content-Type (APIGW2-10 steps 05,
+// 07).
+type FrontLimits struct {
+	// HeadersTooLarge answers a request line plus headers over MaxHeaders
+	// bytes, each line counted with its CRLF.
+	HeadersTooLarge GatewayAnswer
+	MaxHeaders      int
+	// BodyTooLarge answers a body over MaxBody bytes.
+	BodyTooLarge GatewayAnswer
+	MaxBody      int
+}
+
 // FailureAnswers is the value of apigatewayv2.lambda.failure-answers: how
-// the data plane answers a Lambda proxy integration that fails, and the
-// size limits it answers TooLarge for (apigateway-http.md 4.7, 5.6).
+// the data plane answers a Lambda proxy integration that fails, the size
+// limits it answers TooLarge for, and the front layer's limits
+// (apigateway-http.md 4.5, 4.7, 5.6).
 type FailureAnswers struct {
 	// FunctionError answers a function error, malformed function output,
 	// or an invocation Lambda refuses.
@@ -31,6 +46,7 @@ type FailureAnswers struct {
 	MaxBody  int
 	// MaxEvent is Lambda's synchronous request limit (lambda-api.md 8.2).
 	MaxEvent int
+	Front    FrontLimits
 }
 
 // Permission is the value of apigatewayv2.lambda.permission: the source
@@ -177,18 +193,27 @@ func recorded(cases string) fidelity.Settles {
 // as 10,000,000 bytes. APIGW2-10's 10,000,001-byte body (step 04) is also
 // over the 6 MB event limit and got the same answer as the 7,000,000-byte
 // body (step 06), so it does not tell 10,000,000 from 10,485,760; a Lambda
-// integration cannot (4.7). AWS answers a body over 10 MiB from a front
-// layer without Content-Type or apigw-requestid; understudy's 413 carries
-// both at every size.
+// integration cannot (4.7). A front layer answers a body over 10 MiB with
+// 413 (step 05) and a request line plus headers over 10,240 bytes, the
+// documented quota, with 431 Request Header Fields Too Large (step 07,
+// which sent 11,000 bytes of one header); both carry apigw-requestid and
+// no Content-Type.
 func FailureAnswersSwitch() fidelity.Switch[FailureAnswers] {
+	tooLarge := GatewayAnswer{Status: http.StatusRequestEntityTooLarge, Message: "Request Entity Too Large"}
 	return fidelity.Switch[FailureAnswers]{
 		Name: "apigatewayv2.lambda.failure-answers",
 		Value: FailureAnswers{
 			FunctionError: GatewayAnswer{Status: http.StatusInternalServerError, Message: "Internal Server Error"},
 			Timeout:       GatewayAnswer{Status: http.StatusServiceUnavailable, Message: "Service Unavailable"},
-			TooLarge:      GatewayAnswer{Status: http.StatusRequestEntityTooLarge, Message: "Request Entity Too Large"},
+			TooLarge:      tooLarge,
 			MaxBody:       10_000_000,
 			MaxEvent:      6_291_456,
+			Front: FrontLimits{
+				HeadersTooLarge: GatewayAnswer{Status: http.StatusRequestHeaderFieldsTooLarge, Message: "Request Header Fields Too Large"},
+				MaxHeaders:      10_240,
+				BodyTooLarge:    tooLarge,
+				MaxBody:         10_485_760,
+			},
 		},
 		Label:   evidence.AWSRecorded,
 		Ref:     researchRef + "56-failures-function-errors-malformed-output-timeouts",

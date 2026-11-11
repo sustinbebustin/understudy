@@ -53,6 +53,8 @@ func TestTextIsIdempotent(t *testing.T) {
 		"AROARZPUZDIKAAAAAAAHA", "AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003",
 		"ASIAREDACTED", `"principalId":"AEXAMPLE1234567"`, `"sourceIp":"198.51.100.7"`,
 		"<ID>" + hex64 + "</ID>", "?X-Amz-Signature=abc", " ", "/", ":", "x",
+		"(Service: AWSKMS; Status Code: 400; Error Code: DisabledException; Request ID: ", "(Service: Kms, Status Code: 400, Request ID: ",
+		"720334c4-104a-4513-a125-c8e1ef700cea", "; Proxy: null)",
 	}
 	rapid.Check(t, func(t *rapid.T) {
 		parts := rapid.SliceOfN(rapid.SampledFrom(pieces), 0, 6).Draw(t, "parts")

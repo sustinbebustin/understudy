@@ -130,6 +130,58 @@ func TestLambdaInvokeResult(t *testing.T) {
 	})
 }
 
+// sfn13Output is the recorded output of a lambda:invoke Task with
+// InvocationType Event (aws-recorded testdata/parity/sfn/SFN-13/
+// 01-history.json), its request id, Date and X-Amzn-Trace-Id values
+// replaced by <req>, <date> and <trace>.
+const sfn13Output = `{"Payload":null,"SdkHttpMetadata":{"AllHttpHeaders":{"x-amzn-Remapped-Content-Length":["0"],"Connection":["keep-alive"],"x-amzn-RequestId":["<req>"],"Content-Length":["0"],"Date":["<date>"],"X-Amzn-Trace-Id":["<trace>"]},` +
+	`"HttpHeaders":{"Connection":"keep-alive","Content-Length":"0","Date":"<date>","x-amzn-Remapped-Content-Length":"0","x-amzn-RequestId":"<req>","X-Amzn-Trace-Id":"<trace>"},"HttpStatusCode":202},` +
+	`"SdkResponseMetadata":{"RequestId":"<req>"},"StatusCode":202}`
+
+// A lambda:invoke Task whose InvocationType is Event, literal or by path,
+// invokes the function asynchronously and succeeds with Lambda's 202
+// acceptance as recorded: Payload null and no ExecutedVersion (SFN-13).
+func TestLambdaInvokeEventSFN13(t *testing.T) {
+	for name, params := range map[string]string{
+		"literal": `{"FunctionName":%q,"InvocationType":"Event"}`,
+		"path":    `{"FunctionName":%q,"InvocationType.$":"$.it"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			run(t, func(h *harness) {
+				fn := h.functionArn("worker")
+				h.answer(func(_ *kernel.Call, _ *lambdaapi.InvokeInput) (*lambdaapi.InvokeOutput, *awserr.Error) {
+					return &lambdaapi.InvokeOutput{StatusCode: 202}, nil
+				})
+				def := fmt.Sprintf(`{"StartAt":"E","States":{"E":{"Type":"Task","Resource":"arn:aws:states:::lambda:invoke","Parameters":`+params+`,"End":true}}}`, fn)
+				arn := h.start(h.create("m", def), "x", new(`{"it":"Event"}`))
+				calls := h.invoked()
+				if len(calls) != 1 || calls[0].in.InvocationType == nil || *calls[0].in.InvocationType != lambdaapi.InvocationTypeEvent {
+					h.Fatalf("Invoke calls = %+v, want one Event invocation", calls)
+				}
+				d := h.describeExecution(arn)
+				if d.Status != sfnapi.ExecutionStatusSucceeded {
+					h.Fatalf("DescribeExecution = %+v", d)
+				}
+				out := val(d.Output)
+				headers := at(at(decode(h, out), "SdkHttpMetadata"), "HttpHeaders")
+				got := out
+				for placeholder, key := range map[string]string{"<req>": "x-amzn-RequestId", "<date>": "Date", "<trace>": "X-Amzn-Trace-Id"} {
+					if v, ok := at(headers, key).(document.String); ok && v != "" {
+						got = strings.ReplaceAll(got, string(v), placeholder)
+					}
+				}
+				if got != sfn13Output {
+					h.Errorf("output, normalized:\n%s\nwant (SFN-13):\n%s", got, sfn13Output)
+				}
+				want := "ExecutionStarted 1<-0\nTaskStateEntered 2<-0\nTaskScheduled 3<-2\nTaskStarted 4<-3\nTaskSucceeded 5<-4\nTaskStateExited 6<-5\nExecutionSucceeded 7<-6"
+				if got := shape(h.history(arn)); got != want {
+					h.Errorf("history:\n%s\nwant (SFN-13):\n%s", got, want)
+				}
+			})
+		})
+	}
+}
+
 func mapKeys(v document.Value) []string {
 	m, ok := v.(document.Map)
 	if !ok {

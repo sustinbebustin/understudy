@@ -8,12 +8,12 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 )
 
-// definite reports whether p names at most one node: names and indexes
-// only (stepfunctions-asl.md 4.5).
+// definite reports whether p names at most one node: names, indexes and
+// functions, which name none (stepfunctions-asl.md 4.5).
 func (p Path) definite() bool {
 	for _, s := range p.steps {
 		switch s.(type) {
-		case child, index:
+		case child, index, function:
 		case wildcard, descend, slice, union, filter:
 			return false
 		}
@@ -45,7 +45,7 @@ func (p Path) evalDefinite(root document.Value) (document.Value, error) {
 				e.Node, e.Step = v, s.name
 			case index:
 				e.Node, e.Step = v, strconv.Itoa(s.n)
-			case wildcard, descend, slice, union, filter:
+			case wildcard, descend, slice, union, filter, function:
 			}
 			return nil, e
 		}
@@ -125,6 +125,8 @@ func (s slice) selectFrom(v document.Value, out []document.Value) []document.Val
 	}
 	return out
 }
+
+func (function) selectFrom(_ document.Value, out []document.Value) []document.Value { return out }
 
 func (s union) selectFrom(v document.Value, out []document.Value) []document.Value {
 	if l, ok := v.(document.List); ok {

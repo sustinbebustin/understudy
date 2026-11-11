@@ -1,7 +1,6 @@
 package sfn
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
@@ -25,11 +24,11 @@ func boundOps() []string {
 
 // sfnUnreplayed is why no scenario settles a switch whose recording exists:
 // the step that shows it is a DescribeExecution or GetExecutionHistory
-// answer, whose body AWS writes with nested __type members and members in
-// alphabetical order, which understudy's serializer does not reproduce, so
-// the step cannot match. recorded names the fixtures, with "is" or "are".
+// answer, whose body AWS writes with nested __type members, which
+// understudy's serializer does not reproduce, so the step cannot match.
+// recorded names the fixtures, with "is" or "are".
 func sfnUnreplayed(recorded string) string {
-	return recorded + " recorded 2026-11-03; not replayed: AWS's execution bodies carry nested __type members and alphabetical member order"
+	return recorded + " recorded 2026-11-03; not replayed: AWS's execution bodies carry nested __type members"
 }
 
 // ChoiceNoMatch is the error of a Choice state no rule matches and that has
@@ -84,12 +83,11 @@ type LambdaErrorNaming struct {
 	Prefix string
 	// Unmodeled names every error Lambda's model does not declare.
 	Unmodeled string
-	// Cause is the fmt format of a lambda:invoke task's cause, from the
-	// message, the status, the error code and the request id.
-	Cause string
-	// FunctionARNCause is the fmt format of a function-ARN task's cause,
-	// from the message, the status and the request id.
-	FunctionARNCause string
+	// Cause is the SDK client whose message is a lambda:invoke task's cause.
+	Cause awserr.SDKClient
+	// FunctionARNCause is the SDK client whose message is a function-ARN
+	// task's cause.
+	FunctionARNCause awserr.SDKClient
 }
 
 // LambdaError names a Lambda service error a task meets: recorded for
@@ -103,8 +101,8 @@ func LambdaError() fidelity.Switch[LambdaErrorNaming] {
 		Value: LambdaErrorNaming{
 			Prefix:           "Lambda.",
 			Unmodeled:        "Lambda.AWSLambdaException",
-			Cause:            "%s (Service: AWSLambda; Status Code: %d; Error Code: %s; Request ID: %s; Proxy: null)",
-			FunctionARNCause: "%s (Service: Lambda, Status Code: %d, Request ID: %s) (SDK Attempt Count: 1)",
+			Cause:            awserr.SDKv1("AWSLambda"),
+			FunctionARNCause: awserr.SDKv2("Lambda"),
 		},
 		Label:   evidence.AWSRecorded,
 		Ref:     "docs/research/stepfunctions-api.md#94-error-names-and-causes-recorded",
@@ -117,10 +115,9 @@ func LambdaError() fidelity.Switch[LambdaErrorNaming] {
 // LambdaTaskError is the StateError for e, a Lambda service error the
 // invocation of a task naming its function as kind returned with request
 // id requestID, named by n: Prefix plus the shape name when e's shape is in
-// Lambda's model namespace, else Unmodeled; the cause is Cause formatted
-// with e's message, status, code and requestID for a lambda:invoke task,
-// FunctionARNCause with e's message, status and requestID for a
-// function-ARN task.
+// Lambda's model namespace, else Unmodeled; the cause is e's message with
+// requestID as Cause reports it for a lambda:invoke task, as
+// FunctionARNCause reports it for a function-ARN task.
 func LambdaTaskError(n LambdaErrorNaming, kind asl.ResourceKind, e *awserr.Error, requestID string) asl.StateError {
 	name := n.Unmodeled
 	// Every error shape Lambda's model declares shares one namespace,
@@ -133,9 +130,9 @@ func LambdaTaskError(n LambdaErrorNaming, kind asl.ResourceKind, e *awserr.Error
 		name = n.Prefix + e.ID.Shape.Name()
 	}
 	if kind == asl.FunctionARN {
-		return asl.StateError{Name: name, Cause: fmt.Sprintf(n.FunctionARNCause, e.Message, e.ID.Status, requestID)}
+		return asl.StateError{Name: name, Cause: n.FunctionARNCause.Message(e, requestID)}
 	}
-	return asl.StateError{Name: name, Cause: fmt.Sprintf(n.Cause, e.Message, e.ID.Status, e.ID.QueryCode, requestID)}
+	return asl.StateError{Name: name, Cause: n.Cause.Message(e, requestID)}
 }
 
 // DeleteRunningExecution says what DeleteStateMachine does to running

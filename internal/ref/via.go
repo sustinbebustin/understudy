@@ -28,6 +28,7 @@ const (
 	SFNTask                          // a Step Functions Task invoking its Lambda function as the execution role
 	CloudWatchAlarm                  // a CloudWatch alarm running an action or sending its EventBridge event
 	SchedulerTarget                  // EventBridge Scheduler invoking a schedule's target, or sending its dead letter, as the execution role, or reading that role from IAM before the invocation
+	SSMParameter                     // a Parameter Store change sending its EventBridge event
 
 	// endVia follows the last value and is no Via: valid, ParseVia and the
 	// ViaError text count up to it, so a new value is one line above it
@@ -83,6 +84,8 @@ func (v Via) String() string {
 		return "cloudwatch-alarm"
 	case SchedulerTarget:
 		return "scheduler-target"
+	case SSMParameter:
+		return "ssm-parameter"
 	default:
 		return fmt.Sprintf("Via(%d)", uint8(v))
 	}

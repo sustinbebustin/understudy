@@ -83,6 +83,51 @@ func TestImportRefusesAnotherVersion(t *testing.T) {
 	})
 }
 
+// The state format is version 2: version 1 sections hold the API sequence
+// numbers (each API's seq, the scope's nextSeq) that GetApis no longer
+// reads (it sorts by id, APIGW2-03), so a version 1 section carrying them
+// is refused with *store.VersionMismatchError naming both versions, not
+// decoded into an unknown-member error (ADR 0009).
+func TestStateVersionTwo(t *testing.T) {
+	run(t, func(h *harness) {
+		if v := h.svc.SchemaVersion(); v != 2 {
+			t.Errorf("SchemaVersion = %d, want 2", v)
+		}
+		id := h.apiID("kept")
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range sections {
+			var st map[string]any
+			if err := json.Unmarshal(sections[i].Data, &st); err != nil {
+				t.Fatal(err)
+			}
+			apis, ok := st["apis"].(map[string]any)
+			if !ok {
+				t.Fatalf("section %s has no apis object: %s", sections[i].Path, sections[i].Data)
+			}
+			for _, a := range apis {
+				api, ok := a.(map[string]any)
+				if !ok {
+					t.Fatalf("section %s holds a non-object API: %s", sections[i].Path, sections[i].Data)
+				}
+				api["seq"] = 0
+			}
+			st["nextSeq"] = len(apis)
+			if sections[i].Data, err = json.Marshal(st); err != nil {
+				t.Fatal(err)
+			}
+			sections[i].Version = 1
+		}
+		mismatch, ok := errors.AsType[*store.VersionMismatchError](h.svc.Import(sections))
+		if !ok || mismatch.Section != 1 || mismatch.Running != 2 {
+			t.Errorf("Import of version 1 sections = %v, want a VersionMismatchError of section 1 against 2", mismatch)
+		}
+		must(h, apigatewayv2api.OpGetApi, &apigatewayv2api.GetApiInput{ApiId: id})
+	})
+}
+
 // Reset of one account drops its APIs and their ids, and leaves another
 // account's.
 func TestResetDropsTheScopesAPIs(t *testing.T) {

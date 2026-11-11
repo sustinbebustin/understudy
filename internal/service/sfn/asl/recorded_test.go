@@ -94,6 +94,36 @@ func TestASL05IntrinsicLenientResults(t *testing.T) {
 	}
 }
 
+// asl19Input is the execution input of the ASL-19 run.
+const asl19Input = `{"a":[1,2,3],"o":[{"id":1,"x":1,"y":2},{"id":2,"x":2,"y":2}]}`
+
+// asl19Paths is ASL-19's definition without its "and.$" member, a
+// multi-clause filter, which understudy still refuses at create: what AWS
+// evaluates it to is unrecorded (ASL-19 notes).
+const asl19Paths = `{"StartAt":"A","States":{"A":{"Type":"Pass","Parameters":{
+	"desc.$":"$..id","union.$":"$.a[0,2]","neg.$":"$.a[-1]","len.$":"$.a.length()","star.$":"$.o[*].x"},"End":true}}}`
+
+// A JSONPath function is accepted at create and fails the execution at run
+// time with States.Runtime and the missing-path cause; AWS's engine does
+// not resolve length(), which Jayway JsonPath has (ASL-19, recorded
+// 2026-11-03). Other function names, also in an intrinsic argument, are
+// inferred to read the same.
+func TestASL19JSONPathFunctionFailsAtRunTime(t *testing.T) {
+	d := newDriver(t, asl19Paths, rules())
+	d.start(asl19Input)
+	failedWith(t, d.runToEnd(10), "States.Runtime", func(c string) bool {
+		return c == runtimePrefix("A", 2)+"The JSONPath '$.a.length()' specified for the field 'len.$' could not be found in the input '"+asl19Input+"'"
+	})
+	d.wantShape("ASL-19 01-history", "ExecutionStarted 1<-0", "PassStateEntered 2<-0", "ExecutionFailed 3<-2")
+
+	inferred := `{"StartAt":"A","States":{"A":{"Type":"Pass","Parameters":{"r.$":"States.Array($.a.size())"},"End":true}}}`
+	d = newDriver(t, inferred, rules())
+	d.start(asl19Input)
+	failedWith(t, d.runToEnd(10), "States.Runtime", func(c string) bool {
+		return c == runtimePrefix("A", 2)+"The JSONPath '$.a.size()' specified for the field 'r.$' could not be found in the input '"+asl19Input+"'"
+	})
+}
+
 // An execution running when its machine is deleted fails at its next
 // transition with States.Runtime, the cause naming the machine;
 // ExecutionFailed points at the Wait's entered event and no WaitStateExited

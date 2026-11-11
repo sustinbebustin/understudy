@@ -2,12 +2,11 @@ package apigateway
 
 import (
 	"encoding/base64"
-	"net/url"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/paging"
 )
 
 // The page sizes of a paginated Get list: "The default value is 25 and the
@@ -49,49 +48,18 @@ func page[T any](items []T, pos func(T) uint64, limit *int32, position *string) 
 // pageByID is one page of a list AWS sorts by id, GetResources's
 // (APIGW1-04, recorded 2026-11-03): items sorted by id ascending, and the
 // position answered is base64 of "id=S" and the page's last id,
-// URL-escaped as AWS sends it. The next page starts after that id. AWS
-// took the position escaped once more, so it is unescaped until it is
-// base64.
+// URL-escaped as AWS sends it (paging.AWSIDKeyset, shared with the HTTP
+// API's GetApis).
 func pageByID[T any](items []T, id func(T) string, limit *int32, position *string) (got []T, next *string, err *awserr.Error) {
 	n, err := pageLimit(limit)
 	if err != nil {
 		return nil, nil, err
 	}
-	items = slices.SortedFunc(slices.Values(items), func(a, b T) int { return strings.Compare(id(a), id(b)) })
-	if position != nil {
-		after, ok := decodeIDPosition(*position)
-		if !ok {
-			return nil, nil, errBadRequest("position %q is not a position a previous page answered; start again without position", *position)
-		}
-		start := slices.IndexFunc(items, func(t T) bool { return id(t) > after })
-		if start < 0 {
-			start = len(items)
-		}
-		items = items[start:]
+	p, ok := paging.AWSIDKeyset(items, id, int(n), position)
+	if !ok {
+		return nil, nil, errBadRequest("position %q is not a position a previous page answered; start again without position", *position)
 	}
-	if len(items) <= int(n) {
-		return items, nil, nil
-	}
-	last := id(items[n-1])
-	return items[:n], new(url.QueryEscape(base64.StdEncoding.EncodeToString([]byte(idPositionPrefix + last)))), nil
-}
-
-// idPositionPrefix starts a decoded pageByID position.
-const idPositionPrefix = "id=S"
-
-// decodeIDPosition reads the id a pageByID position names.
-func decodeIDPosition(token string) (string, bool) {
-	for range 2 {
-		if b, err := base64.StdEncoding.DecodeString(token); err == nil {
-			return strings.CutPrefix(string(b), idPositionPrefix)
-		}
-		unescaped, err := url.QueryUnescape(token)
-		if err != nil || unescaped == token {
-			return "", false
-		}
-		token = unescaped
-	}
-	return "", false
+	return p.Items, p.Next, nil
 }
 
 // pageLimit is the page size limit asks for, the default when absent.

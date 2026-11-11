@@ -3,6 +3,7 @@ package sfn
 import (
 	"context"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
@@ -60,6 +61,25 @@ func executionInput(in *string) (string, document.Value, *awserr.Error) {
 func recordedSyntaxError(message string) bool {
 	return strings.HasPrefix(message, "Unrecognized token '") ||
 		strings.HasPrefix(message, "Unexpected character (") && strings.HasSuffix(message, "): was expecting double-quote to start field name")
+}
+
+// maxInputBytes is the StartExecution input limit, in UTF-8 bytes.
+const maxInputBytes = 262144
+
+// checkInputSize refuses an input over maxInputBytes UTF-8 bytes with
+// Coral's text (aws-recorded testdata/parity/sfn/SFN-08/07-big-input.json,
+// ASL-15/01-start-over.json). The overlay drops the generated length check,
+// which counts characters and says "length"; awserr has no constraint for
+// AWS's "size ... bytes" wording, so the text is the whole message. It runs
+// only once the generated violations are empty, so an input that is too
+// large alongside another violation is answered for the other alone, where
+// AWS would list both (unrecorded).
+func checkInputSize(in *sfnapi.StartExecutionInput) *awserr.Error {
+	if in.Input == nil || len(*in.Input) <= maxInputBytes {
+		return nil
+	}
+	return sfnapi.ErrCoralValidateValidationException("1 validation error detected: Value at 'input' failed to satisfy constraint: " +
+		"Member must have size less than or equal to " + strconv.Itoa(maxInputBytes) + " bytes in UTF-8 encoding")
 }
 
 // startExecution starts a Standard execution. The same name and input as a

@@ -62,10 +62,10 @@ aws kms decrypt --encryption-context PARAMETER_ARN=arn:aws:ssm:us-east-1:0000000
 aHVudGVyMg==
 ```
 
-`--key-id` takes a customer managed key as a key id, key ARN, alias name or alias ARN, and `describe-parameters` reports it as given. A KMS refusal, such as a disabled key, answers `InvalidKeyId` with KMS's message:
+`--key-id` takes a customer managed key as a key id, key ARN, alias name or alias ARN, and `describe-parameters` reports it as given. A KMS refusal, such as a disabled key, answers `InvalidKeyId` with KMS's message and the KMS client's suffix, as AWS does; the request id is a fresh one for the KMS call:
 
 ```text
-An error occurred (InvalidKeyId) when calling the GetParameter operation: arn:aws:kms:us-east-1:000000000000:key/4ae7c0e1-bc0c-4664-b9df-e736b2cfde41 is disabled.
+An error occurred (InvalidKeyId) when calling the GetParameter operation: arn:aws:kms:us-east-1:000000000000:key/4ae7c0e1-bc0c-4664-b9df-e736b2cfde41 is disabled. (Service: AWSKMS; Status Code: 400; Error Code: DisabledException; Request ID: de3c61ab-db14-43a5-95ea-6078274fa859; Proxy: null)
 ```
 
 The plaintext of a SecureString never appears in the journal, the logs or a snapshot, which holds only the ciphertext.
@@ -123,6 +123,42 @@ aws ssm get-parameter-history --name /orders/db/host --query 'Parameters[].[Vers
 
 `unlabel-parameter-version` removes labels; `get-parameters-by-path` takes a `Label` filter.
 
+## Change events
+
+Each create, overwrite, label and delete puts a `Parameter Store Change` event on the default EventBridge bus of the account and Region, as AWS does. A rule on `source` `aws.ssm` receives them:
+
+```sh
+aws sqs create-queue --queue-name config-changes
+aws events put-rule --name config-changes --event-pattern '{"source":["aws.ssm"],"detail-type":["Parameter Store Change"]}'
+aws events put-targets --rule config-changes --targets Id=q,Arn=arn:aws:sqs:us-east-1:000000000000:config-changes
+aws ssm put-parameter --name /orders/feature/flag --type String --value on --description "checkout flag"
+aws sqs receive-message --queue-url "$AWS_ENDPOINT_URL/000000000000/config-changes" --wait-time-seconds 5 \
+  --query 'Messages[0].Body' --output text | jq .
+```
+
+```text
+{
+  "version": "0",
+  "id": "7f23acc7-6124-45dc-b06d-6b860f87c7ca",
+  "detail-type": "Parameter Store Change",
+  "source": "aws.ssm",
+  "account": "000000000000",
+  "time": "2026-11-11T04:46:32Z",
+  "region": "us-east-1",
+  "resources": [
+    "arn:aws:ssm:us-east-1:000000000000:parameter/orders/feature/flag"
+  ],
+  "detail": {
+    "name": "/orders/feature/flag",
+    "description": "checkout flag",
+    "type": "String",
+    "operation": "Create"
+  }
+}
+```
+
+`operation` is `Create`, `Update` for an overwrite, `LabelParameterVersion` for a label attached or moved, or `Delete`; a label event adds `label`, `fromVersion` (`""` for a first label) and `toVersion`. A refused call sends nothing. A pattern on `detail.operation` picks one kind, such as `{"source":["aws.ssm"],"detail":{"operation":["Delete"]}}`. `delete-parameters` sends one `Delete` event per parameter, a parameter without a description sends `"description": ""`, and `unlabel-parameter-version` sends no event; AWS's recording leaves these three open, so understudy infers them.
+
 ## Terraform
 
 `aws_ssm_parameter` and the `aws_ssm_parameter` and `aws_ssm_parameters_by_path` data sources work with the provider block of the [Terraform guide](terraform.md). This configuration applied, planned no changes and destroyed cleanly with provider 6.68.0:
@@ -170,8 +206,6 @@ Each of these answers `NotImplemented` naming the feature, and changes nothing:
 ```text
 An error occurred (NotImplemented) when calling the GetParameter operation: understudy does not implement AWS public parameters (names under /aws/service/) in ssm GetParameter; nothing was read or changed. Run 'understudy coverage --service ssm' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=ssm
 ```
-
-Parameter Store sends no EventBridge `Parameter Store Change` events.
 
 ## The legacy Query protocol
 

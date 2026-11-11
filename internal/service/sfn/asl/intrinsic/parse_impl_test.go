@@ -42,9 +42,9 @@ func TestParseRefusesBadArguments(t *testing.T) {
 			t.Errorf("Parse(%q) = %v, want a *SyntaxError", s, err)
 		}
 	}
-	_, err := intrinsic.Parse("States.Array($.a.length())")
+	_, err := intrinsic.Parse("States.Array($.a[?(@.b == 1 && @.c == 2)])")
 	var un *jsonpath.UnsupportedError
-	if !errors.As(err, &un) || un.Construct != "length()" {
-		t.Errorf("Parse with a JSONPath function argument = %v, want it to wrap the *jsonpath.UnsupportedError", err)
+	if !errors.As(err, &un) || un.Construct != "&&" {
+		t.Errorf("Parse with a multi-clause filter argument = %v, want it to wrap the *jsonpath.UnsupportedError", err)
 	}
 }

@@ -18,8 +18,6 @@ import (
 type State struct {
 	// APIs are by API id.
 	APIs map[string]API `json:"apis"`
-	// NextSeq is the Seq the next API created in the scope gets.
-	NextSeq uint64 `json:"nextSeq"`
 }
 
 func newState(aws.Scope) State { return State{APIs: map[string]API{}} }
@@ -42,9 +40,7 @@ func stateCodec() store.Codec {
 // omitempty, which would drop a set "" (encoding/json/v2 omits a field
 // whose JSON is empty).
 type API struct {
-	ID string `json:"id"`
-	// Seq orders the scope's APIs by creation, as GetApis lists them.
-	Seq         uint64  `json:"seq"`
+	ID          string  `json:"id"`
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitzero"`
 	Version     *string `json:"version,omitzero"`

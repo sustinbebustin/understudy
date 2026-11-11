@@ -11,8 +11,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 1
+// stateVersion is the schema version of State in snapshot sections. Before
+// 1.0 a section of another version is refused, not migrated (ADR 0009).
+const stateVersion = 2
 
 // State is the Step Functions state of one account and region. Records are
 // values replaced on change. An execution's Events only grow by append

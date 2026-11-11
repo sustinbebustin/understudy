@@ -35,6 +35,7 @@ export const vias = [
   "sfn-task",
   "cloudwatch-alarm",
   "scheduler-target",
+  "ssm-parameter",
 ] as const;
 
 export const mechanisms = [

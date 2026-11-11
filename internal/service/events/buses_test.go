@@ -182,7 +182,7 @@ func TestBusSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 		}
 		want := map[string]sw{
 			"events.delete-bus.with-rules":                {"rejected", evidence.AWSRecorded, "EBB-01", []string{"eventbridge.DeleteEventBus"}, "01-delete-with-rule"},
-			"events.update-bus.omitted-members":           {"kept", evidence.AWSRecorded, "EBB-04", []string{"eventbridge.UpdateEventBus"}, ""},
+			"events.update-bus.omitted-members":           {"kept", evidence.AWSRecorded, "EBB-04", []string{"eventbridge.UpdateEventBus"}, "04-update-name-only"},
 			"events.bus.kms-key-check":                    {"none", evidence.Inferred, "EBB-05", []string{"eventbridge.CreateEventBus", "eventbridge.UpdateEventBus"}, ""},
 			"events.bus-policy.remove-last-statement":     {"policy-removed", evidence.AWSRecorded, "EBB-06", []string{"eventbridge.RemovePermission"}, ""},
 			"events.bus-policy.remove-all-without-policy": {"succeed", evidence.AWSRecorded, "EBB-06", []string{"eventbridge.RemovePermission"}, "06-remove-all-empty"},
@@ -191,7 +191,7 @@ func TestBusSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 			"events.bus-target.same-account-event-id":     {"kept", evidence.AWSRecorded, "EBB-08", []string{"eventbridge.PutEvents"}, ""},
 			"events.bus-target.cross-account-role":        {"required", evidence.AWSDoc, "EBB-09", []string{"eventbridge.PutTargets"}, ""},
 			"events.bus-target.forwarded-time-resources":  {"kept", evidence.AWSRecorded, "EBB-08", []string{"eventbridge.PutEvents"}, ""},
-			"events.bus-target.missing-bus":               {"dropped", evidence.AWSRecorded, "EBB-08", []string{"eventbridge.PutTargets"}, ""},
+			"events.bus-target.missing-bus":               {"dropped", evidence.AWSRecorded, "EBB-08", []string{"eventbridge.PutTargets"}, "08-missing-target-bus"},
 		}
 		got := map[string]fidelity.Entry{}
 		for _, e := range h.svc.Switches() {

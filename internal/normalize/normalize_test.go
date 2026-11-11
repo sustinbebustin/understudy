@@ -194,6 +194,12 @@ func TestExchangeTextRules(t *testing.T) {
 		// account field of an ARN.
 		"An alias with the name arn:aws:kms:us-east-2:123456789012:alias/usr-rec-20261014-dup already exists": "An alias with the name arn:aws:kms:us-east-2:<account>:alias/usr-rec-20261014-dup already exists",
 		"123456789012/us-east-2": "<account>/us-east-2",
+		// testdata/parity/ssm/SSM-22/05-disabled-put.json message: the
+		// request id in an AWS SDK for Java v1 client suffix, and in a v2
+		// one (eventbridge-buses.md); a request id outside a suffix is kept.
+		"k is disabled. (Service: AWSKMS; Status Code: 400; Error Code: DisabledException; Request ID: 720334c4-104a-4513-a125-c8e1ef700cea; Proxy: null)": "k is disabled. (Service: AWSKMS; Status Code: 400; Error Code: DisabledException; Request ID: <request-id>; Proxy: null)",
+		"k does not exist (Service: Kms, Status Code: 400, Request ID: 0f5e2c1a-1b2c-4d3e-8f90-123456789abc) (SDK Attempt Count: 1)":                       "k does not exist (Service: Kms, Status Code: 400, Request ID: <request-id>) (SDK Attempt Count: 1)",
+		"Request ID: 720334c4-104a-4513-a125-c8e1ef700cea": "Request ID: 720334c4-104a-4513-a125-c8e1ef700cea",
 		// The Exchange set masks the account of a URL path but keeps the
 		// host, which a binding settles (testdata/parity/sqs/R01 QueueUrl).
 		"https://sqs.us-east-2.amazonaws.com/123456789012/usr-rec-20261014-std": "https://sqs.us-east-2.amazonaws.com/<account>/usr-rec-20261014-std",

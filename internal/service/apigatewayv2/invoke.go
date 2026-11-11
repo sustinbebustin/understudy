@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"maps"
-	"net"
 	"net/http"
 	"net/url"
 	"slices"
@@ -17,15 +15,12 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
-	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/httpevent"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/policydoc"
-	"github.com/sustinbebustin/understudy/internal/ref"
-	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/lambdaproxy"
 	"github.com/sustinbebustin/understudy/internal/service/apigatewayv2/route"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -33,10 +28,6 @@ import (
 // executeAPIPrefix is the execute-api path fallback,
 // /_understudy/execute-api/<api-id>/<path> (apigateway-http.md 11.3).
 const executeAPIPrefix = "/_understudy/execute-api/"
-
-// servicePrincipal is whom API Gateway invokes a Lambda proxy integration
-// as (apigateway-http.md 5.5).
-const servicePrincipal = "apigateway.amazonaws.com"
 
 // invoke is InvokeApi, the execute-api data plane (apigateway-http.md
 // 13.3): it finds the API the host or path fallback names, selects the stage and
@@ -50,13 +41,18 @@ func (s *Service) invoke(ctx context.Context, c *kernel.Call, r *http.Request, w
 	requestID := string(ids.APIGatewayRequestIDFor(c.ID()))
 	w.Header().Set("Apigw-Requestid", requestID)
 	failures := FailureAnswersSwitch().Value
-	// The payload quota comes first, before the API is looked up
-	// (apigateway-http.md 4.7).
-	body, tooLarge, err := readBody(r, failures.MaxBody)
+	// The front layer's limits come first, then the payload quota, all
+	// before the API is looked up (apigateway-http.md 4.5, 4.7).
+	if headerBytes(r) > failures.Front.MaxHeaders {
+		return writeFrontAnswer(w, failures.Front.HeadersTooLarge)
+	}
+	body, tooLarge, err := lambdaproxy.ReadBody(r, failures.Front.MaxBody)
 	switch {
 	case err != nil:
 		return err
 	case tooLarge:
+		return writeFrontAnswer(w, failures.Front.BodyTooLarge)
+	case len(body) > failures.MaxBody:
 		return writeAnswer(w, failures.TooLarge)
 	}
 	addr, ok := s.resolve(r)
@@ -103,7 +99,7 @@ type address struct {
 // labels follow it, as the edge claims the host. The API id is lowercased,
 // as a host name is.
 func (s *Service) resolve(r *http.Request) (address, bool) {
-	escaped := escapedPath(r)
+	escaped := lambdaproxy.EscapedPath(r)
 	if rest, ok := strings.CutPrefix(escaped, executeAPIPrefix); ok {
 		id, path, _ := strings.Cut(rest, "/")
 		if id == "" {
@@ -113,7 +109,7 @@ func (s *Service) resolve(r *http.Request) (address, bool) {
 		addr.path, addr.decoded = normalize("/" + path)
 		return addr, true
 	}
-	host := hostName(r.Host)
+	host := lambdaproxy.HostName(r.Host)
 	labels := strings.SplitN(host, ".", 3)
 	if len(labels) != 3 || labels[0] == "" || labels[1] != "execute-api" || labels[2] == "" {
 		return address{}, false
@@ -164,14 +160,6 @@ func (a address) domain(owner aws.Scope) string {
 		return a.host
 	}
 	return a.apiID + ".execute-api." + owner.Region.String() + ".localhost"
-}
-
-// hostName is a Host header without its port, lowercase.
-func hostName(host string) string {
-	if h, _, err := net.SplitHostPort(host); err == nil {
-		host = h
-	}
-	return strings.ToLower(strings.Trim(host, "[]"))
 }
 
 // selection is what a request selects in the state, copied out of it.
@@ -403,7 +391,7 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 		return awserr.Internalf(fmt.Errorf("apigatewayv2: integration %s of API %s names function %s: %w", t.integration.ID, t.apiID, fn, serr))
 	}
 	source := t.sourceARN(fnScope.Region)
-	allowed, err := s.permitted(fn, source, t.owner)
+	allowed, err := lambdaproxy.Permitted(s.policies, fn, source, t.owner)
 	if err != nil {
 		return err
 	}
@@ -411,7 +399,7 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 		return writeAnswer(w, PermissionSwitch().Value.Denial)
 	}
 	failures := FailureAnswersSwitch().Value
-	event, eerr := t.event(eventRequest(c, r, t.rawPath, body), httpevent.Context{
+	event, eerr := t.event(lambdaproxy.EventRequest(c, r, t.rawPath, body), httpevent.Context{
 		AccountID:    t.owner.Account.String(),
 		APIID:        t.apiID,
 		DomainName:   t.domain,
@@ -434,17 +422,17 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 		return writeAnswer(w, failures.TooLarge)
 	}
 	var out *lambdaapi.InvokeOutput
-	switch r := s.invokeWithin(ctx, c, t.integration.timeout(), kernel.Target{
-		Scope: fnScope, As: kernel.AsService{Name: servicePrincipal, Source: source}, Via: ref.ViaAPIGateway,
-	}, &lambdaapi.InvokeInput{FunctionName: fn.String(), InvocationType: new(lambdaapi.InvocationTypeRequestResponse), Payload: event}).(type) {
-	case clientGone:
+	switch r := lambdaproxy.InvokeWithin(ctx, s.k, c, t.integration.timeout(), lambdaproxy.Invocation{
+		Function: fn, Scope: fnScope, Source: source, Event: event,
+	}).(type) {
+	case lambdaproxy.ClientGone:
 		return awserr.RequestAborted()
-	case timedOut:
+	case lambdaproxy.TimedOut:
 		return writeAnswer(w, failures.Timeout)
-	case lambdaRefusal:
-		return lambdaRefused(w, t, r.err)
-	case lambdaOutput:
-		out = r.out
+	case lambdaproxy.Refusal:
+		return lambdaRefused(w, t, r.Err)
+	case lambdaproxy.Output:
+		out = r.Out
 	}
 	if out == nil {
 		return awserr.Internalf(fmt.Errorf("apigatewayv2: Lambda's Invoke of %s answered neither an output nor an error", fn))
@@ -460,64 +448,6 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 	}
 	resp.Write(w)
 	return nil
-}
-
-// waited is how the wait for an invocation ended.
-//
-//sumtype:decl
-type waited interface{ isWaited() }
-
-// lambdaOutput is Lambda's output for the invocation.
-type lambdaOutput struct{ out *lambdaapi.InvokeOutput }
-
-// lambdaRefusal is the error Lambda refused the invocation with.
-type lambdaRefusal struct{ err *awserr.Error }
-
-// timedOut is an invocation still running when the integration's timeout
-// passed.
-type timedOut struct{}
-
-// clientGone is a client that went away before Lambda answered.
-type clientGone struct{}
-
-func (lambdaOutput) isWaited()  {}
-func (lambdaRefusal) isWaited() {}
-func (timedOut) isWaited()      {}
-func (clientGone) isWaited()    {}
-
-// invokeWithin invokes the function and waits for Lambda's answer at most
-// timeout of wall time. The integration timeout bounds real work in a
-// container, as the function timeout does, so it runs on wall time and a
-// frozen or scaled emulator clock neither stretches nor shortens it
-// (apigateway-http.md 13.3 item 6, ARCHITECTURE.md 9). The invocation runs
-// as tracked work, so settling waits for it, and it outlives the wait: past
-// the timeout the function keeps running until it ends, its own timeout
-// ends it or understudy stops, and its answer is dropped (inferred: what
-// becomes of an invocation past the integration timeout is unrecorded,
-// apigateway-http.md 5.6, APIGW2-10).
-func (s *Service) invokeWithin(ctx context.Context, c *kernel.Call, timeout time.Duration, t kernel.Target, in *lambdaapi.InvokeInput) waited {
-	done := make(chan waited, 1)
-	s.k.Go(kernel.InvocationRunning, func(work context.Context) { //nolint:contextcheck // the invocation outlives the request as tracked work of the kernel
-		out, err := kernel.Invoke(work, s.k, c, lambdaapi.OpInvoke, t, in)
-		if err != nil {
-			done <- lambdaRefusal{err}
-			return
-		}
-		done <- lambdaOutput{out}
-	})
-	wait, stop := context.WithCancel(ctx)
-	defer stop()
-	clk := s.k.Clock()
-	expired := clk.Until(wait, clk.WallDeadline(clk.Wall().Add(timeout)))
-	select {
-	case r := <-done:
-		return r
-	case <-expired:
-		if ctx.Err() != nil {
-			return clientGone{}
-		}
-		return timedOut{}
-	}
 }
 
 // timeout is how long API Gateway waits for the integration
@@ -606,103 +536,59 @@ func (t toFunction) sourceARN(fnRegion aws.Region) aws.ARN {
 	}
 }
 
-// invokeFunctionAction is the action the function's resource policy must
-// allow API Gateway (apigateway-http.md 8.4).
-func invokeFunctionAction() registry.IAMAction {
-	return registry.IAMAction{Prefix: "lambda", Name: "InvokeFunction"}
-}
-
-// errNoFunctionPolicies is a service built without Options.FunctionPolicies.
-var errNoFunctionPolicies = errors.New("apigatewayv2: no Options.FunctionPolicies was given, so no function's resource policy can be read; wire.go passes the Lambda service")
-
-// permitted reports whether fn's resource policy lets API Gateway invoke
-// it for source (apigateway-http.md finding 9, 13.3.1). It applies under
-// every iam.enforce mode; a function that does not exist allows nothing.
-func (s *Service) permitted(fn, source aws.ARN, owner aws.Scope) (bool, *awserr.Error) {
-	if s.policies == nil {
-		return false, awserr.Internalf(errNoFunctionPolicies)
-	}
-	doc, ok := s.policies.ResourcePolicy(fn)
-	if !ok {
-		return false, nil
-	}
-	_, allowed := authz.CheckResource(doc, authz.ResourceRequest{
-		Caller:   policydoc.ServiceCaller{Name: servicePrincipal},
-		Action:   invokeFunctionAction(),
-		Resource: fn.String(),
-		Keys:     map[string]string{"aws:SourceArn": source.String(), "aws:SourceAccount": owner.Account.String()},
-	}).(policydoc.Allowed)
-	return allowed, nil
-}
-
-// readBody reads a request's body, reporting one over limit bytes as too
-// large without keeping it.
-func readBody(r *http.Request, limit int) (body []byte, tooLarge bool, err *awserr.Error) {
-	if r.Body == nil {
-		return nil, false, nil
-	}
-	b, rerr := io.ReadAll(io.LimitReader(r.Body, int64(limit)+1))
-	if rerr != nil {
-		return nil, false, awserr.RequestAborted()
-	}
-	if len(b) > limit {
-		return nil, true, nil
-	}
-	return b, false, nil
-}
-
-// eventRequest is the request as the event reports it, rawPath being the
-// path the API sees (address.path).
-func eventRequest(c *kernel.Call, r *http.Request, rawPath string, body []byte) httpevent.Request {
-	e := c.Endpoint()
-	scheme := e.Scheme
-	if scheme == "" {
-		scheme = "http"
-	}
-	port := "80"
-	if scheme == "https" {
-		port = "443"
-	}
-	host := e.Host
-	if host == "" {
-		host = r.Host
-	}
-	if _, p, err := net.SplitHostPort(host); err == nil && p != "" {
-		port = p
-	}
-	source := r.RemoteAddr
-	if h, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		source = h
-	}
-	return httpevent.Request{
-		Method: r.Method, RawPath: rawPath, RawQuery: r.URL.RawQuery, Protocol: r.Proto,
-		Host: r.Host, Header: r.Header, SourceIP: source, Scheme: scheme, Port: port, Body: body,
-	}
-}
-
-// escapedPath is the escaped path exactly as the client sent it: the
-// request target up to its query.
-func escapedPath(r *http.Request) string {
-	if strings.HasPrefix(r.RequestURI, "/") {
-		path, _, _ := strings.Cut(r.RequestURI, "?")
-		return path
-	}
-	return r.URL.EscapedPath()
-}
-
 // writeAnswer writes a response the gateway gives itself: the answer's
 // status, the body {"message":"<Message>"} and the Content-Type of the
 // apigatewayv2.front.answers switch (apigateway-http.md 4.5).
 func writeAnswer(w http.ResponseWriter, a GatewayAnswer) *awserr.Error {
+	return writeMessage(w, a, []string{FrontAnswersSwitch().Value.ContentType})
+}
+
+// writeFrontAnswer writes an answer of the layer in front of the gateway:
+// a's status and body, with the apigw-requestid header already set and no
+// Content-Type (APIGW2-10 steps 05, 07). A nil Content-Type keeps net/http
+// from sniffing one.
+func writeFrontAnswer(w http.ResponseWriter, a GatewayAnswer) *awserr.Error {
+	return writeMessage(w, a, nil)
+}
+
+// writeMessage writes a's status and the body {"message":"<Message>"}
+// with contentType as the Content-Type header's values.
+func writeMessage(w http.ResponseWriter, a GatewayAnswer, contentType []string) *awserr.Error {
 	body, err := json.Marshal(struct {
 		Message string `json:"message"`
 	}{a.Message})
 	if err != nil {
 		return awserr.Internalf(err)
 	}
-	w.Header().Set("Content-Type", FrontAnswersSwitch().Value.ContentType)
+	w.Header()["Content-Type"] = contentType
 	w.WriteHeader(a.Status)
 	// A failed write means the client went away; nothing else can be sent.
 	_, _ = w.Write(body) //nolint:errcheck // the client is gone when this fails
 	return nil
+}
+
+// headerBytes is the size of r's request line plus headers as the front
+// layer's quota counts them (apigateway-http.md 4.7): the request line and
+// each header line, Host included, with its CRLF, the blank line that ends
+// the headers not counted. The request target is the one the client sent,
+// so on the path fallback it includes /_understudy/execute-api/<api-id>.
+func headerBytes(r *http.Request) int {
+	target := lambdaproxy.EscapedPath(r)
+	if r.URL.RawQuery != "" {
+		target += "?" + r.URL.RawQuery
+	}
+	const crlf = len("\r\n")
+	const sep = len(": ")
+	n := len(r.Method) + 1 + len(target) + 1 + len(r.Proto) + crlf
+	n += len("Host") + sep + len(r.Host) + crlf
+	for name, values := range r.Header {
+		for _, v := range values {
+			n += len(name) + sep + len(v) + crlf
+		}
+	}
+	// net/http moves Transfer-Encoding out of the header map.
+	for _, te := range r.TransferEncoding {
+		n += len("Transfer-Encoding") + sep + len(te) + crlf
+	}
+	return n
 }

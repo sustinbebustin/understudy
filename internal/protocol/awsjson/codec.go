@@ -202,7 +202,7 @@ type Response struct {
 func (c Codec) Encode(op *registry.Operation, requestID string, out smithy.Serializable, status int) (Response, *awserr.Error) {
 	var body []byte
 	if op.Output != nil && op.Output.Type != smithy.TypeUnit {
-		s := newSerializer()
+		s := newSerializer(nameOrder)
 		out.Serialize(s)
 		b, err := s.bytes()
 		if err != nil {
@@ -213,6 +213,20 @@ func (c Codec) Encode(op *registry.Operation, requestID string, out smithy.Seria
 	h := c.header(requestID, len(body))
 	checksum(h, op.Service, body)
 	return Response{Status: status, Header: h, Body: body}, nil
+}
+
+// EncodeInput serializes in, an input of op, into a request body as an SDK
+// client writes it: members in model order, unlike a success body's sorted
+// members, and {} when no member is set. A serializer failure is an
+// Internal error.
+func (c Codec) EncodeInput(op *registry.Operation, in smithy.Serializable) ([]byte, *awserr.Error) {
+	s := newSerializer(modelOrder)
+	in.Serialize(s)
+	b, err := s.bytes()
+	if err != nil {
+		return nil, awserr.Internalf(fmt.Errorf("encoding the %s input: %w", op.ID, err))
+	}
+	return b, nil
 }
 
 // checksum sets x-amz-crc32, the CRC-32 (IEEE) of body in decimal, when
@@ -290,7 +304,7 @@ func appendMembers(body []byte, e *awserr.Error) ([]byte, error) {
 	if !ok {
 		return body, nil
 	}
-	s := newSerializer()
+	s := newSerializer(modelOrder)
 	v.Serialize(s)
 	obj, err := s.bytes()
 	if err == nil {

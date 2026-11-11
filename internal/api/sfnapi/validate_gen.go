@@ -966,9 +966,6 @@ func (v *StartExecutionInput) validate(path awserr.Path, out *[]awserr.Violation
 		}
 	}
 	if v.Input != nil {
-		if utf8.RuneCountInString(*v.Input) > 262144 {
-			*out = append(*out, awserr.Violation{Path: at(path, "input"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 262144}})
-		}
 		if utf8.RuneCountInString(*v.Input) < 0 {
 			*out = append(*out, awserr.Violation{Path: at(path, "input"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}

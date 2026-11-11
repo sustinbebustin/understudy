@@ -57,6 +57,18 @@
         }
       }
     },
+    "com.amazonaws.sfn#StartExecutionInput$input": {
+      "type": "apply",
+      "replace": true,
+      "traits": {
+        "smithy.api#length": {"min": 0},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/sfn/SFN-08/07-big-input.json, testdata/parity/sfn/ASL-15/01-start-over.json: AWS limits input to 262144 bytes in UTF-8 encoding, not characters, with the wording 'Member must have size less than or equal to 262144 bytes in UTF-8 encoding'; the generated length check counts characters, so the handler checks the bytes (checkInputSize in internal/service/sfn/executions.go)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
     "com.amazon.coral.service#AccessDeniedException": {
       "type": "apply",
       "traits": {

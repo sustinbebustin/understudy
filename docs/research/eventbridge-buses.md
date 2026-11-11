@@ -71,7 +71,7 @@ No EventBridge error shape carries `httpError`; `InternalException` is `error: s
 - Timestamps are `com.amazonaws.eventbridge#Timestamp`, epoch seconds on the awsJson wire.
 - The API reference still says `Name` is "Currently, this is always `default`" and that the response shows "state" [DOC DescribeEventBus]; both are stale (section 9).
 - Describing by ARN returns the bus name as `Name`, for a custom bus and for `default` (EBB-07, recorded 2026-11-03). The default bus describes as `{Arn, CreationTime, LastModifiedTime, Name}`.
-- Members are written sorted by name, in every EventBridge response EBB recorded (`{"Arn":...,"CreationTime":...,"LastModifiedTime":...,"Name":...}`, `{"DeadLetterConfig":...,"Description":...,"EventBusArn":...,"LogConfig":...}`, `{"FailedEntries":[],"FailedEntryCount":0}`); understudy writes them in the model's order, so a replay of those steps differs in order only.
+- Members are written sorted by name, in every EventBridge response EBB recorded (`{"Arn":...,"CreationTime":...,"LastModifiedTime":...,"Name":...}`, `{"DeadLetterConfig":...,"Description":...,"EventBusArn":...,"LogConfig":...}`, `{"FailedEntries":[],"FailedEntryCount":0}`). understudy sorts them too, as it does for every awsJson service (`internal/protocol/awsjson`).
 
 ### 3.3 ListEventBuses
 

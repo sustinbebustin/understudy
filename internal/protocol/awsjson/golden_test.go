@@ -13,6 +13,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/protocol/awsjson"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -266,12 +267,59 @@ func TestGoldenShapeSerialization(t *testing.T) {
 	if aerr != nil {
 		t.Fatal(aerr.AsError())
 	}
-	want := `{"String":"caf` + "é" + ` \"q\"\n","Enum":"RED","IntEnum":2,"Blob":"aGkhIQ==","Boolean":false,` +
-		`"Byte":-128,"Short":32767,"Integer":5,"Long":9007199254740993,"Float":1.5,"Double":"-Infinity",` +
-		`"BigInteger":1180591620717411303424,"BigDecimal":1.000000000000000000001,"Timestamp":1700000000.123,` +
-		`"DateTime":"2014-04-29T18:30:38.12Z","HttpDate":"Tue, 29 Apr 2014 18:30:38 GMT",` +
-		`"Document":{"b":[null,1e3],"a":true},"List":[],"SparseList":["x",null],"Map":{"a":1},` +
-		`"Nested":{"Double":"NaN"},"Choice":{"Number":7}}`
+	want := `{"BigDecimal":1.000000000000000000001,"BigInteger":1180591620717411303424,"Blob":"aGkhIQ==",` +
+		`"Boolean":false,"Byte":-128,"Choice":{"Number":7},"DateTime":"2014-04-29T18:30:38.12Z",` +
+		`"Document":{"b":[null,1e3],"a":true},"Double":"-Infinity","Enum":"RED","Float":1.5,` +
+		`"HttpDate":"Tue, 29 Apr 2014 18:30:38 GMT","IntEnum":2,"Integer":5,"List":[],"Long":9007199254740993,` +
+		`"Map":{"a":1},"Nested":{"Double":"NaN"},"Short":32767,"SparseList":["x",null],` +
+		`"String":"caf` + "é" + ` \"q\"\n","Timestamp":1700000000.123}`
+	if string(resp.Body) != want {
+		t.Errorf("body =\n%s\nwant\n%s", resp.Body, want)
+	}
+}
+
+// serializeFunc is an output that drives the serializer directly, so a test
+// controls the order members and map entries are written in.
+type serializeFunc func(smithy.Serializer)
+
+func (f serializeFunc) Serialize(s smithy.Serializer) { f(s) }
+
+// AWS writes every structure of an awsJson success body with its members
+// sorted by name, nested ones and list elements included, and keeps map
+// entries and document members in the order they are written (EBB-04,
+// SSM-04, sfn/ASL-01/01-missing-next.json, CWA-19; sqs/R01/02-recv1.json
+// for an unsorted Attributes map).
+func TestGoldenStructureMembersSortedByName(t *testing.T) {
+	f := newFixture(t)
+	str := scalar("smithy.api#String", smithy.TypeString)
+	entry := structure("test#Entry", member("b", str), member("a", str))
+	list := listOf("test#Entries", entry)
+	counts := mapOf("test#Counts", str)
+	doc := scalar("smithy.api#Document", smithy.TypeDocument)
+	out := serializeFunc(func(s smithy.Serializer) {
+		s.WriteStruct(nil, f.sink.Output)
+		s.WriteString(member("Zeta", str), "z")
+		s.WriteMap(member("Map", counts), 2)
+		s.WriteMapKey("b")
+		s.WriteString(counts.Members[1], "1")
+		s.WriteMapKey("a")
+		s.WriteString(counts.Members[1], "2")
+		s.CloseMap()
+		s.WriteDocument(member("Document", doc), document.Map{{Key: "y", Value: document.Bool(true)}, {Key: "x", Value: document.Null{}}})
+		s.WriteList(member("Entries", list), 1)
+		s.WriteStruct(list.Members[0], entry)
+		s.WriteString(entry.Members[0], "B")
+		s.WriteString(entry.Members[1], "A")
+		s.CloseStruct()
+		s.CloseList()
+		s.WriteString(member("Alpha", str), "a")
+		s.CloseStruct()
+	})
+	resp, aerr := awsjson.Codec{Version: awsjson.V11}.Encode(f.sink, requestID, out, 200)
+	if aerr != nil {
+		t.Fatal(aerr.AsError())
+	}
+	want := `{"Alpha":"a","Document":{"y":true,"x":null},"Entries":[{"a":"A","b":"B"}],"Map":{"b":"1","a":"2"},"Zeta":"z"}`
 	if string(resp.Body) != want {
 		t.Errorf("body =\n%s\nwant\n%s", resp.Body, want)
 	}

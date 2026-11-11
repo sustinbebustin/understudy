@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -182,42 +183,74 @@ func TestSFNLoggingNeedsTheRolesLogDelivery(t *testing.T) {
 }
 
 // A Lambda task whose role may not invoke the function fails under enforce
-// with Lambda.AWSLambdaException and Lambda's denial in the SDK v2 cause
-// form a function-ARN Resource gets (switch sfn.integration.lambda-error;
-// SFN-15, recorded 2026-11-03); the function never runs, so no container
-// is needed.
+// with Lambda.AWSLambdaException and Lambda's denial, `on resource:`
+// included, in the SDK suffix its Resource form gets (switch
+// sfn.integration.lambda-error; SFN-15 02 and 03, recorded 2026-11-03). The
+// cause is compared whole after the session name and request id are
+// normalized; the function never runs, so no container is needed.
 func TestSFNLambdaTaskDeniedUnderEnforce(t *testing.T) {
-	c, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
-	sfnRoleTrusting(t, endpoint, "states.amazonaws.com")
-	roleTrustingLambda(t, endpoint, "fn")
-	if w := createFunction(t, dummy, endpoint, "fn"); w.status != http.StatusCreated {
-		t.Fatalf("CreateFunction = %d %s", w.status, w.body)
-	}
-	const fn = "arn:aws:lambda:us-east-1:000000000000:function:fn"
-	if w := createMachine(t, dummy, endpoint, "task", `{"StartAt":"T","States":{"T":{"Type":"Task","Resource":"`+fn+`","End":true}}}`, ""); w.status != http.StatusOK {
-		t.Fatalf("create = %d %s", w.status, w.body)
-	}
-	started := sfnCall(t, dummy, endpoint, "StartExecution", `{"stateMachineArn":"arn:aws:states:us-east-1:000000000000:stateMachine:task","input":"{}"}`)
-	var out struct{ ExecutionArn string }
-	if err := json.Unmarshal([]byte(started.body), &out); started.status != http.StatusOK || err != nil {
-		t.Fatalf("StartExecution = %d %s", started.status, started.body)
-	}
-	if _, err := c.Settle(t.Context(), 10*time.Second); err != nil {
-		t.Fatal(err)
-	}
-	described := sfnCall(t, dummy, endpoint, "DescribeExecution", `{"executionArn":"`+out.ExecutionArn+`"}`)
-	var d struct{ Status, Error, Cause string }
-	if err := json.Unmarshal([]byte(described.body), &d); err != nil {
-		t.Fatalf("DescribeExecution = %d %s", described.status, described.body)
-	}
-	if d.Status != "FAILED" || d.Error != "Lambda.AWSLambdaException" || !strings.Contains(d.Cause, "is not authorized to perform: lambda:InvokeFunction") ||
-		!strings.Contains(d.Cause, " (Service: Lambda, Status Code: 403, Request ID: ") || !strings.HasSuffix(d.Cause, ") (SDK Attempt Count: 1)") {
-		t.Errorf("execution = %s %s %q, want FAILED Lambda.AWSLambdaException with Lambda's denial in the SDK v2 cause form", d.Status, d.Error, d.Cause)
-	}
-	if got := userPolicyOf(t, c, sfnRole); !strings.Contains(got, `"lambda:InvokeFunction"`) || !strings.Contains(got, fn) {
-		t.Errorf("/iam/policy for the role = %s, want lambda:InvokeFunction on %s", got, fn)
+	const (
+		fn     = "arn:aws:lambda:us-east-1:000000000000:function:fn"
+		denial = "User: arn:aws:sts::000000000000:assumed-role/sfn/<session> is not authorized to perform: lambda:InvokeFunction on resource: " + fn +
+			" because no identity-based policy allows the lambda:InvokeFunction action"
+	)
+	for _, tc := range []struct {
+		name, state, cause string
+	}{
+		{
+			"function ARN",
+			`{"Type":"Task","Resource":"` + fn + `","End":true}`,
+			denial + " (Service: Lambda, Status Code: 403, Request ID: <uuid>) (SDK Attempt Count: 1)",
+		},
+		{
+			"lambda:invoke",
+			`{"Type":"Task","Resource":"arn:aws:states:::lambda:invoke","Parameters":{"FunctionName":"` + fn + `","Payload":{}},"End":true}`,
+			denial + " (Service: AWSLambda; Status Code: 403; Error Code: AccessDeniedException; Request ID: <uuid>; Proxy: null)",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
+			sfnRoleTrusting(t, endpoint, "states.amazonaws.com")
+			roleTrustingLambda(t, endpoint, "fn")
+			if w := createFunction(t, dummy, endpoint, "fn"); w.status != http.StatusCreated {
+				t.Fatalf("CreateFunction = %d %s", w.status, w.body)
+			}
+			if w := createMachine(t, dummy, endpoint, "task", `{"StartAt":"T","States":{"T":`+tc.state+`}}`, ""); w.status != http.StatusOK {
+				t.Fatalf("create = %d %s", w.status, w.body)
+			}
+			started := sfnCall(t, dummy, endpoint, "StartExecution", `{"stateMachineArn":"arn:aws:states:us-east-1:000000000000:stateMachine:task","input":"{}"}`)
+			var out struct{ ExecutionArn string }
+			if err := json.Unmarshal([]byte(started.body), &out); started.status != http.StatusOK || err != nil {
+				t.Fatalf("StartExecution = %d %s", started.status, started.body)
+			}
+			if _, err := c.Settle(t.Context(), 10*time.Second); err != nil {
+				t.Fatal(err)
+			}
+			described := sfnCall(t, dummy, endpoint, "DescribeExecution", `{"executionArn":"`+out.ExecutionArn+`"}`)
+			var d struct{ Status, Error, Cause string }
+			if err := json.Unmarshal([]byte(described.body), &d); err != nil {
+				t.Fatalf("DescribeExecution = %d %s", described.status, described.body)
+			}
+			cause := lambdaDenialSession.ReplaceAllString(d.Cause, "/<session> ")
+			cause = lambdaDenialRequestID.ReplaceAllString(cause, "Request ID: <uuid>")
+			if d.Status != "FAILED" || d.Error != "Lambda.AWSLambdaException" || cause != tc.cause {
+				t.Errorf("execution = %s %s %q, want FAILED Lambda.AWSLambdaException %q", d.Status, d.Error, cause, tc.cause)
+			}
+			if got := userPolicyOf(t, c, sfnRole); !strings.Contains(got, `"lambda:InvokeFunction"`) || !strings.Contains(got, fn) {
+				t.Errorf("/iam/policy for the role = %s, want lambda:InvokeFunction on %s", got, fn)
+			}
+		})
 	}
 }
+
+var (
+	// lambdaDenialSession matches the role session name and the space after
+	// it. AWS mints a random 32-letter name; understudy infers one, so
+	// any name is normalized.
+	lambdaDenialSession = regexp.MustCompile(`/[A-Za-z0-9_+=,.@-]+ `)
+	// lambdaDenialRequestID matches the request id in a cause's SDK suffix.
+	lambdaDenialRequestID = regexp.MustCompile(`Request ID: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
+)
 
 // /iam/policy for a caller who created a machine without tags lists
 // states:CreateStateMachine and iam:PassRole on the role with its

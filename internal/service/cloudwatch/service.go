@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/serviceevent"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -29,7 +30,7 @@ type Service struct {
 	// evaluation is TimerAlarmEvaluation as registered with the kernel.
 	evaluation kernel.HandledKind
 	// events are the alarm events not sent yet, in commit order.
-	events eventQueue
+	events *serviceevent.Queue
 }
 
 // New binds the CloudWatch operations understudy implements and registers
@@ -41,6 +42,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 		cells:   store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
 		history: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newHistory),
 	}
+	s.events = serviceevent.New(d.Kernel, s.lostEvent)
 	s.evaluation = d.Kernel.Timers().Handle(TimerAlarmEvaluation, s.onEvaluation)
 	b := cloudwatchapi.NewBinder(d.Binder)
 	s.bindAlarms(b)

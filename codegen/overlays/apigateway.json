@@ -19,7 +19,14 @@
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#validationInputRoot": {},
+        "dev.understudy#validationPathStyle": "rolledUp",
         "dev.understudy#evidence": [
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/apigateway/APIGW1/01-validation.json: a scalar list element's violation is named once at the list, Value '[WRONG]' at 'createRestApiInput.endpointConfiguration.types' failed to satisfy constraint: Member must satisfy constraint: [Member must satisfy enum value set: [PRIVATE, EDGE, REGIONAL]]; a member of a structured element keeps its indexed path (updateRestApiInput.patchOperations.1.member.op, localstack test_apigateway_api.snapshot.json#L4809) (docs/research/error-matrix.md#4-the-aws-validation-message-grammar-coral, style B); inferred: the rolled-up map forms (Map keys must satisfy constraint, Map value must satisfy constraint) are unrecorded for API Gateway REST",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#validationPathStyle"]
+          },
           {
             "label": "third-party-recorded",
             "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4803: body members are named under the input structure (updateRestApiInput.patchOperations.1.member.op, L4809; putIntegrationInput.type, L3084-L3098) and a URI label bare (statusCode, L4062-L4086); docs/research/apigateway-rest.md 2.4, 3.8",
@@ -51,6 +58,17 @@
         "dev.understudy#evidence": {
           "label": "third-party-recorded",
           "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/apigateway/test_apigateway_api.snapshot.json#L4809"
+        }
+      }
+    },
+    "com.amazonaws.apigateway#EndpointType": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#enumOrder": ["PRIVATE", "EDGE", "REGIONAL"],
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/apigateway/APIGW1/01-validation.json: CreateRestApi with endpoint type WRONG lists the enum value set as [PRIVATE, EDGE, REGIONAL]",
+          "validated": "2026-11-03"
         }
       }
     },

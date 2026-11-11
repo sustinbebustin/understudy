@@ -19,8 +19,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the version of the service's snapshot sections.
-const stateVersion = 1
+// stateVersion is the version of the service's snapshot sections. Before
+// 1.0 a section of another version is refused, not migrated (ADR 0009).
+const stateVersion = 2
 
 // Options configure the service.
 type Options struct {
@@ -52,7 +53,8 @@ var _ kernel.Stateful = (*Service)(nil)
 // APIGW2-01 recorded the refusal texts understudy sends where it has them,
 // and APIGW2-03 the id shapes (apigateway-http.md 2.3, 2.5).
 const baseNote = "error texts are AWS's where APIGW2-01 recorded them and understudy's elsewhere; " +
-	"AWS pretty-prints some error bodies (GetApi, GetStage, CreateStage), which understudy sends compact"
+	"AWS pretty-prints some error bodies (GetApi, GetStage, CreateStage), which understudy sends compact; " +
+	"an AccessDeniedException, BadRequestException, NotFoundException or ConflictException body carries Message, where AWS sends message (recorded, APIGW2-01, APIGW2-15)"
 
 // Coverage notes of the operations bound so far: what each leaves out of
 // the documented behavior.
@@ -69,6 +71,10 @@ const (
 		"a Lambda integration with credentialsArn, requestParameters, responseParameters or a stage variable in its URI is stored and a request that reaches it answers 501; " +
 		"tlsConfig is stored without effect; " +
 		"requestTemplates, templateSelectionExpression and contentHandlingStrategy answer NotImplemented (WebSocket API members)"
+	// subtypeUpdateNote is checkSentParameters' rule, inferred from the one
+	// partial update APIGW2-01 recorded (apigateway-http.md 6.2).
+	subtypeUpdateNote = "requestParameters sent to an integration with a subtype must give every required parameter of the subtype a value, " +
+		"or the update is refused with AWS's text Invalid integration URI specified (inferred from one recorded case, APIGW2-01 case 22)"
 	stageNote = "accessLogSettings, defaultRouteSettings and routeSettings are stored without effect (no access log records, no throttling); " +
 		"an automatic deployment completes before the call returns, where AWS served it within 1 to 2 s (APIGW2-04); " +
 		"clientCertificateId answers NotImplemented (WebSocket APIs only)"
@@ -85,7 +91,7 @@ const (
 		"the order of two greedy routes of one method is inferred: more segments before the variable first, then the leftmost literal segment; " +
 		"HEAD reaches only HEAD and ANY routes (inferred, unrecorded); " +
 		"AWS_IAM routes, CORS requests and integrations other than Lambda AWS_PROXY answer 501; " +
-		"parameter mapping, access logging and throttling are not applied; headers over 10,240 bytes are not refused with 431; " +
+		"parameter mapping, access logging and throttling are not applied; " +
 		"a 1.0 event reports header names as Go's HTTP server canonicalizes them, where AWS keeps the client's spelling"
 )
 
@@ -108,7 +114,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	b := apigatewayv2api.NewBinder(d.Binder)
 	b.CreateApi(s.createAPI, partial(apiNote+"; "+tagsNote), kernel.WithCheck(checkCreateAPI),
 		kernel.WithResources(apisCollection[apigatewayv2api.CreateApiInput]))
-	b.GetApis(s.getAPIs, registry.Partial{Note: baseNote},
+	b.GetApis(s.getAPIs, partial("lists by id ascending, inferred: APIGW2-03 recorded one page, so the order is not recorded, but the nextToken form is"),
 		kernel.WithResources(apisCollection[apigatewayv2api.GetApisInput]))
 	b.GetApi(s.getAPI, registry.Partial{Note: baseNote},
 		kernel.WithResources(apiItem(func(in *apigatewayv2api.GetApiInput) string { return in.ApiId })))
@@ -141,7 +147,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		kernel.WithResources(childCollection(func(in *apigatewayv2api.GetIntegrationsInput) string { return in.ApiId }, "integrations")))
 	b.GetIntegration(s.getIntegration, registry.Partial{Note: baseNote},
 		kernel.WithResources(childItem(func(in *apigatewayv2api.GetIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
-	b.UpdateIntegration(s.updateIntegration, partial(integrationNote), kernel.WithCheck(checkUpdateIntegration),
+	b.UpdateIntegration(s.updateIntegration, partial(integrationNote+"; "+subtypeUpdateNote), kernel.WithCheck(checkUpdateIntegration),
 		kernel.WithResources(childItem(func(in *apigatewayv2api.UpdateIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))
 	b.DeleteIntegration(s.deleteIntegration, registry.Partial{Note: baseNote},
 		kernel.WithResources(childItem(func(in *apigatewayv2api.DeleteIntegrationInput) (string, string) { return in.ApiId, in.IntegrationId }, "integrations")))

@@ -60,6 +60,9 @@ type taskRecord struct {
 	Task     int64  `json:"task"`
 	Resource int    `json:"resource"`
 	Function string `json:"function"`
+	// Async is true for an Event invocation; absent for RequestResponse, so
+	// a snapshot saved before Event support loads unchanged.
+	Async bool `json:"async,omitempty"`
 	// Payload is the payload's JSON text; "" when lambda:invoke sends none.
 	Payload string `json:"payload,omitempty"`
 	// TimeoutSeconds is the task timeout, always whole seconds.
@@ -188,7 +191,7 @@ func (x Execution) MarshalJSON() ([]byte, error) {
 		tr := taskRecord{
 			Task: int64(t.invoke.Task), Resource: int(t.invoke.Resource), Function: t.invoke.Function,
 			TimeoutSeconds: int64(t.invoke.Timeout / time.Second), visitRecord: writeVisit(t.visit),
-			Started: t.started, Timer: int64(t.timer),
+			Started: t.started, Timer: int64(t.timer), Async: t.invoke.Invocation == AsyncInvocation,
 		}
 		if t.invoke.Payload != nil {
 			tr.Payload = text(t.invoke.Payload)
@@ -405,8 +408,15 @@ func readTask(tr *taskRecord) (inflight, error) {
 		return inflight{}, fmt.Errorf("asl: task %d of a saved execution has resource kind %d, want %d or %d; the snapshot is corrupt",
 			tr.Task, tr.Resource, FunctionARN, LambdaInvoke)
 	}
+	invocation := SyncInvocation
+	if tr.Async {
+		invocation = AsyncInvocation
+	}
 	return inflight{
-		invoke:  InvokeLambda{Task: TaskID(tr.Task), Resource: kind, Function: tr.Function, Payload: payload, Timeout: time.Duration(tr.TimeoutSeconds) * time.Second},
+		invoke: InvokeLambda{
+			Task: TaskID(tr.Task), Resource: kind, Invocation: invocation, Function: tr.Function, Payload: payload,
+			Timeout: time.Duration(tr.TimeoutSeconds) * time.Second,
+		},
 		visit:   v,
 		started: tr.Started,
 		timer:   TimerID(tr.Timer),

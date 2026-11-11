@@ -37,6 +37,11 @@ var (
 	callerIP        = regexp.MustCompile(`((?:sourceIPAddress|sourceIp|SourceIp|[Xx]-[Ff]orwarded-[Ff]or)(?:\\*"\s*:\s*\\*"|'?\s*:\s*b?'|:\s*))\d{1,3}(?:\.\d{1,3}){3}\b`)
 	credentialParam = regexp.MustCompile(`([?&](?:X-Amz-Signature|X-Amz-Credential|X-Amz-Security-Token|Signature)=)[^&#\s"'<>]+`)
 	accessKeyID     = regexp.MustCompile(`\b(?:AKIA|ASIA)(?:[A-Z0-9]{16}|REDACTED)\b`)
+	// The request id of an AWS SDK for Java client suffix, v1 ("; "
+	// separated, with an error code) or v2 (", " separated), which a
+	// service appends to the message of an error another service answered
+	// it (internal/awserr/sdkclient.go).
+	sdkSuffixRequestID = regexp.MustCompile(`(\(Service: [^;,()]+[;,] Status Code: \d+[;,] (?:Error Code: [^;()]+; )?Request ID: )[0-9A-Za-z-]+`)
 )
 
 // masksMember reports whether n's member rule masks a scalar of kind holding
@@ -72,7 +77,7 @@ func (n Name) masksMember(key string, kind Kind, value string) bool {
 func (n Name) maskText(s string) string {
 	switch n {
 	case RequestID:
-		return maskLogRequestID(s)
+		return sdkSuffixRequestID.ReplaceAllString(maskLogRequestID(s), "${1}"+n.Mask())
 	case ReceiptHandle:
 		if isReceiptHandle(s) {
 			return n.Mask()

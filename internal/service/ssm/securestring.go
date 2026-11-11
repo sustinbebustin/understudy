@@ -86,7 +86,7 @@ func (s *Service) isDefaultKey(ctx context.Context, c *kernel.Call, scope aws.Sc
 	case err.ID.Shape == kmsapi.IdentityNotFoundException().Shape:
 		return false, nil
 	}
-	return false, kmsFailure("ListAliases", p, err)
+	return false, kmsFailure("ListAliases", p, err, s.kmsRequestID())
 }
 
 // seal encrypts plaintext as the value of the parameter canonical of scope
@@ -104,7 +104,7 @@ func (s *Service) seal(ctx context.Context, c *kernel.Call, scope aws.Scope, can
 		EncryptionContext: encryptionContext(parameterARN(scope, canonical)),
 	})
 	if err != nil {
-		return sealedValue{}, kmsFailure("Encrypt", forWrite, err)
+		return sealedValue{}, kmsFailure("Encrypt", forWrite, err, s.kmsRequestID())
 	}
 	return sealedValue{Ciphertext: out.CiphertextBlob, KeyRef: keyRef}, nil
 }
@@ -121,7 +121,7 @@ func (s *Service) open(ctx context.Context, c *kernel.Call, scope aws.Scope, can
 		EncryptionContext: encryptionContext(parameterARN(scope, canonical)),
 	})
 	if err != nil {
-		return "", kmsFailure("Decrypt", forRead, err)
+		return "", kmsFailure("Decrypt", forRead, err, s.kmsRequestID())
 	}
 	return string(out.Plaintext), nil
 }
@@ -169,22 +169,30 @@ const (
 	forRead                        // opening a value a read would return
 )
 
+// kmsClient is the client Parameter Store calls KMS through, whose suffix
+// ends the KMS message of a KMS failure (SSM-22 steps 04-07).
+var kmsClient = awserr.SDKv1("AWSKMS") //nolint:gochecknoglobals // a constant value; Go has no struct constants.
+
+// kmsRequestID is the request id of a failed KMS call: a fresh one, as
+// Step Functions mints for its Lambda calls, since the kernel does not
+// expose the id of the internal call that failed.
+func (s *Service) kmsRequestID() string { return string(s.k.IDs().RequestID()) }
+
 // kmsFailure is Parameter Store's answer for a failed KMS call op made for
-// p: a KMS access denial is SSM's AccessDeniedException carrying KMS's
-// message (SSM-22 step 07); any other KMS client error is InvalidKeyId
-// carrying KMS's message (ssm-parameters.md 5.5, 12.3; SSM-22 steps 04-06
-// for a missing alias and a disabled key); a KMS server error is
-// InternalServerError naming the call and what was left as it was; an
-// understudy bug passes through. AWS appends to KMS's message the KMS
-// client's "(Service: AWSKMS; Status Code: 400; Error Code: <code>; Request
-// ID: <KMS request id>; Proxy: null)", which understudy does not, having no
-// KMS request id of its own to name.
-func kmsFailure(op string, p kmsPurpose, err *awserr.Error) *awserr.Error {
+// p, whose request id is requestID: a KMS access denial is SSM's
+// AccessDeniedException carrying KMS's message (SSM-22 step 07); any other
+// KMS client error is InvalidKeyId carrying KMS's message
+// (ssm-parameters.md 5.5, 12.3; SSM-22 steps 04-06 for a missing alias and
+// a disabled key); both end with the KMS client's suffix, which names KMS's
+// status, error code and requestID. A KMS server error is
+// InternalServerError in understudy's own words, naming the call and what
+// was left as it was; an understudy bug passes through.
+func kmsFailure(op string, p kmsPurpose, err *awserr.Error, requestID string) *awserr.Error {
 	if _, internal := err.Origin.(awserr.Internal); internal {
 		return err
 	}
 	if err.ID.Shape == kmsapi.DenialError().Shape {
-		return ssmapi.ErrAccessDeniedException(err.Message)
+		return ssmapi.ErrAccessDeniedException(kmsClient.Message(err, requestID))
 	}
 	if err.ID.Status >= 500 {
 		outcome := "Nothing was written; try the request again."
@@ -195,5 +203,5 @@ func kmsFailure(op string, p kmsPurpose, err *awserr.Error) *awserr.Error {
 			"The KMS %s call for this SecureString parameter failed with %s (%d): %s %s",
 			op, err.ID.Shape, err.ID.Status, err.Message, outcome))
 	}
-	return ssmapi.ErrInvalidKeyId(err.Message)
+	return ssmapi.ErrInvalidKeyId(kmsClient.Message(err, requestID))
 }
