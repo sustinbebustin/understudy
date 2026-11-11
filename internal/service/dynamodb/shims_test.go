@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -367,6 +368,63 @@ func TestUnknownKMSKeysAreRefused(t *testing.T) {
 			h.Errorf("SSEDescription after a refused update = %v, want none", desc)
 		}
 	}, withKMS)
+}
+
+// unknownKMSKeyText is AWS's refusal of an SSE key KMS does not find
+// (testdata/parity/dynamodb/R04/x-create-table-unknown-kms.json), with the
+// key and the request id left as groups.
+var unknownKMSKeyText = regexp.MustCompile(`^KMS validation error: com\.amazonaws\.services\.kms\.model\.NotFoundException: Key '(.+)' does not exist ` +
+	`\(Service: AWSKMS; Status Code: 400; Error Code: NotFoundException; Request ID: ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}); Proxy: null\)$`)
+
+// TestUnknownKMSKeyRefusalIsInKMSsWords: CreateTable and UpdateTable naming
+// a key ARN KMS does not find are refused with the text AWS recorded, the
+// ARN as given and a uuid request id; an alias is named by its ARN.
+func TestUnknownKMSKeyRefusalIsInKMSsWords(t *testing.T) {
+	const keyARN = "arn:aws:kms:us-east-2:123456789012:key/00000000-0000-0000-0000-000000000000"
+	runStore(t, func(h *harness, _ *tableStore) {
+		check := func(what, body, wantKey string) {
+			h.Helper()
+			got := h.call(what, body)
+			e := parseError(h, got.Body)
+			m := unknownKMSKeyText.FindStringSubmatch(e.Message)
+			if got.Status != http.StatusBadRequest || e.Type != "com.amazon.coral.validate#ValidationException" || m == nil {
+				h.Fatalf("%s = %d %s, want ValidationException in KMS's words", what, got.Status, got.Body)
+			}
+			if wantKey != "" && m[1] != wantKey {
+				h.Errorf("%s names key %q, want %q", what, m[1], wantKey)
+			}
+			if wantKey == "" && !strings.HasPrefix(m[1], "arn:aws:kms:") {
+				h.Errorf("%s names key %q, want its ARN", what, m[1])
+			}
+		}
+		create := `{"AttributeDefinitions":[{"AttributeName":"k","AttributeType":"S"}],"TableName":"Jobs","KeySchema":[{"AttributeName":"k","KeyType":"HASH"}],` +
+			`"SSESpecification":{"Enabled":true,"SSEType":"KMS","KMSMasterKeyId":"`
+		check("CreateTable", create+keyARN+`"}}`, keyARN)
+		check("CreateTable", create+`alias/missing"}}`, "")
+		h.mustCall("CreateTable", `{"AttributeDefinitions":[{"AttributeName":"k","AttributeType":"S"}],"TableName":"Jobs","KeySchema":[{"AttributeName":"k","KeyType":"HASH"}]}`)
+		check("UpdateTable", `{"TableName":"Jobs","SSESpecification":{"Enabled":true,"SSEType":"KMS","KMSMasterKeyId":"`+keyARN+`"}}`, keyARN)
+	}, withKMS)
+}
+
+// TestDescribeContributorInsightsIsAlwaysDisabled: an existing table
+// answers the recorded body (testdata/parity/dynamodb/R04/
+// 02-describe-contributor-insights.json) without Local; a missing table
+// gets the not-found answer of the TTL shim.
+func TestDescribeContributorInsightsIsAlwaysDisabled(t *testing.T) {
+	runStore(t, func(h *harness, _ *tableStore) {
+		h.mustCall("CreateTable", `{"AttributeDefinitions":[{"AttributeName":"id","AttributeType":"S"}],"TableName":"Jobs","KeySchema":[{"AttributeName":"id","KeyType":"HASH"}]}`)
+		got := h.call("DescribeContributorInsights", `{"TableName":"Jobs"}`)
+		if want := `{"ContributorInsightsStatus":"DISABLED","TableName":"Jobs"}`; got.Status != http.StatusOK || got.Body != want {
+			h.Errorf("DescribeContributorInsights = %d %s, want %s", got.Status, got.Body, want)
+		}
+		got = h.call("DescribeContributorInsights", `{"TableName":"Absent"}`)
+		if e := parseError(h, got.Body); got.Status != http.StatusBadRequest || e.Type != "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException" || e.Message != "Requested resource not found: Table: Absent not found" {
+			h.Errorf("DescribeContributorInsights of a missing table = %d %s", got.Status, got.Body)
+		}
+		if n := h.localSaw("DescribeContributorInsights"); n != 0 {
+			h.Errorf("Local received %d DescribeContributorInsights requests; the shim answers it", n)
+		}
+	})
 }
 
 // TestUpdateTableAnswerAgreesWithDescribeOnAMovingClock: the UpdateTable

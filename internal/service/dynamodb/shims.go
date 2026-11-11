@@ -264,11 +264,31 @@ func answered[In any](s *Service, fn func(ctx context.Context, c *kernel.Call, i
 	}
 }
 
+// describeContributorInsights answers DISABLED for a table that exists
+// (testdata/parity/dynamodb/R04/02-describe-contributor-insights.json), and
+// a missing table as DescribeTimeToLive does; that text is inferred for this
+// operation. Contributor insights cannot be enabled, so DISABLED is true.
+func (s *Service) describeContributorInsights(ctx context.Context, c *kernel.Call, in *dynamodbapi.DescribeContributorInsightsInput) (smithy.Serializable, *awserr.Error) {
+	a := tableAnswer(in.TableName)
+	if err := inScope(c.Scope(), []string{in.TableName}, a); err != nil {
+		return nil, err
+	}
+	name := tableName(in.TableName)
+	if _, err := s.recorded(ctx, c, name, dynamodbapi.ErrResourceNotFoundException(awsNotFound(name))); err != nil {
+		return nil, err
+	}
+	return &dynamodbapi.DescribeContributorInsightsOutput{
+		TableName:                 new(name),
+		ContributorInsightsStatus: new(dynamodbapi.ContributorInsightsStatusDisabled),
+	}, nil
+}
+
 // Coverage notes of the operations the shims answer.
 const (
 	ttlNote = "aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; " +
 		"a second TTL change to a table within an hour of emulator time is refused, as on AWS"
-	pitrNote = "point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented"
+	insightsNote = "contributor insights is never enabled: UpdateContributorInsights is unbound, so a table always answers DISABLED"
+	pitrNote     = "point-in-time recovery is recorded and described; no backups are taken, and the restore operations are not implemented"
 )
 
 // bindShims binds the operations the shims answer without Local: tags,
@@ -281,6 +301,8 @@ func (s *Service) bindShims(b dynamodbapi.Binder) {
 		tables(named(func(in *dynamodbapi.UpdateTimeToLiveInput) string { return in.TableName })))
 	b.DescribeTimeToLiveRaw(answered(s, s.describeTimeToLive), registry.Partial{Note: ttlNote},
 		tables(named(func(in *dynamodbapi.DescribeTimeToLiveInput) string { return in.TableName })))
+	b.DescribeContributorInsightsRaw(answered(s, s.describeContributorInsights), registry.Partial{Note: insightsNote},
+		tables(named(func(in *dynamodbapi.DescribeContributorInsightsInput) string { return in.TableName })))
 	b.UpdateContinuousBackupsRaw(answered(s, s.updateContinuousBackups), registry.StoredOnly{Note: pitrNote},
 		tables(named(func(in *dynamodbapi.UpdateContinuousBackupsInput) string { return in.TableName })))
 	b.DescribeContinuousBackupsRaw(answered(s, s.describeContinuousBackups), registry.StoredOnly{Note: pitrNote},

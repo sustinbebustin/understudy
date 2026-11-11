@@ -122,7 +122,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | apigateway | 124 | 0 | 0 | 39 | 85 | 0 | 1 |
 | apigatewayv2 | 103 | 0 | 2 | 29 | 72 | 0 | 1 |
 | cloudwatch | 55 | 4 | 0 | 11 | 40 | 0 | 0 |
-| dynamodb | 58 | 5 | 2 | 19 | 32 | 0 | 0 |
+| dynamodb | 58 | 5 | 2 | 20 | 31 | 0 | 0 |
 | dynamodbstreams | 4 | 1 | 0 | 3 | 0 | 0 | 0 |
 | eventbridge | 57 | 6 | 1 | 15 | 35 | 1 | 0 |
 | iam | 180 | 10 | 1 | 53 | 116 | 1 | 0 |
@@ -466,6 +466,7 @@ Raw operations:
 | BatchWriteItem | partial | third-party-recorded, 2 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule |
 | CreateTable | partial | third-party-recorded, 2 of 3 claims | aws-differs: dynamodb-local: table names are case-insensitive, so a name that differs from an existing table's only in case is refused with ResourceInUseException |
 | DeleteItem | partial | third-party-recorded, 2 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule |
+| DescribeContributorInsights | partial | third-party-recorded, 2 of 3 claims | contributor insights is never enabled: UpdateContributorInsights is unbound, so a table always answers DISABLED |
 | DescribeTimeToLive | partial | third-party-recorded, 2 of 3 claims | aws-differs: understudy: an expired item is deleted on the emulator clock as soon as it expires, where AWS deletes within days; a second TTL change to a table within an hour of emulator time is refused, as on AWS |
 | ExecuteStatement | partial | third-party-recorded, 2 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: a write never conflicts with a transaction in progress; inject TransactionConflictException with a fault rule; aws-differs: dynamodb-local: Limit is ignored; aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table; dynamodb:PartiQLSelect, the first action the operation lists, is recorded and authorized for every call, and every PartiQL action on any resource, since the tables are inside the statements, where AWS authorizes each statement's own action on its table |
 | ExecuteTransaction | partial | third-party-recorded, 2 of 3 claims | aws-differs: dynamodb-local: provisioned throughput is never enforced; inject ProvisionedThroughputExceededException or com.amazonaws.dynamodb#ThrottlingException with a fault rule; aws-differs: dynamodb-local: transactions never conflict; AWS cancels a conflicting transaction with TransactionCanceledException and the cancellation reason TransactionConflict; inject it with a fault rule whose members set CancellationReasons (smithy-protocol-tests.md 12.4); aws-differs: dynamodb-local: table names inside statements resolve case-insensitively, so a statement naming a case twin of a table acts on that table; dynamodb:PartiQLSelect, the first action the operation lists, is recorded and authorized for every call, and every PartiQL action on any resource, since the tables are inside the statements, where AWS authorizes each statement's own action on its table |
@@ -485,7 +486,6 @@ Raw operations:
 | DeleteBackup | unbound | unassessed |  |
 | DeleteResourcePolicy | unbound | unassessed |  |
 | DescribeBackup | unbound | unassessed |  |
-| DescribeContributorInsights | unbound | unassessed |  |
 | DescribeEndpoints | unbound | unassessed |  |
 | DescribeExport | unbound | unassessed |  |
 | DescribeGlobalTable | unbound | unassessed |  |

@@ -100,7 +100,9 @@
 //   - A KMS key is resolved with a DescribeKey forwarded to KMS as the
 //     caller, and described by the key ARN KMS answers; no key is the AWS
 //     managed key behind alias/aws/dynamodb, and a key KMS does not find
-//     is refused with ValidationException. A server that binds no KMS
+//     is refused with ValidationException in the words of the KMS exception
+//     AWS relays (testdata/parity/dynamodb/R04/x-create-table-unknown-kms.json),
+//     naming the key by its ARN. A server that binds no KMS
 //     describes the ARN of the id, alias or ARN the request names instead.
 //   - A table Local holds that the shim does not record (kept under
 //     --persist without the archive) is adopted by the first tag, TTL,
@@ -124,8 +126,7 @@
 //     (testdata/parity/dynamodb/R04/07-list-tags-missing-table.json,
 //     x-tag-51.json, x-tag-aws-prefix.json). The texts of
 //     TableNotFoundException ("Table not found: <name>"), of the tag size
-//     and character limits and of an unknown KMS key are UNVERIFIED against
-//     AWS, as are Local's TTL refusals reused here, except enabling a
+//     and character limits are UNVERIFIED against AWS, as are Local's TTL refusals reused here, except enabling a
 //     different attribute: "TimeToLive is active on a different
 //     AttributeName: current AttributeName is <attr>" is AWS's text, as
 //     celery records it from the service (t/unit/backends/test_dynamodb.py

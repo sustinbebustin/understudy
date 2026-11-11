@@ -107,7 +107,6 @@ understudy forwards DynamoDB to DynamoDB Local, so its answers carry Local's beh
 
 - A TTL change within an hour of the table's last one is refused with 400 `ValidationException` "Time to live has been modified multiple times within a fixed interval", as on AWS (`dynamodb/R04/03-ttl-disable.json`). understudy measures the hour on the emulator clock, so `understudy clock advance 1h` ends it; when AWS's interval starts and ends to the second is not recorded.
 - `Scan` is sequential: DynamoDB Local ignores `Segment` and `TotalSegments`, so there is no parallel scan.
-- `DescribeContributorInsights` is not implemented; AWS answers `DISABLED` (`dynamodb/R04/02-describe-contributor-insights.json`).
 - DynamoDB Streams is served from understudy's own stream log. The recorded Streams calls answer as AWS does: `ListStreams` signed for `dynamodb`, and the 400 `InvalidSignatureException` for a call signed for `streams.dynamodb` (`dynamodb/R11/07-streams-signed-dynamodb.json`, `dynamodb/R11/07-streams-signed-streams.dynamodb.json`).
 - A new on-demand table's stream has 4 shards on AWS and reads `ENABLING`, with no shards, for about 7 seconds; a disabled one reads `DISABLING` for about 8 (`dynamodb/DDBS-05/`). understudy's stream has one shard and changes status at once.
 - AWS replaces each stream shard with a child every 3.5 to 4.5 hours and removes a closed shard whole 24.5 to 26.3 hours after it closed, so an iterator request at a record in it answers `ResourceNotFoundException` "Requested resource not found: Shard does not exist"; no record was trimmed from a shard, and none answered `TrimmedDataAccessException` (`dynamodb/DDBS-14/`, `dynamodb/DDBS-15/`). understudy's one shard never rolls over: it trims each record 24 hours after it arrives and answers `TrimmedDataAccessException`, with the model's text, for a position behind the trim.
@@ -116,7 +115,6 @@ understudy forwards DynamoDB to DynamoDB Local, so its answers carry Local's beh
 - An expired iterator is `com.amazonaws.dynamodb.streams.v20120810#ExpiredIteratorException` on AWS; understudy's `__type` has DynamoDB's namespace (`dynamodb/DDBS-04/04-unused-at-16min.json`).
 - The Streams `ShardIteratorType` enum text lists `AT_TIMESTAMP` on AWS; understudy lists four types (`dynamodb/DDBS-02/07-bad-type.json`).
 - The rest of the stream's behavior, such as its single shard, is on the coverage page and under [DynamoDB Streams limitations](streams.md#limitations).
-- An unknown KMS key is "KMS validation error: com.amazonaws.services.kms.model.NotFoundException: Key '<arn>' does not exist (...)" on AWS (`dynamodb/R04/x-create-table-unknown-kms.json`).
 - Transactions never conflict. AWS cancels a conflicting transaction with `TransactionCanceledException` and the cancellation reason `TransactionConflict`; inject it with a fault rule whose members set `CancellationReasons` ([fault injection](faults.md#errors-with-members)). A conflict on a single-item write is `TransactionConflictException`, which a rule injects on `PutItem`, `UpdateItem` or `DeleteItem`.
 
 ## Kinesis
