@@ -56,7 +56,7 @@ func (s *Service) createInstanceProfile(_ context.Context, c *kernel.Call, in *i
 			return iamapi.InstanceProfile{}, errInstanceProfileExists(p.Name)
 		}
 		p.ID = s.ids.InstanceProfileID()
-		p.Created = now
+		p.Created = createDate(now)
 		st.InstanceProfiles[key(p.Name)] = p
 		return apiInstanceProfile(account, st, p), nil
 	})

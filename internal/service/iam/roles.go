@@ -107,7 +107,7 @@ func (s *Service) createRole(_ context.Context, c *kernel.Call, in *iamapi.Creat
 			}
 		}
 		r.ID = s.ids.RoleID()
-		r.Created = now
+		r.Created = createDate(now)
 		st.Roles[key(r.Name)] = r
 		// CreateRole shows neither RoleLastUsed nor MaxSessionDuration,
 		// which GetRole and ListRoles return (LocalStack's AWS-recorded

@@ -198,6 +198,39 @@ func TestCreateRoleDefaultsAndConflicts(t *testing.T) {
 	})
 }
 
+// CreateRole refuses the recorded trust policies with AWS's texts
+// (testdata/parity/iam/R15/06-create-role-invalid-trust.json,
+// 06-trust-lowercase.json, 06-trust-star.json).
+func TestCreateRoleRefusesRecordedTrustPolicies(t *testing.T) {
+	tests := []struct{ name, doc, want string }{
+		{"invalid-trust", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow"}]}`, "Missing required field Principal"},
+		{"lowercase", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:root"},"Action":"sts:assumerole"}]}`, "AssumeRole policy may only specify STS AssumeRole actions."},
+		{"star", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::123456789012:root"},"Action":"sts:*"}]}`, "AssumeRole policy may only specify STS AssumeRole actions."},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, func(h *harness) {
+				_, err := call(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "bad", AssumeRolePolicyDocument: tc.doc})
+				if err == nil || err.ID.QueryCode != "MalformedPolicyDocument" || err.Message != tc.want {
+					t.Errorf("CreateRole = %v, want MalformedPolicyDocument %q", err, tc.want)
+				}
+			})
+		})
+	}
+}
+
+// CreatePolicy keeps moto's text for a statement without actions: IAM's is
+// unrecorded, and STS's "Missing required field Action" is for session
+// policies only.
+func TestCreatePolicyWithoutActions(t *testing.T) {
+	run(t, func(h *harness) {
+		_, err := call(h, iamapi.OpCreatePolicy, &iamapi.CreatePolicyInput{PolicyName: "p", PolicyDocument: `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Resource":"*"}]}`})
+		if err == nil || err.ID.QueryCode != "MalformedPolicyDocument" || err.Message != "Policy statement must contain actions." {
+			t.Errorf("CreatePolicy = %v, want MalformedPolicyDocument %q", err, "Policy statement must contain actions.")
+		}
+	})
+}
+
 // The model's pathType pattern, ^(/)|(/[!-~]+/)$, anchors each alternative
 // on one side only; IAM reads it as "/" or a run of printable ASCII between
 // slashes, as every Path member's documentation says, and refuses the rest

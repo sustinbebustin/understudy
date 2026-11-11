@@ -92,7 +92,7 @@ func (s *Service) createUser(_ context.Context, c *kernel.Call, in *iamapi.Creat
 			}
 		}
 		u.ID = s.ids.UserID()
-		u.Created = now
+		u.Created = createDate(now)
 		st.Users[key(u.Name)] = u
 		return apiUserDetail(account, u), nil
 	})

@@ -20,6 +20,9 @@ func FromWire(t time.Time) Instant {
 // Add returns i+d.
 func (i Instant) Add(d time.Duration) Instant { return Instant{t: i.t.Add(d)} }
 
+// Truncate returns i rounded down to a multiple of d since the zero time.
+func (i Instant) Truncate(d time.Duration) Instant { return Instant{t: i.t.Truncate(d)} }
+
 // Sub returns i-j.
 func (i Instant) Sub(j Instant) time.Duration { return i.t.Sub(j.t) }
 

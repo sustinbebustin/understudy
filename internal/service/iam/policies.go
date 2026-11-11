@@ -183,8 +183,9 @@ func (s *Service) createPolicy(_ context.Context, c *kernel.Call, in *iamapi.Cre
 			return iamapi.Policy{}, errPolicyExists(p.Name)
 		}
 		p.ID = s.ids.PolicyID()
-		p.Created, p.Updated = now, now
-		p.Versions = []PolicyVersion{{ID: "v1", Document: in.PolicyDocument, Created: now}}
+		p.Created = createDate(now)
+		p.Updated = p.Created
+		p.Versions = []PolicyVersion{{ID: "v1", Document: in.PolicyDocument, Created: p.Created}}
 		st.Policies[key(p.Name)] = p
 		return apiPolicy(account, p, st.usages()), nil
 	})
@@ -372,10 +373,10 @@ func (s *Service) createPolicyVersion(_ context.Context, c *kernel.Call, in *iam
 		if len(p.Versions) >= maxPolicyVersions {
 			return Policy{}, errTooManyVersions()
 		}
-		created = PolicyVersion{ID: "v" + strconv.Itoa(p.Next), Document: in.PolicyDocument, Created: now}
+		created = PolicyVersion{ID: "v" + strconv.Itoa(p.Next), Document: in.PolicyDocument, Created: createDate(now)}
 		p.Versions = append(slices.Clone(p.Versions), created)
 		p.Next++
-		p.Updated = now
+		p.Updated = created.Created
 		if in.SetAsDefault {
 			p.Default = created.ID
 		}
