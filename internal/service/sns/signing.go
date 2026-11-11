@@ -8,6 +8,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // key returns the stored key in the envelope package's form.
@@ -20,7 +21,7 @@ func (k *SigningKey) key() envelope.Key {
 // lock, since RSA generation is slow; a key another call stored first
 // wins.
 func (s *Service) ensureKey(c *kernel.Call, ref topicRef) *awserr.Error {
-	needed, _ := read(s, ref.scope, func(st *State) bool {
+	needed := store.View(s.cells, ref.scope, func(st *State) bool {
 		_, ok := st.Topics[ref.name]
 		return ok && st.Signing == nil
 	})

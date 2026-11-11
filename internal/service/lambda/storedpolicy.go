@@ -5,7 +5,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // StoredPolicy returns the owner and permissions of what target names, as
@@ -30,25 +30,21 @@ func (s *Service) StoredPolicy(target aws.ARN) (authz.StoredPolicy, bool) {
 		return authz.StoredPolicy{}, false
 	}
 	name, qualifier, _ := strings.Cut(rest, ":")
-	type found struct {
-		text string
-		ok   bool
-	}
-	f, _ := view(s, scope, func(st *State) (found, *awserr.Error) {
+	text, ok := store.View2(s.cells, scope, func(st *State) (string, bool) {
 		fn, ok := st.Functions[name]
 		if !ok {
-			return found{}, nil
+			return "", false
 		}
 		p, ok := fn.Policies[qualifier]
 		if !ok || len(p.Statements) == 0 {
-			return found{ok: true}, nil
+			return "", true
 		}
-		return found{text: p.document(), ok: true}, nil
+		return p.document(), true
 	})
-	if !f.ok {
+	if !ok {
 		return authz.StoredPolicy{}, false
 	}
-	return authz.StoredPolicy{Owner: scope.Account, Policy: authz.ReadStored(f.text)}, true
+	return authz.StoredPolicy{Owner: scope.Account, Policy: authz.ReadStored(text)}, true
 }
 
 // layerVersionStoredPolicy is StoredPolicy for a layer version ARN.
@@ -57,16 +53,12 @@ func (s *Service) layerVersionStoredPolicy(target aws.ARN) (authz.StoredPolicy, 
 	if !ok {
 		return authz.StoredPolicy{}, false
 	}
-	type found struct {
-		text string
-		ok   bool
-	}
-	f, _ := view(s, ref.scope, func(st *State) (found, *awserr.Error) {
+	text, ok := store.View2(s.cells, ref.scope, func(st *State) (string, bool) {
 		v, ok := st.layerVersion(ref, n)
-		return found{text: v.policyDocument(), ok: ok}, nil
+		return v.policyDocument(), ok
 	})
-	if !f.ok {
+	if !ok {
 		return authz.StoredPolicy{}, false
 	}
-	return authz.StoredPolicy{Owner: ref.scope.Account, Policy: authz.ReadStored(f.text)}, true
+	return authz.StoredPolicy{Owner: ref.scope.Account, Policy: authz.ReadStored(text)}, true
 }

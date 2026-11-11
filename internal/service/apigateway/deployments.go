@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/apigateway/patch"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // createDeployment snapshots the API's resources, methods and integrations
@@ -159,53 +160,37 @@ func (s *Service) getDeployment(_ context.Context, c *kernel.Call, in *apigatewa
 		summary = true
 	}
 	scope := c.Scope()
-	type found struct {
-		out apigatewayapi.Deployment
-		err *awserr.Error
-	}
-	got := readState(s, scope, func(st *State) found {
+	return store.View2(s.cells, scope, func(st *State) (*apigatewayapi.Deployment, *awserr.Error) {
 		a, ok := st.APIs[in.RestApiId]
 		if !ok {
-			return found{err: errAPINotFound(scope, in.RestApiId)}
+			return nil, errAPINotFound(scope, in.RestApiId)
 		}
 		d, ok := a.deployment(in.DeploymentId)
 		if !ok {
-			return found{err: errDeploymentNotFound()}
+			return nil, errDeploymentNotFound()
 		}
-		return found{out: d.output(summary)}
+		return new(d.output(summary)), nil
 	})
-	if got.err != nil {
-		return nil, got.err
-	}
-	return &got.out, nil
 }
 
 // getDeployments pages the API's deployments in creation order (inferred).
 func (s *Service) getDeployments(_ context.Context, c *kernel.Call, in *apigatewayapi.GetDeploymentsInput) (*apigatewayapi.GetDeploymentsOutput, *awserr.Error) {
 	scope := c.Scope()
-	type found struct {
-		out apigatewayapi.GetDeploymentsOutput
-		err *awserr.Error
-	}
-	got := readState(s, scope, func(st *State) found {
+	return store.View2(s.cells, scope, func(st *State) (*apigatewayapi.GetDeploymentsOutput, *awserr.Error) {
 		a, ok := st.APIs[in.RestApiId]
 		if !ok {
-			return found{err: errAPINotFound(scope, in.RestApiId)}
+			return nil, errAPINotFound(scope, in.RestApiId)
 		}
 		items, next, err := page(a.Deployments, func(d Deployment) uint64 { return d.Seq }, in.Limit, in.Position)
 		if err != nil {
-			return found{err: err}
+			return nil, err
 		}
 		out := apigatewayapi.GetDeploymentsOutput{Items: make([]apigatewayapi.Deployment, 0, len(items)), Position: next}
 		for i := range items {
 			out.Items = append(out.Items, items[i].output(false))
 		}
-		return found{out: out}
+		return &out, nil
 	})
-	if got.err != nil {
-		return nil, got.err
-	}
-	return &got.out, nil
 }
 
 // updateDeployment applies UpdateDeployment's patch operations: replace

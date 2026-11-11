@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/apigateway/patch"
 	"github.com/sustinbebustin/understudy/internal/service/apigateway/resource"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // maxResources is the documented resources-per-API quota
@@ -224,15 +225,7 @@ func (s *Service) deleteResource(_ context.Context, c *kernel.Call, in *apigatew
 
 // readResult runs fn on the state of scope without creating its cell.
 func readResult[R any](s *Service, scope aws.Scope, fn func(st *State) (R, *awserr.Error)) (R, *awserr.Error) {
-	type result struct {
-		v   R
-		err *awserr.Error
-	}
-	r := readState(s, scope, func(st *State) result {
-		v, err := fn(st)
-		return result{v, err}
-	})
-	return r.v, r.err
+	return store.View2(s.cells, scope, fn)
 }
 
 // childPath is the full path of a child with part under a parent at

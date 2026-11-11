@@ -23,23 +23,11 @@ const maxTags = 50
 func (s *Service) bindTags(b cloudwatchapi.Binder) {
 	const note = "alarms only: insight rules and metric streams are never stored"
 	b.TagResource(s.tagResource, registry.Partial{Note: note},
-		taggedResource(func(in *cloudwatchapi.TagResourceInput) string { return in.ResourceARN }))
+		kernel.WithResourceARN(func(in *cloudwatchapi.TagResourceInput) string { return in.ResourceARN }))
 	b.UntagResource(s.untagResource, registry.Partial{Note: note},
-		taggedResource(func(in *cloudwatchapi.UntagResourceInput) string { return in.ResourceARN }))
+		kernel.WithResourceARN(func(in *cloudwatchapi.UntagResourceInput) string { return in.ResourceARN }))
 	b.ListTagsForResource(s.listTagsForResource, registry.Partial{Note: note},
-		taggedResource(func(in *cloudwatchapi.ListTagsForResourceInput) string { return in.ResourceARN }))
-}
-
-// taggedResource names the resource a tag call addresses when its ARN
-// parses.
-func taggedResource[In any](arn func(*In) string) kernel.BindOption {
-	return kernel.WithResources(func(_ *kernel.Call, in *In) []aws.ARN {
-		a, err := aws.ParseARN(arn(in))
-		if err != nil {
-			return nil
-		}
-		return []aws.ARN{a}
-	})
+		kernel.WithResourceARN(func(in *cloudwatchapi.ListTagsForResourceInput) string { return in.ResourceARN }))
 }
 
 // taggableAlarm is the alarm a tag call's ResourceARN names in the

@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/hotreload"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Hot reload (ARCHITECTURE.md 14.4): a host directory overlaid on a zip
@@ -74,7 +75,7 @@ func newOverlays() *overlays {
 // scope until a reset of scope; binding another directory replaces it. It
 // is the admin API's hot-reload endpoint.
 func (x *Execution) HotReload(_ context.Context, scope aws.Scope, function, dir string) *awserr.Error {
-	_, err := view(x.svc, scope, func(st *State) (struct{}, *awserr.Error) {
+	_, err := store.View2(x.svc.cells, scope, func(st *State) (struct{}, *awserr.Error) {
 		f, ok := st.Functions[function]
 		if !ok {
 			return struct{}{}, errFunctionNotFound(functionARN(scope, function))

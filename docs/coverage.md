@@ -6,7 +6,7 @@ understudy states three separate measures and never adds them together: protocol
 
 ## Protocol compliance
 
-Server-runnable cases of the Smithy protocol compliance corpus, run against the synthetic services by `internal/protocoltest`. The RPC protocols and the S3 cases go through the edge; the synthetic restJson1 and restXml services go through their codecs and the kernel behind a test router, so those cases skip the edge's body caps, framing and auth parsing. The counts come from the checked-in `internal/protocoltest/baseline.json` and `skips.json`, which the corpus test holds every run to.
+Server-runnable cases of the Smithy protocol compliance corpus, run against the synthetic services by `internal/protocoltest`. Every case goes through the edge, so the counts cover its body caps, framing and auth parsing; the cases of the synthetic restJson1 and restXml services are sent with SigV4 credentials scoped to the service, which the edge routes them by (ADR 0019). The counts come from the checked-in `internal/protocoltest/baseline.json` and `skips.json`, which the corpus test holds every run to.
 
 | Protocol | Kind | Cases | Passed | Skipped | Failed | Known |
 |---|---|---|---|---|---|---|
@@ -16,10 +16,10 @@ Server-runnable cases of the Smithy protocol compliance corpus, run against the 
 | awsjson1_1 | response | 45 | 44 | 1 | 0 | 0 |
 | awsquery | request | 35 | 32 | 3 | 0 | 0 |
 | awsquery | response | 31 | 30 | 1 | 0 | 0 |
-| restjson1 | request | 133 | 128 | 5 | 0 | 0 |
+| restjson1 | request | 133 | 127 | 6 | 0 | 0 |
 | restjson1 | response | 92 | 92 | 0 | 0 | 0 |
 | restjson1 | malformed | 655 | 621 | 34 | 0 | 0 |
-| restxml | request | 101 | 93 | 8 | 0 | 0 |
+| restxml | request | 101 | 92 | 9 | 0 | 0 |
 | restxml | response | 77 | 71 | 6 | 0 | 0 |
 | rpcv2cbor | request | 39 | 39 | 0 | 0 | 0 |
 | rpcv2cbor | response | 29 | 28 | 1 | 0 | 0 |
@@ -54,6 +54,7 @@ corpus-bug: the case's expectation is wrong; client-only: only a client can run 
 | awsquery | request | `SDKAppendsGzipAndIgnoresHttpProvidedEncoding_awsQuery` | client-only | requestCompression: asserts the SDK gzips the body; the request is only a Content-Encoding header, with no Action and no body (smithy-protocol-tests.md 4.2). |
 | awsquery | request | `SDKAppliedContentEncoding_awsQuery` | client-only | requestCompression: asserts the SDK gzips the body; the request is only a Content-Encoding header, with no Action and no body (smithy-protocol-tests.md 4.2). |
 | awsquery | response | `QueryNoInputAndNoOutputWithResponseMetadata` | client-only | Tests that clients tolerate ResponseMetadata on a no-output response. It states no bodyMediaType, so the body compares byte for byte, and its RequestId is the client fixture's, not one a server mints. |
+| restjson1 | request | `RestJsonHttpEmptyPrefixHeadersRequestServer` | corpus-bug | The request carries no credentials, which route a restJson1 request to a service other than Lambda by their signing name (ADR 0019), and its params bind every request header through an empty httpPrefixHeaders prefix yet list only the case's two. Signed, as the bench sends it, the map also holds Authorization and X-Amz-Date; unsigned, no route reaches the service. Whether AWS binds credential headers into an empty-prefix map is unknown. |
 | restjson1 | request | `RestJsonHttpWithEmptyStructurePayload` | client-only | Asserts a client sends {} for an unset structure payload; a server reading {} cannot tell it from an empty structure, so it decodes one. |
 | restjson1 | request | `RestJsonHttpWithHeadersButNoPayload` | client-only | Asserts a client sends {} for an unset structure payload; a server reading {} cannot tell it from an empty structure, so it decodes one. |
 | restjson1 | request | `RestJsonOmitsEmptyListQueryValues` | client-only | Asserts a client sends no query parameter for an empty list; the server sees none and cannot tell an empty list from an absent one. |
@@ -94,6 +95,7 @@ corpus-bug: the case's expectation is wrong; client-only: only a client can run 
 | restjson1 | malformed | `RestJsonWithoutBodyEmptyInputExpectsEmptyContentType` | aws-differs (sdk-source) | The Smithy server framework answers 415 for a Content-Type on an operation with no body; clients send one on bodiless Lambda requests, so the codec ignores it. Source: docs/research/wire-rest.md#1-protocol-rules-shared-by-restjson1-and-restxml (boto3 sends {} and a Content-Type for restJson1 inputs) |
 | restjson1 | malformed | `RestJsonWithoutBodyExpectsEmptyContentType` | aws-differs (sdk-source) | The Smithy server framework answers 415 for a Content-Type on an operation with no body; clients send one on bodiless Lambda requests, so the codec ignores it. Source: docs/research/wire-rest.md#1-protocol-rules-shared-by-restjson1-and-restxml (boto3 sends {} and a Content-Type for restJson1 inputs) |
 | restxml | request | `AllQueryStringTypes` | corpus-bug | Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them. |
+| restxml | request | `HttpEmptyPrefixHeadersRequestServer` | corpus-bug | The request carries no credentials, which route a restXml request to a service other than S3 by their signing name (ADR 0019), and its params bind every request header through an empty httpPrefixHeaders prefix yet list only the case's two. Signed, as the bench sends it, the map also holds Authorization and X-Amz-Date; unsigned, the request is S3's. Whether AWS binds credential headers into an empty-prefix map is unknown. |
 | restxml | request | `RestXmlQueryStringEscaping` | corpus-bug | Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them. |
 | restxml | request | `RestXmlSupportsInfinityFloatQueryValues` | corpus-bug | Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them. |
 | restxml | request | `RestXmlSupportsNaNFloatQueryValues` | corpus-bug | Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them. |
@@ -2042,7 +2044,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-363 evidence items: 76 aws-recorded, 111 third-party-recorded, 57 aws-doc, 5 sdk-source, 114 inferred.
+364 evidence items: 76 aws-recorded, 111 third-party-recorded, 57 aws-doc, 5 sdk-source, 115 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2336,6 +2338,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | protocoltests.json | `aws.protocoltests.json10#QueryCompatibleJsonRpc10` |  | docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsJson corpus has no server-side validation case, so the Coral code AWS JSON services send stands in |
 | inferred | protocoltests.json | `aws.protocoltests.query#AwsQuery` |  | docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the awsQuery corpus has no server-side validation case, so the Coral code AWS Query services send stands in |
 | inferred | protocoltests.json | `aws.protocoltests.restjson#RestJson` | dev.understudy#validationError | docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: RestJson's own cases assert no validation code |
+| inferred | protocoltests.json | `aws.protocoltests.restjson.validation#RestJsonValidation` | aws.auth#sigv4 | docs/research/smithy-protocol-tests.md#3-test-services-and-case-counts: the model gives RestJsonValidation no auth trait, and the edge routes a request to a REST service other than S3 only by the signing name of its credentials (ADR 0019), so the synthetic service takes its own id as that name for the compliance bench to sign with |
 | inferred | protocoltests.json | `aws.protocoltests.restxml#RestXml` |  | docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the restXml corpus has no server-side validation case |
 | inferred | protocoltests.json | `aws.protocoltests.restxml.xmlns#RestXmlWithNamespace` |  | docs/research/smithy-protocol-tests.md#6-server-relevant-cases-worth-special-attention: the restXml corpus has no server-side validation case |
 | inferred | protocoltests.json | `aws.protocoltests.rpcv2cbor#NonQueryCompatibleRpcV2Protocol` |  | docs/research/wire-cbor.md#6-the-smithy-test-corpus-at-1740: the rpcv2Cbor corpus has no server-side validation case |

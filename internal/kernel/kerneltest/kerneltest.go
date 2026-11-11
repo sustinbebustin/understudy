@@ -147,7 +147,7 @@ func build(t *testing.T, cfg config) *K {
 		t.Fatal(err)
 	}
 	src := ids.NewSeeded(cfg.seed)
-	faults := fault.New(&cfg.seed, src, kernel.NewCatalogue(reg, nil))
+	faults := fault.New(&cfg.seed, src, kernel.NewCatalogue(reg))
 	rec := &access.Recorder{}
 	idStore := identity.New(src, aws.DefaultAccount())
 	k, err := kernel.New(kernel.Options{

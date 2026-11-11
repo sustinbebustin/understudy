@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // bindAccessKeys binds the access keys of users. The identity store mints
@@ -112,7 +113,7 @@ func (s *Service) listAccessKeys(_ context.Context, c *kernel.Call, in *iamapi.L
 		user User
 		p    paging.Page[AccessKey]
 	}
-	l, err := view(s, account, func(st *State) (listed, *awserr.Error) {
+	l, err := store.View2(s.cells, account, func(st *State) (listed, *awserr.Error) {
 		u, err := st.user(name)
 		if err != nil {
 			return listed{}, err

@@ -69,7 +69,7 @@ func (s *Service) readStream(c *kernel.Call, r streamRef) (Stream, *awserr.Error
 	if r.foreign {
 		return Stream{}, r.notFound()
 	}
-	str := readState(s, c.Scope(), func(st *State) *Stream {
+	str := store.View(s.cells, c.Scope(), func(st *State) *Stream {
 		str, ok := st.Streams[r.name]
 		if !ok {
 			return nil
@@ -108,15 +108,4 @@ func (s *Service) updateStream(c *kernel.Call, r streamRef, fn func(str *Stream,
 	}
 	c.Touch(streamARN(c.Scope(), r.name))
 	return nil
-}
-
-// readState runs fn on the state of scope without creating its cell; a
-// scope with no cell reads as empty.
-func readState[R any](s *Service, scope aws.Scope, fn func(st *State) R) R {
-	cell, ok := s.cells.Lookup(scope)
-	if !ok {
-		st := newState(scope)
-		return fn(&st)
-	}
-	return store.Read(cell, fn)
 }

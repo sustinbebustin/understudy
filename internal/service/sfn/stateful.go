@@ -45,34 +45,27 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 // Rearm arms the engine timers of every running execution, an invocation
 // now of each Lambda task it has in flight (the StartExecution coverage
 // note: the task is invoked again), and the removal of every closed one;
-// timers are never saved (ADR 0009). It arms under the cell lock, where
-// kernel.Write arms, so a concurrent step either commits first and its
-// timers are read here, or commits after and its own arms replace these.
+// timers are never saved (ADR 0009). kernel.RearmEach has the lock
+// argument.
 func (s *Service) Rearm(now clock.Instant) {
-	sched := s.k.Timers().Scheduler()
-	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
-		cell, ok := s.cells.Lookup(scope)
-		if !ok {
-			continue
-		}
-		store.Read(cell, func(st *State) struct{} {
-			for _, key := range slices.Sorted(maps.Keys(st.Executions)) {
-				rec := st.Executions[key]
-				exec := executionRef{machine: machineRef{scope: scope, name: rec.Machine}, name: rec.Name}
-				if _, done := rec.Engine.Outcome(); done {
-					sched.Arm(s.expireKind.Key(exec.arn().String()), rec.Stopped.Add(retention))
-					continue
-				}
-				for _, t := range rec.Engine.Timers() {
-					sched.Arm(s.stepKind.Key(timerID(exec, t.Timer)), clock.FromWire(t.At))
-				}
-				for _, inv := range rec.Engine.InFlight() {
-					sched.Arm(s.invokeKind.Key(taskKey(exec, inv.Task)), now)
-				}
+	kernel.RearmEach(s.k.Timers().Scheduler(), s.cells, func(scope aws.Scope, st *State) []clock.Armed {
+		var out []clock.Armed
+		for _, key := range slices.Sorted(maps.Keys(st.Executions)) {
+			rec := st.Executions[key]
+			exec := executionRef{machine: machineRef{scope: scope, name: rec.Machine}, name: rec.Name}
+			if _, done := rec.Engine.Outcome(); done {
+				out = append(out, clock.Armed{Key: s.expireKind.Key(exec.arn().String()), Due: rec.Stopped.Add(retention)})
+				continue
 			}
-			return struct{}{}
-		})
-	}
+			for _, t := range rec.Engine.Timers() {
+				out = append(out, clock.Armed{Key: s.stepKind.Key(timerID(exec, t.Timer)), Due: clock.FromWire(t.At)})
+			}
+			for _, inv := range rec.Engine.InFlight() {
+				out = append(out, clock.Armed{Key: s.invokeKind.Key(taskKey(exec, inv.Task)), Due: now})
+			}
+		}
+		return out
+	})
 }
 
 // Resources lists the state machines of scope with their execution counts.

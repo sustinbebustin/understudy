@@ -7,6 +7,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl"
 )
@@ -163,11 +164,11 @@ func wireEvent(r *HistoryRecord, includeData bool) sfnapi.HistoryEvent {
 		out.ExecutionTimedOutEventDetails = &sfnapi.ExecutionTimedOutEventDetails{Error: d.str("error"), Cause: d.str("cause")}
 	case strings.HasSuffix(r.Type, "StateEntered"):
 		out.StateEnteredEventDetails = &sfnapi.StateEnteredEventDetails{
-			Name: deref(d.str("name")), Input: d.data("input", includeData), InputDetails: d.dataDetails("inputDetails"),
+			Name: smithy.Deref(d.str("name")), Input: d.data("input", includeData), InputDetails: d.dataDetails("inputDetails"),
 		}
 	case strings.HasSuffix(r.Type, "StateExited"):
 		out.StateExitedEventDetails = &sfnapi.StateExitedEventDetails{
-			Name: deref(d.str("name")), Output: d.data("output", includeData), OutputDetails: d.dataDetails("outputDetails"),
+			Name: smithy.Deref(d.str("name")), Output: d.data("output", includeData), OutputDetails: d.dataDetails("outputDetails"),
 		}
 	case r.Type == "MapStateStarted":
 		out.MapStateStartedEventDetails = &sfnapi.MapStateStartedEventDetails{Length: d.count("length")}
@@ -202,27 +203,27 @@ func taskDetails(out *sfnapi.HistoryEvent, d details, includeData bool) {
 	switch string(out.Type) {
 	case "TaskScheduled":
 		out.TaskScheduledEventDetails = &sfnapi.TaskScheduledEventDetails{
-			ResourceType: deref(d.str("resourceType")), Resource: deref(d.str("resource")), Region: deref(d.str("region")),
-			Parameters: deref(d.str("parameters")), TimeoutInSeconds: d.integer("timeoutInSeconds"),
+			ResourceType: smithy.Deref(d.str("resourceType")), Resource: smithy.Deref(d.str("resource")), Region: smithy.Deref(d.str("region")),
+			Parameters: smithy.Deref(d.str("parameters")), TimeoutInSeconds: d.integer("timeoutInSeconds"),
 		}
 	case "TaskStarted":
-		out.TaskStartedEventDetails = &sfnapi.TaskStartedEventDetails{ResourceType: deref(d.str("resourceType")), Resource: deref(d.str("resource"))}
+		out.TaskStartedEventDetails = &sfnapi.TaskStartedEventDetails{ResourceType: smithy.Deref(d.str("resourceType")), Resource: smithy.Deref(d.str("resource"))}
 	case "TaskSucceeded":
 		out.TaskSucceededEventDetails = &sfnapi.TaskSucceededEventDetails{
-			ResourceType: deref(d.str("resourceType")), Resource: deref(d.str("resource")),
+			ResourceType: smithy.Deref(d.str("resourceType")), Resource: smithy.Deref(d.str("resource")),
 			Output: d.data("output", includeData), OutputDetails: d.dataDetails("outputDetails"),
 		}
 	case "TaskFailed":
 		out.TaskFailedEventDetails = &sfnapi.TaskFailedEventDetails{
-			ResourceType: deref(d.str("resourceType")), Resource: deref(d.str("resource")), Error: d.str("error"), Cause: d.str("cause"),
+			ResourceType: smithy.Deref(d.str("resourceType")), Resource: smithy.Deref(d.str("resource")), Error: d.str("error"), Cause: d.str("cause"),
 		}
 	case "TaskTimedOut":
 		out.TaskTimedOutEventDetails = &sfnapi.TaskTimedOutEventDetails{
-			ResourceType: deref(d.str("resourceType")), Resource: deref(d.str("resource")), Error: d.str("error"), Cause: d.str("cause"),
+			ResourceType: smithy.Deref(d.str("resourceType")), Resource: smithy.Deref(d.str("resource")), Error: d.str("error"), Cause: d.str("cause"),
 		}
 	case "LambdaFunctionScheduled":
 		out.LambdaFunctionScheduledEventDetails = &sfnapi.LambdaFunctionScheduledEventDetails{
-			Resource: deref(d.str("resource")), Input: d.data("input", includeData), InputDetails: d.dataDetails("inputDetails"),
+			Resource: smithy.Deref(d.str("resource")), Input: d.data("input", includeData), InputDetails: d.dataDetails("inputDetails"),
 			TimeoutInSeconds: d.integer("timeoutInSeconds"),
 		}
 	case "LambdaFunctionSucceeded":

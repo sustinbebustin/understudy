@@ -12,10 +12,10 @@ func (s *Server) Journal() *journal.Journal { return s.wired.journal }
 // ServiceIDs are the wired services' registry ids in wiring order, for the
 // external tests that count what a run serves instead of hard-coding it.
 func ServiceIDs() []ref.ServiceID {
-	all := apis()
+	all := descriptors()
 	out := make([]ref.ServiceID, len(all))
-	for i, a := range all {
-		out[i] = a.desc.ID
+	for i, d := range all {
+		out[i] = d.ID
 	}
 	return out
 }

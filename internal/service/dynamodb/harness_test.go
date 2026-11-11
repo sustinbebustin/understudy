@@ -183,9 +183,6 @@ func runWithOptions(t *testing.T, local *fakeLocal, kopts []kerneltest.Option, f
 			Kernel: k.Kernel, Registry: k.Kernel.Registry(), Identity: k.Identity, Regions: aws.KnownRegions(),
 			Codecs:   map[ref.ProtocolID]edge.Codec{ref.AWSJSON10: jsonCodec{awsjson.V10}, ref.AWSJSON11: jsonCodec{awsjson.V11}},
 			Listener: ref.ListenerMain, Unclaimed: ref.AWSJSON10,
-			UnknownOperationError: func(ref.ServiceID, awserr.Family) (awserr.Identity, bool) {
-				return dynamodbapi.UnknownOperationError(awserr.JSONFamily)
-			},
 		})
 		if err != nil {
 			k.Fatal(err)

@@ -18,11 +18,11 @@ const maxTags = 50
 // bindTags binds the tagging operations, whose resource is a topic.
 func (s *Service) bindTags(b snsapi.Binder) {
 	b.TagResource(s.tagResource, registry.Full{},
-		arnResource(func(in *snsapi.TagResourceInput) string { return in.ResourceArn }))
+		kernel.WithResourceARN(func(in *snsapi.TagResourceInput) string { return in.ResourceArn }))
 	b.UntagResource(s.untagResource, registry.Full{},
-		arnResource(func(in *snsapi.UntagResourceInput) string { return in.ResourceArn }))
+		kernel.WithResourceARN(func(in *snsapi.UntagResourceInput) string { return in.ResourceArn }))
 	b.ListTagsForResource(s.listTagsForResource, registry.Full{},
-		arnResource(func(in *snsapi.ListTagsForResourceInput) string { return in.ResourceArn }))
+		kernel.WithResourceARN(func(in *snsapi.ListTagsForResourceInput) string { return in.ResourceArn }))
 }
 
 // tagMap returns tags by key; a key given twice is refused (sns.md 2.3).

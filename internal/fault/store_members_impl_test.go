@@ -89,7 +89,7 @@ func TestDecoderOfAnotherIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	seed := uint64(1)
-	s := fault.New(&seed, ids.NewSeeded(seed), swappedDecoders{kernel.NewCatalogue(reg, nil)})
+	s := fault.New(&seed, ids.NewSeeded(seed), swappedDecoders{kernel.NewCatalogue(reg)})
 	_, rerr := s.Add(errorRule("tx", transactWriteItems, "TransactionCanceledException", members(t, `{"CancellationReasons":[`+conflictReason+`]}`)))
 	want := "the generated decoder of com.amazonaws.dynamodb#TransactionCanceledException builds com.amazonaws.dynamodb#ConditionalCheckFailedException " +
 		"(__type com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException) where dynamodb.TransactWriteItems sends " +

@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/destination"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // configuredDestination is one side of a DestinationConfig: the ARN as
@@ -72,7 +73,7 @@ func (s *Service) checkDestination(ctx context.Context, c *kernel.Call, fn funct
 	}
 	switch dest := d.dest.(type) {
 	case destination.Function:
-		_, err := view(s, scope, func(st *State) (struct{}, *awserr.Error) {
+		_, err := store.View2(s.cells, scope, func(st *State) (struct{}, *awserr.Error) {
 			return struct{}{}, st.checkFunctionDestination(fn, scope, d.arn, dest)
 		})
 		return err

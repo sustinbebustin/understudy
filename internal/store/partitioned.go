@@ -88,6 +88,34 @@ func (p *Partitioned[K, S]) Lookup(k K) (*Cell[S], bool) {
 	return c, ok
 }
 
+// View runs fn over the state of k's cell under the cell's lock, as Read does.
+// A key without a cell reads as p's init(k), and View never creates one, so
+// reads of a partition nobody wrote to leave no trace. It is a function
+// because methods cannot take type parameters. fn must not mutate the state,
+// and R must never alias S.
+func View[K comparable, S, R any](p *Partitioned[K, S], k K, fn func(s *S) R) R {
+	c, ok := p.Lookup(k)
+	if !ok {
+		s := p.init(k)
+		return fn(&s)
+	}
+	return Read(c, fn)
+}
+
+// View2 is View for a fn with two results, such as a value and a found flag
+// or a value and an error.
+func View2[K comparable, S, R, E any](p *Partitioned[K, S], k K, fn func(s *S) (R, E)) (r R, e E) {
+	type pair struct {
+		r R
+		e E
+	}
+	out := View(p, k, func(s *S) pair {
+		r, e := fn(s)
+		return pair{r, e}
+	})
+	return out.r, out.e
+}
+
 // Keys returns every key with a cell, sorted by its encoded form under kc.
 func (p *Partitioned[K, S]) Keys(kc KeyCodec[K]) []K {
 	p.mu.Lock()

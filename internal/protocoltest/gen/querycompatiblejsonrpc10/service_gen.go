@@ -22,6 +22,8 @@ var service = registry.Service{
 	JSONTargetPrefix:      "QueryCompatibleJsonRpc10",
 	QueryCompatible:       true,
 	MalformedRequestError: IdentitySerializationException(),
+	UnknownOperationError: UnknownOperationError,
+	ModelSource:           registry.ModelSource{Origin: "smithy-protocol-tests@1.74.0", File: "model.json"},
 	NewErrorMembers:       NewErrorMembers,
 }
 

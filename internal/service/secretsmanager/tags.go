@@ -7,6 +7,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // maxTags is the quota of user tags on one resource (Tagging service
@@ -23,7 +24,7 @@ func setTags(existing []Tag, tags []secretsmanagerapi.Tag) ([]Tag, *awserr.Error
 	}
 	out := slices.Clone(existing)
 	for _, t := range tags {
-		key, value := deref(t.Key), deref(t.Value)
+		key, value := smithy.Deref(t.Key), smithy.Deref(t.Value)
 		if i := slices.IndexFunc(out, func(x Tag) bool { return x.Key == key }); i >= 0 {
 			out[i].Value = value
 			continue
@@ -83,11 +84,4 @@ func (s *Service) untagResource(_ context.Context, c *kernel.Call, in *secretsma
 		return nil, err
 	}
 	return &secretsmanagerapi.UntagResourceOutput{}, nil
-}
-
-func deref(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }

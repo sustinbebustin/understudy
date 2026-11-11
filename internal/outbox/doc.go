@@ -119,7 +119,7 @@
 // even when deliveries reached the outbox out of commit order. Only the
 // head is armed, a retry keeps the lane blocked, and a terminal outcome
 // arms the next, due no earlier than the attempt that ended the previous
-// one, so a group arrives in order (sns.md 10). A message group of a
+// one, so a group arrives in order (sns.md 4.3). A message group of a
 // standard queue promises no order (sqs.md 8.5) and forms no lane.
 //
 // Attempts run one at a time in firing order on the sequencer, so the same

@@ -40,7 +40,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/config"
@@ -158,8 +157,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if w.journal, err = journal.New(journalOptions(cfg.Journal, clk)); err != nil {
 		return w, err
 	}
-	cat := newCatalogue()
-	reg, err := registry.New(cat.descs...)
+	reg, err := registry.New(descriptors()...)
 	if err != nil {
 		return w, err
 	}
@@ -168,7 +166,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if err != nil {
 		return w, err
 	}
-	w.faults = fault.New(cfg.Seed, src, kernel.NewCatalogue(reg, cat.throttles))
+	w.faults = fault.New(cfg.Seed, src, kernel.NewCatalogue(reg))
 	recorder := &access.Recorder{}
 	box := outbox.New()
 	link := &deferredLinker{}
@@ -266,7 +264,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if w.admin, err = serveradmin.New(opts); err != nil {
 		return w, err
 	}
-	if err := w.edges(cfg, k, reg, idStore, regions, cat, c.s3.BucketExists, c.executeAPIFronts(), log); err != nil {
+	if err := w.edges(cfg, k, reg, idStore, regions, c.s3.BucketExists, c.executeAPIFronts(), log); err != nil {
 		return w, err
 	}
 	if err := w.load(cfg, snapshots, log); err != nil {
@@ -625,7 +623,7 @@ func unwatchable(bindings []HotReload, err error) error {
 // refused on every other one, and one ClockTimeline, so a URL presigned
 // after a clock change made on the main listener is placed after it on
 // the container listener too.
-func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idStore *identity.Store, regions aws.Regions, cat catalogue, bucketExists func(string) bool, fronts []edge.ExecuteAPIService, log *slog.Logger) error {
+func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idStore *identity.Store, regions aws.Regions, bucketExists func(string) bool, fronts []edge.ExecuteAPIService, log *slog.Logger) error {
 	domains := cfg.S3BaseDomains
 	if domains == nil {
 		domains = config.DefaultBaseDomains()
@@ -639,24 +637,23 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 		return err
 	}
 	o := edge.Options{
-		Hosts:                 hosts,
-		Kernel:                k,
-		Registry:              reg,
-		Identity:              idStore,
-		Regions:               regions,
-		Codecs:                Codecs(),
-		BucketExists:          bucketExists,
-		S3BaseDomains:         domains,
-		S3Control:             S3ControlCodec(),
-		Listener:              ref.ListenerMain,
-		Served:                &edge.ServedPorts{},
-		Timeline:              &edge.ClockTimeline{},
-		Admin:                 ui.Mount(page, w.admin),
-		Unclaimed:             ref.AWSJSON10,
-		UnknownOperationError: cat.unknownOperationError,
-		LegacyQuery:           []ref.ServiceID{ssmapi.Service().ID},
-		ExecuteAPI:            fronts,
-		Log:                   log,
+		Hosts:         hosts,
+		Kernel:        k,
+		Registry:      reg,
+		Identity:      idStore,
+		Regions:       regions,
+		Codecs:        Codecs(),
+		BucketExists:  bucketExists,
+		S3BaseDomains: domains,
+		S3Control:     S3ControlCodec(),
+		Listener:      ref.ListenerMain,
+		Served:        &edge.ServedPorts{},
+		Timeline:      &edge.ClockTimeline{},
+		Admin:         ui.Mount(page, w.admin),
+		Unclaimed:     ref.AWSJSON10,
+		LegacyQuery:   []ref.ServiceID{ssmapi.Service().ID},
+		ExecuteAPI:    fronts,
+		Log:           log,
 	}
 	vocabulary, refuse := s3.AuthDialect()
 	o.ServiceAuth = map[ref.ServiceID]edge.ServiceAuth{s3api.Service().ID: {Vocabulary: vocabulary, ParseError: refuse, Payload: edge.ServiceChecksPayload}}
@@ -844,48 +841,10 @@ func (d *deferredLinker) Link(p identity.Principal, remote netip.AddrPort) (ref.
 
 func (d *deferredLinker) set(x *lambda.Execution) { d.x.Store(x) }
 
-// api is one service's generated descriptor with the overlay identities the
-// descriptor does not carry: its throttleError and, for the services with
-// an RPC protocol, its unknownOperationError per protocol family.
-type api struct {
-	desc     *registry.Service
-	throttle awserr.Identity
-	unknown  func(awserr.Family) (awserr.Identity, bool)
-}
-
-// catalogue indexes the generated services' descriptors and identities.
-type catalogue struct {
-	descs     []*registry.Service
-	throttles map[ref.ServiceID]awserr.Identity
-	unknown   map[ref.ServiceID]func(awserr.Family) (awserr.Identity, bool)
-}
-
-func newCatalogue() catalogue {
-	c := catalogue{throttles: map[ref.ServiceID]awserr.Identity{}, unknown: map[ref.ServiceID]func(awserr.Family) (awserr.Identity, bool){}}
-	for _, a := range apis() {
-		c.descs = append(c.descs, a.desc)
-		c.throttles[a.desc.ID] = a.throttle
-		if a.unknown != nil {
-			c.unknown[a.desc.ID] = a.unknown
-		}
-	}
-	return c
-}
-
-// unknownOperationError is a service's overlay unknownOperationError for a
-// protocol family; false means the generic identity.
-func (c catalogue) unknownOperationError(svc ref.ServiceID, f awserr.Family) (awserr.Identity, bool) {
-	if fn, ok := c.unknown[svc]; ok {
-		return fn(f)
-	}
-	var none awserr.Identity
-	return none, false
-}
-
-// wiredService is one row of the wiring table: a generated API and the
-// constructor of the service that serves it.
+// wiredService is one row of the wiring table: a generated descriptor and
+// the constructor of the service that serves it.
 type wiredService struct {
-	api api
+	desc *registry.Service
 	// build constructs the service from its kernel.ServiceDeps and the
 	// run's settings in c, and records in c the services wire hands on by
 	// type.
@@ -893,39 +852,38 @@ type wiredService struct {
 }
 
 // wiredServices is the wiring table: every service, in the order wire
-// registers, builds and collects them. apis(), the collected Stateful
-// views, checkCollected and the policy lookup all read it, so a new service
-// is one row. S3 routes through its restXml route table only, so it has no
-// unknown-operation identity.
+// registers, builds and collects them. descriptors(), the collected
+// Stateful views, checkCollected and the policy lookup all read it, so a
+// new service is one row.
 func wiredServices() []wiredService {
 	return []wiredService{
-		{api{sqsapi.Service(), sqsapi.ThrottleError(), sqsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{sqsapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			return sqs.New(d, sqs.Options{DeletedRecently: c.switches.SQSDeletedRecently})
 		}},
-		{api{snsapi.Service(), snsapi.ThrottleError(), snsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{snsapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.sns = sns.New(d, sns.Options{TLSPort: c.tlsPort, AWSName: egress.IsAWSName})
 			return c.sns
 		}},
-		{api{s3api.Service(), s3api.ThrottleError(), nil}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{s3api.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.s3 = s3.New(d, s3.Options{CrossRegion: c.switches.S3CrossRegion, Regions: c.regions})
 			return c.s3
 		}},
-		{api{dynamodbapi.Service(), dynamodbapi.ThrottleError(), dynamodbapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{dynamodbapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.dynamodb = dynamodb.New(d, dynamodb.Options{Local: c.local})
 			return c.dynamodb
 		}},
 		// DynamoDB Streams serves DynamoDB's stream log, so its row follows
 		// DynamoDB's (ADR 0019).
-		{api{dynamodbstreamsapi.Service(), dynamodbstreamsapi.ThrottleError(), dynamodbstreamsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{dynamodbstreamsapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			return dynamodb.NewStreams(d, c.dynamodb)
 		}},
-		{api{lambdaapi.Service(), lambdaapi.ThrottleError(), lambdaapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{lambdaapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.lambda, c.lambdaDeps = lambda.New(d, lambda.Options{StateTransitions: c.switches.LambdaTransitions, Images: c.images}), d
 			return c.lambda
 		}},
 		// After Lambda's row: a Lambda proxy integration reads the function
 		// policies of the Lambda service built above (apigateway-http.md 5.5).
-		{api{apigatewayv2api.Service(), apigatewayv2api.ThrottleError(), apigatewayv2api.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{apigatewayv2api.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.apigatewayv2 = apigatewayv2.New(d, apigatewayv2.Options{FunctionPolicies: c.lambda, Regions: c.regions})
 			return c.apigatewayv2
 		}},
@@ -933,65 +891,66 @@ func wiredServices() []wiredService {
 		// apigateway, and a request neither route table matches is the first
 		// registered service's unknown operation (ADR 0019), so the order is
 		// pinned by TestAPIGatewayUnmatchedPathIsV2Unknown.
-		{api{apigatewayapi.Service(), apigatewayapi.ThrottleError(), apigatewayapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{apigatewayapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.apigateway = apigateway.New(d, apigateway.Options{FunctionPolicies: c.lambda, Regions: c.regions, Enforce: c.apigatewayEnforce})
 			return c.apigateway
 		}},
-		{api{logsapi.Service(), logsapi.ThrottleError(), logsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+		{logsapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return logs.New(d, logs.Options{})
 		}},
-		{api{secretsmanagerapi.Service(), secretsmanagerapi.ThrottleError(), secretsmanagerapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+		{secretsmanagerapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return secretsmanager.New(d, secretsmanager.Options{})
 		}},
-		{api{kmsapi.Service(), kmsapi.ThrottleError(), kmsapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+		{kmsapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return kms.New(d, kms.Options{})
 		}},
-		{api{ssmapi.Service(), ssmapi.ThrottleError(), ssmapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+		{ssmapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return ssm.New(d, ssm.Options{})
 		}},
-		{api{iamapi.Service(), iamapi.ThrottleError(), iamapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{iamapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.iam = iam.New(d, iam.Options{Catalogue: policycatalogue.Embedded})
 			return c.iam
 		}},
-		{api{stsapi.Service(), stsapi.ThrottleError(), stsapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{stsapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			return sts.New(d, sts.Options{AssumeRole: c.switches.STSAssumeRole})
 		}},
-		{api{eventbridgeapi.Service(), eventbridgeapi.ThrottleError(), eventbridgeapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+		{eventbridgeapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return events.New(d, events.Options{})
 		}},
-		{api{cloudwatchapi.Service(), cloudwatchapi.ThrottleError(), cloudwatchapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+		{cloudwatchapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return cloudwatch.New(d, cloudwatch.Options{})
 		}},
-		{api{sfnapi.Service(), sfnapi.ThrottleError(), sfnapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+		{sfnapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return sfn.New(d, sfn.Options{})
 		}},
-		{api{kinesisapi.Service(), kinesisapi.ThrottleError(), kinesisapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+		{kinesisapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return kinesis.New(d, kinesis.Options{})
 		}},
 		// SES v1 owns the store both SES APIs share; v2's row follows and
 		// takes it (ses.md 2.3), and rule 8 tries sesv2's route table for a
 		// REST request signed for ses (ADR 0019).
-		{api{sesapi.Service(), sesapi.ThrottleError(), sesapi.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{sesapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			c.ses = ses.New(d, ses.Options{VerifiedIdentities: c.sesVerified, ProductionAccess: c.sesProduction})
 			return c.ses
 		}},
-		{api{sesv2api.Service(), sesv2api.ThrottleError(), sesv2api.UnknownOperationError}, func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+		{sesv2api.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
 			return ses.NewV2(d, c.ses)
 		}},
 		// Scheduler reaches IAM (ResolveRole) and its targets only through
 		// kernel.Invoke and the outbox, so its row needs no service above.
-		{api{schedulerapi.Service(), schedulerapi.ThrottleError(), schedulerapi.UnknownOperationError}, func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
+		{schedulerapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return scheduler.New(d, scheduler.Options{})
 		}},
 	}
 }
 
-// apis lists every wired service's generated API, in table order.
-func apis() []api {
+// descriptors lists every wired service's generated descriptor, in table
+// order.
+func descriptors() []*registry.Service {
 	rows := wiredServices()
-	out := make([]api, len(rows))
+	out := make([]*registry.Service, len(rows))
 	for i, r := range rows {
-		out[i] = r.api
+		out[i] = r.desc
 	}
 	return out
 }
@@ -1059,7 +1018,7 @@ func (c *construction) build(deps func(*registry.Service) kernel.ServiceDeps) ([
 	rows := wiredServices()
 	built := make([]wiredBuilt, len(rows))
 	for i, r := range rows {
-		built[i] = wiredBuilt{desc: r.api.desc, svc: r.build(deps(r.api.desc), c)}
+		built[i] = wiredBuilt{desc: r.desc, svc: r.build(deps(r.desc), c)}
 	}
 	var missing []ref.ServiceID
 	for _, m := range []struct {

@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 func (s *Service) bindConcurrency(b lambdaapi.Binder) {
@@ -67,7 +68,7 @@ func (s *Service) getFunctionConcurrency(_ context.Context, c *kernel.Call, in *
 	if err != nil {
 		return nil, err
 	}
-	return view(s, ref.scope, func(st *State) (*lambdaapi.GetFunctionConcurrencyOutput, *awserr.Error) {
+	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.GetFunctionConcurrencyOutput, *awserr.Error) {
 		f, err := st.function(ref)
 		if err != nil {
 			return nil, err

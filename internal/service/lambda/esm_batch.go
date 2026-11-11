@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 )
@@ -66,7 +67,7 @@ func (p *pollers) take(ctx context.Context, c *kernel.Call, pl *poller, msgs []s
 	if pins(p.x.k.Clock().Mode()) {
 		handles := make([]string, len(msgs))
 		for i := range msgs {
-			handles[i] = deref(msgs[i].ReceiptHandle)
+			handles[i] = smithy.Deref(msgs[i].ReceiptHandle)
 		}
 		p.pin(ctx, c, pl, target, handles)
 	}

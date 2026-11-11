@@ -164,7 +164,7 @@ func build(t *testing.T, o harnessOptions) *harness {
 	}
 	seed := o.seed
 	src := ids.NewSeeded(seed)
-	faults := fault.New(&seed, src, kernel.NewCatalogue(reg, nil))
+	faults := fault.New(&seed, src, kernel.NewCatalogue(reg))
 	rec := &access.Recorder{}
 	idStore := identity.New(src, aws.DefaultAccount())
 	sk := &sink{box: outbox.New()}

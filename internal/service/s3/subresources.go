@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
@@ -386,7 +387,7 @@ func checkLifecycleDays(r s3api.LifecycleRule) *awserr.Error {
 	current := make([]transitionStep, 0, len(r.Transitions))
 	for _, t := range r.Transitions {
 		if t.StorageClass != nil && t.Date == nil {
-			current = append(current, transitionStep{days: deref(t.Days), class: *t.StorageClass})
+			current = append(current, transitionStep{days: smithy.Deref(t.Days), class: *t.StorageClass})
 		}
 	}
 	if err := checkTransitionDays(transitionAction{name: "Transition", days: "Days"}, current); err != nil {
@@ -395,7 +396,7 @@ func checkLifecycleDays(r s3api.LifecycleRule) *awserr.Error {
 	noncurrent := make([]transitionStep, 0, len(r.NoncurrentVersionTransitions))
 	for _, t := range r.NoncurrentVersionTransitions {
 		if t.StorageClass != nil {
-			noncurrent = append(noncurrent, transitionStep{days: deref(t.NoncurrentDays), class: *t.StorageClass})
+			noncurrent = append(noncurrent, transitionStep{days: smithy.Deref(t.NoncurrentDays), class: *t.StorageClass})
 		}
 	}
 	return checkTransitionDays(transitionAction{name: "NoncurrentVersionTransition", days: "NoncurrentDays"}, noncurrent)

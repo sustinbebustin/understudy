@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // bindTopics binds the topic control plane. SetTopicAttributes's note is
@@ -39,13 +40,13 @@ func (s *Service) bindTopics(b snsapi.Binder) {
 			return []registry.IAMAction{{Prefix: "sns", Name: "TagResource"}}
 		}))
 	b.DeleteTopic(s.deleteTopic, registry.Full{},
-		arnResource(func(in *snsapi.DeleteTopicInput) string { return in.TopicArn }))
+		kernel.WithResourceARN(func(in *snsapi.DeleteTopicInput) string { return in.TopicArn }))
 	b.GetTopicAttributes(s.getTopicAttributes, registry.Full{},
-		arnResource(func(in *snsapi.GetTopicAttributesInput) string { return in.TopicArn }))
+		kernel.WithResourceARN(func(in *snsapi.GetTopicAttributesInput) string { return in.TopicArn }))
 	b.SetTopicAttributes(s.setTopicAttributes, registry.Partial{Note: "Policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
 		"KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never applied; " +
 		"the http defaults in DeliveryPolicy apply to http and https subscriptions"},
-		arnResource(func(in *snsapi.SetTopicAttributesInput) string { return in.TopicArn }))
+		kernel.WithResourceARN(func(in *snsapi.SetTopicAttributesInput) string { return in.TopicArn }))
 	b.ListTopics(s.listTopics, registry.Full{})
 }
 
@@ -64,19 +65,6 @@ func feedbackRoles(attributes map[string]string) []aws.ARN {
 		}
 	}
 	return out
-}
-
-// arnResource names the topic or subscription an input's ARN member
-// addresses, for fault rules matched by resource; a malformed ARN names
-// none.
-func arnResource[In any](arn func(*In) string) kernel.BindOption {
-	return kernel.WithResources(func(_ *kernel.Call, in *In) []aws.ARN {
-		a, err := aws.ParseARN(arn(in))
-		if err != nil {
-			return nil
-		}
-		return []aws.ARN{a}
-	})
 }
 
 // createTopic creates a topic, or returns the existing one's ARN when the
@@ -252,7 +240,7 @@ func (s *Service) setTopicAttributes(_ context.Context, c *kernel.Call, in *snsa
 // listTopics lists the caller's topics in its region by name, 100 a page.
 func (s *Service) listTopics(_ context.Context, c *kernel.Call, in *snsapi.ListTopicsInput) (*snsapi.ListTopicsOutput, *awserr.Error) {
 	scope := c.Scope()
-	names, _ := read(s, scope, func(st *State) []string { return slices.Sorted(maps.Keys(st.Topics)) })
+	names := store.View(s.cells, scope, func(st *State) []string { return slices.Sorted(maps.Keys(st.Topics)) })
 	pageNames, next, err := page(names, in.NextToken)
 	if err != nil {
 		return nil, err

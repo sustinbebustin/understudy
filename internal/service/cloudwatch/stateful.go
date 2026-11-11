@@ -55,27 +55,19 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 }
 
 // Rearm arms the next evaluation after now of every evaluable alarm;
-// timers are never saved (cloudwatch-alarms.md 12.3). It arms under the
-// cell lock, where kernel.Write arms, so a concurrent DeleteAlarms either
-// commits first and its alarm is not read here, or commits after and its
-// own disarm wins.
+// timers are never saved (cloudwatch-alarms.md 12.3). kernel.RearmEach has
+// the lock argument.
 func (s *Service) Rearm(now clock.Instant) {
-	sched := s.k.Timers().Scheduler()
-	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
-		cell, ok := s.cells.Lookup(scope)
-		if !ok {
-			continue
-		}
-		store.Read(cell, func(st *State) struct{} {
-			for _, name := range slices.Sorted(maps.Keys(st.Alarms)) {
-				a := st.Alarms[name]
-				if cfg, err := alarm.ConfigOf(&a.Config); err == nil {
-					sched.Arm(s.evaluation.Key(alarmRef{scope: scope, name: name}.arn().String()), clock.FromWire(cfg.Next(now.Wire())))
-				}
+	kernel.RearmEach(s.k.Timers().Scheduler(), s.cells, func(scope aws.Scope, st *State) []clock.Armed {
+		var out []clock.Armed
+		for _, name := range slices.Sorted(maps.Keys(st.Alarms)) {
+			a := st.Alarms[name]
+			if cfg, err := alarm.ConfigOf(&a.Config); err == nil {
+				out = append(out, clock.Armed{Key: s.evaluation.Key(alarmRef{scope: scope, name: name}.arn().String()), Due: clock.FromWire(cfg.Next(now.Wire()))})
 			}
-			return struct{}{}
-		})
-	}
+		}
+		return out
+	})
 }
 
 // Scopes returns the accounts and regions that hold a state cell.

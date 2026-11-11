@@ -46,9 +46,9 @@ func (r Report) showsEvidence() bool {
 func (r Report) writeProtocols(b *strings.Builder) {
 	b.WriteString("\n## Protocol compliance\n\n")
 	b.WriteString("Server-runnable cases of the Smithy protocol compliance corpus, run against the synthetic services " +
-		"by `internal/protocoltest`. The RPC protocols and the S3 cases go through the edge; the synthetic restJson1 " +
-		"and restXml services go through their codecs and the kernel behind a test router, so those cases skip the " +
-		"edge's body caps, framing and auth parsing. The counts come from the checked-in " +
+		"by `internal/protocoltest`. Every case goes through the edge, so the counts cover its body caps, framing and " +
+		"auth parsing; the cases of the synthetic restJson1 and restXml services are sent with SigV4 credentials " +
+		"scoped to the service, which the edge routes them by (ADR 0019). The counts come from the checked-in " +
 		"`internal/protocoltest/baseline.json` and `skips.json`, which the corpus test holds every run to.\n\n")
 	if len(r.Protocols) == 0 {
 		b.WriteString("No baseline is recorded.\n")

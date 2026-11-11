@@ -345,7 +345,7 @@ type target struct {
 // error resolve would return for it, and nothing else; nil when both are
 // there.
 func (x *Execution) find(r functionRef) *awserr.Error {
-	_, err := view(x.svc, r.scope, func(st *State) (struct{}, *awserr.Error) {
+	_, err := store.View2(x.svc.cells, r.scope, func(st *State) (struct{}, *awserr.Error) {
 		if r.qualifier == latestPublished {
 			_, err := st.function(r)
 			return struct{}{}, err
@@ -353,6 +353,7 @@ func (x *Execution) find(r functionRef) *awserr.Error {
 		_, _, err := st.lookup(r)
 		return struct{}{}, err
 	})
+
 	return err
 }
 
@@ -361,7 +362,7 @@ func (x *Execution) find(r functionRef) *awserr.Error {
 // invoked. $LATEST.PUBLISHED is NoPublishedVersionException for every
 // function, as only Lambda Managed Instances publish it.
 func (x *Execution) resolve(r functionRef) (target, *awserr.Error) {
-	return view(x.svc, r.scope, func(st *State) (target, *awserr.Error) {
+	return store.View2(x.svc.cells, r.scope, func(st *State) (target, *awserr.Error) {
 		if r.qualifier == latestPublished {
 			if _, err := st.function(r); err != nil {
 				return target{}, err
@@ -921,7 +922,7 @@ func (s *Service) hotReloadAdvisory(ctx context.Context, c *kernel.Call, fn func
 	if !ok {
 		return
 	}
-	sha, err := view(s, fn.scope, func(st *State) (string, *awserr.Error) {
+	sha, err := store.View2(s.cells, fn.scope, func(st *State) (string, *awserr.Error) {
 		if f, ok := st.Functions[fn.name]; ok {
 			if z, ok := f.Latest.Code.(ZipCode); ok {
 				return z.Sha256, nil

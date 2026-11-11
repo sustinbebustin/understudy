@@ -23,11 +23,7 @@ import (
 // hands the construction and the built rows to fn.
 func buildTable(t *testing.T, fn func(k *kerneltest.K, c *construction, built []wiredBuilt)) {
 	t.Helper()
-	all := apis()
-	descs := make([]*registry.Service, len(all))
-	for i, a := range all {
-		descs[i] = a.desc
-	}
+	descs := descriptors()
 	kerneltest.Run(t, func(k *kerneltest.K) {
 		c := &construction{}
 		built, err := c.build(k.Deps)

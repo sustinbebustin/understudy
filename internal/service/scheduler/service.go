@@ -120,16 +120,10 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 		// (authorizeMembers), so step 8 asks about none.
 		kernel.WithoutSecondaryActions())
 	b.TagResource(s.tagResource, registry.Partial{Note: "schedule groups only, the default group included, as AWS (SCH-06)"},
-		kernel.WithResources(func(_ *kernel.Call, in *schedulerapi.TagResourceInput) []aws.ARN {
-			return taggedResource(in.ResourceArn)
-		}))
+		kernel.WithResourceARN(func(in *schedulerapi.TagResourceInput) string { return in.ResourceArn }))
 	b.UntagResource(s.untagResource, registry.Partial{Note: "schedule groups only, the default group included, and a key the group does not carry is ignored with 200, as AWS (SCH-06)"},
-		kernel.WithResources(func(_ *kernel.Call, in *schedulerapi.UntagResourceInput) []aws.ARN {
-			return taggedResource(in.ResourceArn)
-		}))
+		kernel.WithResourceARN(func(in *schedulerapi.UntagResourceInput) string { return in.ResourceArn }))
 	b.ListTagsForResource(s.listTagsForResource, registry.Partial{Note: "schedule groups only, tags sorted by key, as AWS (SCH-06)"},
-		kernel.WithResources(func(_ *kernel.Call, in *schedulerapi.ListTagsForResourceInput) []aws.ARN {
-			return taggedResource(in.ResourceArn)
-		}))
+		kernel.WithResourceARN(func(in *schedulerapi.ListTagsForResourceInput) string { return in.ResourceArn }))
 	return s
 }

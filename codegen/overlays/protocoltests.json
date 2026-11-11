@@ -45,9 +45,11 @@
       "traits": {
         "dev.understudy#validationError": {"code": "smithy.framework#ValidationException"},
         "dev.understudy#malformedRequestError": "com.amazon.coral.service#SerializationException",
+        "aws.auth#sigv4": {"name": "restjsonvalidation"},
         "dev.understudy#evidence": [
           {"label": "aws-doc", "source": "https://github.com/smithy-lang/smithy/blob/1.74.0/smithy-aws-protocol-tests/model/restJson1/validation/malformed-length.smithy", "covers": ["dev.understudy#validationError"]},
-          {"label": "aws-doc", "source": "https://github.com/smithy-lang/smithy/blob/1.74.0/smithy-aws-protocol-tests/model/restJson1/malformedRequests/malformed-request-body.smithy", "covers": ["dev.understudy#malformedRequestError"]}
+          {"label": "aws-doc", "source": "https://github.com/smithy-lang/smithy/blob/1.74.0/smithy-aws-protocol-tests/model/restJson1/malformedRequests/malformed-request-body.smithy", "covers": ["dev.understudy#malformedRequestError"]},
+          {"label": "inferred", "source": "docs/research/smithy-protocol-tests.md#3-test-services-and-case-counts: the model gives RestJsonValidation no auth trait, and the edge routes a request to a REST service other than S3 only by the signing name of its credentials (ADR 0019), so the synthetic service takes its own id as that name for the compliance bench to sign with", "covers": ["aws.auth#sigv4"]}
         ]
       }
     },

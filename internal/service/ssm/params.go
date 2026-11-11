@@ -30,25 +30,9 @@ func errAlreadyExists() *awserr.Error {
 // 2.2; SSM-01 step 01, SSM-02 steps 01-02).
 func errNotFound() *awserr.Error { return ssmapi.ErrParameterNotFound("") }
 
-// readState runs fn on scope's state, or on an empty state when the scope
-// has no cell yet, without creating one.
-func readState[R any](s *Service, scope aws.Scope, fn func(st *State) R) R {
-	cell, ok := s.cells.Lookup(scope)
-	if !ok {
-		st := newState(scope)
-		return fn(&st)
-	}
-	return store.Read(cell, fn)
-}
-
 // lookup copies out the parameter canonical of scope.
 func (s *Service) lookup(scope aws.Scope, canonical string) (Parameter, bool) {
-	type found struct {
-		p  Parameter
-		ok bool
-	}
-	f := readState(s, scope, func(st *State) found { p, ok := st.Parameters[canonical]; return found{p, ok} })
-	return f.p, f.ok
+	return store.View2(s.cells, scope, func(st *State) (Parameter, bool) { p, ok := st.Parameters[canonical]; return p, ok })
 }
 
 // latest is the parameter's newest version. A stored parameter always has
@@ -105,7 +89,7 @@ func (s *Service) putParameter(ctx context.Context, c *kernel.Call, in *ssmapi.P
 	// the assumed-role session ARN for a role session (ssm-parameters.md
 	// 9.1; SSM-24).
 	w := write{op: op, name: n, in: in, tags: tags, at: c.Admitted(), user: identity.Render(c.Principal())}
-	planned, err := readState(s, scope, func(st *State) planned { p, err := w.apply(st, overwrite); return planned{p, err} }).unpack()
+	planned, err := store.View2(s.cells, scope, func(st *State) (Parameter, *awserr.Error) { return w.apply(st, overwrite) })
 	if err != nil {
 		return nil, err
 	}
@@ -146,14 +130,6 @@ type write struct {
 	at   clock.Instant
 	user string
 }
-
-// planned is the outcome of checking a write against a read of the state.
-type planned struct {
-	p   Parameter
-	err *awserr.Error
-}
-
-func (p planned) unpack() (Parameter, *awserr.Error) { return p.p, p.err }
 
 // apply is the parameter st holds after the write, without storing it.
 // st is not modified. A SecureString version's value is a sealedValue

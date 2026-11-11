@@ -16,7 +16,7 @@ import (
 )
 
 // unknownOperation is svc's answer for a request of protocol p naming no
-// operation of it: the overlay's unknownOperationError for the protocol
+// operation of it: the descriptor's UnknownOperationError for the protocol
 // family, else the generic one. Coral sends the JSON family's without a
 // message (error-matrix.md 5.5 T5); the Query family's names the action.
 func (h *Handler) unknownOperation(svc *registry.Service, p ref.ProtocolID, name string) *awserr.Error {
@@ -26,8 +26,8 @@ func (h *Handler) unknownOperation(svc *registry.Service, p ref.ProtocolID, name
 	}
 	var id awserr.Identity
 	found := false
-	if h.opts.UnknownOperationError != nil {
-		id, found = h.opts.UnknownOperationError(svc.ID, family)
+	if svc.UnknownOperationError != nil {
+		id, found = svc.UnknownOperationError(family)
 	}
 	if !found {
 		id = awserr.UnknownOperationException()

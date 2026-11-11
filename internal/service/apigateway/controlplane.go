@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // The control plane of the tracer bullet: enough of
@@ -86,7 +87,7 @@ func (s *Service) newAPIID(scope aws.Scope) string {
 // getRestAPI answers one REST API of the caller's account and region.
 func (s *Service) getRestAPI(_ context.Context, c *kernel.Call, in *apigatewayapi.GetRestApiInput) (*apigatewayapi.RestApi, *awserr.Error) {
 	scope := c.Scope()
-	out := readState(s, scope, func(st *State) *apigatewayapi.RestApi {
+	out := store.View(s.cells, scope, func(st *State) *apigatewayapi.RestApi {
 		a, ok := st.APIs[in.RestApiId]
 		if !ok {
 			return nil

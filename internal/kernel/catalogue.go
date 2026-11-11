@@ -13,16 +13,12 @@ import (
 // validate against the errors each operation really sends without the fault
 // package importing a descriptor.
 type Catalogue struct {
-	reg       *registry.Registry
-	throttles map[ref.ServiceID]awserr.Identity
+	reg *registry.Registry
 }
 
-// NewCatalogue returns the catalogue of reg. throttles holds each service's
-// overlay throttleError (the generated ThrottleError of its api package),
-// which the descriptors do not carry; a service missing from it throttles
-// with the generic ThrottlingException.
-func NewCatalogue(reg *registry.Registry, throttles map[ref.ServiceID]awserr.Identity) Catalogue {
-	return Catalogue{reg: reg, throttles: throttles}
+// NewCatalogue returns the catalogue of reg.
+func NewCatalogue(reg *registry.Registry) Catalogue {
+	return Catalogue{reg: reg}
 }
 
 // Errors returns op's modeled and overlay errors plus the generic
@@ -56,15 +52,18 @@ func (c Catalogue) Errors(op ref.OperationID) ([]awserr.Identity, bool) {
 	return out, true
 }
 
-// Throttle returns svc's throttling identity, or the zero Identity for a
-// service the registry does not hold.
+// Throttle returns svc's throttling identity: the descriptor's
+// ThrottleError, the generic ThrottlingException for a descriptor that
+// carries none, or the zero Identity for a service the registry does not
+// hold.
 func (c Catalogue) Throttle(svc ref.ServiceID) awserr.Identity {
-	if _, ok := c.reg.Service(svc); !ok {
+	d, ok := c.reg.Service(svc)
+	if !ok {
 		var unknown awserr.Identity
 		return unknown
 	}
-	if id, ok := c.throttles[svc]; ok {
-		return id
+	if d.ThrottleError.Shape != "" {
+		return d.ThrottleError
 	}
 	return awserr.ThrottlingException()
 }

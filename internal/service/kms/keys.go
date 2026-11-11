@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -150,7 +151,7 @@ func (s *Service) createKey(ctx context.Context, c *kernel.Call, in *kmsapi.Crea
 	}
 	scope := c.Scope()
 	k, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (Key, *awserr.Error) {
-		k, err := s.newKey(scope, now, kmsapi.KeyManagerTypeCustomer, deref(in.Description), policy)
+		k, err := s.newKey(scope, now, kmsapi.KeyManagerTypeCustomer, smithy.Deref(in.Description), policy)
 		if err != nil {
 			return Key{}, err
 		}
@@ -182,7 +183,7 @@ func (s *Service) describeKey(_ context.Context, c *kernel.Call, in *kmsapi.Desc
 
 func (s *Service) listKeys(_ context.Context, c *kernel.Call, in *kmsapi.ListKeysInput) (*kmsapi.ListKeysOutput, *awserr.Error) {
 	scope := c.Scope()
-	keyIDs := readState(s, scope, func(st *State) []string { return slices.Collect(maps.Keys(st.Keys)) })
+	keyIDs := store.View(s.cells, scope, func(st *State) []string { return slices.Collect(maps.Keys(st.Keys)) })
 	p, err := page(listingKeys, keyIDs, func(id string) string { return id }, in.Limit, limits{def: 100, max: 1000}, in.Marker)
 	if err != nil {
 		return nil, err
@@ -349,17 +350,6 @@ func updateKey(s *Service, c *kernel.Call, keyID string, rule stateRule, fn func
 	return locate(r.scope(), k), nil
 }
 
-// readState runs fn on the state of scope without creating its cell; a
-// scope with no cell reads as empty.
-func readState[R any](s *Service, scope aws.Scope, fn func(st *State) R) R {
-	cell, ok := s.cells.Lookup(scope)
-	if !ok {
-		st := newState(scope)
-		return fn(&st)
-	}
-	return store.Read(cell, fn)
-}
-
 // metadata renders a key as KeyMetadata: DescribeKey's fields for a
 // symmetric AWS_KMS key, DeletionDate only while pending deletion.
 func metadata(scope aws.Scope, k Key) *kmsapi.KeyMetadata {
@@ -401,11 +391,4 @@ func parseKeyARN(s string) (aws.Scope, string, bool) {
 		return aws.Scope{}, "", false
 	}
 	return scope, id, true
-}
-
-func deref(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }

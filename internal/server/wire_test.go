@@ -46,15 +46,15 @@ func TestModelPinIsTheVendoredCommit(t *testing.T) {
 // startup, rather than silently missing from snapshots and resets; a full
 // wiring collects every one.
 func TestRegisteredServicesMustBeCollected(t *testing.T) {
-	cat := newCatalogue()
-	reg, err := registry.New(cat.descs...)
+	descs := descriptors()
+	reg, err := registry.New(descs...)
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = checkCollected(reg, nil)
 	uncollected, ok := errors.AsType[*UncollectedServiceError](err)
-	if !ok || len(uncollected.Services) != len(cat.descs) {
-		t.Fatalf("checkCollected with nothing collected = %v, want every one of the %d services named", err, len(cat.descs))
+	if !ok || len(uncollected.Services) != len(descs) {
+		t.Fatalf("checkCollected with nothing collected = %v, want every one of the %d services named", err, len(descs))
 	}
 	w, err := wire(Config{Docker: DockerDisabled{}}, slog.New(slog.DiscardHandler))
 	if err != nil {

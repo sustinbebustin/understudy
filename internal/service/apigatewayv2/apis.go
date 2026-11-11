@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Lengths of an API's members, in characters (apigateway-http.md 13.5).
@@ -160,7 +161,7 @@ func (s *Service) newAPIID(scope aws.Scope) string {
 // getAPI answers one API of the caller's account and region.
 func (s *Service) getAPI(_ context.Context, c *kernel.Call, in *apigatewayv2api.GetApiInput) (*apigatewayv2api.GetApiOutput, *awserr.Error) {
 	scope := c.Scope()
-	out := readState(s, scope, func(st *State) *apigatewayv2api.GetApiOutput {
+	out := store.View(s.cells, scope, func(st *State) *apigatewayv2api.GetApiOutput {
 		a, ok := st.APIs[in.ApiId]
 		if !ok {
 			return nil
@@ -177,7 +178,7 @@ func (s *Service) getAPI(_ context.Context, c *kernel.Call, in *apigatewayv2api.
 // order (inferred, APIGW2-03), a page at a time.
 func (s *Service) getAPIs(_ context.Context, c *kernel.Call, in *apigatewayv2api.GetApisInput) (*apigatewayv2api.GetApisOutput, *awserr.Error) {
 	scope := c.Scope()
-	apis := readState(s, scope, func(st *State) []API {
+	apis := store.View(s.cells, scope, func(st *State) []API {
 		return slices.SortedFunc(maps.Values(st.APIs), func(x, y API) int { return cmp.Or(cmp.Compare(x.Seq, y.Seq), cmp.Compare(x.ID, y.ID)) })
 	})
 	items, next, err := page(apis, func(a API) uint64 { return a.Seq }, in.MaxResults, in.NextToken)
@@ -286,19 +287,14 @@ func writeAPI[R any](s *Service, c *kernel.Call, id string, fn func(a *API, now 
 // the scope does not hold is NotFoundException. What fn returns must not
 // alias the state.
 func readAPI[R any](s *Service, scope aws.Scope, id string, fn func(a *API) (R, *awserr.Error)) (R, *awserr.Error) {
-	type answer struct {
-		r   R
-		err *awserr.Error
-	}
-	got := readState(s, scope, func(st *State) answer {
+	return store.View2(s.cells, scope, func(st *State) (R, *awserr.Error) {
 		a, ok := st.APIs[id]
 		if !ok {
-			return answer{err: errAPINotFound(scope, id)}
+			var zero R
+			return zero, errAPINotFound(scope, id)
 		}
-		r, err := fn(&a)
-		return answer{r, err}
+		return fn(&a)
 	})
-	return got.r, got.err
 }
 
 // output is the API as GetApi answers it, with the ApiEndpoint of the

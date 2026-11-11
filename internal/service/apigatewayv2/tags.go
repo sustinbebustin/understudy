@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Tag limits. "Tags per stage: 50" is the HTTP API quota
@@ -152,29 +153,25 @@ func (s *Service) getTags(_ context.Context, c *kernel.Call, in *apigatewayv2api
 	if err != nil {
 		return nil, err
 	}
-	type found struct {
-		tags map[string]string
-		err  *awserr.Error
-	}
-	got := readState(s, scope, func(st *State) found {
+	tags, err := store.View2(s.cells, scope, func(st *State) (map[string]string, *awserr.Error) {
 		a, ok := st.APIs[t.apiID]
 		if !ok {
 			// AWS's GetTags text (APIGW2-01, recorded 2026-11-03: step 23).
-			return found{err: errNotFound("Resource was not found")}
+			return nil, errNotFound("Resource was not found")
 		}
 		if t.stage == "" {
-			return found{tags: tagsOut(a.Tags)}
+			return tagsOut(a.Tags), nil
 		}
 		stage, ok := a.stage(t.stage)
 		if !ok {
-			return found{err: errStageNotFound()}
+			return nil, errStageNotFound()
 		}
-		return found{tags: tagsOut(stage.Tags)}
+		return tagsOut(stage.Tags), nil
 	})
-	if got.err != nil {
-		return nil, got.err
+	if err != nil {
+		return nil, err
 	}
-	return &apigatewayv2api.GetTagsOutput{Tags: got.tags}, nil
+	return &apigatewayv2api.GetTagsOutput{Tags: tags}, nil
 }
 
 // retag sets the tags of the API or stage t names to what change makes of

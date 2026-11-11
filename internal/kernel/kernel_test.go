@@ -847,3 +847,53 @@ func TestStrictRefusesZeroRequiredTimestamps(t *testing.T) {
 		}
 	})
 }
+
+func TestRearmEachArmsEveryListedTimerUnderTheCellLock(t *testing.T) {
+	run(t, func(k *kerneltest.K) {
+		t := k.T
+		later := k.Kernel.Timers().Handle(kindLater, func(*kernel.Call, clock.TimerKey, clock.Instant) {})
+		p := cells(k)
+		account, perr := aws.ParseAccountID("222222222222")
+		if perr != nil {
+			t.Fatal(perr)
+		}
+		other := aws.Scope{Partition: k.Scope.Partition, Account: account, Region: k.Scope.Region}
+		p.For(k.Scope)
+		p.For(other)
+		due := k.Clock.Now().Add(time.Hour)
+
+		var wroteWhileListing atomic.Bool
+		kernel.RearmEach(k.Kernel.Timers().Scheduler(), p, func(scope aws.Scope, _ *int) []clock.Armed {
+			var written atomic.Bool
+			go func() {
+				store.Update(p.For(scope), func(*int) (struct{}, bool) {
+					written.Store(true)
+					return struct{}{}, true
+				})
+			}()
+			for range 1000 {
+				runtime.Gosched()
+			}
+			if written.Load() {
+				wroteWhileListing.Store(true)
+			}
+			return []clock.Armed{
+				{Key: later.Key(scope.Account.String() + "/a"), Due: due},
+				{Key: later.Key(scope.Account.String() + "/b"), Due: due.Add(time.Minute)},
+			}
+		})
+
+		if wroteWhileListing.Load() {
+			t.Error("a concurrent Update on the cell committed while its timers were being listed and armed; want it to wait for the cell lock")
+		}
+		got := k.Kernel.Timers().Scheduler().Snapshot()
+		if len(got) != 4 {
+			t.Fatalf("armed %+v, want 2 timers in each of 2 scopes", got)
+		}
+		for _, a := range got {
+			if a.Key.Kind != kindLater {
+				t.Errorf("armed %+v, want kind %s", a, kindLater)
+			}
+		}
+	})
+}

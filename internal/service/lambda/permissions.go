@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // maxPolicyBytes is the resource policy size limit (lambda-api.md 7.3).
@@ -194,7 +195,7 @@ func (s *Service) getPolicy(_ context.Context, c *kernel.Call, in *lambdaapi.Get
 	}
 	// A missing function, version or alias reads as a missing policy
 	// (test_permission_exceptions).
-	return view(s, ref.scope, func(st *State) (*lambdaapi.GetPolicyOutput, *awserr.Error) {
+	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.GetPolicyOutput, *awserr.Error) {
 		f, _, err := st.lookup(ref)
 		if err != nil {
 			return nil, errResourceNotFound()

@@ -27,6 +27,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/apigatewayv2/route"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // executeAPIPrefix is the execute-api path fallback,
@@ -229,7 +230,7 @@ func (s *Service) selectRoute(addr address, method string, origin bool) selectio
 	if !ok || (!addr.region.IsZero() && addr.region != owner.Region) {
 		return answered{FrontAnswersSwitch().Value.UnknownAPI}
 	}
-	return readState(s, owner, func(st *State) selection {
+	return store.View(s.cells, owner, func(st *State) selection {
 		a, ok := st.APIs[addr.apiID]
 		if !ok {
 			return answered{FrontAnswersSwitch().Value.UnknownAPI}

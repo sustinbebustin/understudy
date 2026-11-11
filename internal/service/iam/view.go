@@ -7,29 +7,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/awserr"
-	"github.com/sustinbebustin/understudy/internal/store"
 )
-
-// view runs fn on the account's state without creating its cell; an
-// account without one reads as empty. fn must not change the state, and
-// its result must not alias it.
-func view[R any](s *Service, account aws.AccountID, fn func(st *State) (R, *awserr.Error)) (R, *awserr.Error) {
-	cell, ok := s.cells.Lookup(account)
-	if !ok {
-		empty := newState(account)
-		return fn(&empty)
-	}
-	type result struct {
-		r   R
-		err *awserr.Error
-	}
-	res := store.Read(cell, func(st *State) result {
-		r, err := fn(st)
-		return result{r: r, err: err}
-	})
-	return res.r, res.err
-}
 
 // sortedWhere returns the records of m that keep accepts, in key order,
 // the order IAM listings page through.

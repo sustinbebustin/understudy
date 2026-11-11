@@ -37,26 +37,22 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 }
 
 // Rearm arms the retention timer of every group whose events expire;
-// timers are never saved. It arms under the cell lock, where kernel.Write
-// arms, so a concurrent write either commits first and its expiry is read
-// here, or commits after and its own arm replaces this one.
+// timers are never saved. kernel.RearmEach has the lock argument.
 func (s *Service) Rearm(clock.Instant) {
-	sched := s.k.Timers().Scheduler()
-	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
-		cell, ok := s.cells.Lookup(scope)
-		if !ok {
-			continue
+	kernel.RearmEach(s.k.Timers().Scheduler(), s.cells, s.timersOf)
+}
+
+// timersOf lists the retention timer of every group of st, the state of
+// scope, whose events expire.
+func (s *Service) timersOf(scope aws.Scope, st *State) []clock.Armed {
+	var out []clock.Armed
+	for _, name := range slices.Sorted(maps.Keys(st.Groups)) {
+		g := st.Groups[name]
+		if due, ok := nextExpiry(&g); ok {
+			out = append(out, clock.Armed{Key: s.retention.Key(groupRef{scope: scope, name: name}.arn().String()), Due: due})
 		}
-		store.Read(cell, func(st *State) struct{} {
-			for _, name := range slices.Sorted(maps.Keys(st.Groups)) {
-				g := st.Groups[name]
-				if due, ok := nextExpiry(&g); ok {
-					sched.Arm(s.retention.Key(groupRef{scope: scope, name: name}.arn().String()), due)
-				}
-			}
-			return struct{}{}
-		})
 	}
+	return out
 }
 
 // Scopes returns the accounts and regions that hold a state cell.

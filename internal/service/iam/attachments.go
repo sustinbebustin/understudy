@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // bindAttachments binds the managed policy attachments of roles and users.
@@ -119,7 +120,7 @@ func (s *Service) listAttached(c *kernel.Call, listing paging.Listing, h holder,
 		arn aws.ARN
 	}
 	key := func(r policyRef) string { return boundedSortKey(listing, r.arn.String()) }
-	l, err := view(s, c.Scope().Account, func(st *State) (listed, *awserr.Error) {
+	l, err := store.View2(s.cells, c.Scope().Account, func(st *State) (listed, *awserr.Error) {
 		have, arn, err := h.get(st)
 		if err != nil {
 			return listed{}, err

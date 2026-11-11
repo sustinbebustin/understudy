@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/apigateway/patch"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Stage limits (documented, apigateway-rest.md 2.6, 3.7): 10 stages per
@@ -185,25 +186,17 @@ func (s *Service) createStage(_ context.Context, c *kernel.Call, in *apigatewaya
 // getStage answers one stage.
 func (s *Service) getStage(_ context.Context, c *kernel.Call, in *apigatewayapi.GetStageInput) (*apigatewayapi.Stage, *awserr.Error) {
 	scope := c.Scope()
-	type found struct {
-		out apigatewayapi.Stage
-		err *awserr.Error
-	}
-	got := readState(s, scope, func(st *State) found {
+	return store.View2(s.cells, scope, func(st *State) (*apigatewayapi.Stage, *awserr.Error) {
 		a, ok := st.APIs[in.RestApiId]
 		if !ok {
-			return found{err: errAPINotFound(scope, in.RestApiId)}
+			return nil, errAPINotFound(scope, in.RestApiId)
 		}
 		stage, _, ok := a.stage(in.StageName)
 		if !ok {
-			return found{err: errStageNotFound()}
+			return nil, errStageNotFound()
 		}
-		return found{out: stage.output()}
+		return new(stage.output()), nil
 	})
-	if got.err != nil {
-		return nil, got.err
-	}
-	return &got.out, nil
 }
 
 // getStages answers the API's stages in creation order (inferred), only
@@ -211,14 +204,10 @@ func (s *Service) getStage(_ context.Context, c *kernel.Call, in *apigatewayapi.
 // paginated, apigateway-rest.md 2.5).
 func (s *Service) getStages(_ context.Context, c *kernel.Call, in *apigatewayapi.GetStagesInput) (*apigatewayapi.GetStagesOutput, *awserr.Error) {
 	scope := c.Scope()
-	type found struct {
-		out apigatewayapi.GetStagesOutput
-		err *awserr.Error
-	}
-	got := readState(s, scope, func(st *State) found {
+	return store.View2(s.cells, scope, func(st *State) (*apigatewayapi.GetStagesOutput, *awserr.Error) {
 		a, ok := st.APIs[in.RestApiId]
 		if !ok {
-			return found{err: errAPINotFound(scope, in.RestApiId)}
+			return nil, errAPINotFound(scope, in.RestApiId)
 		}
 		out := apigatewayapi.GetStagesOutput{Item: []apigatewayapi.Stage{}}
 		for i := range a.Stages {
@@ -226,12 +215,8 @@ func (s *Service) getStages(_ context.Context, c *kernel.Call, in *apigatewayapi
 				out.Item = append(out.Item, a.Stages[i].output())
 			}
 		}
-		return found{out: out}
+		return &out, nil
 	})
-	if got.err != nil {
-		return nil, got.err
-	}
-	return &got.out, nil
 }
 
 // updateStage applies UpdateStage's patch operations, all or none

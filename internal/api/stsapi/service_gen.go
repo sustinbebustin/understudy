@@ -13,18 +13,21 @@ import (
 )
 
 var service = registry.Service{
-	ID:                 "sts",
-	Shape:              "com.amazonaws.sts#AWSSecurityTokenServiceV20110615",
-	SigningName:        "sts",
-	IAMPrefix:          "sts",
-	ARNNamespace:       "sts",
-	Protocols:          []ref.ProtocolID{ref.AWSQuery},
-	QueryVersion:       "2011-06-15",
-	XMLNamespace:       "https://sts.amazonaws.com/doc/2011-06-15/",
-	QueryErrorEnvelope: registry.QueryErrorEnvelope{Namespace: true, Detail: false},
-	Denial:             registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-recorded"},
-	NewErrorMembers:    NewErrorMembers,
-	GenericErrors:      GenericErrors,
+	ID:                    "sts",
+	Shape:                 "com.amazonaws.sts#AWSSecurityTokenServiceV20110615",
+	SigningName:           "sts",
+	IAMPrefix:             "sts",
+	ARNNamespace:          "sts",
+	Protocols:             []ref.ProtocolID{ref.AWSQuery},
+	QueryVersion:          "2011-06-15",
+	XMLNamespace:          "https://sts.amazonaws.com/doc/2011-06-15/",
+	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: true, Detail: false},
+	ThrottleError:         IdentityThrottlingException(),
+	UnknownOperationError: UnknownOperationError,
+	ModelSource:           registry.ModelSource{Origin: "api-models-aws@1cfdfb4", File: "sts-2011-06-15.json"},
+	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-recorded"},
+	NewErrorMembers:       NewErrorMembers,
+	GenericErrors:         GenericErrors,
 }
 
 // The operations point back at the service, so the list is linked once

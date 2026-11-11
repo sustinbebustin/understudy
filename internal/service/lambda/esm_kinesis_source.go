@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 )
@@ -166,7 +167,7 @@ func (s kinesisSource) record(r *kinesisapi.Record, shard string) (esm.StreamRec
 	arrival := clock.FromWire(*r.ApproximateArrivalTimestamp)
 	event, err := json.Marshal(kinesisEventRecord{
 		Kinesis: kinesisEventData{
-			SchemaVersion: "1.0", PartitionKey: deref(r.PartitionKey), SequenceNumber: string(seq),
+			SchemaVersion: "1.0", PartitionKey: smithy.Deref(r.PartitionKey), SequenceNumber: string(seq),
 			Data: r.Data, ApproximateArrivalTimestamp: epochMillis(*r.ApproximateArrivalTimestamp),
 		},
 		EventSource: "aws:kinesis", EventVersion: "1.0", EventID: shard + ":" + string(seq), EventName: "aws:kinesis:record",

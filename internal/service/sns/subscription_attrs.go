@@ -17,6 +17,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/service/sns/filterpolicy"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Subscription attribute names (sns.md 3.3).
@@ -41,10 +42,10 @@ const (
 // either (6.3, SNSH-18; httpRetryPolicy).
 func (s *Service) bindSubscriptionAttributes(b snsapi.Binder) {
 	b.GetSubscriptionAttributes(s.getSubscriptionAttributes, registry.Full{},
-		arnResource(func(in *snsapi.GetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
+		kernel.WithResourceARN(func(in *snsapi.GetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
 	b.SetSubscriptionAttributes(s.setSubscriptionAttributes, registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; " +
 		"sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced"},
-		arnResource(func(in *snsapi.SetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
+		kernel.WithResourceARN(func(in *snsapi.SetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
 }
 
 // subscriber is what a subscription attribute is checked against.
@@ -387,7 +388,7 @@ func (s *Service) getSubscriptionAttributes(_ context.Context, c *kernel.Call, i
 		return nil, err
 	}
 	now := s.clock.Now()
-	attrs, _ := read(s, ref.topic.scope, func(st *State) map[string]string {
+	attrs := store.View(s.cells, ref.topic.scope, func(st *State) map[string]string {
 		if t, ok := st.Topics[ref.topic.name]; ok {
 			if i := t.indexOf(ref.id); i >= 0 && !t.Subscriptions[i].expired(now) {
 				return renderSubscriptionAttributes(ref, &t.Subscriptions[i], t.Attributes[attrDeliveryPolicy])

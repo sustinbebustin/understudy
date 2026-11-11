@@ -125,12 +125,6 @@ func newFrontWith(t *testing.T, codecs map[ref.ProtocolID]edge.Codec, adjust fun
 	o := edge.Options{
 		Kernel: k, Registry: reg, Identity: idStore, Regions: aws.KnownRegions(), Codecs: codecs,
 		S3BaseDomains: []string{"localhost"}, Listener: ref.ListenerMain, Admin: admin, Unclaimed: ref.AWSJSON10,
-		UnknownOperationError: func(svc ref.ServiceID, f awserr.Family) (awserr.Identity, bool) {
-			if svc == "sqs" {
-				return sqsapi.UnknownOperationError(f)
-			}
-			return awserr.Identity{}, false
-		},
 	}
 	adjust(&o)
 	h, err := edge.New(o)
@@ -332,6 +326,37 @@ func TestUnknownAndUnboundOperations(t *testing.T) {
 	}
 	if !slices.Equal(ops, []string{"sqs.Bogus", "logs.DescribeLogGroups"}) {
 		t.Errorf("journaled calls = %v, want the unknown and the unbound one", ops)
+	}
+}
+
+// An operation a service does not model answers the descriptor's
+// unknown-operation identity for the protocol family; a hand-built
+// descriptor without one, the synthetic DynamoDB here, answers the family's
+// generic UnknownOperationException (error-matrix.md 5.5 T5).
+func TestUnknownOperationIsTheDescriptorsElseTheFamilysGeneric(t *testing.T) {
+	own := awserr.Identity{Shape: "com.example.widget#UnknownOperation", JSONType: "com.example.widget#UnknownOperation", Status: 400, Fault: awserr.Sender}
+	widget := &registry.Service{
+		ID: "widget", SigningName: "widget", IAMPrefix: "widget", ARNNamespace: "widget",
+		Protocols: []ref.ProtocolID{ref.AWSJSON10}, JSONTargetPrefix: "Widget",
+		UnknownOperationError: func(f awserr.Family) (awserr.Identity, bool) {
+			if f == awserr.JSONFamily {
+				return own, true
+			}
+			return awserr.Identity{}, false
+		},
+	}
+	f := newFront(t, nil, widget)
+	for _, c := range []struct {
+		target, signing string
+		want            awserr.Identity
+	}{
+		{"Widget.Bogus", "widget", own},
+		{"DynamoDB_20120810.Bogus", "dynamodb", awserr.UnknownOperationException()},
+	} {
+		got := f.serve(t, request(t, http.MethodPost, "/", jsonHeader(c.target, "application/x-amz-json-1.0"), `{}`, c.signing))
+		if want := `{"__type":"` + c.want.JSONType + `"}`; !strings.HasPrefix(got, "400\n") || !strings.HasSuffix(got, want) {
+			t.Errorf("%s = %s, want 400 with body %s", c.target, got, want)
+		}
 	}
 }
 

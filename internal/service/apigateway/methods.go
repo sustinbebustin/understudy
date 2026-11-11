@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/apigateway/patch"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Methods and method responses (apigateway-rest.md 3.3, 3.5; texts in
@@ -166,27 +167,22 @@ type methodRef struct{ api, resource, verb string }
 // NotFound for the first of the API, resource and method that is missing.
 func readMethod[R any](s *Service, c *kernel.Call, ref methodRef, fn func(a *RestAPI, m *Method) (R, *awserr.Error)) (R, *awserr.Error) {
 	scope := c.Scope()
-	type result struct {
-		v   R
-		err *awserr.Error
-	}
-	res := readState(s, scope, func(st *State) result {
+	return store.View2(s.cells, scope, func(st *State) (R, *awserr.Error) {
+		var zero R
 		a, ok := st.APIs[ref.api]
 		if !ok {
-			return result{err: errAPINotFound(scope, ref.api)}
+			return zero, errAPINotFound(scope, ref.api)
 		}
 		r, _, ok := a.resource(ref.resource)
 		if !ok {
-			return result{err: errResourceNotFound()}
+			return zero, errResourceNotFound()
 		}
 		m, ok := r.Methods[ref.verb]
 		if !ok {
-			return result{err: errMethodNotFound()}
+			return zero, errMethodNotFound()
 		}
-		v, err := fn(&a, &m)
-		return result{v, err}
+		return fn(&a, &m)
 	})
-	return res.v, res.err
 }
 
 // writeMethod runs fn on a copy of the method ref names and stores the
