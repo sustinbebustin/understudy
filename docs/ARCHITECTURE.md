@@ -55,6 +55,7 @@ internal/
   coverage/                     report (JSON, Markdown) from kernel bindings + protocol-test baseline + fidelity ledger + overlay evidence and parity baseline (offline only)
   delivery/                     LEAF types: Target variants with their payloads, Request, RetryPolicy, Mechanism
   outbox/                       the delivery engine: a Stateful outbox cell, attempts on the clock, DLQ routing, kernel.Invoke per attempt (egress for HTTP endpoints)
+  serviceevent/                 a service's own EventBridge events (CloudWatch alarms, Parameter Store changes): queued in commit order, sent through PutServiceEventInternal
   egress/                       the only outbound HTTP dialer: allow-lists, hard refusals, checked-address dial, one HTTP/1.1 exchange on a wall deadline
   protocol/
     smithy/                     runtime schema descriptors incl. streaming kind, Serializer and Deserializer interfaces, ShapeID
@@ -199,7 +200,7 @@ type Cause struct{ Parent, Trace EventID } // Parent 0 for roots; Trace is the r
 type ProtocolID string                      // awsjson1_0 | awsjson1_1 | awsquery | restjson1 | restxml | rpcv2cbor | raw
 type ListenerKind uint8                     // Main | Container
 
-type Via uint8 // closed: SNSDelivery | LambdaESM | EventsTarget | S3Notification | LambdaLogs | DynamoDBTTL | Timer | Snapshot | Admin | KMSForward | STSAssumeRole | LambdaCode | LambdaDestination | ViaAPIGateway | SFNLogDestination | SFNTask | CloudWatchAlarm | SchedulerTarget
+type Via uint8 // closed: SNSDelivery | LambdaESM | EventsTarget | S3Notification | LambdaLogs | DynamoDBTTL | Timer | Snapshot | Admin | KMSForward | STSAssumeRole | LambdaCode | LambdaDestination | ViaAPIGateway | SFNLogDestination | SFNTask | CloudWatchAlarm | SchedulerTarget | SSMParameter
 
 // Origin says where a call came from.
 //
@@ -1415,6 +1416,7 @@ SNS to HTTP (`SNSToHTTP`, `sns-http-delivery.md 8.2`) is the one mechanism that 
 | Lambda -> Logs | container log stream | internal `PutLogEventsInternal` as `AsExecutionRole` | none |
 | Lambda -> SQS, SNS, Lambda, EventBridge, S3 | an asynchronous invocation settling (`Deliver` effect in the write that removes the event) | the invocation record to an on-success or on-failure destination: `SendMessage` with `AWSTraceHeader`, `Publish`, async `Invoke`, `PutEvents` (source `lambda`), `HeadBucket` then `PutObject`; the event as invoked to the dead-letter queue or topic with `ErrorCode`, `ErrorMessage`, `RequestID`; all as `AsExecutionRole` | none: one attempt; a FIFO target is never called; a failure is journaled with `DestinationDeliveryFailures` or `DeadLetterErrors` (`lambda-destinations-layers.md 4.6, 5.4, 11.3`) |
 | CloudWatch alarm -> SNS, Lambda | a state change, by evaluation on the emulator clock or `SetAlarmState`, while `ActionsEnabled` (`Deliver` effect in the transition's write) | `Publish` of the notification JSON with its `Subject` (FIFO topics get group and deduplication ids), async `Invoke` of the alarm event; the state change event goes to the default bus through `PutServiceEventInternal`, not the outbox (ADR 0015 amendment of 2026-10-30) | none: one attempt, no DLQ; a missing topic or function is journaled and dropped (`cloudwatch-alarms.md 12.4`) |
+| Parameter Store -> EventBridge | a committed create, overwrite, label or delete | the `Parameter Store Change` event on the default bus through `PutServiceEventInternal` as `AsPlatform` `ssm.amazonaws.com`, `Via: SSMParameter`, queued in commit order by `internal/serviceevent`, not the outbox (`ssm-parameters.md 9.2`) | none: one attempt; a failed send is logged and dropped |
 | Scheduler -> Lambda, SQS, SNS, EventBridge, Step Functions | the `scheduler.fire` timer at a schedule's due instant (`Deliver` effect in the write that moves its plan) | async `Invoke`, `SendMessage` (FIFO with `MessageGroupId`, no dedup id), `Publish` without `Subject`, `PutEvents` of one entry, `StartExecution` named after the invocation's execution id; the `Input` template with the four context attributes rendered before each attempt; all as a session of the execution role, with no resource-policy advisory (`scheduler.md 14.4`) | the target's `RetryPolicy` as `EventBridgeTarget`; client-side errors dead-lettered at once (`scheduler.retry.permanent-errors`); the dead letter is the payload, a bus target's included, cut to 262,144 bytes, with the String attributes of `scheduler.md 7.2`; a missing or refusing DLQ drops and journals (14.5) |
 
 Synchronous integrations are calls, not deliveries: the caller waits for the answer, so they use `kernel.Invoke` directly and never the outbox or its retry engine.

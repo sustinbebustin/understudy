@@ -9,4 +9,11 @@
 // kernel.Invoke, outside any cell lock: as the caller for a customer
 // managed key, as ssm.amazonaws.com for the default key alias/aws/ssm
 // (ssm-parameters.md 5.6).
+//
+// A committed create, overwrite, label or delete puts a Parameter Store
+// Change event on the default bus of its scope through EventBridge's
+// PutServiceEventInternal, as ssm.amazonaws.com, queued in commit order
+// inside the write and sent before the handler answers
+// (ssm-parameters.md 9.2; internal/serviceevent). A refused call queues
+// nothing.
 package ssm

@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/cloudwatch/alarm"
+	"github.com/sustinbebustin/understudy/internal/serviceevent"
 )
 
 // onEvaluation evaluates the alarm a TimerAlarmEvaluation names at its due
@@ -80,7 +81,7 @@ func (s *Service) onEvaluation(c *kernel.Call, key clock.TimerKey, due clock.Ins
 		return
 	}
 	s.finishTransition(context.Background(), c, ref, done, due)
-	s.flushEventsLater()
+	s.events.FlushLater()
 }
 
 // changed is what a transition leaves to do once its write commits: the
@@ -89,7 +90,7 @@ func (s *Service) onEvaluation(c *kernel.Call, key clock.TimerKey, due clock.Ins
 type changed struct {
 	item    HistoryItem
 	actions []func(tx *kernel.Tx)
-	event   alarmEvent
+	event   serviceevent.Event
 }
 
 // transition moves a to next, a state of a different value, in the write
@@ -123,12 +124,12 @@ func (s *Service) transition(tx *kernel.Tx, ref alarmRef, a *Alarm, next AlarmSt
 // A failed history write is logged rather than returned: the transition
 // has committed, and the event is queued either way so EventBridge sees
 // every transition.
-func (s *Service) finishTransition(ctx context.Context, c *kernel.Call, ref alarmRef, ch *changed, at clock.Instant) *queuedEvent {
+func (s *Service) finishTransition(ctx context.Context, c *kernel.Call, ref alarmRef, ch *changed, at clock.Instant) *serviceevent.Queued {
 	if err := s.appendHistory(c, ref.scope, ref.name, ch.item, ch.actions); err != nil {
 		s.k.Log().LogAttrs(ctx, slog.LevelError, "the history write of an alarm transition failed; the transition stands, and its history item or actions may be lost",
 			slog.String("alarm", ref.arn().String()), slog.String("error", err.Message))
 	}
-	return s.pushEvent(c, at, ch.event)
+	return s.events.Push(c, at, ch.event)
 }
 
 // record is the state as one side of an alarm.Change.

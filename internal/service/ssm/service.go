@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/serviceevent"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -19,6 +20,9 @@ import (
 type Service struct {
 	k     *kernel.Kernel
 	cells *store.Partitioned[aws.Scope, State]
+	// events are the Parameter Store Change events not sent yet, in
+	// commit order (ssm-parameters.md 9.2).
+	events *serviceevent.Queue
 }
 
 // New binds the thirteen Parameter Store operations (ssm-parameters.md
@@ -29,6 +33,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 		k:     d.Kernel,
 		cells: store.NewPartitioned(d.Kernel.Gate(), stateCodec(), newState),
 	}
+	s.events = serviceevent.New(d.Kernel, s.lostEvent)
 	b := ssmapi.NewBinder(d.Binder)
 
 	b.PutParameter(s.putParameter, registry.Partial{Note: notePutParameter},
@@ -41,13 +46,13 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	b.DescribeParameters(s.describeParameters, registry.Partial{Note: noteDescribeParameters})
 	b.GetParameterHistory(s.getParameterHistory, registry.Partial{Note: noteGetParameterHistory},
 		byName(func(in *ssmapi.GetParameterHistoryInput) string { return in.Name }))
-	b.DeleteParameter(s.deleteParameter, registry.Partial{Note: noteDeleteParameters},
+	b.DeleteParameter(s.deleteParameter, registry.Partial{Note: noteDeleteParameter},
 		byName(func(in *ssmapi.DeleteParameterInput) string { return in.Name }))
 	b.DeleteParameters(s.deleteParameters, registry.Partial{Note: noteDeleteParameters},
 		byNames(func(in *ssmapi.DeleteParametersInput) []string { return in.Names }))
 	b.LabelParameterVersion(s.labelParameterVersion, registry.Partial{Note: noteLabelParameterVersion},
 		byName(func(in *ssmapi.LabelParameterVersionInput) string { return in.Name }))
-	b.UnlabelParameterVersion(s.unlabelParameterVersion, registry.Partial{Note: reserved + "; " + reservedText},
+	b.UnlabelParameterVersion(s.unlabelParameterVersion, registry.Partial{Note: noteUnlabelParameterVersion},
 		byName(func(in *ssmapi.UnlabelParameterVersionInput) string { return in.Name }))
 	b.AddTagsToResource(s.addTagsToResource, registry.Partial{Note: reserved + "; " + parameterOnly + "; " + reservedText},
 		byTagTarget(func(in *ssmapi.AddTagsToResourceInput) (ssmapi.ResourceTypeForTagging, string) {
@@ -87,10 +92,10 @@ const (
 		"AllowedPattern is compiled as Go RE2, where AWS's dialect is Java's: a pattern RE2 cannot compile, such as a lookahead or a possessive quantifier, " +
 		"answers 501, except an unbalanced bracket or parenthesis, a trailing backslash, a repetition without an argument or a reversed character range, " +
 		"which answer InvalidAllowedPatternException; " +
-		"no Parameter Store Change events are sent; the default tier is always Standard (the service setting is unbound); " +
+		"the default tier is always Standard (the service setting is unbound); " +
 		"a {{...}} value's refusal leaves out the value AWS's message quotes; " +
 		"unrecorded, understudy's choice: the count refusal's message is understudy's own; " +
-		defaultKeyEncrypt
+		noDescriptionEvent + "; " + defaultKeyEncrypt
 	noteGetParameter = "no AWS public parameters: names under /aws/service/ answer 501, where AWS answers AccessDeniedException for a name it does not publish; " +
 		"Secrets Manager references (names under /aws/reference/secretsmanager/) answer 501; " +
 		"the legacy Query protocol (?Action= without X-Amz-Target), which AWS also serves, answers 501 for this and every SSM operation; " +
@@ -108,10 +113,21 @@ const (
 		"the deprecated Filters member alone answers 501 (use ParameterFilters); " +
 		"results come in name order across pages, where AWS's pages are ordered within but not across (switch ssm.list.order); " +
 		"unrecorded, understudy's choice: the values of one filter match any of them"
-	noteGetParameterHistory   = reserved + "; " + defaultKeyDecrypt + "; " + reservedText
-	noteDeleteParameters      = reserved + "; no Parameter Store Change events are sent; " + reservedText
-	noteLabelParameterVersion = reserved + "; no Parameter Store Change events are sent; " +
-		"InvalidLabels lists the refused labels in request order, where AWS's order is its own; " + reservedText
+	noteGetParameterHistory = reserved + "; " + defaultKeyDecrypt + "; " + reservedText
+	noteDeleteParameter     = reserved + "; " + noDescriptionEvent + "; " + reservedText
+	noteDeleteParameters    = reserved + "; unrecorded, understudy's choice: each deleted parameter sends its own " +
+		"Parameter Store Change Delete event, in request order; " + noDescriptionEvent + "; " + reservedText
+	noteLabelParameterVersion = reserved + "; " +
+		"InvalidLabels lists the refused labels in request order, where AWS's order is its own; " +
+		"unrecorded, understudy's choice: each label attached or moved sends its own Parameter Store Change event, " +
+		"and a label already on the version sends none; " + noDescriptionEvent + "; " + reservedText
+	noteUnlabelParameterVersion = reserved + "; unrecorded, understudy's choice: no Parameter Store Change event is sent; " + reservedText
+
+	// noDescriptionEvent is the inferred detail of a Parameter Store
+	// Change event for a parameter without a description (ssm-parameters.md
+	// 9.2; SSM-31 recorded one with a description).
+	noDescriptionEvent = "unrecorded, understudy's choice: the Parameter Store Change event of a parameter " +
+		`with no description carries "description": ""`
 )
 
 // Switches lists the behaviors chosen before AWS's were recorded

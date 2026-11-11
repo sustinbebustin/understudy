@@ -321,7 +321,7 @@ Real AWS was recorded for SSM on 2026-11-03 (`testdata/parity/ssm/`), and unders
 - AWS public parameters (`/aws/service/...`) and Secrets Manager references (`/aws/reference/secretsmanager/...`) answer 501 `NotImplemented` on every Parameter Store operation. Read the value from its own source, or store a copy under a name of your own.
 - Parameter policies, `DataType` `aws:ec2:image`, an Advanced-tier SecureString and an `AllowedPattern` Go's RE2 cannot compile answer 501 `NotImplemented`; nothing is stored.
 - AWS answers `AccessDeniedException` for a name under `/aws/service/` it does not publish (`ssm/SSM-02/05-public.json`); understudy answers 501 there.
-- No `Parameter Store Change` events reach EventBridge.
+- AWS's recording leaves three `Parameter Store Change` cases open, which understudy infers: `DeleteParameters` sends one `Delete` event per parameter it deletes, a parameter without a description sends `"description": ""`, and `UnlabelParameterVersion` sends no event. AWS emits these events on a best-effort basis; understudy sends every one.
 - The default parameter tier is always Standard, since the service settings answer 501.
 - `GetParametersByPath` and `DescribeParameters` list in name order across pages. AWS orders each page by name but not the listing as a whole (`ssm/SSM-19/01-default-page.json`, `ssm/SSM-20/01-default-page.json`); a client that reads every page sees the same set.
 - AWS lists `InvalidLabels` and `TagList` in an order of its own; understudy lists refused labels in request order and tags in the order they were first set.

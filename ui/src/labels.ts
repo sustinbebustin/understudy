@@ -36,6 +36,7 @@ export const viaLabels: Readonly<Record<string, string>> = {
   "sfn-task": "Step Functions Lambda task",
   "cloudwatch-alarm": "CloudWatch alarm",
   "scheduler-target": "EventBridge Scheduler target",
+  "ssm-parameter": "Parameter Store change event",
 };
 
 export const mechanismLabels: Readonly<Record<string, string>> = {

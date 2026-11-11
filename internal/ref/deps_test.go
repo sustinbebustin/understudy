@@ -78,6 +78,10 @@ func importRules() []importRule {
 		// poller share (dynamodb-streams.md 11.1, ADR 0014 amendment of
 		// 2026-10-26).
 		"internal/shardlog",
+		// The commit-ordered queue CloudWatch and Parameter Store send
+		// their own events to the default bus through (ADR 0015 amendment
+		// of 2026-10-30).
+		"internal/serviceevent",
 	}
 	return []importRule{
 		// Leaves.
@@ -154,6 +158,10 @@ func importRules() []importRule {
 			"internal/kernel", "internal/authz", "internal/policydoc", "internal/identity", "internal/journal",
 			"internal/registry", "internal/aws", "internal/awserr", "internal/clock", "internal/ref",
 		}},
+		// A service's own events go to EventBridge through the generated
+		// PutServiceEventInternal op, as kernel.Invoke internal calls
+		// (ADR 0015 amendment of 2026-10-30).
+		{"internal/serviceevent", []string{"internal/kernel", "internal/api/...", "internal/aws", "internal/clock", "internal/ref"}},
 		{"internal/outbox", []string{
 			"internal/kernel", "internal/delivery", "internal/journal", "internal/store", "internal/clock",
 			"internal/api/...", // attempts call the generated SendMessage, Invoke, Publish, PutEvents, StartExecution and PutObject ops

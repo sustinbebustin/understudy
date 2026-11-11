@@ -6,14 +6,12 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
-	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
-	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/cloudwatch/alarm"
+	"github.com/sustinbebustin/understudy/internal/serviceevent"
 )
 
 // cloudWatchPrincipal is the service principal alarm events are put as
@@ -105,56 +103,39 @@ func notRunWhy(k alarm.NotRunKind) string {
 	}
 }
 
-// alarmEvent is an EventBridge event an alarm change sends once its write
-// has committed (cloudwatch-alarms.md 6.2).
-type alarmEvent struct {
-	scope      aws.Scope
-	alarm      aws.ARN
-	detailType string
-	detail     string
+// alarmEvent is the EventBridge event an alarm change sends once its write
+// has committed, put on the default bus of the alarm's scope as
+// cloudwatch.amazonaws.com (cloudwatch-alarms.md 6.2).
+func alarmEvent(r alarmRef, detailType, detail string) serviceevent.Event {
+	return serviceevent.Event{
+		Scope: r.scope, Principal: cloudWatchPrincipal, Via: ref.CloudWatchAlarm,
+		Source: alarm.EventSource, DetailType: detailType, Detail: detail, Resources: []string{r.arn().String()},
+	}
 }
 
 // stateChangeEvent is the "CloudWatch Alarm State Change" event of a
 // transition, sent whatever ActionsEnabled is
 // (cloudwatch.alarm.events.actions-disabled, CWA-14).
-func stateChangeEvent(r alarmRef, a *Alarm, ch alarm.Change) alarmEvent {
-	return alarmEvent{scope: r.scope, alarm: r.arn(), detailType: alarm.DetailTypeStateChange, detail: alarm.StateChangeDetail(subjectOf(r, a), ch)}
+func stateChangeEvent(r alarmRef, a *Alarm, ch alarm.Change) serviceevent.Event {
+	return alarmEvent(r, alarm.DetailTypeStateChange, alarm.StateChangeDetail(subjectOf(r, a), ch))
 }
 
 // configChangeEvent is the "CloudWatch Alarm Configuration Change" event
 // of a PutMetricAlarm, DeleteAlarms, EnableAlarmActions or
 // DisableAlarmActions; previous is the replaced alarm on an update and nil
 // otherwise (cloudwatch-alarms.md 6.2, CWA-14).
-func configChangeEvent(op alarm.ConfigOp, r alarmRef, a, previous *Alarm) alarmEvent {
+func configChangeEvent(op alarm.ConfigOp, r alarmRef, a, previous *Alarm) serviceevent.Event {
 	var prev *alarm.Subject
 	if previous != nil {
 		prev = new(subjectOf(r, previous))
 	}
 	state := alarm.StateRecord{Value: a.State.Value, Reason: a.State.Reason, Timestamp: a.State.Updated.Wire()}
-	return alarmEvent{
-		scope: r.scope, alarm: r.arn(), detailType: alarm.DetailTypeConfigChange,
-		detail: alarm.ConfigurationChangeDetail(op, subjectOf(r, a), prev, state),
-	}
+	return alarmEvent(r, alarm.DetailTypeConfigChange, alarm.ConfigurationChangeDetail(op, subjectOf(r, a), prev, state))
 }
 
-// sendEvent puts e on the default bus of its alarm's scope as
-// cloudwatch.amazonaws.com, through EventBridge's internal operation, on
-// behalf of parent and admitted at (zero: parent's admission). It runs
-// from the event queue, after the write that made the change, which holds
-// no lock then. A kernel without EventBridge, or a failed send, loses the
-// event with a warning; it is not retried.
-func (s *Service) sendEvent(ctx context.Context, parent *kernel.Call, at clock.Instant, e *alarmEvent) {
-	lost := func(why string) {
-		s.k.Log().LogAttrs(ctx, slog.LevelWarn, "an alarm event did not reach the default event bus and is not sent again; the alarm's state and actions are unaffected",
-			slog.String("alarm", e.alarm.String()), slog.String("detail_type", e.detailType), slog.String("error", why))
-	}
-	if _, bound := s.k.Bindings().Status(eventbridgeapi.OpPutServiceEventInternal.Descriptor()).(kernel.Bound); !bound {
-		lost("this kernel has no EventBridge PutServiceEventInternal")
-		return
-	}
-	t := kernel.Target{Scope: e.scope, As: kernel.AsPlatform{Name: cloudWatchPrincipal}, Via: ref.CloudWatchAlarm, At: at}
-	in := &eventbridgeapi.PutServiceEventInternalInput{Source: alarm.EventSource, DetailType: e.detailType, Detail: e.detail, Resources: []string{e.alarm.String()}}
-	if _, err := kernel.Invoke(ctx, s.k, parent, eventbridgeapi.OpPutServiceEventInternal, t, in); err != nil {
-		lost(err.Message)
-	}
+// lostEvent warns of an alarm event that did not reach the default bus,
+// for a kernel without EventBridge or a failed send; it is not retried.
+func (s *Service) lostEvent(ctx context.Context, e *serviceevent.Event, why string) {
+	s.k.Log().LogAttrs(ctx, slog.LevelWarn, "an alarm event did not reach the default event bus and is not sent again; the alarm's state and actions are unaffected",
+		slog.String("alarm", strings.Join(e.Resources, ",")), slog.String("detail_type", e.DetailType), slog.String("error", why))
 }

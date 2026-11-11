@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/serviceevent"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -101,6 +102,7 @@ func (s *Service) putParameter(ctx context.Context, c *kernel.Call, in *ssmapi.P
 		}
 		sealed = &v
 	}
+	var queued *serviceevent.Queued
 	v, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (Version, *awserr.Error) {
 		p, err := w.apply(st, overwrite)
 		if err == nil {
@@ -110,9 +112,15 @@ func (s *Service) putParameter(ctx context.Context, c *kernel.Call, in *ssmapi.P
 			tx.Unchanged()
 			return Version{}, err
 		}
+		op := opCreate
+		if _, exists := st.Parameters[n.canonical]; exists {
+			op = opUpdate
+		}
 		st.Parameters[n.canonical] = p
+		queued = s.events.Push(c, clock.Instant{}, changeEvent(scope, &p, op, nil))
 		return p.latest(), nil
 	})
+	s.events.Flush(ctx, queued)
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +332,7 @@ func hasReference(value string) bool {
 // deleteParameter drops a parameter with its versions, labels and tags.
 // The name can be created again at once, as version 1 with no tags
 // (ssm-parameters.md 7.7; SSM-26).
-func (s *Service) deleteParameter(_ context.Context, c *kernel.Call, in *ssmapi.DeleteParameterInput) (*ssmapi.DeleteParameterOutput, *awserr.Error) {
+func (s *Service) deleteParameter(ctx context.Context, c *kernel.Call, in *ssmapi.DeleteParameterInput) (*ssmapi.DeleteParameterOutput, *awserr.Error) {
 	if err := checkReserved("DeleteParameter", in.Name); err != nil {
 		return nil, err
 	}
@@ -333,14 +341,18 @@ func (s *Service) deleteParameter(_ context.Context, c *kernel.Call, in *ssmapi.
 	if err != nil {
 		return nil, err
 	}
+	var queued *serviceevent.Queued
 	_, err = kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		if _, ok := st.Parameters[n.canonical]; !ok {
+		p, ok := st.Parameters[n.canonical]
+		if !ok {
 			tx.Unchanged()
 			return struct{}{}, errNotFound()
 		}
 		delete(st.Parameters, n.canonical)
+		queued = s.events.Push(c, clock.Instant{}, changeEvent(scope, &p, opDelete, nil))
 		return struct{}{}, nil
 	})
+	s.events.Flush(ctx, queued)
 	if err != nil {
 		return nil, err
 	}
@@ -354,8 +366,10 @@ func (s *Service) deleteParameter(_ context.Context, c *kernel.Call, in *ssmapi.
 // in InvalidParameters, sorted. Both are [] rather than absent when empty
 // (7.10; SSM-27). UNVERIFIED (SSM-27), ssm-parameters.md 7.7: a parameter
 // named twice, under any of its spellings (3.2), is deleted and listed
-// once, as the first spelling asked.
-func (s *Service) deleteParameters(_ context.Context, c *kernel.Call, in *ssmapi.DeleteParametersInput) (*ssmapi.DeleteParametersOutput, *awserr.Error) {
+// once, as the first spelling asked. Each deleted parameter sends its own
+// Delete event, in request order (inferred: SSM-31 recorded
+// DeleteParameter only).
+func (s *Service) deleteParameters(ctx context.Context, c *kernel.Call, in *ssmapi.DeleteParametersInput) (*ssmapi.DeleteParametersOutput, *awserr.Error) {
 	if err := checkReserved("DeleteParameters", in.Names...); err != nil {
 		return nil, err
 	}
@@ -364,6 +378,7 @@ func (s *Service) deleteParameters(_ context.Context, c *kernel.Call, in *ssmapi
 		deleted []name
 		invalid []string
 	}
+	var last *serviceevent.Queued
 	o, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (outcome, *awserr.Error) {
 		o := outcome{invalid: []string{}}
 		seen := make(map[string]bool, len(in.Names))
@@ -378,19 +393,22 @@ func (s *Service) deleteParameters(_ context.Context, c *kernel.Call, in *ssmapi
 			if err == nil && gone[n.canonical] {
 				continue
 			}
-			if _, ok := st.Parameters[n.canonical]; err != nil || !ok {
+			p, ok := st.Parameters[n.canonical]
+			if err != nil || !ok {
 				o.invalid = append(o.invalid, asked)
 				continue
 			}
 			delete(st.Parameters, n.canonical)
 			gone[n.canonical] = true
 			o.deleted = append(o.deleted, n)
+			last = s.events.Push(c, clock.Instant{}, changeEvent(scope, &p, opDelete, nil))
 		}
 		if len(o.deleted) == 0 {
 			tx.Unchanged()
 		}
 		return o, nil
 	})
+	s.events.Flush(ctx, last)
 	if err != nil {
 		return nil, err
 	}

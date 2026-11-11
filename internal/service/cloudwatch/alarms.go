@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/cloudwatch/alarm"
+	"github.com/sustinbebustin/understudy/internal/serviceevent"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -113,7 +114,7 @@ func (s *Service) putMetricAlarm(ctx context.Context, c *kernel.Call, in *cloudw
 	// Set in the write, as Write answers its zero result when an effect
 	// fails after the commit, and the event of a committed change is sent
 	// either way.
-	var queued *queuedEvent
+	var queued *serviceevent.Queued
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		a, ok := st.Alarms[in.AlarmName]
 		var previous *Alarm
@@ -139,10 +140,10 @@ func (s *Service) putMetricAlarm(ctx context.Context, c *kernel.Call, in *cloudw
 		if previous != nil {
 			event = configChangeEvent(alarm.ConfigUpdate, ref, &a, previous)
 		}
-		queued = s.pushEvent(c, clock.Instant{}, event)
+		queued = s.events.Push(c, clock.Instant{}, event)
 		return struct{}{}, nil
 	})
-	s.flushEvents(ctx, queued)
+	s.events.Flush(ctx, queued)
 	if err != nil {
 		return nil, err
 	}
@@ -335,14 +336,14 @@ func echoQueries(qs []cloudwatchapi.MetricDataQuery) []cloudwatchapi.MetricDataQ
 // no alarm are skipped, as AWS documents, so deleting a missing alarm
 // succeeds (wire-cbor.md 3.5).
 func (s *Service) deleteAlarms(ctx context.Context, c *kernel.Call, in *cloudwatchapi.DeleteAlarmsInput) (*cloudwatchapi.DeleteAlarmsOutput, *awserr.Error) {
-	var last *queuedEvent
+	var last *serviceevent.Queued
 	err := s.eachAlarm(c, in.AlarmNames, func(st *State, name string, a Alarm, _ clock.Instant, tx *kernel.Tx) {
 		delete(st.Alarms, name)
 		ref := named(c, name)
 		tx.Disarm(s.evaluation, ref.arn().String())
-		last = s.pushEvent(c, clock.Instant{}, configChangeEvent(alarm.ConfigDelete, ref, &a, nil))
+		last = s.events.Push(c, clock.Instant{}, configChangeEvent(alarm.ConfigDelete, ref, &a, nil))
 	})
-	s.flushEvents(ctx, last)
+	s.events.Flush(ctx, last)
 	if err != nil {
 		return nil, err
 	}
@@ -371,14 +372,14 @@ func (s *Service) disableAlarmActions(ctx context.Context, c *kernel.Call, in *c
 // is unrecorded). Names that match no alarm are skipped, as DeleteAlarms
 // skips them (inferred: the documentation is silent).
 func (s *Service) setActionsEnabled(ctx context.Context, c *kernel.Call, names []string, enabled bool) *awserr.Error {
-	var last *queuedEvent
+	var last *serviceevent.Queued
 	err := s.eachAlarm(c, names, func(st *State, name string, a Alarm, now clock.Instant, _ *kernel.Tx) {
 		previous := a
 		a.ActionsEnabled, a.ConfigUpdated = enabled, now
 		st.Alarms[name] = a
-		last = s.pushEvent(c, clock.Instant{}, configChangeEvent(alarm.ConfigUpdate, named(c, name), &a, &previous))
+		last = s.events.Push(c, clock.Instant{}, configChangeEvent(alarm.ConfigUpdate, named(c, name), &a, &previous))
 	})
-	s.flushEvents(ctx, last)
+	s.events.Flush(ctx, last)
 	return err
 }
 
@@ -434,7 +435,7 @@ func (s *Service) setAlarmState(ctx context.Context, c *kernel.Call, in *cloudwa
 		return struct{}{}, nil
 	})
 	if done != nil {
-		s.flushEvents(ctx, s.finishTransition(ctx, c, ref, done, clock.Instant{}))
+		s.events.Flush(ctx, s.finishTransition(ctx, c, ref, done, clock.Instant{}))
 	}
 	if err != nil {
 		return nil, err
