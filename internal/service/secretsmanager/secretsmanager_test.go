@@ -163,14 +163,18 @@ func TestTerraformSecretSequence(t *testing.T) {
 		}
 
 		// Destroy the secret with a 7-day window: it stays describable with
-		// DeletedDate, which Terraform reads as gone.
+		// DeletedDate, which Terraform reads as gone. DeletedDate is the
+		// instant of the DeleteSecret call, not the deletion date
+		// (secretsmanager/R15/05-describe-after-delete.json).
 		del := must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, RecoveryWindowInDays: new(int64(7))})
-		due := h.Clock.Now().Add(7 * day).Wire()
+		deleted := h.Clock.Now().Wire()
+		due := deleted.Add(7 * day)
 		if !del.DeletionDate.Equal(due) || val(del.ARN) != arn {
 			h.Errorf("DeleteSecret = %v %s", del.DeletionDate, val(del.ARN))
 		}
-		if d := h.describe(arn); d.DeletedDate == nil || !d.DeletedDate.Equal(due) {
-			h.Errorf("DeletedDate = %v, want %v", d.DeletedDate, due)
+		h.advance(day)
+		if d := h.describe(arn); d.DeletedDate == nil || !d.DeletedDate.Equal(deleted) {
+			h.Errorf("DeletedDate = %v, want %v", d.DeletedDate, deleted)
 		}
 	})
 }
@@ -318,8 +322,6 @@ func TestDeleteThenRestoreWithinWindow(t *testing.T) {
 		wantError(h.T, err, "InvalidRequestException", "You can't perform this operation on the secret because it was marked for deletion.")
 		_, err = call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "restore/me", ClientRequestToken: new(h.token())})
 		wantError(h.T, err, "InvalidRequestException", "You can't create this secret because a secret with this name is already scheduled for deletion.")
-		_, err = call(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn})
-		wantError(h.T, err, "InvalidRequestException", "You can't perform this operation on the secret because it was marked for deletion.")
 		if n := len(must(h, sm.OpListSecrets, &sm.ListSecretsInput{}).SecretList); n != 0 {
 			h.Errorf("ListSecrets shows %d secrets scheduled for deletion", n)
 		}
@@ -362,6 +364,30 @@ func TestRecoveryWindowElapsesUnderAdvance(t *testing.T) {
 			h.Errorf("the recreated secret has the old ARN %s", arn)
 		}
 		_, err = call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: arn})
+		wantError(h.T, err, "ResourceNotFoundException", "Secrets Manager can't find the specified secret.")
+	})
+}
+
+// A second DeleteSecret of a secret already scheduled for deletion
+// reschedules it to the second call plus its window, as AWS answered in
+// secretsmanager/R15/05-delete-twice: the secret outlives the first date
+// and goes at the second.
+func TestDeleteTwiceReschedules(t *testing.T) {
+	run(t, func(h *harness) {
+		arn := val(h.create("twice", "x").ARN)
+		must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, RecoveryWindowInDays: new(int64(7))})
+		h.advance(day)
+		again := must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, RecoveryWindowInDays: new(int64(7))})
+		due := h.Clock.Now().Add(7 * day).Wire()
+		if val(again.ARN) != arn || val(again.Name) != "twice" || again.DeletionDate == nil || !again.DeletionDate.Equal(due) {
+			h.Errorf("second DeleteSecret = %s %s %v, want %s twice %v", val(again.ARN), val(again.Name), again.DeletionDate, arn, due)
+		}
+		h.advance(6 * day)
+		if h.describe(arn).DeletedDate == nil {
+			h.Fatal("the secret went at the first deletion date")
+		}
+		h.advance(day)
+		_, err := call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: arn})
 		wantError(h.T, err, "ResourceNotFoundException", "Secrets Manager can't find the specified secret.")
 	})
 }
@@ -939,6 +965,19 @@ func TestEveryModificationAdvancesLastChangedDate(t *testing.T) {
 			{"UpdateSecret", func() {
 				must(h, sm.OpUpdateSecret, &sm.UpdateSecretInput{SecretId: "modified", ClientRequestToken: new(h.token()), Description: new("changed")})
 			}},
+			// The deletion lifecycle advances it too, a restore of a
+			// secret not scheduled for deletion included
+			// (secretsmanager/R15/05-describe-before-delete.json,
+			// 05-describe-after-delete.json, 05-describe-after-restore.json).
+			{"RestoreSecret of a live secret", func() {
+				must(h, sm.OpRestoreSecret, &sm.RestoreSecretInput{SecretId: "modified"})
+			}},
+			{"DeleteSecret", func() {
+				must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: "modified"})
+			}},
+			{"RestoreSecret", func() {
+				must(h, sm.OpRestoreSecret, &sm.RestoreSecretInput{SecretId: "modified"})
+			}},
 		}
 		for _, m := range modifications {
 			h.advance(day)
@@ -1204,13 +1243,16 @@ func TestSnapshotRoundTrip(t *testing.T) {
 	}
 }
 
-// A snapshot keeps a secret scheduled for deletion with its date, and Rearm
-// after a load arms the deletion again: with timers cleared and the state
-// imported, the secret still goes when its recovery window ends.
+// A snapshot keeps a secret scheduled for deletion with the instant it was
+// deleted, and Rearm after a load arms the deletion again: with timers
+// cleared and the state imported, the secret still goes when its recovery
+// window ends.
 func TestSnapshotRearmsDeletion(t *testing.T) {
 	run(t, func(h *harness) {
 		arn := val(h.create("doomed", "x").ARN)
-		due := must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, RecoveryWindowInDays: new(int64(7))}).DeletionDate
+		must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, RecoveryWindowInDays: new(int64(7))})
+		deleted := h.Clock.Now().Wire()
+		h.advance(day)
 		sections, err := h.svc.Export()
 		if err != nil {
 			h.Fatal(err)
@@ -1220,11 +1262,11 @@ func TestSnapshotRearmsDeletion(t *testing.T) {
 		if err := h.svc.Import(sections); err != nil {
 			h.Fatal(err)
 		}
-		if d := h.describe(arn); d.DeletedDate == nil || !d.DeletedDate.Equal(*due) {
-			h.Errorf("DeletedDate after import = %v, want %v", d.DeletedDate, *due)
+		if d := h.describe(arn); d.DeletedDate == nil || !d.DeletedDate.Equal(deleted) {
+			h.Errorf("DeletedDate after import = %v, want %v", d.DeletedDate, deleted)
 		}
 		h.svc.Rearm(h.Clock.Now())
-		h.advance(7 * day)
+		h.advance(6 * day)
 		_, derr := call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: arn})
 		wantError(h.T, derr, "ResourceNotFoundException", "Secrets Manager can't find the specified secret.")
 	})

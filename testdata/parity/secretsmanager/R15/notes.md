@@ -35,15 +35,15 @@
 - 05-create / 05-create-duplicate (ResourceExistsException text): matches
 - 05-put-token-1 / -same-value / -different-value: matches
 - 05-restore-live response (200 {ARN, Name}): matches
-- 05-restore-live LastChangedDate: differs: AWS advances it (visible in 05-describe-before-delete); understudy unchanged (internal/service/secretsmanager/secrets.go:358-359 tx.Unchanged)
+- 05-restore-live LastChangedDate: differs: AWS advances it (visible in 05-describe-before-delete); understudy unchanged (internal/service/secretsmanager/secrets.go:358-359 tx.Unchanged). Replay: matches; understudy now advances it (internal/service/secretsmanager TestEveryModificationAdvancesLastChangedDate)
 - 05-delete-window-6 / -31 / -0 (400 InvalidParameterException "The RecoveryWindowInDays value must be between 7 and 30 days (inclusive)."): matches
 - 05-delete ({ARN, Name, DeletionDate now+7d}): matches
-- 05-describe-after-delete DeletedDate: differs: AWS = time of the DeleteSecret call; understudy = scheduled DeletionDate (secrets.go:416-420)
-- 05-describe-after-delete LastChangedDate: differs: AWS advances it on DeleteSecret; understudy unchanged (secrets.go:301-303)
-- 05-delete-twice: differs: AWS 200 {ARN, Name, DeletionDate} re-scheduled to second call + 7d; understudy 400 InvalidRequestException "You can't perform this operation on the secret because it was marked for deletion." (secrets.go:297-298)
+- 05-describe-after-delete DeletedDate: differs: AWS = time of the DeleteSecret call; understudy = scheduled DeletionDate (secrets.go:416-420). Replay: matches; understudy now reports the call's instant (TestTerraformSecretSequence)
+- 05-describe-after-delete LastChangedDate: differs: AWS advances it on DeleteSecret; understudy unchanged (secrets.go:301-303). Replay: matches; understudy now advances it
+- 05-delete-twice: differs: AWS 200 {ARN, Name, DeletionDate} re-scheduled to second call + 7d; understudy 400 InvalidRequestException "You can't perform this operation on the secret because it was marked for deletion." (secrets.go:297-298). Replay: matches; understudy now reschedules and re-arms the deletion (internal/parity/baseline.json, secretsmanager/R15#05-delete-twice; TestDeleteTwiceReschedules)
 - 05-get-scheduled (400 InvalidRequestException text): matches
 - 05-restore ({ARN, Name}): matches
-- 05-describe-after-restore LastChangedDate: differs: AWS advances it on RestoreSecret; understudy keeps the old value (secrets.go:362-364); DeletedDate dropped: matches
+- 05-describe-after-restore LastChangedDate: differs: AWS advances it on RestoreSecret; understudy keeps the old value (secrets.go:362-364). Replay: matches; understudy now advances it; DeletedDate dropped: matches
 - 05-name-bang: differs: AWS 400 InvalidParameterException {"Message":"You provided an invalid name for the secret."}; understudy 400 ValidationException "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!" (errors.go:47-48). Replay: matches; understudy now answers AWS's text (internal/parity/baseline.json, secretsmanager/R15#05-name-bang)
 - 05-name-513: differs: AWS 400 ValidationException "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!"; understudy generated "1 validation error detected: ... Member must have length less than or equal to 512". Replay: matches; understudy now answers AWS's text (internal/parity/baseline.json, secretsmanager/R15#05-name-513)
 - 05-arn-suffixes (6 chars [A-Za-z0-9]): matches
@@ -67,6 +67,7 @@
 
 ## Replay (internal/parity)
 
-`scenario.json` replays the Secrets Manager steps 05-create-disabled-kms, 05-name-bang and 05-name-513; internal/parity/baseline.json holds the outcomes, and the "Replay:" notes above record where they differ from this file.
+`scenario.json` replays the Secrets Manager steps 05-create-disabled-kms, 05-create through 05-describe-after-restore in recording order, 05-name-bang and 05-name-513; internal/parity/baseline.json holds the outcomes, and the "Replay:" notes above record where they differ from this file. Replay compares epoch dates by form only, so the 05 date rows (DeletedDate, LastChangedDate, the rescheduled DeletionDate) are held by the Secrets Manager tests in internal/service/secretsmanager, not by the replay; understudy now answers each as AWS recorded.
 
+- Order: 05-describe-after-delete and 05-delete-twice were sent in the same second. The scenario runs the describe first, as its name says; its DeletedDate and LastChangedDate are the first DeleteSecret's instant, which fits that order.
 - Made up: the KMS key 05-create-disabled-kms names, which the setup creates with the description `usr-rec-20261014-sdis` and disables, binding its id to the recorded one. The kit created and disabled it outside `rec`; only its id was recorded. The step's answer depends only on the key being disabled.

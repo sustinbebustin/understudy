@@ -190,10 +190,10 @@ func (s *Service) Switches() []fidelity.Entry {
 		fidelity.Switch[string]{
 			Name:    "secretsmanager.restore.not-scheduled",
 			Value:   "no-op",
-			Label:   evidence.Inferred,
+			Label:   evidence.AWSRecorded,
 			Ref:     "docs/research/secrets-logs-events-alarms.md#25-deletion-window-force-delete-restore-clock-driven",
 			Ops:     []string{"secretsmanager.RestoreSecret"},
-			Settles: fidelity.NoScenario{Reason: "secretsmanager/R15/05-restore-live.json is recorded; no scenario replays secretsmanager/R15 yet"},
+			Settles: fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "secretsmanager/R15", Step: "05-restore-live"}},
 		}.Entry(),
 	}
 }

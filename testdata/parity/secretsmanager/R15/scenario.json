@@ -35,6 +35,87 @@
       "compare": "all"
     },
     {
+      "fixture": "secretsmanager/R15/05-create.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/ARN",
+          "shape": {
+            "kind": "arn",
+            "service": "secretsmanager",
+            "resource": "secret",
+            "name": {
+              "kind": "id",
+              "alphabet": "alnum",
+              "min": 25,
+              "max": 25,
+              "prefix": "usr-rec-20261014-s-"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "secretsmanager/R15/05-create-duplicate.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-put-token-1.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-put-token-same-value.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-put-token-different-value.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-restore-live.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-describe-before-delete.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-delete-window-6.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-delete-window-31.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-delete-window-0.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-delete.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-describe-after-delete.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-delete-twice.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-get-scheduled.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-restore.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-describe-after-restore.json",
+      "compare": "all"
+    },
+    {
       "fixture": "secretsmanager/R15/05-name-bang.json",
       "compare": "all"
     },
@@ -44,6 +125,11 @@
     }
   ],
   "settles": [
+    {
+      "switch": "secretsmanager.restore.not-scheduled",
+      "step": "05-restore-live",
+      "field": "status"
+    },
     {
       "overlay": "com.amazonaws.secretsmanager#CreateSecretRequest$Name",
       "step": "05-name-513",

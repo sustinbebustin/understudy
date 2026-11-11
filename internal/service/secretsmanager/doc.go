@@ -59,7 +59,7 @@
 //     the full ARN given, or the one a secret created under the name by
 //     that call would have.
 //   - RestoreSecret of a secret that is not scheduled for deletion succeeds
-//     and changes nothing.
+//     and changes only LastChangedDate, as secretsmanager/R15 recorded.
 //   - UpdateSecret with a new KmsKeyId moves the data keys of the versions
 //     labeled AWSCURRENT, AWSPREVIOUS and AWSPENDING under the new key (KMS
 //     Decrypt, then Encrypt), as AWS does for a caller with kms:Encrypt on

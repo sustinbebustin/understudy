@@ -10,8 +10,11 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 2
+// stateVersion is the schema version of State in snapshot sections. Version
+// 3 adds the instant a scheduled deletion was requested, which a version 2
+// section lacks, so a version 2 section is refused rather than read (ADR
+// 0009, amended 2026-11-10).
+const stateVersion = 3
 
 // State is the Secrets Manager state of one account and region. Records are
 // values: a handler copies a Secret out, changes the copy and stores it
@@ -142,6 +145,9 @@ type lifecycle interface{ isLifecycle() }
 type active struct{}
 
 type scheduled struct {
+	// DeletedDate is when DeleteSecret scheduled the deletion, which
+	// DescribeSecret reports as DeletedDate.
+	DeletedDate clock.Instant `json:"deletedDate"`
 	// DeletionDate is when the secret is deleted for good.
 	DeletionDate clock.Instant `json:"deletionDate"`
 }

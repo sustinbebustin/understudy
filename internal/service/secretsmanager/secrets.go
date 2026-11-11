@@ -293,11 +293,11 @@ func (s *Service) deleteSecret(_ context.Context, c *kernel.Call, in *secretsman
 			tx.Disarm(s.deletion, arn.String())
 			return deleted{arn: arn.String(), name: sec.Name, date: now, secret: &arn}, nil
 		}
-		if _, gone := sec.Lifecycle.(scheduled); gone {
-			return deleted{}, errMarkedForDeletion()
-		}
+		// A secret already scheduled for deletion is rescheduled from this
+		// call (secretsmanager/R15/05-delete-twice.json).
 		date := now.Add(time.Duration(window) * day)
-		sec.Lifecycle = scheduled{DeletionDate: date}
+		sec.Lifecycle = scheduled{DeletedDate: now, DeletionDate: date}
+		sec.Changed = now
 		st.Secrets[sec.Name] = sec
 		tx.Arm(s.deletion, arn.String(), date)
 		return deleted{arn: arn.String(), name: sec.Name, date: date, secret: &arn}, nil
@@ -342,25 +342,25 @@ func unreachableIdentity(id string) (arn, name string) {
 	return id, rest
 }
 
-// restoreSecret cancels a scheduled deletion; a secret that is not
-// scheduled for deletion is left as it is.
+// restoreSecret cancels a scheduled deletion. Either way it advances
+// LastChangedDate, a restore of a secret not scheduled for deletion
+// included (secretsmanager/R15/05-describe-before-delete.json).
 func (s *Service) restoreSecret(_ context.Context, c *kernel.Call, in *secretsmanagerapi.RestoreSecretInput) (*secretsmanagerapi.RestoreSecretOutput, *awserr.Error) {
 	r, _, err := s.find(c, in.SecretId)
 	if err != nil {
 		return nil, err
 	}
-	sec, err := kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (Secret, *awserr.Error) {
+	sec, err := kernel.Write(c, s.cells, r.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (Secret, *awserr.Error) {
 		sec, ok := r.find(st)
 		if !ok {
 			return Secret{}, errSecretNotFound()
 		}
-		if _, gone := sec.Lifecycle.(scheduled); !gone {
-			tx.Unchanged()
-			return sec, nil
+		if _, gone := sec.Lifecycle.(scheduled); gone {
+			sec.Lifecycle = active{}
+			tx.Disarm(s.deletion, sec.arn(r.scope).String())
 		}
-		sec.Lifecycle = active{}
+		sec.Changed = now
 		st.Secrets[sec.Name] = sec
-		tx.Disarm(s.deletion, sec.arn(r.scope).String())
 		return sec, nil
 	})
 	if err != nil {
@@ -412,11 +412,12 @@ func parseSecretARN(arn string) (scope aws.Scope, name, suffix string, ok bool) 
 	return scope, name, suffix, true
 }
 
-// deletedDate is DescribeSecret's DeletedDate: the deletion date of a
-// secret scheduled for deletion, absent otherwise.
+// deletedDate is DescribeSecret's DeletedDate: the instant of the
+// DeleteSecret call that scheduled the secret's deletion, absent when none
+// is scheduled (secretsmanager/R15/05-describe-after-delete.json).
 func deletedDate(sec *Secret) *time.Time {
 	if l, ok := sec.Lifecycle.(scheduled); ok {
-		return new(l.DeletionDate.Wire())
+		return new(l.DeletedDate.Wire())
 	}
 	return nil
 }
