@@ -12,6 +12,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Config is a version's configuration: what CreateFunction and
@@ -89,7 +91,7 @@ const (
 func newConfig(in *lambdaapi.CreateFunctionInput) Config {
 	c := Config{
 		Role:             in.Role,
-		Description:      deref(in.Description),
+		Description:      smithy.Deref(in.Description),
 		Timeout:          defaultTimeout,
 		MemorySize:       defaultMemorySize,
 		Architecture:     string(lambdaapi.ArchitectureX8664),
@@ -101,7 +103,7 @@ func newConfig(in *lambdaapi.CreateFunctionInput) Config {
 	if in.Runtime != nil {
 		c.Runtime = string(*in.Runtime)
 	}
-	c.Handler = deref(in.Handler)
+	c.Handler = smithy.Deref(in.Handler)
 	if len(in.Architectures) == 1 {
 		c.Architecture = string(in.Architectures[0])
 	}
@@ -220,7 +222,7 @@ func imageSettingsOf(i *lambdaapi.ImageConfig) *ImageSettings {
 // loggingOf is the logging configuration a LoggingConfig asks for, with
 // the Text format by default.
 func loggingOf(l *lambdaapi.LoggingConfig) Logging {
-	out := Logging{Format: string(lambdaapi.LogFormatText), Group: deref(l.LogGroup)}
+	out := Logging{Format: string(lambdaapi.LogFormatText), Group: smithy.Deref(l.LogGroup)}
 	if l.LogFormat != nil {
 		out.Format = string(*l.LogFormat)
 	}
@@ -418,14 +420,6 @@ func imageSha256(code ImageCode) string {
 	return hex.EncodeToString(h[:])
 }
 
-func deref[T any](p *T) T {
-	var zero T
-	if p == nil {
-		return zero
-	}
-	return *p
-}
-
 // The asynchronous invocation configurations are stored per (function,
 // qualifier) and echoed; the async queue that applies them belongs to the
 // invoke path.
@@ -485,7 +479,7 @@ func (s *Service) storeEventInvoke(ctx context.Context, c *kernel.Call, name str
 	if in.retries == nil && in.age == nil && in.dest == nil {
 		return nil, errEventInvokeNoSettings()
 	}
-	if _, err := view(s, ref.scope, func(st *State) (EventInvokeConfig, *awserr.Error) { return st.eventInvokeBase(ref, replace) }); err != nil {
+	if _, err := store.View2(s.cells, ref.scope, func(st *State) (EventInvokeConfig, *awserr.Error) { return st.eventInvokeBase(ref, replace) }); err != nil {
 		return nil, err
 	}
 	var dests []configuredDestination
@@ -572,10 +566,10 @@ func (cfg EventInvokeConfig) with(in eventInvokeInput, replace bool) EventInvoke
 // for a side without one.
 func destinations(d *lambdaapi.DestinationConfig) (success, failure string) {
 	if d.OnSuccess != nil {
-		success = deref(d.OnSuccess.Destination)
+		success = smithy.Deref(d.OnSuccess.Destination)
 	}
 	if d.OnFailure != nil {
-		failure = deref(d.OnFailure.Destination)
+		failure = smithy.Deref(d.OnFailure.Destination)
 	}
 	return success, failure
 }
@@ -605,7 +599,7 @@ func (s *Service) getEventInvokeConfig(_ context.Context, c *kernel.Call, in *la
 	if err != nil {
 		return nil, err
 	}
-	return view(s, ref.scope, func(st *State) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
+	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
 		cfg, ok := st.eventInvoke(ref)
 		if !ok {
 			return nil, ref.eventInvokeNotFound()
@@ -652,7 +646,7 @@ func (s *Service) listEventInvokeConfigs(_ context.Context, c *kernel.Call, in *
 	if err != nil {
 		return nil, err
 	}
-	configs, err := view(s, ref.scope, func(st *State) ([]lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
+	configs, err := store.View2(s.cells, ref.scope, func(st *State) ([]lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
 		f, ok := st.Functions[ref.name]
 		if !ok {
 			return nil, errEventInvokeFunctionMissing()
@@ -666,7 +660,7 @@ func (s *Service) listEventInvokeConfigs(_ context.Context, c *kernel.Call, in *
 	if err != nil {
 		return nil, err
 	}
-	p, err := page(listingEventInvokeConfigs, configs, func(cfg lambdaapi.FunctionEventInvokeConfig) string { return deref(cfg.FunctionArn) }, in.MaxItems, listPageCap, in.Marker)
+	p, err := page(listingEventInvokeConfigs, configs, func(cfg lambdaapi.FunctionEventInvokeConfig) string { return smithy.Deref(cfg.FunctionArn) }, in.MaxItems, listPageCap, in.Marker)
 	if err != nil {
 		return nil, err
 	}

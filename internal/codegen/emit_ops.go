@@ -54,6 +54,13 @@ func emitService(ir *ServiceIR) ([]byte, error) {
 	if e := ir.MalformedRequest; e != nil {
 		f.p("\tMalformedRequestError: Identity%s(),", e.Shape.GoName)
 	}
+	if e := ir.Throttle; e != nil {
+		f.p("\tThrottleError: Identity%s(),", e.Shape.GoName)
+	}
+	if ir.UnknownJSON != nil || ir.UnknownQuery != nil {
+		f.p("\tUnknownOperationError: UnknownOperationError,")
+	}
+	f.p("\tModelSource: registry.ModelSource{Origin: %s, File: %s},", goString(ir.Origin), goString(ir.ModelFile))
 	if d := ir.Denial; d != nil {
 		// The label is written as its spelling, so a generated package
 		// needs no evidence import (an untyped constant).

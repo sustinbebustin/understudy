@@ -19,6 +19,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
@@ -325,7 +326,7 @@ func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, ov
 		}
 		image := launcher.ImageCode{}
 		if settings := cfg.Image; settings != nil {
-			image.EntryPoint, image.Command, image.WorkingDirectory = settings.EntryPoint, settings.Command, deref(settings.WorkingDirectory)
+			image.EntryPoint, image.Command, image.WorkingDirectory = settings.EntryPoint, settings.Command, smithy.Deref(settings.WorkingDirectory)
 		}
 		spec.Code = image
 	}

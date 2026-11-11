@@ -72,6 +72,11 @@
       "reason": "Tests that clients tolerate ResponseMetadata on a no-output response. It states no bodyMediaType, so the body compares byte for byte, and its RequestId is the client fixture's, not one a server mints."
     },
     {
+      "protocol": "restjson1", "kind": "request", "id": "RestJsonHttpEmptyPrefixHeadersRequestServer",
+      "category": "corpus-bug",
+      "reason": "The request carries no credentials, which route a restJson1 request to a service other than Lambda by their signing name (ADR 0019), and its params bind every request header through an empty httpPrefixHeaders prefix yet list only the case's two. Signed, as the bench sends it, the map also holds Authorization and X-Amz-Date; unsigned, no route reaches the service. Whether AWS binds credential headers into an empty-prefix map is unknown."
+    },
+    {
       "protocol": "restjson1", "kind": "request", "id": "RestJsonHttpWithEmptyStructurePayload",
       "category": "client-only",
       "reason": "Asserts a client sends {} for an unset structure payload; a server reading {} cannot tell it from an empty structure, so it decodes one."
@@ -287,6 +292,11 @@
       "protocol": "restxml", "kind": "request", "id": "AllQueryStringTypes",
       "category": "corpus-bug",
       "reason": "Its params omit queryParamsMapOfStrings, which an httpQueryParams map fills with every query parameter on a server (RestXmlServersPutAllQueryParamsInMap); the restJson1 twin lists them."
+    },
+    {
+      "protocol": "restxml", "kind": "request", "id": "HttpEmptyPrefixHeadersRequestServer",
+      "category": "corpus-bug",
+      "reason": "The request carries no credentials, which route a restXml request to a service other than S3 by their signing name (ADR 0019), and its params bind every request header through an empty httpPrefixHeaders prefix yet list only the case's two. Signed, as the bench sends it, the map also holds Authorization and X-Amz-Date; unsigned, the request is S3's. Whether AWS binds credential headers into an empty-prefix map is unknown."
     },
     {
       "protocol": "restxml", "kind": "request", "id": "RestXmlQueryStringEscaping",

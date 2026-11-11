@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // The documented limits the model is wider than (lambda-api.md finding 5,
@@ -177,7 +178,7 @@ func checkCreateFunction(in *lambdaapi.CreateFunctionInput) *awserr.Error {
 	if name := bareName(in.FunctionName); len(name) > maxNameLength {
 		return errNameTooLong(name)
 	}
-	packageType := deref(in.PackageType)
+	packageType := smithy.Deref(in.PackageType)
 	if packageType == "" {
 		packageType = lambdaapi.PackageTypeZip
 	}

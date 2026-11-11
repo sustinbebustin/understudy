@@ -23,7 +23,7 @@ func TestCatalogueReadsTheServicesGenericVocabulary(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cat := kernel.NewCatalogue(reg, nil)
+	cat := kernel.NewCatalogue(reg)
 	generic := awserr.AccessDeniedException()
 	accessDenied := func(op ref.OperationID) awserr.Identity {
 		t.Helper()
@@ -39,5 +39,24 @@ func TestCatalogueReadsTheServicesGenericVocabulary(t *testing.T) {
 	}
 	if got := accessDenied(sqsapi.OpSendMessage.Descriptor().ID); got != generic {
 		t.Errorf("sqs SendMessage's generic AccessDeniedException = %+v, want the catalogue's %+v", got, generic)
+	}
+}
+
+// A throttle rule injects the descriptor's throttle identity, SQS's 403
+// RequestThrottled from its overlay throttleError (error-matrix.md 5.1); a
+// hand-built descriptor that carries none throttles with the generic
+// ThrottlingException.
+func TestCatalogueThrottlesWithTheDescriptorsIdentity(t *testing.T) {
+	widget := &registry.Service{ID: "widget", SigningName: "widget"}
+	reg, err := registry.New(sqsapi.Service(), widget)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cat := kernel.NewCatalogue(reg)
+	if got := cat.Throttle("sqs"); got != sqsapi.IdentityRequestThrottled() {
+		t.Errorf("Throttle(sqs) = %+v, want RequestThrottled", got)
+	}
+	if got := cat.Throttle("widget"); got != awserr.ThrottlingException() {
+		t.Errorf("Throttle(widget) = %+v, want the generic ThrottlingException", got)
 	}
 }

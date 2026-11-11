@@ -568,7 +568,7 @@ func (p *pollers) replaced(pl *poller) bool {
 // mapping reads pl's mapping; false when it is gone, no longer wants a
 // poller, or is another mapping under a reused id.
 func (p *pollers) mapping(pl *poller) (Mapping, bool) {
-	m, _ := view(p.x.svc, pl.scope, func(st *State) (Mapping, *awserr.Error) {
+	m, _ := store.View2(p.x.svc.cells, pl.scope, func(st *State) (Mapping, *awserr.Error) {
 		return st.Mappings[pl.uuid], nil
 	})
 	return m, m.UUID == pl.uuid && m.Source == pl.source().String() && m.polled()

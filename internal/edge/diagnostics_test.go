@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/logsapi"
@@ -20,6 +22,7 @@ type logLine struct {
 	Operation   string `json:"operation"`
 	SigningName string `json:"signing_name"`
 	Status      int    `json:"status"`
+	ModelSource string `json:"model_source"`
 }
 
 // logLines decodes the JSON log lines in buf, failing the test when one
@@ -45,6 +48,53 @@ func logLines(t *testing.T, buf *bytes.Buffer) []logLine {
 // model does not define, whose wire answer carries no message.
 const unknownOperationWarning = "a client called an operation that is not in understudy's vendored Smithy model;" +
 	" the client may be newer than the model, or the name misspelled. Run understudy coverage to list the operations understudy serves"
+
+// pinnedModelSource is the model source of the service dir, read from the
+// pinned upstream record: "api-models-aws@<short commit> <model file>".
+func pinnedModelSource(t *testing.T, dir string) string {
+	t.Helper()
+	data, err := os.ReadFile("../../third_party/api-models-aws/UPSTREAM.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var upstream struct {
+		Commit string `json:"commit"`
+		Files  []struct {
+			Dir  string `json:"dir"`
+			Path string `json:"path"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(data, &upstream); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range upstream.Files {
+		if f.Dir == dir {
+			return "api-models-aws@" + upstream.Commit[:7] + " " + path.Base(f.Path)
+		}
+	}
+	t.Fatalf("UPSTREAM.json records no model for %s", dir)
+	return ""
+}
+
+// The unknown-operation warning names the model commit and file it checked,
+// so a developer sees that the client is newer than the pinned model.
+func TestUnknownOperationWarningNamesTheModelSource(t *testing.T) {
+	var buf bytes.Buffer
+	log := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	f := newFrontWith(t, nil, func(o *edge.Options) { o.Log = log })
+	f.handler.ServeHTTP(httptest.NewRecorder(),
+		request(t, http.MethodPost, "/", jsonHeader("AmazonSQS.Bogus", "application/x-amz-json-1.0"), `{}`, "sqs"))
+	want := pinnedModelSource(t, "sqs")
+	for _, line := range logLines(t, &buf) {
+		if line.Msg == unknownOperationWarning {
+			if line.ModelSource != want {
+				t.Errorf("warning model_source = %q, want %q", line.ModelSource, want)
+			}
+			return
+		}
+	}
+	t.Errorf("no unknown-operation warning in the log: %s", buf.String())
+}
 
 // The developer watching the server sees each request at Debug, and a
 // warning, once per operation or service rather than per retry, when a

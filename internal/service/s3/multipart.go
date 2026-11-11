@@ -16,6 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
 )
@@ -490,7 +491,7 @@ func orderedParts(id string, sent []s3api.CompletedPart) ([]listedPart, *awserr.
 			return nil, errInvalidPartOrder(id)
 		}
 		parts[i] = listedPart{
-			number: *cp.PartNumber, etag: unquote(deref(cp.ETag)),
+			number: *cp.PartNumber, etag: unquote(smithy.Deref(cp.ETag)),
 			restated: completedPartFields(cp).members(),
 		}
 	}
@@ -661,14 +662,14 @@ func listMultipartUploads(in *s3api.ListMultipartUploadsInput, b *Bucket) (*s3ap
 	if err != nil {
 		return nil, err
 	}
-	keyMarker, idMarker := deref(in.KeyMarker), deref(in.UploadIdMarker)
+	keyMarker, idMarker := smithy.Deref(in.KeyMarker), smithy.Deref(in.UploadIdMarker)
 	if keyMarker == "" {
 		// upload-id-marker counts only with key-marker, and is then neither
 		// used nor echoed (REC test_list_multiparts_next_marker step
 		// list-multiparts-next-upload-only).
 		idMarker = ""
 	}
-	items, err := uploadItems(b.Uploads, listQuery{prefix: deref(in.Prefix), delimiter: deref(in.Delimiter), after: keyMarker, limit: limit}, idMarker)
+	items, err := uploadItems(b.Uploads, listQuery{prefix: smithy.Deref(in.Prefix), delimiter: smithy.Deref(in.Delimiter), after: keyMarker, limit: limit}, idMarker)
 	if err != nil {
 		return nil, err
 	}

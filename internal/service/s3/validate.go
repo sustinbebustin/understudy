@@ -7,6 +7,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // Bucket naming rules (s3.md 3.1, wire-rest.md 3.1).
@@ -137,25 +138,16 @@ func checkACP(acp *s3api.AccessControlPolicy) *awserr.Error {
 		switch g.Grantee.Type {
 		case s3api.TypeCanonicalUser:
 			if id := g.Grantee.ID; id == nil || !canonicalUserID(*id) {
-				return errInvalidArgument("Invalid id", "CanonicalUser/ID", deref(id))
+				return errInvalidArgument("Invalid id", "CanonicalUser/ID", smithy.Deref(id))
 			}
 		case s3api.TypeGroup:
 			if uri := g.Grantee.URI; uri == nil || !knownGroup(*uri) {
-				return errInvalidArgument("Invalid group uri", "Group/URI", deref(uri))
+				return errInvalidArgument("Invalid group uri", "Group/URI", smithy.Deref(uri))
 			}
 		case s3api.TypeAmazonCustomerByEmail:
 		}
 	}
 	return nil
-}
-
-// deref is *p, or the zero value for nil.
-func deref[T any](p *T) T {
-	if p == nil {
-		var zero T
-		return zero
-	}
-	return *p
 }
 
 // aclRequest is the access control a request asks for: a canned ACL, the

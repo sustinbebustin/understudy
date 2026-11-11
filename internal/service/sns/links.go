@@ -98,7 +98,7 @@ func (s *Service) signingCert(_ context.Context, _ *kernel.Call, r *http.Request
 	if !ok {
 		return errCertificateNotFound()
 	}
-	pem, _ := read(s, scope, func(st *State) []byte {
+	pem := store.View(s.cells, scope, func(st *State) []byte {
 		if st.Signing == nil {
 			return nil
 		}
@@ -151,7 +151,7 @@ func (s *Service) confirmsUnsubscribe(ref subscriptionRef) bool {
 	if ref.topic.fifo() {
 		return false
 	}
-	sends, _ := read(s, ref.topic.scope, func(st *State) bool {
+	sends := store.View(s.cells, ref.topic.scope, func(st *State) bool {
 		t, ok := st.Topics[ref.topic.name]
 		i := t.indexOf(ref.id)
 		if !ok || i < 0 {
@@ -199,7 +199,7 @@ func (s *Service) confirmLink(_ context.Context, c *kernel.Call, r *http.Request
 func (s *Service) tokenScope(token string) (aws.Scope, bool) {
 	now := s.clock.Now()
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
-		if held, _ := read(s, scope, func(st *State) bool { _, _, ok := st.holder(token, now); return ok }); held {
+		if held := store.View(s.cells, scope, func(st *State) bool { _, _, ok := st.holder(token, now); return ok }); held {
 			return scope, true
 		}
 	}

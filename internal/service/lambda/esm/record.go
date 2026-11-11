@@ -5,6 +5,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // Record is one message of the SQS event a function receives, with the
@@ -44,12 +45,12 @@ const eventSource = "aws:sqs"
 // system and message attribute selected.
 func NewRecord(m *sqsapi.Message, queue aws.ARN) Record {
 	r := Record{
-		MessageID:              deref(m.MessageId),
-		ReceiptHandle:          deref(m.ReceiptHandle),
-		Body:                   deref(m.Body),
+		MessageID:              smithy.Deref(m.MessageId),
+		ReceiptHandle:          smithy.Deref(m.ReceiptHandle),
+		Body:                   smithy.Deref(m.Body),
 		Attributes:             make(map[string]string, len(m.Attributes)),
 		MessageAttributes:      make(map[string]MessageAttribute, len(m.MessageAttributes)),
-		MD5OfBody:              deref(m.MD5OfBody),
+		MD5OfBody:              smithy.Deref(m.MD5OfBody),
 		MD5OfMessageAttributes: m.MD5OfMessageAttributes,
 		EventSource:            eventSource,
 		EventSourceARN:         queue.String(),
@@ -89,13 +90,6 @@ func filterEvent(r *Record) ([]byte, error) {
 		body = quoted
 	}
 	return json.Marshal(filterView{Record: *r, Body: body})
-}
-
-func deref(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }
 
 func nonNil[T any](s []T) []T {

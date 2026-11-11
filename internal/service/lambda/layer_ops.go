@@ -13,6 +13,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // The nine layer operations over the store of layers.go, with the marks and
@@ -57,11 +59,11 @@ func (s *Service) publishLayerVersion(ctx context.Context, c *kernel.Call, in *l
 	v, err := write(s, c, ref.scope, func(st *State, now clock.Instant, _ *kernel.Tx) (LayerVersion, *awserr.Error) {
 		v := LayerVersion{
 			Number:                  st.Layers[ref.name].LastVersion + 1,
-			Description:             deref(in.Description),
+			Description:             smithy.Deref(in.Description),
 			CompatibleRuntimes:      nameList(in.CompatibleRuntimes),
 			CompatibleArchitectures: nameList(in.CompatibleArchitectures),
 			LicenseInfo:             clonePtr(in.LicenseInfo),
-			StorageMode:             string(deref(in.Content.S3ObjectStorageMode)),
+			StorageMode:             string(smithy.Deref(in.Content.S3ObjectStorageMode)),
 			Created:                 now,
 			Sha256:                  code.Sha256,
 			Size:                    code.Size,
@@ -123,7 +125,7 @@ func (s *Service) getLayerVersionByArn(_ context.Context, c *kernel.Call, in *la
 // recorded not-found for a layer or version that does not exist
 // (lambda-destinations-layers.md 6.4).
 func (s *Service) viewLayerVersion(c *kernel.Call, ref layerRef, n int64) (*lambdaapi.GetLayerVersionResponse, *awserr.Error) {
-	out, err := view(s, ref.scope, func(st *State) (*lambdaapi.GetLayerVersionResponse, *awserr.Error) {
+	out, err := store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.GetLayerVersionResponse, *awserr.Error) {
 		v, ok := st.layerVersion(ref, n)
 		if !ok {
 			return nil, errResourceNotFound()
@@ -143,7 +145,7 @@ func (s *Service) viewLayerVersion(c *kernel.Call, ref layerRef, n int64) (*lamb
 // deleted is left out, and with no MaxItems a page holds listPageCap items.
 func (s *Service) listLayers(_ context.Context, c *kernel.Call, in *lambdaapi.ListLayersInput) (*lambdaapi.ListLayersOutput, *awserr.Error) {
 	scope := c.Scope()
-	items, _ := view(s, scope, func(st *State) ([]lambdaapi.LayersListItem, *awserr.Error) {
+	items, _ := store.View2(s.cells, scope, func(st *State) ([]lambdaapi.LayersListItem, *awserr.Error) {
 		var out []lambdaapi.LayersListItem
 		for _, name := range slices.Sorted(maps.Keys(st.Layers)) {
 			matching := st.Layers[name].newest(in.CompatibleRuntime, in.CompatibleArchitecture)
@@ -155,7 +157,7 @@ func (s *Service) listLayers(_ context.Context, c *kernel.Call, in *lambdaapi.Li
 		}
 		return out, nil
 	})
-	p, err := page(listingLayers, items, func(i lambdaapi.LayersListItem) string { return deref(i.LayerName) }, in.MaxItems, listPageCap, in.Marker)
+	p, err := page(listingLayers, items, func(i lambdaapi.LayersListItem) string { return smithy.Deref(i.LayerName) }, in.MaxItems, listPageCap, in.Marker)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +178,7 @@ func (s *Service) listLayerVersions(_ context.Context, c *kernel.Call, in *lambd
 	}
 	// A layer that never existed, or whose versions are all deleted, lists
 	// none (lambda-destinations-layers.md 6.5).
-	rows, _ := view(s, ref.scope, func(st *State) ([]layerVersionRow, *awserr.Error) {
+	rows, _ := store.View2(s.cells, ref.scope, func(st *State) ([]layerVersionRow, *awserr.Error) {
 		versions := st.Layers[ref.name].newest(in.CompatibleRuntime, in.CompatibleArchitecture)
 		rows := make([]layerVersionRow, len(versions))
 		for i := range versions {
@@ -316,7 +318,7 @@ func (s *Service) getLayerVersionPolicy(_ context.Context, c *kernel.Call, in *l
 		return nil, err
 	}
 	versionARN := ref.versionARN(in.VersionNumber)
-	out, err := view(s, ref.scope, func(st *State) (*lambdaapi.GetLayerVersionPolicyOutput, *awserr.Error) {
+	out, err := store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.GetLayerVersionPolicyOutput, *awserr.Error) {
 		v, ok := st.layerVersion(ref, in.VersionNumber)
 		if !ok {
 			return nil, errLayerVersionMissing(versionARN)

@@ -86,26 +86,18 @@ func (s *Service) onExpiry(c *kernel.Call, key clock.TimerKey, _ clock.Instant) 
 
 // Rearm arms one expiry timer per Pending identity at its deadline, since
 // timers are never saved: an identity Pending at save time turns Failed at
-// its original deadline. It arms under the cell lock, where
-// kernel.Write arms, so a concurrent write either commits first and is read
-// here, or commits after and its own arms replace these.
+// its original deadline. kernel.RearmEach has the lock argument.
 func (s *Service) Rearm(clock.Instant) {
-	sched := s.timers.Scheduler()
-	for _, scope := range s.Scopes() {
-		cell, ok := s.cells.Lookup(scope)
-		if !ok {
-			continue
-		}
-		store.Read(cell, func(st *state) struct{} {
-			for i := range st.Identities {
-				id := &st.Identities[i]
-				if pending, ok := id.Status.(statusPending); ok {
-					sched.Arm(s.expiry.Key(expiryTimerID(scope, id)), id.deadline(pending.Since))
-				}
+	kernel.RearmEach(s.timers.Scheduler(), s.cells, func(scope aws.Scope, st *state) []clock.Armed {
+		var out []clock.Armed
+		for i := range st.Identities {
+			id := &st.Identities[i]
+			if pending, ok := id.Status.(statusPending); ok {
+				out = append(out, clock.Armed{Key: s.expiry.Key(expiryTimerID(scope, id)), Due: id.deadline(pending.Since)})
 			}
-			return struct{}{}
-		})
-	}
+		}
+		return out
+	})
 }
 
 // bindLink binds the raw operation behind the verification link.

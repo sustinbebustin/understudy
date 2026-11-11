@@ -92,11 +92,6 @@ type Options struct {
 	// Unclaimed is the protocol whose error envelope answers a request no
 	// rule claimed; without a codec for it the answer is plain text.
 	Unclaimed ref.ProtocolID
-	// UnknownOperationError is a service's overlay unknownOperationError for
-	// a protocol family (the generated UnknownOperationError of its api
-	// package), which the descriptors do not carry; nil or false means the
-	// generic identity.
-	UnknownOperationError func(svc ref.ServiceID, f awserr.Family) (awserr.Identity, bool)
 	// LegacyQuery lists the JSON services AWS also serves over the legacy
 	// Query protocol, which understudy does not (SSM, ssm-parameters.md
 	// 2.3). A POST signed for one of them that carries no X-Amz-Target and
@@ -294,7 +289,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// here.
 		x.r = rt.req
 		id := ref.OperationID{Service: rt.svc.ID, Name: rt.name}
-		h.noteUnknown(ctx, x, id)
+		h.noteUnknown(ctx, x, rt.svc.ModelSource, id)
 		h.dispatch(ctx, x, rt.codec, id, a, h.resolve(ctx, a).principal, nil, func() kernel.Decoded {
 			return kernel.Rejected{Err: h.unknownOperation(rt.svc, rt.codec.Protocol(), rt.name)}
 		})

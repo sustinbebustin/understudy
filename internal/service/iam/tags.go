@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // tagKeys is how the tag keys of one kind of entity compare. The IAM User
@@ -323,7 +324,7 @@ func (s *Service) listTags(c *kernel.Call, listing paging.Listing, get tagsOf, m
 		p   paging.Page[iamapi.Tag]
 		arn aws.ARN
 	}
-	l, err := view(s, c.Scope().Account, func(st *State) (listed, *awserr.Error) {
+	l, err := store.View2(s.cells, c.Scope().Account, func(st *State) (listed, *awserr.Error) {
 		have, arn, err := get(st)
 		if err != nil {
 			return listed{}, err

@@ -26,6 +26,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/apigateway/resource"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // executeAPIPrefix is the execute-api path fallback,
@@ -210,35 +211,30 @@ func (s *Service) selectMethod(addr address, method string) (selection, *policyA
 	if !ok || (!addr.region.IsZero() && addr.region != owner.Region) {
 		return answered{RoutingSwitch().Value.UnknownAPI}, nil
 	}
-	type selected struct {
-		sel    selection
-		advise *policyAdvisory
-	}
-	got := readState(s, owner, func(st *State) selected {
+	return store.View2(s.cells, owner, func(st *State) (selection, *policyAdvisory) {
 		a, ok := st.APIs[addr.apiID]
 		if !ok {
-			return selected{sel: answered{RoutingSwitch().Value.UnknownAPI}}
+			return answered{RoutingSwitch().Value.UnknownAPI}, nil
 		}
 		target := resource.Normalize(addr.path)
 		stage, d, refused := a.front(target.Stage)
 		if refused != nil {
-			return selected{sel: refused}
+			return refused, nil
 		}
 		var advise *policyAdvisory
 		if a.Policy != nil {
 			switch s.enforce {
 			case EnforceEnforce:
-				return selected{sel: unemulated{fmt.Sprintf("understudy does not evaluate REST API resource policies: REST API %s has a policy and iam.enforce is enforce, "+
+				return unemulated{fmt.Sprintf("understudy does not evaluate REST API resource policies: REST API %s has a policy and iam.enforce is enforce, "+
 					"so the request is refused rather than served unchecked; no integration ran and nothing was changed. "+
-					"Remove the policy with UpdateRestApi replace /policy, or run with iam.enforce advise or off.", a.ID)}}
+					"Remove the policy with UpdateRestApi replace /policy, or run with iam.enforce advise or off.", a.ID)}, nil
 			case EnforceAdvise:
 				advise = &policyAdvisory{owner: owner, apiID: a.ID}
 			case EnforceOff:
 			}
 		}
-		return selected{sel: a.route(owner, addr, method, target.Path, stage, d), advise: advise}
+		return a.route(owner, addr, method, target.Path, stage, d), advise
 	})
-	return got.sel, got.advise
 }
 
 // front checks what applies before routing: the

@@ -9,7 +9,7 @@ import (
 )
 
 // lane is one message group of a FIFO queue. SNS preserves the order of a
-// FIFO topic's messages per subscription and group (sns.md 10), so the
+// FIFO topic's messages per subscription and group (sns.md 4.3), so the
 // deliveries of a lane are attempted one at a time in the order the outbox
 // took them (Seq): only the first pending one is armed, a retry keeps the
 // lane blocked, and a terminal outcome arms the next. A group of a standard

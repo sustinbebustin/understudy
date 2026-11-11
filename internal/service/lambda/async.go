@@ -410,7 +410,7 @@ func (x *Execution) attempt(ctx context.Context, c *kernel.Call, writes *sync.Mu
 // ages out still reaches the destinations. The defaults when the function
 // or qualifier is gone.
 func (x *Execution) queueConfig(r functionRef) asyncConfig {
-	cfg, _ := view(x.svc, r.scope, func(st *State) (asyncConfig, *awserr.Error) {
+	cfg, _ := store.View2(x.svc.cells, r.scope, func(st *State) (asyncConfig, *awserr.Error) {
 		f, v, err := st.lookup(r)
 		if err != nil {
 			return defaultAsyncConfig(), nil

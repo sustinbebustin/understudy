@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/service/sfn/asl"
@@ -74,7 +75,7 @@ func (s *Service) startExecution(_ context.Context, c *kernel.Call, in *sfnapi.S
 	if !ok {
 		return nil, missing
 	}
-	name := deref(in.Name)
+	name := smithy.Deref(in.Name)
 	if in.Name == nil {
 		name = s.ids.UUID(ids.KindSFNExecutionName).String()
 	}
@@ -85,7 +86,7 @@ func (s *Service) startExecution(_ context.Context, c *kernel.Call, in *sfnapi.S
 	if err != nil {
 		return nil, err
 	}
-	trace := deref(in.TraceHeader)
+	trace := smithy.Deref(in.TraceHeader)
 	if h := c.Trace(); h != "" {
 		trace = h
 	}
@@ -256,7 +257,7 @@ func (s *Service) stopExecution(_ context.Context, c *kernel.Call, in *sfnapi.St
 			tx.Unchanged()
 			return rec.Stopped, nil
 		}
-		if err := s.advance(tx, st, ref, asl.Stop{At: now.Wire(), Error: deref(in.Error), Cause: deref(in.Cause)}, now); err != nil {
+		if err := s.advance(tx, st, ref, asl.Stop{At: now.Wire(), Error: smithy.Deref(in.Error), Cause: smithy.Deref(in.Cause)}, now); err != nil {
 			return clock.Instant{}, err
 		}
 		return now, nil

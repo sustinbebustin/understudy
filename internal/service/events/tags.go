@@ -22,23 +22,11 @@ const maxTags = 50
 // (eventbridge-buses.md 5.5).
 func (s *Service) bindTags(b eventbridgeapi.Binder) {
 	b.TagResource(s.tagResource, registry.Full{},
-		taggedResource(func(in *eventbridgeapi.TagResourceInput) string { return in.ResourceARN }))
+		kernel.WithResourceARN(func(in *eventbridgeapi.TagResourceInput) string { return in.ResourceARN }))
 	b.UntagResource(s.untagResource, registry.Full{},
-		taggedResource(func(in *eventbridgeapi.UntagResourceInput) string { return in.ResourceARN }))
+		kernel.WithResourceARN(func(in *eventbridgeapi.UntagResourceInput) string { return in.ResourceARN }))
 	b.ListTagsForResource(s.listTagsForResource, registry.Full{},
-		taggedResource(func(in *eventbridgeapi.ListTagsForResourceInput) string { return in.ResourceARN }))
-}
-
-// taggedResource names the resource a tag call addresses when its ARN
-// parses.
-func taggedResource[In any](arn func(*In) string) kernel.BindOption {
-	return kernel.WithResources(func(_ *kernel.Call, in *In) []aws.ARN {
-		a, err := aws.ParseARN(arn(in))
-		if err != nil {
-			return nil
-		}
-		return []aws.ARN{a}
-	})
+		kernel.WithResourceARN(func(in *eventbridgeapi.ListTagsForResourceInput) string { return in.ResourceARN }))
 }
 
 // taggable is the resource a tag call's ResourceARN names in the caller's

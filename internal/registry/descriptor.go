@@ -42,6 +42,23 @@ type Service struct {
 	// InvalidRequestContentException). It is the zero Identity when the
 	// overlay sets none; the codec then answers with its protocol's default.
 	MalformedRequestError awserr.Identity
+	// ThrottleError is the overlay's dev.understudy#throttleError, the
+	// identity a throttling fault rule injects (SQS RequestThrottled). It is
+	// the zero Identity on a hand-built descriptor, which then throttles with
+	// the generic ThrottlingException.
+	ThrottleError awserr.Identity
+	// UnknownOperationError returns the overlay's
+	// dev.understudy#unknownOperationError for protocol family f, the
+	// identity for a request naming no operation of the service, or false
+	// for a family the overlay does not name. Generated descriptors set it
+	// to their package's UnknownOperationError when the overlay names one;
+	// it is nil otherwise, and the edge then answers the family's generic
+	// identity.
+	UnknownOperationError func(f awserr.Family) (awserr.Identity, bool)
+	// ModelSource names the vendored model the descriptor was generated
+	// from, as the generated file headers do: "api-models-aws@1cfdfb4" and
+	// "sqs-2012-11-05.json". It is zero on a hand-built descriptor.
+	ModelSource ModelSource
 	// Denial is the overlay's dev.understudy#denialError, the error an
 	// authorization refusal answers with; zero when the overlay names none.
 	Denial Denial
@@ -73,6 +90,25 @@ type Denial struct {
 	// Label is the weakest label, in evidence.Labels order, among the overlay
 	// evidence items covering dev.understudy#denialError.
 	Label evidence.Label
+}
+
+// ModelSource is the vendored model a service was generated from.
+type ModelSource struct {
+	// Origin is the pinned upstream and its short commit:
+	// "api-models-aws@1cfdfb4".
+	Origin string
+	// File is the model file's base name: "sqs-2012-11-05.json".
+	File string
+}
+
+// String is the source as the generated file headers spell it:
+// "api-models-aws@1cfdfb4 sqs-2012-11-05.json". It is empty for the zero
+// value.
+func (m ModelSource) String() string {
+	if m == (ModelSource{}) {
+		return ""
+	}
+	return m.Origin + " " + m.File
 }
 
 // QueryErrorEnvelope is how a service's awsQuery ErrorResponse differs from

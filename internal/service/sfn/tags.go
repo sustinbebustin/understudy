@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -27,7 +28,7 @@ func errTooManyTags(resource string) *awserr.Error {
 func tagsOf(tags []Tag, in []sfnapi.Tag) []Tag {
 	out := slices.Clone(tags)
 	for _, t := range in {
-		key, value := deref(t.Key), deref(t.Value)
+		key, value := smithy.Deref(t.Key), smithy.Deref(t.Value)
 		if i := slices.IndexFunc(out, func(x Tag) bool { return x.Key == key }); i >= 0 {
 			out[i].Value = value
 			continue
@@ -35,13 +36,6 @@ func tagsOf(tags []Tag, in []sfnapi.Tag) []Tag {
 		out = append(out, Tag{Key: key, Value: value})
 	}
 	return out
-}
-
-func deref(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }
 
 // tagged reads the machine a tagging ARN names. A version or alias ARN, an

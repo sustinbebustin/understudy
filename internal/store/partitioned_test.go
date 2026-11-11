@@ -435,3 +435,45 @@ func TestPartitionedDeleteAndResetDropCells(t *testing.T) {
 		t.Fatal("For after Delete did not start from init")
 	}
 }
+
+func TestViewOfAKeyWithoutACellSeesInitAndCreatesNone(t *testing.T) {
+	t.Parallel()
+	p := store.NewPartitioned(&store.Gate{}, jsonCodec(), func(k string) queues {
+		return queues{Queues: map[string]int{k: len(k)}}
+	})
+	got := store.View(p, "abc", func(q *queues) int { return q.Queues["abc"] })
+	if got != 3 {
+		t.Fatalf("View of a missing cell = %d, want init's 3", got)
+	}
+	if keys := p.Keys(store.StringKeys()); len(keys) != 0 {
+		t.Fatalf("View created cells %v, want none", keys)
+	}
+}
+
+func TestViewOfAnExistingCellSeesItsState(t *testing.T) {
+	t.Parallel()
+	p := newQueues[string]()
+	store.Update(p.For("a"), func(q *queues) (struct{}, bool) { q.Bodies = []string{"x"}; return struct{}{}, true })
+	got := store.View(p, "a", func(q *queues) []string { return slices.Clone(q.Bodies) })
+	if !slices.Equal(got, []string{"x"}) {
+		t.Fatalf("View = %v, want [x]", got)
+	}
+}
+
+func TestView2CarriesBothResultsForMissingAndExistingCells(t *testing.T) {
+	t.Parallel()
+	p := newQueues[string]()
+	count := func(q *queues) (int, bool) { return len(q.Queues), len(q.Queues) > 0 }
+
+	if n, ok := store.View2(p, "a", count); n != 0 || ok {
+		t.Fatalf("View2 of a missing cell = (%d, %v), want (0, false)", n, ok)
+	}
+	if keys := p.Keys(store.StringKeys()); len(keys) != 0 {
+		t.Fatalf("View2 created cells %v, want none", keys)
+	}
+
+	store.Update(p.For("a"), func(q *queues) (struct{}, bool) { q.Queues = map[string]int{"q": 1}; return struct{}{}, true })
+	if n, ok := store.View2(p, "a", count); n != 1 || !ok {
+		t.Fatalf("View2 of an existing cell = (%d, %v), want (1, true)", n, ok)
+	}
+}

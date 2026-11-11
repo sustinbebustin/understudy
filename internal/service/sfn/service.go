@@ -120,13 +120,7 @@ func (s *Service) bindExecutions(b sfnapi.Binder) {
 	// machine it names (aws-doc service-authorization
 	// list_awsstepfunctions), so a policy scoped to the machine allows it.
 	b.StartExecution(s.startExecution, registry.Partial{Note: noteStart}, kernel.WithoutSecondaryActions(),
-		kernel.WithResources(func(_ *kernel.Call, in *sfnapi.StartExecutionInput) []aws.ARN {
-			a, err := aws.ParseARN(in.StateMachineArn)
-			if err != nil {
-				return nil
-			}
-			return []aws.ARN{a}
-		}))
+		kernel.WithResourceARN(func(in *sfnapi.StartExecutionInput) string { return in.StateMachineArn }))
 	b.StopExecution(s.stopExecution, registry.Full{})
 	b.ListExecutions(s.listExecutions, registry.Partial{Note: noteListExecutions}, kernel.WithValidator(validateListExecutions))
 	b.DescribeExecution(s.describeExecution, registry.Partial{Note: noteDescribeExecution})

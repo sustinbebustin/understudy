@@ -30,19 +30,12 @@ func (s *Service) find(c *kernel.Call, id string) (secretRef, Secret, *awserr.Er
 	if err != nil {
 		return secretRef{}, Secret{}, err
 	}
-	type found struct {
-		sec Secret
-		ok  bool
-	}
-	f := readState(s, r.scope, func(st *State) found {
-		sec, ok := r.find(st)
-		return found{sec, ok}
-	})
-	if !f.ok {
+	sec, ok := store.View2(s.cells, r.scope, r.find)
+	if !ok {
 		return secretRef{}, Secret{}, errSecretNotFound()
 	}
-	c.Touch(f.sec.arn(r.scope))
-	return r, f.sec, nil
+	c.Touch(sec.arn(r.scope))
+	return r, sec, nil
 }
 
 // findUsable is find for the operations a secret scheduled for deletion
@@ -62,12 +55,8 @@ func (s *Service) findUsable(c *kernel.Call, id string) (secretRef, Secret, *aws
 // name holds, else the ARN createSecret gives the new secret.
 func (s *Service) createTarget(c *kernel.Call, name string) aws.ARN {
 	scope := c.Scope()
-	type found struct {
-		sec Secret
-		ok  bool
-	}
-	if f := readState(s, scope, func(st *State) found { sec, ok := st.Secrets[name]; return found{sec, ok} }); f.ok {
-		return f.sec.arn(scope)
+	if sec, ok := store.View2(s.cells, scope, func(st *State) (Secret, bool) { sec, ok := st.Secrets[name]; return sec, ok }); ok {
+		return sec.arn(scope)
 	}
 	return secretARN(scope, name, newSuffix(c.ID()))
 }
@@ -86,12 +75,8 @@ func (s *Service) createSecret(ctx context.Context, c *kernel.Call, in *secretsm
 		return nil, err
 	}
 	scope := c.Scope()
-	type found struct {
-		sec Secret
-		ok  bool
-	}
-	if f := readState(s, scope, func(st *State) found { sec, ok := st.Secrets[in.Name]; return found{sec, ok} }); f.ok {
-		return s.replayCreate(ctx, c, scope, f.sec, token, p, hasValue)
+	if sec, ok := store.View2(s.cells, scope, func(st *State) (Secret, bool) { sec, ok := st.Secrets[in.Name]; return sec, ok }); ok {
+		return s.replayCreate(ctx, c, scope, sec, token, p, hasValue)
 	}
 	suffix := newSuffix(c.ID())
 	arn := secretARN(scope, in.Name, suffix)

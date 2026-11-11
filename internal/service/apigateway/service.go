@@ -314,7 +314,7 @@ func (*Service) Rearm(clock.Instant) {}
 // Resources lists the REST APIs of scope, one per API under its resource
 // ARN.
 func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
-	return readState(s, scope, func(st *State) []kernel.Resource {
+	return store.View(s.cells, scope, func(st *State) []kernel.Resource {
 		out := make([]kernel.Resource, 0, len(st.APIs))
 		for _, id := range slices.Sorted(maps.Keys(st.APIs)) {
 			a := st.APIs[id]
@@ -332,17 +332,6 @@ func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) 
 func (s *Service) OwnsExecuteAPI(id string) bool {
 	_, ok := s.index.lookup(id)
 	return ok
-}
-
-// readState runs fn on the state of scope without creating its cell; a
-// scope with no cell reads as empty.
-func readState[R any](s *Service, scope aws.Scope, fn func(st *State) R) R {
-	cell, ok := s.cells.Lookup(scope)
-	if !ok {
-		st := newState(scope)
-		return fn(&st)
-	}
-	return store.Read(cell, fn)
 }
 
 // reindex rebuilds the API id index from the cells' sections, without

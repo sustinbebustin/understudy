@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
@@ -271,7 +272,7 @@ func (s *Service) encrypt(ctx context.Context, c *kernel.Call, home Home, choice
 	}
 	return KMSEncryption{
 		Algorithm: k.algorithm,
-		KeyARN:    deref(out.KeyId),
+		KeyARN:    smithy.Deref(out.KeyId),
 		BucketKey: k.bucketKey,
 		Context:   k.context,
 		DataKey:   out.CiphertextBlob,

@@ -153,12 +153,12 @@ func recreate(d *dynamodbapi.TableDescription) *dynamodbapi.CreateTableInput {
 	}
 	for _, x := range d.LocalSecondaryIndexes {
 		in.LocalSecondaryIndexes = append(in.LocalSecondaryIndexes, dynamodbapi.LocalSecondaryIndex{
-			IndexName: deref(x.IndexName), KeySchema: x.KeySchema, Projection: derefProjection(x.Projection),
+			IndexName: smithy.Deref(x.IndexName), KeySchema: x.KeySchema, Projection: derefProjection(x.Projection),
 		})
 	}
 	for _, x := range d.GlobalSecondaryIndexes {
 		g := dynamodbapi.GlobalSecondaryIndex{
-			IndexName: deref(x.IndexName), KeySchema: x.KeySchema, Projection: derefProjection(x.Projection),
+			IndexName: smithy.Deref(x.IndexName), KeySchema: x.KeySchema, Projection: derefProjection(x.Projection),
 			OnDemandThroughput: x.OnDemandThroughput,
 		}
 		if provisioned {
@@ -180,13 +180,6 @@ func throughput(d *dynamodbapi.ProvisionedThroughputDescription) *dynamodbapi.Pr
 		p.WriteCapacityUnits = *d.WriteCapacityUnits
 	}
 	return p
-}
-
-func deref(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }
 
 func derefProjection(p *dynamodbapi.Projection) dynamodbapi.Projection {

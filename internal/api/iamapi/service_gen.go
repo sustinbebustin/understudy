@@ -13,18 +13,21 @@ import (
 )
 
 var service = registry.Service{
-	ID:                 "iam",
-	Shape:              "com.amazonaws.iam#AWSIdentityManagementV20100508",
-	SigningName:        "iam",
-	IAMPrefix:          "iam",
-	ARNNamespace:       "iam",
-	Protocols:          []ref.ProtocolID{ref.AWSQuery},
-	QueryVersion:       "2010-05-08",
-	XMLNamespace:       "https://iam.amazonaws.com/doc/2010-05-08/",
-	QueryErrorEnvelope: registry.QueryErrorEnvelope{Namespace: true, Detail: false},
-	Denial:             registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-recorded"},
-	NewErrorMembers:    NewErrorMembers,
-	GenericErrors:      GenericErrors,
+	ID:                    "iam",
+	Shape:                 "com.amazonaws.iam#AWSIdentityManagementV20100508",
+	SigningName:           "iam",
+	IAMPrefix:             "iam",
+	ARNNamespace:          "iam",
+	Protocols:             []ref.ProtocolID{ref.AWSQuery},
+	QueryVersion:          "2010-05-08",
+	XMLNamespace:          "https://iam.amazonaws.com/doc/2010-05-08/",
+	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: true, Detail: false},
+	ThrottleError:         IdentityThrottlingException(),
+	UnknownOperationError: UnknownOperationError,
+	ModelSource:           registry.ModelSource{Origin: "api-models-aws@1cfdfb4", File: "iam-2010-05-08.json"},
+	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-recorded"},
+	NewErrorMembers:       NewErrorMembers,
+	GenericErrors:         GenericErrors,
 }
 
 // The operations point back at the service, so the list is linked once

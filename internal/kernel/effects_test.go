@@ -190,7 +190,7 @@ func TestCatalogueListsModeledAndGenericErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cat := kernel.NewCatalogue(reg, map[ref.ServiceID]awserr.Identity{"sqs": sqsapi.ThrottleError()})
+	cat := kernel.NewCatalogue(reg)
 	errs, ok := cat.Errors(ref.OperationID{Service: "sqs", Name: "SendMessage"})
 	if !ok {
 		t.Fatal("SendMessage has no catalogue")

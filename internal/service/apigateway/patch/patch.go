@@ -11,6 +11,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // Operation is one patch operation as sent.
@@ -29,7 +30,7 @@ type Operation struct {
 func FromModel(ops []apigatewayapi.PatchOperation) []Operation {
 	out := make([]Operation, len(ops))
 	for i, o := range ops {
-		out[i] = Operation{Path: deref(o.Path), Value: clonePtr(o.Value), From: clonePtr(o.From)}
+		out[i] = Operation{Path: smithy.Deref(o.Path), Value: clonePtr(o.Value), From: clonePtr(o.From)}
 		if o.Op != nil {
 			out[i].Op = *o.Op
 		}
@@ -75,13 +76,6 @@ func match(pattern string, segs []string) ([]string, bool) {
 		}
 	}
 	return wild, len(segs) == len(pat)
-}
-
-func deref(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }
 
 func clonePtr(p *string) *string {

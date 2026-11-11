@@ -4,19 +4,15 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strings"
 	"sync"
 	"testing"
 
-	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/edge"
-	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -82,6 +78,9 @@ type bench struct {
 	echo   *echo
 	url    string
 	client *http.Client
+	// scope is the signing name of the credentials each case is sent
+	// with, empty for unsigned (credentialScope).
+	scope string
 }
 
 func newBench(t *testing.T, cs corpusService, svc *registry.Service) *bench {
@@ -115,34 +114,57 @@ func newBench(t *testing.T, cs corpusService, svc *registry.Service) *bench {
 			t.Fatalf("%s: the echo binder left %s unbound", svc.ID, op.ID)
 		}
 	}
-	codecs := server.Codecs()
-	var front http.Handler
-	if routedByEdge(svc) {
-		// The endpoint-trait cases send Hosts such as foo.example.com; the
-		// corpus tests the protocols, not the listener's Host policy.
-		front, err = edge.New(edge.Options{
-			Kernel: k, Registry: reg, Codecs: codecs, S3BaseDomains: s3BaseDomains,
-			Listener: ref.ListenerMain, Unclaimed: svc.Protocols[0], Hosts: edge.AnyHost{},
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-	} else {
-		front = &routeFront{k: k, svc: svc, codec: codecs[svc.Protocols[0]]}
+	// The endpoint-trait cases send Hosts such as foo.example.com; the
+	// corpus tests the protocols, not the listener's Host policy.
+	front, err := edge.New(edge.Options{
+		Kernel: k, Registry: reg, Codecs: server.Codecs(), S3BaseDomains: s3BaseDomains,
+		Listener: ref.ListenerMain, Unclaimed: svc.Protocols[0], Hosts: edge.AnyHost{},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 	srv := httptest.NewServer(front)
 	t.Cleanup(srv.Close)
 	transport := &http.Transport{DisableCompression: true}
 	t.Cleanup(transport.CloseIdleConnections)
-	return &bench{echo: e, url: srv.URL, client: &http.Client{Transport: transport}}
+	return &bench{echo: e, url: srv.URL, client: &http.Client{Transport: transport}, scope: credentialScope(t, svc)}
 }
 
-// routedByEdge reports whether the edge claims svc's requests: every
-// RPC protocol is claimed by its codec, but the edge's REST rules know
-// only the lambda and s3 route tables (ARCHITECTURE.md 4.1 rule 8), so the
-// synthetic RestJson and RestXml services are served by routeFront.
-func routedByEdge(svc *registry.Service) bool {
-	return svc.Routes == nil || svc.ID == "s3"
+// credentialScope is the signing name the bench scopes each case's
+// credentials to. The edge claims an RPC request by its codec and an
+// unsigned request as S3's, but a request to any other REST service only
+// by the signing name of its credentials, which selects the route tables
+// rule 8 tries (ARCHITECTURE.md 4.1, ADR 0019). Empty means the cases go
+// unsigned.
+func credentialScope(t *testing.T, svc *registry.Service) string {
+	t.Helper()
+	if svc.Routes == nil || svc.ID == "s3" {
+		return ""
+	}
+	if svc.SigningName == "" {
+		t.Fatalf("%s: a REST service without a signing name cannot be routed by the edge", svc.ID)
+	}
+	return svc.SigningName
+}
+
+// Credentials the bench signs with: the edge parses them but never verifies
+// them, since the bench sets no edge.Options.Verify.
+const (
+	credentialDate = "20260101"
+	credentialTime = credentialDate + "T000000Z"
+	credentialFake = "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/" + credentialDate + "/us-east-1/%s/aws4_request, " +
+		"SignedHeaders=host;x-amz-date, Signature=0000000000000000000000000000000000000000000000000000000000000000"
+)
+
+// sign gives r a well-formed SigV4 Authorization header scoped to the
+// bench's signing name, and the X-Amz-Date the parser requires beside it,
+// unless r carries credentials of its own.
+func (b *bench) sign(r *http.Request) {
+	if b.scope == "" || r.Header.Get("Authorization") != "" {
+		return
+	}
+	r.Header.Set("Authorization", fmt.Sprintf(credentialFake, b.scope))
+	r.Header.Set("X-Amz-Date", credentialTime)
 }
 
 // reply is what the bench's server answered.
@@ -158,6 +180,7 @@ func (b *bench) serve(ctx context.Context, w wireRequest) (reply, error) {
 	if err != nil {
 		return reply{}, err
 	}
+	b.sign(r)
 	resp, err := b.client.Do(r)
 	if err != nil {
 		return reply{}, fmt.Errorf("sending the case's request: %w", err)
@@ -274,96 +297,4 @@ func (e *echo) handler(ht reflect.Type) reflect.Value {
 		}
 		return fail(awserr.Internalf(fmt.Errorf("unknown case outcome %T", outcome)))
 	})
-}
-
-// routeFront serves a synthetic REST service the edge cannot claim: it
-// matches the request against the service's route table, then decodes,
-// dispatches and encodes as the edge does (steps 4, 5 and 13 of
-// ARCHITECTURE.md 4).
-type routeFront struct {
-	k     *kernel.Kernel
-	svc   *registry.Service
-	codec edge.Codec
-}
-
-func (f *routeFront) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id := string(f.k.IDs().RequestID())
-	path, _, _ := strings.Cut(r.RequestURI, "?")
-	rt, ok := f.svc.Routes.Match(r.Method, path, r.URL.Query(), r.Header)
-	if !ok {
-		write(w, f.codec.EncodeError(r, f.svc, id, &awserr.Error{
-			ID: awserr.UnknownOperationException(), Message: "no route matches " + r.Method + " " + path, Origin: awserr.Generic{},
-		}))
-		return
-	}
-	op := rt.Operation
-	call := f.k.NewCall(kernel.ExternalCall{
-		RequestID: ids.RequestID(id),
-		Operation: op.ID,
-		Scope:     aws.Scope{Partition: aws.PartitionAWS(), Account: aws.DefaultAccount(), Region: aws.DefaultRegion()},
-		Principal: identity.Root{Account: aws.DefaultAccount()},
-		Origin:    ref.External{Protocol: f.codec.Protocol(), Listener: ref.ListenerMain},
-		Admitted:  f.k.Clock().Now(),
-		Endpoint:  kernel.Endpoint{Scheme: "http", Host: r.Host},
-		Header:    r.Header,
-	})
-	switch res := f.k.Dispatch(ctx, call, f.decode(r, op)).(type) {
-	case kernel.Output:
-		out, ok := res.Out.(smithy.Serializable)
-		if !ok {
-			write(w, f.codec.EncodeError(r, f.svc, id, awserr.Internalf(fmt.Errorf("output %T is not serializable", res.Out))))
-			return
-		}
-		resp, err := f.codec.Encode(r, op, id, out, res.Status)
-		if err != nil {
-			write(w, f.codec.EncodeError(r, f.svc, id, err))
-			return
-		}
-		write(w, resp)
-	case kernel.Failure:
-		write(w, f.codec.EncodeError(r, f.svc, id, res.Err))
-	case kernel.StatusOKFailure:
-		write(w, f.codec.EncodeError(r, f.svc, id, res.Err))
-	}
-}
-
-func (f *routeFront) decode(r *http.Request, op *registry.Operation) kernel.Decoded {
-	in, ok := f.k.NewInput(op)
-	if !ok {
-		return kernel.Ok{}
-	}
-	des, ok := in.(smithy.Deserializable)
-	if !ok {
-		return kernel.Rejected{Err: awserr.Internalf(fmt.Errorf("input %T is not deserializable", in))}
-	}
-	if err := f.codec.DecodeHead(r, op, des); err != nil {
-		return kernel.Rejected{Err: err}
-	}
-	if err := f.codec.DecodeBody(r, op, requestBody{r}, des); err != nil {
-		return kernel.Rejected{Err: err}
-	}
-	return kernel.Ok{In: in}
-}
-
-// requestBody is the request body as the edge hands it to a codec.
-type requestBody struct{ r *http.Request }
-
-func (b requestBody) Open() (io.ReadCloser, error) { return b.r.Body, nil }
-
-func (b requestBody) Len() (int64, bool) { return b.r.ContentLength, b.r.ContentLength >= 0 }
-
-func (requestBody) Trailer(string) (string, bool) { return "", false }
-
-// write sends a codec's response as the edge does.
-func write(w http.ResponseWriter, resp edge.Response) {
-	maps.Copy(w.Header(), resp.Header)
-	status := resp.Status
-	if status == 0 {
-		status = http.StatusOK
-	}
-	w.WriteHeader(status)
-	if resp.Body != nil {
-		_, _ = io.Copy(w, resp.Body) //nolint:errcheck // the bench's client reads to the end; a failed write fails the case
-	}
 }

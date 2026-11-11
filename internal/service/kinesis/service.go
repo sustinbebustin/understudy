@@ -72,7 +72,7 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 
 // Resources lists the streams of scope in name order, each ACTIVE.
 func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
-	return readState(s, scope, func(st *State) []kernel.Resource {
+	return store.View(s.cells, scope, func(st *State) []kernel.Resource {
 		out := make([]kernel.Resource, 0, len(st.Streams))
 		for _, name := range slices.Sorted(maps.Keys(st.Streams)) {
 			out = append(out, kernel.Resource{ARN: streamARN(scope, name), Summary: string(kinesisapi.StreamStatusActive)})
@@ -85,7 +85,7 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 func (s *Service) Scopes() []aws.Scope {
 	var out []aws.Scope
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
-		if readState(s, scope, func(st *State) bool { return !st.IsZero() }) {
+		if store.View(s.cells, scope, func(st *State) bool { return !st.IsZero() }) {
 			out = append(out, scope)
 		}
 	}

@@ -23,9 +23,9 @@ func (s *Service) bindPermissions(b snsapi.Binder) {
 	const note = "statements are stored in the topic Policy, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
 		"conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key"
 	b.AddPermission(s.addPermission, registry.Partial{Note: note},
-		arnResource(func(in *snsapi.AddPermissionInput) string { return in.TopicArn }))
+		kernel.WithResourceARN(func(in *snsapi.AddPermissionInput) string { return in.TopicArn }))
 	b.RemovePermission(s.removePermission, registry.Partial{Note: note},
-		arnResource(func(in *snsapi.RemovePermissionInput) string { return in.TopicArn }))
+		kernel.WithResourceARN(func(in *snsapi.RemovePermissionInput) string { return in.TopicArn }))
 }
 
 // errActionOutOfScope is the detail for a policy action SNS does not

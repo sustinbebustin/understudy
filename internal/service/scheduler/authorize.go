@@ -53,16 +53,6 @@ func groupResource(c *kernel.Call, name string) []aws.ARN {
 	return []aws.ARN{groupARN(c.Scope(), name)}
 }
 
-// taggedResource is a tag operation's ResourceArn, which the model's
-// pattern holds to a schedule group's ARN; nothing when it does not parse.
-func taggedResource(raw string) []aws.ARN {
-	a, err := aws.ParseARN(raw)
-	if err != nil {
-		return nil
-	}
-	return []aws.ARN{a}
-}
-
 // authorizeWrite asks what CreateSchedule and UpdateSchedule need of the
 // schedule p, after its members are validated and its group is found and
 // before the write, in 14.9.3's order (UNVERIFIED, SCH-04): that

@@ -39,6 +39,43 @@ func TestWithResourcesForOptionsNamingOneActionAddUp(t *testing.T) {
 	})
 }
 
+// WithResourceARN names the resource its member parses to, and nothing for
+// an empty or unparsable member.
+func TestWithResourceARNNamesOnlyAParsableMember(t *testing.T) {
+	cases := []struct {
+		name   string
+		member string
+		want   []kernel.Pair
+	}{
+		{"parsable", guardThing1.String(), []kernel.Pair{{Action: guardRun, Resource: kernel.ResourceARN{ARN: guardThing1}}}},
+		{"unparsable", "not-an-arn", nil},
+		{"empty", "", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := newGuard(guardDenial())
+			a := &fakeAuthorizer{}
+			runGuard(t, g, a, func(k *kerneltest.K) {
+				bindGuard(k, g.run, guardDone, kernel.WithResourceARN(func(in *guardInput) string { return in.Member }))
+				if _, err := k.Invoke(k.Context(), g.run, &guardInput{Member: tc.member}); err != nil {
+					k.Fatalf("call = %s", err.Message)
+				}
+				var named []kernel.Pair
+				for _, q := range a.about(g.runDesc) {
+					for _, p := range q.Query.Pairs {
+						if _, ok := p.Resource.(kernel.ResourceARN); ok {
+							named = append(named, p)
+						}
+					}
+				}
+				if !samePairs(named, tc.want) {
+					k.Errorf("named pairs = %+v, want %+v", named, tc.want)
+				}
+			})
+		})
+	}
+}
+
 // An AuthorizedAfterResolve binding's deferred question keeps the scoping:
 // the named action stays on its resolved resource while the primary takes
 // what the handler touched too.

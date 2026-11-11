@@ -13,7 +13,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
-	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // TimerRetention fires when the oldest record of a stream outlives the
@@ -152,23 +151,16 @@ func (s *Service) release(ctx context.Context, refs []blob.Ref) {
 	}
 }
 
-// Rearm arms the retention timer of every stream that holds a record,
-// under the cell lock as kernel.Write arms, so a concurrent write either
-// commits first and is read here or commits after and rearms itself.
+// Rearm arms the retention timer of every stream that holds a record.
+// kernel.RearmEach has the lock argument.
 func (s *Service) Rearm(clock.Instant) {
-	sched := s.k.Timers().Scheduler()
-	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
-		cell, ok := s.cells.Lookup(scope)
-		if !ok {
-			continue
-		}
-		store.Read(cell, func(st *State) struct{} {
-			for _, str := range st.Streams {
-				if due, ok := nextExpiry(str); ok {
-					sched.Arm(clock.TimerKey{Kind: TimerRetention, ID: streamARN(scope, str.Name).String()}, due)
-				}
+	kernel.RearmEach(s.k.Timers().Scheduler(), s.cells, func(scope aws.Scope, st *State) []clock.Armed {
+		var out []clock.Armed
+		for _, str := range st.Streams {
+			if due, ok := nextExpiry(str); ok {
+				out = append(out, clock.Armed{Key: clock.TimerKey{Kind: TimerRetention, ID: streamARN(scope, str.Name).String()}, Due: due})
 			}
-			return struct{}{}
-		})
-	}
+		}
+		return out
+	})
 }

@@ -27,6 +27,31 @@ type Stateful interface {
 	Resources(scope aws.Scope) []Resource
 }
 
+// RearmEach arms on sched the timers that timersOf lists for the state of
+// every scope p holds a cell for. It is the body of a Stateful.Rearm for a
+// service whose timers all follow from its state, since timers are never
+// saved (ADR 0009).
+//
+// Each scope's timers are listed and armed inside store.Read, under the
+// cell's lock, where Write arms. A concurrent write to the cell therefore
+// either commits first and is read here, or commits after and its own arm
+// or disarm wins. The helper lives in kernel because store may not import
+// clock.
+func RearmEach[S any](sched *clock.Scheduler, p *store.Partitioned[aws.Scope, S], timersOf func(scope aws.Scope, st *S) []clock.Armed) {
+	for _, scope := range p.Keys(store.ScopeKeys()) {
+		cell, ok := p.Lookup(scope)
+		if !ok {
+			continue
+		}
+		store.Read(cell, func(st *S) struct{} {
+			for _, a := range timersOf(scope, st) {
+				sched.Arm(a.Key, a.Due)
+			}
+			return struct{}{}
+		})
+	}
+}
+
 // Late is implemented by services whose data is not cell state (DynamoDB
 // items). It runs after the cut, outside the gate and outside the pipeline,
 // so it never matches a fault rule.

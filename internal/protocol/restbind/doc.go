@@ -1,7 +1,7 @@
 // Package restbind binds Smithy HTTP traits for the REST protocols
 // (ARCHITECTURE.md 6.1, wire-rest.md 1): labels, query strings, query-params
 // maps, headers, prefix headers, payloads, the response status and
-// deferred trailers. The restJson1 and restXml codecs put it in front of
+// trailer-bound members. The restJson1 and restXml codecs put it in front of
 // their body documents, so each sees only the members its body carries.
 //
 // Decode runs a generated input's Deserialize once over a merged
@@ -32,12 +32,9 @@
 //     nothing in DecodeHead.
 //   - A trailer-bound member (smithy.HTTPHeader.Trailer) that the head
 //     carries binds as any header. One the head does not carry is left
-//     unset, and its value is read from the *Body that a @streaming
-//     payload binds to: Body.Deferred returns *PendingError until the
-//     handler has read the body to EOF, then the trailer. smithy.Body has
-//     no "pending" answer of its own, so the deferred form lives here, out
-//     of handlers' reach; the body's own Trailer, which an aws-chunked
-//     decoder supplies, resolves the value.
+//     unset. The *Body that a @streaming payload binds to answers it
+//     through Trailer: nothing until the handler has read the body to
+//     EOF, then the trailer, which an aws-chunked decoder supplies.
 //   - Whether an output whose members are all bound still sends a
 //     document is the codec's rule, passed to Encode: restJson1 servers
 //     send {} (RestJsonGreetingWithErrors, RestJsonHttpResponseCode),

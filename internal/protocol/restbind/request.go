@@ -176,7 +176,7 @@ func Streaming(m *smithy.Member) bool {
 // *Body. A body of only whitespace is no document; only an empty body is
 // no blob or string payload. A trailer-bound header member the head does
 // not carry is left unset; its value arrives as the body's trailer
-// (Body.Deferred).
+// (Body.Trailer).
 //
 // Errors: *BindError for a head value that does not parse, *ReadError for
 // a body that cannot be read, *PathError and *UsageError for bugs, and

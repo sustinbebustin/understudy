@@ -6,6 +6,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // resolvedFirst is the coverage note of the operations that name a user,
@@ -157,7 +158,7 @@ func (s *Service) declareRoles(b *kernel.Binder) {
 // Write, so a missing entity is answered before that, existence first
 // (kernel.AuthorizedAfterResolve; resolvedFirst).
 func (s *Service) exists(c *kernel.Call, find func(st *State) *awserr.Error) *awserr.Error {
-	_, err := view(s, c.Scope().Account, func(st *State) (struct{}, *awserr.Error) { return struct{}{}, find(st) })
+	_, err := store.View2(s.cells, c.Scope().Account, func(st *State) (struct{}, *awserr.Error) { return struct{}{}, find(st) })
 	return err
 }
 
@@ -231,7 +232,7 @@ func userNamed[In any](s *Service, name func(*In) *string) []kernel.BindOption {
 		case accountRoot:
 			return rootARN(account), true
 		case namedUser:
-			u, err := view(s, account, func(st *State) (User, *awserr.Error) { return st.user(who.name) })
+			u, err := store.View2(s.cells, account, func(st *State) (User, *awserr.Error) { return st.user(who.name) })
 			return userARN(account, u.Path, u.Name), err == nil
 		}
 		return aws.ARN{}, false
@@ -252,7 +253,7 @@ func profileNamed[In any](s *Service, name func(*In) string) []kernel.BindOption
 // when there is none.
 func (s *Service) roleARN(c *kernel.Call, name string) (aws.ARN, bool) {
 	account := c.Scope().Account
-	r, err := view(s, account, func(st *State) (Role, *awserr.Error) { return st.role(name) })
+	r, err := store.View2(s.cells, account, func(st *State) (Role, *awserr.Error) { return st.role(name) })
 	return roleARN(account, r.Path, r.Name), err == nil
 }
 
@@ -260,7 +261,7 @@ func (s *Service) roleARN(c *kernel.Call, name string) (aws.ARN, bool) {
 // account, false when there is none.
 func (s *Service) profileARN(c *kernel.Call, name string) (aws.ARN, bool) {
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (InstanceProfile, *awserr.Error) { return st.instanceProfile(name) })
+	p, err := store.View2(s.cells, account, func(st *State) (InstanceProfile, *awserr.Error) { return st.instanceProfile(name) })
 	return instanceProfileARN(account, p.Path, p.Name), err == nil
 }
 

@@ -48,7 +48,7 @@ func generatedStore(t fataler, seed uint64) *fault.Store {
 	if err != nil {
 		t.Fatalf("registry: %v", err)
 	}
-	return fault.New(&seed, ids.NewSeeded(seed), kernel.NewCatalogue(reg, nil))
+	return fault.New(&seed, ids.NewSeeded(seed), kernel.NewCatalogue(reg))
 }
 
 // members parses a JSON object as rule members, without going through

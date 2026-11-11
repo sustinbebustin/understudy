@@ -4,6 +4,10 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+### Changed
+
+- The warning for an operation missing from the vendored model names the model it checked, as the `model_source` log attribute (`api-models-aws@1cfdfb4 sqs-2012-11-05.json`: the model commit and file), so a client newer than the pinned model is easy to spot.
+
 ### Fixed
 
 - `understudy version` names the version of a binary installed with `go install github.com/sustinbebustin/understudy/cmd/understudy@vX.Y.Z`, where it said `dev`. Without the release's stamp, the version is the module version the go command records, or the git version of a build in a checkout.

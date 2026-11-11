@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
 // The EventBridge source and detail types of alarm events
@@ -167,9 +168,9 @@ func appendTrigger(b []byte, c *cloudwatchapi.PutMetricAlarmInput) []byte {
 		b = append(b, "null"...)
 	}
 	b = append(b, `,"TreatMissingData":`...)
-	b = jsonx.AppendString(b, deref(c.TreatMissingData))
+	b = jsonx.AppendString(b, smithy.Deref(c.TreatMissingData))
 	b = append(b, `,"EvaluateLowSampleCountPercentile":`...)
-	b = jsonx.AppendString(b, deref(c.EvaluateLowSampleCountPercentile))
+	b = jsonx.AppendString(b, smithy.Deref(c.EvaluateLowSampleCountPercentile))
 	return append(b, '}')
 }
 
@@ -347,7 +348,7 @@ func appendMetrics(b []byte, s Subject) []byte {
 	b = append(b, `[{"id":`...)
 	b = jsonx.AppendString(b, s.MetricID)
 	b = append(b, `,"metricStat":`...)
-	b = appendMetricStat(b, deref(c.Namespace), deref(c.MetricName), c.Dimensions, c.Period, statName(c), c.Unit)
+	b = appendMetricStat(b, smithy.Deref(c.Namespace), smithy.Deref(c.MetricName), c.Dimensions, c.Period, statName(c), c.Unit)
 	return append(b, `,"returnData":true}]`...)
 }
 
@@ -357,7 +358,7 @@ func statName(c *cloudwatchapi.PutMetricAlarmInput) string {
 	if c.Statistic != nil {
 		return string(*c.Statistic)
 	}
-	return deref(c.ExtendedStatistic)
+	return smithy.Deref(c.ExtendedStatistic)
 }
 
 // appendQuery appends one MetricDataQuery of an alarm on Metrics.
@@ -374,7 +375,7 @@ func appendQuery(b []byte, q cloudwatchapi.MetricDataQuery) []byte {
 	}
 	if m := q.MetricStat; m != nil {
 		b = append(b, `,"metricStat":`...)
-		b = appendMetricStat(b, deref(m.Metric.Namespace), deref(m.Metric.MetricName), m.Metric.Dimensions, &m.Period, m.Stat, m.Unit)
+		b = appendMetricStat(b, smithy.Deref(m.Metric.Namespace), smithy.Deref(m.Metric.MetricName), m.Metric.Dimensions, &m.Period, m.Stat, m.Unit)
 	}
 	b = append(b, `,"returnData":`...)
 	b = strconv.AppendBool(b, q.ReturnData == nil || *q.ReturnData)
@@ -530,14 +531,6 @@ func appendStrings(b []byte, ss []string) []byte {
 		b = jsonx.AppendString(b, s)
 	}
 	return append(b, ']')
-}
-
-// deref is *s, or "" when nil.
-func deref(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
 }
 
 // upperSnake is a statistic as the notification's Trigger prints it:

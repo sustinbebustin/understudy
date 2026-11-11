@@ -5,6 +5,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // StoredPolicy returns a key's owner, the key's account, and its key policy,
@@ -20,16 +21,12 @@ func (s *Service) StoredPolicy(target aws.ARN) (authz.StoredPolicy, bool) {
 	if target.Service != "kms" || !isKey || id == "" || serr != nil {
 		return authz.StoredPolicy{}, false
 	}
-	type found struct {
-		policy string
-		ok     bool
-	}
-	f := readState(s, scope, func(st *State) found {
+	policy, ok := store.View2(s.cells, scope, func(st *State) (string, bool) {
 		k, ok := st.Keys[id]
-		return found{policy: k.Policy, ok: ok}
+		return k.Policy, ok
 	})
-	if !f.ok {
+	if !ok {
 		return authz.StoredPolicy{}, false
 	}
-	return authz.StoredPolicy{Owner: scope.Account, Policy: authz.ReadStored(f.policy)}, true
+	return authz.StoredPolicy{Owner: scope.Account, Policy: authz.ReadStored(policy)}, true
 }

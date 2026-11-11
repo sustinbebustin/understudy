@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 )
@@ -148,9 +149,9 @@ func lambdaRecord(r *dynamodbstreamsapi.Record, stream aws.ARN) (esm.StreamRecor
 		return esm.StreamRecord{}, err
 	}
 	ev := lambdaStreamRecord{
-		EventID: deref(r.EventID), EventVersion: deref(r.EventVersion), EventSource: deref(r.EventSource),
-		AWSRegion: deref(r.AwsRegion), EventSourceARN: stream.String(),
-		Dynamodb: lambdaStreamData{SequenceNumber: string(seq), SizeBytes: deref(d.SizeBytes)},
+		EventID: smithy.Deref(r.EventID), EventVersion: smithy.Deref(r.EventVersion), EventSource: smithy.Deref(r.EventSource),
+		AWSRegion: smithy.Deref(r.AwsRegion), EventSourceARN: stream.String(),
+		Dynamodb: lambdaStreamData{SequenceNumber: string(seq), SizeBytes: smithy.Deref(d.SizeBytes)},
 	}
 	if r.EventName != nil {
 		ev.EventName = string(*r.EventName)
@@ -177,7 +178,7 @@ func lambdaRecord(r *dynamodbstreamsapi.Record, stream aws.ARN) (esm.StreamRecor
 		}
 	}
 	if u := r.UserIdentity; u != nil {
-		ev.UserIdentity = &lambdaIdentity{Type: deref(u.Type), PrincipalID: deref(u.PrincipalId)}
+		ev.UserIdentity = &lambdaIdentity{Type: smithy.Deref(u.Type), PrincipalID: smithy.Deref(u.PrincipalId)}
 	}
 	event, err := json.Marshal(ev)
 	if err != nil {

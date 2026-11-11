@@ -36,25 +36,21 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 }
 
 // Rearm arms the deletion timer of every key pending deletion; timers are
-// never saved. It arms under the cell lock, where kernel.Write arms, so a
-// concurrent CancelKeyDeletion either commits first and its key is not
-// read here, or commits after and its own disarm wins.
+// never saved. kernel.RearmEach has the lock argument.
 func (s *Service) Rearm(clock.Instant) {
-	sched := s.k.Timers().Scheduler()
-	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
-		cell, ok := s.cells.Lookup(scope)
-		if !ok {
-			continue
+	kernel.RearmEach(s.k.Timers().Scheduler(), s.cells, s.timersOf)
+}
+
+// timersOf lists the deletion timer of every key of st, the state of scope,
+// that is pending deletion.
+func (s *Service) timersOf(scope aws.Scope, st *State) []clock.Armed {
+	var out []clock.Armed
+	for _, id := range slices.Sorted(maps.Keys(st.Keys)) {
+		if p, ok := st.Keys[id].Lifecycle.(pendingDeletion); ok {
+			out = append(out, clock.Armed{Key: s.deletion.Key(keyARN(scope, id).String()), Due: p.DeletionDate})
 		}
-		store.Read(cell, func(st *State) struct{} {
-			for _, id := range slices.Sorted(maps.Keys(st.Keys)) {
-				if p, ok := st.Keys[id].Lifecycle.(pendingDeletion); ok {
-					sched.Arm(s.deletion.Key(keyARN(scope, id).String()), p.DeletionDate)
-				}
-			}
-			return struct{}{}
-		})
 	}
+	return out
 }
 
 // Resources lists the keys of scope with their key state.

@@ -9,6 +9,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 func (s *Service) bindAliases(b lambdaapi.Binder) {
@@ -39,7 +41,7 @@ func (s *Service) createAlias(_ context.Context, c *kernel.Call, in *lambdaapi.C
 		if err != nil {
 			return lambdaapi.AliasConfiguration{}, err
 		}
-		a := Alias{Name: in.Name, Version: in.FunctionVersion, Description: deref(in.Description), Weights: weights, RevisionID: st.revision(ref.scope)}
+		a := Alias{Name: in.Name, Version: in.FunctionVersion, Description: smithy.Deref(in.Description), Weights: weights, RevisionID: st.revision(ref.scope)}
 		f = f.clone()
 		if f.Aliases == nil {
 			f.Aliases = map[string]Alias{}
@@ -87,7 +89,7 @@ func (s *Service) getAlias(_ context.Context, c *kernel.Call, in *lambdaapi.GetA
 	if err != nil {
 		return nil, err
 	}
-	return view(s, ref.scope, func(st *State) (*lambdaapi.AliasConfiguration, *awserr.Error) {
+	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.AliasConfiguration, *awserr.Error) {
 		f, err := st.function(ref)
 		if err != nil {
 			return nil, err
@@ -187,7 +189,7 @@ func (s *Service) listAliases(_ context.Context, c *kernel.Call, in *lambdaapi.L
 	if err != nil {
 		return nil, err
 	}
-	aliases, err := view(s, ref.scope, func(st *State) ([]lambdaapi.AliasConfiguration, *awserr.Error) {
+	aliases, err := store.View2(s.cells, ref.scope, func(st *State) ([]lambdaapi.AliasConfiguration, *awserr.Error) {
 		f, err := st.function(ref)
 		if err != nil {
 			return nil, err
@@ -203,7 +205,7 @@ func (s *Service) listAliases(_ context.Context, c *kernel.Call, in *lambdaapi.L
 	if err != nil {
 		return nil, err
 	}
-	p, err := page(listingAliases, aliases, func(a lambdaapi.AliasConfiguration) string { return deref(a.Name) }, in.MaxItems, listPageCap, in.Marker)
+	p, err := page(listingAliases, aliases, func(a lambdaapi.AliasConfiguration) string { return smithy.Deref(a.Name) }, in.MaxItems, listPageCap, in.Marker)
 	if err != nil {
 		return nil, err
 	}

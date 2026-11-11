@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 const (
@@ -174,7 +175,7 @@ func (s *Service) newListing(c *kernel.Call, in *kinesisapi.ListShardsInput) (sh
 // KIN-15); a stream deleted or re-created since is not found.
 func (s *Service) resumeListing(c *kernel.Call, token string, now clock.Instant) (shardListing, Stream, *awserr.Error) {
 	scope := c.Scope()
-	key := readState(s, scope, func(st *State) []byte { return st.TokenKey })
+	key := store.View(s.cells, scope, func(st *State) []byte { return st.TokenKey })
 	raw, err := base64.StdEncoding.Strict().DecodeString(token)
 	if key == nil || err != nil || len(raw) <= sha256.Size {
 		return shardListing{}, Stream{}, errInvalidNextToken()
@@ -201,7 +202,7 @@ func (s *Service) resumeListing(c *kernel.Call, token string, now clock.Instant)
 // encodeListToken signs t with the scope's key: standard base64 of the
 // JSON payload and its HMAC-SHA256.
 func (s *Service) encodeListToken(c *kernel.Call, t listShardsToken) (string, *awserr.Error) {
-	key := readState(s, c.Scope(), func(st *State) []byte { return st.TokenKey })
+	key := store.View(s.cells, c.Scope(), func(st *State) []byte { return st.TokenKey })
 	if key == nil {
 		// CreateStream draws the key, so a scope holding a stream has one.
 		return "", awserr.Internalf(errors.New("sign a ListShards token: the scope has no token key"))

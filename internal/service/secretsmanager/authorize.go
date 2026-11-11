@@ -4,6 +4,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // resolvedFirst is the coverage note of the operations that take a
@@ -45,18 +46,11 @@ func secretNamed[In any](s *Service, id func(*In) string) []kernel.BindOption {
 			if err != nil {
 				return nil
 			}
-			type found struct {
-				sec Secret
-				ok  bool
-			}
-			f := readState(s, r.scope, func(st *State) found {
-				sec, ok := r.find(st)
-				return found{sec, ok}
-			})
-			if !f.ok {
+			sec, ok := store.View2(s.cells, r.scope, r.find)
+			if !ok {
 				return nil
 			}
-			return []aws.ARN{f.sec.arn(r.scope)}
+			return []aws.ARN{sec.arn(r.scope)}
 		}),
 		kernel.AuthorizedAfterResolve(),
 	}
