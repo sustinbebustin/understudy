@@ -340,10 +340,6 @@ func TestMessageStructureJSONPicksTheProtocolEntry(t *testing.T) {
 			"not json":            "Invalid parameter: Message Structure - JSON message body failed to parse",
 			`{"sqs":"x"}`:         "Invalid parameter: Message Structure - No default entry in JSON message body",
 			`{"default":{"a":1}}`: "Invalid parameter: Message Structure - No default entry in JSON message body",
-			// Duplicate keys fail the whole Publish (API_Publish.html); the
-			// text is inferred.
-			`{"default":"a","sqs":"x","sqs":"y"}`: "Invalid parameter: Message Structure - JSON message body failed to parse",
-			`{"default":"a","default":"b"}`:       "Invalid parameter: Message Structure - JSON message body failed to parse",
 		} {
 			_, err := call(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, MessageStructure: new("json"), Message: body})
 			wantError(h, err, "InvalidParameter", msg)
@@ -351,6 +347,26 @@ func TestMessageStructureJSONPicksTheProtocolEntry(t *testing.T) {
 		h.settle()
 		if n := len(h.sent.all()); n != 1 {
 			h.Errorf("SQS received %d messages, want only the first publish's: a refused publish delivers nothing", n)
+		}
+	})
+}
+
+// TestMessageStructureDuplicateKeyLastWins checks that a duplicate member
+// is accepted and its last value delivered, as AWS recorded for "default"
+// (testdata/parity/sns/R16/03-x-message-structure-duplicate-key.json);
+// doing the same for a protocol member is inferred.
+func TestMessageStructureDuplicateKeyLastWins(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		h.subscribe(topic, "sqs", queueARN, map[string]string{"RawMessageDelivery": "true"})
+		h.subscribe(topic, "lambda", functionARN, nil)
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, MessageStructure: new("json"), Message: `{"default":"a","default":"b","sqs":"x","sqs":"y"}`})
+		h.settle()
+		if body := h.sent.all()[0].MessageBody; body != "y" {
+			h.Errorf("sqs body = %q, want the last sqs member", body)
+		}
+		if payload := string(h.invoked.all()[0].Payload); !strings.Contains(payload, `"Message":"b"`) {
+			h.Errorf("lambda event %s, want the last default member", payload)
 		}
 	})
 }
@@ -417,6 +433,13 @@ func TestMessageAttributeErrors(t *testing.T) {
 			{"list", attr("String.Array", "red"), "The message attribute 'list' with type 'String.Array' has a value that is not a JSON array of strings, numbers, true, false or null: red"},
 			{"list", attr("String.Array", `{"a":1}`), `The message attribute 'list' with type 'String.Array' has a value that is not a JSON array of strings, numbers, true, false or null: {"a":1}`},
 			{"list", attr("String.Array", `["a",["b"]]`), `The message attribute 'list' with type 'String.Array' has a value that is not a JSON array of strings, numbers, true, false or null: ["a",["b"]]`},
+			// testdata/parity/sns/R16/03-attr-number-abc.json (and
+			// 02-invalid-attribute.json for PublishBatch).
+			{"n", attr("Number", "abc"), "Could not cast message attribute 'n' value to number."},
+			// testdata/parity/sns/R16/03-attr-aws-prefix.json and
+			// 03-attr-amazon-prefix.json.
+			{"AWS.x", attr("String", "v"), "Message attribute names starting with 'AWS.' or 'Amazon.' are reserved for use by Amazon."},
+			{"Amazon.x", attr("String", "v"), "Message attribute names starting with 'AWS.' or 'Amazon.' are reserved for use by Amazon."},
 		} {
 			_, err := call(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m", MessageAttributes: map[string]snsapi.MessageAttributeValue{tc.name: tc.value}})
 			wantError(h, err, "ParameterValueInvalid", tc.message)

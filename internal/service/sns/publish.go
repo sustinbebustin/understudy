@@ -167,11 +167,13 @@ func validFIFOID(s string) bool {
 
 // parseStructure parses a MessageStructure=json message: an object with a
 // string "default" and other string members by protocol; members of other
-// types are ignored (sns.md 4.1). AWS documents that duplicate keys are not
-// allowed and fail the whole Publish (API_Publish.html); answering them
-// with the parse-failure text is inferred.
+// types are ignored (sns.md 4.1). A duplicate key is accepted and the last
+// value wins: AWS recorded that for "default" despite API_Publish.html
+// saying duplicates are not allowed (testdata/parity/sns/R16
+// 03-x-message-structure-duplicate-key.json); for a protocol member it is
+// inferred.
 func parseStructure(body string) (def string, perProtocol map[string]string, err *awserr.Error) {
-	members, ok := uniqueMembers(body)
+	members, ok := parseObject(body)
 	if !ok {
 		return "", nil, errInvalidParameter("Message Structure - JSON message body failed to parse")
 	}

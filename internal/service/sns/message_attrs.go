@@ -59,7 +59,7 @@ func checkAttributeName(name string) *awserr.Error {
 	}
 	lower := strings.ToLower(name)
 	if strings.HasPrefix(lower, "aws.") || strings.HasPrefix(lower, "amazon.") {
-		return errParameterValue("Message attribute name '" + name + "' starts with a reserved prefix; names may not start with AWS. or Amazon.")
+		return errParameterValue("Message attribute names starting with 'AWS.' or 'Amazon.' are reserved for use by Amazon.")
 	}
 	return nil
 }
@@ -79,7 +79,7 @@ func attributeValue(name string, v snsapi.MessageAttributeValue) (delivery.Attri
 			return stringAttribute(name, label, *v.StringValue)
 		}
 		if _, err := document.ParseNumber(strings.TrimSpace(*v.StringValue)); err != nil {
-			return nil, errParameterValue("The message attribute '" + name + "' with type 'Number' has a value that is not a number: " + *v.StringValue)
+			return nil, errParameterValue("Could not cast message attribute '" + name + "' value to number.")
 		}
 		return delivery.NumberAttribute{Label: label, Value: *v.StringValue}, nil
 	case "Binary":

@@ -202,6 +202,25 @@ func TestSubscribeErrors(t *testing.T) {
 			{topic, "sms", "/+15551234567", nil, "InvalidParameter", "Invalid SMS endpoint: /+15551234567"},
 			{topic, "sms", "+15551234567", nil, "NotImplemented", "understudy does not implement SNS delivery to sms endpoints; subscribe an sqs or lambda endpoint instead (http, https, email and email-json subscriptions are accepted but receive nothing). Run 'understudy coverage --service sns' for what is supported."},
 			{"arn:aws:sns:us-east-1:000000000000:missing", "sqs", queueARN, nil, "NotFound", "Topic does not exist"},
+			// testdata/parity/sns/R16/04-subscribe-fifo-lambda.json and
+			// 04-subscribe-fifo-http.json; the other protocols follow their
+			// form and are inferred.
+			{fifo, "lambda", "arn:aws:lambda:us-east-1:000000000000:function:f", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: lambda"},
+			{fifo, "http", "http://example.com/", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: http"},
+			{fifo, "https", "https://example.com/", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: https"},
+			{fifo, "email", "a@example.com", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: email"},
+			{fifo, "email-json", "a@example.com", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: email-json"},
+			{fifo, "sms", "+15551234567", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: sms"},
+			{fifo, "firehose", "arn:aws:firehose:us-east-1:000000000000:deliverystream/s", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: firehose"},
+			{fifo, "application", "arn:aws:sns:us-east-1:000000000000:app/GCM/a/b", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: application"},
+			// testdata/parity/sns/R16/05-application-non-arn.json: refused
+			// before anything else, a FIFO topic included.
+			{topic, "application", "not-an-arn", nil, "InvalidParameter", "Invalid parameter: Application endpoint arn invalid:not-an-arn"},
+			{fifo, "application", "not-an-arn", nil, "InvalidParameter", "Invalid parameter: Application endpoint arn invalid:not-an-arn"},
+			{topic, "application", "", nil, "InvalidParameter", "Invalid parameter: Application endpoint arn invalid:"},
+			// A valid application ARN is still NotImplemented: mobile push is
+			// not built.
+			{topic, "application", "arn:aws:sns:us-east-1:000000000000:app/GCM/a/b", nil, "NotImplemented", "understudy does not implement SNS delivery to application endpoints; subscribe an sqs or lambda endpoint instead (http, https, email and email-json subscriptions are accepted but receive nothing). Run 'understudy coverage --service sns' for what is supported."},
 		}
 		for _, tc := range cases {
 			_, err := call(h, snsapi.OpSubscribe, &snsapi.SubscribeInput{TopicArn: tc.topic, Protocol: tc.protocol, Endpoint: new(tc.endpoint), Attributes: tc.attrs})

@@ -73,7 +73,7 @@ func (s *Service) subscribe(_ context.Context, c *kernel.Call, in *snsapi.Subscr
 	if in.Endpoint != nil {
 		endpoint = *in.Endpoint
 	}
-	protocol, err := subscribeProtocol(in.Protocol, endpoint)
+	protocol, err := subscribeProtocol(in.Protocol, endpoint, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -336,10 +336,13 @@ func (s *Service) confirmationMessage(ref topicRef, token string, l links, now c
 
 // subscribeProtocol parses Subscribe's Protocol: sms, application and
 // firehose, which understudy does not accept, are NotImplemented (ADR
-// 0015); anything else unknown is AWS's recorded text (sns.md 3.1). An sms
-// endpoint is checked first, so a number AWS refuses gets AWS's answer
-// rather than NotImplemented.
-func subscribeProtocol(name, endpoint string) (Protocol, *awserr.Error) {
+// 0015) on a standard topic and "Invalid protocol type" on a FIFO one, as
+// every protocol but sqs is; anything else unknown is AWS's recorded text
+// (sns.md 3.1). An sms endpoint is checked first, so a number AWS refuses
+// gets AWS's answer rather than NotImplemented, and an application
+// endpoint that is not an ARN is refused before anything else, as AWS
+// recorded (testdata/parity/sns/R16/05-application-non-arn.json).
+func subscribeProtocol(name, endpoint string, topic topicRef) (Protocol, *awserr.Error) {
 	if p, ok := parseProtocol(name); ok {
 		return p, nil
 	}
@@ -348,11 +351,26 @@ func subscribeProtocol(name, endpoint string) (Protocol, *awserr.Error) {
 		if !e164.MatchString(endpoint) {
 			return 0, errSMSEndpoint(endpoint)
 		}
-		return 0, errProtocolNotImplemented(name)
-	case "application", "firehose":
-		return 0, errProtocolNotImplemented(name)
+	case "application":
+		if _, err := aws.ParseARN(endpoint); err != nil {
+			return 0, errInvalidParameter("Application endpoint arn invalid:" + endpoint)
+		}
+	case "firehose":
+	default:
+		return 0, errInvalidParameter("Amazon SNS does not support this protocol string: " + name)
 	}
-	return 0, errInvalidParameter("Amazon SNS does not support this protocol string: " + name)
+	if topic.fifo() {
+		return 0, errFIFOProtocol(name)
+	}
+	return 0, errProtocolNotImplemented(name)
+}
+
+// errFIFOProtocol answers a Subscribe of a FIFO topic with a protocol other
+// than sqs. AWS recorded it for lambda and http (testdata/parity/sns/R16
+// 04-subscribe-fifo-lambda.json, 04-subscribe-fifo-http.json); for the
+// other protocols the text is inferred.
+func errFIFOProtocol(protocol string) *awserr.Error {
+	return errInvalidParameter("Invalid protocol type: " + protocol)
 }
 
 // e164 is an E.164 phone number with an optional leading plus, the form
@@ -365,17 +383,17 @@ var e164 = regexp.MustCompile(`^\+?[1-9]\d{1,14}$`)
 // the others. An sqs or lambda ARN must name a scope the outbox delivers
 // to (aws.ScopeOf), or every later publish to the topic would fail. Only
 // the SQS endpoint ARN text and the FIFO-queue-on-a-standard-topic text
-// are AWS-recorded (sns.md 3.1); the FIFO-topic endpoint text, whose
-// wording sns.md 3.1 leaves UNVERIFIED, and the lambda and email texts are
-// inferred. The http text is AWS's for an endpoint without the protocol's
-// scheme (sns-http-delivery.md 2.1); giving it for a URL with the scheme
-// that does not parse with a host is inferred.
+// are AWS-recorded (sns.md 3.1), as is the FIFO-topic protocol text
+// (errFIFOProtocol); the lambda and email texts are inferred. The http
+// text is AWS's for an endpoint without the protocol's scheme
+// (sns-http-delivery.md 2.1); giving it for a URL with the scheme that
+// does not parse with a host is inferred.
 func checkEndpoint(p Protocol, endpoint string, topic topicRef) (string, *awserr.Error) {
 	if endpoint == "" {
 		return "", errReason("Endpoint", "no value for required parameter")
 	}
 	if topic.fifo() && p != ProtocolSQS {
-		return "", errReason("Endpoint", "FIFO topics support only Amazon SQS endpoints")
+		return "", errFIFOProtocol(p.String())
 	}
 	switch p {
 	case ProtocolSQS:
