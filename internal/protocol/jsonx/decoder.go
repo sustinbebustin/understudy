@@ -95,7 +95,7 @@ func NewDecoder(data []byte) *Decoder {
 // NewUniqueNamesDecoder is NewDecoder, except that an object repeating a
 // member name fails with a *DuplicateNameError: at any depth, whether the
 // caller reads the member, skips it or reads it into a document. Names
-// compare after unescaping, so "a" and "a" are the same name.
+// compare after unescaping, so "\u0061" and "a" are the same name.
 func NewUniqueNamesDecoder(data []byte) *Decoder {
 	return &Decoder{dec: jsontext.NewDecoder(bytes.NewReader(data),
 		jsontext.AllowDuplicateNames(false),

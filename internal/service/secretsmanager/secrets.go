@@ -80,10 +80,11 @@ func (s *Service) createSecret(ctx context.Context, c *kernel.Call, in *secretsm
 	}
 	suffix := newSuffix(c.ID())
 	arn := secretARN(scope, in.Name, suffix)
-	kmsKeyID, box, err := s.encryptFirst(ctx, c, scope, arn.String(), in.KmsKeyId, token, p, hasValue)
+	key, box, err := s.encryptFirst(ctx, c, scope, arn.String(), in.KmsKeyId, token, p, hasValue)
 	if err != nil {
 		return nil, err
 	}
+	kmsKeyID := storedKey(key)
 	type created struct {
 		sec Secret
 		// raced is the secret a concurrent request created under the name
@@ -132,19 +133,19 @@ func (s *Service) createSecret(ctx context.Context, c *kernel.Call, in *secretsm
 // its cell is taken: the key the secret stores for keyID (resolveKey) and,
 // with a value, that value sealed under the key as version token; without
 // one, a customer key's access is checked instead.
-func (s *Service) encryptFirst(ctx context.Context, c *kernel.Call, scope aws.Scope, arn string, keyID *string, token string, p plain, hasValue bool) (*string, sealed, *awserr.Error) {
-	kmsKeyID, err := s.resolveKey(ctx, c, scope, keyID)
+func (s *Service) encryptFirst(ctx context.Context, c *kernel.Call, scope aws.Scope, arn string, keyID *string, token string, p plain, hasValue bool) (encryptionKey, sealed, *awserr.Error) {
+	key, err := s.resolveKey(ctx, c, scope, keyID)
 	if err != nil {
 		return nil, sealed{}, err
 	}
 	switch {
 	case hasValue:
-		box, err := s.seal(ctx, c, scope, arn, token, kmsKeyID, p)
-		return kmsKeyID, box, err
-	case customerKey(kmsKeyID):
-		return kmsKeyID, sealed{}, s.checkKeyAccess(ctx, c, scope, arn, kmsKeyID)
+		box, err := s.seal(ctx, c, scope, arn, token, key, p)
+		return key, box, err
+	case isCustomerKey(key):
+		return key, sealed{}, s.checkKeyAccess(ctx, c, scope, arn, key)
 	}
-	return kmsKeyID, sealed{}, nil
+	return key, sealed{}, nil
 }
 
 // replayCreate answers a CreateSecret for a name that exists: a retry with
@@ -219,9 +220,11 @@ func (s *Service) updateSecret(ctx context.Context, c *kernel.Call, in *secretsm
 		if err != nil {
 			return nil, err
 		}
-		if kmsKeyID, err = s.resolveKey(ctx, c, r.scope, in.KmsKeyId); err != nil {
+		key, err := s.resolveKey(ctx, c, r.scope, in.KmsKeyId)
+		if err != nil {
 			return nil, err
 		}
+		kmsKeyID = storedKey(key)
 	}
 	meta := func(sec *Secret) {
 		if in.Description != nil {

@@ -128,7 +128,7 @@ func TestRefusalsCarryCRC32(t *testing.T) {
 	}
 }
 
-// TestBodyOver16MiBIsRefusedWith413:DynamoDB answers 413 above 16 MiB
+// TestBodyOver16MiBIsRefusedWith413: DynamoDB answers 413 above 16 MiB
 // (error-matrix.md 5.5 T9); Local never reads the body.
 func TestBodyOver16MiBIsRefusedWith413(t *testing.T) {
 	run(t, func(h *harness) {

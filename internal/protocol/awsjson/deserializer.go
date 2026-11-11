@@ -63,9 +63,11 @@ type deserializer struct {
 // newDeserializer reads body; with uniqueNames, a repeated member name
 // anywhere in it fails with a *jsonx.DuplicateNameError.
 func newDeserializer(body []byte, uniqueNames bool) *deserializer {
-	dec := jsonx.NewDecoder(body)
+	var dec *jsonx.Decoder
 	if uniqueNames {
 		dec = jsonx.NewUniqueNamesDecoder(body)
+	} else {
+		dec = jsonx.NewDecoder(body)
 	}
 	return &deserializer{dec: dec, empty: isJSONSpace(body)}
 }

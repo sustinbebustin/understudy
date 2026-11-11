@@ -29,7 +29,7 @@ const (
 // SSEDescription and the emulator clock's timestamps (creation, the switch
 // to PAY_PER_REQUEST, the table class update and each throughput increase
 // and decrease) when the shim records the table. It then leaves out what
-// AWS's answer to the operation leaves out (answerOf).
+// AWS's answer to the operation leaves out (answerOf.shape).
 type shimmed struct {
 	// table is the shim's record; nil for a table Local holds that the shim
 	// never saw created, which gets WarmThroughput only.
@@ -48,56 +48,64 @@ type shimmed struct {
 	seen *localStreamSeen
 }
 
-// answerOf is the operation whose answer holds a table description. AWS
-// gives each its own members (testdata/parity/dynamodb/R04/01-create-table.json,
+// answerOf is the operation whose answer holds a table description:
+// DescribeTable, CreateTable, UpdateTable or DeleteTable. AWS gives each its
+// own members (shape; testdata/parity/dynamodb/R04/01-create-table.json,
 // 02-describe-table.json, x-billing-to-provisioned.json,
 // 99-delete-table.json).
 type answerOf int
 
 const (
-	// describeAnswer is DescribeTable's, which keeps Local's TableStatus.
 	describeAnswer answerOf = iota
-	// createAnswer is CreateTable's: CREATING, for its global secondary
-	// indexes too, without WarmThroughput or the switch to
-	// PAY_PER_REQUEST in BillingModeSummary.
 	createAnswer
-	// updateAnswer is UpdateTable's: UPDATING.
 	updateAnswer
-	// deleteAnswer is DeleteTable's: DELETING, without AttributeDefinitions,
-	// KeySchema, CreationDateTime or WarmThroughput.
 	deleteAnswer
 )
 
-// status is the TableStatus the answer reports where Local answers ACTIVE
-// (dynamodb-local.md 4.2); empty keeps Local's.
-func (o answerOf) status() dynamodbapi.TableStatus {
-	switch o {
-	case createAnswer:
-		return dynamodbapi.TableStatusCreating
-	case updateAnswer:
-		return dynamodbapi.TableStatusUpdating
-	case deleteAnswer:
-		return dynamodbapi.TableStatusDeleting
-	case describeAnswer:
-	}
-	return ""
+// answerShape is what one operation's answer makes of the table
+// description Local gives.
+type answerShape struct {
+	// status is the TableStatus the answer reports where Local answers
+	// ACTIVE (dynamodb-local.md 4.2); empty keeps Local's.
+	status dynamodbapi.TableStatus
+	// indexStatus is the IndexStatus of each global secondary index;
+	// empty keeps Local's.
+	indexStatus dynamodbapi.IndexStatus
+	// warm says the answer carries the table's WarmThroughput.
+	warm bool
+	// drops are the members AWS leaves out of the answer, each a path from
+	// the description.
+	drops [][]string
 }
 
-// warm reports whether the answer carries the table's WarmThroughput.
-func (o answerOf) warm() bool { return o == describeAnswer || o == updateAnswer }
+// shape is the one place each answer's members are set.
+func (o answerOf) shape() answerShape {
+	switch o {
+	case describeAnswer:
+		return answerShape{warm: true}
+	case createAnswer:
+		// No WarmThroughput, and no switch to PAY_PER_REQUEST in
+		// BillingModeSummary.
+		return answerShape{
+			status:      dynamodbapi.TableStatusCreating,
+			indexStatus: dynamodbapi.IndexStatusCreating,
+			drops:       [][]string{{"BillingModeSummary", "LastUpdateToPayPerRequestDateTime"}},
+		}
+	case updateAnswer:
+		return answerShape{status: dynamodbapi.TableStatusUpdating, warm: true}
+	case deleteAnswer:
+		return answerShape{
+			status: dynamodbapi.TableStatusDeleting,
+			drops:  [][]string{{"AttributeDefinitions"}, {"KeySchema"}, {"CreationDateTime"}},
+		}
+	}
+	return answerShape{}
+}
 
 // trimmed is desc without the members AWS leaves out of the answer.
-func (o answerOf) trimmed(desc document.Map) document.Map {
-	switch o {
-	case createAnswer:
-		if billing, ok := member(desc, "BillingModeSummary").(document.Map); ok {
-			desc = setMember(desc, "BillingModeSummary", removeMember(billing, "LastUpdateToPayPerRequestDateTime"))
-		}
-	case deleteAnswer:
-		for _, key := range []string{"AttributeDefinitions", "KeySchema", "CreationDateTime"} {
-			desc = removeMember(desc, key)
-		}
-	case describeAnswer, updateAnswer:
+func (a answerShape) trimmed(desc document.Map) document.Map {
+	for _, path := range a.drops {
+		desc = removePath(desc, path)
 	}
 	return desc
 }
@@ -162,7 +170,7 @@ func (d *shimmed) complete(answer document.Map) bool {
 		if !ok {
 			return false
 		}
-		answer[i].Value = d.of.trimmed(d.patch(desc))
+		answer[i].Value = d.of.shape().trimmed(d.patch(desc))
 		if d.under != "" {
 			answer[i].Key = d.under
 		}
@@ -178,11 +186,12 @@ func (d *shimmed) patch(desc document.Map) document.Map {
 	if !reported {
 		status = document.String(dynamodbapi.TableStatusActive)
 	}
-	if s := d.of.status(); s != "" {
-		status = document.String(s)
+	shape := d.of.shape()
+	if shape.status != "" {
+		status = document.String(shape.status)
 		desc = setMember(desc, "TableStatus", status)
 	}
-	if d.of.warm() {
+	if shape.warm {
 		warm := Warm{Reads: defaultWarmReads, Writes: defaultWarmWrites}
 		if t := d.table; t != nil && t.Warm != nil {
 			warm = *t.Warm
@@ -190,11 +199,7 @@ func (d *shimmed) patch(desc document.Map) document.Map {
 		desc = setMember(desc, "WarmThroughput", warmDescription(warm, status))
 	}
 	t := d.table
-	var indexStatus dynamodbapi.IndexStatus
-	if d.of == createAnswer {
-		indexStatus = dynamodbapi.IndexStatusCreating
-	}
-	patchIndexes(desc, t, indexStatus)
+	patchIndexes(desc, t, shape.indexStatus)
 	if d.seen != nil {
 		d.seen.read(desc)
 	}
@@ -349,6 +354,22 @@ func setMember(m document.Map, key string, v document.Value) document.Map {
 // removeMember removes m's member key in place, if it has one.
 func removeMember(m document.Map, key string) document.Map {
 	return slices.DeleteFunc(m, func(e document.Entry) bool { return e.Key == key })
+}
+
+// removePath removes the member path names from m in place, if it has
+// one: its last key from the map its earlier keys lead to.
+func removePath(m document.Map, path []string) document.Map {
+	switch len(path) {
+	case 0:
+		return m
+	case 1:
+		return removeMember(m, path[0])
+	}
+	inner, ok := member(m, path[0]).(document.Map)
+	if !ok {
+		return m
+	}
+	return setMember(m, path[0], removePath(inner, path[1:]))
 }
 
 // epochSeconds is i as DynamoDB writes a timestamp: Unix seconds with

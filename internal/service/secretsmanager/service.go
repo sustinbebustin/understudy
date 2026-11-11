@@ -40,7 +40,7 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 
 	b.CreateSecret(s.createSecret, registry.Partial{Note: "AddReplicaRegions (replication) answers NotImplemented"},
 		kernel.WithCheck(func(in *secretsmanagerapi.CreateSecretInput) *awserr.Error {
-			return firstError(requireToken(in.ClientRequestToken), checkNewName(in.Name), checkValue(in.SecretString, in.SecretBinary))
+			return firstError(requireToken(in.ClientRequestToken), checkName(in.Name, errInvalidNewName), checkValue(in.SecretString, in.SecretBinary))
 		}),
 		// secretsmanager:TagResource only for a secret created with tags,
 		// secretsmanager:ReplicateSecretToRegions only with replica regions:
@@ -100,20 +100,12 @@ func requireToken(token *string) *awserr.Error {
 	return nil
 }
 
-// checkName refuses a SecretId that is a name outside the secret-name
-// character set.
-func checkName(name string) *awserr.Error {
+// checkName refuses a name outside the secret-name character set with
+// refusal: errInvalidName for a SecretId, errInvalidNewName for a
+// CreateSecret Name, which AWS answers otherwise.
+func checkName(name string, refusal func() *awserr.Error) *awserr.Error {
 	if !validName(name) {
-		return errInvalidName()
-	}
-	return nil
-}
-
-// checkNewName refuses a CreateSecret Name outside the secret-name
-// character set, which AWS answers otherwise than a bad SecretId.
-func checkNewName(name string) *awserr.Error {
-	if !validName(name) {
-		return errInvalidNewName()
+		return refusal()
 	}
 	return nil
 }

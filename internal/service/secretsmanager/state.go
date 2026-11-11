@@ -10,10 +10,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshot sections. Version
-// 3 adds the instant a scheduled deletion was requested, which a version 2
-// section lacks, so a version 2 section is refused rather than read (ADR
-// 0009, amended 2026-11-10).
+// stateVersion is the schema version of State in snapshot sections.
+// Version 3 holds the instant a scheduled deletion was requested; a section
+// of an older version is refused rather than read (ADR 0009).
 const stateVersion = 3
 
 // State is the Secrets Manager state of one account and region. Records are
@@ -48,10 +47,8 @@ type Secret struct {
 	// retried CreateSecret repeats.
 	CreateToken string  `json:"createToken"`
 	Description *string `json:"description,omitempty"`
-	// KMSKeyID is the KmsKeyId as the caller sent it; nil is the AWS
-	// managed key aws/secretsmanager, unless the caller named it by its
-	// bare alias, which is kept (resolveKey). DescribeSecret shows what is
-	// stored.
+	// KMSKeyID is the secret's key in its stored form (storedKey), read
+	// through key. DescribeSecret shows what is stored.
 	KMSKeyID *string       `json:"kmsKeyId,omitempty"`
 	Type     *string       `json:"type,omitempty"`
 	Created  clock.Instant `json:"created"`
@@ -94,6 +91,12 @@ type Version struct {
 func (s *Secret) arn(scope aws.Scope) aws.ARN {
 	return secretARN(scope, s.Name, s.Suffix)
 }
+
+// key is the secret's KMS key, as its KMSKeyID reads.
+func (s *Secret) key() encryptionKey { return keyOf(s.KMSKeyID) }
+
+// key is the KMS key the version was made under, as its KMSKeyID reads.
+func (v *Version) key() encryptionKey { return keyOf(v.KMSKeyID) }
 
 // labels returns the staging labels on version id, sorted, as AWS lists
 // them; nil when the version has none, which AWS calls deprecated.

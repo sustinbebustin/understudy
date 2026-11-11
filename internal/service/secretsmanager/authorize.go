@@ -48,7 +48,7 @@ func secretNamed[In any](s *Service, id func(*In) string) []kernel.BindOption {
 	return []kernel.BindOption{
 		kernel.WithCheck(func(in *In) *awserr.Error {
 			if !isARN(id(in)) {
-				return checkName(id(in))
+				return checkName(id(in), errInvalidName)
 			}
 			return nil
 		}),
