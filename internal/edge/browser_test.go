@@ -315,18 +315,6 @@ func TestAWSAPIsRefuseUnclaimedCallsFromPagesOnOtherSites(t *testing.T) {
 	}
 }
 
-// AnyPage is the opt-in for an app served under a name that is not local.
-func TestAnyPageAnswersPagesOnEverySite(t *testing.T) {
-	f := newFrontWith(t, nil, func(o *edge.Options) { o.Pages = edge.AnyPage{} })
-	header := jsonHeader("AmazonSQS.CreateQueue", "application/x-amz-json-1.0")
-	header.Set("Origin", "https://app.example")
-	rec := httptest.NewRecorder()
-	f.handler.ServeHTTP(rec, request(t, http.MethodPost, "/", header, `{"QueueName":"q"}`, "sqs"))
-	if rec.Code != http.StatusOK {
-		t.Errorf("AnyPage, CreateQueue from app.example = %d %s, want 200", rec.Code, rec.Body)
-	}
-}
-
 // lambdaLinks registers Lambda's raw function URL operation, unbound, so a
 // function URL reaches the kernel and gets 501.
 func lambdaLinks() *registry.Service {

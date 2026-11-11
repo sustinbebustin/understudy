@@ -112,21 +112,11 @@ type PagePolicy interface{ isPagePolicy() }
 // refused. The CLI and SDK clients send none of these headers.
 type LocalPages struct{}
 
-// AnyPage answers browser calls from pages on any site, for a developer
-// whose app is served under a name that is not local.
-type AnyPage struct{}
-
 func (LocalPages) isPagePolicy() {}
-func (AnyPage) isPagePolicy()    {}
 
 // crossSitePage returns why an AWS API call is refused under the
 // listener's PagePolicy as coming from a web page on another site.
 func (h *Handler) crossSitePage(r *http.Request) (string, bool) {
-	switch h.opts.Pages.(type) {
-	case AnyPage:
-		return "", false
-	case LocalPages, nil:
-	}
 	if origin, sent := r.Header["Origin"]; sent {
 		if len(origin) != 1 {
 			return "it came from a web page on " + strconv.Quote(strings.Join(origin, ", ")) + ", which is not a single loopback origin", true
