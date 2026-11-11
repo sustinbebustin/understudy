@@ -260,12 +260,12 @@ func (s *Service) setTopicAttributes(_ context.Context, c *kernel.Call, in *snsa
 func (s *Service) listTopics(_ context.Context, c *kernel.Call, in *snsapi.ListTopicsInput) (*snsapi.ListTopicsOutput, *awserr.Error) {
 	scope := c.Scope()
 	names := store.View(s.cells, scope, func(st *State) []string { return slices.Sorted(maps.Keys(st.Topics)) })
-	pageNames, next, err := page(names, in.NextToken)
+	p, err := page(listingTopics, names, func(name string) string { return name }, in.NextToken)
 	if err != nil {
 		return nil, err
 	}
-	out := &snsapi.ListTopicsOutput{Topics: make([]snsapi.Topic, 0, len(pageNames)), NextToken: next}
-	for _, name := range pageNames {
+	out := &snsapi.ListTopicsOutput{Topics: make([]snsapi.Topic, 0, len(p.Items)), NextToken: p.Next}
+	for _, name := range p.Items {
 		out.Topics = append(out.Topics, snsapi.Topic{TopicArn: new(topicRef{scope: scope, name: name}.arn().String())})
 	}
 	return out, nil

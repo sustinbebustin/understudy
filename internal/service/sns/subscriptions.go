@@ -17,6 +17,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
 	"github.com/sustinbebustin/understudy/internal/store"
@@ -624,19 +625,18 @@ func mayUnsubscribe(sub *Subscription, by caller) *awserr.Error {
 // region, those it owns on another account's topic included: "Returns a
 // list of the requester's subscriptions" (API_ListSubscriptions.html). A
 // subscription another account made on the caller's topic is that
-// account's. They come by topic account, then topic name, then in
-// creation order.
+// account's. They come ordered by subscription ARN.
 func (s *Service) listSubscriptions(_ context.Context, c *kernel.Call, in *snsapi.ListSubscriptionsInput) (*snsapi.ListSubscriptionsOutput, *awserr.Error) {
 	own := c.Scope()
 	owner := own.Account.String()
 	now := s.clock.Now()
-	var all []snsapi.Subscription
+	var all []listedSubscription
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
 		if scope.Partition != own.Partition || scope.Region != own.Region {
 			continue
 		}
-		mine := store.View(s.cells, scope, func(st *State) []snsapi.Subscription {
-			out := make([]snsapi.Subscription, 0, len(st.Topics))
+		mine := store.View(s.cells, scope, func(st *State) []listedSubscription {
+			out := make([]listedSubscription, 0, len(st.Topics))
 			for _, name := range slices.Sorted(maps.Keys(st.Topics)) {
 				t := st.Topics[name]
 				t.Subscriptions = slices.DeleteFunc(slices.Clone(t.Subscriptions), func(sub Subscription) bool { return sub.OwnerAccountID != owner })
@@ -646,14 +646,14 @@ func (s *Service) listSubscriptions(_ context.Context, c *kernel.Call, in *snsap
 		})
 		all = append(all, mine...)
 	}
-	items, next, err := page(all, in.NextToken)
+	items, next, err := subscriptionsPage(listingSubscriptions, all, in.NextToken)
 	if err != nil {
 		return nil, err
 	}
-	return &snsapi.ListSubscriptionsOutput{Subscriptions: nonNil(items), NextToken: next}, nil
+	return &snsapi.ListSubscriptionsOutput{Subscriptions: items, NextToken: next}, nil
 }
 
-// listSubscriptionsByTopic lists a topic's subscriptions in creation order.
+// listSubscriptionsByTopic lists a topic's subscriptions ordered by ARN.
 func (s *Service) listSubscriptionsByTopic(_ context.Context, c *kernel.Call, in *snsapi.ListSubscriptionsByTopicInput) (*snsapi.ListSubscriptionsByTopicOutput, *awserr.Error) {
 	ref, err := resolveTopic(c, "TopicArn", in.TopicArn)
 	if err != nil {
@@ -663,36 +663,62 @@ func (s *Service) listSubscriptionsByTopic(_ context.Context, c *kernel.Call, in
 	if !ok {
 		return nil, errTopicNotFound()
 	}
-	items, next, err := page(listed(ref, &t, s.clock.Now()), in.NextToken)
+	items, next, err := subscriptionsPage(listingTopicSubscriptions, listed(ref, &t, s.clock.Now()), in.NextToken)
 	if err != nil {
 		return nil, err
 	}
-	return &snsapi.ListSubscriptionsByTopicOutput{Subscriptions: nonNil(items), NextToken: next}, nil
+	return &snsapi.ListSubscriptionsByTopicOutput{Subscriptions: items, NextToken: next}, nil
 }
+
+// listedSubscription is a subscription as a listing renders it, with the
+// ARN the listing pages by. That is the subscription's own ARN even where
+// the listing shows PendingConfirmation, which is not unique.
+type listedSubscription struct {
+	arn string
+	api snsapi.Subscription
+}
+
+func (l listedSubscription) key() string { return l.arn }
 
 // listed renders t's subscriptions for a listing, without those expired by
 // now; a pending one shows PendingConfirmation in place of its ARN
 // (sns.md 3.4), and an endpoint's password is masked (maskedEndpoint).
-func listed(ref topicRef, t *Topic, now clock.Instant) []snsapi.Subscription {
-	out := make([]snsapi.Subscription, 0, len(t.Subscriptions))
+func listed(ref topicRef, t *Topic, now clock.Instant) []listedSubscription {
+	out := make([]listedSubscription, 0, len(t.Subscriptions))
 	topicARN := ref.arn().String()
 	for _, sub := range t.Subscriptions {
 		if sub.expired(now) {
 			continue
 		}
-		arn := subscriptionRef{topic: ref, id: sub.ID}.arn().String()
+		own := subscriptionRef{topic: ref, id: sub.ID}.arn().String()
+		shown := own
 		if _, pending := sub.Status.(Pending); pending {
-			arn = pendingInListings().Value
+			shown = pendingInListings().Value
 		}
-		out = append(out, snsapi.Subscription{
-			SubscriptionArn: new(arn),
+		out = append(out, listedSubscription{arn: own, api: snsapi.Subscription{
+			SubscriptionArn: new(shown),
 			Owner:           new(sub.OwnerAccountID),
 			Protocol:        new(sub.Protocol.String()),
 			Endpoint:        new(maskedEndpoint(sub.Endpoint)),
 			TopicArn:        new(topicARN),
-		})
+		}})
 	}
 	return out
+}
+
+// subscriptionsPage is the page of listing l that token names, as the
+// Subscription members a response carries; none is an empty list, so the
+// member is sent.
+func subscriptionsPage(l paging.Listing, all []listedSubscription, token *string) ([]snsapi.Subscription, *string, *awserr.Error) {
+	p, err := page(l, all, listedSubscription.key, token)
+	if err != nil {
+		return nil, nil, err
+	}
+	items := make([]snsapi.Subscription, len(p.Items))
+	for i, s := range p.Items {
+		items[i] = s.api
+	}
+	return items, p.Next, nil
 }
 
 // maskedEndpoint is endpoint as a listing shows it: the password of a
@@ -717,12 +743,4 @@ func maskedEndpoint(endpoint string) string {
 		return endpoint
 	}
 	return scheme + "://" + user + ":****" + rest[at:]
-}
-
-// nonNil returns an empty list for none, so the member is sent.
-func nonNil(items []snsapi.Subscription) []snsapi.Subscription {
-	if items == nil {
-		return []snsapi.Subscription{}
-	}
-	return items
 }
