@@ -301,8 +301,9 @@ func (p *parser) buildTask(f *draft, io paths, resultPath target) state {
 // FunctionName, which Lambda's Invoke requires, is required at create
 // (understudy's choice and wording, modelled on the recorded Credentials
 // RoleArn text of stepfunctions-asl.md 3.3; ASL-01), and a literal
-// InvocationType other than RequestResponse is refused; a path-valued one
-// is checked at run time (SFN-13).
+// InvocationType other than RequestResponse or Event is refused, since
+// AWS's answer to DryRun is unrecorded; a path-valued one is checked at run
+// time (SFN-13).
 func (p *parser) invokeParameters(f *draft) {
 	at := f.loc + "/Parameters"
 	if !f.has("Parameters") {
@@ -321,8 +322,8 @@ func (p *parser) invokeParameters(f *draft) {
 			named = true
 		case "InvocationType":
 			lit, isLiteral := m.value.(templateLiteral)
-			if s, isString := lit.value.(document.String); isLiteral && (!isString || s != "RequestResponse") {
-				p.unsupported("lambda:invoke with InvocationType "+text(lit.value)+"; only RequestResponse is", at)
+			if _, known := invocationOf(lit.value); isLiteral && !known {
+				p.unsupported("lambda:invoke with InvocationType "+text(lit.value)+"; only RequestResponse and Event are", at)
 			}
 		}
 	}

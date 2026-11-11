@@ -300,14 +300,28 @@ const (
 	LambdaInvoke
 )
 
-// InvokeLambda asks the service to invoke a function synchronously
-// (RequestResponse) and answer with LambdaSucceeded or LambdaFailed for
-// Task.
+// Invocation is how a Task invokes its function: Lambda's InvocationType.
+type Invocation int
+
+// Invocations.
+const (
+	// SyncInvocation (RequestResponse) waits for the function's result. It
+	// is the zero value: a function ARN Task and a lambda:invoke Task
+	// without InvocationType invoke so.
+	SyncInvocation Invocation = iota
+	// AsyncInvocation (Event) hands the payload to Lambda's asynchronous
+	// invoke; Lambda's acceptance is the result (SFN-13).
+	AsyncInvocation
+)
+
+// InvokeLambda asks the service to invoke a function as Invocation says
+// and answer with LambdaSucceeded or LambdaFailed for Task.
 type InvokeLambda struct {
-	Task     TaskID
-	Resource ResourceKind
-	Function string // the function name or ARN, qualifier included when given
-	Payload  document.Value
+	Task       TaskID
+	Resource   ResourceKind
+	Invocation Invocation
+	Function   string // the function name or ARN, qualifier included when given
+	Payload    document.Value
 	// Timeout is the Task's TimeoutSeconds (or TimeoutSecondsPath value);
 	// the engine enforces it with its own timer.
 	Timeout time.Duration

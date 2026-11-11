@@ -57,7 +57,7 @@ const (
 		"Definitions are JSONPath with Pass, Task, Choice, Wait, Succeed, Fail, Parallel and inline Map states, and Task resources are " +
 		"Lambda only (a function ARN or arn:aws:states:::lambda:invoke). These answer InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY: " +
 		"JSONata, Assign and variables, Distributed Map and its fields, Credentials, HeartbeatSeconds, callbacks, activities, " +
-		"every other Task resource, a literal lambda:invoke InvocationType other than RequestResponse, and JSONPath " +
+		"every other Task resource, a literal lambda:invoke InvocationType other than RequestResponse or Event (DryRun's AWS answer is unrecorded; SFN-13), and JSONPath " +
 		"multi-clause filters and filter scripts, which AWS accepts (ASL-19). " +
 		"A JSONPath function such as length() is accepted and fails at run time, as AWS fails length() (ASL-19). " +
 		"ToleratedFailurePercentage, which AWS accepts on an inline Map, is refused with Distributed Map's fields (ASL-01). " +
@@ -85,7 +85,8 @@ const (
 		"IsTimestamp follows the documented RFC 3339 profile (ASL-07); " +
 		"a JSONPath function other than length() fails at run time as length() does (ASL-19). " +
 		"Known differences from AWS: a runtime error's cause quotes the state's input as compact JSON, where AWS quotes the input as sent (ASL-04). " +
-		"A lambda:invoke InvocationType that resolves to anything but RequestResponse fails with States.Runtime (SFN-13). " +
+		"A lambda:invoke InvocationType that resolves to anything but RequestResponse or Event fails with States.Runtime (SFN-13). " +
+		"InvocationType Event invokes the function through Lambda's asynchronous invoke and succeeds at once with StatusCode 202, Payload null and no ExecutedVersion, as recorded (SFN-13). " +
 		"lambda:invoke results carry SdkHttpMetadata with AWS's recorded header names; the X-Amzn-Trace-Id value is understudy's. " +
 		"traceHeader, or the X-Amzn-Trace-Id request header when both are sent, " +
 		"is stored and returned by DescribeExecution; no X-Ray trace is emitted. A Lambda task in flight when a snapshot was saved is invoked again after load. " +

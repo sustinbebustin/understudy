@@ -151,9 +151,10 @@ func (s *Service) onInvoke(c *kernel.Call, key clock.TimerKey, _ clock.Instant) 
 	})
 }
 
-// invokeTask invokes inv's function synchronously as the execution role
-// and returns the engine event for its result,
-// given the instant the result is applied at. A Lambda service error is
+// invokeTask invokes inv's function as the execution role, synchronously
+// or, for InvocationType Event, through Lambda's asynchronous invoke, whose
+// acceptance is the result (SFN-13), and returns the engine event for its
+// result, given the instant the result is applied at. A Lambda service error is
 // named by switch sfn.integration.lambda-error; a function error by the
 // payload's errorType with the payload as cause (stepfunctions-asl.md 8.1).
 func (s *Service) invokeTask(ctx context.Context, c *kernel.Call, exec executionRef, role string, inv asl.InvokeLambda, requestID string) func(at time.Time) asl.Event {
@@ -165,7 +166,11 @@ func (s *Service) invokeTask(ctx context.Context, c *kernel.Call, exec execution
 		// CreateStateMachine checked the role ARN's syntax, so this is a bug.
 		return failed(LambdaTaskError(LambdaError().Value, inv.Resource, awserr.Internalf(perr), requestID))
 	}
-	in := &lambdaapi.InvokeInput{FunctionName: inv.Function, InvocationType: new(lambdaapi.InvocationTypeRequestResponse)}
+	mode := lambdaapi.InvocationTypeRequestResponse
+	if inv.Invocation == asl.AsyncInvocation {
+		mode = lambdaapi.InvocationTypeEvent
+	}
+	in := &lambdaapi.InvokeInput{FunctionName: inv.Function, InvocationType: &mode}
 	if inv.Payload != nil {
 		in.Payload = []byte(docText(inv.Payload))
 	}
@@ -180,7 +185,10 @@ func (s *Service) invokeTask(ctx context.Context, c *kernel.Call, exec execution
 	payload := payloadValue(out.Payload)
 	return func(at time.Time) asl.Event {
 		result := payload
-		if inv.Resource == asl.LambdaInvoke {
+		switch {
+		case inv.Invocation == asl.AsyncInvocation:
+			result = acceptedResult(requestID, at)
+		case inv.Resource == asl.LambdaInvoke:
 			result = invokeResult(out, payload, requestID, at)
 		}
 		return asl.LambdaSucceeded{At: at, Task: inv.Task, Output: result}
@@ -260,25 +268,63 @@ func invokeResult(out *lambdaapi.InvokeOutput, payload document.Value, requestID
 		"X-Amzn-Trace-Id":                traceID(requestID, at),
 		"Content-Type":                   "application/json",
 	}
-	all := make(document.Map, 0, len(headers))
-	for _, k := range []string{"X-Amz-Executed-Version", "x-amzn-Remapped-Content-Length", "Connection", "x-amzn-RequestId", "Content-Length", "Date", "X-Amzn-Trace-Id", "Content-Type"} {
-		all = append(all, document.Entry{Key: k, Value: document.List{document.String(headers[k])}})
-	}
-	single := make(document.Map, 0, len(headers))
-	for _, k := range []string{"Connection", "Content-Length", "Content-Type", "Date", "X-Amz-Executed-Version", "x-amzn-Remapped-Content-Length", "x-amzn-RequestId", "X-Amzn-Trace-Id"} {
-		single = append(single, document.Entry{Key: k, Value: document.String(headers[k])})
-	}
 	status := document.Number(strconv.Itoa(int(out.StatusCode)))
+	meta := httpMetadata(headers,
+		[]string{"X-Amz-Executed-Version", "x-amzn-Remapped-Content-Length", "Connection", "x-amzn-RequestId", "Content-Length", "Date", "X-Amzn-Trace-Id", "Content-Type"},
+		[]string{"Connection", "Content-Length", "Content-Type", "Date", "X-Amz-Executed-Version", "x-amzn-Remapped-Content-Length", "x-amzn-RequestId", "X-Amzn-Trace-Id"},
+		status)
 	return document.Map{
 		{Key: "ExecutedVersion", Value: document.String(version)},
 		{Key: "Payload", Value: payload},
-		{Key: "SdkHttpMetadata", Value: document.Map{
-			{Key: "AllHttpHeaders", Value: all},
-			{Key: "HttpHeaders", Value: single},
-			{Key: "HttpStatusCode", Value: status},
-		}},
+		{Key: "SdkHttpMetadata", Value: meta},
 		{Key: "SdkResponseMetadata", Value: document.Map{{Key: "RequestId", Value: document.String(requestID)}}},
 		{Key: "StatusCode", Value: status},
+	}
+}
+
+// acceptedResult is lambda:invoke's task result for InvocationType Event,
+// Lambda's 202 acceptance: Payload null, no ExecutedVersion, and
+// SdkHttpMetadata with exactly the recorded headers in the recorded orders
+// (aws-recorded testdata/parity/sfn/SFN-13/01-history.json). The values
+// are filled as invokeResult fills them.
+func acceptedResult(requestID string, at time.Time) document.Map {
+	headers := map[string]string{
+		"x-amzn-Remapped-Content-Length": "0",
+		"Connection":                     "keep-alive",
+		"x-amzn-RequestId":               requestID,
+		"Content-Length":                 "0",
+		"Date":                           at.UTC().Format(http.TimeFormat),
+		"X-Amzn-Trace-Id":                traceID(requestID, at),
+	}
+	status := document.Number(strconv.Itoa(http.StatusAccepted))
+	meta := httpMetadata(headers,
+		[]string{"x-amzn-Remapped-Content-Length", "Connection", "x-amzn-RequestId", "Content-Length", "Date", "X-Amzn-Trace-Id"},
+		[]string{"Connection", "Content-Length", "Date", "x-amzn-Remapped-Content-Length", "x-amzn-RequestId", "X-Amzn-Trace-Id"},
+		status)
+	return document.Map{
+		{Key: "Payload", Value: document.Null{}},
+		{Key: "SdkHttpMetadata", Value: meta},
+		{Key: "SdkResponseMetadata", Value: document.Map{{Key: "RequestId", Value: document.String(requestID)}}},
+		{Key: "StatusCode", Value: status},
+	}
+}
+
+// httpMetadata is a lambda:invoke result's SdkHttpMetadata: AllHttpHeaders
+// lists headers in the order all, each value in a list, and HttpHeaders in
+// the order single; both orders are the recorded ones.
+func httpMetadata(headers map[string]string, all, single []string, status document.Number) document.Map {
+	multi := make(document.Map, 0, len(all))
+	for _, k := range all {
+		multi = append(multi, document.Entry{Key: k, Value: document.List{document.String(headers[k])}})
+	}
+	one := make(document.Map, 0, len(single))
+	for _, k := range single {
+		one = append(one, document.Entry{Key: k, Value: document.String(headers[k])})
+	}
+	return document.Map{
+		{Key: "AllHttpHeaders", Value: multi},
+		{Key: "HttpHeaders", Value: one},
+		{Key: "HttpStatusCode", Value: status},
 	}
 }
 

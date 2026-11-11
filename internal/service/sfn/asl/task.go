@@ -82,7 +82,7 @@ func (s *stepper) attempt(st taskState, v visit, previous int64) {
 		}
 		scheduled = s.emit("LambdaFunctionScheduled", previous, withTimeout(details, st.timeout, timeout))
 	case LambdaInvoke:
-		if invoke.Function, invoke.Payload, f = invokeArguments(effective); f != nil {
+		if invoke.Function, invoke.Invocation, invoke.Payload, f = invokeArguments(effective); f != nil {
 			s.taskFailed(st, v, previous, f)
 			return
 		}
@@ -179,17 +179,30 @@ func (sc scope) taskTimeout(t timeout, input document.Value) (time.Duration, Fai
 	return defaultTaskTimeout, nil
 }
 
+// invocationOf is the Invocation an InvocationType value names: false for
+// anything but RequestResponse and Event. DryRun is among them, as AWS's
+// answer to it is unrecorded (SFN-13).
+func invocationOf(v document.Value) (Invocation, bool) {
+	switch v {
+	case document.String("RequestResponse"):
+		return SyncInvocation, true
+	case document.String("Event"):
+		return AsyncInvocation, true
+	}
+	return 0, false
+}
+
 // invokeArguments reads lambda:invoke's resolved Parameters: FunctionName,
-// with Qualifier appended when given, and Payload, nil when absent. Only
-// FunctionName, Qualifier and Payload reach the invocation. An
-// InvocationType that resolves to anything but RequestResponse fails with
-// States.Runtime (inferred, SFN-13).
-func invokeArguments(params document.Value) (function string, payload document.Value, f Failure) {
+// with Qualifier appended when given, InvocationType, and Payload, nil when
+// absent. Only these reach the invocation. An InvocationType that resolves
+// to anything but RequestResponse or Event fails with States.Runtime
+// (inferred, SFN-13).
+func invokeArguments(params document.Value) (function string, invocation Invocation, payload document.Value, f Failure) {
 	m, isMap := params.(document.Map)
 	name, ok := member(m, "FunctionName")
 	fn, isString := name.(document.String)
 	if !isMap || !ok || !isString || fn == "" {
-		return "", nil, Terminal{Name: errRuntime, Cause: "The lambda:invoke Parameters must hold FunctionName as a non-empty string, but they are " + text(params)}
+		return "", 0, nil, Terminal{Name: errRuntime, Cause: "The lambda:invoke Parameters must hold FunctionName as a non-empty string, but they are " + text(params)}
 	}
 	function = string(fn)
 	if q, ok := member(m, "Qualifier"); ok {
@@ -197,12 +210,14 @@ func invokeArguments(params document.Value) (function string, payload document.V
 			function += ":" + string(qs)
 		}
 	}
-	if it, ok := member(m, "InvocationType"); ok && it != document.String("RequestResponse") {
-		return "", nil, Terminal{Name: errRuntime, Cause: "understudy does not implement lambda:invoke with InvocationType " + text(it) +
-			"; only RequestResponse is. Run 'understudy coverage --service sfn' for what is supported."}
+	if it, ok := member(m, "InvocationType"); ok {
+		if invocation, ok = invocationOf(it); !ok {
+			return "", 0, nil, Terminal{Name: errRuntime, Cause: "understudy does not implement lambda:invoke with InvocationType " + text(it) +
+				"; only RequestResponse and Event are. Run 'understudy coverage --service sfn' for what is supported."}
+		}
 	}
 	payload, _ = member(m, "Payload")
-	return function, payload, nil
+	return function, invocation, payload, nil
 }
 
 // takeTask removes the in-flight task id and withdraws its timeout, giving

@@ -1,6 +1,7 @@
 package sfn_test
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/sfn"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // A Standard execution may wait up to a year (aws-doc dg/state-wait,
@@ -129,6 +131,34 @@ func TestSnapshotRoundTrip(t *testing.T) {
 		if d := must(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: machine}); d.Definition != resultMachine {
 			h.Errorf("definition after the round trip = %q", d.Definition)
 		}
+	})
+}
+
+// The state format is version 2, which added an in-flight Lambda task's
+// async flag, so a version 1 section is refused with
+// *store.VersionMismatchError naming both versions, not read (ADR 0009,
+// amended 2026-11-10).
+func TestStateVersionTwo(t *testing.T) {
+	run(t, func(h *harness) {
+		if v := h.svc.SchemaVersion(); v != 2 {
+			h.Errorf("SchemaVersion = %d, want 2", v)
+		}
+		machine := h.create("kept", resultMachine)
+		sections, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		if len(sections) == 0 {
+			h.Fatal("Export wrote no section for a scope with a machine")
+		}
+		for i := range sections {
+			sections[i].Version = 1
+		}
+		mismatch, ok := errors.AsType[*store.VersionMismatchError](h.svc.Import(sections))
+		if !ok || mismatch.Section != 1 || mismatch.Running != 2 {
+			h.Errorf("Import of version 1 sections = %v, want a VersionMismatchError of section 1 against 2", mismatch)
+		}
+		must(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: machine})
 	})
 }
 

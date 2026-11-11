@@ -137,6 +137,37 @@ aws stepfunctions describe-execution --execution-arn arn:aws:states:us-east-1:00
 # "status": "FAILED", "error": "AddFailed"
 ```
 
+With `"InvocationType": "Event"` in `Parameters`, literal or through a path, the Task hands the payload to Lambda's asynchronous invoke and succeeds as soon as Lambda accepts it, without waiting for the function. Its result is Lambda's acceptance, as AWS records it: `StatusCode` 202, `Payload` `null` and no `ExecutedVersion`. The function runs afterwards, with Lambda's asynchronous retries and destinations ([lambda.md](lambda.md)):
+
+```sh
+cat > notify.json <<'EOF'
+{
+  "StartAt": "Notify",
+  "States": {
+    "Notify": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {"FunctionName": "notifier", "InvocationType": "Event", "Payload.$": "$"},
+      "End": true
+    }
+  }
+}
+EOF
+aws stepfunctions create-state-machine --name notify --role-arn arn:aws:iam::000000000000:role/sfn-role \
+  --definition file://notify.json
+aws stepfunctions start-execution --state-machine-arn arn:aws:states:us-east-1:000000000000:stateMachine:notify \
+  --name n1 --input '{"order":42}'
+aws stepfunctions describe-execution --execution-arn arn:aws:states:us-east-1:000000000000:execution:notify:n1 \
+  --query '{status:status,output:output}'
+# "status": "SUCCEEDED",
+# "output": "{\"Payload\":null,\"SdkHttpMetadata\":{...,\"HttpStatusCode\":202},\"SdkResponseMetadata\":{\"RequestId\":\"3c2a2715-...\"},\"StatusCode\":202}"
+understudy settle
+aws logs filter-log-events --log-group-name /aws/lambda/notifier --query 'events[].message' --output text
+# ... notified {'order': 42} ...
+```
+
+`DryRun`, whose answer AWS has not been recorded giving, is refused at create as `UNSUPPORTED_BY_UNDERSTUDY`, and fails the Task with `States.Runtime` when a path resolves to it.
+
 A retry waits its interval, backoff and jitter on the emulator clock: advance the clock to release it. A Task's `TimeoutSeconds` is emulator time too. The function may be in another account: the serverless pattern `sfn-lambda-function-crossaccount-terraform` in `conformance/patterns` runs that end to end with Terraform.
 
 Under `--iam-enforce enforce`, creating or updating a machine checks the caller's `iam:PassRole` on its role (with `iam:PassedToService` `states.amazonaws.com`), that the role trusts `states.amazonaws.com`, and, with logging on, the role's log-delivery permissions. A Task whose role may not `lambda:InvokeFunction` the function fails with `Lambda.AWSLambdaException`. After a run, `understudy iam policy --principal <role or user ARN>` prints the policy each needs ([policy.md](policy.md)).
