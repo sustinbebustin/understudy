@@ -443,6 +443,7 @@ var operandFaults = map[Operator][]string{
 	OperatorNumeric:                     {`{"numeric":[]}`, `{"numeric":["=",9007199254740993]}`, `{"numeric":[">",5,"<",1]}`, `{"numeric":"5"}`, `{"numeric":["!",1]}`},
 	OperatorExists:                      {`{"exists":1}`, `{"exists":true,"x":1}`},
 	OperatorCIDR:                        {`{"cidr":"10.0.0.0"}`, `{"cidr":"10.0.0.0/32"}`, `{"cidr":"::/128"}`, `{"cidr":"1.2.3.4/x"}`, `{"cidr":"999.0.0.1/8"}`, `{"cidr":"10.0.0.0/4294967296"}`},
+	OperatorExactly:                     {`{"exactly":5}`, `{"exactly":null}`, `{"exactly":["a"]}`, `{"exactly":"a","b":"c"}`},
 	// The strict compiler's "$or" shapes: not an array, one member, a member
 	// that is not an object, and a reserved name inside a member.
 	OperatorOr: {`{"m":["x"]}`, `[{"m":["x"]}]`, `[{"m":["x"]},"x"]`, `[{"prefix":["x"]},{"m":["y"]}]`},

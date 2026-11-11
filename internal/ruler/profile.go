@@ -29,8 +29,8 @@ type Profile interface {
 }
 
 // EventBridge is an event bus rule's event pattern. Every Ruler operator is
-// allowed except the undocumented "exactly"; the limits are the 1000 $or
-// combination cap and Ruler's wildcard complexity evaluator.
+// allowed; the limits are the 1000 $or combination cap and Ruler's wildcard
+// complexity evaluator.
 type EventBridge struct {
 	Options Options
 }
@@ -48,16 +48,18 @@ const (
 
 // SNS is a subscription filter policy. The allow-list leaves out the
 // equals-ignore-case forms of prefix, suffix and anything-but, which the SNS
-// documentation does not list; the limits are 5 keys, 150 combinations, the
-// wildcard point budget and 256 KB.
+// documentation does not list, and takes the undocumented "exactly", which
+// SNS accepts (sns/R09/H7b-07-subscribe.json); the limits are 5 keys, 150
+// combinations, the wildcard point budget and 256 KB.
 type SNS struct {
 	Scope   SNSScope
 	Options Options
 }
 
 // LambdaESM is an event source mapping filter pattern. The allow-list is the
-// operator table of the Lambda filtering documentation; every rejection is
-// reported with Lambda's generic message.
+// operator table of the Lambda filtering documentation plus the undocumented
+// "exactly", which Lambda accepts (lambda/R03/H13-11-create.json); every
+// rejection is reported with Lambda's generic message.
 type LambdaESM struct {
 	Options Options
 }
@@ -124,20 +126,12 @@ func (LambdaESM) switchRecords() switchRecords {
 
 const (
 	humanRecordsRef = "docs/research/matching-engines.md#8"
-	// operatorsRef is the documented operator table, which lists "exactly"
-	// for no service although Ruler accepts it.
+	// operatorsRef is the documented operator table.
 	operatorsRef = "docs/research/matching-engines.md#5.1"
 )
 
-// exactlyRejected is the switch for Ruler's "exactly" operator, which every
-// profile rejects as an unknown match type.
-func exactlyRejected(prefix, record string) Switch {
-	return Switch{Name: prefix + ".exactly-operator", Value: "rejected", Ref: operatorsRef, Record: record}
-}
-
-func (p EventBridge) fixedSwitches() []Switch {
+func (EventBridge) fixedSwitches() []Switch {
 	return []Switch{
-		exactlyRejected(p.switchPrefix(), "matching-engines.md H14"),
 		{
 			// Ruler loses a later "$or" member's values that an earlier
 			// member with the same key shares, so its answer depends on
@@ -156,9 +150,8 @@ func (p EventBridge) fixedSwitches() []Switch {
 	}
 }
 
-func (p SNS) fixedSwitches() []Switch {
+func (SNS) fixedSwitches() []Switch {
 	return []Switch{
-		exactlyRejected(p.switchPrefix(), "matching-engines.md H7"),
 		{
 			Name: "sns.filter-policy.anything-but-suffix", Value: "accepted",
 			Ref: humanRecordsRef, Record: "R09/7 (matching-engines.md H7)",
@@ -207,9 +200,8 @@ func (p SNS) fixedSwitches() []Switch {
 	}
 }
 
-func (p LambdaESM) fixedSwitches() []Switch {
+func (LambdaESM) fixedSwitches() []Switch {
 	return []Switch{
-		exactlyRejected(p.switchPrefix(), "matching-engines.md H13"),
 		{
 			Name: "lambda.esm-filter.operator-allow-list", Value: "documented-table",
 			Ref: humanRecordsRef, Record: "matching-engines.md H13",
@@ -225,7 +217,7 @@ func (SNS) allows(op Operator) bool {
 		return false
 	case OperatorPrefix, OperatorSuffix, OperatorEqualsIgnoreCase, OperatorWildcard, OperatorAnythingBut,
 		OperatorAnythingButPrefix, OperatorAnythingButSuffix, OperatorAnythingButWildcard, OperatorNumeric,
-		OperatorExists, OperatorCIDR, OperatorOr:
+		OperatorExists, OperatorCIDR, OperatorExactly, OperatorOr:
 		return true
 	}
 	return false
@@ -234,7 +226,7 @@ func (SNS) allows(op Operator) bool {
 func (LambdaESM) allows(op Operator) bool {
 	switch op {
 	case OperatorPrefix, OperatorSuffix, OperatorEqualsIgnoreCase, OperatorAnythingBut, OperatorNumeric,
-		OperatorExists, OperatorOr:
+		OperatorExists, OperatorExactly, OperatorOr:
 		return true
 	case OperatorPrefixEqualsIgnoreCase, OperatorSuffixEqualsIgnoreCase, OperatorWildcard,
 		OperatorAnythingButPrefix, OperatorAnythingButSuffix, OperatorAnythingButEqualsIgnoreCase,

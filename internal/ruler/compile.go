@@ -600,14 +600,15 @@ func (c *compiler) expression() (matcher, *CompileError) {
 		return c.equalsIgnoreCase()
 	case OperatorWildcard:
 		return c.wildcard()
+	case OperatorExactly:
+		return c.exactly()
 	case OperatorPrefixEqualsIgnoreCase, OperatorSuffixEqualsIgnoreCase, OperatorAnythingButPrefix,
 		OperatorAnythingButSuffix, OperatorAnythingButEqualsIgnoreCase, OperatorAnythingButWildcard, OperatorOr:
 	}
 	return nil, &CompileError{Cause: UnknownOperator{Name: t.text}, Detail: "Unrecognized match type " + t.text}
 }
 
-// operatorNamed maps a match type name to its base operator. "exactly" is a
-// Ruler operator no service documents, so it is unknown here.
+// operatorNamed maps a match type name to its base operator.
 func operatorNamed(name string) (Operator, bool) {
 	switch name {
 	case "prefix":
@@ -626,8 +627,30 @@ func operatorNamed(name string) (Operator, bool) {
 		return OperatorEqualsIgnoreCase, true
 	case "wildcard":
 		return OperatorWildcard, true
+	case "exactly":
+		return OperatorExactly, true
 	}
 	return 0, false
+}
+
+// exactly compiles {"exactly": "s"}, Ruler's Patterns.exactMatch: the string
+// text only, never an IP range as a bare string rule is.
+func (c *compiler) exactly() (matcher, *CompileError) {
+	v, e := c.next()
+	if e != nil {
+		return nil, e
+	}
+	if v.kind != tokString {
+		return nil, operandError(OperatorExactly, "exact match pattern must be a string")
+	}
+	s, e := stringText(v)
+	if e != nil {
+		return nil, e
+	}
+	if e := c.end(OperatorExactly, onlyOneKey); e != nil {
+		return nil, e
+	}
+	return matchEquals{text: s}, nil
 }
 
 // end consumes the '}' closing an operator object.

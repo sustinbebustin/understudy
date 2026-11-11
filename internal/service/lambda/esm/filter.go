@@ -52,7 +52,6 @@ func switchTable() map[string]switchMeta {
 		},
 		"lambda.esm-filter.bare-number":         {evidence.Inferred, ops, r03("H7a-01-create, H7a-02-create")},
 		"lambda.esm-filter.malformed-or":        {evidence.Inferred, ops, r03("H10-01-create to H10-06-create")},
-		"lambda.esm-filter.exactly-operator":    {evidence.Inferred, ops, r03("H13-11-create")},
 		"lambda.esm-filter.operator-allow-list": {evidence.Inferred, ops, r03("H13-01-create to H13-15-create")},
 	}
 }

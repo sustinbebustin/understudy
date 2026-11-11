@@ -30,6 +30,7 @@ func TestAllowLists(t *testing.T) {
 		{OperatorNumeric, `{"x":[{"numeric":[">",1]}]}`},
 		{OperatorExists, `{"x":[{"exists":true}]}`},
 		{OperatorCIDR, `{"x":[{"cidr":"10.0.0.0/8"}]}`},
+		{OperatorExactly, `{"x":[{"exactly":"a"}]}`},
 		{OperatorOr, `{"$or":[{"x":["a"]},{"y":["b"]}]}`},
 	}
 	rejected := map[string]map[Operator]string{
@@ -67,14 +68,26 @@ func TestAllowLists(t *testing.T) {
 	}
 }
 
-// TestExactlyIsUnknown: Ruler's "exactly" is documented by no service.
-func TestExactlyIsUnknown(t *testing.T) {
+// TestExactlyInEveryProfile: no service documents Ruler's "exactly", but AWS
+// accepts it in all three: EventBridge matches {"x":"a"}
+// (events/R14/H14-01.json), SNS subscribes (sns/R09/H7b-07-subscribe.json)
+// and Lambda invokes for {"x":"a"}, not {"x":"b"}
+// (lambda/R03/H13-11-create.json).
+func TestExactlyInEveryProfile(t *testing.T) {
 	t.Parallel()
-	for _, p := range []Profile{EventBridge{}, SNS{}, LambdaESM{}} {
-		_, err := Compile([]byte(`{"x":[{"exactly":"a"}]}`), p)
-		if err == nil || err.Detail != "Unrecognized match type exactly" {
-			t.Errorf("%T: Compile(exactly) = %v", p, err)
+	for _, p := range []Profile{EventBridge{}, SNS{Scope: MessageBody}, LambdaESM{}} {
+		compiled := mustCompile(t, `{"x":[{"exactly":"a"}]}`, p)
+		if !matchEvent(t, compiled, `{"x":"a"}`) {
+			t.Errorf("%T: exactly a does not match {\"x\":\"a\"}", p)
 		}
+		if matchEvent(t, compiled, `{"x":"b"}`) {
+			t.Errorf("%T: exactly a matched {\"x\":\"b\"}", p)
+		}
+	}
+	attrs := mustCompile(t, `{"x":[{"exactly":"a"}]}`, SNS{})
+	ok, err := MatchAttributes(attrs, map[string]Attribute{"x": StringAttribute{Value: "a"}})
+	if err != nil || !ok {
+		t.Errorf("SNS MessageAttributes: exactly a on String a = %t, %v; want a match", ok, err)
 	}
 }
 
@@ -163,7 +176,6 @@ func TestSwitches(t *testing.T) {
 			{Name: "events.pattern.empty-input", Value: "never-matches", Ref: switchRef, Record: "matching-engines.md H1"},
 			{Name: "events.pattern.bare-number", Value: "numeric-or-text", Ref: switchRef, Record: ""},
 			{Name: "events.pattern.malformed-or", Value: "rejected", Ref: switchRef, Record: "matching-engines.md H10"},
-			{Name: "events.pattern.exactly-operator", Value: "rejected", Ref: operatorsRef, Record: "matching-engines.md H14"},
 			{Name: "events.pattern.or-shared-values", Value: "documented", Ref: humanRecordsRef, Record: "matching-engines.md H14"},
 			{Name: "events.pattern.wildcard-complexity-cap", Value: "11", Ref: humanRecordsRef, Record: "matching-engines.md H11"},
 			{Name: "events.pattern.or-combination-counting", Value: "product-including-nested", Ref: humanRecordsRef, Record: "matching-engines.md H12"},
@@ -173,7 +185,6 @@ func TestSwitches(t *testing.T) {
 			{Name: "sns.filter-policy.empty-input", Value: "matchable", Ref: switchRef, Record: "R09/6 (matching-engines.md H1)"},
 			{Name: "sns.filter-policy.bare-number", Value: "numeric-or-text", Ref: switchRef, Record: "R09/1 (matching-engines.md H6)"},
 			{Name: "sns.filter-policy.malformed-or", Value: "rejected", Ref: switchRef, Record: "matching-engines.md H10"},
-			{Name: "sns.filter-policy.exactly-operator", Value: "rejected", Ref: operatorsRef, Record: "matching-engines.md H7"},
 			{Name: "sns.filter-policy.anything-but-suffix", Value: "accepted", Ref: humanRecordsRef, Record: "R09/7 (matching-engines.md H7)"},
 			{Name: "sns.filter-policy.anything-but-list-forms", Value: "accepted", Ref: operatorsRef, Record: "matching-engines.md H7"},
 			{Name: "sns.filter-policy.ignore-case-forms", Value: "rejected", Ref: humanRecordsRef, Record: "matching-engines.md H7"},
@@ -190,7 +201,6 @@ func TestSwitches(t *testing.T) {
 			{Name: "lambda.esm-filter.empty-input", Value: "matchable", Ref: switchRef, Record: ""},
 			{Name: "lambda.esm-filter.bare-number", Value: "text-only", Ref: switchRef, Record: "matching-engines.md H7"},
 			{Name: "lambda.esm-filter.malformed-or", Value: "ordinary-key", Ref: switchRef, Record: "matching-engines.md H10"},
-			{Name: "lambda.esm-filter.exactly-operator", Value: "rejected", Ref: operatorsRef, Record: "matching-engines.md H13"},
 			{Name: "lambda.esm-filter.operator-allow-list", Value: "documented-table", Ref: humanRecordsRef, Record: "matching-engines.md H13"},
 		}},
 	}

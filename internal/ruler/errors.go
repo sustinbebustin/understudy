@@ -105,6 +105,8 @@ const (
 	OperatorExists
 	// OperatorCIDR is {"cidr": "10.0.0.0/24"}.
 	OperatorCIDR
+	// OperatorExactly is {"exactly": "s"}.
+	OperatorExactly
 	// OperatorOr is the "$or" relationship.
 	OperatorOr
 )
@@ -140,6 +142,8 @@ func (o Operator) String() string {
 		return "exists"
 	case OperatorCIDR:
 		return "cidr"
+	case OperatorExactly:
+		return "exactly"
 	case OperatorOr:
 		return "$or"
 	}

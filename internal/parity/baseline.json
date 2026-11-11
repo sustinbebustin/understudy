@@ -82,14 +82,13 @@
         {"step": "H9-02-b", "fixture": "events/R14/H9-02-b.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},
         {"step": "H9-03-a", "fixture": "events/R14/H9-03-a.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},
         {"step": "H9-03-b", "fixture": "events/R14/H9-03-b.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},
-        {"step": "H14-01", "fixture": "events/R14/H14-01.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/Result, body/__type, body/message"}},
+        {"step": "H14-01", "fixture": "events/R14/H14-01.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},
         {"step": "H14-02", "fixture": "events/R14/H14-02.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "differs", "reason": "body/Result"}},
         {"step": "H14-03", "fixture": "events/R14/H14-03.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},
         {"step": "H14-04", "fixture": "events/R14/H14-04.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "differs", "reason": "body/Result"}}
       ],
       "claims": [
         {"target": {"kind": "switch", "name": "events.pattern.empty-input"}, "step": "H1-01", "field": "body/Result", "result": {"kind": "settled"}},
-        {"target": {"kind": "switch", "name": "events.pattern.exactly-operator"}, "step": "H14-01", "field": "status", "result": {"kind": "contradicted"}},
         {"target": {"kind": "switch", "name": "events.pattern.or-shared-values"}, "step": "H14-02", "field": "body/Result", "result": {"kind": "contradicted"}}
       ]
     },

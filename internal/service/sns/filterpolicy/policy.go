@@ -169,7 +169,6 @@ func switchTable() map[string]switchMeta {
 		"sns.filter-policy.empty-input":             {evidence.Inferred, match, r09("T06, H1-attr, H1-body")},
 		"sns.filter-policy.bare-number":             {evidence.Inferred, match, r09("T01 to T03, H6")},
 		"sns.filter-policy.malformed-or":            {evidence.Inferred, compile, r09("H10-01-subscribe to H10-06-subscribe")},
-		"sns.filter-policy.exactly-operator":        {evidence.Inferred, compile, r09("H7b-07-subscribe")},
 		"sns.filter-policy.anything-but-suffix":     {evidence.Inferred, compile, r09("T07-subscribe, H7b-01-subscribe")},
 		"sns.filter-policy.anything-but-list-forms": {
 			evidence.Inferred, compile,

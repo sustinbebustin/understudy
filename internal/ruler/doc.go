@@ -51,8 +51,8 @@
 //   - Malformed "$or" shapes are compile errors (the strict compiler). With
 //     MalformedOrOrdinaryKey, only a failure caused by a "$or" shape triggers
 //     the recompile with "$or" as a plain key.
-//   - "exactly" is an unknown operator for every profile; no service
-//     documents it, although EventBridge runs Ruler, which accepts it.
+//   - Every profile accepts Ruler's "exactly", which no service documents
+//     but all three accept (matching-engines.md H7, H13, H14).
 //   - SNS accepts anything-but suffix, which its current documentation lists
 //     although a 2024 recording rejected it (H7), and the list forms of
 //     anything-but prefix, suffix and wildcard, which the documentation

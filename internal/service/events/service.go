@@ -249,7 +249,6 @@ func rulerSwitches() map[string]rulerSwitch {
 			fidelity.NoScenario{Reason: "events/R14's H8 steps do not decide it: both values answer false for a string"},
 		},
 		"events.pattern.malformed-or":            {evidence.Inferred, compile, unreplayed("H10-01 to H10-06")},
-		"events.pattern.exactly-operator":        {evidence.Inferred, compile, r14("H14-01")},
 		"events.pattern.or-shared-values":        {evidence.Inferred, match, r14("H14-02")},
 		"events.pattern.wildcard-complexity-cap": {evidence.Inferred, compile, unreplayed("H11-01 to H11-03")},
 		"events.pattern.or-combination-counting": {evidence.Inferred, compile, unreplayed("H12-01-10x10x10, H12-02-7x11x13, H12-03-nested")},
