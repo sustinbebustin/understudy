@@ -32,7 +32,7 @@ Most differences are in error texts, codes and response details, not in the happ
 
 SNS filter policies, EventBridge event patterns and Lambda event source mapping filters share one matching engine. Where AWS's answer is unrecorded, understudy chose one and labelled it a fidelity switch (`understudy coverage --switches` lists them). Most items below are where a recording contradicts that choice.
 
-- Lambda event source mapping filters accept `cidr`, wildcard, `anything-but` with `prefix` or `suffix`, and `prefix` with `equals-ignore-case` on AWS; understudy refuses them. On AWS `eventSource` is not matchable, a string rule matches a number with the same text, and cidr `/32` and `/128` give HTTP 500 (`lambda/R03/H13-*-create.json`, `logs/R03/H13-10-01.json`, `logs/R03/H8-02-01.json`, `lambda/R03/H9-01-create.json`).
+- A Lambda event source mapping filter with a cidr `/32` or `/128` gives HTTP 500 on AWS; understudy refuses it as an invalid filter pattern (`lambda/R03/H9-01-create.json`, `lambda/R03/H9-02-create.json`).
 - SNS filter policy quota text on AWS: "Could not complete request: filter policy quota exceeded"; understudy words it differently (`sns/R09/limit-201.json`).
 - An SNS filter policy that is not valid JSON ("failed to parse JSON. ...") gets a location line naming SNS's own parser on AWS; understudy leaves it out, as no recording shows the line whole.
 - `$or` members that share values: AWS follows Event Ruler's order-dependent result (`{"$or":[{"x":["q"]},{"x":["q","y"]}]}` misses `{"x":"y"}`); understudy matches (`events/R14/H14-*.json`).

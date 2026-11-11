@@ -67,8 +67,13 @@ type SNSOptions struct {
 
 // LambdaESM is an event source mapping filter pattern. The allow-list is the
 // operator table of the Lambda filtering documentation plus the undocumented
-// "exactly", which Lambda accepts (lambda/R03/H13-11-create.json); every
-// rejection is reported with Lambda's generic message.
+// operators Lambda accepts: cidr, wildcard, anything-but with prefix or
+// suffix, prefix with equals-ignore-case (lambda/R03/H13-01-create.json to
+// H13-06-create.json) and "exactly" (H13-11-create.json). The three forms
+// neither the table nor a recording covers stay refused. Every rejection is
+// reported with Lambda's generic message. A string rule also matches a
+// number with its text, and a wildcard rule matches nothing (lambda/R03 H8-02,
+// H13-02); both are fixed, not Options.
 type LambdaESM struct {
 	Options Options
 }
@@ -92,7 +97,13 @@ const (
 )
 
 func (p EventBridge) options() Options { return p.Options }
-func (p LambdaESM) options() Options   { return p.Options }
+
+// options: logs/R03/H8-02-01.json and H13-02-01.json.
+func (p LambdaESM) options() Options {
+	o := p.Options
+	o.stringRule, o.wildcardRule = stringRuleNumberText, wildcardRuleNothing
+	return o
+}
 
 // options: under MessageAttributes scope a message without attributes never
 // matches and an empty String value does not exist (sns/R09 T06, H1-attr,
@@ -220,14 +231,7 @@ func (SNS) fixedSwitches() []Switch {
 	}
 }
 
-func (LambdaESM) fixedSwitches() []Switch {
-	return []Switch{
-		{
-			Name: "lambda.esm-filter.operator-allow-list", Value: "documented-table",
-			Ref: humanRecordsRef, Record: "matching-engines.md H13",
-		},
-	}
-}
+func (LambdaESM) fixedSwitches() []Switch { return nil }
 
 func (EventBridge) allows(Operator) bool { return true }
 
@@ -236,11 +240,10 @@ func (SNS) allows(Operator) bool { return true }
 func (LambdaESM) allows(op Operator) bool {
 	switch op {
 	case OperatorPrefix, OperatorSuffix, OperatorEqualsIgnoreCase, OperatorAnythingBut, OperatorNumeric,
-		OperatorExists, OperatorExactly, OperatorOr:
+		OperatorExists, OperatorExactly, OperatorOr, OperatorCIDR, OperatorWildcard, OperatorAnythingButPrefix,
+		OperatorAnythingButSuffix, OperatorPrefixEqualsIgnoreCase:
 		return true
-	case OperatorPrefixEqualsIgnoreCase, OperatorSuffixEqualsIgnoreCase, OperatorWildcard,
-		OperatorAnythingButPrefix, OperatorAnythingButSuffix, OperatorAnythingButEqualsIgnoreCase,
-		OperatorAnythingButWildcard, OperatorCIDR:
+	case OperatorSuffixEqualsIgnoreCase, OperatorAnythingButEqualsIgnoreCase, OperatorAnythingButWildcard:
 		return false
 	}
 	return false

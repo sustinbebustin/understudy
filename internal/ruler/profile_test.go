@@ -6,8 +6,10 @@ import (
 )
 
 // TestAllowLists checks each profile's operator allow-list
-// (matching-engines.md 5.1): EventBridge and SNS take every Ruler operator,
-// and Lambda takes only the operators its filtering table lists.
+// (matching-engines.md 5.1): EventBridge and SNS take every Ruler operator.
+// Lambda takes its filtering table's operators plus those lambda/R03
+// recorded it accepting (H13-01-create.json to H13-06-create.json), and
+// refuses the three forms neither lists nor records.
 func TestAllowLists(t *testing.T) {
 	t.Parallel()
 	operands := []struct {
@@ -35,14 +37,9 @@ func TestAllowLists(t *testing.T) {
 		"EventBridge": {},
 		"SNS":         {},
 		"LambdaESM": {
-			OperatorPrefixEqualsIgnoreCase:      "prefix match pattern must be a string",
 			OperatorSuffixEqualsIgnoreCase:      "suffix match pattern must be a string",
-			OperatorWildcard:                    "Unrecognized match type wildcard",
-			OperatorAnythingButPrefix:           "Unsupported anything-but pattern: prefix",
-			OperatorAnythingButSuffix:           "Unsupported anything-but pattern: suffix",
 			OperatorAnythingButEqualsIgnoreCase: "Unsupported anything-but pattern: equals-ignore-case",
 			OperatorAnythingButWildcard:         "Unsupported anything-but pattern: wildcard",
-			OperatorCIDR:                        "Unrecognized match type cidr",
 		},
 	}
 	profiles := map[string]Profile{"EventBridge": EventBridge{}, "SNS": SNS{Scope: MessageBody}, "LambdaESM": LambdaESM{}}
@@ -82,6 +79,70 @@ func TestExactlyInEveryProfile(t *testing.T) {
 	ok, err := MatchAttributes(attrs, map[string]Attribute{"x": StringAttribute{Value: "a"}})
 	if err != nil || !ok {
 		t.Errorf("SNS MessageAttributes: exactly a on String a = %t, %v; want a match", ok, err)
+	}
+}
+
+// lambdaRecorded are lambda/R03's filter cases: each pattern is a recorded
+// create's filter (lambda/R03/<id>-create.json, accepted), each event an SQS
+// record's body as the filter sees it (lambda/R03/H-bodies.*.tsv), and the
+// outcome whether AWS invoked the function for it (logs/R03/<step>.json).
+var lambdaRecorded = []struct {
+	step, pattern, event string
+	invoked              bool
+}{
+	{"H13-01-01", `{"body":{"ip":[{"cidr":"10.0.0.0/24"}]}}`, `{"body":{"ip":"10.0.0.7"}}`, true},
+	{"H13-01-02", `{"body":{"ip":[{"cidr":"10.0.0.0/24"}]}}`, `{"body":{"ip":"10.0.1.7"}}`, false},
+	// No positive control: a.png did not invoke within 90 s although the
+	// glob matches it under Ruler.
+	{"H13-02-01", `{"body":{"f":[{"wildcard":"*.png"}]}}`, `{"body":{"f":"a.png"}}`, false},
+	{"H13-02-02", `{"body":{"f":[{"wildcard":"*.png"}]}}`, `{"body":{"f":"a.jpg"}}`, false},
+	{"H13-03-01", `{"body":{"f":[{"anything-but":{"prefix":"a"}}]}}`, `{"body":{"f":"abc"}}`, false},
+	{"H13-03-02", `{"body":{"f":[{"anything-but":{"prefix":"a"}}]}}`, `{"body":{"f":"xyz"}}`, true},
+	{"H13-04-01", `{"body":{"f":[{"anything-but":{"suffix":".png"}}]}}`, `{"body":{"f":"a.png"}}`, false},
+	{"H13-04-02", `{"body":{"f":[{"anything-but":{"suffix":".png"}}]}}`, `{"body":{"f":"a.jpg"}}`, true},
+	{"H13-05-01", `{"body":{"f":[{"equals-ignore-case":"A"}]}}`, `{"body":{"f":"a"}}`, true},
+	{"H13-05-02", `{"body":{"f":[{"equals-ignore-case":"A"}]}}`, `{"body":{"f":"b"}}`, false},
+	{"H13-06-01", `{"body":{"f":[{"prefix":{"equals-ignore-case":"A"}}]}}`, `{"body":{"f":"abc"}}`, true},
+	{"H13-06-02", `{"body":{"f":[{"prefix":{"equals-ignore-case":"A"}}]}}`, `{"body":{"f":"xbc"}}`, false},
+	{"H13-11-01", `{"body":{"x":[{"exactly":"a"}]}}`, `{"body":{"x":"a"}}`, true},
+	{"H13-11-02", `{"body":{"x":[{"exactly":"a"}]}}`, `{"body":{"x":"b"}}`, false},
+	{"H8-01-01", `{"body":{"n":[{"numeric":[">",5]}]}}`, `{"body":{"n":"10"}}`, false},
+	{"H8-02-01", `{"body":{"n":["10"]}}`, `{"body":{"n":10}}`, true},
+	{"H8-03-01", `{"body":{"n":[10]}}`, `{"body":{"n":"10"}}`, false},
+	{"H7a-01-04", `{"body":{"n":[300]}}`, `{"body":{"n":"300"}}`, false},
+	{"H9-03-01", `{"body":{"ip":[{"cidr":"0.0.0.0/0"}]}}`, `{"body":{"ip":"10.0.0.1"}}`, true},
+	{"H9-03-02", `{"body":{"ip":[{"cidr":"0.0.0.0/0"}]}}`, `{"body":{"ip":"2001:db8::1"}}`, true},
+}
+
+// TestLambdaESMRecorded holds the LambdaESM profile to lambda/R03's
+// recorded accepts and invocations.
+func TestLambdaESMRecorded(t *testing.T) {
+	t.Parallel()
+	for _, tc := range lambdaRecorded {
+		t.Run(tc.step, func(t *testing.T) {
+			t.Parallel()
+			if got := matchEvent(t, mustCompile(t, tc.pattern, LambdaESM{}), tc.event); got != tc.invoked {
+				t.Errorf("%s: Match(%s, %s) = %t, want %t", tc.step, tc.pattern, tc.event, got, tc.invoked)
+			}
+		})
+	}
+}
+
+// TestStringRuleOnNumberOnlyUnderLambda: a string rule matching a number
+// with the same text is Lambda's (lambda/R03 H8-02); EventBridge and SNS
+// keep Ruler's type match (V10).
+func TestStringRuleOnNumberOnlyUnderLambda(t *testing.T) {
+	t.Parallel()
+	for _, p := range []Profile{EventBridge{}, SNS{Scope: MessageBody}} {
+		if matchEvent(t, mustCompile(t, `{"n":["10"]}`, p), `{"n":10}`) {
+			t.Errorf("%T: string rule 10 matched the number 10", p)
+		}
+	}
+	lambda := mustCompile(t, `{"n":["10"]}`, LambdaESM{})
+	for event, want := range map[string]bool{`{"n":10}`: true, `{"n":"10"}`: true, `{"n":10.0}`: false, `{"n":1e1}`: false} {
+		if got := matchEvent(t, lambda, event); got != want {
+			t.Errorf("LambdaESM: string rule 10 on %s = %t, want %t", event, got, want)
+		}
 	}
 }
 
@@ -208,7 +269,6 @@ func TestSwitches(t *testing.T) {
 			{Name: "lambda.esm-filter.empty-input", Value: "matchable", Ref: switchRef, Record: ""},
 			{Name: "lambda.esm-filter.bare-number", Value: "text-only", Ref: switchRef, Record: "matching-engines.md H7"},
 			{Name: "lambda.esm-filter.malformed-or", Value: "ordinary-key", Ref: switchRef, Record: "matching-engines.md H10"},
-			{Name: "lambda.esm-filter.operator-allow-list", Value: "documented-table", Ref: humanRecordsRef, Record: "matching-engines.md H13"},
 		}},
 	}
 	for _, tc := range tests {

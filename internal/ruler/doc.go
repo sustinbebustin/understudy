@@ -64,8 +64,14 @@
 //     shows only with one string (H7). A non-string operand of an
 //     anything-but object form gets Ruler's shape text, which SNS answers
 //     too (sns/R09 H7b-08).
-//   - Lambda accepts only the operators its filtering table lists; every
-//     Lambda rejection carries the generic recorded message.
+//   - Lambda accepts the operators its filtering table lists and those it
+//     was recorded accepting: cidr, wildcard, anything-but with prefix or
+//     suffix, and prefix with equals-ignore-case (H13). It refuses suffix
+//     with equals-ignore-case and anything-but with equals-ignore-case or
+//     wildcard, which neither its table nor a recording covers. Every Lambda
+//     rejection carries the generic recorded message. On Lambda a string rule
+//     also matches a number with the same text (H8), and a wildcard rule
+//     matches nothing, from one recording without a positive control (H13).
 //   - SNS counts distinct leaf keys across the whole policy, "$or" branches
 //     included (sns/R09 H3, T12); a key repeated in two branches counts
 //     once, which no recording covers. It sums the

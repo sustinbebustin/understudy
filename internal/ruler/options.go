@@ -20,7 +20,37 @@ type Options struct {
 	// MalformedOr decides what a "$or" that is not an array of two or more
 	// objects means.
 	MalformedOr MalformedOr
+
+	// stringRule and wildcardRule are fixed by a profile from its service's
+	// recordings and never open, so a caller cannot set them.
+	stringRule   stringRule
+	wildcardRule wildcardRule
 }
+
+// stringRule is which values a string rule such as ["10"] matches.
+type stringRule uint8
+
+const (
+	// stringRuleStringOnly is Ruler: only a string with that text (V10).
+	stringRuleStringOnly stringRule = iota
+	// stringRuleNumberText is Lambda: a number with the same source text as
+	// well, so ["10"] matches 10 but not 10.0 (lambda/R03 H8-02,
+	// logs/R03/H8-02-01.json).
+	stringRuleNumberText
+)
+
+// wildcardRule is what a {"wildcard": ...} rule matches.
+type wildcardRule uint8
+
+const (
+	// wildcardRuleGlob is Ruler: the strings the glob matches.
+	wildcardRuleGlob wildcardRule = iota
+	// wildcardRuleNothing is Lambda: it accepts {"wildcard":"*.png"} but
+	// invoked for neither a.png nor a.jpg (lambda/R03 H13-02,
+	// logs/R03/H13-02-01.json). The step had no positive control, so this
+	// rests on one observation.
+	wildcardRuleNothing
+)
 
 // ExistsTrue is the meaning of {"exists": true} for null and empty-string
 // values (matching-engines.md 4.4, V30, V31; human recording H2).

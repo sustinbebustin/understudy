@@ -113,6 +113,9 @@ func (s *Service) bindMappings(b lambdaapi.Binder) {
 		"an on-failure record the execution role may not send dropped with a journal entry, LastProcessingResult unchanged by a failure, on-failure messages without attributes, " +
 		"and records written while a Kinesis mapping is disabled being delivered after re-enable; " +
 		"MetricsConfig is stored, no metrics are emitted; " +
+		"a filter with a cidr /32 or /128 is refused as an invalid filter pattern, where AWS answers HTTP 500 InternalFailure (lambda/R03 H9-01, H9-02); " +
+		"a wildcard filter rule matches nothing, as one recording without a positive control shows (lambda/R03 H13-02); " +
+		"filters using suffix with equals-ignore-case, or anything-but with equals-ignore-case or wildcard, are refused, which the Lambda filtering documentation does not list and no recording covers; " +
 		"under iam.enforce=enforce an SQS mapping's execution role must be allowed sqs:GetQueueAttributes on the queue, where AWS is said to check sqs:ReceiveMessage, " +
 		"and a stream mapping's dynamodb:DescribeStream on the stream, and at LATEST dynamodb:GetShardIterator and dynamodb:GetRecords (lambda.esm.create-denied-text); " +
 		"a role lacking only dynamodb:ListStreams, or at TRIM_HORIZON only dynamodb:GetShardIterator or dynamodb:GetRecords, is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +

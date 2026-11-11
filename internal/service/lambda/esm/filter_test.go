@@ -27,8 +27,13 @@ func TestFiltersMatch(t *testing.T) {
 		{"JSON body, JSON pattern", []string{`{"body":{"kind":["order"]}}`}, `{"kind":"order"}`, true},
 		{"JSON body, JSON pattern on another value", []string{`{"body":{"kind":["order"]}}`}, `{"kind":"refund"}`, false},
 		{"JSON body, plain pattern", []string{`{"body":["{\"kind\":\"order\"}"]}`}, `{"kind":"order"}`, false},
-		{"plain body, metadata pattern", []string{`{"eventSource":["aws:sqs"]}`}, "plain-string", true},
+		{"plain body, metadata pattern", []string{`{"messageId":["m"]}`}, "plain-string", true},
 		{"JSON body, metadata pattern", []string{`{"awsRegion":["us-west-2"]}`}, `{"kind":"order"}`, false},
+		// AWS accepts a filter on eventSource but invokes for no record
+		// (lambda/R03/H13-10-create.json, logs/R03/H13-10-01.json).
+		{"eventSource is not matchable", []string{`{"eventSource":["aws:sqs"]}`}, `{"a":1}`, false},
+		// lambda/R03/H8-02-create.json, logs/R03/H8-02-01.json.
+		{"string rule on a number with its text", []string{`{"body":{"n":["10"]}}`}, `{"n":10}`, true},
 		{"numeric range", []string{`{"body":{"n":[{"numeric":[">",10,"<=",20]}]}}`}, `{"n":15}`, true},
 		{"prefix", []string{`{"body":{"id":[{"prefix":"ord-"}]}}`}, `{"id":"ord-1"}`, true},
 		{"filters are ORed", []string{`{"body":{"kind":["order"]}}`, `{"body":{"kind":["refund"]}}`}, `{"kind":"refund"}`, true},
@@ -76,10 +81,13 @@ func TestSwitches(t *testing.T) {
 		"lambda.esm-filter.empty-input":             {"matchable", ""},
 		"lambda.esm-filter.bare-number":             {"numeric-or-text", "matching-engines.md H7"},
 		"lambda.esm-filter.malformed-or":            {"rejected", "matching-engines.md H10"},
-		"lambda.esm-filter.operator-allow-list":     {"documented-table", "matching-engines.md H13"},
 	} {
 		if have, ok := got[name]; !ok || have != want {
 			t.Errorf("switch %s = %+v (listed %v), want %+v", name, have, ok, want)
 		}
+	}
+	// lambda/R03 H13 recorded the operators Lambda accepts beyond its table.
+	if have, ok := got["lambda.esm-filter.operator-allow-list"]; ok {
+		t.Errorf("switch lambda.esm-filter.operator-allow-list is listed (%+v); want it retired", have)
 	}
 }

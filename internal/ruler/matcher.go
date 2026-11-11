@@ -14,7 +14,8 @@ type matcher interface {
 	accepts(v value, o Options) bool
 }
 
-// matchEquals is a string rule, ["abc"]: the value is exactly that string.
+// matchEquals is a string rule, ["abc"]: the value is exactly that string,
+// or under Lambda a number with that text (stringRule).
 type matchEquals struct{ text string }
 
 // matchEqualsIP is a string rule that is an IP literal, ["10.0.0.1"]: Ruler
@@ -66,7 +67,8 @@ type matchSuffixIgnoreCase struct{ fold caseless }
 // matchEqualsIgnoreCase is {"equals-ignore-case": "s"}.
 type matchEqualsIgnoreCase struct{ fold caseless }
 
-// matchWildcard is {"wildcard": "a*b"}.
+// matchWildcard is {"wildcard": "a*b"}; under Lambda it matches nothing
+// (wildcardRule).
 type matchWildcard struct{ pattern glob }
 
 // matchAnythingBut is {"anything-but": "s"} or a list of strings: any value
@@ -151,8 +153,17 @@ func newValue(t token) value {
 	return value{kind: kindNull, text: t.text}
 }
 
-func (m matchEquals) accepts(v value, _ Options) bool {
-	return v.kind == kindString && v.text == m.text
+func (m matchEquals) accepts(v value, o Options) bool {
+	switch v.kind {
+	case kindString:
+	case kindNumber:
+		if o.stringRule == stringRuleStringOnly {
+			return false
+		}
+	case kindTrue, kindFalse, kindNull:
+		return false
+	}
+	return v.text == m.text
 }
 
 func (m matchEqualsIP) accepts(v value, _ Options) bool {
@@ -205,8 +216,8 @@ func (m matchEqualsIgnoreCase) accepts(v value, _ Options) bool {
 	return v.kind == kindString && m.fold.equal(v.text)
 }
 
-func (m matchWildcard) accepts(v value, _ Options) bool {
-	return v.kind == kindString && m.pattern.matches(v.text)
+func (m matchWildcard) accepts(v value, o Options) bool {
+	return o.wildcardRule == wildcardRuleGlob && v.kind == kindString && m.pattern.matches(v.text)
 }
 
 func (m matchAnythingBut) accepts(v value, _ Options) bool {

@@ -50,9 +50,8 @@ func switchTable() map[string]switchMeta {
 			evidence.Inferred, ops,
 			fidelity.NoScenario{Reason: "unrecorded for Lambda: matching-engines.md H1 covers SNS and EventBridge only"},
 		},
-		"lambda.esm-filter.bare-number":         {evidence.Inferred, ops, r03("H7a-01-create, H7a-02-create")},
-		"lambda.esm-filter.malformed-or":        {evidence.Inferred, ops, r03("H10-01-create to H10-06-create")},
-		"lambda.esm-filter.operator-allow-list": {evidence.Inferred, ops, r03("H13-01-create to H13-15-create")},
+		"lambda.esm-filter.bare-number":  {evidence.Inferred, ops, r03("H7a-01-create, H7a-02-create")},
+		"lambda.esm-filter.malformed-or": {evidence.Inferred, ops, r03("H10-01-create to H10-06-create")},
 	}
 }
 
