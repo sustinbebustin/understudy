@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
@@ -141,9 +142,25 @@ func rulesLit(rules []RuleIR) string {
 		if r.Reason != "" {
 			s += ", reason: " + goString(r.Reason)
 		}
+		if r.Echo != (awserr.CoralEcho{}) {
+			s += ", echo: " + echoLit(r.Echo)
+		}
 		parts = append(parts, s+"}")
 	}
 	return "[]validationRule{" + strings.Join(parts, ", ") + "}"
+}
+
+// echoLit is the awserr.CoralEcho literal of a rule's echo, naming only
+// the options it omits.
+func echoLit(e awserr.CoralEcho) string {
+	var fields []string
+	if e.Value == awserr.OmitValue {
+		fields = append(fields, "Value: awserr.OmitValue")
+	}
+	if e.Enum == awserr.OmitEnum {
+		fields = append(fields, "Enum: awserr.OmitEnum")
+	}
+	return "awserr.CoralEcho{" + strings.Join(fields, ", ") + "}"
 }
 
 // hasCodes reports whether any rule names an error, so a rule list that

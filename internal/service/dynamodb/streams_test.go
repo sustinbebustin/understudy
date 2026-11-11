@@ -399,13 +399,18 @@ func TestListStreams(t *testing.T) {
 	})
 }
 
-// ListStreams' Limit and TableName constraint failures use the generated
-// Coral text, which quotes the value where AWS's omits it (aws-recorded,
-// dynamodb-streams.md 6.5: DDBS-02), so ListStreams is Partial with the
-// same clause as the other Streams operations, not Full.
-func TestListStreamsNotesTheConstraintTexts(t *testing.T) {
+// ListStreams' Coral constraint texts leave the value out, as DDBS-02
+// recorded for DescribeStream and GetRecords (aws-recorded,
+// dynamodb-streams.md 6.5; for ListStreams inferred), and every answer
+// DDBS-03, DDBS-08 and DDBS-17 recorded is AWS's (6.1), so ListStreams is
+// Full.
+func TestListStreamsIsFull(t *testing.T) {
 	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
-		const clause = "a constraint violation's text quotes the value (\"Value '0' at 'limit'\"), where AWS's omits it (\"Value at 'limit'\")"
+		e := h.errorOf(h.streamsCall("ListStreams", `{"Limit":0}`, defaultCaller()), http.StatusBadRequest)
+		const want = "1 validation error detected: Value at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1"
+		if e.Type != "com.amazon.coral.validate#ValidationException" || e.text() != want {
+			h.Errorf("ListStreams Limit 0 = %+v, want com.amazon.coral.validate#ValidationException %q", e, want)
+		}
 		i := slices.IndexFunc(dynamodbstreamsapi.Service().Operations, func(op *registry.Operation) bool { return op.ID.Name == "ListStreams" })
 		if i < 0 {
 			h.Fatal("dynamodbstreamsapi has no ListStreams operation")
@@ -415,8 +420,8 @@ func TestListStreamsNotesTheConstraintTexts(t *testing.T) {
 		if !ok {
 			h.Fatalf("ListStreams is %#v, want bound", status)
 		}
-		if p, ok := bound.Coverage.(registry.Partial); !ok || !strings.Contains(p.Note, clause) {
-			h.Errorf("ListStreams coverage = %#v, want Partial with the note %q", bound.Coverage, clause)
+		if _, ok := bound.Coverage.(registry.Full); !ok {
+			h.Errorf("ListStreams coverage = %#v, want Full", bound.Coverage)
 		}
 	})
 }
@@ -662,6 +667,44 @@ func TestDescribeStreamShortARN(t *testing.T) {
 		e := h.errorOf(h.streamsCall("DescribeStream", `{"StreamArn":"short"}`, defaultCaller()), http.StatusBadRequest)
 		if e.Type != "com.amazon.coral.validate#ValidationException" || e.text() != "Invalid StreamArn" {
 			h.Errorf("a short StreamArn: %+v, want ValidationException Invalid StreamArn", e)
+		}
+	})
+}
+
+// Streams' Coral constraint texts leave the value out and keep the enum
+// value set (aws-recorded, dynamodb-streams.md 6.5:
+// testdata/parity/dynamodb/DDBS-02/03-describe-limit-0.json,
+// 07-bad-type.json, 10-short-shard.json, 12-records-limit-0.json). The
+// enum list's content differs (the pinned model lacks AT_TIMESTAMP), so 07
+// is checked up to the list.
+func TestConstraintTextsOmitTheValue(t *testing.T) {
+	runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
+		arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
+		shard := h.describe(arn).Shards[0].ShardID
+		it := h.iterator(arn, shard, "TRIM_HORIZON", "")
+		for _, c := range []struct{ name, op, body, text string }{
+			{
+				"03 DescribeStream Limit 0", "DescribeStream", `{"StreamArn":"` + arn + `","Limit":0}`,
+				"1 validation error detected: Value at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1",
+			},
+			{
+				"10 short ShardId", "GetShardIterator", `{"StreamArn":"` + arn + `","ShardId":"x","ShardIteratorType":"TRIM_HORIZON"}`,
+				"1 validation error detected: Value at 'shardId' failed to satisfy constraint: Member must have length greater than or equal to 28",
+			},
+			{
+				"12 GetRecords Limit 0", "GetRecords", `{"ShardIterator":"` + it + `","Limit":0}`,
+				"1 validation error detected: Value at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1",
+			},
+		} {
+			e := h.errorOf(h.streamsCall(c.op, c.body, defaultCaller()), http.StatusBadRequest)
+			if e.Type != "com.amazon.coral.validate#ValidationException" || e.text() != c.text {
+				h.Errorf("%s: %+v, want com.amazon.coral.validate#ValidationException %q", c.name, e, c.text)
+			}
+		}
+		e := h.errorOf(h.streamsCall("GetShardIterator", `{"StreamArn":"`+arn+`","ShardId":"`+shard+`","ShardIteratorType":"BOGUS"}`, defaultCaller()), http.StatusBadRequest)
+		const prefix = "1 validation error detected: Value at 'shardIteratorType' failed to satisfy constraint: Member must satisfy enum value set: ["
+		if e.Type != "com.amazon.coral.validate#ValidationException" || !strings.HasPrefix(e.text(), prefix) {
+			h.Errorf("07 BOGUS ShardIteratorType: %+v, want com.amazon.coral.validate#ValidationException starting %q", e, prefix)
 		}
 	})
 }

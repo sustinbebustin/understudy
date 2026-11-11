@@ -6858,6 +6858,7 @@ type validationRule struct {
 	id     func() awserr.Identity
 	style  validationStyle
 	reason string
+	echo   awserr.CoralEcho // what a Coral entry prints; the zero value prints everything
 }
 
 // validationPath is one member path of an operation input; "*" stands for a
@@ -6915,15 +6916,15 @@ func (p *validationPolicy) render(vs []awserr.Violation) *awserr.Error {
 
 // coralUnder renders, as one Coral message, every violation whose rule is
 // Coral-styled and names the code id, each path under the policy's root
-// when it has one.
+// when it has one and each entry under its rule's echo.
 func (p *validationPolicy) coralUnder(id awserr.Identity, vs []awserr.Violation, rules []validationRule) string {
-	var same []awserr.Violation
+	var same []awserr.CoralEntry
 	for i, v := range vs {
 		if rules[i].style == styleCoral && rules[i].id().Shape == id.Shape {
-			same = append(same, p.rooted(v))
+			same = append(same, awserr.CoralEntry{Violation: p.rooted(v), Echo: rules[i].echo})
 		}
 	}
-	return awserr.CoralMessage(same)
+	return awserr.CoralEntries(same)
 }
 
 // rooted is v with its path under the policy's root, unless the policy has
@@ -7022,7 +7023,7 @@ var policyAcceptDelegationRequest = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"delegationRequestId"}, param: "DelegationRequestId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error AcceptDelegationRequest answers for vs, the
@@ -7042,7 +7043,7 @@ var policyAcquireRole = validationPolicy{
 		{segments: []string{"replacementValues", "*", "member", "values"}, param: "Values"},
 		{segments: []string{"replacementValues", "*", "member", "values", "*", "member"}, param: "Values"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error AcquireRole answers for vs, the
@@ -7057,7 +7058,7 @@ var policyAddClientIDToOpenIDConnectProvider = validationPolicy{
 		{segments: []string{"openIDConnectProviderArn"}, param: "OpenIDConnectProviderArn"},
 		{segments: []string{"clientID"}, param: "ClientID"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error AddClientIDToOpenIDConnectProvider answers for vs, the
@@ -7072,7 +7073,7 @@ var policyAddRoleToInstanceProfile = validationPolicy{
 		{segments: []string{"instanceProfileName"}, param: "InstanceProfileName"},
 		{segments: []string{"roleName"}, param: "RoleName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error AddRoleToInstanceProfile answers for vs, the
@@ -7087,7 +7088,7 @@ var policyAddUserToGroup = validationPolicy{
 		{segments: []string{"groupName"}, param: "GroupName"},
 		{segments: []string{"userName"}, param: "UserName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error AddUserToGroup answers for vs, the
@@ -7101,7 +7102,7 @@ var policyAssociateDelegationRequest = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"delegationRequestId"}, param: "DelegationRequestId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error AssociateDelegationRequest answers for vs, the
@@ -7116,7 +7117,7 @@ var policyAttachGroupPolicy = validationPolicy{
 		{segments: []string{"groupName"}, param: "GroupName"},
 		{segments: []string{"policyArn"}, param: "PolicyArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error AttachGroupPolicy answers for vs, the
@@ -7131,7 +7132,7 @@ var policyAttachRolePolicy = validationPolicy{
 		{segments: []string{"roleName"}, param: "RoleName"},
 		{segments: []string{"policyArn"}, param: "PolicyArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error AttachRolePolicy answers for vs, the
@@ -7146,7 +7147,7 @@ var policyAttachUserPolicy = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"policyArn"}, param: "PolicyArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error AttachUserPolicy answers for vs, the
@@ -7161,7 +7162,7 @@ var policyChangePassword = validationPolicy{
 		{segments: []string{"oldPassword"}, param: "OldPassword"},
 		{segments: []string{"newPassword"}, param: "NewPassword"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ChangePassword answers for vs, the
@@ -7175,7 +7176,7 @@ var policyCreateAccessKey = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"userName"}, param: "UserName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateAccessKey answers for vs, the
@@ -7189,7 +7190,7 @@ var policyCreateAccountAlias = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"accountAlias"}, param: "AccountAlias"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateAccountAlias answers for vs, the
@@ -7218,7 +7219,7 @@ var policyCreateDelegationRequest = validationPolicy{
 		{segments: []string{"sessionDuration"}, param: "SessionDuration"},
 		{segments: []string{"onlySendByOwner"}, param: "OnlySendByOwner"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateDelegationRequest answers for vs, the
@@ -7233,7 +7234,7 @@ var policyCreateGroup = validationPolicy{
 		{segments: []string{"path"}, param: "Path"},
 		{segments: []string{"groupName"}, param: "GroupName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateGroup answers for vs, the
@@ -7252,7 +7253,7 @@ var policyCreateInstanceProfile = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateInstanceProfile answers for vs, the
@@ -7268,7 +7269,7 @@ var policyCreateLoginProfile = validationPolicy{
 		{segments: []string{"password"}, param: "Password"},
 		{segments: []string{"passwordResetRequired"}, param: "PasswordResetRequired"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateLoginProfile answers for vs, the
@@ -7290,7 +7291,7 @@ var policyCreateOpenIDConnectProvider = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateOpenIDConnectProvider answers for vs, the
@@ -7311,7 +7312,7 @@ var policyCreatePolicy = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreatePolicy answers for vs, the
@@ -7327,7 +7328,7 @@ var policyCreatePolicyVersion = validationPolicy{
 		{segments: []string{"policyDocument"}, param: "PolicyDocument"},
 		{segments: []string{"setAsDefault"}, param: "SetAsDefault"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreatePolicyVersion answers for vs, the
@@ -7350,7 +7351,7 @@ var policyCreateRole = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateRole answers for vs, the
@@ -7371,7 +7372,7 @@ var policyCreateSAMLProvider = validationPolicy{
 		{segments: []string{"assertionEncryptionMode"}, param: "AssertionEncryptionMode"},
 		{segments: []string{"addPrivateKey"}, param: "AddPrivateKey"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateSAMLProvider answers for vs, the
@@ -7387,7 +7388,7 @@ var policyCreateServiceLinkedRole = validationPolicy{
 		{segments: []string{"description"}, param: "Description"},
 		{segments: []string{"customSuffix"}, param: "CustomSuffix"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateServiceLinkedRole answers for vs, the
@@ -7403,7 +7404,7 @@ var policyCreateServiceSpecificCredential = validationPolicy{
 		{segments: []string{"serviceName"}, param: "ServiceName"},
 		{segments: []string{"credentialAgeDays"}, param: "CredentialAgeDays"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateServiceSpecificCredential answers for vs, the
@@ -7423,7 +7424,7 @@ var policyCreateUser = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateUser answers for vs, the
@@ -7442,7 +7443,7 @@ var policyCreateVirtualMFADevice = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error CreateVirtualMFADevice answers for vs, the
@@ -7457,7 +7458,7 @@ var policyDeactivateMFADevice = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"serialNumber"}, param: "SerialNumber"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeactivateMFADevice answers for vs, the
@@ -7472,7 +7473,7 @@ var policyDeleteAccessKey = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"accessKeyId"}, param: "AccessKeyId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteAccessKey answers for vs, the
@@ -7486,7 +7487,7 @@ var policyDeleteAccountAlias = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"accountAlias"}, param: "AccountAlias"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteAccountAlias answers for vs, the
@@ -7498,7 +7499,7 @@ func (*DeleteAccountAliasInput) ValidationError(vs []awserr.Violation) *awserr.E
 
 var policyDeleteAccountPasswordPolicy = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteAccountPasswordPolicy answers for vs, the
@@ -7512,7 +7513,7 @@ var policyDeleteGroup = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"groupName"}, param: "GroupName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteGroup answers for vs, the
@@ -7527,7 +7528,7 @@ var policyDeleteGroupPolicy = validationPolicy{
 		{segments: []string{"groupName"}, param: "GroupName"},
 		{segments: []string{"policyName"}, param: "PolicyName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteGroupPolicy answers for vs, the
@@ -7541,7 +7542,7 @@ var policyDeleteInstanceProfile = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"instanceProfileName"}, param: "InstanceProfileName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteInstanceProfile answers for vs, the
@@ -7555,7 +7556,7 @@ var policyDeleteLoginProfile = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"userName"}, param: "UserName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteLoginProfile answers for vs, the
@@ -7569,7 +7570,7 @@ var policyDeleteOpenIDConnectProvider = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"openIDConnectProviderArn"}, param: "OpenIDConnectProviderArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteOpenIDConnectProvider answers for vs, the
@@ -7583,7 +7584,7 @@ var policyDeletePolicy = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"policyArn"}, param: "PolicyArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeletePolicy answers for vs, the
@@ -7598,7 +7599,7 @@ var policyDeletePolicyVersion = validationPolicy{
 		{segments: []string{"policyArn"}, param: "PolicyArn"},
 		{segments: []string{"versionId"}, param: "VersionId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeletePolicyVersion answers for vs, the
@@ -7612,7 +7613,7 @@ var policyDeleteRole = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"roleName"}, param: "RoleName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteRole answers for vs, the
@@ -7626,7 +7627,7 @@ var policyDeleteRolePermissionsBoundary = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"roleName"}, param: "RoleName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteRolePermissionsBoundary answers for vs, the
@@ -7641,7 +7642,7 @@ var policyDeleteRolePolicy = validationPolicy{
 		{segments: []string{"roleName"}, param: "RoleName"},
 		{segments: []string{"policyName"}, param: "PolicyName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteRolePolicy answers for vs, the
@@ -7655,7 +7656,7 @@ var policyDeleteSAMLProvider = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"sAMLProviderArn"}, param: "SAMLProviderArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteSAMLProvider answers for vs, the
@@ -7670,7 +7671,7 @@ var policyDeleteSSHPublicKey = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"sSHPublicKeyId"}, param: "SSHPublicKeyId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteSSHPublicKey answers for vs, the
@@ -7684,7 +7685,7 @@ var policyDeleteServerCertificate = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"serverCertificateName"}, param: "ServerCertificateName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteServerCertificate answers for vs, the
@@ -7698,7 +7699,7 @@ var policyDeleteServiceLinkedRole = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"roleName"}, param: "RoleName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteServiceLinkedRole answers for vs, the
@@ -7713,7 +7714,7 @@ var policyDeleteServiceSpecificCredential = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"serviceSpecificCredentialId"}, param: "ServiceSpecificCredentialId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteServiceSpecificCredential answers for vs, the
@@ -7728,7 +7729,7 @@ var policyDeleteSigningCertificate = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"certificateId"}, param: "CertificateId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteSigningCertificate answers for vs, the
@@ -7742,7 +7743,7 @@ var policyDeleteUser = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"userName"}, param: "UserName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteUser answers for vs, the
@@ -7756,7 +7757,7 @@ var policyDeleteUserPermissionsBoundary = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"userName"}, param: "UserName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteUserPermissionsBoundary answers for vs, the
@@ -7771,7 +7772,7 @@ var policyDeleteUserPolicy = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"policyName"}, param: "PolicyName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteUserPolicy answers for vs, the
@@ -7785,7 +7786,7 @@ var policyDeleteVirtualMFADevice = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"serialNumber"}, param: "SerialNumber"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DeleteVirtualMFADevice answers for vs, the
@@ -7800,7 +7801,7 @@ var policyDetachGroupPolicy = validationPolicy{
 		{segments: []string{"groupName"}, param: "GroupName"},
 		{segments: []string{"policyArn"}, param: "PolicyArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DetachGroupPolicy answers for vs, the
@@ -7815,7 +7816,7 @@ var policyDetachRolePolicy = validationPolicy{
 		{segments: []string{"roleName"}, param: "RoleName"},
 		{segments: []string{"policyArn"}, param: "PolicyArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DetachRolePolicy answers for vs, the
@@ -7830,7 +7831,7 @@ var policyDetachUserPolicy = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"policyArn"}, param: "PolicyArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DetachUserPolicy answers for vs, the
@@ -7842,7 +7843,7 @@ func (*DetachUserPolicyInput) ValidationError(vs []awserr.Violation) *awserr.Err
 
 var policyDisableOrganizationsRootCredentialsManagement = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DisableOrganizationsRootCredentialsManagement answers for vs, the
@@ -7854,7 +7855,7 @@ func (*DisableOrganizationsRootCredentialsManagementInput) ValidationError(vs []
 
 var policyDisableOrganizationsRootSessions = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DisableOrganizationsRootSessions answers for vs, the
@@ -7866,7 +7867,7 @@ func (*DisableOrganizationsRootSessionsInput) ValidationError(vs []awserr.Violat
 
 var policyDisableOutboundWebIdentityFederation = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error DisableOutboundWebIdentityFederation answers for vs, the
@@ -7883,7 +7884,7 @@ var policyEnableMFADevice = validationPolicy{
 		{segments: []string{"authenticationCode1"}, param: "AuthenticationCode1"},
 		{segments: []string{"authenticationCode2"}, param: "AuthenticationCode2"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error EnableMFADevice answers for vs, the
@@ -7895,7 +7896,7 @@ func (*EnableMFADeviceInput) ValidationError(vs []awserr.Violation) *awserr.Erro
 
 var policyEnableOrganizationsRootCredentialsManagement = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error EnableOrganizationsRootCredentialsManagement answers for vs, the
@@ -7907,7 +7908,7 @@ func (*EnableOrganizationsRootCredentialsManagementInput) ValidationError(vs []a
 
 var policyEnableOrganizationsRootSessions = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error EnableOrganizationsRootSessions answers for vs, the
@@ -7919,7 +7920,7 @@ func (*EnableOrganizationsRootSessionsInput) ValidationError(vs []awserr.Violati
 
 var policyEnableOutboundWebIdentityFederation = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error EnableOutboundWebIdentityFederation answers for vs, the
@@ -7931,7 +7932,7 @@ func (*EnableOutboundWebIdentityFederationInput) ValidationError(vs []awserr.Vio
 
 var policyGenerateCredentialReport = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GenerateCredentialReport answers for vs, the
@@ -7946,7 +7947,7 @@ var policyGenerateOrganizationsAccessReport = validationPolicy{
 		{segments: []string{"entityPath"}, param: "EntityPath"},
 		{segments: []string{"organizationsPolicyId"}, param: "OrganizationsPolicyId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GenerateOrganizationsAccessReport answers for vs, the
@@ -7961,7 +7962,7 @@ var policyGenerateServiceLastAccessedDetails = validationPolicy{
 		{segments: []string{"arn"}, param: "Arn"},
 		{segments: []string{"granularity"}, param: "Granularity"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GenerateServiceLastAccessedDetails answers for vs, the
@@ -7975,7 +7976,7 @@ var policyGetAccessKeyLastUsed = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"accessKeyId"}, param: "AccessKeyId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetAccessKeyLastUsed answers for vs, the
@@ -7992,7 +7993,7 @@ var policyGetAccountAuthorizationDetails = validationPolicy{
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 		{segments: []string{"marker"}, param: "Marker"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetAccountAuthorizationDetails answers for vs, the
@@ -8004,7 +8005,7 @@ func (*GetAccountAuthorizationDetailsInput) ValidationError(vs []awserr.Violatio
 
 var policyGetAccountPasswordPolicy = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetAccountPasswordPolicy answers for vs, the
@@ -8016,7 +8017,7 @@ func (*GetAccountPasswordPolicyInput) ValidationError(vs []awserr.Violation) *aw
 
 var policyGetAccountProperties = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetAccountProperties answers for vs, the
@@ -8028,7 +8029,7 @@ func (*GetAccountPropertiesInput) ValidationError(vs []awserr.Violation) *awserr
 
 var policyGetAccountSummary = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetAccountSummary answers for vs, the
@@ -8043,7 +8044,7 @@ var policyGetContextKeysForCustomPolicy = validationPolicy{
 		{segments: []string{"policyInputList"}, param: "PolicyInputList"},
 		{segments: []string{"policyInputList", "*", "member"}, param: "PolicyInputList"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetContextKeysForCustomPolicy answers for vs, the
@@ -8059,7 +8060,7 @@ var policyGetContextKeysForPrincipalPolicy = validationPolicy{
 		{segments: []string{"policyInputList"}, param: "PolicyInputList"},
 		{segments: []string{"policyInputList", "*", "member"}, param: "PolicyInputList"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetContextKeysForPrincipalPolicy answers for vs, the
@@ -8071,7 +8072,7 @@ func (*GetContextKeysForPrincipalPolicyInput) ValidationError(vs []awserr.Violat
 
 var policyGetCredentialReport = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetCredentialReport answers for vs, the
@@ -8086,7 +8087,7 @@ var policyGetDelegationRequest = validationPolicy{
 		{segments: []string{"delegationRequestId"}, param: "DelegationRequestId"},
 		{segments: []string{"delegationPermissionCheck"}, param: "DelegationPermissionCheck"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetDelegationRequest answers for vs, the
@@ -8102,7 +8103,7 @@ var policyGetGroup = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetGroup answers for vs, the
@@ -8117,7 +8118,7 @@ var policyGetGroupPolicy = validationPolicy{
 		{segments: []string{"groupName"}, param: "GroupName"},
 		{segments: []string{"policyName"}, param: "PolicyName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetGroupPolicy answers for vs, the
@@ -8132,7 +8133,7 @@ var policyGetHumanReadableSummary = validationPolicy{
 		{segments: []string{"entityArn"}, param: "EntityArn"},
 		{segments: []string{"locale"}, param: "Locale"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetHumanReadableSummary answers for vs, the
@@ -8146,7 +8147,7 @@ var policyGetInstanceProfile = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"instanceProfileName"}, param: "InstanceProfileName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetInstanceProfile answers for vs, the
@@ -8160,7 +8161,7 @@ var policyGetLoginProfile = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"userName"}, param: "UserName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetLoginProfile answers for vs, the
@@ -8175,7 +8176,7 @@ var policyGetMFADevice = validationPolicy{
 		{segments: []string{"serialNumber"}, param: "SerialNumber"},
 		{segments: []string{"userName"}, param: "UserName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetMFADevice answers for vs, the
@@ -8189,7 +8190,7 @@ var policyGetOpenIDConnectProvider = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"openIDConnectProviderArn"}, param: "OpenIDConnectProviderArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetOpenIDConnectProvider answers for vs, the
@@ -8206,7 +8207,7 @@ var policyGetOrganizationsAccessReport = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"sortKey"}, param: "SortKey"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetOrganizationsAccessReport answers for vs, the
@@ -8218,7 +8219,7 @@ func (*GetOrganizationsAccessReportInput) ValidationError(vs []awserr.Violation)
 
 var policyGetOutboundWebIdentityFederationInfo = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetOutboundWebIdentityFederationInfo answers for vs, the
@@ -8232,7 +8233,7 @@ var policyGetPolicy = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"policyArn"}, param: "PolicyArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetPolicy answers for vs, the
@@ -8247,7 +8248,7 @@ var policyGetPolicyVersion = validationPolicy{
 		{segments: []string{"policyArn"}, param: "PolicyArn"},
 		{segments: []string{"versionId"}, param: "VersionId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetPolicyVersion answers for vs, the
@@ -8261,7 +8262,7 @@ var policyGetRole = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"roleName"}, param: "RoleName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetRole answers for vs, the
@@ -8276,7 +8277,7 @@ var policyGetRolePolicy = validationPolicy{
 		{segments: []string{"roleName"}, param: "RoleName"},
 		{segments: []string{"policyName"}, param: "PolicyName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetRolePolicy answers for vs, the
@@ -8291,7 +8292,7 @@ var policyGetRoleTemplateVersion = validationPolicy{
 		{segments: []string{"templateArn"}, param: "TemplateArn"},
 		{segments: []string{"minorVersion"}, param: "MinorVersion"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetRoleTemplateVersion answers for vs, the
@@ -8305,7 +8306,7 @@ var policyGetSAMLProvider = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"sAMLProviderArn"}, param: "SAMLProviderArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetSAMLProvider answers for vs, the
@@ -8321,7 +8322,7 @@ var policyGetSSHPublicKey = validationPolicy{
 		{segments: []string{"sSHPublicKeyId"}, param: "SSHPublicKeyId"},
 		{segments: []string{"encoding"}, param: "Encoding"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetSSHPublicKey answers for vs, the
@@ -8335,7 +8336,7 @@ var policyGetServerCertificate = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"serverCertificateName"}, param: "ServerCertificateName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetServerCertificate answers for vs, the
@@ -8351,7 +8352,7 @@ var policyGetServiceLastAccessedDetails = validationPolicy{
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 		{segments: []string{"marker"}, param: "Marker"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetServiceLastAccessedDetails answers for vs, the
@@ -8368,7 +8369,7 @@ var policyGetServiceLastAccessedDetailsWithEntities = validationPolicy{
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 		{segments: []string{"marker"}, param: "Marker"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetServiceLastAccessedDetailsWithEntities answers for vs, the
@@ -8382,7 +8383,7 @@ var policyGetServiceLinkedRoleDeletionStatus = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"deletionTaskId"}, param: "DeletionTaskId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetServiceLinkedRoleDeletionStatus answers for vs, the
@@ -8396,7 +8397,7 @@ var policyGetUser = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"userName"}, param: "UserName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetUser answers for vs, the
@@ -8411,7 +8412,7 @@ var policyGetUserPolicy = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"policyName"}, param: "PolicyName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error GetUserPolicy answers for vs, the
@@ -8427,7 +8428,7 @@ var policyListAccessKeys = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListAccessKeys answers for vs, the
@@ -8442,7 +8443,7 @@ var policyListAccountAliases = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListAccountAliases answers for vs, the
@@ -8459,7 +8460,7 @@ var policyListAttachedGroupPolicies = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListAttachedGroupPolicies answers for vs, the
@@ -8476,7 +8477,7 @@ var policyListAttachedRolePolicies = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListAttachedRolePolicies answers for vs, the
@@ -8493,7 +8494,7 @@ var policyListAttachedUserPolicies = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListAttachedUserPolicies answers for vs, the
@@ -8509,7 +8510,7 @@ var policyListDelegationRequests = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListDelegationRequests answers for vs, the
@@ -8528,7 +8529,7 @@ var policyListEntitiesForPolicy = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListEntitiesForPolicy answers for vs, the
@@ -8544,7 +8545,7 @@ var policyListGroupPolicies = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListGroupPolicies answers for vs, the
@@ -8560,7 +8561,7 @@ var policyListGroups = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListGroups answers for vs, the
@@ -8576,7 +8577,7 @@ var policyListGroupsForUser = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListGroupsForUser answers for vs, the
@@ -8592,7 +8593,7 @@ var policyListInstanceProfileTags = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListInstanceProfileTags answers for vs, the
@@ -8608,7 +8609,7 @@ var policyListInstanceProfiles = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListInstanceProfiles answers for vs, the
@@ -8624,7 +8625,7 @@ var policyListInstanceProfilesForRole = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListInstanceProfilesForRole answers for vs, the
@@ -8640,7 +8641,7 @@ var policyListMFADeviceTags = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListMFADeviceTags answers for vs, the
@@ -8656,7 +8657,7 @@ var policyListMFADevices = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListMFADevices answers for vs, the
@@ -8672,7 +8673,7 @@ var policyListOpenIDConnectProviderTags = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListOpenIDConnectProviderTags answers for vs, the
@@ -8684,7 +8685,7 @@ func (*ListOpenIDConnectProviderTagsInput) ValidationError(vs []awserr.Violation
 
 var policyListOpenIDConnectProviders = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListOpenIDConnectProviders answers for vs, the
@@ -8696,7 +8697,7 @@ func (*ListOpenIDConnectProvidersInput) ValidationError(vs []awserr.Violation) *
 
 var policyListOrganizationsFeatures = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListOrganizationsFeatures answers for vs, the
@@ -8715,7 +8716,7 @@ var policyListPolicies = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListPolicies answers for vs, the
@@ -8732,7 +8733,7 @@ var policyListPoliciesGrantingServiceAccess = validationPolicy{
 		{segments: []string{"serviceNamespaces"}, param: "ServiceNamespaces"},
 		{segments: []string{"serviceNamespaces", "*", "member"}, param: "ServiceNamespaces"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListPoliciesGrantingServiceAccess answers for vs, the
@@ -8748,7 +8749,7 @@ var policyListPolicyTags = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListPolicyTags answers for vs, the
@@ -8764,7 +8765,7 @@ var policyListPolicyVersions = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListPolicyVersions answers for vs, the
@@ -8780,7 +8781,7 @@ var policyListRolePolicies = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListRolePolicies answers for vs, the
@@ -8796,7 +8797,7 @@ var policyListRoleTags = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListRoleTags answers for vs, the
@@ -8812,7 +8813,7 @@ var policyListRoles = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListRoles answers for vs, the
@@ -8828,7 +8829,7 @@ var policyListSAMLProviderTags = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListSAMLProviderTags answers for vs, the
@@ -8840,7 +8841,7 @@ func (*ListSAMLProviderTagsInput) ValidationError(vs []awserr.Violation) *awserr
 
 var policyListSAMLProviders = validationPolicy{
 	paths:   []validationPath{},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListSAMLProviders answers for vs, the
@@ -8856,7 +8857,7 @@ var policyListSSHPublicKeys = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListSSHPublicKeys answers for vs, the
@@ -8872,7 +8873,7 @@ var policyListServerCertificateTags = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListServerCertificateTags answers for vs, the
@@ -8888,7 +8889,7 @@ var policyListServerCertificates = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListServerCertificates answers for vs, the
@@ -8906,7 +8907,7 @@ var policyListServiceSpecificCredentials = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListServiceSpecificCredentials answers for vs, the
@@ -8922,7 +8923,7 @@ var policyListSigningCertificates = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListSigningCertificates answers for vs, the
@@ -8938,7 +8939,7 @@ var policyListUserPolicies = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListUserPolicies answers for vs, the
@@ -8954,7 +8955,7 @@ var policyListUserTags = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListUserTags answers for vs, the
@@ -8970,7 +8971,7 @@ var policyListUsers = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListUsers answers for vs, the
@@ -8986,7 +8987,7 @@ var policyListVirtualMFADevices = validationPolicy{
 		{segments: []string{"marker"}, param: "Marker"},
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ListVirtualMFADevices answers for vs, the
@@ -9002,7 +9003,7 @@ var policyPutAccountProperties = validationPolicy{
 		{segments: []string{"properties", "*"}, param: "Properties"},
 		{segments: []string{"properties", "*", "member"}, param: "Properties"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error PutAccountProperties answers for vs, the
@@ -9018,7 +9019,7 @@ var policyPutGroupPolicy = validationPolicy{
 		{segments: []string{"policyName"}, param: "PolicyName"},
 		{segments: []string{"policyDocument"}, param: "PolicyDocument"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error PutGroupPolicy answers for vs, the
@@ -9033,7 +9034,7 @@ var policyPutRolePermissionsBoundary = validationPolicy{
 		{segments: []string{"roleName"}, param: "RoleName"},
 		{segments: []string{"permissionsBoundary"}, param: "PermissionsBoundary"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error PutRolePermissionsBoundary answers for vs, the
@@ -9049,7 +9050,7 @@ var policyPutRolePolicy = validationPolicy{
 		{segments: []string{"policyName"}, param: "PolicyName"},
 		{segments: []string{"policyDocument"}, param: "PolicyDocument"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error PutRolePolicy answers for vs, the
@@ -9064,7 +9065,7 @@ var policyPutUserPermissionsBoundary = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"permissionsBoundary"}, param: "PermissionsBoundary"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error PutUserPermissionsBoundary answers for vs, the
@@ -9080,7 +9081,7 @@ var policyPutUserPolicy = validationPolicy{
 		{segments: []string{"policyName"}, param: "PolicyName"},
 		{segments: []string{"policyDocument"}, param: "PolicyDocument"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error PutUserPolicy answers for vs, the
@@ -9095,7 +9096,7 @@ var policyRejectDelegationRequest = validationPolicy{
 		{segments: []string{"delegationRequestId"}, param: "DelegationRequestId"},
 		{segments: []string{"notes"}, param: "Notes"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error RejectDelegationRequest answers for vs, the
@@ -9110,7 +9111,7 @@ var policyRemoveClientIDFromOpenIDConnectProvider = validationPolicy{
 		{segments: []string{"openIDConnectProviderArn"}, param: "OpenIDConnectProviderArn"},
 		{segments: []string{"clientID"}, param: "ClientID"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error RemoveClientIDFromOpenIDConnectProvider answers for vs, the
@@ -9125,7 +9126,7 @@ var policyRemoveRoleFromInstanceProfile = validationPolicy{
 		{segments: []string{"instanceProfileName"}, param: "InstanceProfileName"},
 		{segments: []string{"roleName"}, param: "RoleName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error RemoveRoleFromInstanceProfile answers for vs, the
@@ -9140,7 +9141,7 @@ var policyRemoveUserFromGroup = validationPolicy{
 		{segments: []string{"groupName"}, param: "GroupName"},
 		{segments: []string{"userName"}, param: "UserName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error RemoveUserFromGroup answers for vs, the
@@ -9155,7 +9156,7 @@ var policyResetServiceSpecificCredential = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"serviceSpecificCredentialId"}, param: "ServiceSpecificCredentialId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ResetServiceSpecificCredential answers for vs, the
@@ -9169,7 +9170,7 @@ var policyResolveRole = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"roleArn"}, param: "RoleArn"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ResolveRole answers for vs, the
@@ -9186,7 +9187,7 @@ var policyResyncMFADevice = validationPolicy{
 		{segments: []string{"authenticationCode1"}, param: "AuthenticationCode1"},
 		{segments: []string{"authenticationCode2"}, param: "AuthenticationCode2"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error ResyncMFADevice answers for vs, the
@@ -9200,7 +9201,7 @@ var policySendDelegationToken = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"delegationRequestId"}, param: "DelegationRequestId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error SendDelegationToken answers for vs, the
@@ -9215,7 +9216,7 @@ var policySetDefaultPolicyVersion = validationPolicy{
 		{segments: []string{"policyArn"}, param: "PolicyArn"},
 		{segments: []string{"versionId"}, param: "VersionId"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error SetDefaultPolicyVersion answers for vs, the
@@ -9229,7 +9230,7 @@ var policySetSecurityTokenServicePreferences = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"globalEndpointTokenVersion"}, param: "GlobalEndpointTokenVersion"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error SetSecurityTokenServicePreferences answers for vs, the
@@ -9266,7 +9267,7 @@ var policySimulateCustomPolicy = validationPolicy{
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 		{segments: []string{"marker"}, param: "Marker"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error SimulateCustomPolicy answers for vs, the
@@ -9308,7 +9309,7 @@ var policySimulatePrincipalPolicy = validationPolicy{
 		{segments: []string{"maxItems"}, param: "MaxItems"},
 		{segments: []string{"marker"}, param: "Marker"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error SimulatePrincipalPolicy answers for vs, the
@@ -9326,7 +9327,7 @@ var policyTagInstanceProfile = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error TagInstanceProfile answers for vs, the
@@ -9344,7 +9345,7 @@ var policyTagMFADevice = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error TagMFADevice answers for vs, the
@@ -9362,7 +9363,7 @@ var policyTagOpenIDConnectProvider = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error TagOpenIDConnectProvider answers for vs, the
@@ -9380,7 +9381,7 @@ var policyTagPolicy = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error TagPolicy answers for vs, the
@@ -9398,7 +9399,7 @@ var policyTagRole = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error TagRole answers for vs, the
@@ -9416,7 +9417,7 @@ var policyTagSAMLProvider = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error TagSAMLProvider answers for vs, the
@@ -9434,7 +9435,7 @@ var policyTagServerCertificate = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error TagServerCertificate answers for vs, the
@@ -9452,7 +9453,7 @@ var policyTagUser = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error TagUser answers for vs, the
@@ -9468,7 +9469,7 @@ var policyUntagInstanceProfile = validationPolicy{
 		{segments: []string{"tagKeys"}, param: "TagKeys"},
 		{segments: []string{"tagKeys", "*", "member"}, param: "TagKeys"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UntagInstanceProfile answers for vs, the
@@ -9484,7 +9485,7 @@ var policyUntagMFADevice = validationPolicy{
 		{segments: []string{"tagKeys"}, param: "TagKeys"},
 		{segments: []string{"tagKeys", "*", "member"}, param: "TagKeys"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UntagMFADevice answers for vs, the
@@ -9500,7 +9501,7 @@ var policyUntagOpenIDConnectProvider = validationPolicy{
 		{segments: []string{"tagKeys"}, param: "TagKeys"},
 		{segments: []string{"tagKeys", "*", "member"}, param: "TagKeys"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UntagOpenIDConnectProvider answers for vs, the
@@ -9516,7 +9517,7 @@ var policyUntagPolicy = validationPolicy{
 		{segments: []string{"tagKeys"}, param: "TagKeys"},
 		{segments: []string{"tagKeys", "*", "member"}, param: "TagKeys"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UntagPolicy answers for vs, the
@@ -9532,7 +9533,7 @@ var policyUntagRole = validationPolicy{
 		{segments: []string{"tagKeys"}, param: "TagKeys"},
 		{segments: []string{"tagKeys", "*", "member"}, param: "TagKeys"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UntagRole answers for vs, the
@@ -9548,7 +9549,7 @@ var policyUntagSAMLProvider = validationPolicy{
 		{segments: []string{"tagKeys"}, param: "TagKeys"},
 		{segments: []string{"tagKeys", "*", "member"}, param: "TagKeys"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UntagSAMLProvider answers for vs, the
@@ -9564,7 +9565,7 @@ var policyUntagServerCertificate = validationPolicy{
 		{segments: []string{"tagKeys"}, param: "TagKeys"},
 		{segments: []string{"tagKeys", "*", "member"}, param: "TagKeys"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UntagServerCertificate answers for vs, the
@@ -9580,7 +9581,7 @@ var policyUntagUser = validationPolicy{
 		{segments: []string{"tagKeys"}, param: "TagKeys"},
 		{segments: []string{"tagKeys", "*", "member"}, param: "TagKeys"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UntagUser answers for vs, the
@@ -9596,7 +9597,7 @@ var policyUpdateAccessKey = validationPolicy{
 		{segments: []string{"accessKeyId"}, param: "AccessKeyId"},
 		{segments: []string{"status"}, param: "Status"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateAccessKey answers for vs, the
@@ -9618,7 +9619,7 @@ var policyUpdateAccountPasswordPolicy = validationPolicy{
 		{segments: []string{"passwordReusePrevention"}, param: "PasswordReusePrevention"},
 		{segments: []string{"hardExpiry"}, param: "HardExpiry"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateAccountPasswordPolicy answers for vs, the
@@ -9633,7 +9634,7 @@ var policyUpdateAssumeRolePolicy = validationPolicy{
 		{segments: []string{"roleName"}, param: "RoleName"},
 		{segments: []string{"policyDocument"}, param: "PolicyDocument"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateAssumeRolePolicy answers for vs, the
@@ -9648,7 +9649,7 @@ var policyUpdateDelegationRequest = validationPolicy{
 		{segments: []string{"delegationRequestId"}, param: "DelegationRequestId"},
 		{segments: []string{"notes"}, param: "Notes"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateDelegationRequest answers for vs, the
@@ -9664,7 +9665,7 @@ var policyUpdateGroup = validationPolicy{
 		{segments: []string{"newPath"}, param: "NewPath"},
 		{segments: []string{"newGroupName"}, param: "NewGroupName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateGroup answers for vs, the
@@ -9680,7 +9681,7 @@ var policyUpdateLoginProfile = validationPolicy{
 		{segments: []string{"password"}, param: "Password"},
 		{segments: []string{"passwordResetRequired"}, param: "PasswordResetRequired"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateLoginProfile answers for vs, the
@@ -9696,7 +9697,7 @@ var policyUpdateOpenIDConnectProviderThumbprint = validationPolicy{
 		{segments: []string{"thumbprintList"}, param: "ThumbprintList"},
 		{segments: []string{"thumbprintList", "*", "member"}, param: "ThumbprintList"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateOpenIDConnectProviderThumbprint answers for vs, the
@@ -9712,7 +9713,7 @@ var policyUpdateRole = validationPolicy{
 		{segments: []string{"description"}, param: "Description"},
 		{segments: []string{"maxSessionDuration"}, param: "MaxSessionDuration"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateRole answers for vs, the
@@ -9727,7 +9728,7 @@ var policyUpdateRoleDescription = validationPolicy{
 		{segments: []string{"roleName"}, param: "RoleName"},
 		{segments: []string{"description"}, param: "Description"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateRoleDescription answers for vs, the
@@ -9745,7 +9746,7 @@ var policyUpdateSAMLProvider = validationPolicy{
 		{segments: []string{"addPrivateKey"}, param: "AddPrivateKey"},
 		{segments: []string{"removePrivateKey"}, param: "RemovePrivateKey"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateSAMLProvider answers for vs, the
@@ -9761,7 +9762,7 @@ var policyUpdateSSHPublicKey = validationPolicy{
 		{segments: []string{"sSHPublicKeyId"}, param: "SSHPublicKeyId"},
 		{segments: []string{"status"}, param: "Status"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateSSHPublicKey answers for vs, the
@@ -9777,7 +9778,7 @@ var policyUpdateServerCertificate = validationPolicy{
 		{segments: []string{"newPath"}, param: "NewPath"},
 		{segments: []string{"newServerCertificateName"}, param: "NewServerCertificateName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateServerCertificate answers for vs, the
@@ -9793,7 +9794,7 @@ var policyUpdateServiceSpecificCredential = validationPolicy{
 		{segments: []string{"serviceSpecificCredentialId"}, param: "ServiceSpecificCredentialId"},
 		{segments: []string{"status"}, param: "Status"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateServiceSpecificCredential answers for vs, the
@@ -9809,7 +9810,7 @@ var policyUpdateSigningCertificate = validationPolicy{
 		{segments: []string{"certificateId"}, param: "CertificateId"},
 		{segments: []string{"status"}, param: "Status"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateSigningCertificate answers for vs, the
@@ -9825,7 +9826,7 @@ var policyUpdateUser = validationPolicy{
 		{segments: []string{"newPath"}, param: "NewPath"},
 		{segments: []string{"newUserName"}, param: "NewUserName"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UpdateUser answers for vs, the
@@ -9840,7 +9841,7 @@ var policyUploadSSHPublicKey = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"sSHPublicKeyBody"}, param: "SSHPublicKeyBody"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UploadSSHPublicKey answers for vs, the
@@ -9862,7 +9863,7 @@ var policyUploadServerCertificate = validationPolicy{
 		{segments: []string{"tags", "*", "member", "key"}, param: "Key"},
 		{segments: []string{"tags", "*", "member", "value"}, param: "Value"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UploadServerCertificate answers for vs, the
@@ -9877,7 +9878,7 @@ var policyUploadSigningCertificate = validationPolicy{
 		{segments: []string{"userName"}, param: "UserName"},
 		{segments: []string{"certificateBody"}, param: "CertificateBody"},
 	},
-	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
+	service: []validationRule{{id: IdentityValidationException, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}},
 }
 
 // ValidationError returns the error UploadSigningCertificate answers for vs, the

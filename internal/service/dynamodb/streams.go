@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -28,17 +29,12 @@ type Streams struct {
 // The Streams service is a Stateful with nothing to save.
 var _ kernel.Stateful = (*Streams)(nil)
 
-// constraintTexts is the clause of each Streams note whose operation takes
-// a Limit or an enum: the generated Coral text quotes the value, AWS's
-// omits it (aws-recorded, dynamodb-streams.md 6.5: DDBS-02).
-const constraintTexts = "a constraint violation's text quotes the value (\"Value '0' at 'limit'\"), where AWS's omits it (\"Value at 'limit'\")"
-
 // describeStreamNote is DescribeStream's coverage note, the differences
-// DDBS-05 and DDBS-14 recorded (dynamodb-streams.md 5.2, 5.6, 6.5).
+// DDBS-05 and DDBS-14 recorded (dynamodb-streams.md 5.2, 5.6).
 const describeStreamNote = "aws-differs: understudy: a stream has one shard, which never splits or rolls over; " +
 	"AWS opened a new on-demand table's stream with 4 shards, replaced each with a child every 3.5 to 4.5 hours and removed a closed shard 24.5 to 26.3 hours after it closed; " +
-	"StreamStatus is ENABLED or DISABLED at once, where AWS reports ENABLING with no shards for about 7 seconds and DISABLING for about 8; " + constraintTexts +
-	" (dynamodb-streams.md 5.2, 5.6, 6.5)"
+	"StreamStatus is ENABLED or DISABLED at once, where AWS reports ENABLING with no shards for about 7 seconds and DISABLING for about 8" +
+	" (dynamodb-streams.md 5.2, 5.6)"
 
 // trimTexts is the clause of GetShardIterator's and GetRecords' notes, since
 // both answer the trim: with one shard that never closes, understudy must
@@ -50,16 +46,15 @@ const trimTexts = "a record is trimmed from the stream's one shard 24 hours afte
 // getShardIteratorNote is GetShardIterator's coverage note, the difference
 // DDBS-15 recorded (dynamodb-streams.md 3.5, 5.5, 6.5).
 const getShardIteratorNote = "aws-differs: understudy: " + trimTexts + "; " +
-	"AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it, so the enum text lists the four other types where AWS's lists five; " +
-	constraintTexts + " (dynamodb-streams.md 3.5, 5.5, 6.5)"
+	"AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it, so the enum text lists the four other types where AWS's lists five" +
+	" (dynamodb-streams.md 3.5, 5.5, 6.5)"
 
 // getRecordsNote is GetRecords' coverage note, the differences
-// DDBS-04, DDBS-10 and DDBS-15 recorded (dynamodb-streams.md 3.3, 5.5, 6.5,
-// 7.3).
+// DDBS-04, DDBS-10 and DDBS-15 recorded (dynamodb-streams.md 3.3, 5.5, 7.3).
 const getRecordsNote = "aws-differs: understudy: more than two concurrent readers of a shard are never throttled; inject LimitExceededException with a fault rule; " +
 	"ApproximateCreationDateTime is written as a plain epoch-seconds number, where AWS writes the exponent form (1.793723928E9); " +
 	"ExpiredIteratorException carries the __type namespace com.amazonaws.dynamodb.v20120810, where AWS's is com.amazonaws.dynamodb.streams.v20120810; " +
-	constraintTexts + "; " + trimTexts + " (dynamodb-streams.md 3.3, 5.5, 6.5, 7.3)"
+	trimTexts + " (dynamodb-streams.md 3.3, 5.5, 7.3)"
 
 // NewStreams binds the DynamoDB Streams operations understudy serves,
 // reading svc's log.
@@ -67,9 +62,9 @@ func NewStreams(d kernel.ServiceDeps, svc *Service) *Streams {
 	s := &Streams{svc: svc}
 	b := dynamodbstreamsapi.NewBinder(d.Binder)
 	// Every ListStreams answer DDBS-03, DDBS-08 and DDBS-17 recorded is
-	// AWS's (dynamodb-streams.md 6.1); its Limit and TableName constraint
-	// texts are the generated ones (6.5).
-	b.ListStreams(s.listStreams, notes(constraintTexts+" (dynamodb-streams.md 6.5)"),
+	// AWS's (dynamodb-streams.md 6.1), and its Coral constraint texts leave
+	// the value out as DDBS-02 recorded for the other operations (6.5).
+	b.ListStreams(s.listStreams, registry.Full{},
 		// A denial names table/*/stream/* (iam-enforcement-surfaces.md 12.3, IAM-ENF-35).
 		kernel.WithDenialResource(func(c *kernel.Call, _ *dynamodbstreamsapi.ListStreamsInput) string {
 			return c.Scope().ARN("dynamodb", "table/*/stream/*").String()

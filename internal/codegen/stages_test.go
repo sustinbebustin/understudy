@@ -268,6 +268,30 @@ func TestStageFailures(t *testing.T) {
 			want: "understudy-gen overlay: com.example.golden#PutKindsRequest$Secret: dev.understudy#validationError: rule 0: " +
 				`bound applies only to a rule whose constraints are ["length"] alone; split the other constraints into a rule of their own`,
 		},
+		{
+			name: "validation value that is not echo or omit",
+			extra: overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+				"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "value": "hide"}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#PutKindsRequest$Secret: dev.understudy#validationError: rule 0: " +
+				`value "hide" is not echo or omit`,
+		},
+		{
+			name: "validation enumSet that is not list or omit",
+			extra: overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+				"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "enumSet": "none"}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#PutKindsRequest$Secret: dev.understudy#validationError: rule 0: " +
+				`enumSet "none" is not list or omit`,
+		},
+		{
+			name: "validation value on a hand-text style",
+			extra: overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+				"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", "style": "fixed", "reason": "Bad.", "value": "omit"}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#PutKindsRequest$Secret: dev.understudy#validationError: rule 0: " +
+				"value and enumSet shape the coral style's entries; style fixed prints none",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -321,6 +345,28 @@ func TestLengthBoundMaxFiltersTheRuleToTheMaximum(t *testing.T) {
 	const want = `{kinds: kindLengthMax, id: IdentityInvalidInput, style: styleFixed, reason: "Too long."}`
 	if !bytes.Contains(files["validate_gen.go"], []byte(want)) {
 		t.Fatalf("validate_gen.go has no rule %s:\n%s", want, files["validate_gen.go"])
+	}
+}
+
+// TestCoralEchoOptionsReachTheRuntimeRule: {value: omit, enumSet: omit}
+// emits the rule's echo, as IAM's service rule needs (error-matrix.md 5.10
+// T3 and T4), and the options are independent, as DynamoDB Streams omits
+// only the value (dynamodb-streams.md 6.5).
+func TestCoralEchoOptionsReachTheRuntimeRule(t *testing.T) {
+	for _, tt := range []struct{ options, want string }{
+		{`"value": "omit", "enumSet": "omit"`, `{id: IdentityInvalidInput, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue, Enum: awserr.OmitEnum}}`},
+		{`"value": "omit", "enumSet": "list"`, `{id: IdentityInvalidInput, style: styleCoral, echo: awserr.CoralEcho{Value: awserr.OmitValue}}`},
+		{`"value": "echo", "enumSet": "omit"`, `{id: IdentityInvalidInput, style: styleCoral, echo: awserr.CoralEcho{Enum: awserr.OmitEnum}}`},
+		{`"value": "echo", "enumSet": "list"`, `{id: IdentityInvalidInput, style: styleCoral}`},
+	} {
+		files, err := codegen.Generate(goldenInputs(t, overlay(`"com.example.golden#PutKindsRequest$Secret": {"type": "apply", "traits": {
+			"dev.understudy#validationError": {"code": "com.example.golden#InvalidInput", `+tt.options+`}, `+evidence+`}}`)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(files["validate_gen.go"], []byte("rules: []validationRule{"+tt.want+"}")) {
+			t.Errorf("%s: validate_gen.go has no rule %s", tt.options, tt.want)
+		}
 	}
 }
 

@@ -15,7 +15,7 @@ func (b *builder) rules(subject string, raw json.RawMessage) ([]RuleIR, error) {
 	}
 	out := make([]RuleIR, 0, len(parsed))
 	for _, r := range parsed {
-		ir := RuleIR{Style: r.Style, Kinds: r.Kinds, Reason: r.Reason, EnumPolicy: r.EnumPolicy, PatternPolicy: r.PatternPolicy}
+		ir := RuleIR{Style: r.Style, Kinds: r.Kinds, Reason: r.Reason, EnumPolicy: r.EnumPolicy, PatternPolicy: r.PatternPolicy, Echo: r.Echo}
 		if r.Code != "" {
 			e, ok := b.errors[r.Code]
 			if !ok {

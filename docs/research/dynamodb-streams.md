@@ -273,15 +273,15 @@ From MODEL:
 - aws-recorded (DDBS-02, recorded 2026-11-03), each 400 `com.amazon.coral.validate#ValidationException`; the rows above give the expectations the recording answered:
   - DescribeStream `StreamArn` "short": "Invalid StreamArn", neither a Coral length text nor not-found (understudy: an overlay rule, `codegen/overlays/dynamodbstreams.json`).
   - DescribeStream `Limit` 101 and ListStreams `Limit` 101: Local's texts.
-  - `Limit` 0 on DescribeStream and GetRecords: "1 validation error detected: Value at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1", the Coral grammar without the value. understudy's generated text quotes it (`Value '0' at 'limit'`).
+  - `Limit` 0 on DescribeStream and GetRecords: "1 validation error detected: Value at 'limit' failed to satisfy constraint: Member must have value greater than or equal to 1", the Coral grammar without the value. understudy's generated text leaves it out too (the service rule's `value: omit`, `codegen/overlays/dynamodbstreams.json`).
   - `AT_SEQUENCE_NUMBER` without `SequenceNumber`: "One or more parameter values were invalid: SequenceNumber cannot be null".
   - `TRIM_HORIZON` with `SequenceNumber`: Local's text.
-  - `ShardIteratorType` BOGUS: "1 validation error detected: Value at 'shardIteratorType' failed to satisfy constraint: Member must satisfy enum value set: [AFTER_SEQUENCE_NUMBER, LATEST, AT_TIMESTAMP, AT_SEQUENCE_NUMBER, TRIM_HORIZON]" (no value; `AT_TIMESTAMP` in that order). understudy quotes the value and lists the pinned model's four types.
+  - `ShardIteratorType` BOGUS: "1 validation error detected: Value at 'shardIteratorType' failed to satisfy constraint: Member must satisfy enum value set: [AFTER_SEQUENCE_NUMBER, LATEST, AT_TIMESTAMP, AT_SEQUENCE_NUMBER, TRIM_HORIZON]" (no value; `AT_TIMESTAMP` in that order). understudy leaves the value out and lists the pinned model's four types.
   - `ShardIteratorType` missing: "1 validation error detected: Value at 'shardIteratorType' failed to satisfy constraint: Member must not be null".
   - a non-numeric `SequenceNumber`: "Invalid SequenceNumber for the shard", without the "One or more parameter values were invalid:" prefix.
   - `ShardId` "x": "1 validation error detected: Value at 'shardId' failed to satisfy constraint: Member must have length greater than or equal to 28", so AWS validates the shard id's length before any lookup (but not the stream ARN's, which gets "Invalid StreamArn").
   - GetRecords `Limit` 1001: `ValidationException` with Local's text "One or more parameter values were invalid: Limit should be less than or equal to 1000", not the documented `LimitExceededException`.
-- understudy answers each with AWS's text except the Coral texts, which quote the value, and the enum list; both are in the coverage notes.
+- understudy answers each with AWS's text except the enum list, which is in GetShardIterator's coverage note.
 
 ## 7. Stream records
 
@@ -465,7 +465,7 @@ Rejected alternative: proxy the four operations to Local and rewrite only ARNs (
 
 | Operation | Status | Coverage note (exact text) |
 |---|---|---|
-| ListStreams | partial | `a constraint violation's text quotes the value ("Value '0' at 'limit'"), where AWS's omits it ("Value at 'limit'") (dynamodb-streams.md 6.5)`: DDBS-02 recorded AWS's text without the value |
+| ListStreams | full | none: the constraint texts leave the value out, as DDBS-02 recorded AWS's (6.5) |
 | DescribeStream | partial | `aws-differs: understudy: a stream has one shard, which never splits or rolls over; AWS opens a shard per table partition and closes shards as it replaces them` (plus, while `dynamodb.streams.status-transitions` is `immediate`: `; StreamStatus is ENABLED or DISABLED at once, never ENABLING or DISABLING`) |
 | GetShardIterator | partial | `AT_TIMESTAMP is refused: the pinned model (api-models-aws 1cfdfb4) predates it` until the pin moves to `60e5ceb` or later; then implement it on the log (3.5) and mark the operation full |
 | GetRecords | partial | `aws-differs: understudy: more than two concurrent readers of a shard are never throttled; inject LimitExceededException with a fault rule` |

@@ -140,9 +140,43 @@ const (
 	SmithyFramework
 )
 
+// ValueEcho says whether a Coral entry prints the violating value.
+type ValueEcho uint8
+
+// ValueEcho values; the zero value prints it, as most services do.
+const (
+	EchoValue ValueEcho = iota // "Value 'x' at", "Value null at"
+	OmitValue                  // "Value at" whatever the value (IAM, DynamoDB Streams)
+)
+
+// EnumEcho says whether a Coral enum constraint lists the value set.
+type EnumEcho uint8
+
+// EnumEcho values; the zero value lists it, as most services do.
+const (
+	ListEnum EnumEcho = iota // "Member must satisfy enum value set: [A, B]"
+	OmitEnum                 // "Member must satisfy enum value set" (IAM)
+)
+
+// CoralEcho is what a service's Coral entries print beyond the path and the
+// constraint; the zero value prints everything.
+type CoralEcho struct {
+	Value ValueEcho
+	Enum  EnumEcho
+}
+
+// CoralEntry is a violation and what its entry echoes.
+type CoralEntry struct {
+	Violation Violation
+	Echo      CoralEcho
+}
+
 // Coral renders v as one entry of an AWS validation message
 // (error-matrix.md section 4). A nil Value renders as RenderedNull.
-func (v Violation) Coral() string {
+func (v Violation) Coral() string { return v.CoralWith(CoralEcho{}) }
+
+// CoralWith renders v as Coral does, leaving out what e omits.
+func (v Violation) CoralWith(e CoralEcho) string {
 	var value string
 	switch r := v.Value.(type) {
 	case RenderedText:
@@ -152,7 +186,10 @@ func (v Violation) Coral() string {
 	case RenderedOmitted:
 		value = "Value at"
 	}
-	return fmt.Sprintf("%s '%s' failed to satisfy constraint: %s", value, v.Path, coralConstraint(v.Constraint))
+	if e.Value == OmitValue {
+		value = "Value at"
+	}
+	return fmt.Sprintf("%s '%s' failed to satisfy constraint: %s", value, v.Path, coralConstraint(v.Constraint, e.Enum))
 }
 
 // CoralMessage renders violations as one AWS validation message: a count
@@ -160,21 +197,31 @@ func (v Violation) Coral() string {
 // failed validation always records a violation, so the text says so in
 // understudy's words rather than imitating AWS with a count of 0.
 func CoralMessage(vs []Violation) string {
-	if len(vs) == 0 {
-		return "understudy validator bug: validation failed with no violations recorded"
-	}
-	entries := make([]string, len(vs))
+	es := make([]CoralEntry, len(vs))
 	for i, v := range vs {
-		entries[i] = v.Coral()
+		es[i] = CoralEntry{Violation: v}
 	}
-	noun := "errors"
-	if len(vs) == 1 {
-		noun = "error"
-	}
-	return strconv.Itoa(len(vs)) + " validation " + noun + " detected: " + strings.Join(entries, "; ")
+	return CoralEntries(es)
 }
 
-func coralConstraint(c Constraint) string {
+// CoralEntries renders entries as one message, as CoralMessage does, each
+// under its own echo.
+func CoralEntries(es []CoralEntry) string {
+	if len(es) == 0 {
+		return "understudy validator bug: validation failed with no violations recorded"
+	}
+	entries := make([]string, len(es))
+	for i, e := range es {
+		entries[i] = e.Violation.CoralWith(e.Echo)
+	}
+	noun := "errors"
+	if len(es) == 1 {
+		noun = "error"
+	}
+	return strconv.Itoa(len(es)) + " validation " + noun + " detected: " + strings.Join(entries, "; ")
+}
+
+func coralConstraint(c Constraint, enum EnumEcho) string {
 	switch c := c.(type) {
 	case Required:
 		return "Member must not be null"
@@ -189,13 +236,16 @@ func coralConstraint(c Constraint) string {
 	case Pattern:
 		return "Member must satisfy regular expression pattern: " + c.Echo
 	case Enum:
+		if enum == OmitEnum {
+			return "Member must satisfy enum value set"
+		}
 		return "Member must satisfy enum value set: [" + strings.Join(c.Values, ", ") + "]"
 	case Encoding:
 		// No AWS recording shows this text; services with recorded behavior
 		// (SQS InvalidMessageContents) answer from their handlers instead.
 		return "Member must contain only valid UTF-8 characters"
 	case Composite:
-		return coralComposite(c)
+		return coralComposite(c, enum)
 	case nil:
 	}
 	// Only a nil Constraint gets here; gochecksumtype keeps the switch
@@ -203,7 +253,7 @@ func coralConstraint(c Constraint) string {
 	return "understudy validator bug: no constraint recorded"
 }
 
-func coralComposite(c Composite) string {
+func coralComposite(c Composite, enum EnumEcho) string {
 	var subject string
 	switch c.Scope {
 	case ElementScope:
@@ -219,7 +269,7 @@ func coralComposite(c Composite) string {
 	slices.SortStableFunc(inner, func(a, b MemberConstraint) int { return compositeRank(a) - compositeRank(b) })
 	parts := make([]string, len(inner))
 	for i, ic := range inner {
-		parts[i] = coralConstraint(ic)
+		parts[i] = coralConstraint(ic, enum)
 	}
 	return subject + " must satisfy constraint: [" + strings.Join(parts, ", ") + "]"
 }

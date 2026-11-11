@@ -234,13 +234,14 @@ func TestCreatePolicyWithoutActions(t *testing.T) {
 // The model's pathType pattern, ^(/)|(/[!-~]+/)$, anchors each alternative
 // on one side only; IAM reads it as "/" or a run of printable ASCII between
 // slashes, as every Path member's documentation says, and refuses the rest
-// before storing anything, in every input that targets pathType.
+// before storing anything, in every input that targets pathType. IAM's
+// validation text leaves the value out (error-matrix.md 5.10 T3).
 func TestPathsMustBeginAndEndWithASlash(t *testing.T) {
 	run(t, func(h *harness) {
 		// refused checks one 400 ValidationError naming member and path.
 		refused := func(err *awserr.Error, op, member, path string) {
 			h.Helper()
-			want := "1 validation error detected: Value '" + path + "' at '" + member + "' failed to satisfy constraint: " +
+			want := "1 validation error detected: Value at '" + member + "' failed to satisfy constraint: " +
 				"Member must satisfy regular expression pattern: (\\u002F)|(\\u002F[\\u0021-\\u007E]+\\u002F)"
 			if err == nil || err.ID.QueryCode != "ValidationError" || err.ID.Status != 400 || err.Message != want {
 				h.Errorf("%s(%s %q) = %+v, want 400 ValidationError %q", op, member, path, err, want)
@@ -270,6 +271,18 @@ func TestPathsMustBeginAndEndWithASlash(t *testing.T) {
 		r := must(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "r", Path: new("/svc/"), AssumeRolePolicyDocument: trustLambda}).Role
 		if r.Arn != "arn:aws:iam::000000000000:role/svc/r" {
 			t.Errorf("CreateRole(Path /svc/).Arn = %q, want arn:aws:iam::000000000000:role/svc/r", r.Arn)
+		}
+	})
+}
+
+// An unknown enum value is refused without the value and without the value
+// set (error-matrix.md 5.10 T4).
+func TestEnumViolationOmitsValueAndValueSet(t *testing.T) {
+	run(t, func(h *harness) {
+		_, err := call(h, iamapi.OpUpdateAccessKey, &iamapi.UpdateAccessKeyInput{AccessKeyId: "AKIAAAAAAAAAAAAAAAAA", Status: "invalid"})
+		const want = "1 validation error detected: Value at 'status' failed to satisfy constraint: Member must satisfy enum value set"
+		if err == nil || err.ID.QueryCode != "ValidationError" || err.ID.Status != 400 || err.Message != want {
+			h.Errorf("UpdateAccessKey(Status invalid) = %+v, want 400 ValidationError %q", err, want)
 		}
 	})
 }

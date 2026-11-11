@@ -324,6 +324,7 @@ type RuleIR struct {
 	Reason        string
 	EnumPolicy    EnumPolicy
 	PatternPolicy PatternPolicy
+	Echo          awserr.CoralEcho
 }
 
 // PathIR is one member path of an operation input: lowerCamel segments with

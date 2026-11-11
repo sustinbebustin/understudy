@@ -137,7 +137,7 @@ Counts are from [docs/coverage.md](docs/coverage.md), which lists every operatio
 | SQS | 23 | 16 | 0 | 7 | 0 |
 | SNS | 42 | 12 | 0 | 7 | 23 |
 | S3 | 112 | 22 | 39 | 25 | 26 |
-| DynamoDB (with Streams) | 62 | 5 | 2 | 23 | 32 |
+| DynamoDB (with Streams) | 62 | 6 | 2 | 22 | 32 |
 | Kinesis Data Streams | 45 | 0 | 2 | 19 | 24 |
 | Lambda | 88 | 30 | 2 | 18 | 38 |
 | CloudWatch Logs | 118 | 9 | 0 | 9 | 100 |

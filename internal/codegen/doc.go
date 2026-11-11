@@ -74,10 +74,12 @@
 // {label, source, validated?} object or a list of them each naming the
 // traits it "covers"; validationError is one rule or a list tried in order,
 // a rule being {code, style: coral | parameter | missingParameter |
-// snsParameter | fixed, constraints, bound, reason, enumPolicy} or
-// {enumPolicy} alone (fixed sends the reason as the whole message; bound:
-// max narrows constraints ["length"], and only that filter, to the length
-// maximum), or
+// snsParameter | fixed, constraints, bound, reason, enumPolicy, value: echo
+// | omit, enumSet: list | omit} or {enumPolicy} alone (fixed sends the
+// reason as the whole message; bound: max narrows constraints ["length"],
+// and only that filter, to the length maximum; value and enumSet, coral
+// style only, leave the value and an enum's value set out of each entry),
+// or
 // at member level {patternPolicy: handler}, which leaves the member's
 // pattern to the handler so its own error text answers;
 // queryKeyAlias is {key, decode: receive | ignore}; unknownOperationError is

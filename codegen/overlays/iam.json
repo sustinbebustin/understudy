@@ -6,7 +6,7 @@
       "traits": {
         "dev.understudy#throttleError": "com.amazon.coral.service#ThrottlingException",
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDenied",
-        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
+        "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException", "value": "omit", "enumSet": "omit"},
         "dev.understudy#queryErrorEnvelope": {"namespace": true},
         "dev.understudy#evidence": [
           {
@@ -27,7 +27,7 @@
           },
           {
             "label": "third-party-recorded",
-            "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/iam/test_iam.snapshot.json#L940",
+            "source": "docs/research/error-matrix.md#510-iam-query: rows T3 and T4, LocalStack test_iam.snapshot.json L940 and L1138: ValidationError, a pattern violation without the value and an enum violation without the value or the value set (\"Value at 'status' failed to satisfy constraint: Member must satisfy enum value set\")",
             "validated": "2025-03-06",
             "covers": ["dev.understudy#validationError"]
           }

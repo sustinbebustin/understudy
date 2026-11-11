@@ -490,6 +490,29 @@ type ValidationRule struct {
 	Reason        string
 	EnumPolicy    EnumPolicy    // 0 when the rule does not set one
 	PatternPolicy PatternPolicy // 0 when the rule does not set one
+	Echo          awserr.CoralEcho
+}
+
+// parseEcho reads a coral rule's value and enumSet options: what each entry
+// prints of the value and of an enum's value set. "" keeps the default,
+// which prints it.
+func parseEcho(value, enumSet string) (awserr.CoralEcho, error) {
+	var e awserr.CoralEcho
+	switch value {
+	case "", "echo":
+	case "omit":
+		e.Value = awserr.OmitValue
+	default:
+		return e, fmt.Errorf("value %q is not echo or omit", value)
+	}
+	switch enumSet {
+	case "", "list":
+	case "omit":
+		e.Enum = awserr.OmitEnum
+	default:
+		return e, fmt.Errorf("enumSet %q is not list or omit", enumSet)
+	}
+	return e, nil
 }
 
 // parseValidationRules accepts one rule object or an array of them; rules
@@ -579,6 +602,8 @@ func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 		Reason        string   `json:"reason"`
 		EnumPolicy    string   `json:"enumPolicy"`
 		PatternPolicy string   `json:"patternPolicy"`
+		Value         string   `json:"value"`
+		EnumSet       string   `json:"enumSet"`
 	}
 	if err := decodeTrait(raw, &v); err != nil {
 		return ValidationRule{}, err
@@ -588,8 +613,11 @@ func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 	if r.EnumPolicy, r.PatternPolicy, err = parsePolicies(v.EnumPolicy, v.PatternPolicy); err != nil {
 		return r, err
 	}
+	if r.Echo, err = parseEcho(v.Value, v.EnumSet); err != nil {
+		return r, err
+	}
 	if v.Code == "" {
-		if (r.EnumPolicy == 0 && r.PatternPolicy == 0) || v.Style != "" || len(v.Constraints) > 0 || v.Reason != "" {
+		if (r.EnumPolicy == 0 && r.PatternPolicy == 0) || v.Style != "" || len(v.Constraints) > 0 || v.Reason != "" || v.Value != "" || v.EnumSet != "" {
 			return r, errors.New(`"code" is required unless the rule only sets enumPolicy or patternPolicy`)
 		}
 		return r, nil
@@ -617,6 +645,8 @@ func parseValidationRule(raw json.RawMessage) (ValidationRule, error) {
 		return r, fmt.Errorf("style %s needs a reason", v.Style)
 	case !needsReason && r.Reason != "":
 		return r, fmt.Errorf("style %s takes no reason", cmp.Or(v.Style, "coral"))
+	case r.Style != StyleCoral && (v.Value != "" || v.EnumSet != ""):
+		return r, fmt.Errorf("value and enumSet shape the coral style's entries; style %s prints none", v.Style)
 	}
 	return r, nil
 }
