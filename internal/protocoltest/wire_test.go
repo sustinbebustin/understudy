@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy/document"
 	"github.com/sustinbebustin/understudy/internal/protocoltest"
+	"github.com/sustinbebustin/understudy/internal/protocoltest/gen"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/server"
@@ -270,7 +271,7 @@ func (p wireProtocol) encode(t fataler, op *registry.Operation, out smithy.Seria
 func (p wireProtocol) decode(t fataler, op *registry.Operation, body []byte, in smithy.Deserializable) {
 	t.Helper()
 	r := p.request(op, body)
-	if err := p.codec.DecodeBody(r, op, requestBody{r}, in); err != nil {
+	if err := p.codec.DecodeBody(r, op, gen.TextBody(body), in); err != nil {
 		t.Fatalf("%s: DecodeBody(%q) = %s (%v)", p.name, body, err.Message, err.AsError())
 	}
 }

@@ -15,7 +15,7 @@ import (
 var service = registry.Service{
 	ID:                    "restjsonvalidation",
 	Shape:                 "aws.protocoltests.restjson.validation#RestJsonValidation",
-	SigningName:           "",
+	SigningName:           "restjsonvalidation",
 	IAMPrefix:             "",
 	ARNNamespace:          "",
 	Protocols:             []ref.ProtocolID{ref.RESTJSON1},
