@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // defaultPageSize is the page size of the listings when MaxResults is
@@ -125,7 +126,7 @@ func (s *Service) listSecrets(_ context.Context, c *kernel.Call, in *secretsmana
 	}
 	key := sortKey(by)
 	scope := c.Scope()
-	secrets := readState(s, scope, func(st *State) []Secret {
+	secrets := store.View(s.cells, scope, func(st *State) []Secret {
 		var out []Secret
 		for _, name := range slices.Sorted(maps.Keys(st.Secrets)) {
 			sec := st.Secrets[name]

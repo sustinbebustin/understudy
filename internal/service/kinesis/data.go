@@ -21,6 +21,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 const (
@@ -250,12 +251,6 @@ func (s *Service) place(str Stream, ranges []HashRange, e putEntry) (int, *awser
 	return i, nil
 }
 
-// answer is a result computed under a cell's lock.
-type answer[T any] struct {
-	v   T
-	err *awserr.Error
-}
-
 // shardIndex is the index of the shard named id in str; false when str
 // has none.
 func shardIndex(str Stream, id string) (int, bool) {
@@ -284,27 +279,27 @@ func (s *Service) getShardIterator(ctx context.Context, c *kernel.Call, in *kine
 		return nil, err
 	}
 	now := c.Admitted()
-	got := readState(s, scope, func(st *State) answer[string] {
+	iterator, err := store.View2(s.cells, scope, func(st *State) (string, *awserr.Error) {
 		str, ok := st.Streams[r.name]
 		if !ok {
-			return answer[string]{err: r.notFound()}
+			return "", r.notFound()
 		}
 		i, ok := shardIndex(str, in.ShardId)
 		if !ok {
-			return answer[string]{err: errShardNotFound(in.ShardId, str.Name, r.account)}
+			return "", errShardNotFound(in.ShardId, str.Name, r.account)
 		}
 		pos, err := iteratorStart(in, str, i, r.account, now)
 		if err != nil {
-			return answer[string]{err: err}
+			return "", err
 		}
 		it := shardlog.Iterator{Stream: streamARN(scope, str.Name), Created: str.Created, Shard: in.ShardId, Pos: pos, Issued: now}
-		return answer[string]{v: string(shardlog.NewCodec(st.TokenKey, shardlog.Opaque{}).Encode(it))}
+		return string(shardlog.NewCodec(st.TokenKey, shardlog.Opaque{}).Encode(it)), nil
 	})
-	if got.err != nil {
-		return nil, got.err
+	if err != nil {
+		return nil, err
 	}
 	c.Touch(streamARN(scope, r.name))
-	return &kinesisapi.GetShardIteratorOutput{ShardIterator: new(got.v)}, nil
+	return &kinesisapi.GetShardIteratorOutput{ShardIterator: new(iterator)}, nil
 }
 
 // iteratorStart checks the type and its arguments (KIN-12)
@@ -411,37 +406,37 @@ func (s *Service) getRecords(ctx context.Context, c *kernel.Call, in *kinesisapi
 		limit = int(*in.Limit)
 	}
 	account := scope.Account.String()
-	got := readState(s, scope, func(st *State) answer[page] {
+	pg, err := store.View2(s.cells, scope, func(st *State) (page, *awserr.Error) {
 		str, ok := st.Streams[name]
 		if !ok {
-			return answer[page]{err: errStreamNotFound(name, account)}
+			return page{}, errStreamNotFound(name, account)
 		}
 		if str.Created.Compare(it.Created) != 0 {
 			// A stream created again under the name refuses its
 			// predecessor's iterators (kinesis.md 13.5 item 3).
-			return answer[page]{err: errInvalidIterator()}
+			return page{}, errInvalidIterator()
 		}
 		i, ok := shardIndex(str, it.Shard)
 		if !ok {
-			return answer[page]{err: errShardGone(it.Shard, name, account)}
+			return page{}, errShardGone(it.Shard, name, account)
 		}
 		p, err := s.readPage(str.Shards[i].log, it.Pos, limit, now)
 		if err != nil {
-			return answer[page]{err: err}
+			return page{}, err
 		}
 		next := shardlog.Iterator{Stream: it.Stream, Created: it.Created, Shard: it.Shard, Pos: p.nextPos, Issued: now}
 		p.page.next = string(shardlog.NewCodec(st.TokenKey, shardlog.Opaque{}).Encode(next))
-		return answer[page]{v: p.page}
+		return p.page, nil
 	})
-	if got.err != nil {
-		return nil, got.err
+	if err != nil {
+		return nil, err
 	}
-	records, err := s.readRecords(ctx, got.v)
+	records, err := s.readRecords(ctx, pg)
 	if err != nil {
 		return nil, err
 	}
 	c.Touch(it.Stream)
-	return &kinesisapi.GetRecordsOutput{Records: records, NextShardIterator: new(got.v.next), MillisBehindLatest: new(got.v.behind)}, nil
+	return &kinesisapi.GetRecordsOutput{Records: records, NextShardIterator: new(pg.next), MillisBehindLatest: new(pg.behind)}, nil
 }
 
 // readRecords reads p's data from the blob store, outside the cell lock,
@@ -477,7 +472,7 @@ func (s *Service) readRecords(ctx context.Context, p page) ([]kinesisapi.Record,
 // its 5 minutes is ExpiredIteratorException (KIN-11).
 func (s *Service) iteratorOf(scope aws.Scope, text string, now clock.Instant) (shardlog.Iterator, string, *awserr.Error) {
 	text = unquoteIterator(text)
-	key := readState(s, scope, func(st *State) []byte { return st.TokenKey })
+	key := store.View(s.cells, scope, func(st *State) []byte { return st.TokenKey })
 	if key == nil {
 		return shardlog.Iterator{}, "", errInvalidIterator()
 	}

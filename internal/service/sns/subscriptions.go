@@ -607,8 +607,8 @@ func (s *Service) listSubscriptions(_ context.Context, c *kernel.Call, in *snsap
 		if scope.Partition != own.Partition || scope.Region != own.Region {
 			continue
 		}
-		mine, _ := read(s, scope, func(st *State) []snsapi.Subscription {
-			var out []snsapi.Subscription
+		mine := store.View(s.cells, scope, func(st *State) []snsapi.Subscription {
+			out := make([]snsapi.Subscription, 0, len(st.Topics))
 			for _, name := range slices.Sorted(maps.Keys(st.Topics)) {
 				t := st.Topics[name]
 				t.Subscriptions = slices.DeleteFunc(slices.Clone(t.Subscriptions), func(sub Subscription) bool { return sub.OwnerAccountID != owner })

@@ -15,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // The account limits GetAccountSettings reports and reserved concurrency
@@ -162,7 +163,7 @@ func (s *Service) getFunction(_ context.Context, c *kernel.Call, in *lambdaapi.G
 	if err != nil {
 		return nil, err
 	}
-	return view(s, ref.scope, func(st *State) (*lambdaapi.GetFunctionOutput, *awserr.Error) {
+	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.GetFunctionOutput, *awserr.Error) {
 		f, v, err := st.lookup(ref)
 		if err != nil {
 			return nil, err
@@ -203,7 +204,7 @@ func (s *Service) getFunctionConfiguration(_ context.Context, c *kernel.Call, in
 	if err != nil {
 		return nil, err
 	}
-	return view(s, ref.scope, func(st *State) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
+	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
 		f, v, err := st.lookup(ref)
 		if err != nil {
 			return nil, err
@@ -256,7 +257,7 @@ func configs(rows []versionRow) []lambdaapi.FunctionConfiguration {
 func (s *Service) listFunctions(_ context.Context, c *kernel.Call, in *lambdaapi.ListFunctionsInput) (*lambdaapi.ListFunctionsOutput, *awserr.Error) {
 	scope := c.Scope()
 	all := in.FunctionVersion != nil && *in.FunctionVersion == lambdaapi.FunctionVersionAll
-	rows, _ := view(s, scope, func(st *State) ([]versionRow, *awserr.Error) {
+	rows, _ := store.View2(s.cells, scope, func(st *State) ([]versionRow, *awserr.Error) {
 		var rows []versionRow
 		for _, name := range slices.Sorted(maps.Keys(st.Functions)) {
 			f := st.Functions[name]
@@ -392,7 +393,7 @@ func (s *Service) layersForUpdate(ctx context.Context, ref functionRef, layers [
 
 // packageType is the package type of the function ref names.
 func (s *Service) packageType(ref functionRef) (lambdaapi.PackageType, *awserr.Error) {
-	return view(s, ref.scope, func(st *State) (lambdaapi.PackageType, *awserr.Error) {
+	return store.View2(s.cells, ref.scope, func(st *State) (lambdaapi.PackageType, *awserr.Error) {
 		f, err := st.function(ref)
 		if err != nil {
 			return "", err
@@ -557,7 +558,7 @@ func (s *Service) dryRunCode(ctx context.Context, c *kernel.Call, ref functionRe
 		code = ZipCode{Unzipped: unzipped}
 	case imageSource:
 	}
-	return view(s, ref.scope, func(st *State) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
+	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
 		f, err := st.function(ref)
 		if err != nil {
 			return nil, err
@@ -641,7 +642,7 @@ func (s *Service) getFunctionCodeSigningConfig(_ context.Context, c *kernel.Call
 	if err != nil {
 		return nil, err
 	}
-	return view(s, ref.scope, func(st *State) (*lambdaapi.GetFunctionCodeSigningConfigOutput, *awserr.Error) {
+	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.GetFunctionCodeSigningConfigOutput, *awserr.Error) {
 		if _, err := st.function(ref); err != nil {
 			return nil, err
 		}
@@ -650,7 +651,7 @@ func (s *Service) getFunctionCodeSigningConfig(_ context.Context, c *kernel.Call
 }
 
 func (s *Service) getAccountSettings(_ context.Context, c *kernel.Call, _ *lambdaapi.GetAccountSettingsInput) (*lambdaapi.GetAccountSettingsOutput, *awserr.Error) {
-	return view(s, c.Scope(), func(st *State) (*lambdaapi.GetAccountSettingsOutput, *awserr.Error) {
+	return store.View2(s.cells, c.Scope(), func(st *State) (*lambdaapi.GetAccountSettingsOutput, *awserr.Error) {
 		usage := &lambdaapi.AccountUsage{FunctionCount: int64(len(st.Functions))}
 		for name := range st.Functions {
 			versions := st.Functions[name].all()

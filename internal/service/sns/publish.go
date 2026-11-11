@@ -22,6 +22,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
 	"github.com/sustinbebustin/understudy/internal/service/sns/filterpolicy"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 const (
@@ -217,7 +218,7 @@ func (s *Service) publish(_ context.Context, c *kernel.Call, in *snsapi.PublishI
 // topicExists reports whether ref's topic exists, read without a write, so
 // that a delivery learns it before it is authorized.
 func (s *Service) topicExists(ref topicRef) bool {
-	exists, _ := read(s, ref.scope, func(st *State) bool {
+	exists := store.View(s.cells, ref.scope, func(st *State) bool {
 		_, ok := st.Topics[ref.name]
 		return ok
 	})

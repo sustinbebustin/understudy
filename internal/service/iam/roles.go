@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // defaultMaxSessionDuration is a role's MaxSessionDuration when CreateRole
@@ -141,7 +142,7 @@ func iamAction(name string) registry.IAMAction {
 // that does not exist, whose path the request does not carry.
 func (s *Service) getRole(ctx context.Context, c *kernel.Call, in *iamapi.GetRoleInput) (*iamapi.GetRoleOutput, *awserr.Error) {
 	account := c.Scope().Account
-	r, err := view(s, account, func(st *State) (Role, *awserr.Error) { return st.role(in.RoleName) })
+	r, err := store.View2(s.cells, account, func(st *State) (Role, *awserr.Error) { return st.role(in.RoleName) })
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +272,7 @@ func (s *Service) deleteRole(_ context.Context, c *kernel.Call, in *iamapi.Delet
 
 func (s *Service) listRoles(_ context.Context, c *kernel.Call, in *iamapi.ListRolesInput) (*iamapi.ListRolesOutput, *awserr.Error) {
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (paging.Page[Role], *awserr.Error) {
+	p, err := store.View2(s.cells, account, func(st *State) (paging.Page[Role], *awserr.Error) {
 		roles := sortedWhere(st.Roles, func(r *Role) bool { return underPrefix(r.Path, in.PathPrefix) })
 		return paginate("roles", roles, func(r Role) string { return key(r.Name) }, in.Marker, in.MaxItems)
 	})
@@ -299,7 +300,7 @@ func (s *Service) resolveRole(_ context.Context, c *kernel.Call, in *iamapi.Reso
 		return nil, notFound
 	}
 	path, name := aws.SplitIAMPath(rest)
-	out, aerr := view(s, account, func(st *State) (iamapi.Role, *awserr.Error) {
+	out, aerr := store.View2(s.cells, account, func(st *State) (iamapi.Role, *awserr.Error) {
 		r, ok := st.Roles[key(name)]
 		if !ok || r.Name != name || r.Path != path {
 			return iamapi.Role{}, notFound

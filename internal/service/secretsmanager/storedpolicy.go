@@ -5,6 +5,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // StoredPolicy returns a secret's owner, the secret's account, and its
@@ -21,22 +22,18 @@ func (s *Service) StoredPolicy(target aws.ARN) (authz.StoredPolicy, bool) {
 	if target.Service != "secretsmanager" || !isSecret || !full || serr != nil {
 		return authz.StoredPolicy{}, false
 	}
-	type found struct {
-		policy string
-		ok     bool
-	}
-	f := readState(s, scope, func(st *State) found {
+	policy, ok := store.View2(s.cells, scope, func(st *State) (string, bool) {
 		sec, ok := st.Secrets[name]
 		if !ok || sec.Suffix != suffix {
-			return found{}
+			return "", false
 		}
 		if sec.Policy == nil {
-			return found{ok: true}
+			return "", true
 		}
-		return found{policy: *sec.Policy, ok: true}
+		return *sec.Policy, true
 	})
-	if !f.ok {
+	if !ok {
 		return authz.StoredPolicy{}, false
 	}
-	return authz.StoredPolicy{Owner: scope.Account, Policy: authz.ReadStored(f.policy)}, true
+	return authz.StoredPolicy{Owner: scope.Account, Policy: authz.ReadStored(policy)}, true
 }

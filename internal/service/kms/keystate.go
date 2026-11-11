@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // stateRule is the column of the key-state table an operation follows
@@ -104,15 +105,7 @@ func (s *Service) keyFor(c *kernel.Call, r keyRef, rule stateRule) (Key, *awserr
 
 // lookup is find on a read of r's cell.
 func lookup(s *Service, r keyRef) (Key, *awserr.Error) {
-	type found struct {
-		k   Key
-		err *awserr.Error
-	}
-	f := readState(s, r.scope(), func(st *State) found {
-		k, err := find(st, r)
-		return found{k, err}
-	})
-	return f.k, f.err
+	return store.View2(s.cells, r.scope(), func(st *State) (Key, *awserr.Error) { return find(st, r) })
 }
 
 // mintRef is a reference to an AWS managed key that its first use creates.

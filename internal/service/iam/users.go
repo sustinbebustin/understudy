@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // bindUsers binds the user control plane.
@@ -119,7 +120,7 @@ func (s *Service) getUser(_ context.Context, c *kernel.Call, in *iamapi.GetUserI
 	case namedUser:
 		name = who.name
 	}
-	u, err := view(s, account, func(st *State) (User, *awserr.Error) { return st.user(name) })
+	u, err := store.View2(s.cells, account, func(st *State) (User, *awserr.Error) { return st.user(name) })
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +222,7 @@ func (s *Service) deleteUser(_ context.Context, c *kernel.Call, in *iamapi.Delet
 
 func (s *Service) listUsers(_ context.Context, c *kernel.Call, in *iamapi.ListUsersInput) (*iamapi.ListUsersOutput, *awserr.Error) {
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (paging.Page[User], *awserr.Error) {
+	p, err := store.View2(s.cells, account, func(st *State) (paging.Page[User], *awserr.Error) {
 		users := sortedWhere(st.Users, func(u *User) bool { return underPrefix(u.Path, in.PathPrefix) })
 		return paginate("users", users, func(u User) string { return key(u.Name) }, in.Marker, in.MaxItems)
 	})
@@ -261,7 +262,7 @@ func (s *Service) deleteUserPermissionsBoundary(_ context.Context, c *kernel.Cal
 // Terraform makes before every user delete (tf-remaining.md 3.1).
 func (s *Service) listGroupsForUser(_ context.Context, c *kernel.Call, in *iamapi.ListGroupsForUserInput) (*iamapi.ListGroupsForUserOutput, *awserr.Error) {
 	account := c.Scope().Account
-	u, err := view(s, account, func(st *State) (User, *awserr.Error) { return st.user(in.UserName) })
+	u, err := store.View2(s.cells, account, func(st *State) (User, *awserr.Error) { return st.user(in.UserName) })
 	if err != nil {
 		return nil, err
 	}

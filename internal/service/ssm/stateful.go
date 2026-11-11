@@ -43,7 +43,7 @@ func (*Service) Rearm(clock.Instant) {}
 // summarized as "<Type>, version <n>" of its latest
 // version.
 func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
-	return readState(s, scope, func(st *State) []kernel.Resource {
+	return store.View(s.cells, scope, func(st *State) []kernel.Resource {
 		out := make([]kernel.Resource, 0, len(st.Parameters))
 		for canonical, p := range st.Parameters {
 			v := p.latest()

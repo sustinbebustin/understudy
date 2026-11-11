@@ -19,6 +19,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // A stream mapping's reader (lambda-stream-sources.md 12.5):
@@ -439,7 +440,7 @@ func (p *pollers) dropTrimmed(ctx context.Context, c *kernel.Call, pl *poller, s
 // checkpoint; this resolves it under first-read, and for a mapping loaded
 // from a version 2 snapshot, which saved none.
 func (p *pollers) checkpoint(ctx context.Context, c *kernel.Call, pl *poller, src esm.StreamSource, shard string, start esm.StreamStart) (shardlog.Position, error) {
-	pos, _ := view(p.x.svc, pl.scope, func(st *State) (shardlog.Position, *awserr.Error) {
+	pos, _ := store.View2(p.x.svc.cells, pl.scope, func(st *State) (shardlog.Position, *awserr.Error) {
 		return st.checkpoint(pl.uuid, shard), nil
 	})
 	if pos != nil {

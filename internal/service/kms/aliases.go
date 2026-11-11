@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // maxAliasesPerKey is AWS's quota of aliases per KMS key ("Aliases per KMS
@@ -195,7 +196,7 @@ func (s *Service) listAliases(_ context.Context, c *kernel.Call, in *kmsapi.List
 		scope = k.scope
 		keep = func(a Alias) bool { return a.KeyID == k.ID }
 	}
-	entries := readState(s, scope, func(st *State) []kmsapi.AliasListEntry {
+	entries := store.View(s.cells, scope, func(st *State) []kmsapi.AliasListEntry {
 		out := make([]kmsapi.AliasListEntry, 0, len(st.Aliases))
 		for _, a := range st.Aliases {
 			if keep(a) {

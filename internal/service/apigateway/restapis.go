@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/apigateway/patch"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // updateRestAPI applies UpdateRestApi's patch operations to the API, all
@@ -323,26 +324,18 @@ func policyOut(policy *string) *string {
 // getRestAPIs pages the caller's REST APIs in creation order (the order is
 // inferred; apigateway-rest.md 2.5).
 func (s *Service) getRestAPIs(_ context.Context, c *kernel.Call, in *apigatewayapi.GetRestApisInput) (*apigatewayapi.GetRestApisOutput, *awserr.Error) {
-	type found struct {
-		out apigatewayapi.GetRestApisOutput
-		err *awserr.Error
-	}
-	got := readState(s, c.Scope(), func(st *State) found {
+	return store.View2(s.cells, c.Scope(), func(st *State) (*apigatewayapi.GetRestApisOutput, *awserr.Error) {
 		apis := slices.SortedFunc(maps.Values(st.APIs), func(a, b RestAPI) int { return cmp.Compare(a.Seq, b.Seq) })
 		items, next, err := page(apis, func(a RestAPI) uint64 { return a.Seq }, in.Limit, in.Position)
 		if err != nil {
-			return found{err: err}
+			return nil, err
 		}
 		out := apigatewayapi.GetRestApisOutput{Items: make([]apigatewayapi.RestApi, 0, len(items)), Position: next}
 		for i := range items {
 			out.Items = append(out.Items, items[i].output(APIStatusSwitch().Value.AfterCreate))
 		}
-		return found{out: out}
+		return &out, nil
 	})
-	if got.err != nil {
-		return nil, got.err
-	}
-	return &got.out, nil
 }
 
 // deleteRestAPI removes a REST API with everything it holds, and its id

@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Stream defaults and limits (aws-doc kinesis.md 4.1, 4.7, finding 4).
@@ -253,7 +254,7 @@ func (s *Service) listStreams(_ context.Context, c *kernel.Call, in *kinesisapi.
 		return nil, errListStreamsTokenAndStart()
 	}
 	scope := c.Scope()
-	streams := readState(s, scope, func(st *State) []Stream {
+	streams := store.View(s.cells, scope, func(st *State) []Stream {
 		out := make([]Stream, 0, len(st.Streams))
 		for _, name := range slices.Sorted(maps.Keys(st.Streams)) {
 			if in.ExclusiveStartStreamName == nil || name > *in.ExclusiveStartStreamName {
@@ -348,7 +349,7 @@ func (s *Service) decreaseRetention(ctx context.Context, c *kernel.Call, in *kin
 // describeLimits reports the fixed quotas with the scope's open shards and
 // ON_DEMAND streams, and no channel members.
 func (s *Service) describeLimits(_ context.Context, c *kernel.Call, _ *kinesisapi.DescribeLimitsInput) (*kinesisapi.DescribeLimitsOutput, *awserr.Error) {
-	out := readState(s, c.Scope(), func(st *State) *kinesisapi.DescribeLimitsOutput {
+	out := store.View(s.cells, c.Scope(), func(st *State) *kinesisapi.DescribeLimitsOutput {
 		out := &kinesisapi.DescribeLimitsOutput{ShardLimit: shardLimit, OnDemandStreamCountLimit: onDemandStreamLimit}
 		out.OpenShardCount = int32(st.shardCount()) //nolint:gosec // at most shardLimit, enforced by CreateStream
 		for _, str := range st.Streams {

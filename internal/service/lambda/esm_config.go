@@ -17,6 +17,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // The SQS defaults and limits of an event source mapping
@@ -243,7 +244,7 @@ func (s *Service) mappingFunction(c *kernel.Call, name string) (mappingTarget, *
 	if err != nil {
 		return mappingTarget{}, err
 	}
-	return view(s, fn.scope, func(st *State) (mappingTarget, *awserr.Error) {
+	return store.View2(s.cells, fn.scope, func(st *State) (mappingTarget, *awserr.Error) {
 		_, v, err := st.lookup(fn)
 		if err != nil {
 			return mappingTarget{}, errMappingFunctionMissing()
@@ -397,7 +398,7 @@ func (s *Service) createMapping(ctx context.Context, c *kernel.Call, in *lambdaa
 
 func (s *Service) getMapping(_ context.Context, c *kernel.Call, in *lambdaapi.GetEventSourceMappingInput) (*lambdaapi.EventSourceMappingConfiguration, *awserr.Error) {
 	scope := c.Scope()
-	return view(s, scope, func(st *State) (*lambdaapi.EventSourceMappingConfiguration, *awserr.Error) {
+	return store.View2(s.cells, scope, func(st *State) (*lambdaapi.EventSourceMappingConfiguration, *awserr.Error) {
 		m, ok := st.Mappings[in.UUID]
 		if !ok {
 			return nil, errResourceNotFound()
@@ -419,7 +420,7 @@ func (s *Service) listMappings(_ context.Context, c *kernel.Call, in *lambdaapi.
 		}
 		fn = &named
 	}
-	rows, _ := view(s, scope, func(st *State) ([]lambdaapi.EventSourceMappingConfiguration, *awserr.Error) {
+	rows, _ := store.View2(s.cells, scope, func(st *State) ([]lambdaapi.EventSourceMappingConfiguration, *awserr.Error) {
 		var out []lambdaapi.EventSourceMappingConfiguration
 		for _, uuid := range slices.Sorted(maps.Keys(st.Mappings)) {
 			m := st.Mappings[uuid]
@@ -445,7 +446,7 @@ func (s *Service) listMappings(_ context.Context, c *kernel.Call, in *lambdaapi.
 // retarget resolves the function an update moves the mapping uuid to and
 // checks the mapping's queue against it; nil when name is nil.
 func (s *Service) retarget(ctx context.Context, c *kernel.Call, uuid string, name *string) (*mappingTarget, *awserr.Error) {
-	source, err := view(s, c.Scope(), func(st *State) (string, *awserr.Error) {
+	source, err := store.View2(s.cells, c.Scope(), func(st *State) (string, *awserr.Error) {
 		m, ok := st.Mappings[uuid]
 		if !ok {
 			return "", errResourceNotFound()
@@ -485,7 +486,7 @@ func toggle(m *Mapping, enabled *bool) MappingState {
 
 func (s *Service) updateMapping(ctx context.Context, c *kernel.Call, in *lambdaapi.UpdateEventSourceMappingInput) (*lambdaapi.EventSourceMappingConfiguration, *awserr.Error) {
 	scope := c.Scope()
-	current, err := view(s, scope, func(st *State) (Mapping, *awserr.Error) {
+	current, err := store.View2(s.cells, scope, func(st *State) (Mapping, *awserr.Error) {
 		m, ok := st.Mappings[in.UUID]
 		if !ok {
 			return Mapping{}, errResourceNotFound()

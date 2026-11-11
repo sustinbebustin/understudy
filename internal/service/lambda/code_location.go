@@ -75,7 +75,7 @@ func (s *Service) downloadFunctionCode(_ context.Context, c *kernel.Call, r *htt
 	if !ok {
 		return errResourceNotFound()
 	}
-	z, err := view(s, ref.scope, func(st *State) (ZipCode, *awserr.Error) {
+	z, err := store.View2(s.cells, ref.scope, func(st *State) (ZipCode, *awserr.Error) {
 		_, v, err := st.lookup(ref)
 		if err != nil {
 			return ZipCode{}, err
@@ -159,7 +159,7 @@ func (s *Service) downloadLayerArchive(c *kernel.Call, path string, w http.Respo
 	if !ok {
 		return errResourceNotFound()
 	}
-	v, err := view(s, ref.scope, func(st *State) (LayerVersion, *awserr.Error) {
+	v, err := store.View2(s.cells, ref.scope, func(st *State) (LayerVersion, *awserr.Error) {
 		v, ok := st.layerVersion(ref, n)
 		if !ok || linkSha(v.Sha256) != sha {
 			return LayerVersion{}, errResourceNotFound()

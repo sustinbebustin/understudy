@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 func (s *Service) bindAliases(b lambdaapi.Binder) {
@@ -88,7 +89,7 @@ func (s *Service) getAlias(_ context.Context, c *kernel.Call, in *lambdaapi.GetA
 	if err != nil {
 		return nil, err
 	}
-	return view(s, ref.scope, func(st *State) (*lambdaapi.AliasConfiguration, *awserr.Error) {
+	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.AliasConfiguration, *awserr.Error) {
 		f, err := st.function(ref)
 		if err != nil {
 			return nil, err
@@ -188,7 +189,7 @@ func (s *Service) listAliases(_ context.Context, c *kernel.Call, in *lambdaapi.L
 	if err != nil {
 		return nil, err
 	}
-	aliases, err := view(s, ref.scope, func(st *State) ([]lambdaapi.AliasConfiguration, *awserr.Error) {
+	aliases, err := store.View2(s.cells, ref.scope, func(st *State) ([]lambdaapi.AliasConfiguration, *awserr.Error) {
 		f, err := st.function(ref)
 		if err != nil {
 			return nil, err

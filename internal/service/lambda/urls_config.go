@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // maxURLConfigsPage caps a ListFunctionUrlConfigs page (lambda-api.md 7.6).
@@ -119,7 +120,7 @@ func (s *Service) getFunctionURLConfig(_ context.Context, c *kernel.Call, in *la
 	if err != nil {
 		return nil, err
 	}
-	u, err := view(s, ref.scope, func(st *State) (URLConfig, *awserr.Error) {
+	u, err := store.View2(s.cells, ref.scope, func(st *State) (URLConfig, *awserr.Error) {
 		u, ok := st.urlConfig(ref)
 		if !ok {
 			return URLConfig{}, errResourceNotFound()
@@ -208,7 +209,7 @@ func (s *Service) listFunctionURLConfigs(_ context.Context, c *kernel.Call, in *
 		qualifier string
 		config    URLConfig
 	}
-	rows, err := view(s, ref.scope, func(st *State) ([]row, *awserr.Error) {
+	rows, err := store.View2(s.cells, ref.scope, func(st *State) ([]row, *awserr.Error) {
 		f, ok := st.urlTarget(functionRef{scope: ref.scope, name: ref.name})
 		if !ok {
 			return nil, errURLFunctionMissing()

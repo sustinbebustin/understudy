@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // bindTopics binds the topic control plane. SetTopicAttributes's note is
@@ -239,7 +240,7 @@ func (s *Service) setTopicAttributes(_ context.Context, c *kernel.Call, in *snsa
 // listTopics lists the caller's topics in its region by name, 100 a page.
 func (s *Service) listTopics(_ context.Context, c *kernel.Call, in *snsapi.ListTopicsInput) (*snsapi.ListTopicsOutput, *awserr.Error) {
 	scope := c.Scope()
-	names, _ := read(s, scope, func(st *State) []string { return slices.Sorted(maps.Keys(st.Topics)) })
+	names := store.View(s.cells, scope, func(st *State) []string { return slices.Sorted(maps.Keys(st.Topics)) })
 	pageNames, next, err := page(names, in.NextToken)
 	if err != nil {
 		return nil, err

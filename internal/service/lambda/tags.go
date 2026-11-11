@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 func (s *Service) bindTags(b lambdaapi.Binder) {
@@ -168,7 +169,7 @@ func (s *Service) listTags(_ context.Context, c *kernel.Call, in *lambdaapi.List
 	if err != nil {
 		return nil, err
 	}
-	tags, err := view(s, t.scope(), func(st *State) (map[string]string, *awserr.Error) {
+	tags, err := store.View2(s.cells, t.scope(), func(st *State) (map[string]string, *awserr.Error) {
 		tags, err := t.tags(st)
 		return maps.Clone(tags), err
 	})

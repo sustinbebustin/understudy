@@ -370,25 +370,6 @@ func versionID(scope aws.Scope, name, number string) string {
 // clockTransitions reports the lambda.stateTransitions: clock switch.
 func (s *Service) clockTransitions() bool { return s.opts.StateTransitions == TransitionsClock }
 
-// view runs fn on the state of scope under the cell's lock; a scope
-// without a cell reads as empty. fn's result must not alias the state.
-func view[R any](s *Service, scope aws.Scope, fn func(st *State) (R, *awserr.Error)) (R, *awserr.Error) {
-	cell, ok := s.cells.Lookup(scope)
-	if !ok {
-		st := newState(scope)
-		return fn(&st)
-	}
-	type result struct {
-		r   R
-		err *awserr.Error
-	}
-	out := store.Read(cell, func(st *State) result {
-		r, err := fn(st)
-		return result{r, err}
-	})
-	return out.r, out.err
-}
-
 // write runs fn on the state of scope through kernel.Write.
 func write[R any](s *Service, c *kernel.Call, scope aws.Scope, fn func(st *State, now clock.Instant, tx *kernel.Tx) (R, *awserr.Error)) (R, *awserr.Error) {
 	return kernel.Write(c, s.cells, scope, fn)

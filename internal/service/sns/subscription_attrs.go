@@ -17,6 +17,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/service/sns/filterpolicy"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Subscription attribute names (sns.md 3.3).
@@ -387,7 +388,7 @@ func (s *Service) getSubscriptionAttributes(_ context.Context, c *kernel.Call, i
 		return nil, err
 	}
 	now := s.clock.Now()
-	attrs, _ := read(s, ref.topic.scope, func(st *State) map[string]string {
+	attrs := store.View(s.cells, ref.topic.scope, func(st *State) map[string]string {
 		if t, ok := st.Topics[ref.topic.name]; ok {
 			if i := t.indexOf(ref.id); i >= 0 && !t.Subscriptions[i].expired(now) {
 				return renderSubscriptionAttributes(ref, &t.Subscriptions[i], t.Attributes[attrDeliveryPolicy])

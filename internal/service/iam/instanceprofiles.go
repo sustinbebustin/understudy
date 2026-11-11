@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // bindInstanceProfiles binds instance profiles and their one role.
@@ -71,7 +72,7 @@ func (s *Service) createInstanceProfile(_ context.Context, c *kernel.Call, in *i
 
 func (s *Service) getInstanceProfile(_ context.Context, c *kernel.Call, in *iamapi.GetInstanceProfileInput) (*iamapi.GetInstanceProfileOutput, *awserr.Error) {
 	account := c.Scope().Account
-	out, err := view(s, account, func(st *State) (iamapi.InstanceProfile, *awserr.Error) {
+	out, err := store.View2(s.cells, account, func(st *State) (iamapi.InstanceProfile, *awserr.Error) {
 		p, err := st.instanceProfile(in.InstanceProfileName)
 		if err != nil {
 			return iamapi.InstanceProfile{}, err
@@ -171,7 +172,7 @@ func (s *Service) removeRoleFromInstanceProfile(_ context.Context, c *kernel.Cal
 
 func (s *Service) listInstanceProfiles(_ context.Context, c *kernel.Call, in *iamapi.ListInstanceProfilesInput) (*iamapi.ListInstanceProfilesOutput, *awserr.Error) {
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (paging.Page[iamapi.InstanceProfile], *awserr.Error) {
+	p, err := store.View2(s.cells, account, func(st *State) (paging.Page[iamapi.InstanceProfile], *awserr.Error) {
 		all := st.apiInstanceProfiles(account, func(p *InstanceProfile) bool { return underPrefix(p.Path, in.PathPrefix) })
 		return paginate("instance-profiles", all, func(p iamapi.InstanceProfile) string { return key(p.InstanceProfileName) }, in.Marker, in.MaxItems)
 	})
@@ -189,7 +190,7 @@ func (s *Service) listInstanceProfilesForRole(_ context.Context, c *kernel.Call,
 		role Role
 		p    paging.Page[iamapi.InstanceProfile]
 	}
-	l, err := view(s, account, func(st *State) (listed, *awserr.Error) {
+	l, err := store.View2(s.cells, account, func(st *State) (listed, *awserr.Error) {
 		r, err := st.role(in.RoleName)
 		if err != nil {
 			return listed{}, err

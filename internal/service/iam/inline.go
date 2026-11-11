@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // bindInline binds the inline policies of roles and users.
@@ -109,7 +110,7 @@ func (s *Service) getInline(c *kernel.Call, h holder, name string) (InlinePolicy
 		policy InlinePolicy
 		arn    aws.ARN
 	}
-	f, err := view(s, c.Scope().Account, func(st *State) (found, *awserr.Error) {
+	f, err := store.View2(s.cells, c.Scope().Account, func(st *State) (found, *awserr.Error) {
 		have, arn, err := h.get(st)
 		if err != nil {
 			return found{}, err
@@ -161,7 +162,7 @@ func (s *Service) listInline(c *kernel.Call, listing paging.Listing, h holder, m
 		p   paging.Page[string]
 		arn aws.ARN
 	}
-	l, err := view(s, c.Scope().Account, func(st *State) (listed, *awserr.Error) {
+	l, err := store.View2(s.cells, c.Scope().Account, func(st *State) (listed, *awserr.Error) {
 		have, arn, err := h.get(st)
 		if err != nil {
 			return listed{}, err

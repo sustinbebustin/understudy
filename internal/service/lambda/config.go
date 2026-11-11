@@ -13,6 +13,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Config is a version's configuration: what CreateFunction and
@@ -478,7 +479,7 @@ func (s *Service) storeEventInvoke(ctx context.Context, c *kernel.Call, name str
 	if in.retries == nil && in.age == nil && in.dest == nil {
 		return nil, errEventInvokeNoSettings()
 	}
-	if _, err := view(s, ref.scope, func(st *State) (EventInvokeConfig, *awserr.Error) { return st.eventInvokeBase(ref, replace) }); err != nil {
+	if _, err := store.View2(s.cells, ref.scope, func(st *State) (EventInvokeConfig, *awserr.Error) { return st.eventInvokeBase(ref, replace) }); err != nil {
 		return nil, err
 	}
 	var dests []configuredDestination
@@ -598,7 +599,7 @@ func (s *Service) getEventInvokeConfig(_ context.Context, c *kernel.Call, in *la
 	if err != nil {
 		return nil, err
 	}
-	return view(s, ref.scope, func(st *State) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
+	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
 		cfg, ok := st.eventInvoke(ref)
 		if !ok {
 			return nil, ref.eventInvokeNotFound()
@@ -645,7 +646,7 @@ func (s *Service) listEventInvokeConfigs(_ context.Context, c *kernel.Call, in *
 	if err != nil {
 		return nil, err
 	}
-	configs, err := view(s, ref.scope, func(st *State) ([]lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
+	configs, err := store.View2(s.cells, ref.scope, func(st *State) ([]lambdaapi.FunctionEventInvokeConfig, *awserr.Error) {
 		f, ok := st.Functions[ref.name]
 		if !ok {
 			return nil, errEventInvokeFunctionMissing()

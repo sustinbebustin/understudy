@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Layers on functions (lambda-destinations-layers.md 7, 11.5.4):
@@ -157,7 +158,7 @@ func (s *Service) resolveLayer(ctx context.Context, scope aws.Scope, arn string)
 		layer   LayerRef
 		granted bool
 	}
-	f, err := view(s, ref.scope, func(st *State) (found, *awserr.Error) {
+	f, err := store.View2(s.cells, ref.scope, func(st *State) (found, *awserr.Error) {
 		v, ok := st.layerVersion(ref, n)
 		switch {
 		case !ok && foreign:

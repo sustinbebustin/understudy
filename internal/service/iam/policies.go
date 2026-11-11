@@ -16,6 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/policycatalogue"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // bindPolicies binds managed policies and their versions.
@@ -200,7 +201,7 @@ func (s *Service) getPolicy(_ context.Context, c *kernel.Call, in *iamapi.GetPol
 		return nil, err
 	}
 	account := c.Scope().Account
-	out, err := view(s, account, func(st *State) (iamapi.Policy, *awserr.Error) {
+	out, err := store.View2(s.cells, account, func(st *State) (iamapi.Policy, *awserr.Error) {
 		switch named := named.(type) {
 		case catalogued:
 			return apiAWSManagedPolicy(named.policy, st.usages()), nil
@@ -290,7 +291,7 @@ func (s *Service) listPolicies(_ context.Context, c *kernel.Call, in *iamapi.Lis
 		managed = cat
 	}
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (paging.Page[listedPolicy], *awserr.Error) {
+	p, err := store.View2(s.cells, account, func(st *State) (paging.Page[listedPolicy], *awserr.Error) {
 		var all []listedPolicy
 		add := func(v iamapi.Policy) {
 			if l, ok := listPolicy(in, v); ok {
@@ -394,7 +395,7 @@ func (s *Service) getPolicyVersion(_ context.Context, c *kernel.Call, in *iamapi
 		return nil, err
 	}
 	account := c.Scope().Account
-	out, err := view(s, account, func(st *State) (iamapi.PolicyVersion, *awserr.Error) {
+	out, err := store.View2(s.cells, account, func(st *State) (iamapi.PolicyVersion, *awserr.Error) {
 		switch named := named.(type) {
 		case catalogued:
 			if in.VersionId != named.policy.VersionID {
@@ -431,7 +432,7 @@ func (s *Service) listPolicyVersions(_ context.Context, c *kernel.Call, in *iama
 		return nil, err
 	}
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (paging.Page[listedVersion], *awserr.Error) {
+	p, err := store.View2(s.cells, account, func(st *State) (paging.Page[listedVersion], *awserr.Error) {
 		all, err := st.listedVersions(account, in.PolicyArn, named)
 		if err != nil {
 			return paging.Page[listedVersion]{}, err
@@ -535,7 +536,7 @@ func (s *Service) listEntitiesForPolicy(_ context.Context, c *kernel.Call, in *i
 		return nil, err
 	}
 	account := c.Scope().Account
-	p, err := view(s, account, func(st *State) (paging.Page[policyEntity], *awserr.Error) {
+	p, err := store.View2(s.cells, account, func(st *State) (paging.Page[policyEntity], *awserr.Error) {
 		switch named.(type) {
 		case catalogued:
 		case uncatalogued:

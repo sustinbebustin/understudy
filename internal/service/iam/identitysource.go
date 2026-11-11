@@ -6,9 +6,9 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // The service is the evaluator's identity-policy source
@@ -168,18 +168,10 @@ func (s *Service) roleAt(target aws.ARN) (aws.AccountID, Role, bool) {
 	return account, r, ok
 }
 
-// entityOf runs fn on the account's state, as view does, for a lookup that
-// finds what it reads or does not.
+// entityOf runs fn on the account's state, as store.View2 does, for a lookup
+// that finds what it reads or does not.
 func entityOf[R any](s *Service, account aws.AccountID, fn func(st *State) (R, bool)) (R, bool) {
-	type found struct {
-		r  R
-		ok bool
-	}
-	f, _ := view(s, account, func(st *State) (found, *awserr.Error) {
-		r, ok := fn(st)
-		return found{r: r, ok: ok}, nil
-	})
-	return f.r, f.ok
+	return store.View2(s.cells, account, fn)
 }
 
 // lastSegment is the name in an IAM ARN's resource: the text after its last

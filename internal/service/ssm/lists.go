@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/paging"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // Page sizes without MaxResults: 10 for both (ssm-parameters.md 7.4, 7.5;
@@ -384,7 +385,7 @@ func (s *Service) getParametersByPath(ctx context.Context, c *kernel.Call, in *s
 	}
 	labeled := slices.ContainsFunc(in.ParameterFilters, func(f ssmapi.ParameterStringFilter) bool { return f.Key == "Label" })
 	recursive := in.Recursive != nil && *in.Recursive
-	hits := readState(s, scope, func(st *State) []found {
+	hits := store.View(s.cells, scope, func(st *State) []found {
 		var out []found
 		for _, p := range st.Parameters {
 			if !path.holds(p.Name, recursive) {
@@ -442,7 +443,7 @@ func (s *Service) describeParameters(_ context.Context, c *kernel.Call, in *ssma
 	if in.Shared != nil && *in.Shared {
 		return &ssmapi.DescribeParametersOutput{Parameters: []ssmapi.ParameterMetadata{}}, nil
 	}
-	hits := readState(s, scope, func(st *State) []Parameter {
+	hits := store.View(s.cells, scope, func(st *State) []Parameter {
 		var out []Parameter
 		for _, p := range st.Parameters {
 			if keepsAll(filters, &p, p.latest()) {
