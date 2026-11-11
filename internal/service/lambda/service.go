@@ -265,22 +265,9 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 // TransitionsClock, and the image timer of every version waiting for its
 // image, whose pull a load interrupted.
 func (s *Service) Rearm(now clock.Instant) {
-	sched := s.k.Timers().Scheduler()
-	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
-		cell, ok := s.cells.Lookup(scope)
-		if !ok {
-			continue
-		}
-		// Armed under the cell lock, where kernel.Write arms, so a
-		// concurrent write either commits first and is read here, or
-		// commits after and its own arms replace these.
-		store.Read(cell, func(st *State) struct{} {
-			for _, a := range s.armed(scope, st, now) {
-				sched.Arm(a.Key, a.Due)
-			}
-			return struct{}{}
-		})
-	}
+	kernel.RearmEach(s.k.Timers().Scheduler(), s.cells, func(scope aws.Scope, st *State) []clock.Armed {
+		return s.armed(scope, st, now)
+	})
 }
 
 // Resources lists the functions and event source mappings of scope.

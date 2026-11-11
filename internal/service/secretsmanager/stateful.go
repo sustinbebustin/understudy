@@ -36,24 +36,10 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 }
 
 // Rearm arms the deletion timer of every secret scheduled for deletion
-// (timersOf), since timers are never saved. It arms under the cell lock,
-// where kernel.Write arms, so a concurrent write either commits first and
-// its deletion date is read here, or commits after and its own arm replaces
-// this one.
+// (timersOf), since timers are never saved. kernel.RearmEach has the lock
+// argument.
 func (s *Service) Rearm(clock.Instant) {
-	sched := s.k.Timers().Scheduler()
-	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
-		cell, ok := s.cells.Lookup(scope)
-		if !ok {
-			continue
-		}
-		store.Read(cell, func(st *State) struct{} {
-			for _, a := range s.timersOf(scope, st) {
-				sched.Arm(a.Key, a.Due)
-			}
-			return struct{}{}
-		})
-	}
+	kernel.RearmEach(s.k.Timers().Scheduler(), s.cells, s.timersOf)
 }
 
 // timersOf lists the deletion timer of every secret of st, the state of

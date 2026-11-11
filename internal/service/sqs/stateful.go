@@ -37,13 +37,15 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 }
 
 // Rearm arms the timers the state implies at now (timersOf), since timers
-// are never saved. It arms under the cell lock, where kernel.Write arms,
-// so a concurrent write either commits first and its timers are read
-// here, or commits after and its own arms replace these. It then wakes
+// are never saved; kernel.RearmEach has the lock argument. It then wakes
 // the long polls parked on every queue that holds a visible message,
 // since no send or timer will wake them for messages the load brought.
+// The wake is its own read and needs no lock: a waiter subscribes before it
+// checks the queue, and a spare wake only makes it check again.
 func (s *Service) Rearm(now clock.Instant) {
-	sched := s.k.Timers().Scheduler()
+	kernel.RearmEach(s.k.Timers().Scheduler(), s.cells, func(scope aws.Scope, st *State) []clock.Armed {
+		return s.timersOf(scope, st, now)
+	})
 	var ready []queueRef
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
 		cell, ok := s.cells.Lookup(scope)
@@ -51,9 +53,6 @@ func (s *Service) Rearm(now clock.Instant) {
 			continue
 		}
 		ready = append(ready, store.Read(cell, func(st *State) []queueRef {
-			for _, a := range s.timersOf(scope, st, now) {
-				sched.Arm(a.Key, a.Due)
-			}
 			return readyQueues(scope, st, now)
 		})...)
 	}
