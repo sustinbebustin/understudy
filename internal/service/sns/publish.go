@@ -615,7 +615,8 @@ func (n notifier) admits(sub *Subscription, m *message, to endpoint, tx *kernel.
 // request is the delivery of m to sub at to: the raw message or the
 // envelope for a queue or an http or https endpoint, the event for a
 // function, with sub's RedrivePolicy queue as the dead-letter queue
-// (sns.md 7.4, sns-http-delivery.md 6.5).
+// (sns.md 7.4, sns-http-delivery.md 6.5). A function's dead letter is the
+// SQS envelope, built here and handed over as Request.DLQMessage.
 func (n notifier) request(sub *Subscription, m *message, p published, to endpoint) (delivery.Request, *awserr.Error) {
 	dlq, err := sub.deadLetterQueue()
 	if err != nil {
@@ -647,6 +648,15 @@ func (n notifier) request(sub *Subscription, m *message, p published, to endpoin
 			return delivery.Request{}, awserr.Internalf(err)
 		}
 		req.Target = delivery.LambdaFunction{ARN: to.function, Qualifier: to.qualifier, Event: event, Invocation: delivery.InvocationEvent}
+		if dlq != nil {
+			// The dead letter is what an SQS subscription would have
+			// received (sns.md 7.4); a function takes no raw delivery.
+			dl, err := n.sqsTarget(sub, m, note, p, *dlq)
+			if err != nil {
+				return delivery.Request{}, err
+			}
+			req.DLQMessage = &delivery.DeadLetterMessage{Body: dl.Body, Attributes: dl.Attributes, GroupID: dl.GroupID, DedupID: dl.DedupID}
+		}
 	case httpEndpoint:
 		note.UnsubscribeURL = n.links.http.unsubscribe(subARN)
 		target, err := n.httpTarget(sub, m, note, subARN, to)

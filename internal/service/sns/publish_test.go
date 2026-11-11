@@ -608,6 +608,36 @@ func TestFilteredMessageNeverReachesTheDeadLetterQueue(t *testing.T) {
 	})
 }
 
+// TestLambdaDeadLetterIsTheNotificationEnvelope: a missing function is a
+// client error, so the notification goes at once to the subscription's
+// dead-letter queue (sns.md 7.1), and with raw delivery off its body is the
+// full notification envelope, the message attributes inside it and none
+// as SQS attributes (sns.md 7.4): what an SQS subscription would have
+// received, not the Lambda Records event.
+func TestLambdaDeadLetterIsTheNotificationEnvelope(t *testing.T) {
+	run(t, func(h *harness) {
+		const dlq = "arn:aws:sqs:us-east-1:000000000000:orders-dlq"
+		topic := h.topic("events", nil)
+		sub := h.subscribe(topic, "lambda", missingFunctionARN, map[string]string{"RedrivePolicy": `{"deadLetterTargetArn":"` + dlq + `"}`})
+		out := must(h, snsapi.OpPublish, &snsapi.PublishInput{
+			TopicArn: &topic, Message: "hello", Subject: new("greeting"),
+			MessageAttributes: map[string]snsapi.MessageAttributeValue{
+				"store": attr("String", "north"),
+				"blob":  {DataType: "Binary", BinaryValue: []byte{2, 3, 4}},
+			},
+		})
+		h.settle()
+		if n := len(h.invoked.all()); n != 1 {
+			h.Fatalf("Invoke ran %d times, want one attempt and no retry", n)
+		}
+		sent := h.sent.all()
+		if len(sent) != 1 || !strings.HasSuffix(sent[0].QueueUrl, "/orders-dlq") {
+			h.Fatalf("SendMessage = %+v, want one dead letter in orders-dlq", sent)
+		}
+		checkEnvelope(h, sent[0], topic, sub, *out.MessageId)
+	})
+}
+
 // TestFIFOFilterKeepsGroupAndOrder: on a FIFO topic a matching message
 // reaches a FIFO queue with its group and deduplication ids, in publish
 // order, while a filtered one in between is left out (sns.md 5.3).

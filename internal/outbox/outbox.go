@@ -324,8 +324,18 @@ func checkSender(req delivery.Request) *RequestError {
 // EventBus one under another mechanism, so those refuse a queue until
 // their producer researches it. An HTTP control message, a
 // SubscriptionConfirmation or UnsubscribeConfirmation, never goes to one
-// (sns.http.control-dlq, sns-http-delivery.md 6.5, 8.2).
+// (sns.http.control-dlq, sns-http-delivery.md 6.5, 8.2). A dead letter the
+// producer built (DLQMessage) needs a queue, and only SNS to Lambda builds
+// one (sns.md 7.4).
 func checkDLQ(req delivery.Request) *RequestError {
+	if req.DLQMessage != nil {
+		switch {
+		case req.DLQ == nil:
+			return &RequestError{Field: "DLQMessage", Reason: "is set, but the request has no DLQ to send it to"}
+		case req.Mechanism != delivery.SNSToLambda:
+			return &RequestError{Field: "DLQMessage", Reason: "is set, but only " + delivery.SNSToLambda.String() + " builds its dead letter, not " + req.Mechanism.String()}
+		}
+	}
 	if req.DLQ == nil {
 		return nil
 	}

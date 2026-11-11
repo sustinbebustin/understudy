@@ -149,7 +149,10 @@
 // no second attempt. The claim is never saved; an entry a snapshot load
 // brings back is attempted afresh.
 //
-// A dead letter is the payload the target would have received: for SQS the
+// An SNS-to-Lambda dead letter is the SQS notification envelope, which only
+// SNS can write: SNS builds it and hands it over as
+// delivery.Request.DLQMessage, and the outbox sends it as it is (sns.md
+// 7.4). Any other dead letter is the payload the target would have received: for SQS the
 // body (the SNS envelope, or the raw message with its attributes as SQS
 // message attributes, sns.md 7.4) with group and deduplication ids kept for
 // a FIFO dead-letter queue; a function's event, a topic's message or an
@@ -168,12 +171,6 @@
 // is dropped, both reasons journaled.
 //
 // # Known gaps
-//
-// An SNS-to-Lambda dead letter's body is the Lambda Records event. AWS
-// puts the SQS-style notification envelope there (Type, MessageId,
-// TopicArn, ..., SigningCertURL, UnsubscribeURL), which only the SNS
-// envelope builder can produce; closing the gap needs the producer to hand
-// the outbox its dead letter in delivery.Request.
 //
 // A FIFO lane is ordered by Seq, drawn when Enqueue runs, after the source
 // cell unlocked. Two publishes to one FIFO topic and group that commit

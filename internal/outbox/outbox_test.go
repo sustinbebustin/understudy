@@ -799,8 +799,8 @@ type call[In any] struct {
 // SNS invokes a subscribed function asynchronously with the Records event
 // as sns.amazonaws.com (lambda-events.md 4); a missing function is a
 // client-side failure that goes to the subscription's dead-letter queue.
-// The dead letter's body is not asserted: AWS puts the SQS-style envelope
-// there, which the outbox cannot build (a known gap, see the package doc).
+// The dead letter is the SQS-style envelope SNS built (sns.md 7.4), handed
+// over as Request.DLQMessage and sent as it is, not the Lambda event.
 func TestSNSToLambda(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		var invokes recorder[call[lambdaapi.InvokeInput]]
@@ -815,13 +815,15 @@ func TestSNSToLambda(t *testing.T) {
 		cause := source(k)
 		dlq := arn("sqs", "orders-dlq")
 		event := []byte(`{"Records":[{"EventSource":"aws:sns"}]}`)
+		envelope := `{"Type":"Notification","MessageId":"m-1","TopicArn":"arn:aws:sns:us-east-1:000000000000:orders","Message":"hello","Timestamp":"2000-01-01T00:00:00.000Z"}`
 		toFunction := func(name string) delivery.Request {
 			return delivery.Request{
-				Source:    topic(),
-				Mechanism: delivery.SNSToLambda,
-				Target:    delivery.LambdaFunction{ARN: arn("lambda", "function:"+name), Event: event, Invocation: delivery.InvocationEvent},
-				Policy:    delivery.SNSManaged{},
-				DLQ:       &dlq,
+				Source:     topic(),
+				Mechanism:  delivery.SNSToLambda,
+				Target:     delivery.LambdaFunction{ARN: arn("lambda", "function:"+name), Event: event, Invocation: delivery.InvocationEvent},
+				Policy:     delivery.SNSManaged{},
+				DLQ:        &dlq,
+				DLQMessage: &delivery.DeadLetterMessage{Body: envelope},
 			}
 		}
 		enqueue(k, o, toFunction("worker"), cause)
@@ -843,7 +845,10 @@ func TestSNSToLambda(t *testing.T) {
 		}
 		sentToDLQ := q.sent()
 		if len(sentToDLQ) != 1 || sentToDLQ[0].queue != "orders-dlq" {
-			k.Errorf("dead letters = %+v, want one in orders-dlq", sentToDLQ)
+			k.Fatalf("dead letters = %+v, want one in orders-dlq", sentToDLQ)
+		}
+		if dl := sentToDLQ[0].in; dl.MessageBody != envelope || len(dl.MessageAttributes) != 0 {
+			k.Errorf("dead letter = %q with attributes %v, want the envelope SNS built", dl.MessageBody, dl.MessageAttributes)
 		}
 	})
 }

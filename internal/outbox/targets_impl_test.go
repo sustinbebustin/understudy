@@ -444,6 +444,21 @@ func TestCheckDLQ(t *testing.T) {
 			t.Errorf("checkDLQ(%T under %s with a queue) = %v, want refused %t", c.target, c.mechanism, err, c.refused)
 		}
 	}
+	fn := delivery.LambdaFunction{ARN: aws.ARN{Partition: "aws", Service: "lambda", Region: "us-east-1", Account: "000000000000", Resource: "function:f"}}
+	built := &delivery.DeadLetterMessage{Body: "{}"}
+	for _, c := range []struct {
+		req     delivery.Request
+		refused bool
+	}{
+		{delivery.Request{Mechanism: delivery.SNSToLambda, Target: fn, DLQ: &dlq, DLQMessage: built}, false},
+		{delivery.Request{Mechanism: delivery.SNSToLambda, Target: fn, DLQMessage: built}, true},
+		{delivery.Request{Mechanism: delivery.EventsToLambda, Target: fn, DLQ: &dlq, DLQMessage: built}, true},
+	} {
+		err := checkDLQ(c.req)
+		if refused := err != nil && err.Field == "DLQMessage"; refused != c.refused {
+			t.Errorf("checkDLQ(a built dead letter under %s, DLQ %v) = %v, want refused %t", c.req.Mechanism, c.req.DLQ, err, c.refused)
+		}
+	}
 }
 
 // An object delivery lands in the object, in the source's partition; an

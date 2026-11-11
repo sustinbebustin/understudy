@@ -80,7 +80,10 @@ func (e ending) reason(f failure) string {
 // deadLetterMessage is what the failed delivery e leaves in the queue dlq,
 // f being how its last attempt failed and end why it ended.
 //
-// The body is the payload the target would have received. For SNS to SQS
+// A dead letter its producer built (Request.DLQMessage, SNS to Lambda's
+// SQS envelope, sns.md 7.4) is sent as it is, its group and deduplication
+// ids to a FIFO dead-letter queue only. Otherwise the body is the payload
+// the target would have received. For SNS to SQS
 // that is what the subscription would have received: the envelope, or the
 // raw message with its attributes as SQS attributes (sns.md 7.4). A
 // function's event and a topic's message become the body. An HTTP
@@ -96,6 +99,13 @@ func (e ending) reason(f failure) string {
 // which deadLetterOf writes (schedulerDeadLetter).
 func deadLetterMessage(e *Entry, dlq aws.ARN, f failure, end ending) sqsMessage {
 	m := sqsMessage{queue: dlq}
+	if dm := e.Request.DLQMessage; dm != nil {
+		m.body, m.attributes = dm.Body, dm.Attributes
+		if isFIFO(dlq) {
+			m.groupID, m.dedupID = dm.GroupID, dm.DedupID
+		}
+		return m
+	}
 	switch t := e.Request.Target.(type) {
 	case delivery.SQSQueue:
 		m.body, m.attributes = t.Body, t.Attributes

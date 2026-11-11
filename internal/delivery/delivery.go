@@ -27,6 +27,11 @@ type Request struct {
 	// DLQ is where a delivery goes when its retries are exhausted or the
 	// target is gone; nil drops it.
 	DLQ *aws.ARN
+	// DLQMessage is the dead letter the producer built, which the outbox
+	// sends to DLQ as it is instead of deriving one from Target; nil for
+	// every delivery but SNSToLambda's with a DLQ, whose dead letter is the
+	// SQS notification envelope only SNS can write (sns.md 7.4).
+	DLQMessage *DeadLetterMessage
 	// Sender is set for the Lambda* and ESM* mechanisms and nil for every
 	// other: Lambda delivers an asynchronous invocation's record or dead
 	// letter (lambda-destinations-layers.md 2.5, 11.3), and an event source
@@ -44,6 +49,16 @@ type Request struct {
 	// other: the outbox renders the target's payload from it before each
 	// attempt (scheduler.md 14.4.2).
 	Invocation *SchedulerInvocation
+}
+
+// DeadLetterMessage is a dead letter its producer built: the SQS message
+// body and attributes, and the group and deduplication ids a FIFO
+// dead-letter queue takes.
+type DeadLetterMessage struct {
+	Body       string
+	Attributes []MessageAttribute
+	GroupID    string
+	DedupID    string
 }
 
 // LambdaSender is a Lambda* delivery's sender: the execution role it runs
