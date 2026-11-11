@@ -24,7 +24,6 @@ Most differences are in error texts, codes and response details, not in the happ
 
 ## SNS
 
-- An unknown `Action` is "Could not find operation NoSuchAction for version 2010-03-31" under the `http://webservices.amazon.com/AWSFault/2005-15-09` namespace on AWS; understudy answers "The action NoSuchAction is not valid for this endpoint." under the SNS namespace (`sns/R11/05-sns-unknown-action.json`).
 - `FilterPolicy` reads back compacted on AWS; understudy returns it as sent (`sns/R05/05-get-sub-attrs.json`).
 - `PublishBatch` with a 101-character `Subject` reports that entry in `Failed` and sends the rest on AWS; understudy fails the whole call (`sns/R16/02-subject-101.json`).
 - `MessageStructure=json` with a duplicate `default` key is accepted on AWS, last value winning; understudy refuses it as unparseable (`sns/R16/03-x-message-structure-duplicate-key.json`).
@@ -280,7 +279,6 @@ Scheduler was recorded against AWS on 2026-11-03 (`testdata/parity/scheduler/SCH
 
 SES was recorded against AWS on 2026-11-03 from a sandbox account with no verified sender (`testdata/parity/ses/SES-*`), so the answers to sends that pass the sender check are unrecorded and labelled per item on the [coverage page](../coverage.md#ses). Recorded differences:
 
-- An unknown v1 `Action` is `InvalidAction` in the `http://webservices.amazon.com/AWSFault/2005-15-09` namespace, "Could not find operation FooBar for version 2010-12-01", on AWS; understudy answers the SES namespace and "The action FooBar is not valid for this endpoint." (`ses/SES-24/01-v1-unknown.json`). An unknown v2 path is a 404 with the body `<UnknownOperationException/>` and no `Content-Type` on AWS; understudy answers `sesv2`'s JSON unknown operation (`ses/SES-24/02-v2-unknown.json`).
 - `ConfigurationSetName` naming a missing set is `ConfigurationSetDoesNotExist` "Configuration set <name> does not exist.", checked before the sender, on AWS; understudy answers 501, since configuration sets are not implemented (`ses/SES-17/02-unverified.json`).
 - `GetIdentityNotificationAttributes` leaves the `BounceTopic`, `ComplaintTopic` and `DeliveryTopic` elements out of an identity with no topics; understudy sends them empty (`ses/SES-08/03-notif-raw.json`).
 - `GetSendQuota` spells its numbers `200.0`, `1.0` and `0.0` and lists `SentLast24Hours` first; understudy writes `200`, `1`, `0` in the model's order. SDKs read both the same (`ses/SES-15/02-quota.json`).

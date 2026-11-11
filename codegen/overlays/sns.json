@@ -8,12 +8,19 @@
         "dev.understudy#denialError": "com.amazonaws.sns#AuthorizationErrorException",
         "dev.understudy#validationError": {"code": "com.amazon.coral.validate#ValidationException"},
         "dev.understudy#queryErrorEnvelope": {"namespace": true},
+        "dev.understudy#unknownOperationAnswer": "awsFault",
         "dev.understudy#evidence": [
           {
             "label": "aws-recorded",
             "source": "testdata/parity/sns/R16/02-invalid-id.json",
             "validated": "2026-10-14",
             "covers": ["dev.understudy#queryErrorEnvelope"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/sns/R11/05-sns-unknown-action.json",
+            "validated": "2026-10-14",
+            "covers": ["dev.understudy#unknownOperationAnswer"]
           },
           {
             "label": "inferred",

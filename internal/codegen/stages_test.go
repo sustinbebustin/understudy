@@ -165,6 +165,22 @@ func TestStageFailures(t *testing.T) {
 				`"send" is "sometimes"; the one value is "query-mode"`,
 		},
 		{
+			name: "unknownOperationAnswer with an unknown value",
+			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "replace": true, "traits": {
+				"dev.understudy#unknownOperationAnswer": "teapot", ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#Golden: dev.understudy#unknownOperationAnswer: " +
+				`unknownOperationAnswer is "teapot"; the values are "awsFault" and "notFound"`,
+		},
+		{
+			name: "unknownOperationAnswer notFound on a service with no REST protocol",
+			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "replace": true, "traits": {
+				"dev.understudy#unknownOperationAnswer": "notFound", ` + evidence + `}}`),
+			stage: codegen.StageIR,
+			want: "understudy-gen ir: com.example.golden#Golden: dev.understudy#unknownOperationAnswer \"notFound\" answers " +
+				"a REST path no route matches, but the service speaks no REST protocol",
+		},
+		{
 			name: "unknown dev.understudy trait",
 			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "traits": {
 				"dev.understudy#flavor": "vanilla", ` + evidence + `}}`),
@@ -175,7 +191,7 @@ func TestStageFailures(t *testing.T) {
 				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#patternEcho " +
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryErrorHeader dev.understudy#queryKeyAlias " +
 				"dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
-				"dev.understudy#throttleError dev.understudy#unknownOperationError dev.understudy#validationError " +
+				"dev.understudy#throttleError dev.understudy#unknownOperationAnswer dev.understudy#unknownOperationError dev.understudy#validationError " +
 				"dev.understudy#validationInputRoot dev.understudy#validationPathStyle]",
 		},
 		{
@@ -869,30 +885,31 @@ func TestClassify(t *testing.T) {
 // and every other overlay trait changes what the server puts on the wire.
 func TestClassifyOverlayTraits(t *testing.T) {
 	want := map[string]codegen.Class{
-		"dev.understudy#evidence":              codegen.GenerationOnly,
-		"dev.understudy#errorNamespace":        codegen.Honor,
-		"dev.understudy#jsonType":              codegen.Honor,
-		"dev.understudy#messageByProtocol":     codegen.Honor,
-		"dev.understudy#messageKey":            codegen.Honor,
-		"dev.understudy#validationError":       codegen.Honor,
-		"dev.understudy#validationPathStyle":   codegen.Honor,
-		"dev.understudy#successCode":           codegen.Honor,
-		"dev.understudy#queryKeyAlias":         codegen.Honor,
-		"dev.understudy#emptyCollection":       codegen.Honor,
-		"dev.understudy#internalOperation":     codegen.Honor,
-		"dev.understudy#patternEcho":           codegen.Honor,
-		"dev.understudy#patternValidator":      codegen.Honor,
-		"dev.understudy#alwaysEmit":            codegen.Honor,
-		"dev.understudy#maxRequestBytes":       codegen.Honor,
-		"dev.understudy#throttleError":         codegen.Honor,
-		"dev.understudy#notConfigured":         codegen.Honor,
-		"dev.understudy#malformedRequestError": codegen.Honor,
-		"dev.understudy#statusOverride":        codegen.Honor,
-		"dev.understudy#unknownOperationError": codegen.Honor,
-		"dev.understudy#queryErrorEnvelope":    codegen.Honor,
-		"dev.understudy#responseCrc32":         codegen.Honor,
-		"dev.understudy#enumOrder":             codegen.Honor,
-		"dev.understudy#validationInputRoot":   codegen.Honor,
+		"dev.understudy#evidence":               codegen.GenerationOnly,
+		"dev.understudy#errorNamespace":         codegen.Honor,
+		"dev.understudy#jsonType":               codegen.Honor,
+		"dev.understudy#messageByProtocol":      codegen.Honor,
+		"dev.understudy#messageKey":             codegen.Honor,
+		"dev.understudy#validationError":        codegen.Honor,
+		"dev.understudy#validationPathStyle":    codegen.Honor,
+		"dev.understudy#successCode":            codegen.Honor,
+		"dev.understudy#queryKeyAlias":          codegen.Honor,
+		"dev.understudy#emptyCollection":        codegen.Honor,
+		"dev.understudy#internalOperation":      codegen.Honor,
+		"dev.understudy#patternEcho":            codegen.Honor,
+		"dev.understudy#patternValidator":       codegen.Honor,
+		"dev.understudy#alwaysEmit":             codegen.Honor,
+		"dev.understudy#maxRequestBytes":        codegen.Honor,
+		"dev.understudy#throttleError":          codegen.Honor,
+		"dev.understudy#notConfigured":          codegen.Honor,
+		"dev.understudy#malformedRequestError":  codegen.Honor,
+		"dev.understudy#statusOverride":         codegen.Honor,
+		"dev.understudy#unknownOperationError":  codegen.Honor,
+		"dev.understudy#unknownOperationAnswer": codegen.Honor,
+		"dev.understudy#queryErrorEnvelope":     codegen.Honor,
+		"dev.understudy#responseCrc32":          codegen.Honor,
+		"dev.understudy#enumOrder":              codegen.Honor,
+		"dev.understudy#validationInputRoot":    codegen.Honor,
 	}
 	for id, class := range want {
 		if c, ok := codegen.Classify(id); c != class || !ok {

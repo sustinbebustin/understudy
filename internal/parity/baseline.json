@@ -225,8 +225,11 @@
     {
       "scenario": "ses/SES-24",
       "steps": [
-        {"step": "01-v1-unknown", "fixture": "ses/SES-24/01-v1-unknown.json", "operation": "ses.FooBar", "outcome": {"kind": "differs", "reason": "error/message, body/ErrorResponse/@xmlns, body/ErrorResponse/Error/Message"}},
+        {"step": "01-v1-unknown", "fixture": "ses/SES-24/01-v1-unknown.json", "operation": "ses.FooBar", "outcome": {"kind": "match"}},
         {"step": "02-v2-unknown", "fixture": "ses/SES-24/02-v2-unknown.json", "outcome": {"kind": "skipped", "reason": "rest-routing"}}
+      ],
+      "claims": [
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.ses#SimpleEmailService", "covers": ["dev.understudy#unknownOperationAnswer"]}, "step": "01-v1-unknown", "field": "body/ErrorResponse/@xmlns", "result": {"kind": "settled"}}
       ]
     },
     {

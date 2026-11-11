@@ -7,6 +7,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // builder carries state while the IR is built.
@@ -171,7 +172,37 @@ func (b *builder) serviceProtocols(svc *Shape) error {
 		}
 		ir.XMLNamespace = ns.URI
 	}
-	return b.queryErrorEnvelope(svc)
+	if err := b.queryErrorEnvelope(svc); err != nil {
+		return err
+	}
+	return b.unknownOperationAnswer(svc)
+}
+
+// unknownOperationAnswer reads dev.understudy#unknownOperationAnswer:
+// "awsFault" shapes an awsQuery ErrorResponse and "notFound" answers a
+// REST path no route matches, so each needs its protocol.
+func (b *builder) unknownOperationAnswer(svc *Shape) error {
+	raw, ok := svc.Traits[utUnknownAnswer]
+	if !ok {
+		return nil
+	}
+	answer, err := parseUnknownOperationAnswer(raw)
+	if err != nil {
+		return failf(StageIR, string(svc.ID), "%s: %w", utUnknownAnswer, err)
+	}
+	switch answer {
+	case registry.UnknownOperationAWSFault:
+		if !slices.Contains(b.ir.Protocols, ref.AWSQuery) {
+			return failf(StageIR, string(svc.ID), "%s \"awsFault\" shapes the awsQuery ErrorResponse, but the service does not speak awsQuery", utUnknownAnswer)
+		}
+	case registry.UnknownOperationNotFound:
+		if !slices.Contains(b.ir.Protocols, ref.RESTJSON1) && !slices.Contains(b.ir.Protocols, ref.RESTXML) {
+			return failf(StageIR, string(svc.ID), "%s \"notFound\" answers a REST path no route matches, but the service speaks no REST protocol", utUnknownAnswer)
+		}
+	case registry.UnknownOperationInEnvelope:
+	}
+	b.ir.UnknownAnswer = answer
+	return nil
 }
 
 // queryErrorEnvelope reads dev.understudy#queryErrorEnvelope, which only an

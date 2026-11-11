@@ -33,6 +33,9 @@ type ServiceIR struct {
 	// QueryErrorEnvelope is dev.understudy#queryErrorEnvelope, the zero
 	// value without one.
 	QueryErrorEnvelope registry.QueryErrorEnvelope
+	// UnknownAnswer is dev.understudy#unknownOperationAnswer, the zero
+	// value without one.
+	UnknownAnswer registry.UnknownOperationAnswer
 
 	Operations []*OperationIR  // sorted by name; Ordinal is the index
 	Shapes     []*ShapeIR      // every data shape, sorted by id; synthetic unit IO shapes and per-use streaming IO copies last

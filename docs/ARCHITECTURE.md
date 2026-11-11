@@ -472,6 +472,7 @@ type Service struct {
 	QueryCompatible  bool
 	ResponseCRC32    bool                // overlay responseCrc32
 	QueryErrorEnvelope QueryErrorEnvelope // overlay queryErrorEnvelope
+	UnknownOperationAnswer UnknownOperationAnswer // overlay unknownOperationAnswer; zero is unknownOperationError's identity in the protocol's envelope
 	MalformedRequestError awserr.Identity // overlay malformedRequestError; zero means the codec's protocol default
 	Denial           Denial          // overlay denialError: the identity an authorization refusal answers with and its evidence label; zero is a 500 naming the missing trait
 	NewErrorMembers  func(smithy.ShapeID) (awserr.DecodableMembers, bool) // an empty value of an error shape, for fault rules (section 11)
@@ -740,6 +741,7 @@ The closed set of `dev.understudy#` traits; the generator fails on anything else
 | `malformedRequestError` | service | identity for undecodable bodies (Lambda `InvalidRequestContentException`, DynamoDB `SerializationException`) |
 | `statusOverride` | error shape | KMS documented 400/400/500 where the model says 404/409/503 (`iam-sts-kms.md` Implications 3) |
 | `unknownOperationError` | service | identity for an operation absent from the model, per protocol family |
+| `unknownOperationAnswer` | service | `"awsFault"` (awsQuery) or `"notFound"` (REST): the form the edge answers an unknown operation in, emitted as `registry.Service.UnknownOperationAnswer`. `awsFault` is the identity in Coral's `AWSFault/2005-15-09` envelope with `Could not find operation X for version V` (SNS, SES v1); `notFound` is Coral's 404 `<UnknownOperationException/>` with no `Content-Type` (SES v2; `ses.md 3.1`, `3.2`) |
 | `responseCrc32` | awsJson service | annotation: every answer the codec encodes, success and error, carries `x-amz-crc32`, the CRC-32 (IEEE) of its body in decimal, emitted as `registry.Service.ResponseCRC32` (DynamoDB Streams; `dynamodb-streams.md 3.1`) |
 | `queryErrorEnvelope` | awsQuery service | `{namespace?, detail?}`: how `ErrorResponse` differs from Smithy's example, emitted as `registry.Service.QueryErrorEnvelope` (CloudWatch and IAM declare the service's `xmlns`, SQS sends an empty `<Detail/>`; `error-matrix.md 3`) |
 
@@ -886,7 +888,7 @@ CloudWatch is served by three codecs and SQS by two; handlers are written once.
 
 | Situation | Answer |
 |---|---|
-| Operation not in the model | per service from the overlay `unknownOperationError`: JSON `UnknownOperationException` 400; Query `InvalidAction` 400 `The action X is not valid for this endpoint.`; S3 `NotImplemented` 501; Lambda `UnknownOperationException` 404 (UNVERIFIED entries carry that label) |
+| Operation not in the model | per service from the overlay `unknownOperationError`, in the form its `unknownOperationAnswer` names: JSON `UnknownOperationException` 400; Query `InvalidAction` 400 `The action X is not valid for this endpoint.`, or in the AWSFault form `Could not find operation X for version V` (SNS, SES v1); SES v2 Coral's 404 `<UnknownOperationException/>`; S3 `NotImplemented` 501; Lambda `UnknownOperationException` 404 (UNVERIFIED entries carry that label) |
 | In the model, not bound | 501 in the native envelope; code `NotImplemented`; message `understudy does not implement <Service>.<Operation>. Run 'understudy coverage --service <svc>' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=<Service>.<Operation>` (no trailing period; ADR 0003) |
 | Signed for a service that no rule claimed | that service's `unknownOperationError` or `malformedRequestError` (4.1 rule 8); a wire golden per service and claim rule |
 

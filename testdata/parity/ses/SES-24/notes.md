@@ -12,4 +12,4 @@ session: no verified identity and no readable mailbox; $M = us1103-me@example.co
 
 ## Replay (internal/parity)
 
-`scenario.json` replays both steps; 02-v2-unknown is skipped (v2 REST). 01-v1-unknown differs: understudy answers the SES namespace and "The action FooBar is not valid for this endpoint."
+`scenario.json` replays both steps; 02-v2-unknown is skipped (v2 REST), and `internal/edge/unclaimed_test.go` asserts its answer instead. 01-v1-unknown matches and settles the ses overlay's `dev.understudy#unknownOperationAnswer`.

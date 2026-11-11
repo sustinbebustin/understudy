@@ -45,6 +45,7 @@ const (
 	utMalformedRequest    = understudyNamespace + "malformedRequestError"
 	utStatusOverride      = understudyNamespace + "statusOverride"
 	utUnknownOperation    = understudyNamespace + "unknownOperationError"
+	utUnknownAnswer       = understudyNamespace + "unknownOperationAnswer"
 	utQueryErrorEnvelope  = understudyNamespace + "queryErrorEnvelope"
 	utQueryErrorHeader    = understudyNamespace + "queryErrorHeader"
 	utResponseCRC32       = understudyNamespace + "responseCrc32"
@@ -115,6 +116,7 @@ func understudyTraits() map[string]understudyTrait {
 		utMalformedRequest:    {Honor, siteService, shapeRef},
 		utStatusOverride:      {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
 		utUnknownOperation:    {Honor, siteService, func(r json.RawMessage) error { _, err := parseUnknownOperation(r); return err }},
+		utUnknownAnswer:       {Honor, siteService, func(r json.RawMessage) error { _, err := parseUnknownOperationAnswer(r); return err }},
 		utQueryErrorEnvelope:  {Honor, siteService, func(r json.RawMessage) error { _, err := parseQueryErrorEnvelope(r); return err }},
 		utQueryErrorHeader:    {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseQueryErrorHeader(r); return err }},
 		utResponseCRC32:       {Honor, siteService, parseAnnotation},
@@ -151,6 +153,23 @@ func parseQueryErrorEnvelope(raw json.RawMessage) (registry.QueryErrorEnvelope, 
 		return registry.QueryErrorEnvelope{}, errors.New(`set "namespace" or "detail" to true; an envelope that follows Smithy's example needs no trait`)
 	}
 	return registry.QueryErrorEnvelope{Namespace: v.Namespace, Detail: v.Detail}, nil
+}
+
+// parseUnknownOperationAnswer reads dev.understudy#unknownOperationAnswer:
+// "awsFault" or "notFound". The identity in the protocol's envelope is the
+// absence of the trait, so it has no spelling.
+func parseUnknownOperationAnswer(raw json.RawMessage) (registry.UnknownOperationAnswer, error) {
+	var v string
+	if err := decodeTrait(raw, &v); err != nil {
+		return 0, errors.New(`unknownOperationAnswer takes a string: "awsFault" or "notFound"`)
+	}
+	switch v {
+	case "awsFault":
+		return registry.UnknownOperationAWSFault, nil
+	case "notFound":
+		return registry.UnknownOperationNotFound, nil
+	}
+	return 0, fmt.Errorf(`unknownOperationAnswer is %q; the values are "awsFault" and "notFound"`, v)
 }
 
 // parseQueryErrorHeader reads dev.understudy#queryErrorHeader, {send}: when

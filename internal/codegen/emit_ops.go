@@ -60,6 +60,13 @@ func emitService(ir *ServiceIR) ([]byte, error) {
 	if ir.UnknownJSON != nil || ir.UnknownQuery != nil {
 		f.p("\tUnknownOperationError: UnknownOperationError,")
 	}
+	switch ir.UnknownAnswer {
+	case registry.UnknownOperationAWSFault:
+		f.p("\tUnknownOperationAnswer: registry.UnknownOperationAWSFault,")
+	case registry.UnknownOperationNotFound:
+		f.p("\tUnknownOperationAnswer: registry.UnknownOperationNotFound,")
+	case registry.UnknownOperationInEnvelope:
+	}
 	f.p("\tModelSource: registry.ModelSource{Origin: %s, File: %s},", goString(ir.Origin), goString(ir.ModelFile))
 	if d := ir.Denial; d != nil {
 		// The label is written as its spelling, so a generated package
