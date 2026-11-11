@@ -201,7 +201,6 @@ func TestParseRefusalList(t *testing.T) {
 		{"Credentials", task(lambdaTask + `,"Credentials":{"RoleArn":"` + roleArn + `"}`), "/States/T/Credentials", true},
 		{"InvocationType Event", task(`"Type":"Task","Resource":"arn:aws:states:::lambda:invoke","Parameters":{"FunctionName":"` + functionArn + `","InvocationType":"Event"}`), "/States/T", false},
 		{"InvocationType DryRun", task(`"Type":"Task","Resource":"arn:aws:states:::lambda:invoke","Parameters":{"FunctionName":"` + functionArn + `","InvocationType":"DryRun"}`), "/States/T", false},
-		{"JSONPath function", pass(`"InputPath":"$.a.length()",`), "/States/P", false},
 		{"multi-clause filter", pass(`"InputPath":"$.a[?(@.b == 1 && @.c == 2)]",`), "/States/P", false},
 		{"filter script", pass(`"Parameters":{"x.$":"$.a[(@.length-1)]"},`), "/States/P", false},
 	}

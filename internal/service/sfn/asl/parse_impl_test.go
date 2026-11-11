@@ -96,13 +96,13 @@ func TestParseRefusesStructuralProblems(t *testing.T) {
 
 // Refusals the blind refusal list does not reach: variables in a Choice
 // Variable and in an intrinsic argument, Distributed Map's ExecutionType,
-// and a JSONPath function inside an intrinsic argument.
+// and a multi-clause filter inside an intrinsic argument.
 func TestParseRefusesMoreUnsupportedConstructs(t *testing.T) {
 	tests := []struct{ name, def, location string }{
 		{"variable in a Choice", `{"StartAt":"C","States":{"C":{"Type":"Choice","Choices":[{"Variable":"$v","IsNull":true,"Next":"P"}]},` + terminalP + `}}`, "/States/C/Choices[0]/Variable"},
 		{"variable in an intrinsic", `{"StartAt":"P","States":{"P":{"Type":"Pass","Parameters":{"x.$":"States.Format('{}', $v)"},"End":true}}}`, "/States/P/Parameters"},
 		{"ExecutionType", `{"StartAt":"M","States":{"M":{"Type":"Map","ItemProcessor":{"ProcessorConfig":{"ExecutionType":"STANDARD"},"StartAt":"I","States":{"I":{"Type":"Pass","End":true}}},"End":true}}}`, "/States/M/ItemProcessor/ProcessorConfig/ExecutionType"},
-		{"JSONPath function in an intrinsic", `{"StartAt":"P","States":{"P":{"Type":"Pass","Parameters":{"x.$":"States.Array($.a.length())"},"End":true}}}`, "/States/P/Parameters"},
+		{"multi-clause filter in an intrinsic", `{"StartAt":"P","States":{"P":{"Type":"Pass","Parameters":{"x.$":"States.Array($.a[?(@.b == 1 && @.c == 2)])"},"End":true}}}`, "/States/P/Parameters"},
 		{"Catch Assign", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Catch":[{"ErrorEquals":["States.ALL"],"Assign":{},"Next":"P"}],"Next":"P"},` + terminalP + `}}`, "/States/T/Catch[0]/Assign"},
 	}
 	for _, tt := range tests {

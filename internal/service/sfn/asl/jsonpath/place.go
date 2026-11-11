@@ -50,7 +50,7 @@ func (p Path) place(cur document.Value, i int, value document.Value) (document.V
 		return p.placeMember(cur, i, s.name, value)
 	case index:
 		return p.placeElement(cur, i, s.n, value)
-	case wildcard, descend, slice, union, filter:
+	case wildcard, descend, slice, union, filter, function:
 	}
 	return nil, &PlaceError{Path: p.src, Reason: "the path is not a Reference Path into the input"}
 }

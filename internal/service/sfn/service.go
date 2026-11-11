@@ -57,8 +57,9 @@ const (
 		"Definitions are JSONPath with Pass, Task, Choice, Wait, Succeed, Fail, Parallel and inline Map states, and Task resources are " +
 		"Lambda only (a function ARN or arn:aws:states:::lambda:invoke). These answer InvalidDefinition with code UNSUPPORTED_BY_UNDERSTUDY: " +
 		"JSONata, Assign and variables, Distributed Map and its fields, Credentials, HeartbeatSeconds, callbacks, activities, " +
-		"every other Task resource, a literal lambda:invoke InvocationType other than RequestResponse, and JSONPath functions such as length(), " +
-		"multi-clause filters and filter scripts, though AWS accepts length() and fails only at run time (ASL-19). " +
+		"every other Task resource, a literal lambda:invoke InvocationType other than RequestResponse, and JSONPath " +
+		"multi-clause filters and filter scripts, which AWS accepts (ASL-19). " +
+		"A JSONPath function such as length() is accepted and fails at run time, as AWS fails length() (ASL-19). " +
 		"ToleratedFailurePercentage, which AWS accepts on an inline Map, is refused with Distributed Map's fields (ASL-01). " +
 		"A dynamodb resource outside getItem, putItem, updateItem and deleteItem answers AWS's SCHEMA_VALIDATION_FAILED text. " +
 		"Every problem in a definition is reported in one message, as AWS joins them; wording for problems no recording covers is understudy's (ASL-01). " +
@@ -81,9 +82,9 @@ const (
 		"a Wait past the one-year execution limit ends with States.Timeout at the limit (ASL-09); " +
 		"a Task or Map leaves a wider margin before the 25,000-event history limit than the recorded Pass and Choice steps (ASL-16); " +
 		"FULL jitter is drawn uniformly from understudy's seeded stream (ASL-10); " +
-		"IsTimestamp follows the documented RFC 3339 profile (ASL-07). " +
-		"Known differences from AWS: a runtime error's cause quotes the state's input as compact JSON, where AWS quotes the input as sent (ASL-04); " +
-		"JSONPath functions such as length() are refused at create, where AWS accepts them and fails at run time (ASL-19). " +
+		"IsTimestamp follows the documented RFC 3339 profile (ASL-07); " +
+		"a JSONPath function other than length() fails at run time as length() does (ASL-19). " +
+		"Known differences from AWS: a runtime error's cause quotes the state's input as compact JSON, where AWS quotes the input as sent (ASL-04). " +
 		"A lambda:invoke InvocationType that resolves to anything but RequestResponse fails with States.Runtime (SFN-13). " +
 		"lambda:invoke results carry SdkHttpMetadata with AWS's recorded header names; the X-Amzn-Trace-Id value is understudy's. " +
 		"traceHeader, or the X-Amzn-Trace-Id request header when both are sent, " +

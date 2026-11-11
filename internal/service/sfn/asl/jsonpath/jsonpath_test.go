@@ -218,12 +218,34 @@ func TestReferencePathRefusesPlainConstructs(t *testing.T) {
 	}
 }
 
-// JSONPath functions, multi-clause filters and filter scripts are refused
-// with the construct named; the coverage note declares the refusal
-// (understudy's choice while AWS's acceptance is unknown, ASL-19).
+// A JSONPath function parses as a Plain Path step and selects nothing, so a
+// definite path through it is missing: AWS accepts $.a.length() at create
+// and fails on it at run time (ASL-19, recorded 2026-11-03); other names are
+// inferred to read the same. A Reference Path still refuses it.
+func TestPlainPathFunctionSelectsNothing(t *testing.T) {
+	for _, s := range []string{"$.a.length()", "$.a.min()", "$.a.length().b", "$.a.concat(1, 2)"} {
+		t.Run(s, func(t *testing.T) {
+			p := parse(t, s, jsonpath.Plain)
+			if again := parse(t, p.String(), jsonpath.Plain); again.String() != p.String() {
+				t.Errorf("String() = %q does not round-trip: %q", p.String(), again.String())
+			}
+			got, err := p.Eval(decode(t, `{"a":[1,2,3]}`), nil)
+			if miss, ok := errors.AsType[*jsonpath.MissingError](err); !ok || miss.Path != s {
+				t.Fatalf("Eval(%s) = %v, %v; want a *MissingError naming the path", s, got, err)
+			}
+			_, err = jsonpath.Parse(s, jsonpath.Reference)
+			if _, ok := errors.AsType[*jsonpath.SyntaxError](err); !ok {
+				t.Fatalf("Parse(%q, Reference) = %v, want a *SyntaxError", s, err)
+			}
+		})
+	}
+}
+
+// Multi-clause filters and filter scripts are refused with the construct
+// named; the coverage note declares the refusal (understudy's choice: AWS
+// accepts them at create, but what they evaluate to is unrecorded, ASL-19).
 func TestPlainPathRefusesUnsupportedConstructs(t *testing.T) {
 	for _, s := range []string{
-		"$.a.length()",
 		"$.a[?(@.b == 1 && @.c == 2)]",
 		"$.a[?(@.b == 1 || @.c == 2)]",
 		"$.a[(@.length-1)]",

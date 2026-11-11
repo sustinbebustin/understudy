@@ -243,7 +243,7 @@ Step Functions was recorded against AWS on 2026-11-03 (`testdata/parity/sfn/`). 
 
 - Error and diagnostic texts are AWS's where recorded and understudy's elsewhere. A definition's problems are all reported, joined as AWS joins them; a role whose trust policy does not allow `states.amazonaws.com` is refused under `--iam-enforce enforce` in understudy's words, where AWS checks no trust at create. Compare codes, not messages.
 - AWS nests a `__type` in some members of a success body; understudy does not. A client that decodes the JSON is unaffected (`sfn/ASL-01/01-missing-next.json`).
-- `ToleratedFailurePercentage` on an inline Map, and the JSONPath `length()` function, are refused at create; AWS accepts both, failing `length()` only at run time (`sfn/ASL-01/14-inline-tolerated.json`, `sfn/ASL-19`).
+- `ToleratedFailurePercentage` on an inline Map is refused at create; AWS accepts it (`sfn/ASL-01/14-inline-tolerated.json`).
 - A deleted machine is gone at once once idle; AWS keeps describing it as `DELETING` for a while (at least 45 seconds after its last execution ended), a time no recording has measured.
 - The fidelity switches (`understudy coverage --service sfn --switches`) default to AWS's recorded behavior: a Choice with no matching rule or a missing variable, and a failing intrinsic function, fail the execution `States.Runtime`; a Lambda service error is `Lambda.<code>`; an access denial is 400; deleting a machine fails its running executions at their next step.
 - Concurrent Parallel branches and Map iterations write their events in the order understudy runs them, steps due at the same emulator instant in branch or item order. AWS's interleaving differs from run to run, so compare events per branch, not the whole history in order.

@@ -41,8 +41,8 @@ type SyntaxError struct {
 func (e *SyntaxError) Error() string { return "invalid JSONPath '" + e.Path + "': " + e.Reason }
 
 // UnsupportedError is a path using a construct understudy refuses: a
-// function such as length(), a multi-clause filter or a filter script
-// (ASL-19).
+// multi-clause filter or a filter script, a function inside a filter
+// included (ASL-19).
 type UnsupportedError struct {
 	Path      string // as written
 	Construct string // the refused construct as written

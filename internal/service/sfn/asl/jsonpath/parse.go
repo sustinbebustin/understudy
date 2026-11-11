@@ -45,6 +45,15 @@ type slice struct {
 // union selects several indexes: [0,1].
 type union struct{ indexes []int }
 
+// function is a JSONPath function such as .length(): it selects nothing,
+// so a definite path through it is missing. AWS accepts $.a.length() at
+// create and fails on it at run time, unlike Jayway JsonPath, which has
+// length() (ASL-19, recorded 2026-11-03); other names are inferred to read
+// the same.
+type function struct {
+	text string // the name and argument list as written: length()
+}
+
 // filter selects the elements for which @<ref> <op> <literal> holds: one
 // comparison only (stepfunctions-asl.md 4.5; ASL-19).
 type filter struct {
@@ -65,6 +74,8 @@ func (s index) write(b *strings.Builder) { b.WriteString("[" + strconv.Itoa(s.n)
 
 func (wildcard) write(b *strings.Builder) { b.WriteString("[*]") }
 
+func (s function) write(b *strings.Builder) { b.WriteString("." + s.text) }
+
 func (s descend) write(b *strings.Builder) {
 	b.WriteString("..")
 	switch t := s.target.(type) {
@@ -76,6 +87,8 @@ func (s descend) write(b *strings.Builder) {
 		t.write(b)
 	case wildcard:
 		b.WriteString("*")
+	case function:
+		b.WriteString(t.text)
 	case index, descend, slice, union, filter:
 		t.write(b)
 	}
@@ -255,7 +268,7 @@ func (p *parser) step() (step, error) {
 
 // dotName reads a shorthand name; a backslash escapes the next character
 // ($.store\.book, aws-doc dg/amazon-states-language-paths). A name followed
-// by "(" is a function such as length().
+// by "(" is a function such as length(), which a Reference Path refuses.
 func (p *parser) dotName() (step, error) {
 	var b strings.Builder
 	start := p.pos
@@ -277,16 +290,20 @@ func (p *parser) dotName() (step, error) {
 		b.WriteRune(r)
 		p.pos += size
 	}
+	if b.Len() == 0 {
+		return nil, p.syntax("a name is expected at offset " + strconv.Itoa(p.pos))
+	}
 	if p.peek() == '(' {
-		end := strings.IndexByte(p.src[p.pos:], ')')
+		end := matching(p.src, p.pos)
 		if end < 0 {
 			return nil, p.syntax("unterminated function call")
 		}
-		construct := p.src[start : p.pos+end+1]
-		return nil, p.unsupported(construct)
-	}
-	if b.Len() == 0 {
-		return nil, p.syntax("a name is expected at offset " + strconv.Itoa(p.pos))
+		text := p.src[start : end+1]
+		if p.kind == Reference {
+			return nil, p.syntax("a Reference Path cannot use the function '" + text + "'")
+		}
+		p.pos = end + 1
+		return function{text: text}, nil
 	}
 	return child{name: b.String()}, nil
 }
@@ -508,9 +525,12 @@ func (p *parser) current() ([]step, error) {
 		if err != nil {
 			return nil, err
 		}
-		switch s.(type) {
+		switch f := s.(type) {
 		case child, index:
 			ref = append(ref, s)
+		case function:
+			// A function in a filter keeps the filter-script refusal.
+			return nil, p.unsupported(f.text)
 		case wildcard, descend, slice, union, filter:
 			return nil, p.syntax("a filter reads '@' by names and indexes only")
 		}
