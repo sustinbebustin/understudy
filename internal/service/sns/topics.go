@@ -77,7 +77,7 @@ func (s *Service) createTopic(_ context.Context, c *kernel.Call, in *snsapi.Crea
 	if err != nil {
 		return nil, err
 	}
-	settings, err := createSettings(fifo, in.Attributes)
+	settings, err := createSettings(fifo, c.Scope().Partition, in.Attributes)
 	if err != nil {
 		return nil, err
 	}
@@ -151,13 +151,13 @@ func fifoRequested(name string, attrs map[string]string) (bool, *awserr.Error) {
 
 // createSettings checks CreateTopic's attributes other than FifoTopic, in
 // name order so the first bad one is reported the same way every time.
-func createSettings(fifo bool, attrs map[string]string) ([]topicSetting, *awserr.Error) {
+func createSettings(fifo bool, partition aws.Partition, attrs map[string]string) ([]topicSetting, *awserr.Error) {
 	var out []topicSetting
 	for _, name := range slices.Sorted(maps.Keys(attrs)) {
 		if name == attrFifoTopic {
 			continue
 		}
-		set, detail := topicAttribute(fifo, name, attrs[name])
+		set, detail := topicAttribute(fifo, partition, name, attrs[name])
 		if detail != "" {
 			return nil, errReason("Attributes", detail)
 		}
@@ -217,7 +217,7 @@ func (s *Service) setTopicAttributes(_ context.Context, c *kernel.Call, in *snsa
 	if in.AttributeValue != nil {
 		value = *in.AttributeValue
 	}
-	set, detail := topicAttribute(ref.fifo(), in.AttributeName, value)
+	set, detail := topicAttribute(ref.fifo(), ref.scope.Partition, in.AttributeName, value)
 	if detail != "" {
 		return nil, errInvalidParameter(detail)
 	}

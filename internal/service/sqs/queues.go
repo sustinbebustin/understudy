@@ -93,7 +93,7 @@ func checkMaxResults(n *int32) *awserr.Error {
 // FifoQueue agree.
 func (s *Service) createQueue(_ context.Context, c *kernel.Call, in *sqsapi.CreateQueueInput) (*sqsapi.CreateQueueOutput, *awserr.Error) {
 	fifo := strings.HasSuffix(in.QueueName, ".fifo")
-	settings, err := parseAttributes(in.Attributes, fifo)
+	settings, err := parseAttributes(in.Attributes, fifo, c.Scope().Partition)
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +346,7 @@ func (s *Service) setQueueAttributes(_ context.Context, c *kernel.Call, in *sqsa
 		return nil, err
 	}
 	_, err = writeQueue(s, c, q, func(st *State, queue *Queue, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		settings, err := parseAttributes(in.Attributes, queue.FIFO != nil)
+		settings, err := parseAttributes(in.Attributes, queue.FIFO != nil, q.scope.Partition)
 		if err != nil {
 			return struct{}{}, err
 		}

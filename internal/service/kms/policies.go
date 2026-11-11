@@ -16,10 +16,11 @@ import (
 const policyName = "default"
 
 // bindPolicies binds the key policy operations. Policies are stored and
-// returned as sent, and evaluated under iam.enforce advise and enforce.
+// returned as sent but for account principals (storedPolicy), and
+// evaluated under iam.enforce advise and enforce.
 func (s *Service) bindPolicies(b kmsapi.Binder) {
 	b.GetKeyPolicy(s.getKeyPolicy, registry.Full{})
-	b.PutKeyPolicy(s.putKeyPolicy, registry.Partial{Note: "the policy is parsed and stored verbatim, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; grants are not evaluated; the lockout safety check is not run under any iam.enforce mode, so a policy that locks out its caller is stored where AWS answers MalformedPolicyDocumentException, and each put without BypassPolicyLockoutSafetyCheck journals a check-not-run advisory"})
+	b.PutKeyPolicy(s.putKeyPolicy, registry.Partial{Note: "the policy is parsed and stored in the layout sent, a bare account id principal written as the account's root ARN as AWS writes it, but not re-laid out as AWS does; it is evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; grants are not evaluated; the lockout safety check is not run under any iam.enforce mode, so a policy that locks out its caller is stored where AWS answers MalformedPolicyDocumentException, and each put without BypassPolicyLockoutSafetyCheck journals a check-not-run advisory"})
 	b.ListKeyPolicies(s.listKeyPolicies, registry.Full{})
 }
 
@@ -43,8 +44,9 @@ func (s *Service) getKeyPolicy(_ context.Context, c *kernel.Call, in *kmsapi.Get
 	return &kmsapi.GetKeyPolicyOutput{Policy: new(k.Policy), PolicyName: new(policyName)}, nil
 }
 
-// putKeyPolicy stores the policy verbatim: Terraform waits until GetKeyPolicy
-// returns what it sent, and an added Id hangs it (tf-remaining.md 6).
+// putKeyPolicy stores the policy as sent but for account principals
+// (storedPolicy): Terraform waits until GetKeyPolicy returns what it sent,
+// and an added Id hangs it (tf-remaining.md 6).
 func (s *Service) putKeyPolicy(ctx context.Context, c *kernel.Call, in *kmsapi.PutKeyPolicyInput) (*kmsapi.PutKeyPolicyOutput, *awserr.Error) {
 	if err := checkPolicyName(in.PolicyName); err != nil {
 		return nil, err
@@ -53,7 +55,7 @@ func (s *Service) putKeyPolicy(ctx context.Context, c *kernel.Call, in *kmsapi.P
 		return nil, err
 	}
 	loc, err := updateKey(s, c, in.KeyId, anyState, func(k Key, _ string, _ clock.Instant, _ *kernel.Tx) (Key, *awserr.Error) {
-		k.Policy = in.Policy
+		k.Policy = storedPolicy(in.Policy, c.Scope())
 		return k, nil
 	})
 	if err != nil {

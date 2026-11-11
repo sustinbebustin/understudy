@@ -54,6 +54,7 @@ func (s *Service) Switches() []fidelity.Entry {
 		pendingCryptoError().Entry(), crossAccountManagementError().Entry(),
 		authz.RecordedSwitch("kms.denial.status", "400", "3.2", "IAM-ENF-05", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(kmsapi.Service())),
 		authz.ResolveFirstSwitch("kms", s.k.Bindings().ResolvedFirstOps(kmsapi.Service())),
+		authz.AccountIDPrincipalSwitch("kms", "IAM-EVAL-27", []string{"kms.CreateKey", "kms.PutKeyPolicy"}),
 	}, authz.SwitchesOf("kms", []string{"kms.CreateKey", "kms.PutKeyPolicy"})...)
 }
 

@@ -223,6 +223,7 @@ func (s *Service) Switches() []fidelity.Entry {
 		visibilityCeiling().Entry(), fifoReceiptExpiry().Entry(), fifoDuplicate().Entry(),
 		contentDedupFormat().Entry(), sequenceFormat().Entry(), batchUnsetVisibility().Entry(),
 		policyLimits().Entry(),
+		authz.AccountIDPrincipalSwitch("sqs", "IAM-EVAL-25", []string{"sqs.CreateQueue", "sqs.SetQueueAttributes"}),
 		authz.RecordedSwitch("sqs.denial.json-identity", "header AccessDenied;Sender, __type com.amazon.coral.service#AccessDeniedException, 403",
 			"3.2", "IAM-ENF-01", authz.SessionUnreplayed, authorized),
 		// The Query text is the grammar SQS writes over JSON, not the

@@ -120,6 +120,15 @@ func keyUsages(spec kmsapi.KeySpec) []kmsapi.KeyUsageType {
 // https://docs.aws.amazon.com/kms/latest/APIReference/API_PutKeyPolicy.html).
 const maxPolicyChars = 32768
 
+// storedPolicy is a checked key policy as KMS stores it in scope: as sent,
+// except that a bare account id named as an AWS principal becomes the
+// account's root ARN (iam-evaluation.md 5.4, IAM-EVAL-27). AWS also lays
+// the document out anew; understudy keeps the layout as sent, and
+// Terraform's policy comparison treats the two principals as equal.
+func storedPolicy(policy string, scope aws.Scope) string {
+	return policydoc.RootAccountPrincipals(policy, scope.Partition.String())
+}
+
 // checkPolicy checks a key policy against the size quota, parses it and
 // requires a Principal or NotPrincipal in every statement, as CreateKey and
 // PutKeyPolicy document; KMS stores it, and iam.enforce evaluates it. A
@@ -147,7 +156,7 @@ func (s *Service) createKey(ctx context.Context, c *kernel.Call, in *kmsapi.Crea
 		if err := checkPolicy(*in.Policy); err != nil {
 			return nil, err
 		}
-		policy = *in.Policy
+		policy = storedPolicy(*in.Policy, c.Scope())
 	}
 	scope := c.Scope()
 	k, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, _ *kernel.Tx) (Key, *awserr.Error) {

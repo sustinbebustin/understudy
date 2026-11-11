@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
 )
@@ -85,16 +86,16 @@ func storedTopicAttribute(name, value string) topicSetting {
 	}}
 }
 
-// topicAttribute checks a settable attribute of a topic (fifo says which
-// kind). detail is the text after "Invalid parameter: " (after
+// topicAttribute checks a settable attribute of a topic in partition (fifo
+// says which kind). detail is the text after "Invalid parameter: " (after
 // "Attributes Reason: " at CreateTopic), recorded where sns.md has it and
 // inferred otherwise; it is "" when the setting is good.
-func topicAttribute(fifo bool, name, value string) (set topicSetting, detail string) {
+func topicAttribute(fifo bool, partition aws.Partition, name, value string) (set topicSetting, detail string) {
 	switch name {
 	case attrDisplayName, attrKmsMasterKeyID:
 		return storedTopicAttribute(name, value), ""
 	case attrPolicy, attrDeliveryPolicy:
-		return documentAttribute(name, value)
+		return documentAttribute(partition, name, value)
 	case attrContentBasedDeduplication, attrFifoThroughputScope, attrArchivePolicy:
 		if !fifo {
 			return topicSetting{}, name
@@ -123,8 +124,10 @@ func topicAttribute(fifo bool, name, value string) (set topicSetting, detail str
 
 // documentAttribute checks Policy or DeliveryPolicy. The empty string
 // unsets either: a topic without a Policy shows the default, since AWS
-// keeps one on every topic (tf-messaging.md 3.4).
-func documentAttribute(name, value string) (set topicSetting, detail string) {
+// keeps one on every topic (tf-messaging.md 3.4). A Policy is stored as
+// sent, except that a bare account id named as an AWS principal becomes
+// the account's root ARN in partition (iam-evaluation.md 5.4, IAM-EVAL-25).
+func documentAttribute(partition aws.Partition, name, value string) (set topicSetting, detail string) {
 	if value == "" {
 		return storedTopicAttribute(name, ""), ""
 	}
@@ -136,7 +139,7 @@ func documentAttribute(name, value string) (set topicSetting, detail string) {
 		if !inServiceScope(doc) {
 			return topicSetting{}, errActionOutOfScope
 		}
-		return storedTopicAttribute(name, value), ""
+		return storedTopicAttribute(name, policydoc.RootAccountPrincipals(value, partition.String())), ""
 	}
 	m, ok := parseObject(value)
 	if !ok {

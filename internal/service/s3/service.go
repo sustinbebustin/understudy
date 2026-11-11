@@ -421,6 +421,7 @@ func (s *Service) Switches() []fidelity.Entry {
 		authz.RecordedSwitch("s3.denial.text", "the S3 variant of 4.2: a quoted resource on every denial of one, \", with policy ARN:\", Access Denied outside the owner's account",
 			"4.2", "IAM-ENF-12", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(s3api.Service())),
 		notificationDeliveryDenied(),
+		authz.AccountIDPrincipalSwitch("s3", "IAM-EVAL-25", []string{"s3.PutBucketPolicy"}),
 	}, authz.SwitchesOf("s3", []string{"s3.GetBucketPolicy", "s3.PutBucketPolicy", "s3.DeleteBucketPolicy"}))
 }
 

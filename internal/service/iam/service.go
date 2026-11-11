@@ -62,7 +62,9 @@ func New(d kernel.ServiceDeps, opts Options) *Service {
 // store one; the grammar and the enforcement order govern every operation
 // a denial answers. A missing resource is denied first by the operations
 // asked at step 8, and answers not-found first in those that find their
-// entity by name (resolvedFirst), which report their own switch.
+// entity by name (resolvedFirst), which report their own switch. Whether
+// a named principal exists governs the operations that store a trust
+// policy.
 func (s *Service) Switches() []fidelity.Entry {
 	authorized := s.bindings.AuthorizedOps(iamapi.Service())
 	// GetRole is AuthorizedInHandler, and asks once its read found the role.
@@ -77,6 +79,8 @@ func (s *Service) Switches() []fidelity.Entry {
 			e.Ops = stepEight
 		case e.Name == "iam.denial.grammar" || strings.HasPrefix(e.Name, "iam.enforce."):
 			e.Ops = authorized
+		case e.Name == "iam.policy.principal-existence":
+			e.Ops = []string{"iam.CreateRole", "iam.UpdateAssumeRolePolicy"}
 		default:
 			e.Ops = documentOps()
 		}

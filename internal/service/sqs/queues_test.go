@@ -127,6 +127,9 @@ func TestSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 			"sqs.fifo.sequence-number":           "20-digit-decimal-per-queue",
 			"sqs.batch.unset-visibility-timeout": "zero",
 			"sqs.policy.limits":                  "bytes-and-statements",
+			// A bare account id principal is stored as the root ARN
+			// (iam-evaluation.md 5.4, IAM-EVAL-25).
+			"sqs.resource-policy.account-id-principal": "root-arn",
 			// IAM enforcement's denial identity per protocol
 			// (iam-enforcement-surfaces.md 12.8; IAM-ENF-01, IAM-ENF-02,
 			// recorded 2026-11-03).
@@ -228,6 +231,36 @@ func TestQueueTags(t *testing.T) {
 		}
 		_, err = h.Invoke(h.Context(), sqsapi.OpTagQueue, &sqsapi.TagQueueInput{QueueUrl: url, Tags: many})
 		wantError(h.T, err, "InvalidParameterValue", "Too many tags added for queue tagged.")
+	})
+}
+
+// A Policy naming a bare account id reads back with the account's root ARN
+// and otherwise as sent, key order included (iam-evaluation.md 5.4,
+// IAM-EVAL-25/01-sqs, recorded 2026-11-03). CreateQueue of the same
+// request again finds no conflict.
+func TestPolicyStoresAnAccountPrincipalAsItsRootARN(t *testing.T) {
+	run(t, func(h *harness) {
+		arn := arnPrefix + "norm"
+		policy := func(principal string) string {
+			return `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"` + principal + `"},"Action":"sqs:GetQueueAttributes","Resource":"` + arn + `"}]}`
+		}
+		url := h.queue("norm", map[sqsapi.QueueAttributeName]string{"Policy": policy("000000000000")})
+		want := policy("arn:aws:iam::000000000000:root")
+		if got := h.attributes(url, "Policy")["Policy"]; got != want {
+			h.Errorf("Policy after CreateQueue = %s\nwant %s", got, want)
+		}
+		if again := h.queue("norm", map[sqsapi.QueueAttributeName]string{"Policy": policy("000000000000")}); again != url {
+			h.Errorf("CreateQueue again = %s, want %s", again, url)
+		}
+
+		reordered := `{"Statement":{"Principal":{"Service":"sns.amazonaws.com","AWS":["111111111111","arn:aws:iam::222222222222:user/u","*"]},"Effect":"Allow"},"Version":"2012-10-17"}`
+		if err := h.setAttributes(url, map[sqsapi.QueueAttributeName]string{"Policy": reordered}); err != nil {
+			h.Fatal(err.Message)
+		}
+		want = `{"Statement":{"Principal":{"Service":"sns.amazonaws.com","AWS":["arn:aws:iam::111111111111:root","arn:aws:iam::222222222222:user/u","*"]},"Effect":"Allow"},"Version":"2012-10-17"}`
+		if got := h.attributes(url, "Policy")["Policy"]; got != want {
+			h.Errorf("Policy after SetQueueAttributes = %s\nwant %s", got, want)
+		}
 	})
 }
 

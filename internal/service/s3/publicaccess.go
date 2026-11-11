@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/policydoc"
 )
 
 // S3 Block Public Access under iam.enforce. In one account only
@@ -33,13 +34,16 @@ const (
 const publicACLNote = "the access control list is stored and echoed; not applied; BlockPublicAcls is not applied under any iam.enforce mode, " +
 	"so an ACL granting AllUsers or AuthenticatedUsers while it is true is stored where AWS answers 403 AccessDenied, and journals a check-not-run advisory"
 
-// putBucketPolicy stores the policy, and journals a check-not-run advisory
-// when the bucket's BlockPublicPolicy is true.
+// putBucketPolicy stores the policy as sent, except that a bare account id
+// named as an AWS principal becomes the account's root ARN
+// (iam-evaluation.md 5.4, IAM-EVAL-25), and journals a check-not-run
+// advisory when the bucket's BlockPublicPolicy is true.
 func (s *Service) putBucketPolicy(ctx context.Context, c *kernel.Call, in *s3api.PutBucketPolicyInput) (*s3api.PutBucketPolicyOutput, *awserr.Error) {
 	blocked := false
+	policy := policydoc.RootAccountPrincipals(in.Policy, c.Scope().Partition.String())
 	err := s.change(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), func(b *Bucket, _ clock.Instant) *awserr.Error {
 		blocked = b.PublicAccessBlock != nil && isTrue(b.PublicAccessBlock.BlockPublicPolicy)
-		b.Policy = in.Policy
+		b.Policy = policy
 		return nil
 	})
 	if err != nil {

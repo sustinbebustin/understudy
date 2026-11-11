@@ -143,8 +143,9 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 		// first: encryption after delete, cross-account access, public ACLs
 		// at create, tag limits and lifecycle rule limits.
 		// IAM enforcement's follow: the denial text, the refused
-		// notification and the root's bucket-policy lockout.
-		const earlier, enforcement = 5, 3
+		// notification, the stored account principal and the root's
+		// bucket-policy lockout.
+		const earlier, enforcement = 5, 4
 		if len(entries) != earlier+len(want)+enforcement {
 			names := make([]string, len(entries))
 			for i, e := range entries {

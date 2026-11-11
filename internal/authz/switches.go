@@ -34,6 +34,16 @@ func Switches() []fidelity.Entry {
 		recordedSwitch("iam.variables.unresolved", "value-null", evaluationNote, "7.3", "IAM-EVAL-16", SimulatorUnreplayed),
 		recordedSwitch("iam.not-principal.match", "every-level", evaluationNote, "5.4", "IAM-EVAL-18", SessionUnreplayed),
 		recordedSwitch("iam.wildcard-principal.service", "matches", evaluationNote, "2.9", "IAM-EVAL-33", DeliveryUnreplayed),
+		// Storing a trust policy. Checking would refuse every policy naming
+		// a role never created in understudy, which the default setup
+		// relies on (iam-evaluation.md 3.4).
+		fidelity.Switch[string]{
+			Name: "iam.policy.principal-existence", Value: "unchecked", Label: inferred,
+			Ref: "docs/research/" + evaluationNote + "#3.4", Record: "IAM-EVAL-24",
+			Settles: fidelity.NoScenario{Reason: "AWS contradicts it: IAM-EVAL-24 recorded " + recordedOn + " that IAM refuses a trust policy naming a role " +
+				"that does not exist (MalformedPolicyDocument) and SQS a queue policy naming a missing user (InvalidAttributeValue); understudy stores " +
+				"such a policy, so that setups naming roles never created in understudy keep working (" + evaluationNote + " 3.4)"},
+		}.Entry(),
 		// Decide
 		recordedSwitch("iam.wildcard-principal.role-session", "direct", evaluationNote, "2.3", "IAM-EVAL-19", SessionUnreplayed),
 		recordedSwitch("kms.key-policy.role-boundary", "limited", evaluationNote, "4.3", "IAM-EVAL-27", SessionUnreplayed),
@@ -123,6 +133,19 @@ func EnforcementSwitch(name, value string, label evidence.Label, section, record
 // (iam-enforcement-surfaces.md 5.3, 12.8; amended 2026-10-27).
 func ResolveFirstSwitch(service string, ops []string) fidelity.Entry {
 	return EnforcementSwitch(service+".enforce.missing-resource.by-name", "resolve-first", evidence.Inferred, "5.3", "IAM-ENF-14", ops)
+}
+
+// AccountIDPrincipalSwitch is service's switch
+// <service>.resource-policy.account-id-principal, at root-arn, governing
+// ops: the operations that store a resource policy, which store a bare
+// account id named as an AWS principal as the account's root ARN
+// (policydoc.RootAccountPrincipals), as record recorded for the service
+// (iam-evaluation.md 5.4, 12.3).
+func AccountIDPrincipalSwitch(service, record string, ops []string) fidelity.Entry {
+	e := recordedSwitch(service+".resource-policy.account-id-principal", "root-arn", evaluationNote, "5.4", record,
+		"the capture is the read-back only; the put that stored the policy ran unrecorded, so the replay has no policy to read")
+	e.Ops = slices.Clone(ops)
+	return e
 }
 
 // DeliveryResolveFirstSwitch is service's switch

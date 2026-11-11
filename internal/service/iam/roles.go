@@ -20,7 +20,8 @@ const defaultMaxSessionDuration = 3600
 
 // bindRoles binds the role control plane and the internal ResolveRole.
 func (s *Service) bindRoles(b iamapi.Binder) {
-	const trust = "the trust policy is validated and stored, evaluated by AssumeRole under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce"
+	const trust = "the trust policy is validated and stored, evaluated by AssumeRole under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
+		"a principal it names is not checked for existence, which AWS refuses with MalformedPolicyDocument (switch iam.policy.principal-existence)"
 	b.CreateRole(s.createRole, registry.Partial{Note: trust + "; as PermissionsBoundary, " + catalogueMembership})
 	b.GetRole(s.getRole, resolvedPartial(), kernel.AuthorizedInHandler())
 	b.UpdateRole(s.updateRole, resolvedPartial())
