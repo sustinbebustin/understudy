@@ -1606,7 +1606,7 @@ Raw operations:
 | SendMessage | full | inferred, 5 of 22 claims |  |
 | SendMessageBatch | full | inferred, 5 of 11 claims |  |
 | SetQueueAttributes | full | inferred, 1 of 9 claims |  |
-| StartMessageMoveTask | full | aws-doc, 1 of 5 claims |  |
+| StartMessageMoveTask | full | third-party-recorded, 2 of 4 claims |  |
 | TagQueue | full | inferred, 1 of 7 claims |  |
 | UntagQueue | full | inferred, 1 of 7 claims |  |
 | AddPermission | partial | inferred, 1 of 8 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
@@ -1803,7 +1803,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-238 switches: 132 aws-recorded, 1 third-party-recorded, 17 aws-doc, 88 inferred.
+237 switches: 132 aws-recorded, 1 third-party-recorded, 16 aws-doc, 88 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1954,7 +1954,6 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `s3.lifecycle.rule-limits` | `InvalidArgument` | aws-doc | https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html | none: s3/R12/12-lifecycle-transition-7-standard-ia.json, the other 12-lifecycle steps and 15-lifecycle-glacier-then-onezone-ia.json are recorded; the replayer skips S3's REST requests |
 | `s3.tagging.limits` | `InvalidTag` | aws-doc | docs/research/s3.md#429-bucket-tagging | none: unrecorded: no recording exceeds a bucket tag limit |
 | `secretsmanager.last-accessed-date.granularity` | `day` | aws-doc | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording reads a LastAccessedDate |
-| `sqs.move-task.message-identity` | `new-message` | aws-doc | docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask | none: sqs/R02/std-06-recv-src.json and fifo-06-recv-src.json are recorded; no scenario replays sqs/R02 yet |
 | `sqs.policy.limits` | `bytes-and-statements` | aws-doc | docs/research/sqs.md#4-queue-attributes | none: unrecorded: no recording exceeds a Policy limit |
 | `sqs.receipt.stale-handle` | `succeed-without-delete` | contradicted (sqs/R01/03-recv-after-6s.json) | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | sqs/R01#03-recv-after-6s |
 | `apigateway.invoke.routing` | `{{403 {"message":"Forbidden"} ForbiddenException} {403 {"message":"Forbidden"} ForbiddenException} {true false}}` | inferred | docs/research/apigateway-rest.md#47-gateway-responses-and-error-bodies | none: unrecorded: the answer to an unknown API id, whose host does not resolve (APIGW1-07 recorded the rest) |

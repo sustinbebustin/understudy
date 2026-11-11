@@ -124,7 +124,7 @@ func (s *Service) createQueue(_ context.Context, c *kernel.Call, in *sqsapi.Crea
 		if err := checkThroughput(&queue); err != nil {
 			return struct{}{}, err
 		}
-		if err := checkRedrive(st, q.scope, &queue); err != nil {
+		if err := checkRedrive(st, q.scope, &queue, in.Attributes[sqsapi.QueueAttributeNameRedrivePolicy]); err != nil {
 			return struct{}{}, err
 		}
 		st.Queues[q.name] = queue
@@ -368,7 +368,7 @@ func (s *Service) setQueueAttributes(_ context.Context, c *kernel.Call, in *sqsa
 			return struct{}{}, err
 		}
 		if sets(settings, sqsapi.QueueAttributeNameRedrivePolicy) {
-			if err := checkRedrive(st, q.scope, queue); err != nil {
+			if err := checkRedrive(st, q.scope, queue, in.Attributes[sqsapi.QueueAttributeNameRedrivePolicy]); err != nil {
 				return struct{}{}, err
 			}
 		}

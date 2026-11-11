@@ -107,20 +107,6 @@ func staleReceipt() fidelity.Switch[string] {
 	}
 }
 
-// movedIdentity is what a message move task does to a message: the
-// documentation says redriven messages are new messages with a new
-// MessageId and enqueue time; LocalStack keeps the id (sqs.md 9.3).
-func movedIdentity() fidelity.Switch[string] {
-	return fidelity.Switch[string]{
-		Name:    "sqs.move-task.message-identity",
-		Value:   "new-message",
-		Label:   evidence.AWSDoc,
-		Ref:     "docs/research/sqs.md#93-startmessagemovetask-listmessagemovetasks-cancelmessagemovetask",
-		Ops:     []string{"sqs.StartMessageMoveTask"},
-		Settles: fidelity.NoScenario{Reason: "sqs/R02/std-06-recv-src.json and fifo-06-recv-src.json are recorded; no scenario replays sqs/R02 yet"},
-	}
-}
-
 // The sqs.md sections the switches below cite.
 const (
 	refAttributes = "docs/research/sqs.md#4-queue-attributes"
@@ -219,7 +205,7 @@ func policyLimits() fidelity.Switch[string] {
 func (s *Service) Switches() []fidelity.Entry {
 	authorized := s.k.Bindings().AuthorizedOps(sqsapi.Service())
 	return []fidelity.Entry{
-		staleReceipt().Entry(), s.deletedRecently().Entry(), movedIdentity().Entry(),
+		staleReceipt().Entry(), s.deletedRecently().Entry(),
 		visibilityCeiling().Entry(), fifoReceiptExpiry().Entry(), fifoDuplicate().Entry(),
 		contentDedupFormat().Entry(), sequenceFormat().Entry(), batchUnsetVisibility().Entry(),
 		policyLimits().Entry(),

@@ -119,7 +119,6 @@ func TestSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 		want := map[string]string{
 			"sqs.receipt.stale-handle":           "succeed-without-delete",
 			"sqs.queueDeletedRecently":           "ignore",
-			"sqs.move-task.message-identity":     "new-message",
 			"sqs.visibility.ceiling-from":        "latest-receive",
 			"sqs.fifo.receipt-expiry":            "delete-and-change-visibility",
 			"sqs.fifo.duplicate":                 "original-message-id-and-sequence",
@@ -263,6 +262,27 @@ func TestPolicyStoresAnAccountPrincipalAsItsRootARN(t *testing.T) {
 		want = `{"Statement":{"Principal":{"Service":"sns.amazonaws.com","AWS":["arn:aws:iam::111111111111:root","arn:aws:iam::222222222222:user/u","*"]},"Effect":"Allow"},"Version":"2012-10-17"}`
 		if got := h.attributes(url, "Policy")["Policy"]; got != want {
 			h.Errorf("Policy after SetQueueAttributes = %s\nwant %s", got, want)
+		}
+	})
+}
+
+// testdata/parity/sqs/R05/01-get-a.json: Policy reads back compacted,
+// whitespace gone and key order kept (Sid before Effect), and a bare
+// account id principal rewritten as above. CreateQueue of the same
+// spaced request again finds no conflict.
+func TestPolicyReadsBackCompacted(t *testing.T) {
+	run(t, func(h *harness) {
+		arn := arnPrefix + "spaced"
+		sent := `{ "Version": "2012-10-17", "Statement": [ { "Sid": "a", "Effect": "Allow", "Principal": { "Service": "sns.amazonaws.com" }, "Action": "sqs:SendMessage", "Resource": "` + arn + `" },` + "\n\t" +
+			`{ "Sid": "b", "Effect": "Allow", "Principal": { "AWS": "000000000000" }, "Action": "sqs:ReceiveMessage", "Resource": "` + arn + `" } ] }`
+		url := h.queue("spaced", map[sqsapi.QueueAttributeName]string{"Policy": sent})
+		want := `{"Version":"2012-10-17","Statement":[{"Sid":"a","Effect":"Allow","Principal":{"Service":"sns.amazonaws.com"},"Action":"sqs:SendMessage","Resource":"` + arn + `"},` +
+			`{"Sid":"b","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::000000000000:root"},"Action":"sqs:ReceiveMessage","Resource":"` + arn + `"}]}`
+		if got := h.attributes(url, "Policy")["Policy"]; got != want {
+			h.Errorf("Policy = %s\nwant     %s", got, want)
+		}
+		if again := h.queue("spaced", map[sqsapi.QueueAttributeName]string{"Policy": sent}); again != url {
+			h.Errorf("CreateQueue again = %s, want %s", again, url)
 		}
 	})
 }

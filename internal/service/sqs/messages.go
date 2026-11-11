@@ -324,15 +324,16 @@ func (s *Service) enqueue(c *kernel.Call, q queueRef, queue *Queue, o *outgoing,
 		delay = *o.delay
 	}
 	m := Message{
-		Body:          o.body,
-		BodyMD5:       out.bodyMD5,
-		Attributes:    o.attrs,
-		System:        o.system,
-		SenderID:      senderID(c.Principal()),
-		Enqueued:      c.Event(),
-		EnqueuedTrace: c.Cause().Trace,
-		Sent:          now,
-		VisibleAt:     now.Add(seconds(delay)),
+		Body:           o.body,
+		BodyMD5:        out.bodyMD5,
+		Attributes:     o.attrs,
+		System:         o.system,
+		SenderID:       senderID(c.Principal()),
+		Enqueued:       c.Event(),
+		EnqueuedTrace:  c.Cause().Trace,
+		Sent:           now,
+		RetentionStart: now,
+		VisibleAt:      now.Add(seconds(delay)),
 	}
 	if o.group != nil {
 		m.GroupID = *o.group

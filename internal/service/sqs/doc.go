@@ -70,14 +70,16 @@
 //     stays, its receipt handle valid, ApproximateNumberOfMessagesToMove
 //     counts the messages receivable at the start, and a task whose
 //     remaining messages are all in flight keeps running until each is
-//     receivable or gone. It moves each as a new message
-//     (sqs.move-task.message-identity). A destination that does not exist
+//     receivable or gone. It moves each as a new message, a new id and
+//     SentTimestamp, that keeps a FIFO message's deduplication id
+//     (sqs/R02 fifo-06-recv-src). A destination that does not exist
 //     fails the task with AWS.SimpleQueueService.NonExistentQueue; one
 //     that is the source is refused at the start. Without a DestinationArn
 //     a task moves only messages dead-lettered from another queue: one
 //     sent straight to the dead-letter queue has no source to go back to,
 //     so it stays, and ApproximateNumberOfMessagesToMove leaves it out.
-//     Cancelling is immediate, so no task is seen CANCELLING. A source
+//     Cancelling is immediate, so no task is seen CANCELLING; cancelling a
+//     finished task is refused as inactive. A source
 //     queue keeps its ten newest tasks, ListMessageMoveTasks' cap. Task
 //     ids are UUIDs drawn from the message id stream, as EventBridge event
 //     ids are.

@@ -20,6 +20,7 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 ### Fixed
 
 - An SQS JSON request without `QueueUrl` answers `QueueDoesNotExist` (400, `x-amzn-query-error` `AWS.SimpleQueueService.NonExistentQueue;Sender`, `The specified queue does not exist.`), where it answered `MissingParameter`. It holds under `--iam-enforce enforce`, which resolves the queue before authorizing. Recorded for `ReceiveMessage`; inferred for every other operation that takes `QueueUrl`. A request that names a queue but omits another required member still answers `MissingParameter`.
+- SQS dead-letter and move-task details match AWS's recordings. A message moved to a FIFO dead-letter queue keeps its original `SentTimestamp`, while its retention still restarts at the move. A FIFO message a move task sends back keeps the dead-letter copy's `MessageDeduplicationId` (the original `MessageId`). `CancelMessageMoveTask` on a task that has finished answers 400 `InvalidParameterValue` `Only active tasks can be cancelled.`, where it answered `ResourceNotFoundException`; an unknown task still does. A refused `RedrivePolicy` is quoted as the request sent it, not re-rendered. The queue `Policy` attribute reads back compacted, whitespace removed and key order kept. The SQS snapshot section moves to state version 5, so a snapshot or `--persist` state file holding SQS state written by an earlier version is refused with a message naming both versions.
 
 ### Changed
 

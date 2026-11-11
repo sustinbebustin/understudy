@@ -394,6 +394,10 @@ func errTaskHandle() *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value for parameter TaskHandle is invalid.")
 }
 
+func errTaskNotActive() *awserr.Error {
+	return sqsapi.ErrInvalidParameterValue("Only active tasks can be cancelled.")
+}
+
 func errNoSuchTask() *awserr.Error {
 	return sqsapi.ErrResourceNotFoundException("Task does not exist.")
 }

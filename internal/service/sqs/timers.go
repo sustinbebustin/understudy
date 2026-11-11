@@ -59,9 +59,9 @@ func (s *Service) wakeTimer(m *Message) (wake, other kernel.HandledKind) {
 }
 
 // armRetention arms the retention timer of m for the end of queue's
-// MessageRetentionPeriod, counted from the message's enqueue (sqs.md 7.3).
+// MessageRetentionPeriod (Message.retentionEnd).
 func (s *Service) armRetention(tx *kernel.Tx, q queueRef, queue *Queue, m *Message) {
-	tx.Arm(s.retention, timerID(q, string(m.ID)), m.Sent.Add(seconds(queue.Attributes.MessageRetentionPeriod)))
+	tx.Arm(s.retention, timerID(q, string(m.ID)), m.retentionEnd(seconds(queue.Attributes.MessageRetentionPeriod)))
 }
 
 // disarmMessage disarms every timer of a message leaving the queue.

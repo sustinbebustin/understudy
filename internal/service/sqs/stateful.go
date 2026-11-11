@@ -116,7 +116,7 @@ func (s *Service) timersOf(scope aws.Scope, st *State, now clock.Instant) []cloc
 				wake, _ := s.wakeTimer(m)
 				out = append(out, clock.Armed{Key: wake.Key(id), Due: m.VisibleAt})
 			}
-			out = append(out, clock.Armed{Key: s.retention.Key(id), Due: m.Sent.Add(seconds(queue.Attributes.MessageRetentionPeriod))})
+			out = append(out, clock.Armed{Key: s.retention.Key(id), Due: m.retentionEnd(seconds(queue.Attributes.MessageRetentionPeriod))})
 		}
 	}
 	for i := range st.Tasks {

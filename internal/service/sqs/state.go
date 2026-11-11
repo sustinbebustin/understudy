@@ -13,7 +13,7 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 4
+const stateVersion = 5
 
 // State is the SQS state of one account and region: its queues by name,
 // the names deleted recently and the message move tasks. Records are
@@ -186,9 +186,14 @@ type Message struct {
 	// cause of what its delivery leads to, and EnqueuedTrace that event's
 	// trace. A saved state without enqueuedTrace loads it as zero, and
 	// MessageCauses then reports Enqueued as the trace.
-	Enqueued      ref.EventID   `json:"enqueuedEventId"`
-	EnqueuedTrace ref.EventID   `json:"enqueuedTrace,omitzero"`
-	Sent          clock.Instant `json:"sent"`
+	Enqueued      ref.EventID `json:"enqueuedEventId"`
+	EnqueuedTrace ref.EventID `json:"enqueuedTrace,omitzero"`
+	// Sent is the SentTimestamp system attribute.
+	Sent clock.Instant `json:"sent"`
+	// RetentionStart is when the queue's MessageRetentionPeriod counts
+	// from: the send, or the move to a FIFO dead-letter queue, which keeps
+	// Sent but restarts retention (sqs.md 9.2).
+	RetentionStart clock.Instant `json:"retentionStart"`
 	// VisibleAt is when the message can next be received: the end of its
 	// delay before the first receive, of its visibility timeout after one.
 	VisibleAt clock.Instant `json:"visibleAt"`
@@ -238,10 +243,16 @@ func (m *Message) visible(now clock.Instant) bool {
 	return !m.pinned() && m.VisibleAt.Compare(now) <= 0
 }
 
-// expired reports whether m is past the queue's retention at now,
-// measured from its enqueue (sqs.md 7.3).
+// expired reports whether m is past the queue's retention at now
+// (retentionEnd).
 func (m *Message) expired(retention time.Duration, now clock.Instant) bool {
-	return m.Sent.Add(retention).Compare(now) <= 0
+	return m.retentionEnd(retention).Compare(now) <= 0
+}
+
+// retentionEnd is when m leaves a queue that keeps messages for retention,
+// counted from RetentionStart (sqs.md 7.3).
+func (m *Message) retentionEnd(retention time.Duration) clock.Instant {
+	return m.RetentionStart.Add(retention)
 }
 
 // receiveCount is ApproximateReceiveCount: 0 before the first receive.

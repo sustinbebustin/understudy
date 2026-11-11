@@ -325,8 +325,9 @@ func redriveLimit(st *State, q queueRef, queue *Queue) int {
 // deadLetter moves the messages at the indices move from queue to its
 // dead-letter queue, in queue order, and returns the dead-letter queue's
 // ARN. A moved message keeps its id, body, attributes and receive count
-// and gains DeadLetterQueueSourceArn; a FIFO one restarts its retention
-// and takes its id as its deduplication id (sqs.md 9.2). The receive is
+// and gains DeadLetterQueueSourceArn; a FIFO one keeps its SentTimestamp
+// but restarts its retention (sqs/R02 fifo-04-dlq-poll-0s) and takes its
+// id as its deduplication id (sqs.md 9.2). The receive is
 // the cause of its enqueue there, and it records one journal.Redrive, its
 // child (ADR 0007, amendment 2026-10-13). The dead-letter queue changes
 // through a working copy stored back at the end; redriveLimit made sure it
@@ -345,7 +346,7 @@ func (s *Service) deadLetter(c *kernel.Call, st *State, q queueRef, queue *Queue
 		m.dropHandle()
 		m.VisibleAt, m.Enqueued, m.EnqueuedTrace = now, c.Event(), c.Cause().Trace
 		if dlq.FIFO != nil {
-			m.Sent = now
+			m.RetentionStart = now
 			m.FIFO = &FIFOMessage{DedupID: string(m.ID), Sequence: dlq.FIFO.nextSequence()}
 		}
 		s.append(tx, dq, &dlq, m, now)

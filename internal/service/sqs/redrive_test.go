@@ -190,6 +190,37 @@ func TestFIFORedriveOpensTheGroup(t *testing.T) {
 	})
 }
 
+// testdata/parity/sqs/R02/fifo-04-dlq-poll-0s.json: a message moved to a
+// FIFO dead-letter queue keeps its original SentTimestamp, while its
+// retention restarts at the move (sqs.md 9.2).
+func TestFIFODeadLetterKeepsSentTimestampAndRestartsRetention(t *testing.T) {
+	run(t, func(h *harness) {
+		dlq := h.fifoQueue("dlq.fifo", map[sqsapi.QueueAttributeName]string{"MessageRetentionPeriod": "60"})
+		src := h.fifoQueue("src.fifo", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "0", "RedrivePolicy": redrivePolicy("dlq.fifo", 1)})
+		h.sendTo(src, "g1", "body1", new("d1"))
+		sentAt := strconv.FormatInt(h.Clock.Now().Wire().UnixMilli(), 10)
+		if got := h.receiveBodies(src, 1); !slices.Equal(got, []string{"body1"}) {
+			h.Fatalf("first receive = %q", got)
+		}
+		h.advance(40 * time.Second)
+		if got := h.receiveBodies(src, 1); len(got) != 0 {
+			h.Fatalf("second receive = %q, want none: the message moved", got)
+		}
+		moved := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: dlq, VisibilityTimeout: new(int32(0)), MessageSystemAttributeNames: []sqsapi.MessageSystemAttributeName{"SentTimestamp"}})
+		if len(moved) != 1 || moved[0].Attributes["SentTimestamp"] != sentAt {
+			h.Fatalf("dead-lettered message = %+v, want SentTimestamp %s, the original send", moved, sentAt)
+		}
+		h.advance(59 * time.Second)
+		if n := h.count(dlq); n != "1" {
+			h.Fatalf("dead-letter queue holds %s messages 59 s after the move, want 1: retention restarts at the move", n)
+		}
+		h.advance(time.Second)
+		if n := h.count(dlq); n != "0" {
+			h.Errorf("dead-letter queue holds %s messages a retention period after the move, want 0", n)
+		}
+	})
+}
+
 // sqs.md 9.1: the target must exist, be of the source's type and admit the
 // source through its RedriveAllowPolicy.
 func TestRedrivePolicyTargets(t *testing.T) {
@@ -211,6 +242,28 @@ func TestRedrivePolicyTargets(t *testing.T) {
 			wantError(h.T, err, "InvalidParameterValue", tt.want)
 		}
 		h.queue("picked", map[sqsapi.QueueAttributeName]string{"RedrivePolicy": redrivePolicy("chosen", 3)})
+	})
+}
+
+// A RedrivePolicy refusal quotes the policy as the request sent it, here
+// with maxReceiveCount a string (testdata/parity/sqs/R02/07-redrive-missing-dlq.json,
+// 07-redrive-invalid-arn.json and 07-redrive-fifo-to-std.json).
+func TestRedrivePolicyRefusalQuotesThePolicyAsSent(t *testing.T) {
+	run(t, func(h *harness) {
+		plain := h.queue("plain", nil)
+		fifo := h.fifoQueue("src.fifo", nil)
+		h.queue("dlq", nil)
+		sent := func(target string) string {
+			return `{"deadLetterTargetArn":"` + target + `","maxReceiveCount":"2"}`
+		}
+		for _, tt := range []struct{ url, policy, reason string }{
+			{plain, sent(arnPrefix + "missing"), "Dead letter target does not exist."},
+			{plain, sent("not-an-arn"), "Invalid value for deadLetterTargetArn."},
+			{fifo, sent(arnPrefix + "dlq"), "Dead-letter queue must be same type of queue as the source.."},
+		} {
+			_, err := h.Invoke(h.Context(), sqsapi.OpSetQueueAttributes, &sqsapi.SetQueueAttributesInput{QueueUrl: tt.url, Attributes: map[sqsapi.QueueAttributeName]string{"RedrivePolicy": tt.policy}})
+			wantError(h.T, err, "InvalidParameterValue", "Value "+tt.policy+" for parameter RedrivePolicy is invalid. Reason: "+tt.reason)
+		}
 	})
 }
 
@@ -309,8 +362,40 @@ func TestMoveTaskMovesAtItsRateUnderAdvance(t *testing.T) {
 		if h.count(src) != "5" || h.count(dlq) != "0" {
 			h.Errorf("source holds %s and the dead-letter queue %s, want 5 and 0", h.count(src), h.count(dlq))
 		}
-		if _, err := h.Invoke(h.Context(), sqsapi.OpCancelMessageMoveTask, &sqsapi.CancelMessageMoveTaskInput{TaskHandle: handle}); err == nil || err.ID.QueryCode != "ResourceNotFoundException" {
-			h.Errorf("cancelling a finished task = %v, want ResourceNotFoundException", err)
+		// testdata/parity/sqs/R02/std-07-cancel-completed.json
+		_, err = h.Invoke(h.Context(), sqsapi.OpCancelMessageMoveTask, &sqsapi.CancelMessageMoveTaskInput{TaskHandle: handle})
+		wantError(h.T, err, "InvalidParameterValue", "Only active tasks can be cancelled.")
+		if err.ID.Status != 400 {
+			h.Errorf("status = %d, want 400", err.ID.Status)
+		}
+	})
+}
+
+// testdata/parity/sqs/R02/fifo-06-recv-src.json: a FIFO message a move task
+// sends back is a new message, a new id and sequence number, that keeps
+// the dead-letter copy's MessageDeduplicationId, which is the original
+// MessageId (fifo-06-pre-send1.json sent it with "d1").
+func TestMoveTaskKeepsTheFIFODeduplicationID(t *testing.T) {
+	run(t, func(h *harness) {
+		h.fifoQueue("dlq.fifo", nil)
+		src := h.fifoQueue("src.fifo", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "0", "RedrivePolicy": redrivePolicy("dlq.fifo", 1)})
+		sent := h.sendTo(src, "g1", "body1", new("d1"))
+		if got := h.receiveBodies(src, 1); !slices.Equal(got, []string{"body1"}) {
+			h.Fatalf("first receive = %q", got)
+		}
+		if got := h.receiveBodies(src, 1); len(got) != 0 {
+			h.Fatalf("second receive = %q, want none: the message moved", got)
+		}
+		if _, err := h.startTask(&sqsapi.StartMessageMoveTaskInput{SourceArn: arnPrefix + "dlq.fifo"}); err != nil {
+			h.Fatal(err.Message)
+		}
+		back := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: src, MessageSystemAttributeNames: []sqsapi.MessageSystemAttributeName{"All"}})
+		if len(back) != 1 {
+			h.Fatalf("source holds %d messages after the move, want 1", len(back))
+		}
+		m := back[0]
+		if val(m.MessageId) == val(sent.MessageId) || m.Attributes["MessageDeduplicationId"] != val(sent.MessageId) || m.Attributes["MessageGroupId"] != "g1" {
+			h.Errorf("redriven message = %+v, want a new MessageId, MessageDeduplicationId %s and group g1", m, val(sent.MessageId))
 		}
 	})
 }
