@@ -266,7 +266,9 @@ func TestDefaultKeyPolicy(t *testing.T) {
 			h.Errorf("default policy = %+v", doc)
 		}
 		_, err := call(h, kmsapi.OpGetKeyPolicy, &kmsapi.GetKeyPolicyInput{KeyId: id, PolicyName: new("other")})
-		wantError(h.T, err, "NotFoundException", "No such policy exists")
+		// Recorded for PutKeyPolicy (kms/R15/03-put-key-policy-name.json);
+		// GetKeyPolicy is taken to check the name alike.
+		wantError(h.T, err, "ValidationException", "Invalid policy name")
 	})
 }
 
@@ -525,11 +527,13 @@ func TestKeyStateMatrix(t *testing.T) {
 				case disabledErr:
 					wantType, wantMsg = "DisabledException", f.arn+" is disabled."
 				case pendingErr:
-					wantType, wantMsg = "KMSInvalidStateException", f.arn+" is pending deletion (or pending replica deletion)."
+					// kms/R15/02-pending-*.json.
+					wantType, wantMsg = "KMSInvalidStateException", f.arn+" is pending deletion."
 				case destinationPendingErr:
 					wantType, wantMsg = "KMSInvalidStateException", f.arn+" is pending deletion."
 				case notPendingErr:
-					wantType, wantMsg = "KMSInvalidStateException", f.arn+" is not pending deletion (or pending replica deletion)."
+					// Inferred from the recorded pending text.
+					wantType, wantMsg = "KMSInvalidStateException", f.arn+" is not pending deletion."
 				}
 				if err == nil || err.ID.JSONType != wantType || err.Message != wantMsg {
 					h.Errorf("%s on a %s key = %v, want %s %q", r.op, st, err, wantType, wantMsg)
@@ -639,7 +643,7 @@ func TestScheduledDeletionCompletesUnderAdvance(t *testing.T) {
 			h.Fatalf("ScheduleKeyDeletion = %+v", out)
 		}
 		_, err := call(h, kmsapi.OpScheduleKeyDeletion, &kmsapi.ScheduleKeyDeletionInput{KeyId: id})
-		wantError(h.T, err, "KMSInvalidStateException", keyARN(id)+" is pending deletion (or pending replica deletion).")
+		wantError(h.T, err, "KMSInvalidStateException", keyARN(id)+" is pending deletion.")
 
 		h.advance(7*day - time.Second)
 		m := h.describe(id)
@@ -753,7 +757,7 @@ func TestAliasNameRules(t *testing.T) {
 		_, err = call(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/", TargetKeyId: id})
 		wantError(h.T, err, "ValidationException", `Alias must start with the prefix "alias/". Please see https://docs.aws.amazon.com/kms/latest/developerguide/kms-alias.html`)
 		_, err = call(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/aws/mine", TargetKeyId: id})
-		wantError(h.T, err, "InvalidAliasNameException", "The alias name for a customer managed CMK cannot begin with alias/aws/.")
+		wantError(h.T, err, "NotAuthorizedException", "The alias name for a customer managed CMK cannot begin with alias/aws/.")
 		must(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/a", TargetKeyId: id})
 		_, err = call(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/b", TargetKeyId: "alias/a"})
 		wantError(h.T, err, "ValidationException", "Aliases must refer to keys. Not aliases")
@@ -1077,15 +1081,14 @@ func TestNextRotationDateFollowsTheClock(t *testing.T) {
 }
 
 // The constraint the model overlays add: a waiting period of 7 to 30 days
-// (iam-sts-kms.md 1.4).
+// (iam-sts-kms.md 1.4), refused with AWS's fixed text
+// (kms/R15/02-window-6.json, 02-window-31.json).
 func TestOverlayConstraints(t *testing.T) {
 	run(t, func(h *harness) {
 		id := h.key()
 		for _, days := range []int32{6, 31} {
 			_, err := call(h, kmsapi.OpScheduleKeyDeletion, &kmsapi.ScheduleKeyDeletionInput{KeyId: id, PendingWindowInDays: new(days)})
-			if err == nil || err.ID.JSONType != "ValidationException" {
-				h.Errorf("ScheduleKeyDeletion with %d days = %v, want ValidationException", days, err)
-			}
+			wantError(h.T, err, "ValidationException", "PendingWindowInDays must be between 7 and 30")
 		}
 		if m := h.describe(id); *m.KeyState != kmsapi.KeyStateEnabled {
 			h.Errorf("KeyState after refused requests = %v, want Enabled", *m.KeyState)
@@ -1095,14 +1098,23 @@ func TestOverlayConstraints(t *testing.T) {
 
 // A key policy past the 32768-character quota is LimitExceededException on
 // CreateKey and PutKeyPolicy, as both API pages document, not the
-// framework's ValidationException: the model allows 131072 characters. A
-// policy at the quota is accepted.
+// framework's ValidationException: the model allows 131072 characters. The
+// quota counts characters other than whitespace, and the text names that
+// count (kms/R15/03-put-key-policy-too-long.json: 33136 characters sent,
+// "33122 characters long"). A policy at the quota is accepted however much
+// whitespace it holds.
 func TestKeyPolicySizeQuota(t *testing.T) {
+	// policyOf is a valid key policy of exactly n characters, none of them
+	// whitespace: rootPolicy with a Sid padded to fit.
+	policyOf := func(n int) string {
+		const head, tail = `{"Statement":[{"Sid":"`, `","Action":"kms:*","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::000000000000:root"},"Resource":"*"}],"Version":"2012-10-17"}`
+		return head + strings.Repeat("x", n-len(head)-len(tail)) + tail
+	}
 	run(t, func(h *harness) {
 		id := h.key()
-		atQuota := rootPolicy + strings.Repeat(" ", 32768-len(rootPolicy))
-		tooLong := atQuota + " "
-		const want = "The key policy is 32769 characters long, more than the quota of 32768; shorten it, for example by merging statements (understudy's text; AWS's is unrecorded)."
+		atQuota := policyOf(32768) + strings.Repeat(" \n\t", 100)
+		tooLong := policyOf(32769) + " "
+		const want = "Keys support only policies up to 32768 characters long in this region. The supplied policy was 32769 characters long."
 		_, err := call(h, kmsapi.OpPutKeyPolicy, &kmsapi.PutKeyPolicyInput{KeyId: id, Policy: tooLong})
 		wantError(h.T, err, "LimitExceededException", want)
 		_, err = call(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{Policy: new(tooLong)})
@@ -1285,17 +1297,15 @@ func TestForeignMarkerRefused(t *testing.T) {
 		if aliasMarker == nil || keyMarker == nil {
 			h.Fatalf("first pages of Limit 1 returned markers %v and %v, want both", aliasMarker, keyMarker)
 		}
-		want := func(marker string) string {
-			return "The marker " + marker + " is not one a previous page of this listing returned; start the listing again without a Marker (understudy's text; AWS's is unrecorded)."
-		}
+		// AWS sends no message (kms/R15/x-listkeys-garbage-marker.json).
 		for _, marker := range []string{"garbage", "!!", *aliasMarker} {
 			_, err := call(h, kmsapi.OpListKeys, &kmsapi.ListKeysInput{Marker: new(marker)})
-			wantError(h.T, err, "InvalidMarkerException", want(marker))
+			wantError(h.T, err, "InvalidMarkerException", "")
 		}
 		_, err := call(h, kmsapi.OpListAliases, &kmsapi.ListAliasesInput{Marker: keyMarker})
-		wantError(h.T, err, "InvalidMarkerException", want(*keyMarker))
+		wantError(h.T, err, "InvalidMarkerException", "")
 		_, err = call(h, kmsapi.OpListResourceTags, &kmsapi.ListResourceTagsInput{KeyId: id, Marker: keyMarker})
-		wantError(h.T, err, "InvalidMarkerException", want(*keyMarker))
+		wantError(h.T, err, "InvalidMarkerException", "")
 	})
 }
 

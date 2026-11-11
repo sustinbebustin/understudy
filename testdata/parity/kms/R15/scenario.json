@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "item": "R15",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "kms",
+      "operation": "CreateKey",
+      "input": {
+        "Description": "usr-rec-20261014-k1"
+      },
+      "bind": [
+        {
+          "path": "body/KeyMetadata/KeyId",
+          "shape": {
+            "kind": "uuid"
+          },
+          "aws": "a1090e85-82e2-4517-8b2b-51faf8a60a8b"
+        }
+      ]
+    },
+    {
+      "service": "kms",
+      "operation": "DisableKey",
+      "input": {
+        "KeyId": "a1090e85-82e2-4517-8b2b-51faf8a60a8b"
+      }
+    },
+    {
+      "service": "kms",
+      "operation": "ScheduleKeyDeletion",
+      "input": {
+        "KeyId": "a1090e85-82e2-4517-8b2b-51faf8a60a8b",
+        "PendingWindowInDays": 7
+      }
+    },
+    {
+      "service": "kms",
+      "operation": "CancelKeyDeletion",
+      "input": {
+        "KeyId": "a1090e85-82e2-4517-8b2b-51faf8a60a8b"
+      },
+      "before": "02-window-6"
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "kms/R15/02-pending-encrypt.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/02-pending-generate-data-key.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/02-pending-describe-key.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/KeyMetadata/CurrentKeyMaterialId",
+          "shape": {
+            "kind": "id",
+            "alphabet": "hex",
+            "min": 64,
+            "max": 64
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "kms/R15/02-pending-enable-key-rotation.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/02-pending-get-key-rotation-status.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/02-pending-create-alias.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/02-pending-put-key-policy.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/02-schedule-again.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/02-enable-key.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/02-window-6.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/02-window-31.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/03-create-alias-aws-prefix.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/03-put-key-policy-too-long.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/03-put-key-policy-name.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "kms/R15/x-listkeys-garbage-marker.json",
+      "compare": "all"
+    }
+  ],
+  "settles": [
+    {
+      "switch": "kms.pending-deletion.crypto-error",
+      "step": "02-pending-encrypt",
+      "field": "error/code"
+    },
+    {
+      "overlay": "com.amazonaws.kms#ScheduleKeyDeletionRequest$PendingWindowInDays",
+      "covers": [
+        "dev.understudy#validationError"
+      ],
+      "step": "02-window-6",
+      "field": "error/message"
+    },
+    {
+      "overlay": "com.amazonaws.kms#NotAuthorizedException",
+      "step": "03-create-alias-aws-prefix",
+      "field": "body/__type"
+    }
+  ]
+}

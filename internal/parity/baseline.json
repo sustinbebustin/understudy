@@ -118,6 +118,31 @@
       ]
     },
     {
+      "scenario": "kms/R15",
+      "steps": [
+        {"step": "02-pending-encrypt", "fixture": "kms/R15/02-pending-encrypt.json", "operation": "kms.Encrypt", "outcome": {"kind": "match"}},
+        {"step": "02-pending-generate-data-key", "fixture": "kms/R15/02-pending-generate-data-key.json", "operation": "kms.GenerateDataKey", "outcome": {"kind": "match"}},
+        {"step": "02-pending-describe-key", "fixture": "kms/R15/02-pending-describe-key.json", "operation": "kms.DescribeKey", "outcome": {"kind": "match"}},
+        {"step": "02-pending-enable-key-rotation", "fixture": "kms/R15/02-pending-enable-key-rotation.json", "operation": "kms.EnableKeyRotation", "outcome": {"kind": "match"}},
+        {"step": "02-pending-get-key-rotation-status", "fixture": "kms/R15/02-pending-get-key-rotation-status.json", "operation": "kms.GetKeyRotationStatus", "outcome": {"kind": "match"}},
+        {"step": "02-pending-create-alias", "fixture": "kms/R15/02-pending-create-alias.json", "operation": "kms.CreateAlias", "outcome": {"kind": "match"}},
+        {"step": "02-pending-put-key-policy", "fixture": "kms/R15/02-pending-put-key-policy.json", "operation": "kms.PutKeyPolicy", "outcome": {"kind": "match"}},
+        {"step": "02-schedule-again", "fixture": "kms/R15/02-schedule-again.json", "operation": "kms.ScheduleKeyDeletion", "outcome": {"kind": "match"}},
+        {"step": "02-enable-key", "fixture": "kms/R15/02-enable-key.json", "operation": "kms.EnableKey", "outcome": {"kind": "match"}},
+        {"step": "02-window-6", "fixture": "kms/R15/02-window-6.json", "operation": "kms.ScheduleKeyDeletion", "outcome": {"kind": "match"}},
+        {"step": "02-window-31", "fixture": "kms/R15/02-window-31.json", "operation": "kms.ScheduleKeyDeletion", "outcome": {"kind": "match"}},
+        {"step": "03-create-alias-aws-prefix", "fixture": "kms/R15/03-create-alias-aws-prefix.json", "operation": "kms.CreateAlias", "outcome": {"kind": "match"}},
+        {"step": "03-put-key-policy-too-long", "fixture": "kms/R15/03-put-key-policy-too-long.json", "operation": "kms.PutKeyPolicy", "outcome": {"kind": "match"}},
+        {"step": "03-put-key-policy-name", "fixture": "kms/R15/03-put-key-policy-name.json", "operation": "kms.PutKeyPolicy", "outcome": {"kind": "match"}},
+        {"step": "x-listkeys-garbage-marker", "fixture": "kms/R15/x-listkeys-garbage-marker.json", "outcome": {"kind": "reconstructed"}}
+      ],
+      "claims": [
+        {"target": {"kind": "switch", "name": "kms.pending-deletion.crypto-error"}, "step": "02-pending-encrypt", "field": "error/code", "result": {"kind": "settled"}},
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.kms#ScheduleKeyDeletionRequest$PendingWindowInDays", "covers": ["dev.understudy#validationError"]}, "step": "02-window-6", "field": "error/message", "result": {"kind": "settled"}},
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.kms#NotAuthorizedException"}, "step": "03-create-alias-aws-prefix", "field": "body/__type", "result": {"kind": "settled"}}
+      ]
+    },
+    {
       "scenario": "ses/SES-00",
       "steps": [
         {"step": "01-verify-me", "fixture": "ses/SES-00/01-verify-me.json", "operation": "ses.VerifyEmailIdentity", "outcome": {"kind": "match"}},

@@ -30,7 +30,7 @@ func page[T any](l paging.Listing, items []T, key func(T) string, limit *int32, 
 	}
 	p, err := paging.SortedKeyset(l, items, key, n, marker)
 	if err != nil {
-		return paging.Page[T]{}, errInvalidMarker(err.Marker)
+		return paging.Page[T]{}, errInvalidMarker()
 	}
 	return p, nil
 }

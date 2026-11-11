@@ -836,32 +836,32 @@ Internal operations:
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | CancelKeyDeletion | full | inferred, 1 of 7 claims |  |
-| CreateAlias | full | aws-doc, 3 of 8 claims |  |
+| CreateAlias | full | aws-doc, 3 of 10 claims |  |
 | DeleteAlias | full | aws-doc, 3 of 6 claims |  |
 | DisableKey | full | inferred, 1 of 7 claims |  |
-| EnableKey | full | inferred, 1 of 7 claims |  |
+| EnableKey | full | inferred, 1 of 8 claims |  |
 | GetKeyPolicy | full | inferred, 1 of 7 claims |  |
-| GetKeyRotationStatus | full | aws-doc, 3 of 6 claims |  |
+| GetKeyRotationStatus | full | aws-doc, 3 of 7 claims |  |
 | ListAliases | full | inferred, 1 of 6 claims |  |
 | ListKeyPolicies | full | inferred, 1 of 7 claims |  |
 | ListKeys | full | aws-doc, 1 of 4 claims |  |
 | ListResourceTags | full | inferred, 1 of 5 claims |  |
-| ScheduleKeyDeletion | full | inferred, 1 of 8 claims |  |
+| ScheduleKeyDeletion | full | inferred, 1 of 12 claims |  |
 | TagResource | full | inferred, 1 of 6 claims |  |
 | UntagResource | full | inferred, 1 of 6 claims |  |
 | UpdateAlias | full | aws-doc, 3 of 6 claims |  |
 | UpdateKeyDescription | full | inferred, 1 of 7 claims |  |
 | DisableKeyRotation | stored-only | inferred, 1 of 8 claims | the rotation status and period are stored and reported; key material is never rotated |
-| EnableKeyRotation | stored-only | inferred, 1 of 8 claims | the rotation status and period are stored and reported; key material is never rotated |
+| EnableKeyRotation | stored-only | inferred, 1 of 9 claims | the rotation status and period are stored and reported; key material is never rotated |
 | CreateKey | partial | aws-doc, 1 of 6 claims | symmetric encryption keys with AWS_KMS origin only: other key specs, key usages, origins, custom key stores and multi-Region keys answer UnsupportedOperationException; the key policy is parsed and stored, and enforced under iam.enforce=enforce; the lockout safety check is not run under any iam.enforce mode, so a policy that locks out its caller is stored where AWS answers MalformedPolicyDocumentException, and each key created with a Policy and without BypassPolicyLockoutSafetyCheck journals a check-not-run advisory |
-| Decrypt | partial | aws-doc, 5 of 10 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException, as do DryRunModifiers; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name) |
-| DescribeKey | partial | aws-doc, 2 of 6 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
-| Encrypt | partial | aws-doc, 5 of 10 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
-| GenerateDataKey | partial | aws-doc, 5 of 10 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
-| GenerateDataKeyWithoutPlaintext | partial | aws-doc, 5 of 10 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
+| Decrypt | partial | aws-doc, 4 of 10 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException, as do DryRunModifiers; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name) |
+| DescribeKey | partial | aws-doc, 2 of 7 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
+| Encrypt | partial | aws-doc, 4 of 11 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
+| GenerateDataKey | partial | aws-doc, 4 of 11 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
+| GenerateDataKeyWithoutPlaintext | partial | aws-doc, 4 of 10 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
 | GenerateRandom | partial | aws-doc, 1 of 4 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; custom key stores do not exist |
-| PutKeyPolicy | partial | inferred, 1 of 9 claims | the policy is parsed and stored in the layout sent, a bare account id principal written as the account's root ARN as AWS writes it, but not re-laid out as AWS does; it is evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; grants are not evaluated; the lockout safety check is not run under any iam.enforce mode, so a policy that locks out its caller is stored where AWS answers MalformedPolicyDocumentException, and each put without BypassPolicyLockoutSafetyCheck journals a check-not-run advisory |
-| ReEncrypt | partial | aws-doc, 5 of 10 claims | DryRunModifiers answer UnsupportedOperationException; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); for kms:ReEncryptTo on the destination key, the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
+| PutKeyPolicy | partial | inferred, 1 of 12 claims | the policy is parsed and stored in the layout sent, a bare account id principal written as the account's root ARN as AWS writes it, but not re-laid out as AWS does; it is evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; grants are not evaluated; the lockout safety check is not run under any iam.enforce mode, so a policy that locks out its caller is stored where AWS answers MalformedPolicyDocumentException, and each put without BypassPolicyLockoutSafetyCheck journals a check-not-run advisory |
+| ReEncrypt | partial | aws-doc, 4 of 10 claims | DryRunModifiers answer UnsupportedOperationException; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); for kms:ReEncryptTo on the destination key, the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
 | ConnectCustomKeyStore | unbound | unassessed |  |
 | CreateCustomKeyStore | unbound | unassessed |  |
 | CreateGrant | unbound | unassessed |  |
@@ -1803,7 +1803,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-242 switches: 132 aws-recorded, 1 third-party-recorded, 17 aws-doc, 92 inferred.
+242 switches: 133 aws-recorded, 1 third-party-recorded, 16 aws-doc, 92 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1861,6 +1861,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `kms.denial.status` | `400` | aws-recorded | docs/research/iam-enforcement-surfaces.md#3.2 | none: IAM-ENF-05 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
 | `kms.enforce.missing-resource.by-name` | `resolve-first` | aws-recorded | docs/research/iam-enforcement-surfaces.md#5.3 | none: IAM-ENF-14 recorded 2026-11-03 (testdata/parity); recorded: DescribeKey on a missing key id answered NotFoundException; inferred: the other operations it governs, and every one of them addressed by alias; the recorded caller is a role session, and the replay signs only as the account's root |
 | `kms.key-policy.role-boundary` | `limited` | aws-recorded | docs/research/iam-evaluation.md#4.3 | none: IAM-EVAL-27 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
+| `kms.pending-deletion.crypto-error` | `KMSInvalidStateException` | aws-recorded (kms/R15/02-pending-encrypt.json) | docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix | kms/R15#02-pending-encrypt |
 | `kms.resource-policy.account-id-principal` | `root-arn` | aws-recorded | docs/research/iam-evaluation.md#5.4 | none: IAM-EVAL-27 recorded 2026-11-03 (testdata/parity); the capture is the read-back only; the put that stored the policy ran unrecorded, so the replay has no policy to read |
 | `lambda.async.qualifier-config` | `invoked-qualifier-only` | aws-recorded | docs/research/lambda-destinations-layers.md#24-which-configuration-an-invocation-uses | none: recorded in testdata/parity/lambda/LDL-01; the replayer skips Lambda's REST and Docker steps |
 | `lambda.denial.body` | `AccessDeniedException 403, {"Message":"<grammar of 4.1>"}` | aws-recorded | docs/research/iam-enforcement-surfaces.md#3.2 | none: IAM-ENF-11 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
@@ -1945,7 +1946,6 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata | none: unrecorded: no recording shows GetMetricData's period boundaries |
 | `events.bus-target.cross-account-role` | `required` | aws-doc | docs/research/eventbridge-buses.md#63-cross-account | none: unrecorded: EBB-09 needs a second account, which the recording account lacks |
 | `iam.assumeRole` | `strict` | aws-doc | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions | none: the switch decides AssumeRole of a role IAM does not hold, which no recording asks; sts/R15#06-assume-denied names a role that exists, refused by its trust policy |
-| `kms.pending-deletion.crypto-error` | `KMSInvalidStateException` | aws-doc | docs/research/iam-sts-kms.md#56-key-states-deletion-and-the-state-matrix | none: kms/R15/02-pending-encrypt.json and the other 02-pending steps are recorded; no scenario replays kms/R15 yet |
 | `lambda.destination.sns-oversize` | `delivery-failure` | aws-doc | docs/research/lambda-destinations-layers.md#42-sns | none: recorded in testdata/parity/lambda/LDL-05, which differs: AWS delivers the record with both payloads dropped and a deliveryError object |
 | `lambda.stateTransitions` | `final` | aws-doc | docs/ARCHITECTURE.md#9-the-clock | none: a deliberate default (ARCHITECTURE.md 9), which a recording of AWS's transient states does not change |
 | `logs.delivery.retention-days` | `2` | aws-doc | https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html | none: unrecorded: no recording creates a DELIVERY-class log group |
@@ -2054,7 +2054,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-397 evidence items: 102 aws-recorded, 111 third-party-recorded, 58 aws-doc, 5 sdk-source, 121 inferred.
+399 evidence items: 104 aws-recorded, 111 third-party-recorded, 58 aws-doc, 5 sdk-source, 121 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2091,6 +2091,8 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | kinesis.json | `com.amazonaws.kinesis#Kinesis_20131202` | dev.understudy#denialError | testdata/parity/kinesis/IAM-ENF/36-kinesis.json: an IAM denial answers 400 with __type AccessDeniedException and the grammar in Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
 | aws-recorded | kms.json | `com.amazonaws.kms#AccessDeniedException` |  | testdata/parity/kms/IAM-ENF/05-describe.json: the model declares no denial shape (docs/research/iam-enforcement-surfaces.md#32-per-service-identity); an IAM denial answers 400, code AccessDeniedException, the message under the key Message (validated 2026-11-03) |
 | aws-recorded (kms/KMS-alias/01-duplicate.json) | kms.json | `com.amazonaws.kms#AlreadyExistsException` |  | testdata/parity/kms/KMS-alias/02-duplicate-raw.json (validated 2026-10-14) |
+| aws-recorded (kms/R15/03-create-alias-aws-prefix.json) | kms.json | `com.amazonaws.kms#NotAuthorizedException` |  | testdata/parity/kms/R15/03-create-alias-aws-prefix.json: the model declares no such shape; CreateAlias with an alias/aws/ name answers 400, code NotAuthorizedException, the message under the key Message (validated 2026-10-14) |
+| aws-recorded (kms/R15/02-window-6.json) | kms.json | `com.amazonaws.kms#ScheduleKeyDeletionRequest$PendingWindowInDays` | dev.understudy#validationError | testdata/parity/kms/R15/02-window-6.json and 02-window-31.json: PendingWindowInDays 6 and 31 answer ValidationException "PendingWindowInDays must be between 7 and 30", not the Coral range text (validated 2026-10-14) |
 | aws-recorded | kms.json | `com.amazonaws.kms#TrentService` | dev.understudy#denialError | testdata/parity/kms/IAM-ENF/05-describe.json: an IAM denial answers 400 with __type AccessDeniedException, not the CommonErrors template's 403 (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch kms.denial.status) (validated 2026-11-03) |
 | aws-recorded | lambda.json | `com.amazonaws.lambda#AWSGirApiService` | dev.understudy#denialError | testdata/parity/lambda/IAM-ENF/11-get.json: a same-account IAM denial answers 403 with x-amzn-ErrorType AccessDeniedException and the grammar in Message; another account's function ARN gives Message null (third-party-recorded) (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch lambda.denial.body) (validated 2026-11-03) |
 | aws-recorded | logs.json | `com.amazonaws.cloudwatchlogs#AccessDeniedException` |  | testdata/parity/logs/IAM-ENF/07-streams.json: the model's member is message, the wire key Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
@@ -2302,7 +2304,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | kms.json | `com.amazonaws.kms#DisabledException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |
 | aws-doc | kms.json | `com.amazonaws.kms#KMSInvalidStateException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |
 | aws-doc | kms.json | `com.amazonaws.kms#NotFoundException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |
-| aws-doc | kms.json | `com.amazonaws.kms#ScheduleKeyDeletionRequest$PendingWindowInDays` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_ScheduleKeyDeletion.html |
+| aws-doc | kms.json | `com.amazonaws.kms#ScheduleKeyDeletionRequest$PendingWindowInDays` | smithy.api#range | https://docs.aws.amazon.com/kms/latest/APIReference/API_ScheduleKeyDeletion.html |
 | aws-doc | kms.json | `com.amazonaws.kms#TrentService` | dev.understudy#throttleError | https://docs.aws.amazon.com/kms/latest/APIReference/CommonErrors.html |
 | aws-doc | lambda.json | `com.amazonaws.lambda#AWSGirApiService` | dev.understudy#unknownOperationError | https://docs.aws.amazon.com/lambda/latest/api/CommonErrors.html |
 | aws-doc | lambda.json | `com.amazonaws.lambda#UnknownOperationException` |  | https://docs.aws.amazon.com/lambda/latest/api/CommonErrors.html |

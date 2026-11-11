@@ -3526,7 +3526,7 @@ func (*RotateKeyOnDemandInput) ValidationError(vs []awserr.Violation) *awserr.Er
 var policyScheduleKeyDeletion = validationPolicy{
 	paths: []validationPath{
 		{segments: []string{"keyId"}, param: "KeyId"},
-		{segments: []string{"pendingWindowInDays"}, param: "PendingWindowInDays"},
+		{segments: []string{"pendingWindowInDays"}, param: "PendingWindowInDays", rules: []validationRule{{kinds: kindRange, id: IdentityValidationException, style: styleFixed, reason: "PendingWindowInDays must be between 7 and 30"}}},
 	},
 	service: []validationRule{{id: IdentityValidationException, style: styleCoral}},
 }

@@ -40,11 +40,11 @@ func errAliasPrefix() *awserr.Error {
 	return kmsapi.ErrValidationException(`Alias must start with the prefix "alias/". Please see https://docs.aws.amazon.com/kms/latest/developerguide/kms-alias.html`)
 }
 
-// errReservedAlias carries aws-in-a-box's text under the model's
-// InvalidAliasNameException: its recorded NotAuthorizedException is not in
-// CreateAlias's error list (UNVERIFIED as real; iam-sts-kms.md 5.4).
+// errReservedAlias is recorded (kms/R15/03-create-alias-aws-prefix.json):
+// NotAuthorizedException, which CreateAlias's error list leaves out, so the
+// KMS overlay adds the shape.
 func errReservedAlias() *awserr.Error {
-	return kmsapi.ErrInvalidAliasNameException("The alias name for a customer managed CMK cannot begin with alias/aws/.")
+	return kmsapi.ErrNotAuthorizedException("The alias name for a customer managed CMK cannot begin with alias/aws/.")
 }
 
 // errAliasTarget is aws-in-a-box's text for an alias as TargetKeyId
@@ -61,32 +61,34 @@ func errAliasQuota(keyARN string, quota int) *awserr.Error {
 		" aliases, the quota of aliases per KMS key; delete one of its aliases or target another key (understudy's text; AWS's is unrecorded).")
 }
 
-// errPolicyTooLong is unrecorded: CreateKey and PutKeyPolicy document
-// LimitExceededException for a key policy past the length constraint, but
-// no capture of its text exists, so the message is understudy's own. The
-// policy itself is not echoed.
+// errPolicyTooLong is recorded for PutKeyPolicy
+// (kms/R15/03-put-key-policy-too-long.json); chars is the policy's count of
+// characters other than whitespace, as AWS counts it.
 func errPolicyTooLong(chars, quota int) *awserr.Error {
-	return kmsapi.ErrLimitExceededException("The key policy is " + strconv.Itoa(chars) + " characters long, more than the quota of " +
-		strconv.Itoa(quota) + "; shorten it, for example by merging statements (understudy's text; AWS's is unrecorded).")
+	return kmsapi.ErrLimitExceededException("Keys support only policies up to " + strconv.Itoa(quota) +
+		" characters long in this region. The supplied policy was " + strconv.Itoa(chars) + " characters long.")
 }
 
-// errInvalidMarker is unrecorded: the text is understudy's own.
-func errInvalidMarker(marker string) *awserr.Error {
-	return kmsapi.ErrInvalidMarkerException("The marker " + marker + " is not one a previous page of this listing returned; start the listing again without a Marker (understudy's text; AWS's is unrecorded).")
+// errInvalidMarker has no message: AWS sends none
+// (kms/R15/x-listkeys-garbage-marker.json).
+func errInvalidMarker() *awserr.Error {
+	return kmsapi.ErrInvalidMarkerException("")
 }
 
 func errDisabled(keyARN string) *awserr.Error {
 	return kmsapi.ErrDisabledException(keyARN + " is disabled.")
 }
 
-// errPendingDeletion and errNotPendingDeletion are the texts of AWS's
-// key-state table, footnotes 3 and 4 (iam-sts-kms.md 5.6); unrecorded.
+// errPendingDeletion is recorded (kms/R15/02-pending-encrypt.json): AWS
+// leaves out the "(or pending replica deletion)" of its key-state table,
+// footnote 3 (iam-sts-kms.md 5.6). errNotPendingDeletion, footnote 4, is
+// unrecorded and drops the same clause by inference.
 func errPendingDeletion(keyARN string) *awserr.Error {
-	return kmsapi.ErrKMSInvalidStateException(keyARN + " is pending deletion (or pending replica deletion).")
+	return kmsapi.ErrKMSInvalidStateException(keyARN + " is pending deletion.")
 }
 
 func errNotPendingDeletion(keyARN string) *awserr.Error {
-	return kmsapi.ErrKMSInvalidStateException(keyARN + " is not pending deletion (or pending replica deletion).")
+	return kmsapi.ErrKMSInvalidStateException(keyARN + " is not pending deletion.")
 }
 
 // errDestinationPendingDeletion is the shorter text the key-state table
@@ -142,8 +144,10 @@ func errPolicyPrincipal(index int, sid string) *awserr.Error {
 	return kmsapi.ErrMalformedPolicyDocumentException(which + " of the key policy has no Principal or NotPrincipal element; each key policy statement must name one or more principals (understudy's text; AWS's is unrecorded).")
 }
 
+// errPolicyName is recorded for PutKeyPolicy
+// (kms/R15/03-put-key-policy-name.json); GetKeyPolicy's is inferred.
 func errPolicyName() *awserr.Error {
-	return kmsapi.ErrNotFoundException("No such policy exists")
+	return kmsapi.ErrValidationException("Invalid policy name")
 }
 
 // errAWSManagedKey and errAWSManagedAlias are unrecorded. AWS refuses these

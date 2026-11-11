@@ -3310,6 +3310,17 @@ func serializeMultiRegionKeyList(s smithy.Serializer, m *smithy.Member, v []Mult
 }
 
 // Serialize writes v through s.
+func (v *NotAuthorizedException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *NotAuthorizedException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaNotAuthorizedException)
+	if v.Message != nil {
+		s.WriteString(&memberNotAuthorizedException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *NotFoundException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *NotFoundException) serialize(s smithy.Serializer, m *smithy.Member) {
