@@ -422,6 +422,10 @@ func (s *Service) Switches() []fidelity.Entry {
 			"4.2", "IAM-ENF-12", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(s3api.Service())),
 		notificationDeliveryDenied(),
 		authz.AccountIDPrincipalSwitch("s3", "IAM-EVAL-25", []string{"s3.PutBucketPolicy"}),
+		authz.RecordedResolveFirstSwitch("s3.enforce.missing-resource",
+			"ListObjectsV2 on a missing bucket answered NoSuchBucket, and GetObject on a missing key the s3:ListBucket denial",
+			"every other bucket operation on a missing bucket, HeadObject and GetObjectAttributes on a missing key, and NoSuchKey to a caller allowed s3:ListBucket but denied s3:GetObject",
+			s.k.Bindings().ResolvedFirstOps(s3api.Service())),
 	}, authz.SwitchesOf("s3", []string{"s3.GetBucketPolicy", "s3.PutBucketPolicy", "s3.DeleteBucketPolicy"}))
 }
 

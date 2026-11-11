@@ -21,12 +21,29 @@ type Binder struct {
 
 // BindOption adjusts one binding: WithValidator, WithCheck, WithResources,
 // WithResourcesFor, WithItemCount, WithActions, WithoutSecondaryActions,
-// WithConditionKeys, RefuseConditionKeys, AuthorizedInHandler,
-// NeverAuthorized and AuthorizedAfterResolve build them.
+// WithConditionKeys, RefuseConditionKeys, ResolveFirst, AuthorizedInHandler,
+// NeverAuthorized and AuthorizedAfterResolve build them, and BindOptions
+// groups them.
 type BindOption interface {
 	// apply adds the option to cfg, the *bindConfig of the operation's input
 	// type, and reports false when the option is for another input type.
 	apply(cfg any) bool
+}
+
+// BindOptions is opts as one option, applied in order, for a service
+// helper that gives each binding it serves several options at once, such
+// as the resource a queue URL names and the queue's not-found answer.
+func BindOptions(opts ...BindOption) BindOption { return optionGroup(slices.Clone(opts)) }
+
+// optionGroup is the option BindOptions returns.
+type optionGroup []BindOption
+
+func (g optionGroup) apply(cfg any) bool {
+	ok := true
+	for _, o := range g {
+		ok = o.apply(cfg) && ok
+	}
+	return ok
 }
 
 // bindConfig is what the options of one binding add to it. It is not
@@ -52,6 +69,8 @@ type bindConfig struct {
 	authorization authorization
 	// refused are every RefuseConditionKeys option's keys.
 	refused []string
+	// exists are every ResolveFirst option's checks.
+	exists []func(context.Context, *Call, any) *awserr.Error
 }
 
 // erasedConfig is what WithResourcesFor, WithConditionKeys and
@@ -404,6 +423,7 @@ func (cfg *bindConfig) clone() bindConfig {
 		count:         cfg.count,
 		authorization: cfg.authorization,
 		refused:       slices.Clone(cfg.refused),
+		exists:        slices.Clone(cfg.exists),
 	}
 }
 
@@ -444,6 +464,7 @@ func configured(b *Binder, id ref.OperationID, base bindConfig, opts []BindOptio
 		extend:         func(more []BindOption) *binding { return configured(b, id, cfg, more, t) },
 		authorization:  cfg.authorization,
 		refused:        cfg.refused,
+		exists:         cfg.exists,
 	}
 	if len(cfg.actions) > 0 {
 		bnd.actions = func(c *Call, in any) []registry.IAMAction {
@@ -526,6 +547,9 @@ type binding struct {
 	// primary action names (WithDenialResource); nil without the option and
 	// for raw HTTP bindings.
 	denialResource func(c *Call, in any) string
+	// exists are the binding's ResolveFirst checks, run before step 8;
+	// nil without the option and for raw HTTP bindings.
+	exists []func(ctx context.Context, c *Call, in any) *awserr.Error
 }
 
 // denialResourceOf returns the resource text the binding's

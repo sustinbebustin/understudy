@@ -107,7 +107,8 @@ type wantSwitch struct {
 // (section 12): recorded (S3SOL-02 on 2026-11-05, the rest on 2026-11-03)
 // and settled by no scenario, since the replayer skips S3's REST requests;
 // s3.encryption.after-delete is backed by the recording of section 2. IAM
-// enforcement's two S3 switches (s3.denial.text,
+// enforcement's S3 switches (s3.denial.text,
+// s3.notification.delivery-denied, s3.enforce.missing-resource,
 // s3.root.bucket-policy-lockout) follow them (iam-enforcement-surfaces.md
 // 12.8).
 func TestSSECAndObjectLockSwitches(t *testing.T) {
@@ -143,9 +144,10 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 		// first: encryption after delete, cross-account access, public ACLs
 		// at create, tag limits and lifecycle rule limits.
 		// IAM enforcement's follow: the denial text, the refused
-		// notification, the stored account principal and the root's
-		// bucket-policy lockout.
-		const earlier, enforcement = 5, 4
+		// notification, the stored account principal, the missing resource
+		// answered before authorization and the root's bucket-policy
+		// lockout.
+		const earlier, enforcement = 5, 5
 		if len(entries) != earlier+len(want)+enforcement {
 			names := make([]string, len(entries))
 			for i, e := range entries {

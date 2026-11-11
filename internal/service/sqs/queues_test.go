@@ -138,6 +138,9 @@ func TestSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 			// A delivery to a deleted queue fails as the missing queue
 			// (iam-enforcement-surfaces.md 8.2, sns.md 7.1).
 			"sqs.enforce.missing-resource.delivery": "resolve-first",
+			// A missing queue answers QueueDoesNotExist before
+			// authorization (iam-enforcement-surfaces.md 5.3, IAM-ENF-14).
+			"sqs.enforce.missing-resource": "resolve-first",
 		}
 		if !maps.Equal(got, want) {
 			h.Errorf("switches = %v, want %v", got, want)

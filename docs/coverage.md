@@ -854,14 +854,14 @@ Internal operations:
 | DisableKeyRotation | stored-only | inferred, 1 of 8 claims | the rotation status and period are stored and reported; key material is never rotated |
 | EnableKeyRotation | stored-only | inferred, 1 of 8 claims | the rotation status and period are stored and reported; key material is never rotated |
 | CreateKey | partial | aws-doc, 1 of 6 claims | symmetric encryption keys with AWS_KMS origin only: other key specs, key usages, origins, custom key stores and multi-Region keys answer UnsupportedOperationException; the key policy is parsed and stored, and enforced under iam.enforce=enforce; the lockout safety check is not run under any iam.enforce mode, so a policy that locks out its caller is stored where AWS answers MalformedPolicyDocumentException, and each key created with a Policy and without BypassPolicyLockoutSafetyCheck journals a check-not-run advisory |
-| Decrypt | partial | inferred, 1 of 10 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException, as do DryRunModifiers; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name) |
-| DescribeKey | partial | inferred, 1 of 6 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
-| Encrypt | partial | inferred, 1 of 10 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
-| GenerateDataKey | partial | inferred, 1 of 10 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
-| GenerateDataKeyWithoutPlaintext | partial | inferred, 1 of 10 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
+| Decrypt | partial | aws-doc, 5 of 10 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException, as do DryRunModifiers; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name) |
+| DescribeKey | partial | aws-doc, 2 of 6 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
+| Encrypt | partial | aws-doc, 5 of 10 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
+| GenerateDataKey | partial | aws-doc, 5 of 10 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
+| GenerateDataKeyWithoutPlaintext | partial | aws-doc, 5 of 10 claims | under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
 | GenerateRandom | partial | aws-doc, 1 of 4 claims | Recipient (Nitro Enclaves attestation) answers UnsupportedOperationException; custom key stores do not exist |
 | PutKeyPolicy | partial | inferred, 1 of 9 claims | the policy is parsed and stored in the layout sent, a bare account id principal written as the account's root ARN as AWS writes it, but not re-laid out as AWS does; it is evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; grants are not evaluated; the lockout safety check is not run under any iam.enforce mode, so a policy that locks out its caller is stored where AWS answers MalformedPolicyDocumentException, and each put without BypassPolicyLockoutSafetyCheck journals a check-not-run advisory |
-| ReEncrypt | partial | inferred, 1 of 10 claims | DryRunModifiers answer UnsupportedOperationException; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); for kms:ReEncryptTo on the destination key, the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
+| ReEncrypt | partial | aws-doc, 5 of 10 claims | DryRunModifiers answer UnsupportedOperationException; under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name); for kms:ReEncryptTo on the destination key, the first use of an alias/aws/<service> alias, which creates that AWS managed key, is authorized and recorded on * because the key does not exist yet, so the policy grants the action on * (an over-grant); later uses are recorded on the key; whether AWS creates the key before it authorizes the call is unknown (iam-sts-kms.md 5.4) |
 | ConnectCustomKeyStore | unbound | unassessed |  |
 | CreateCustomKeyStore | unbound | unassessed |  |
 | CreateGrant | unbound | unassessed |  |
@@ -1124,91 +1124,91 @@ Internal operations:
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
 | CreateBucket | full | aws-doc, 2 of 5 claims |  |
-| DeleteBucket | full | inferred, 1 of 3 claims |  |
-| DeleteBucketEncryption | full | inferred, 1 of 4 claims |  |
-| DeleteBucketTagging | full | inferred, 1 of 3 claims |  |
-| DeleteObjectTagging | full | inferred, 1 of 3 claims |  |
-| GetBucketEncryption | full | inferred, 1 of 6 claims |  |
-| GetBucketLocation | full | inferred, 1 of 3 claims |  |
-| GetBucketNotificationConfiguration | full | inferred, 1 of 4 claims |  |
-| GetBucketTagging | full | inferred, 1 of 4 claims |  |
-| GetBucketVersioning | full | inferred, 1 of 4 claims |  |
-| GetObjectAttributes | full | inferred, 1 of 6 claims |  |
-| GetObjectLegalHold | full | inferred, 1 of 5 claims |  |
-| GetObjectLockConfiguration | full | inferred, 1 of 4 claims |  |
-| GetObjectRetention | full | inferred, 1 of 6 claims |  |
-| GetObjectTagging | full | inferred, 1 of 3 claims |  |
-| HeadBucket | full | inferred, 1 of 4 claims |  |
-| ListMultipartUploads | full | inferred, 1 of 4 claims |  |
-| ListParts | full | inferred, 1 of 5 claims |  |
-| PutBucketEncryption | full | inferred, 1 of 6 claims |  |
-| PutBucketTagging | full | inferred, 1 of 5 claims |  |
-| PutObjectLegalHold | full | inferred, 1 of 4 claims |  |
-| PutObjectTagging | full | inferred, 1 of 3 claims |  |
-| DeleteBucketAnalyticsConfiguration | stored-only | inferred, 1 of 3 claims | the analytics configuration is stored and echoed; not applied |
-| DeleteBucketCors | stored-only | inferred, 1 of 3 claims | the CORS configuration is stored and echoed; not applied |
-| DeleteBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 3 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| DeleteBucketInventoryConfiguration | stored-only | inferred, 1 of 3 claims | the inventory configuration is stored and echoed; not applied |
-| DeleteBucketLifecycle | stored-only | inferred, 1 of 3 claims | the lifecycle rules are stored and echoed; not applied |
-| DeleteBucketMetricsConfiguration | stored-only | inferred, 1 of 3 claims | the metrics configuration is stored and echoed; not applied |
-| DeleteBucketReplication | stored-only | inferred, 1 of 3 claims | the replication configuration is stored and echoed; not applied |
-| DeleteBucketWebsite | stored-only | inferred, 1 of 3 claims | the website configuration is stored and echoed; not applied |
-| DeletePublicAccessBlock | stored-only | inferred, 1 of 3 claims | the public access block is stored and echoed; not applied |
-| GetBucketAccelerateConfiguration | stored-only | inferred, 1 of 4 claims | the transfer acceleration status is stored and echoed; not applied |
-| GetBucketAcl | stored-only | inferred, 1 of 3 claims | the access control list is stored and echoed; not applied |
-| GetBucketAnalyticsConfiguration | stored-only | inferred, 1 of 4 claims | the analytics configuration is stored and echoed; not applied |
-| GetBucketCors | stored-only | inferred, 1 of 4 claims | the CORS configuration is stored and echoed; not applied |
-| GetBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 4 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| GetBucketInventoryConfiguration | stored-only | inferred, 1 of 4 claims | the inventory configuration is stored and echoed; not applied |
-| GetBucketLifecycleConfiguration | stored-only | inferred, 1 of 4 claims | the lifecycle rules are stored and echoed; not applied |
-| GetBucketLogging | stored-only | inferred, 1 of 4 claims | the logging configuration is stored and echoed; not applied |
-| GetBucketMetricsConfiguration | stored-only | inferred, 1 of 4 claims | the metrics configuration is stored and echoed; not applied |
-| GetBucketReplication | stored-only | inferred, 1 of 4 claims | the replication configuration is stored and echoed; not applied |
-| GetBucketRequestPayment | stored-only | inferred, 1 of 4 claims | the payer is stored and echoed; not applied |
-| GetBucketWebsite | stored-only | inferred, 1 of 4 claims | the website configuration is stored and echoed; not applied |
-| GetPublicAccessBlock | stored-only | inferred, 1 of 4 claims | the public access block is stored and echoed; not applied |
-| ListBucketAnalyticsConfigurations | stored-only | inferred, 1 of 3 claims | the analytics configuration is stored and echoed; not applied |
-| ListBucketIntelligentTieringConfigurations | stored-only | inferred, 1 of 3 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| ListBucketInventoryConfigurations | stored-only | inferred, 1 of 3 claims | the inventory configuration is stored and echoed; not applied |
-| ListBucketMetricsConfigurations | stored-only | inferred, 1 of 3 claims | the metrics configuration is stored and echoed; not applied |
-| PutBucketAccelerateConfiguration | stored-only | inferred, 1 of 3 claims | the transfer acceleration status is stored and echoed; not applied |
-| PutBucketAcl | stored-only | inferred, 1 of 3 claims | the access control list is stored and echoed; not applied; BlockPublicAcls is not applied under any iam.enforce mode, so an ACL granting AllUsers or AuthenticatedUsers while it is true is stored where AWS answers 403 AccessDenied, and journals a check-not-run advisory |
-| PutBucketAnalyticsConfiguration | stored-only | inferred, 1 of 4 claims | the analytics configuration is stored and echoed; not applied |
-| PutBucketCors | stored-only | inferred, 1 of 3 claims | the CORS configuration is stored and echoed; not applied |
-| PutBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 4 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
-| PutBucketInventoryConfiguration | stored-only | inferred, 1 of 4 claims | the inventory configuration is stored and echoed; not applied |
-| PutBucketLifecycleConfiguration | stored-only | inferred, 1 of 5 claims | the lifecycle rules are stored and echoed; not applied |
-| PutBucketLogging | stored-only | inferred, 1 of 3 claims | the logging configuration is stored and echoed; not applied |
-| PutBucketMetricsConfiguration | stored-only | inferred, 1 of 4 claims | the metrics configuration is stored and echoed; not applied |
-| PutBucketReplication | stored-only | inferred, 1 of 3 claims | the replication configuration is stored and echoed; not applied |
-| PutBucketRequestPayment | stored-only | inferred, 1 of 3 claims | the payer is stored and echoed; not applied |
-| PutBucketWebsite | stored-only | inferred, 1 of 3 claims | the website configuration is stored and echoed; not applied |
-| PutPublicAccessBlock | stored-only | inferred, 1 of 3 claims | the public access block is stored and echoed; not applied under any iam.enforce mode, where AWS refuses PutBucketPolicy with a public policy while BlockPublicPolicy is true and a public ACL while BlockPublicAcls is true; PutBucketPolicy while BlockPublicPolicy is true, and PutBucketAcl granting AllUsers or AuthenticatedUsers while BlockPublicAcls is true, journal a check-not-run advisory |
-| AbortMultipartUpload | partial | inferred, 1 of 3 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
-| CompleteMultipartUpload | partial | inferred, 1 of 8 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
-| CopyObject | partial | inferred, 4 of 18 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
-| CreateMultipartUpload | partial | inferred, 3 of 13 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
-| DeleteBucketOwnershipControls | partial | inferred, 1 of 3 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| DeleteBucketPolicy | partial | inferred, 2 of 4 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated, and Block Public Access is not applied (PutPublicAccessBlock) |
-| DeleteObject | partial | inferred, 1 of 5 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
-| DeleteObjects | partial | inferred, 1 of 5 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
-| GetBucketOwnershipControls | partial | inferred, 1 of 4 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| GetBucketPolicy | partial | inferred, 2 of 5 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated, and Block Public Access is not applied (PutPublicAccessBlock) |
-| GetObject | partial | inferred, 1 of 8 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
-| HeadObject | partial | inferred, 1 of 10 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| DeleteBucket | full | inferred, 1 of 4 claims |  |
+| DeleteBucketEncryption | full | inferred, 1 of 5 claims |  |
+| DeleteBucketTagging | full | inferred, 1 of 4 claims |  |
+| DeleteObjectTagging | full | inferred, 1 of 4 claims |  |
+| GetBucketEncryption | full | inferred, 1 of 7 claims |  |
+| GetBucketLocation | full | inferred, 1 of 4 claims |  |
+| GetBucketNotificationConfiguration | full | inferred, 1 of 5 claims |  |
+| GetBucketTagging | full | inferred, 1 of 5 claims |  |
+| GetBucketVersioning | full | inferred, 1 of 5 claims |  |
+| GetObjectAttributes | full | inferred, 1 of 7 claims |  |
+| GetObjectLegalHold | full | inferred, 1 of 6 claims |  |
+| GetObjectLockConfiguration | full | inferred, 1 of 5 claims |  |
+| GetObjectRetention | full | inferred, 1 of 7 claims |  |
+| GetObjectTagging | full | inferred, 1 of 4 claims |  |
+| HeadBucket | full | inferred, 1 of 5 claims |  |
+| ListMultipartUploads | full | inferred, 1 of 5 claims |  |
+| ListParts | full | inferred, 1 of 6 claims |  |
+| PutBucketEncryption | full | inferred, 1 of 7 claims |  |
+| PutBucketTagging | full | inferred, 1 of 6 claims |  |
+| PutObjectLegalHold | full | inferred, 1 of 5 claims |  |
+| PutObjectTagging | full | inferred, 1 of 4 claims |  |
+| DeleteBucketAnalyticsConfiguration | stored-only | inferred, 1 of 4 claims | the analytics configuration is stored and echoed; not applied |
+| DeleteBucketCors | stored-only | inferred, 1 of 4 claims | the CORS configuration is stored and echoed; not applied |
+| DeleteBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 4 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| DeleteBucketInventoryConfiguration | stored-only | inferred, 1 of 4 claims | the inventory configuration is stored and echoed; not applied |
+| DeleteBucketLifecycle | stored-only | inferred, 1 of 4 claims | the lifecycle rules are stored and echoed; not applied |
+| DeleteBucketMetricsConfiguration | stored-only | inferred, 1 of 4 claims | the metrics configuration is stored and echoed; not applied |
+| DeleteBucketReplication | stored-only | inferred, 1 of 4 claims | the replication configuration is stored and echoed; not applied |
+| DeleteBucketWebsite | stored-only | inferred, 1 of 4 claims | the website configuration is stored and echoed; not applied |
+| DeletePublicAccessBlock | stored-only | inferred, 1 of 4 claims | the public access block is stored and echoed; not applied |
+| GetBucketAccelerateConfiguration | stored-only | inferred, 1 of 5 claims | the transfer acceleration status is stored and echoed; not applied |
+| GetBucketAcl | stored-only | inferred, 1 of 4 claims | the access control list is stored and echoed; not applied |
+| GetBucketAnalyticsConfiguration | stored-only | inferred, 1 of 5 claims | the analytics configuration is stored and echoed; not applied |
+| GetBucketCors | stored-only | inferred, 1 of 5 claims | the CORS configuration is stored and echoed; not applied |
+| GetBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 5 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| GetBucketInventoryConfiguration | stored-only | inferred, 1 of 5 claims | the inventory configuration is stored and echoed; not applied |
+| GetBucketLifecycleConfiguration | stored-only | inferred, 1 of 5 claims | the lifecycle rules are stored and echoed; not applied |
+| GetBucketLogging | stored-only | inferred, 1 of 5 claims | the logging configuration is stored and echoed; not applied |
+| GetBucketMetricsConfiguration | stored-only | inferred, 1 of 5 claims | the metrics configuration is stored and echoed; not applied |
+| GetBucketReplication | stored-only | inferred, 1 of 5 claims | the replication configuration is stored and echoed; not applied |
+| GetBucketRequestPayment | stored-only | inferred, 1 of 5 claims | the payer is stored and echoed; not applied |
+| GetBucketWebsite | stored-only | inferred, 1 of 5 claims | the website configuration is stored and echoed; not applied |
+| GetPublicAccessBlock | stored-only | inferred, 1 of 5 claims | the public access block is stored and echoed; not applied |
+| ListBucketAnalyticsConfigurations | stored-only | inferred, 1 of 4 claims | the analytics configuration is stored and echoed; not applied |
+| ListBucketIntelligentTieringConfigurations | stored-only | inferred, 1 of 4 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| ListBucketInventoryConfigurations | stored-only | inferred, 1 of 4 claims | the inventory configuration is stored and echoed; not applied |
+| ListBucketMetricsConfigurations | stored-only | inferred, 1 of 4 claims | the metrics configuration is stored and echoed; not applied |
+| PutBucketAccelerateConfiguration | stored-only | inferred, 1 of 4 claims | the transfer acceleration status is stored and echoed; not applied |
+| PutBucketAcl | stored-only | inferred, 1 of 4 claims | the access control list is stored and echoed; not applied; BlockPublicAcls is not applied under any iam.enforce mode, so an ACL granting AllUsers or AuthenticatedUsers while it is true is stored where AWS answers 403 AccessDenied, and journals a check-not-run advisory |
+| PutBucketAnalyticsConfiguration | stored-only | inferred, 1 of 5 claims | the analytics configuration is stored and echoed; not applied |
+| PutBucketCors | stored-only | inferred, 1 of 4 claims | the CORS configuration is stored and echoed; not applied |
+| PutBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 5 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
+| PutBucketInventoryConfiguration | stored-only | inferred, 1 of 5 claims | the inventory configuration is stored and echoed; not applied |
+| PutBucketLifecycleConfiguration | stored-only | inferred, 1 of 6 claims | the lifecycle rules are stored and echoed; not applied |
+| PutBucketLogging | stored-only | inferred, 1 of 4 claims | the logging configuration is stored and echoed; not applied |
+| PutBucketMetricsConfiguration | stored-only | inferred, 1 of 5 claims | the metrics configuration is stored and echoed; not applied |
+| PutBucketReplication | stored-only | inferred, 1 of 4 claims | the replication configuration is stored and echoed; not applied |
+| PutBucketRequestPayment | stored-only | inferred, 1 of 4 claims | the payer is stored and echoed; not applied |
+| PutBucketWebsite | stored-only | inferred, 1 of 4 claims | the website configuration is stored and echoed; not applied |
+| PutPublicAccessBlock | stored-only | inferred, 1 of 4 claims | the public access block is stored and echoed; not applied under any iam.enforce mode, where AWS refuses PutBucketPolicy with a public policy while BlockPublicPolicy is true and a public ACL while BlockPublicAcls is true; PutBucketPolicy while BlockPublicPolicy is true, and PutBucketAcl granting AllUsers or AuthenticatedUsers while BlockPublicAcls is true, journal a check-not-run advisory |
+| AbortMultipartUpload | partial | inferred, 1 of 4 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
+| CompleteMultipartUpload | partial | inferred, 1 of 9 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
+| CopyObject | partial | inferred, 4 of 19 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
+| CreateMultipartUpload | partial | inferred, 3 of 14 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
+| DeleteBucketOwnershipControls | partial | inferred, 1 of 4 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
+| DeleteBucketPolicy | partial | inferred, 2 of 5 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated, and Block Public Access is not applied (PutPublicAccessBlock) |
+| DeleteObject | partial | inferred, 1 of 6 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
+| DeleteObjects | partial | inferred, 1 of 6 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
+| GetBucketOwnershipControls | partial | inferred, 1 of 5 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
+| GetBucketPolicy | partial | inferred, 2 of 6 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated, and Block Public Access is not applied (PutPublicAccessBlock) |
+| GetObject | partial | inferred, 1 of 9 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
+| HeadObject | partial | inferred, 1 of 11 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
 | ListBuckets | partial | third-party-recorded, 1 of 2 claims | general purpose buckets only; no directory buckets |
-| ListObjectVersions | partial | inferred, 1 of 4 claims | no RestoreStatus |
-| ListObjects | partial | inferred, 1 of 4 claims | no RestoreStatus |
-| ListObjectsV2 | partial | inferred, 1 of 4 claims | no RestoreStatus |
-| PutBucketNotificationConfiguration | partial | inferred, 1 of 4 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions, where AWS refuses a destination whose policy does not admit S3; under iam.enforce=enforce such a destination refuses each notification, which is dropped (s3.notification.delivery-denied); s3:ObjectRetention:Put is stored but sends nothing |
-| PutBucketOwnershipControls | partial | inferred, 1 of 3 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| PutBucketPolicy | partial | inferred, 2 of 6 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated; BlockPublicPolicy is not checked under any iam.enforce mode, so a public policy put while it is true is stored where AWS answers 403 AccessDenied, and each put while it is true journals a check-not-run advisory |
-| PutBucketVersioning | partial | inferred, 1 of 3 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
-| PutObject | partial | inferred, 3 of 15 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
-| PutObjectLockConfiguration | partial | inferred, 1 of 4 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored |
-| PutObjectRetention | partial | inferred, 1 of 8 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent |
-| UploadPart | partial | inferred, 1 of 8 claims | chunk signatures are verified under sigv4 verify |
-| UploadPartCopy | partial | inferred, 2 of 10 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
+| ListObjectVersions | partial | inferred, 1 of 5 claims | no RestoreStatus |
+| ListObjects | partial | inferred, 1 of 5 claims | no RestoreStatus |
+| ListObjectsV2 | partial | inferred, 1 of 5 claims | no RestoreStatus |
+| PutBucketNotificationConfiguration | partial | inferred, 1 of 5 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence and refuses FIFO queues and topics, not permissions, where AWS refuses a destination whose policy does not admit S3; under iam.enforce=enforce such a destination refuses each notification, which is dropped (s3.notification.delivery-denied); s3:ObjectRetention:Put is stored but sends nothing |
+| PutBucketOwnershipControls | partial | inferred, 1 of 4 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
+| PutBucketPolicy | partial | inferred, 2 of 7 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated; BlockPublicPolicy is not checked under any iam.enforce mode, so a public policy put while it is true is stored where AWS answers 403 AccessDenied, and each put while it is true journals a check-not-run advisory |
+| PutBucketVersioning | partial | inferred, 1 of 4 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
+| PutObject | partial | inferred, 3 of 16 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
+| PutObjectLockConfiguration | partial | inferred, 1 of 5 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored |
+| PutObjectRetention | partial | inferred, 1 of 9 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent |
+| UploadPart | partial | inferred, 1 of 9 claims | chunk signatures are verified under sigv4 verify |
+| UploadPartCopy | partial | inferred, 2 of 11 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CreateBucketMetadataConfiguration | unbound | unassessed |  |
 | CreateBucketMetadataTableConfiguration | unbound | unassessed |  |
 | CreateSession | unbound | unassessed |  |
@@ -1595,27 +1595,27 @@ Raw operations:
 |---|---|---|---|
 | CancelMessageMoveTask | full | third-party-recorded, 2 of 4 claims |  |
 | CreateQueue | full | inferred, 2 of 9 claims |  |
-| DeleteQueue | full | third-party-recorded, 3 of 5 claims |  |
-| GetQueueAttributes | full | third-party-recorded, 3 of 5 claims |  |
-| GetQueueUrl | full | third-party-recorded, 3 of 5 claims |  |
-| ListDeadLetterSourceQueues | full | third-party-recorded, 3 of 5 claims |  |
+| DeleteQueue | full | third-party-recorded, 3 of 6 claims |  |
+| GetQueueAttributes | full | third-party-recorded, 3 of 6 claims |  |
+| GetQueueUrl | full | third-party-recorded, 3 of 6 claims |  |
+| ListDeadLetterSourceQueues | full | third-party-recorded, 3 of 6 claims |  |
 | ListMessageMoveTasks | full | third-party-recorded, 2 of 4 claims |  |
-| ListQueueTags | full | third-party-recorded, 3 of 5 claims |  |
+| ListQueueTags | full | third-party-recorded, 3 of 6 claims |  |
 | ListQueues | full | third-party-recorded, 2 of 4 claims |  |
-| PurgeQueue | full | third-party-recorded, 3 of 5 claims |  |
-| SendMessage | full | inferred, 4 of 20 claims |  |
-| SendMessageBatch | full | inferred, 4 of 9 claims |  |
-| SetQueueAttributes | full | aws-doc, 1 of 7 claims |  |
+| PurgeQueue | full | third-party-recorded, 3 of 6 claims |  |
+| SendMessage | full | inferred, 4 of 21 claims |  |
+| SendMessageBatch | full | inferred, 4 of 10 claims |  |
+| SetQueueAttributes | full | aws-doc, 1 of 8 claims |  |
 | StartMessageMoveTask | full | aws-doc, 1 of 5 claims |  |
-| TagQueue | full | third-party-recorded, 3 of 5 claims |  |
-| UntagQueue | full | third-party-recorded, 3 of 5 claims |  |
-| AddPermission | partial | aws-doc, 1 of 6 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
-| ChangeMessageVisibility | partial | contradicted (sqs/R01/05-cmv-stale.json), 3 of 11 claims | an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200 |
-| ChangeMessageVisibilityBatch | partial | contradicted (sqs/R01/06-cmv-batch.json), 1 of 9 claims | an older receipt handle of a message received again since, or one of another queue, fails as not available for a visibility change, where AWS reports the first successful and fails the second as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order |
-| DeleteMessage | partial | contradicted (sqs/R01/03-recv-after-6s.json), 3 of 15 claims | an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 "The receipt handle has expired." |
-| DeleteMessageBatch | partial | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 8 claims | a receipt handle of another queue is reported successful and deletes nothing, where AWS fails it as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order |
-| ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 17 of 30 claims | a message's members are in model order and its Attributes sorted by name, where AWS writes the members in alphabetical order and the Attributes in an order of its own |
-| RemovePermission | partial | third-party-recorded, 3 of 5 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
+| TagQueue | full | third-party-recorded, 3 of 6 claims |  |
+| UntagQueue | full | third-party-recorded, 3 of 6 claims |  |
+| AddPermission | partial | aws-doc, 1 of 7 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
+| ChangeMessageVisibility | partial | contradicted (sqs/R01/05-cmv-stale.json), 3 of 12 claims | an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200 |
+| ChangeMessageVisibilityBatch | partial | contradicted (sqs/R01/06-cmv-batch.json), 1 of 10 claims | an older receipt handle of a message received again since, or one of another queue, fails as not available for a visibility change, where AWS reports the first successful and fails the second as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order |
+| DeleteMessage | partial | contradicted (sqs/R01/03-recv-after-6s.json), 3 of 16 claims | an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 "The receipt handle has expired." |
+| DeleteMessageBatch | partial | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 9 claims | a receipt handle of another queue is reported successful and deletes nothing, where AWS fails it as not valid for this queue; the answer's members are in model order, not AWS's alphabetical order |
+| ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 17 of 31 claims | a message's members are in model order and its Attributes sorted by name, where AWS writes the members in alphabetical order and the Attributes in an order of its own |
+| RemovePermission | partial | third-party-recorded, 3 of 6 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
 
 Internal operations:
 
@@ -1803,7 +1803,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-238 switches: 125 aws-recorded, 1 third-party-recorded, 17 aws-doc, 95 inferred.
+240 switches: 128 aws-recorded, 1 third-party-recorded, 17 aws-doc, 94 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1857,6 +1857,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `iam.wildcard-principal.role-session` | `direct` | aws-recorded | docs/research/iam-evaluation.md#2.3 | none: IAM-EVAL-19 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
 | `iam.wildcard-principal.service` | `matches` | aws-recorded | docs/research/iam-evaluation.md#2.9 | none: IAM-EVAL-33 recorded 2026-11-03 (testdata/parity); the recorded outcome is a delivery between services, which the replay cannot send |
 | `kms.denial.status` | `400` | aws-recorded | docs/research/iam-enforcement-surfaces.md#3.2 | none: IAM-ENF-05 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
+| `kms.enforce.missing-resource.by-name` | `resolve-first` | aws-recorded | docs/research/iam-enforcement-surfaces.md#5.3 | none: IAM-ENF-14 recorded 2026-11-03 (testdata/parity); recorded: DescribeKey on a missing key id answered NotFoundException; inferred: the other operations it governs, and every one of them addressed by alias; the recorded caller is a role session, and the replay signs only as the account's root |
 | `kms.key-policy.role-boundary` | `limited` | aws-recorded | docs/research/iam-evaluation.md#4.3 | none: IAM-EVAL-27 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
 | `kms.resource-policy.account-id-principal` | `root-arn` | aws-recorded | docs/research/iam-evaluation.md#5.4 | none: IAM-EVAL-27 recorded 2026-11-03 (testdata/parity); the capture is the read-back only; the put that stored the policy ran unrecorded, so the replay has no policy to read |
 | `lambda.async.qualifier-config` | `invoked-qualifier-only` | aws-recorded | docs/research/lambda-destinations-layers.md#24-which-configuration-an-invocation-uses | none: recorded in testdata/parity/lambda/LDL-01; the replayer skips Lambda's REST and Docker steps |
@@ -1875,6 +1876,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `s3.encryption.after-delete` | `default-sse-s3` | aws-recorded | docs/research/s3-ssec-object-lock.md#2-what-the-repos-recordings-already-settled | none: s3/R06/02-get-encryption-after-delete.json is recorded; the replayer skips S3's REST requests |
 | `s3.encryption.blocked-types-omitted` | `reset-to-new-bucket` | aws-recorded | docs/research/s3-ssec-object-lock.md#42-blocking-and-unblocking | none: S3SOL-11 is recorded; the replayer skips S3's REST requests |
 | `s3.encryption.unblocked-read` | `NONE-element` | aws-recorded | docs/research/s3-ssec-object-lock.md#42-blocking-and-unblocking | none: S3SOL-10 is recorded; the replayer skips S3's REST requests |
+| `s3.enforce.missing-resource` | `resolve-first` | aws-recorded | docs/research/iam-enforcement-surfaces.md#5.3 | none: IAM-ENF-14 recorded 2026-11-03 (testdata/parity); recorded: ListObjectsV2 on a missing bucket answered NoSuchBucket, and GetObject on a missing key the s3:ListBucket denial; inferred: every other bucket operation on a missing bucket, HeadObject and GetObjectAttributes on a missing key, and NoSuchKey to a caller allowed s3:ListBucket but denied s3:GetObject; the recorded caller is a role session, and the replay signs only as the account's root |
 | `s3.notification.delivery-denied` | `drop` | aws-recorded | docs/research/iam-enforcement-surfaces.md#8.3 | none: IAM-ENF-21 recorded 2026-11-03 (testdata/parity); the recorded outcome is a delivery between services, which the replay cannot send |
 | `s3.object-lock.bypass-without-lock` | `refused` | aws-recorded | docs/research/s3-ssec-object-lock.md#73-the-bypass-header-on-a-bucket-without-object-lock | none: S3SOL-23 is recorded; the replayer skips S3's REST requests |
 | `s3.object-lock.check-order` | `lock-state-first` | aws-recorded | docs/research/s3-ssec-object-lock.md#65-putobjectlegalhold-and-getobjectlegalhold | none: S3SOL-22 is recorded; the replayer skips S3's REST requests |
@@ -1925,6 +1927,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sns.subscribe.policy-check` | `none` | aws-recorded | docs/research/iam-enforcement-surfaces.md#8.2 | none: IAM-ENF-19 recorded 2026-11-03 (testdata/parity); the recorded outcome is a delivery between services, which the replay cannot send |
 | `sqs.denial.json-identity` | `header AccessDenied;Sender, __type com.amazon.coral.service#AccessDeniedException, 403` | aws-recorded | docs/research/iam-enforcement-surfaces.md#3.2 | none: IAM-ENF-01 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
 | `sqs.denial.query-text` | `AccessDenied, Sender, 403, the grammar of 4.1 with the action in lower case` | aws-recorded | docs/research/iam-enforcement-surfaces.md#4.3 | none: IAM-ENF-02 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
+| `sqs.enforce.missing-resource` | `resolve-first` | aws-recorded | docs/research/iam-enforcement-surfaces.md#5.3 | none: IAM-ENF-14 recorded 2026-11-03 (testdata/parity); recorded: GetQueueAttributes on a missing queue answered QueueDoesNotExist; inferred: every other operation that names a queue; the recorded caller is a role session, and the replay signs only as the account's root |
 | `sqs.enforce.missing-resource.delivery` | `resolve-first` | aws-recorded | docs/research/iam-enforcement-surfaces.md#8.2 | none: IAM-ENF-18 recorded 2026-11-03 (testdata/parity); the recorded outcome is a delivery between services, which the replay cannot send |
 | `sqs.resource-policy.account-id-principal` | `root-arn` | aws-recorded | docs/research/iam-evaluation.md#5.4 | none: IAM-EVAL-25 recorded 2026-11-03 (testdata/parity); the capture is the read-back only; the put that stored the policy ran unrecorded, so the replay has no policy to read |
 | `ssm.error.parameter-not-found-message` | `empty-except-label` | aws-recorded (ssm/SSM-02/03-label.json) | docs/research/ssm-parameters.md#22-errors | ssm/SSM-02#03-label |
@@ -1987,7 +1990,6 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `kinesis.retention.equal-value` | `accept` | inferred | docs/research/kinesis.md#47-retention-period | none: unrecorded: KIN-06 is queued |
 | `kinesis.sequence.layout` | `v2-56-digit` | inferred | docs/research/kinesis.md#34-sequence-numbers | none: unrecorded: KIN-09, KIN-16 is queued |
 | `kms.cross-account.management-error` | `NotFoundException` | inferred | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyPolicy.html | none: unrecorded: no recording names another account's key |
-| `kms.enforce.missing-resource.by-name` | `resolve-first` | inferred | docs/research/iam-enforcement-surfaces.md#5.3 | none: unrecorded: IAM-ENF-14 waits in the recording queue (iam-enforcement-surfaces.md 13) |
 | `lambda.esm-filter.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | none: recorded in lambda/R03 (H7a-01-create, H7a-02-create); the replayer skips REST and Docker steps |
 | `lambda.esm-filter.empty-input` | `matchable` | inferred | docs/research/matching-engines.md#10 | none: unrecorded for Lambda: matching-engines.md H1 covers SNS and EventBridge only |
 | `lambda.esm-filter.exactly-operator` | `rejected` | inferred | docs/research/matching-engines.md#5.1 | none: recorded in lambda/R03 (H13-11-create); the replayer skips REST and Docker steps |

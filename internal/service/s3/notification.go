@@ -30,11 +30,11 @@ func (s *Service) bindNotification(b s3api.Binder) {
 	get := func(in *s3api.GetBucketNotificationConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
-	b.GetBucketNotificationConfiguration(reader(s, get, getNotification), registry.Full{}, touches(get))
+	b.GetBucketNotificationConfiguration(reader(s, get, getNotification), registry.Full{}, touches(s, get))
 	put := func(in *s3api.PutBucketNotificationConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
-	b.PutBucketNotificationConfiguration(s.putNotification, registry.Partial{Note: notificationNote}, touches(put))
+	b.PutBucketNotificationConfiguration(s.putNotification, registry.Partial{Note: notificationNote}, touches(s, put))
 }
 
 // notificationNote is PutBucketNotificationConfiguration's coverage note.

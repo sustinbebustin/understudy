@@ -353,6 +353,13 @@ func TestEnforceAnswersAMissingKeyByListBucket(t *testing.T) {
 	if w := restGet(t, u, "s3", endpoint+"/docs/missing.txt"); w.status != http.StatusNotFound || parseXMLError(t, w).S3Code != "NoSuchKey" {
 		t.Errorf("GetObject of a missing key with s3:ListBucket = %d %s, want 404 NoSuchKey", w.status, w.body)
 	}
+	// The key is looked up before s3:GetObject is asked (IAM-ENF-14), so a
+	// caller allowed s3:ListBucket alone gets NoSuchKey too (inferred,
+	// s3.enforce.missing-resource).
+	putUserPolicy(t, endpoint, `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:ListBucket","Resource":"arn:aws:s3:::docs"}]}`)
+	if w := restGet(t, u, "s3", endpoint+"/docs/missing.txt"); w.status != http.StatusNotFound || parseXMLError(t, w).S3Code != "NoSuchKey" {
+		t.Errorf("GetObject of a missing key with s3:ListBucket and without s3:GetObject = %d %s, want 404 NoSuchKey", w.status, w.body)
+	}
 }
 
 // The bucket owner's root may delete a bucket policy that denies everyone

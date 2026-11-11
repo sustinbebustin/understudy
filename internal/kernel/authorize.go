@@ -486,15 +486,15 @@ func (b *Bindings) AuthorizedOps(svc *registry.Service) []string {
 }
 
 // ResolvedFirstOps lists, as AuthorizedOps does, the operations of svc
-// bound AuthorizedAfterResolve: a handler error before the deferred
-// question, such as the not-found error of a resource looked up by name,
-// answers the call before it is authorized (iam-enforcement-surfaces.md
-// 5.3, 12.8).
+// bound AuthorizedAfterResolve or ResolveFirst: a handler error before the
+// deferred question, such as the not-found error of a resource looked up
+// by name, or a ResolveFirst check's not-found error, answers the call
+// before it is authorized (iam-enforcement-surfaces.md 5.3, 12.8).
 func (b *Bindings) ResolvedFirstOps(svc *registry.Service) []string {
 	var out []string
 	for _, op := range svc.Operations {
 		bnd, ok := b.lookup(op)
-		if !ok || op.Kind != registry.Modeled || bnd.raw || bnd.authorization != afterResolve {
+		if !ok || op.Kind != registry.Modeled || bnd.raw || (bnd.authorization != afterResolve && len(bnd.exists) == 0) {
 			continue
 		}
 		out = append(out, op.ID.String())

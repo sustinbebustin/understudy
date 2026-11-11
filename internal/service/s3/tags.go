@@ -32,9 +32,9 @@ const (
 // Control tag operations share.
 func (s *Service) bindTagging(b s3api.Binder) {
 	get := func(in *s3api.GetBucketTaggingInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.GetBucketTagging(reader(s, get, getTagging), registry.Full{}, touches(get))
+	b.GetBucketTagging(reader(s, get, getTagging), registry.Full{}, touches(s, get))
 	put := func(in *s3api.PutBucketTaggingInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutBucketTagging(writer[s3api.PutBucketTaggingInput, s3api.PutBucketTaggingOutput](s, put, putTagging), registry.Full{}, touches(put),
+	b.PutBucketTagging(writer[s3api.PutBucketTaggingInput, s3api.PutBucketTaggingOutput](s, put, putTagging), registry.Full{}, touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketTaggingInput) *awserr.Error {
 			_, err := tagSet(in.Tagging.TagSet, systemReservedTag)
 			return err
@@ -43,7 +43,7 @@ func (s *Service) bindTagging(b s3api.Binder) {
 	b.DeleteBucketTagging(writer[s3api.DeleteBucketTaggingInput, s3api.DeleteBucketTaggingOutput](s, del, func(_ *s3api.DeleteBucketTaggingInput, b *Bucket) *awserr.Error {
 		b.Tags = nil
 		return nil
-	}), registry.Full{}, touches(del))
+	}), registry.Full{}, touches(s, del))
 }
 
 func getTagging(_ *s3api.GetBucketTaggingInput, b *Bucket) (*s3api.GetBucketTaggingOutput, *awserr.Error) {

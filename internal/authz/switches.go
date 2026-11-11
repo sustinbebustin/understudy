@@ -157,6 +157,15 @@ func AccountIDPrincipalSwitch(service, record string, ops []string) fidelity.Ent
 	return e
 }
 
+// RecordedResolveFirstSwitch is the switch name at resolve-first, governing
+// ops, where IAM-ENF-14 recorded the not-found answer before authorization:
+// recorded says which calls the recording made, and inferred which of ops
+// follow them by inference (iam-enforcement-surfaces.md 5.3, 12.8).
+func RecordedResolveFirstSwitch(name, recorded, inferred string, ops []string) fidelity.Entry {
+	return RecordedSwitch(name, "resolve-first", "5.3", "IAM-ENF-14",
+		"recorded: "+recorded+"; inferred: "+inferred+"; "+SessionUnreplayed, ops)
+}
+
 // DeliveryResolveFirstSwitch is service's switch
 // <service>.enforce.missing-resource.delivery, at resolve-first, governing
 // ops: the operations that receive deliveries

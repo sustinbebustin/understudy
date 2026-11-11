@@ -53,8 +53,13 @@ func (s *Service) Switches() []fidelity.Entry {
 	return append([]fidelity.Entry{
 		pendingCryptoError().Entry(), crossAccountManagementError().Entry(),
 		authz.RecordedSwitch("kms.denial.status", "400", "3.2", "IAM-ENF-05", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(kmsapi.Service())),
-		authz.ResolveFirstSwitch("kms", s.k.Bindings().ResolvedFirstOps(kmsapi.Service())),
 		authz.AccountIDPrincipalSwitch("kms", "IAM-EVAL-27", []string{"kms.CreateKey", "kms.PutKeyPolicy"}),
+		// The key-id-only operations (keyNamed) are asked at step 8 and
+		// stay deny-first under iam.enforce.missing-resource.
+		authz.RecordedResolveFirstSwitch("kms.enforce.missing-resource.by-name",
+			"DescribeKey on a missing key id answered NotFoundException",
+			"the other operations it governs, and every one of them addressed by alias",
+			s.k.Bindings().ResolvedFirstOps(kmsapi.Service())),
 	}, authz.SwitchesOf("kms", []string{"kms.CreateKey", "kms.PutKeyPolicy"})...)
 }
 

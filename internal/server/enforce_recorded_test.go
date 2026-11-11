@@ -103,6 +103,36 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 			http.StatusForbidden, xmlCode, "AccessDenied", xmlText, implicit("sqs:getqueueattributes", queue),
 		},
 		{
+			// A missing queue answers before authorization; the JSON
+			// protocol's key is "message" here (IAM-ENF-14).
+			"sqs/IAM-ENF/14-sqs.json",
+			func() wire {
+				return jsonCall(t, s, endpoint, "sqs", "1.0", "AmazonSQS.GetQueueAttributes", `{"QueueUrl":"`+endpoint+`/000000000000/enf-missing","AttributeNames":["All"]}`)
+			},
+			http.StatusBadRequest, jsonType, "QueueDoesNotExist", lower, "The specified queue does not exist.",
+		},
+		{
+			"s3/IAM-ENF/14-s3-bucket.json",
+			func() wire { return restGet(t, s, "s3", endpoint+"/enf-missing?list-type=2&encoding-type=url") },
+			http.StatusNotFound, s3Code, "NoSuchBucket", s3Text, "The specified bucket does not exist",
+		},
+		{
+			// A missing key asks s3:ListBucket about the bucket before
+			// s3:GetObject about the key (iam-enforcement-surfaces.md 5.1).
+			"s3/IAM-ENF/14-s3-key.json",
+			func() wire { return restGet(t, s, "s3", endpoint+"/enf-b/missing") },
+			http.StatusForbidden, s3Code, "AccessDenied", s3Text,
+			caller + `s3:ListBucket on resource: "arn:aws:s3:::enf-b" because no identity-based policy allows the s3:ListBucket action`,
+		},
+		{
+			"kms/IAM-ENF/14-kms.json",
+			func() wire {
+				return jsonCall(t, s, endpoint, "kms", "1.1", "TrentService.DescribeKey", `{"KeyId":"00000000-0000-0000-0000-000000000000"}`)
+			},
+			http.StatusBadRequest, jsonType, "NotFoundException", lower,
+			"Key 'arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000' does not exist",
+		},
+		{
 			"sns/IAM-ENF/14-sns.json",
 			func() wire {
 				return queryCall(t, s, endpoint, "sns", url.Values{"Action": {"GetTopicAttributes"}, "Version": {"2010-03-31"}, "TopicArn": {"arn:aws:sns:us-east-1:000000000000:missing"}})

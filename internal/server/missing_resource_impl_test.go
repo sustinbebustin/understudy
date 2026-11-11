@@ -2,9 +2,12 @@ package server_test
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/coverage"
+	"github.com/sustinbebustin/understudy/internal/evidence"
+	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/server"
 )
 
@@ -40,6 +43,10 @@ func TestTheServerReportsWhichOrderAMissingResourceFollows(t *testing.T) {
 		{"iam.enforce.missing-resource.by-name", "iam.GetRole"},
 		{"kms.enforce.missing-resource.by-name", "kms.Encrypt"},
 		{"secretsmanager.enforce.missing-resource.by-name", "secretsmanager.GetSecretValue"},
+		{"sqs.enforce.missing-resource", "sqs.GetQueueAttributes"},
+		{"sqs.enforce.missing-resource", "sqs.SendMessage"},
+		{"s3.enforce.missing-resource", "s3.ListObjectsV2"},
+		{"s3.enforce.missing-resource", "s3.GetObject"},
 	} {
 		s, ok := byName[tc.name]
 		if !ok || s.Value != "resolve-first" || s.Record != "IAM-ENF-14" {
@@ -54,5 +61,22 @@ func TestTheServerReportsWhichOrderAMissingResourceFollows(t *testing.T) {
 				t.Errorf("%s is listed as both deny-first and resolve-first", op)
 			}
 		}
+	}
+	// IAM-ENF-14 recorded SQS queues, S3 buckets and keys, and KMS key ids
+	// resolving first: their switches are aws-recorded and name what was
+	// recorded and what is inferred.
+	for _, name := range []string{"sqs.enforce.missing-resource", "s3.enforce.missing-resource", "kms.enforce.missing-resource.by-name"} {
+		s := byName[name]
+		reason := ""
+		if no, ok := s.Settles.(fidelity.NoScenario); ok {
+			reason = no.Reason
+		}
+		if s.Label != evidence.AWSRecorded || !strings.Contains(reason, "recorded: ") || !strings.Contains(reason, "inferred: ") ||
+			strings.Contains(reason, "waits in the recording queue") {
+			t.Errorf("%s = %+v, want aws-recorded, naming the recorded and the inferred operations", name, s)
+		}
+	}
+	if s := byName["s3.enforce.missing-resource"]; slices.Contains(s.Ops, "s3.CreateBucket") {
+		t.Errorf("s3.enforce.missing-resource governs s3.CreateBucket, whose bucket is meant not to exist")
 	}
 }

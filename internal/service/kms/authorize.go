@@ -10,8 +10,9 @@ import (
 // resolvedFirst is the coverage note of the operations that accept an
 // alias: the key behind it is known only once KMS resolved it, so the call
 // is authorized then, and an alias or key that does not exist answers
-// NotFoundException before authorization. Whether AWS denies first is
-// UNVERIFIED (iam-enforcement-surfaces.md 5.3, IAM-ENF-14).
+// NotFoundException before authorization, as IAM-ENF-14 recorded for
+// DescribeKey on a missing key id; an alias follows it by inference
+// (iam-enforcement-surfaces.md 5.3).
 const resolvedFirst = "under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name)"
 
 // mintedOnAnyResource is the coverage note of the operations whose first

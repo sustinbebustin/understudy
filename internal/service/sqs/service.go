@@ -232,6 +232,9 @@ func (s *Service) Switches() []fidelity.Entry {
 			"4.3", "IAM-ENF-02", authz.SessionUnreplayed, authorized),
 		authz.RecordedSwitch("sqs.enforce.missing-resource.delivery", "resolve-first", "8.2", "IAM-ENF-18", authz.DeliveryUnreplayed,
 			s.k.Bindings().DeliveryResolvedFirstOps(sqsapi.Service())),
+		authz.RecordedResolveFirstSwitch("sqs.enforce.missing-resource",
+			"GetQueueAttributes on a missing queue answered QueueDoesNotExist", "every other operation that names a queue",
+			s.k.Bindings().ResolvedFirstOps(sqsapi.Service())),
 	}
 }
 

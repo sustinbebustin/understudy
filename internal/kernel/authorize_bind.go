@@ -95,6 +95,50 @@ func scope(scoped []scopedResources, c *Call, in any) (scoping, []aws.ARN) {
 // awserr.Denial through unchanged.
 func AuthorizedAfterResolve() BindOption { return authorizationOption(afterResolve) }
 
+// ResolveFirst names the not-found answer of a call whose resource does not
+// exist, which AWS gives before it authorizes: an SQS queue, an S3 bucket
+// or key (iam-enforcement-surfaces.md 5.3, IAM-ENF-14). Once the input is
+// valid and its resources touched, and before step 8 asks anything, the
+// kernel runs exists; a non-nil error ends the call, unauthorized, and the
+// handler does not run. exists returns nil for a resource that exists, and
+// for any answer that is not the resource's absence, which step 8 and the
+// handler then decide as usual. It runs only when an Authorizer is set and
+// the call is not a platform call: without authorization the handler
+// answers the missing resource itself. exists may ask kernel.Authorize, as
+// S3 asks s3:ListBucket about a missing key. Several options run in order;
+// the first error ends the call.
+func ResolveFirst[In any](exists func(ctx context.Context, c *Call, in *In) *awserr.Error) BindOption {
+	return existsOf[*In](exists)
+}
+
+func existsOf[P any](exists func(context.Context, *Call, P) *awserr.Error) BindOption {
+	var token P
+	f := func(ctx context.Context, c *Call, in any) *awserr.Error {
+		typed, ok := in.(P)
+		if !ok {
+			return nil
+		}
+		return exists(ctx, c, typed)
+	}
+	return typedOption{in: token, add: func(c *bindConfig) { c.exists = append(c.exists, f) }}
+}
+
+// resolveFirst runs the binding's ResolveFirst options over the valid input
+// in, before step 8, and returns the error the call ends with; nil when the
+// call goes on to step 8, and always without an Authorizer, for a raw HTTP
+// binding and for a platform call.
+func (k *Kernel) resolveFirst(ctx context.Context, c *Call, bnd *binding, in any) *awserr.Error {
+	if _, platform := c.mode.(AsPlatform); k.authorizer == nil || bnd.raw || platform {
+		return nil
+	}
+	for _, exists := range bnd.exists {
+		if err := exists(ctx, c, in); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // AuthorizedAfterResolveForDeliveries asks a delivery (an AsService call)
 // as AuthorizedAfterResolve does, existence first, and every other call at
 // step 8, deny-first. It is for an operation that receives deliveries to a

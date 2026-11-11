@@ -20,21 +20,21 @@ import (
 func (s *Service) bindObjectLockState(b s3api.Binder) {
 	putRetention := func(in *s3api.PutObjectRetentionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutObjectRetention(s.putObjectRetention, registry.Partial{Note: "event holds (EventHold, EventHoldDuration) are refused with NotImplemented; " +
-		"s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent"}, touches(putRetention),
+		"s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent"}, touches(s, putRetention),
 		kernel.WithCheck(func(in *s3api.PutObjectRetentionInput) *awserr.Error {
 			_, err := parseRetentionBody(in.Retention)
 			return err
 		}))
 	getRetention := func(in *s3api.GetObjectRetentionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.GetObjectRetention(reader(s, getRetention, getObjectRetention), registry.Full{}, touches(getRetention))
+	b.GetObjectRetention(reader(s, getRetention, getObjectRetention), registry.Full{}, touches(s, getRetention))
 	putHold := func(in *s3api.PutObjectLegalHoldInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutObjectLegalHold(s.putObjectLegalHold, registry.Full{}, touches(putHold),
+	b.PutObjectLegalHold(s.putObjectLegalHold, registry.Full{}, touches(s, putHold),
 		kernel.WithCheck(func(in *s3api.PutObjectLegalHoldInput) *awserr.Error {
 			_, err := parseLegalHoldBody(in.LegalHold)
 			return err
 		}))
 	getHold := func(in *s3api.GetObjectLegalHoldInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.GetObjectLegalHold(reader(s, getHold, getObjectLegalHold), registry.Full{}, touches(getHold))
+	b.GetObjectLegalHold(reader(s, getHold, getObjectLegalHold), registry.Full{}, touches(s, getHold))
 }
 
 // putObjectRetention sets, changes or removes a version's retention. The

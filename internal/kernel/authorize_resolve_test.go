@@ -279,6 +279,64 @@ func TestAuthorizedAfterResolveAsksAtReturnAndAnswersExistenceFirst(t *testing.T
 	})
 }
 
+// ResolveFirst answers a call whose resource does not exist with the
+// check's not-found error before step 8 asks anything, and the handler
+// does not run; a call whose check passes is asked at step 8 as usual. With
+// authorization off the check does not run and the handler answers
+// (iam-enforcement-surfaces.md 5.3, IAM-ENF-14).
+func TestResolveFirstAnswersNotFoundBeforeAuthorization(t *testing.T) {
+	g := newGuard(guardDenial())
+	missing := &awserr.Error{ID: awserr.Identity{Shape: "dev.understudy.test#NoSuchThing", QueryCode: "NoSuchThing", JSONType: "NoSuchThing", Status: http.StatusNotFound, Fault: awserr.Sender}, Message: "no such thing"}
+	exists := kernel.ResolveFirst(func(_ context.Context, _ *kernel.Call, in *guardInput) *awserr.Error {
+		if in.Member == "missing" {
+			return missing
+		}
+		return nil
+	})
+	t.Run("enforced", func(t *testing.T) {
+		a := &fakeAuthorizer{decide: denyAll("denied")}
+		runGuard(t, g, a, func(k *kerneltest.K) {
+			ran := 0
+			bindGuard(k, g.run, func(context.Context, *kernel.Call, *guardInput) (*guardOutput, *awserr.Error) {
+				ran++
+				return &guardOutput{}, nil
+			}, kernel.WithResources(touched), exists)
+
+			_, err := k.Invoke(k.Context(), g.run, &guardInput{Member: "missing", Touch: []aws.ARN{guardThing1}})
+			if err == nil || err.ID != missing.ID {
+				k.Errorf("a call on a missing resource = %+v, want the check's not-found error", err)
+			}
+			if got := len(a.about(g.runDesc)); got != 0 {
+				k.Errorf("the Authorizer was asked %d times about a missing resource, want never", got)
+			}
+
+			_, err = k.Invoke(k.Context(), g.run, &guardInput{Touch: []aws.ARN{guardThing1}})
+			wantDenial(k, err, "denied")
+			if ran != 0 {
+				k.Errorf("the handler ran %d times, want never", ran)
+			}
+			if got := k.Kernel.Bindings().ResolvedFirstOps(g.svc); !slices.Equal(got, []string{g.runDesc.ID.String()}) {
+				k.Errorf("ResolvedFirstOps = %v, want the ResolveFirst binding", got)
+			}
+		})
+	})
+	t.Run("off", func(t *testing.T) {
+		runGuard(t, g, nil, func(k *kerneltest.K) {
+			checked := false
+			bindGuard(k, g.run, guardDone, kernel.ResolveFirst(func(context.Context, *kernel.Call, *guardInput) *awserr.Error {
+				checked = true
+				return missing
+			}))
+			if _, err := k.Invoke(k.Context(), g.run, &guardInput{Member: "missing"}); err != nil {
+				k.Errorf("a call with authorization off = %s, want the handler's answer", err.Message)
+			}
+			if checked {
+				k.Error("the check ran with authorization off")
+			}
+		})
+	})
+}
+
 // The first Invoke asks before it calls: a denial is what Invoke returns
 // and the invoked handler does not run.
 func TestAuthorizedAfterResolveAsksAtTheFirstInvoke(t *testing.T) {

@@ -55,28 +55,36 @@ func (s *Service) bindQueues(b sqsapi.Binder) {
 				return nil
 			}
 			return []aws.ARN{q.arn()}
+		}),
+		// As queueByURL: a missing queue answers first (inferred).
+		kernel.ResolveFirst(func(_ context.Context, c *kernel.Call, in *sqsapi.GetQueueUrlInput) *awserr.Error {
+			q, err := namedQueue(c, in)
+			if err != nil || s.exists(q) {
+				return nil
+			}
+			return errQueueDoesNotExist()
 		}))
 	b.DeleteQueue(s.deleteQueue, registry.Full{},
-		queueByURL(func(in *sqsapi.DeleteQueueInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.DeleteQueueInput) string { return in.QueueUrl }))
 	b.ListQueues(s.listQueues, registry.Full{},
 		kernel.WithCheck(func(in *sqsapi.ListQueuesInput) *awserr.Error { return checkMaxResults(in.MaxResults) }))
 	b.GetQueueAttributes(s.getQueueAttributes, registry.Full{},
-		queueByURL(func(in *sqsapi.GetQueueAttributesInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.GetQueueAttributesInput) string { return in.QueueUrl }))
 	b.SetQueueAttributes(s.setQueueAttributes, registry.Full{},
-		queueByURL(func(in *sqsapi.SetQueueAttributesInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.SetQueueAttributesInput) string { return in.QueueUrl }))
 	b.PurgeQueue(s.purgeQueue, registry.Full{},
-		queueByURL(func(in *sqsapi.PurgeQueueInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.PurgeQueueInput) string { return in.QueueUrl }))
 	b.TagQueue(s.tagQueue, registry.Full{},
 		kernel.WithCheck(func(in *sqsapi.TagQueueInput) *awserr.Error { return checkTags(in.Tags) }),
-		queueByURL(func(in *sqsapi.TagQueueInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.TagQueueInput) string { return in.QueueUrl }))
 	b.UntagQueue(s.untagQueue, registry.Full{},
 		kernel.WithCheck(checkUntagQueue),
-		queueByURL(func(in *sqsapi.UntagQueueInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.UntagQueueInput) string { return in.QueueUrl }))
 	b.ListQueueTags(s.listQueueTags, registry.Full{},
-		queueByURL(func(in *sqsapi.ListQueueTagsInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.ListQueueTagsInput) string { return in.QueueUrl }))
 	b.ListDeadLetterSourceQueues(s.listDeadLetterSourceQueues, registry.Full{},
 		kernel.WithCheck(func(in *sqsapi.ListDeadLetterSourceQueuesInput) *awserr.Error { return checkMaxResults(in.MaxResults) }),
-		queueByURL(func(in *sqsapi.ListDeadLetterSourceQueuesInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.ListDeadLetterSourceQueuesInput) string { return in.QueueUrl }))
 }
 
 // checkMaxResults checks a listing's page size, 1 to 1,000 (sqs.md 5.2).
