@@ -277,7 +277,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		} else {
 			verified, refused = h.verify(verifyTarget{signed: r, claimed: rt.req, op: rt.op, p: rt.codec.Protocol(), codec: rt.codec}, a, who.res)
 		}
-		h.dispatch(ctx, x, rt.codec, rt.op.ID, a, who.principal, verified, func() kernel.Decoded {
+		h.dispatch(ctx, x, rt.codec, rt.op.ID, a, who, verified, func() kernel.Decoded {
 			if refused != nil {
 				return kernel.Unauthenticated{Err: refused}
 			}
@@ -290,7 +290,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		x.r = rt.req
 		id := ref.OperationID{Service: rt.svc.ID, Name: rt.name}
 		h.noteUnknown(ctx, x, rt.svc.ModelSource, id)
-		h.dispatch(ctx, x, rt.codec, id, a, h.resolve(ctx, a).principal, nil, func() kernel.Decoded {
+		h.dispatch(ctx, x, rt.codec, id, a, h.resolve(ctx, a), nil, func() kernel.Decoded {
 			return kernel.Rejected{Err: h.unknownOperation(rt.svc, rt.codec.Protocol(), rt.name)}
 		})
 	case toRaw:
@@ -378,9 +378,9 @@ func (h *Handler) serveAdmin(ctx context.Context, x *exchange) {
 // the decoded input, or the rejection of credentials that cannot be read or
 // do not verify, which Coral checks before the body, so it is journaled as
 // a failed call.
-func (h *Handler) dispatch(ctx context.Context, x *exchange, codec Codec, op ref.OperationID, a auth.Auth, principal identity.Principal, verified auth.Auth, decode func() kernel.Decoded) {
+func (h *Handler) dispatch(ctx context.Context, x *exchange, codec Codec, op ref.OperationID, a auth.Auth, who caller, verified auth.Auth, decode func() kernel.Decoded) {
 	x.protocol = codec.Protocol()
-	c := h.call(x, op, codec.Protocol(), a, principal, verified)
+	c := h.call(x, op, codec.Protocol(), a, who, verified)
 	d := decode()
 	svc, _ := h.opts.Registry.Service(op.Service)
 	switch res := h.opts.Kernel.Dispatch(ctx, c, d).(type) {
@@ -512,7 +512,7 @@ func (h *Handler) dispatchRaw(ctx context.Context, x *exchange, rt toRaw, a auth
 	if refused != nil {
 		d = kernel.Unauthenticated{Err: refused}
 	}
-	c := h.call(x, op.ID, ref.Raw, a, who.principal, verified)
+	c := h.call(x, op.ID, ref.Raw, a, who, verified)
 	var err *awserr.Error
 	switch res := h.opts.Kernel.Dispatch(ctx, c, d).(type) {
 	case kernel.Output:
@@ -555,9 +555,10 @@ func (e *RawCodecError) Error() string {
 
 // call builds the kernel call of a request: the caller principal resolved
 // from its access key (step 3), the scope from the principal's account and
-// the credential region, and the credentials verified, nil when none were.
-func (h *Handler) call(x *exchange, op ref.OperationID, p ref.ProtocolID, a auth.Auth, principal identity.Principal, verified auth.Auth) *kernel.Call {
-	account, ok := identity.AccountOf(principal)
+// the credential region, the signing key's resolution (both modes) and the
+// credentials verified, nil when none were.
+func (h *Handler) call(x *exchange, op ref.OperationID, p ref.ProtocolID, a auth.Auth, who caller, verified auth.Auth) *kernel.Call {
+	account, ok := identity.AccountOf(who.principal)
 	if !ok {
 		account = aws.DefaultAccount()
 	}
@@ -585,8 +586,9 @@ func (h *Handler) call(x *exchange, op ref.OperationID, p ref.ProtocolID, a auth
 		Operation:    op,
 		Scope:        aws.Scope{Partition: aws.PartitionAWS(), Account: account, Region: region},
 		RegionSource: src,
-		Principal:    principal,
+		Principal:    who.principal,
 		Verified:     verified,
+		Signer:       who.res,
 		Origin:       ref.External{Protocol: p, Listener: h.opts.Listener, RemoteAddr: remote, UserAgent: x.r.UserAgent()},
 		Admitted:     x.admitted,
 		Endpoint:     kernel.Endpoint{Scheme: scheme, Host: x.r.Host},

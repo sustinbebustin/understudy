@@ -34,7 +34,10 @@ type Call struct {
 	// verified is the credentials the edge verified; nil unless SigV4
 	// verification is on and passed.
 	verified auth.Auth
-	origin   ref.Origin
+	// signer is how the identity store resolved the signing access key, in
+	// both sigv4 modes; nil when no key signed the call.
+	signer identity.Resolution
+	origin ref.Origin
 	// mode is how an internal call is authorized; nil for external and
 	// timer calls.
 	mode PrincipalMode
@@ -129,6 +132,13 @@ func (c *Call) Principal() identity.Principal { return c.principal }
 // carry in its query, and to verify aws-chunked chunk signatures
 // (ARCHITECTURE.md 7).
 func (c *Call) VerifiedAuth() (auth.Auth, bool) { return c.verified, c.verified != nil }
+
+// SigningKey returns how the identity store resolved the access key that
+// signed the request, and false when no key did (anonymous, internal and
+// timer calls). Unlike VerifiedAuth it is set under sigv4 parse too, so a
+// service can tell a temporary credential from a long-term one in both
+// modes.
+func (c *Call) SigningKey() (identity.Resolution, bool) { return c.signer, c.signer != nil }
 
 // Origin returns where the call came from.
 func (c *Call) Origin() ref.Origin { return c.origin }
@@ -306,6 +316,9 @@ type ExternalCall struct {
 	// edge sets it only after a successful verification under sigv4
 	// verify, and nil means none was verified.
 	Verified auth.Auth
+	// Signer is how the identity store resolved the signing access key,
+	// whether or not the edge verified the signature; nil means no key.
+	Signer   identity.Resolution
 	Origin   ref.External
 	Admitted clock.Instant
 	Endpoint Endpoint
@@ -335,6 +348,7 @@ func (k *Kernel) NewCall(e ExternalCall) *Call {
 		region:    src,
 		principal: e.Principal,
 		verified:  e.Verified,
+		signer:    e.Signer,
 		origin:    e.Origin,
 		op:        op,
 		opID:      e.Operation,

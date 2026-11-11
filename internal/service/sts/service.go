@@ -44,7 +44,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	b.AssumeRole(s.assumeRole, registry.Partial{Note: "the role's trust policy, the caller's sts:AssumeRole permission and the session policies, tags and source identity stored on the session are evaluated only when iam.enforce is advise, which journals each denial, or enforce, which answers it; PolicyArns are not checked to exist in the role's account, which AWS requires (iam-evaluation.md 2.7); a chained session inherits its caller's transitive tags and source identity, and a request that sets a tag key or source identity its caller passes on keeps its own value, where AWS's answer is unrecorded; the inline session policy is validated as an IAM identity policy, whose S3 region rule exempts the regional S3 resource types moto refuses, UNVERIFIED (iam-evaluation.md 10.6); MFA is accepted and not checked; the account root user may assume roles when iam.enforce is off or advise, which AWS refuses, because unminted keys resolve to root (ADR 0012), and is refused when it is enforce; the answer leaves out PackedPolicySize, SessionTokenSize and SessionTokenUtilization, which AWS sends"},
 		kernel.WithCheck(checkRoleARN), kernel.WithResources(assumedRole),
 		kernel.WithActions(assumeRoleActions), kernel.WithConditionKeys(assumeRoleKeys))
-	b.GetSessionToken(s.getSessionToken, registry.Partial{Note: "MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused only under sigv4 verify"})
+	b.GetSessionToken(s.getSessionToken, registry.Partial{Note: "MFA is accepted and not checked; credentials from an earlier GetSessionToken are refused"})
 	return s
 }
 
