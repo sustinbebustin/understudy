@@ -47,7 +47,10 @@ func (s *Service) bindSubscriptions(b snsapi.Binder) {
 		"http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, " +
 		"and otherwise stay subscribed with a readable token but receive nothing; loopback and private endpoints are accepted, where AWS refuses them; email and email-json stay subscribed with a readable token but receive nothing; " +
 		"sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced"},
-		kernel.WithResourceARN(func(in *snsapi.SubscribeInput) string { return in.TopicArn }))
+		kernel.WithResourceARN(func(in *snsapi.SubscribeInput) string { return in.TopicArn }),
+		kernel.WithResources(func(_ *kernel.Call, in *snsapi.SubscribeInput) []aws.ARN {
+			return subscriptionRole(in.Attributes[attrSubscriptionRoleArn])
+		}))
 	b.ConfirmSubscription(s.confirmSubscription, registry.Full{},
 		kernel.WithResourceARN(func(in *snsapi.ConfirmSubscriptionInput) string { return in.TopicArn }))
 	b.Unsubscribe(s.unsubscribeOp, registry.Full{},
