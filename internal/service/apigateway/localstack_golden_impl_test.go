@@ -315,14 +315,10 @@ func TestGoldenCreateRestApiDefaults(t *testing.T) {
 		output(r, "create-with-regional-default", apigatewayapi.OpCreateRestApi, create("d-2", apigatewayapi.EndpointTypeRegional), fmt.Sprintf(created, "ipv4", "REGIONAL", 2, 2, 2))
 		output(r, "create-with-private-default", apigatewayapi.OpCreateRestApi, create("d-3", apigatewayapi.EndpointTypePrivate), fmt.Sprintf(created, "dualstack", "PRIVATE", 3, 3, 3))
 		output(r, "create-with-empty-default", apigatewayapi.OpCreateRestApi, create("d-4"), fmt.Sprintf(created, "ipv4", "EDGE", 4, 4, 4))
-		// AWS renders an enum list's violation for the whole list, "Value
-		// '[wrong]' at 'createRestApiInput.endpointConfiguration.types' failed
-		// to satisfy constraint: Member must satisfy constraint: [Member must
-		// satisfy enum value set: [PRIVATE, EDGE, REGIONAL]]"; the generated
-		// validator names the member (types.1.member), so only the code and
-		// status are replayed (CreateRestApi Partial note).
-		err := fail(h, apigatewayapi.OpCreateRestApi, &apigatewayapi.CreateRestApiInput{Name: "d-x", Description: new(""), EndpointConfiguration: &apigatewayapi.EndpointConfiguration{Types: []apigatewayapi.EndpointType{"wrong"}}})
-		wantError(t, err, validation)
+		// AWS renders an enum list's violation once for the whole list, the
+		// values in its own order; the text is APIGW1/01-validation's.
+		err := fail(h, apigatewayapi.OpCreateRestApi, &apigatewayapi.CreateRestApiInput{Name: "d-x", Description: new(""), EndpointConfiguration: &apigatewayapi.EndpointConfiguration{Types: []apigatewayapi.EndpointType{"WRONG"}}})
+		wantText(t, err, validation, "1 validation error detected: Value '[WRONG]' at 'createRestApiInput.endpointConfiguration.types' failed to satisfy constraint: Member must satisfy constraint: [Member must satisfy enum value set: [PRIVATE, EDGE, REGIONAL]]")
 	})
 }
 

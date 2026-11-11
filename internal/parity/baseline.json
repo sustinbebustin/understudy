@@ -488,7 +488,7 @@
       "scenario": "ssm/SSM-16",
       "steps": [
         {"step": "01-forms", "fixture": "ssm/SSM-16/01-forms.json", "operation": "ssm.LabelParameterVersion", "outcome": {"kind": "differs", "reason": "body/InvalidLabels/0, body/InvalidLabels/1, body/InvalidLabels/2, body/InvalidLabels/4"}},
-        {"step": "02-101-chars", "fixture": "ssm/SSM-16/02-101-chars.json", "operation": "ssm.LabelParameterVersion", "outcome": {"kind": "differs", "reason": "error/message, body/message"}},
+        {"step": "02-101-chars", "fixture": "ssm/SSM-16/02-101-chars.json", "operation": "ssm.LabelParameterVersion", "outcome": {"kind": "match"}},
         {"step": "03-move", "fixture": "ssm/SSM-16/03-move.json", "operation": "ssm.LabelParameterVersion", "outcome": {"kind": "match"}},
         {"step": "04-history", "fixture": "ssm/SSM-16/04-history.json", "operation": "ssm.GetParameterHistory", "outcome": {"kind": "match"}},
         {"step": "05-to-ten", "fixture": "ssm/SSM-16/05-to-ten.json", "operation": "ssm.LabelParameterVersion", "outcome": {"kind": "match"}},

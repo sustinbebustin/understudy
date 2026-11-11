@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
@@ -742,11 +743,15 @@ func (v *DocumentationPartLocation) validate(path awserr.Path, out *[]awserr.Vio
 
 func (v *EndpointConfiguration) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Types != nil {
-		for i2, e2 := range v.Types {
-			p2 := at(at(path, "types"), strconv.Itoa(i2+1), "member")
-			if !e2.Known() {
-				*out = append(*out, awserr.Violation{Path: p2, Value: awserr.RenderedText{Text: string(e2)}, Constraint: awserr.Enum{Values: []string{"REGIONAL", "EDGE", "PRIVATE"}}})
+		if func() bool {
+			for _, e2 := range v.Types {
+				if !e2.Known() {
+					return true
+				}
 			}
+			return false
+		}() {
+			*out = append(*out, awserr.Violation{Path: at(path, "types"), Value: awserr.RenderedText{Text: renderListOfEndpointType(v.Types)}, Constraint: awserr.Composite{Scope: awserr.ElementScope, Of: []awserr.MemberConstraint{awserr.Enum{Values: []string{"PRIVATE", "EDGE", "REGIONAL"}}}}})
 		}
 	}
 	if v.IpAddressType != nil {
@@ -5057,6 +5062,14 @@ var policyUpdateVpcLink = validationPolicy{
 // when vs is empty.
 func (*UpdateVpcLinkInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 	return policyUpdateVpcLink.render(vs)
+}
+
+func renderListOfEndpointType(v []EndpointType) string {
+	parts := make([]string, 0, len(v))
+	for _, e := range v {
+		parts = append(parts, string(e))
+	}
+	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 // at extends a violation path without aliasing the parent's array.
