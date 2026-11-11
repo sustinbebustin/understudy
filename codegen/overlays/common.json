@@ -339,8 +339,9 @@
             "covers": ["smithy.api#error"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: 403 follows the recorded STS AccessDenied (testdata/parity/sts/R15/06-assume-denied.json), and the JSON __type com.amazon.coral.service#AccessDeniedException is the generic JSON identity's; both UNVERIFIED for the services that answer a denial with this shape until recordings IAM-ENF-01, IAM-ENF-02, IAM-ENF-09, IAM-ENF-10 and IAM-ENF-38",
+            "label": "aws-recorded",
+            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: 403 and the JSON __type com.amazon.coral.service#AccessDeniedException are recorded for the services that answer a denial with this shape (testdata/parity/sqs/IAM-ENF/01-raw.json, testdata/parity/sqs/IAM-ENF/02-query.json, testdata/parity/cloudwatch/IAM-ENF/09-json-qm.json, testdata/parity/iam/IAM-ENF/10-get-role.json, testdata/parity/ses/IAM-ENF/38-raw.json)",
+            "validated": "2026-11-03",
             "covers": ["smithy.api#httpError", "dev.understudy#jsonType"]
           }
         ]

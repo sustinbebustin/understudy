@@ -28,7 +28,7 @@ var service = registry.Service{
 	ThrottleError:         IdentityThrottlingException(),
 	UnknownOperationError: UnknownOperationError,
 	ModelSource:           registry.ModelSource{Origin: "api-models-aws@1cfdfb4", File: "cloudwatch-2010-08-01.json"},
-	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "inferred"},
+	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,
 }

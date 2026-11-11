@@ -149,8 +149,8 @@ func TestSESDenialIdentities(t *testing.T) {
 		t.Fatalf("v2 SendEmail denial body %q: %v", w.body, err)
 	}
 	if w.status != sesv2api.DenialError().Status || w.status != http.StatusForbidden || jsonType(w) != "AccessDeniedException" ||
-		!strings.Contains(body["message"], "ses:SendEmail") {
-		t.Errorf("v2 SendEmail denial = %d %v %s, want 403 AccessDeniedException with message naming ses:SendEmail", w.status, w.header, w.body)
+		!strings.Contains(body["Message"], "ses:SendEmail") {
+		t.Errorf("v2 SendEmail denial = %d %v %s, want 403 AccessDeniedException with Message naming ses:SendEmail", w.status, w.header, w.body)
 	}
 }
 

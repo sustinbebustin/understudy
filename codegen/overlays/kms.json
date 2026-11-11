@@ -35,9 +35,11 @@
       },
       "traits": {
         "smithy.api#error": "client",
+        "dev.understudy#messageKey": "Message",
         "dev.understudy#evidence": {
-          "label": "inferred",
-          "source": "docs/research/iam-enforcement-surfaces.md#32-per-service-identity: the model declares no denial shape (3.1); code AccessDeniedException with body key message, and 400 by the JSON client-error default as recorded for Logs and Secrets Manager; the status is UNVERIFIED until recording IAM-ENF-05"
+          "label": "aws-recorded",
+          "source": "testdata/parity/kms/IAM-ENF/05-describe.json: the model declares no denial shape (docs/research/iam-enforcement-surfaces.md#32-per-service-identity); an IAM denial answers 400, code AccessDeniedException, the message under the key Message",
+          "validated": "2026-11-03"
         }
       }
     },

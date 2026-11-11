@@ -31,6 +31,7 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 - With `journal.file` set, `serve` exits within 5 seconds of a shutdown even when the file's disk has stopped answering, such as a stalled network mount, where it waited for the disk forever. It then exits with an error that names the journal file and says how many events it may lack; the file ends at an event boundary except for a write in progress.
 - `understudy version` names the version of a binary installed with `go install github.com/sustinbebustin/understudy/cmd/understudy@vX.Y.Z`, where it said `dev`. Without the release's stamp, the version is the module version the go command records, or the git version of a build in a checkout.
 - Under `--iam-enforce enforce`, a denied Kinesis call carries its message under `Message`, as AWS does, where it said `message`.
+- Under `--iam-enforce enforce`, a denied call to API Gateway (REST), CloudWatch (JSON), DynamoDB, DynamoDB Streams, EventBridge, KMS, CloudWatch Logs, Scheduler, SES v2, Step Functions or SQS (JSON) carries its message under `Message`, and API Gateway v2 under `message`, as AWS does, where each said the other.
 
 ## [0.1.2] - 2026-11-09
 

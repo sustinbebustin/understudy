@@ -1,6 +1,17 @@
 {
   "smithy": "2.0",
   "shapes": {
+    "com.amazonaws.apigatewayv2#AccessDeniedException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/apigatewayv2/IAM-ENF/34-apigatewayv2.json: the model's member is Message, the wire key message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
     "com.amazonaws.apigatewayv2#ApiGatewayV2": {
       "type": "apply",
       "traits": {
@@ -9,8 +20,9 @@
         "dev.understudy#validationError": {"code": "com.amazonaws.apigatewayv2#BadRequestException"},
         "dev.understudy#evidence": [
           {
-            "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the API Gateway v2 denial; the model's own AccessDeniedException is taken; UNVERIFIED until recording IAM-ENF-34 or APIGW2-15 (docs/research/apigateway-http.md#1416-apigw2-15-control-plane-iam-denials-and-resources, step 01 repeats IAM-ENF-34), either of which settles status, error type and text",
+            "label": "aws-recorded",
+            "source": "testdata/parity/apigatewayv2/IAM-ENF/34-apigatewayv2.json: an IAM denial answers 403 with x-amzn-ErrorType AccessDeniedException, the model's own shape (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; docs/research/apigateway-http.md#1416-apigw2-15-control-plane-iam-denials-and-resources)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#denialError"]
           },
           {

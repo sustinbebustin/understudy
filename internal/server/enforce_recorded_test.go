@@ -23,19 +23,20 @@ func sessionOf(t *testing.T, endpoint string, u signer) signer {
 	return signer{key: xmlElement(t, w.body, "AccessKeyId"), secret: xmlElement(t, w.body, "SecretAccessKey"), token: xmlElement(t, w.body, "SessionToken")}
 }
 
-// jsonMessage is an awsJson or restJson error body's message, under either
-// spelling of its key.
-func jsonMessage(w wire) string {
-	var body map[string]any
-	if json.Unmarshal([]byte(w.body), &body) != nil {
-		return ""
-	}
-	for _, k := range []string{"message", "Message"} {
-		if m, ok := body[k].(string); ok {
+// jsonMessageAt reads an awsJson or restJson error body's message under
+// exactly key, the spelling the recording carries: a body that spells it
+// the other way reads as no message (iam-enforcement-surfaces.md 12.3).
+func jsonMessageAt(key string) func(wire) string {
+	return func(w wire) string {
+		var body map[string]any
+		if json.Unmarshal([]byte(w.body), &body) != nil {
+			return ""
+		}
+		if m, ok := body[key].(string); ok {
 			return m
 		}
+		return ""
 	}
-	return ""
 }
 
 // A session of a role with no policy is refused as the recordings of
@@ -71,6 +72,13 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 	s3Text := func(w wire) string { return parseXMLError(t, w).S3Message }
 	s3Code := func(w wire) string { return parseXMLError(t, w).S3Code }
 	queueURL := endpoint + "/000000000000/q"
+	// Every recorded JSON denial but API Gateway v2's names its message
+	// "Message".
+	upper, lower := jsonMessageAt("Message"), jsonMessageAt("message")
+	// A probe with an empty message is a list operation: it compares status,
+	// code and key, and expects some text under the key. The text names a
+	// wildcard resource understudy does not write yet (iam-enforcement-parity
+	// ticket 08).
 	probes := []struct {
 		fixture string
 		send    func() wire
@@ -85,7 +93,7 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 			func() wire {
 				return jsonCall(t, s, endpoint, "sqs", "1.0", "AmazonSQS.GetQueueAttributes", `{"QueueUrl":"`+queueURL+`","AttributeNames":["All"]}`)
 			},
-			http.StatusForbidden, jsonType, "AccessDeniedException", jsonMessage, implicit("sqs:getqueueattributes", queue),
+			http.StatusForbidden, jsonType, "AccessDeniedException", upper, implicit("sqs:getqueueattributes", queue),
 		},
 		{
 			"sqs/IAM-ENF/02-query.json",
@@ -106,33 +114,33 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 			func() wire {
 				return jsonCall(t, s, endpoint, "dynamodb", "1.0", "DynamoDB_20120810.DescribeTable", `{"TableName":"missing"}`)
 			},
-			http.StatusBadRequest, jsonType, "AccessDeniedException", jsonMessage, implicit("dynamodb:DescribeTable", "arn:aws:dynamodb:us-east-1:000000000000:table/missing"),
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("dynamodb:DescribeTable", "arn:aws:dynamodb:us-east-1:000000000000:table/missing"),
 		},
 		{
 			"kms/IAM-ENF/05-describe.json",
 			func() wire {
 				return jsonCall(t, s, endpoint, "kms", "1.1", "TrentService.DescribeKey", `{"KeyId":"`+key+`"}`)
 			},
-			http.StatusBadRequest, jsonType, "AccessDeniedException", jsonMessage, implicit("kms:DescribeKey", key),
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("kms:DescribeKey", key),
 		},
 		{
 			"logs/IAM-ENF/14-logs.json",
 			func() wire {
 				return jsonCall(t, s, endpoint, "logs", "1.1", "Logs_20140328.DescribeLogStreams", `{"logGroupName":"/g"}`)
 			},
-			http.StatusBadRequest, jsonType, "AccessDeniedException", jsonMessage, implicit("logs:DescribeLogStreams", "arn:aws:logs:us-east-1:000000000000:log-group:/g"),
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("logs:DescribeLogStreams", "arn:aws:logs:us-east-1:000000000000:log-group:/g"),
 		},
 		{
 			"events/IAM-ENF/14-events.json",
 			func() wire {
 				return jsonCall(t, s, endpoint, "events", "1.1", "AWSEvents.DescribeRule", `{"Name":"r"}`)
 			},
-			http.StatusBadRequest, jsonType, "AccessDeniedException", jsonMessage, implicit("events:DescribeRule", "arn:aws:events:us-east-1:000000000000:rule/r"),
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("events:DescribeRule", "arn:aws:events:us-east-1:000000000000:rule/r"),
 		},
 		{
 			"lambda/IAM-ENF/14-lambda.json",
 			func() wire { return restGet(t, s, "lambda", endpoint+"/2015-03-31/functions/missing") },
-			http.StatusForbidden, jsonType, "AccessDeniedException", jsonMessage, implicit("lambda:GetFunction", "arn:aws:lambda:us-east-1:000000000000:function:missing"),
+			http.StatusForbidden, jsonType, "AccessDeniedException", upper, implicit("lambda:GetFunction", "arn:aws:lambda:us-east-1:000000000000:function:missing"),
 		},
 		{
 			"s3/IAM-ENF/12-raw.json",
@@ -141,14 +149,64 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 			caller + `s3:GetObject on resource: "arn:aws:s3:::enf-b/exists" because no identity-based policy allows the s3:GetObject action`,
 		},
 		{
-			"apigateway/IAM-ENF/33-raw.json",
+			// The SDK form (Accept: application/json); curl's Accept: */* got
+			// vnd.error+json with "message" (33-raw.json, wontfix).
+			"apigateway/IAM-ENF/33-apigateway.json",
 			func() wire { return restGet(t, s, "apigateway", endpoint+"/restapis") },
-			http.StatusForbidden, jsonType, "AccessDeniedException", jsonMessage, implicit("apigateway:GET", "arn:aws:apigateway:us-east-1::/restapis"),
+			http.StatusForbidden, jsonType, "AccessDeniedException", upper, implicit("apigateway:GET", "arn:aws:apigateway:us-east-1::/restapis"),
 		},
 		{
-			"apigatewayv2/IAM-ENF/34-raw.json",
+			"apigatewayv2/IAM-ENF/34-apigatewayv2.json",
 			func() wire { return restGet(t, s, "apigateway", endpoint+"/v2/apis") },
-			http.StatusForbidden, jsonType, "AccessDeniedException", jsonMessage, implicit("apigateway:GET", "arn:aws:apigateway:us-east-1::/apis"),
+			http.StatusForbidden, jsonType, "AccessDeniedException", lower, implicit("apigateway:GET", "arn:aws:apigateway:us-east-1::/apis"),
+		},
+		{
+			"cloudwatch/IAM-ENF/09-json-qm.json",
+			func() wire {
+				req := newRequest(t, http.MethodPost, endpoint+"/", "{}")
+				req.Header.Set("Content-Type", "application/x-amz-json-1.0")
+				req.Header.Set("X-Amz-Target", "GraniteServiceVersion20100801.DescribeAlarms")
+				req.Header.Set("X-Amzn-Query-Mode", "true")
+				return signedCall(t, s, "monitoring", req, "{}")
+			},
+			http.StatusForbidden, jsonType, "AccessDeniedException", upper, "",
+		},
+		{
+			"dynamodb/IAM-ENF/35-streams.json",
+			func() wire { return streamsCall(t, s, endpoint, "ListStreams", `{}`) },
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, "",
+		},
+		{
+			"scheduler/SCH/10-01-denied-get.json",
+			func() wire { return restGet(t, s, "scheduler", endpoint+"/schedules/none") },
+			http.StatusForbidden, jsonType, "AccessDeniedException", upper, implicit("scheduler:GetSchedule", "arn:aws:scheduler:us-east-1:000000000000:schedule/default/none"),
+		},
+		{
+			"ses/IAM-ENF/39-sesv2.json",
+			func() wire {
+				req := newRequest(t, http.MethodPost, endpoint+"/v2/email/list-identities", "{}")
+				req.Header.Set("Content-Type", "application/json")
+				return signedCall(t, s, "ses", req, "{}")
+			},
+			http.StatusForbidden, jsonType, "AccessDeniedException", upper, "",
+		},
+		{
+			// SES v1 answers in XML; the probe stands for the relabel only.
+			"ses/IAM-ENF/38-raw.json",
+			func() wire {
+				return queryCall(t, s, endpoint, "ses", url.Values{"Action": {"ListIdentities"}, "Version": {"2010-12-01"}})
+			},
+			http.StatusForbidden, xmlCode, "AccessDenied", xmlText, "",
+		},
+		{
+			"sfn/SFN-15/01-denied-list.json",
+			func() wire { return sfnCall(t, s, endpoint, "ListStateMachines", `{}`) },
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, "",
+		},
+		{
+			"ssm/IAM-ENF/41-raw.json",
+			func() wire { return ssmCall(t, s, endpoint, "DescribeParameters", `{}`) },
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, "",
 		},
 	}
 	for _, p := range probes {
@@ -157,7 +215,11 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 			if w.status != p.status || p.code(w) != p.want {
 				t.Errorf("denial = %d %q (%s); want the recorded %d %q", w.status, p.code(w), w.body, p.status, p.want)
 			}
-			if got := p.text(w); got != p.message {
+			got := p.text(w)
+			switch {
+			case p.message == "" && got == "":
+				t.Errorf("no message under the recorded key in %s", w.body)
+			case p.message != "" && got != p.message:
 				t.Errorf("message =\n%q\nwant the recorded\n%q", got, p.message)
 			}
 		})

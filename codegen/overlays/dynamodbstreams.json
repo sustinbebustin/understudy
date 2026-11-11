@@ -28,8 +28,9 @@
             "covers": ["dev.understudy#throttleError"]
           },
           {
-            "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: no source names the Streams denial, so it follows DynamoDB's row (com.amazon.coral.service#AccessDeniedException at 400); UNVERIFIED until recording IAM-ENF-35",
+            "label": "aws-recorded",
+            "source": "testdata/parity/dynamodb/IAM-ENF/35-streams.json: an IAM denial answers 400 with __type com.amazon.coral.service#AccessDeniedException, as DynamoDB's does (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#denialError"]
           },
           {
@@ -56,9 +57,11 @@
       "type": "apply",
       "traits": {
         "dev.understudy#statusOverride": 400,
+        "dev.understudy#messageKey": "Message",
         "dev.understudy#evidence": {
-          "label": "inferred",
-          "source": "docs/research/iam-enforcement-surfaces.md#32-per-service-identity: the DynamoDB developer guide lists AccessDeniedException under HTTP 400; the Streams endpoint is assumed to answer as DynamoDB does, UNVERIFIED until recording IAM-ENF-35"
+          "label": "aws-recorded",
+          "source": "testdata/parity/dynamodb/IAM-ENF/35-streams.json: HTTP 400, the message under the key Message where the shared shape's member is message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+          "validated": "2026-11-03"
         }
       }
     }
