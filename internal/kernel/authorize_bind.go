@@ -203,6 +203,50 @@ func conditionKeys(keys []func(*Call, any) ConditionKeys, c *Call, in any) Condi
 	return out
 }
 
+// scopedKeys is one WithConditionKeysFor option, type-erased as
+// scopedResources is: the actions it names and how to supply their keys
+// from a valid input.
+type scopedKeys struct {
+	actions []registry.IAMAction
+	supply  func(c *Call, in any) ConditionKeys
+}
+
+// WithConditionKeysFor supplies, from a call's valid input, request
+// condition keys AWS sends only with the named actions, such as the SSE
+// keys of s3:PutObject, which a CopyObject's read of its source does not
+// carry (iam-enforcement-surfaces.md 9.2). Step 8, and an
+// AuthorizedAfterResolve binding's authorization, pass them as
+// AuthzQuery.ActionKeys under each named action, later options replacing
+// earlier ones key by key; a pair of a named action carries them over the
+// WithConditionKeys keys (AuthzQuery.KeysFor). A key with no values is one
+// the request does not carry. Every other action's pairs see the
+// WithConditionKeys keys alone, and a key neither supplies stays as the
+// Authorizer would have it without the option.
+func WithConditionKeysFor[In any](actions []registry.IAMAction, supply func(c *Call, in *In) ConditionKeys) BindOption {
+	return actionKeysOf[*In](actions, supply)
+}
+
+// actionConditionKeys returns, by action, the union of every
+// WithConditionKeysFor option's keys in scoped naming it, for the valid
+// input in, a later option's key replacing an earlier one's; nil without
+// an option.
+func actionConditionKeys(scoped []scopedKeys, c *Call, in any) ActionKeys {
+	if len(scoped) == 0 {
+		return nil
+	}
+	out := ActionKeys{}
+	for _, o := range scoped {
+		keys := o.supply(c, in)
+		for _, a := range o.actions {
+			if out[a] == nil {
+				out[a] = ConditionKeys{}
+			}
+			maps.Copy(out[a], keys)
+		}
+	}
+	return out
+}
+
 // deferred is the authorization an AuthorizedAfterResolve binding's call
 // owes: step 8 leaves it on the call, and the call's first Write, its first
 // Invoke, its AuthorizeResolved or the handler's successful return asks it,
@@ -241,7 +285,7 @@ func (c *Call) authorizeDeferred() *awserr.Error {
 		if c.k.authorizer == nil || len(pairs) == 0 {
 			return
 		}
-		d.err = verdictError(c, c.k.authorizer.Authorize(d.ctx, c, AuthzQuery{Pairs: pairs, Keys: d.keys, Refused: d.refused}))
+		d.err = verdictError(c, c.k.authorizer.Authorize(d.ctx, c, AuthzQuery{Pairs: pairs, Keys: d.keys, ActionKeys: c.actionKeys, Refused: d.refused}))
 	})
 	return d.err
 }

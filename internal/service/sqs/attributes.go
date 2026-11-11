@@ -249,7 +249,7 @@ func parsePolicy(v string, partition aws.Partition) (canonical string, apply fun
 	if json.Unmarshal(doc["Statement"], &statements) == nil && len(statements) > maxPolicyStatements {
 		return "", nil, errPolicyStatements(len(statements))
 	}
-	stored := policydoc.RootAccountPrincipals(v, partition.String())
+	stored := policydoc.RootAccountPrincipals(v, partition)
 	return stored, func(q *Queue) { q.Attributes.Policy = stored }, nil
 }
 

@@ -126,7 +126,7 @@ const maxPolicyChars = 32768
 // the document out anew; understudy keeps the layout as sent, and
 // Terraform's policy comparison treats the two principals as equal.
 func storedPolicy(policy string, scope aws.Scope) string {
-	return policydoc.RootAccountPrincipals(policy, scope.Partition.String())
+	return policydoc.RootAccountPrincipals(policy, scope.Partition)
 }
 
 // checkPolicy checks a key policy against the size quota, parses it and

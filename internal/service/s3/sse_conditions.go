@@ -6,6 +6,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // The SSE condition keys S3 sends with an object write
@@ -25,22 +26,44 @@ type sseWrite struct {
 	customer  *string
 }
 
+// sendsNoEncryption reports whether the write sent none of the encryption
+// headers, so its bucket's default encrypts it (resolveSSE).
+func (w sseWrite) sendsNoEncryption() bool {
+	return w.algorithm == nil && w.kmsKeyID == nil && w.customer == nil
+}
+
 // declareSSEConditionKeys gives PutObject, CopyObject and
 // CreateMultipartUpload, each authorized as s3:PutObject, the SSE condition
 // keys of sseConditionKeys. IAM-ENF-30 recorded PutObject; the other two
 // take the same headers, and that S3 supplies the keys for them alike is
 // inferred (switch s3.condition.sse-from-default). It runs after the bind
 // sites, whose bindings it extends.
+//
+// The keys describe the write and are documented for s3:PutObject alone
+// (iam-enforcement-surfaces.md 9.2), so only the s3:PutObject question
+// carries them: a CopyObject's read of its source, s3:GetObject or
+// s3:GetObjectVersion, finds them unsupplied, as every s3: key S3 does not
+// compute.
 func (s *Service) declareSSEConditionKeys(b *kernel.Binder) {
-	kernel.Declare(b, s3api.OpPutObject, kernel.WithConditionKeys(func(_ *kernel.Call, in *s3api.PutObjectInput) kernel.ConditionKeys {
-		return s.sseConditionKeys(sseWrite{bucket: in.Bucket, algorithm: in.ServerSideEncryption, kmsKeyID: in.SSEKMSKeyId, customer: in.SSECustomerAlgorithm})
+	kernel.Declare(b, s3api.OpPutObject, sseKeysOf(s, func(in *s3api.PutObjectInput) sseWrite {
+		return sseWrite{bucket: in.Bucket, algorithm: in.ServerSideEncryption, kmsKeyID: in.SSEKMSKeyId, customer: in.SSECustomerAlgorithm}
 	}))
-	kernel.Declare(b, s3api.OpCopyObject, kernel.WithConditionKeys(func(_ *kernel.Call, in *s3api.CopyObjectInput) kernel.ConditionKeys {
-		return s.sseConditionKeys(sseWrite{bucket: in.Bucket, algorithm: in.ServerSideEncryption, kmsKeyID: in.SSEKMSKeyId, customer: in.SSECustomerAlgorithm})
+	kernel.Declare(b, s3api.OpCopyObject, sseKeysOf(s, func(in *s3api.CopyObjectInput) sseWrite {
+		return sseWrite{bucket: in.Bucket, algorithm: in.ServerSideEncryption, kmsKeyID: in.SSEKMSKeyId, customer: in.SSECustomerAlgorithm}
 	}))
-	kernel.Declare(b, s3api.OpCreateMultipartUpload, kernel.WithConditionKeys(func(_ *kernel.Call, in *s3api.CreateMultipartUploadInput) kernel.ConditionKeys {
-		return s.sseConditionKeys(sseWrite{bucket: in.Bucket, algorithm: in.ServerSideEncryption, kmsKeyID: in.SSEKMSKeyId, customer: in.SSECustomerAlgorithm})
+	kernel.Declare(b, s3api.OpCreateMultipartUpload, sseKeysOf(s, func(in *s3api.CreateMultipartUploadInput) sseWrite {
+		return sseWrite{bucket: in.Bucket, algorithm: in.ServerSideEncryption, kmsKeyID: in.SSEKMSKeyId, customer: in.SSECustomerAlgorithm}
 	}))
+}
+
+// sseKeysOf supplies, for the s3:PutObject question alone, the SSE
+// condition keys of the write an input of type In describes. The three
+// inputs share the header members but no type, so each reads its own into
+// an sseWrite.
+func sseKeysOf[In any](s *Service, write func(*In) sseWrite) kernel.BindOption {
+	return kernel.WithConditionKeysFor([]registry.IAMAction{s3Action("PutObject")}, func(_ *kernel.Call, in *In) kernel.ConditionKeys {
+		return s.sseConditionKeys(write(in))
+	})
 }
 
 // sseConditionKeys are the SSE condition keys of the write w, each from
@@ -64,7 +87,7 @@ func (s *Service) sseConditionKeys(w sseWrite) kernel.ConditionKeys {
 	if w.customer != nil {
 		keys[sseCustomerAlgo] = []string{*w.customer}
 	}
-	if w.algorithm == nil && w.kmsKeyID == nil && w.customer == nil {
+	if w.sendsNoEncryption() {
 		if key, ok := s.defaultKMSKeyID(w.bucket); ok {
 			keys[sseKMSKeyIDKey] = []string{key}
 		}

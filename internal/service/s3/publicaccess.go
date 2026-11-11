@@ -40,7 +40,7 @@ const publicACLNote = "the access control list is stored and echoed; not applied
 // advisory when the bucket's BlockPublicPolicy is true.
 func (s *Service) putBucketPolicy(ctx context.Context, c *kernel.Call, in *s3api.PutBucketPolicyInput) (*s3api.PutBucketPolicyOutput, *awserr.Error) {
 	blocked := false
-	policy := policydoc.RootAccountPrincipals(in.Policy, c.Scope().Partition.String())
+	policy := policydoc.RootAccountPrincipals(in.Policy, c.Scope().Partition)
 	err := s.change(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), func(b *Bucket, _ clock.Instant) *awserr.Error {
 		blocked = b.PublicAccessBlock != nil && isTrue(b.PublicAccessBlock.BlockPublicPolicy)
 		b.Policy = policy

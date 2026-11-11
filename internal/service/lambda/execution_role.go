@@ -3,7 +3,6 @@ package lambda
 import (
 	"context"
 
-	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -23,13 +22,11 @@ import (
 // the confused-deputy keys other service principals send. Call it holding
 // no lock.
 func checkRoleTrust(ctx context.Context, c *kernel.Call, ref functionRef, role *string) *awserr.Error {
-	passed := passedRole(role)
-	if len(passed) == 0 {
+	roleARN, ok := executionRole(role)
+	if !ok {
 		return nil
 	}
-	roleARN := passed[0]
-	fn := aws.ARN{Partition: ref.scope.Partition.String(), Service: "lambda", Region: ref.scope.Region.String(), Account: ref.scope.Account.String(), Resource: "function:" + ref.name}
-	as := kernel.AsService{Name: lambdaService, Source: fn, SourceAccount: ref.scope.Account}
+	as := kernel.AsService{Name: lambdaService, Source: functionResource(ref.scope, ref.name), SourceAccount: ref.scope.Account}
 	q := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: registry.IAMAction{Prefix: "sts", Name: "AssumeRole"}, Resource: kernel.ResourceARN{ARN: roleARN}}}}
 	if err := kernel.AuthorizeAs(ctx, c, as, q); err != nil {
 		if _, denied := err.Origin.(awserr.Denial); denied {

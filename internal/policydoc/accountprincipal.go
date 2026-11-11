@@ -4,18 +4,20 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+
+	"github.com/sustinbebustin/understudy/internal/aws"
 )
 
 // RootAccountPrincipals returns a resource policy's text with every bare
 // account id a statement's Principal names under AWS written as that
-// account's root ARN in partition, arn:<partition>:iam::<account>:root, as
+// account's root ARN in partition p (aws.RootARN), as
 // SQS, SNS, S3 and KMS store it (iam-evaluation.md 5.4, switch
 // iam.resource-policy.account-id-principal). The two name the same
 // principal, so evaluation is unchanged. Everything else, layout and key
 // order included, is kept byte for byte, since these services otherwise
 // echo the policy as sent. NotPrincipal is left as sent: no recording shows
 // a service converting it. Text that is not JSON is returned unchanged.
-func RootAccountPrincipals(text, partition string) string {
+func RootAccountPrincipals(text string, p aws.Partition) string {
 	w := principalWalker{text: text, dec: json.NewDecoder(strings.NewReader(text))}
 	if w.value(inDocument) != nil || len(w.accounts) == 0 {
 		return text
@@ -24,7 +26,7 @@ func RootAccountPrincipals(text, partition string) string {
 	last := 0
 	for _, a := range w.accounts {
 		b.WriteString(text[last:a.start])
-		b.WriteString(`"arn:` + partition + ":iam::" + a.id + `:root"`)
+		b.WriteString(`"` + aws.RootARN(p, a.id.String()).String() + `"`)
 		last = a.end
 	}
 	b.WriteString(text[last:])
@@ -52,7 +54,7 @@ var errObjectKey = errors.New("policydoc: object key is not a string")
 // text[start:end].
 type accountSpan struct {
 	start, end int
-	id         string
+	id         aws.AccountID
 }
 
 // principalWalker walks a document's tokens, collecting the account ids
@@ -87,12 +89,15 @@ func (w *principalWalker) value(r principalRole) error {
 		}
 		return w.array(inOther)
 	case string:
-		if r == inAWSPrincipals && isAccountID(t) {
+		if r != inAWSPrincipals {
+			return nil
+		}
+		if id, err := aws.ParseAccountID(t); err == nil {
 			// Between the previous token and the string lie only
 			// whitespace, ':' and ',', so its first quote opens it.
 			end := int(w.dec.InputOffset())
 			start := before + strings.IndexByte(w.text[before:end], '"')
-			w.accounts = append(w.accounts, accountSpan{start: start, end: end, id: t})
+			w.accounts = append(w.accounts, accountSpan{start: start, end: end, id: id})
 		}
 	}
 	return nil
@@ -134,17 +139,4 @@ func (w *principalWalker) array(elem principalRole) error {
 	}
 	_, err := w.dec.Token()
 	return err
-}
-
-// isAccountID reports whether s is twelve ASCII digits.
-func isAccountID(s string) bool {
-	if len(s) != 12 {
-		return false
-	}
-	for _, c := range []byte(s) {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return true
 }

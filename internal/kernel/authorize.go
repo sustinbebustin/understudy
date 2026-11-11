@@ -3,6 +3,7 @@ package kernel
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -28,6 +29,11 @@ type AuthzQuery struct {
 	// Keys are condition keys the asker supplies beyond what an Authorizer
 	// derives from the call itself; nil at step 8.
 	Keys ConditionKeys
+	// ActionKeys are condition keys supplied for the pairs of one action
+	// alone (WithConditionKeysFor), applied over Keys; nil when the binding
+	// names none and for a pair a handler asks about through Authorize.
+	// KeysFor reads a pair's keys.
+	ActionKeys ActionKeys
 	// Refused are condition keys the call's binding refuses to have
 	// evaluated as absent (RefuseConditionKeys); nil when it names none and
 	// for a pair a handler asks about through Authorize.
@@ -65,6 +71,25 @@ func (AnyResource) isResourceRef() {}
 // with its values in order. A key with no values is one the request does not
 // carry.
 type ConditionKeys map[string][]string
+
+// ActionKeys are condition keys by the action whose pairs alone carry them,
+// such as the SSE keys of S3's s3:PutObject that a CopyObject's source read
+// does not carry (WithConditionKeysFor).
+type ActionKeys map[registry.IAMAction]ConditionKeys
+
+// KeysFor returns the condition keys a pair of action carries: q.Keys, with
+// q.ActionKeys' keys for action replacing them key by key. The result is
+// read only: it may be q.Keys itself.
+func (q AuthzQuery) KeysFor(action registry.IAMAction) ConditionKeys {
+	own, ok := q.ActionKeys[action]
+	if !ok {
+		return q.Keys
+	}
+	out := make(ConditionKeys, len(q.Keys)+len(own))
+	maps.Copy(out, q.Keys)
+	maps.Copy(out, own)
+	return out
+}
 
 // Verdict is an Authorizer's answer.
 //
@@ -246,7 +271,7 @@ func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used seco
 	if k.authorizer == nil || len(pairs) == 0 {
 		return nil
 	}
-	return verdictError(c, k.authorizer.Authorize(ctx, c, AuthzQuery{Pairs: pairs, Keys: keys, Refused: bnd.refused}))
+	return verdictError(c, k.authorizer.Authorize(ctx, c, AuthzQuery{Pairs: pairs, Keys: keys, ActionKeys: c.actionKeys, Refused: bnd.refused}))
 }
 
 // verdictError returns the error c ends with for v, nil for Allowed.

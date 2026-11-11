@@ -4,6 +4,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/evidence"
@@ -140,5 +141,42 @@ func TestEnforcePutObjectSuppliesTheSSEConditionKeys(t *testing.T) {
 
 	if got := enforcementAdvisories(t, c, "condition-key-unsupplied"); len(got) != 0 {
 		t.Errorf("condition-key-unsupplied advisories = %q, want none", got)
+	}
+}
+
+// The SSE condition keys describe a copy's destination write and are
+// documented for s3:PutObject alone (iam-enforcement-surfaces.md 9.2), so
+// CopyObject's read of its source, s3:GetObject, does not carry the
+// destination's headers: a Null deny on the source read finds the key
+// unsupplied, evaluated as absent, and denies the copy.
+func TestEnforceCopyObjectSourceReadCarriesNoSSEConditionKeys(t *testing.T) {
+	const algorithm = "s3:x-amz-server-side-encryption"
+	c, endpoint, u := enforced(t, server.IAMEnforceEnforce)
+	putUserPolicy(t, endpoint, `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"*","Resource":"*"}]}`)
+	for _, b := range []string{"src", "dst"} {
+		if w := s3Call(t, dummy, http.MethodPut, endpoint+"/"+b, ""); w.status != http.StatusOK {
+			t.Fatalf("CreateBucket %s = %d %s", b, w.status, w.body)
+		}
+	}
+	if w := s3Call(t, dummy, http.MethodPut, endpoint+"/src/obj", "x"); w.status != http.StatusOK {
+		t.Fatalf("PutObject src/obj = %d %s", w.status, w.body)
+	}
+	policy := `{"Version":"2012-10-17","Statement":[{"Sid":"DenyRead","Effect":"Deny","Principal":"*","Action":"s3:GetObject",` +
+		`"Resource":"arn:aws:s3:::src/*","Condition":{"Null":{"` + algorithm + `":"true"}}}]}`
+	if w := s3Call(t, dummy, http.MethodPut, endpoint+"/src?policy", policy); w.status/100 != 2 {
+		t.Fatalf("PutBucketPolicy = %d %s", w.status, w.body)
+	}
+
+	w := s3Put(t, u, endpoint+"/dst/copy", "", map[string]string{"x-amz-copy-source": "src/obj", "x-amz-server-side-encryption": "AES256"})
+	want := `User: arn:aws:iam::000000000000:user/u is not authorized to perform: s3:GetObject on resource: "arn:aws:s3:::src/obj"` +
+		` with an explicit deny in a resource-based policy`
+	if e := parseXMLError(t, w); w.status != http.StatusForbidden || e.S3Code != "AccessDenied" || e.S3Message != want {
+		t.Errorf("CopyObject with an SSE header under a source-read Null deny = %d %s, want 403 AccessDenied %q", w.status, w.body, want)
+	}
+	got := enforcementAdvisories(t, c, "condition-key-unsupplied")
+	if !slices.ContainsFunc(got, func(text string) bool {
+		return strings.Contains(text, algorithm) && strings.Contains(text, "for s3:GetObject on arn:aws:s3:::src/obj")
+	}) {
+		t.Errorf("condition-key-unsupplied advisories = %q, want one for %s on the source read", got, algorithm)
 	}
 }

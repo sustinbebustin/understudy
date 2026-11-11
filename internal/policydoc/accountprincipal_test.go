@@ -3,6 +3,7 @@ package policydoc_test
 import (
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 )
 
@@ -32,7 +33,7 @@ func TestRootAccountPrincipals(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := policydoc.RootAccountPrincipals(tc.in, "aws"); got != tc.want {
+			if got := policydoc.RootAccountPrincipals(tc.in, aws.PartitionAWS()); got != tc.want {
 				t.Errorf("RootAccountPrincipals =\n%s\nwant\n%s", got, tc.want)
 			}
 		})
@@ -59,7 +60,7 @@ func TestRootAccountPrincipalsKeepsOtherText(t *testing.T) {
 		`not json {"Principal":{"AWS":"111111111111"}}`,
 		``,
 	} {
-		if got := policydoc.RootAccountPrincipals(in, "aws"); got != in {
+		if got := policydoc.RootAccountPrincipals(in, aws.PartitionAWS()); got != in {
 			t.Errorf("RootAccountPrincipals(%s) = %s, want it unchanged", in, got)
 		}
 	}

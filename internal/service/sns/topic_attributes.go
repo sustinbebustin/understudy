@@ -139,7 +139,7 @@ func documentAttribute(partition aws.Partition, name, value string) (set topicSe
 		if !inServiceScope(doc) {
 			return topicSetting{}, errActionOutOfScope
 		}
-		return storedTopicAttribute(name, policydoc.RootAccountPrincipals(value, partition.String())), ""
+		return storedTopicAttribute(name, policydoc.RootAccountPrincipals(value, partition)), ""
 	}
 	m, ok := parseObject(value)
 	if !ok {

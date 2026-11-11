@@ -73,6 +73,9 @@ type Call struct {
 	// keys are the binding's WithConditionKeys for the input, set once at
 	// step 8; the access record keeps iam:PassedToService from them.
 	keys ConditionKeys
+	// actionKeys are the binding's WithConditionKeysFor for the input, set
+	// once at step 8 beside keys; nil without the option.
+	actionKeys ActionKeys
 	// denialResource is the binding's WithDenialResource for the input,
 	// set once at step 7; "" without the option.
 	denialResource string

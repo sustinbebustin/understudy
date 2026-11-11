@@ -389,6 +389,43 @@ func TestWithConditionKeysReachStep8(t *testing.T) {
 	})
 }
 
+// WithConditionKeysFor: step 8 passes the keys as AuthzQuery.ActionKeys
+// under each named action, so only that action's pairs see them (over
+// Keys, which every pair sees), and an action it does not name sees Keys
+// alone.
+func TestWithConditionKeysForReachOnlyTheNamedActions(t *testing.T) {
+	g := newGuard(guardDenial())
+	a := &fakeAuthorizer{}
+	runGuard(t, g, a, func(k *kerneltest.K) {
+		bindGuard(k, g.run, guardDone, kernel.WithActions(declared),
+			kernel.WithConditionKeys(func(*kernel.Call, *guardInput) kernel.ConditionKeys {
+				return kernel.ConditionKeys{"sts:ExternalId": {"ext-1"}, "guard:Shared": {"all"}}
+			}),
+			kernel.WithConditionKeysFor([]registry.IAMAction{guardTag}, func(*kernel.Call, *guardInput) kernel.ConditionKeys {
+				return kernel.ConditionKeys{"guard:Shared": {"tag"}, "guard:Write": {}}
+			}))
+		if _, err := k.Invoke(k.Context(), g.run, &guardInput{Declare: []registry.IAMAction{guardTag}}); err != nil {
+			k.Fatalf("call = %s", err.Message)
+		}
+		got := a.about(g.runDesc)
+		if len(got) != 1 {
+			k.Fatalf("the Authorizer was asked %+v, want once", got)
+		}
+		q := got[0].Query
+		wantAll := kernel.ConditionKeys{"sts:ExternalId": {"ext-1"}, "guard:Shared": {"all"}}
+		if !reflect.DeepEqual(q.Keys, wantAll) {
+			k.Errorf("Keys = %v, want %v", q.Keys, wantAll)
+		}
+		if got := q.KeysFor(guardRun); !reflect.DeepEqual(got, wantAll) {
+			k.Errorf("KeysFor(%s) = %v, want %v", guardRun, got, wantAll)
+		}
+		wantTag := kernel.ConditionKeys{"sts:ExternalId": {"ext-1"}, "guard:Shared": {"tag"}, "guard:Write": {}}
+		if got := q.KeysFor(guardTag); !reflect.DeepEqual(got, wantTag) {
+			k.Errorf("KeysFor(%s) = %v, want %v", guardTag, got, wantTag)
+		}
+	})
+}
+
 // A delivery's aws:SourceAccount (zero when it sends none) rides on the
 // call's mode to the access record, which reports it beside the source
 // (iam-enforcement-surfaces.md 8.1, 12.4, 12.6).
