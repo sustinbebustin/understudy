@@ -56,13 +56,13 @@ func (h *Handler) noteUnimplemented(ctx context.Context, x *exchange, e *awserr.
 // Coral's message-less UnknownOperationException, so only this line tells
 // the developer that the client is newer than understudy's models or the
 // name is misspelled.
-func (h *Handler) noteUnknown(ctx context.Context, x *exchange, svc *registry.Service, op ref.OperationID) {
+func (h *Handler) noteUnknown(ctx context.Context, x *exchange, src registry.ModelSource, op ref.OperationID) {
 	if !h.warned.first("unknown " + op.String()) {
 		return
 	}
 	h.log.LogAttrs(ctx, slog.LevelWarn,
 		"a client called an operation that is not in understudy's vendored Smithy model; the client may be newer than the model, or the name misspelled. Run understudy coverage to list the operations understudy serves",
-		slog.String("operation", op.String()), slog.String("model_source", svc.ModelSource.String()),
+		slog.String("operation", op.String()), slog.String("model_source", src.String()),
 		slog.String("request_id", string(x.id)))
 }
 

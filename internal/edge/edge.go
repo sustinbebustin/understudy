@@ -289,7 +289,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// here.
 		x.r = rt.req
 		id := ref.OperationID{Service: rt.svc.ID, Name: rt.name}
-		h.noteUnknown(ctx, x, rt.svc, id)
+		h.noteUnknown(ctx, x, rt.svc.ModelSource, id)
 		h.dispatch(ctx, x, rt.codec, id, a, h.resolve(ctx, a).principal, nil, func() kernel.Decoded {
 			return kernel.Rejected{Err: h.unknownOperation(rt.svc, rt.codec.Protocol(), rt.name)}
 		})
