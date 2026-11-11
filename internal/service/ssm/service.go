@@ -133,10 +133,9 @@ const (
 // Switches lists the behaviors chosen before AWS's were recorded
 // (ssm-parameters.md 12.2). Four are recorded as understudy behaves, each
 // settled by a parity step of its recording. ssm.list.order is the one AWS
-// contradicts: its pages
-// are ordered by name within but not across pages (SSM-19, SSM-20), an
-// order understudy cannot reproduce, so understudy keeps the stable name
-// order Terraform's data sources need (10.2).
+// contradicts: its pages are ordered by name within but not across pages
+// (SSM-19, SSM-20), an order understudy cannot reproduce, so understudy
+// keeps the stable name order Terraform's data sources need (10.2).
 func (*Service) Switches() []fidelity.Entry {
 	const ref = "docs/research/ssm-parameters.md#"
 	settledBy := func(item, step string) fidelity.SettledBy {

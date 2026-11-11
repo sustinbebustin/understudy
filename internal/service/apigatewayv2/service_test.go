@@ -21,7 +21,8 @@ import (
 // the refusal texts APIGW2-01 recorded are AWS's, the rest understudy's,
 // and AWS pretty-prints some error bodies (apigateway-http.md 2.3).
 const baseNote = "error texts are AWS's where APIGW2-01 recorded them and understudy's elsewhere; " +
-	"AWS pretty-prints some error bodies (GetApi, GetStage, CreateStage), which understudy sends compact"
+	"AWS pretty-prints some error bodies (GetApi, GetStage, CreateStage), which understudy sends compact; " +
+	"an AccessDeniedException, BadRequestException, NotFoundException or ConflictException body carries Message, where AWS sends message (recorded, APIGW2-01, APIGW2-15)"
 
 func partial(note string) registry.BindCoverage {
 	if note == "" {

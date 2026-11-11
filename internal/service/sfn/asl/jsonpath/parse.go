@@ -48,7 +48,7 @@ type union struct{ indexes []int }
 // function is a JSONPath function such as .length(): it selects nothing,
 // so a definite path through it is missing. AWS accepts $.a.length() at
 // create and fails on it at run time, unlike Jayway JsonPath, which has
-// length() (ASL-19, recorded 2026-11-03); other names are inferred to read
+// length() (ASL-19); other names are inferred to read
 // the same.
 type function struct {
 	text string // the name and argument list as written: length()

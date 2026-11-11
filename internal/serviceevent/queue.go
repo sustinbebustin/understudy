@@ -2,14 +2,14 @@
 // EventBridge's default bus about its own resources, such as a CloudWatch
 // alarm's state change or a Parameter Store change, through EventBridge's
 // internal PutServiceEventInternal operation after the write that made the
-// change commits (ADR 0015, amendment 2026-10-30).
+// change commits (ADR 0015).
 //
 // A Queue sends them in the order of the writes that made them, so they
 // reach the bus, draw their seeded ids and enqueue their rule targets'
-// deliveries in that order however goroutines are scheduled (ADR 0018,
-// amendment 2026-10-13). One drainer at a time sends them: the handler that
-// finds the queue idle, or tracked work started for a timer, which must not
-// block the clock (ADR 0006).
+// deliveries in that order however goroutines are scheduled (ADR 0018). One
+// drainer at a time sends them: the handler that finds the queue idle, or
+// tracked work started for a timer, which must not block the clock (ADR
+// 0006).
 package serviceevent
 
 import (

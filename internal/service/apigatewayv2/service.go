@@ -19,10 +19,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the version of the service's snapshot sections. Version
-// 2 dropped the API sequence numbers (GetApis sorts by id,
-// apigateway-http.md 3.1); before 1.0 a section of another version is
-// refused, not migrated (ADR 0009).
+// stateVersion is the version of the service's snapshot sections. Before
+// 1.0 a section of another version is refused, not migrated (ADR 0009).
 const stateVersion = 2
 
 // Options configure the service.
@@ -55,7 +53,8 @@ var _ kernel.Stateful = (*Service)(nil)
 // APIGW2-01 recorded the refusal texts understudy sends where it has them,
 // and APIGW2-03 the id shapes (apigateway-http.md 2.3, 2.5).
 const baseNote = "error texts are AWS's where APIGW2-01 recorded them and understudy's elsewhere; " +
-	"AWS pretty-prints some error bodies (GetApi, GetStage, CreateStage), which understudy sends compact"
+	"AWS pretty-prints some error bodies (GetApi, GetStage, CreateStage), which understudy sends compact; " +
+	"an AccessDeniedException, BadRequestException, NotFoundException or ConflictException body carries Message, where AWS sends message (recorded, APIGW2-01, APIGW2-15)"
 
 // Coverage notes of the operations bound so far: what each leaves out of
 // the documented behavior.

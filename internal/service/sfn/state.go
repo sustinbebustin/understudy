@@ -11,10 +11,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshot sections. Version
-// 2 adds an in-flight Lambda task's async flag (an Event invocation), which
-// a version 1 binary would drop and run as RequestResponse, so a version 1
-// section is refused rather than read (ADR 0009, amended 2026-11-10).
+// stateVersion is the schema version of State in snapshot sections. Before
+// 1.0 a section of another version is refused, not migrated (ADR 0009).
 const stateVersion = 2
 
 // State is the Step Functions state of one account and region. Records are
