@@ -46,8 +46,9 @@ type Secret struct {
 	CreateToken string  `json:"createToken"`
 	Description *string `json:"description,omitempty"`
 	// KMSKeyID is the KmsKeyId as the caller sent it; nil is the AWS
-	// managed key aws/secretsmanager, however the caller named it
-	// (resolveKey), which DescribeSecret does not show.
+	// managed key aws/secretsmanager, unless the caller named it by its
+	// bare alias, which is kept (resolveKey). DescribeSecret shows what is
+	// stored.
 	KMSKeyID *string       `json:"kmsKeyId,omitempty"`
 	Type     *string       `json:"type,omitempty"`
 	Created  clock.Instant `json:"created"`

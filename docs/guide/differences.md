@@ -299,7 +299,7 @@ By design:
 
 ## KMS, Secrets Manager, IAM and STS
 
-- Secrets Manager on AWS: a disabled KMS key is `InvalidParameterException` "The operation failed because the specified KMS key is disabled."; `!` and 513-character names have their own texts; a second `DeleteSecret` reschedules, where understudy refuses it; `DeletedDate` is the request time; `DeleteSecret` and `RestoreSecret` advance `LastChangedDate`; an explicit `alias/aws/secretsmanager` is echoed as `KmsKeyId` (`secretsmanager/R15/05-*.json`, `secretsmanager/R07/06-describe-s-awsalias.json`).
+- Secrets Manager on AWS: a second `DeleteSecret` reschedules, where understudy refuses it; `DeletedDate` is the request time; `DeleteSecret` and `RestoreSecret` advance `LastChangedDate` (`secretsmanager/R15/05-*.json`).
 - AWS refuses a policy naming a principal that does not exist: IAM a trust policy naming a missing role with 400 `MalformedPolicyDocument` "Invalid principal in policy: ...", SQS a queue policy naming a missing user with 400 `InvalidAttributeValue` "Invalid value for the parameter Policy." (`iam/IAM-EVAL-24/01-missing-role.json`, `sqs/IAM-EVAL-24/05-sqs-missing-user.json`). AWS also shows a principal deleted after the save as its `AROA...` unique id (`iam/IAM-EVAL-24/03-after-delete.json`). understudy stores and shows such a policy as sent, so policies naming roles never created in understudy keep working.
 - `GetKeyPolicy` on AWS returns the policy re-laid out with two-space indents and `" : "` separators; understudy returns it in the layout sent (`kms/IAM-EVAL-27/06-account-id-principal.json`). Both store a bare account id principal as `arn:aws:iam::<account>:root`.
 - IAM validation errors echo the value and enum list; AWS leaves them out ("Member must satisfy enum value set").

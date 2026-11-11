@@ -267,24 +267,25 @@ func TestCreateSecretRetryRacingItsOriginal(t *testing.T) {
 }
 
 // A customer key set without a value, by CreateSecret or by UpdateSecret,
-// is checked at once: a disabled key is EncryptionFailure and is not
+// is checked at once: a disabled key is refused as at a CreateSecret with
+// a value (secretsmanager/R15/05-create-disabled-kms.json) and is not
 // stored. The check is forward access, recorded against the caller.
 func TestKeyAccessCheckedWhenSetWithoutValue(t *testing.T) {
 	run(t, func(h *harness) {
 		usable := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.KeyId
 		disabled := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.KeyId
 		must(h, kmsapi.OpDisableKey, &kmsapi.DisableKeyInput{KeyId: disabled})
-		refused := "Secrets Manager can't encrypt the secret value with the KMS key: DisabledException: arn:aws:kms:us-east-1:000000000000:key/" + disabled + " is disabled."
+		const refused = "The operation failed because the specified KMS key is disabled."
 
 		_, err := call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "bad-key", ClientRequestToken: new(h.token()), KmsKeyId: new(disabled)})
-		wantError(h.T, err, "EncryptionFailure", refused)
+		wantError(h.T, err, "InvalidParameterException", refused)
 		if _, err := call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: "bad-key"}); err == nil {
 			h.Error("CreateSecret under a disabled key stored the secret")
 		}
 
 		must(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "keyed", ClientRequestToken: new(h.token()), KmsKeyId: new(usable)})
 		_, err = call(h, sm.OpUpdateSecret, &sm.UpdateSecretInput{SecretId: "keyed", ClientRequestToken: new(h.token()), KmsKeyId: new(disabled)})
-		wantError(h.T, err, "EncryptionFailure", refused)
+		wantError(h.T, err, "InvalidParameterException", refused)
 		if got := val(h.describe("keyed").KmsKeyId); got != usable {
 			h.Errorf("KmsKeyId after a refused change = %s, want %s", got, usable)
 		}
@@ -410,7 +411,8 @@ func TestAccessRecorderHoldsForwardKMSCalls(t *testing.T) {
 }
 
 // A secret under a customer key the caller disables can no longer be read:
-// KMS's refusal surfaces as DecryptionFailure.
+// KMS's refusal surfaces as DecryptionFailure. A new value under it is
+// refused as CreateSecret refuses a disabled key.
 func TestDisabledKeyIsDecryptionFailure(t *testing.T) {
 	run(t, func(h *harness) {
 		key := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.KeyId
@@ -422,8 +424,21 @@ func TestDisabledKeyIsDecryptionFailure(t *testing.T) {
 		_, err := h.get("cmk", "AWSCURRENT")
 		wantError(h.T, err, "DecryptionFailure", "Secrets Manager can't decrypt the secret value with the KMS key: DisabledException: arn:aws:kms:us-east-1:000000000000:key/"+key+" is disabled.")
 		_, err = call(h, sm.OpPutSecretValue, &sm.PutSecretValueInput{SecretId: "cmk", ClientRequestToken: new(h.token()), SecretString: new("y")})
-		if err == nil || err.ID.JSONType != "EncryptionFailure" {
-			h.Errorf("PutSecretValue under a disabled key = %v, want EncryptionFailure", err)
+		wantError(h.T, err, "InvalidParameterException", "The operation failed because the specified KMS key is disabled.")
+	})
+}
+
+// CreateSecret with a value under a disabled customer key is refused with
+// InvalidParameterException, not EncryptionFailure, and stores nothing
+// (aws-recorded, secretsmanager/R15/05-create-disabled-kms.json).
+func TestCreateSecretUnderDisabledKey(t *testing.T) {
+	run(t, func(h *harness) {
+		key := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.KeyId
+		must(h, kmsapi.OpDisableKey, &kmsapi.DisableKeyInput{KeyId: key})
+		_, err := call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "sdis", ClientRequestToken: new(h.token()), KmsKeyId: new(key), SecretString: new("x")})
+		wantError(h.T, err, "InvalidParameterException", "The operation failed because the specified KMS key is disabled.")
+		if _, err := call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: "sdis"}); err == nil {
+			h.Error("CreateSecret under a disabled key stored the secret")
 		}
 	})
 }
@@ -521,10 +536,11 @@ func TestDefaultKeySecretRefusesOtherAccountValues(t *testing.T) {
 
 // Every name of the AWS managed key aws/secretsmanager (alias, alias ARN,
 // key id, key ARN) is the default key, whether CreateSecret or UpdateSecret
-// sends it: DescribeSecret and ListSecrets omit KmsKeyId,
-// ListSecretVersionIds says DefaultEncryptionKey, and another account
-// cannot read the value. Telling a key id is the managed key is not
-// charged to the caller. A customer alias is kept as sent.
+// sends it: ListSecretVersionIds says DefaultEncryptionKey, and another
+// account cannot read the value. DescribeSecret and ListSecrets echo the
+// bare alias as sent (secretsmanager/R07/06-describe-s-awsalias.json) and
+// omit KmsKeyId for the other names. Telling a key id is the managed key
+// is not charged to the caller. A customer alias is kept as sent.
 func TestDefaultKeyByAnyName(t *testing.T) {
 	run(t, func(h *harness) {
 		managed := must(h, kmsapi.OpDescribeKey, &kmsapi.DescribeKeyInput{KeyId: "alias/aws/secretsmanager"}).KeyMetadata
@@ -544,14 +560,15 @@ func TestDefaultKeyByAnyName(t *testing.T) {
 		must(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "customer-alias", ClientRequestToken: new(h.token()), KmsKeyId: new("alias/mine"), SecretString: new("v")})
 
 		for _, e := range must(h, sm.OpListSecrets, &sm.ListSecretsInput{}).SecretList {
-			want := ""
-			if val(e.Name) == "customer-alias" {
-				want = "alias/mine"
-			}
+			want := map[string]string{
+				"customer-alias": "alias/mine",
+				"created-alias":  "alias/aws/secretsmanager",
+				"updated-alias":  "alias/aws/secretsmanager",
+			}[val(e.Name)]
 			if got := val(h.describe(val(e.Name)).KmsKeyId); got != want || val(e.KmsKeyId) != want {
 				h.Errorf("%s: KmsKeyId DescribeSecret %q, ListSecrets %q; want %q", val(e.Name), got, val(e.KmsKeyId), want)
 			}
-			if want != "" {
+			if val(e.Name) == "customer-alias" {
 				continue
 			}
 			for _, v := range must(h, sm.OpListSecretVersionIds, &sm.ListSecretVersionIdsInput{SecretId: val(e.Name)}).Versions {
@@ -574,6 +591,19 @@ func TestDefaultKeyByAnyName(t *testing.T) {
 				h.Errorf("kms:ListAliases recorded for the caller (%T); resolving the managed key is Secrets Manager's own lookup", u.Mode)
 			}
 		}
+	})
+}
+
+// CreateSecret refuses a Name outside the secret-name character set with
+// InvalidParameterException, unlike a SecretId, and a Name over 512
+// characters with the character-set text rather than the Coral length text
+// (aws-recorded, secretsmanager/R15/05-name-bang.json and 05-name-513.json).
+func TestCreateSecretNameErrors(t *testing.T) {
+	run(t, func(h *harness) {
+		_, err := call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "a!b", ClientRequestToken: new(h.token()), SecretString: new("x")})
+		wantError(h.T, err, "InvalidParameterException", "You provided an invalid name for the secret.")
+		_, err = call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: strings.Repeat("n", 513), ClientRequestToken: new(h.token()), SecretString: new("x")})
+		wantError(h.T, err, "ValidationException", "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!")
 	})
 }
 
@@ -687,7 +717,7 @@ func TestGetSecretValueErrors(t *testing.T) {
 		_, err = call(h, sm.OpPutSecretValue, &sm.PutSecretValueInput{SecretId: "empty", SecretString: new("no token")})
 		wantError(h.T, err, "InvalidRequestException", "You must provide a ClientRequestToken value. We recommend a UUID-type value.")
 		_, err = call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "bad name", ClientRequestToken: new(h.token())})
-		wantError(h.T, err, "ValidationException", "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!")
+		wantError(h.T, err, "InvalidParameterException", "You provided an invalid name for the secret.")
 		_, err = call(h, sm.OpUpdateSecretVersionStage, &sm.UpdateSecretVersionStageInput{SecretId: "empty", VersionStage: "AWSCURRENT", RemoveFromVersionId: new(v1)})
 		wantError(h.T, err, "InvalidParameterException", "You can only move staging label AWSCURRENT to a different secret version. It can't be completely removed.")
 	})

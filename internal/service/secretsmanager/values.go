@@ -92,24 +92,32 @@ const servicePrincipal = "secretsmanager.amazonaws.com"
 
 // resolveKey is the KMSKeyID a secret of scope stores for the KmsKeyId a
 // request sends: nil for none and for the AWS managed key
-// aws/secretsmanager however the request names it (alias, alias ARN, key
-// id or key ARN), and the identifier as sent for any other key. AWS treats
-// every name of that key as the managed key: DescribeSecret and ListSecrets
-// omit it, ListSecretVersionIds calls it DefaultEncryptionKey, and another
-// account cannot use it (API_DescribeSecret.html, API_UpdateSecret.html).
-// Like seal, it runs outside any cell.
+// aws/secretsmanager named by its alias ARN, key id or key ARN, the bare
+// alias as sent, and the identifier as sent for any other key. AWS treats
+// every name of that key as the managed key: ListSecretVersionIds calls it
+// DefaultEncryptionKey, and another account cannot use it
+// (API_DescribeSecret.html, API_UpdateSecret.html). DescribeSecret echoes
+// the bare alias (secretsmanager/R07/06-describe-s-awsalias.json); whether
+// it echoes the other names is unrecorded, so they stay omitted as the
+// documentation says. Every check of the managed key goes through keyRef,
+// which reads nil and the bare alias alike. Like seal, it runs outside any
+// cell.
 func (s *Service) resolveKey(ctx context.Context, c *kernel.Call, scope aws.Scope, kmsKeyID *string) (*string, *awserr.Error) {
-	var stored *string
-	if id := nonEmpty(kmsKeyID); id != nil {
-		managed, err := s.isDefaultKey(ctx, c, scope, *id)
-		if err != nil {
-			return nil, err
-		}
-		if !managed {
-			stored = id
-		}
+	id := nonEmpty(kmsKeyID)
+	if id == nil || *id == defaultKey {
+		return id, nil
 	}
-	return stored, nil
+	managed, err := s.isDefaultKey(ctx, c, scope, *id)
+	if err != nil || managed {
+		return nil, err
+	}
+	return id, nil
+}
+
+// customerKey reports a KMSKeyID that names a key other than the AWS
+// managed key, which every caller can use without an access check.
+func customerKey(kmsKeyID *string) bool {
+	return keyRef(kmsKeyID) != defaultKey
 }
 
 // isDefaultKey reports whether id names scope's AWS managed key

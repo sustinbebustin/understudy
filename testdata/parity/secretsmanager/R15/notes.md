@@ -31,7 +31,7 @@
 - x-ssec-on-non-ssec-read (400 InvalidRequest "The encryption parameters are not applicable to this object."): matches
 - x-kms-key-id-without-aws-kms code/message/ArgumentName: matches
 - x-kms-key-id-without-aws-kms ArgumentValue: differs: AWS sends none; understudy adds <ArgumentValue>aws:kms</ArgumentValue> (internal/service/s3/sse.go:116-118)
-- 05-create-disabled-kms: differs: AWS 400 InvalidParameterException "The operation failed because the specified KMS key is disabled."; understudy 400 EncryptionFailure "Secrets Manager can't encrypt the secret value with the KMS key: DisabledException: ..." (internal/service/secretsmanager/errors.go:140-141 via values.go:214)
+- 05-create-disabled-kms: differs: AWS 400 InvalidParameterException "The operation failed because the specified KMS key is disabled."; understudy 400 EncryptionFailure "Secrets Manager can't encrypt the secret value with the KMS key: DisabledException: ..." (internal/service/secretsmanager/errors.go:140-141 via values.go:214). Replay: matches; understudy now answers AWS's InvalidParameterException (internal/parity/baseline.json, secretsmanager/R15#05-create-disabled-kms)
 - 05-create / 05-create-duplicate (ResourceExistsException text): matches
 - 05-put-token-1 / -same-value / -different-value: matches
 - 05-restore-live response (200 {ARN, Name}): matches
@@ -44,8 +44,8 @@
 - 05-get-scheduled (400 InvalidRequestException text): matches
 - 05-restore ({ARN, Name}): matches
 - 05-describe-after-restore LastChangedDate: differs: AWS advances it on RestoreSecret; understudy keeps the old value (secrets.go:362-364); DeletedDate dropped: matches
-- 05-name-bang: differs: AWS 400 InvalidParameterException {"Message":"You provided an invalid name for the secret."}; understudy 400 ValidationException "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!" (errors.go:47-48)
-- 05-name-513: differs: AWS 400 ValidationException "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!"; understudy generated "1 validation error detected: ... Member must have length less than or equal to 512"
+- 05-name-bang: differs: AWS 400 InvalidParameterException {"Message":"You provided an invalid name for the secret."}; understudy 400 ValidationException "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!" (errors.go:47-48). Replay: matches; understudy now answers AWS's text (internal/parity/baseline.json, secretsmanager/R15#05-name-bang)
+- 05-name-513: differs: AWS 400 ValidationException "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!"; understudy generated "1 validation error detected: ... Member must have length less than or equal to 512". Replay: matches; understudy now answers AWS's text (internal/parity/baseline.json, secretsmanager/R15#05-name-513)
 - 05-arn-suffixes (6 chars [A-Za-z0-9]): matches
 - 05-stage-* VersionIdsToStages trace: matches
 - 06-create-role-invalid-trust: differs: AWS 400 MalformedPolicyDocument "Missing required field Principal"; understudy "Policy statement must contain actions." (internal/policydoc/validate.go:70-71)
@@ -64,3 +64,9 @@
 - 06-assume-ok and 06-get-caller-identity-assumed: matches (Arn `arn:aws:sts::123456789012:assumed-role/<role>/rec`)
 - x-assume-11-policy-arns: differs: AWS 400 `ValidationError` "The limit of ARNs for the PolicyArns parameter was exceeded. 10 ARNs can be requested at most in an API request."; understudy renders a Coral constraint text (internal/service/sts/errors.go:45-48)
 - x-assume-refused-session-policy: differs: AWS 400 `MalformedPolicyDocument` "Missing required field Action"; understudy says "Policy statement must contain actions." (internal/policydoc/validate.go:71)
+
+## Replay (internal/parity)
+
+`scenario.json` replays the Secrets Manager steps 05-create-disabled-kms, 05-name-bang and 05-name-513; internal/parity/baseline.json holds the outcomes, and the "Replay:" notes above record where they differ from this file.
+
+- Made up: the KMS key 05-create-disabled-kms names, which the setup creates with the description `usr-rec-20261014-sdis` and disables, binding its id to the recorded one. The kit created and disabled it outside `rec`; only its id was recorded. The step's answer depends only on the key being disabled.

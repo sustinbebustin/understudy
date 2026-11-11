@@ -176,7 +176,7 @@ func (s *Service) reused(ctx context.Context, c *kernel.Call, scope aws.Scope, s
 // next; a move to the default key needs no access check, since every caller
 // can use the AWS managed key.
 func rekeyed(cur, next *string) bool {
-	return next != nil && (cur == nil || *cur != *next)
+	return customerKey(next) && keyRef(cur) != keyRef(next)
 }
 
 // modify replaces the usable secret r names with what fn makes of a copy
@@ -342,7 +342,7 @@ func (s *Service) listSecretVersionIDs(_ context.Context, c *kernel.Call, in *se
 	for _, id := range p.items {
 		v := sec.Versions[id]
 		key := defaultKeyName
-		if v.KMSKeyID != nil {
+		if customerKey(v.KMSKeyID) {
 			key = *v.KMSKeyID
 		}
 		out.Versions = append(out.Versions, secretsmanagerapi.SecretVersionsListEntry{

@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "item": "R07",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "steps": [
+    {
+      "fixture": "secretsmanager/R07/06-create-s-none.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/ARN",
+          "shape": {
+            "kind": "arn",
+            "service": "secretsmanager",
+            "resource": "secret",
+            "name": {
+              "kind": "id",
+              "alphabet": "alnum",
+              "min": 30,
+              "max": 30,
+              "prefix": "usr-rec-20261014-s-none-"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "secretsmanager/R07/06-describe-s-none.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R07/06-create-s-awsalias.json",
+      "compare": "all",
+      "bind": [
+        {
+          "path": "body/ARN",
+          "shape": {
+            "kind": "arn",
+            "service": "secretsmanager",
+            "resource": "secret",
+            "name": {
+              "kind": "id",
+              "alphabet": "alnum",
+              "min": 34,
+              "max": 34,
+              "prefix": "usr-rec-20261014-s-awsalias-"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "fixture": "secretsmanager/R07/06-describe-s-awsalias.json",
+      "compare": "all"
+    }
+  ]
+}

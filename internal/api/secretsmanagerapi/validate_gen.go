@@ -1260,7 +1260,7 @@ func (*CancelRotateSecretInput) ValidationError(vs []awserr.Violation) *awserr.E
 
 var policyCreateSecret = validationPolicy{
 	paths: []validationPath{
-		{segments: []string{"name"}, param: "Name"},
+		{segments: []string{"name"}, param: "Name", rules: []validationRule{{kinds: kindLengthMax, id: IdentityValidationException, style: styleFixed, reason: "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!"}}},
 		{segments: []string{"clientRequestToken"}, param: "ClientRequestToken"},
 		{segments: []string{"description"}, param: "Description"},
 		{segments: []string{"kmsKeyId"}, param: "KmsKeyId"},

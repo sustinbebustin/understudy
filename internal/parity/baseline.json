@@ -143,6 +143,26 @@
       ]
     },
     {
+      "scenario": "secretsmanager/R07",
+      "steps": [
+        {"step": "06-create-s-none", "fixture": "secretsmanager/R07/06-create-s-none.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}},
+        {"step": "06-describe-s-none", "fixture": "secretsmanager/R07/06-describe-s-none.json", "operation": "secretsmanager.DescribeSecret", "outcome": {"kind": "match"}},
+        {"step": "06-create-s-awsalias", "fixture": "secretsmanager/R07/06-create-s-awsalias.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}},
+        {"step": "06-describe-s-awsalias", "fixture": "secretsmanager/R07/06-describe-s-awsalias.json", "operation": "secretsmanager.DescribeSecret", "outcome": {"kind": "match"}}
+      ]
+    },
+    {
+      "scenario": "secretsmanager/R15",
+      "steps": [
+        {"step": "05-create-disabled-kms", "fixture": "secretsmanager/R15/05-create-disabled-kms.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}},
+        {"step": "05-name-bang", "fixture": "secretsmanager/R15/05-name-bang.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}},
+        {"step": "05-name-513", "fixture": "secretsmanager/R15/05-name-513.json", "operation": "secretsmanager.CreateSecret", "outcome": {"kind": "match"}}
+      ],
+      "claims": [
+        {"target": {"kind": "overlay", "shape": "com.amazonaws.secretsmanager#CreateSecretRequest$Name"}, "step": "05-name-513", "field": "error/message", "result": {"kind": "settled"}}
+      ]
+    },
+    {
       "scenario": "ses/SES-00",
       "steps": [
         {"step": "01-verify-me", "fixture": "ses/SES-00/01-verify-me.json", "operation": "ses.VerifyEmailIdentity", "outcome": {"kind": "match"}},

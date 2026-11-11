@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "item": "R15",
+  "account": "123456789012",
+  "region": "us-east-2",
+  "client": "aws-cli",
+  "setup": [
+    {
+      "service": "kms",
+      "operation": "CreateKey",
+      "input": {
+        "Description": "usr-rec-20261014-sdis"
+      },
+      "bind": [
+        {
+          "path": "body/KeyMetadata/KeyId",
+          "shape": {
+            "kind": "uuid"
+          },
+          "aws": "6d38c8ab-924c-412c-8cc0-dbaf5a2629c3"
+        }
+      ]
+    },
+    {
+      "service": "kms",
+      "operation": "DisableKey",
+      "input": {
+        "KeyId": "6d38c8ab-924c-412c-8cc0-dbaf5a2629c3"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "fixture": "secretsmanager/R15/05-create-disabled-kms.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-name-bang.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "secretsmanager/R15/05-name-513.json",
+      "compare": "all"
+    }
+  ],
+  "settles": [
+    {
+      "overlay": "com.amazonaws.secretsmanager#CreateSecretRequest$Name",
+      "step": "05-name-513",
+      "field": "error/message"
+    }
+  ]
+}

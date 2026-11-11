@@ -141,7 +141,7 @@ func (s *Service) encryptFirst(ctx context.Context, c *kernel.Call, scope aws.Sc
 	case hasValue:
 		box, err := s.seal(ctx, c, scope, arn, token, kmsKeyID, p)
 		return kmsKeyID, box, err
-	case kmsKeyID != nil:
+	case customerKey(kmsKeyID):
 		return kmsKeyID, sealed{}, s.checkKeyAccess(ctx, c, scope, arn, kmsKeyID)
 	}
 	return kmsKeyID, sealed{}, nil

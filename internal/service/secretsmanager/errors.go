@@ -3,6 +3,7 @@ package secretsmanager
 import (
 	"strconv"
 
+	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
@@ -44,8 +45,16 @@ func errNameScheduled() *awserr.Error {
 	return secretsmanagerapi.ErrInvalidRequestException("You can't create this secret because a secret with this name is already scheduled for deletion.")
 }
 
+// errInvalidName answers a SecretId that is a name outside the secret-name
+// character set.
 func errInvalidName() *awserr.Error {
 	return secretsmanagerapi.ErrValidationException("Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!")
+}
+
+// errInvalidNewName answers a CreateSecret Name outside the secret-name
+// character set (secretsmanager/R15/05-name-bang.json).
+func errInvalidNewName() *awserr.Error {
+	return secretsmanagerapi.ErrInvalidParameterException("You provided an invalid name for the secret.")
 }
 
 // errTokenInUse is moto's text for a token reused with another value; AWS's
@@ -136,8 +145,14 @@ func errInvalidNextToken() *awserr.Error {
 // errEncryption and errDecryption are a KMS failure as Secrets Manager
 // reports it (EncryptionFailure and DecryptionFailure are the documented
 // codes for a disabled or deleted key); the text, which AWS does not
-// document, names the KMS error so the cause is visible.
+// document, names the KMS error so the cause is visible. A disabled key at
+// encryption is AWS's recorded InvalidParameterException instead
+// (secretsmanager/R15/05-create-disabled-kms.json): recorded at
+// CreateSecret, inferred for every other write that encrypts.
 func errEncryption(kms *awserr.Error) *awserr.Error {
+	if kms.ID.Shape == kmsapi.IdentityDisabledException().Shape {
+		return secretsmanagerapi.ErrInvalidParameterException("The operation failed because the specified KMS key is disabled.")
+	}
 	return secretsmanagerapi.ErrEncryptionFailure("Secrets Manager can't encrypt the secret value with the KMS key: " + kms.ID.JSONType + ": " + kms.Message)
 }
 
