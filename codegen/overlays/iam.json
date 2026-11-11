@@ -47,6 +47,18 @@
         }
       }
     },
+    "com.amazonaws.iam#pathType": {
+      "type": "apply",
+      "replace": true,
+      "traits": {
+        "smithy.api#pattern": "^(\\u002F|\\u002F[\\u0021-\\u007E]+\\u002F)$",
+        "dev.understudy#patternEcho": "(\\u002F)|(\\u002F[\\u0021-\\u007E]+\\u002F)",
+        "dev.understudy#evidence": {
+          "label": "aws-doc",
+          "source": "third_party/api-models-aws/models/iam/service/2010-05-08/iam-2010-05-08.json: every Path member's documentation reads pathType as 'a forward slash (/) by itself or a string that must begin and end with forward slashes', the whole value against either branch of the model's top-level alternation, so '/svc' and 'x/a/' fail it"
+        }
+      }
+    },
     "com.amazonaws.iam#ResolveRole": {
       "type": "operation",
       "input": {"target": "com.amazonaws.iam#ResolveRoleRequest"},

@@ -200,18 +200,32 @@ func TestCreateRoleDefaultsAndConflicts(t *testing.T) {
 
 // The model's pathType pattern, ^(/)|(/[!-~]+/)$, anchors each alternative
 // on one side only; IAM reads it as "/" or a run of printable ASCII between
-// slashes, and refuses the rest before storing anything.
+// slashes, as every Path member's documentation says, and refuses the rest
+// before storing anything, in every input that targets pathType.
 func TestPathsMustBeginAndEndWithASlash(t *testing.T) {
 	run(t, func(h *harness) {
-		const text = "Member must satisfy regular expression pattern: (\\u002F)|(\\u002F[\\u0021-\\u007E]+\\u002F)"
+		// refused checks one 400 ValidationError naming member and path.
+		refused := func(err *awserr.Error, op, member, path string) {
+			h.Helper()
+			want := "1 validation error detected: Value '" + path + "' at '" + member + "' failed to satisfy constraint: " +
+				"Member must satisfy regular expression pattern: (\\u002F)|(\\u002F[\\u0021-\\u007E]+\\u002F)"
+			if err == nil || err.ID.QueryCode != "ValidationError" || err.ID.Status != 400 || err.Message != want {
+				h.Errorf("%s(%s %q) = %+v, want 400 ValidationError %q", op, member, path, err, want)
+			}
+		}
 		must(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "u"})
+		must(h, iamapi.OpCreatePolicy, &iamapi.CreatePolicyInput{PolicyName: "p", PolicyDocument: allowLogs})
 		for _, path := range []string{"/svc", "/a b/", "x/a/", "svc/"} {
-			at := "Value '" + path + "' at 'path' failed to satisfy constraint: " + text
-			fails(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "r", Path: new(path), AssumeRolePolicyDocument: trustLambda}, "ValidationError", at)
-			fails(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "v", Path: new(path)}, "ValidationError", at)
-			fails(h, iamapi.OpCreateInstanceProfile, &iamapi.CreateInstanceProfileInput{InstanceProfileName: "p", Path: new(path)}, "ValidationError", at)
-			fails(h, iamapi.OpUpdateUser, &iamapi.UpdateUserInput{UserName: "u", NewPath: new(path)}, "ValidationError",
-				"Value '"+path+"' at 'newPath' failed to satisfy constraint: "+text)
+			_, err := call(h, iamapi.OpCreateRole, &iamapi.CreateRoleInput{RoleName: "r", Path: new(path), AssumeRolePolicyDocument: trustLambda})
+			refused(err, "CreateRole", "path", path)
+			_, err = call(h, iamapi.OpCreateUser, &iamapi.CreateUserInput{UserName: "v", Path: new(path)})
+			refused(err, "CreateUser", "path", path)
+			_, err = call(h, iamapi.OpCreateInstanceProfile, &iamapi.CreateInstanceProfileInput{InstanceProfileName: "p", Path: new(path)})
+			refused(err, "CreateInstanceProfile", "path", path)
+			_, err = call(h, iamapi.OpUpdateUser, &iamapi.UpdateUserInput{UserName: "u", NewPath: new(path)})
+			refused(err, "UpdateUser", "newPath", path)
+			_, err = call(h, iamapi.OpListEntitiesForPolicy, &iamapi.ListEntitiesForPolicyInput{PolicyArn: "arn:aws:iam::000000000000:policy/p", PathPrefix: new(path)})
+			refused(err, "ListEntitiesForPolicy", "pathPrefix", path)
 		}
 		fails(h, iamapi.OpGetRole, &iamapi.GetRoleInput{RoleName: "r"}, "NoSuchEntity", "")
 		fails(h, iamapi.OpGetUser, &iamapi.GetUserInput{UserName: new("v")}, "NoSuchEntity", "")

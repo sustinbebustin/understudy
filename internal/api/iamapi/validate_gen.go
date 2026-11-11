@@ -16,8 +16,8 @@ import (
 // pattern0 is "^((/[A-Za-z0-9\\.,\\+@=_-]+)*)/$".
 var pattern0 = regexp.MustCompile("^((/[A-Za-z0-9\\.,\\+@=_\\-]+)*)/$")
 
-// pattern1 is "^(\\u002F)|(\\u002F[\\u0021-\\u007E]+\\u002F)$".
-var pattern1 = regexp.MustCompile("^(\\x{2F})|(\\x{2F}[\\x{21}-\\x{7E}]+\\x{2F})$")
+// pattern1 is "^(\\u002F|\\u002F[\\u0021-\\u007E]+\\u002F)$".
+var pattern1 = regexp.MustCompile("^(\\x{2F}|\\x{2F}[\\x{21}-\\x{7E}]+\\x{2F})$")
 
 // pattern2 is "^[ -~]+$".
 var pattern2 = regexp.MustCompile("^[ -~]+$")

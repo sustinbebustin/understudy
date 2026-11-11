@@ -45,9 +45,6 @@ func (st *State) instanceProfile(name string) (InstanceProfile, *awserr.Error) {
 }
 
 func (s *Service) createInstanceProfile(_ context.Context, c *kernel.Call, in *iamapi.CreateInstanceProfileInput) (*iamapi.CreateInstanceProfileOutput, *awserr.Error) {
-	if err := checkPath("path", in.Path); err != nil {
-		return nil, err
-	}
 	tags, err := newTags(exactKeys, in.Tags)
 	if err != nil {
 		return nil, err

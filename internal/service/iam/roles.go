@@ -69,9 +69,6 @@ func (st *State) boundary(account aws.AccountID, arn string, named awsPolicy) *a
 }
 
 func (s *Service) createRole(_ context.Context, c *kernel.Call, in *iamapi.CreateRoleInput) (*iamapi.CreateRoleOutput, *awserr.Error) {
-	if err := checkPath("path", in.Path); err != nil {
-		return nil, err
-	}
 	if err := checkTrustPolicy(in.AssumeRolePolicyDocument); err != nil {
 		return nil, err
 	}

@@ -2054,7 +2054,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-379 evidence items: 102 aws-recorded, 110 third-party-recorded, 57 aws-doc, 5 sdk-source, 105 inferred.
+380 evidence items: 102 aws-recorded, 110 third-party-recorded, 58 aws-doc, 5 sdk-source, 105 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2295,6 +2295,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-doc | dynamodb.json | `com.amazon.coral.service#AccessDeniedException` | dev.understudy#statusOverride | https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html: AccessDeniedException is listed under HTTP status code 400 (docs/research/iam-enforcement-surfaces.md#32-per-service-identity) |
 | aws-doc | dynamodb.json | `com.amazonaws.dynamodb#DynamoDB_20120810` | dev.understudy#throttleError | https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html |
 | aws-doc | iam.json | `com.amazonaws.iam#AWSIdentityManagementV20100508` | dev.understudy#throttleError | https://docs.aws.amazon.com/IAM/latest/APIReference/CommonErrors.html |
+| aws-doc | iam.json | `com.amazonaws.iam#pathType` |  | third_party/api-models-aws/models/iam/service/2010-05-08/iam-2010-05-08.json: every Path member's documentation reads pathType as 'a forward slash (/) by itself or a string that must begin and end with forward slashes', the whole value against either branch of the model's top-level alternation, so '/svc' and 'x/a/' fail it |
 | aws-doc | kinesis.json | `com.amazonaws.kinesis#GetRecordsInput$Limit` | dev.understudy#validationError | https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html: Limit "If you specify a value that is greater than 10,000, GetRecords throws InvalidArgumentException" (kinesis.md 5.5); the Coral text is understudy's, UNVERIFIED until recording KIN-07 |
 | aws-doc | kms.json | `com.amazonaws.kms#DependencyTimeoutException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |
 | aws-doc | kms.json | `com.amazonaws.kms#DisabledException` |  | https://docs.aws.amazon.com/kms/latest/APIReference/API_GetKeyRotationStatus.html |

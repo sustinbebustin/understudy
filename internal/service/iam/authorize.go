@@ -84,17 +84,17 @@ func (s *Service) declareAuthorization(b *kernel.Binder) {
 	kernel.Declare(b, iamapi.OpUntagPolicy, policyNamed(func(in *iamapi.UntagPolicyInput) string { return in.PolicyArn }))
 	kernel.Declare(b, iamapi.OpListPolicyTags, policyNamed(func(in *iamapi.ListPolicyTagsInput) string { return in.PolicyArn }))
 
-	kernel.Declare(b, iamapi.OpCreateUser, created(func(account aws.AccountID, in *iamapi.CreateUserInput) (aws.ARN, *string) {
-		return userARN(account, pathOrRoot(in.Path), in.UserName), in.Path
+	kernel.Declare(b, iamapi.OpCreateUser, created(func(account aws.AccountID, in *iamapi.CreateUserInput) aws.ARN {
+		return userARN(account, pathOrRoot(in.Path), in.UserName)
 	}))
-	kernel.Declare(b, iamapi.OpCreateRole, created(func(account aws.AccountID, in *iamapi.CreateRoleInput) (aws.ARN, *string) {
-		return roleARN(account, pathOrRoot(in.Path), in.RoleName), in.Path
+	kernel.Declare(b, iamapi.OpCreateRole, created(func(account aws.AccountID, in *iamapi.CreateRoleInput) aws.ARN {
+		return roleARN(account, pathOrRoot(in.Path), in.RoleName)
 	}))
-	kernel.Declare(b, iamapi.OpCreatePolicy, created(func(account aws.AccountID, in *iamapi.CreatePolicyInput) (aws.ARN, *string) {
-		return localPolicyARN(account, pathOrRoot(in.Path), in.PolicyName), in.Path
+	kernel.Declare(b, iamapi.OpCreatePolicy, created(func(account aws.AccountID, in *iamapi.CreatePolicyInput) aws.ARN {
+		return localPolicyARN(account, pathOrRoot(in.Path), in.PolicyName)
 	}))
-	kernel.Declare(b, iamapi.OpCreateInstanceProfile, created(func(account aws.AccountID, in *iamapi.CreateInstanceProfileInput) (aws.ARN, *string) {
-		return instanceProfileARN(account, pathOrRoot(in.Path), in.InstanceProfileName), in.Path
+	kernel.Declare(b, iamapi.OpCreateInstanceProfile, created(func(account aws.AccountID, in *iamapi.CreateInstanceProfileInput) aws.ARN {
+		return instanceProfileARN(account, pathOrRoot(in.Path), in.InstanceProfileName)
 	}))
 	// A create needs its tag action only when it sends tags
 	// (iam-enforcement-surfaces.md 10.2, 10.4).
@@ -318,13 +318,11 @@ func policyNamed[In any](arn func(*In) string) kernel.BindOption {
 }
 
 // created asks at step 8 about the ARN a creation names: its path, or "/",
-// and its name. An invalid path names nothing, and the handler answers it.
-func created[In any](arn func(account aws.AccountID, in *In) (aws.ARN, *string)) kernel.BindOption {
+// and its name. The generated validator has already refused a malformed
+// path, since every creation's Path targets pathType or policyPathType,
+// both anchored on the whole value.
+func created[In any](arn func(account aws.AccountID, in *In) aws.ARN) kernel.BindOption {
 	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
-		a, path := arn(c.Scope().Account, in)
-		if checkPath("path", path) != nil {
-			return nil
-		}
-		return []aws.ARN{a}
+		return []aws.ARN{arn(c.Scope().Account, in)}
 	})
 }

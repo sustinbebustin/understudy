@@ -5,9 +5,7 @@ import (
 	"encoding/base32"
 	"strings"
 
-	"github.com/sustinbebustin/understudy/internal/api/iamapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
-	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/ids"
 )
 
@@ -21,27 +19,6 @@ func pathOrRoot(path *string) string {
 		return "/"
 	}
 	return *path
-}
-
-// pathPatternEcho is the model's pathType pattern as AWS prints it in a
-// validation message.
-const pathPatternEcho = "(\\u002F)|(\\u002F[\\u0021-\\u007E]+\\u002F)"
-
-// checkPath refuses an optional Path or NewPath input, named member, that is
-// no IAM path. The generated validator applies pathType's own pattern,
-// ^(/)|(/[!-~]+/)$, whose alternatives are anchored on one side only and so
-// pass "/svc" or "x/a/"; such a path would build a malformed ARN, which STS
-// and identity refuse. aws.ValidIAMPath is the pattern's evident reading,
-// the one AWS documents.
-func checkPath(member string, path *string) *awserr.Error {
-	if path == nil || aws.ValidIAMPath(*path) {
-		return nil
-	}
-	return iamapi.ErrValidationException(awserr.CoralMessage([]awserr.Violation{{
-		Path:       awserr.Path{member},
-		Value:      awserr.RenderedText{Text: *path},
-		Constraint: awserr.Pattern{Echo: pathPatternEcho},
-	}}))
 }
 
 // underPrefix reports whether path starts with an optional PathPrefix
