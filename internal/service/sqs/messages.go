@@ -29,10 +29,10 @@ func (s *Service) bindSends(b sqsapi.Binder) {
 	b.SendMessage(s.sendMessage, registry.Full{},
 		kernel.WithCheck(checkSendMessage),
 		kernel.AuthorizedAfterResolveForDeliveries(),
-		queueByURL(func(in *sqsapi.SendMessageInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.SendMessageInput) string { return in.QueueUrl }))
 	b.SendMessageBatch(s.sendMessageBatch, registry.Full{},
 		kernel.WithCheck(checkSendMessageBatch),
-		queueByURL(func(in *sqsapi.SendMessageBatchInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.SendMessageBatchInput) string { return in.QueueUrl }))
 }
 
 // checkSendMessage runs SendMessage's stateless checks before fault rules

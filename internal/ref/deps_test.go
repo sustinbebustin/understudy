@@ -91,7 +91,8 @@ func importRules() []importRule {
 		{"internal/protocol/cbor", nil},
 		{"internal/protocol/form", nil},
 		{"internal/schedexpr", nil},
-		{"internal/policydoc", nil},
+		// A bare account id principal is stored as aws.RootARN.
+		{"internal/policydoc", []string{"internal/aws"}},
 		{"internal/docker", nil},
 		// The Smithy document type, below protocol/smithy.
 		{"internal/protocol/smithy/document", nil},

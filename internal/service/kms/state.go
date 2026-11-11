@@ -42,7 +42,8 @@ type Key struct {
 	// managed keys behind the alias/aws/ aliases.
 	Manager   kmsapi.KeyManagerType `json:"manager"`
 	Lifecycle lifecycle             `json:"lifecycle"`
-	// Policy is the key policy as the caller sent it, or the default one.
+	// Policy is the key policy as the caller sent it but for account
+	// principals (storedPolicy), or the default one.
 	Policy string `json:"policy"`
 	// Rotation is nil while automatic rotation is off.
 	Rotation *Rotation         `json:"rotation,omitempty"`

@@ -45,7 +45,13 @@ func (s *Service) bindSubscriptionAttributes(b snsapi.Binder) {
 		kernel.WithResourceARN(func(in *snsapi.GetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
 	b.SetSubscriptionAttributes(s.setSubscriptionAttributes, registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; " +
 		"sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced"},
-		kernel.WithResourceARN(func(in *snsapi.SetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
+		kernel.WithResourceARN(func(in *snsapi.SetSubscriptionAttributesInput) string { return in.SubscriptionArn }),
+		kernel.WithResources(func(_ *kernel.Call, in *snsapi.SetSubscriptionAttributesInput) []aws.ARN {
+			if in.AttributeName != attrSubscriptionRoleArn || in.AttributeValue == nil {
+				return nil
+			}
+			return subscriptionRole(*in.AttributeValue)
+		}))
 }
 
 // subscriber is what a subscription attribute is checked against.

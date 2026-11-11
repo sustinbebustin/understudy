@@ -168,11 +168,41 @@ type Identity struct {
 	// QueryModeStatus is awsQueryError.httpResponseCode, used when the request
 	// sends x-amzn-query-mode: true (CloudWatch's 404); 0 means Status.
 	QueryModeStatus int
-	Fault           Fault
-	MessageKey      MessageKey
+	// QueryErrorWhen is when a query-compatible service's JSON or CBOR
+	// answer sends x-amzn-query-error: the overlay's queryErrorHeader,
+	// else on every error.
+	QueryErrorWhen QueryErrorWhen
+	Fault          Fault
+	MessageKey     MessageKey
 	// Retryable is the retryable trait or membership in the throttling set.
 	Retryable bool
 }
+
+// QueryErrorHeader is the x-amzn-query-error value a query-compatible
+// service's JSON or CBOR answer sends for id, <QueryCode>;<Sender or
+// Receiver>, and false when id sends none. queryMode says whether the
+// request sent x-amzn-query-mode: true.
+func (id Identity) QueryErrorHeader(queryMode bool) (string, bool) {
+	if id.QueryErrorWhen == QueryErrorInQueryMode && !queryMode {
+		return "", false
+	}
+	return id.QueryCode + ";" + id.Fault.String(), true
+}
+
+// QueryErrorWhen says when a query-compatible service's JSON or CBOR error
+// sends x-amzn-query-error.
+type QueryErrorWhen uint8
+
+// QueryErrorWhen values.
+const (
+	// QueryErrorAlways sends it on every error, as Smithy's query-compatible
+	// protocol tests require; the zero value.
+	QueryErrorAlways QueryErrorWhen = iota
+	// QueryErrorInQueryMode sends it only when the request sent
+	// x-amzn-query-mode: true (CloudWatch's IAM denial,
+	// iam-enforcement-surfaces.md 12.3).
+	QueryErrorInQueryMode
+)
 
 // Fault says whose mistake an error is; Query renders it as <Type>.
 type Fault uint8

@@ -3,6 +3,7 @@ package kernel
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -28,6 +29,11 @@ type AuthzQuery struct {
 	// Keys are condition keys the asker supplies beyond what an Authorizer
 	// derives from the call itself; nil at step 8.
 	Keys ConditionKeys
+	// ActionKeys are condition keys supplied for the pairs of one action
+	// alone (WithConditionKeysFor), applied over Keys; nil when the binding
+	// names none and for a pair a handler asks about through Authorize.
+	// KeysFor reads a pair's keys.
+	ActionKeys ActionKeys
 	// Refused are condition keys the call's binding refuses to have
 	// evaluated as absent (RefuseConditionKeys); nil when it names none and
 	// for a pair a handler asks about through Authorize.
@@ -38,6 +44,10 @@ type AuthzQuery struct {
 type Pair struct {
 	Action   registry.IAMAction
 	Resource ResourceRef
+	// DenialResource is the resource a denial of the pair names when it is
+	// not Resource's ARN (WithDenialResource); "" names Resource. It is
+	// text only: the pair is evaluated, and access-recorded, on Resource.
+	DenialResource string
 }
 
 // ResourceRef is what a pair's action is performed on.
@@ -61,6 +71,25 @@ func (AnyResource) isResourceRef() {}
 // with its values in order. A key with no values is one the request does not
 // carry.
 type ConditionKeys map[string][]string
+
+// ActionKeys are condition keys by the action whose pairs alone carry them,
+// such as the SSE keys of S3's s3:PutObject that a CopyObject's source read
+// does not carry (WithConditionKeysFor).
+type ActionKeys map[registry.IAMAction]ConditionKeys
+
+// KeysFor returns the condition keys a pair of action carries: q.Keys, with
+// q.ActionKeys' keys for action replacing them key by key. The result is
+// read only: it may be q.Keys itself.
+func (q AuthzQuery) KeysFor(action registry.IAMAction) ConditionKeys {
+	own, ok := q.ActionKeys[action]
+	if !ok {
+		return q.Keys
+	}
+	out := make(ConditionKeys, len(q.Keys)+len(own))
+	maps.Copy(out, q.Keys)
+	maps.Copy(out, own)
+	return out
+}
 
 // Verdict is an Authorizer's answer.
 //
@@ -238,11 +267,11 @@ func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used seco
 			return nil
 		}
 	}
-	pairs := pairsOf(actions, c.op.Service.IAMPrefix, c.fixPairing(), c.scoped)
+	pairs := c.named(pairsOf(actions, c.op.Service.IAMPrefix, c.fixPairing(), c.scoped))
 	if k.authorizer == nil || len(pairs) == 0 {
 		return nil
 	}
-	return verdictError(c, k.authorizer.Authorize(ctx, c, AuthzQuery{Pairs: pairs, Keys: keys, Refused: bnd.refused}))
+	return verdictError(c, k.authorizer.Authorize(ctx, c, AuthzQuery{Pairs: pairs, Keys: keys, ActionKeys: c.actionKeys, Refused: bnd.refused}))
 }
 
 // verdictError returns the error c ends with for v, nil for Allowed.
@@ -342,7 +371,9 @@ func pairsOf(actions []registry.IAMAction, opService string, touched []aws.ARN, 
 // grants what the handler asked about (iam-enforcement-surfaces.md 12.6).
 // Action may be any service's (iam:PassRole from Lambda); keys are
 // condition keys only the handler knows, and the access record keeps an
-// iam:PassRole's iam:PassedToService from them. Like step 8 it asks nothing when
+// iam:PassRole's iam:PassedToService from them. A question about the
+// operation's primary action carries the binding's WithDenialResource text,
+// as at step 8. Like step 8 it asks nothing when
 // authorization is off or the call is a platform call.
 // Asking while holding a cell lock, about the zero ARN, or for a call that
 // names no modeled operation is a caller bug: Internal, and the Authorizer
@@ -356,7 +387,7 @@ func Authorize(ctx context.Context, c *Call, action registry.IAMAction, resource
 	case c.op == nil:
 		return awserr.Internalf(&AuthorizeError{Op: c.opID, Action: action, Reason: "the call names no modeled operation, so it has no denial identity"})
 	}
-	pair := Pair{Action: action, Resource: ResourceARN{ARN: resource}}
+	pair := c.named([]Pair{{Action: action, Resource: ResourceARN{ARN: resource}}})[0]
 	c.Touch(resource)
 	c.asked(pair, keys)
 	if _, platform := c.mode.(AsPlatform); c.k.authorizer == nil || platform {
@@ -482,15 +513,31 @@ func (b *Bindings) AuthorizedOps(svc *registry.Service) []string {
 }
 
 // ResolvedFirstOps lists, as AuthorizedOps does, the operations of svc
-// bound AuthorizedAfterResolve: a handler error before the deferred
-// question, such as the not-found error of a resource looked up by name,
-// answers the call before it is authorized (iam-enforcement-surfaces.md
-// 5.3, 12.8).
+// bound AuthorizedAfterResolve or ResolveFirst: a handler error before the
+// deferred question, such as the not-found error of a resource looked up
+// by name, or a ResolveFirst check's not-found error, answers the call
+// before it is authorized (iam-enforcement-surfaces.md 5.3, 12.8).
 func (b *Bindings) ResolvedFirstOps(svc *registry.Service) []string {
 	var out []string
 	for _, op := range svc.Operations {
 		bnd, ok := b.lookup(op)
-		if !ok || op.Kind != registry.Modeled || bnd.raw || bnd.authorization != afterResolve {
+		if !ok || op.Kind != registry.Modeled || bnd.raw || (bnd.authorization != afterResolve && len(bnd.exists) == 0) {
+			continue
+		}
+		out = append(out, op.ID.String())
+	}
+	return out
+}
+
+// NamedDenialOps lists, as AuthorizedOps does, the operations of svc bound
+// WithDenialResource: a denial names the resource by a text other than the
+// ARN its pair is evaluated on, such as the name an IAM role or a Secrets
+// Manager secret is given by (iam-enforcement-surfaces.md 5.3, 12.3).
+func (b *Bindings) NamedDenialOps(svc *registry.Service) []string {
+	var out []string
+	for _, op := range svc.Operations {
+		bnd, ok := b.lookup(op)
+		if !ok || op.Kind != registry.Modeled || bnd.raw || bnd.authorization == never || bnd.denialResource == nil {
 			continue
 		}
 		out = append(out, op.ID.String())

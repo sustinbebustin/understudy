@@ -1,6 +1,29 @@
 {
   "smithy": "2.0",
   "shapes": {
+    "com.amazon.coral.service#AccessDenied": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "Message",
+        "dev.understudy#statusOverride": 400,
+        "aws.protocols#awsQueryError": {"code": "AccessDenied", "httpResponseCode": 403},
+        "dev.understudy#queryErrorHeader": {"send": "query-mode"},
+        "dev.understudy#evidence": [
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/cloudwatch/IAM-ENF/09-json-qm.json: the JSON body carries the message under Message where the shared shape's member is message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#messageKey"]
+          },
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/cloudwatch/IAM-ENF/09-json.json, 09-json-qm.json and 09-query.json: an IAM denial answers 400 without x-amzn-query-error over JSON without x-amzn-query-mode, 403 with x-amzn-query-error AccessDenied;Sender over JSON in query mode, and 403 AccessDenied over Query. rpcv2Cbor follows JSON, inferred: only JSON was recorded (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#statusOverride", "aws.protocols#awsQueryError", "dev.understudy#queryErrorHeader"]
+          }
+        ]
+      }
+    },
     "com.amazonaws.cloudwatch#GraniteServiceVersion20100801": {
       "type": "apply",
       "traits": {
@@ -11,8 +34,9 @@
         "dev.understudy#queryErrorEnvelope": {"namespace": true},
         "dev.understudy#evidence": [
           {
-            "label": "inferred",
-            "source": "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit: CloudWatch models no denial shape (3.1); Query code AccessDenied, 403, and over JSON and CBOR the __type com.amazon.coral.service#AccessDeniedException with x-amzn-query-error AccessDenied;Sender are inferred, switch cloudwatch.denial.identity (12.8), until recording IAM-ENF-09",
+            "label": "aws-recorded",
+            "source": "testdata/parity/cloudwatch/IAM-ENF/09-json-qm.json: over JSON in query mode an IAM denial answers 403 with __type com.amazon.coral.service#AccessDeniedException and x-amzn-query-error AccessDenied;Sender, and 09-json.json: without query mode it answers 400 with no x-amzn-query-error; CloudWatch models no denial shape. The CBOR answer is inferred to follow JSON (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit; switch cloudwatch.denial.identity)",
+            "validated": "2026-11-03",
             "covers": ["dev.understudy#denialError"]
           },
           {

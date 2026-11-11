@@ -42,7 +42,10 @@
 //     leave several candidates; generation fails rather than guess. An
 //     action of the operation's own name that the service lists under
 //     Actions[] but the operation's authorized list leaves out is added as
-//     the primary, since the Service Reference's mapping has gaps.
+//     the primary, since the Service Reference's mapping has gaps. Other
+//     gaps are closed by "iamAdditions", which appends the actions an
+//     operation needs on AWS after its own, each entry with a reason and
+//     overlay-style evidence.
 //   - overlays/common.json lists each protocol family's generic vocabulary
 //     under its defaults shape's errors, and every real service speaking the
 //     family gets GenericErrors(f) in errors_gen.go, which its descriptor

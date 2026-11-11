@@ -48,9 +48,11 @@ func TestTheRenderedPolicyAdmitsTheSameLambdaCallsUnderEnforce(t *testing.T) {
 // account and region.
 const loopFunction = "arn:aws:lambda:us-east-1:000000000000:function:loop"
 
-// createLoopFunction creates the function loop as root.
+// createLoopFunction creates the function loop as root, with an execution
+// role that trusts Lambda.
 func createLoopFunction(t *testing.T, endpoint string) {
 	t.Helper()
+	roleTrustingLambda(t, endpoint, "r")
 	var b bytes.Buffer
 	w := zip.NewWriter(&b)
 	f, err := w.Create("bootstrap")

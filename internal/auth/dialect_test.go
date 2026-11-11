@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -236,6 +237,66 @@ func TestS3DialectSigV2Mismatch(t *testing.T) {
 	if got, want := field(t, err, "StringToSign"), "GET\n\n\nTue, 27 Mar 2007 19:36:42 +0000\n/johnsmith/photos/puppy.jpg"; got != want {
 		t.Errorf("StringToSign = %q, want %q", got, want)
 	}
+}
+
+// docHeaderSigned is a header-signed S3 GET of the documentation key that
+// signs signedHeaders and carries headers besides. Its signature is not
+// valid, so only a check that runs before the signature passes it.
+func docHeaderSigned(t *testing.T, signedHeaders string, headers map[string]string) (auth.SigV4Header, auth.Normalized) {
+	t.Helper()
+	all := map[string]string{
+		"X-Amz-Content-Sha256": emptyHash,
+		"X-Amz-Date":           "20130524T000000Z",
+		"Authorization":        docAuthorization(docCredential, signedHeaders),
+	}
+	maps.Copy(all, headers)
+	r := serverRequest(t, http.MethodGet, "/test.txt", "examplebucket.s3.amazonaws.com", all)
+	return parseV4Header(t, r), auth.Normalize(r, auth.Unread{})
+}
+
+// S3 refuses a header-signed request carrying x-amz-* headers it did not
+// sign as it refuses a presigned one, naming them in its HeadersNotSigned
+// element (error-matrix.md 5.4 T8, REC
+// test_put_object_with_md5_and_chunk_signature_bad_headers; s3.md 12), and
+// exempts the SSE-C key and its MD5 as on the presigned path (S3SOL-09,
+// s3-ssec-object-lock.md 3.10). The Coral families' answer is unrecorded,
+// so they are not checked (UNVERIFIED): the signature check answers.
+func TestVerifyRefusesUnsignedAmzHeadersOnS3HeaderSignedRequests(t *testing.T) {
+	const msg = "There were headers present in the request which were not signed"
+	t.Run("S3", func(t *testing.T) {
+		v := s3Vocabulary(t)
+		a, req := docHeaderSigned(t, "host;x-amz-content-sha256", map[string]string{"X-Amz-Meta-Wrong": "1"})
+		err := auth.Verify(a, req, docSecret, docTime, v)
+		if err == nil || err.ID != v.HeadersNotSigned || err.Message != msg {
+			t.Fatalf("Verify = %#v; want HeadersNotSigned %q", err, msg)
+		}
+		want := []awserr.Field{{Name: "HeadersNotSigned", Value: "x-amz-date, x-amz-meta-wrong"}}
+		if !reflect.DeepEqual(err.Fields, want) {
+			t.Errorf("elements %#v, want %#v", err.Fields, want)
+		}
+	})
+	t.Run("S3 SSE-C key and MD5 need not be signed", func(t *testing.T) {
+		v := s3Vocabulary(t)
+		a, req := docHeaderSigned(t, "host;x-amz-content-sha256;x-amz-date;x-amz-server-side-encryption-customer-algorithm", map[string]string{
+			"X-Amz-Server-Side-Encryption-Customer-Algorithm": "AES256",
+			"X-Amz-Server-Side-Encryption-Customer-Key":       "a2V5",
+			"X-Amz-Server-Side-Encryption-Customer-Key-MD5":   "bWQ1",
+		})
+		if err := auth.Verify(a, req, docSecret, docTime, v); err == nil || err.ID != v.Mismatch {
+			t.Fatalf("Verify = %#v; want the signature check's Mismatch, not HeadersNotSigned", err)
+		}
+	})
+	t.Run("Coral is not checked", func(t *testing.T) {
+		v := jsonVocabulary(t)
+		a, req := docHeaderSigned(t, "host;x-amz-content-sha256", map[string]string{"X-Amz-Meta-Wrong": "1"})
+		if err := auth.Verify(a, req, docSecret, docTime, v); err == nil || err.ID != v.Mismatch || !strings.HasPrefix(err.Message, "The request signature we calculated") {
+			t.Fatalf("Verify = %#v; want the signature check's Mismatch, not HeadersNotSigned", err)
+		}
+	})
+	t.Run("the documentation example verifies", func(t *testing.T) {
+		a, req := docGetObject(t)
+		mustVerify(t, auth.Verify(a, req, docSecret, docTime, s3Vocabulary(t)))
+	})
 }
 
 // A presigned URL must sign every x-amz-* header its request carries

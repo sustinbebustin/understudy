@@ -280,6 +280,33 @@ func TestTopicDeliveryPolicyKeepsRetryConstraints(t *testing.T) {
 // text AWS-recorded in ballerina topics-tests.bal) and SetTopicAttributes;
 // SNS actions in any case, sns:* patterns that match one, and "*" are
 // accepted.
+// A Policy naming a bare account id reads back with the account's root ARN
+// and otherwise as sent (iam-evaluation.md 5.4, IAM-EVAL-25/02-sns,
+// recorded 2026-11-03), at CreateTopic and SetTopicAttributes alike.
+func TestTopicPolicyStoresAnAccountPrincipalAsItsRootARN(t *testing.T) {
+	run(t, func(h *harness) {
+		const arn = "arn:aws:sns:us-east-1:000000000000:norm"
+		policy := func(principal string) string {
+			return `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"` + principal + `"},"Action":"sns:Publish","Resource":"` + arn + `"}]}`
+		}
+		want := policy("arn:aws:iam::000000000000:root")
+		h.topic("norm", map[string]string{"Policy": policy("000000000000")})
+		if got := h.topicAttributes(arn)["Policy"]; got != want {
+			h.Errorf("Policy after CreateTopic = %s\nwant %s", got, want)
+		}
+		if again := h.topic("norm", map[string]string{"Policy": policy("000000000000")}); again != arn {
+			h.Errorf("CreateTopic again = %s, want %s", again, arn)
+		}
+		h.topic("other", nil)
+		other := "arn:aws:sns:us-east-1:000000000000:other"
+		value := policy("000000000000")
+		must(h, snsapi.OpSetTopicAttributes, &snsapi.SetTopicAttributesInput{TopicArn: other, AttributeName: "Policy", AttributeValue: &value})
+		if got := h.topicAttributes(other)["Policy"]; got != want {
+			h.Errorf("Policy after SetTopicAttributes = %s\nwant %s", got, want)
+		}
+	})
+}
+
 func TestTopicPolicyActionsStayInServiceScope(t *testing.T) {
 	statement := func(action string) string {
 		return `{"Version":"2008-10-17","Id":"p","Statement":[{"Sid":"s","Effect":"Allow","Principal":{"AWS":"*"},"Action":` + action +

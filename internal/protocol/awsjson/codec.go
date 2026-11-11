@@ -232,7 +232,9 @@ func checksum(h http.Header, svc *registry.Service, body []byte) {
 // output serializer writes them (smithy-protocol-tests.md 11.2), and the
 // error's extra fields; and for a query-compatible service,
 // x-amzn-query-error: <QueryCode>;<Sender or Receiver> on every error,
-// whether or not the request sent x-amzn-query-mode. When it did send
+// whether or not the request sent x-amzn-query-mode, except an identity
+// that sends it only in query mode (awserr.Identity.QueryErrorHeader).
+// When it did send
 // x-amzn-query-mode: true, the identity's QueryModeStatus, if set,
 // replaces the status (CloudWatch's 404 for ResourceNotFound). A value
 // that does not serialize is answered as InternalFailure. svc may be nil
@@ -266,14 +268,15 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 	h := c.header(requestID, len(body))
 	checksum(h, svc, body)
 	queryCompatible := svc != nil && svc.QueryCompatible
-	if queryCompatible {
-		h.Set("X-Amzn-Query-Error", e.ID.QueryCode+";"+e.ID.Fault.String())
+	queryMode := strings.EqualFold(r.Header.Get("X-Amzn-Query-Mode"), "true")
+	if v, ok := e.ID.QueryErrorHeader(queryMode); queryCompatible && ok {
+		h.Set("X-Amzn-Query-Error", v)
 	}
 	for _, x := range e.Headers {
 		h.Add(x.Name, x.Value)
 	}
 	status := e.ID.Status
-	if queryCompatible && e.ID.QueryModeStatus != 0 && strings.EqualFold(r.Header.Get("X-Amzn-Query-Mode"), "true") {
+	if queryCompatible && e.ID.QueryModeStatus != 0 && queryMode {
 		status = e.ID.QueryModeStatus
 	}
 	return Response{Status: status, Header: h, Body: body}

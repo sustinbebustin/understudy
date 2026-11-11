@@ -1,6 +1,17 @@
 {
   "smithy": "2.0",
   "shapes": {
+    "com.amazon.coral.service#AccessDeniedException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "Message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/scheduler/SCH/10-01-denied-get.json: the body is {\"Message\": ...} where the shared shape's member is message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
     "com.amazonaws.scheduler#AWSChronosService": {
       "type": "apply",
       "traits": {

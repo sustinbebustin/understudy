@@ -772,7 +772,7 @@ var descGetObjectAttributes = registry.Operation{
 	Input:       &schemaGetObjectAttributesInput,
 	Output:      &schemaGetObjectAttributesOutput,
 	Errors:      []awserr.Identity{IdentityNoSuchKey(), IdentityInvalidArgument()},
-	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "GetObjectAttributes"}, {Prefix: "s3", Name: "GetObject"}, {Prefix: "s3", Name: "GetObjectVersion"}},
+	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "GetObjectAttributes"}, {Prefix: "s3", Name: "GetObject"}, {Prefix: "s3", Name: "GetObjectVersion"}, {Prefix: "s3", Name: "GetObjectVersionAttributes"}},
 	HTTP:        &registry.HTTPBinding{Method: "GET", Path: []registry.Segment{registry.Label{Name: "Bucket"}, registry.Greedy{Name: "Key"}}, Query: []registry.QueryMatch{registry.QueryPresent{Key: "attributes"}}},
 	SuccessCode: 200,
 }
@@ -884,7 +884,7 @@ var descHeadObject = registry.Operation{
 	Input:       &schemaHeadObjectInput,
 	Output:      &schemaHeadObjectOutput,
 	Errors:      []awserr.Identity{IdentityNotFound(), IdentityInvalidArgument()},
-	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "GetObject"}, {Prefix: "s3-object-lambda", Name: "GetObject"}, {Prefix: "s3", Name: "GetObjectLegalHold"}, {Prefix: "s3", Name: "GetObjectRetention"}},
+	IAM:         []registry.IAMAction{{Prefix: "s3", Name: "GetObject"}, {Prefix: "s3-object-lambda", Name: "GetObject"}, {Prefix: "s3", Name: "GetObjectLegalHold"}, {Prefix: "s3", Name: "GetObjectRetention"}, {Prefix: "s3", Name: "GetObjectVersion"}},
 	HTTP:        &registry.HTTPBinding{Method: "HEAD", Path: []registry.Segment{registry.Label{Name: "Bucket"}, registry.Greedy{Name: "Key"}}},
 	SuccessCode: 200,
 }

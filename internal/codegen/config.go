@@ -44,6 +44,9 @@ type ServiceConfig struct {
 	// IAMPrimary names the primary action of an operation whose authorized
 	// actions leave it ambiguous (smithy-models.md 8).
 	IAMPrimary []IAMPrimary
+	// IAMAdditions extend an operation's IAM actions with ones the Service
+	// Reference omits and AWS needs.
+	IAMAdditions []IAMAddition
 	// Destination is APIPackage for a codegen/services file and
 	// CorpusPackage for a synthetic compliance service.
 	Destination Destination
@@ -97,6 +100,18 @@ type IAMPrimary struct {
 	Reason    string
 }
 
+// IAMAddition is one iamAdditions entry: actions appended to an operation's
+// Service Reference list, which omits them, with the reason and the evidence
+// that AWS needs them. Evidence takes the overlay evidence form, one
+// {label, source, validated?} object, so a service config entry is backed
+// as an overlay entry is.
+type IAMAddition struct {
+	Operation string
+	Actions   []registry.IAMAction
+	Reason    string
+	Evidence  Evidence
+}
+
 // ParseServiceConfig reads a service config; id is the file's base name.
 func ParseServiceConfig(r io.Reader, id ref.ServiceID) (ServiceConfig, error) {
 	subject := "codegen/services/" + string(id) + ".json"
@@ -115,6 +130,7 @@ func ParseServiceConfig(r io.Reader, id ref.ServiceID) (ServiceConfig, error) {
 		RawOperations  []json.RawMessage `json:"rawOperations"`
 		RouteOverrides []json.RawMessage `json:"routeOverrides"`
 		IAMPrimary     []json.RawMessage `json:"iamPrimary"`
+		IAMAdditions   []json.RawMessage `json:"iamAdditions"`
 		Bound          *[]string         `json:"boundOperations"`
 	}
 	if err := strictUnmarshal(raw, &v); err != nil {
@@ -160,6 +176,9 @@ func ParseServiceConfig(r io.Reader, id ref.ServiceID) (ServiceConfig, error) {
 		return ServiceConfig{}, err
 	}
 	if cfg.IAMPrimary, err = parseEntries(subject, "iamPrimary", v.IAMPrimary, parseIAMPrimary, func(p IAMPrimary) string { return p.Operation }); err != nil {
+		return ServiceConfig{}, err
+	}
+	if cfg.IAMAdditions, err = parseEntries(subject, "iamAdditions", v.IAMAdditions, parseIAMAddition, func(a IAMAddition) string { return a.Operation }); err != nil {
 		return ServiceConfig{}, err
 	}
 	return cfg, nil
@@ -220,6 +239,41 @@ func parseIAMPrimary(raw json.RawMessage) (IAMPrimary, error) {
 		return IAMPrimary{}, err
 	}
 	return IAMPrimary{Operation: v.Operation, Action: act, Reason: v.Reason}, nil
+}
+
+func parseIAMAddition(raw json.RawMessage) (IAMAddition, error) {
+	var v struct {
+		Operation string          `json:"operation"`
+		Actions   []string        `json:"actions"`
+		Reason    string          `json:"reason"`
+		Evidence  json.RawMessage `json:"evidence"`
+	}
+	if err := strictUnmarshal(raw, &v); err != nil {
+		return IAMAddition{}, err
+	}
+	if !token.IsExported(v.Operation) || len(v.Actions) == 0 || v.Reason == "" || len(v.Evidence) == 0 {
+		return IAMAddition{}, errors.New(`an entry needs "operation", the "actions" it adds, the "reason" the Service Reference omits them and their "evidence"`)
+	}
+	out := IAMAddition{Operation: v.Operation, Reason: v.Reason}
+	for _, a := range v.Actions {
+		act, err := parseIAMAction(a)
+		if err != nil {
+			return IAMAddition{}, err
+		}
+		if slices.Contains(out.Actions, act) {
+			return IAMAddition{}, fmt.Errorf("%s is listed twice; remove one", act)
+		}
+		out.Actions = append(out.Actions, act)
+	}
+	if v.Evidence[0] == '[' {
+		return IAMAddition{}, errors.New("evidence: give one {label, source, validated?} object; the list form belongs to overlays")
+	}
+	ev, err := parseEvidence(v.Evidence)
+	if err != nil {
+		return IAMAddition{}, fmt.Errorf("evidence: %w", err)
+	}
+	out.Evidence = ev[0]
+	return out, nil
 }
 
 func parseRawOperation(raw json.RawMessage) (RawOperation, error) {

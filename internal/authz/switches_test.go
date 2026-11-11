@@ -26,6 +26,7 @@ func TestSwitchesRegisterEveryEvaluationChoice(t *testing.T) {
 		"iam.wildcard-principal.role-session",
 		"iam.wildcard-principal.service",
 		"iam.principal-tag.case-duplicates",
+		"iam.policy.principal-existence",
 		"kms.key-policy.role-boundary",
 		"s3.root.bucket-policy-lockout",
 		"iam.denial.grammar",
@@ -60,6 +61,11 @@ func TestSwitchesRegisterEveryEvaluationChoice(t *testing.T) {
 		// it by inference (iam-evaluation.md 6.13).
 		if e.Name == "iam.principal-tag.case-duplicates" && e.Label != evidence.Inferred {
 			t.Errorf("iam.principal-tag.case-duplicates label = %s, want %s (iam-evaluation.md 6.13)", e.Label, evidence.Inferred)
+		}
+		// AWS refuses a principal that does not exist (IAM-EVAL-24);
+		// understudy deliberately does not check (iam-evaluation.md 3.4).
+		if e.Name == "iam.policy.principal-existence" && (e.Value != "unchecked" || e.Label != evidence.Inferred) {
+			t.Errorf("iam.policy.principal-existence = %s (%s), want unchecked (%s)", e.Value, e.Label, evidence.Inferred)
 		}
 		if e.Name == "iam.resource-tag.case-duplicates" {
 			t.Errorf("iam.resource-tag.case-duplicates is registered, but aws:ResourceTag/ is never supplied (iam-evaluation.md 8.2)")

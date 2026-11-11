@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 )
 
@@ -227,13 +228,15 @@ const (
 )
 
 // parsePolicy accepts a JSON object of at most 8,192 bytes and 20
-// statements, or "" for no policy (sqs.md 4); the statements are stored
-// verbatim, not evaluated. JSON null decodes to no object, so it is
+// statements, or "" for no policy (sqs.md 4). The statements are stored as
+// sent, except that a bare account id named as an AWS principal becomes
+// the account's root ARN in partition (iam-evaluation.md 5.4,
+// IAM-EVAL-25); the limits apply to the text as sent, since where AWS
+// measures them is unrecorded. JSON null decodes to no object, so it is
 // refused too. Statement is one object or a list.
-func parsePolicy(v string) (canonical string, apply func(*Queue), err *awserr.Error) {
-	apply = func(q *Queue) { q.Attributes.Policy = v }
+func parsePolicy(v string, partition aws.Partition) (canonical string, apply func(*Queue), err *awserr.Error) {
 	if v == "" {
-		return v, apply, nil
+		return v, func(q *Queue) { q.Attributes.Policy = "" }, nil
 	}
 	if len(v) > maxPolicyBytes {
 		return "", nil, errPolicyTooLarge(len(v))
@@ -246,7 +249,8 @@ func parsePolicy(v string) (canonical string, apply func(*Queue), err *awserr.Er
 	if json.Unmarshal(doc["Statement"], &statements) == nil && len(statements) > maxPolicyStatements {
 		return "", nil, errPolicyStatements(len(statements))
 	}
-	return v, apply, nil
+	stored := policydoc.RootAccountPrincipals(v, partition)
+	return stored, func(q *Queue) { q.Attributes.Policy = stored }, nil
 }
 
 // parseRedrivePolicy checks a RedrivePolicy (sqs.md 5.1 and 9.1): "" for
@@ -311,9 +315,9 @@ func parseRedriveAllowPolicy(v string) (canonical string, apply func(*Queue), er
 	return p.String(), func(q *Queue) { q.Attributes.RedriveAllowPolicy = &p }, nil
 }
 
-// settable lists the attributes CreateQueue and SetQueueAttributes take,
-// with the ranges of sqs.md 4.
-func settable() []attribute {
+// settable lists the attributes CreateQueue and SetQueueAttributes take
+// for a queue in partition, with the ranges of sqs.md 4.
+func settable(partition aws.Partition) []attribute {
 	return []attribute{
 		intAttribute(sqsapi.QueueAttributeNameDelaySeconds, 0, 900, func(a *Attributes) *int32 { return &a.DelaySeconds }),
 		intAttribute(sqsapi.QueueAttributeNameMaximumMessageSize, 1024, maxMessageBytes, func(a *Attributes) *int32 { return &a.MaximumMessageSize }),
@@ -343,7 +347,9 @@ func settable() []attribute {
 			},
 			get: func(q *Queue) string { return q.Attributes.KmsMasterKeyID },
 		},
-		{name: sqsapi.QueueAttributeNamePolicy, parse: parsePolicy, get: func(q *Queue) string { return q.Attributes.Policy }},
+		{name: sqsapi.QueueAttributeNamePolicy, parse: func(v string) (string, func(*Queue), *awserr.Error) {
+			return parsePolicy(v, partition)
+		}, get: func(q *Queue) string { return q.Attributes.Policy }},
 		{name: sqsapi.QueueAttributeNameRedrivePolicy, parse: parseRedrivePolicy, get: func(q *Queue) string {
 			if p := q.Attributes.RedrivePolicy; p != nil {
 				return p.String()
@@ -378,9 +384,9 @@ type setting struct {
 // queue of the given type, in name order, so the first error and the
 // first conflict reported are the same on every run. FifoQueue is
 // accepted as "true" on a FIFO queue, where it changes nothing; on a
-// standard queue SQS does not know it (sqs.md 4).
-func parseAttributes(in map[sqsapi.QueueAttributeName]string, fifo bool) ([]setting, *awserr.Error) {
-	table := settable()
+// standard queue SQS does not know it (sqs.md 4). partition is the queue's.
+func parseAttributes(in map[sqsapi.QueueAttributeName]string, fifo bool, partition aws.Partition) ([]setting, *awserr.Error) {
+	table := settable(partition)
 	var out []setting
 	for _, name := range slices.Sorted(maps.Keys(in)) {
 		if name == sqsapi.QueueAttributeNameFifoQueue && fifo {

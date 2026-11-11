@@ -20,9 +20,10 @@ const (
 // and Denial.Message follow; the enforce pair (iam.enforce.order,
 // iam.enforce.missing-resource) is what the kernel's step 8 follows. No
 // entry lists its Ops: the service that reports it names them (SwitchesOf).
-// iam.enforce.missing-resource is deny-first only for the operations asked
-// at step 8; those that resolve a resource by name first report
-// ResolveFirstSwitch instead.
+// iam.enforce.missing-resource is deny-first, as IAM-ENF-14 recorded for
+// most services; the services AWS answers not-found first report their own
+// resolve-first switch (RecordedResolveFirstSwitch), and IAM and Secrets
+// Manager their by-name switch (RecordedDenyFirstSwitch).
 func Switches() []fidelity.Entry {
 	inferred := evidence.Inferred
 	return []fidelity.Entry{
@@ -34,6 +35,16 @@ func Switches() []fidelity.Entry {
 		recordedSwitch("iam.variables.unresolved", "value-null", evaluationNote, "7.3", "IAM-EVAL-16", SimulatorUnreplayed),
 		recordedSwitch("iam.not-principal.match", "every-level", evaluationNote, "5.4", "IAM-EVAL-18", SessionUnreplayed),
 		recordedSwitch("iam.wildcard-principal.service", "matches", evaluationNote, "2.9", "IAM-EVAL-33", DeliveryUnreplayed),
+		// Storing a trust policy. Checking would refuse every policy naming
+		// a role never created in understudy, which the default setup
+		// relies on (iam-evaluation.md 3.4).
+		fidelity.Switch[string]{
+			Name: "iam.policy.principal-existence", Value: "unchecked", Label: inferred,
+			Ref: "docs/research/" + evaluationNote + "#3.4", Record: "IAM-EVAL-24",
+			Settles: fidelity.NoScenario{Reason: "AWS contradicts it: IAM-EVAL-24 recorded " + recordedOn + " that IAM refuses a trust policy naming a role " +
+				"that does not exist (MalformedPolicyDocument) and SQS a queue policy naming a missing user (InvalidAttributeValue); understudy stores " +
+				"such a policy, so that setups naming roles never created in understudy keep working (" + evaluationNote + " 3.4)"},
+		}.Entry(),
 		// Decide
 		recordedSwitch("iam.wildcard-principal.role-session", "direct", evaluationNote, "2.3", "IAM-EVAL-19", SessionUnreplayed),
 		recordedSwitch("kms.key-policy.role-boundary", "limited", evaluationNote, "4.3", "IAM-EVAL-27", SessionUnreplayed),
@@ -76,11 +87,28 @@ func Switches() []fidelity.Entry {
 		// Denial.Message: the phrases and the one reason are aws-doc, and
 		// every recorded denial writes "on resource:" (iam-enforcement-surfaces.md 4.1).
 		recordedSwitch("iam.denial.grammar", grammarValue, enforcementNote, "4.1", "IAM-ENF-15", SessionUnreplayed),
+		// Denial.ResourceText (kernel.WithDenialResource): the text is
+		// recorded, what AWS evaluates against it is not (12.3).
+		fidelity.Switch[string]{
+			Name: "iam.denial.list-resource", Value: listResourceValue, Label: inferred,
+			Ref: "docs/research/" + enforcementNote + "#12.3", Record: "IAM-ENF-41",
+			Settles: fidelity.NoScenario{Reason: "IAM-ENF-35, IAM-ENF-37 and IAM-ENF-39 to IAM-ENF-41 recorded " + recordedOn + " the wildcard resource a list operation's denial names " +
+				"(IAM-ENF-36 and IAM-ENF-38: none for Kinesis ListStreams and SES v1 ListIdentities); inferred: whether AWS matches a policy's Resource against that wildcard " +
+				"rather than \"*\" is unrecorded, so evaluation and the access record keep \"*\" (" + enforcementNote + " 12.3)"},
+		}.Entry(),
 		// The kernel's step 8.
 		researchSwitch("iam.enforce.order", "validate-first", inferred, enforcementNote, "5.3", "IAM-ENF-13"),
-		researchSwitch("iam.enforce.missing-resource", "deny-first", inferred, enforcementNote, "5.3", "IAM-ENF-14"),
+		recordedSwitch("iam.enforce.missing-resource", "deny-first", enforcementNote, "5.3", "IAM-ENF-14", missingResourceOrder+"; "+SessionUnreplayed),
 	}
 }
+
+// missingResourceOrder is the order IAM-ENF-14 recorded per service for a
+// caller with no permissions naming a resource that does not exist
+// (iam-enforcement-surfaces.md 5.3), which switch
+// iam.enforce.missing-resource states with its exceptions.
+const missingResourceOrder = "deny-first in DynamoDB, EventBridge, IAM GetRole, Lambda, Logs, Secrets Manager, SNS and STS; " +
+	"resolve-first, each under its own switch, for SQS queues (sqs.enforce.missing-resource), S3 buckets and keys (s3.enforce.missing-resource) " +
+	"and KMS key ids (kms.enforce.missing-resource.by-name)"
 
 // SwitchesOf are the Switches a service reports, those whose names begin
 // with service and a dot, each governing ops: IAM reports the evaluation
@@ -114,15 +142,37 @@ func EnforcementSwitch(name, value string, label evidence.Label, section, record
 	return e
 }
 
-// ResolveFirstSwitch is service's switch <service>.enforce.missing-resource.by-name,
-// at resolve-first, governing ops: the operations that find their resource
-// by name (kernel.Bindings.ResolvedFirstOps, and IAM GetRole), whose ARN
-// only the lookup learns, so a missing resource answers its not-found error
-// before authorization. It deviates from deny-first, the default of
-// iam.enforce.missing-resource, whose AWS behavior is unrecorded
-// (iam-enforcement-surfaces.md 5.3, 12.8; amended 2026-10-27).
-func ResolveFirstSwitch(service string, ops []string) fidelity.Entry {
-	return EnforcementSwitch(service+".enforce.missing-resource.by-name", "resolve-first", evidence.Inferred, "5.3", "IAM-ENF-14", ops)
+// RecordedDenyFirstSwitch is the switch name at deny-first, governing ops,
+// where IAM-ENF-14 recorded the denial of a caller with no permissions
+// before the resource's not-found error, naming the resource as the
+// request gave it (IAM GetRole, Secrets Manager): recorded says which
+// calls the recording made, and inferred which of ops, and which choices,
+// follow them by inference (iam-enforcement-surfaces.md 5.3, 12.8).
+func RecordedDenyFirstSwitch(name, recorded, inferred string, ops []string) fidelity.Entry {
+	return RecordedSwitch(name, "deny-first", "5.3", "IAM-ENF-14",
+		"recorded: "+recorded+"; inferred: "+inferred+"; "+SessionUnreplayed, ops)
+}
+
+// AccountIDPrincipalSwitch is service's switch
+// <service>.resource-policy.account-id-principal, at root-arn, governing
+// ops: the operations that store a resource policy, which store a bare
+// account id named as an AWS principal as the account's root ARN
+// (policydoc.RootAccountPrincipals), as record recorded for the service
+// (iam-evaluation.md 5.4, 12.3).
+func AccountIDPrincipalSwitch(service, record string, ops []string) fidelity.Entry {
+	e := recordedSwitch(service+".resource-policy.account-id-principal", "root-arn", evaluationNote, "5.4", record,
+		"the capture is the read-back only; the put that stored the policy ran unrecorded, so the replay has no policy to read")
+	e.Ops = slices.Clone(ops)
+	return e
+}
+
+// RecordedResolveFirstSwitch is the switch name at resolve-first, governing
+// ops, where IAM-ENF-14 recorded the not-found answer before authorization:
+// recorded says which calls the recording made, and inferred which of ops
+// follow them by inference (iam-enforcement-surfaces.md 5.3, 12.8).
+func RecordedResolveFirstSwitch(name, recorded, inferred string, ops []string) fidelity.Entry {
+	return RecordedSwitch(name, "resolve-first", "5.3", "IAM-ENF-14",
+		"recorded: "+recorded+"; inferred: "+inferred+"; "+SessionUnreplayed, ops)
 }
 
 // DeliveryResolveFirstSwitch is service's switch
@@ -146,6 +196,12 @@ func DeliveryResolveFirstSwitch(service, section, record string, ops []string) f
 // written on every denial of a pair on a resource, as every recorded
 // denial writes it (IAM-ENF-15).
 const grammarValue = "iam-4.1, one reason, on resource whenever the pair has a resource"
+
+// listResourceValue is switch iam.denial.list-resource's value: a denied
+// list operation names its service's wildcard resource, such as
+// arn:aws:states:<region>:<account>:stateMachine:*, while its pair is
+// evaluated on "*" (iam-enforcement-surfaces.md 12.3).
+const listResourceValue = "names the service wildcard, evaluated on *"
 
 // recordedOn is the date of the session that recorded the IAM-ENF and
 // IAM-EVAL items (testdata/parity/<service>/IAM-ENF, iam/IAM-EVAL-*).

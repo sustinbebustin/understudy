@@ -81,12 +81,15 @@ func startRounding() fidelity.Switch[string] {
 }
 
 // Switches lists the behaviors chosen without AWS-recorded evidence, with
-// the identity of a denial per protocol (iam-enforcement-surfaces.md 12.8).
+// the identity of a denial per protocol, which IAM-ENF-09 recorded over
+// Query and JSON; CBOR follows JSON, inferred (iam-enforcement-surfaces.md
+// 12.8).
 func (s *Service) Switches() []fidelity.Entry {
 	return append([]fidelity.Entry{
 		timestampWindow().Entry(), startRounding().Entry(),
-		authz.DenialSwitch("cloudwatch.denial.identity",
-			"AccessDenied 403 over Query; __type com.amazon.coral.service#AccessDeniedException with header AccessDenied;Sender over JSON and CBOR",
-			evidence.Inferred, "3.2", "IAM-ENF-09", s.k.Bindings().AuthorizedOps(cloudwatchapi.Service())),
+		authz.RecordedSwitch("cloudwatch.denial.identity",
+			"AccessDenied 403 over Query; __type com.amazon.coral.service#AccessDeniedException over JSON and CBOR, "+
+				"403 with header AccessDenied;Sender under x-amzn-query-mode, else 400 without it (CBOR inferred from JSON)",
+			"3.2", "IAM-ENF-09", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(cloudwatchapi.Service())),
 	}, slices.Concat(alarmSwitches(), statisticsSwitches())...)
 }

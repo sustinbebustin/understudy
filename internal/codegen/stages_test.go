@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io/fs"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -148,6 +149,22 @@ func TestStageFailures(t *testing.T) {
 				`set "namespace" or "detail" to true; an envelope that follows Smithy's example needs no trait`,
 		},
 		{
+			name: "queryErrorHeader that says what its absence says",
+			extra: overlay(`"com.example.golden#Throttled": {"type": "apply", "traits": {
+				"dev.understudy#queryErrorHeader": {"send": "always"}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#Throttled: dev.understudy#queryErrorHeader: " +
+				`"send": "always" is what the absence of the trait already says; drop the trait`,
+		},
+		{
+			name: "queryErrorHeader with an unknown value",
+			extra: overlay(`"com.example.golden#Throttled": {"type": "apply", "traits": {
+				"dev.understudy#queryErrorHeader": {"send": "sometimes"}, ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#Throttled: dev.understudy#queryErrorHeader: " +
+				`"send" is "sometimes"; the one value is "query-mode"`,
+		},
+		{
 			name: "unknown dev.understudy trait",
 			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "traits": {
 				"dev.understudy#flavor": "vanilla", ` + evidence + `}}`),
@@ -156,7 +173,7 @@ func TestStageFailures(t *testing.T) {
 				"the closed set is [dev.understudy#alwaysEmit dev.understudy#denialError dev.understudy#emptyCollection dev.understudy#enumOrder dev.understudy#errorNamespace " +
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
 				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#patternEcho " +
-				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryKeyAlias " +
+				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryErrorHeader dev.understudy#queryKeyAlias " +
 				"dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationError dev.understudy#validationError " +
 				"dev.understudy#validationInputRoot dev.understudy#validationPathStyle]",
@@ -614,6 +631,69 @@ func TestIAMPrimaryAction(t *testing.T) {
 	}
 }
 
+// TestIAMAdditions: an iamAdditions entry appends the actions the Service
+// Reference omits after the operation's own, primary first as before. An
+// entry adding an action the table already lists fails, so a Service
+// Reference change that closes the gap is noticed, as does one for an
+// operation that authorizes nothing, whose first addition would become its
+// primary.
+func TestIAMAdditions(t *testing.T) {
+	const config = "codegen/services/golden.json"
+	add := func(op string, actions ...string) []codegen.IAMAddition {
+		a := codegen.IAMAddition{Operation: op, Reason: "test", Evidence: codegen.Evidence{Label: "inferred", Source: "test"}}
+		for _, s := range actions {
+			prefix, name, _ := strings.Cut(s, ":")
+			a.Actions = append(a.Actions, registry.IAMAction{Prefix: prefix, Name: name})
+		}
+		return []codegen.IAMAddition{a}
+	}
+	tests := []struct {
+		name      string
+		additions []codegen.IAMAddition
+		list      string // PutKinds's whole list, when generation succeeds
+		err       string
+	}{
+		{
+			name: "appended after the table's actions", additions: add("PutKinds", "golden:PutKindsVersion", "golden:TagThingVersion"),
+			list: `{Prefix: "golden", Name: "PutKinds"}, {Prefix: "golden", Name: "TagThing"}, {Prefix: "iam", Name: "PassRole"}, ` +
+				`{Prefix: "golden", Name: "PutKindsVersion"}, {Prefix: "golden", Name: "TagThingVersion"}}`,
+		},
+		{
+			name: "an action the table lists", additions: add("PutKinds", "golden:PutKindsVersion", "golden:TagThing"),
+			err: "understudy-gen ir: com.example.golden#PutKinds: the Service Reference already lists golden:TagThing; remove it from the iamAdditions entry in " + config,
+		},
+		{
+			name: "an operation that authorizes nothing", additions: add("Ping", "golden:Ping"),
+			err: "understudy-gen ir: com.example.golden#Ping: the Service Reference lists no authorized action, so an addition would become the primary; " +
+				"remove its iamAdditions entry from " + config,
+		},
+		{
+			name: "no modeled operation", additions: add("PutKind", "golden:PutKindsVersion"),
+			err: "understudy-gen ir: " + config + ": iamAdditions names PutKind, which is not a modeled operation of com.example.golden#Golden",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in := goldenInputs(t)
+			in.Config.IAMAdditions = tt.additions
+			files, err := codegen.Generate(in)
+			if tt.err != "" {
+				var gerr *codegen.Error
+				if !errors.As(err, &gerr) || gerr.Stage != codegen.StageIR || err.Error() != tt.err {
+					t.Fatalf("Generate = %v\nwant %s", err, tt.err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := "[]registry.IAMAction{" + tt.list; !bytes.Contains(files["ops_gen.go"], []byte(want)) {
+				t.Fatalf("PutKinds does not list %s:\n%s", tt.list, files["ops_gen.go"])
+			}
+		})
+	}
+}
+
 // TestIAMRowPerSDKClient: a prefix two models share can list one operation
 // name once per Boto3 client; sdkService picks the model's row, and a config
 // without one is refused rather than given either row.
@@ -690,6 +770,59 @@ func TestServiceConfigIAMPrimaryEntries(t *testing.T) {
 	want := []codegen.IAMPrimary{{Operation: "ListObjects", Action: registry.IAMAction{Prefix: "s3", Name: "ListBucket"}, Reason: "smithy-models.md 8"}}
 	if err != nil || !slices.Equal(cfg.IAMPrimary, want) {
 		t.Fatalf("ParseServiceConfig = %+v, %v; want iamPrimary %+v", cfg.IAMPrimary, err, want)
+	}
+}
+
+// TestServiceConfigIAMAdditionEntries: an iamAdditions entry names the
+// actions it adds, the reason the Service Reference omits them and the
+// evidence that AWS needs them, in the overlay evidence form; one operation
+// has one entry.
+func TestServiceConfigIAMAdditionEntries(t *testing.T) {
+	const head = `{"service": "com.amazonaws.s3#AmazonS3", "package": "s3api", "model": "s3", "iamPrefix": "s3", "iamAdditions": [`
+	const ev = `"evidence": {"label": "aws-doc", "source": "iam-enforcement-surfaces.md 10.3"}`
+	const entry = `{"operation": "HeadObject", "actions": ["s3:GetObjectVersion"], "reason": "a version", ` + ev + `}`
+	const prefix = "understudy-gen load: codegen/services/s3.json: iamAdditions[0]: "
+	const needs = `an entry needs "operation", the "actions" it adds, the "reason" the Service Reference omits them and their "evidence"`
+	tests := []struct{ name, entries, want string }{
+		{"no reason", `{"operation": "HeadObject", "actions": ["s3:GetObjectVersion"], ` + ev + `}`, prefix + needs},
+		{"no actions", `{"operation": "HeadObject", "actions": [], "reason": "r", ` + ev + `}`, prefix + needs},
+		{"no evidence", `{"operation": "HeadObject", "actions": ["s3:GetObjectVersion"], "reason": "r"}`, prefix + needs},
+		{
+			"evidence without a source", `{"operation": "HeadObject", "actions": ["s3:GetObjectVersion"], "reason": "r", "evidence": {"label": "aws-doc"}}`,
+			prefix + `evidence: item 0: "source" is required: a URL or a docs/research reference that backs the entry`,
+		},
+		{
+			"evidence in the list form", `{"operation": "HeadObject", "actions": ["s3:GetObjectVersion"], "reason": "r", "evidence": [{"label": "aws-doc", "source": "s"}]}`,
+			prefix + `evidence: give one {label, source, validated?} object; the list form belongs to overlays`,
+		},
+		{
+			"an action listed twice", `{"operation": "HeadObject", "actions": ["s3:GetObjectVersion", "s3:GetObjectVersion"], "reason": "r", ` + ev + `}`,
+			prefix + "s3:GetObjectVersion is listed twice; remove one",
+		},
+		{
+			"not an action", `{"operation": "HeadObject", "actions": ["GetObjectVersion"], "reason": "r", ` + ev + `}`,
+			prefix + `"GetObjectVersion" is not an IAM action prefix:Action, such as lambda:InvokeFunctionUrl`,
+		},
+		{
+			"two entries for one operation", entry + ", " + entry,
+			"understudy-gen load: codegen/services/s3.json: iamAdditions[1]: HeadObject has two entries; merge them into one",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := codegen.ParseServiceConfig(strings.NewReader(head+tt.entries+"]}"), "s3")
+			if err == nil || err.Error() != tt.want {
+				t.Fatalf("ParseServiceConfig = %v\nwant %s", err, tt.want)
+			}
+		})
+	}
+	cfg, err := codegen.ParseServiceConfig(strings.NewReader(head+entry+"]}"), "s3")
+	want := []codegen.IAMAddition{{
+		Operation: "HeadObject", Actions: []registry.IAMAction{{Prefix: "s3", Name: "GetObjectVersion"}}, Reason: "a version",
+		Evidence: codegen.Evidence{Label: "aws-doc", Source: "iam-enforcement-surfaces.md 10.3"},
+	}}
+	if err != nil || !reflect.DeepEqual(cfg.IAMAdditions, want) {
+		t.Fatalf("ParseServiceConfig = %+v, %v; want iamAdditions %+v", cfg.IAMAdditions, err, want)
 	}
 }
 

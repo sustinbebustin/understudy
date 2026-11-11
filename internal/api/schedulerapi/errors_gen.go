@@ -9,7 +9,7 @@ import (
 
 // IdentityAccessDeniedException returns the identity of com.amazon.coral.service#AccessDeniedException.
 func IdentityAccessDeniedException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazon.coral.service#AccessDeniedException", JSONType: "AccessDeniedException", QueryCode: "AccessDeniedException", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
 }
 
 // ErrAccessDeniedException returns an AccessDeniedException error with message.

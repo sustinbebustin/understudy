@@ -28,10 +28,10 @@ func (s *Service) bindPermissions(b sqsapi.Binder) {
 		"conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key"}
 	b.AddPermission(s.addPermission, stored,
 		kernel.WithCheck(checkAddPermission),
-		queueByURL(func(in *sqsapi.AddPermissionInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.AddPermissionInput) string { return in.QueueUrl }))
 	b.RemovePermission(s.removePermission, stored,
 		kernel.WithCheck(func(in *sqsapi.RemovePermissionInput) *awserr.Error { return checkLabel(in.Label) }),
-		queueByURL(func(in *sqsapi.RemovePermissionInput) string { return in.QueueUrl }))
+		queueByURL(s, func(in *sqsapi.RemovePermissionInput) string { return in.QueueUrl }))
 }
 
 // checkLabel checks a permission label: 1 to 80 letters, digits, hyphens

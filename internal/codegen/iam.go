@@ -166,7 +166,7 @@ func (t *iamTable) entry(prefix, sdk, op string) (iamEntry, bool, error) {
 // Any other operation fails, so an ambiguous entry the Service Reference
 // adds cannot pick an alphabetical first silently; so does an entry the
 // rules make redundant, or one naming an action op does not authorize.
-func primaryFirst(config, prefix, op string, row iamEntry, mapped map[string]IAMPrimary) ([]registry.IAMAction, error) {
+func primaryFirst(config, prefix, op string, row iamEntry, mapped map[string]*IAMPrimary) ([]registry.IAMAction, error) {
 	entry, isMapped := mapped[op]
 	acts := row.authorized
 	if self := (registry.IAMAction{Prefix: prefix, Name: op}); row.listed && !slices.Contains(acts, self) {
@@ -207,4 +207,24 @@ func primaryFirst(config, prefix, op string, row iamEntry, mapped map[string]IAM
 	}
 	out := append([]registry.IAMAction{acts[primary]}, acts[:primary]...)
 	return append(out, acts[primary+1:]...), nil
+}
+
+// extend appends addition's actions to an operation's ordered list; a nil
+// addition leaves the list as it is. It refuses an action the list already
+// holds, so a Service Reference change that closes the gap is noticed, and
+// an operation with no action, whose first addition would become its
+// primary.
+func extend(config string, ordered []registry.IAMAction, addition *IAMAddition) ([]registry.IAMAction, error) {
+	if addition == nil {
+		return ordered, nil
+	}
+	if len(ordered) == 0 {
+		return nil, fmt.Errorf("the Service Reference lists no authorized action, so an addition would become the primary; remove its iamAdditions entry from %s", config)
+	}
+	for _, a := range addition.Actions {
+		if slices.Contains(ordered, a) {
+			return nil, fmt.Errorf("the Service Reference already lists %s; remove it from the iamAdditions entry in %s", a, config)
+		}
+	}
+	return append(slices.Clone(ordered), addition.Actions...), nil
 }

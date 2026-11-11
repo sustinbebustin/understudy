@@ -105,7 +105,11 @@ func (s *Service) bindMachines(b sfnapi.Binder) {
 	b.UpdateStateMachine(s.updateStateMachine, registry.Partial{Note: noteUpdate}, updateAuthorization()...)
 	b.DescribeStateMachine(s.describeStateMachine, registry.Full{})
 	b.DeleteStateMachine(s.deleteStateMachine, registry.Partial{Note: noteDelete})
-	b.ListStateMachines(s.listStateMachines, registry.Full{})
+	b.ListStateMachines(s.listStateMachines, registry.Full{},
+		// A denial names stateMachine:* (iam-enforcement-surfaces.md 12.3, IAM-ENF-40).
+		kernel.WithDenialResource(func(c *kernel.Call, _ *sfnapi.ListStateMachinesInput) string {
+			return c.Scope().ARN("states", "stateMachine:*").String()
+		}))
 	b.ValidateStateMachineDefinition(s.validateStateMachineDefinition, registry.Partial{Note: noteValidate})
 	b.ListStateMachineVersions(s.listStateMachineVersions, registry.Partial{Note: noteVersions})
 	b.TagResource(s.tagResource, registry.Full{})

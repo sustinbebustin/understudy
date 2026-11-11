@@ -82,17 +82,28 @@ func splitFunctionName(scope aws.Scope, name string) (aws.ARN, string, *awserr.E
 }
 
 // passedRole is the execution role a configuration write passes, which
-// iam:PassRole acts on; nothing when it passes none or the value is not an
-// IAM ARN, which validation answers.
+// iam:PassRole acts on, as the resource list a binding pairs it with;
+// nothing when executionRole has none.
 func passedRole(role *string) []aws.ARN {
-	if role == nil {
-		return nil
-	}
-	a, err := aws.ParseARN(*role)
-	if err != nil || a.Service != "iam" {
+	a, ok := executionRole(role)
+	if !ok {
 		return nil
 	}
 	return []aws.ARN{a}
+}
+
+// executionRole is the one execution role a configuration write passes;
+// false when it passes none or the value is not an IAM ARN, which
+// validation answers.
+func executionRole(role *string) (aws.ARN, bool) {
+	if role == nil {
+		return aws.ARN{}, false
+	}
+	a, err := aws.ParseARN(*role)
+	if err != nil || a.Service != "iam" {
+		return aws.ARN{}, false
+	}
+	return a, true
 }
 
 // regionPrefix is the region segment of the FunctionName grammar
@@ -125,8 +136,11 @@ func (r functionRef) qualifiedARN() string {
 func (r functionRef) notFound() *awserr.Error { return errFunctionNotFound(r.qualifiedARN()) }
 
 // functionARN is the unqualified ARN of the function name in scope.
-func functionARN(scope aws.Scope, name string) string {
-	return aws.ARN{Partition: scope.Partition.String(), Service: "lambda", Region: scope.Region.String(), Account: scope.Account.String(), Resource: "function:" + name}.String()
+func functionARN(scope aws.Scope, name string) string { return functionResource(scope, name).String() }
+
+// functionResource is functionARN as an aws.ARN.
+func functionResource(scope aws.Scope, name string) aws.ARN {
+	return aws.ARN{Partition: scope.Partition.String(), Service: "lambda", Region: scope.Region.String(), Account: scope.Account.String(), Resource: "function:" + name}
 }
 
 // mappingARN is the ARN of the event source mapping uuid in scope.

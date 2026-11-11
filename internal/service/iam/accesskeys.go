@@ -19,10 +19,10 @@ import (
 // bindAccessKeys binds the access keys of users. The identity store mints
 // each key, so a request signed with it runs as the user.
 func (s *Service) bindAccessKeys(b iamapi.Binder) {
-	b.CreateAccessKey(s.createAccessKey, registry.Partial{Note: withResolved("only for IAM users: root user access keys are not managed, so a root caller must name a user")})
-	b.ListAccessKeys(s.listAccessKeys, registry.Partial{Note: withResolved("root user access keys are not managed, so a root caller that names no user lists none")})
-	b.UpdateAccessKey(s.updateAccessKey, registry.StoredOnly{Note: withResolved("an Inactive key still authenticates under every iam.enforce mode and --sigv4 setting, since understudy does not check a key's status, where AWS rejects the key: under off a call it signs is served; under advise and enforce it runs as the user, whose policies are evaluated, so under enforce it is served whenever they allow it")})
-	b.DeleteAccessKey(s.deleteAccessKey, resolvedPartial())
+	b.CreateAccessKey(s.createAccessKey, registry.Partial{Note: withByName("only for IAM users: root user access keys are not managed, so a root caller must name a user")})
+	b.ListAccessKeys(s.listAccessKeys, registry.Partial{Note: withByName("root user access keys are not managed, so a root caller that names no user lists none")})
+	b.UpdateAccessKey(s.updateAccessKey, registry.StoredOnly{Note: withByName("an Inactive key still authenticates under every iam.enforce mode and --sigv4 setting, since understudy does not check a key's status, where AWS rejects the key: under off a call it signs is served; under advise and enforce it runs as the user, whose policies are evaluated, so under enforce it is served whenever they allow it")})
+	b.DeleteAccessKey(s.deleteAccessKey, byNamePartial())
 }
 
 // accessKeyIndex finds a user's access key by id.

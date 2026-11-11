@@ -90,8 +90,9 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 // declareAccess states what the bound operations whose generated list
 // holds more than one lambda action touch and use besides their primary
 // action (CreateFunction and UpdateFunctionConfiguration, Permissions):
-// the role passed as the execution role, on which the access record keeps
-// iam:PassRole; lambda:TagResource for tags; and
+// the role passed as the execution role, on which step 8 asks and the
+// access record keeps iam:PassRole with iam:PassedToService
+// lambda.amazonaws.com; lambda:TagResource for tags; and
 // lambda:PassCapacityProvider for a capacity provider, which the call then
 // touches so the action lands on the provider's ARN. The recorder pairs
 // every lambda action of a call with every lambda resource it touched, so
@@ -120,15 +121,36 @@ func declareAccess(b *kernel.Binder) {
 			if len(in.Tags) > 0 {
 				out = append(out, lambdaAction("TagResource"))
 			}
-			return out
-		}))
+			return append(out, passRoleAction())
+		}),
+		kernel.WithConditionKeys(func(*kernel.Call, *lambdaapi.CreateFunctionInput) kernel.ConditionKeys { return passedToLambda() }))
 	kernel.Declare(b, lambdaapi.OpUpdateFunctionConfiguration,
 		kernel.WithResources(func(_ *kernel.Call, in *lambdaapi.UpdateFunctionConfigurationInput) []aws.ARN {
 			return slices.Concat(passedRole(in.Role), capacityProvider(in.CapacityProviderConfig), layerVersions(in.Layers))
 		}),
 		kernel.WithActions(func(_ *kernel.Call, in *lambdaapi.UpdateFunctionConfigurationInput) []registry.IAMAction {
-			return append(providerActions(in.CapacityProviderConfig), layerActions(in.Layers)...)
+			return append(providerActions(in.CapacityProviderConfig), append(layerActions(in.Layers), passRoleAction())...)
+		}),
+		kernel.WithConditionKeys(func(_ *kernel.Call, in *lambdaapi.UpdateFunctionConfigurationInput) kernel.ConditionKeys {
+			if in.Role == nil {
+				return nil
+			}
+			return passedToLambda()
 		}))
+}
+
+// passRoleAction is iam:PassRole, which CreateFunction and
+// UpdateFunctionConfiguration ask about at step 8 on the role they pass
+// and on nothing when they pass none, since the kernel pairs an action of
+// another service only with the resources of that service the call
+// touched (iam-enforcement-surfaces.md 12.6). AWS answers its denial
+// before the role's trust is checked (testdata/parity/lambda/IAM-ENF/26-no-passrole.json).
+func passRoleAction() registry.IAMAction { return registry.IAMAction{Prefix: "iam", Name: "PassRole"} }
+
+// passedToLambda is the condition key a role passed to Lambda carries
+// (iam-enforcement-surfaces.md 7.4, 10.2).
+func passedToLambda() kernel.ConditionKeys {
+	return kernel.ConditionKeys{"iam:PassedToService": {lambdaService}}
 }
 
 // layerActions is lambda:GetLayerVersion for a configuration that names

@@ -118,14 +118,15 @@ func TestService(t *testing.T) {
 
 // TestIdentities: __type is namespaced by errorNamespace for awsJson1_0,
 // jsonType renames, the Query code and query-mode status come from
-// awsQueryError, the message key from the member's own spelling.
+// awsQueryError, the message key from the member's own spelling, and
+// x-amzn-query-error in query mode only from queryErrorHeader.
 func TestIdentities(t *testing.T) {
 	tests := []struct {
 		got, want awserr.Identity
 	}{
 		{IdentityKindsFault(), awserr.Identity{
 			Shape: "com.example.golden#KindsFault", JSONType: "com.example.golden.v1#KindsFault", QueryCode: "Kinds.Fault",
-			Status: 409, QueryModeStatus: 404, Fault: awserr.Sender, MessageKey: awserr.MessageUpper,
+			Status: 409, QueryModeStatus: 404, QueryErrorWhen: awserr.QueryErrorInQueryMode, Fault: awserr.Sender, MessageKey: awserr.MessageUpper,
 		}},
 		{IdentityThrottled(), awserr.Identity{
 			Shape: "com.example.golden#Throttled", JSONType: "com.example.golden.v1#Throttled", QueryCode: "Throttled",

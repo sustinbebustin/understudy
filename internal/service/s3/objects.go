@@ -23,11 +23,11 @@ import (
 // bindObjects binds the object operations.
 func (s *Service) bindObjects(b s3api.Binder) {
 	put := func(in *s3api.PutObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutObject(s.putObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; " + eventHoldNote}, touches(put))
+	b.PutObject(s.putObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; " + eventHoldNote}, touches(s, put))
 	get := func(in *s3api.GetObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.GetObject(s.getObject, registry.Partial{Note: readNote}, touches(get))
+	b.GetObject(s.getObject, registry.Partial{Note: readNote}, touches(s, get))
 	head := func(in *s3api.HeadObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.HeadObject(s.headObject, registry.Partial{Note: readNote}, touches(head))
+	b.HeadObject(s.headObject, registry.Partial{Note: readNote}, touches(s, head))
 	attrs := func(in *s3api.GetObjectAttributesInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetObjectAttributes(func(ctx context.Context, c *kernel.Call, in *s3api.GetObjectAttributesInput) (*s3api.GetObjectAttributesOutput, *awserr.Error) {
 		out, err := read(ctx, s, c, attrs(in), func(b *Bucket) (*s3api.GetObjectAttributesOutput, *awserr.Error) {
@@ -37,19 +37,19 @@ func (s *Service) bindObjects(b s3api.Binder) {
 			return nil, missingKey(ctx, c, in.Bucket, err)
 		}
 		return out, nil
-	}, registry.Full{}, touches(attrs))
+	}, registry.Full{}, touches(s, attrs))
 	del := func(in *s3api.DeleteObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.DeleteObject(s.deleteObject, registry.Partial{Note: deleteNote}, touches(del))
+	b.DeleteObject(s.deleteObject, registry.Partial{Note: deleteNote}, touches(s, del))
 	dels := func(in *s3api.DeleteObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.DeleteObjects(s.deleteObjects, registry.Partial{Note: deleteNote}, touches(dels))
+	b.DeleteObjects(s.deleteObjects, registry.Partial{Note: deleteNote}, touches(s, dels))
 	cp := func(in *s3api.CopyObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.CopyObject(s.copyObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; " + eventHoldNote}, touches(cp))
+	b.CopyObject(s.copyObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; " + eventHoldNote}, touches(s, cp))
 	lv1 := func(in *s3api.ListObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.ListObjects(reader(s, lv1, listObjects), registry.Partial{Note: "no RestoreStatus"}, touches(lv1))
+	b.ListObjects(reader(s, lv1, listObjects), registry.Partial{Note: "no RestoreStatus"}, touches(s, lv1))
 	lv2 := func(in *s3api.ListObjectsV2Input) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.ListObjectsV2(reader(s, lv2, listObjectsV2), registry.Partial{Note: "no RestoreStatus"}, touches(lv2))
+	b.ListObjectsV2(reader(s, lv2, listObjectsV2), registry.Partial{Note: "no RestoreStatus"}, touches(s, lv2))
 	lvv := func(in *s3api.ListObjectVersionsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.ListObjectVersions(reader(s, lvv, listObjectVersions), registry.Partial{Note: "no RestoreStatus"}, touches(lvv))
+	b.ListObjectVersions(reader(s, lvv, listObjectVersions), registry.Partial{Note: "no RestoreStatus"}, touches(s, lvv))
 	s.bindObjectTagging(b)
 	s.bindObjectLockState(b)
 }

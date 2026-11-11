@@ -80,7 +80,11 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 			return scheduleResource(c, in.GroupName, in.Name)
 		}))
 	b.ListSchedules(s.listSchedules, registry.Partial{Note: "schedules come in group then name order, where AWS's order is neither name nor creation order (SCH-01); " +
-		"NextToken is understudy's own form; unrecorded, understudy's choice: 100 per page without MaxResults"})
+		"NextToken is understudy's own form; unrecorded, understudy's choice: 100 per page without MaxResults"},
+		// A denial names schedule/*/* (iam-enforcement-surfaces.md 12.3, IAM-ENF-37).
+		kernel.WithDenialResource(func(c *kernel.Call, _ *schedulerapi.ListSchedulesInput) string {
+			return c.Scope().ARN("scheduler", "schedule/*/*").String()
+		}))
 	b.GetSchedule(s.getSchedule, registry.Partial{Note: "members never set are left out where AWS sends them as explicit JSON null, which SDKs read alike (SCH-01)"},
 		kernel.WithResources(func(c *kernel.Call, in *schedulerapi.GetScheduleInput) []aws.ARN {
 			return scheduleResource(c, in.GroupName, in.Name)

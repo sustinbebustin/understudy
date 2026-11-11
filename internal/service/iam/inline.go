@@ -17,8 +17,8 @@ import (
 
 // bindInline binds the inline policies of roles and users.
 func (s *Service) bindInline(b iamapi.Binder) {
-	stored := registry.Partial{Note: withResolved(identityDocumentNote)}
-	named := resolvedPartial()
+	stored := registry.Partial{Note: withByName(identityDocumentNote)}
+	named := byNamePartial()
 	b.PutRolePolicy(func(_ context.Context, c *kernel.Call, in *iamapi.PutRolePolicyInput) (*iamapi.PutRolePolicyOutput, *awserr.Error) {
 		return unit[iamapi.PutRolePolicyOutput](s.putInline(c, roleHolder(c.Scope().Account, in.RoleName), in.PolicyName, in.PolicyDocument))
 	}, stored)

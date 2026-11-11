@@ -316,6 +316,26 @@ func TestListBucketsListsTheCallersBucketsInNameOrder(t *testing.T) {
 	})
 }
 
+// A bucket policy naming a bare account id reads back with the account's
+// root ARN and otherwise as sent (iam-evaluation.md 5.4,
+// IAM-EVAL-25/03-s3, recorded 2026-11-03).
+func TestBucketPolicyStoresAnAccountPrincipalAsItsRootARN(t *testing.T) {
+	run(t, s3.Options{}, func(h *harness) {
+		h.createBucket("norm")
+		policy := func(principal string) string {
+			return `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"` + principal + `"},"Action":"s3:ListBucket","Resource":"arn:aws:s3:::norm"}]}`
+		}
+		ok(h, who{}, s3api.OpPutBucketPolicy, &s3api.PutBucketPolicyInput{Bucket: "norm", Policy: policy("000000000000")})
+		got := ""
+		if p := ok(h, who{}, s3api.OpGetBucketPolicy, &s3api.GetBucketPolicyInput{Bucket: "norm"}).Policy; p != nil {
+			got = *p
+		}
+		if want := policy("arn:aws:iam::000000000000:root"); got != want {
+			t.Errorf("GetBucketPolicy = %s\nwant %s", got, want)
+		}
+	})
+}
+
 func TestDeleteBucket(t *testing.T) {
 	run(t, s3.Options{}, func(h *harness) {
 		h.createBucket("doomed")

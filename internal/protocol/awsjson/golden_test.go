@@ -159,6 +159,28 @@ func TestGoldenCloudWatchQueryModeStatus(t *testing.T) {
 	checkResponse(t, codec.EncodeError(newRequest("X-Amzn-Query-Mode", "true"), f.cloudwatch, requestID, e), golden{status: 404, header: h, body: body})
 }
 
+// testdata/parity/cloudwatch/IAM-ENF/09-json.json and 09-json-qm.json:
+// CloudWatch's IAM denial answers 400 without x-amzn-query-error, and 403
+// with AccessDenied;Sender under x-amzn-query-mode: true
+// (iam-enforcement-surfaces.md 12.3).
+func TestGoldenCloudWatchDenialQueryErrorInQueryModeOnly(t *testing.T) {
+	f := newFixture(t)
+	e := &awserr.Error{
+		ID: awserr.Identity{
+			Shape: "com.amazon.coral.service#AccessDenied", JSONType: "com.amazon.coral.service#AccessDeniedException", QueryCode: "AccessDenied",
+			Status: 400, QueryModeStatus: 403, QueryErrorWhen: awserr.QueryErrorInQueryMode, Fault: awserr.Sender, MessageKey: awserr.MessageUpper,
+		},
+		Message: "denied",
+		Origin:  awserr.Modeled{},
+	}
+	codec := awsjson.Codec{Version: awsjson.V10}
+	body := `{"__type":"com.amazon.coral.service#AccessDeniedException","Message":"denied"}`
+	checkResponse(t, codec.EncodeError(newRequest(), f.cloudwatch, requestID, e), golden{status: 400, header: headers("application/x-amz-json-1.0"), body: body})
+	checkResponse(t, codec.EncodeError(newRequest("X-Amzn-Query-Mode", "true"), f.cloudwatch, requestID, e), golden{
+		status: 403, header: headers("application/x-amz-json-1.0", "X-Amzn-Query-Error", "AccessDenied;Sender"), body: body,
+	})
+}
+
 func TestGoldenErrorFieldsHeadersAndProtocolMessage(t *testing.T) {
 	f := newFixture(t)
 	e := &awserr.Error{

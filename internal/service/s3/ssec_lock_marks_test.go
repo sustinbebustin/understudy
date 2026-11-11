@@ -39,8 +39,9 @@ func TestSSECAndObjectLockCoverageMarks(t *testing.T) {
 		answeredNote = "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"
 		deleteNote   = "no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention"
 		notifyNote   = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
-			"destination validation checks existence and refuses FIFO queues and topics, not permissions, where AWS refuses a destination whose policy does not admit S3; " +
-			"under iam.enforce=enforce such a destination refuses each notification, which is dropped (s3.notification.delivery-denied); " +
+			"destination validation checks existence, refuses FIFO queues and topics, and asks whether each destination's policy admits s3.amazonaws.com from the bucket: " +
+			"under iam.enforce=enforce a refusal fails the call, under advise it is journaled, and under off it is not asked, where AWS refuses in every case; " +
+			"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied); " +
 			"s3:ObjectRetention:Put is stored but sends nothing"
 	)
 	marks := map[string]registry.BindCoverage{
@@ -107,7 +108,8 @@ type wantSwitch struct {
 // (section 12): recorded (S3SOL-02 on 2026-11-05, the rest on 2026-11-03)
 // and settled by no scenario, since the replayer skips S3's REST requests;
 // s3.encryption.after-delete is backed by the recording of section 2. IAM
-// enforcement's two S3 switches (s3.denial.text,
+// enforcement's S3 switches (s3.denial.text,
+// s3.notification.delivery-denied, s3.enforce.missing-resource,
 // s3.root.bucket-policy-lockout) follow them (iam-enforcement-surfaces.md
 // 12.8).
 func TestSSECAndObjectLockSwitches(t *testing.T) {
@@ -143,8 +145,11 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 		// first: encryption after delete, cross-account access, public ACLs
 		// at create, tag limits and lifecycle rule limits.
 		// IAM enforcement's follow: the denial text, the refused
-		// notification and the root's bucket-policy lockout.
-		const earlier, enforcement = 5, 3
+		// notification, the stored account principal, the missing resource
+		// answered before authorization, the SSE condition keys from the
+		// bucket default (one entry per label) and the root's
+		// bucket-policy lockout.
+		const earlier, enforcement = 5, 7
 		if len(entries) != earlier+len(want)+enforcement {
 			names := make([]string, len(entries))
 			for i, e := range entries {

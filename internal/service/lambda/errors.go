@@ -555,7 +555,8 @@ func errSQSFailure(code, message string) *awserr.Error {
 // esmRoleDeniedText is what CreateEventSourceMapping and
 // UpdateEventSourceMapping answer when iam.enforce=enforce refuses the
 // execution role's read of the mapping's source, naming the source's
-// action and service: "The function execution role does not have
+// action and service (or, for a destination, its ARN:
+// errDestinationRoleDenied): "The function execution role does not have
 // permissions to call ReceiveMessage on SQS" (iam-enforcement-surfaces.md
 // 4.3, 8.6, testdata/parity/lambda/IAM-ENF/24-create.json); a stream's
 // sentence follows the queue's (inferred).
@@ -573,6 +574,24 @@ func esmCreateDeniedValue() string {
 
 func errESMRoleDenied(action, service string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException(esmRoleDeniedText(action, service)))
+}
+
+// errDestinationRoleDenied is what PutFunctionEventInvokeConfig answers
+// when iam.enforce=enforce refuses the execution role action on the
+// destination arn, quoted as sent: the event source mapping's sentence
+// naming the ARN in place of the service (iam-enforcement-surfaces.md 4.3,
+// 8.5, testdata/parity/lambda/IAM-ENF/27-sns.json, 27-sqs.json).
+func errDestinationRoleDenied(action, arn string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException(esmRoleDeniedText(action, arn)))
+}
+
+// errRoleNotAssumable is CreateFunction's answer when iam.enforce=enforce
+// finds that lambda.amazonaws.com may not assume the execution role
+// (iam-enforcement-surfaces.md 4.3,
+// testdata/parity/lambda/IAM-ENF/26-bad-trust.json);
+// UpdateFunctionConfiguration's is inferred to be the same.
+func errRoleNotAssumable() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("The role defined for the function cannot be assumed by Lambda."))
 }
 
 func errVisibilityTimeout(visibility, timeout int) *awserr.Error {

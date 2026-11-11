@@ -96,6 +96,35 @@ func TestEverySwitchStatesItsOpsAndSettles(t *testing.T) {
 	}
 }
 
+// The coverage report lists how resource policies store an account
+// principal, recorded for each service that stores one, and that no
+// service checks a named principal exists, which AWS does
+// (iam-evaluation.md 3.4, 5.4, 12.3; IAM-EVAL-24, -25, -27).
+func TestPolicyPrincipalSwitchesAreReported(t *testing.T) {
+	want := map[string]coverage.Switch{
+		"sqs.resource-policy.account-id-principal": {Value: "root-arn", Label: evidence.AWSRecorded, Ops: []string{"sqs.CreateQueue", "sqs.SetQueueAttributes"}},
+		"sns.resource-policy.account-id-principal": {Value: "root-arn", Label: evidence.AWSRecorded, Ops: []string{"sns.CreateTopic", "sns.SetTopicAttributes"}},
+		"s3.resource-policy.account-id-principal":  {Value: "root-arn", Label: evidence.AWSRecorded, Ops: []string{"s3.PutBucketPolicy"}},
+		"kms.resource-policy.account-id-principal": {Value: "root-arn", Label: evidence.AWSRecorded, Ops: []string{"kms.CreateKey", "kms.PutKeyPolicy"}},
+		"iam.policy.principal-existence":           {Value: "unchecked", Label: evidence.Inferred, Ops: []string{"iam.CreateRole", "iam.UpdateAssumeRolePolicy"}},
+	}
+	got := map[string]coverage.Switch{}
+	for _, sw := range wiredReport(t).Switches {
+		if _, ok := want[sw.Name]; ok {
+			got[sw.Name] = sw
+		}
+	}
+	for name, w := range want {
+		g, ok := got[name]
+		switch {
+		case !ok:
+			t.Errorf("switch %s is not reported", name)
+		case g.Value != w.Value || g.Label != w.Label || !slices.Equal(slices.Sorted(slices.Values(g.Ops)), w.Ops):
+			t.Errorf("switch %s = %s (%s) on %v, want %s (%s) on %v", name, g.Value, g.Label, g.Ops, w.Value, w.Label, w.Ops)
+		}
+	}
+}
+
 // A switch's SettledBy and the checked-in scenarios' claims on it name each
 // other: every claim on a switch is on the step the switch's Settles names,
 // and every SettledBy names a step of a checked-in scenario with a claim on

@@ -31,14 +31,14 @@ const maxBucketsPage = 10000
 // delete.
 func (s *Service) bindBuckets(b s3api.Binder) {
 	b.CreateBucket(s.createBucket, registry.Full{},
-		touches(func(in *s3api.CreateBucketInput) access { return at(in.Bucket, nil) }))
+		names(func(in *s3api.CreateBucketInput) access { return at(in.Bucket, nil) }))
 	head := func(in *s3api.HeadBucketInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.HeadBucket(s.headBucket, registry.Full{}, touches(head))
+	b.HeadBucket(s.headBucket, registry.Full{}, touches(s, head))
 	location := func(in *s3api.GetBucketLocationInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.GetBucketLocation(reader(s, location, getLocation), registry.Full{}, touches(location))
+	b.GetBucketLocation(reader(s, location, getLocation), registry.Full{}, touches(s, location))
 	b.ListBuckets(s.listBuckets, registry.Partial{Note: "general purpose buckets only; no directory buckets"})
 	b.DeleteBucket(s.deleteBucket, registry.Full{},
-		touches(func(in *s3api.DeleteBucketInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }))
+		touches(s, func(in *s3api.DeleteBucketInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }))
 }
 
 // canonicalID is the canonical user id S3 reports for an account: 64 hex

@@ -9,28 +9,38 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// resolvedFirst is the coverage note of the operations that name a user,
-// role or instance profile by name: its ARN holds a path only IAM's state
-// knows, so the call is authorized once IAM resolved it, and a missing one
-// answers NoSuchEntity before authorization. Whether AWS denies first is
-// UNVERIFIED (iam-enforcement-surfaces.md 5.3, IAM-ENF-14).
-const resolvedFirst = "under iam.enforce, a missing entity answers NoSuchEntity before authorization (iam.enforce.missing-resource.by-name)"
+// byName is the coverage note of the operations that name a user, role or
+// instance profile by name. AWS denies GetRole of a missing role before
+// saying it is missing, naming it "role <name>" (iam-enforcement-surfaces.md
+// 3.2, 5.3; IAM-ENF-10, IAM-ENF-14); the other operations follow it by
+// inference, and which ARN AWS evaluates for a missing entity is
+// unrecorded, so understudy asks about the one at missingPath.
+const byName = "under iam.enforce, a missing user, role or instance profile is denied before it answers NoSuchEntity, evaluated on its ARN at the path / and named \"<type> <name>\"; " +
+	"recorded for GetRole, inferred for the other operations and for the evaluated ARN (iam.enforce.missing-resource.by-name)"
 
-// resolvedPartial is the coverage of an operation on an entity named by
+// byNamePartial is the coverage of an operation on an entity named by
 // name that is otherwise fully implemented.
-func resolvedPartial() registry.Partial { return registry.Partial{Note: resolvedFirst} }
+func byNamePartial() registry.Partial { return registry.Partial{Note: byName} }
 
-// withResolved is note followed by resolvedFirst.
-func withResolved(note string) string { return note + "; " + resolvedFirst }
+// withByName is note followed by byName.
+func withByName(note string) string { return note + "; " + byName }
+
+// missingPath is the path of the ARN a call naming a missing user, role or
+// instance profile is asked about: the request carries no path, and "/" is
+// the one CreateRole, CreateUser and CreateInstanceProfile default to, so a
+// caller allowed on role/*, user/* or "*" goes on to NoSuchEntity
+// (inferred; iam-enforcement-surfaces.md 5.3).
+const missingPath = "/"
 
 // declareAuthorization states what each IAM operation is authorized on
 // (iam-evaluation.md 2.1): an operation that names a user, role or instance
-// profile by name is asked about once IAM resolved its ARN
-// (kernel.AuthorizedAfterResolve), the resolved ARN touched before the
-// handler; one that carries a managed policy's ARN, or creates an entity
-// whose path and name it carries, is asked about that ARN at step 8. GetRole
-// authorizes in its handler (kernel.AuthorizedInHandler). It runs after the
-// bind sites, whose bindings it extends.
+// profile by name is asked about at step 8 on its ARN, the path read from
+// IAM's state, or missingPath for one IAM does not hold, so a missing
+// entity is denied first (iam.enforce.missing-resource.by-name); one that
+// carries a managed policy's ARN, or creates an entity whose path and name
+// it carries, is asked about that ARN at step 8. GetRole authorizes in its
+// handler (kernel.AuthorizedInHandler). It runs after the bind sites, whose
+// bindings it extends.
 func (s *Service) declareAuthorization(b *kernel.Binder) {
 	s.declareUsers(b)
 	s.declareRoles(b)
@@ -153,10 +163,10 @@ func (s *Service) declareRoles(b *kernel.Binder) {
 }
 
 // exists answers the error find returns for a missing entity, read before
-// a write that resolves the entity again under the cell's lock: an
-// operation authorized once it resolved its entity is asked at its first
-// Write, so a missing entity is answered before that, existence first
-// (kernel.AuthorizedAfterResolve; resolvedFirst).
+// a write that resolves the entity again under the cell's lock, so a
+// missing entity answers without taking it. It does not order the answer
+// against authorization: step 8 asks about a missing entity before the
+// handler runs (missingPath).
 func (s *Service) exists(c *kernel.Call, find func(st *State) *awserr.Error) *awserr.Error {
 	_, err := store.View2(s.cells, c.Scope().Account, func(st *State) (struct{}, *awserr.Error) { return struct{}{}, find(st) })
 	return err
@@ -202,11 +212,11 @@ func (s *Service) taggedExists(c *kernel.Call, e tagged) *awserr.Error {
 	})
 }
 
-// resolved authorizes an operation once its handler resolved the entity:
-// resolve names the entity's ARN from the state before the handler, false
-// for one that does not exist, which the handler then answers before
-// anything is asked (kernel.AuthorizedAfterResolve).
-func resolved[In any](resolve func(c *kernel.Call, in *In) (aws.ARN, bool)) []kernel.BindOption {
+// deniedFirst authorizes an operation at step 8 on the entity resolve
+// names from the state before the handler, false for an input that names
+// none, and names it in a denial as text gives it, "" for its ARN
+// (kernel.WithDenialResource).
+func deniedFirst[In any](resolve func(c *kernel.Call, in *In) (aws.ARN, bool), text func(in *In) string) []kernel.BindOption {
 	return []kernel.BindOption{
 		kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
 			if arn, ok := resolve(c, in); ok {
@@ -214,15 +224,16 @@ func resolved[In any](resolve func(c *kernel.Call, in *In) (aws.ARN, bool)) []ke
 			}
 			return nil
 		}),
-		kernel.AuthorizedAfterResolve(),
+		kernel.WithDenialResource(func(_ *kernel.Call, in *In) string { return text(in) }),
 	}
 }
 
 // userNamed authorizes an operation on the user name names, or on the
 // caller when it names none, as IAM defaults UserName: the root's ARN for a
-// root caller, else the user's ARN once IAM resolved its path.
+// root caller, else the user's ARN, at missingPath for a user IAM does not
+// hold. A denial names a user the input names "user <name>".
 func userNamed[In any](s *Service, name func(*In) *string) []kernel.BindOption {
-	return resolved(func(c *kernel.Call, in *In) (aws.ARN, bool) {
+	return deniedFirst(func(c *kernel.Call, in *In) (aws.ARN, bool) {
 		who, err := callerUser(c, name(in))
 		if err != nil {
 			return aws.ARN{}, false
@@ -233,20 +244,40 @@ func userNamed[In any](s *Service, name func(*In) *string) []kernel.BindOption {
 			return rootARN(account), true
 		case namedUser:
 			u, err := store.View2(s.cells, account, func(st *State) (User, *awserr.Error) { return st.user(who.name) })
-			return userARN(account, u.Path, u.Name), err == nil
+			if err != nil {
+				return userARN(account, missingPath, who.name), true
+			}
+			return userARN(account, u.Path, u.Name), true
 		}
 		return aws.ARN{}, false
+	}, func(in *In) string {
+		if n := name(in); n != nil {
+			return "user " + *n
+		}
+		return ""
 	})
 }
 
-// roleNamed authorizes an operation on the role name names.
+// roleNamed authorizes an operation on the role name names, named
+// "role <name>" as GetRole names it (IAM-ENF-10).
 func roleNamed[In any](s *Service, name func(*In) string) []kernel.BindOption {
-	return resolved(func(c *kernel.Call, in *In) (aws.ARN, bool) { return s.roleARN(c, name(in)) })
+	return deniedFirst(func(c *kernel.Call, in *In) (aws.ARN, bool) {
+		if arn, ok := s.roleARN(c, name(in)); ok {
+			return arn, true
+		}
+		return roleARN(c.Scope().Account, missingPath, name(in)), true
+	}, func(in *In) string { return "role " + name(in) })
 }
 
-// profileNamed authorizes an operation on the instance profile name names.
+// profileNamed authorizes an operation on the instance profile name names,
+// named "instance-profile <name>" by inference from GetRole.
 func profileNamed[In any](s *Service, name func(*In) string) []kernel.BindOption {
-	return resolved(func(c *kernel.Call, in *In) (aws.ARN, bool) { return s.profileARN(c, name(in)) })
+	return deniedFirst(func(c *kernel.Call, in *In) (aws.ARN, bool) {
+		if arn, ok := s.profileARN(c, name(in)); ok {
+			return arn, true
+		}
+		return instanceProfileARN(c.Scope().Account, missingPath, name(in)), true
+	}, func(in *In) string { return "instance-profile " + name(in) })
 }
 
 // roleARN is the ARN of the role name names in the caller's account, false

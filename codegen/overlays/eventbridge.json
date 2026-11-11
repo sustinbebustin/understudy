@@ -1,6 +1,17 @@
 {
   "smithy": "2.0",
   "shapes": {
+    "com.amazonaws.eventbridge#AccessDeniedException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "Message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/events/IAM-ENF/08-describe.json: the model's member is message, the wire key Message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
     "com.amazonaws.eventbridge#AWSEvents": {
       "type": "apply",
       "traits": {
