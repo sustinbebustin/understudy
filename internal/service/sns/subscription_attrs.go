@@ -43,8 +43,8 @@ const (
 func (s *Service) bindSubscriptionAttributes(b snsapi.Binder) {
 	b.GetSubscriptionAttributes(s.getSubscriptionAttributes, registry.Full{},
 		kernel.WithResourceARN(func(in *snsapi.GetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
-	b.SetSubscriptionAttributes(s.setSubscriptionAttributes, registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; " +
-		"sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced"},
+	b.SetSubscriptionAttributes(s.setSubscriptionAttributes, registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy and requestPolicy apply to http and https deliveries; " +
+		"throttlePolicy, sicklyRetryPolicy and guaranteed are stored and echoed, never applied, so deliveries are not paced (AWS's pacing above a burst of 10 is unrecorded, SNSH-20); the quota of 10,000 filter policies per account is not enforced"},
 		kernel.WithResourceARN(func(in *snsapi.SetSubscriptionAttributesInput) string { return in.SubscriptionArn }),
 		kernel.WithResources(func(_ *kernel.Call, in *snsapi.SetSubscriptionAttributesInput) []aws.ARN {
 			if in.AttributeName != attrSubscriptionRoleArn || in.AttributeValue == nil {

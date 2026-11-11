@@ -83,12 +83,8 @@ func TestHTTPRetryPolicyInferredRules(t *testing.T) {
 		},
 		{"a minDelayTarget above 3600 takes the system default's", "", `{"healthyRetryPolicy":{"minDelayTarget":4000}}`, system},
 		{
-			"a null throttlePolicy takes the topic's", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":5}}}`, `{"throttlePolicy":null}`,
-			delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * s, MaxDelayTarget: 20 * s, BackoffFunction: delivery.BackoffLinear, MaxReceivesPerSecond: 5},
-		},
-		{
-			"the subscription's throttlePolicy over the topic's", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":5}}}`, `{"throttlePolicy":{"maxReceivesPerSecond":2}}`,
-			delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * s, MaxDelayTarget: 20 * s, BackoffFunction: delivery.BackoffLinear, MaxReceivesPerSecond: 2},
+			"a throttlePolicy, the topic's or the subscription's, changes nothing (SNSH-20)", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":5}}}`, `{"throttlePolicy":{"maxReceivesPerSecond":2}}`,
+			system,
 		},
 		{
 			"sicklyRetryPolicy, guaranteed and disableSubscriptionOverrides change nothing",
@@ -165,8 +161,8 @@ func TestHTTPRetryPolicyStaysInTheOutboxBounds(t *testing.T) {
 			t.Fatalf("phase counts out of bounds: %+v", p)
 		case p.MinDelayTarget < time.Second || p.MinDelayTarget > p.MaxDelayTarget || p.MaxDelayTarget > time.Hour:
 			t.Fatalf("delay targets out of bounds: %+v", p)
-		case !p.BackoffFunction.Valid() || p.MaxReceivesPerSecond < 0:
-			t.Fatalf("function or throttle out of bounds: %+v", p)
+		case !p.BackoffFunction.Valid():
+			t.Fatalf("function out of bounds: %+v", p)
 		}
 		want := int64(3)
 		if n, ok := intMember(mapMember(http, "defaultHealthyRetryPolicy"), "numRetries"); ok {

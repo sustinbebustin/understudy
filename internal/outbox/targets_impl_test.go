@@ -207,7 +207,7 @@ func TestSNSHTTPPolicyRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
-	const want = `"policy":{"backoff":3,"backoffFunction":"linear","kind":"sns-http","maxDelay":0,"maxDelayTargetMillis":20000,"maxReceivesPerSecond":0,"minDelay":0,"minDelayTargetMillis":20000,"noDelay":0}`
+	const want = `"policy":{"backoff":3,"backoffFunction":"linear","kind":"sns-http","maxDelay":0,"maxDelayTargetMillis":20000,"minDelay":0,"minDelayTargetMillis":20000,"noDelay":0}`
 	if !strings.Contains(string(data), want) {
 		t.Errorf("record\n%s\ndoes not hold %s", data, want)
 	}
@@ -229,14 +229,13 @@ func TestSNSHTTPPolicyRecordRoundTrips(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		minMs := rapid.IntRange(1000, 3_600_000).Draw(t, "minDelayTargetMillis")
 		p := delivery.SNSHTTP{
-			NoDelay:              rapid.IntRange(0, 25).Draw(t, "noDelay"),
-			MinDelay:             rapid.IntRange(0, 25).Draw(t, "minDelay"),
-			Backoff:              rapid.IntRange(0, 25).Draw(t, "backoff"),
-			MaxDelay:             rapid.IntRange(0, 25).Draw(t, "maxDelay"),
-			MinDelayTarget:       time.Duration(minMs) * time.Millisecond,
-			MaxDelayTarget:       time.Duration(rapid.IntRange(minMs, 3_600_000).Draw(t, "maxDelayTargetMillis")) * time.Millisecond,
-			BackoffFunction:      rapid.SampledFrom([]delivery.BackoffFunction{delivery.BackoffLinear, delivery.BackoffArithmetic, delivery.BackoffGeometric, delivery.BackoffExponential}).Draw(t, "function"),
-			MaxReceivesPerSecond: rapid.IntRange(0, 50).Draw(t, "maxReceivesPerSecond"),
+			NoDelay:         rapid.IntRange(0, 25).Draw(t, "noDelay"),
+			MinDelay:        rapid.IntRange(0, 25).Draw(t, "minDelay"),
+			Backoff:         rapid.IntRange(0, 25).Draw(t, "backoff"),
+			MaxDelay:        rapid.IntRange(0, 25).Draw(t, "maxDelay"),
+			MinDelayTarget:  time.Duration(minMs) * time.Millisecond,
+			MaxDelayTarget:  time.Duration(rapid.IntRange(minMs, 3_600_000).Draw(t, "maxDelayTargetMillis")) * time.Millisecond,
+			BackoffFunction: rapid.SampledFrom([]delivery.BackoffFunction{delivery.BackoffLinear, delivery.BackoffArithmetic, delivery.BackoffGeometric, delivery.BackoffExponential}).Draw(t, "function"),
 		}
 		data, err := c.Marshal(&requestRecord{Mechanism: delivery.SNSToHTTP, Policy: policyRecordOf(p)})
 		if err != nil {

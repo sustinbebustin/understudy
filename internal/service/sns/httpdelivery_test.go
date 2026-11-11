@@ -317,8 +317,8 @@ func TestHTTPCoverageNotes(t *testing.T) {
 			"sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced"},
 		"Publish":      registry.Partial{Note: publishNote},
 		"PublishBatch": registry.Partial{Note: publishNote},
-		"SetSubscriptionAttributes": registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; " +
-			"sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced"},
+		"SetSubscriptionAttributes": registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy and requestPolicy apply to http and https deliveries; " +
+			"throttlePolicy, sicklyRetryPolicy and guaranteed are stored and echoed, never applied, so deliveries are not paced (AWS's pacing above a burst of 10 is unrecorded, SNSH-20); the quota of 10,000 filter policies per account is not enforced"},
 		"SetTopicAttributes": registry.Partial{Note: "Policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
 			"KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never applied; " +
 			"the http defaults in DeliveryPolicy apply to http and https subscriptions"},
@@ -862,8 +862,8 @@ func TestEndpointCredentialsSendBasicAuthorization(t *testing.T) {
 // default, else for healthyRetryPolicy the system default; the phases are
 // numNoDelayRetries, numMinDelayRetries, the backoff retries that remain of
 // numRetries, and numMaxDelayRetries (sns-http-delivery.md 6.2,
-// third-party-recorded; 6.3, aws-doc); maxReceivesPerSecond is the
-// effective throttlePolicy's (6.4).
+// third-party-recorded; 6.3, aws-doc); a throttlePolicy is stored and not
+// applied (6.4, SNSH-20).
 func TestHTTPRetryPolicyResolution(t *testing.T) {
 	const full = `{"minDelayTarget":1,"maxDelayTarget":4,"numRetries":5,"numNoDelayRetries":2,"numMinDelayRetries":0,"numMaxDelayRetries":0,"backoffFunction":"exponential"}`
 	const topicDefault = `{"minDelayTarget":2,"maxDelayTarget":30,"numRetries":6,"numNoDelayRetries":1,"numMinDelayRetries":1,"numMaxDelayRetries":1,"backoffFunction":"arithmetic"}`
@@ -886,12 +886,12 @@ func TestHTTPRetryPolicyResolution(t *testing.T) {
 			delivery.SNSHTTP{NoDelay: 2, Backoff: 3, MinDelayTarget: time.Second, MaxDelayTarget: 4 * time.Second, BackoffFunction: delivery.BackoffExponential},
 		},
 		{
-			"the subscription's throttlePolicy", "", `{"throttlePolicy":{"maxReceivesPerSecond":2}}`,
-			delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * time.Second, MaxDelayTarget: 20 * time.Second, BackoffFunction: delivery.BackoffLinear, MaxReceivesPerSecond: 2},
+			"the subscription's throttlePolicy is not applied (SNSH-20)", "", `{"throttlePolicy":{"maxReceivesPerSecond":2}}`,
+			systemHTTPPolicy(),
 		},
 		{
-			"the topic's throttlePolicy", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":3}}}`, "",
-			delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * time.Second, MaxDelayTarget: 20 * time.Second, BackoffFunction: delivery.BackoffLinear, MaxReceivesPerSecond: 3},
+			"the topic's throttlePolicy is not applied (SNSH-20)", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":3}}}`, "",
+			systemHTTPPolicy(),
 		},
 	}
 	for _, c := range cases {

@@ -25,8 +25,7 @@ import (
 // entry (Entry.Running), evaluates the Delivery-phase fault rules and hands
 // the attempt due at due to tracked work, which Settle counts until it
 // ends. A timer whose entry is gone, rescheduled or already being attempted
-// is stale and does nothing. An attempt its subscription's throttle paces
-// is re-armed for the instant the throttle allows instead (pacer).
+// is stale and does nothing.
 //
 // The clock dispatches timers one at a time in firing order, and the
 // outbox keeps that order: the Delivery-phase rules are evaluated here, and
@@ -35,13 +34,11 @@ import (
 // spend a NextN budget, draw from a seeded Probability stream and draw
 // seeded ids in that order, in both fault phases, not in the order
 // goroutines happen to run. An attempt that would hold the sequencer for
-// wall time runs on its own goroutine instead (attempt.blocks), or, for a
-// throttled subscription, on that subscription's sequencer (pacer).
+// wall time runs on its own goroutine instead (attempt.blocks).
 //
 // The claim is a plain cell update, not a kernel.Write: it has no effects,
 // and Write would create the cell of a scope a reset just dropped. It
-// leaves the revision alone, since Running is never saved. A paced
-// attempt's re-arm is a plain update too, like Enqueue's arm.
+// leaves the revision alone, since Running is never saved.
 func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant) {
 	scope, id, ok := parseTimerID(key.ID)
 	if !ok {
@@ -52,7 +49,6 @@ func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant
 	if !ok {
 		return
 	}
-	var throttled *sequencer
 	var handOver <-chan struct{}
 	entry := store.Update(cell, func(st *State) (*Entry, bool) {
 		en, ok := st.Entries[id]
@@ -70,17 +66,6 @@ func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant
 				return nil, false
 			}
 		}
-		rearm, paced, ready := e.pace.admit(&en, due)
-		if paced {
-			// Re-armed under the cell lock, as Enqueue arms, its attempt
-			// number unchanged: a paced attempt is not made, so it spends
-			// no retry and no fault rule's budget.
-			en.NextAt = rearm
-			st.Entries[id] = en
-			e.k.Timers().Scheduler().Arm(key, rearm)
-			return nil, true
-		}
-		throttled = ready
 		en.Running = true
 		st.Entries[id] = en
 		return &en, false
@@ -94,8 +79,6 @@ func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant
 	}
 	a := &attempt{e: e, c: c, cell: cell, scope: scope, entry: *entry, due: due, decision: e.evaluateFaults(scope, entry)}
 	switch {
-	case throttled != nil:
-		e.sequence(throttled, a)
 	case a.blocks():
 		e.k.Go(kernel.DeliveryAttempt, a.do)
 	default:

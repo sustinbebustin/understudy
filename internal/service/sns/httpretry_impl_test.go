@@ -205,18 +205,18 @@ func TestHTTPRetryAfterASettleResendsTheSameBytes(t *testing.T) {
 }
 
 // throttlePolicy.maxReceivesPerSecond, the subscription's or the topic's
-// http default, spaces the subscription's notifications 1/n seconds apart
-// on the emulator clock, and a paced notification spends no retry
-// (sns-http-delivery.md 6.4, aws-doc; 8.2 item 5).
-func TestHTTPThrottlePolicyPacesNotifications(t *testing.T) {
+// http default, is stored but does not pace: a burst of 10 messages at rate
+// 1 reached the endpoint within 0.3 s on AWS, and nothing records how AWS
+// paces a longer burst (sns-http-delivery.md 6.4, 9.8; SNSH-20).
+func TestHTTPThrottlePolicyDoesNotPaceNotifications(t *testing.T) {
+	const burst = 10
 	cases := []struct {
 		name                    string
 		topicPolicy, subscriber string
-		want                    []time.Duration
 	}{
-		{"unthrottled", "", "", []time.Duration{0, 0, 0}},
-		{"the subscription's", "", `{"throttlePolicy":{"maxReceivesPerSecond":2}}`, []time.Duration{0, 500 * time.Millisecond, time.Second}},
-		{"the topic's http default", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":4}}}`, "", []time.Duration{0, 250 * time.Millisecond, 500 * time.Millisecond}},
+		{"unthrottled", "", ""},
+		{"the subscription's", "", `{"throttlePolicy":{"maxReceivesPerSecond":1}}`},
+		{"the topic's http default", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":1}}}`, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -231,19 +231,19 @@ func TestHTTPThrottlePolicyPacesNotifications(t *testing.T) {
 				}
 				topic := h.topic("events", topicAttrs)
 				t1 := subscribeConfirmed(h, s, topic, hookURL, subAttrs)
-				for range 3 {
+				for range burst {
 					must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
 				}
 				h.settle()
 				h.advance(10 * time.Second)
 				h.settle()
 				at, ds := attemptsSince(h, t1)
-				if !slices.Equal(at, c.want) {
-					h.Errorf("notifications attempted at %v, want %v", at, c.want)
+				if want := make([]time.Duration, burst); !slices.Equal(at, want) {
+					h.Errorf("notifications attempted at %v, want all at once %v", at, want)
 				}
 				for i, d := range ds {
 					if d.Attempt != 1 || d.Outcome != (journal.Delivered{}) {
-						h.Errorf("notification %d = %+v, want attempt 1 delivered: pacing spends no retry", i, d)
+						h.Errorf("notification %d = %+v, want attempt 1 delivered", i, d)
 					}
 				}
 			})

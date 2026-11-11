@@ -216,14 +216,12 @@ func TestSNSHTTPEnqueueChecks(t *testing.T) {
 			{"the http policy under sns-to-sqs", delivery.Request{Source: topic(), Mechanism: delivery.SNSToSQS, Target: delivery.SQSQueue{ARN: arn("sqs", "q"), Body: "b"}, Policy: defaultHTTPPolicy()}, "Policy"},
 			// The documented bounds (sns-http-delivery.md 6.7, aws-doc):
 			// phase counts at least 0, numRetries 0 to 100, minDelayTarget
-			// from 1 s to maxDelayTarget, maxDelayTarget at most 3600 s,
-			// maxReceivesPerSecond not below 0 (0 is none).
+			// from 1 s to maxDelayTarget, maxDelayTarget at most 3600 s.
 			{"a negative phase count", withPolicy(func(p *delivery.SNSHTTP) { p.NoDelay = -1 }), "Policy"},
 			{"101 retries", withPolicy(func(p *delivery.SNSHTTP) { p.Backoff = 101 }), "Policy"},
 			{"a minDelayTarget under 1 s", withPolicy(func(p *delivery.SNSHTTP) { p.MinDelayTarget = 999 * time.Millisecond }), "Policy"},
 			{"minDelayTarget above maxDelayTarget", withPolicy(func(p *delivery.SNSHTTP) { p.MinDelayTarget, p.MaxDelayTarget = 30*time.Second, 20*time.Second }), "Policy"},
 			{"a maxDelayTarget above 3600 s", withPolicy(func(p *delivery.SNSHTTP) { p.MaxDelayTarget = 3601 * time.Second }), "Policy"},
-			{"a negative maxReceivesPerSecond", withPolicy(func(p *delivery.SNSHTTP) { p.MaxReceivesPerSecond = -1 }), "Policy"},
 			{"no backoff function", withPolicy(func(p *delivery.SNSHTTP) { p.BackoffFunction = 0 }), "Policy"},
 			{"no kind", withTarget(func(e *delivery.HTTPEndpoint) { e.Kind = 0 }), "Target.Kind"},
 			{"an undeclared kind", withTarget(func(e *delivery.HTTPEndpoint) { e.Kind = delivery.HTTPUnsubscribeConfirmation + 1 }), "Target.Kind"},
@@ -553,52 +551,6 @@ func TestSNSHTTPFaultRulesAnswerWithoutTheEndpoint(t *testing.T) {
 			})
 		})
 	}
-}
-
-// throttlePolicy.maxReceivesPerSecond paces one subscription's deliveries:
-// attempts start at least 1/maxReceivesPerSecond apart on the emulator
-// clock, and a paced attempt consumes no retry (sns-http-delivery.md 6.4,
-// aws-doc "without consuming retry attempts"; 8.2 item 5). Another
-// endpoint, or another topic's subscription to the same one, is paced on
-// its own.
-func TestSNSHTTPPacing(t *testing.T) {
-	r := answeringHook(http.StatusOK)
-	runHTTP(t, r, func(k *kerneltest.K, o *outbox.Outbox) {
-		policy := defaultHTTPPolicy()
-		policy.MaxReceivesPerSecond = 2
-		cause := source(k)
-		t0 := k.Clock.Now()
-		for range 3 {
-			enqueue(k, o, toHook(k, "http://127.0.0.1:8080/paced", delivery.HTTPNotification, policy), cause)
-		}
-		other := toHook(k, "http://127.0.0.1:8081/other", delivery.HTTPNotification, policy)
-		enqueue(k, o, other, cause)
-		fromElsewhere := toHook(k, "http://127.0.0.1:8080/paced", delivery.HTTPNotification, policy)
-		fromElsewhere.Source = arn("sns", "audit")
-		enqueue(k, o, fromElsewhere, cause)
-		settled(k)
-		advance(k, 10*time.Second)
-
-		events, ds := httpDeliveries(k)
-		if len(ds) != 5 {
-			k.Fatalf("delivery events = %+v, want one per delivery: a paced attempt is not journaled until it runs", ds)
-		}
-		var paced []time.Duration
-		for i, d := range ds {
-			if d.Attempt != 1 || d.Outcome != (journal.Delivered{}) {
-				k.Errorf("delivery %d = %+v, want attempt 1 delivered: pacing consumes no retry", i, d)
-			}
-			switch {
-			case d.From == topic() && d.Endpoint == "127.0.0.1:8080":
-				paced = append(paced, events[i].At.Sub(t0))
-			case events[i].At != t0:
-				k.Errorf("delivery %d from %s to %s at %v, want at once: it is paced on its own", i, d.From, d.Endpoint, events[i].At.Sub(t0))
-			}
-		}
-		if want := []time.Duration{0, 500 * time.Millisecond, time.Second}; !slices.Equal(paced, want) {
-			k.Errorf("paced attempts at %v, want %v", paced, want)
-		}
-	})
 }
 
 // Settle counts an HTTP attempt in flight and returns once it ends; a

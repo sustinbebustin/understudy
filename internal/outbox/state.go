@@ -343,7 +343,6 @@ type snsHTTPRecord struct {
 	MinDelayTargetMillis *int64                    `json:"minDelayTargetMillis"`
 	MaxDelayTargetMillis *int64                    `json:"maxDelayTargetMillis"`
 	BackoffFunction      *delivery.BackoffFunction `json:"backoffFunction"`
-	MaxReceivesPerSecond *int                      `json:"maxReceivesPerSecond"`
 }
 
 // missing names the first member r lacks, "" when it has every one.
@@ -359,7 +358,6 @@ func (r snsHTTPRecord) missing() string {
 		{"minDelayTargetMillis", r.MinDelayTargetMillis != nil},
 		{"maxDelayTargetMillis", r.MaxDelayTargetMillis != nil},
 		{"backoffFunction", r.BackoffFunction != nil},
-		{"maxReceivesPerSecond", r.MaxReceivesPerSecond != nil},
 	}
 	for _, m := range members {
 		if !m.set {
@@ -706,7 +704,7 @@ func policyRecordOf(p delivery.RetryPolicy) policyRecord {
 		return snsHTTPRecord{
 			NoDelay: &p.NoDelay, MinDelay: &p.MinDelay, Backoff: &p.Backoff, MaxDelay: &p.MaxDelay,
 			MinDelayTargetMillis: &minMillis, MaxDelayTargetMillis: &maxMillis,
-			BackoffFunction: &p.BackoffFunction, MaxReceivesPerSecond: &p.MaxReceivesPerSecond,
+			BackoffFunction: &p.BackoffFunction,
 		}
 	}
 	return nil
@@ -731,7 +729,7 @@ func policyOf(r policyRecord) (delivery.RetryPolicy, bool) {
 		return delivery.SNSHTTP{
 			NoDelay: *r.NoDelay, MinDelay: *r.MinDelay, Backoff: *r.Backoff, MaxDelay: *r.MaxDelay,
 			MinDelayTarget: millis(*r.MinDelayTargetMillis), MaxDelayTarget: millis(*r.MaxDelayTargetMillis),
-			BackoffFunction: *r.BackoffFunction, MaxReceivesPerSecond: *r.MaxReceivesPerSecond,
+			BackoffFunction: *r.BackoffFunction,
 		}, true
 	}
 	return nil, false

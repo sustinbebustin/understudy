@@ -511,9 +511,6 @@ type SNSHTTP struct {
 	// BackoffFunction is kept for when a recording settles the curves;
 	// under sns.http.backoff-curves every function steps linearly.
 	BackoffFunction BackoffFunction
-	// MaxReceivesPerSecond is throttlePolicy.maxReceivesPerSecond; 0 for
-	// none.
-	MaxReceivesPerSecond int
 }
 
 // Retries is the number of retries after the first attempt, the sum of the
@@ -549,16 +546,6 @@ func (p SNSHTTP) Delay(retry int) (time.Duration, bool) {
 	default:
 		return p.MaxDelayTarget, true
 	}
-}
-
-// PaceInterval is the least time between the starts of two attempts to
-// the subscription, 1/maxReceivesPerSecond in whole nanoseconds, 0 without
-// throttling (sns-http-delivery.md 6.4).
-func (p SNSHTTP) PaceInterval() time.Duration {
-	if p.MaxReceivesPerSecond <= 0 {
-		return 0
-	}
-	return time.Second / time.Duration(p.MaxReceivesPerSecond)
 }
 
 func (SNSManaged) isRetryPolicy()        {}

@@ -37,7 +37,7 @@ Most differences are in error texts, codes and response details, not in the happ
   - AWS counts a 3xx and a 4xx other than 429 as delivered; understudy treats them as permanent failures and dead-letters them.
   - AWS's `arithmetic`, `geometric` and `exponential` backoff curves are not linear; understudy steps every curve linearly.
   - AWS waited at least 20 seconds for an answer; understudy gives up after 15.
-  - `throttlePolicy.maxReceivesPerSecond` did not pace a 10-message burst on AWS; understudy spaces attempts by it.
+  - `throttlePolicy.maxReceivesPerSecond` is stored, not applied; AWS's pacing above a burst of 10 is unrecorded (a 10-message burst at rate 1 was not paced, `sns/SNSH` SNSH-20).
   - AWS sent no `Authorization` header, not even after a 401 challenge (possibly the receiver's doing); understudy sends the URL's credentials on every request.
   - AWS refuses a loopback or private endpoint at `Subscribe` ("Not authorized to subscribe internal endpoints"); understudy delivers to the endpoints its allow-list names, which are usually local.
   - Visiting an UnsubscribeConfirmation's `SubscribeURL` restores the subscription on AWS; understudy's confirms nothing.

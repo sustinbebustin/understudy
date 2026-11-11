@@ -78,10 +78,11 @@ func (e *EndpointError) Error() string {
 // through subscriptionEffectiveDeliveryPolicy (sns-http-delivery.md 6.2,
 // third-party-recorded): the effective healthyRetryPolicy is the
 // subscription's members over the topic's http.defaultHealthyRetryPolicy
-// over the system default, and the effective throttlePolicy is the
-// subscription's, else the topic's http.defaultThrottlePolicy.
-// sicklyRetryPolicy, guaranteed and disableSubscriptionOverrides change
-// nothing, since no source says what they do (6.2).
+// over the system default. sicklyRetryPolicy, guaranteed and
+// disableSubscriptionOverrides change nothing, since no source says what
+// they do (6.2). throttlePolicy is stored and not applied: a burst of 10
+// at maxReceivesPerSecond 1 was not paced on AWS, and how AWS paces a
+// longer burst is unrecorded (6.4; SNSH-20).
 //
 // A member AWS would not accept (not an integer, outside the bounds of
 // sns.md 7.3, or not a backoffFunction name in any case) takes the system
@@ -95,8 +96,7 @@ func (e *EndpointError) Error() string {
 // numMinDelayRetries, numMaxDelayRetries, each capped at what remains, and
 // the backoff phase gets the rest (6.3, aws-doc order; the capping is
 // inferred). A maxDelayTarget below minDelayTarget is raised to it
-// (inferred). maxReceivesPerSecond is 0, no throttling, when the effective
-// throttlePolicy has none (6.4).
+// (inferred).
 func httpRetryPolicy(subscriptionPolicy, topicPolicy string) delivery.SNSHTTP {
 	effective, _ := parseObject(subscriptionEffectiveDeliveryPolicy(subscriptionPolicy, topicPolicy))
 	retry, system := mapMember(effective, "healthyRetryPolicy"), defaultHealthyRetryPolicy()
@@ -123,9 +123,6 @@ func httpRetryPolicy(subscriptionPolicy, topicPolicy string) delivery.SNSHTTP {
 	}
 	p.Backoff = remaining
 	p.MaxDelayTarget = max(p.MaxDelayTarget, p.MinDelayTarget)
-	if n, ok := intMember(mapMember(effective, "throttlePolicy"), "maxReceivesPerSecond"); ok && n >= 1 {
-		p.MaxReceivesPerSecond = int(n)
-	}
 	return p
 }
 

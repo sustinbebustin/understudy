@@ -63,8 +63,6 @@ type engine struct {
 	seq atomic.Uint64
 	// ready runs the attempts onAttempt hands over in firing order.
 	ready sequencer
-	// pace spaces the attempts of throttled SNS HTTP subscriptions.
-	pace pacer
 }
 
 // The outbox is the kernel's delivery sink and is snapshotted like a
@@ -596,8 +594,7 @@ func checkPolicy(m delivery.Mechanism, p delivery.RetryPolicy) *RequestError {
 // checkSNSHTTP checks p against the documented bounds
 // (sns-http-delivery.md 6.7, aws-doc): every phase count at least 0 and
 // numRetries, their sum, at most 100; minDelayTarget from 1 s up to
-// maxDelayTarget, which is at most 3600 s; maxReceivesPerSecond not below
-// 0, 0 being no throttling; and a declared backoff function.
+// maxDelayTarget, which is at most 3600 s; and a declared backoff function.
 func checkSNSHTTP(p delivery.SNSHTTP) *RequestError {
 	counts := []int{p.NoDelay, p.MinDelay, p.Backoff, p.MaxDelay}
 	switch {
@@ -607,8 +604,6 @@ func checkSNSHTTP(p delivery.SNSHTTP) *RequestError {
 	case p.MinDelayTarget < minHTTPDelayTarget || p.MinDelayTarget > p.MaxDelayTarget || p.MaxDelayTarget > maxHTTPDelayTarget:
 		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP with MinDelayTarget %v and MaxDelayTarget %v; minDelayTarget is %v up to maxDelayTarget, which is at most %v",
 			p.MinDelayTarget, p.MaxDelayTarget, minHTTPDelayTarget, maxHTTPDelayTarget)}
-	case p.MaxReceivesPerSecond < 0:
-		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP with MaxReceivesPerSecond %d; it is at least 0, 0 being no throttling", p.MaxReceivesPerSecond)}
 	case !p.BackoffFunction.Valid():
 		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is SNSHTTP with BackoffFunction %v, which is not linear, arithmetic, geometric or exponential", p.BackoffFunction)}
 	}

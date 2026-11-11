@@ -19,11 +19,7 @@
 //     attempts due together hit NextN budgets and seeded Probability draws
 //     in firing order. The attempt then joins the sequencer, which runs
 //     attempts one at a time in that order, so the request-phase rules and
-//     seeded ids of their target calls follow it too. Before any of that,
-//     an attempt of a throttled SNS HTTP subscription that comes too soon
-//     after the subscription's last one, or before a slot an earlier
-//     paced attempt holds, is re-armed once for a slot of its own,
-//     spending no retry and no rule budget (pacer).
+//     seeded ids of their target calls follow it too.
 //  2. When a PolicySource is set, access.Advise checks the target's stored
 //     resource policy and a would-deny becomes a journal Advisory; the
 //     attempt is made anyway. An events-to-events delivery is not checked:
@@ -146,10 +142,7 @@
 // wait, and the sequencer moves on to the next attempt while the held one
 // finishes alone. Its fault draws keep the firing order; the ids its
 // target draws after the wait fall in wall-time order, as after a
-// Delivery-phase delay (ADR 0018). The attempts of a throttled SNS HTTP
-// subscription run on a sequencer of their own instead, one at a time in
-// the order they start, so one Advance that starts several journals them
-// in that order; a latency does not release it.
+// Delivery-phase delay (ADR 0018).
 // A delivery has at most one attempt in flight: the attempt claims its
 // entry (Entry.Running) until it records its outcome, so a timer that fires
 // again meanwhile, as a Rearm does for every armable entry, starts

@@ -139,7 +139,7 @@ understudy journal --kind delivery
 The 503 is retried 20 seconds after the attempt. The injected timeout stands for an attempt that waited out its 15-second deadline, so its retry is due 20 seconds after that deadline, 35 seconds after the attempt.
 
 - The phases `numNoDelayRetries`, `numMinDelayRetries`, the backoff retries and `numMaxDelayRetries` run in that order. AWS does not document its backoff curves, so every `backoffFunction` steps linearly from `minDelayTarget` to `maxDelayTarget`, without jitter.
-- `throttlePolicy.maxReceivesPerSecond` spaces a subscription's attempts at least `1/maxReceivesPerSecond` seconds apart, and a delayed attempt uses up no retry.
+- `throttlePolicy.maxReceivesPerSecond` is validated, stored and returned by `GetSubscriptionAttributes`, but does not pace deliveries.
 - A Notification that fails permanently or runs out of retries goes to the subscription's `RedrivePolicy` queue: the envelope, or for raw delivery the message with its attributes as SQS message attributes. Without a queue it is dropped. A SubscriptionConfirmation or UnsubscribeConfirmation is retried the same way but never goes to a queue.
 - Redirects are not followed: a 3xx is a permanent failure.
 - `sicklyRetryPolicy` and `guaranteed` are stored and never applied, and the 3,600-second total-retry limit is not checked.
