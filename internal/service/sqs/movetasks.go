@@ -304,11 +304,10 @@ func (s *Service) step(c *kernel.Call, st *State, src queueRef, source *Queue, t
 	movedTo := map[queueRef][]ids.MessageID{}
 	var order []queueRef
 	failed := false
-	for i := range source.Messages {
+	for i, m := range source.Messages.all() {
 		if int64(len(moved)) == budget {
 			break
 		}
-		m := &source.Messages[i]
 		if !m.visible(now) {
 			continue
 		}
@@ -396,8 +395,8 @@ func (t *MoveTask) targetOf(m *Message) (queueRef, bool) {
 // movable counts the messages of queue t moves that are receivable at now.
 func (t *MoveTask) movable(queue *Queue, now clock.Instant) int64 {
 	var n int64
-	for i := range queue.Messages {
-		if m := &queue.Messages[i]; m.visible(now) && t.moves(m) {
+	for _, m := range queue.Messages.all() {
+		if m.visible(now) && t.moves(m) {
 			n++
 		}
 	}
@@ -407,8 +406,8 @@ func (t *MoveTask) movable(queue *Queue, now clock.Instant) int64 {
 // anyLeft reports whether queue holds a message t moves, receivable or
 // not.
 func (t *MoveTask) anyLeft(queue *Queue) bool {
-	for i := range queue.Messages {
-		if t.moves(&queue.Messages[i]) {
+	for _, m := range queue.Messages.all() {
+		if t.moves(m) {
 			return true
 		}
 	}

@@ -66,8 +66,8 @@ func readyQueues(scope aws.Scope, st *State, now clock.Instant) []queueRef {
 	var out []queueRef
 	for _, name := range slices.Sorted(maps.Keys(st.Queues)) {
 		queue := st.Queues[name]
-		for i := range queue.Messages {
-			if queue.Messages[i].visible(now) {
+		for _, m := range queue.Messages.all() {
+			if m.visible(now) {
 				out = append(out, queueRef{scope: scope, name: name})
 				break
 			}
@@ -91,9 +91,10 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 	return store.Read(cell, func(st *State) []kernel.Resource {
 		out := make([]kernel.Resource, 0, len(st.Queues))
 		for _, name := range slices.Sorted(maps.Keys(st.Queues)) {
+			queue := st.Queues[name]
 			out = append(out, kernel.Resource{
 				ARN:     queueRef{scope: scope, name: name}.arn(),
-				Summary: strconv.Itoa(len(st.Queues[name].Messages)) + " messages",
+				Summary: strconv.Itoa(queue.Messages.len()) + " messages",
 			})
 		}
 		return out
@@ -109,8 +110,7 @@ func (s *Service) timersOf(scope aws.Scope, st *State, now clock.Instant) []cloc
 	for _, name := range slices.Sorted(maps.Keys(st.Queues)) {
 		queue := st.Queues[name]
 		q := queueRef{scope: scope, name: name}
-		for i := range queue.Messages {
-			m := &queue.Messages[i]
+		for _, m := range queue.Messages.all() {
 			id := timerID(q, string(m.ID))
 			if !m.pinned() && !m.visible(now) {
 				wake, _ := s.wakeTimer(m)

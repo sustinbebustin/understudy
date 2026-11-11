@@ -2,7 +2,6 @@ package sqs
 
 import (
 	"maps"
-	"slices"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -58,23 +57,20 @@ type Queue struct {
 	// Purged is when PurgeQueue last ran, zero before the first.
 	Purged clock.Instant `json:"purged,omitzero"`
 	// Messages are in enqueue order, which receives follow.
-	Messages []Message `json:"messages,omitempty"`
-	// borrowed reports that a working copy (clone) still shares Messages'
-	// backing array with the stored record; message and remove copy it
-	// before the first change in place. It is never persisted.
-	borrowed bool
+	Messages Messages `json:"messages,omitzero"`
 }
 
 // clone returns a working copy of q for a write. The copy shares q's
-// messages and FIFO caches until it first changes them in place (message,
-// remove, DedupCache.put, FIFO.attempts), so a write pays for copying only
-// what it changes: an enqueue appends past the length q's slice sees and
-// copies no message, and an empty poll copies nothing. What else the copy
-// shares, the tags, the attribute policies and each message's maps and
-// pointers, is never changed in place, only replaced.
+// messages and FIFO caches until it first changes them in place
+// (Messages.change, Messages.remove, DedupCache.put, FIFO.attempts), so a
+// write pays for copying only what it changes: an enqueue copies no
+// message, a change to one copies its chunk, and an empty poll copies
+// nothing. What else the copy shares, the tags, the attribute policies and
+// each message's maps and pointers, is never changed in place, only
+// replaced.
 func (q *Queue) clone() Queue {
 	c := *q
-	c.borrowed = true
+	c.Messages.lend()
 	if q.FIFO != nil {
 		f := *q.FIFO
 		f.Dedup.lend()
@@ -82,50 +78,6 @@ func (q *Queue) clone() Queue {
 		c.FIFO = &f
 	}
 	return c
-}
-
-// message returns message i of a working copy for a change in place.
-func (q *Queue) message(i int) *Message {
-	q.ownMessages()
-	return &q.Messages[i]
-}
-
-// ownMessages copies the messages of a working copy while they are the
-// stored record's.
-func (q *Queue) ownMessages() {
-	if q.borrowed {
-		q.Messages = slices.Clone(q.Messages)
-		q.borrowed = false
-	}
-}
-
-// remove takes the messages at the ascending indices at out of a working
-// copy in one pass. Removing the oldest messages only reslices, which
-// leaves the stored record's slice as it was; any other removal copies
-// the messages first while they are the stored record's.
-func (q *Queue) remove(at []int) {
-	if len(at) == 0 {
-		return
-	}
-	if at[len(at)-1] == len(at)-1 {
-		if !q.borrowed {
-			clear(q.Messages[:len(at)])
-		}
-		q.Messages = q.Messages[len(at):]
-		return
-	}
-	q.ownMessages()
-	kept, next := at[0], 0
-	for i := at[0]; i < len(q.Messages); i++ {
-		if next < len(at) && at[next] == i {
-			next++
-			continue
-		}
-		q.Messages[kept] = q.Messages[i]
-		kept++
-	}
-	clear(q.Messages[kept:])
-	q.Messages = q.Messages[:kept]
 }
 
 // DedupScope is the scope of FIFO deduplication (sqs.md 8.2).

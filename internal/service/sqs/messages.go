@@ -363,8 +363,7 @@ func (s *Service) enqueue(c *kernel.Call, q queueRef, queue *Queue, o *outgoing,
 
 // append adds m to the end of queue and arms its timers.
 func (s *Service) append(tx *kernel.Tx, q queueRef, queue *Queue, m Message, now clock.Instant) {
-	queue.Messages = append(queue.Messages, m)
-	last := &queue.Messages[len(queue.Messages)-1]
+	last := queue.Messages.push(m)
 	s.armRetention(tx, q, queue, last)
 	s.armVisibility(tx, q, last, now)
 }

@@ -494,8 +494,7 @@ func report(q *Queue, arn aws.ARN, now clock.Instant) map[sqsapi.QueueAttributeN
 	a := q.Attributes
 	itoa := func(n int32) string { return strconv.FormatInt(int64(n), 10) }
 	var available, inFlight, delayed int
-	for i := range q.Messages {
-		m := &q.Messages[i]
+	for _, m := range q.Messages.all() {
 		switch {
 		case m.visible(now):
 			available++

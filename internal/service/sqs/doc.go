@@ -7,9 +7,10 @@
 // write changes a working copy and stores it back (ARCHITECTURE.md 3.5).
 // The copy shares the stored messages and caches until the write first
 // changes them, so a send copies no queued message and filling a queue
-// stays linear (Queue.clone, DedupCache). A message keeps the journal
-// event of the call that enqueued it. ReceiveMessage is the long-poll
-// reference of ARCHITECTURE.md 8.
+// stays linear, and a change to one message copies the chunk that holds
+// it, not the backlog (Queue.clone, Messages, DedupCache). A message
+// keeps the journal event of the call that enqueued it. ReceiveMessage is
+// the long-poll reference of ARCHITECTURE.md 8.
 //
 // Timers, all on the emulator clock and re-armed by Rearm from the state:
 // sqs.delay fires when a message's delay ends and sqs.visibility when a

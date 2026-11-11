@@ -135,7 +135,7 @@ func (s *Service) receive(c *kernel.Call, st *State, q queueRef, queue *Queue, p
 	}
 	take, move := plan(st, q, queue, p.max, now)
 	for _, i := range take {
-		m := queue.message(i)
+		m := queue.Messages.change(i)
 		m.receive(s.ids.ReceiptHandle(), now)
 		m.VisibleAt = now.Add(seconds(vt))
 		s.armVisibility(tx, q, m, now)
@@ -160,8 +160,8 @@ func (s *Service) receive(c *kernel.Call, st *State, q queueRef, queue *Queue, p
 func (s *Service) dropExpired(tx *kernel.Tx, q queueRef, queue *Queue, now clock.Instant) bool {
 	retention := seconds(queue.Attributes.MessageRetentionPeriod)
 	var expired []int
-	for i := range queue.Messages {
-		if queue.Messages[i].expired(retention, now) {
+	for i, m := range queue.Messages.all() {
+		if m.expired(retention, now) {
 			expired = append(expired, i)
 		}
 	}
@@ -204,14 +204,19 @@ type planner struct {
 
 func (p *planner) full() bool { return len(p.take) == p.limit }
 
-// offer considers message i, reporting whether it was receivable: one
+// moves reports whether a receive moves m, receivable, to the dead-letter
+// queue rather than taking it: m is past the redrive limit.
+func (p *planner) moves(m *Message) bool {
+	return p.redrive > 0 && m.receiveCount() >= p.redrive
+}
+
+// offer considers m, message i, reporting whether it was receivable: one
 // past the redrive limit is moved, any other taken while there is room.
-func (p *planner) offer(i int) bool {
-	m := &p.queue.Messages[i]
+func (p *planner) offer(i int, m *Message) bool {
 	if !m.visible(p.now) {
 		return false
 	}
-	if p.redrive > 0 && m.receiveCount() >= p.redrive {
+	if p.moves(m) {
 		p.move = append(p.move, i)
 		return true
 	}
@@ -235,12 +240,12 @@ func (p *planner) standard() {
 // pass offers, oldest first, the messages pick selects until the receive
 // is full.
 func (p *planner) pass(pick func(*Message) bool) {
-	for i := range p.queue.Messages {
+	for i, m := range p.queue.Messages.all() {
 		if p.full() {
 			return
 		}
-		if pick(&p.queue.Messages[i]) {
-			p.offer(i)
+		if pick(m) {
+			p.offer(i, m)
 		}
 	}
 }
@@ -248,28 +253,54 @@ func (p *planner) pass(pick func(*Message) bool) {
 // fifo offers a FIFO queue's messages group by group, each group up to its
 // first message that is not receivable.
 func (p *planner) fifo() {
-	for _, group := range groups(p.queue.Messages) {
-		for _, i := range group {
-			if p.full() || !p.offer(i) {
+	for _, group := range p.groups() {
+		for _, c := range group {
+			if p.full() || !p.offer(c.i, c.m) {
 				break
 			}
 		}
 	}
 }
 
-// groups returns the indices of a FIFO queue's messages by group, the
-// groups in the order their first message appears.
-func groups(ms []Message) [][]int {
-	var out [][]int
+// candidate is message m, at index i, as a FIFO receive may offer it.
+type candidate struct {
+	i int
+	m *Message
+}
+
+// groups returns the messages fifo may offer, by group, the groups in the
+// order their first message appears: each group's messages in send order
+// up to its first that is not receivable, which closes the group, or up to
+// the limit-th that a receive would take, past which the receive is full.
+// Stopping there keeps a receive's cost to what it can offer, not the
+// backlog.
+func (p *planner) groups() [][]candidate {
+	type group struct {
+		taken  int
+		closed bool
+	}
+	var out [][]candidate
+	var state []group
 	at := map[string]int{}
-	for i := range ms {
-		g, ok := at[ms[i].GroupID]
+	for i, m := range p.queue.Messages.all() {
+		g, ok := at[m.GroupID]
 		if !ok {
 			g = len(out)
-			at[ms[i].GroupID] = g
+			at[m.GroupID] = g
 			out = append(out, nil)
+			state = append(state, group{})
 		}
-		out[g] = append(out[g], i)
+		if state[g].closed {
+			continue
+		}
+		out[g] = append(out[g], candidate{i: i, m: m})
+		switch {
+		case !m.visible(p.now):
+			state[g].closed = true
+		case !p.moves(m):
+			state[g].taken++
+			state[g].closed = state[g].taken == p.limit
+		}
 	}
 	return out
 }
@@ -307,8 +338,8 @@ func (s *Service) deadLetter(c *kernel.Call, st *State, q queueRef, queue *Queue
 	dlq := stored.clone()
 	slices.Sort(move)
 	moved := make([]ids.MessageID, 0, len(move))
-	for _, i := range move {
-		m := queue.Messages[i].clone()
+	for _, stored := range queue.Messages.pick(move) {
+		m := stored.clone()
 		moved = append(moved, m.ID)
 		m.DeadLetterSource = &q
 		m.dropHandle()
@@ -341,7 +372,7 @@ func (s *Service) retryAttempt(tx *kernel.Tx, q queueRef, queue *Queue, id strin
 	at := make([]int, len(a.Received))
 	for k, r := range a.Received {
 		i := queue.find(r.ID)
-		if i < 0 || !queue.Messages[i].holds(string(r.Receipt)) {
+		if i < 0 || !queue.Messages.at(i).holds(string(r.Receipt)) {
 			delete(queue.FIFO.attempts(), id)
 			return nil, true
 		}
@@ -349,7 +380,7 @@ func (s *Service) retryAttempt(tx *kernel.Tx, q queueRef, queue *Queue, id strin
 	}
 	out := make([]Message, len(at))
 	for k, i := range at {
-		m := queue.message(i)
+		m := queue.Messages.change(i)
 		m.VisibleAt = now.Add(seconds(vt))
 		s.armVisibility(tx, q, m, now)
 		out[k] = m.clone()

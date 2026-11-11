@@ -208,8 +208,8 @@ func (s *Service) deleteQueue(_ context.Context, c *kernel.Call, in *sqsapi.Dele
 		if !ok {
 			return struct{}{}, errQueueDoesNotExist()
 		}
-		for i := range queue.Messages {
-			s.disarmMessage(tx, q, queue.Messages[i].ID)
+		for _, m := range queue.Messages.all() {
+			s.disarmMessage(tx, q, m.ID)
 		}
 		delete(st.Queues, q.name)
 		if s.opts.DeletedRecently == DeletedRecentlyEnforce {
@@ -392,14 +392,14 @@ func (s *Service) retime(tx *kernel.Tx, q queueRef, old Attributes, queue *Queue
 	if !retention && !retroactive {
 		return
 	}
-	for i := range queue.Messages {
-		if retroactive && queue.Messages[i].Receives == nil {
-			m := queue.message(i)
+	for i, m := range queue.Messages.all() {
+		if retroactive && m.Receives == nil {
+			m = queue.Messages.change(i)
 			m.VisibleAt = m.Sent.Add(seconds(queue.Attributes.DelaySeconds))
 			s.armVisibility(tx, q, m, now)
 		}
 		if retention {
-			s.armRetention(tx, q, queue, &queue.Messages[i])
+			s.armRetention(tx, q, queue, m)
 		}
 	}
 }
@@ -416,10 +416,10 @@ func (s *Service) purgeQueue(_ context.Context, c *kernel.Call, in *sqsapi.Purge
 		if !queue.Purged.IsZero() && now.Before(queue.Purged.Add(purgeWait)) {
 			return struct{}{}, errPurgeInProgress(queue.Name)
 		}
-		for i := range queue.Messages {
-			s.disarmMessage(tx, q, queue.Messages[i].ID)
+		for _, m := range queue.Messages.all() {
+			s.disarmMessage(tx, q, m.ID)
 		}
-		queue.Messages = nil
+		queue.Messages = Messages{}
 		if queue.FIFO != nil {
 			queue.FIFO.Dedup = DedupCache{}
 			queue.FIFO.Attempts = nil

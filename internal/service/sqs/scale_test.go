@@ -21,10 +21,21 @@ func allocatedPerCall(n uint64, fn func()) uint64 {
 	return (after.TotalAlloc - before.TotalAlloc) / n
 }
 
+// allocated is the heap bytes one call to fn allocates.
+func allocated(fn func()) uint64 {
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	fn()
+	runtime.ReadMemStats(&after)
+	return after.TotalAlloc - before.TotalAlloc
+}
+
 // A send copies none of the messages already queued, so a send to a queue
 // holding a backlog costs what a send to an empty queue costs and filling
-// a queue is linear, so backlog tests run instantly. A copy of the backlog
-// per send would cost about 2 MB here, far past the 4x margin.
+// a queue is linear, so backlog tests run instantly. A receive and a
+// visibility change copy only the part of the queue they change, so they
+// too cost the same whatever the backlog. A copy of the backlog per call
+// would cost about 2 MB here, far past the 4x margin.
 func TestSendCostDoesNotGrowWithTheBacklog(t *testing.T) {
 	const backlog, sample = 10_000, 200
 	for _, tt := range []struct {
@@ -53,13 +64,38 @@ func TestSendCostDoesNotGrowWithTheBacklog(t *testing.T) {
 					}
 					sent++
 				}
+				// redeliver receives the oldest message, then makes it
+				// receivable again, which also reopens a FIFO group; it
+				// returns what each call allocates on average.
+				one := int32(1)
+				redeliver := func() (receive, change uint64) {
+					for range sample {
+						var got []sqsapi.Message
+						receive += allocated(func() {
+							got = h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url, MaxNumberOfMessages: &one})
+						})
+						if len(got) != 1 {
+							h.Fatalf("ReceiveMessage returned %d messages, want 1", len(got))
+						}
+						change += allocated(func() { h.changeVisibility(url, &got[0], 0) })
+					}
+					return receive / sample, change / sample
+				}
 				empty := allocatedPerCall(sample, send)
+				fewReceive, fewChange := redeliver()
 				for range backlog {
 					send()
 				}
 				full := allocatedPerCall(sample, send)
 				if full > 4*empty {
 					h.Errorf("a send to a queue of %d messages allocates %d bytes, one to an empty queue %d: sends copy the backlog", backlog, full, empty)
+				}
+				fullReceive, fullChange := redeliver()
+				if fullReceive > 4*fewReceive {
+					h.Errorf("a receive from a queue of %d messages allocates %d bytes, one from a queue of %d %d: receives copy the backlog", backlog, fullReceive, sample, fewReceive)
+				}
+				if fullChange > 4*fewChange {
+					h.Errorf("a visibility change on a queue of %d messages allocates %d bytes, one on a queue of %d %d: visibility changes copy the backlog", backlog, fullChange, sample, fewChange)
 				}
 			})
 		})

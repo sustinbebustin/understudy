@@ -63,7 +63,7 @@ func (s *Service) messageCauses(_ context.Context, c *kernel.Call, in *sqsapi.Me
 			if i < 0 {
 				continue
 			}
-			m := &queue.Messages[i]
+			m := queue.Messages.at(i)
 			out = append(out, sqsapi.MessageCause{ReceiptHandle: h, EnqueuedEvent: int64(m.Enqueued), EnqueuedTrace: int64(cmp.Or(m.EnqueuedTrace, m.Enqueued))}) //nolint:gosec // event ids stay far below 2^63
 		}
 		return out
@@ -141,7 +141,7 @@ func (s *Service) delete(tx *kernel.Tx, q queueRef, queue *Queue, handle string,
 	switch {
 	case i < 0:
 		return false, nil
-	case queue.FIFO != nil && queue.Messages[i].visible(now):
+	case queue.FIFO != nil && queue.Messages.at(i).visible(now):
 		return false, errReceiptHandleExpired(handle)
 	}
 	s.removeMessage(tx, q, queue, i)
@@ -210,14 +210,15 @@ func (s *Service) change(tx *kernel.Tx, q queueRef, queue *Queue, handle string,
 	if i < 0 {
 		return notAvailable(handle)
 	}
-	latest, _ := queue.Messages[i].latest()
+	m := queue.Messages.at(i)
+	latest, _ := m.latest()
 	switch {
-	case queue.FIFO != nil && queue.Messages[i].visible(now):
+	case queue.FIFO != nil && m.visible(now):
 		return errReceiptHandleExpired(handle)
 	case latest.At.Add(seconds(maxVisibility)).Before(now.Add(seconds(vt))):
 		return errVisibilityCeiling(vt)
 	}
-	m := queue.message(i)
+	m = queue.Messages.change(i)
 	m.VisibleAt = now.Add(seconds(vt))
 	s.armVisibility(tx, q, m, now)
 	if queue.FIFO != nil {
@@ -246,10 +247,10 @@ func (s *Service) holdVisibility(_ context.Context, c *kernel.Call, in *sqsapi.H
 		changed := false
 		for _, h := range in.ReceiptHandles {
 			i := queue.byReceipt(h)
-			if i < 0 || queue.Messages[i].pinned() == pin {
+			if i < 0 || queue.Messages.at(i).pinned() == pin {
 				continue
 			}
-			m := queue.message(i)
+			m := queue.Messages.change(i)
 			m.pin(pin)
 			s.armVisibility(tx, q, m, now)
 			changed = true
