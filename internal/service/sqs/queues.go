@@ -210,6 +210,7 @@ func (s *Service) deleteQueue(_ context.Context, c *kernel.Call, in *sqsapi.Dele
 		}
 		for _, m := range queue.Messages.all() {
 			s.disarmMessage(tx, q, m.ID)
+			st.forget(m)
 		}
 		delete(st.Queues, q.name)
 		if s.opts.DeletedRecently == DeletedRecentlyEnforce {
@@ -412,12 +413,13 @@ func (s *Service) purgeQueue(_ context.Context, c *kernel.Call, in *sqsapi.Purge
 	if err != nil {
 		return nil, err
 	}
-	_, err = writeQueue(s, c, q, func(_ *State, queue *Queue, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+	_, err = writeQueue(s, c, q, func(st *State, queue *Queue, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		if !queue.Purged.IsZero() && now.Before(queue.Purged.Add(purgeWait)) {
 			return struct{}{}, errPurgeInProgress(queue.Name)
 		}
 		for _, m := range queue.Messages.all() {
 			s.disarmMessage(tx, q, m.ID)
+			st.forget(m)
 		}
 		queue.Messages = Messages{}
 		if queue.FIFO != nil {

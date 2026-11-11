@@ -847,6 +847,41 @@ func TestSnapshotRoundTripAndRearm(t *testing.T) {
 	})
 }
 
+// A snapshot load keeps what each receipt handle reaches: an older handle
+// still deletes its message (sqs/R01 03-recv-after-6s), and a handle of
+// another queue still fails a batch entry as not valid for this queue
+// (06-delete-batch).
+func TestSnapshotKeepsOlderAndForeignHandles(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.queue("kept", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "5"})
+		other := h.queue("kept-other", nil)
+		older, _ := receivedTwice(h, url, func() { h.mustSend(url, "m") })
+		h.mustSend(other, "other")
+		foreign := val(h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: other})[0].ReceiptHandle)
+		sections, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		h.Kernel.Timers().Scheduler().Clear()
+		if err := h.svc.Import(sections); err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Rearm(h.Clock.Now())
+		del, derr := h.Invoke(h.Context(), sqsapi.OpDeleteMessageBatch, &sqsapi.DeleteMessageBatchInput{QueueUrl: url, Entries: []sqsapi.DeleteMessageBatchRequestEntry{
+			{Id: "stale", ReceiptHandle: older},
+			{Id: "otherqueue", ReceiptHandle: foreign},
+		}})
+		if derr != nil || len(del.Successful) != 1 || del.Successful[0].Id != "stale" || len(del.Failed) != 1 || del.Failed[0].Id != "otherqueue" || val(del.Failed[0].Message) != `The receipt handle "`+foreign+`" is not valid for this queue.` {
+			h.Fatalf("DeleteMessageBatch after the load = %+v, %v", del, derr)
+		}
+		h.advance(6 * time.Second)
+		if got := h.receiveBodies(url, 10); len(got) != 0 {
+			h.Fatalf("receive after the older handle's delete = %q, want none", got)
+		}
+	})
+}
+
 // A long poll parked on an empty queue returns at once when a snapshot
 // load brings the queue a visible message, rather than waiting out its
 // WaitTimeSeconds.

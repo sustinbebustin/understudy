@@ -333,7 +333,7 @@ func (s *Service) step(c *kernel.Call, st *State, src queueRef, source *Queue, t
 	for name, q := range dests {
 		st.Queues[name] = *q
 	}
-	s.removeMessages(tx, src, source, moved)
+	s.removeMessages(tx, st, src, source, moved)
 	if len(order) > 0 {
 		handle := encodeTaskHandle(t)
 		for _, to := range order {

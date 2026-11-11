@@ -1610,11 +1610,11 @@ Raw operations:
 | TagQueue | full | inferred, 1 of 7 claims |  |
 | UntagQueue | full | inferred, 1 of 7 claims |  |
 | AddPermission | partial | inferred, 1 of 8 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
-| ChangeMessageVisibility | partial | contradicted (sqs/R01/05-cmv-stale.json), 1 of 13 claims | an older receipt handle of a message received again since is refused with InvalidParameterValue, where AWS answers 200 |
-| ChangeMessageVisibilityBatch | partial | contradicted (sqs/R01/06-cmv-batch.json), 1 of 11 claims | an older receipt handle of a message received again since, or one of another queue, fails as not available for a visibility change, where AWS reports the first successful and fails the second as not valid for this queue |
-| DeleteMessage | partial | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 17 claims | an older receipt handle of a FIFO message received again since succeeds, where AWS answers 400 "The receipt handle has expired." |
-| DeleteMessageBatch | partial | contradicted (sqs/R01/03-recv-after-6s.json), 2 of 10 claims | a receipt handle of another queue is reported successful and deletes nothing, where AWS fails it as not valid for this queue |
-| ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 17 of 33 claims | a message's Attributes are sorted by name, where AWS writes them in an order of its own |
+| ChangeMessageVisibility | partial | inferred, 3 of 13 claims | unrecorded, understudy's choice: a receipt handle of another queue is refused as not available for a visibility change, as AWS answers one batch entry with it as not valid for this queue |
+| ChangeMessageVisibilityBatch | partial | inferred, 4 of 11 claims | a receipt handle of a queue in another account or Region, or of a message gone from another queue, fails as not available for a visibility change, where AWS fails it as not valid for this queue by inference from sqs/R01 06-cmv-batch |
+| DeleteMessage | partial | inferred, 2 of 16 claims | unrecorded, understudy's choice: a receipt handle of another queue succeeds and deletes nothing, as AWS answers one batch entry with it as not valid for this queue |
+| DeleteMessageBatch | partial | inferred, 2 of 9 claims | a receipt handle of a queue in another account or Region, or of a message gone from another queue, is reported successful as one of a deleted message, where AWS fails it as not valid for this queue by inference from sqs/R01 06-delete-batch |
+| ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 15 of 33 claims | a message's Attributes are sorted by name, where AWS writes them in an order of its own |
 | RemovePermission | partial | inferred, 1 of 7 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
 
 Internal operations:
@@ -1803,7 +1803,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-236 switches: 133 aws-recorded, 1 third-party-recorded, 16 aws-doc, 86 inferred.
+235 switches: 133 aws-recorded, 1 third-party-recorded, 15 aws-doc, 86 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1956,7 +1956,6 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `s3.tagging.limits` | `InvalidTag` | aws-doc | docs/research/s3.md#429-bucket-tagging | none: unrecorded: no recording exceeds a bucket tag limit |
 | `secretsmanager.last-accessed-date.granularity` | `day` | aws-doc | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording reads a LastAccessedDate |
 | `sqs.policy.limits` | `bytes-and-statements` | aws-doc | docs/research/sqs.md#4-queue-attributes | none: unrecorded: no recording exceeds a Policy limit |
-| `sqs.receipt.stale-handle` | `succeed-without-delete` | contradicted (sqs/R01/03-recv-after-6s.json) | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | sqs/R01#03-recv-after-6s |
 | `apigateway.invoke.routing` | `{{403 {"message":"Forbidden"} ForbiddenException} {403 {"message":"Forbidden"} ForbiddenException} {true false}}` | inferred | docs/research/apigateway-rest.md#47-gateway-responses-and-error-bodies | none: unrecorded: the answer to an unknown API id, whose host does not resolve (APIGW1-07 recorded the rest) |
 | `apigateway.lambda.permission` | `{<api-id>/<stage>/<METHOD>/<resource path template without its leading slash>; ANY as written for an ANY method; an empty last segment for the root resource {500 {"message": "Internal server error"} InternalServerErrorException}}` | inferred | docs/research/apigateway-rest.md#54-how-api-gateway-invokes-the-function | none: unrecorded: the SourceARN form; APIGW1-15 granted <api-id>/* and recorded only the denial |
 | `apigateway.mock.selection` | `{{415 {"message": "Unsupported Media Type"} BadRequestException} true true sorting-last-first}` | inferred | docs/research/apigateway-rest.md#62-passthrough-behavior-and-415 | none: unrecorded: which of 'longest first' and 'sorting last first' AWS applies; APIGW1-12's three ties fit both (apigateway-rest.md 6.7) |
@@ -2036,7 +2035,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `sqs.batch.unset-visibility-timeout` | `zero` | inferred | docs/research/sqs.md#62-sendmessagebatch-and-the-other-batch-apis | none: unrecorded: sqs/R01#06-cmv-batch sets VisibilityTimeout on every entry |
 | `sqs.fifo.content-dedup-id` | `lowercase-hex-sha256` | inferred | docs/research/sqs.md#82-deduplication | none: sqs/R01#07-fifo-recv1 holds the value, but the step differs on the order of the message's Attributes, which AWS writes in an order of its own, so a claim there would read contradicted for another reason |
 | `sqs.fifo.duplicate` | `original-message-id-and-sequence` | inferred | docs/research/sqs.md#82-deduplication | none: unrecorded: no recording shows what a suppressed FIFO duplicate send answers |
-| `sqs.fifo.receipt-expiry` | `delete-and-change-visibility` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | none: sqs/R01#07-fifo-delete-expired records the DeleteMessage half only; ChangeMessageVisibility on an expired FIFO handle is unrecorded |
+| `sqs.fifo.receipt-expiry` | `delete-and-change-visibility` | inferred | docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility | none: sqs/R01#07-fifo-delete-expired and #07-fifo-delete-h1-after-rereceive record the DeleteMessage half only; ChangeMessageVisibility on an expired FIFO handle is unrecorded |
 | `sqs.fifo.sequence-number` | `20-digit-decimal-per-queue` | inferred | docs/research/sqs.md#3-identifiers-and-formats | none: sqs/R01#07-fifo-recv1 records the 20-digit form but not how the numbers count |
 | `sqs.queueDeletedRecently` | `ignore` | inferred | docs/ARCHITECTURE.md#9-the-clock | none: a deliberate departure from AWS (ARCHITECTURE.md 9), which a recording does not change |
 | `sqs.sse-kms.data-key` | `generate-on-every-send` | inferred | docs/research/sqs.md#4-queue-attributes | none: unrecorded: IAM-ENF-29 records a first send only |

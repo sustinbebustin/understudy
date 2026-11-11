@@ -118,7 +118,7 @@ func (s *Service) receive(c *kernel.Call, st *State, q queueRef, queue *Queue, p
 	if p.visibility != nil {
 		vt = *p.visibility
 	}
-	changed := s.dropExpired(tx, q, queue, now)
+	changed := s.dropExpired(tx, st, q, queue, now)
 	fifo := queue.FIFO
 	if fifo != nil && p.attempt != nil {
 		changed = fifo.pruneDedup(now) || changed
@@ -132,7 +132,9 @@ func (s *Service) receive(c *kernel.Call, st *State, q queueRef, queue *Queue, p
 	take, move := plan(st, q, queue, p.max, now)
 	for _, i := range take {
 		m := queue.Messages.change(i)
-		m.receive(s.ids.ReceiptHandle(), now)
+		handle := s.ids.ReceiptHandle()
+		m.receive(handle, now)
+		st.recordIssue(handle, q.name)
 		m.VisibleAt = now.Add(seconds(vt))
 		s.armVisibility(tx, q, m, now)
 		out.messages = append(out.messages, m.clone())
@@ -153,7 +155,7 @@ func (s *Service) receive(c *kernel.Call, st *State, q queueRef, queue *Queue, p
 
 // dropExpired deletes the messages past the queue's retention at now, as
 // their retention timers would (sqs.md 7.3), and reports whether any was.
-func (s *Service) dropExpired(tx *kernel.Tx, q queueRef, queue *Queue, now clock.Instant) bool {
+func (s *Service) dropExpired(tx *kernel.Tx, st *State, q queueRef, queue *Queue, now clock.Instant) bool {
 	retention := seconds(queue.Attributes.MessageRetentionPeriod)
 	var expired []int
 	for i, m := range queue.Messages.all() {
@@ -161,7 +163,7 @@ func (s *Service) dropExpired(tx *kernel.Tx, q queueRef, queue *Queue, now clock
 			expired = append(expired, i)
 		}
 	}
-	s.removeMessages(tx, q, queue, expired)
+	s.removeMessages(tx, st, q, queue, expired)
 	return len(expired) > 0
 }
 
@@ -348,7 +350,7 @@ func (s *Service) deadLetter(c *kernel.Call, st *State, q queueRef, queue *Queue
 		s.append(tx, dq, &dlq, m, now)
 	}
 	st.Queues[dq.name] = dlq
-	s.removeMessages(tx, q, queue, move)
+	s.removeMessages(tx, st, q, queue, move)
 	tx.Record(q.scope, journal.Redrive{From: q.arn(), To: dq.arn(), Messages: moved, Reason: journal.MaxReceiveCount{Count: policy.MaxReceiveCount}})
 	return dq.arn()
 }

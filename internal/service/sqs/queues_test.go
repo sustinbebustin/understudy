@@ -117,7 +117,6 @@ func TestSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 			got[e.Name] = e.Value
 		}
 		want := map[string]string{
-			"sqs.receipt.stale-handle":           "succeed-without-delete",
 			"sqs.queueDeletedRecently":           "ignore",
 			"sqs.visibility.ceiling-from":        "latest-receive",
 			"sqs.fifo.receipt-expiry":            "delete-and-change-visibility",
@@ -455,8 +454,9 @@ func TestRetentionRemovesInFlightMessages(t *testing.T) {
 	})
 }
 
-// sqs.md 7.2: ChangeMessageVisibility needs a current handle, makes the
-// message receivable at 0, and stops at 12 hours from the receive.
+// sqs.md 7.2: ChangeMessageVisibility needs a handle of a message still
+// there, makes the message receivable at 0, and stops at 12 hours from
+// the receive.
 func TestChangeMessageVisibility(t *testing.T) {
 	run(t, func(h *harness) {
 		url := h.queue("vis", nil)
@@ -477,6 +477,12 @@ func TestChangeMessageVisibility(t *testing.T) {
 		if len(again) != 1 {
 			h.Fatal("a zero visibility timeout did not make the message receivable")
 		}
+		// The older handle still changes the message (sqs/R01 05-cmv-stale)
+		// until it is deleted (05-cmv-stale-deleted).
+		if err := change(handle, 10); err != nil {
+			h.Fatalf("change with the older handle = %s", err.Message)
+		}
+		h.mustDelete(url, &again[0])
 		wantError(h.T, change(handle, 10), "InvalidParameterValue", "Value "+handle+" for parameter ReceiptHandle is invalid. Reason: Message does not exist or is not available for visibility timeout change.")
 	})
 }

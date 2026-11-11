@@ -29,11 +29,12 @@
 //     name, type and value.
 //   - A receipt handle is well formed when it has the form understudy
 //     mints (AQEB and 32 base64 characters); anything else is
-//     ReceiptHandleIsInvalid. A well-formed handle that matches no message
-//     deletes nothing and succeeds (sqs.receipt.stale-handle). A FIFO
-//     handle expires with its visibility timeout for DeleteMessage, as
-//     recorded, and for ChangeMessageVisibility too
-//     (sqs.fifo.receipt-expiry).
+//     ReceiptHandleIsInvalid. A well-formed handle that reaches no message
+//     deletes nothing and succeeds, as recorded for a deleted message; one
+//     another queue issued does the same outside a batch, unrecorded. A
+//     FIFO handle expires with its visibility timeout, and an older one
+//     once its message is received again, for DeleteMessage, as recorded,
+//     and for ChangeMessageVisibility too (sqs.fifo.receipt-expiry).
 //   - Redrive happens on the receive that would exceed maxReceiveCount
 //     (sqs.md 9.2). A policy whose dead-letter queue no longer exists, or
 //     names the queue itself, moves nothing. The receive's journal event

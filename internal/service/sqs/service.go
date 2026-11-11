@@ -90,23 +90,6 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	return s
 }
 
-// staleReceipt is the behavior of DeleteMessage with an older receipt
-// handle of a message received again since: AWS documents that it
-// "will succeed, but the message might not be deleted"; understudy
-// succeeds without deleting. sqs/R01#03-recv-after-6s contradicts it: AWS
-// deleted the message with the older handle, so the receive after its
-// visibility timeout finds none (docs/guide/differences.md).
-func staleReceipt() fidelity.Switch[string] {
-	return fidelity.Switch[string]{
-		Name:    "sqs.receipt.stale-handle",
-		Value:   "succeed-without-delete",
-		Label:   evidence.AWSDoc,
-		Ref:     "docs/research/sqs.md#72-receipt-handles-deletemessage-changemessagevisibility",
-		Ops:     []string{"sqs.DeleteMessage", "sqs.DeleteMessageBatch"},
-		Settles: fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "sqs/R01", Step: "03-recv-after-6s"}},
-	}
-}
-
 // The sqs.md sections the switches below cite.
 const (
 	refAttributes = "docs/research/sqs.md#4-queue-attributes"
@@ -129,14 +112,16 @@ func visibilityCeiling() fidelity.Switch[string] {
 }
 
 // fifoReceiptExpiry is which calls a FIFO receipt handle expires for once
-// its visibility timeout ends: recorded for DeleteMessage, applied to
-// ChangeMessageVisibility too (sqs.md 7.2).
+// its visibility timeout ends, or once its message is received again:
+// recorded for DeleteMessage (sqs/R01 07-fifo-delete-expired,
+// 07-fifo-delete-h1-after-rereceive), applied to ChangeMessageVisibility
+// too (sqs.md 7.2).
 func fifoReceiptExpiry() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name: "sqs.fifo.receipt-expiry", Value: "delete-and-change-visibility", Label: evidence.Inferred, Ref: refReceipts,
 		Ops: []string{"sqs.DeleteMessage", "sqs.DeleteMessageBatch", "sqs.ChangeMessageVisibility", "sqs.ChangeMessageVisibilityBatch"},
 		Settles: fidelity.NoScenario{
-			Reason: "sqs/R01#07-fifo-delete-expired records the DeleteMessage half only; ChangeMessageVisibility on an expired FIFO handle is unrecorded",
+			Reason: "sqs/R01#07-fifo-delete-expired and #07-fifo-delete-h1-after-rereceive record the DeleteMessage half only; ChangeMessageVisibility on an expired FIFO handle is unrecorded",
 		},
 	}
 }
@@ -205,7 +190,7 @@ func policyLimits() fidelity.Switch[string] {
 func (s *Service) Switches() []fidelity.Entry {
 	authorized := s.k.Bindings().AuthorizedOps(sqsapi.Service())
 	return []fidelity.Entry{
-		staleReceipt().Entry(), s.deletedRecently().Entry(),
+		s.deletedRecently().Entry(),
 		visibilityCeiling().Entry(), fifoReceiptExpiry().Entry(), fifoDuplicate().Entry(),
 		contentDedupFormat().Entry(), sequenceFormat().Entry(), batchUnsetVisibility().Entry(),
 		policyLimits().Entry(), kmsDeniedText(), kmsKeyError().Entry(), kmsDataKey().Entry(),

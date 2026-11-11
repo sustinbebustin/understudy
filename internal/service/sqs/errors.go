@@ -262,6 +262,12 @@ func errReceiptHandleIsInvalid(handle string) *awserr.Error {
 	return sqsapi.ErrReceiptHandleIsInvalid(`The input receipt handle "` + handle + `" is not a valid receipt handle.`)
 }
 
+// errReceiptHandleNotForQueue is a batch entry's handle another queue
+// issued (sqs/R01 06-delete-batch).
+func errReceiptHandleNotForQueue(handle string) *awserr.Error {
+	return sqsapi.ErrReceiptHandleIsInvalid(`The receipt handle "` + handle + `" is not valid for this queue.`)
+}
+
 func errReceiptHandleExpired(handle string) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value " + handle + " for parameter ReceiptHandle is invalid. Reason: The receipt handle has expired.")
 }

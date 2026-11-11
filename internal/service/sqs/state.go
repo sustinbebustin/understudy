@@ -1,7 +1,9 @@
 package sqs
 
 import (
+	"iter"
 	"maps"
+	"slices"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -13,7 +15,7 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 5
+const stateVersion = 6
 
 // State is the SQS state of one account and region: its queues by name,
 // the names deleted recently and the message move tasks. Records are
@@ -31,6 +33,10 @@ type State struct {
 	Deleted map[string]clock.Instant `json:"deleted,omitempty"`
 	// Tasks are the message move tasks, oldest first.
 	Tasks []MoveTask `json:"tasks,omitempty"`
+	// issuers is the queue that issued each receipt handle a message here
+	// still holds (receiptIssuers); derived from the messages, so not
+	// persisted.
+	issuers receiptIssuers
 }
 
 func newState(aws.Scope) State { return State{Queues: map[string]Queue{}} }
@@ -209,7 +215,7 @@ type FIFOMessage struct {
 }
 
 // Receives is a received message's history: how many receives took it,
-// when the first did, and the latest one while its handle still reaches
+// when the first did, and the handles they issued while those still reach
 // the message.
 type Receives struct {
 	Count int           `json:"count"`
@@ -217,7 +223,24 @@ type Receives struct {
 	// Latest is the latest receive; nil once a redrive moved the message to
 	// a dead-letter queue, where no handle reaches it.
 	Latest *Receive `json:"latest,omitempty"`
+	// Earlier are the handles the receives before Latest issued, oldest
+	// first, dropped with Latest. On a standard queue each still deletes
+	// the message and changes its visibility; on a FIFO queue each has
+	// expired (sqs/R01 03-recv-after-6s, 05-cmv-stale,
+	// 07-fifo-delete-h1-after-rereceive). The slice is never changed in
+	// place, so a clone may share it.
+	Earlier []ids.ReceiptHandle `json:"earlier,omitempty"`
 }
+
+// issue is which of a message's receives issued a receipt handle.
+type issue int
+
+// The issue values.
+const (
+	notIssued issue = iota
+	issuedLatest
+	issuedEarlier
+)
 
 // Receive is one receive of a message: the handle it issued, when, and
 // whether HoldVisibility pins the message invisible whatever VisibleAt
@@ -286,6 +309,33 @@ func (m *Message) holds(handle string) bool {
 	return ok && string(r.Handle) == handle
 }
 
+// issued reports which of m's receives issued handle, while it still
+// reaches m.
+func (m *Message) issued(handle string) issue {
+	switch {
+	case m.holds(handle):
+		return issuedLatest
+	case m.Receives != nil && slices.Contains(m.Receives.Earlier, ids.ReceiptHandle(handle)):
+		return issuedEarlier
+	}
+	return notIssued
+}
+
+// handles yields every handle that still reaches m, latest first.
+func (m *Message) handles() iter.Seq[ids.ReceiptHandle] {
+	return func(yield func(ids.ReceiptHandle) bool) {
+		r, ok := m.latest()
+		if !ok || !yield(r.Handle) {
+			return
+		}
+		for _, h := range m.Receives.Earlier {
+			if !yield(h) {
+				return
+			}
+		}
+	}
+}
+
 func (m *Message) pinned() bool {
 	r, ok := m.latest()
 	return ok && r.Pinned
@@ -300,6 +350,9 @@ func (m *Message) receive(handle ids.ReceiptHandle, now clock.Instant) {
 		r = *m.Receives
 	}
 	r.Count++
+	if r.Latest != nil {
+		r.Earlier = append(slices.Clip(r.Earlier), r.Latest.Handle)
+	}
 	r.Latest = &Receive{Handle: handle, At: now}
 	m.Receives = &r
 }
@@ -316,8 +369,8 @@ func (m *Message) pin(pinned bool) {
 	m.Receives = &r
 }
 
-// dropHandle forgets m's latest receive, keeping the count and the first
-// receive, as a redrive does.
+// dropHandle forgets the handles of m's receives, keeping the count and
+// the first receive, as a redrive does.
 func (m *Message) dropHandle() {
 	if m.Receives != nil {
 		m.Receives = &Receives{Count: m.Receives.Count, First: m.Receives.First}
