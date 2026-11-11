@@ -80,27 +80,32 @@ func TestSNSCombinations(t *testing.T) {
 	}
 }
 
-// TestSNSKeys: at most five keys; for a nested policy the leaf keys count
-// (sns.md 6.5), and each "$or" branch counts its own keys.
+// TestSNSKeys: at most five distinct leaf keys across the whole policy,
+// "$or" branches included (sns/R09 H3-b, H3-c, H3-d and T12, MessageBody
+// scope, refused with "FilterPolicy: Filter policy can not have more than 5
+// keys"). A key repeated in two branches is one key, which no recording
+// covers.
 func TestSNSKeys(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		policy string
-		ok     bool
+		name, policy string
+		ok           bool
 	}{
-		{`{"a":["1"],"b":["1"],"c":["1"],"d":["1"],"e":["1"]}`, true},
-		{`{"a":{"b":["1"],"c":["1"],"d":["1"]},"e":{"f":["1"],"g":["1"],"h":["1"]}}`, false},
-		{`{"a":{"b":["1"],"c":["1"],"d":["1"],"e":["1"],"f":["1"]}}`, true},
-		{`{"$or":[{"a":["1"],"b":["1"],"c":["1"]},{"d":["1"],"e":["1"],"f":["1"]}]}`, true},
-		{`{"a":["1"],"$or":[{"b":["1"],"c":["1"]},{"d":["1"],"e":["1"],"f":["1"],"g":["1"],"h":["1"]}]}`, false},
+		{"five flat keys", `{"a":["1"],"b":["1"],"c":["1"],"d":["1"],"e":["1"]}`, true},
+		{"six leaf keys under two objects", `{"a":{"b":["1"],"c":["1"],"d":["1"]},"e":{"f":["1"],"g":["1"],"h":["1"]}}`, false},
+		{"H3-b", `{"a":{"b":["1"],"c":["1"],"d":["1"],"e":["1"],"f":["1"]}}`, true},
+		{"H3-c", `{"$or":[{"a":["1"],"b":["1"],"c":["1"]},{"d":["1"],"e":["1"],"f":["1"]}]}`, false},
+		{"H3-d", `{"a":["1"],"$or":[{"b":["1"],"c":["1"]},{"d":["1"],"e":["1"],"f":["1"]}]}`, false},
+		{"T12", `{"$or":[{"a":["x"]},{"b":["y"]}],"c":["z"],"d":["1"],"e":["2"],"f":["3"]}`, false},
+		{"one key in two branches", `{"$or":[{"a":["1"],"b":["1"],"c":["1"]},{"a":["2"],"d":["1"],"e":["1"]}]}`, true},
 	}
 	for _, tc := range tests {
 		_, err := Compile([]byte(tc.policy), SNS{Scope: MessageBody})
 		if tc.ok != (err == nil) {
-			t.Errorf("Compile(%s) = %v, want ok=%t", tc.policy, err, tc.ok)
+			t.Errorf("%s: Compile(%s) = %v, want ok=%t", tc.name, tc.policy, err, tc.ok)
 		}
-		if err != nil && err.Cause != (LimitExceeded{Limit: LimitKeys}) {
-			t.Errorf("Compile(%s) cause = %#v, want the key limit", tc.policy, err.Cause)
+		if err != nil && (err.Cause != (LimitExceeded{Limit: LimitKeys}) || err.Message() != "FilterPolicy: Filter policy can not have more than 5 keys") {
+			t.Errorf("%s: Compile(%s) = %#v %q, want the key limit", tc.name, tc.policy, err.Cause, err.Message())
 		}
 	}
 }
@@ -258,13 +263,14 @@ func TestExpansionBudget(t *testing.T) {
 // TestExpansionStopsAfterOverrun: once a pattern overruns a limit, later
 // "$or" arrays no longer multiply the branches, in every profile. Without
 // that stop, thirty arrays of three members (under 1.7 KB) allocate without
-// bound.
+// bound. Each array's members share one key, so SNS passes 150 branches at
+// its fifth array, before the sixth key that would break its key limit.
 func TestExpansionStopsAfterOverrun(t *testing.T) {
-	sizes := make([]int, 30)
-	for i := range sizes {
-		sizes[i] = 3
+	parts := make([]string, 30)
+	for i := range parts {
+		parts[i] = `"k` + strconv.Itoa(i) + `":{"$or":[{"a":["1"]},{"a":["2"]},{"a":["3"]}]}`
 	}
-	pattern := []byte(orArrays(sizes...))
+	pattern := []byte("{" + strings.Join(parts, ",") + "}")
 	for _, profile := range []Profile{EventBridge{}, SNS{Scope: MessageBody}, LambdaESM{}} {
 		var err *CompileError
 		bytes := allocated(func() { _, err = Compile(pattern, profile) })

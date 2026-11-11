@@ -348,10 +348,9 @@ func TestFilterPolicySwitchesAreReported(t *testing.T) {
 			records[e.Name] = e.Record
 		}
 		for name, record := range map[string]string{
-			"sns.filter-policy.empty-input":             "R09/6 (matching-engines.md H1)",
-			"sns.filter-policy.exists-true-empty-value": "matching-engines.md H2",
-			"sns.filter-policy.anything-but-suffix":     "R09/7 (matching-engines.md H7)",
-			"sns.fifo.duplicate":                        "",
+			"sns.filter-policy.bare-number":         "R09/1 (matching-engines.md H6)",
+			"sns.filter-policy.anything-but-suffix": "R09/7 (matching-engines.md H7)",
+			"sns.fifo.duplicate":                    "",
 		} {
 			if got, ok := records[name]; !ok || got != record {
 				h.Errorf("switch %s: listed %v, record %q; want listed, record %q", name, ok, got, record)

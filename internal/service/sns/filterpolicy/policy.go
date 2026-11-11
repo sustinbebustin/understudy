@@ -46,8 +46,8 @@ func (s Scope) String() string {
 }
 
 // profile is the Ruler profile of a scope. Its zero Options keep Ruler's
-// behavior for the four conflicts with the SNS documentation (ADR 0015);
-// Switches lists them.
+// behavior for the two conflicts with the SNS documentation that no
+// recording settles (ADR 0015); Switches lists them.
 func (s Scope) profile() ruler.SNS {
 	if s == MessageBody {
 		return ruler.SNS{Scope: ruler.MessageBody}
@@ -123,7 +123,7 @@ func attribute(v delivery.AttributeValue) ruler.Attribute {
 		return ruler.NumberAttribute{Value: v.Value}
 	case delivery.BinaryAttribute:
 	}
-	// A Binary attribute is present, which the empty-input switch counts,
+	// A Binary attribute is present, which the empty-input rule counts,
 	// but its value is ignored (sns.md 6.3).
 	return ruler.BinaryAttribute{}
 }
@@ -165,18 +165,14 @@ func switchTable() map[string]switchMeta {
 		return fidelity.NoScenario{Reason: "recorded in sns/R09 (" + steps + "); no scenario replays sns/R09 yet"}
 	}
 	return map[string]switchMeta{
-		"sns.filter-policy.exists-true-empty-value": {evidence.Inferred, match, r09("H2-body")},
-		"sns.filter-policy.empty-input":             {evidence.Inferred, match, r09("T06, H1-attr, H1-body")},
-		"sns.filter-policy.bare-number":             {evidence.Inferred, match, r09("T01 to T03, H6")},
-		"sns.filter-policy.malformed-or":            {evidence.Inferred, compile, r09("H10-01-subscribe to H10-06-subscribe")},
-		"sns.filter-policy.anything-but-suffix":     {evidence.Inferred, compile, r09("T07-subscribe, H7b-01-subscribe")},
+		"sns.filter-policy.bare-number":         {evidence.Inferred, match, r09("T01 to T03, H6")},
+		"sns.filter-policy.malformed-or":        {evidence.Inferred, compile, r09("H10-01-subscribe to H10-06-subscribe")},
+		"sns.filter-policy.anything-but-suffix": {evidence.Inferred, compile, r09("T07-subscribe, H7b-01-subscribe")},
 		"sns.filter-policy.anything-but-list-forms": {
 			evidence.Inferred, compile,
 			fidelity.NoScenario{Reason: "sns/R09/H7b-06-subscribe.json records the prefix list only; the suffix and wildcard lists are unrecorded"},
 		},
-		"sns.filter-policy.ignore-case-forms": {evidence.Inferred, compile, r09("H7b-03-subscribe to H7b-05-subscribe")},
-		"sns.filter-policy.key-counting":      {evidence.Inferred, compile, r09("T12-subscribe, H3-c-subscribe, H3-d-subscribe")},
-		"sns.filter-policy.wildcard-points":   {evidence.Inferred, compile, r09("H11-10-single-subscribe and the other H11 subscribes")},
+		"sns.filter-policy.wildcard-points": {evidence.Inferred, compile, r09("H11-10-single-subscribe and the other H11 subscribes")},
 		"sns.filter-policy.limit-order": {
 			evidence.Inferred, compile,
 			fidelity.NoScenario{Reason: "unrecorded: sns/R09/T13-subscribe.json breaks one limit only, so it shows no check order"},

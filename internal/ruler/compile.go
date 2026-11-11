@@ -148,6 +148,9 @@ type compiler struct {
 	// orProduct saturates at maxExpansion.
 	orProduct int
 	maxDepth  int
+	// paths holds the distinct key paths of the whole pattern, every "$or"
+	// branch included, sorted, at most keysTracked of them.
+	paths []string
 	// work counts the conditions and segments written, up to maxExpansion.
 	work int
 	// overrun is the first limit the pattern is certain to exceed. Once it is
@@ -164,33 +167,21 @@ type compiler struct {
 type segment struct {
 	parent *segment
 	conds  []*condition
-	// paths holds the distinct paths of the branch up to this segment,
-	// sorted, at most keysTracked of them.
-	paths []string
 }
 
 // keysTracked bounds the key counting while a pattern is read: one past the
 // SNS key limit is enough to know the limit is exceeded.
 const keysTracked = snsMaxKeys + 1
 
-func (s *segment) branchPaths() []string {
-	if s == nil {
-		return nil
+// addPath adds path to the pattern's distinct paths, unless they hold it or
+// already hold keysTracked paths.
+func (c *compiler) addPath(path string) {
+	if len(c.paths) == keysTracked {
+		return
 	}
-	return s.paths
-}
-
-// addPath returns the sorted set into with path added, unless into holds it
-// or holds keysTracked paths. It copies into rather than change it, so
-// segments can share a set.
-func addPath(into []string, path string) []string {
-	if len(into) == keysTracked {
-		return into
+	if i, found := slices.BinarySearch(c.paths, path); !found {
+		c.paths = slices.Insert(c.paths, i, path)
 	}
-	if i, found := slices.BinarySearch(into, path); !found {
-		into = slices.Insert(slices.Clip(into), i, path)
-	}
-	return into
 }
 
 // spend charges n units of expansion work. It reports false once the
@@ -213,10 +204,10 @@ func expansionDetail() string {
 }
 
 // bound records the first limit made certain by the branches built so far,
-// counted as branches, of which one holds keys distinct paths.
-func (c *compiler) bound(branches, keys int) {
+// counted as branches, and the distinct paths read so far.
+func (c *compiler) bound(branches int) {
 	if c.overrun == nil {
-		c.overrun = c.profile.overrun(expansion{branches: branches, keys: keys, orProduct: c.orProduct})
+		c.overrun = c.profile.overrun(expansion{branches: branches, keys: len(c.paths), orProduct: c.orProduct})
 	}
 }
 
@@ -329,14 +320,14 @@ func (c *compiler) or(path []string) *CompileError {
 			return e
 		}
 		done = append(done, c.close()...)
-		c.bound(len(done), 0)
+		c.bound(len(done))
 	}
 	if members < 2 {
 		return orError("There must have at least 2 Objects in $or relationship.")
 	}
 	c.heads, c.pending = done, nil
 	c.orProduct = min(c.orProduct*members, maxExpansion)
-	c.bound(len(done), 0)
+	c.bound(len(done))
 	return nil
 }
 
@@ -356,30 +347,17 @@ func (c *compiler) close() []*segment {
 	if !c.spend(len(c.heads) + len(c.pending)) {
 		return nil
 	}
-	// Capped at keysTracked, the pending paths still decide every capped
-	// union: a capped set is either complete or already full.
-	var added []string
-	for _, cd := range c.pending {
-		added = addPath(added, cd.path)
-	}
 	out := make([]*segment, len(c.heads))
-	keys := 0
 	for i, h := range c.heads {
-		paths := h.branchPaths()
-		for _, p := range added {
-			paths = addPath(paths, p)
-		}
-		out[i] = &segment{parent: h, conds: c.pending, paths: paths}
-		keys = max(keys, len(paths))
+		out[i] = &segment{parent: h, conds: c.pending}
 	}
-	c.bound(len(out), keys)
+	c.bound(len(out))
 	return out
 }
 
 // expand writes out the branches: each holds, per path, the last condition
 // written to it (a later key with the same path replaces an earlier one), in
-// path order. Its work counts toward the budget, and each branch's key count
-// toward the profile's limits.
+// path order. Its work counts toward the budget.
 func (c *compiler) expand() {
 	heads := c.close()
 	if c.overrun != nil {
@@ -400,10 +378,6 @@ func (c *compiler) expand() {
 			}
 			for _, cd := range seg.conds {
 				byPath[cd.path] = cd
-			}
-			c.bound(len(heads), len(byPath))
-			if c.overrun != nil {
-				return
 			}
 		}
 		// Ruler sorts a rule's keys (GenericMachine.addPatternRule) with Java's
@@ -531,6 +505,8 @@ func (c *compiler) leaf(path string, depth int) *CompileError {
 		return structureError("Empty arrays are not allowed")
 	}
 	c.maxDepth = max(c.maxDepth, depth)
+	c.addPath(path)
+	c.bound(len(c.heads))
 	if c.spend(1) {
 		c.pending = append(c.pending, &condition{
 			path: path, matchers: ms, depth: depth, absent: slices.ContainsFunc(ms, isNotExists),

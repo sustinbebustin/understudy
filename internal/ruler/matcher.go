@@ -251,8 +251,12 @@ func (m matchNumeric) accepts(v value, _ Options) bool {
 }
 
 func (matchExists) accepts(v value, o Options) bool {
-	if o.ExistsTrue == ExistsTrueNonEmpty {
+	switch o.ExistsTrue {
+	case ExistsTrueNonEmpty:
 		return v.kind != kindNull && (v.kind != kindString || v.text != "")
+	case ExistsTrueNonNull:
+		return v.kind != kindNull
+	case ExistsTrueAnyValue:
 	}
 	return true
 }

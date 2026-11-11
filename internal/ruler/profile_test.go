@@ -6,10 +6,8 @@ import (
 )
 
 // TestAllowLists checks each profile's operator allow-list
-// (matching-engines.md 5.1): EventBridge takes every documented operator,
-// SNS leaves out the equals-ignore-case forms of prefix, suffix and
-// anything-but, and Lambda takes only the operators its filtering table
-// lists.
+// (matching-engines.md 5.1): EventBridge and SNS take every Ruler operator,
+// and Lambda takes only the operators its filtering table lists.
 func TestAllowLists(t *testing.T) {
 	t.Parallel()
 	operands := []struct {
@@ -35,11 +33,7 @@ func TestAllowLists(t *testing.T) {
 	}
 	rejected := map[string]map[Operator]string{
 		"EventBridge": {},
-		"SNS": {
-			OperatorPrefixEqualsIgnoreCase:      "prefix match pattern must be a string",
-			OperatorSuffixEqualsIgnoreCase:      "suffix match pattern must be a string",
-			OperatorAnythingButEqualsIgnoreCase: "Unsupported anything-but pattern: equals-ignore-case",
-		},
+		"SNS":         {},
 		"LambdaESM": {
 			OperatorPrefixEqualsIgnoreCase:      "prefix match pattern must be a string",
 			OperatorSuffixEqualsIgnoreCase:      "suffix match pattern must be a string",
@@ -91,6 +85,23 @@ func TestExactlyInEveryProfile(t *testing.T) {
 	}
 }
 
+// TestSNSIgnoreCaseForms: SNS accepts equals-ignore-case under anything-but,
+// prefix and suffix, which its documentation does not list
+// (sns/R09/H7b-03-subscribe.json to H7b-05-subscribe.json, MessageAttributes
+// scope).
+func TestSNSIgnoreCaseForms(t *testing.T) {
+	t.Parallel()
+	for _, policy := range []string{
+		`{"x":[{"anything-but":{"equals-ignore-case":"A"}}]}`,
+		`{"x":[{"prefix":{"equals-ignore-case":"A"}}]}`,
+		`{"x":[{"suffix":{"equals-ignore-case":"A"}}]}`,
+	} {
+		if _, err := Compile([]byte(policy), SNS{Scope: MessageAttributes}); err != nil {
+			t.Errorf("Compile(%s) = %q, want accepted", policy, err.Detail)
+		}
+	}
+}
+
 // TestOptions flips each Options field away from Ruler and checks the
 // documented alternative (matching-engines.md 10).
 func TestOptions(t *testing.T) {
@@ -138,7 +149,7 @@ func TestOptions(t *testing.T) {
 // Machine.addRule does (V70 to V72).
 func TestMalformedOr(t *testing.T) {
 	t.Parallel()
-	ordinary := SNS{Scope: MessageBody, Options: Options{MalformedOr: MalformedOrOrdinaryKey}}
+	ordinary := SNS{Scope: MessageBody, Options: SNSOptions{MalformedOr: MalformedOrOrdinaryKey}}
 	p := mustCompile(t, `{"s":["a"],"$or":{"m":["x"]}}`, ordinary)
 	if !matchEvent(t, p, `{"s":"a","$or":{"m":"x"}}`) {
 		t.Error("V71 with ordinary-key does not match the $or.m event")
@@ -180,15 +191,11 @@ func TestSwitches(t *testing.T) {
 			{Name: "events.pattern.wildcard-complexity-cap", Value: "11", Ref: humanRecordsRef, Record: "matching-engines.md H11"},
 			{Name: "events.pattern.or-combination-counting", Value: "product-including-nested", Ref: humanRecordsRef, Record: "matching-engines.md H12"},
 		}},
-		{SNS{Options: Options{ExistsTrue: ExistsTrueNonEmpty}}, []Switch{
-			{Name: "sns.filter-policy.exists-true-empty-value", Value: "non-empty", Ref: switchRef, Record: "matching-engines.md H2"},
-			{Name: "sns.filter-policy.empty-input", Value: "matchable", Ref: switchRef, Record: "R09/6 (matching-engines.md H1)"},
-			{Name: "sns.filter-policy.bare-number", Value: "numeric-or-text", Ref: switchRef, Record: "R09/1 (matching-engines.md H6)"},
+		{SNS{Options: SNSOptions{BareNumber: BareNumberTextOnly}}, []Switch{
+			{Name: "sns.filter-policy.bare-number", Value: "text-only", Ref: switchRef, Record: "R09/1 (matching-engines.md H6)"},
 			{Name: "sns.filter-policy.malformed-or", Value: "rejected", Ref: switchRef, Record: "matching-engines.md H10"},
 			{Name: "sns.filter-policy.anything-but-suffix", Value: "accepted", Ref: humanRecordsRef, Record: "R09/7 (matching-engines.md H7)"},
 			{Name: "sns.filter-policy.anything-but-list-forms", Value: "accepted", Ref: operatorsRef, Record: "matching-engines.md H7"},
-			{Name: "sns.filter-policy.ignore-case-forms", Value: "rejected", Ref: humanRecordsRef, Record: "matching-engines.md H7"},
-			{Name: "sns.filter-policy.key-counting", Value: "leaf-keys-per-branch", Ref: humanRecordsRef, Record: "R09/11, R09/12 (matching-engines.md H3)"},
 			{Name: "sns.filter-policy.wildcard-points", Value: "3-per-star", Ref: humanRecordsRef, Record: "matching-engines.md H11"},
 			{Name: "sns.filter-policy.limit-order", Value: "nesting-keys-combinations-wildcards", Ref: "docs/research/sns.md#6", Record: "R09/13"},
 			{Name: "sns.filter-policy.number-attribute-type", Value: "json-number", Ref: "docs/research/matching-engines.md#5.4", Record: "R09/19 (matching-engines.md H6)"},

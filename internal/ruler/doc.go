@@ -10,7 +10,8 @@
 // (vectors_test.go). Each Profile adds its service's operator allow-list,
 // limits and error wording, which Ruler does not have. The four behaviors
 // where Ruler and a service's documentation disagree are Options fields that
-// default to Ruler; Switches describes them, and the profiles' unverified
+// default to Ruler. A profile fixes the fields its service's recordings
+// settle; Switches describes the open ones, and the profiles' unverified
 // allow-list and limit choices, for the fidelity ledger.
 //
 // Executed Ruler is the oracle, kept as a differential harness behind the
@@ -56,14 +57,14 @@
 //   - SNS accepts anything-but suffix, which its current documentation lists
 //     although a 2024 recording rejected it (H7), and the list forms of
 //     anything-but prefix, suffix and wildcard, which the documentation
-//     shows only with one string (H7). SNS rejects the
-//     equals-ignore-case forms of prefix, suffix and anything-but; the texts
-//     are Ruler's wording for an unsupported form. A non-string operand of an
+//     shows only with one string (H7). A non-string operand of an
 //     anything-but object form gets the recorded SNS text
 //     "<name> match pattern must be a string".
 //   - Lambda accepts only the operators its filtering table lists; every
 //     Lambda rejection carries the generic recorded message.
-//   - SNS counts leaf keys per "$or" branch (documentation; H3), sums the
+//   - SNS counts distinct leaf keys across the whole policy, "$or" branches
+//     included (sns/R09 H3, T12); a key repeated in two branches counts
+//     once, which no recording covers. It sums the
 //     combinations of the branches with each key weighted by its nesting
 //     level, and scores wildcard points only for fields with a wildcard, at 3
 //     points per "*" when a pattern has more than one (H11). The texts for the
@@ -117,7 +118,8 @@
 //     Java's identifier character classes follow its own Unicode version;
 //     and an invalid UTF-8 byte, which Ruler never sees in its decoded
 //     String, gets Jackson's byte parser message.
-//   - With EmptyInputNeverMatches, "an empty set of attributes" counts
+//   - With EmptyInputNeverMatches, which SNS has in MessageAttributes scope
+//     (sns/R09 T06, H1-attr), "an empty set of attributes" counts
 //     attributes, Binary ones included, or the members of an event, not the
 //     values they flatten to: {"x":[]} and a String.Array "[]" are not empty.
 //   - A cidr, and a string rule that is an IP literal, match as Ruler's

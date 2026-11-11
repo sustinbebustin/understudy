@@ -1,11 +1,15 @@
 package ruler
 
+import (
+	"fmt"
+)
+
 // Options selects the four behaviors where Event Ruler and a service's
-// documentation disagree and no AWS recording settles which one the service
-// has (matching-engines.md section 10). The zero value is Ruler's behavior for
-// each. The owning service lifts each field into a fidelity switch with the
-// metadata Switches returns; this package stays a leaf and does not import
-// the fidelity ledger.
+// documentation disagree (matching-engines.md section 10). The zero value is
+// Ruler's behavior for each. A profile fixes the fields its service's
+// recordings settle and leaves the rest open; the owning service lifts each
+// open field into a fidelity switch with the metadata Switches returns. This
+// package stays a leaf and does not import the fidelity ledger.
 type Options struct {
 	// ExistsTrue decides whether {"exists": true} accepts null and "".
 	ExistsTrue ExistsTrue
@@ -26,8 +30,13 @@ const (
 	// ExistsTrueAnyValue is Ruler: any value exists, including null and "".
 	ExistsTrueAnyValue ExistsTrue = iota
 	// ExistsTrueNonEmpty is the SNS documentation: the key "must have a
-	// non-null and non-empty value".
+	// non-null and non-empty value". SNS does this in MessageAttributes
+	// scope, where an empty String value does not exist (sns/R09 H2-attr).
 	ExistsTrueNonEmpty
+	// ExistsTrueNonNull is SNS in MessageBody scope: null does not exist,
+	// while "", 0 and false do (sns/R09 H2-body). [] and {} hold no value,
+	// so they fail under every setting.
+	ExistsTrueNonNull
 )
 
 // String returns the switch value as the coverage report prints it.
@@ -37,6 +46,8 @@ func (e ExistsTrue) String() string {
 		return "any-value"
 	case ExistsTrueNonEmpty:
 		return "non-empty"
+	case ExistsTrueNonNull:
+		return "non-null"
 	}
 	return "unknown"
 }
@@ -132,24 +143,17 @@ type Switch struct {
 	Record string
 }
 
-// switchRecords holds, per Options field, the Switch.Record of one profile.
-type switchRecords struct {
-	existsTrue, emptyInput, bareNumber, malformedOr string
-}
-
 const switchRef = "docs/research/matching-engines.md#10"
 
-// Switches returns the metadata of every unverified choice p makes: the four
-// Options fields as p sets them, then the fixed allow-list and limit choices
-// of p's service.
+// optionSwitch is the Switch of the Options field named field, which a
+// profile with switch prefix leaves open at value.
+func optionSwitch(prefix, field string, value fmt.Stringer, record string) Switch {
+	return Switch{Name: prefix + "." + field, Value: value.String(), Ref: switchRef, Record: record}
+}
+
+// Switches returns the metadata of every unverified choice p makes: the
+// Options fields p leaves open, as p sets them, then the fixed allow-list and
+// limit choices of p's service.
 func Switches(p Profile) []Switch {
-	prefix := p.switchPrefix()
-	o := p.options()
-	r := p.switchRecords()
-	return append([]Switch{
-		{Name: prefix + ".exists-true-empty-value", Value: o.ExistsTrue.String(), Ref: switchRef, Record: r.existsTrue},
-		{Name: prefix + ".empty-input", Value: o.EmptyInput.String(), Ref: switchRef, Record: r.emptyInput},
-		{Name: prefix + ".bare-number", Value: o.BareNumber.String(), Ref: switchRef, Record: r.bareNumber},
-		{Name: prefix + ".malformed-or", Value: o.MalformedOr.String(), Ref: switchRef, Record: r.malformedOr},
-	}, p.fixedSwitches()...)
+	return append(p.optionSwitches(), p.fixedSwitches()...)
 }

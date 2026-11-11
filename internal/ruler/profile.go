@@ -12,8 +12,8 @@ import "strconv"
 type Profile interface {
 	options() Options
 	input() Input
-	switchPrefix() string
-	switchRecords() switchRecords
+	// optionSwitches describes the Options fields the profile leaves open.
+	optionSwitches() []Switch
 	// fixedSwitches describes the allow-list and limit choices the profile
 	// makes without AWS-recorded evidence.
 	fixedSwitches() []Switch
@@ -46,14 +46,22 @@ const (
 	MessageBody
 )
 
-// SNS is a subscription filter policy. The allow-list leaves out the
-// equals-ignore-case forms of prefix, suffix and anything-but, which the SNS
-// documentation does not list, and takes the undocumented "exactly", which
-// SNS accepts (sns/R09/H7b-07-subscribe.json); the limits are 5 keys, 150
-// combinations, the wildcard point budget and 256 KB.
+// SNS is a subscription filter policy. The allow-list is every Ruler
+// operator but none of the documentation leaves out: the equals-ignore-case
+// forms of prefix, suffix and anything-but (sns/R09/H7b-03-subscribe.json to
+// H7b-05-subscribe.json) and "exactly" (sns/R09/H7b-07-subscribe.json) are
+// accepted. The limits are 5 keys, 150 combinations, the wildcard point
+// budget and 256 KB. Empty input and exists:true follow the R09 recordings
+// per scope, so only the other two Options fields are open.
 type SNS struct {
 	Scope   SNSScope
-	Options Options
+	Options SNSOptions
+}
+
+// SNSOptions are the Options fields the SNS profile leaves open.
+type SNSOptions struct {
+	BareNumber  BareNumber
+	MalformedOr MalformedOr
 }
 
 // LambdaESM is an event source mapping filter pattern. The allow-list is the
@@ -83,8 +91,22 @@ const (
 )
 
 func (p EventBridge) options() Options { return p.Options }
-func (p SNS) options() Options         { return p.Options }
 func (p LambdaESM) options() Options   { return p.Options }
+
+// options: under MessageAttributes scope a message without attributes never
+// matches and an empty String value does not exist (sns/R09 T06, H1-attr,
+// H2-attr); under MessageBody scope {} can match and only null fails
+// exists:true (H1-body, H2-body).
+func (p SNS) options() Options {
+	o := Options{BareNumber: p.Options.BareNumber, MalformedOr: p.Options.MalformedOr}
+	switch p.Scope {
+	case MessageAttributes:
+		o.ExistsTrue, o.EmptyInput = ExistsTrueNonEmpty, EmptyInputNeverMatches
+	case MessageBody:
+		o.ExistsTrue, o.EmptyInput = ExistsTrueNonNull, EmptyInputMatchable
+	}
+	return o
+}
 
 func (EventBridge) input() Input { return InputEvent }
 func (LambdaESM) input() Input   { return InputEvent }
@@ -96,31 +118,36 @@ func (p SNS) input() Input {
 	return InputEvent
 }
 
-func (EventBridge) switchPrefix() string { return "events.pattern" }
-func (SNS) switchPrefix() string         { return "sns.filter-policy" }
-func (LambdaESM) switchPrefix() string   { return "lambda.esm-filter" }
-
-// switchRecords follows matching-engines.md section 8: H1 covers SNS and
-// EventBridge, H2 SNS and Lambda, H6 SNS bare numbers, H7(a) Lambda bare
-// numbers, and H10 every service. The record backlog's R09 items 6 and 1 ask
-// SNS the H1 and H6 questions. EventBridge's exists:true and bare-number
-// behaviors have no item: the research rates them from Ruler, which
-// EventBridge runs.
-func (EventBridge) switchRecords() switchRecords {
-	return switchRecords{emptyInput: "matching-engines.md H1", malformedOr: "matching-engines.md H10"}
-}
-
-func (SNS) switchRecords() switchRecords {
-	return switchRecords{
-		existsTrue: "matching-engines.md H2", emptyInput: "R09/6 (matching-engines.md H1)",
-		bareNumber: "R09/1 (matching-engines.md H6)", malformedOr: "matching-engines.md H10",
+// The option switch records follow matching-engines.md section 8: H1 covers
+// SNS and EventBridge, H2 SNS and Lambda, H6 SNS bare numbers, H7(a) Lambda
+// bare numbers, and H10 every service. The record backlog's R09 item 1 asks
+// SNS the H6 question. EventBridge's exists:true and bare-number behaviors
+// have no item: the research rates them from Ruler, which EventBridge runs.
+func (p EventBridge) optionSwitches() []Switch {
+	const prefix = "events.pattern"
+	return []Switch{
+		optionSwitch(prefix, "exists-true-empty-value", p.Options.ExistsTrue, ""),
+		optionSwitch(prefix, "empty-input", p.Options.EmptyInput, "matching-engines.md H1"),
+		optionSwitch(prefix, "bare-number", p.Options.BareNumber, ""),
+		optionSwitch(prefix, "malformed-or", p.Options.MalformedOr, "matching-engines.md H10"),
 	}
 }
 
-func (LambdaESM) switchRecords() switchRecords {
-	return switchRecords{
-		existsTrue: "matching-engines.md H2", bareNumber: "matching-engines.md H7",
-		malformedOr: "matching-engines.md H10",
+func (p SNS) optionSwitches() []Switch {
+	const prefix = "sns.filter-policy"
+	return []Switch{
+		optionSwitch(prefix, "bare-number", p.Options.BareNumber, "R09/1 (matching-engines.md H6)"),
+		optionSwitch(prefix, "malformed-or", p.Options.MalformedOr, "matching-engines.md H10"),
+	}
+}
+
+func (p LambdaESM) optionSwitches() []Switch {
+	const prefix = "lambda.esm-filter"
+	return []Switch{
+		optionSwitch(prefix, "exists-true-empty-value", p.Options.ExistsTrue, "matching-engines.md H2"),
+		optionSwitch(prefix, "empty-input", p.Options.EmptyInput, ""),
+		optionSwitch(prefix, "bare-number", p.Options.BareNumber, "matching-engines.md H7"),
+		optionSwitch(prefix, "malformed-or", p.Options.MalformedOr, "matching-engines.md H10"),
 	}
 }
 
@@ -164,14 +191,6 @@ func (SNS) fixedSwitches() []Switch {
 			Ref: operatorsRef, Record: "matching-engines.md H7",
 		},
 		{
-			Name: "sns.filter-policy.ignore-case-forms", Value: "rejected",
-			Ref: humanRecordsRef, Record: "matching-engines.md H7",
-		},
-		{
-			Name: "sns.filter-policy.key-counting", Value: "leaf-keys-per-branch",
-			Ref: humanRecordsRef, Record: "R09/11, R09/12 (matching-engines.md H3)",
-		},
-		{
 			Name: "sns.filter-policy.wildcard-points", Value: "3-per-star",
 			Ref: humanRecordsRef, Record: "matching-engines.md H11",
 		},
@@ -211,17 +230,7 @@ func (LambdaESM) fixedSwitches() []Switch {
 
 func (EventBridge) allows(Operator) bool { return true }
 
-func (SNS) allows(op Operator) bool {
-	switch op {
-	case OperatorPrefixEqualsIgnoreCase, OperatorSuffixEqualsIgnoreCase, OperatorAnythingButEqualsIgnoreCase:
-		return false
-	case OperatorPrefix, OperatorSuffix, OperatorEqualsIgnoreCase, OperatorWildcard, OperatorAnythingBut,
-		OperatorAnythingButPrefix, OperatorAnythingButSuffix, OperatorAnythingButWildcard, OperatorNumeric,
-		OperatorExists, OperatorCIDR, OperatorExactly, OperatorOr:
-		return true
-	}
-	return false
-}
+func (SNS) allows(Operator) bool { return true }
 
 func (LambdaESM) allows(op Operator) bool {
 	switch op {
@@ -271,13 +280,13 @@ func SyntaxError(src []byte) (string, bool) {
 }
 
 // expansion is what a profile's limits can see of a pattern while it is
-// read. Each count only grows: branches are never dropped, and a branch's
-// keys are never removed (a duplicate key replaces a rule array, not a key).
+// read. Each count only grows: branches are never dropped, and keys are
+// never removed (a duplicate key replaces a rule array, not a key).
 type expansion struct {
 	// branches is the size of one partial expansion of "$or"; the final
 	// expansion holds at least as many.
 	branches int
-	// keys is the key count of one branch.
+	// keys is the count of distinct key paths read, across every branch.
 	keys int
 	// orProduct is the product of the sizes of the "$or" arrays read so far.
 	orProduct int
@@ -295,8 +304,8 @@ func (EventBridge) overrun(x expansion) *CompileError {
 // overrun: every branch contributes at least one combination, so more than
 // 150 branches is more than 150 combinations. Keys come before combinations
 // in check, so a key overrun is reported as check would. A combination
-// overrun stops the expansion, so a branch that reaches six keys only after
-// the policy passes 150 branches is reported as too complex, not as having
+// overrun comes first when the policy passes 150 branches before its sixth
+// key is read, so such a policy is reported as too complex, not as having
 // too many keys.
 func (SNS) overrun(x expansion) *CompileError {
 	if x.keys > snsMaxKeys {
@@ -339,10 +348,8 @@ func (p SNS) check(c *compiler) *CompileError {
 	if c.overrun != nil {
 		return c.overrun
 	}
-	for _, b := range c.branches {
-		if len(b) > snsMaxKeys {
-			return snsKeysError()
-		}
+	if len(c.paths) > snsMaxKeys {
+		return snsKeysError()
 	}
 	if snsCombinations(c.branches) > snsMaxCombinations {
 		return limitError(LimitCombinations, snsTooComplex)
