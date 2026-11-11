@@ -41,7 +41,9 @@ func TestRecordedValidationTexts(t *testing.T) {
 		{`{"key":[{"exists":"no"}]}`, attrs, "FilterPolicy: exists match pattern must be either true or false."},
 		{`{"key":[{"anything-but":{"wrong-operator":null}}]}`, attrs, "FilterPolicy: Unsupported anything-but pattern: wrong-operator"},
 		{`{"key":[{"anything-but":{"exists":false}}]}`, attrs, "FilterPolicy: Unsupported anything-but pattern: exists"},
-		{`{"key":[{"anything-but":{"prefix":false}}]}`, attrs, "FilterPolicy: prefix match pattern must be a string"},
+		// sns.md 6.5's "prefix match pattern must be a string" is superseded
+		// by sns/R09/H7b-08-subscribe.json (2026-10-14).
+		{`{"key":[{"anything-but":{"prefix":false}}]}`, attrs, "FilterPolicy: Value of anything-but must be an array or single string/number value."},
 		{`{"key":[{"cidr":["bad-filter"]}]}`, attrs, "FilterPolicy: prefix match pattern must be a string"},
 		{`{"key":[{"cidr":"bad-filter"}]}`, attrs, "FilterPolicy: Malformed CIDR, one '/' required"},
 		{`{"key":[{"cidr":"bad-filter/64"}]}`, attrs, "FilterPolicy: Nonstandard IP address: bad-filter"},

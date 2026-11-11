@@ -108,10 +108,13 @@ const (
 	// MalformedOrRejected is Ruler's strict compiler: the pattern is rejected
 	// with its "$or" message.
 	MalformedOrRejected MalformedOr = iota
-	// MalformedOrOrdinaryKey is the documented fallback, which Ruler's
-	// Machine.addRule implements by recompiling with "$or" as a plain key:
-	// {"$or": {"m": ["x"]}} becomes the key path "$or.m", and shapes that are
-	// not valid as a plain key still fail with the plain grammar's message.
+	// MalformedOrOrdinaryKey is EventBridge (events/R14 H10): a rejected
+	// pattern is read again with "$or" as a plain key, as Ruler's
+	// Machine.addRule falls back to, and the plain reading's message is
+	// reported when it rejects the pattern too, as for {"$or":[{"m":["x"]}]}
+	// ("Unrecognized match type m"). A shape the plain reading accepts,
+	// such as {"$or":{"m":["x"]}}, is still rejected with the strict
+	// message: no service accepts a malformed "$or".
 	MalformedOrOrdinaryKey
 )
 

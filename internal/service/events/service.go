@@ -105,6 +105,9 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 		k:     d.Kernel,
 		ids:   d.IDs,
 		cells: store.NewPartitioned(d.Kernel.Gate(), c, newState),
+		// A malformed "$or" is refused with the reason of a plain-key
+		// reading when that fails too (events/R14 H10-01 to H10-06).
+		profile: ruler.EventBridge{Options: ruler.Options{MalformedOr: ruler.MalformedOrOrdinaryKey}},
 	}
 	s.patterns = newPatternCache(s.profile)
 	s.schedule = d.Kernel.Timers().Handle(TimerSchedule, s.onSchedule)
@@ -248,7 +251,7 @@ func rulerSwitches() map[string]rulerSwitch {
 			evidence.Inferred, match,
 			fidelity.NoScenario{Reason: "events/R14's H8 steps do not decide it: both values answer false for a string"},
 		},
-		"events.pattern.malformed-or":            {evidence.Inferred, compile, unreplayed("H10-01 to H10-06")},
+		"events.pattern.malformed-or":            {evidence.AWSRecorded, compile, unreplayed("H10-01 to H10-06")},
 		"events.pattern.or-shared-values":        {evidence.Inferred, match, r14("H14-02")},
 		"events.pattern.wildcard-complexity-cap": {evidence.Inferred, compile, unreplayed("H11-01 to H11-03")},
 		"events.pattern.or-combination-counting": {evidence.Inferred, compile, unreplayed("H12-01-10x10x10, H12-02-7x11x13, H12-03-nested")},

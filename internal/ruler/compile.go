@@ -37,12 +37,15 @@ type condition struct {
 // source order is the one reported, with Ruler's text; then the profile's
 // limits apply.
 func Compile(pattern []byte, p Profile) (*Pattern, *CompileError) {
-	if e := p.admit(pattern); e != nil {
+	pattern, e := p.admit(pattern)
+	if e != nil {
 		return nil, e.forProfile(p)
 	}
 	c, e := compileWith(pattern, p, false)
-	if e != nil && p.options().MalformedOr == MalformedOrOrdinaryKey && e.Cause == (InvalidOperand{Operator: OperatorOr}) {
-		c, e = compileWith(pattern, p, true)
+	if e != nil && p.options().MalformedOr == MalformedOrOrdinaryKey {
+		if _, plain := compileWith(pattern, p, true); plain != nil {
+			e = plain
+		}
 	}
 	if e != nil {
 		return nil, e.forProfile(p)
@@ -211,33 +214,46 @@ func (c *compiler) bound(branches int) {
 	}
 }
 
+// compileWith reads src with Ruler's grammar, "$or" read as a plain key when
+// orAsKey is set. A rejection carries the location where the parser stood,
+// as Ruler's JsonParseException does.
 func compileWith(src []byte, p Profile, orAsKey bool) (*compiler, *CompileError) {
 	c := &compiler{lx: newLexer(src), profile: p, orAsKey: orAsKey, heads: []*segment{nil}, orProduct: 1}
+	if e := c.read(); e != nil {
+		if e.at == "" && !e.unlocated {
+			e.at = c.lx.location(c.lx.here())
+		}
+		return c, e
+	}
+	return c, nil
+}
+
+func (c *compiler) read() *CompileError {
 	t, e := c.next()
 	if e != nil {
-		return nil, e
+		return e
 	}
 	if t.kind != tokStartObject {
-		return nil, structureError("Filter is not an object")
+		return structureError("Filter is not an object")
 	}
 	if e := c.object(nil, false); e != nil {
-		return nil, e
+		return e
 	}
 	t, e = c.next()
 	if e != nil {
-		return nil, e
+		return e
 	}
 	if t.kind != tokEOF {
-		return nil, structureError("Filter must be a single JSON object; found content after it")
+		return structureError("Filter must be a single JSON object; found content after it")
 	}
 	c.expand()
-	return c, nil
+	return nil
 }
 
 func (c *compiler) next() (token, *CompileError) {
 	t, err := c.lx.next()
 	if err != nil {
-		return token{}, &CompileError{Cause: InvalidJSON{}, Detail: err.message}
+		return token{}, c.lx.compileError(err)
 	}
 	return t, nil
 }
@@ -521,7 +537,7 @@ func (c *compiler) rule(t token) (matcher, *CompileError) {
 	case tokStartObject:
 		return c.expression()
 	case tokString:
-		s, e := stringText(t)
+		s, e := c.lx.text(t)
 		if e != nil {
 			return nil, e
 		}
@@ -619,7 +635,7 @@ func (c *compiler) exactly() (matcher, *CompileError) {
 	if v.kind != tokString {
 		return nil, operandError(OperatorExactly, "exact match pattern must be a string")
 	}
-	s, e := stringText(v)
+	s, e := c.lx.text(v)
 	if e != nil {
 		return nil, e
 	}
@@ -661,7 +677,7 @@ func (c *compiler) affix(op Operator) (matcher, *CompileError) {
 	if v.kind != tokString {
 		return nil, operandError(op, name+" match pattern must be a string")
 	}
-	s, e := stringText(v)
+	s, e := c.lx.text(v)
 	if e != nil {
 		return nil, e
 	}
@@ -692,7 +708,7 @@ func (c *compiler) affixIgnoreCase(name string, op Operator) (matcher, *CompileE
 	if v.kind != tokString {
 		return nil, operandError(op, "equals-ignore-case match pattern must be a string")
 	}
-	s, e := stringText(v)
+	s, e := c.lx.text(v)
 	if e != nil {
 		return nil, e
 	}
@@ -737,13 +753,15 @@ func (c *compiler) cidr() (matcher, *CompileError) {
 		// Ruler's text, sic.
 		return nil, operandError(OperatorCIDR, "prefix match pattern must be a string")
 	}
-	s, e := stringText(v)
+	s, e := c.lx.text(v)
 	if e != nil {
 		return nil, e
 	}
 	prefix, detail := parseCIDR(s)
 	if detail != "" {
-		return nil, operandError(OperatorCIDR, detail)
+		e := operandError(OperatorCIDR, detail)
+		e.unlocated = true
+		return nil, e
 	}
 	if e := c.end(OperatorCIDR, onlyOneKey); e != nil {
 		return nil, e
@@ -759,7 +777,7 @@ func (c *compiler) equalsIgnoreCase() (matcher, *CompileError) {
 	if v.kind != tokString {
 		return nil, operandError(OperatorEqualsIgnoreCase, "equals-ignore-case match pattern must be a string")
 	}
-	s, e := stringText(v)
+	s, e := c.lx.text(v)
 	if e != nil {
 		return nil, e
 	}
@@ -777,7 +795,7 @@ func (c *compiler) wildcard() (matcher, *CompileError) {
 	if v.kind != tokString {
 		return nil, operandError(OperatorWildcard, "wildcard match pattern must be a string")
 	}
-	s, e := stringText(v)
+	s, e := c.lx.text(v)
 	if e != nil {
 		return nil, e
 	}

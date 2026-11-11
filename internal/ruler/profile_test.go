@@ -144,31 +144,31 @@ func TestOptions(t *testing.T) {
 	}
 }
 
-// TestMalformedOr: the strict compiler rejects malformed "$or" shapes; the
-// ordinary-key option recompiles with "$or" as a plain key, as
-// Machine.addRule does (V70 to V72).
+// TestMalformedOr: the strict compiler rejects malformed "$or" shapes
+// (V70 to V72). The ordinary-key option rejects them too, with the reason
+// of a second reading that takes "$or" as a plain key when that reading
+// fails as well: EventBridge refuses all six H10 shapes, the two a plain key
+// accepts with the strict reason (events/R14/H10-01.json, H10-02.json) and
+// the others with the plain one (H10-03.json to H10-06.json). A valid "$or"
+// still compiles.
 func TestMalformedOr(t *testing.T) {
 	t.Parallel()
 	ordinary := SNS{Scope: MessageBody, Options: SNSOptions{MalformedOr: MalformedOrOrdinaryKey}}
-	p := mustCompile(t, `{"s":["a"],"$or":{"m":["x"]}}`, ordinary)
-	if !matchEvent(t, p, `{"s":"a","$or":{"m":"x"}}`) {
-		t.Error("V71 with ordinary-key does not match the $or.m event")
-	}
-	if matchEvent(t, p, `{"s":"a","m":"x"}`) {
-		t.Error("V71 with ordinary-key matched without the $or key")
-	}
-	p = mustCompile(t, `{"$or":["x","y"]}`, ordinary)
-	if !matchEvent(t, p, `{"$or":"y"}`) {
-		t.Error(`{"$or":["x","y"]} does not match {"$or":"y"}`)
-	}
 	for pattern, detail := range map[string]string{
+		`{"s":["a"],"$or":{"m":["x"]}}`:              "It must be an Array followed with $or.",
+		`{"$or":["x","y"]}`:                          "Only JSON object is allowed in array of $or relationship.",
 		`{"$or":[{"m":["x"]}]}`:                      "Unrecognized match type m",
 		`{"$or":[{"numeric":123},{"prefix":"abc"}]}`: "Value of numeric must be an array.",
+		`{"$or":[{},{"a":["1"]}]}`:                   "Match expression name not found",
 	} {
 		_, err := Compile([]byte(pattern), ordinary)
 		if err == nil || err.Detail != detail {
 			t.Errorf("ordinary-key Compile(%s) = %v, want %q", pattern, err, detail)
 		}
+	}
+	p := mustCompile(t, `{"s":["a"],"$or":[{"m":["x"]},{"n":["y"]}]}`, ordinary)
+	if !matchEvent(t, p, `{"s":"a","n":"y"}`) {
+		t.Error("V68 with ordinary-key does not match")
 	}
 }
 
@@ -182,11 +182,11 @@ func TestSwitches(t *testing.T) {
 		profile Profile
 		want    []Switch
 	}{
-		{EventBridge{Options: Options{EmptyInput: EmptyInputNeverMatches}}, []Switch{
+		{EventBridge{Options: Options{EmptyInput: EmptyInputNeverMatches, MalformedOr: MalformedOrOrdinaryKey}}, []Switch{
 			{Name: "events.pattern.exists-true-empty-value", Value: "any-value", Ref: switchRef, Record: ""},
 			{Name: "events.pattern.empty-input", Value: "never-matches", Ref: switchRef, Record: "matching-engines.md H1"},
 			{Name: "events.pattern.bare-number", Value: "numeric-or-text", Ref: switchRef, Record: ""},
-			{Name: "events.pattern.malformed-or", Value: "rejected", Ref: switchRef, Record: "matching-engines.md H10"},
+			{Name: "events.pattern.malformed-or", Value: "ordinary-key", Ref: switchRef, Record: "events/R14 H10 (matching-engines.md H10)"},
 			{Name: "events.pattern.or-shared-values", Value: "documented", Ref: humanRecordsRef, Record: "matching-engines.md H14"},
 			{Name: "events.pattern.wildcard-complexity-cap", Value: "11", Ref: humanRecordsRef, Record: "matching-engines.md H11"},
 			{Name: "events.pattern.or-combination-counting", Value: "product-including-nested", Ref: humanRecordsRef, Record: "matching-engines.md H12"},

@@ -610,7 +610,8 @@ func TestTestEventPattern(t *testing.T) {
 			}
 		}
 		_, err := call(h, eventbridgeapi.OpTestEventPattern, &eventbridgeapi.TestEventPatternInput{EventPattern: `{"source": "shop"}`, Event: event})
-		wantError(t, err, "InvalidEventPatternException", `Event pattern is not valid. Reason: "source" must be an object or an array`)
+		wantError(t, err, "InvalidEventPatternException", `Event pattern is not valid. Reason: "source" must be an object or an array`+
+			"\n at [Source: (String)\"{\"source\": \"shop\"}\"; line: 1, column: 13]")
 		// AWS matches an event without resources, although the API
 		// reference lists it as required (localstack
 		// test_events_patterns.snapshot.json, test_event_pattern_source,

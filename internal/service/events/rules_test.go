@@ -31,7 +31,11 @@ func TestPutRuleRefusesInvalidRules(t *testing.T) {
 			{eventbridgeapi.PutRuleInput{Name: "r"}, "ValidationException", "Parameter(s) EventPattern or ScheduleExpression must be specified."},
 			{eventbridgeapi.PutRuleInput{Name: "r", ScheduleExpression: new("rate(1 minutes)")}, "ValidationException", "Parameter ScheduleExpression is not valid."},
 			{eventbridgeapi.PutRuleInput{Name: "r", ScheduleExpression: new("cron(0 1 * * * *)")}, "ValidationException", "Parameter ScheduleExpression is not valid."},
-			{eventbridgeapi.PutRuleInput{Name: "r", EventPattern: new(`{"source": "s"}`)}, "InvalidEventPatternException", `Event pattern is not valid. Reason: "source" must be an object or an array`},
+			{eventbridgeapi.PutRuleInput{Name: "r", EventPattern: new(`{"source": "s"}`)}, "InvalidEventPatternException", `Event pattern is not valid. Reason: "source" must be an object or an array` +
+				"\n at [Source: (String)\"{\"source\": \"s\"}\"; line: 1, column: 13]"},
+			// A malformed "$or" read as a plain key (events/R14/H10-03.json).
+			{eventbridgeapi.PutRuleInput{Name: "r", EventPattern: new(`{"detail":{"$or":[{"m":["x"]}]}}`)}, "InvalidEventPatternException", "Event pattern is not valid. Reason: Unrecognized match type m" +
+				"\n at [Source: (String)\"{\"detail\":{\"$or\":[{\"m\":[\"x\"]}]}}\"; line: 1, column: 25]"},
 			{eventbridgeapi.PutRuleInput{Name: "r", EventPattern: new(`{"source": ["s"]}`), EventBusName: new("custom")}, "ResourceNotFoundException", "Event bus custom does not exist."},
 		} {
 			_, err := call(h, eventbridgeapi.OpPutRule, &tt.in)

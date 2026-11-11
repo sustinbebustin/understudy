@@ -50,16 +50,20 @@
 //     the fidelity.Switch values. Options travel inside each Profile so
 //     Compile keeps its two-argument form.
 //   - Malformed "$or" shapes are compile errors (the strict compiler). With
-//     MalformedOrOrdinaryKey, only a failure caused by a "$or" shape triggers
-//     the recompile with "$or" as a plain key.
+//     MalformedOrOrdinaryKey, which EventBridge has, a rejected pattern is
+//     read again with "$or" as a plain key, and that reading's rejection is
+//     reported when it has one; a malformed "$or" is never accepted
+//     (events/R14 H10). The second reading is the strict grammar with "$or"
+//     as a key, not all of Ruler's legacy RuleCompiler, whose other
+//     differences (anything-but wildcard) are not recorded for any service.
 //   - Every profile accepts Ruler's "exactly", which no service documents
 //     but all three accept (matching-engines.md H7, H13, H14).
 //   - SNS accepts anything-but suffix, which its current documentation lists
 //     although a 2024 recording rejected it (H7), and the list forms of
 //     anything-but prefix, suffix and wildcard, which the documentation
 //     shows only with one string (H7). A non-string operand of an
-//     anything-but object form gets the recorded SNS text
-//     "<name> match pattern must be a string".
+//     anything-but object form gets Ruler's shape text, which SNS answers
+//     too (sns/R09 H7b-08).
 //   - Lambda accepts only the operators its filtering table lists; every
 //     Lambda rejection carries the generic recorded message.
 //   - SNS counts distinct leaf keys across the whole policy, "$or" branches
@@ -67,13 +71,13 @@
 //     once, which no recording covers. It sums the
 //     combinations of the branches with each key weighted by its nesting
 //     level, and scores wildcard points only for fields with a wildcard, at 3
-//     points per "*" when a pattern has more than one (H11). The texts for the
-//     size and wildcard limits are not recorded. The limits apply in the
+//     points per "*" when a pattern has more than one (H11). The size and
+//     wildcard texts are recorded (sns/R09 T16, H11, T13). The limits apply in the
 //     order nesting, keys, combinations, wildcards, except that a policy
 //     certain to exceed 150 combinations while it is read is reported as too
 //     complex before its keys are counted in full.
 //   - EventBridge caps the product of all "$or" array sizes at 1000, nested
-//     arrays included (H12; the text is not recorded), and rejects a field
+//     arrays included (H12, with its recorded text), and rejects a field
 //     whose wildcard complexity reaches 11 on Ruler's scale, the most
 //     permissive cap consistent with the recorded accept at 7 and reject at
 //     11. Pattern length limits that the Smithy models declare are left to
@@ -107,10 +111,8 @@
 //     event's messages name its source as REDACTED, as Jackson's defaults,
 //     with which Ruler reads events, do. A one-off run of 30000 mutated
 //     patterns against executed Ruler v2.2.0 (commit ced786201c1f), beyond
-//     the harness's fixed corpus, found no differences besides these known
-//     ones: Ruler appends Jackson's location ("\n at [Source: ...]") to
-//     every message, which EventBridge's recorded reasons leave out and so
-//     does this package; for a name over the limit Jackson reports the
+//     the harness's fixed corpus, found no differences in the first line of
+//     a message besides these known ones: for a name over the limit Jackson reports the
 //     length it had buffered, which depends on its buffers, where this
 //     package reports the full length; a pattern over 32768 characters is
 //     read through a buffer, and a number that crosses a buffer boundary is
@@ -118,6 +120,21 @@
 //     Java's identifier character classes follow its own Unicode version;
 //     and an invalid UTF-8 byte, which Ruler never sees in its decoded
 //     String, gets Jackson's byte parser message.
+//   - A pattern's rejection ends with Jackson's location line, "\n at
+//     [Source: (String)\"...\"; line: 1, column: N]", as Ruler's
+//     JsonParseException message does and EventBridge and SNS answer
+//     (events/R14 H10; sns/R09 H5, H7b-08, H10): where the parser stood,
+//     a string value's body unread until its text is needed and a field's
+//     string or container value begun with its name. The service limits
+//     and the cidr operand errors carry none, as AWS answers them (H9, H11,
+//     H12), and an anything-but list with null or a boolean names its
+//     location twice, as Ruler rethrows it. The harness compares the whole
+//     message; the locations of the 30000-pattern run above were not
+//     checked. SNS hands Ruler the policy as it writes its parsed tree back
+//     (reserialize), so its locations quote that text. SNS's own syntax
+//     errors ("failed to parse JSON. ") name SNS's parser, which no
+//     recording shows whole, and are left without a location; so are
+//     event errors.
 //   - With EmptyInputNeverMatches, which SNS has in MessageAttributes scope
 //     (sns/R09 T06, H1-attr), "an empty set of attributes" counts
 //     attributes, Binary ones included, or the members of an event, not the

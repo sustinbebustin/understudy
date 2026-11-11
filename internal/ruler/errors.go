@@ -9,6 +9,18 @@ import "strconv"
 type CompileError struct {
 	Cause  Cause
 	Detail string
+	// at is Jackson's location of the parser when the pattern was rejected,
+	// "[Source: ...; line: 1, column: N]", which Ruler's JsonParseException
+	// messages end with. It is empty for a service limit and for the
+	// rejections Ruler raises without the parser.
+	at string
+	// unlocated marks a parse-path rejection that carries no location: the
+	// cidr operand errors, which Ruler raises as IllegalArgumentException
+	// (matching-engines.md H9; events/R14 H9-01, H9-02).
+	unlocated bool
+	// relocated marks a rejection Ruler throws again with the first
+	// exception's message, so its message names the location twice.
+	relocated bool
 	// message is the profile's wording, rendered by Compile.
 	message string
 }
@@ -16,10 +28,12 @@ type CompileError struct {
 // Message renders the error as the profile's service words it:
 //
 //   - EventBridge: the full InvalidEventPatternException message,
-//     "Event pattern is not valid. Reason: <detail>".
+//     "Event pattern is not valid. Reason: <detail>", followed by Jackson's
+//     location line for a rejection Ruler's parser raised.
 //   - SNS: the text after "Invalid parameter: " on SetSubscriptionAttributes
-//     ("FilterPolicy: <detail>", or the bare scope message for a nested policy
-//     under MessageAttributes scope); Subscribe puts "Attributes Reason: "
+//     ("FilterPolicy: <detail>" with the location line as for EventBridge,
+//     or the bare detail for a nested policy under MessageAttributes scope
+//     and for the wildcard limits); Subscribe puts "Attributes Reason: "
 //     before it.
 //   - LambdaESM: the generic InvalidParameterValueException text, which hides
 //     the reason.
@@ -35,6 +49,18 @@ func (e *CompileError) Message() string {
 
 // Error returns Message, so a CompileError can travel as an error.
 func (e *CompileError) Error() string { return e.Message() }
+
+// reason is the detail followed by its Jackson location line, as Ruler's
+// exception message reads and EventBridge and SNS put it on the wire.
+func (e *CompileError) reason() string {
+	switch {
+	case e.at == "":
+		return e.Detail
+	case e.relocated:
+		return e.Detail + "\n at " + e.at + "\n at " + e.at
+	}
+	return e.Detail + "\n at " + e.at
+}
 
 // Cause is what made a pattern invalid.
 //

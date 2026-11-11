@@ -18,8 +18,9 @@ type Profile interface {
 	// makes without AWS-recorded evidence.
 	fixedSwitches() []Switch
 	allows(op Operator) bool
-	// admit checks the raw pattern before Ruler's compiler sees it.
-	admit(src []byte) *CompileError
+	// admit checks the raw pattern before Ruler's compiler sees it, and
+	// returns the text the service hands to Ruler.
+	admit(src []byte) ([]byte, *CompileError)
 	// overrun returns a limit the pattern is already certain to exceed, judged
 	// by counts that only grow while it is read, or nil.
 	overrun(x expansion) *CompileError
@@ -129,7 +130,7 @@ func (p EventBridge) optionSwitches() []Switch {
 		optionSwitch(prefix, "exists-true-empty-value", p.Options.ExistsTrue, ""),
 		optionSwitch(prefix, "empty-input", p.Options.EmptyInput, "matching-engines.md H1"),
 		optionSwitch(prefix, "bare-number", p.Options.BareNumber, ""),
-		optionSwitch(prefix, "malformed-or", p.Options.MalformedOr, "matching-engines.md H10"),
+		optionSwitch(prefix, "malformed-or", p.Options.MalformedOr, "events/R14 H10 (matching-engines.md H10)"),
 	}
 }
 
@@ -245,20 +246,24 @@ func (LambdaESM) allows(op Operator) bool {
 	return false
 }
 
-func (EventBridge) admit([]byte) *CompileError { return nil }
-func (LambdaESM) admit([]byte) *CompileError   { return nil }
+func (EventBridge) admit(src []byte) ([]byte, *CompileError) { return src, nil }
+func (LambdaESM) admit(src []byte) ([]byte, *CompileError)   { return src, nil }
 
-// admit applies the size limit, then parses the whole policy as JSON first,
-// as SNS does: its syntax errors carry a "failed to parse JSON. " prefix and
-// win over Ruler's grammar errors anywhere in the policy.
-func (SNS) admit(src []byte) *CompileError {
+// admit applies the size limit in UTF-8 bytes (sns/R09/T16-subscribe.json),
+// then parses the whole policy as JSON first, as SNS does: its syntax errors
+// carry a "failed to parse JSON. " prefix and win over Ruler's grammar
+// errors anywhere in the policy. Ruler reads the policy as SNS writes the
+// parsed tree back (reserialize). The location line of a syntax error,
+// which names SNS's own parser and not Ruler's, is left out: no recording
+// shows it whole.
+func (SNS) admit(src []byte) ([]byte, *CompileError) {
 	if len(src) > snsMaxBytes {
-		return limitError(LimitSize, "Filter policy can not be larger than "+strconv.Itoa(snsMaxBytes/1024)+" KB")
+		return nil, limitError(LimitSize, "must be at most "+strconv.Itoa(snsMaxBytes)+" bytes long in UTF-8 encoding")
 	}
 	if message, ok := SyntaxError(src); ok {
-		return &CompileError{Cause: InvalidJSON{}, Detail: "failed to parse JSON. " + message}
+		return nil, &CompileError{Cause: InvalidJSON{}, Detail: "failed to parse JSON. " + message}
 	}
-	return nil
+	return reserialize(src), nil
 }
 
 // SyntaxError is the first JSON syntax error in src, worded as Jackson
@@ -296,7 +301,7 @@ type expansion struct {
 // read, so more than 1000 branches is more than 1000 combinations.
 func (EventBridge) overrun(x expansion) *CompileError {
 	if x.orProduct > ebMaxOrCombinations || x.branches > ebMaxOrCombinations {
-		return limitError(LimitCombinations, "The pattern has more than "+strconv.Itoa(ebMaxOrCombinations)+" $or combinations")
+		return limitError(LimitCombinations, "Or operator is producing over "+strconv.Itoa(ebMaxOrCombinations)+" rule combinations")
 	}
 	return nil
 }
@@ -358,28 +363,38 @@ func (p SNS) check(c *compiler) *CompileError {
 	for _, cd := range c.liveConditions() {
 		for _, g := range cd.globs() {
 			if g.stars() > snsMaxWildcardsPerGlob {
-				return limitError(LimitWildcardsPerPattern, snsTooComplex)
+				return limitError(LimitWildcardsPerPattern, snsWildcardComplexity+": pattern exceeds maximum allowed wildcards")
 			}
 		}
 		points += cd.snsWildcardPoints()
 	}
 	if points > snsMaxWildcardPoints {
-		return limitError(LimitWildcardComplexity, snsTooComplex)
+		return limitError(LimitWildcardComplexity, snsWildcardComplexity)
 	}
 	return nil
 }
 
+// snsWildcardComplexity is the SNS text for the wildcard limits, which SNS
+// puts after "Attributes Reason: " without "FilterPolicy: " (sns/R09
+// H11-11-single, H11-5-two-wildcard; H11-4-wildcards and T13 add the
+// per-pattern suffix).
+const snsWildcardComplexity = "Wildcard complexity too high"
+
 func (LambdaESM) check(c *compiler) *CompileError { return c.overrun }
 
 func (EventBridge) message(e *CompileError) string {
-	return "Event pattern is not valid. Reason: " + e.Detail
+	return "Event pattern is not valid. Reason: " + e.reason()
 }
 
 func (SNS) message(e *CompileError) string {
-	if c, ok := e.Cause.(LimitExceeded); ok && c.Limit == LimitNesting {
-		return e.Detail
+	if c, ok := e.Cause.(LimitExceeded); ok {
+		switch c.Limit {
+		case LimitNesting, LimitWildcardComplexity, LimitWildcardsPerPattern:
+			return e.Detail
+		case LimitSize, LimitKeys, LimitCombinations:
+		}
 	}
-	return "FilterPolicy: " + e.Detail
+	return "FilterPolicy: " + e.reason()
 }
 
 func (LambdaESM) message(*CompileError) string { return "Invalid filter pattern definition." }
