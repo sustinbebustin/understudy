@@ -309,7 +309,8 @@ test_pending_deletion_key_rejects_cryptographic_operations() {
   mkkey
   aws_ok kms schedule-key-deletion --key-id "$KEY_ID" --pending-window-in-days 7
   aws_error KMSInvalidStateException 400 kms encrypt --key-id "$KEY_ID" --plaintext "$(b64 x)"
-  aws_error_message_contains "$KEY_ARN is pending deletion (or pending replica deletion)."
+  # AWS recorded no "(or pending replica deletion)" clause (kms/R15/02-pending-encrypt.json).
+  aws_error_message_contains "$KEY_ARN is pending deletion."
 }
 
 test_schedule_key_deletion_twice() {
@@ -333,7 +334,8 @@ test_cancel_key_deletion_leaves_key_disabled() {
 test_cancel_key_deletion_when_not_pending() {
   mkkey
   aws_error KMSInvalidStateException 400 kms cancel-key-deletion --key-id "$KEY_ID"
-  aws_error_message_contains "$KEY_ARN is not pending deletion (or pending replica deletion)."
+  # Without the clause, inferred from the recorded pending text (kms/R15/02-pending-encrypt.json).
+  aws_error_message_contains "$KEY_ARN is not pending deletion."
 }
 
 test_key_rotation_status_and_toggle() {

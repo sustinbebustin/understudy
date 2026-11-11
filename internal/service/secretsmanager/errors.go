@@ -46,13 +46,14 @@ func errNameScheduled() *awserr.Error {
 }
 
 // errInvalidName answers a SecretId that is a name outside the secret-name
-// character set.
+// character set, and a CreateSecret Name with a character outside that set
+// plus `!`.
 func errInvalidName() *awserr.Error {
 	return secretsmanagerapi.ErrValidationException("Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!")
 }
 
-// errInvalidNewName answers a CreateSecret Name outside the secret-name
-// character set (secretsmanager/R15/05-name-bang.json).
+// errInvalidNewName answers a CreateSecret Name whose only characters
+// outside the secret-name set are `!` (secretsmanager/R15/05-name-bang.json).
 func errInvalidNewName() *awserr.Error {
 	return secretsmanagerapi.ErrInvalidParameterException("You provided an invalid name for the secret.")
 }

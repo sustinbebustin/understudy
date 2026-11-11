@@ -620,12 +620,20 @@ func TestDefaultKeyByAnyName(t *testing.T) {
 	})
 }
 
-// CreateSecret refuses a Name outside the secret-name character set with
-// InvalidParameterException, unlike a SecretId, and a Name over 512
-// characters with the character-set text rather than the Coral length text
-// (aws-recorded, secretsmanager/R15/05-name-bang.json and 05-name-513.json).
+// CreateSecret checks a Name in two stages. A character outside the set
+// AWS's ValidationException text lists (letters, digits and -/_+=.@!) gets
+// that text (third-party-recorded for a space, *, ? and ],
+// secrets-logs-events-alarms.md 2.1); a `!`, which that text allows but
+// the documented set does not, gets InvalidParameterException, unlike a
+// SecretId. A Name over 512 characters gets the character-set text rather
+// than the Coral length text (aws-recorded,
+// secretsmanager/R15/05-name-bang.json and 05-name-513.json).
 func TestCreateSecretNameErrors(t *testing.T) {
 	run(t, func(h *harness) {
+		for _, name := range []string{"bad name", "a*b", "a?b", "a]b", "a!b c"} {
+			_, err := call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: name, ClientRequestToken: new(h.token()), SecretString: new("x")})
+			wantError(h.T, err, "ValidationException", "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!")
+		}
 		_, err := call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "a!b", ClientRequestToken: new(h.token()), SecretString: new("x")})
 		wantError(h.T, err, "InvalidParameterException", "You provided an invalid name for the secret.")
 		_, err = call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: strings.Repeat("n", 513), ClientRequestToken: new(h.token()), SecretString: new("x")})
@@ -743,7 +751,7 @@ func TestGetSecretValueErrors(t *testing.T) {
 		_, err = call(h, sm.OpPutSecretValue, &sm.PutSecretValueInput{SecretId: "empty", SecretString: new("no token")})
 		wantError(h.T, err, "InvalidRequestException", "You must provide a ClientRequestToken value. We recommend a UUID-type value.")
 		_, err = call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "bad name", ClientRequestToken: new(h.token())})
-		wantError(h.T, err, "InvalidParameterException", "You provided an invalid name for the secret.")
+		wantError(h.T, err, "ValidationException", "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!")
 		_, err = call(h, sm.OpUpdateSecretVersionStage, &sm.UpdateSecretVersionStageInput{SecretId: "empty", VersionStage: "AWSCURRENT", RemoveFromVersionId: new(v1)})
 		wantError(h.T, err, "InvalidParameterException", "You can only move staging label AWSCURRENT to a different secret version. It can't be completely removed.")
 	})
