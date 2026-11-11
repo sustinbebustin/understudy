@@ -149,9 +149,10 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 		}
 	}
 	// The answer and the record carry the same instant, c's admission, so
-	// the UpdateTable answer and the next DescribeTable agree.
-	next := current.updated(in, c.Admitted(), sse)
-	a.shim = &shimmed{table: &next, status: dynamodbapi.TableStatusUpdating, stream: s.latestStream(c.Scope(), name)}
+	// the UpdateTable answer and the next DescribeTable agree, apart from
+	// the increase AWS stamps on a billing switch's answer alone.
+	next := current.updated(in, c.Admitted(), sse).switchAnswered(current.Billing, c.Admitted())
+	a.shim = &shimmed{table: &next, of: updateAnswer, stream: s.latestStream(c.Scope(), name)}
 	change := streamChangeOf(in.StreamSpecification)
 	var minted Stream
 	if e, ok := change.(streamEnabled); ok {

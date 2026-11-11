@@ -173,8 +173,13 @@ func replayTerraform(h *harness, p terraformProbe) {
 		"CreationDateTime": created2000,
 	}
 	maps.Copy(active, p.want(managed))
+	// AWS's CreateTable answer has no WarmThroughput and no switch to
+	// PAY_PER_REQUEST (testdata/parity/dynamodb/R04/01-create-table.json).
 	creating := maps.Clone(active)
-	creating["TableStatus"], creating["WarmThroughput"] = "CREATING", warmDefault("CREATING")
+	creating["TableStatus"], creating["WarmThroughput"] = "CREATING", nil
+	if billing, ok := creating["BillingModeSummary"].(map[string]any); ok {
+		creating["BillingModeSummary"] = map[string]any{"BillingMode": billing["BillingMode"]}
+	}
 	want := creating
 	// A table CREATING has its indexes CREATING too.
 	wantIndex := maps.Clone(p.index)
@@ -650,6 +655,79 @@ func TestLastSwitchToPayPerRequestStaysOnTheEmulatorClock(t *testing.T) {
 			h.Fatal(err)
 		}
 		billing("after export and import", provisioned)
+	})
+}
+
+// memberSet lists the members of v, a decoded table description, as dotted
+// paths into its nested structures, sorted; lists are not entered.
+func memberSet(v any) []string {
+	var paths []string
+	var walk func(prefix string, v any)
+	walk = func(prefix string, v any) {
+		m, isMap := v.(map[string]any)
+		if !isMap {
+			return
+		}
+		for k, child := range m {
+			paths = append(paths, prefix+k)
+			walk(prefix+k+".", child)
+		}
+	}
+	walk("", v)
+	slices.Sort(paths)
+	return paths
+}
+
+// TestTableAnswersCarryAWSMembers replays R04's lock table against a fake
+// Local: the CreateTable answer, the UpdateTable answer switching
+// PAY_PER_REQUEST to PROVISIONED, the DescribeTable after it and the
+// DeleteTable answer each carry the members AWS's does, leaving aside
+// AWS's TableThroughputModeSummary, which the model lacks
+// (testdata/parity/dynamodb/R04/01-create-table.json,
+// x-billing-to-provisioned.json, x-describe-post-billing.json,
+// 99-delete-table.json). Only the UpdateTable answer stamps
+// LastIncreaseDateTime, with the update's instant.
+func TestTableAnswersCarryAWSMembers(t *testing.T) {
+	runStore(t, func(h *harness, _ *tableStore) {
+		check := func(what string, desc any, want []string) {
+			h.Helper()
+			if got := memberSet(desc); !slices.Equal(got, want) {
+				h.Errorf("%s members:\n got %v\nwant %v", what, got, want)
+			}
+		}
+		created := h.mustCall("CreateTable", `{"AttributeDefinitions":[{"AttributeName":"LockID","AttributeType":"S"}],"TableName":"usr-rec-20261014-lock",`+
+			`"KeySchema":[{"AttributeName":"LockID","KeyType":"HASH"}],"BillingMode":"PAY_PER_REQUEST"}`)
+		check("CreateTable", path(created, "TableDescription"), []string{
+			"AttributeDefinitions", "BillingModeSummary", "BillingModeSummary.BillingMode", "CreationDateTime", "DeletionProtectionEnabled",
+			"ItemCount", "KeySchema", "ProvisionedThroughput", "ProvisionedThroughput.NumberOfDecreasesToday",
+			"ProvisionedThroughput.ReadCapacityUnits", "ProvisionedThroughput.WriteCapacityUnits",
+			"TableArn", "TableId", "TableName", "TableSizeBytes", "TableStatus",
+		})
+		if _, err := h.Clock.Advance(time.Minute); err != nil {
+			h.Fatal(err)
+		}
+		const switched = created2000 + 60
+		updated := path(h.mustCall("UpdateTable", `{"TableName":"usr-rec-20261014-lock","BillingMode":"PROVISIONED",`+
+			`"ProvisionedThroughput":{"ReadCapacityUnits":1,"WriteCapacityUnits":1}}`), "TableDescription")
+		described := []string{
+			"AttributeDefinitions", "BillingModeSummary", "BillingModeSummary.BillingMode", "BillingModeSummary.LastUpdateToPayPerRequestDateTime",
+			"CreationDateTime", "DeletionProtectionEnabled", "ItemCount", "KeySchema", "ProvisionedThroughput",
+			"ProvisionedThroughput.NumberOfDecreasesToday", "ProvisionedThroughput.ReadCapacityUnits", "ProvisionedThroughput.WriteCapacityUnits",
+			"TableArn", "TableId", "TableName", "TableSizeBytes", "TableStatus",
+			"WarmThroughput", "WarmThroughput.ReadUnitsPerSecond", "WarmThroughput.Status", "WarmThroughput.WriteUnitsPerSecond",
+		}
+		check("UpdateTable", updated, slices.Sorted(slices.Values(append(slices.Clone(described), "ProvisionedThroughput.LastIncreaseDateTime"))))
+		if got := path(updated, "ProvisionedThroughput", "LastIncreaseDateTime"); got != switched {
+			h.Errorf("UpdateTable LastIncreaseDateTime = %v, want %v, the update's instant", got, switched)
+		}
+		check("DescribeTable after the switch", path(h.mustCall("DescribeTable", `{"TableName":"usr-rec-20261014-lock"}`), "Table"), described)
+		deleted := h.mustCall("DeleteTable", `{"TableName":"usr-rec-20261014-lock"}`)
+		check("DeleteTable", path(deleted, "TableDescription"), []string{
+			"BillingModeSummary", "BillingModeSummary.BillingMode", "BillingModeSummary.LastUpdateToPayPerRequestDateTime",
+			"DeletionProtectionEnabled", "ItemCount", "ProvisionedThroughput",
+			"ProvisionedThroughput.NumberOfDecreasesToday", "ProvisionedThroughput.ReadCapacityUnits", "ProvisionedThroughput.WriteCapacityUnits",
+			"TableArn", "TableId", "TableName", "TableSizeBytes", "TableStatus",
+		})
 	})
 }
 

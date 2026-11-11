@@ -29,9 +29,11 @@
 // answered from it and never reach Local; in particular a TTL
 // specification never does, so Local's wall-clock sweeper stays off. Every
 // table description Local writes is completed from it (describe.go): the
-// WarmThroughput Terraform waits on, of the table and of each global
-// secondary index, TableId, TableClassSummary, SSEDescription, the
-// timestamps, CREATING on CreateTable and DELETING on DeleteTable. An
+// WarmThroughput Terraform waits on, of the table in DescribeTable and
+// UpdateTable answers and of each global secondary index, TableId,
+// TableClassSummary, SSEDescription, the timestamps, CREATING on
+// CreateTable, UPDATING on UpdateTable and DELETING on DeleteTable, less
+// the members AWS leaves out of each operation's answer. An
 // UpdateTable of only the members the shims own is answered with Local's
 // description instead of Local's "Nothing to update". The TTL sweep runs on
 // the emulator clock (ttl.go), and snapshot export, import and reset reach
