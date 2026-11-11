@@ -1024,7 +1024,7 @@ rec SSM-15/04-invalid aws ssm put-parameter --name "$N/a15d" --type String --val
 ssmsweep
 ```
 
-Before re-running `scripts/distill-parity` on a new SSM-15 recording, copy the "Replay (scenario.json)" paragraph of `testdata/parity/ssm/SSM-15/notes.md` into `$REC/SSM-15/notes.md`: the script copies the raw recording's `notes.md` over the committed one (recording-kit.md 6), so a paragraph the raw notes lack is lost. Cost USD 0, 2 min.
+Carry the "Replay (scenario.json)" paragraph of `testdata/parity/ssm/SSM-15/notes.md` into `$REC/SSM-15/notes.md` before distilling (recording-kit.md 6). Cost USD 0, 2 min.
 
 ### 13.17 SSM-16: label rules
 
@@ -1168,7 +1168,7 @@ aws kms delete-alias --alias-name "alias/$P-ssm"
 aws kms schedule-key-deletion --key-id "$K" --pending-window-in-days 7
 ```
 
-Step 03 expects 400 `AccessDeniedException` (`no resource-based policy allows the kms:Decrypt action`): the default key's policy admits a caller only through Systems Manager (5.6; recorded 2026-11-03). An earlier version of this recipe expected `Plaintext` `cw==`. Step 07 settles the answer to a read with decryption on a customer managed key by a caller without `kms:Decrypt` (recorded: `AccessDeniedException` with KMS's message, 5.5). Step 08 settles 5.6: understudy expects both calls to succeed, since the AWS managed key's policy admits the caller through Systems Manager. Before re-running `scripts/distill-parity` on a new SSM-22 recording, copy the "Replay (scenario.json)" paragraph of `testdata/parity/ssm/SSM-22/notes.md` into `$REC/SSM-22/notes.md`: the script copies the raw recording's `notes.md` over the committed one (recording-kit.md 6), so a paragraph the raw notes lack is lost. Cost at most USD 0.25 (one customer key at USD 1 per month, prorated, if the 7-day window is billed), 6 min.
+Step 03 expects 400 `AccessDeniedException` (`no resource-based policy allows the kms:Decrypt action`): the default key's policy admits a caller only through Systems Manager (5.6; recorded 2026-11-03). An earlier version of this recipe expected `Plaintext` `cw==`. Step 07 settles the answer to a read with decryption on a customer managed key by a caller without `kms:Decrypt` (recorded: `AccessDeniedException` with KMS's message, 5.5). Step 08 settles 5.6: understudy expects both calls to succeed, since the AWS managed key's policy admits the caller through Systems Manager. Carry the "Replay (scenario.json)" paragraph of `testdata/parity/ssm/SSM-22/notes.md` into `$REC/SSM-22/notes.md` before distilling (recording-kit.md 6). Cost at most USD 0.25 (one customer key at USD 1 per month, prorated, if the 7-day window is billed), 6 min.
 
 ### 13.24 SSM-23: Secrets Manager references
 

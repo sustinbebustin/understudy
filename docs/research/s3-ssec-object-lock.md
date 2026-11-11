@@ -533,7 +533,7 @@ for b in "$L" "$LY" "$LE"; do empty_versions "$b" --bypass-governance-retention;
 
 A `delete-object` that still fails names a version under COMPLIANCE (wait for its date) or an event hold (release it, S3SOL-24).
 
-Index, priority first: S3SOL-01, -10, -05, -12, -23, -02, then the rest in order. S3SOL-25 to -28 were added after the 2026-11-03 session, for what it left open; a rerun may run 12.1, those cases and the teardown alone, since `scripts/distill-parity` rewrites only the steps `$REC` holds. It does replace the committed `testdata/parity/s3/S3SOL/notes.md` with `$REC/S3SOL/notes.md` (recording-kit.md 6), so start the raw notes from the committed file and add the new lines to it.
+Index, priority first: S3SOL-01, -10, -05, -12, -23, -02, then the rest in order. S3SOL-25 to -28 were added after the 2026-11-03 session, for what it left open; a rerun may run 12.1, those cases and the teardown alone, since `scripts/distill-parity` rewrites only the steps `$REC` holds. Start `$REC/S3SOL/notes.md` from the committed `testdata/parity/s3/S3SOL/notes.md` and add the new lines to it (recording-kit.md 6).
 
 ### 12.2 S3SOL-01. SSE-C write to a bucket that blocks SSE-C
 

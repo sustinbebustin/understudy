@@ -32,10 +32,11 @@ func TestSFNCapturesHoldNoTaskToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("token-shape.txt line 1 is not a token length: %v", err)
 	}
-	if len(lines[1]) < prefixLen || length < prefixLen {
-		t.Fatalf("token-shape.txt records length %d and %d leading characters; need at least %d of each", length, len(lines[1]), prefixLen)
+	leading := strings.TrimSpace(lines[1])
+	if len(leading) < prefixLen || length <= prefixLen {
+		t.Fatalf("token-shape.txt records length %d and %d leading characters (%q); need at least %d leading characters and a length above %d", length, len(leading), leading, prefixLen, prefixLen)
 	}
-	prefix := lines[1][:prefixLen]
+	prefix := leading[:prefixLen]
 	token := regexp.MustCompile(regexp.QuoteMeta(prefix) + `[A-Za-z0-9+/=]{` + strconv.Itoa(length-prefixLen) + `,}`)
 
 	scanned := 0
