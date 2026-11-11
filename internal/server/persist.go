@@ -213,6 +213,8 @@ func (d *dataDir) close() error {
 type persister struct {
 	dir   *dataDir
 	coord *snapshot.Coordinator
+	// admin owns the state lock that a checkpoint's cut runs under.
+	admin *serveradmin.Handler
 	blobs *blob.Store
 	// clock is the emulator clock, whose wall time a restart resumes a
 	// Running clock at.
@@ -339,7 +341,13 @@ func (p *persister) remember(ctx context.Context) error {
 // checkpoint writes the state to state.snapshot atomically when it
 // differs from the last saved, or always when force is set, and moves the
 // blob pin from the replaced archive to the new one.
-func (p *persister) checkpoint(ctx context.Context, force bool) (err error) {
+func (p *persister) checkpoint(ctx context.Context, force bool) error {
+	return p.admin.WithStateLock(func() error { return p.checkpointLocked(ctx, force) })
+}
+
+// checkpointLocked is checkpoint's body, run under the handler's state
+// lock so no cut lands inside a reset (ADR 0009).
+func (p *persister) checkpointLocked(ctx context.Context, force bool) (err error) {
 	cut, err := p.coord.Cut(ctx)
 	if err != nil {
 		return fmt.Errorf("server: checkpoint: %w", err)

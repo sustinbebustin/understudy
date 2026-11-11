@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,61 @@ import (
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/snapshot"
 )
+
+// A checkpoint is a whole-state cut, so it waits for the admin handler's
+// state lock: a reset holds it from the drain to the fault clear, and a cut
+// between those steps would save a half-reset state.
+func TestCheckpointWaitsForTheStateLock(t *testing.T) {
+	dir := t.TempDir()
+	srv, err := New(Config{Persist: PersistDir{Path: dir}, Docker: DockerDisabled{}, LogOutput: io.Discard})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := srv.Close(); err != nil {
+			t.Errorf("Close = %v", err)
+		}
+	})
+	state := filepath.Join(dir, stateFile)
+	done := make(chan error, 1)
+	started := make(chan struct{})
+	holdErr := srv.wired.admin.WithStateLock(func() error {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://localhost:4566/", strings.NewReader(`{"QueueName":"a"}`))
+		req.Header.Set("Content-Type", "application/x-amz-json-1.0")
+		req.Header.Set("X-Amz-Target", "AmazonSQS.CreateQueue")
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("CreateQueue = %d %s", rec.Code, rec.Body)
+		}
+		go func() {
+			close(started)
+			done <- srv.wired.persist.checkpoint(t.Context(), false)
+		}()
+		<-started
+		for range 1000000 {
+			goruntime.Gosched()
+			select {
+			case err := <-done:
+				t.Fatalf("a checkpoint finished (err %v) while the state lock was held", err)
+			default:
+			}
+		}
+		if _, err := os.Stat(state); !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("a checkpoint wrote the state file while the state lock was held: stat err %v", err)
+		}
+		return nil
+	})
+	if holdErr != nil {
+		t.Fatal(holdErr)
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("checkpoint = %v", err)
+	}
+	if _, err := os.Stat(state); err != nil {
+		t.Fatalf("a checkpoint after the lock was released wrote no state file: %v", err)
+	}
+}
 
 // A checkpoint writes the state only when it changed since the last save:
 // an unchanged state leaves the file alone, a change rewrites it. A change

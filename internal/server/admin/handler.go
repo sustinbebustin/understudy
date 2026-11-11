@@ -180,6 +180,16 @@ func New(o Options) (*Handler, error) {
 // health then reports as ready and names.
 func (h *Handler) SetReady(listener netip.AddrPort) { h.listener.Store(&listener) }
 
+// WithStateLock runs fn holding the state lock that reset, snapshot save
+// and snapshot load share, so a whole-state cut inside fn never lands in
+// the middle of a reset. fn must not call a handler operation that takes
+// the lock.
+func (h *Handler) WithStateLock(fn func() error) error {
+	h.stateOps.Lock()
+	defer h.stateOps.Unlock()
+	return fn()
+}
+
 // SetNotReady reports that the main listener no longer accepts.
 func (h *Handler) SetNotReady() { h.listener.Store(nil) }
 

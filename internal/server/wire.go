@@ -677,7 +677,7 @@ func (w *wiring) load(cfg Config, snapshots *snapshot.Coordinator, log *slog.Log
 		if every <= 0 {
 			every = DefaultSaveEvery
 		}
-		w.persist = &persister{dir: w.data, coord: snapshots, blobs: w.blobs, clock: w.kernel.Clock(), log: log, every: every, maxBytes: snapshotMaxBytes(cfg)}
+		w.persist = &persister{dir: w.data, coord: snapshots, admin: w.admin, blobs: w.blobs, clock: w.kernel.Clock(), log: log, every: every, maxBytes: snapshotMaxBytes(cfg)}
 		restored, err := w.persist.load(context.Background())
 		if err != nil {
 			return err
