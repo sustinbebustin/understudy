@@ -114,13 +114,20 @@
 // counter of the outbox drawn under the cell lock at insertion, so the
 // fan-out of one publish keeps the order the producer delivered it in;
 // Import raises the counter past every loaded entry. Deliveries into one
-// message group of a FIFO queue form a lane, ordered by Seq alone, the
-// order Enqueue arms it in, so a live run and a reload agree on its head
-// even when deliveries reached the outbox out of commit order. Only the
+// message group of a FIFO queue form a lane, ordered by Order, the number
+// kernel.Delivery carries, drawn inside the producing write's commit under
+// the source cell's lock, so two writes to one topic or bus order their
+// deliveries in commit order whichever reaches the outbox first. Import
+// raises the kernel's order counter past every loaded entry's too. Only the
 // head is armed, a retry keeps the lane blocked, and a terminal outcome
 // arms the next, due no earlier than the attempt that ended the previous
-// one, so a group arrives in order (sns.md 4.3). A message group of a
-// standard queue promises no order (sqs.md 8.5) and forms no lane.
+// one, so a group arrives in order (sns.md 4.3). A delivery that reaches
+// its lane after one committed later takes the head from it while that one
+// has no attempt in flight, and a head is not attempted until every
+// delivery numbered before it has been handed over (kernel.HandedOver), so
+// a delivery still between its write's unlock and the outbox is not
+// overtaken. A message group of a standard queue promises no order (sqs.md
+// 8.5) and forms no lane.
 //
 // Attempts run one at a time in firing order on the sequencer, so the same
 // seed, rule set and call order give the same fault hits and ids however
@@ -169,15 +176,6 @@
 // ERROR_CODE, ERROR_MESSAGE, RETRY_ATTEMPTS and, when retries ran out,
 // EXHAUSTED_RETRY_CONDITION (eb-rule-dlq). A dead letter the queue refuses
 // is dropped, both reasons journaled.
-//
-// # Known gaps
-//
-// A FIFO lane is ordered by Seq, drawn when Enqueue runs, after the source
-// cell unlocked. Two publishes to one FIFO topic and group that commit
-// concurrently can reach Enqueue in the reverse of their commit order, so
-// the queue receives them in the reverse of their SNS sequence numbers.
-// Closing the gap needs the kernel to stamp each delivery with an order
-// drawn under the source cell's lock and hand it over in kernel.Delivery.
 //
 // The attempt's journal events (Delivery, Advisory, FaultInjected) and its
 // target call carry the source call's cause: the call resumes the entry's

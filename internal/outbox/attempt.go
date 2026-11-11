@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/fault"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
@@ -52,10 +53,22 @@ func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant
 		return
 	}
 	var throttled *sequencer
+	var handOver <-chan struct{}
 	entry := store.Update(cell, func(st *State) (*Entry, bool) {
 		en, ok := st.Entries[id]
 		if cell.Retired() || !ok || en.Running || en.NextAt.Compare(due) != 0 {
 			return nil, false
+		}
+		if l, inLane := laneOf(&en); inLane {
+			if head, _ := st.nextInLane(l); head.ID != id {
+				// An earlier commit's delivery took the head after this
+				// timer was armed; its end arms this one.
+				return nil, false
+			}
+			if ok, changed := e.k.HandedOver(en.Order); !ok {
+				handOver = changed
+				return nil, false
+			}
 		}
 		rearm, paced, ready := e.pace.admit(&en, due)
 		if paced {
@@ -72,6 +85,10 @@ func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant
 		st.Entries[id] = en
 		return &en, false
 	})
+	if handOver != nil {
+		e.k.Go(kernel.DeliveryAttempt, func(ctx context.Context) { e.awaitHandOver(ctx, handOver, cell, key, id, due) })
+		return
+	}
 	if entry == nil {
 		return
 	}
@@ -84,6 +101,27 @@ func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant
 	default:
 		e.sequence(&e.ready, a)
 	}
+}
+
+// awaitHandOver re-arms the attempt of lane head id, due at due, once the
+// kernel hands over another delivery (changed), so onAttempt asks again
+// whether every delivery committed before it has reached the outbox. A
+// delivery that did may take the lane's head (enqueue), and the timer then
+// finds this one no longer the head. The re-arm keeps the due instant, so
+// the attempt is stamped as if it had not waited; it is skipped when the
+// kernel stopped or the entry was reloaded, reset or moved on meanwhile.
+func (e *engine) awaitHandOver(ctx context.Context, changed <-chan struct{}, cell *store.Cell[State], key clock.TimerKey, id ids.DeliveryID, due clock.Instant) {
+	select {
+	case <-changed:
+	case <-ctx.Done():
+		return
+	}
+	store.Read(cell, func(st *State) struct{} {
+		if en, ok := st.Entries[id]; ok && !cell.Retired() && !en.Running && en.NextAt.Compare(due) == 0 {
+			e.k.Timers().Scheduler().Arm(key, due)
+		}
+		return struct{}{}
+	})
 }
 
 // evaluateFaults returns the Delivery-phase fault decision for the attempt

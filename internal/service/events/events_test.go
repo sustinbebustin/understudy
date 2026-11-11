@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
+	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -21,22 +22,56 @@ import (
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
+	"github.com/sustinbebustin/understudy/internal/outbox"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/events"
 )
 
 // sink is the kernel's delivery sink: it records every accepted delivery
-// as the outbox would take it in.
+// as the outbox would take it in, and hands it to box when the harness
+// has an outbox.
 type sink struct {
+	box *outbox.Outbox
+
 	mu  sync.Mutex
 	got []kernel.Delivery
+	// gate, when set, holds the next delivery (holdNext).
+	gate *gate
+}
+
+// gate holds one delivery between its write's unlock and the sink: held is
+// closed once the delivery waits, and closing release lets it on.
+type gate struct {
+	held    chan struct{}
+	release chan struct{}
 }
 
 func (s *sink) Deliver(d kernel.Delivery) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	g := s.gate
+	s.gate = nil
+	s.mu.Unlock()
+	if g != nil {
+		close(g.held)
+		<-g.release
+	}
+	s.mu.Lock()
 	s.got = append(s.got, d)
-	return nil
+	s.mu.Unlock()
+	if s.box == nil {
+		return nil
+	}
+	return s.box.Deliver(d)
+}
+
+// holdNext makes the next delivery handed over wait before the sink takes
+// it, as a slow goroutine would after its write unlocked.
+func (s *sink) holdNext() *gate {
+	g := &gate{held: make(chan struct{}), release: make(chan struct{})}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.gate = g
+	return g
 }
 
 // take returns the deliveries recorded since the last take.
@@ -83,6 +118,21 @@ type harness struct {
 	svc  *events.Service
 	sink *sink
 	logs *logs
+	// sent records what a stub SQS SendMessage received, in call order;
+	// nil without an outbox (runWithOutbox).
+	sent *sent
+}
+
+// sent collects the SendMessage calls the outbox's attempts make.
+type sent struct {
+	mu  sync.Mutex
+	got []sqsapi.SendMessageInput
+}
+
+func (s *sent) all() []sqsapi.SendMessageInput {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Clone(s.got)
 }
 
 const (
@@ -95,6 +145,18 @@ const (
 // kerneltest does not wire.
 func run(t *testing.T, fn func(h *harness)) {
 	t.Helper()
+	runWith(t, false, fn)
+}
+
+// runWithOutbox is run with the outbox behind the sink and a stub SQS
+// SendMessage that records what each attempt sends (harness.sent).
+func runWithOutbox(t *testing.T, fn func(h *harness)) {
+	t.Helper()
+	runWith(t, true, fn)
+}
+
+func runWith(t *testing.T, withOutbox bool, fn func(h *harness)) {
+	t.Helper()
 	synctest.Test(t, func(t *testing.T) {
 		timers := kernel.NewTimers()
 		clk, err := clock.New(clock.Options{Mode: clock.Frozen{}, Timers: timers.Scheduler()})
@@ -105,13 +167,20 @@ func run(t *testing.T, fn func(h *harness)) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		reg, err := registry.New(eventbridgeapi.Service())
+		svcs := []*registry.Service{eventbridgeapi.Service()}
+		if withOutbox {
+			svcs = append(svcs, sqsapi.Service())
+		}
+		reg, err := registry.New(svcs...)
 		if err != nil {
 			t.Fatal(err)
 		}
 		src := ids.NewSeeded(1)
 		idStore := identity.New(src, aws.DefaultAccount())
 		d := &sink{}
+		if withOutbox {
+			d.box = outbox.New()
+		}
 		l := &logs{}
 		k, err := kernel.New(kernel.Options{
 			Registry: reg, Clock: clk, Timers: timers, IDs: src, Journal: j,
@@ -126,6 +195,19 @@ func run(t *testing.T, fn func(h *harness)) {
 			Endpoint: kernel.Endpoint{Scheme: "http", Host: "localhost:4566"},
 		}
 		svc := events.New(kt.Deps(eventbridgeapi.Service()), events.Options{})
+		h := &harness{K: kt, svc: svc, sink: d, logs: l}
+		if withOutbox {
+			if err := d.box.Bind(k, outbox.Options{}); err != nil {
+				t.Fatal(err)
+			}
+			h.sent = &sent{}
+			kernel.Bind(k.Binder(sqsapi.Service()), sqsapi.OpSendMessage, func(_ context.Context, _ *kernel.Call, in *sqsapi.SendMessageInput) (*sqsapi.SendMessageOutput, *awserr.Error) {
+				h.sent.mu.Lock()
+				defer h.sent.mu.Unlock()
+				h.sent.got = append(h.sent.got, *in)
+				return &sqsapi.SendMessageOutput{MessageId: new("stub")}, nil
+			}, registry.Full{})
+		}
 		ctx, cancel := context.WithCancel(context.Background())
 		stopped := make(chan error, 1)
 		go func() { stopped <- k.Run(ctx) }()
@@ -138,7 +220,7 @@ func run(t *testing.T, fn func(h *harness)) {
 				t.Errorf("bind mistakes: %v", err)
 			}
 		}()
-		fn(&harness{K: kt, svc: svc, sink: d, logs: l})
+		fn(h)
 	})
 }
 

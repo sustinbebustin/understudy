@@ -28,8 +28,11 @@ import (
 // Invocation) are absent from every other entry, so they need no new
 // version. 5: an SNS-to-Lambda entry keeps the dead letter SNS built
 // (dlqMessage); an earlier one would dead-letter the Lambda event, so its
-// section is refused (ADR 0009, amendment of 2026-11-10).
-const stateVersion = 5
+// section is refused (ADR 0009, amendment of 2026-11-10). 6: an entry
+// keeps the order number its producing write drew (Entry.Order), which
+// orders a FIFO lane; an earlier entry has none, so its section is
+// refused rather than restored with its lane unordered.
+const stateVersion = 6
 
 // State is the outbox of one account and region, the scope of the targets
 // its deliveries land in: every accepted delivery not yet delivered,
@@ -58,6 +61,15 @@ func (s *State) lastSeq() uint64 {
 	return last
 }
 
+// lastOrder returns the greatest Order of the pending entries, 0 for none.
+func (s *State) lastOrder() uint64 {
+	var last uint64
+	for id := range s.Entries {
+		last = max(last, s.Entries[id].Order)
+	}
+	return last
+}
+
 // Entry is one pending delivery (ARCHITECTURE.md 16).
 type Entry struct {
 	ID      ids.DeliveryID
@@ -77,6 +89,11 @@ type Entry struct {
 	// counter of the outbox, under the cell lock, when the entry is
 	// inserted.
 	Seq uint64
+	// Order is the kernel's order number for the delivery
+	// (kernel.Delivery.Order), drawn inside the producing write's commit,
+	// so it follows commit order where Seq follows the order deliveries
+	// reached the outbox. A FIFO lane is ordered by it.
+	Order uint64
 	// Jitter seeds an EventBridge target's retry jitter and is 0 under
 	// every other policy. It is drawn once, at acceptance, so the delays do
 	// not depend on how concurrent attempts interleave.
@@ -106,6 +123,7 @@ type entryRecord struct {
 	Cause    causeRecord   `json:"cause"`
 	Accepted clock.Instant `json:"accepted"`
 	Seq      uint64        `json:"seq"`
+	Order    uint64        `json:"order"`
 	Jitter   uint64        `json:"jitter,omitzero"`
 }
 
@@ -374,6 +392,7 @@ func recordOf(e *Entry) entryRecord {
 		Cause:    causeRecord{Parent: e.Cause.Parent, Trace: e.Cause.Trace},
 		Accepted: e.Accepted,
 		Seq:      e.Seq,
+		Order:    e.Order,
 		Jitter:   e.Jitter,
 	}
 	if req.DLQ != nil {
@@ -420,6 +439,7 @@ func entryOf(id ids.DeliveryID, r *entryRecord) (Entry, error) {
 		Cause:    ref.Cause{Parent: r.Cause.Parent, Trace: r.Cause.Trace},
 		Accepted: r.Accepted,
 		Seq:      r.Seq,
+		Order:    r.Order,
 		Jitter:   r.Jitter,
 	}, nil
 }

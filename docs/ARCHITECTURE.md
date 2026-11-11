@@ -1387,12 +1387,13 @@ type Entry struct {
 	Cause    ref.Cause
 	Accepted clock.Instant
 	Seq      uint64 // the order the outbox took deliveries in, drawn under the cell lock
+	Order    uint64 // kernel.Delivery.Order: drawn in the producing write's commit, under the source cell lock
 	Jitter   uint64 // seeds an EventBridge target's retry jitter; 0 for other policies
 	Running  bool   // an attempt is in flight; this process's claim, never saved
 }
 ```
 
-Deliveries to one SQS FIFO queue with one `GroupID` form a lane, attempted one at a time in `Seq` order: only the first pending one is armed, a retry keeps the lane blocked, and a terminal outcome arms the next no earlier than itself (`sns.md 10`). A group on a standard queue is a fair-queue tenant label and forms no lane (`sqs.md 8.5`); deliveries outside a lane run concurrently.
+Deliveries to one SQS FIFO queue with one `GroupID` form a lane, attempted one at a time in `Order` order, the commit order of the writes that produced them, `Seq` breaking ties: only the first pending one is armed, a retry keeps the lane blocked, and a terminal outcome arms the next no earlier than itself (`sns.md 10`). The kernel hands deliveries over after the source cell unlocks, so a later commit's delivery can reach the outbox first; a head is not attempted until every delivery numbered before it has been handed over (`Kernel.HandedOver`), and one that arrives late takes the head back while the head has no attempt in flight. A group on a standard queue is a fair-queue tenant label and forms no lane (`sqs.md 8.5`); deliveries outside a lane run concurrently.
 
 A `Deliver` effect is an outbox insert the kernel performs before the source call returns, so an accepted delivery is state the moment SNS returns a `MessageId`; the insert arms the attempt timer. Attempts, backoff and DLQ routing run on the emulator clock with jitter drawn from the seeded source, so `clock advance` replays a retry storm deterministically. A due attempt is tracked work (`DeliveryAttempt`) stamped `At = due` that calls the target through `kernel.Invoke` as `AsService{name}` (as `AsExecutionRole{Role}` for a Lambda delivery, whose resource-policy advisory is skipped) with `Origin Internal{Via}`, is subject to `Phase: Delivery` rules, emits a `journal.Delivery` event whose parent is the source event, and removes the entry on a terminal outcome. `Rearm` restores every pending attempt after a snapshot load. Client-side failures (queue or function missing) go straight to the DLQ; filtered messages never reach a DLQ. Fan-out order is deterministic (subscription or target creation order).
 

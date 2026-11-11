@@ -51,11 +51,40 @@ type harness struct {
 type sink struct {
 	box *outbox.Outbox
 	recorder[kernel.Delivery]
+
+	mu sync.Mutex
+	// gate, when set, holds the next delivery (holdNext).
+	gate *gate
+}
+
+// gate holds one delivery between its write's unlock and the outbox:
+// held is closed once the delivery waits, and closing release lets it on.
+type gate struct {
+	held    chan struct{}
+	release chan struct{}
 }
 
 func (s *sink) Deliver(d kernel.Delivery) error {
+	s.mu.Lock()
+	g := s.gate
+	s.gate = nil
+	s.mu.Unlock()
+	if g != nil {
+		close(g.held)
+		<-g.release
+	}
 	s.add(d)
 	return s.box.Deliver(d)
+}
+
+// holdNext makes the next delivery handed over wait before the outbox
+// takes it, as a slow goroutine would after its write unlocked.
+func (s *sink) holdNext() *gate {
+	g := &gate{held: make(chan struct{}), release: make(chan struct{})}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.gate = g
+	return g
 }
 
 // recorder collects values from concurrent delivery attempts.

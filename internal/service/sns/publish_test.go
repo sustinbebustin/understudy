@@ -11,13 +11,16 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
@@ -635,6 +638,59 @@ func TestLambdaDeadLetterIsTheNotificationEnvelope(t *testing.T) {
 			h.Fatalf("SendMessage = %+v, want one dead letter in orders-dlq", sent)
 		}
 		checkEnvelope(h, sent[0], topic, sub, *out.MessageId)
+	})
+}
+
+// TestConcurrentFIFOPublishesArriveInSequenceOrder: SNS numbers a FIFO
+// topic's messages in increasing order per message group and delivers
+// them to a FIFO queue in that order (sns.md 4.3, 5.3), even when the
+// first publish's delivery reaches the outbox after the second's.
+func TestConcurrentFIFOPublishesArriveInSequenceOrder(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events.fifo", map[string]string{"FifoTopic": "true"})
+		h.subscribe(topic, "sqs", fifoQueueARN, nil)
+		publish := func(body string) (*snsapi.PublishOutput, *awserr.Error) {
+			return call(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: body, MessageGroupId: new("g1"), MessageDeduplicationId: new(body)})
+		}
+		type result struct {
+			out *snsapi.PublishOutput
+			err *awserr.Error
+		}
+		g := h.sink.holdNext()
+		firstDone := make(chan result, 1)
+		go func() {
+			out, err := publish("first")
+			firstDone <- result{out, err}
+		}()
+		<-g.held
+		second, err := publish("second")
+		if err != nil {
+			h.Fatalf("second Publish = %s %q", err.ID.QueryCode, err.Message)
+		}
+		// Whatever can run before the first delivery reaches the outbox runs.
+		synctest.Wait()
+		close(g.release)
+		first := <-firstDone
+		if first.err != nil {
+			h.Fatalf("first Publish = %s %q", first.err.ID.QueryCode, first.err.Message)
+		}
+		if *first.out.SequenceNumber >= *second.SequenceNumber {
+			h.Fatalf("sequence numbers %s, %s: the first commit numbered after the second", *first.out.SequenceNumber, *second.SequenceNumber)
+		}
+		h.settle()
+		sent := h.sent.all()
+		got := make([]string, 0, len(sent))
+		for _, in := range sent {
+			var env sqsEnvelope
+			if err := json.Unmarshal([]byte(in.MessageBody), &env); err != nil {
+				h.Fatal(err)
+			}
+			got = append(got, env.Message+"@"+env.SequenceNumber)
+		}
+		want := []string{"first@" + *first.out.SequenceNumber, "second@" + *second.SequenceNumber}
+		if !slices.Equal(got, want) {
+			h.Errorf("the queue received %v, want %v in sequence-number order", got, want)
+		}
 	})
 }
 

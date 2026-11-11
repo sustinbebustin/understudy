@@ -33,7 +33,6 @@ Most differences are in error texts, codes and response details, not in the happ
 - `DeliveryPolicy` refusals: malformed JSON gets Jackson's message with its location on AWS, and an unknown member "Unexpected JSON member: http.nope"; understudy uses its own texts (`sns/R16/x-delivery-policy-*.json`).
 - Subscriptions of a deleted topic still appear in `ListSubscriptions` on AWS; understudy leaves them out (`sns/R16/06-list-subscriptions-after-delete.json`).
 - Lambda deliveries: AWS types `Number` and `String.Array` attributes as `String`, puts `Subject` after `SigningCertUrl`, and orders `MessageAttributes` as a Java HashMap does; understudy keeps the published types and its own order (`logs/R16/01-lambda-events.json`).
-- Two concurrent publishes to one FIFO topic and message group can reach a subscribed queue in the reverse of their sequence numbers. Publishes made one after another arrive in order.
 - The 10,000 filter policies per account quota is not enforced.
 - HTTP and HTTPS endpoints (`sns/SNSH`, recorded 2026-11-03):
   - AWS counts a 3xx and a 4xx other than 429 as delivered; understudy treats them as permanent failures and dead-letters them.

@@ -26,9 +26,9 @@ func (o *Outbox) Export() ([]store.Section, error) {
 }
 
 // Import loads sections written by Export of this schema version and
-// raises the Seq counter past every loaded entry's, so entries accepted
-// after the load order after them, and forgets every subscription's
-// pacing. Rearm then arms their attempts.
+// raises the Seq counter and the kernel's order counter past every loaded
+// entry's, so entries accepted after the load order after them, and
+// forgets every subscription's pacing. Rearm then arms their attempts.
 func (o *Outbox) Import(ss []store.Section) error {
 	e := o.e.Load()
 	if e == nil {
@@ -38,14 +38,16 @@ func (o *Outbox) Import(ss []store.Section) error {
 		return err
 	}
 	e.pace.forget(func(aws.Scope) bool { return false })
-	var last uint64
+	var last, lastOrder uint64
 	for _, scope := range e.cells.Keys(store.ScopeKeys()) {
 		cell, ok := e.cells.Lookup(scope)
 		if !ok {
 			continue
 		}
 		last = max(last, store.Read(cell, (*State).lastSeq))
+		lastOrder = max(lastOrder, store.Read(cell, (*State).lastOrder))
 	}
+	e.k.RaiseOrder(lastOrder)
 	for {
 		cur := e.seq.Load()
 		if cur >= last || e.seq.CompareAndSwap(cur, last) {

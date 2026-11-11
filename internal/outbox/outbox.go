@@ -118,20 +118,34 @@ func (*UnboundError) Error() string {
 
 // Deliver accepts a delivery a committed write produced: kernel.DeliverSink.
 func (o *Outbox) Deliver(d kernel.Delivery) error {
-	_, err := o.Enqueue(d.Request, d.Cause, d.Accepted)
+	e := o.e.Load()
+	if e == nil {
+		return &UnboundError{}
+	}
+	_, err := e.enqueue(d.Request, d.Cause, d.Accepted, d.Order)
 	return err
 }
 
 // Enqueue makes req pending, caused by cause and accepted at accepted, and
-// arms its first attempt at accepted, unless a delivery the outbox took
-// earlier into its FIFO lane is still pending: it is then armed when that
-// one ends. The outbox takes ownership of req's slices. A request the outbox
-// cannot attempt is refused with a *RequestError and nothing is queued.
+// arms its first attempt at accepted, unless a delivery committed earlier
+// into its FIFO lane is still pending: it is then armed when that one
+// ends. The delivery takes the next kernel order number (Kernel.NextOrder),
+// so it orders after every delivery handed over before it. The outbox
+// takes ownership of req's slices. A request the outbox cannot attempt is
+// refused with a *RequestError and nothing is queued.
 func (o *Outbox) Enqueue(req delivery.Request, cause ref.Cause, accepted clock.Instant) (ids.DeliveryID, error) {
 	e := o.e.Load()
 	if e == nil {
 		return "", &UnboundError{}
 	}
+	return e.enqueue(req, cause, accepted, e.k.NextOrder())
+}
+
+// enqueue is Enqueue with the delivery's kernel order number. A delivery
+// that reaches its lane after one its write committed before, which a
+// slow hand-over allows, takes the lane's head from it while that one has
+// no attempt in flight: its timer is disarmed and the new head's armed.
+func (e *engine) enqueue(req delivery.Request, cause ref.Cause, accepted clock.Instant, order uint64) (ids.DeliveryID, error) {
 	scope, err := checkRequest(req)
 	if err != nil {
 		return "", err
@@ -143,6 +157,7 @@ func (o *Outbox) Enqueue(req delivery.Request, cause ref.Cause, accepted clock.I
 		NextAt:   accepted,
 		Cause:    cause,
 		Accepted: accepted,
+		Order:    order,
 	}
 	if _, ok := req.Policy.(delivery.EventBridgeTarget); ok {
 		entry.Jitter = src.Uint64(ids.KindJitter)
@@ -153,8 +168,7 @@ func (o *Outbox) Enqueue(req delivery.Request, cause ref.Cause, accepted clock.I
 	// source call is still in kernel.Write, so this is a plain cell update
 	// rather than a nested kernel.Write; the timer is armed inside it, as
 	// Tx.Arm would, so the scheduler agrees with the state. Seq is drawn
-	// under the cell lock, so it orders the entries of a lane as they were
-	// inserted.
+	// under the cell lock, so it orders the entries as they were inserted.
 	for {
 		cell := e.cells.For(scope)
 		inserted := store.Update(cell, func(st *State) (bool, bool) {
@@ -163,9 +177,17 @@ func (o *Outbox) Enqueue(req delivery.Request, cause ref.Cause, accepted clock.I
 			}
 			entry.Seq = e.seq.Add(1)
 			l, inLane := laneOf(&entry)
-			blocked := inLane && st.laneBusy(l)
+			var head Entry
+			busy := false
+			if inLane {
+				head, busy = st.nextInLane(l)
+			}
 			st.Entries[entry.ID] = entry
-			if !blocked {
+			switch {
+			case !busy:
+				sched.Arm(key, accepted)
+			case !head.Running && inLaneBefore(&entry, &head) < 0:
+				sched.Disarm(e.attempt.Key(timerID(scope, head.ID)))
 				sched.Arm(key, accepted)
 			}
 			return true, true

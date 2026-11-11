@@ -1,13 +1,16 @@
 package events_test
 
 import (
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/journal"
 )
@@ -303,6 +306,53 @@ func TestSQSMessageGroupIDDynamicPath(t *testing.T) {
 			if _, dropped := d.Outcome.(journal.Dropped); !dropped {
 				t.Errorf("outcome = %T, want Dropped", d.Outcome)
 			}
+		}
+	})
+}
+
+// Two PutEvents calls whose rule targets one message group of a FIFO queue
+// reach the queue in the order the calls committed, even when the first
+// call's delivery reaches the outbox after the second's: a FIFO queue
+// keeps a group's messages in the order they were sent (sqs.md 8.5), and
+// the bus sends them in the order it took the events in.
+func TestConcurrentPutEventsReachAFIFOGroupInCommitOrder(t *testing.T) {
+	runWithOutbox(t, func(h *harness) {
+		const fifo = "arn:aws:sqs:us-east-1:000000000000:orders.fifo"
+		h.patternRule("r", `{"source": ["s"]}`)
+		h.target("r", eventbridgeapi.Target{Id: "q", Arn: fifo, SqsParameters: &eventbridgeapi.SqsParameters{MessageGroupId: new("g")}})
+		put := func(n string) *awserr.Error {
+			_, err := call(h, eventbridgeapi.OpPutEvents, &eventbridgeapi.PutEventsInput{Entries: []eventbridgeapi.PutEventsRequestEntry{entry("s", "t", `{"n": "`+n+`"}`)}})
+			return err
+		}
+		g := h.sink.holdNext()
+		firstDone := make(chan *awserr.Error, 1)
+		go func() { firstDone <- put("first") }()
+		<-g.held
+		if err := put("second"); err != nil {
+			t.Fatalf("second PutEvents = %s: %s", err.ID.JSONType, err.Message)
+		}
+		// Whatever can run before the first delivery reaches the outbox runs.
+		synctest.Wait()
+		close(g.release)
+		if err := <-firstDone; err != nil {
+			t.Fatalf("first PutEvents = %s: %s", err.ID.JSONType, err.Message)
+		}
+		if p, err := h.Kernel.Settle(h.Context(), time.Minute); err != nil {
+			t.Fatalf("Settle = %v, %v", p, err)
+		}
+		sent := h.sent.all()
+		got := make([]string, 0, len(sent))
+		for _, in := range sent {
+			var e struct {
+				Detail struct{ N string } `json:"detail"`
+			}
+			if err := json.Unmarshal([]byte(in.MessageBody), &e); err != nil {
+				t.Fatalf("SendMessage body %s: %v", in.MessageBody, err)
+			}
+			got = append(got, e.Detail.N)
+		}
+		if want := []string{"first", "second"}; !slices.Equal(got, want) {
+			t.Errorf("the queue received %v, want %v in commit order", got, want)
 		}
 	})
 }
