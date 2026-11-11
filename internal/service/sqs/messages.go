@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/identity"
@@ -26,7 +27,7 @@ import (
 // the deliveries of SNS, S3, EventBridge and CloudWatch, and a delivery to
 // a deleted queue fails as QueueDoesNotExist, not as a denial (sns.md 7.1).
 func (s *Service) bindSends(b sqsapi.Binder) {
-	b.SendMessage(s.sendMessage, registry.Full{},
+	b.SendMessage(s.sendMessage, registry.Partial{Note: "a message SNS delivers shows SenderId <role id>:AWS-CLOUDCAST with one fixed AROA role id for the partition, where AWS shows a role id of its own that no capture has recorded (inferred)"},
 		kernel.WithCheck(checkSendMessage),
 		kernel.AuthorizedAfterResolveForDeliveries(),
 		queueByURL(s, func(in *sqsapi.SendMessageInput) string { return in.QueueUrl }))
@@ -328,7 +329,7 @@ func (s *Service) enqueue(c *kernel.Call, q queueRef, queue *Queue, o *outgoing,
 		BodyMD5:        out.bodyMD5,
 		Attributes:     o.attrs,
 		System:         o.system,
-		SenderID:       senderID(c.Principal()),
+		SenderID:       senderID(c.Principal(), c.Scope().Partition),
 		Enqueued:       c.Event(),
 		EnqueuedTrace:  c.Cause().Trace,
 		Sent:           now,
@@ -573,10 +574,15 @@ func attributesSize(attrs map[string]Attribute) int {
 	return n
 }
 
+// snsPrincipal is the service principal of SNS deliveries.
+const snsPrincipal = "sns.amazonaws.com"
+
 // senderID is the SenderId system attribute: the account of a root caller,
 // the unique id of a user, role-id:session for a role session, the name of
-// a service principal, and empty for an anonymous caller.
-func senderID(p identity.Principal) string {
+// a service principal, and empty for an anonymous caller. SNS's own role
+// is AWS's: its deliveries show a fixed role id and the AWS-CLOUDCAST
+// session (sqs/R16/01-sqs-enveloped.json; the role id is inferred).
+func senderID(p identity.Principal, partition aws.Partition) string {
 	switch p := p.(type) {
 	case identity.Root:
 		return p.Account.String()
@@ -585,6 +591,9 @@ func senderID(p identity.Principal) string {
 	case identity.AssumedRole:
 		return p.Role.ID + ":" + p.Session
 	case identity.ServicePrincipal:
+		if p.Name == snsPrincipal {
+			return identity.ServiceSenderID(partition, identity.SNSRoleSession)
+		}
 		return p.Name
 	case identity.Anonymous, nil:
 	}

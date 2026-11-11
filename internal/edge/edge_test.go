@@ -256,6 +256,35 @@ func TestRequestsSignedForAServiceAreAnsweredByIt(t *testing.T) {
 	}
 }
 
+// The x-amzn-RequestId of an SQS answer, a success or an error, is a
+// version 5 UUID, as nearly every one under testdata/parity/sqs is; other
+// services' stay version 4, which their captures show.
+func TestSQSRequestIDsAreVersion5(t *testing.T) {
+	cases := []struct {
+		name, target string
+		wantVersion  string
+	}{
+		{"sqs success", "AmazonSQS.ListQueues", "5"},
+		{"sqs unknown operation", "AmazonSQS.NoSuchOperation", "5"},
+		{"dynamodb", "DynamoDB_20120810.ListTables", "4"},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := "sqs"
+			if strings.HasPrefix(tt.target, "DynamoDB") {
+				svc = "dynamodb"
+			}
+			f := newFront(t, nil)
+			rec := httptest.NewRecorder()
+			f.handler.ServeHTTP(rec, request(t, http.MethodPost, "/", jsonHeader(tt.target, "application/x-amz-json-1.0"), `{}`, svc))
+			id := rec.Header().Get("X-Amzn-Requestid")
+			if len(id) != 36 || id[14:15] != tt.wantVersion {
+				t.Errorf("x-amzn-RequestId = %q, want a version %s UUID", id, tt.wantVersion)
+			}
+		})
+	}
+}
+
 func TestUnsignedRequestNoRuleClaimsIsA400ListingTheReasons(t *testing.T) {
 	f := newFront(t, nil)
 	golden(t, "unclaimed-unsigned", f.serve(t, request(t, http.MethodGet, "/bucket/key", nil, "", "")))

@@ -254,6 +254,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	a, parseErr := auth.Parse(r, h.opts.Regions)
 	rt := h.claim(r, a, parseErr)
+	x.id = x.id.ForService(string(routedService(rt)))
 	target = routed(rt)
 	x.w = imposePolicy(x.w, policyOf(rt))
 	if h.refusedPage(ctx, x, rt) {

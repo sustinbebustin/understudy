@@ -134,7 +134,7 @@ Counts are from [docs/coverage.md](docs/coverage.md), which lists every operatio
 
 | Service | Operations | Full | Stored only | Partial | Unbound |
 |---|---|---|---|---|---|
-| SQS | 23 | 16 | 0 | 7 | 0 |
+| SQS | 23 | 15 | 0 | 8 | 0 |
 | SNS | 42 | 12 | 0 | 7 | 23 |
 | S3 | 112 | 22 | 39 | 25 | 26 |
 | DynamoDB (with Streams) | 62 | 5 | 2 | 23 | 32 |

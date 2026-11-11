@@ -17,7 +17,7 @@ type (
 	// ReceiptHandle is an SQS receipt handle: opaque, base64-looking and
 	// starting with AQEB, as real handles do.
 	ReceiptHandle string
-	// SNSMessageID is an SNS message id: a UUID.
+	// SNSMessageID is an SNS message id: a version 5 UUID.
 	SNSMessageID string
 	// LambdaRequestID is a Lambda invocation request id: a UUID.
 	LambdaRequestID string
@@ -63,6 +63,31 @@ const (
 // RequestID mints a request id.
 func (s *Source) RequestID() RequestID { return RequestID(s.UUID(KindRequestID).String()) }
 
+// versionNibble is the index of the version digit in a UUID's text form.
+const versionNibble = 14
+
+// Version5 is the request id with the version digit of a version 5 UUID,
+// the form of nearly every x-amzn-RequestId SQS and SNS answer with
+// (testdata/parity/sqs, testdata/parity/sns). The draw behind it does not
+// change, so a seeded run keeps its stream.
+func (r RequestID) Version5() RequestID {
+	if len(r) <= versionNibble {
+		return r
+	}
+	return r[:versionNibble] + "5" + r[versionNibble+1:]
+}
+
+// ForService is the request id as the service named service answers with
+// it: version 5 for SQS and SNS, version 4, as minted, for every other
+// service, as their captures show.
+func (r RequestID) ForService(service string) RequestID {
+	switch service {
+	case "sqs", "sns":
+		return r.Version5()
+	}
+	return r
+}
+
 // MessageID mints an SQS message id.
 func (s *Source) MessageID() MessageID { return MessageID(s.UUID(KindMessageID).String()) }
 
@@ -87,9 +112,11 @@ func ParseReceiptHandle(s string) (ReceiptHandle, bool) {
 	return ReceiptHandle(s), true
 }
 
-// SNSMessageID mints an SNS message id.
+// SNSMessageID mints an SNS message id: a version 5 UUID, as AWS's are
+// (sqs/R16/01-sqs-enveloped.json), drawn like any other from the kind's
+// stream.
 func (s *Source) SNSMessageID() SNSMessageID {
-	return SNSMessageID(s.UUID(KindSNSMessageID).String())
+	return SNSMessageID(RequestID(s.UUID(KindSNSMessageID).String()).Version5())
 }
 
 // LambdaRequestID mints a Lambda invocation request id.

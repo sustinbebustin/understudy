@@ -137,7 +137,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | sesv2 | 116 | 7 | 0 | 7 | 102 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
-| sqs | 23 | 16 | 0 | 7 | 0 | 2 | 0 |
+| sqs | 23 | 15 | 0 | 8 | 0 | 2 | 0 |
 | ssm | 152 | 0 | 0 | 13 | 139 | 0 | 0 |
 | sts | 11 | 1 | 0 | 2 | 8 | 0 | 0 |
 
@@ -1603,7 +1603,6 @@ Raw operations:
 | ListQueueTags | full | inferred, 1 of 7 claims |  |
 | ListQueues | full | aws-recorded, 4 of 4 claims |  |
 | PurgeQueue | full | inferred, 1 of 7 claims |  |
-| SendMessage | full | inferred, 7 of 25 claims |  |
 | SendMessageBatch | full | inferred, 7 of 14 claims |  |
 | SetQueueAttributes | full | inferred, 1 of 9 claims |  |
 | StartMessageMoveTask | full | aws-recorded, 4 of 4 claims |  |
@@ -1616,6 +1615,7 @@ Raw operations:
 | DeleteMessageBatch | partial | inferred, 2 of 9 claims | a receipt handle of a queue in another account or Region, or of a message gone from another queue, is reported successful as one of a deleted message, where AWS fails it as not valid for this queue by inference from sqs/R01 06-delete-batch |
 | ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 15 of 33 claims | a message's Attributes are sorted by name, where AWS writes them in an order of its own |
 | RemovePermission | partial | inferred, 1 of 7 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
+| SendMessage | partial | inferred, 7 of 25 claims | a message SNS delivers shows SenderId <role id>:AWS-CLOUDCAST with one fixed AROA role id for the partition, where AWS shows a role id of its own that no capture has recorded (inferred) |
 
 Internal operations:
 

@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -496,6 +497,43 @@ func TestPublishBatch(t *testing.T) {
 			{Id: "a", Message: strings.Repeat("x", 600)}, {Id: "b", Message: strings.Repeat("x", 600)},
 		}})
 		wantError(h, err, "BatchRequestTooLong", "The length of all the messages put together is more than the limit.")
+	})
+}
+
+// SNS message ids are version 5 UUIDs: those Publish and PublishBatch
+// answer and the envelope's MessageId, which is the same id
+// (sqs/R16/01-sqs-enveloped.json, sns/R16/02-subject-101.json).
+func TestMessageIDsAreVersion5(t *testing.T) {
+	v5 := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		h.subscribe(topic, "sqs", queueARN, nil)
+		one := must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "hello"})
+		batch := must(h, snsapi.OpPublishBatch, &snsapi.PublishBatchInput{TopicArn: topic, PublishBatchRequestEntries: []snsapi.PublishBatchRequestEntry{
+			{Id: "a", Message: "x"}, {Id: "b", Message: "y"},
+		}})
+		ids := make([]*string, 0, 1+len(batch.Successful))
+		ids = append(ids, one.MessageId)
+		for _, s := range batch.Successful {
+			ids = append(ids, s.MessageId)
+		}
+		if len(ids) != 3 {
+			h.Fatalf("Publish and PublishBatch answered %d ids, want 3", len(ids))
+		}
+		for _, id := range ids {
+			if id == nil || !v5.MatchString(*id) {
+				h.Errorf("message id %v, want a version 5 UUID", id)
+			}
+		}
+		h.settle()
+		for _, in := range h.sent.all() {
+			var env struct {
+				MessageID string `json:"MessageId"`
+			}
+			if err := json.Unmarshal([]byte(in.MessageBody), &env); err != nil || !v5.MatchString(env.MessageID) {
+				h.Errorf("envelope %s: MessageId %q (%v), want a version 5 UUID", in.MessageBody, env.MessageID, err)
+			}
+		}
 	})
 }
 

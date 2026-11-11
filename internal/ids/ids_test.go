@@ -18,6 +18,7 @@ import (
 
 var (
 	uuidV4        = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+	uuidV5        = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 	receiptHandle = regexp.MustCompile(`^AQEB[A-Za-z0-9+/]{32}$`)
 	uploadID      = regexp.MustCompile(`^[A-Za-z0-9_-]{64}$`)
 	versionID     = regexp.MustCompile(`^[A-Za-z0-9._]{32}$`)
@@ -295,6 +296,19 @@ func TestKindNamesRoundTripThroughJSON(t *testing.T) {
 	}
 }
 
+// SQS and SNS answer with version 5 request ids; the draws behind them are
+// the same words, only the version nibble differs.
+func TestRequestIDVersion5KeepsTheDraw(t *testing.T) {
+	v4 := NewSeeded(1).RequestID()
+	v5 := v4.Version5()
+	if !uuidV5.MatchString(string(v5)) {
+		t.Errorf("Version5 = %q, want a version 5 UUID", v5)
+	}
+	if want := "a4bc63ce-a60c-5eb8-9e89-83aac447bdc2"; string(v5) != want {
+		t.Errorf("Version5 of %s = %q, want %q", v4, v5, want)
+	}
+}
+
 func TestFormats(t *testing.T) {
 	for name, src := range map[string]*Source{"random": NewRandom(), "seeded": NewSeeded(99)} {
 		t.Run(name, func(t *testing.T) {
@@ -305,7 +319,7 @@ func TestFormats(t *testing.T) {
 			}{
 				{"request id", string(src.RequestID()), uuidV4},
 				{"SQS message id", string(src.MessageID()), uuidV4},
-				{"SNS message id", string(src.SNSMessageID()), uuidV4},
+				{"SNS message id", string(src.SNSMessageID()), uuidV5},
 				{"Lambda request id", string(src.LambdaRequestID()), uuidV4},
 				{"ESM UUID", string(src.ESMID()), uuidV4},
 				{"KMS key id", string(src.KMSKeyID()), uuidV4},

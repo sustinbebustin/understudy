@@ -12,7 +12,6 @@ Most differences are in error texts, codes and response details, not in the happ
 - Query-protocol responses: `Accept: application/json` gets a JSON rendering on AWS; understudy always answers XML (`sqs/R11/05-sqs-query-accept-json.json`, `sqs/R11/05-sqs-query-accept-json-error.json`). Current SDKs use the JSON protocol and are unaffected.
 - A Query request without `Version` is SQS's when it is signed for `sqs` or posted to a queue URL, as on AWS (`sqs/R11/x-query-sendmessage-no-version.json`). One that is neither, such as an unsigned request to the endpoint's root, names no service behind the shared endpoint and is declined; AWS knows the service from its host. Send `Version=2012-11-05`.
 - On an SSE-KMS queue AWS reuses a data key for `KmsDataKeyReusePeriodSeconds`, so a revoked `kms:GenerateDataKey` grant or a disabled key refuses sends only once the period ends; understudy asks KMS on every send, so the next send is refused. Messages are stored unencrypted.
-- Messages SNS delivers carry `SenderId` `<role id>:AWS-CLOUDCAST` and version 5 UUID message ids on AWS; understudy's differ (`sqs/R16/01-sqs-enveloped.json`).
 
 ## SNS
 

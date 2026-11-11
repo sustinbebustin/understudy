@@ -5,6 +5,7 @@ import (
 	"context"
 	"maps"
 	"net/http"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -484,6 +485,39 @@ func TestSNSDeliveriesSkipTheQueuesSizeLimit(t *testing.T) {
 			h.Errorf("ReceiveMessage = %d messages, want the SNS delivery", len(msgs))
 		}
 	})
+}
+
+// A message SNS delivers carries SenderId <AROA role id>:AWS-CLOUDCAST
+// (sqs/R16/01-sqs-enveloped.json), the same under every seed, and the
+// service principal still authorizes the send. The role is AWS's own, so
+// the id is a fixed one (inferred).
+func TestSNSDeliveriesCarryAWSsSenderID(t *testing.T) {
+	senderID := regexp.MustCompile(`^AROA[A-Z0-9]{17}:AWS-CLOUDCAST$`)
+	got := map[uint64]string{}
+	for _, seed := range []uint64{1, 2} {
+		t.Run(strconv.FormatUint(seed, 10), func(t *testing.T) {
+			kerneltest.Run(t, func(k *kerneltest.K) {
+				h := &harness{K: k, svc: sqs.New(k.Deps(sqsapi.Service()), sqs.Options{})}
+				url := h.queue("q", nil)
+				send := op[sqsapi.SendMessageInput, sqsapi.SendMessageOutput](h, "SendMessage")
+				delivery := kernel.Target{Scope: h.Scope, As: kernel.AsService{Name: "sns.amazonaws.com"}, Via: ref.SNSDelivery}
+				if _, err := kernel.Invoke(h.Context(), h.Kernel, h.Call(send.Descriptor()), send, delivery, &sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "b"}); err != nil {
+					h.Fatalf("an SNS delivery = %s: %s", err.ID.QueryCode, err.Message)
+				}
+				msgs := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url, AttributeNames: []sqsapi.QueueAttributeName{"SenderId"}})
+				if len(msgs) != 1 {
+					h.Fatalf("ReceiveMessage = %d messages, want the delivery", len(msgs))
+				}
+				got[seed] = msgs[0].Attributes["SenderId"]
+				if !senderID.MatchString(got[seed]) {
+					h.Errorf("SenderId = %q, want %s", got[seed], senderID)
+				}
+			}, kerneltest.Services(sqsapi.Service()), kerneltest.Seed(seed))
+		})
+	}
+	if got[1] != got[2] {
+		t.Errorf("SenderId under seed 1 = %q, under seed 2 = %q, want the same", got[1], got[2])
+	}
 }
 
 func TestLongPollOnAFrozenClockEndsAtTheWallCap(t *testing.T) {
