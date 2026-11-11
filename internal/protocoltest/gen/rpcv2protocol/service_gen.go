@@ -21,6 +21,7 @@ var service = registry.Service{
 	Protocols:             []ref.ProtocolID{ref.RPCv2CBOR},
 	MalformedRequestError: IdentitySerializationException(),
 	UnknownOperationError: UnknownOperationError,
+	ModelSource:           registry.ModelSource{Origin: "smithy-protocol-tests@1.74.0", File: "model.json"},
 	NewErrorMembers:       NewErrorMembers,
 }
 

@@ -22,6 +22,7 @@ var service = registry.Service{
 	QueryVersion:          "2020-01-08",
 	XMLNamespace:          "https://example.com/",
 	UnknownOperationError: UnknownOperationError,
+	ModelSource:           registry.ModelSource{Origin: "smithy-protocol-tests@1.74.0", File: "model.json"},
 	NewErrorMembers:       NewErrorMembers,
 }
 

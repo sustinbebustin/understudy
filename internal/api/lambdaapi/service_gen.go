@@ -22,6 +22,7 @@ var service = registry.Service{
 	MalformedRequestError: IdentityInvalidRequestContentException(),
 	ThrottleError:         IdentityTooManyRequestsException(),
 	UnknownOperationError: UnknownOperationError,
+	ModelSource:           registry.ModelSource{Origin: "api-models-aws@1cfdfb4", File: "lambda-2015-03-31.json"},
 	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

@@ -22,6 +22,7 @@ var service = registry.Service{
 	JSONTargetPrefix:      "JsonProtocol",
 	MalformedRequestError: IdentitySerializationException(),
 	UnknownOperationError: UnknownOperationError,
+	ModelSource:           registry.ModelSource{Origin: "smithy-protocol-tests@1.74.0", File: "model.json"},
 	NewErrorMembers:       NewErrorMembers,
 }
 

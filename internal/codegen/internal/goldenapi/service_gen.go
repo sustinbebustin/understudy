@@ -26,6 +26,7 @@ var service = registry.Service{
 	MalformedRequestError: IdentitySerializationException(),
 	ThrottleError:         IdentityThrottled(),
 	UnknownOperationError: UnknownOperationError,
+	ModelSource:           registry.ModelSource{Origin: "api-models-aws@fixture", File: "golden.json"},
 	NewErrorMembers:       NewErrorMembers,
 }
 

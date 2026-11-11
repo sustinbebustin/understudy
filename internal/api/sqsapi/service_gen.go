@@ -27,6 +27,7 @@ var service = registry.Service{
 	MalformedRequestError: IdentitySerializationException(),
 	ThrottleError:         IdentityRequestThrottled(),
 	UnknownOperationError: UnknownOperationError,
+	ModelSource:           registry.ModelSource{Origin: "api-models-aws@1cfdfb4", File: "sqs-2012-11-05.json"},
 	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

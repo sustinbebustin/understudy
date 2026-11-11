@@ -24,6 +24,7 @@ var service = registry.Service{
 	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: true, Detail: false},
 	ThrottleError:         IdentityThrottlingException(),
 	UnknownOperationError: UnknownOperationError,
+	ModelSource:           registry.ModelSource{Origin: "api-models-aws@1cfdfb4", File: "sts-2011-06-15.json"},
 	Denial:                registry.Denial{Identity: IdentityAccessDenied(), Label: "aws-recorded"},
 	NewErrorMembers:       NewErrorMembers,
 	GenericErrors:         GenericErrors,

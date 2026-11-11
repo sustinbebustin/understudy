@@ -20,6 +20,7 @@ var service = registry.Service{
 	ARNNamespace:    "",
 	Protocols:       []ref.ProtocolID{ref.RESTXML},
 	XMLNamespace:    "https://example.com",
+	ModelSource:     registry.ModelSource{Origin: "smithy-protocol-tests@1.74.0", File: "model.json"},
 	NewErrorMembers: NewErrorMembers,
 }
 

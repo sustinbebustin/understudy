@@ -149,6 +149,9 @@ func TestIdentities(t *testing.T) {
 		Service().MalformedRequestError != IdentitySerializationException() || Service().ThrottleError != IdentityThrottled() {
 		t.Error("service-level identities do not resolve to their shapes")
 	}
+	if got := Service().ModelSource; got.Origin != "api-models-aws@fixture" || got.File != "golden.json" {
+		t.Errorf("descriptor's model source = %+v, want the fixture's origin and golden.json", got)
+	}
 	if _, ok := UnknownOperationError(awserr.QueryFamily); ok {
 		t.Error("the overlay names no Query identity, yet one resolved")
 	}
