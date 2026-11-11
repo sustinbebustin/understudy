@@ -609,7 +609,7 @@ recv() {  # recv <step> <queue name>: drain up to 30 messages with every attribu
 }
 ```
 
-`at_in` takes a signed offset (`+4`, `-2`). Run the cases in order: an enabled `rate` schedule without `StartDate` starts invoking at once (5.2), so SCH-01, SCH-02 and any SCH-04 step AWS unexpectedly accepts may put messages on `$P-sch`, which SCH-07 and SCH-09 purge first. Section 15.12 removes everything this setup creates.
+`at_in` takes a signed offset (`+4`, `-2`). Run the cases in order: an enabled `rate` schedule without `StartDate` starts invoking at once (5.2), so SCH-01, SCH-02 and any SCH-04 step AWS unexpectedly accepts may put messages on `$P-sch`, which SCH-07 and SCH-09 purge first. Section 15.14 removes everything this setup creates.
 
 ### 15.2 SCH-01: read shapes and defaults
 
@@ -719,9 +719,10 @@ mk 04-order-tz-group o2 'cron(0 12 * * ? *)' --schedule-expression-timezone Mars
 mk 04-order-group-role o3 'rate(1 hour)' --group-name "$P-nogroup" --target "$(tgt "$SQ" "$LR")"
 mk 04-order-role-target o4 'rate(1 hour)' --target "$(tgt "arn:aws:dynamodb:$R:$A:table/$P-t" "$LR")"
 mk 04-order-past-role o5 'cron(0 0 1 1 ? 2020)' --target "$(tgt "$SQ" "$LR")"
+mk 04-order-group-target o6 'rate(1 hour)' --group-name "$P-nogroup" --target "$(tgt "arn:aws:dynamodb:$R:$A:table/$P-t")"
 ```
 
-Expected: `04-name-65` the Coral length text (`1 validation error detected: Value '<name>' at 'name' failed to satisfy constraint: Member must have length less than or equal to 64`, error-matrix.md 4) or another form; `04-window-1441` and `04-fifo-dlq` Coral range and pattern texts; `04-us-eastern-get` echoes `US/Eastern`; `04-input-too-big` refused (code, text, and whether 262,144 is bytes); `04-unsupported-service` "Invalid request provided: dynamodb is not a supported service for a target" (exact punctuation); `04-role-untrusted` and `04-role-missing` the captured role text; each other refusal's code and text; the `04-order-*` steps show which check wins.
+Expected: `04-name-65` the Coral length text (`1 validation error detected: Value '<name>' at 'name' failed to satisfy constraint: Member must have length less than or equal to 64`, error-matrix.md 4) or another form; `04-window-1441` and `04-fifo-dlq` Coral range and pattern texts; `04-us-eastern-get` echoes `US/Eastern`; `04-input-too-big` refused (code, text, and whether 262,144 is bytes); `04-unsupported-service` "Invalid request provided: dynamodb is not a supported service for a target" (exact punctuation); `04-role-untrusted` and `04-role-missing` the captured role text; each other refusal's code and text; the `04-order-*` steps show which check wins. `04-order-group-target` (added after 2026-11-03, the only step a rerun needs) pairs a missing group with an unsupported target service and a trusted role: "Schedule group <name> does not exist." means the group is checked first, the `dynamodb is not a supported service` text means the target is; either marks the inferred group-before-target clause of 4.7 recorded. USD 0.00, 2 minutes alone.
 
 Teardown: `aws scheduler list-schedules --name-prefix "$P-" --query 'Schedules[].Name' --output text | tr '\t' '\n' | while read -r n; do aws scheduler delete-schedule --name "$n"; done`
 
@@ -945,7 +946,107 @@ Expected: 01 answers `AccessDeniedException` at 403 (switch default) or 400, wit
 
 Teardown: `aws scheduler delete-schedule --name "$P-v1" 2>/dev/null; aws scheduler delete-schedule --group-name "$P-sch-g10" --name "$P-v2"; aws scheduler delete-schedule-group --name "$P-sch-g10"; for p in pass nodelete; do aws iam delete-user-policy --user-name "$P-sch-caller" --policy-name $p; done; aws iam delete-access-key --user-name "$P-sch-caller" --access-key-id "$UK"; aws iam delete-user --user-name "$P-sch-caller"`
 
-### 15.12 Final sweep
+### 15.12 SCH-11: dead-letter bodies for Lambda, SNS, Step Functions and EventBridge targets
+
+Settles the dead-letter body and attributes for the four templated non-SQS targets (7.2, "The body for Lambda, SNS, Step Functions and EventBridge targets ... UNVERIFIED"; `schedulerDeadLetterBody` beyond SQS), and adds four more data points to which target errors are permanent (7.1). Under USD 0.01, 15 minutes. Each target exists and is invoked with `$OR`, the role that may only send to the dead-letter queue, so every invocation fails with the target service's access denial, as SCH-08's `x2` did for SQS, and nothing is delivered.
+
+```sh
+aws sqs purge-queue --queue-url "$Q/$P-sch-dlq"; sleep 60   # SCH-08's dead letters reappear otherwise (recv does not delete)
+T11=$(aws sns create-topic --name "$P-sch11" --query TopicArn --output text)
+mkdir -p "$REC/_work/SCH"
+printf 'def handler(event, context):\n    return {}\n' >"$REC/_work/SCH/sch11.py"
+(cd "$REC/_work/SCH" && zip -q sch11.zip sch11.py)
+F11=$(aws lambda create-function --function-name "$P-sch11" --runtime python3.13 --handler sch11.handler \
+  --role "$LR" --zip-file "fileb://$REC/_work/SCH/sch11.zip" --query FunctionArn --output text)
+aws iam create-role --role-name "$P-sch11-sfn" --assume-role-policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"states.amazonaws.com"},"Action":"sts:AssumeRole"}]}' >/dev/null
+sleep 15
+M11=$(aws stepfunctions create-state-machine --name "$P-sch11" --role-arn "arn:aws:iam::$A:role/$P-sch11-sfn" \
+  --definition '{"StartAt":"P","States":{"P":{"Type":"Pass","End":true}}}' --query stateMachineArn --output text)
+aws events create-event-bus --name "$P-sch11" >/dev/null
+B11="arn:aws:events:$R:$A:event-bus/$P-sch11"
+aws lambda wait function-active-v2 --function-name "$P-sch11"
+RP='{"MaximumEventAgeInSeconds":120,"MaximumRetryAttempts":2}'
+dl11() { jq -nc --arg d "$DQ" --argjson p "$RP" --arg i "$1" --argjson x "${2:-{\}}" '{Input:$i,DeadLetterConfig:{Arn:$d},RetryPolicy:$p} + $x'; }   # dl11 <input> [extra JSON]
+CTXJ='{"k":"<aws.scheduler.execution-id>","n":"<aws.scheduler.attempt-number>"}'
+AT=$(at_in +4)
+mk 11-lambda z1 "at($AT)" --target "$(tgt "$F11" "$OR" "$(dl11 "$CTXJ")")"
+mk 11-sns z2 "at($AT)" --target "$(tgt "$T11" "$OR" "$(dl11 'sns <aws.scheduler.execution-id> <aws.scheduler.attempt-number>')")"
+mk 11-sfn z3 "at($AT)" --target "$(tgt "$M11" "$OR" "$(dl11 "$CTXJ")")"
+mk 11-eventbridge z4 "at($AT)" --target "$(tgt "$B11" "$OR" "$(dl11 "$CTXJ" '{"EventBridgeParameters":{"Source":"rec.sch","DetailType":"dl"}}')")"
+sleep 540
+recv 11-recv-dlq "$P-sch-dlq"
+```
+
+Expected, per dead letter (match it to its schedule by `SCHEDULE_ARN`): the body, as SCH-08 found for SQS, the request Scheduler built for the target API with the context attributes substituted (Lambda `Invoke` with `FunctionName` and `Payload`?, SNS `Publish` with `TopicArn` and `Message`, Step Functions `StartExecution` with `StateMachineArn`, `Input` and perhaps the execution `Name` it chose, which also settles the inferred name in 6.4, EventBridge `PutEvents` with its entry), or just `Input`; the nine attributes of 7.2; `TARGET_ARN` as configured or in the universal form; `ERROR_CODE` and `ERROR_MESSAGE` for each service's denial; and `RETRY_ATTEMPTS` 0 without `EXHAUSTED_RETRY_CONDITION` (permanent) or 2 with it. Each body marks the 7.2 UNVERIFIED line for its target type recorded; each `ERROR_CODE` with its retry outcome extends the permanent-error list of 7.1. A schedule with no dead letter after 9 minutes is itself a result: note it (the target may have accepted the call, or the dead letter failed).
+
+Teardown:
+
+```sh
+for s in z1 z2 z3 z4; do aws scheduler delete-schedule --name "$P-$s" 2>/dev/null; done
+aws lambda delete-function --function-name "$P-sch11"
+aws sns delete-topic --topic-arn "$T11"
+aws stepfunctions delete-state-machine --state-machine-arn "$M11"
+aws events delete-event-bus --name "$P-sch11"
+aws iam delete-role --role-name "$P-sch11-sfn"
+rm -f "$REC/_work/SCH/sch11.py" "$REC/_work/SCH/sch11.zip"
+```
+
+### 15.13 SCH-12: a retryable failure, and the execution id per attempt
+
+Settles whether Scheduler retries a throttled target, what the dead letter of an exhausted retry carries (`RETRY_ATTEMPTS`, `EXHAUSTED_RETRY_CONDITION`, 7.1 and 7.2), and whether `<aws.scheduler.execution-id>` changes between attempts of one invocation (6.3, 7.2; SCH-08's errors were all permanent, so nothing was retried). Under USD 0.01, 25 minutes. Uses R03's `$P-role` for the functions, as SCH-07 does, so they can write logs.
+
+A templated Lambda target is invoked asynchronously (6.4), and an asynchronous call to a throttled function may be accepted and then throttled inside Lambda's own event queue (inferred), out of Scheduler's sight, so the cases use the universal target `aws-sdk:lambda:invoke` with `InvocationType` `RequestResponse`: a function with reserved concurrency 0 answers it 429 `TooManyRequestsException`, a throttle. Each invocation passes the execution id and attempt number in the function payload, so any attempt that reaches a function logs both.
+
+- `y1`, throttled throughout: the dead letter after the last retry.
+- `y2`, throttled until its concurrency is restored 90 seconds after the scheduled time: a later attempt reaches the function, which logs its attempt number and execution id; compare them with `y1`'s.
+- `y3`, a function that raises: a synchronous invoke answers 200 with `X-Amz-Function-Error`. If Scheduler retries that, every attempt logs its id and number, which settles the id question directly.
+
+```sh
+aws sqs purge-queue --queue-url "$Q/$P-sch-dlq"; sleep 60
+mkdir -p "$REC/_work/SCH"
+printf 'import json\ndef handler(event, context):\n    print(json.dumps(event))\n    return {}\n' >"$REC/_work/SCH/sch12.py"
+printf 'import json\ndef handler(event, context):\n    print(json.dumps(event))\n    raise Exception("sch12")\n' >"$REC/_work/SCH/sch12err.py"
+(cd "$REC/_work/SCH" && zip -q sch12.zip sch12.py && zip -q sch12err.zip sch12err.py)
+for f in thr rel; do
+  aws lambda create-function --function-name "$P-sch12-$f" --runtime python3.13 --handler sch12.handler \
+    --role "arn:aws:iam::$A:role/$P-role" --zip-file "fileb://$REC/_work/SCH/sch12.zip" >/dev/null
+done
+aws lambda create-function --function-name "$P-sch12-err" --runtime python3.13 --handler sch12err.handler \
+  --role "arn:aws:iam::$A:role/$P-role" --zip-file "fileb://$REC/_work/SCH/sch12err.zip" >/dev/null
+for f in thr rel err; do aws lambda wait function-active-v2 --function-name "$P-sch12-$f"; done
+for f in thr rel; do aws lambda put-function-concurrency --function-name "$P-sch12-$f" --reserved-concurrent-executions 0; done
+inv() {  # inv <function> <retry policy JSON>: target extras for a universal synchronous invoke
+  jq -nc --arg f "$1" --arg d "$DQ" --argjson p "$2" '{DeadLetterConfig:{Arn:$d},RetryPolicy:$p,
+    Input:({FunctionName:$f,InvocationType:"RequestResponse",
+            Payload:({id:"<aws.scheduler.execution-id>",n:"<aws.scheduler.attempt-number>",f:$f} | tojson)} | tojson)}'
+}
+UI=arn:aws:scheduler:::aws-sdk:lambda:invoke
+AT=$(at_in +4)
+mk 12-throttled y1 "at($AT)" --target "$(tgt "$UI" "$SR" "$(inv "$P-sch12-thr" '{"MaximumEventAgeInSeconds":600,"MaximumRetryAttempts":3}')")"
+mk 12-released y2 "at($AT)" --target "$(tgt "$UI" "$SR" "$(inv "$P-sch12-rel" '{"MaximumEventAgeInSeconds":900,"MaximumRetryAttempts":10}')")"
+mk 12-function-error y3 "at($AT)" --target "$(tgt "$UI" "$SR" "$(inv "$P-sch12-err" '{"MaximumEventAgeInSeconds":600,"MaximumRetryAttempts":3}')")"
+sleep 330   # 90 seconds past the scheduled time
+rec SCH/12-release aws lambda delete-function-concurrency --function-name "$P-sch12-rel"
+sleep 900
+recv 12-recv-dlq "$P-sch-dlq"
+for f in rel err; do rec "SCH/12-logs-$f" aws logs filter-log-events --log-group-name "/aws/lambda/$P-sch12-$f"; done
+```
+
+If a create is refused (a universal target that refuses `lambda:invoke`, or the string `Payload`), record the refusal, drop `Payload` from `inv` and run again: `y1` then still answers the retry questions, only the per-attempt ids are lost. Expected: `y1` a dead letter with `ERROR_CODE` naming Lambda's `TooManyRequestsException`, `RETRY_ATTEMPTS` 3 and `EXHAUSTED_RETRY_CONDITION` `MaximumRetryAttempts` (retried), or `RETRY_ATTEMPTS` 0 without the condition (a throttle treated as permanent); its body's substituted `n` (rendered per attempt or once) and its `EXECUTION_ID` against the body's `id`. `y2`: one logged event with `n` above 1, or a dead letter if every retry came before the release (note the `Date` of `12-release` against `SentTimestamp`). `y3`: one logged event (a function error counts as success) or several; with several, equal or different `id` values settle the question. Mark 6.3's execution-id sentence and 7.2's "`EXECUTION_ID` across retries" recorded when `y3` repeats or `y1`'s `EXECUTION_ID` differs from its body's `id`; otherwise note which of the two readings the data still allows. The `y1` outcome marks 7.1's retryable-error clause for throttles.
+
+Teardown:
+
+```sh
+for s in y1 y2 y3; do aws scheduler delete-schedule --name "$P-$s" 2>/dev/null; done
+for f in thr rel err; do
+  aws lambda delete-function --function-name "$P-sch12-$f"
+  aws logs delete-log-group --log-group-name "/aws/lambda/$P-sch12-$f" 2>/dev/null
+done
+rm -f "$REC/_work/SCH/sch12.py" "$REC/_work/SCH/sch12err.py" "$REC/_work/SCH/sch12.zip" "$REC/_work/SCH/sch12err.zip"
+```
+
+### 15.14 Final sweep
 
 Run after the cases, then the sweep in [recording-kit.md](../recording-kit.md) section 5. Every list must come back empty.
 
@@ -958,4 +1059,5 @@ aws scheduler list-schedules --name-prefix "$P" --query 'Schedules[].[GroupName,
 aws scheduler list-schedule-groups --name-prefix "$P" --query 'ScheduleGroups[].Name'
 aws sqs list-queues --queue-name-prefix "$P-sch"
 aws events list-event-buses --name-prefix "$P-sch" --query 'EventBuses[].Name'
+aws stepfunctions list-state-machines --query "stateMachines[?starts_with(name, '$P-sch')].name"
 ```

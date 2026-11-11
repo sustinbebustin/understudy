@@ -23,7 +23,7 @@ The result: tests keep real AWS settings (visibility timeouts, delays, TTLs, sch
 - **Least-privilege policies.** understudy records the IAM actions each principal used and prints the policy they imply; `--iam-enforce enforce` makes it deny as AWS would. [Guide](docs/guide/policy.md).
 - **Snapshots.** State saves to a deterministic archive you can commit, diff and load. [Guide](docs/guide/snapshots.md).
 
-It is a 44 MiB binary that is ready in about 20 ms and idles at about 42 MiB (`just budgets` on Linux). It sends no telemetry; its only network access is pulling Docker images for Lambda and DynamoDB Local.
+It is a 44.5 MiB binary that is ready in 17 ms and idles at 41 MiB. These are the `budgets` CI job's measurements on a GitHub-hosted Linux runner (`just budgets`), from the commit of v0.1.2; one run each, so expect them to vary. It sends no telemetry; its only network access is pulling Docker images for Lambda and DynamoDB Local.
 
 ## Prerequisites
 

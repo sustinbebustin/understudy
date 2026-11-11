@@ -208,12 +208,168 @@ Record each on real AWS in a disposable account, never from agent runs. Save req
 - **H6. SNS bare number on `Number` attributes and bodies.** Policy `{"p":[100]}`; `Number` attribute `100`, `100.0`, `1.0e2`; String attribute `100`; body `{"p":100}`, `{"p":100.0}`, `{"p":"100"}`. Also `{"p":[{"numeric":["=",100]}]}` with String attribute `100`. Moto expects numeric equality on the `Number` forms; LocalStack never matches.
 - **H7. Numeric-string equality, operators allow-list.** (a) Lambda: pattern `{"body":{"n":[300]}}` with bodies `{"n":300}`, `{"n":300.0}`, `{"n":3.0e2}`, `{"n":"300"}`, and `{"body":{"n":[{"numeric":["=",300]}]}}` with the same four. Lambda doc: only identical text matches; Ruler: first three match for both. (b) SNS operators on today's service: `{"x":[{"anything-but":{"suffix":"ball"}}]}`, `{"x":[{"anything-but":{"wildcard":"*ball"}}]}`, `{"x":[{"anything-but":{"equals-ignore-case":"A"}}]}`, `{"x":[{"prefix":{"equals-ignore-case":"A"}}]}`, `{"x":[{"suffix":{"equals-ignore-case":"A"}}]}`, `{"x":[{"anything-but":{"prefix":["a","b"]}}]}`, `{"x":[{"exactly":"a"}]}`, `{"x":[{"anything-but":{"prefix":false}}]}`; record accept or the exact error text.
 - **H8. Body-scope string versus number.** SNS and Lambda: pattern `{"n":[{"numeric":[">",5]}]}` with body `{"n":"10"}`; pattern `{"n":["10"]}` with `{"n":10}`; pattern `{"n":[10]}` with `{"n":"10"}`. Expected (Ruler, EventBridge fixtures): none match. EventBridge `TestEventPattern` control on the same three.
-- **H9. `cidr` full-length masks.** `{"ip":[{"cidr":"10.0.0.1/32"}]}`, `{"ip":[{"cidr":"2001:db8::1/128"}]}`, `{"ip":[{"cidr":"0.0.0.0/0"}]}` on EventBridge, SNS (both scopes) and Lambda; events `{"ip":"10.0.0.1"}` and `{"ip":"2001:db8::1"}`. Ruler rejects the first two with `IPv4 mask bits must be < 32` / `IPv6 mask bits must be < 128`.
+- **H9. `cidr` full-length masks.** `{"ip":[{"cidr":"10.0.0.1/32"}]}`, `{"ip":[{"cidr":"2001:db8::1/128"}]}`, `{"ip":[{"cidr":"0.0.0.0/0"}]}` on EventBridge, SNS (both scopes) and Lambda; events `{"ip":"10.0.0.1"}` and `{"ip":"2001:db8::1"}`. Ruler rejects the first two with `IPv4 mask bits must be < 32` / `IPv6 mask bits must be < 128`. Also H9-04, numbers against a cidr: `{"ip":[{"cidr":"32.0.0.0/8"}]}` with `{"ip":5}`, `{"ip":2050}` and the control `{"ip":"32.1.2.3"}` (in attribute scope, `Number` attributes `5` and `2050`). Ruler's range byte machine walks a number's text, so it matches `2050` and not `5` (`internal/ruler/vectors_test.go`); no service's answer is recorded. Recipe: 8.2.
 - **H10. `$or` malformed shapes.** On EventBridge `PutRule`/`TestEventPattern`, SNS, Lambda: `{"$or":{"m":["x"]}}`, `{"$or":["x","y"]}`, `{"$or":[{"m":["x"]}]}`, `{"s":["a"],"$or":[{"numeric":123},{"prefix":"abc"}]}`, `{"$or":[{},{"a":["1"]}]}`, `{"$or":[{"a":["1"]},"x"]}`. Record accept or exact error; for accepted ones test matching with `{"$or":{"m":"x"}}` and `{"m":"x"}` events. Ruler strict compile rejects all six; `addRule` accepts only the first two (as ordinary keys).
 - **H11. Wildcard complexity cap.** EventBridge `PutRule` with `{"x":[{"wildcard":P}]}` for `P` in `*:*:*:event-bus/*` (7), `*:*:*:*:event-bus/*` (9), `*a*a*a*a*a*` (11). Known: 7 accepted, 11 rejected. SNS (field points = sum of pattern points x number of patterns, [constraints](https://docs.aws.amazon.com/sns/latest/dg/subscription-filter-policy-constraints.html)): one field with 10 and with 11 distinct single-wildcard patterns (`a1*`, `a2*`, ... = 100 and 121 points); one pattern with 3 and with 4 wildcards (`a*b*c*d`, `a*b*c*d*e`); one field with 5 distinct two-wildcard patterns (`*a*`, `*b*`, ...) to learn whether "3 points each" is per pattern (75) or per wildcard (150). Record accept or the exact error text.
 - **H12. `$or` combination counting on EventBridge.** Three sibling `$or` arrays (each in its own nested object, members using distinct keys such as `{"k1":{"a1":["1"]}}`) of sizes 10, 10, 10 (1000) and 7, 11, 13 (1001); plus one nested `$or` inside a branch (outer 3 members, one containing an inner `$or` of 2) to see whether nesting adds or multiplies. Doc rule: multiply the argument counts of every `$or` array. Record which are rejected.
 - **H13. Lambda operator allow-list and SQS body forms.** `create-event-source-mapping` with each of: `{"body":{"ip":[{"cidr":"10.0.0.0/24"}]}}`, `{"body":{"f":[{"wildcard":"*.png"}]}}`, `{"body":{"f":[{"anything-but":{"prefix":"a"}}]}}`, `{"body":{"f":[{"anything-but":{"suffix":".png"}}]}}`, `{"body":{"f":[{"equals-ignore-case":"A"}]}}`, `{"body":{"f":[{"prefix":{"equals-ignore-case":"A"}}]}}`, `{"messageAttributes":{"k":{"stringValue":["v"]}}}`, `{"attributes":{"MessageGroupId":["g"]}}`, `{"messageId":["x"]}`, `{"eventSource":["aws:sqs"]}`, `{"body":{"x":[{"exactly":"a"}]}}`; for the accepted ones send a message and see whether it invokes. Plain-string form: `{"body":["plain"]}` with message bodies `plain`, `{"a":1}`, `123`, `"plain"` (JSON string), `[1]`, `true`; `{"body":"plain"}` (non-array leaf) and its error. Also 6 filters (limit text), and a `Pattern` of 4097 characters.
-- **H14. EventBridge `exactly` and `$or` members sharing values.** `TestEventPattern` with `{"x":[{"exactly":"a"}]}` against `{"x":"a"}` (record accept or the exact error; Ruler accepts it, no service documents it). Then `{"$or":[{"x":["q"]},{"x":["q","y"]}]}` and its swapped form `{"$or":[{"x":["q","y"]},{"x":["q"]}]}` against `{"x":"y"}`, and `{"$or":[{"x":["q"]},{"x":["a","q","y"]}]}` against `{"x":"a"}`: executed Ruler v2.2.0 answers NO for the first order and MATCH for the swapped one in both `rulesForJSONEvent` and `rulesForEvent`, while the documented semantics give MATCH both ways. Record whether EventBridge is order-dependent.
+- **H14. EventBridge `exactly` and `$or` members sharing values.** `TestEventPattern` with `{"x":[{"exactly":"a"}]}` against `{"x":"a"}` (record accept or the exact error; Ruler accepts it, no service documents it). Then `{"$or":[{"x":["q"]},{"x":["q","y"]}]}` and its swapped form `{"$or":[{"x":["q","y"]},{"x":["q"]}]}` against `{"x":"y"}`, and `{"$or":[{"x":["q"]},{"x":["a","q","y"]}]}` against `{"x":"a"}`: executed Ruler v2.2.0 answers NO for the first order and MATCH for the swapped one in both `rulesForJSONEvent` and `rulesForEvent`, while the documented semantics give MATCH both ways. Record whether EventBridge is order-dependent. Recorded once each on 2026-10-14 (`testdata/parity/events/R14/H14-02.json` to `H14-04.json`: false, true, false, as executed Ruler). Executed Ruler's answer varied between Machine instances, so one capture per case cannot show that AWS's answer is stable; 8.3 repeats each case several times.
+- **H15. Content after an event.** Pattern `{"a":["x"]}` against the input `{"a":"x"} {}`: an SNS publish in `MessageBody` scope, EventBridge `TestEventPattern` (pattern under `detail`, the trailing ` {}` after the whole envelope), and an SQS body behind a Lambda event source mapping filter (`{"body":{"a":["x"]}}`), each with the control `{"a":"x"}`. Ruler's `rulesForJSONEvent` reads the first JSON value and ignores the rest, so it matches; understudy refuses the event as malformed (`internal/ruler/doc.go`, `internal/ruler/rulerdiff_test.go`). No service's answer is recorded. Recipe: 8.4.
+
+Agents never run the recipes below. A maintainer runs them in the recording-kit shell ([recording-kit.md](../recording-kit.md) sections 1 and 2), where `$P`, `$R`, `$A`, `$Q`, `$REC` and `rec` exist. They are follow-ups to cases already recorded, so each step records under the item that ran its case first: EventBridge steps under R14, SNS steps under R09, Lambda steps under R03 (recording-kit.md section 6). Run 8.1 first; its teardown ends the session.
+
+### 8.1 Shared setup and teardown
+
+```sh
+ENV() { printf '{"id":"1","account":"%s","source":"rec","time":"2026-01-01T00:00:00Z","region":"%s","resources":[],"detail-type":"rec","detail":%s}' "$A" "$R" "$1"; }
+ebtest() {  # ebtest <step> <event pattern> <event text>: TestEventPattern, the event sent exactly as given
+  rec "R14/$1" aws events test-event-pattern --event-pattern "$2" --event "$3"
+}
+
+snscase() {  # snscase <case> <scope> <filter policy>: topic and queue $P-me-<case>, a raw subscription with that policy
+  local n=$P-me-$1 t
+  t=$(aws sns create-topic --name "$n" --query TopicArn --output text)
+  aws sqs create-queue --queue-name "$n" --attributes "$(jq -nc --arg q "arn:aws:sqs:$R:$A:$n" --arg t "$t" \
+    '{Policy: ({Version: "2012-10-17", Statement: [{Effect: "Allow", Principal: {Service: "sns.amazonaws.com"},
+      Action: "sqs:SendMessage", Resource: $q, Condition: {ArnEquals: {"aws:SourceArn": $t}}}]} | tojson)}')" >/dev/null
+  rec "R09/$1-subscribe" aws sns subscribe --topic-arn "$t" --protocol sqs \
+    --notification-endpoint "arn:aws:sqs:$R:$A:$n" --return-subscription-arn \
+    --attributes "$(jq -nc --arg s "$2" --arg p "$3" '{RawMessageDelivery: "true", FilterPolicyScope: $s, FilterPolicy: $p}')"
+}
+snspub() {  # snspub <case> <step> <message> [more publish args]: publish, record what the case's queue receives in 20 s, delete it
+  local c=$1 s=$2 m=$3; shift 3
+  rec "R09/$s-publish" aws sns publish --topic-arn "arn:aws:sns:$R:$A:$P-me-$c" --message "$m" "$@"
+  rec "R09/$s-receive" aws sqs receive-message --queue-url "$Q/$P-me-$c" --wait-time-seconds 20 \
+    --max-number-of-messages 10 --message-attribute-names All
+  sed -n 's/^ *"ReceiptHandle": "\([^"]*\)".*/\1/p' "$REC/R09/$s-receive.out" | while read -r h; do
+    aws sqs delete-message --queue-url "$Q/$P-me-$c" --receipt-handle "$h"; done
+}
+
+mkdir -p "$REC/_work/me" && cd "$REC/_work/me"
+printf 'import json\ndef handler(event, context):\n    print(json.dumps(event))\n    return {}\n' >me.py
+zip -q me.zip me.py
+aws iam create-role --role-name "$P-me-role" --assume-role-policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}' >/dev/null
+aws iam attach-role-policy --role-name "$P-me-role" \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole
+until aws lambda create-function --function-name "$P-me-fn" --runtime python3.13 --handler me.handler \
+    --role "arn:aws:iam::$A:role/$P-me-role" --zip-file fileb://me.zip >/dev/null; do sleep 10; done   # IAM propagation
+aws lambda wait function-active-v2 --function-name "$P-me-fn"
+aws sqs create-queue --queue-name "$P-me-fq" >/dev/null
+cd - >/dev/null
+
+mefilter() {  # mefilter <step> <pattern>: record the create; if AWS accepts it, wait for Enabled and set U
+  rec "R03/$1-create" aws lambda create-event-source-mapping --function-name "$P-me-fn" \
+    --event-source-arn "arn:aws:sqs:$R:$A:$P-me-fq" --batch-size 1 \
+    --filter-criteria "$(jq -nc --arg p "$2" '{Filters: [{Pattern: $p}]}')"
+  U=$(sed -n 's/^ *"UUID": "\([^"]*\)".*/\1/p' "$REC/R03/$1-create.out")
+  [ -n "$U" ] || return 0     # refused: the .http file holds the error text
+  until [ "$(aws lambda get-event-source-mapping --uuid "$U" --query State --output text)" = Enabled ]; do sleep 5; done
+}
+mesend() {  # mesend <step> <body>: send one body, then record the invocations that carried it
+  local t=$(($(date +%s) * 1000)) id
+  id=$(aws sqs send-message --queue-url "$Q/$P-me-fq" --message-body "$2" --query MessageId --output text)
+  sleep 90
+  rec "R03/$1" aws logs filter-log-events --log-group-name "/aws/lambda/$P-me-fn" \
+    --start-time "$t" --filter-pattern "\"$id\""
+}
+meclear() {  # meclear: delete mapping $U, wait until it is gone, then empty the queue
+  aws lambda delete-event-source-mapping --uuid "$U" >/dev/null
+  until aws lambda get-event-source-mapping --uuid "$U" 2>&1 | grep -q ResourceNotFoundException; do sleep 5; done
+  aws sqs purge-queue --queue-url "$Q/$P-me-fq"
+  sleep 60                    # a purge takes up to 60 s
+}
+```
+
+The Lambda helpers are the kit's `lfilter`, `lsend` and `lclear` (recording-kit.md section 3, R03 step C) on a function and queue of their own, for the same reason: the function only logs and always succeeds, so a body it cannot parse never returns to the queue. An `mesend` that records no events means the body did not invoke the function. In every SNS case the control is published first: if it is not delivered, the subscription's filter policy may not be in effect yet, so wait a minute and publish the case again before reading a miss as an answer.
+
+Shared teardown, after 8.4:
+
+```sh
+for c in H9-04-body H9-04-attr H15-body; do
+  for s in $(aws sns list-subscriptions-by-topic --topic-arn "arn:aws:sns:$R:$A:$P-me-$c" \
+      --query 'Subscriptions[].SubscriptionArn' --output text); do aws sns unsubscribe --subscription-arn "$s"; done
+  aws sns delete-topic --topic-arn "arn:aws:sns:$R:$A:$P-me-$c"
+  aws sqs delete-queue --queue-url "$Q/$P-me-$c"
+done
+aws lambda delete-function --function-name "$P-me-fn"
+aws logs delete-log-group --log-group-name "/aws/lambda/$P-me-fn"
+aws sqs delete-queue --queue-url "$Q/$P-me-fq"
+aws iam detach-role-policy --role-name "$P-me-role" \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaSQSQueueExecutionRole
+aws iam delete-role --role-name "$P-me-role"
+rm -r "$REC/_work/me"
+```
+
+Cost of 8.1 to 8.4 together: USD 0 (EventBridge `TestEventPattern`, SNS, SQS, Lambda and CloudWatch Logs at these volumes stay within the free tier). Time: about 10 minutes of setup and teardown on top of each recipe's own.
+
+### 8.2 H9-04: numbers against a `32.0.0.0/8` cidr
+
+Settles the H9-04 sentence of H9 for each service: whether a cidr rule matches a number by its text (Ruler: `2050` matches, `5` does not), never, or is refused. Each step's answer marks that sentence for its service, with its fixture. understudy follows Ruler here (`internal/ruler/doc.go`, "numbers by their text ... not recorded"), so a miss on `2050` is a difference to record.
+
+```sh
+P4='{"ip":[{"cidr":"32.0.0.0/8"}]}'
+ebtest H9-04-a "{\"detail\":$P4}" "$(ENV '{"ip":"32.1.2.3"}')"   # control: true
+ebtest H9-04-b "{\"detail\":$P4}" "$(ENV '{"ip":5}')"
+ebtest H9-04-c "{\"detail\":$P4}" "$(ENV '{"ip":2050}')"
+
+snscase H9-04-body MessageBody "$P4"
+snspub H9-04-body H9-04-body-a '{"ip":"32.1.2.3"}'                # control: delivered
+snspub H9-04-body H9-04-body-b '{"ip":5}'
+snspub H9-04-body H9-04-body-c '{"ip":2050}'
+snscase H9-04-attr MessageAttributes "$P4"
+snspub H9-04-attr H9-04-attr-a m --message-attributes '{"ip":{"DataType":"String","StringValue":"32.1.2.3"}}'   # control
+snspub H9-04-attr H9-04-attr-b m --message-attributes '{"ip":{"DataType":"Number","StringValue":"5"}}'
+snspub H9-04-attr H9-04-attr-c m --message-attributes '{"ip":{"DataType":"Number","StringValue":"2050"}}'
+
+mefilter H9-04 "{\"body\":$P4}"
+if [ -n "$U" ]; then
+  mesend H9-04-a '{"ip":"32.1.2.3"}'                              # control: invoked
+  mesend H9-04-b '{"ip":5}'
+  mesend H9-04-c '{"ip":2050}'
+  meclear
+fi
+```
+
+What each step settles: `-a` is the control, which shows the rule is accepted and matches an address in the range; `-b` and `-c` are the answers for `5` and `2050`, `Result` true or false on EventBridge, delivered or not on SNS, invoked or not on Lambda. A refused subscribe or create is itself the answer for that service: record its text. About 15 minutes.
+
+### 8.3 H14 repeats: is EventBridge's `$or` answer stable
+
+Settles the switch `events.pattern.or-shared-values` (`docs/coverage.md` lists it as contradicted by `events/R14#H14-02`) and the H14 line's "Record whether EventBridge is order-dependent". Each case runs 10 times, 30 seconds apart, so the calls are likely to reach different service instances. Ten identical answers per case mark H14 recorded with the run fixtures and let the switch take that answer as fixed behaviour; mixed answers mean AWS's answer is not stable, which the switch's reason and `docs/guide/differences.md` then say, and the documented semantics stay understudy's choice.
+
+```sh
+for r in 01 02 03 04 05 06 07 08 09 10; do
+  ebtest "H14-02-r$r" '{"detail":{"$or":[{"x":["q"]},{"x":["q","y"]}]}}' "$(ENV '{"x":"y"}')"
+  ebtest "H14-03-r$r" '{"detail":{"$or":[{"x":["q","y"]},{"x":["q"]}]}}' "$(ENV '{"x":"y"}')"
+  ebtest "H14-04-r$r" '{"detail":{"$or":[{"x":["q"]},{"x":["a","q","y"]}]}}' "$(ENV '{"x":"a"}')"
+  sleep 30
+done
+grep -h '"Result"' "$REC"/R14/H14-0[234]-r*.out | sort | uniq -c   # the tally, per answer
+```
+
+What each step settles: `H14-02-rNN` and `H14-04-rNN` are the cases the 2026-10-14 captures answered false and the documented semantics answer true; `H14-03-rNN` is the swapped order, answered true then, and is the control that a run is not failing for another reason. In `notes.md`, give the tally per case, for example `H14-02: false 10/10`. About 10 minutes.
+
+### 8.4 H15: content after an event
+
+Settles H15 for each service: whether trailing content after the first JSON value is ignored (Ruler: the pattern matches), refused, or makes the input not match. Each answer marks the H15 line for its service; any service that matches differs from understudy, which refuses the event.
+
+```sh
+ebtest H15-01-a '{"detail":{"a":["x"]}}' "$(ENV '{"a":"x"}')"       # control: true
+ebtest H15-01-b '{"detail":{"a":["x"]}}' "$(ENV '{"a":"x"}') {}"
+
+snscase H15-body MessageBody '{"a":["x"]}'
+snspub H15-body H15-body-a '{"a":"x"}'                            # control: delivered
+snspub H15-body H15-body-b '{"a":"x"} {}'
+
+mefilter H15 '{"body":{"a":["x"]}}'
+if [ -n "$U" ]; then
+  mesend H15-a '{"a":"x"}'                                        # control: invoked
+  mesend H15-b '{"a":"x"} {}'
+  meclear
+fi
+```
+
+What each step settles: `-a` is the control; `-b` is the answer. On EventBridge, a 400 `InvalidEventPatternException` or another error on `H15-01-b` says the event is refused, and `Result` true or false says it was read. On SNS, the publish's status shows whether the message is accepted at all, and the receive whether it was delivered. On Lambda, an SQS body that is not one JSON value may be filtered as a plain string (H13), so not invoked is the expected answer if Lambda parses strictly. About 10 minutes.
 
 ## 9. Seed vectors (85)
 

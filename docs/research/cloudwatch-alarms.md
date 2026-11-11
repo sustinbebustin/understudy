@@ -517,7 +517,7 @@ Evaluation writes only state fields and never `Config`, `ActionsEnabled` or `Ala
 
 ## 13. Recording queue
 
-Agents never run these. A maintainer runs them in the recording shell of [recording-kit.md](../recording-kit.md) sections 1 and 2 (`$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl`), with `jq` installed. Each case lists what it settles; record `notes.md` per case as the kit describes, one line per expectation (`matches`, `differs: <what>`). Costs use the [CloudWatch pricing page](https://aws.amazon.com/cloudwatch/pricing/): USD 0.10 per standard alarm metric per month and USD 0.30 per custom metric per month, both billed by the hour, so an alarm or metric that lives an hour costs well under a cent; SNS, SQS, Lambda, EventBridge and DynamoDB on demand stay in the free tier at these volumes. CWA-01 waits 45 minutes: start it first, then run the rest from a second recording shell set up the same way, with 13.1's helpers defined there too. In each shell, run 13.1, the cases and the 13.25 teardown in a kit shell of its own: 13.1 sets `FN` and `T`, which other queues set to other values (recording-kit.md 2).
+Agents never run these. A maintainer runs them in the recording shell of [recording-kit.md](../recording-kit.md) sections 1 and 2 (`$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl`), with `jq` installed. Each case lists what it settles; record `notes.md` per case as the kit describes, one line per expectation (`matches`, `differs: <what>`). Costs use the [CloudWatch pricing page](https://aws.amazon.com/cloudwatch/pricing/): USD 0.10 per standard alarm metric per month and USD 0.30 per custom metric per month, both billed by the hour, so an alarm or metric that lives an hour costs well under a cent; SNS, SQS, Lambda, EventBridge and DynamoDB on demand stay in the free tier at these volumes. CWA-01 waits 45 minutes and CWA-24 six hours: start them first, then run the rest from another recording shell set up the same way, with 13.1's helpers defined there too. Several cases gained steps after the 2026-11-03 session, to settle what it left open; each says which. A rerun may run only a case's setup and its added steps, since `scripts/distill-parity` rewrites only the steps `$REC` holds. Start `$REC/<item>/notes.md` from the committed `testdata/parity/cloudwatch/<item>/notes.md` and add the new lines to it (recording-kit.md 6). In each shell, run 13.1, the cases and the 13.26 teardown in a kit shell of its own: 13.1 sets `FN` and `T`, which other queues set to other values (recording-kit.md 2).
 
 ### 13.1 Shared helpers
 
@@ -612,16 +612,22 @@ Expected: a point at time p stays in range while T0 - R x Period <= p, where T0 
 
 ### 13.3 CWA-02: sub-minute periods
 
-Settles the high-resolution half of `cloudwatch.alarm.window-anchor` and the 10-second cadence phase (3.1).
+Settles the high-resolution half of `cloudwatch.alarm.window-anchor` and the 10-second cadence phase (3.1), and the evaluation range of high-resolution alarms (3.4).
 
 ```sh
 cwput hr 0 5 '"StorageResolution":1'
 cwalarm hr hr 10 1 '' missing
-sleep 300
-cwrec CWA-02/hr hr
+cwput hr2 0 5 '"StorageResolution":1'      # added after 2026-11-03
+cwalarm hr2 hr2 10 2 '' missing
+cwput hr30 0 5 '"StorageResolution":1'     # added after 2026-11-03
+cwalarm hr30 hr30 30 1 '' missing
+sleep 600
+cwrec CWA-02/hr hr; cwrec CWA-02/hr2 hr2; cwrec CWA-02/hr30 hr30
 ```
 
-Expected: `queryDate` of both transitions on or just after a 10-second division of the minute; `evaluatedDatapoints` timestamps on 10-second divisions; the INSUFFICIENT_DATA transition about (R + 1) x 10 seconds after the point. Recorded 2026-11-03: the timestamps hold, but both `queryDate`s fell 0.6 seconds before a division, ALARM came 69 seconds after the create and INSUFFICIENT_DATA about 90 seconds after the point, reading a window two periods behind (3.1). Teardown: `cwdel hr`. Cost under USD 0.01; 7 minutes.
+Expected: `queryDate` of both transitions on or just after a 10-second division of the minute; `evaluatedDatapoints` timestamps on 10-second divisions; the INSUFFICIENT_DATA transition about (R + 1) x 10 seconds after the point. Recorded 2026-11-03 for hr: the timestamps hold, but both `queryDate`s fell 0.6 seconds before a division, ALARM came 69 seconds after the create and INSUFFICIENT_DATA about 90 seconds after the point, reading a window two periods behind (3.1).
+
+The added alarms settle what hr left open. hr2 (N = 2, M = 2) goes to ALARM once its one point has aged to the second evaluated bin (3.5, case C step 3), and to INSUFFICIENT_DATA when the point leaves the range: the time from the point to that transition, against hr's, gives R for N = 2 at 10 seconds, the 3.4 UNVERIFIED line for high-resolution alarms (N + 6, as hr's 7 for N = 1 would suggest, or another count). hr30 settles the same for a 30-second period, and whether its window lags two periods (60 seconds) as the 10-second window does or a fixed 20 seconds, the 3.1 bullet on sub-minute periods; its `queryDate`s also show whether a 30-second alarm is evaluated every 10 seconds, as the user guide says. Write down, per alarm, the point's timestamp, each transition's `queryDate` and its `evaluatedDatapoints`. Teardown: `cwdel hr hr2 hr30`. Cost under USD 0.01; 12 minutes.
 
 ### 13.4 CWA-03: first evaluation
 
@@ -699,11 +705,15 @@ Settles `cloudwatch.alarm.reason-format` (4.1).
 cwput f1 30 5;                                cwalarm f-n1 f1 60 1 '' missing; cwalarm f-m1 f1 60 1 1 missing
 cwput f2 90 5; cwput f2 30 6;                 cwalarm f-n2 f2 60 2 '' missing; cwalarm f-m2 f2 60 2 2 missing
 cwput f3 150 5; cwput f3 90 1; cwput f3 30 6; cwalarm f-m2of3 f3 60 3 2 missing
+cwput f4 150 5; cwput f4 90 5; cwput f4 30 6                       # added after 2026-11-03
+cwalarm f-m2of3all f4 60 3 2 missing; cwalarm f-m1of3all f4 60 3 1 missing
 sleep 180
-for a in f-n1 f-m1 f-n2 f-m2 f-m2of3; do cwrec "CWA-06/$a" "$a"; done
+for a in f-n1 f-m1 f-n2 f-m2 f-m2of3 f-m2of3all f-m1of3all; do cwrec "CWA-06/$a" "$a"; done
 ```
 
-Expected (default): f-n1 `1 datapoint [5.0 (...)] was greater than the threshold (3.0).`; f-m1 `1 out of the last 1 datapoints [5.0 (...)] was greater than the threshold (3.0) (minimum 1 datapoint for OK -> ALARM transition).`; f-n2 `2 datapoints [6.0 (...), 5.0 (...)] were greater than the threshold (3.0).`; f-m2 and f-m2of3 the `out of the last` form, f-m2of3 `2 out of the last 3 datapoints [6.0 (...), 5.0 (...)] were ...` or with all three values listed (note which). Teardown: `cwdel f-n1 f-m1 f-n2 f-m2 f-m2of3`. Cost under USD 0.01; 5 minutes.
+Expected (default): f-n1 `1 datapoint [5.0 (...)] was greater than the threshold (3.0).`; f-m1 `1 out of the last 1 datapoints [5.0 (...)] was greater than the threshold (3.0) (minimum 1 datapoint for OK -> ALARM transition).`; f-n2 `2 datapoints [6.0 (...), 5.0 (...)] were greater than the threshold (3.0).`; f-m2 and f-m2of3 the `out of the last` form, f-m2of3 `2 out of the last 3 datapoints [6.0 (...), 5.0 (...)] were ...` or with all three values listed (note which). Recorded 2026-11-03: as expected, f-m2of3 listing 6.0 and 5.0 (4.1).
+
+The added f-m2of3all and f-m1of3all have three breaching points, more than their M of 2 and 1, the case no recording has (3.4, and the 4.1 UNVERIFIED line on more crossing datapoints than the minimum). Each settles whether the reason's count and listing hold all three crossing points (`3 out of the last 3 datapoints [6.0 (...), 5.0 (...), 5.0 (...)]`, understudy's choice) or only M of them, and whether `evaluatedDatapoints` stops at M, as 4.2 reads the decision bins. Teardown: `cwdel f-n1 f-m1 f-n2 f-m2 f-m2of3 f-m2of3all f-m1of3all`. Cost under USD 0.01; 5 minutes.
 
 ### 13.8 CWA-07: operator phrases
 
@@ -769,11 +779,26 @@ aws cloudwatch put-metric-data --namespace "$NS" --metric-data "[${d%,}]"
 cwput gap 30 5; cwput gap 150 5; cwput gap 270 5
 cwalarm wide wide 60 100 100 missing
 cwalarm gap3 gap 60 3 3 missing
+# added after 2026-11-03: the overflow and long-form thresholds, both directions
+d=$(for i in $(seq 1 100); do printf '{"MetricName":"low","Timestamp":%d,"Value":1},' $((now - i * 60 + 30)); done)
+aws cloudwatch put-metric-data --namespace "$NS" --metric-data "[${d%,}]"
+for n in 10 20 40 50 60; do cwalarm "wide$n" wide 60 "$n" "$n" missing; done
+cwalarm wide40c wide 60 40 '' missing
+cwalarm low40 low 60 40 1 missing; cwalarm low40c low 60 40 '' missing
 sleep 180
-cwrec CWA-10/wide wide; cwrec CWA-10/gap3 gap3
+for a in wide gap3 wide10 wide20 wide40 wide50 wide60 wide40c low40 low40c; do cwrec "CWA-10/$a" "$a"; done
 ```
 
-Expected: for `wide`, the lengths of `StateReason` (at most 1023) and `StateReasonData` (at most 4000) and how they are cut; for `gap3` (points in bins 1, 3 and 5, case 2 of 3.5), whether `evaluatedDatapoints` lists three bins or five. Teardown: `cwdel wide gap3`. Cost under USD 0.01; 5 minutes.
+Expected: for `wide`, the lengths of `StateReason` (at most 1023) and `StateReasonData` (at most 4000) and how they are cut; for `gap3` (points in bins 1, 3 and 5, case 2 of 3.5), whether `evaluatedDatapoints` lists three bins or five. Recorded 2026-11-03: `wide` wrote the long form (327 characters) and kept 45 entries of each list at 3753 characters (4.1, 4.2).
+
+The added alarms settle what `wide` left open. Write down, for each, the length of `StateReason` and `StateReasonData` and the entry counts of `recentDatapoints` and `evaluatedDatapoints`:
+
+- wide50 and wide60 settle the 4.2 UNVERIFIED line on why 45: 45 entries again for both means a fixed cap of 45; 50 and 60 entries within 4000 characters means the cut depends on N or on the length.
+- wide10, wide20 and wide40 (M = N, all breaching) settle the 4.1 UNVERIFIED line on where the long form (`... datapoints were greater than the threshold (3.0). The most recent datapoints which crossed the threshold: [...]`) starts: the first N that writes it. An inline listing runs about 25 characters per datapoint, so wide40's would pass 1023 characters and wide10's would not; a long form at wide10 or wide20 means the threshold is a count, not understudy's 1023 characters.
+- wide40c is wide40 without `DatapointsToAlarm`: the count form's long form, which no recording shows.
+- low40 (N = 40, M = 1, every point 1.0) goes to OK, which takes N - M + 1 = 40 non-breaching points: the OK direction's long form (`were not greater than`), and its `(minimum 40 datapoints for ALARM -> OK transition)` count. low40c, without `DatapointsToAlarm` (so M = N = 40), shows the count form's OK reason over 40 non-breaching points: whether it lists them all, inline or in the long form, or only the one the decision needs.
+
+Teardown: `cwdel wide gap3 wide10 wide20 wide40 wide50 wide60 wide40c low40 low40c`. Cost under USD 0.01 (10 alarms and 3 metrics for minutes); 6 minutes.
 
 ### 13.12 CWA-11: SNS body fields
 
@@ -849,9 +874,16 @@ aws cloudwatch set-alarm-state --alarm-name "$P-ev-off" --state-value ALARM --st
 sleep 60
 cwdrain CWA-14/events "$P-cwa-ev"
 rec CWA-14/lambda-logs aws logs filter-log-events --log-group-name "/aws/lambda/$P-cwa" --filter-pattern '"ev-off"'
+# added after 2026-11-03: EnableAlarmActions
+aws cloudwatch enable-alarm-actions --alarm-names "$P-ev-off"
+sleep 60
+cwdrain CWA-14/events-after-enable "$P-cwa-ev"
+cwrec CWA-14/ev-off ev-off
 ```
 
-Expected (default `events-sent`): a create configuration event and a state change event for ev-off; no Lambda invocation. Teardown: `cwdel ev-off`. Cost under USD 0.01; 4 minutes.
+Expected (default `events-sent`): a create configuration event and a state change event for ev-off; no Lambda invocation. Recorded 2026-11-03: as expected, and `DisableAlarmActions` wrote a `ConfigurationUpdate` item and sent an `update` configuration change event (6.2, 8.3).
+
+The added steps settle `EnableAlarmActions`, which 6.2 infers to match `DisableAlarmActions`: the `events-after-enable` drain should hold one `"operation":"update"` configuration change event with `actionsEnabled` true against `previousConfiguration` false and a new configuration `timestamp`, and no state change event; the history (`ev-off-history`) should hold a second `ConfigurationUpdate` item, `Alarm "<name>" updated`, whose `originalUpdatedFields` carry `actionsEnabled` false and the old `alarmConfigurationUpdatedTimestamp` (8.3). Enabling actions changes no state, so no Lambda invocation follows. Teardown: `cwdel ev-off`. Cost under USD 0.01; 6 minutes.
 
 ### 13.16 CWA-15: event and Lambda payload shapes
 
@@ -865,6 +897,7 @@ shape() {  # shape <threshold> [more args]: create or update $P-ev-shape
     --statistic Maximum --period 60 --evaluation-periods 2 --datapoints-to-alarm 1 --threshold "$th" \
     --comparison-operator GreaterThanThreshold --treat-missing-data ignore --alarm-actions "$FN" --ok-actions "$FN" "$@"
 }
+t15=$(( $(date +%s) * 1000 ))
 shape 3
 cwperm ev-shape
 aws cloudwatch set-alarm-state --alarm-name "$P-ev-shape" --state-value ALARM --state-reason one
@@ -872,12 +905,16 @@ aws cloudwatch set-alarm-state --alarm-name "$P-ev-shape" --state-value OK --sta
 shape 4 --alarm-description described
 aws cloudwatch set-alarm-state --alarm-name "$P-ev-shape" --state-value ALARM --state-reason three
 aws cloudwatch delete-alarms --alarm-names "$P-ev-shape"
-sleep 90
+sleep 180
 cwdrain CWA-15/events "$P-cwa-ev"
-rec CWA-15/lambda-logs aws logs filter-log-events --log-group-name "/aws/lambda/$P-cwa" --filter-pattern '"ev-shape"'
+rec CWA-15/lambda-logs aws logs filter-log-events --log-group-name "/aws/lambda/$P-cwa" --start-time "$t15"
+rec CWA-15/actions aws cloudwatch describe-alarm-history --alarm-name "$P-ev-shape" \
+  --history-item-type Action --scan-by TimestampAscending
 ```
 
-Expected: create, update and delete configuration events with their `configuration` fields (`datapointsToAlarm` present or not, and `threshold` printed as `3` or `3.0`, 4.3); three state change events and three Lambda events; `configuration.description` absent or null before the update; `metrics[0].id` equal or not across the first two state changes, and across the update. Teardown: nothing (the alarm is deleted in the script). Cost under USD 0.01; 5 minutes.
+Expected: create, update and delete configuration events with their `configuration` fields (`datapointsToAlarm` present or not, and `threshold` printed as `3` or `3.0`, 4.3); three state change events and three Lambda events; `configuration.description` absent or null before the update; `metrics[0].id` equal or not across the first two state changes, and across the update. Recorded 2026-11-03: the events held what 6.2 records, but the log read found nothing, so the Lambda payload of 6.1 stays third-party-recorded.
+
+Re-run after 2026-11-03 for the Lambda payload (6.1). The first run read the log group with `--filter-pattern '"ev-shape"'` 90 seconds after the last change and found no line; the read now waits 180 seconds and takes every line logged since `t15`, with no pattern to miss on, and `CWA-15/actions` (the history outlives the alarm, 8.1) tells the causes apart: `Successfully executed action <function ARN>` items with an empty log read mean the lines had not arrived (read again), `Failed to execute action` items carry CloudWatch's error (the permission or the function), and no `Action` item means no action ran. Each `print` line of the function is one event's JSON: settle against 6.1 its keys and their order, `region` as the code, the `time` format, `state.reasonData` on the second change (sent `{"k":"v"}`), and `configuration` against the state change event's order, which understudy uses (6.2, inferred). Teardown: nothing (the alarm is deleted in the script). Cost under USD 0.01; 7 minutes.
 
 ### 13.17 CWA-16: ConfigurationUpdate and Action history items
 
@@ -950,9 +987,17 @@ gms 02-neither --start-time $((now - 900)) --end-time "$now" --period 60
 for p in 7 61 90; do
   gms "03-period-$p" --start-time $((now - 900)) --end-time "$now" --period "$p" --statistics Maximum
 done
+# added after 2026-11-03: both lists once the point is visible
+sleep 120
+gms 04-both-after-wait       --start-time $((now - 900)) --end-time "$now" --period 60 --statistics Maximum --extended-statistics p50
+gms 05-statistics-after-wait --start-time $((now - 900)) --end-time "$now" --period 60 --statistics Maximum
 ```
 
-Expected: code, status and message of each refusal; for 90 also whether it is refused or answers with no datapoints. Recorded 2026-11-03: both lists accepted, neither `InvalidParameterCombination`, 7 and 61 and 90 refused with the texts of 9.3. Teardown: none. Cost under USD 0.01; 3 minutes.
+Expected: code, status and message of each refusal; for 90 also whether it is refused or answers with no datapoints. Recorded 2026-11-03: both lists accepted, neither `InvalidParameterCombination`, 7 and 61 and 90 refused with the texts of 9.3.
+
+The added steps settle the 9.3 UNVERIFIED line on both lists: 01-both ran about a second after the `PutMetricData`, so its empty answer may only mean the point was not visible yet. After two minutes, 05 is the control and should return the point (`Maximum` 5.0 at the bin 120 seconds back). Then 04 either returns that datapoint, with which keys (`Maximum` and an `ExtendedStatistics` map holding `p50`, or one of them), or answers no datapoints although the point is visible: AWS answers both lists with nothing. If 05 also returns nothing, the point is still not visible; wait and run both again.
+
+Carry the "Replay (internal/parity)" section of `testdata/parity/cloudwatch/CWA-19/notes.md` into `$REC/CWA-19/notes.md` before distilling (recording-kit.md 6). The section also covers CWA-20's steps, which `gms` writes under `CWA-19`; update its step list for 04 and 05. Teardown: none. Cost under USD 0.01; 5 minutes.
 
 ### 13.21 CWA-20: the 1440 datapoint count
 
@@ -980,11 +1025,24 @@ aws cloudwatch put-metric-alarm --alarm-name "$P-ddb" --namespace AWS/DynamoDB -
   --dimensions Name=TableName,Value="$P-cwa" Name=Operation,Value=GetItem --statistic Sum --period 60 \
   --evaluation-periods 1 --threshold 1 --comparison-operator GreaterThanThreshold --treat-missing-data breaching
 cwalarm ddb-control ddb-none 60 1 '' breaching
+# added after 2026-11-03: no TreatMissingData, from a known OK state
+aws cloudwatch put-metric-alarm --alarm-name "$P-ddb-default" --namespace AWS/DynamoDB --metric-name SystemErrors \
+  --dimensions Name=TableName,Value="$P-cwa" Name=Operation,Value=GetItem --statistic Sum --period 60 \
+  --evaluation-periods 1 --threshold 1 --comparison-operator GreaterThanThreshold
+aws cloudwatch put-metric-alarm --alarm-name "$P-ddb-default-control" --namespace "$NS" --metric-name ddb-none \
+  --statistic Sum --period 60 --evaluation-periods 1 --threshold 1 --comparison-operator GreaterThanThreshold
+rec CWA-21/default-at-create aws cloudwatch describe-alarms --alarm-names "$P-ddb-default" "$P-ddb-default-control"
+for a in ddb-default ddb-default-control; do
+  aws cloudwatch set-alarm-state --alarm-name "$P-$a" --state-value OK --state-reason "cwa start OK"
+done
 sleep 300
 cwrec CWA-21/ddb ddb; cwrec CWA-21/control ddb-control
+cwrec CWA-21/default ddb-default; cwrec CWA-21/default-control ddb-default-control
 ```
 
-`SystemErrors` is chosen because an idle table publishes no data for it, so the alarm sees only missing data. Expected: the control goes to ALARM; ddb stays INSUFFICIENT_DATA with `Unchecked: Initial alarm creation` (default `always-ignore`) or goes to ALARM (the user guide's override). Recorded 2026-11-03: both went to ALARM (3.7). If ddb goes to OK, DynamoDB published a zero and the case is void. Teardown: `cwdel ddb ddb-control; aws dynamodb delete-table --table-name "$P-cwa" >/dev/null`. Cost under USD 0.01; 8 minutes.
+`SystemErrors` is chosen because an idle table publishes no data for it, so the alarm sees only missing data. Expected: the control goes to ALARM; ddb stays INSUFFICIENT_DATA with `Unchecked: Initial alarm creation` (default `always-ignore`) or goes to ALARM (the user guide's override). Recorded 2026-11-03: both went to ALARM (3.7). If ddb goes to OK, DynamoDB published a zero and the case is void.
+
+The added alarms settle the 3.7 line on an `AWS/DynamoDB` alarm sent no `TreatMissingData`. On all-missing data, `missing` computes INSUFFICIENT_DATA, the state an alarm is created in, so both start from OK, where the treatments differ: ddb-default stays OK with `cwa start OK` under the user guide's "default to ignore missing data", or goes to INSUFFICIENT_DATA under the API's default `missing`, which understudy applies (`cloudwatch.alarm.dynamodb-missing-data` `as-configured`). The control, on a custom namespace, goes to INSUFFICIENT_DATA (3.5, case B). `default-at-create` also shows whether `DescribeAlarms` lists a `TreatMissingData` for either alarm, and which. Teardown: `cwdel ddb ddb-control ddb-default ddb-default-control; aws dynamodb delete-table --table-name "$P-cwa" >/dev/null`. Cost under USD 0.01; 9 minutes.
 
 ### 13.23 CWA-22: end of warm-up
 
@@ -1027,7 +1085,22 @@ rec CWA-23/history aws cloudwatch describe-alarm-history --alarm-name "$P-deny"
 
 Expected (default `dropped`): no message in the queue, the alarm in ALARM, and at most an `Action` history item saying the publish failed (8.3). A message in the queue means CloudWatch's publish is not checked against the topic policy, and the enforce mode must then deliver. Recorded 2026-11-03: no message, ALARM, and a failed `Action` item (5.3). Teardown: `for s in $(aws sns list-subscriptions-by-topic --topic-arn "$TD" --query 'Subscriptions[].SubscriptionArn' --output text); do aws sns unsubscribe --subscription-arn "$s"; done; aws sns delete-topic --topic-arn "$TD"; aws sqs delete-queue --queue-url "$Q/$P-cwa-deny"; cwdel deny`. Cost under USD 0.01; 3 minutes.
 
-### 13.25 Fixture teardown and sweep
+### 13.25 CWA-24: evaluation range for 120, 600 and 3600 second periods
+
+Settles the 3.4 UNVERIFIED line on R for periods other than 60 and 300 seconds (`cloudwatch.alarm.evaluation-range`, where understudy uses N + 2), as CWA-01 did for those two. Added after 2026-11-03.
+
+```sh
+mkdir -p "$REC/CWA-24" && date -u +%FT%TZ >"$REC/CWA-24/start.time"
+cwput p120 0 5;  cwalarm p120 p120 120 1 '' missing
+cwput p600 0 5;  cwalarm p600 p600 600 1 '' missing
+cwput p3600 0 5; cwalarm p3600 p3600 3600 1 '' missing
+sleep 21600
+for a in p120 p600 p3600; do cwrec "CWA-24/$a" "$a"; done
+```
+
+Expected: as in CWA-01, each alarm goes to ALARM and returns to INSUFFICIENT_DATA when its one point leaves the range; a point at time p stays in range while T0 - R x Period <= p, T0 being the `queryDate` of an evaluation truncated to the minute, so the last evaluation that still lists the point and the INSUFFICIENT_DATA transition after it give R per period. N + 2 (3) predicts the return after about 6, 30 and 180 minutes; N + 5 (6), the 60-second rule, about 12, 60 and 360. If p3600 is still in ALARM after the six hours, R is above 5 for 3600 seconds: record that, keep the alarm, and run `cwrec CWA-24/p3600 p3600` again later. Teardown: `cwdel p120 p600 p3600`. Cost under USD 0.01 (three alarms and three metrics for six hours); 6 hours, all waiting: start it with CWA-01 and leave its shell open.
+
+### 13.26 Fixture teardown and sweep
 
 ```sh
 # SNS fixture, after CWA-11, CWA-12, CWA-16 and CWA-17. Subscriptions first: they outlive their topics.

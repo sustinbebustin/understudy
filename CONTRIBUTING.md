@@ -151,6 +151,8 @@ The SDK, CLI and Terraform suites have one file per service, so a fix can own on
 
 A conformance failure is a finding about understudy, or about the research: fix whichever is wrong, never the test to match understudy.
 
+Configure each suite so it would pass against AWS. It creates what a call needs there: the roles, resource policies and grants of a delivery (queue and topic policies for SNS and EventBridge deliveries, function permissions, role trust and inline policies), never leaning on understudy accepting less.
+
 ## Documentation
 
 - `docs/configuration.md` carries `understudy serve --help` verbatim; a test fails when they differ.

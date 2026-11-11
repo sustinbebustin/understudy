@@ -653,6 +653,8 @@ Teardown (step 04 may have created a machine):
 aws stepfunctions delete-state-machine --state-machine-arn "$SM:$P-del"
 ```
 
+SFN-06 (and ASL-17) left open how long a deleted machine stays described; SFN-16 measures it.
+
 ### 14.8 SFN-07: CloudWatch Logs delivery
 
 Settles `sfn.logs.event-timestamp`, `sfn.logs.stream-name`, `sfn.logs.validation-stream` and the `:*` question (5.1, 8.2). Cost under USD 0.01, 10 minutes.
@@ -901,3 +903,33 @@ aws iam delete-access-key --user-name "$P-sfn-nobody" --access-key-id "$UK"
 aws iam delete-user --user-name "$P-sfn-nobody"
 rm -f sfn15.py sfn15.zip
 ```
+
+### 14.17 SFN-16: how long a deleted machine stays DELETING
+
+Settles the open end of 5.4 and of `sfn.delete.idle-machine` (13.2): how long `DescribeStateMachine` answers `status: DELETING` after a delete, for a machine whose execution has ended and for one never run (SFN-06 saw `DELETING` 45 seconds after the last execution ended, and straight after an idle delete). Cost under USD 0.01, up to 65 minutes, almost all of it polling.
+
+```sh
+aws stepfunctions create-state-machine --name "$P-delt-ran" --role-arn "$SR" \
+  --definition '{"StartAt":"P","States":{"P":{"Type":"Pass","End":true}}}' >/dev/null
+aws stepfunctions create-state-machine --name "$P-delt-idle" --role-arn "$SR" \
+  --definition '{"StartAt":"P","States":{"P":{"Type":"Pass","End":true}}}' >/dev/null
+X=$(aws stepfunctions start-execution --state-machine-arn "$SM:$P-delt-ran" --query executionArn --output text)
+until [ "$(aws stepfunctions describe-execution --execution-arn "$X" --query status --output text)" != RUNNING ]; do sleep 2; done
+rec SFN-16/01-delete-ran aws stepfunctions delete-state-machine --state-machine-arn "$SM:$P-delt-ran"
+rec SFN-16/01-delete-idle aws stepfunctions delete-state-machine --state-machine-arn "$SM:$P-delt-idle"
+for i in $(seq -w 1 60); do   # one poll a minute; each name stops being polled once it is gone
+  for n in ran idle; do
+    [ -e "$REC/SFN-16/gone-$n" ] && continue
+    rec "SFN-16/poll-$n-$i" aws stepfunctions describe-state-machine --state-machine-arn "$SM:$P-delt-$n"
+    grep -q StateMachineDoesNotExist "$REC/SFN-16/poll-$n-$i.http" && : >"$REC/SFN-16/gone-$n"
+  done
+  [ -e "$REC/SFN-16/gone-ran" ] && [ -e "$REC/SFN-16/gone-idle" ] && break
+  sleep 60
+done
+rec SFN-16/02-list aws stepfunctions list-state-machines
+rm -f "$REC/SFN-16/gone-ran" "$REC/SFN-16/gone-idle"   # markers, not captures: distill-parity refuses other files
+```
+
+In `notes.md`, per machine, take the delete instant from the `Date` header of `01-delete-<name>.http` and the first `StateMachineDoesNotExist` poll's `Date` header: the gap, to the minute, is the answer, with the last `DELETING` poll as its lower bound. Note whether `02-list` still lists either name. If both are still `DELETING` after the 60 polls, write "more than 60 minutes" and describe each again in a later session (`aws stepfunctions describe-state-machine`, unrecorded, until it answers `StateMachineDoesNotExist`). The answer marks the "how long a deleted machine stays described is unmeasured" line of 5.4 recorded, and the "retention time is unmeasured" part of the `sfn.delete.idle-machine` row in 13.2.
+
+Teardown: none; the machines delete themselves. If one is still listed after the later check, `aws stepfunctions delete-state-machine --state-machine-arn "$SM:$P-delt-<name>"` again.

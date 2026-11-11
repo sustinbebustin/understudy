@@ -605,7 +605,7 @@ Leave unbound (501): EventBridge `PutPermission`/`RemovePermission`, Logs `PutRe
 
 ## 13. Recording queue
 
-Run in the recording-kit shell (`docs/recording-kit.md` sections 1-2: `$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl`, `$E`). Agents never run these. On a free-plan project, an `explicit deny in a service control policy` answer is the guardrail, not the service: note it as `n/a (free-plan SCP)`. The helpers need `jq` and GNU `date` (on macOS, `date -u -v-15M +%FT%TZ` for `date -u -d '-15 min' +%FT%TZ`). Run 13.1, the cases and the 13.2 teardown in a kit shell of its own: 13.1 sets `B`, `K` and `KA`, and 13.36 sets `G`, which other queues set to other values (recording-kit.md 2); a queue run inside this one's lifetime would have 13.2 schedule its key for deletion and leak this one's. Every case below names its expected cost and time; together they cost under USD 0.50 (one KMS key for its 7-day pending window, about USD 0.25, and fractions of a cent of requests) and take about 3 hours.
+Run in the recording-kit shell (`docs/recording-kit.md` sections 1-2: `$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl`, `$E`). Agents never run these. On a free-plan project, an `explicit deny in a service control policy` answer is the guardrail, not the service: note it as `n/a (free-plan SCP)`. The helpers need `jq` and GNU `date` (on macOS, `date -u -v-15M +%FT%TZ` for `date -u -d '-15 min' +%FT%TZ`). Run 13.1, the cases and the 13.2 teardown in a kit shell of its own: 13.1 sets `B`, `K` and `KA`, and 13.36 sets `G`, which other queues set to other values (recording-kit.md 2); a queue run inside this one's lifetime would have 13.2 schedule its key for deletion and leak this one's. Every case below names its expected cost and time; together they cost under USD 0.50 (one KMS key for its 7-day pending window, about USD 0.25, and fractions of a cent of requests) and take about 4 hours (IAM-ENF-22 and IAM-ENF-25 grew by an hour when amended on 2026-11-11).
 
 ### 13.1 Shared setup
 
@@ -894,7 +894,7 @@ aws sqs set-queue-attributes --queue-url "$EQ" --attributes "$(jq -nc --arg p "$
   '{Version:"2012-10-17",Statement:[{Effect:"Deny",Principal:{AWS:$r},Action:"sqs:ReceiveMessage",Resource:$q}]}')" '{Policy:$p}')"
 aws s3api put-bucket-policy --bucket "$B" --policy "$(jq -nc --arg r "$MIX" --arg b "arn:aws:s3:::$B/*" \
   '{Version:"2012-10-17",Statement:[{Effect:"Deny",Principal:{AWS:$r},Action:"s3:GetObject",Resource:$b}]}')"
-sleep 15
+sleep 60   # SQS applies a queue policy within 60 s (sqs.md 4); the bucket policy gets the same wait
 enf_assume "$P-enf-mix"
 rec IAM-ENF/15-inline-sqs as_role sqs get-queue-attributes --queue-url "$EQ" --attribute-names All
 rec IAM-ENF/15-inline-kms as_role kms describe-key --key-id "$K"
@@ -915,7 +915,9 @@ rec IAM-ENF/15-boundary-implicit as_role logs describe-log-streams --log-group-n
 enf_assume "$P-enf-none"
 ```
 
-Cost: free apart from requests, 15 minutes. Teardown:
+Amended 2026-11-11: the wait before the resource-policy deny steps is 60 s, not 15 s. In the 2026-11-03 run both `15-resource-sqs` and `15-resource-s3` answered 200, so neither deny had taken effect yet. `15-resource-sqs` and `15-resource-s3` settle the resource-based explicit-deny wording of `iam.denial.grammar` (4.1, the 12.3 reason list) for SQS JSON and S3: a 403 whose message names `with an explicit deny in a resource-based policy` marks that row recorded. If either still answers 200, the policy had still not applied: write the wait in `notes.md` and rerun those two steps after another minute.
+
+Cost: free apart from requests, 16 minutes. Teardown:
 
 ```sh
 aws s3api delete-bucket-policy --bucket "$B"
@@ -1066,7 +1068,7 @@ Cost under USD 0.01, 8 minutes. Teardown: `aws s3api put-bucket-notification-con
 
 ### 13.24 IAM-ENF-22. EventBridge delivery refused by the target
 
-Settles `events.delivery.denied-code` (8.4) and `events.delivery.source-account-sqs` and `-lambda` (8.1): DLQ attributes, no retry, metrics; then policies conditioned only on `aws:SourceAccount`. Its last steps (amended 2026-11-02) settle `lambda.enforce.missing-resource.delivery` and `sns.enforce.missing-resource.delivery` (8.2, 8.4): the dead letters of a delivery to a deleted function and to a deleted topic carry `ERROR_CODE` `NO_RESOURCE`, not a denial.
+Settles `events.delivery.denied-code` (8.4) and `events.delivery.source-account-sqs` and `-lambda` (8.1): DLQ attributes, no retry, metrics; then policies conditioned only on `aws:SourceAccount`. Its last steps (amended 2026-11-02) settle `lambda.enforce.missing-resource.delivery` and `sns.enforce.missing-resource.delivery` (8.2, 8.4): the dead letters of a delivery to a deleted function and to a deleted topic carry `ERROR_CODE` `NO_RESOURCE`, not a denial. The S3 and CloudWatch steps after them (amended 2026-11-11) settle the same switch for those senders.
 
 ```sh
 aws sqs create-queue --queue-name "$P-enf-eq"; EQ2="$Q/$P-enf-eq"; EQ2A="arn:aws:sqs:$R:$A:$P-enf-eq"
@@ -1093,23 +1095,58 @@ rec IAM-ENF/22-target-sa aws sqs receive-message --queue-url "$EQ2" --wait-time-
 rec IAM-ENF/22-lambda-sa aws logs filter-log-events --log-group-name "/aws/lambda/$P-enf-fn" --filter-pattern '"sourceaccount"'
 rec IAM-ENF/22-dlq-sa aws sqs receive-message --queue-url "$DLQ" --attribute-names All --message-attribute-names All --max-number-of-messages 10 --wait-time-seconds 20
 # Deliveries to a deleted function and a deleted topic. Recorded 2026-11-03: the function's
-# dead letter is NO_PERMISSIONS, not NO_RESOURCE; the topic's produced no dead letter.
+# dead letter is NO_PERMISSIONS, not NO_RESOURCE; the topic's produced no dead letter in 90 s.
 aws sqs purge-queue --queue-url "$DLQ"; sleep 60
 aws lambda create-function --function-name "$P-enf-gone" --runtime python3.13 --handler fn.handler \
   --role "arn:aws:iam::$A:role/$P-enf-exec" --zip-file "fileb://$REC/_work/IAM-ENF/fn.zip"
 GFA="arn:aws:lambda:$R:$A:function:$P-enf-gone"
 GTA=$(aws sns create-topic --name "$P-enf-gone" --query TopicArn --output text)
+topic_allow() {  # topic_allow <topic arn> <service principal> <source arn>: admit that service's deliveries
+  aws sns set-topic-attributes --topic-arn "$1" --attribute-name Policy --attribute-value "$(jq -nc --arg t "$1" --arg s "$2" --arg src "$3" \
+    '{Version:"2012-10-17",Statement:[{Effect:"Allow",Principal:{Service:$s},Action:"sns:Publish",Resource:$t,Condition:{ArnLike:{"aws:SourceArn":$src}}}]}')"
+}
+topic_allow "$GTA" events.amazonaws.com "$RULE_ARN"
 aws events put-targets --rule "$P-enf-r" --targets "$(jq -nc --arg f "$GFA" --arg t "$GTA" --arg d "$DLQA" \
-  '[{Id:"gf",Arn:$f,DeadLetterConfig:{Arn:$d}},{Id:"gt",Arn:$t,DeadLetterConfig:{Arn:$d}}]')"
+  '[{Id:"gf",Arn:$f,DeadLetterConfig:{Arn:$d}},
+    {Id:"gt",Arn:$t,DeadLetterConfig:{Arn:$d},RetryPolicy:{MaximumRetryAttempts:0,MaximumEventAgeInSeconds:60}}]')"
 aws lambda delete-function --function-name "$P-enf-gone"
 aws sns delete-topic --topic-arn "$GTA"
 sleep 60
 rec IAM-ENF/22-put-events-gone aws events put-events --entries "[{\"Source\":\"$P.enf\",\"DetailType\":\"t\",\"Detail\":\"{\\\"case\\\":\\\"gone\\\"}\"}]"
-sleep 90
-rec IAM-ENF/22-dlq-gone aws sqs receive-message --queue-url "$DLQ" --attribute-names All --message-attribute-names All --max-number-of-messages 10 --wait-time-seconds 20
+for i in $(seq -w 1 15); do   # read the DLQ each minute for up to 15 minutes, until the topic's dead letter arrives
+  sleep 60
+  rec "IAM-ENF/22-dlq-gone-$i" aws sqs receive-message --queue-url "$DLQ" --attribute-names All --message-attribute-names All \
+    --max-number-of-messages 10 --wait-time-seconds 20
+  grep -q "$GTA" "$REC/IAM-ENF/22-dlq-gone-$i.out" && break
+done
+# S3 to a deleted topic: the event S3 drops, then S3's destination check against the deleted topic.
+ST=$(aws sns create-topic --name "$P-enf-s3gone" --query TopicArn --output text)
+topic_allow "$ST" s3.amazonaws.com "arn:aws:s3:::$B"
+S3CONF=$(jq -nc --arg t "$ST" '{TopicConfigurations:[{TopicArn:$t,Events:["s3:ObjectCreated:*"],Filter:{Key:{FilterRules:[{Name:"prefix",Value:"gone/"}]}}}]}')
+rec IAM-ENF/22-s3-config aws s3api put-bucket-notification-configuration --bucket "$B" --notification-configuration "$S3CONF"
+aws sns delete-topic --topic-arn "$ST"; sleep 60
+printf g | aws s3 cp - "s3://$B/gone/1"
+sleep 60
+rec IAM-ENF/22-s3-config-after aws s3api get-bucket-notification-configuration --bucket "$B"
+rec IAM-ENF/22-s3-revalidate aws s3api put-bucket-notification-configuration --bucket "$B" --notification-configuration "$S3CONF"
+# CloudWatch to a deleted topic: set-alarm-state runs the ALARM action, and the alarm history keeps its outcome.
+CT=$(aws sns create-topic --name "$P-enf-cwgone" --query TopicArn --output text)
+topic_allow "$CT" cloudwatch.amazonaws.com "arn:aws:cloudwatch:$R:$A:alarm:$P-enf-cw"
+aws cloudwatch put-metric-alarm --alarm-name "$P-enf-cw" --namespace "$P/enf" --metric-name m --statistic Sum --period 60 \
+  --evaluation-periods 1 --threshold 1 --comparison-operator GreaterThanThreshold --alarm-actions "$CT"
+aws sns delete-topic --topic-arn "$CT"; sleep 60
+aws cloudwatch set-alarm-state --alarm-name "$P-enf-cw" --state-value ALARM --state-reason enf-22
+sleep 60
+rec IAM-ENF/22-cw-history aws cloudwatch describe-alarm-history --alarm-name "$P-enf-cw" --history-item-type Action
 ```
 
-Cost under USD 0.01, 20 minutes. Teardown: `aws events remove-targets --rule "$P-enf-r" --ids q f gf gt; aws lambda remove-permission --function-name "$P-enf-fn" --statement-id enf-events-sa; aws sqs delete-queue --queue-url "$EQ2"; aws sqs purge-queue --queue-url "$DLQ"`.
+Amended 2026-11-11, for the three deliveries to a deleted topic. Each one settles `sns.enforce.missing-resource.delivery` (12.8) for its sender, and marks the last sentence of 8.2 ("no record settles it for SNS, S3 or CloudWatch"). Each topic grants its sender `sns:Publish` before it is deleted. A denial can then come only from authorizing a topic that no longer exists (`deny-first`), and a not-found answer means existence came first (`resolve-first`):
+
+- `22-dlq-gone-NN`: the topic target has `RetryPolicy` `MaximumRetryAttempts` 0 and `MaximumEventAgeInSeconds` 60, so its dead letter arrives within minutes even when EventBridge treats the error as retryable. The loop reads the DLQ for up to 15 minutes, where the 2026-11-03 run read it once, after 90 s. In the topic's dead letter, `ERROR_CODE` `NO_RESOURCE` (or an `ERROR_MESSAGE` naming `NotFound`) settles `resolve-first`, and `NO_PERMISSIONS` (an `AuthorizationError` message) settles `deny-first`. `EXHAUSTED_RETRY_CONDITION`, if present, shows that EventBridge retried the error. If no letter names `$GTA` within 15 minutes, write that in `notes.md`: the dead letter was not delivered, and the order stays open.
+- `22-s3-config` is the control: S3's check passes while the topic exists. `22-s3-config-after` shows whether S3 keeps a configuration whose topic is gone. S3 keeps no record of the dropped event (8.3), so `22-s3-revalidate` settles the order: S3's destination check sends a test message to the deleted topic. "The destination topic does not exist" means `resolve-first`; "Permissions on the destination topic do not allow S3 to publish notifications from this bucket" (IAM-ENF-20's text) means `deny-first`.
+- `22-cw-history`: the `Action` item for `$CT` is `Failed to execute action <topic ARN>`. Its `error` reads not found for `resolve-first`, or `CloudWatch Alarms is not authorized to perform: SNS:Publish` for `deny-first` ([cloudwatch-alarms.md](cloudwatch-alarms.md) 5.3 records that text for a topic that refuses CloudWatch).
+
+Cost under USD 0.01 (the alarm lives for minutes of its USD 0.10 per alarm-month), 40 minutes. Teardown: `aws events remove-targets --rule "$P-enf-r" --ids q f gf gt; aws lambda remove-permission --function-name "$P-enf-fn" --statement-id enf-events-sa; aws sqs delete-queue --queue-url "$EQ2"; aws sqs purge-queue --queue-url "$DLQ"; aws s3api put-bucket-notification-configuration --bucket "$B" --notification-configuration '{}'; aws s3 rm "s3://$B/gone/1"; aws cloudwatch delete-alarms --alarm-names "$P-enf-cw"`.
 
 ### 13.25 IAM-ENF-23. Does PutTargets add an SNS topic policy
 
@@ -1138,7 +1175,7 @@ Cost: free, 2 minutes. Teardown: none (the queue stays for IAM-ENF-25).
 
 ### 13.27 IAM-ENF-25. ESM after the role loses its SQS permissions
 
-Settles `lambda.esm.permission-loss` (8.6): `State`, `StateTransitionReason`, `LastProcessingResult` over 10 minutes.
+Settles `lambda.esm.permission-loss` (8.6): whether polling stops, and `State`, `StateTransitionReason`, `LastProcessingResult` over 30 minutes.
 
 ```sh
 aws iam put-role-policy --role-name "$P-enf-exec" --policy-name sqs --policy-document "$(jq -nc --arg q "$MQA" \
@@ -1151,13 +1188,20 @@ done
 aws sqs send-message --queue-url "$MQ" --message-body before-revoke; sleep 60
 rec IAM-ENF/25-before aws lambda get-event-source-mapping --uuid "$U"
 aws iam delete-role-policy --role-name "$P-enf-exec" --policy-name sqs
+sleep 900   # 15 minutes for the revoke to reach the poller before anything is sent
 aws sqs send-message --queue-url "$MQ" --message-body after-revoke
-for i in 01 02 03 04 05 06 07 08 09 10; do sleep 60; rec "IAM-ENF/25-after-$i" aws lambda get-event-source-mapping --uuid "$U"; done
+for i in $(seq -w 1 30); do sleep 60; rec "IAM-ENF/25-after-$i" aws lambda get-event-source-mapping --uuid "$U"; done
 rec IAM-ENF/25-logs aws logs filter-log-events --log-group-name "/aws/lambda/$P-enf-fn" --filter-pattern '"revoke"'
 rec IAM-ENF/25-queue aws sqs get-queue-attributes --queue-url "$MQ" --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible
 ```
 
-Cost under USD 0.01, 15 minutes. Teardown: `aws lambda delete-event-source-mapping --uuid "$U"; aws sqs delete-queue --queue-url "$MQ"`.
+Amended 2026-11-11. The 2026-11-03 run sent `after-revoke` straight after the revoke and polled for 10 × 60 s. The message was delivered, which could be the revoke still propagating to Lambda's poller, so the run did not show whether polling stops. Now the send waits 15 minutes after the revoke, and the mapping is read for 30 × 60 s:
+
+- `25-logs` without `after-revoke`, plus `25-queue` showing the message still there (`ApproximateNumberOfMessages` 1), settles that polls fail once the permission is gone. That marks the "Whether polling stops" sentence of 8.6 and the `lambda.esm.permission-loss` row of 12.8 recorded for `stay-enabled`, provided `25-after-NN` keeps `Enabled`, `USER_INITIATED` and a null `LastProcessingResult` throughout.
+- `25-logs` with `after-revoke` means Lambda still read the queue 15 minutes after the revoke: polling does not stop, at least for that long. Write it in `notes.md`. The switch default is then contradicted.
+- Any `25-after-NN` whose `State`, `StateTransitionReason` or `LastProcessingResult` changed records the new value and the minute it appeared.
+
+Cost under USD 0.01, 55 minutes. Teardown: `aws lambda delete-event-source-mapping --uuid "$U"; aws sqs delete-queue --queue-url "$MQ"`.
 
 ### 13.28 IAM-ENF-26. CreateFunction without iam:PassRole, and with a role Lambda cannot assume
 

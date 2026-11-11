@@ -426,7 +426,7 @@ The user-visible change needs a `docs/guide/` section whose commands were run ag
 
 ## 9. Recording queue
 
-For a human with credentials in the recording-kit shell (`docs/recording-kit.md` sections 1-2: `$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl`); agents never run these. The receiver is a Lambda function URL, as in LocalStack's AWS-validated HTTP test (`create_sns_http_endpoint_and_queue`, tests/aws/services/sns/conftest.py, which forwards each request to SQS); this one logs each request to CloudWatch Logs and answers by path. A function URL normalizes header-name casing, so header casing stays doc-only. Batch I alone needs a receiver that can refuse connections, so it runs a short-lived EC2 instance. Costs are Lambda, CloudWatch Logs, SNS and SQS at a few hundred requests plus about 15 minutes of one `t4g.nano` with a public IPv4 address, under USD 0.10 in total. The captures distill as `SNSH` items (`docs/recording-kit.md` section 6): AWS calls under `testdata/parity/sns/SNSH/`, log reads under `testdata/parity/logs/SNSH/`.
+For a human with credentials in the recording-kit shell (`docs/recording-kit.md` sections 1-2: `$P`, `$R`, `$A`, `$Q`, `$REC`, `rec`, `recurl`); agents never run these. The receiver is a Lambda function URL, as in LocalStack's AWS-validated HTTP test (`create_sns_http_endpoint_and_queue`, tests/aws/services/sns/conftest.py, which forwards each request to SQS); this one logs each request to CloudWatch Logs and answers by path. A function URL normalizes header-name casing, so header casing stays doc-only. Batch I alone needs a receiver that can refuse connections, so it runs a short-lived EC2 instance; Batch J adds an API Gateway HTTP API in front of the function for the cases a function URL cannot serve. Costs are Lambda, CloudWatch Logs, SNS, SQS and API Gateway at a few hundred requests plus about 15 minutes of one `t4g.nano` with a public IPv4 address, under USD 0.15 in total. The captures distill as `SNSH` items (`docs/recording-kit.md` section 6): AWS calls under `testdata/parity/sns/SNSH/`, log reads under `testdata/parity/logs/SNSH/`.
 
 ### 9.1 Queue
 
@@ -457,12 +457,19 @@ For a human with credentials in the recording-kit shell (`docs/recording-kit.md`
 | SNSH-23 | Delivery status log groups and schema for HTTPS | 6.6 | H | `H-log-groups`, `H-events-*` |
 | SNSH-24 | Retry class of a refused and of a dropped connection | `sns.http.status-classes`, 6.1 | I | `I-failed-*` sums; `I-dlq` `SentTimestamp` against `I-publish-time.txt` |
 | SNSH-25 | Code, status and full text of `Unsubscribe` on a pending subscription | 6.7, 8.6 | E | `E-unsubscribe-pending` error |
+| SNSH-26 | Request timeout: endpoints answering after 25, 35 and 50 s | 3.1, 6.3, `sns.http.status-classes` | J | attempts and gaps per `/auto/sleepNN` path in `J-receiver-timeout` |
+| SNSH-27 | Throttle pacing over a 60-message burst | 6.4 | J | `SentTimestamp` of the 60 messages in `J-thr-recv-*` |
+| SNSH-28 | Which exhausted 429 and 5xx deliveries are redriven, one subscription at a time; the raw DLQ body | 6.1, 6.5, `sns.http.status-classes`, `sns.http.dlq-body` | J | `J-dlq-redrive-*` bodies per path; attempts in `J-receiver-redrive-*` |
+| SNSH-29 | Backoff curves with two more parameter sets | 6.3, `sns.http.backoff-curves` | J | gaps between attempts per path in `J-receiver-backoff-*` |
+| SNSH-30 | Basic auth through a receiver that keeps `authorization`; whether a function URL strips it | 3.1, `sns.http.basic-auth` | J | `J-receiver-probe`; `authorization` per request at `/auth/auto` in `J-receiver-auth` |
 
 Recorded 2026-11-03 in us-east-2 (`testdata/parity/sns/SNSH/notes.md`); SNSH-24 was n/a (the free plan refuses its EC2 instance type). Recipe changes the run showed are needed before a re-record:
 
 - SNSH-18: give each bound input a complete policy (`numRetries` and `minDelayTarget` at least); AWS refused the incomplete ones for the missing members first, so the bound texts stay unrecorded. The same holds for SNSH-19's `disableSubscriptionOverrides` topic policy.
 - SNSH-05 and SNSH-09: the account's Lambda concurrency of 10 throttled batch B's 16 simultaneous deliveries; fewer concurrent subscriptions, or a receiver that is not a function URL, would settle the DLQ anomaly in 6.1.
 - SNSH-22: use a receiver that is known to keep the `authorization` header.
+
+Batch J (9.12) carries the follow-ups: the delivery timeout (SNSH-26), a longer throttle burst (SNSH-27), the redrive anomaly with one subscription at a time (SNSH-28), more backoff parameter sets (SNSH-29) and Basic auth through an API Gateway receiver (SNSH-30). The SNSH-18 and SNSH-19 amendments above are still to be made in Batch E.
 
 ### 9.2 Shared setup
 
@@ -493,9 +500,10 @@ def handler(event, context):
                 print(json.dumps({"confirmed": path, "status": r.status,
                                   "type": r.headers.get("Content-Type"), "xml": r.read().decode()}))
         return {"statusCode": 200, "body": ""}
-    if "sleep" in seg:
-        time.sleep(20)
-        print(json.dumps({"slept": path}))
+    for s in seg:
+        if s == "sleep" or (s[:5] == "sleep" and s[5:].isdigit()):   # /sleep waits 20 s, /sleepNN NN s
+            time.sleep(int(s[5:] or 20))
+            print(json.dumps({"slept": path}))
     code = 200
     for s in seg:
         if s[:1] == "s" and s[1:].isdigit():
@@ -512,7 +520,7 @@ aws iam attach-role-policy --role-name "$P-snsh-role" \
   --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 sleep 10
 aws lambda create-function --function-name "$P-snsh" --runtime python3.13 --handler snsh.handler \
-  --timeout 30 --role "arn:aws:iam::$A:role/$P-snsh-role" --zip-file fileb://snsh.zip
+  --timeout 60 --role "arn:aws:iam::$A:role/$P-snsh-role" --zip-file fileb://snsh.zip
 aws lambda wait function-active-v2 --function-name "$P-snsh"
 U=$(aws lambda create-function-url-config --function-name "$P-snsh" --auth-type NONE --query FunctionUrl --output text)
 aws lambda add-permission --function-name "$P-snsh" --statement-id url \
@@ -830,7 +838,7 @@ for g in $(aws logs describe-log-groups --log-group-name-prefix "sns/$R/$A/$P-sn
 done
 ```
 
-Teardown: `snshdrop`, then the role and log groups in 9.12.
+Teardown: `snshdrop`, then the role and log groups in 9.13.
 
 ### 9.11 Batch I: refused and dropped connections (SNSH-24)
 
@@ -914,7 +922,146 @@ aws sqs purge-queue --queue-url "$Q/$P-snsh-dlq"
 rm -f snsh-i.py
 ```
 
-### 9.12 Teardown
+### 9.12 Batch J: follow-ups to the 2026-11-03 run (SNSH-26 to SNSH-30)
+
+About 60 minutes, under USD 0.05 (Lambda, CloudWatch Logs, SNS, SQS and a few hundred API Gateway HTTP API requests). Run each part in order; each ends with its own teardown, and the API Gateway part removes what it adds. Throughout, the receiver must not be throttled by the account's Lambda concurrency (10 on a new account), which muddied SNSH-05: no part has more than four deliveries in flight at once through the function, and the throttle burst bypasses Lambda.
+
+**SNSH-26: request timeout.** About 7 minutes. SNSH-05's endpoint answered after 20 s and was counted delivered, against the documented "about 15 seconds". The function's 60-second timeout (9.2) lets it hold an answer for 25, 35 and 50 s.
+
+```sh
+aws sqs purge-queue --queue-url "$Q/$P-snsh-dlq"; sleep 60
+DPJ=$(jq -nc --arg q "$DLQ" '{DeliveryPolicy: ({healthyRetryPolicy: {numRetries: 2, minDelayTarget: 5,
+  maxDelayTarget: 5}} | tojson), RedrivePolicy: ({deadLetterTargetArn: $q} | tojson)}')
+snshtopic j-timeout; T0=$(now_ms)
+for p in sleep25 sleep35 sleep50; do snshsub "J-subscribe-$p" "/auto/$p" "$DPJ" >/dev/null; done
+sleep 30
+rec SNSH/J-publish-timeout aws sns publish --topic-arn "$TOPIC" --message m-j-timeout
+sleep 300
+snshlog J-receiver-timeout "$T0"
+snshdlq J-dlq-timeout
+snshdrop
+```
+
+Read per path: one Notification request means AWS waited that long and counted it delivered; three requests mean it gave up and retried. The function finishes its sleep and logs `slept` either way, so count the requests (`kind` `Notification`), not the `slept` lines. For a retried path, the gap between requests minus the 5-second delay is the timeout, and it shows whether the delay runs from the end of the failed attempt (6.3). Marks the timeout line of 3.1 recorded (AWS's limit between the last delivered and the first retried path), and the timeout case of 6.1 and 6.3.
+
+**SNSH-28: which exhausted deliveries are redriven.** About 13 minutes. SNSH-05 redrove only 2 of the 5 exhausted subscriptions while 16 deliveries competed for 10 Lambda environments. This runs each path alone, on a topic of its own.
+
+```sh
+aws sqs purge-queue --queue-url "$Q/$P-snsh-dlq"; sleep 60
+for p in s429 s500 s502 s503 raw/s500; do
+  n=${p/\//-}; snshtopic "j-redrive-$n"; T0=$(now_ms)
+  attrs=$DPJ; [ "$p" = raw/s500 ] && attrs=$(jq -c '. + {RawMessageDelivery: "true"}' <<<"$DPJ")
+  snshsub "J-subscribe-redrive-$n" "/auto/$p" "$attrs" >/dev/null
+  sleep 20
+  rec "SNSH/J-publish-redrive-$n" aws sns publish --topic-arn "$TOPIC" --message "m-j-redrive-$n" \
+    --message-attributes '{"k":{"DataType":"String","StringValue":"v"}}'
+  sleep 60
+  snshlog "J-receiver-redrive-$n" "$T0"
+  snshdlq "J-dlq-redrive-$n"
+  snshdrop
+done
+```
+
+`snshdlq` does not delete, so each read also shows the earlier paths' dead letters; match each to its path by the message text `m-j-redrive-<path>`. Read per path: three requests in `J-receiver-redrive-<path>` (retried and exhausted), and whether a dead letter for it arrived. Five of five redriven means SNSH-05's gaps came from the throttled receiver, and marks the "2 of 5" line of 6.1 explained; fewer, with every attempt reaching the function, is a real AWS rule to describe. The `raw-s500` dead letter, if it arrives, is the raw DLQ form that 6.5 and `sns.http.dlq-body` leave UNVERIFIED: record its body and message attributes.
+
+**SNSH-29: backoff curves with two more parameter sets.** About 22 minutes. SNSH-09 recorded one curve per function, from 2 s to 64 s over 8 retries; two more sets give each formula more points to be fitted to. Each set runs on a topic of its own, so at most four deliveries are in flight.
+
+```sh
+for set in '6 4 100' '4 10 30'; do
+  read -r nr lo hi <<<"$set"
+  snshtopic "j-backoff-$nr"
+  for f in linear arithmetic geometric exponential; do
+    snshsub "J-subscribe-backoff-$nr-$f" "/auto/b$nr-$f/s500" "$(jq -nc --arg f "$f" --argjson n "$nr" --argjson lo "$lo" --argjson hi "$hi" \
+      '{DeliveryPolicy: ({healthyRetryPolicy: {numRetries: $n, minDelayTarget: $lo, maxDelayTarget: $hi, backoffFunction: $f}} | tojson)}')" >/dev/null
+  done
+  sleep 30; T0=$(now_ms)
+  rec "SNSH/J-publish-backoff-$nr" aws sns publish --topic-arn "$TOPIC" --message "m-j-backoff-$nr"
+  sleep 600
+  snshlog "J-receiver-backoff-$nr" "$T0"
+  snshdrop
+done
+```
+
+Read per path the gaps between requests, each expected about 1 s over its target as in SNSH-09. With SNSH-09's curve they give three parameter sets per function: fit one formula per function to all three and check it against each, or record that none fits. A fitted formula marks the "exact formulas ... are not derived" line of 6.3 recorded and lets `sns.http.backoff-curves` drop `linear-for-all` for that function; a formula someone fitted to SNSH-09 alone is confirmed or corrected here.
+
+**SNSH-27 and SNSH-30: an API Gateway receiver.** About 18 minutes. An HTTP API in front of the same function (payload 2.0, which passes the `authorization` header to it) serves the Basic-auth case, and a route that sends each request straight to an SQS queue serves the throttle burst, so its 60 deliveries never meet the Lambda concurrency limit and each one's arrival is the message's `SentTimestamp`.
+
+```sh
+aws sqs create-queue --queue-name "$P-snsh-thr" --attributes VisibilityTimeout=900 >/dev/null
+THRQ="arn:aws:sqs:$R:$A:$P-snsh-thr"
+aws iam create-role --role-name "$P-snsh-apigw" --assume-role-policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"apigateway.amazonaws.com"},"Action":"sts:AssumeRole"}]}' >/dev/null
+aws iam put-role-policy --role-name "$P-snsh-apigw" --policy-name send --policy-document \
+  "$(jq -nc --arg q "$THRQ" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:"sqs:SendMessage",Resource:$q}]}')"
+sleep 15
+API=$(aws apigatewayv2 create-api --name "$P-snsh" --protocol-type HTTP --query ApiId --output text)
+IQ=$(aws apigatewayv2 create-integration --api-id "$API" --integration-type AWS_PROXY --integration-subtype SQS-SendMessage \
+  --payload-format-version 1.0 --credentials-arn "arn:aws:iam::$A:role/$P-snsh-apigw" \
+  --request-parameters "$(jq -nc --arg q "$Q/$P-snsh-thr" '{QueueUrl: $q, MessageBody: "$request.body"}')" \
+  --query IntegrationId --output text)
+IL=$(aws apigatewayv2 create-integration --api-id "$API" --integration-type AWS_PROXY --payload-format-version 2.0 \
+  --integration-uri "arn:aws:lambda:$R:$A:function:$P-snsh" --query IntegrationId --output text)
+aws apigatewayv2 create-route --api-id "$API" --route-key 'POST /thr' --target "integrations/$IQ" >/dev/null
+aws apigatewayv2 create-route --api-id "$API" --route-key 'ANY /{proxy+}' --target "integrations/$IL" >/dev/null
+aws apigatewayv2 create-stage --api-id "$API" --stage-name '$default' --auto-deploy >/dev/null
+aws lambda add-permission --function-name "$P-snsh" --statement-id apigw --action lambda:InvokeFunction \
+  --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:$R:$A:$API/*"
+GW="https://$API.execute-api.$R.amazonaws.com/"
+sleep 10
+
+# SNSH-30, probe: which receiver keeps the header (the handler answers 401 under /auth/ without one)
+T0=$(now_ms)
+curl -sS -o /dev/null -w 'gateway %{http_code}\n' -u probe:probe -X POST "${GW}probe/auth/gw" | tee "$REC/SNSH/J-probe.txt"
+curl -sS -o /dev/null -w 'function-url %{http_code}\n' -u probe:probe -X POST "${U}probe/auth/url" | tee -a "$REC/SNSH/J-probe.txt"
+snshlog J-receiver-probe "$T0"
+
+# SNSH-30: Basic auth from the endpoint URL, through the gateway
+snshtopic j-auth; T0=$(now_ms)
+rec SNSH/J-subscribe-auth aws sns subscribe --topic-arn "$TOPIC" --protocol https \
+  --notification-endpoint "https://snsuser:snspass@${GW#https://}auth/auto" --return-subscription-arn
+sleep 30
+rec SNSH/J-publish-auth aws sns publish --topic-arn "$TOPIC" --message m-j-auth
+sleep 20
+snshlog J-receiver-auth "$T0"
+snshdrop
+
+# SNSH-27: 60 messages at maxReceivesPerSecond 1, arrivals timed by SQS
+snshtopic j-thr
+rec SNSH/J-subscribe-thr aws sns subscribe --topic-arn "$TOPIC" --protocol https --notification-endpoint "${GW}thr" \
+  --attributes "$(jq -nc '{DeliveryPolicy: ({throttlePolicy: {maxReceivesPerSecond: 1}} | tojson)}')" --return-subscription-arn
+sleep 20
+TOK=$(aws sqs receive-message --queue-url "$Q/$P-snsh-thr" --wait-time-seconds 10 --query 'Messages[0].Body' --output text | jq -r .Token)
+rec SNSH/J-confirm-thr aws sns confirm-subscription --topic-arn "$TOPIC" --token "$TOK"
+aws sqs purge-queue --queue-url "$Q/$P-snsh-thr"; sleep 60
+date +%s%3N >"$REC/SNSH/J-thr-publish-ms.txt"
+for b in 1 2 3 4 5 6; do
+  aws sns publish-batch --topic-arn "$TOPIC" --publish-batch-request-entries \
+    "$(jq -nc --arg b "$b" '[range(10) | {Id: "e\(.)", Message: "m-j-thr-\($b)-\(.)"}]')" >/dev/null
+done
+sleep 300
+for i in 1 2 3 4 5 6 7 8; do
+  rec "SNSH/J-thr-recv-$i" aws sqs receive-message --queue-url "$Q/$P-snsh-thr" --max-number-of-messages 10 \
+    --wait-time-seconds 5 --attribute-names SentTimestamp
+done
+snshdrop
+```
+
+Read for SNSH-30: `J-probe.txt` and `J-receiver-probe` first. A gateway 200 with an `authorization` header logged shows this receiver keeps it; a function-URL 401 shows the function URL strips it, which explains SNSH-22, and a function-URL 200 shows it does not, so SNSH-22's result stands as AWS's. Then in `J-receiver-auth`, whether the first `/auth/auto` request already carries `authorization` (preemptive), only the request after the 401 does (challenge), or none does. Marks the Basic-auth line of 3.1 recorded and settles `sns.http.basic-auth`. If the gateway itself drops the header, stop: the run settles nothing beyond SNSH-22, and the notes say so.
+
+Read for SNSH-27: the 60 `SentTimestamp` values against `J-thr-publish-ms.txt` (`date +%s%3N` needs GNU date; on macOS use `gdate` or `python3 -c 'import time; print(int(time.time()*1000))'`). About one per second over a minute means AWS paces at the average; all within a few seconds means it does not pace a burst this size either; a burst followed by about one per second shows the averaging window's length. Marks the pacing line of 6.4 recorded. Fewer than 60 messages means some deliveries are still queued or failed: receive again before teardown.
+
+Teardown:
+
+```sh
+aws apigatewayv2 delete-api --api-id "$API"
+aws lambda remove-permission --function-name "$P-snsh" --statement-id apigw
+aws sqs delete-queue --queue-url "$Q/$P-snsh-thr"
+aws iam delete-role-policy --role-name "$P-snsh-apigw" --policy-name send
+aws iam delete-role --role-name "$P-snsh-apigw"
+aws sqs purge-queue --queue-url "$Q/$P-snsh-dlq"
+```
+
+### 9.13 Teardown
 
 The recording kit's section 5 sweep does not list `sns/` log groups or this queue's EC2 instance, so delete them here:
 
@@ -929,6 +1076,10 @@ for i in $(aws ec2 describe-instances --filters "Name=tag:Name,Values=$P-snsh-i"
   aws ec2 wait instance-terminated --instance-ids "$i"
 done
 aws ec2 delete-security-group --group-name "$P-snsh-i" 2>/dev/null || true
+for a in $(aws apigatewayv2 get-apis --query "Items[?Name=='$P-snsh'].ApiId" --output text); do aws apigatewayv2 delete-api --api-id "$a"; done
+aws sqs delete-queue --queue-url "$Q/$P-snsh-thr" 2>/dev/null
+aws iam delete-role-policy --role-name "$P-snsh-apigw" --policy-name send 2>/dev/null
+aws iam delete-role --role-name "$P-snsh-apigw" 2>/dev/null
 aws sqs delete-queue --queue-url "$Q/$P-snsh-dlq"
 aws lambda delete-function-url-config --function-name "$P-snsh"
 aws lambda delete-function --function-name "$P-snsh"

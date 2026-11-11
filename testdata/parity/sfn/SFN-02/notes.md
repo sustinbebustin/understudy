@@ -9,7 +9,7 @@
 
 ## Expected vs AWS
 
-- token shape (sfn.task-token.format): recorded in token-shape.txt (length and first characters); not re-read here (the capture holds a live token; redact before sharing)
+- token shape (sfn.task-token.format): recorded in token-shape.txt (length and first characters); not re-read here; the task tokens in the captures were redacted to `<task-token>` on 2026-11-11 (expired tokens remain in git history)
 - 01 InvalidOutput text: `InvalidOutput` `Invalid Output: 'not json' is not valid JSON.` (doc 7.1 had only the API-reference text; differs from that)
 - 02 heartbeat on a live token: matches -- 200 `{}`
 - 03 altered token (InvalidToken or TaskDoesNotExist?): differs: neither -- `TaskTimedOut` `Task Timed Out: 'Provided task does not exist.'`
