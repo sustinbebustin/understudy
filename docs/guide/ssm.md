@@ -62,10 +62,10 @@ aws kms decrypt --encryption-context PARAMETER_ARN=arn:aws:ssm:us-east-1:0000000
 aHVudGVyMg==
 ```
 
-`--key-id` takes a customer managed key as a key id, key ARN, alias name or alias ARN, and `describe-parameters` reports it as given. A KMS refusal, such as a disabled key, answers `InvalidKeyId` with KMS's message:
+`--key-id` takes a customer managed key as a key id, key ARN, alias name or alias ARN, and `describe-parameters` reports it as given. A KMS refusal, such as a disabled key, answers `InvalidKeyId` with KMS's message and the KMS client's suffix, as AWS does; the request id is a fresh one for the KMS call:
 
 ```text
-An error occurred (InvalidKeyId) when calling the GetParameter operation: arn:aws:kms:us-east-1:000000000000:key/4ae7c0e1-bc0c-4664-b9df-e736b2cfde41 is disabled.
+An error occurred (InvalidKeyId) when calling the GetParameter operation: arn:aws:kms:us-east-1:000000000000:key/4ae7c0e1-bc0c-4664-b9df-e736b2cfde41 is disabled. (Service: AWSKMS; Status Code: 400; Error Code: DisabledException; Request ID: de3c61ab-db14-43a5-95ea-6078274fa859; Proxy: null)
 ```
 
 The plaintext of a SecureString never appears in the journal, the logs or a snapshot, which holds only the ciphertext.

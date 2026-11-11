@@ -145,6 +145,11 @@ func TestKMSRefusalsAreInvalidKeyID(t *testing.T) {
 		if want := kmsMessage("alias/does-not-exist"); err != nil && !strings.Contains(err.Message, want) {
 			h.Errorf("message %q does not carry KMS's %q", err.Message, want)
 		}
+		// KMS's message ends with the KMS client's suffix (SSM-22 step 04).
+		if want := " (Service: AWSKMS; Status Code: 400; Error Code: NotFoundException; Request ID: "; err != nil &&
+			(!strings.Contains(err.Message, want) || !strings.HasSuffix(err.Message, "; Proxy: null)")) {
+			h.Errorf("message %q does not end with the KMS client suffix %q...; Proxy: null)", err.Message, want)
+		}
 		wantOwnMessage(h.T, "PutParameter under a missing key", err, plain)
 		if err := h.get("/kms/missing"); err == nil {
 			h.Error("a parameter refused by KMS was stored")

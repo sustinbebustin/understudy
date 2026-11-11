@@ -262,7 +262,7 @@ Recorded, the cases this guide leaves open (SSM-22, recorded 2026-11-03):
 - A read with decryption by a caller without `kms:Decrypt` on a customer managed key (step 07): not `InvalidKeyId` but 400 `AccessDeniedException`, key `Message` (capital M): `User: <caller> is not authorized to perform: kms:Decrypt on resource: <key ARN> because no identity-based policy allows the kms:Decrypt action (Service: AWSKMS; Status Code: 400; Error Code: AccessDeniedException; Request ID: <id>; Proxy: null)`.
 - A direct KMS `Decrypt` of a default-key ciphertext (step 03) is denied, as 5.6 infers; the documented direct Decrypt was not recorded with a customer managed key.
 
-understudy maps a KMS IAM denial to `AccessDeniedException` and every other KMS client error to `InvalidKeyId`, each carrying KMS's message without the client suffix, and a KMS server error to `InternalServerError` naming the KMS failure (inferred).
+understudy maps a KMS IAM denial to `AccessDeniedException` and every other KMS client error to `InvalidKeyId`, each carrying KMS's message with the KMS client's suffix (a fresh request id stands in for the KMS call's), and a KMS server error to `InternalServerError` naming the KMS failure (inferred).
 
 ### 5.6 KMS permissions of Parameter Store callers
 

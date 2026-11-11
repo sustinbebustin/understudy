@@ -326,7 +326,6 @@ Real AWS was recorded for SSM on 2026-11-03 (`testdata/parity/ssm/`), and unders
 - The default parameter tier is always Standard, since the service settings answer 501.
 - `GetParametersByPath` and `DescribeParameters` list in name order across pages. AWS orders each page by name but not the listing as a whole (`ssm/SSM-19/01-default-page.json`, `ssm/SSM-20/01-default-page.json`); a client that reads every page sees the same set.
 - AWS lists `InvalidLabels` and `TagList` in an order of its own; understudy lists refused labels in request order and tags in the order they were first set.
-- A KMS failure carries KMS's message without the `(Service: AWSKMS; ...; Request ID: ...; Proxy: null)` suffix AWS appends (`ssm/SSM-22/04-missing-key.json`).
 - A `{{...}}` value's refusal leaves out the value AWS's message quotes, since understudy never puts a parameter value in a message.
 - Under `--iam-enforce enforce`, a SecureString on the default key `alias/aws/ssm` is encrypted and decrypted by SSM itself, so an identity policy that explicitly denies `kms:Encrypt` or `kms:Decrypt` on that key does not stop the call.
 

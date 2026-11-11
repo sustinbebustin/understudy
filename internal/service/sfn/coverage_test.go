@@ -189,11 +189,13 @@ func TestLambdaTaskError(t *testing.T) {
 		t.Errorf("function-ARN task AccessDeniedException = %+v, want Lambda.AWSLambdaException with cause %q", got, wantCause)
 	}
 
-	flip := sfn.LambdaErrorNaming{Prefix: "X.", Unmodeled: "X.Other", Cause: "%s|%d|%s|%s", FunctionARNCause: "%s/%d/%s"}
-	if got := sfn.LambdaTaskError(flip, asl.LambdaInvoke, lambdaapi.ErrResourceNotFoundException("m"), "id"); got.Name != "X.ResourceNotFoundException" || got.Cause != "m|404|ResourceNotFoundException|id" {
+	flip := sfn.LambdaErrorNaming{Prefix: "X.", Unmodeled: "X.Other", Cause: awserr.SDKv2("X"), FunctionARNCause: awserr.SDKv1("Y")}
+	if got := sfn.LambdaTaskError(flip, asl.LambdaInvoke, lambdaapi.ErrResourceNotFoundException("m"), "id"); got.Name != "X.ResourceNotFoundException" ||
+		got.Cause != "m (Service: X, Status Code: 404, Request ID: id) (SDK Attempt Count: 1)" {
 		t.Errorf("flipped naming = %+v", got)
 	}
-	if got := sfn.LambdaTaskError(flip, asl.FunctionARN, unmodeled, "id"); got.Name != "X.Other" || got.Cause != "User is not authorized/400/id" {
+	if got := sfn.LambdaTaskError(flip, asl.FunctionARN, unmodeled, "id"); got.Name != "X.Other" ||
+		got.Cause != "User is not authorized (Service: Y; Status Code: 400; Error Code: AccessDeniedException; Request ID: id; Proxy: null)" {
 		t.Errorf("flipped unmodeled naming = %+v", got)
 	}
 }

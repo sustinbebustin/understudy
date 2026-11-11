@@ -558,9 +558,9 @@
       "steps": [
         {"step": "01-describe", "fixture": "ssm/SSM-22/01-describe.json", "operation": "ssm.DescribeParameters", "outcome": {"kind": "match"}},
         {"step": "02-history", "fixture": "ssm/SSM-22/02-history.json", "operation": "ssm.GetParameterHistory", "outcome": {"kind": "match"}},
-        {"step": "04-missing-key", "fixture": "ssm/SSM-22/04-missing-key.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "error/message, body/message"}},
-        {"step": "05-disabled-put", "fixture": "ssm/SSM-22/05-disabled-put.json", "operation": "ssm.PutParameter", "outcome": {"kind": "differs", "reason": "error/message, body/message"}},
-        {"step": "06-disabled-get", "fixture": "ssm/SSM-22/06-disabled-get.json", "operation": "ssm.GetParameter", "outcome": {"kind": "differs", "reason": "error/message, body/message"}}
+        {"step": "04-missing-key", "fixture": "ssm/SSM-22/04-missing-key.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "05-disabled-put", "fixture": "ssm/SSM-22/05-disabled-put.json", "operation": "ssm.PutParameter", "outcome": {"kind": "match"}},
+        {"step": "06-disabled-get", "fixture": "ssm/SSM-22/06-disabled-get.json", "operation": "ssm.GetParameter", "outcome": {"kind": "match"}}
       ],
       "claims": [
         {"target": {"kind": "switch", "name": "ssm.kms.key-id-echo"}, "step": "01-describe", "field": "body/Parameters", "result": {"kind": "settled"}}
