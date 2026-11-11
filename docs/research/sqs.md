@@ -549,3 +549,72 @@ Terraform and ops
 19. Journal: every API call plus internal deliveries (SNS -> SQS, Lambda ESM receive/delete, DLQ move, redrive) with receive/delete/move causal edges; `SenderId` for internally originated messages is free-form (UNVERIFIED what AWS shows for SNS-originated sends).
 20. Snapshots: serialize queues, messages, dedup cache, move tasks, tombstones, purge timestamps; receipt handle uniqueness must survive restore.
 21. Coverage: phase 1 SQS lists 23 operations in the model (AddPermission, CancelMessageMoveTask, ChangeMessageVisibility(+Batch), CreateQueue, DeleteMessage(+Batch), DeleteQueue, GetQueueAttributes, GetQueueUrl, ListDeadLetterSourceQueues, ListMessageMoveTasks, ListQueueTags, ListQueues, PurgeQueue, ReceiveMessage, RemovePermission, SendMessage(+Batch), SetQueueAttributes, StartMessageMoveTask, TagQueue, UntagQueue) ([model](https://github.com/aws/api-models-aws/blob/main/models/sqs/service/2012-11-05/sqs-2012-11-05.json)); all are in scope.
+
+## 14. Recording queue
+
+Agents never run these. A maintainer runs them in the recording-kit shell ([recording-kit.md](../recording-kit.md) sections 1 and 2), where `$P`, `$R`, `$A`, `$Q`, `$REC` and `rec` exist. Each entry lists what it settles, its commands, cost, time and teardown. The steps record under the backlog item they follow up, so `scripts/distill-parity` adds them beside that item's fixtures.
+
+### 14.1 R02 follow-up: when a cancelled move task reads CANCELLED
+
+R02 cancelled a running task (`testdata/parity/sqs/R02/07-cancel-running.json`) and listed it once, 3 seconds later, as `CANCELLING` (`07-list-after-cancel.json`); no capture shows the end. understudy goes straight to `CANCELLED` (R02 `notes.md`, step 07). This entry settles the line in 9.3 that begins "**Cancel**": how long `CANCELLING` lasts, whether the task ends `CANCELLED` (or `COMPLETED` when the move outruns the cancel), and whether `ApproximateNumberOfMessagesMoved` keeps rising while it cancels. Mark that line recorded with the fixture of the first sample that is no longer `CANCELLING`.
+
+The DLQ gets 100 messages so a task at 1 message per second cannot finish on its own within the first 100 seconds. The messages go straight into the DLQ, so the task names a destination queue: a task without one returns each message to the queue it came from, and these came from none. R02's task had no destination; if the timing below differs a lot from R02's 3 seconds, that difference is the first suspect.
+
+```sh
+aws sqs create-queue --queue-name "$P-mv-dlq" >/dev/null
+DLQ=arn:aws:sqs:$R:$A:$P-mv-dlq
+aws sqs create-queue --queue-name "$P-mv-src" --attributes \
+  "{\"RedrivePolicy\":\"{\\\"deadLetterTargetArn\\\":\\\"$DLQ\\\",\\\"maxReceiveCount\\\":\\\"1\\\"}\"}" >/dev/null   # makes $P-mv-dlq a DLQ
+aws sqs create-queue --queue-name "$P-mv-dst" >/dev/null
+DST=arn:aws:sqs:$R:$A:$P-mv-dst
+
+mvfill() {  # mvfill: put 100 messages straight into the DLQ
+  for b in $(seq 0 9); do
+    aws sqs send-message-batch --queue-url "$Q/$P-mv-dlq" \
+      --entries "$(jq -nc --argjson b "$b" '[range(10) | {Id: "m\(.)", MessageBody: "move-\($b * 10 + .)"}]')" >/dev/null
+  done
+}
+mvrun() {  # mvrun <run>: start a 1 msg/s task, cancel it after 5 s, then list it every 2 s while it is RUNNING or CANCELLING (at most 20 min)
+  local s=R02/cancel-$1 h st end
+  rec "$s-01-start" aws sqs start-message-move-task --source-arn "$DLQ" --destination-arn "$DST" \
+    --max-number-of-messages-per-second 1
+  h=$(sed -n 's/^ *"TaskHandle": "\([^"]*\)".*/\1/p' "$REC/$s-01-start.out")
+  sleep 5
+  rec "$s-02-cancel" aws sqs cancel-message-move-task --task-handle "$h"
+  printf '%s\tcancel returned\n' "$(date +%s)" >"$REC/$s-03-timeline.tsv"
+  end=$(( $(date +%s) + 1200 ))
+  while [ "$(date +%s)" -lt "$end" ]; do
+    st=$(aws sqs list-message-move-tasks --source-arn "$DLQ" --max-results 1 \
+      --query 'Results[0].[Status,ApproximateNumberOfMessagesMoved,ApproximateNumberOfMessagesToMove]' --output text)
+    printf '%s\t%s\n' "$(date +%s)" "$st" >>"$REC/$s-03-timeline.tsv"
+    case $st in RUNNING*|CANCELLING*) sleep 2 ;; *) break ;; esac
+  done
+  rec "$s-04-list-final" aws sqs list-message-move-tasks --source-arn "$DLQ" --max-results 10
+  rec "$s-05-dlq-attrs" aws sqs get-queue-attributes --queue-url "$Q/$P-mv-dlq" \
+    --attribute-names ApproximateNumberOfMessages ApproximateNumberOfMessagesNotVisible
+  rec "$s-06-dst-attrs" aws sqs get-queue-attributes --queue-url "$Q/$P-mv-dst" \
+    --attribute-names ApproximateNumberOfMessages
+}
+
+mvfill
+mvrun a
+aws sqs purge-queue --queue-url "$Q/$P-mv-dlq"
+aws sqs purge-queue --queue-url "$Q/$P-mv-dst"
+sleep 60                    # a purge takes up to 60 s
+mvfill
+mvrun b
+```
+
+What each step settles:
+
+- `cancel-<run>-01-start` and `-02-cancel`: the task was `RUNNING` when cancelled, and what the cancel returned. A cancel refused as not active means the task had already ended: rerun with more messages.
+- `cancel-<run>-03-timeline.tsv`: one line per sample, epoch seconds then status, moved and to-move. The time from `cancel returned` to the first line that reads neither `RUNNING` nor `CANCELLING` is the `CANCELLING` duration; a moved count that rises after the cancel means moves continue while it cancels. A timeline that ends after 20 minutes still `CANCELLING` is a finding too: note it.
+- `cancel-<run>-04-list-final`: the end state's full entry (`Status`, final counts, whether `TaskHandle` or `FailureReason` appears).
+- `cancel-<run>-05-dlq-attrs` and `-06-dst-attrs`: whether the moved count the task reports equals what left the DLQ.
+- Run `b` repeats run `a`: two similar durations make a delay worth modelling; two very different ones say only that it varies.
+
+In `notes.md`, per run, write the `CANCELLING` duration in seconds, the end status, and the moved counts at the cancel and at the end. Expected cost USD 0 (SQS within the free tier), about 10 minutes when `CANCELLING` ends quickly, up to 45 when it does not. Teardown:
+
+```sh
+for n in mv-dlq mv-src mv-dst; do aws sqs delete-queue --queue-url "$Q/$P-$n"; done
+```

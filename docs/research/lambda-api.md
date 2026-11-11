@@ -624,3 +624,70 @@ Decisions the architecture and implementation owners should record. Each is grou
 - Whether the Oct 2025 two-statement function URL permission requirement is enforced for URLs created before the change, and whether pre-change single-statement policies still work.
 - Version number reuse after deleting the latest version.
 - Whether the weighted alias routing needs `X-Amz-Executed-Version` to reflect the sampled version (assumed yes).
+
+## 13. Recording queue
+
+Agents never run these. A maintainer runs them in the recording-kit shell ([recording-kit.md](../recording-kit.md) sections 1 and 2), where `$P`, `$R`, `$A`, `$REC`, `rec` and `recreq` exist and the session keys are exported. Each entry lists what it settles, its commands, cost, time and teardown. The steps record under the backlog item they follow up, so `scripts/distill-parity` adds them beside that item's fixtures.
+
+### 13.1 R13 follow-up: refusals of an `AWS_IAM` function URL
+
+R13 recorded only `AuthType NONE` URLs (`testdata/parity/lambda/R13/`). This entry settles the last sentence of 7.6's "Auth" bullet ("`AWS_IAM` requires SigV4 on the request"): AWS's status, `x-amzn-ErrorType` and body for a request signed with a wrong secret, with an unknown access key, and with a malformed `Authorization` header, next to a correctly signed and an unsigned request. understudy refuses every malformed or unsigned request with the `NONE` URL's 403 `Forbidden` body, and an out-of-scope credential with `InvalidSignatureException` texts it marks UNVERIFIED for function URLs (`internal/service/lambda/urls_runtime.go`, `signed` and `scoped`); steps 06 and 07 check those two texts while the URL exists. Mark the 7.6 line, and the "Function URL error responses" item under Open questions, recorded with the fixtures.
+
+`recurl` always signs with the session's own keys, so `urlreq` calls curl itself and takes the signing in its arguments. The unknown key is AWS's documented example key; the kit's redaction rewrites it to `AKIAREDACTED`, which loses nothing, since it is no one's key.
+
+```sh
+mkdir -p "$REC/_work/R13-iam" && cd "$REC/_work/R13-iam"
+printf 'def handler(event, context):\n    return {"statusCode": 200, "body": "ok"}\n' >urliam.py
+zip -q urliam.zip urliam.py
+aws iam create-role --role-name "$P-urliam-role" --assume-role-policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"lambda.amazonaws.com"},"Action":"sts:AssumeRole"}]}' >/dev/null
+aws iam attach-role-policy --role-name "$P-urliam-role" \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+until aws lambda create-function --function-name "$P-urliam" --runtime python3.13 --handler urliam.handler \
+    --role "arn:aws:iam::$A:role/$P-urliam-role" --zip-file fileb://urliam.zip >/dev/null; do sleep 10; done   # IAM propagation
+aws lambda wait function-active-v2 --function-name "$P-urliam"
+FU=$(aws lambda create-function-url-config --function-name "$P-urliam" --auth-type AWS_IAM --query FunctionUrl --output text)
+OR=us-west-2; [ "$R" = us-west-2 ] && OR=us-east-1   # a Region other than the URL's, for step 07
+FAKE_SECRET=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+
+urlreq() {  # urlreq <step> <curl args...>: GET the AWS_IAM URL $FU; signing, if any, is in the args
+  local out="$REC/R13/$1"; shift
+  mkdir -p "$(dirname "$out")"
+  recreq "$out" "$@"
+  curl -sS -i -v --http1.1 "$@" "$FU" >"$out.http" 2>"$out.trace"
+}
+NOW=$(date -u +%Y%m%dT%H%M%SZ)
+urlreq iam-01-signed --aws-sigv4 "aws:amz:$R:lambda" \
+  --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" -H "x-amz-security-token: $AWS_SESSION_TOKEN"
+urlreq iam-02-unsigned
+urlreq iam-03-wrong-secret --aws-sigv4 "aws:amz:$R:lambda" \
+  --user "$AWS_ACCESS_KEY_ID:$FAKE_SECRET" -H "x-amz-security-token: $AWS_SESSION_TOKEN"
+urlreq iam-04-unknown-key --aws-sigv4 "aws:amz:$R:lambda" --user "AKIAIOSFODNN7EXAMPLE:$FAKE_SECRET"
+urlreq iam-05-malformed-authorization -H 'Authorization: AWS4-HMAC-SHA256 garbage' -H "X-Amz-Date: $NOW"
+urlreq iam-06-wrong-service --aws-sigv4 "aws:amz:$R:execute-api" \
+  --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" -H "x-amz-security-token: $AWS_SESSION_TOKEN"
+urlreq iam-07-wrong-region --aws-sigv4 "aws:amz:$OR:lambda" \
+  --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" -H "x-amz-security-token: $AWS_SESSION_TOKEN"
+cd - >/dev/null
+```
+
+What each step settles:
+
+- `iam-01-signed`: the control. A 200 with body `ok` shows the caller may invoke the URL, so a refusal in a later step is about the signature, not a missing permission. If it is refused, stop: the refusals below would not be distinguishable.
+- `iam-02-unsigned`: whether an unsigned request gets the `NONE` URL's 403 `AccessDeniedException` body or a different one.
+- `iam-03-wrong-secret`: the signature-mismatch answer (a SigV4 front end usually says `InvalidSignatureException` with "The request signature we calculated does not match ..."; whether a function URL does is the question).
+- `iam-04-unknown-key`: the unknown-key answer (`UnrecognizedClientException`, `InvalidClientTokenId`, or the plain 403).
+- `iam-05-malformed-authorization`: the answer to an `Authorization` header that does not parse (`IncompleteSignatureException`, or the plain 403).
+- `iam-06-wrong-service` and `iam-07-wrong-region`: whether AWS uses the scope texts `scoped` returns ("Credential should be scoped to correct service: 'lambda'. ", "Credential should be scoped to a valid region, not '<region>'. "), or the plain 403.
+
+In `notes.md`, per step, write the status, `x-amzn-ErrorType` and the body verbatim. Expected cost USD 0 (one Lambda invocation, within the free tier), about 10 minutes. Teardown:
+
+```sh
+aws lambda delete-function-url-config --function-name "$P-urliam"
+aws lambda delete-function --function-name "$P-urliam"
+aws logs delete-log-group --log-group-name "/aws/lambda/$P-urliam" 2>/dev/null   # only if step 01 ran the function
+aws iam detach-role-policy --role-name "$P-urliam-role" \
+  --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+aws iam delete-role --role-name "$P-urliam-role"
+rm -r "$REC/_work/R13-iam"
+```

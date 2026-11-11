@@ -1029,9 +1029,10 @@ rec APIGW1/06-delete-missing aws apigateway delete-stage --rest-api-id "$API" --
 rec APIGW1/06-bad-deployment aws apigateway create-stage --rest-api-id "$API" --stage-name s2 --deployment-id nosuch
 rec APIGW1/06-bad-name aws apigateway create-stage --rest-api-id "$API" --stage-name bad.name --deployment-id "$D1"
 rec APIGW1/06-long-name aws apigateway create-stage --rest-api-id "$API" --stage-name "$(printf 'a%.0s' $(seq 129))" --deployment-id "$D1"
+rec APIGW1/06-hyphen-name aws apigateway create-stage --rest-api-id "$API" --stage-name a-b --deployment-id "$D1"
 ```
 
-Expected: six errors with codes and messages. Cost USD 0.00, 2 minutes. Teardown: `aws apigateway delete-stage --rest-api-id "$API" --stage-name s2 2>/dev/null; aws apigateway delete-stage --rest-api-id "$API" --stage-name bad.name 2>/dev/null; true`.
+Expected: six errors with codes and messages. `06-hyphen-name` (added 2026-11-11) settles whether a hyphen is accepted. The docs allow one, but the `bad.name` text, `Stage name only allows a-zA-Z0-9_`, leaves it out (3.7). A created stage marks the 3.7 "a hyphenated name was not tried" clause and the CreateDeployment coverage note's "unrecorded, APIGW1-06" as recorded. A refusal with that text means the docs are wrong, and understudy's acceptance becomes a finding. Cost USD 0.00, 2 minutes. Teardown: `aws apigateway delete-stage --rest-api-id "$API" --stage-name s2 2>/dev/null; aws apigateway delete-stage --rest-api-id "$API" --stage-name bad.name 2>/dev/null; aws apigateway delete-stage --rest-api-id "$API" --stage-name a-b 2>/dev/null; true`.
 
 ### 13.8 APIGW1-07: unknown stage, stage root and unknown route
 
@@ -1053,7 +1054,7 @@ Expected: status, body and `x-amzn-ErrorType` of each; `07-unknown-route` should
 Settles switch `apigateway.invoke.routing`, its method precedence (4.4).
 
 ```sh
-mock "$ITEMS" ANY any
+mock "$ITEMS" ANY any-method
 OG=$(res onlyget); mock "$OG" GET get
 deploy
 inv 08-get-with-any "$U/s1/items"
@@ -1063,7 +1064,7 @@ inv 08-head-onlyget "$U/s1/onlyget" -I
 inv 08-options-onlyget "$U/s1/onlyget" -X OPTIONS
 ```
 
-Expected: which marker answers each (`get` or `any`), and the statuses for `HEAD` and `OPTIONS` on a GET-only resource. Cost USD 0.00, 2 minutes. Teardown: `aws apigateway delete-method --rest-api-id "$API" --resource-id "$ITEMS" --http-method ANY; aws apigateway delete-resource --rest-api-id "$API" --resource-id "$OG"`.
+Expected: which marker answers each (`get` or `any-method`), and the statuses for `HEAD` and `OPTIONS` on a GET-only resource. Amended 2026-11-11: the ANY marker is `any-method`, not `any`. The 2026-11-03 run's two markers gave bodies of the same 17 bytes, so its `HEAD` answer could not show which method served it. A `HEAD` answer has no body, but its `Content-Length` and `x-amzn-Remapped-Content-Length` give the length of the body GET would get: 17 (`{"marker": "get"}`) means the GET method served `HEAD`, and 24 (`{"marker": "any-method"}`) means ANY did. `08-get-with-any` and `08-post-with-any` are the controls for those two lengths. `08-head-with-any` settles 4.4's "which of them served it is UNVERIFIED" and the HEAD rule of switch `apigateway.invoke.routing`. Cost USD 0.00, 2 minutes. Teardown: `aws apigateway delete-method --rest-api-id "$API" --resource-id "$ITEMS" --http-method ANY; aws apigateway delete-resource --rest-api-id "$API" --resource-id "$OG"`.
 
 ### 13.10 APIGW1-09: 415 text and media-type matching
 
@@ -1141,11 +1142,15 @@ sel anchor "200 404" "200=" "404=40"
 sel tie-a "200 400 404" "200=" "400=4\\d{2}" "404=404"
 sel tie-b "200 400 404" "200=" "404=404" "400=4\\d{2}"
 sel tie-c "200 401 499" "200=" "499=4\\d{2}" "401=40\\d"
+sel tie-d "200 400 499" "200=" "499=4\\d{2}" "400=4.."
+sel tie-e "200 400 499" "200=" "400=4.." "499=4\\d{2}"
+sel tie-f "200 400 499" "200=" "499=4.{2}" "400=4\\d+"
+sel tie-g "200 400 499" "200=" "400=4\\d+" "499=4.{2}"
 deploy
-for p in anchor tie-a tie-b tie-c; do inv "12-$p" "$U/s1/$p"; done
+for p in anchor tie-a tie-b tie-c tie-d tie-e tie-f tie-g; do inv "12-$p" "$U/s1/$p"; done
 ```
 
-Expected: `anchor` answering 200 means full-match semantics; the `tie-*` results show whether order is by status code, creation or specificity. Cost USD 0.00, 4 minutes. Teardown: `for p in anchor tie-a tie-b tie-c; do aws apigateway delete-resource --rest-api-id "$API" --resource-id "$(aws apigateway get-resources --rest-api-id "$API" --query "items[?pathPart=='$p'].id" --output text)"; done`.
+Expected: `anchor` answering 200 means full-match semantics; the `tie-*` results show whether order is by status code, creation or specificity. Added 2026-11-11: `tie-d` and `tie-e` set `4\d{2}` against `4..` in both creation orders. Both patterns match only three-character statuses, so neither covers more codes than the other. `tie-f` and `tie-g` separate the two readings that 6.7 leaves open, "the longer pattern wins" and "the pattern that sorts last wins". `4.{2}` is the longer one, and `4\d+` sorts last (`\` after `.`). So `picked` 499 in both orders means longer wins, and 400 in both orders means last-sorted wins. An answer that follows creation order fits neither reading, and so does one that splits differently from the earlier ties: write it in `notes.md`. These four mark the "stays UNVERIFIED" clause of 6.7 and the selection order of switch `apigateway.mock.selection`. Cost USD 0.00, 6 minutes. Teardown: `for p in anchor tie-a tie-b tie-c tie-d tie-e tie-f tie-g; do aws apigateway delete-resource --rest-api-id "$API" --resource-id "$(aws apigateway get-resources --rest-api-id "$API" --query "items[?pathPart=='$p'].id" --output text)"; done`.
 
 ### 13.14 APIGW1-13: empty-string request templates on the wire
 
@@ -1186,12 +1191,33 @@ inv 15-with-permission "$U/s1/px"
 aws lambda remove-permission --function-name "$P-apigw1-echo" --statement-id apigw1
 sleep 60
 inv 15-without-permission "$U/s1/px"
+PG=$(res pg)
+aws apigateway put-method --rest-api-id "$API" --resource-id "$PG" --http-method GET --authorization-type NONE >/dev/null
+aws apigateway put-integration --rest-api-id "$API" --resource-id "$PG" --http-method GET --type AWS_PROXY \
+  --integration-http-method POST --uri "$LURI" >/dev/null
+deploy
+narrow() {  # narrow <step> <source ARN after the api id> <path>: allow only that ARN, call once, remove it
+  aws lambda add-permission --function-name "$P-apigw1-echo" --statement-id narrow --action lambda:InvokeFunction \
+    --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:$R:$A:$API/$2" >/dev/null
+  sleep 60
+  inv "15-$1" "$U/s1/$3"
+  aws lambda remove-permission --function-name "$P-apigw1-echo" --statement-id narrow
+  sleep 60
+}
+narrow get-method-get-arn s1/GET/pg pg
+narrow any-method-any-arn s1/ANY/px px
+narrow any-method-get-arn s1/GET/px px
 aws lambda add-permission --function-name "$P-apigw1-echo" --statement-id apigw1 --action lambda:InvokeFunction \
   --principal apigateway.amazonaws.com --source-arn "arn:aws:execute-api:$R:$A:$API/*" >/dev/null
 sleep 60
 ```
 
-Expected: status, body and `x-amzn-ErrorType` without permission. Cost USD 0.00, 4 minutes. Teardown: none (13.17 reuses `/px`; the shared teardown removes it).
+Expected: status, body and `x-amzn-ErrorType` without permission. Added 2026-11-11: the `narrow` steps settle the source ARN form of switch `apigateway.lambda.permission` (5.4, 3.10). The 2026-11-03 run granted only `<api-id>/*`, so the form is unrecorded. Each step allows exactly one ARN, `<api-id>/<stage>/<method>/<path>`, and makes one GET; a 200 echo means that ARN matched, and the recorded 500 `Internal server error` means it did not:
+
+- `15-get-method-get-arn`: GET on a GET method under `s1/GET/pg`, the documented form (5.4). It is the control for the other two steps.
+- `15-any-method-any-arn` and `15-any-method-get-arn`: GET on an ANY method under `s1/ANY/px` and under `s1/GET/px`. Whichever answers 200 shows whether the ARN carries `ANY` as written or the request's method. HTTP APIs carry `ANY` as written (`apigateway-http.md` 5.5).
+
+The three mark the switch row's "the source ARN form is unrecorded" clause, and its "`ANY` as written" inference, as recorded. Cost USD 0.00, 12 minutes. Teardown: none (13.17 reuses `/px`; the shared teardown removes it).
 
 ### 13.17 APIGW1-16: proxy event edges
 

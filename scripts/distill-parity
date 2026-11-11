@@ -92,6 +92,7 @@ PRIMARY = {
     "S3": "s3", "S3SOL": "s3", "IAM-ENF": "iam", "IAM-EVAL": "iam", "APIGW1": "apigateway", "APIGW2": "apigatewayv2",
     "SSM": "ssm", "CWA": "cloudwatch", "KIN": "kinesis", "SES": "ses", "SFN": "sfn", "ASL": "sfn",
     "DDBS": "dynamodb", "ESMS": "lambda", "LDL": "lambda", "EBB": "events", "SNSH": "sns", "PROTO": "dynamodb",
+    "ERR": "sqs",
 }
 CASE_SUFFIX = re.compile(r"(.+)-\d+[a-z]?")
 

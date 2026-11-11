@@ -15,7 +15,7 @@
           ["X-Amz-Target", "AWSStepFunctions.SendTaskSuccess"],
           ["Content-Length", "674"]
         ],
-        "body": "{\"taskToken\":\"AQBsAAAAKgAAAAMAAAAAAAAAArt7+v22gbcHeMnHJB6KPSDD5U3SA9QZwUkd1TLbyfggYW74uC9jV02VpIQNF7JwgLuAmPDihMCREQHY2KlTBHNp5lhoE/Dr+HuMhu0kDWFarLgbFZ/9Rqw2EHmrqs7vaF05AOwruicFQRX/Fi+1LJsfk5da0ueUvCzr6A5GTr/0FMbHlp8fjLz8BpE9a7ygYjcn3YSCVIZGOSOvJkGV6eryVCwt9S30Dj9Q8li55SIIvCPDx+7D1Lw+GQ3e1Lmt+k8IkODtTdNALFLsTcQVDQXA4gRPryin3lUbMDGwBpwvWxfLz8+5zp5khzVRPvmjI6gkbieD3p3HOTGmlS8lIUfIjupARq9GD7pJUsKOWu1/6Ojibj1X7TcOSZbIqOwRdSEqnIcJNX+qqn4+CrPUZiBHUBscn8ZFZcpq7WhdE9eTAMdfENgfRUWHrmx/78m0V/Tj4At0lH/1cvGu0EK4R7PI5gjZ77RfHviJDh9XPzAptPdlADLvsYUhAfAkJgkGSD57HTbl+O8nbcQmYv3pXuTBWsQbCzRrJH6AadLsnhxYxTzWUBS3IgNtzc6tw9ong5OywgUFBNSIKp9dTp7OX8GshvQNSmFTZLPHUVp3Ur8e\",\"output\":\"{}\"}"
+        "body": "{\"taskToken\":\"<task-token>\",\"output\":\"{}\"}"
       },
       "response": {
         "status": 200,
