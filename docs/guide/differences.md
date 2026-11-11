@@ -10,7 +10,7 @@ Most differences are in error texts, codes and response details, not in the happ
 - On a standard queue AWS still deletes a message with an older receipt handle of it, and answers 200 to a visibility change with one. understudy acts only on the latest handle: an older one deletes nothing and succeeds (`sqs/R01/03-delete-stale.json`, `sqs/R01/03-recv-after-6s.json`), and a visibility change with it is 400 `InvalidParameterValue` "... Message does not exist or is not available for visibility timeout change.", a failed entry in a batch (`sqs/R01/05-cmv-stale.json`, `sqs/R01/06-cmv-batch.json`).
 - On a FIFO queue AWS answers an older handle of a re-received message with "The receipt handle has expired."; understudy accepts it and changes nothing (`sqs/R01/07-fifo-delete-h1-after-rereceive.json`).
 - A handle from another queue in `DeleteMessageBatch` or `ChangeMessageVisibilityBatch` is, on AWS, `ReceiptHandleIsInvalid` "The receipt handle "<H>" is not valid for this queue."; understudy reports the `DeleteMessageBatch` entry successful, deleting nothing, and fails the `ChangeMessageVisibilityBatch` entry with the not-available text (`sqs/R01/06-delete-batch.json`, `sqs/R01/06-cmv-batch.json`).
-- JSON member order: AWS writes a received message's members, a batch answer's `Failed` and `Successful` and their entries' members in alphabetical order, and a message's `Attributes` as `SenderId`, `ApproximateFirstReceiveTimestamp`, `ApproximateReceiveCount`, `SentTimestamp`, then the FIFO ones. understudy writes the model's order and sorts `Attributes`. A client that decodes the JSON is unaffected; one that compares bytes is not (`sqs/R01/02-recv1.json`, `sqs/R01/07-fifo-recv1.json`, `sqs/R01/06-cmv-batch.json`).
+- `Attributes` order: AWS writes a message's `Attributes` as `SenderId`, `ApproximateFirstReceiveTimestamp`, `ApproximateReceiveCount`, `SentTimestamp`, then the FIFO ones; understudy sorts them by name. A client that decodes the JSON is unaffected; one that compares bytes is not (`sqs/R01/02-recv1.json`, `sqs/R01/07-fifo-recv1.json`).
 - A message moved to a FIFO dead-letter queue keeps its `SentTimestamp` on AWS; understudy sets it to the time of the move (`sqs/R02/fifo-04-dlq-poll-0s.json`).
 - A FIFO message redriven by a move task keeps the dead-letter copy's `MessageDeduplicationId` (the original `MessageId`) on AWS; understudy uses the new message id (`sqs/R02/fifo-06-recv-src.json`).
 - `CancelMessageMoveTask` on a completed task is 400 `InvalidParameterValue` "Only active tasks can be cancelled." on AWS; understudy answers 404 `ResourceNotFoundException` (`sqs/R02/std-07-cancel-completed.json`). understudy cancels at once, so a task never reads `CANCELLING` before `CANCELLED` (`sqs/R02/07-list-after-cancel.json`).
@@ -124,7 +124,7 @@ understudy forwards DynamoDB to DynamoDB Local, so its answers carry Local's beh
 
 ## Kinesis
 
-The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-kinesis.json`), so this page lists no Kinesis difference. What understudy answers that AWS's documentation does not fix, such as most error texts, is labelled per operation on the coverage page, and what it does not do is under [Kinesis limitations](streams.md#kinesis-limitations).
+The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-kinesis.json`), so this page lists no Kinesis difference. A success body lists each structure's members sorted by name, as every recorded awsJson service does; for Kinesis that order is inferred. What understudy answers that AWS's documentation does not fix, such as most error texts, is labelled per operation on the coverage page, and what it does not do is under [Kinesis limitations](streams.md#kinesis-limitations).
 
 ## Lambda
 
@@ -204,7 +204,6 @@ Custom buses take rules, targets, tags and `PutEvents` as the default bus does, 
 - `KmsKeyIdentifier`, `DeadLetterConfig` and `LogConfig` are stored and returned, never applied: events are not encrypted, dead-lettered or logged. Any key identifier the model's pattern allows is accepted and returned as sent. AWS refuses a key that does not exist or whose policy does not grant EventBridge, and returns a key id or alias name as its ARN.
 - AWS lets a call that takes a bus name or ARN name another account's or Region's bus by its ARN; another account's bus must allow the call in its policy. understudy answers 501 `NotImplemented` for rule, target and `DescribeEventBus` calls on such a bus; call with the bus owner's credentials in its Region instead.
 - An event bus target in the rule's own account without a `RoleArn` is accepted. AWS refuses the `PutTargets` call with `ValidationException` "RoleArn is required for target <bus ARN>."
-- AWS writes EventBridge response members sorted by name; understudy writes them in the model's order. JSON clients do not depend on the order.
 - Partner event buses (`CreateEventBus` with `EventSourceName`), archives, replays, connections, API destinations and global endpoints answer 501 `NotImplemented`.
 - Each bus behavior below is a fidelity switch (`understudy coverage --service eventbridge --switches`). These follow recordings of AWS:
   - `DeleteEventBus` on a bus with rules is refused with `ValidationException` "EventBus can't be deleted since it has rules."
@@ -244,7 +243,7 @@ REST APIs were recorded against AWS on 2026-11-03 (`testdata/parity/apigateway/A
 Step Functions was recorded against AWS on 2026-11-03 (`testdata/parity/sfn/`). understudy follows those recordings, AWS's documentation, and LocalStack's recordings of AWS, which the history tests replay event by event. Where all are silent, understudy chose, and the coverage notes name each choice with the recording case that would settle it. [Step Functions](stepfunctions.md) shows the commands.
 
 - Error and diagnostic texts are AWS's where recorded and understudy's elsewhere. A definition's problems are all reported, joined as AWS joins them; a role whose trust policy does not allow `states.amazonaws.com` is refused under `--iam-enforce enforce` in understudy's words, where AWS checks no trust at create. Compare codes, not messages.
-- JSON member order: AWS writes a success body's members in alphabetical order (`diagnostics`, `result`, `truncated`) and nests a `__type` in some members; understudy writes the model's order. A client that decodes the JSON is unaffected (`sfn/ASL-01/01-missing-next.json`).
+- AWS nests a `__type` in some members of a success body; understudy does not. A client that decodes the JSON is unaffected (`sfn/ASL-01/01-missing-next.json`).
 - `ToleratedFailurePercentage` on an inline Map, and the JSONPath `length()` function, are refused at create; AWS accepts both, failing `length()` only at run time (`sfn/ASL-01/14-inline-tolerated.json`, `sfn/ASL-19`).
 - A deleted machine is gone at once once idle; AWS keeps describing it as `DELETING` for a while (at least 45 seconds after its last execution ended), a time no recording has measured.
 - The fidelity switches (`understudy coverage --service sfn --switches`) default to AWS's recorded behavior: a Choice with no matching rule or a missing variable, and a failing intrinsic function, fail the execution `States.Runtime`; a Lambda service error is `Lambda.<code>`; an access denial is 400; deleting a machine fails its running executions at their next step.
@@ -329,7 +328,6 @@ Real AWS was recorded for SSM on 2026-11-03 (`testdata/parity/ssm/`), and unders
 - AWS lists `InvalidLabels` and `TagList` in an order of its own; understudy lists refused labels in request order and tags in the order they were first set.
 - A KMS failure carries KMS's message without the `(Service: AWSKMS; ...; Request ID: ...; Proxy: null)` suffix AWS appends (`ssm/SSM-22/04-missing-key.json`).
 - A `{{...}}` value's refusal leaves out the value AWS's message quotes, since understudy never puts a parameter value in a message.
-- AWS sorts the members of every JSON response body by name; understudy writes them in model order. JSON parsers read both the same.
 - Under `--iam-enforce enforce`, a SecureString on the default key `alias/aws/ssm` is encrypted and decrypted by SSM itself, so an identity policy that explicitly denies `kms:Encrypt` or `kms:Decrypt` on that key does not stop the call.
 
 ## Signatures

@@ -174,7 +174,7 @@ func contentDedupFormat() fidelity.Switch[string] {
 		Name: "sqs.fifo.content-dedup-id", Value: "lowercase-hex-sha256", Label: evidence.Inferred, Ref: refDedup,
 		Ops: []string{"sqs.SendMessage", "sqs.SendMessageBatch", "sqs.ReceiveMessage"},
 		Settles: fidelity.NoScenario{
-			Reason: "sqs/R01#07-fifo-recv1 holds the value, but the step differs on JSON member order, so a claim there would read contradicted for another reason",
+			Reason: "sqs/R01#07-fifo-recv1 holds the value, but the step differs on the order of the message's Attributes, which AWS writes in an order of its own, so a claim there would read contradicted for another reason",
 		},
 	}
 }

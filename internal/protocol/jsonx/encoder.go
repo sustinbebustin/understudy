@@ -117,6 +117,18 @@ func (e *Encoder) BeginObject() {
 	e.open = append(e.open, container{object: true, sorted: e.order == SortedKeys && e.verbatim == 0, start: len(e.buf)})
 }
 
+// BeginSortedObject opens an object whose members EndObject sorts by name,
+// compared bytewise as SortedKeys compares, under either Order: a wire
+// format that sorts some objects and keeps others in call order, as awsJson
+// sorts a structure's members but not a map's entries.
+func (e *Encoder) BeginSortedObject() {
+	if !e.value("BeginSortedObject") {
+		return
+	}
+	e.buf = append(e.buf, '{')
+	e.open = append(e.open, container{object: true, sorted: true, start: len(e.buf)})
+}
+
 // Name writes the name of the next member of the open object.
 func (e *Encoder) Name(name string) {
 	if e.err != nil {

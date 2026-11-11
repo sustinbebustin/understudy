@@ -49,6 +49,27 @@ func TestEncoderOrders(t *testing.T) {
 	}
 }
 
+// A sorted object sorts its own members under WireOrder; the objects it
+// holds keep call order unless they are sorted objects too.
+func TestEncoderSortedObjectUnderWireOrder(t *testing.T) {
+	got := encode(t, jsonx.WireOrder, func(e *jsonx.Encoder) {
+		e.BeginSortedObject()
+		e.Name("z")
+		e.BeginObject()
+		e.Name("y")
+		e.Int(1)
+		e.Name("b")
+		e.Int(2)
+		e.EndObject()
+		e.Name("a")
+		e.Bool(true)
+		e.EndObject()
+	})
+	if want := `{"a":true,"z":{"y":1,"b":2}}`; got != want {
+		t.Errorf("BeginSortedObject = %s, want %s", got, want)
+	}
+}
+
 func TestEncoderEscapesStrings(t *testing.T) {
 	in := "q\"b\\s/\b\f\n\r\t\x00\x1f\x7f <>&  é \U0001F600 \xff \xed\xa0\x80"
 	got := encode(t, jsonx.WireOrder, func(e *jsonx.Encoder) { e.String(in) })

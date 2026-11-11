@@ -96,14 +96,11 @@ func TestSwitches(t *testing.T) {
 	step := func(item, step string) fidelity.Settles {
 		return fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "ssm/" + item, Step: step}}
 	}
-	recorded := func(steps string) fidelity.Settles {
-		return fidelity.NoScenario{Reason: "recorded as understudy behaves (" + steps + "); the step's replay differs only in JSON member order, which AWS sorts by name"}
-	}
 	want := map[string]sw{
-		"ssm.name.root-slash-echo":              {"request-spelling", "32-root-parameters-and-the-leading-slash", "SSM-07", evidence.AWSRecorded, recorded("SSM-07 steps 01-07"), []string{"ssm.GetParameter", "ssm.GetParameters", "ssm.DescribeParameters", "ssm.GetParameterHistory"}},
+		"ssm.name.root-slash-echo":              {"request-spelling", "32-root-parameters-and-the-leading-slash", "SSM-07", evidence.AWSRecorded, step("SSM-07", "02-get-slash"), []string{"ssm.GetParameter", "ssm.GetParameters", "ssm.DescribeParameters", "ssm.GetParameterHistory"}},
 		"ssm.error.parameter-not-found-message": {"empty-except-label", "22-errors", "SSM-02", evidence.AWSRecorded, step("SSM-02", "03-label"), []string{"ssm.DeleteParameter", "ssm.GetParameterHistory", "ssm.LabelParameterVersion", "ssm.UnlabelParameterVersion"}},
-		"ssm.put.omitted-fields":                {"preserved", "71-putparameter", "SSM-10", evidence.AWSRecorded, recorded("SSM-10 steps 02-03"), []string{"ssm.PutParameter"}},
-		"ssm.kms.key-id-echo":                   {"verbatim", "54-keyid-in-metadata", "SSM-22", evidence.AWSRecorded, recorded("SSM-22 steps 01-02"), []string{"ssm.PutParameter", "ssm.DescribeParameters", "ssm.GetParameterHistory"}},
+		"ssm.put.omitted-fields":                {"preserved", "71-putparameter", "SSM-10", evidence.AWSRecorded, step("SSM-10", "02-describe"), []string{"ssm.PutParameter"}},
+		"ssm.kms.key-id-echo":                   {"verbatim", "54-keyid-in-metadata", "SSM-22", evidence.AWSRecorded, step("SSM-22", "01-describe"), []string{"ssm.PutParameter", "ssm.DescribeParameters", "ssm.GetParameterHistory"}},
 		"ssm.list.order":                        {"name-ascending", "74-getparametersbypath", "SSM-19, SSM-20", evidence.Inferred, step("SSM-20", "01-default-page"), []string{"ssm.GetParametersByPath", "ssm.DescribeParameters"}},
 	}
 	run(t, func(h *harness) {

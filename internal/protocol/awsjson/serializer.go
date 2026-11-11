@@ -20,26 +20,50 @@ type writeFrame struct {
 	members int
 }
 
-// serializer implements smithy.Serializer for awsJson bodies: members in
-// model order under their model names, integers as plain digits,
-// timestamps as epoch seconds with at most millisecond precision (or the
-// string a timestampFormat trait asks for), blobs as padded base64,
-// non-finite floats as the strings NaN, Infinity and -Infinity.
+// structOrder is the order a serializer writes a structure's members in.
+type structOrder uint8
+
+// structOrder values.
+const (
+	// nameOrder sorts a structure's members by name, bytewise, as every
+	// recorded awsJson success body does (eventbridge-buses.md 3.2; SSM-04,
+	// CWA-19 and sqs/R01/02-recv1.json under testdata/parity). Kinesis has
+	// no recording, so for it the order is inferred.
+	nameOrder structOrder = iota + 1
+	// modelOrder keeps the model's order: error bodies, whose members follow
+	// the hand-written __type and message envelope, and request bodies,
+	// which SDK clients write in model order.
+	modelOrder
+)
+
+// serializer implements smithy.Serializer for awsJson bodies: structure
+// members under their model names in its structOrder, map entries and
+// document members in the order they are written, integers as plain
+// digits, timestamps as epoch seconds with at most millisecond precision
+// (or the string a timestampFormat trait asks for), blobs as padded
+// base64, non-finite floats as the strings NaN, Infinity and -Infinity.
 type serializer struct {
-	enc  *jsonx.Encoder
-	open []writeFrame
-	err  error
+	enc   *jsonx.Encoder
+	order structOrder
+	open  []writeFrame
+	err   error
 }
 
-func newSerializer() *serializer {
-	return &serializer{enc: jsonx.NewEncoder(jsonx.WireOrder)}
+func newSerializer(order structOrder) *serializer {
+	return &serializer{enc: jsonx.NewEncoder(jsonx.WireOrder), order: order}
 }
 
 func (s *serializer) WriteStruct(m *smithy.Member, _ *smithy.Schema) {
-	if s.member(m) {
-		s.enc.BeginObject()
-		s.open = append(s.open, writeFrame{kind: structFrame})
+	if !s.member(m) {
+		return
 	}
+	switch s.order {
+	case nameOrder:
+		s.enc.BeginSortedObject()
+	case modelOrder:
+		s.enc.BeginObject()
+	}
+	s.open = append(s.open, writeFrame{kind: structFrame})
 }
 
 func (s *serializer) CloseStruct() { s.close(structFrame, "CloseStruct") }

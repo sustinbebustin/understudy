@@ -517,18 +517,12 @@ func busSwitches() []fidelity.Switch[string] {
 	undelivered := func(steps string) fidelity.Settles {
 		return fidelity.NoScenario{Reason: "recorded in events/EBB (" + steps + ", 2026-11-03); the replayer does not observe deliveries"}
 	}
-	// AWS writes EventBridge response members sorted by name, and
-	// understudy in model order, so a replay of these steps differs
-	// (eventbridge-buses.md 3.4).
-	reordered := func(step string) fidelity.Settles {
-		return fidelity.NoScenario{Reason: "recorded in events/EBB (" + step + ", 2026-11-03); its replay differs in member order only, which AWS sorts by name"}
-	}
 	return []fidelity.Switch[string]{
 		// DeleteEventBus refuses a bus that still has rules (deleteEventBus).
 		sw("events.delete-bus.with-rules", "rejected", evidence.AWSRecorded, "35-deleteeventbus", "EBB-01", ebb("01-delete-with-rule"),
 			"eventbridge.DeleteEventBus"),
 		// UpdateEventBus keeps a member it omits (updateEventBus).
-		sw("events.update-bus.omitted-members", "kept", evidence.AWSRecorded, "34-updateeventbus", "EBB-04", reordered("04-update-name-only"),
+		sw("events.update-bus.omitted-members", "kept", evidence.AWSRecorded, "34-updateeventbus", "EBB-04", ebb("04-update-name-only"),
 			"eventbridge.UpdateEventBus"),
 		// A KmsKeyIdentifier is stored without checking that the key
 		// exists or grants EventBridge (createEventBus, updateEventBus).
@@ -571,7 +565,7 @@ func busSwitches() []fidelity.Switch[string] {
 		// PutTargets accepts an event bus that does not exist, and a
 		// delivery to it is dropped as PutEvents drops one (targetOf). The
 		// acceptance is recorded; the drop is not.
-		sw("events.bus-target.missing-bus", "dropped", evidence.AWSRecorded, "62-an-event-bus-as-a-target", "EBB-08", reordered("08-missing-target-bus"),
+		sw("events.bus-target.missing-bus", "dropped", evidence.AWSRecorded, "62-an-event-bus-as-a-target", "EBB-08", ebb("08-missing-target-bus"),
 			"eventbridge.PutTargets"),
 	}
 }

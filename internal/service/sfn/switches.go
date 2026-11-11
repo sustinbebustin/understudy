@@ -25,11 +25,11 @@ func boundOps() []string {
 
 // sfnUnreplayed is why no scenario settles a switch whose recording exists:
 // the step that shows it is a DescribeExecution or GetExecutionHistory
-// answer, whose body AWS writes with nested __type members and members in
-// alphabetical order, which understudy's serializer does not reproduce, so
-// the step cannot match. recorded names the fixtures, with "is" or "are".
+// answer, whose body AWS writes with nested __type members, which
+// understudy's serializer does not reproduce, so the step cannot match.
+// recorded names the fixtures, with "is" or "are".
 func sfnUnreplayed(recorded string) string {
-	return recorded + " recorded 2026-11-03; not replayed: AWS's execution bodies carry nested __type members and alphabetical member order"
+	return recorded + " recorded 2026-11-03; not replayed: AWS's execution bodies carry nested __type members"
 }
 
 // ChoiceNoMatch is the error of a Choice state no rule matches and that has

@@ -56,5 +56,12 @@
       "fixture": "ssm/SSM-07/10-tags-arn.json",
       "compare": "all"
     }
+  ],
+  "settles": [
+    {
+      "switch": "ssm.name.root-slash-echo",
+      "step": "02-get-slash",
+      "field": "body/Parameter/Name"
+    }
   ]
 }

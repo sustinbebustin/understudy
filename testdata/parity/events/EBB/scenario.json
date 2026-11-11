@@ -204,9 +204,19 @@
       "field": "body/message"
     },
     {
+      "switch": "events.update-bus.omitted-members",
+      "step": "04-update-name-only",
+      "field": "body"
+    },
+    {
       "switch": "events.bus-policy.remove-all-without-policy",
       "step": "06-remove-all-empty",
       "field": "status"
+    },
+    {
+      "switch": "events.bus-target.missing-bus",
+      "step": "08-missing-target-bus",
+      "field": "body/FailedEntryCount"
     }
   ]
 }

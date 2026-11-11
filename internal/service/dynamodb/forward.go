@@ -50,16 +50,10 @@ func identityEncoded(h http.Header) bool {
 	return enc == "" || strings.EqualFold(enc, "identity")
 }
 
-// encodeInput writes in as an awsJson 1.0 body. awsJson encodes inputs and
-// outputs alike, members in model order, so the codec's encoder serves an
-// input too; every DynamoDB operation has a structure output, so the codec
-// writes the body.
+// encodeInput writes in as an awsJson 1.0 request body, members in model
+// order as a client sends them.
 func encodeInput(op *registry.Operation, in smithy.Serializable) ([]byte, *awserr.Error) {
-	resp, err := awsjson.Codec{Version: awsjson.V10}.Encode(op, "", in, http.StatusOK)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Body, nil
+	return awsjson.Codec{Version: awsjson.V10}.EncodeInput(op, in)
 }
 
 // exchange is one request to Local: the account and region it partitions

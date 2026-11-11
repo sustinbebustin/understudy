@@ -120,10 +120,9 @@ const (
 )
 
 // Switches lists the behaviors chosen before AWS's were recorded
-// (ssm-parameters.md 12.2). Four are recorded as understudy behaves; a
-// success body's replay still differs from AWS's in JSON member order,
-// which AWS sorts by name, so those switches name their recording rather
-// than a parity step. ssm.list.order is the one AWS contradicts: its pages
+// (ssm-parameters.md 12.2). Four are recorded as understudy behaves, each
+// settled by a parity step of its recording. ssm.list.order is the one AWS
+// contradicts: its pages
 // are ordered by name within but not across pages (SSM-19, SSM-20), an
 // order understudy cannot reproduce, so understudy keeps the stable name
 // order Terraform's data sources need (10.2).
@@ -131,9 +130,6 @@ func (*Service) Switches() []fidelity.Entry {
 	const ref = "docs/research/ssm-parameters.md#"
 	settledBy := func(item, step string) fidelity.SettledBy {
 		return fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "ssm/" + item, Step: step}}
-	}
-	recorded := func(step string) fidelity.NoScenario {
-		return fidelity.NoScenario{Reason: "recorded as understudy behaves (" + step + "); the step's replay differs only in JSON member order, which AWS sorts by name"}
 	}
 	return []fidelity.Entry{
 		fidelity.Switch[string]{
@@ -143,7 +139,7 @@ func (*Service) Switches() []fidelity.Entry {
 			Ref:     ref + "32-root-parameters-and-the-leading-slash",
 			Record:  "SSM-07",
 			Ops:     []string{"ssm.GetParameter", "ssm.GetParameters", "ssm.DescribeParameters", "ssm.GetParameterHistory"},
-			Settles: recorded("SSM-07 steps 01-07"),
+			Settles: settledBy("SSM-07", "02-get-slash"),
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name:    "ssm.error.parameter-not-found-message",
@@ -161,7 +157,7 @@ func (*Service) Switches() []fidelity.Entry {
 			Ref:     ref + "71-putparameter",
 			Record:  "SSM-10",
 			Ops:     []string{"ssm.PutParameter"},
-			Settles: recorded("SSM-10 steps 02-03"),
+			Settles: settledBy("SSM-10", "02-describe"),
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name:    "ssm.kms.key-id-echo",
@@ -170,7 +166,7 @@ func (*Service) Switches() []fidelity.Entry {
 			Ref:     ref + "54-keyid-in-metadata",
 			Record:  "SSM-22",
 			Ops:     []string{"ssm.PutParameter", "ssm.DescribeParameters", "ssm.GetParameterHistory"},
-			Settles: recorded("SSM-22 steps 01-02"),
+			Settles: settledBy("SSM-22", "01-describe"),
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name:    "ssm.list.order",

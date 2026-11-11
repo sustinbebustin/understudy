@@ -36,7 +36,11 @@
 // dynalite does not cover (unions, numeric range, timestamp parsing, a
 // body that is not an object) are its own.
 //
-// Output is exact: members in model order, integers as plain digits,
+// Output is exact: a success body's structure members sorted by name,
+// bytewise, as every recorded awsJson service writes them
+// (eventbridge-buses.md 3.2; inferred for Kinesis, which has no
+// recording), with map entries and document members in the order they are
+// written and an error body's members in model order, integers as plain digits,
 // timestamps as epoch seconds with at most millisecond precision and no
 // exponent (date-time and http-date strings where a timestampFormat trait
 // asks), blobs as padded standard base64, NaN and the infinities as the

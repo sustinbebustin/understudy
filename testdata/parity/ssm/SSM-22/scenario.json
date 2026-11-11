@@ -105,5 +105,12 @@
       "field": "body/Parameters/0/Value",
       "reason": "a SecureString read without decryption is KMS ciphertext, opaque and different on every encryption"
     }
+  ],
+  "settles": [
+    {
+      "switch": "ssm.kms.key-id-echo",
+      "step": "01-describe",
+      "field": "body/Parameters"
+    }
   ]
 }

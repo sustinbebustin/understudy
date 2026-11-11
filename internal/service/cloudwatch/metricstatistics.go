@@ -148,7 +148,7 @@ func statisticsSwitches() []fidelity.Entry {
 		fidelity.Switch[string]{
 			Name: "cloudwatch.get-metric-statistics.datapoint-limit", Value: "floor-unrounded",
 			Label: evidence.AWSRecorded, Ref: alarmResearch + "#93-errors-and-limits", Record: "CWA-20", Ops: ops,
-			Settles: fidelity.NoScenario{Reason: "CWA-20 recorded; cloudwatch/CWA-19 replays its steps, which match on status and message but differ on the JSON body's __type and member order, so none can settle it yet"},
+			Settles: fidelity.NoScenario{Reason: "CWA-20 recorded; cloudwatch/CWA-19 replays its steps, which match on status and message but differ on the JSON body's __type, so none can settle it yet"},
 		}.Entry(),
 		fidelity.Switch[string]{
 			Name: "cloudwatch.get-metric-statistics.order", Value: "timestamp-ascending,then-unit",
