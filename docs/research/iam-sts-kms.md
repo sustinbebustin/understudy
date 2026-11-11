@@ -183,7 +183,7 @@ All from the [IAM model](https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea
 - `Policy`: `PolicyName`, `PolicyId`, `Arn`, `Path`, `DefaultVersionId` (`^v[1-9][0-9]*(\.[A-Za-z0-9-]*)?$`), `AttachmentCount`, `PermissionsBoundaryUsageCount`, `IsAttachable`, `Description`, `CreateDate`, `UpdateDate`, `Tags`. `PolicyVersion`: `Document` (URL-encoded), `VersionId`, `IsDefaultVersion`, `CreateDate`.
 - `CreatePolicy` "creates a policy version with a version identifier of v1 and sets v1 as the policy's default version" ([model docs](https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/iam/service/2010-05-08/iam-2010-05-08.json)). A policy holds at most 5 versions; creating a sixth fails with `LimitExceeded`. Version IDs increase monotonically (`v1`, `v2`, ...) and deleted IDs are not reused (UNVERIFIED; moto keeps a `next_version_num` counter, [iam/models.py](https://github.com/getmoto/moto/blob/608bfa92a71ddd19b0efa0a9e5eaaffaa54c38af/moto/iam/models.py)). The `Document` "is not returned in the response to the CreatePolicyVersion or ListPolicyVersions operations" ([PolicyVersion.Document docs in model](https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/iam/service/2010-05-08/iam-2010-05-08.json)), only `GetPolicyVersion` and `GetAccountAuthorizationDetails`.
 - `InstanceProfile` (all required except `Tags`): `Path`, `InstanceProfileName` (1..128), `InstanceProfileId`, `Arn`, `CreateDate`, `Roles` (list of `Role`). One role maximum: "An instance profile can contain only one role, and this quota cannot be increased" ([AddRoleToInstanceProfile docs in model](https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/iam/service/2010-05-08/iam-2010-05-08.json)).
-- `User`: `Path`, `UserName`, `UserId`, `Arn`, `CreateDate` required; `PasswordLastUsed`, `PermissionsBoundary`, `Tags` optional. `AccessKey`: `UserName`, `AccessKeyId`, `Status` (`Active`/`Inactive`), `SecretAccessKey` (only in `CreateAccessKey`), `CreateDate`.
+- `User`: `Path`, `UserName`, `UserId`, `Arn`, `CreateDate` required; `PasswordLastUsed`, `PermissionsBoundary`, `Tags` optional. `GetUser` without `UserName`, called by the root user, answers the root identity. understudy shows it without `Path` and `UserName` (`internal/service/iam/view.go`), although the model requires both. Whether AWS's answer leaves them out is UNVERIFIED: the 2026-11-03 session was a free-plan project role, not root (IAM-ROOT-01, 6.1). `AccessKey`: `UserName`, `AccessKeyId`, `Status` (`Active`/`Inactive`), `SecretAccessKey` (only in `CreateAccessKey`), `CreateDate`.
 - `Tag`: key 1..128, value 0..256, both `[\p{L}\p{Z}\p{N}_.:/=+\-@]`; at most 50 per resource; keys are case-insensitive for uniqueness (moto message "Duplicate tag keys found. Please note that Tag keys are case insensitive.", [iam/exceptions.py](https://github.com/getmoto/moto/blob/608bfa92a71ddd19b0efa0a9e5eaaffaa54c38af/moto/iam/exceptions.py), UNVERIFIED as real text). "If any one of the tags is invalid or if you exceed the allowed maximum number of tags, then the entire request fails and the resource is not created" ([CreateRole](https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateRole.html)).
 - Pagination: list operations take `MaxItems` (1..1000, default 100) and `Marker` (1..320) and return `IsTruncated` and `Marker`; "IAM might return fewer results, even when there are more results available. In that case, the IsTruncated response element returns true" ([ListRoles docs in model](https://github.com/aws/api-models-aws/blob/1cfdfb4bb9ea858e65623e66d73af04bec353201/models/iam/service/2010-05-08/iam-2010-05-08.json)). `ListPolicies` filters: `Scope` (`All`/`AWS`/`Local`), `OnlyAttached`, `PathPrefix`. `ListAttachedRolePolicies` returns `AttachedPolicies[{PolicyName, PolicyArn}]`; `ListRolePolicies` returns `PolicyNames` (required member).
 
@@ -466,6 +466,29 @@ Both services must tolerate a disabled or pending-deletion key by surfacing the 
 ### 5.9 Eventual consistency in KMS
 
 KMS "follows an eventual consistency model" (every operation's doc). Terraform sleeps/polls for key description, policy, rotation and enabled-state changes with `ContinuousTargetOccurence: 5` loops of 1-2 s ([key.go wait helpers](https://github.com/hashicorp/terraform-provider-aws/blob/main/internal/service/kms/key.go)), up to 10 minutes. An emulator that is immediately consistent just shortens these waits. Do not simulate delay unless a fault rule asks for it.
+
+## 6. Recording queue
+
+For a maintainer with credentials, in the recording-kit shell (`docs/recording-kit.md` sections 1 and 2: `$R`, `$A`, `$REC`, `rec`, `recurl`, the redaction step). Agents never run these. Captures land under `testdata/parity/iam/<item>/` (kit section 6).
+
+### 6.1 IAM-ROOT-01: GetUser as the root user
+
+Settles 3.2: whether `GetUser` with no `UserName`, called by the account's root user, leaves out `Path` and `UserName`, which the model marks required, and what `UserId`, `Arn` and `CreateDate` hold. It also settles the `GetUser` coverage note, which says understudy answers with the Unix epoch as `CreateDate`.
+
+Needs the account's root credentials. A free-plan project session (`AccountFullAccessRole`) is not root, and the 2026-11-03 session was one, which is why this is still open. Sign in as the root user through `aws login --profile <root profile> --remote` in a non-project account, `export AWS_PROFILE=<root profile>`, and run the kit's `eval` line again so `recurl` signs as root. Never create root access keys for this. Without a root session, mark the item `n/a (no root session)`.
+
+```sh
+rec IAM-ROOT-01/00-caller aws sts get-caller-identity
+case $(aws sts get-caller-identity --query Arn --output text) in
+  *:root)
+    rec IAM-ROOT-01/01-get-user aws iam get-user
+    R=us-east-1 SVC=iam recurl IAM-ROOT-01/02-get-user-raw -H 'Content-Type: application/x-www-form-urlencoded' \
+      -d 'Action=GetUser&Version=2010-05-08' https://iam.amazonaws.com/ ;;
+  *) echo "not the root user: nothing sent; mark IAM-ROOT-01 n/a (no root session)" ;;
+esac
+```
+
+`00-caller` records the identity, and the `case` sends the other two steps only when its ARN ends in `:root`. `01-get-user` and `02-get-user-raw` (the XML as sent: IAM signs in `us-east-1`, 3.6) settle the shape. In `notes.md`, write for each of `Path`, `UserName`, `UserId`, `Arn`, `CreateDate` and `PasswordLastUsed` whether it is present and its value. An absent `Path` and `UserName` marks the 3.2 sentence recorded and keeps understudy's answer. A present one is a finding against `internal/service/iam/view.go`. Cost USD 0 (IAM and STS calls are free), 5 minutes. Teardown: none. Close the kit shell afterwards, so the root session's exported keys go with it.
 
 ---
 

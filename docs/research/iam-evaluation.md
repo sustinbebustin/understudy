@@ -1765,7 +1765,38 @@ sp userid-present  '{"Service":"sns.amazonaws.com"}' '{'"$SRC"',"Null":{"aws:use
 sp star-principal  '{"AWS":"*"}'                     '{'"$SRC"'}'
 ```
 
-A message arriving means the condition held; its body names the step. `sp` deletes each received message before the next step, so a late delivery from an earlier step shows up under its own body. Cost USD 0, 8 minutes. Teardown: `aws sns delete-topic --topic-arn "$TS"`; `aws sqs delete-queue --queue-url "$Q/$P-eval-sp"`.
+A message arriving means the condition held; its body names the step. `sp` deletes each received message before the next step, so a late delivery from an earlier step shows up under its own body.
+
+The value probes (amended 2026-11-11). The 2026-11-03 run showed only that the three keys are present on an SNS delivery. These steps test candidate values with `StringEquals` and `StringLike`, which compare case-sensitively. `spv` waits 60 s after each policy change, the time SQS takes to apply one ([sqs.md](sqs.md) 4), where `sp` waits 10 s. It reads up to 10 messages and deletes all of them, so a late redelivery from an earlier step cannot hide this step's message:
+
+```sh
+spv() {  # spv <step> <condition>: one value probe on an SNS delivery
+  local h
+  aws sqs set-queue-attributes --queue-url "$Q/$P-eval-sp" --attributes "$(qattr '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"sns.amazonaws.com"},"Action":"sqs:SendMessage","Resource":"'"$QS"'","Condition":'"$2"'}]}')" \
+    && sleep 60 && aws sns publish --topic-arn "$TS" --message "$1" \
+    && rec "IAM-EVAL-33/$1" aws sqs receive-message --queue-url "$Q/$P-eval-sp" --max-number-of-messages 10 --wait-time-seconds 20
+  for h in $(perl -ne 'print "$1\n" while /"ReceiptHandle": "([^"]+)"/g' "$REC/IAM-EVAL-33/$1.out"); do
+    aws sqs delete-message --queue-url "$Q/$P-eval-sp" --receipt-handle "$h"
+  done
+}
+spv type-service         '{'"$SRC"',"StringEquals":{"aws:PrincipalType":"Service"}}'
+spv type-awsservice      '{'"$SRC"',"StringEquals":{"aws:PrincipalType":"AWSService"}}'
+spv type-documented      '{'"$SRC"',"StringEquals":{"aws:PrincipalType":["Account","User","FederatedUser","AssumedRole","Anonymous"]}}'
+spv account-owner        '{'"$SRC"',"StringEquals":{"aws:PrincipalAccount":"'"$A"'"}}'
+spv account-not-owner    '{'"$SRC"',"StringNotEquals":{"aws:PrincipalAccount":"'"$A"'"}}'
+spv userid-service       '{'"$SRC"',"StringEquals":{"aws:userid":"sns.amazonaws.com"}}'
+spv userid-account       '{'"$SRC"',"StringEquals":{"aws:userid":"'"$A"'"}}'
+spv userid-contains-sns  '{'"$SRC"',"StringLike":{"aws:userid":"*sns*"}}'
+spv userid-role-session  '{'"$SRC"',"StringLike":{"aws:userid":"AROA*:*"}}'
+```
+
+What each step settles, marking 2.9's "Their values are UNVERIFIED" and the `iam.context.service-principal-identity-keys` row of 12.3 where it fixes a value:
+
+- `type-*`: the delivery arriving under `type-service` or `type-awsservice` fixes `aws:PrincipalType` to that value. Under `type-documented`, it means one of 7.2's documented values, and the list is then split to find which. If none arrives, the value is something else: write that in `notes.md`.
+- `account-owner` against `account-not-owner`: exactly one arrives. Owner means `aws:PrincipalAccount` is the topic owner's account. Not owner means an AWS-owned account, whose id the probes do not reveal.
+- `userid-*`: the first two fix `aws:userid` to the service name or the account id. `userid-contains-sns` and `userid-role-session` (the `<role id>:<session>` form of an assumed role, 7.2) narrow down a value that is neither.
+
+Cost USD 0, 25 minutes (8 for the presence steps, 17 for the value probes). Teardown: `aws sns delete-topic --topic-arn "$TS"`; `aws sqs delete-queue --queue-url "$Q/$P-eval-sp"`.
 
 ### 13.35 IAM-EVAL-34: aws:ViaAWSService and aws:CalledVia on S3 calls to KMS
 
@@ -1779,14 +1810,23 @@ sleep 15   # a key policy naming a role IAM has not propagated is "one or more i
 mkdir -p "$REC/_work"; : >"$REC/_work/empty"   # the CLI's --body takes a path to a regular file, not /dev/null
 aws iam put-role-policy --role-name $P-eval-via --policy-name p --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:PutObject","Resource":"arn:aws:s3:::'"$B"'/*"},{"Effect":"Allow","Action":["kms:GenerateDataKey","kms:Decrypt"],"Resource":"'"$KA"'"}]}'
 via() { aws kms put-key-policy --key-id $K --policy-name default --policy '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::'"$A"':root"},"Action":"kms:*","Resource":"*"},{"Effect":"Deny","Principal":{"AWS":"arn:aws:iam::'"$A"':role/'"$P"'-eval-via"},"Action":"kms:GenerateDataKey","Resource":"*","Condition":'"$2"'}]}' \
-  && sleep 15 && asrole $P-eval-via vv "IAM-EVAL-34/$1" aws s3api put-object --bucket $B --key k --body "$REC/_work/empty" --server-side-encryption aws:kms --ssekms-key-id $KA; }
+  && sleep 120 && asrole $P-eval-via vv "IAM-EVAL-34/$1" aws s3api put-object --bucket $B --key k --body "$REC/_work/empty" --server-side-encryption aws:kms --ssekms-key-id $KA; }
 via via-true         '{"Bool":{"aws:ViaAWSService":"true"}}'
 via via-false        '{"Bool":{"aws:ViaAWSService":"false"}}'
 via calledvia-s3     '{"ForAnyValue:StringEquals":{"aws:CalledVia":["s3.amazonaws.com"]}}'
 via calledvia-absent '{"Null":{"aws:CalledVia":"true"}}'
+via calledvia-any    '{"ForAnyValue:StringLike":{"aws:CalledVia":["*"]}}'
+via via-true-control '{"Bool":{"aws:ViaAWSService":"true"}}'
 ```
 
-Each Deny fires only when its condition holds, so a failed `put-object` means: `via-true`, S3's KMS call carried `aws:ViaAWSService` true; `via-false`, it carried false; `calledvia-s3`, `aws:CalledVia` held `s3.amazonaws.com`; `calledvia-absent`, the key was absent. Cost USD 0 beyond IAM-EVAL-27, 4 minutes. Teardown: `aws s3api delete-object --bucket $B --key k`; `aws s3api delete-bucket --bucket $B`; `aws iam delete-role-policy --role-name $P-eval-via --policy-name p`; `aws iam delete-role --role-name $P-eval-via`; then IAM-EVAL-27's teardown.
+Each Deny fires only when its condition holds, so a failed `put-object` means: `via-true`, S3's KMS call carried `aws:ViaAWSService` true; `via-false`, it carried false; `calledvia-s3`, `aws:CalledVia` held `s3.amazonaws.com`; `calledvia-absent`, the key was absent; `calledvia-any`, the key held some value.
+
+Amended 2026-11-11. The 2026-11-03 run waited 15 s after each key policy change. `calledvia-s3` and `calledvia-absent` both succeeded, which a value other than `s3.amazonaws.com` or a key policy not yet applied would each explain. The wait is now 120 s, and two steps are new:
+
+- `calledvia-any` (`StringLike` `*`) separates the two readings. If it fails, `aws:CalledVia` is present with a value other than `s3.amazonaws.com`. If it succeeds while `calledvia-absent` also succeeded, the policies were not taking effect.
+- `via-true-control` repeats `via-true` after `calledvia-any`'s policy. If it fails, the preceding policy changes were applied within the wait, so the `calledvia-*` outcomes stand.
+
+Together they mark 8.1's `aws:CalledVia` row: present with an unknown value, absent, or `s3.amazonaws.com`. If `calledvia-any` fails, the value stays unknown, and a further `StringLike` probe per candidate (for example `*.amazonaws.com`) narrows it. Cost USD 0 beyond IAM-EVAL-27, 15 minutes. Teardown: `aws s3api delete-object --bucket $B --key k`; `aws s3api delete-bucket --bucket $B`; `aws iam delete-role-policy --role-name $P-eval-via --policy-name p`; `aws iam delete-role --role-name $P-eval-via`; then IAM-EVAL-27's teardown.
 
 ### 13.36 IAM-EVAL-35: a customer policy naming IAM resource types outside moto's list
 
