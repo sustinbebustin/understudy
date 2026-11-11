@@ -73,7 +73,8 @@ func (e *KindError) Error() string {
 
 // Decoder reads one JSON document as a stream of values. It is lenient in
 // the ways the AWS JSON protocols need: duplicate object names are allowed
-// (the caller sees each; ReadValue keeps the last), strings keep invalid
+// (the caller sees each; ReadValue keeps the last) unless the Decoder comes
+// from NewUniqueNamesDecoder, strings keep invalid
 // UTF-8 bytes and lone surrogate escapes (see the package documentation),
 // and numbers are returned as their decimal text.
 //
@@ -89,6 +90,30 @@ func NewDecoder(data []byte) *Decoder {
 		jsontext.AllowDuplicateNames(true),
 		jsontext.AllowInvalidUTF8(true),
 	)}
+}
+
+// NewUniqueNamesDecoder is NewDecoder, except that an object repeating a
+// member name fails with a *DuplicateNameError: at any depth, whether the
+// caller reads the member, skips it or reads it into a document. Names
+// compare after unescaping, so "a" and "a" are the same name.
+func NewUniqueNamesDecoder(data []byte) *Decoder {
+	return &Decoder{dec: jsontext.NewDecoder(bytes.NewReader(data),
+		jsontext.AllowDuplicateNames(false),
+		jsontext.AllowInvalidUTF8(true),
+	)}
+}
+
+// DuplicateNameError reports an object member name that an earlier member
+// of the same object already used, from a NewUniqueNamesDecoder.
+type DuplicateNameError struct {
+	// Offset is the byte offset at which the repeat was found.
+	Offset int64
+	// Pointer is the JSON Pointer of the repeated member.
+	Pointer string
+}
+
+func (e *DuplicateNameError) Error() string {
+	return fmt.Sprintf("jsonx: the object member %q at byte %d repeats an earlier name", e.Pointer, e.Offset)
 }
 
 // Offset returns the byte offset of the next unread input.
@@ -353,6 +378,13 @@ func (d *Decoder) tokenError() error {
 }
 
 func (d *Decoder) syntax(err error) error {
+	if errors.Is(err, jsontext.ErrDuplicateName) {
+		dup := &DuplicateNameError{Offset: d.Offset()}
+		if se, ok := errors.AsType[*jsontext.SyntacticError](err); ok {
+			dup.Offset, dup.Pointer = se.ByteOffset, string(se.JSONPointer)
+		}
+		return dup
+	}
 	if errors.Is(err, io.EOF) {
 		err = io.ErrUnexpectedEOF
 	}

@@ -35,6 +35,20 @@ func TestPreForwardChecksAnswerBeforeLocal(t *testing.T) {
 			status: 400, want: `{"__type":"com.amazon.coral.service#SerializationException","Message":"STRING_VALUE cannot be converted to Integer"}`,
 		},
 		{
+			// aws-recorded: testdata/parity/dynamodb/R11/06-dynamodb-duplicate-member.json
+			name: "duplicate top-level member", header: target("DescribeTable"), body: `{"TableName":"Locks","TableName":"Other"}`, from: defaultCaller(),
+			status: 400, want: `{"__type":"com.amazon.coral.service#SerializationException","Message":"Duplicate key found in payload"}`,
+		},
+		{
+			// Inferred from the top-level recording.
+			name: "duplicate member in an attribute value", header: target("PutItem"), body: `{"TableName":"Locks","Item":{"k":{"S":"a","S":"b"}}}`, from: defaultCaller(),
+			status: 400, want: `{"__type":"com.amazon.coral.service#SerializationException","Message":"Duplicate key found in payload"}`,
+		},
+		{
+			name: "duplicate attribute name", header: target("PutItem"), body: `{"TableName":"Locks","Item":{"k":{"S":"a"},"k":{"S":"b"}}}`, from: defaultCaller(),
+			status: 400, want: `{"__type":"com.amazon.coral.service#SerializationException","Message":"Duplicate key found in payload"}`,
+		},
+		{
 			name: "T5 missing target", header: jsonHeader("", "application/x-amz-json-1.0"), body: `{}`, from: defaultCaller(),
 			status: 400, want: `{"__type":"com.amazon.coral.service#UnknownOperationException"}`,
 		},

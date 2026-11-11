@@ -471,6 +471,7 @@ type Service struct {
 	XMLNamespace     string
 	QueryCompatible  bool
 	ResponseCRC32    bool                // overlay responseCrc32
+	RefuseDuplicateMembers bool          // overlay refuseDuplicateMembers
 	QueryErrorEnvelope QueryErrorEnvelope // overlay queryErrorEnvelope
 	MalformedRequestError awserr.Identity // overlay malformedRequestError; zero means the codec's protocol default
 	Denial           Denial          // overlay denialError: the identity an authorization refusal answers with and its evidence label; zero is a 500 naming the missing trait
@@ -741,6 +742,7 @@ The closed set of `dev.understudy#` traits; the generator fails on anything else
 | `statusOverride` | error shape | KMS documented 400/400/500 where the model says 404/409/503 (`iam-sts-kms.md` Implications 3) |
 | `unknownOperationError` | service | identity for an operation absent from the model, per protocol family |
 | `responseCrc32` | awsJson service | annotation: every answer the codec encodes, success and error, carries `x-amz-crc32`, the CRC-32 (IEEE) of its body in decimal, emitted as `registry.Service.ResponseCRC32` (DynamoDB Streams; `dynamodb-streams.md 3.1`) |
+| `refuseDuplicateMembers` | awsJson service | annotation: a request body repeating a member name in any object is refused with `SerializationException` "Duplicate key found in payload" instead of keeping the last value, emitted as `registry.Service.RefuseDuplicateMembers` (DynamoDB; recorded for a top-level repeat in `testdata/parity/dynamodb/R11/06-dynamodb-duplicate-member.json`, deeper repeats inferred) |
 | `queryErrorEnvelope` | awsQuery service | `{namespace?, detail?}`: how `ErrorResponse` differs from Smithy's example, emitted as `registry.Service.QueryErrorEnvelope` (CloudWatch and IAM declare the service's `xmlns`, SQS sends an empty `<Detail/>`; `error-matrix.md 3`) |
 
 Overlays are applied after loading and before validation of the merged model. Applying a trait the vendored model already has with a different value is an error unless the entry says `"replace": true`, so a model bump that fixes a gap surfaces as a failing generate.

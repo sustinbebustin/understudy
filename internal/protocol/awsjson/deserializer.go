@@ -60,8 +60,14 @@ type deserializer struct {
 	open  []readFrame
 }
 
-func newDeserializer(body []byte) *deserializer {
-	return &deserializer{dec: jsonx.NewDecoder(body), empty: isJSONSpace(body)}
+// newDeserializer reads body; with uniqueNames, a repeated member name
+// anywhere in it fails with a *jsonx.DuplicateNameError.
+func newDeserializer(body []byte, uniqueNames bool) *deserializer {
+	dec := jsonx.NewDecoder(body)
+	if uniqueNames {
+		dec = jsonx.NewUniqueNamesDecoder(body)
+	}
+	return &deserializer{dec: dec, empty: isJSONSpace(body)}
 }
 
 // isJSONSpace reports whether b holds only JSON whitespace: an empty body,
