@@ -18,7 +18,7 @@ Most differences are in error texts, codes and response details, not in the happ
 
 ## SNS
 
-- `DeliveryPolicy` refusals: malformed JSON gets Jackson's message with its location on AWS, and an unknown member "Unexpected JSON member: http.nope"; understudy uses its own texts (`sns/R16/x-delivery-policy-*.json`).
+- `DeliveryPolicy` malformed JSON gets Jackson's message with its location on AWS; understudy answers "Invalid parameter: DeliveryPolicy: failed to parse JSON." (`sns/R16/x-delivery-policy-malformed.json`, `sns/SNSH/E-malformed.json`).
 - Lambda deliveries: AWS types `Number` and `String.Array` attributes as `String`, puts `Subject` after `SigningCertUrl`, and orders `MessageAttributes` as a Java HashMap does; understudy keeps the published types and its own order (`logs/R16/01-lambda-events.json`).
 - The 10,000 filter policies per account quota is not enforced.
 - HTTP and HTTPS endpoints (`sns/SNSH`, recorded 2026-11-03):
@@ -28,7 +28,6 @@ Most differences are in error texts, codes and response details, not in the happ
   - `throttlePolicy.maxReceivesPerSecond` is stored, not applied; AWS's pacing above a burst of 10 is unrecorded (a 10-message burst at rate 1 was not paced, `sns/SNSH` SNSH-20).
   - AWS sent no `Authorization` header, not even after a 401 challenge (possibly the receiver's doing); understudy sends the URL's credentials on every request.
   - AWS refuses a loopback or private endpoint at `Subscribe` ("Not authorized to subscribe internal endpoints"); understudy delivers to the endpoints its allow-list names, which are usually local.
-  - `DeliveryPolicy` bound texts: AWS first requires `numRetries` and `minDelayTarget` in a retry policy, and checks `sicklyRetryPolicy` and the 3,600-second total; understudy does neither and uses its own texts.
 - Filter policy matching and texts: see [Event patterns and filter policies](#event-patterns-and-filter-policies).
 
 ## Event patterns and filter policies

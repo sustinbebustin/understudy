@@ -109,8 +109,8 @@ func TestRedrivePolicyQueueMustBeDeliverable(t *testing.T) {
 func TestSubscriptionDeliveryPolicyIsStored(t *testing.T) {
 	run(t, func(h *harness) {
 		topic := h.topic("events", nil)
-		const policy = `{"healthyRetryPolicy": {"numRetries": 5}}`
-		const stored = `{"healthyRetryPolicy":{"numRetries":5},"sicklyRetryPolicy":null,"throttlePolicy":null,"requestPolicy":null,"guaranteed":false}`
+		const policy = `{"healthyRetryPolicy": {"numRetries": 5, "minDelayTarget": 1}}`
+		const stored = `{"healthyRetryPolicy":{"minDelayTarget":1,"numRetries":5},"sicklyRetryPolicy":null,"throttlePolicy":null,"requestPolicy":null,"guaranteed":false}`
 		arn := h.subscribe(topic, "sqs", queueARN, map[string]string{"DeliveryPolicy": policy})
 		if got := h.subscriptionAttributes(arn)["DeliveryPolicy"]; got != stored {
 			h.Errorf("DeliveryPolicy after Subscribe = %q, want %q", got, stored)
@@ -156,14 +156,18 @@ func TestSubscriptionDeliveryPolicyIsStored(t *testing.T) {
 // DeliveryPolicy is held to the topic's retry and throttle constraints
 // (sns.md 7.3), its paths without the http. and default prefixes, on both
 // SetSubscriptionAttributes and Subscribe; the stored policy is unchanged.
+// A RawMessageDelivery passed beside it at Subscribe admits a content type
+// that raw delivery off refuses (sns-http-delivery.md 3.3, SNSH-18).
 func TestSubscriptionDeliveryPolicyKeepsRetryConstraints(t *testing.T) {
+	const notRaw = "requestPolicy: If RawMessageDelivery is disabled the Content-Type can only be set to application/json or text/plain."
 	run(t, func(h *harness) {
 		topic := h.topic("events", nil)
-		arn := h.subscribe(topic, "http", "http://127.0.0.1:9000/hook", map[string]string{"DeliveryPolicy": `{"healthyRetryPolicy":{"numRetries":100}}`})
+		arn := h.subscribe(topic, "http", "http://127.0.0.1:9000/hook", map[string]string{"DeliveryPolicy": `{"healthyRetryPolicy":{"minDelayTarget":1,"numRetries":100}}`})
 		for policy, detail := range map[string]string{
-			`{"healthyRetryPolicy":{"numRetries":101}}`:                      "healthyRetryPolicy.numRetries must be less than or equal to 100",
-			`{"healthyRetryPolicy":{"minDelayTarget":5,"maxDelayTarget":4}}`: "healthyRetryPolicy.minDelayTarget must be less than or equal to 4",
-			`{"throttlePolicy":{"maxReceivesPerSecond":0}}`:                  "throttlePolicy.maxReceivesPerSecond must be greater than or equal to 1",
+			`{"healthyRetryPolicy":{"minDelayTarget":1,"numRetries":101}}`:                  "healthyRetryPolicy.numRetries must be less than or equal to 100",
+			`{"healthyRetryPolicy":{"minDelayTarget":5,"maxDelayTarget":4,"numRetries":3}}`: "healthyRetryPolicy.minDelayTarget must be less than or equal to 4",
+			`{"throttlePolicy":{"maxReceivesPerSecond":0}}`:                                 "throttlePolicy.maxReceivesPerSecond must be >= 1",
+			`{"requestPolicy":{"headerContentType":"text/csv"}}`:                            notRaw,
 		} {
 			_, err := call(h, snsapi.OpSetSubscriptionAttributes, &snsapi.SetSubscriptionAttributesInput{SubscriptionArn: arn, AttributeName: "DeliveryPolicy", AttributeValue: new(policy)})
 			wantError(h, err, "InvalidParameter", "Invalid parameter: DeliveryPolicy: "+detail)
@@ -173,6 +177,9 @@ func TestSubscriptionDeliveryPolicyKeepsRetryConstraints(t *testing.T) {
 		if got := h.subscriptionAttributes(arn)["DeliveryPolicy"]; !strings.Contains(got, `"numRetries":100`) {
 			h.Errorf("DeliveryPolicy after the refused values = %s", got)
 		}
+		h.subscribe(topic, "http", "http://127.0.0.1:9000/raw", map[string]string{
+			"RawMessageDelivery": "true", "DeliveryPolicy": `{"requestPolicy":{"headerContentType":"text/csv"}}`,
+		})
 	})
 }
 
@@ -200,9 +207,11 @@ func TestHTTPSubscriptionDeliveryPolicyAsRecorded(t *testing.T) {
 			}
 		}
 
-		// [True]: the subscription's policy replaces the fixture's.
+		// [True]: raw delivery on, which admits text/csv
+		// (sns-http-delivery.md 3.3); the subscription's policy replaces
+		// the fixture's.
 		topic := h.topic("csv", nil)
-		arn := h.subscribe(topic, "http", "http://127.0.0.1:9000/sns-endpoint", nil)
+		arn := h.subscribe(topic, "http", "http://127.0.0.1:9000/sns-endpoint", map[string]string{"RawMessageDelivery": "true"})
 		setSub(arn, fixturePolicy)
 		setSub(arn, `{"requestPolicy": {"headerContentType": "text/csv"}}`)
 		want(arn, "DeliveryPolicy", `{"healthyRetryPolicy":null,"sicklyRetryPolicy":null,"throttlePolicy":null,"requestPolicy":{"headerContentType":"text/csv"},"guaranteed":false}`)

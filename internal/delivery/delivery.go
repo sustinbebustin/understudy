@@ -548,6 +548,17 @@ func (p SNSHTTP) Delay(retry int) (time.Duration, bool) {
 	}
 }
 
+// TotalDelay is the sum of the delays of every retry, the time a delivery
+// that keeps failing spends waiting between attempts.
+func (p SNSHTTP) TotalDelay() time.Duration {
+	var total time.Duration
+	for retry := 1; retry <= p.Retries(); retry++ {
+		d, _ := p.Delay(retry)
+		total += d
+	}
+	return total
+}
+
 func (SNSManaged) isRetryPolicy()        {}
 func (EventBridgeTarget) isRetryPolicy() {}
 func (S3Notification) isRetryPolicy()    {}

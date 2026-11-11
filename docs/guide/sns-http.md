@@ -142,7 +142,20 @@ The 503 is retried 20 seconds after the attempt. The injected timeout stands for
 - `throttlePolicy.maxReceivesPerSecond` is validated, stored and returned by `GetSubscriptionAttributes`, but does not pace deliveries.
 - A Notification that fails permanently or runs out of retries goes to the subscription's `RedrivePolicy` queue: the envelope, or for raw delivery the message with its attributes as SQS message attributes. Without a queue it is dropped. A SubscriptionConfirmation or UnsubscribeConfirmation is retried the same way but never goes to a queue.
 - Redirects are not followed: a 3xx is a permanent failure.
-- `sicklyRetryPolicy` and `guaranteed` are stored and never applied, and the 3,600-second total-retry limit is not checked.
+- `sicklyRetryPolicy` and `guaranteed` are stored and never applied.
+
+`DeliveryPolicy` is validated as AWS validates it. A retry policy (`healthyRetryPolicy`, `sicklyRetryPolicy`, or a topic's `http.defaultHealthyRetryPolicy` and `http.defaultSicklyRetryPolicy`) must carry `numRetries` and `minDelayTarget`, so a partial one is refused. This includes a Terraform `delivery_policy` that sets only some members:
+
+```sh
+aws sns set-topic-attributes --topic-arn arn:aws:sns:us-east-1:000000000000:orders \
+  --attribute-name DeliveryPolicy --attribute-value '{"http":{"defaultHealthyRetryPolicy":{"numRetries":5}}}'
+```
+
+```text
+aws: [ERROR]: An error occurred (InvalidParameter) when calling the SetTopicAttributes operation: Invalid parameter: DeliveryPolicy: http.defaultHealthyRetryPolicy.minDelayTarget must be specified
+```
+
+Also refused: a policy whose retries wait more than 3,600 seconds in total, an unknown member, a member of the wrong type, an unknown `backoffFunction`, and a `maxReceivesPerSecond` below 1. Without raw delivery, a `headerContentType` must be `application/json` or `text/plain`, with or without parameters such as `; charset=UTF-8`. A topic's must be one of those two whatever the subscriptions' raw delivery.
 
 ## https endpoints
 

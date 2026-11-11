@@ -40,8 +40,7 @@ const (
 // Subscribe's note is sns-http-delivery.md 8.1's text. A DeliveryPolicy
 // passed to Subscribe applies as SetSubscriptionAttributes's does:
 // throttlePolicy, sicklyRetryPolicy and guaranteed are stored and echoed,
-// never applied (6.2, 6.4, SNSH-18, SNSH-20), and the 3,600-second total retry time is not checked
-// (httpRetryPolicy).
+// never applied (6.2, 6.4, SNSH-18, SNSH-20).
 func (s *Service) bindSubscriptions(b snsapi.Binder) {
 	b.Subscribe(s.subscribe, registry.Partial{Note: "sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; " +
 		"the endpoint's policy is not checked at Subscribe (sns.subscribe.policy-check), so under iam.enforce=enforce a policy that refuses SNS refuses each delivery; " +

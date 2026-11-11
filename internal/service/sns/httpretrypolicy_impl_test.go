@@ -116,11 +116,16 @@ func TestHTTPRetryPolicyStaysInTheOutboxBounds(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		retryPolicy := func(level string) document.Map {
 			var retry document.Map
+			// numRetries and minDelayTarget are required (SNSH-18), and
+			// the delays stay short enough for numRetries of them to keep
+			// the 3,600-second total retry time (sns-http-delivery.md 6.3).
+			retries := rapid.IntRange(0, 100).Draw(t, level+"numRetries")
+			longest := 3600 / max(retries, 1)
 			for _, m := range []struct {
 				name   string
 				lo, hi int
-			}{{"minDelayTarget", 1, 4000}, {"maxDelayTarget", 1, 3600}, {"numRetries", 0, 100}, {"numNoDelayRetries", 0, 60}, {"numMinDelayRetries", 0, 60}, {"numMaxDelayRetries", 0, 60}} {
-				if rapid.Bool().Draw(t, level+m.name+"Given") {
+			}{{"minDelayTarget", 1, longest}, {"maxDelayTarget", 1, longest}, {"numRetries", retries, retries}, {"numNoDelayRetries", 0, 60}, {"numMinDelayRetries", 0, 60}, {"numMaxDelayRetries", 0, 60}} {
+				if m.name == "numRetries" || m.name == "minDelayTarget" || rapid.Bool().Draw(t, level+m.name+"Given") {
 					retry = append(retry, document.Entry{Key: m.name, Value: document.Number(strconv.Itoa(rapid.IntRange(m.lo, m.hi).Draw(t, level+m.name)))})
 				}
 			}
@@ -144,7 +149,7 @@ func TestHTTPRetryPolicyStaysInTheOutboxBounds(t *testing.T) {
 			http = append(http, document.Entry{Key: "defaultThrottlePolicy", Value: th})
 		}
 		topic := document.Map{{Key: "http", Value: http}}
-		if checkSubscriptionDeliveryPolicy(sub) != "" || checkTopicDeliveryPolicy(topic) != "" {
+		if checkSubscriptionDeliveryPolicy(sub, false) != "" || checkTopicDeliveryPolicy(topic) != "" {
 			t.Skip("a write check refuses the policies")
 		}
 		storedSub, ok := storedSubscriptionDeliveryPolicy(sub)

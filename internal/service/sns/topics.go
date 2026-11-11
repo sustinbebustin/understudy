@@ -20,8 +20,7 @@ import (
 // defaultHealthyRetryPolicy, defaultThrottlePolicy and defaultRequestPolicy
 // apply; disableSubscriptionOverrides and defaultSicklyRetryPolicy are
 // stored and echoed, never applied, since what AWS does with them is
-// UNVERIFIED (6.2, SNSH-18, SNSH-19), and the 3,600-second total retry
-// time is not checked (httpRetryPolicy).
+// UNVERIFIED (6.2, SNSH-18, SNSH-19).
 func (s *Service) bindTopics(b snsapi.Binder) {
 	b.CreateTopic(s.createTopic, registry.Full{},
 		kernel.WithResources(func(c *kernel.Call, in *snsapi.CreateTopicInput) []aws.ARN {

@@ -209,6 +209,10 @@ func TestDelayPhasesInOrder(t *testing.T) {
 	if got, ok := p.Delay(len(want) + 1); ok {
 		t.Errorf("Delay(%d) = %v, true; want none past the last retry", len(want)+1, got)
 	}
+	// 0 + 0 + 3 * 5 s + 2 * 60 s.
+	if got, want := p.TotalDelay(), 135*time.Second; got != want {
+		t.Errorf("TotalDelay() = %v, want %v", got, want)
+	}
 }
 
 // genSNSHTTP draws a policy inside the documented bounds: phase counts at

@@ -84,22 +84,23 @@ func (e *EndpointError) Error() string {
 // at maxReceivesPerSecond 1 was not paced on AWS, and how AWS paces a
 // longer burst is unrecorded (6.4; SNSH-20).
 //
-// A member AWS would not accept (not an integer, outside the bounds of
-// sns.md 7.3, or not a backoffFunction name in any case) takes the system
-// default's value (inferred); understudy's write checks leave only a
-// non-integer member, or state an older build wrote, to reach this. The
-// 3,600-second total retry time AWS documents as a hard limit for an
-// http or https policy is neither checked at write nor applied here, as
-// the SNS HTTP delivery guide says: whether AWS refuses such a policy or
-// truncates it is UNVERIFIED (6.3, SNSH-18). The phases take
-// numRetries in the order numNoDelayRetries,
-// numMinDelayRetries, numMaxDelayRetries, each capped at what remains, and
-// the backoff phase gets the rest (6.3, aws-doc order; the capping is
-// inferred). A maxDelayTarget below minDelayTarget is raised to it
-// (inferred).
+// The schedule is retrySchedule's.
 func httpRetryPolicy(subscriptionPolicy, topicPolicy string) delivery.SNSHTTP {
 	effective, _ := parseObject(subscriptionEffectiveDeliveryPolicy(subscriptionPolicy, topicPolicy))
-	retry, system := mapMember(effective, "healthyRetryPolicy"), defaultHealthyRetryPolicy()
+	return retrySchedule(mapMember(effective, "healthyRetryPolicy"))
+}
+
+// retrySchedule is the retry schedule of a retry policy. A member that is
+// absent, or that AWS would not accept (not an integer, outside the bounds
+// of sns.md 7.3, or not a backoffFunction name in any case), takes the
+// system default's value (inferred); understudy's write checks leave only
+// state an older build wrote to reach the latter. The phases take
+// numRetries in the order numNoDelayRetries, numMinDelayRetries,
+// numMaxDelayRetries, each capped at what remains, and the backoff phase
+// gets the rest (6.3, aws-doc order; the capping is inferred). A
+// maxDelayTarget below minDelayTarget is raised to it (inferred).
+func retrySchedule(retry document.Map) delivery.SNSHTTP {
+	system := defaultHealthyRetryPolicy()
 	member := func(name string, lowest, highest int64) int {
 		if n, ok := intMember(retry, name); ok && n >= lowest && n <= highest {
 			return int(n)
