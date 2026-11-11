@@ -98,10 +98,10 @@ func (v *AssumeRoleInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 50 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMax{Max: 50}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 50}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -174,10 +174,10 @@ func (v *AssumeRoleInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.ProvidedContexts != nil {
 		if len(v.ProvidedContexts) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "providedContexts"), Value: awserr.RenderedText{Text: renderProvidedContextsListType(v.ProvidedContexts)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "providedContexts"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.ProvidedContexts) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "providedContexts"), Value: awserr.RenderedText{Text: renderProvidedContextsListType(v.ProvidedContexts)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "providedContexts"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.ProvidedContexts {
 			p2 := at(at(path, "providedContexts"), strconv.Itoa(i2+1), "member")
@@ -518,10 +518,10 @@ func (v *GetFederationTokenInput) validate(path awserr.Path, out *[]awserr.Viola
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 50 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMax{Max: 50}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 50}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -635,10 +635,10 @@ func (v *GetWebIdentityTokenInput) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.Tags != nil {
 		if len(v.Tags) > 50 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMax{Max: 50}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 50}})
 		}
 		if len(v.Tags) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagListType(v.Tags)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "tags"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Tags {
 			p2 := at(at(path, "tags"), strconv.Itoa(i2+1), "member")
@@ -1121,26 +1121,10 @@ func (*GetWebIdentityTokenInput) ValidationError(vs []awserr.Violation) *awserr.
 	return policyGetWebIdentityToken.render(vs)
 }
 
-func renderProvidedContextsListType(v []ProvidedContext) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderTagKeyListType(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderTagListType(v []Tag) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

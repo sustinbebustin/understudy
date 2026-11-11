@@ -96,10 +96,10 @@ func (v *CreateStateMachineAliasInput) validate(path awserr.Path, out *[]awserr.
 		*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.RoutingConfiguration) > 2 {
-			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedText{Text: renderRoutingConfigurationList(v.RoutingConfiguration)}, Constraint: awserr.LengthMax{Max: 2}})
+			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}})
 		}
 		if len(v.RoutingConfiguration) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedText{Text: renderRoutingConfigurationList(v.RoutingConfiguration)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.RoutingConfiguration {
 			p2 := at(at(path, "routingConfiguration"), strconv.Itoa(i2+1), "member")
@@ -1324,10 +1324,10 @@ func (v *UpdateStateMachineAliasInput) validate(path awserr.Path, out *[]awserr.
 	}
 	if v.RoutingConfiguration != nil {
 		if len(v.RoutingConfiguration) > 2 {
-			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedText{Text: renderRoutingConfigurationList(v.RoutingConfiguration)}, Constraint: awserr.LengthMax{Max: 2}})
+			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}})
 		}
 		if len(v.RoutingConfiguration) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedText{Text: renderRoutingConfigurationList(v.RoutingConfiguration)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "routingConfiguration"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.RoutingConfiguration {
 			p2 := at(at(path, "routingConfiguration"), strconv.Itoa(i2+1), "member")
@@ -2258,14 +2258,6 @@ var policyValidateStateMachineDefinition = validationPolicy{
 // when vs is empty.
 func (*ValidateStateMachineDefinitionInput) ValidationError(vs []awserr.Violation) *awserr.Error {
 	return policyValidateStateMachineDefinition.render(vs)
-}
-
-func renderRoutingConfigurationList(v []RoutingConfigurationListItem) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 // at extends a violation path without aliasing the parent's array.

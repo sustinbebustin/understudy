@@ -154,10 +154,10 @@ func (v *BatchGetMetricDataInput) validate(path awserr.Path, out *[]awserr.Viola
 		*out = append(*out, awserr.Violation{Path: at(path, "queries"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Queries) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "queries"), Value: awserr.RenderedText{Text: renderBatchGetMetricDataQueries(v.Queries)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "queries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Queries) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "queries"), Value: awserr.RenderedText{Text: renderBatchGetMetricDataQueries(v.Queries)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "queries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Queries {
 			p2 := at(at(path, "queries"), strconv.Itoa(i2+1), "member")
@@ -243,10 +243,10 @@ func (v *BulkEmailEntry) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.ReplacementHeaders != nil {
 		if len(v.ReplacementHeaders) > 15 {
-			*out = append(*out, awserr.Violation{Path: at(path, "replacementHeaders"), Value: awserr.RenderedText{Text: renderMessageHeaderList(v.ReplacementHeaders)}, Constraint: awserr.LengthMax{Max: 15}})
+			*out = append(*out, awserr.Violation{Path: at(path, "replacementHeaders"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 15}})
 		}
 		if len(v.ReplacementHeaders) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "replacementHeaders"), Value: awserr.RenderedText{Text: renderMessageHeaderList(v.ReplacementHeaders)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "replacementHeaders"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.ReplacementHeaders {
 			p2 := at(at(path, "replacementHeaders"), strconv.Itoa(i2+1), "member")
@@ -2017,10 +2017,10 @@ func (v *Message) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Headers != nil {
 		if len(v.Headers) > 15 {
-			*out = append(*out, awserr.Violation{Path: at(path, "headers"), Value: awserr.RenderedText{Text: renderMessageHeaderList(v.Headers)}, Constraint: awserr.LengthMax{Max: 15}})
+			*out = append(*out, awserr.Violation{Path: at(path, "headers"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 15}})
 		}
 		if len(v.Headers) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "headers"), Value: awserr.RenderedText{Text: renderMessageHeaderList(v.Headers)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "headers"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Headers {
 			p2 := at(at(path, "headers"), strconv.Itoa(i2+1), "member")
@@ -2241,10 +2241,10 @@ func (v *MetricsDataSource) validate(path awserr.Path, out *[]awserr.Violation) 
 		*out = append(*out, awserr.Violation{Path: at(path, "metrics"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Metrics) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metrics"), Value: awserr.RenderedText{Text: renderExportMetrics(v.Metrics)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metrics"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Metrics) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metrics"), Value: awserr.RenderedText{Text: renderExportMetrics(v.Metrics)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metrics"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Metrics {
 			p2 := at(at(path, "metrics"), strconv.Itoa(i2+1), "member")
@@ -3058,10 +3058,10 @@ func (v *Template) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Headers != nil {
 		if len(v.Headers) > 15 {
-			*out = append(*out, awserr.Violation{Path: at(path, "headers"), Value: awserr.RenderedText{Text: renderMessageHeaderList(v.Headers)}, Constraint: awserr.LengthMax{Max: 15}})
+			*out = append(*out, awserr.Violation{Path: at(path, "headers"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 15}})
 		}
 		if len(v.Headers) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "headers"), Value: awserr.RenderedText{Text: renderMessageHeaderList(v.Headers)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "headers"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Headers {
 			p2 := at(at(path, "headers"), strconv.Itoa(i2+1), "member")
@@ -5847,14 +5847,6 @@ func (*UpdateReputationEntityPolicyInput) ValidationError(vs []awserr.Violation)
 	return policyUpdateReputationEntityPolicy.render(vs)
 }
 
-func renderBatchGetMetricDataQueries(v []BatchGetMetricDataQuery) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderDimensions(v map[MetricDimensionName]string) string {
 	parts := make([]string, 0, len(v))
 	for _, k := range slices.Sorted(maps.Keys(v)) {
@@ -5879,14 +5871,6 @@ func renderExportDimensions(v map[MetricDimensionName][]string) string {
 		parts = append(parts, string(k)+"="+renderExportDimensionValue(e))
 	}
 	return "{" + strings.Join(parts, ", ") + "}"
-}
-
-func renderExportMetrics(v []ExportMetric) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 func renderIspFilterList(v []string) string {
@@ -5920,14 +5904,6 @@ func renderListRecommendationsFilter(v map[ListRecommendationsFilterKey]string) 
 		parts = append(parts, string(k)+"="+e)
 	}
 	return "{" + strings.Join(parts, ", ") + "}"
-}
-
-func renderMessageHeaderList(v []MessageHeader) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
 }
 
 func renderTenantNameFilterList(v []string) string {

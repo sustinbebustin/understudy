@@ -407,6 +407,36 @@ func TestRolledUpPathsReportAtTheCollection(t *testing.T) {
 	}
 }
 
+// TestCollectionOfStructuresIsReportedWithoutAValue: a list or map whose
+// elements are structures fails its length with no value, as in the IAM
+// TagRole and Logs PutLogEvents captures, while a list of strings keeps its
+// rendered text.
+func TestCollectionOfStructuresIsReportedWithoutAValue(t *testing.T) {
+	in := goldenInputs(t)
+	model := string(in.Model.Content)
+	const anchor = `"Hints": {"target": "com.example.golden#SparseSecrets"}`
+	const shapes = `"com.example.golden#SparseSecrets": {`
+	for _, a := range []string{anchor, shapes} {
+		if n := strings.Count(model, a); n != 1 {
+			t.Fatalf("the fixture model holds %s %d times, want once; update the anchor", a, n)
+		}
+	}
+	model = strings.Replace(model, anchor, anchor+`, "Records": {"target": "com.example.golden#RecordList"}, "Registry": {"target": "com.example.golden#RecordMap"}`, 1)
+	model = strings.Replace(model, shapes, `"com.example.golden#RecordList": {"type": "list", "member": {"target": "com.example.golden#Nested"}, "traits": {"smithy.api#length": {"max": 2}}},
+		"com.example.golden#RecordMap": {"type": "map", "key": {"target": "com.example.golden#String"}, "value": {"target": "com.example.golden#Nested"}, "traits": {"smithy.api#length": {"max": 2}}},
+		`+shapes, 1)
+	in.Model.Content = []byte(model)
+	files, err := codegen.Generate(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustContain(t, "validate_gen.go", files["validate_gen.go"],
+		`Path: at(path, "records"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}`,
+		`Path: at(path, "registry"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}`,
+		`Path: at(path, "tags"), Value: awserr.RenderedText{Text: renderTagList(v.Tags)}`,
+	)
+}
+
 // TestASensitiveMapKeyHidesTheWholeMap: no copy of a map can keep its keys
 // once they are sensitive, so Redact clears the map and a rolled-up
 // violation omits it.

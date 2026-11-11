@@ -292,10 +292,10 @@ func (v *CreateChannelInput) validate(path awserr.Path, out *[]awserr.Violation)
 		*out = append(*out, awserr.Violation{Path: at(path, "streamConfigurationList"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.StreamConfigurationList) > 10000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "streamConfigurationList"), Value: awserr.RenderedText{Text: renderChannelStreamConfigurationList(v.StreamConfigurationList)}, Constraint: awserr.LengthMax{Max: 10000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "streamConfigurationList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10000}})
 		}
 		if len(v.StreamConfigurationList) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "streamConfigurationList"), Value: awserr.RenderedText{Text: renderChannelStreamConfigurationList(v.StreamConfigurationList)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "streamConfigurationList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.StreamConfigurationList {
 			p2 := at(at(path, "streamConfigurationList"), strconv.Itoa(i2+1), "member")
@@ -1190,10 +1190,10 @@ func (v *ListChannelsInput) Validate() []awserr.Violation {
 func (v *ListChannelsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.StreamFilter != nil {
 		if len(v.StreamFilter) > 10000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "streamFilter"), Value: awserr.RenderedText{Text: renderStreamFilterList(v.StreamFilter)}, Constraint: awserr.LengthMax{Max: 10000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "streamFilter"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10000}})
 		}
 		if len(v.StreamFilter) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "streamFilter"), Value: awserr.RenderedText{Text: renderStreamFilterList(v.StreamFilter)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "streamFilter"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.StreamFilter {
 			p2 := at(at(path, "streamFilter"), strconv.Itoa(i2+1), "member")
@@ -1584,10 +1584,10 @@ func (v *PartitionSpec) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "partitionFields"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.PartitionFields) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "partitionFields"), Value: awserr.RenderedText{Text: renderPartitionFieldList(v.PartitionFields)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "partitionFields"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.PartitionFields) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "partitionFields"), Value: awserr.RenderedText{Text: renderPartitionFieldList(v.PartitionFields)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "partitionFields"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.PartitionFields {
 			p2 := at(at(path, "partitionFields"), strconv.Itoa(i2+1), "member")
@@ -1681,10 +1681,10 @@ func (v *PutRecordsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "records"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Records) > 500 {
-			*out = append(*out, awserr.Violation{Path: at(path, "records"), Value: awserr.RenderedText{Text: renderPutRecordsRequestEntryList(v.Records)}, Constraint: awserr.LengthMax{Max: 500}})
+			*out = append(*out, awserr.Violation{Path: at(path, "records"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 500}})
 		}
 		if len(v.Records) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "records"), Value: awserr.RenderedText{Text: renderPutRecordsRequestEntryList(v.Records)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "records"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Records {
 			p2 := at(at(path, "records"), strconv.Itoa(i2+1), "member")
@@ -2077,10 +2077,10 @@ func (v *S3TablesDestinationConfiguration) validate(path awserr.Path, out *[]aws
 		*out = append(*out, awserr.Violation{Path: at(path, "s3TablesConfigurationList"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.S3TablesConfigurationList) > 10000 {
-			*out = append(*out, awserr.Violation{Path: at(path, "s3TablesConfigurationList"), Value: awserr.RenderedText{Text: renderS3TablesConfigurationList(v.S3TablesConfigurationList)}, Constraint: awserr.LengthMax{Max: 10000}})
+			*out = append(*out, awserr.Violation{Path: at(path, "s3TablesConfigurationList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10000}})
 		}
 		if len(v.S3TablesConfigurationList) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "s3TablesConfigurationList"), Value: awserr.RenderedText{Text: renderS3TablesConfigurationList(v.S3TablesConfigurationList)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "s3TablesConfigurationList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.S3TablesConfigurationList {
 			p2 := at(at(path, "s3TablesConfigurationList"), strconv.Itoa(i2+1), "member")
@@ -3830,50 +3830,10 @@ func (*UpdateStreamWarmThroughputInput) ValidationError(vs []awserr.Violation) *
 	return policyUpdateStreamWarmThroughput.render(vs)
 }
 
-func renderChannelStreamConfigurationList(v []ChannelStreamConfiguration) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderMetricsNameList(v []MetricsName) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, string(e))
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPartitionFieldList(v []PartitionField) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPutRecordsRequestEntryList(v []PutRecordsRequestEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderS3TablesConfigurationList(v []S3TablesConfiguration) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderStreamFilterList(v []StreamFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

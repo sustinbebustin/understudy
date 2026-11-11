@@ -251,10 +251,10 @@ func (v *ConnectionHeaderParameter) validate(path awserr.Path, out *[]awserr.Vio
 func (v *ConnectionHttpParameters) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.HeaderParameters != nil {
 		if len(v.HeaderParameters) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "headerParameters"), Value: awserr.RenderedText{Text: renderConnectionHeaderParametersList(v.HeaderParameters)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "headerParameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.HeaderParameters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "headerParameters"), Value: awserr.RenderedText{Text: renderConnectionHeaderParametersList(v.HeaderParameters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "headerParameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.HeaderParameters {
 			p2 := at(at(path, "headerParameters"), strconv.Itoa(i2+1), "member")
@@ -263,10 +263,10 @@ func (v *ConnectionHttpParameters) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.QueryStringParameters != nil {
 		if len(v.QueryStringParameters) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "queryStringParameters"), Value: awserr.RenderedText{Text: renderConnectionQueryStringParametersList(v.QueryStringParameters)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "queryStringParameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.QueryStringParameters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "queryStringParameters"), Value: awserr.RenderedText{Text: renderConnectionQueryStringParametersList(v.QueryStringParameters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "queryStringParameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.QueryStringParameters {
 			p2 := at(at(path, "queryStringParameters"), strconv.Itoa(i2+1), "member")
@@ -275,10 +275,10 @@ func (v *ConnectionHttpParameters) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.BodyParameters != nil {
 		if len(v.BodyParameters) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "bodyParameters"), Value: awserr.RenderedText{Text: renderConnectionBodyParametersList(v.BodyParameters)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "bodyParameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.BodyParameters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "bodyParameters"), Value: awserr.RenderedText{Text: renderConnectionBodyParametersList(v.BodyParameters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "bodyParameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 	}
 }
@@ -719,10 +719,10 @@ func (v *CreateEndpointInput) validate(path awserr.Path, out *[]awserr.Violation
 		*out = append(*out, awserr.Violation{Path: at(path, "eventBuses"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.EventBuses) > 2 {
-			*out = append(*out, awserr.Violation{Path: at(path, "eventBuses"), Value: awserr.RenderedText{Text: renderEndpointEventBusList(v.EventBuses)}, Constraint: awserr.LengthMax{Max: 2}})
+			*out = append(*out, awserr.Violation{Path: at(path, "eventBuses"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}})
 		}
 		if len(v.EventBuses) < 2 {
-			*out = append(*out, awserr.Violation{Path: at(path, "eventBuses"), Value: awserr.RenderedText{Text: renderEndpointEventBusList(v.EventBuses)}, Constraint: awserr.LengthMin{Min: 2}})
+			*out = append(*out, awserr.Violation{Path: at(path, "eventBuses"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 2}})
 		}
 		for i2, e2 := range v.EventBuses {
 			p2 := at(at(path, "eventBuses"), strconv.Itoa(i2+1), "member")
@@ -1393,10 +1393,10 @@ func (v *EcsParameters) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.CapacityProviderStrategy != nil {
 		if len(v.CapacityProviderStrategy) > 6 {
-			*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderStrategy"), Value: awserr.RenderedText{Text: renderCapacityProviderStrategy(v.CapacityProviderStrategy)}, Constraint: awserr.LengthMax{Max: 6}})
+			*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderStrategy"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 6}})
 		}
 		if len(v.CapacityProviderStrategy) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderStrategy"), Value: awserr.RenderedText{Text: renderCapacityProviderStrategy(v.CapacityProviderStrategy)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "capacityProviderStrategy"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.CapacityProviderStrategy {
 			p2 := at(at(path, "capacityProviderStrategy"), strconv.Itoa(i2+1), "member")
@@ -1405,10 +1405,10 @@ func (v *EcsParameters) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.PlacementConstraints != nil {
 		if len(v.PlacementConstraints) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "placementConstraints"), Value: awserr.RenderedText{Text: renderPlacementConstraints(v.PlacementConstraints)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "placementConstraints"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.PlacementConstraints) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "placementConstraints"), Value: awserr.RenderedText{Text: renderPlacementConstraints(v.PlacementConstraints)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "placementConstraints"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.PlacementConstraints {
 			p2 := at(at(path, "placementConstraints"), strconv.Itoa(i2+1), "member")
@@ -1417,10 +1417,10 @@ func (v *EcsParameters) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.PlacementStrategy != nil {
 		if len(v.PlacementStrategy) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "placementStrategy"), Value: awserr.RenderedText{Text: renderPlacementStrategies(v.PlacementStrategy)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "placementStrategy"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.PlacementStrategy) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "placementStrategy"), Value: awserr.RenderedText{Text: renderPlacementStrategies(v.PlacementStrategy)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "placementStrategy"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.PlacementStrategy {
 			p2 := at(at(path, "placementStrategy"), strconv.Itoa(i2+1), "member")
@@ -2278,10 +2278,10 @@ func (v *PutEventsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Entries) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderPutEventsRequestEntryList(v.Entries)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Entries) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderPutEventsRequestEntryList(v.Entries)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Entries {
 			p2 := at(at(path, "entries"), strconv.Itoa(i2+1), "member")
@@ -2347,10 +2347,10 @@ func (v *PutPartnerEventsInput) validate(path awserr.Path, out *[]awserr.Violati
 		*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Entries) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderPutPartnerEventsRequestEntryList(v.Entries)}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if len(v.Entries) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedText{Text: renderPutPartnerEventsRequestEntryList(v.Entries)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "entries"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Entries {
 			p2 := at(at(path, "entries"), strconv.Itoa(i2+1), "member")
@@ -2588,10 +2588,10 @@ func (v *PutTargetsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 		*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Targets) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargetList(v.Targets)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.Targets) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedText{Text: renderTargetList(v.Targets)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "targets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Targets {
 			p2 := at(at(path, "targets"), strconv.Itoa(i2+1), "member")
@@ -2819,10 +2819,10 @@ func (v *RunCommandParameters) validate(path awserr.Path, out *[]awserr.Violatio
 		*out = append(*out, awserr.Violation{Path: at(path, "runCommandTargets"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.RunCommandTargets) > 5 {
-			*out = append(*out, awserr.Violation{Path: at(path, "runCommandTargets"), Value: awserr.RenderedText{Text: renderRunCommandTargets(v.RunCommandTargets)}, Constraint: awserr.LengthMax{Max: 5}})
+			*out = append(*out, awserr.Violation{Path: at(path, "runCommandTargets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 5}})
 		}
 		if len(v.RunCommandTargets) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "runCommandTargets"), Value: awserr.RenderedText{Text: renderRunCommandTargets(v.RunCommandTargets)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "runCommandTargets"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.RunCommandTargets {
 			p2 := at(at(path, "runCommandTargets"), strconv.Itoa(i2+1), "member")
@@ -2895,10 +2895,10 @@ func (v *SageMakerPipelineParameter) validate(path awserr.Path, out *[]awserr.Vi
 func (v *SageMakerPipelineParameters) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.PipelineParameterList != nil {
 		if len(v.PipelineParameterList) > 200 {
-			*out = append(*out, awserr.Violation{Path: at(path, "pipelineParameterList"), Value: awserr.RenderedText{Text: renderSageMakerPipelineParameterList(v.PipelineParameterList)}, Constraint: awserr.LengthMax{Max: 200}})
+			*out = append(*out, awserr.Violation{Path: at(path, "pipelineParameterList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 200}})
 		}
 		if len(v.PipelineParameterList) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "pipelineParameterList"), Value: awserr.RenderedText{Text: renderSageMakerPipelineParameterList(v.PipelineParameterList)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "pipelineParameterList"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.PipelineParameterList {
 			p2 := at(at(path, "pipelineParameterList"), strconv.Itoa(i2+1), "member")
@@ -3531,10 +3531,10 @@ func (v *UpdateEndpointInput) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.EventBuses != nil {
 		if len(v.EventBuses) > 2 {
-			*out = append(*out, awserr.Violation{Path: at(path, "eventBuses"), Value: awserr.RenderedText{Text: renderEndpointEventBusList(v.EventBuses)}, Constraint: awserr.LengthMax{Max: 2}})
+			*out = append(*out, awserr.Violation{Path: at(path, "eventBuses"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 2}})
 		}
 		if len(v.EventBuses) < 2 {
-			*out = append(*out, awserr.Violation{Path: at(path, "eventBuses"), Value: awserr.RenderedText{Text: renderEndpointEventBusList(v.EventBuses)}, Constraint: awserr.LengthMin{Min: 2}})
+			*out = append(*out, awserr.Violation{Path: at(path, "eventBuses"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 2}})
 		}
 		for i2, e2 := range v.EventBuses {
 			p2 := at(at(path, "eventBuses"), strconv.Itoa(i2+1), "member")
@@ -4976,78 +4976,6 @@ func (*UpdateEventBusInput) ValidationError(vs []awserr.Violation) *awserr.Error
 	return policyUpdateEventBus.render(vs)
 }
 
-func renderCapacityProviderStrategy(v []CapacityProviderStrategyItem) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderConnectionBodyParametersList(v []ConnectionBodyParameter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderConnectionHeaderParametersList(v []ConnectionHeaderParameter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderConnectionQueryStringParametersList(v []ConnectionQueryStringParameter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderEndpointEventBusList(v []EndpointEventBus) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPlacementConstraints(v []PlacementConstraint) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPlacementStrategies(v []PlacementStrategy) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPutEventsRequestEntryList(v []PutEventsRequestEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPutPartnerEventsRequestEntryList(v []PutPartnerEventsRequestEntry) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderRunCommandTargetValues(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -5056,34 +4984,10 @@ func renderRunCommandTargetValues(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderRunCommandTargets(v []RunCommandTarget) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderSageMakerPipelineParameterList(v []SageMakerPipelineParameter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderTargetIdList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderTargetList(v []Target) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

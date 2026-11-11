@@ -269,7 +269,6 @@ Scheduler was recorded against AWS on 2026-11-03 (`testdata/parity/scheduler/SCH
 
 ## CloudWatch and CloudWatch Logs
 
-- A list of structures over its length limit is reported without a rendered value on AWS (Logs `PutLogEvents`, IAM `TagRole`); understudy renders it (`logs/R10/06-10001-events.json`, `iam/R15/06-tag-role-51.json`).
 - `FilterLogEvents` returns `nextToken` on every page with events and ends with an empty page on AWS; understudy leaves the token off the last page with events. `GetLogEvents`' first empty page gets a new forward token on AWS (`logs/R10/05-*.json`).
 - `{ $.n = }` is only "Invalid filter pattern" on AWS; understudy adds the detail and offset (`logs/R10/03-filter-14.json`).
 - Over-length log group and stream names get the generic validation text; AWS answers "Invalid LogGroup or LogStream, both must have length less than or equal to 512.".

@@ -153,10 +153,10 @@ func (v *BatchExecuteStatementInput) validate(path awserr.Path, out *[]awserr.Vi
 		*out = append(*out, awserr.Violation{Path: at(path, "statements"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.Statements) > 25 {
-			*out = append(*out, awserr.Violation{Path: at(path, "statements"), Value: awserr.RenderedText{Text: renderPartiQLBatchRequest(v.Statements)}, Constraint: awserr.LengthMax{Max: 25}})
+			*out = append(*out, awserr.Violation{Path: at(path, "statements"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 25}})
 		}
 		if len(v.Statements) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "statements"), Value: awserr.RenderedText{Text: renderPartiQLBatchRequest(v.Statements)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "statements"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Statements {
 			p2 := at(at(path, "statements"), strconv.Itoa(i2+1), "member")
@@ -183,10 +183,10 @@ func (v *BatchGetItemInput) validate(path awserr.Path, out *[]awserr.Violation) 
 		*out = append(*out, awserr.Violation{Path: at(path, "requestItems"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.RequestItems) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "requestItems"), Value: awserr.RenderedText{Text: renderBatchGetRequestMap(v.RequestItems)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "requestItems"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.RequestItems) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "requestItems"), Value: awserr.RenderedText{Text: renderBatchGetRequestMap(v.RequestItems)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "requestItems"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for _, k2 := range slices.Sorted(maps.Keys(v.RequestItems)) {
 			kp2 := at(at(path, "requestItems"), k2)
@@ -220,7 +220,7 @@ func (v *BatchStatementRequest) validate(path awserr.Path, out *[]awserr.Violati
 	}
 	if v.Parameters != nil {
 		if len(v.Parameters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderPreparedStatementParameters(v.Parameters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Parameters {
 			p2 := at(at(path, "parameters"), strconv.Itoa(i2+1), "member")
@@ -262,10 +262,10 @@ func (v *BatchWriteItemInput) validate(path awserr.Path, out *[]awserr.Violation
 			}
 			e2, vp2 := v.RequestItems[k2], at(at(path, "requestItems"), k2, "member")
 			if len(e2) > 25 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderWriteRequests(e2)}, Constraint: awserr.LengthMax{Max: 25}})
+				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 25}})
 			}
 			if len(e2) < 1 {
-				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedText{Text: renderWriteRequests(e2)}, Constraint: awserr.LengthMin{Min: 1}})
+				*out = append(*out, awserr.Violation{Path: vp2, Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 			}
 			for i3, e3 := range e2 {
 				p3 := at(vp2, strconv.Itoa(i3+1), "member")
@@ -406,7 +406,7 @@ func (v *CreateGlobalSecondaryIndexAction) validate(path awserr.Path, out *[]aws
 		*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.KeySchema) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedText{Text: renderKeySchema(v.KeySchema)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.KeySchema {
 			p2 := at(at(path, "keySchema"), strconv.Itoa(i2+1), "member")
@@ -471,7 +471,7 @@ func (v *CreateReplicationGroupMemberAction) validate(path awserr.Path, out *[]a
 	}
 	if v.GlobalSecondaryIndexes != nil {
 		if len(v.GlobalSecondaryIndexes) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "globalSecondaryIndexes"), Value: awserr.RenderedText{Text: renderReplicaGlobalSecondaryIndexList(v.GlobalSecondaryIndexes)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "globalSecondaryIndexes"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.GlobalSecondaryIndexes {
 			p2 := at(at(path, "globalSecondaryIndexes"), strconv.Itoa(i2+1), "member")
@@ -512,7 +512,7 @@ func (v *CreateTableInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.KeySchema != nil {
 		if len(v.KeySchema) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedText{Text: renderKeySchema(v.KeySchema)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.KeySchema {
 			p2 := at(at(path, "keySchema"), strconv.Itoa(i2+1), "member")
@@ -598,7 +598,7 @@ func (v *CreateVectorIndexAction) validate(path awserr.Path, out *[]awserr.Viola
 	}
 	if v.SearchSchema != nil {
 		if len(v.SearchSchema) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "searchSchema"), Value: awserr.RenderedText{Text: renderSearchSchema(v.SearchSchema)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "searchSchema"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.SearchSchema {
 			p2 := at(at(path, "searchSchema"), strconv.Itoa(i2+1), "member")
@@ -1229,7 +1229,7 @@ func (v *ExecuteStatementInput) validate(path awserr.Path, out *[]awserr.Violati
 	}
 	if v.Parameters != nil {
 		if len(v.Parameters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderPreparedStatementParameters(v.Parameters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Parameters {
 			p2 := at(at(path, "parameters"), strconv.Itoa(i2+1), "member")
@@ -1274,10 +1274,10 @@ func (v *ExecuteTransactionInput) validate(path awserr.Path, out *[]awserr.Viola
 		*out = append(*out, awserr.Violation{Path: at(path, "transactStatements"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.TransactStatements) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "transactStatements"), Value: awserr.RenderedText{Text: renderParameterizedStatements(v.TransactStatements)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "transactStatements"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.TransactStatements) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "transactStatements"), Value: awserr.RenderedText{Text: renderParameterizedStatements(v.TransactStatements)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "transactStatements"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.TransactStatements {
 			p2 := at(at(path, "transactStatements"), strconv.Itoa(i2+1), "member")
@@ -1561,7 +1561,7 @@ func (v *GlobalSecondaryIndex) validate(path awserr.Path, out *[]awserr.Violatio
 		*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.KeySchema) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedText{Text: renderKeySchema(v.KeySchema)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.KeySchema {
 			p2 := at(at(path, "keySchema"), strconv.Itoa(i2+1), "member")
@@ -2024,7 +2024,7 @@ func (v *LocalSecondaryIndex) validate(path awserr.Path, out *[]awserr.Violation
 		*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.KeySchema) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedText{Text: renderKeySchema(v.KeySchema)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.KeySchema {
 			p2 := at(at(path, "keySchema"), strconv.Itoa(i2+1), "member")
@@ -2051,7 +2051,7 @@ func (v *ParameterizedStatement) validate(path awserr.Path, out *[]awserr.Violat
 	}
 	if v.Parameters != nil {
 		if len(v.Parameters) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedText{Text: renderPreparedStatementParameters(v.Parameters)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "parameters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.Parameters {
 			p2 := at(at(path, "parameters"), strconv.Itoa(i2+1), "member")
@@ -2531,10 +2531,10 @@ func (v *ReplicaSettingsUpdate) validate(path awserr.Path, out *[]awserr.Violati
 	}
 	if v.ReplicaGlobalSecondaryIndexSettingsUpdate != nil {
 		if len(v.ReplicaGlobalSecondaryIndexSettingsUpdate) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "replicaGlobalSecondaryIndexSettingsUpdate"), Value: awserr.RenderedText{Text: renderReplicaGlobalSecondaryIndexSettingsUpdateList(v.ReplicaGlobalSecondaryIndexSettingsUpdate)}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "replicaGlobalSecondaryIndexSettingsUpdate"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if len(v.ReplicaGlobalSecondaryIndexSettingsUpdate) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "replicaGlobalSecondaryIndexSettingsUpdate"), Value: awserr.RenderedText{Text: renderReplicaGlobalSecondaryIndexSettingsUpdateList(v.ReplicaGlobalSecondaryIndexSettingsUpdate)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "replicaGlobalSecondaryIndexSettingsUpdate"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.ReplicaGlobalSecondaryIndexSettingsUpdate {
 			p2 := at(at(path, "replicaGlobalSecondaryIndexSettingsUpdate"), strconv.Itoa(i2+1), "member")
@@ -2944,10 +2944,10 @@ func (v *SearchVectorsInput) validate(path awserr.Path, out *[]awserr.Violation)
 		*out = append(*out, awserr.Violation{Path: at(path, "searchVector"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.SearchVector) > 4096 {
-			*out = append(*out, awserr.Violation{Path: at(path, "searchVector"), Value: awserr.RenderedText{Text: renderSearchVectorList(v.SearchVector)}, Constraint: awserr.LengthMax{Max: 4096}})
+			*out = append(*out, awserr.Violation{Path: at(path, "searchVector"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 4096}})
 		}
 		if len(v.SearchVector) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "searchVector"), Value: awserr.RenderedText{Text: renderSearchVectorList(v.SearchVector)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "searchVector"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.SearchVector {
 			p2 := at(at(path, "searchVector"), strconv.Itoa(i2+1), "member")
@@ -3000,7 +3000,7 @@ func (v *TableCreationParameters) validate(path awserr.Path, out *[]awserr.Viola
 		*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.KeySchema) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedText{Text: renderKeySchema(v.KeySchema)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "keySchema"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.KeySchema {
 			p2 := at(at(path, "keySchema"), strconv.Itoa(i2+1), "member")
@@ -3121,10 +3121,10 @@ func (v *TransactGetItemsInput) validate(path awserr.Path, out *[]awserr.Violati
 		*out = append(*out, awserr.Violation{Path: at(path, "transactItems"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.TransactItems) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "transactItems"), Value: awserr.RenderedText{Text: renderTransactGetItemList(v.TransactItems)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "transactItems"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.TransactItems) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "transactItems"), Value: awserr.RenderedText{Text: renderTransactGetItemList(v.TransactItems)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "transactItems"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.TransactItems {
 			p2 := at(at(path, "transactItems"), strconv.Itoa(i2+1), "member")
@@ -3166,10 +3166,10 @@ func (v *TransactWriteItemsInput) validate(path awserr.Path, out *[]awserr.Viola
 		*out = append(*out, awserr.Violation{Path: at(path, "transactItems"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.TransactItems) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "transactItems"), Value: awserr.RenderedText{Text: renderTransactWriteItemList(v.TransactItems)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "transactItems"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.TransactItems) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "transactItems"), Value: awserr.RenderedText{Text: renderTransactWriteItemList(v.TransactItems)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "transactItems"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.TransactItems {
 			p2 := at(at(path, "transactItems"), strconv.Itoa(i2+1), "member")
@@ -3441,10 +3441,10 @@ func (v *UpdateGlobalTableSettingsInput) validate(path awserr.Path, out *[]awser
 	}
 	if v.GlobalTableGlobalSecondaryIndexSettingsUpdate != nil {
 		if len(v.GlobalTableGlobalSecondaryIndexSettingsUpdate) > 20 {
-			*out = append(*out, awserr.Violation{Path: at(path, "globalTableGlobalSecondaryIndexSettingsUpdate"), Value: awserr.RenderedText{Text: renderGlobalTableGlobalSecondaryIndexSettingsUpdateList(v.GlobalTableGlobalSecondaryIndexSettingsUpdate)}, Constraint: awserr.LengthMax{Max: 20}})
+			*out = append(*out, awserr.Violation{Path: at(path, "globalTableGlobalSecondaryIndexSettingsUpdate"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 20}})
 		}
 		if len(v.GlobalTableGlobalSecondaryIndexSettingsUpdate) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "globalTableGlobalSecondaryIndexSettingsUpdate"), Value: awserr.RenderedText{Text: renderGlobalTableGlobalSecondaryIndexSettingsUpdateList(v.GlobalTableGlobalSecondaryIndexSettingsUpdate)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "globalTableGlobalSecondaryIndexSettingsUpdate"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.GlobalTableGlobalSecondaryIndexSettingsUpdate {
 			p2 := at(at(path, "globalTableGlobalSecondaryIndexSettingsUpdate"), strconv.Itoa(i2+1), "member")
@@ -3453,10 +3453,10 @@ func (v *UpdateGlobalTableSettingsInput) validate(path awserr.Path, out *[]awser
 	}
 	if v.ReplicaSettingsUpdate != nil {
 		if len(v.ReplicaSettingsUpdate) > 50 {
-			*out = append(*out, awserr.Violation{Path: at(path, "replicaSettingsUpdate"), Value: awserr.RenderedText{Text: renderReplicaSettingsUpdateList(v.ReplicaSettingsUpdate)}, Constraint: awserr.LengthMax{Max: 50}})
+			*out = append(*out, awserr.Violation{Path: at(path, "replicaSettingsUpdate"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 50}})
 		}
 		if len(v.ReplicaSettingsUpdate) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "replicaSettingsUpdate"), Value: awserr.RenderedText{Text: renderReplicaSettingsUpdateList(v.ReplicaSettingsUpdate)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "replicaSettingsUpdate"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.ReplicaSettingsUpdate {
 			p2 := at(at(path, "replicaSettingsUpdate"), strconv.Itoa(i2+1), "member")
@@ -3620,7 +3620,7 @@ func (v *UpdateReplicationGroupMemberAction) validate(path awserr.Path, out *[]a
 	}
 	if v.GlobalSecondaryIndexes != nil {
 		if len(v.GlobalSecondaryIndexes) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "globalSecondaryIndexes"), Value: awserr.RenderedText{Text: renderReplicaGlobalSecondaryIndexList(v.GlobalSecondaryIndexes)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "globalSecondaryIndexes"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.GlobalSecondaryIndexes {
 			p2 := at(at(path, "globalSecondaryIndexes"), strconv.Itoa(i2+1), "member")
@@ -3681,7 +3681,7 @@ func (v *UpdateTableInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.ReplicaUpdates != nil {
 		if len(v.ReplicaUpdates) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "replicaUpdates"), Value: awserr.RenderedText{Text: renderReplicationGroupUpdateList(v.ReplicaUpdates)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "replicaUpdates"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.ReplicaUpdates {
 			p2 := at(at(path, "replicaUpdates"), strconv.Itoa(i2+1), "member")
@@ -3700,10 +3700,10 @@ func (v *UpdateTableInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.GlobalTableWitnessUpdates != nil {
 		if len(v.GlobalTableWitnessUpdates) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "globalTableWitnessUpdates"), Value: awserr.RenderedText{Text: renderGlobalTableWitnessGroupUpdateList(v.GlobalTableWitnessUpdates)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "globalTableWitnessUpdates"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.GlobalTableWitnessUpdates) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "globalTableWitnessUpdates"), Value: awserr.RenderedText{Text: renderGlobalTableWitnessGroupUpdateList(v.GlobalTableWitnessUpdates)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "globalTableWitnessUpdates"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.GlobalTableWitnessUpdates {
 			p2 := at(at(path, "globalTableWitnessUpdates"), strconv.Itoa(i2+1), "member")
@@ -3734,7 +3734,7 @@ func (v *UpdateTableReplicaAutoScalingInput) Validate() []awserr.Violation {
 func (v *UpdateTableReplicaAutoScalingInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.GlobalSecondaryIndexUpdates != nil {
 		if len(v.GlobalSecondaryIndexUpdates) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "globalSecondaryIndexUpdates"), Value: awserr.RenderedText{Text: renderGlobalSecondaryIndexAutoScalingUpdateList(v.GlobalSecondaryIndexUpdates)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "globalSecondaryIndexUpdates"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.GlobalSecondaryIndexUpdates {
 			p2 := at(at(path, "globalSecondaryIndexUpdates"), strconv.Itoa(i2+1), "member")
@@ -3756,7 +3756,7 @@ func (v *UpdateTableReplicaAutoScalingInput) validate(path awserr.Path, out *[]a
 	}
 	if v.ReplicaUpdates != nil {
 		if len(v.ReplicaUpdates) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "replicaUpdates"), Value: awserr.RenderedText{Text: renderReplicaAutoScalingUpdateList(v.ReplicaUpdates)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "replicaUpdates"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.ReplicaUpdates {
 			p2 := at(at(path, "replicaUpdates"), strconv.Itoa(i2+1), "member")
@@ -3825,7 +3825,7 @@ func (v *VectorIndex) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.SearchSchema != nil {
 		if len(v.SearchSchema) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "searchSchema"), Value: awserr.RenderedText{Text: renderSearchSchema(v.SearchSchema)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "searchSchema"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.SearchSchema {
 			p2 := at(at(path, "searchSchema"), strconv.Itoa(i2+1), "member")
@@ -6342,19 +6342,10 @@ func renderAttributeNameList(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderBatchGetRequestMap(v map[string]KeysAndAttributes) string {
-	parts := make([]string, 0, len(v))
-	for _, k := range slices.Sorted(maps.Keys(v)) {
-		parts = append(parts, k+"="+"")
-	}
-	return "{" + strings.Join(parts, ", ") + "}"
-}
-
 func renderBatchWriteItemRequestMap(v map[string][]WriteRequest) string {
 	parts := make([]string, 0, len(v))
 	for _, k := range slices.Sorted(maps.Keys(v)) {
-		e := v[k]
-		parts = append(parts, k+"="+renderWriteRequests(e))
+		parts = append(parts, k+"="+"")
 	}
 	return "{" + strings.Join(parts, ", ") + "}"
 }
@@ -6363,30 +6354,6 @@ func renderCsvHeaderList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderGlobalSecondaryIndexAutoScalingUpdateList(v []GlobalSecondaryIndexAutoScalingUpdate) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderGlobalTableGlobalSecondaryIndexSettingsUpdateList(v []GlobalTableGlobalSecondaryIndexSettingsUpdate) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderGlobalTableWitnessGroupUpdateList(v []GlobalTableWitnessGroupUpdate) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
@@ -6401,14 +6368,6 @@ func renderKey(v map[string]AttributeValue) string {
 
 func renderKeyList(v []map[string]AttributeValue) string {
 	parts := make([]string, 0, len(v))
-	for _, e := range v {
-		parts = append(parts, renderKey(e))
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderKeySchema(v []KeySchemaElement) string {
-	parts := make([]string, 0, len(v))
 	for range v {
 		parts = append(parts, "")
 	}
@@ -6419,102 +6378,6 @@ func renderNonKeyAttributeNameList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderParameterizedStatements(v []ParameterizedStatement) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPartiQLBatchRequest(v []BatchStatementRequest) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderPreparedStatementParameters(v []AttributeValue) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderReplicaAutoScalingUpdateList(v []ReplicaAutoScalingUpdate) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderReplicaGlobalSecondaryIndexList(v []ReplicaGlobalSecondaryIndex) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderReplicaGlobalSecondaryIndexSettingsUpdateList(v []ReplicaGlobalSecondaryIndexSettingsUpdate) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderReplicaSettingsUpdateList(v []ReplicaSettingsUpdate) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderReplicationGroupUpdateList(v []ReplicationGroupUpdate) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderSearchSchema(v []SearchSchemaElement) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderSearchVectorList(v []AttributeValue) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderTransactGetItemList(v []TransactGetItem) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderTransactWriteItemList(v []TransactWriteItem) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

@@ -55,10 +55,10 @@ func (v *BatchGetSecretValueInput) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderFiltersListType(v.Filters)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderFiltersListType(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -171,7 +171,7 @@ func (v *CreateSecretInput) validate(path awserr.Path, out *[]awserr.Violation) 
 	}
 	if v.AddReplicaRegions != nil {
 		if len(v.AddReplicaRegions) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "addReplicaRegions"), Value: awserr.RenderedText{Text: renderAddReplicaRegionListType(v.AddReplicaRegions)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "addReplicaRegions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.AddReplicaRegions {
 			p2 := at(at(path, "addReplicaRegions"), strconv.Itoa(i2+1), "member")
@@ -447,10 +447,10 @@ func (v *ListSecretsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Filters != nil {
 		if len(v.Filters) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderFiltersListType(v.Filters)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Filters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedText{Text: renderFiltersListType(v.Filters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "filters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Filters {
 			p2 := at(at(path, "filters"), strconv.Itoa(i2+1), "member")
@@ -658,7 +658,7 @@ func (v *ReplicateSecretToRegionsInput) validate(path awserr.Path, out *[]awserr
 		*out = append(*out, awserr.Violation{Path: at(path, "addReplicaRegions"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
 	} else {
 		if len(v.AddReplicaRegions) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "addReplicaRegions"), Value: awserr.RenderedText{Text: renderAddReplicaRegionListType(v.AddReplicaRegions)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "addReplicaRegions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.AddReplicaRegions {
 			p2 := at(at(path, "addReplicaRegions"), strconv.Itoa(i2+1), "member")
@@ -1629,26 +1629,10 @@ func (*ValidateResourcePolicyInput) ValidationError(vs []awserr.Violation) *awse
 	return policyValidateResourcePolicy.render(vs)
 }
 
-func renderAddReplicaRegionListType(v []ReplicaRegionType) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderFilterValuesStringList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderFiltersListType(v []Filter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

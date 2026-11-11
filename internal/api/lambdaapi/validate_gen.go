@@ -536,10 +536,10 @@ func (v *CapacityProviderScalingConfig) validate(path awserr.Path, out *[]awserr
 	}
 	if v.ScalingPolicies != nil {
 		if len(v.ScalingPolicies) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "scalingPolicies"), Value: awserr.RenderedText{Text: renderCapacityProviderScalingPoliciesList(v.ScalingPolicies)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "scalingPolicies"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.ScalingPolicies) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "scalingPolicies"), Value: awserr.RenderedText{Text: renderCapacityProviderScalingPoliciesList(v.ScalingPolicies)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "scalingPolicies"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.ScalingPolicies {
 			p2 := at(at(path, "scalingPolicies"), strconv.Itoa(i2+1), "member")
@@ -1125,10 +1125,10 @@ func (v *CreateEventSourceMappingInput) validate(path awserr.Path, out *[]awserr
 	}
 	if v.SourceAccessConfigurations != nil {
 		if len(v.SourceAccessConfigurations) > 23 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedText{Text: renderSourceAccessConfigurations(v.SourceAccessConfigurations)}, Constraint: awserr.LengthMax{Max: 23}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 23}})
 		}
 		if len(v.SourceAccessConfigurations) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedText{Text: renderSourceAccessConfigurations(v.SourceAccessConfigurations)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.SourceAccessConfigurations {
 			p2 := at(at(path, "sourceAccessConfigurations"), strconv.Itoa(i2+1), "member")
@@ -1314,10 +1314,10 @@ func (v *CreateFunctionInput) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.FileSystemConfigs != nil {
 		if len(v.FileSystemConfigs) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedText{Text: renderFileSystemConfigList(v.FileSystemConfigs)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.FileSystemConfigs) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedText{Text: renderFileSystemConfigList(v.FileSystemConfigs)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.FileSystemConfigs {
 			p2 := at(at(path, "fileSystemConfigs"), strconv.Itoa(i2+1), "member")
@@ -4886,10 +4886,10 @@ func (v *UpdateEventSourceMappingInput) validate(path awserr.Path, out *[]awserr
 	}
 	if v.SourceAccessConfigurations != nil {
 		if len(v.SourceAccessConfigurations) > 23 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedText{Text: renderSourceAccessConfigurations(v.SourceAccessConfigurations)}, Constraint: awserr.LengthMax{Max: 23}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 23}})
 		}
 		if len(v.SourceAccessConfigurations) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedText{Text: renderSourceAccessConfigurations(v.SourceAccessConfigurations)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "sourceAccessConfigurations"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.SourceAccessConfigurations {
 			p2 := at(at(path, "sourceAccessConfigurations"), strconv.Itoa(i2+1), "member")
@@ -5119,10 +5119,10 @@ func (v *UpdateFunctionConfigurationInput) validate(path awserr.Path, out *[]aws
 	}
 	if v.FileSystemConfigs != nil {
 		if len(v.FileSystemConfigs) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedText{Text: renderFileSystemConfigList(v.FileSystemConfigs)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.FileSystemConfigs) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedText{Text: renderFileSystemConfigList(v.FileSystemConfigs)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "fileSystemConfigs"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.FileSystemConfigs {
 			p2 := at(at(path, "fileSystemConfigs"), strconv.Itoa(i2+1), "member")
@@ -7343,14 +7343,6 @@ func renderArchitecturesList(v []Architecture) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderCapacityProviderScalingPoliciesList(v []TargetTrackingScalingPolicy) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderCapacityProviderSecurityGroupIds(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -7416,14 +7408,6 @@ func renderExecutionStatusList(v []ExecutionStatus) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderFileSystemConfigList(v []FileSystemConfig) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderFunctionResponseTypeList(v []FunctionResponseType) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
@@ -7476,14 +7460,6 @@ func renderSigningProfileVersionArns(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderSourceAccessConfigurations(v []SourceAccessConfiguration) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }

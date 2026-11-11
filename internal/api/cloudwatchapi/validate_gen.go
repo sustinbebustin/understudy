@@ -153,10 +153,10 @@ func (v *CreateResourceMetricsConfigurationInput) validate(path awserr.Path, out
 	}
 	if v.MetricSelections != nil {
 		if len(v.MetricSelections) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metricSelections"), Value: awserr.RenderedText{Text: renderResourceMetricSelectionList(v.MetricSelections)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metricSelections"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.MetricSelections) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metricSelections"), Value: awserr.RenderedText{Text: renderResourceMetricSelectionList(v.MetricSelections)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metricSelections"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.MetricSelections {
 			p2 := at(at(path, "metricSelections"), strconv.Itoa(i2+1), "member")
@@ -257,10 +257,10 @@ func (v *DeleteAnomalyDetectorInput) validate(path awserr.Path, out *[]awserr.Vi
 	}
 	if v.Dimensions != nil {
 		if len(v.Dimensions) > 30 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMax{Max: 30}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 30}})
 		}
 		if len(v.Dimensions) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Dimensions {
 			p2 := at(at(path, "dimensions"), strconv.Itoa(i2+1), "member")
@@ -485,10 +485,10 @@ func (v *DescribeAlarmsForMetricInput) validate(path awserr.Path, out *[]awserr.
 	}
 	if v.Dimensions != nil {
 		if len(v.Dimensions) > 30 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMax{Max: 30}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 30}})
 		}
 		if len(v.Dimensions) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Dimensions {
 			p2 := at(at(path, "dimensions"), strconv.Itoa(i2+1), "member")
@@ -643,10 +643,10 @@ func (v *DescribeAnomalyDetectorsInput) validate(path awserr.Path, out *[]awserr
 	}
 	if v.Dimensions != nil {
 		if len(v.Dimensions) > 30 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMax{Max: 30}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 30}})
 		}
 		if len(v.Dimensions) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Dimensions {
 			p2 := at(at(path, "dimensions"), strconv.Itoa(i2+1), "member")
@@ -1132,10 +1132,10 @@ func (v *GetMetricStatisticsInput) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.Dimensions != nil {
 		if len(v.Dimensions) > 30 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMax{Max: 30}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 30}})
 		}
 		if len(v.Dimensions) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Dimensions {
 			p2 := at(at(path, "dimensions"), strconv.Itoa(i2+1), "member")
@@ -1368,10 +1368,10 @@ func (v *ListMetricsInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Dimensions != nil {
 		if len(v.Dimensions) > 10 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensionFilters(v.Dimensions)}, Constraint: awserr.LengthMax{Max: 10}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 10}})
 		}
 		if len(v.Dimensions) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensionFilters(v.Dimensions)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Dimensions {
 			p2 := at(at(path, "dimensions"), strconv.Itoa(i2+1), "member")
@@ -1468,10 +1468,10 @@ func (v *Metric) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Dimensions != nil {
 		if len(v.Dimensions) > 30 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMax{Max: 30}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 30}})
 		}
 		if len(v.Dimensions) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Dimensions {
 			p2 := at(at(path, "dimensions"), strconv.Itoa(i2+1), "member")
@@ -1530,10 +1530,10 @@ func (v *MetricDatum) validate(path awserr.Path, out *[]awserr.Violation) {
 	}
 	if v.Dimensions != nil {
 		if len(v.Dimensions) > 30 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMax{Max: 30}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 30}})
 		}
 		if len(v.Dimensions) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Dimensions {
 			p2 := at(at(path, "dimensions"), strconv.Itoa(i2+1), "member")
@@ -1780,10 +1780,10 @@ func (v *PutAnomalyDetectorInput) validate(path awserr.Path, out *[]awserr.Viola
 	}
 	if v.Dimensions != nil {
 		if len(v.Dimensions) > 30 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMax{Max: 30}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 30}})
 		}
 		if len(v.Dimensions) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Dimensions {
 			p2 := at(at(path, "dimensions"), strconv.Itoa(i2+1), "member")
@@ -2242,10 +2242,10 @@ func (v *PutMetricAlarmInput) validate(path awserr.Path, out *[]awserr.Violation
 	}
 	if v.Dimensions != nil {
 		if len(v.Dimensions) > 30 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMax{Max: 30}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 30}})
 		}
 		if len(v.Dimensions) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Dimensions {
 			p2 := at(at(path, "dimensions"), strconv.Itoa(i2+1), "member")
@@ -2688,10 +2688,10 @@ func (v *SingleMetricAnomalyDetector) validate(path awserr.Path, out *[]awserr.V
 	}
 	if v.Dimensions != nil {
 		if len(v.Dimensions) > 30 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMax{Max: 30}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 30}})
 		}
 		if len(v.Dimensions) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedText{Text: renderDimensions(v.Dimensions)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "dimensions"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.Dimensions {
 			p2 := at(at(path, "dimensions"), strconv.Itoa(i2+1), "member")
@@ -2746,10 +2746,10 @@ func (v *StartOTelEnrichmentInput) Validate() []awserr.Violation {
 func (v *StartOTelEnrichmentInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.IncludeFilters != nil {
 		if len(v.IncludeFilters) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "includeFilters"), Value: awserr.RenderedText{Text: renderOTelEnrichmentMetricSelectorList(v.IncludeFilters)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "includeFilters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.IncludeFilters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "includeFilters"), Value: awserr.RenderedText{Text: renderOTelEnrichmentMetricSelectorList(v.IncludeFilters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "includeFilters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.IncludeFilters {
 			p2 := at(at(path, "includeFilters"), strconv.Itoa(i2+1), "member")
@@ -2758,10 +2758,10 @@ func (v *StartOTelEnrichmentInput) validate(path awserr.Path, out *[]awserr.Viol
 	}
 	if v.ExcludeFilters != nil {
 		if len(v.ExcludeFilters) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "excludeFilters"), Value: awserr.RenderedText{Text: renderOTelEnrichmentMetricSelectorList(v.ExcludeFilters)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "excludeFilters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.ExcludeFilters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "excludeFilters"), Value: awserr.RenderedText{Text: renderOTelEnrichmentMetricSelectorList(v.ExcludeFilters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "excludeFilters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.ExcludeFilters {
 			p2 := at(at(path, "excludeFilters"), strconv.Itoa(i2+1), "member")
@@ -2912,10 +2912,10 @@ func (v *UpdateOTelEnrichmentInput) Validate() []awserr.Violation {
 func (v *UpdateOTelEnrichmentInput) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.IncludeFilters != nil {
 		if len(v.IncludeFilters) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "includeFilters"), Value: awserr.RenderedText{Text: renderOTelEnrichmentMetricSelectorList(v.IncludeFilters)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "includeFilters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.IncludeFilters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "includeFilters"), Value: awserr.RenderedText{Text: renderOTelEnrichmentMetricSelectorList(v.IncludeFilters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "includeFilters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.IncludeFilters {
 			p2 := at(at(path, "includeFilters"), strconv.Itoa(i2+1), "member")
@@ -2924,10 +2924,10 @@ func (v *UpdateOTelEnrichmentInput) validate(path awserr.Path, out *[]awserr.Vio
 	}
 	if v.ExcludeFilters != nil {
 		if len(v.ExcludeFilters) > 100 {
-			*out = append(*out, awserr.Violation{Path: at(path, "excludeFilters"), Value: awserr.RenderedText{Text: renderOTelEnrichmentMetricSelectorList(v.ExcludeFilters)}, Constraint: awserr.LengthMax{Max: 100}})
+			*out = append(*out, awserr.Violation{Path: at(path, "excludeFilters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 100}})
 		}
 		if len(v.ExcludeFilters) < 0 {
-			*out = append(*out, awserr.Violation{Path: at(path, "excludeFilters"), Value: awserr.RenderedText{Text: renderOTelEnrichmentMetricSelectorList(v.ExcludeFilters)}, Constraint: awserr.LengthMin{Min: 0}})
+			*out = append(*out, awserr.Violation{Path: at(path, "excludeFilters"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 0}})
 		}
 		for i2, e2 := range v.ExcludeFilters {
 			p2 := at(at(path, "excludeFilters"), strconv.Itoa(i2+1), "member")
@@ -2960,10 +2960,10 @@ func (v *UpdateResourceMetricsConfigurationInput) validate(path awserr.Path, out
 	}
 	if v.MetricSelections != nil {
 		if len(v.MetricSelections) > 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metricSelections"), Value: awserr.RenderedText{Text: renderResourceMetricSelectionList(v.MetricSelections)}, Constraint: awserr.LengthMax{Max: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metricSelections"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMax{Max: 1}})
 		}
 		if len(v.MetricSelections) < 1 {
-			*out = append(*out, awserr.Violation{Path: at(path, "metricSelections"), Value: awserr.RenderedText{Text: renderResourceMetricSelectionList(v.MetricSelections)}, Constraint: awserr.LengthMin{Min: 1}})
+			*out = append(*out, awserr.Violation{Path: at(path, "metricSelections"), Value: awserr.RenderedOmitted{}, Constraint: awserr.LengthMin{Min: 1}})
 		}
 		for i2, e2 := range v.MetricSelections {
 			p2 := at(at(path, "metricSelections"), strconv.Itoa(i2+1), "member")
@@ -4433,22 +4433,6 @@ func renderAnomalyDetectorTypes(v []AnomalyDetectorType) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderDimensionFilters(v []DimensionFilter) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderDimensions(v []Dimension) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderEntityAttributesMap(v map[string]string) string {
 	parts := make([]string, 0, len(v))
 	for _, k := range slices.Sorted(maps.Keys(v)) {
@@ -4507,26 +4491,10 @@ func renderOTelEnrichmentMetricNameList(v []string) string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
-func renderOTelEnrichmentMetricSelectorList(v []OTelEnrichmentMetricSelector) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
 func renderResourceList(v []string) string {
 	parts := make([]string, 0, len(v))
 	for _, e := range v {
 		parts = append(parts, e)
-	}
-	return "[" + strings.Join(parts, ", ") + "]"
-}
-
-func renderResourceMetricSelectionList(v []ResourceMetricSelection) string {
-	parts := make([]string, 0, len(v))
-	for range v {
-		parts = append(parts, "")
 	}
 	return "[" + strings.Join(parts, ", ") + "]"
 }
