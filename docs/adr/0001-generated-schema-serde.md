@@ -35,3 +35,10 @@ Generate `Serialize(smithy.Serializer)` and `Deserialize(smithy.Deserializer) er
 - Why this is safe: an unbound operation answers 501 before reading its input (`Kernel.NewInput`), REST routing matches generated route rows, and coverage reads only schema IDs.
 - Why a list in config: the bound set exists only once `internal/server` wires the services, which import the generated packages, so the generator cannot derive it. `internal/server/bound_config_impl_test.go` ties each list to the kernel's bound set and names the edit when they differ.
 - Schemas are also linked statically (`Target` and `Members` in the variable literals) instead of in `init`, except recursive shapes. Together: 47.5 to 44.3 MiB stripped.
+
+## Amendment 2026-11-11: next binary-size levers
+
+- A stripped `linux/amd64` build (`CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' ./cmd/understudy`, as `just budgets` builds it) measures 44.48 MiB against the 48 MiB budget. If the budget binds again, cut in this order. Sizes are the text of the symbols concerned, from `go tool nm -size -sort size` on the same build without `-s -w`, summing `T` symbols that match the pattern; an overlapping symbol counts once per lever.
+- Per-shape `slices.*CmpFunc` instantiations: 651 instantiations, 0.97 MiB (pattern `slices\.[A-Za-z]*CmpFunc\[`). Total-order comparators over distinct element types each stamp out their own sort and search bodies. Sharing one comparator shape per ordering (sort a slice of keys, not of structs) removes most of them.
+- `jsonx` `Variant` and `Union`: 1,116 generic instantiations, 0.43 MiB (pattern `jsonx\.\(?\*?(Variant|Union)\[`); 0.51 MiB counting their non-generic helpers. The earlier estimate of 0.13 MiB was low.
+- Binding all of a large service: removing `boundOperations` from `codegen/services/ssm.json` (13 bound operations of the service's full set), regenerating `ssmapi` and rebuilding grew the stripped binary from 44.48 to 44.98 MiB, +0.50 MiB. That is the cost of unpruned schema members for one large service; binding another service's operations costs the same order, in handler code on top.
