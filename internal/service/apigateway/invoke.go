@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"maps"
-	"net"
 	"net/http"
 	"slices"
 	"strings"
@@ -15,16 +14,13 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayapi"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
-	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/httpevent"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/policydoc"
-	"github.com/sustinbebustin/understudy/internal/ref"
-	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/lambdaproxy"
 	"github.com/sustinbebustin/understudy/internal/service/apigateway/resource"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -32,10 +28,6 @@ import (
 // executeAPIPrefix is the execute-api path fallback,
 // /_understudy/execute-api/<api-id>/<stage>/<path>.
 const executeAPIPrefix = "/_understudy/execute-api/"
-
-// servicePrincipal is whom API Gateway invokes a Lambda proxy integration
-// as (apigateway-rest.md 5.4).
-const servicePrincipal = "apigateway.amazonaws.com"
 
 // maxEvent is the largest event Lambda accepts for a synchronous
 // invocation, 6 MB (apigateway-rest.md 5.3).
@@ -55,7 +47,7 @@ func (s *Service) invoke(ctx context.Context, c *kernel.Call, r *http.Request, w
 	w.Header().Set("X-Amzn-Requestid", string(c.ID()))
 	w.Header().Set("X-Amz-Apigw-Id", extended)
 	// The size limit comes before any lookup.
-	body, tooLarge, err := readBody(r, MaxBody)
+	body, tooLarge, err := lambdaproxy.ReadBody(r, MaxBody)
 	switch {
 	case err != nil:
 		return err
@@ -104,7 +96,7 @@ type address struct {
 // <api-id>.execute-api.<region>.<base> or <api-id>.execute-api.<base>.
 // The API id is lowercased, as a host name is.
 func (s *Service) resolve(r *http.Request) (address, bool) {
-	escaped := escapedPath(r)
+	escaped := lambdaproxy.EscapedPath(r)
 	if rest, ok := strings.CutPrefix(escaped, executeAPIPrefix); ok {
 		id, path, _ := strings.Cut(rest, "/")
 		if id == "" {
@@ -112,7 +104,7 @@ func (s *Service) resolve(r *http.Request) (address, bool) {
 		}
 		return address{apiID: strings.ToLower(id), path: "/" + path}, true
 	}
-	host := hostName(r.Host)
+	host := lambdaproxy.HostName(r.Host)
 	labels := strings.SplitN(host, ".", 3)
 	if len(labels) != 3 || labels[0] == "" || labels[1] != "execute-api" || labels[2] == "" {
 		return address{}, false
@@ -136,14 +128,6 @@ func (a address) domain(owner aws.Scope) string {
 		return a.host
 	}
 	return a.apiID + ".execute-api." + owner.Region.String() + ".localhost"
-}
-
-// hostName is a Host header without its port, lowercase.
-func hostName(host string) string {
-	if h, _, err := net.SplitHostPort(host); err == nil {
-		host = h
-	}
-	return strings.ToLower(strings.Trim(host, "[]"))
 }
 
 // selection is what a request selects in the state, copied out of it.
@@ -371,14 +355,14 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 		return awserr.Internalf(fmt.Errorf("apigateway: an integration of REST API %s names function %s: %w", t.apiID, fn, serr))
 	}
 	source := sourceARN(t.owner, t.apiID, t.stage, t.methodKey, t.resourcePath)
-	allowed, err := s.permitted(fn, source, t.owner)
+	allowed, err := lambdaproxy.Permitted(s.policies, fn, source, t.owner)
 	if err != nil {
 		return err
 	}
 	if !allowed {
 		return writeAnswer(w, PermissionSwitch().Value.Denial)
 	}
-	event, eerr := httpevent.EventV1(eventRequest(c, r, t.rawPath, body), httpevent.Context{
+	event, eerr := httpevent.EventV1(lambdaproxy.EventRequest(c, r, t.rawPath, body), httpevent.Context{
 		AccountID:      t.owner.Account.String(),
 		APIID:          t.apiID,
 		DomainName:     t.domain,
@@ -401,17 +385,17 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 		return writeAnswer(w, EventTooLarge())
 	}
 	var out *lambdaapi.InvokeOutput
-	switch res := s.invokeWithin(ctx, c, time.Duration(t.integration.TimeoutInMillis)*time.Millisecond, kernel.Target{
-		Scope: fnScope, As: kernel.AsService{Name: servicePrincipal, Source: source}, Via: ref.ViaAPIGateway,
-	}, &lambdaapi.InvokeInput{FunctionName: fn.String(), InvocationType: new(lambdaapi.InvocationTypeRequestResponse), Payload: event}).(type) {
-	case clientGone:
+	switch res := lambdaproxy.InvokeWithin(ctx, s.k, c, time.Duration(t.integration.TimeoutInMillis)*time.Millisecond, lambdaproxy.Invocation{
+		Function: fn, Scope: fnScope, Source: source, Event: event,
+	}).(type) {
+	case lambdaproxy.ClientGone:
 		return awserr.RequestAborted()
-	case timedOut:
+	case lambdaproxy.TimedOut:
 		return writeAnswer(w, ProxyUnrecordedSwitch().Value.Timeout)
-	case lambdaRefusal:
-		return lambdaRefused(w, t, res.err)
-	case lambdaOutput:
-		out = res.out
+	case lambdaproxy.Refusal:
+		return lambdaRefused(w, t, res.Err)
+	case lambdaproxy.Output:
+		out = res.Out
 	}
 	if out == nil {
 		return awserr.Internalf(fmt.Errorf("apigateway: Lambda's Invoke of %s answered neither an output nor an error", fn))
@@ -427,60 +411,6 @@ func (s *Service) invokeFunction(ctx context.Context, c *kernel.Call, r *http.Re
 	}
 	resp.Write(w)
 	return nil
-}
-
-// waited is how the wait for an invocation ended.
-//
-//sumtype:decl
-type waited interface{ isWaited() }
-
-// lambdaOutput is Lambda's output for the invocation.
-type lambdaOutput struct{ out *lambdaapi.InvokeOutput }
-
-// lambdaRefusal is the error Lambda refused the invocation with.
-type lambdaRefusal struct{ err *awserr.Error }
-
-// timedOut is an invocation still running when the integration's timeout
-// passed.
-type timedOut struct{}
-
-// clientGone is a client that went away before Lambda answered.
-type clientGone struct{}
-
-func (lambdaOutput) isWaited()  {}
-func (lambdaRefusal) isWaited() {}
-func (timedOut) isWaited()      {}
-func (clientGone) isWaited()    {}
-
-// invokeWithin invokes the function and waits for Lambda's answer at most
-// timeout of wall time: the integration timeout bounds real work in a
-// container, so a frozen or scaled emulator clock neither stretches nor
-// shortens it (ARCHITECTURE.md 9). The invocation runs as tracked work and
-// outlives the wait; past the timeout its answer is dropped (inferred,
-// APIGW1-10).
-func (s *Service) invokeWithin(ctx context.Context, c *kernel.Call, timeout time.Duration, t kernel.Target, in *lambdaapi.InvokeInput) waited {
-	done := make(chan waited, 1)
-	s.k.Go(kernel.InvocationRunning, func(work context.Context) { //nolint:contextcheck // the invocation outlives the request as tracked work of the kernel
-		out, err := kernel.Invoke(work, s.k, c, lambdaapi.OpInvoke, t, in)
-		if err != nil {
-			done <- lambdaRefusal{err}
-			return
-		}
-		done <- lambdaOutput{out}
-	})
-	wait, stop := context.WithCancel(ctx)
-	defer stop()
-	clk := s.k.Clock()
-	expired := clk.Until(wait, clk.WallDeadline(clk.Wall().Add(timeout)))
-	select {
-	case r := <-done:
-		return r
-	case <-expired:
-		if ctx.Err() != nil {
-			return clientGone{}
-		}
-		return timedOut{}
-	}
 }
 
 // lambdaRefused answers an invocation Lambda refused: Lambda without
@@ -508,90 +438,6 @@ func sourceARN(owner aws.Scope, apiID, stage, method, resourcePath string) aws.A
 		Partition: owner.Partition.String(), Service: "execute-api", Region: owner.Region.String(), Account: owner.Account.String(),
 		Resource: apiID + "/" + stage + "/" + method + "/" + strings.TrimPrefix(resourcePath, "/"),
 	}
-}
-
-// invokeFunctionAction is the action the function's resource policy must
-// allow API Gateway (apigateway-rest.md 5.4).
-func invokeFunctionAction() registry.IAMAction {
-	return registry.IAMAction{Prefix: "lambda", Name: "InvokeFunction"}
-}
-
-// errNoFunctionPolicies is a service built without Options.FunctionPolicies.
-var errNoFunctionPolicies = errors.New("apigateway: no Options.FunctionPolicies was given, so no function's resource policy can be read; wire.go passes the Lambda service")
-
-// permitted reports whether fn's resource policy lets API Gateway invoke
-// it for source (apigateway-rest.md 5.4). It applies under every
-// iam.enforce mode; a function that does not exist allows nothing.
-func (s *Service) permitted(fn, source aws.ARN, owner aws.Scope) (bool, *awserr.Error) {
-	if s.policies == nil {
-		return false, awserr.Internalf(errNoFunctionPolicies)
-	}
-	doc, ok := s.policies.ResourcePolicy(fn)
-	if !ok {
-		return false, nil
-	}
-	_, allowed := authz.CheckResource(doc, authz.ResourceRequest{
-		Caller:   policydoc.ServiceCaller{Name: servicePrincipal},
-		Action:   invokeFunctionAction(),
-		Resource: fn.String(),
-		Keys:     map[string]string{"aws:SourceArn": source.String(), "aws:SourceAccount": owner.Account.String()},
-	}).(policydoc.Allowed)
-	return allowed, nil
-}
-
-// readBody reads a request's body, reporting one over limit bytes as too
-// large without keeping it.
-func readBody(r *http.Request, limit int) (body []byte, tooLarge bool, err *awserr.Error) {
-	if r.Body == nil {
-		return nil, false, nil
-	}
-	b, rerr := io.ReadAll(io.LimitReader(r.Body, int64(limit)+1))
-	if rerr != nil {
-		return nil, false, awserr.RequestAborted()
-	}
-	if len(b) > limit {
-		return nil, true, nil
-	}
-	return b, false, nil
-}
-
-// eventRequest is the request as the event reports it, rawPath being the
-// escaped path the API sees, stage segment included.
-func eventRequest(c *kernel.Call, r *http.Request, rawPath string, body []byte) httpevent.Request {
-	e := c.Endpoint()
-	scheme := e.Scheme
-	if scheme == "" {
-		scheme = "http"
-	}
-	port := "80"
-	if scheme == "https" {
-		port = "443"
-	}
-	host := e.Host
-	if host == "" {
-		host = r.Host
-	}
-	if _, p, err := net.SplitHostPort(host); err == nil && p != "" {
-		port = p
-	}
-	source := r.RemoteAddr
-	if h, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		source = h
-	}
-	return httpevent.Request{
-		Method: r.Method, RawPath: rawPath, RawQuery: r.URL.RawQuery, Protocol: r.Proto,
-		Host: r.Host, Header: r.Header, SourceIP: source, Scheme: scheme, Port: port, Body: body,
-	}
-}
-
-// escapedPath is the escaped path exactly as the client sent it: the
-// request target up to its query.
-func escapedPath(r *http.Request) string {
-	if strings.HasPrefix(r.RequestURI, "/") {
-		path, _, _ := strings.Cut(r.RequestURI, "?")
-		return path
-	}
-	return r.URL.EscapedPath()
 }
 
 // writeAnswer writes a response the gateway gives itself:
