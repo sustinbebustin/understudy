@@ -60,15 +60,13 @@ func New(d kernel.ServiceDeps, opts Options) *Service {
 // 12.8) and the evaluation switches (authz.Switches), which IAM reports.
 // The rules a policy document is evaluated by govern the operations that
 // store one; the grammar and the enforcement order govern every operation
-// a denial answers. A missing resource is denied first by the operations
-// asked at step 8, and answers not-found first in those that find their
-// entity by name (resolvedFirst), which report their own switch. Whether
-// a named principal exists governs the operations that store a trust
-// policy.
+// a denial answers. A missing resource is denied first; the operations
+// that name a user, role or instance profile by name, and name it so in a
+// denial (byName), report their own switch. Whether a named principal
+// exists governs the operations that store a trust policy.
 func (s *Service) Switches() []fidelity.Entry {
 	authorized := s.bindings.AuthorizedOps(iamapi.Service())
-	// GetRole is AuthorizedInHandler, and asks once its read found the role.
-	byName := append(s.bindings.ResolvedFirstOps(iamapi.Service()), iamapi.OpGetRole.Descriptor().ID.String())
+	byName := s.bindings.NamedDenialOps(iamapi.Service())
 	stepEight := slices.DeleteFunc(slices.Clone(authorized), func(op string) bool { return slices.Contains(byName, op) })
 	evaluation := authz.SwitchesOf("iam", nil)
 	out := make([]fidelity.Entry, 0, 2+len(evaluation))
@@ -86,7 +84,11 @@ func (s *Service) Switches() []fidelity.Entry {
 		}
 		out = append(out, e)
 	}
-	return append(out, authz.ResolveFirstSwitch("iam", byName))
+	return append(out, authz.RecordedDenyFirstSwitch("iam.enforce.missing-resource.by-name",
+		"GetRole of a missing role, named \"role <name>\"",
+		"the other operations naming a user, role or instance profile by name (\"user <name>\", \"instance-profile <name>\"), "+
+			"and the ARN a missing entity is evaluated on, at the path / (missingPath)",
+		byName))
 }
 
 // documentOps are the IAM operations that store a policy document IAM

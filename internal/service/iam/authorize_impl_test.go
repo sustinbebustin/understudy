@@ -16,8 +16,9 @@ import (
 // ARN with its path, which only the read learns, with no condition keys of
 // its own. Step 8 asks nothing (kernel.AuthorizedInHandler), since on
 // AnyResource it would deny a caller whose policy grants iam:GetRole on
-// that role alone (iam-evaluation.md 2.1). It answers the role as without
-// an Authorizer.
+// that role alone (iam-evaluation.md 2.1). The pair names the role as
+// "role <name>" (iam-enforcement-surfaces.md 3.2, IAM-ENF-10). It answers
+// the role as without an Authorizer.
 func TestAnAllowedGetRoleAsksAboutTheRolesPathARN(t *testing.T) {
 	gate := &roleGate{}
 	runGated(t, gate, func(h *harness) {
@@ -29,7 +30,7 @@ func TestAnAllowedGetRoleAsksAboutTheRolesPathARN(t *testing.T) {
 		if got.Arn != created.Arn || got.Arn != role.String() || got.Path != "/team/" {
 			h.Errorf("GetRole = %s (path %s), want %s", got.Arn, got.Path, role)
 		}
-		want := []kernel.AuthzQuery{{Pairs: []kernel.Pair{{Action: getRole, Resource: kernel.ResourceARN{ARN: role}}}}}
+		want := []kernel.AuthzQuery{{Pairs: []kernel.Pair{{Action: getRole, Resource: kernel.ResourceARN{ARN: role}, DenialResource: "role worker"}}}}
 		gate.mu.Lock()
 		asked := slices.Clone(gate.asked)
 		gate.mu.Unlock()

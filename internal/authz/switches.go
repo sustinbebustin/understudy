@@ -20,9 +20,10 @@ const (
 // and Denial.Message follow; the enforce pair (iam.enforce.order,
 // iam.enforce.missing-resource) is what the kernel's step 8 follows. No
 // entry lists its Ops: the service that reports it names them (SwitchesOf).
-// iam.enforce.missing-resource is deny-first only for the operations asked
-// at step 8; those that resolve a resource by name first report
-// ResolveFirstSwitch instead.
+// iam.enforce.missing-resource is deny-first, as IAM-ENF-14 recorded for
+// most services; the services AWS answers not-found first report their own
+// resolve-first switch (RecordedResolveFirstSwitch), and IAM and Secrets
+// Manager their by-name switch (RecordedDenyFirstSwitch).
 func Switches() []fidelity.Entry {
 	inferred := evidence.Inferred
 	return []fidelity.Entry{
@@ -97,9 +98,17 @@ func Switches() []fidelity.Entry {
 		}.Entry(),
 		// The kernel's step 8.
 		researchSwitch("iam.enforce.order", "validate-first", inferred, enforcementNote, "5.3", "IAM-ENF-13"),
-		researchSwitch("iam.enforce.missing-resource", "deny-first", inferred, enforcementNote, "5.3", "IAM-ENF-14"),
+		recordedSwitch("iam.enforce.missing-resource", "deny-first", enforcementNote, "5.3", "IAM-ENF-14", missingResourceOrder+"; "+SessionUnreplayed),
 	}
 }
+
+// missingResourceOrder is the order IAM-ENF-14 recorded per service for a
+// caller with no permissions naming a resource that does not exist
+// (iam-enforcement-surfaces.md 5.3), which switch
+// iam.enforce.missing-resource states with its exceptions.
+const missingResourceOrder = "deny-first in DynamoDB, EventBridge, IAM GetRole, Lambda, Logs, Secrets Manager, SNS and STS; " +
+	"resolve-first, each under its own switch, for SQS queues (sqs.enforce.missing-resource), S3 buckets and keys (s3.enforce.missing-resource) " +
+	"and KMS key ids (kms.enforce.missing-resource.by-name)"
 
 // SwitchesOf are the Switches a service reports, those whose names begin
 // with service and a dot, each governing ops: IAM reports the evaluation
@@ -133,15 +142,15 @@ func EnforcementSwitch(name, value string, label evidence.Label, section, record
 	return e
 }
 
-// ResolveFirstSwitch is service's switch <service>.enforce.missing-resource.by-name,
-// at resolve-first, governing ops: the operations that find their resource
-// by name (kernel.Bindings.ResolvedFirstOps, and IAM GetRole), whose ARN
-// only the lookup learns, so a missing resource answers its not-found error
-// before authorization. It deviates from deny-first, the default of
-// iam.enforce.missing-resource, whose AWS behavior is unrecorded
-// (iam-enforcement-surfaces.md 5.3, 12.8; amended 2026-10-27).
-func ResolveFirstSwitch(service string, ops []string) fidelity.Entry {
-	return EnforcementSwitch(service+".enforce.missing-resource.by-name", "resolve-first", evidence.Inferred, "5.3", "IAM-ENF-14", ops)
+// RecordedDenyFirstSwitch is the switch name at deny-first, governing ops,
+// where IAM-ENF-14 recorded the denial of a caller with no permissions
+// before the resource's not-found error, naming the resource as the
+// request gave it (IAM GetRole, Secrets Manager): recorded says which
+// calls the recording made, and inferred which of ops, and which choices,
+// follow them by inference (iam-enforcement-surfaces.md 5.3, 12.8).
+func RecordedDenyFirstSwitch(name, recorded, inferred string, ops []string) fidelity.Entry {
+	return RecordedSwitch(name, "deny-first", "5.3", "IAM-ENF-14",
+		"recorded: "+recorded+"; inferred: "+inferred+"; "+SessionUnreplayed, ops)
 }
 
 // AccountIDPrincipalSwitch is service's switch

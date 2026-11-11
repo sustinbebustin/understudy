@@ -64,6 +64,9 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 	if w := s3Call(t, dummy, http.MethodPut, endpoint+"/enf-b/exists", "x"); w.status != http.StatusOK {
 		t.Fatalf("PutObject = %d %s", w.status, w.body)
 	}
+	if w := jsonCall(t, dummy, endpoint, "secretsmanager", "1.1", "secretsmanager.CreateSecret", `{"Name":"enf-s","SecretString":"x","ClientRequestToken":"00000000-0000-0000-0000-000000000001"}`); w.status != http.StatusOK {
+		t.Fatalf("CreateSecret = %d %s", w.status, w.body)
+	}
 	const (
 		caller = "User: arn:aws:sts::000000000000:assumed-role/none/enf is not authorized to perform: "
 		queue  = "arn:aws:sqs:us-east-1:000000000000:q"
@@ -145,6 +148,38 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 				return jsonCall(t, s, endpoint, "dynamodb", "1.0", "DynamoDB_20120810.DescribeTable", `{"TableName":"missing"}`)
 			},
 			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("dynamodb:DescribeTable", "arn:aws:dynamodb:us-east-1:000000000000:table/missing"),
+		},
+		{
+			// IAM and Secrets Manager deny a missing resource first, naming
+			// it as the request gave it (iam-enforcement-surfaces.md 5.3).
+			"iam/IAM-ENF/14-iam.json",
+			func() wire {
+				return queryCall(t, s, endpoint, "iam", url.Values{"Action": {"GetRole"}, "Version": {"2010-05-08"}, "RoleName": {"enf-missing"}})
+			},
+			http.StatusForbidden, xmlCode, "AccessDenied", xmlText, implicit("iam:GetRole", "role enf-missing"),
+		},
+		{
+			"iam/IAM-ENF/10-get-role.json",
+			func() wire {
+				return queryCall(t, s, endpoint, "iam", url.Values{"Action": {"GetRole"}, "Version": {"2010-05-08"}, "RoleName": {"none"}})
+			},
+			http.StatusForbidden, xmlCode, "AccessDenied", xmlText, implicit("iam:GetRole", "role none"),
+		},
+		{
+			"secretsmanager/IAM-ENF/14-sm.json",
+			func() wire {
+				return jsonCall(t, s, endpoint, "secretsmanager", "1.1", "secretsmanager.DescribeSecret", `{"SecretId":"enf-missing"}`)
+			},
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("secretsmanager:DescribeSecret", "enf-missing"),
+		},
+		{
+			// An existing secret is named as the SecretId gave it too, not
+			// by its ARN.
+			"secretsmanager/IAM-ENF/06-raw.json",
+			func() wire {
+				return jsonCall(t, s, endpoint, "secretsmanager", "1.1", "secretsmanager.DescribeSecret", `{"SecretId":"enf-s"}`)
+			},
+			http.StatusBadRequest, jsonType, "AccessDeniedException", upper, implicit("secretsmanager:DescribeSecret", "enf-s"),
 		},
 		{
 			"kms/IAM-ENF/05-describe.json",
@@ -282,6 +317,48 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 				t.Errorf("message =\n%q\nwant the recorded\n%q", got, p.message)
 			}
 		})
+	}
+}
+
+// IAM and Secrets Manager deny a missing resource first (IAM-ENF-14), but a
+// caller allowed the action still learns that it is missing: a missing
+// role, user or instance profile is asked about on its ARN at the path
+// "/", and a missing secret on the ARN its SecretId implies, so a grant on
+// "*", on role/* or on secret:* covers it (inferred: which string AWS
+// evaluates is unrecorded; iam-enforcement-surfaces.md 5.3).
+func TestMissingResourceDeniedFirstStillNotFoundWhenAllowed(t *testing.T) {
+	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
+	putUserPolicy(t, endpoint, `{"Version":"2012-10-17","Statement":[`+
+		`{"Effect":"Allow","Action":"iam:GetRole","Resource":"*"},`+
+		`{"Effect":"Allow","Action":"iam:DeleteRole","Resource":"arn:aws:iam::000000000000:role/*"},`+
+		`{"Effect":"Allow","Action":"iam:GetInstanceProfile","Resource":"arn:aws:iam::000000000000:instance-profile/*"},`+
+		`{"Effect":"Allow","Action":"secretsmanager:DescribeSecret","Resource":"arn:aws:secretsmanager:us-east-1:000000000000:secret:*"}]}`)
+	iamCode := func(form url.Values) wire {
+		form.Set("Version", "2010-05-08")
+		return queryCall(t, u, endpoint, "iam", form)
+	}
+	for _, form := range []url.Values{
+		{"Action": {"GetRole"}, "RoleName": {"enf-missing"}},
+		{"Action": {"DeleteRole"}, "RoleName": {"enf-missing"}},
+		{"Action": {"GetInstanceProfile"}, "InstanceProfileName": {"enf-missing"}},
+	} {
+		action := form.Get("Action")
+		if w := iamCode(form); w.status != http.StatusNotFound || parseXMLError(t, w).Code != "NoSuchEntity" {
+			t.Errorf("allowed %s of a missing entity = %d %s, want NoSuchEntity", action, w.status, w.body)
+		}
+	}
+	for _, id := range []string{"enf-missing", "arn:aws:secretsmanager:us-east-1:000000000000:secret:enf-missing-AbCdEf"} {
+		w := jsonCall(t, u, endpoint, "secretsmanager", "1.1", "secretsmanager.DescribeSecret", `{"SecretId":"`+id+`"}`)
+		if jsonType(w) != "ResourceNotFoundException" {
+			t.Errorf("allowed DescribeSecret of missing %s = %d %s, want ResourceNotFoundException", id, w.status, w.body)
+		}
+	}
+	// Denied, a missing instance profile is named as a role is
+	// (inferred from IAM-ENF-14).
+	w := iamCode(url.Values{"Action": {"DeleteInstanceProfile"}, "InstanceProfileName": {"enf-missing"}})
+	want := "User: arn:aws:iam::000000000000:user/u is not authorized to perform: iam:DeleteInstanceProfile on resource: instance-profile enf-missing because no identity-based policy allows the iam:DeleteInstanceProfile action"
+	if w.status != http.StatusForbidden || parseXMLError(t, w).Message != want {
+		t.Errorf("denied DeleteInstanceProfile of a missing profile = %d %s, want %q", w.status, w.body, want)
 	}
 }
 

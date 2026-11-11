@@ -23,14 +23,15 @@ func (s *Service) bindRoles(b iamapi.Binder) {
 	const trust = "the trust policy is validated and stored, evaluated by AssumeRole under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
 		"a principal it names is not checked for existence, which AWS refuses with MalformedPolicyDocument (switch iam.policy.principal-existence)"
 	b.CreateRole(s.createRole, registry.Partial{Note: trust + "; as PermissionsBoundary, " + catalogueMembership})
-	b.GetRole(s.getRole, resolvedPartial(), kernel.AuthorizedInHandler())
-	b.UpdateRole(s.updateRole, resolvedPartial())
-	b.UpdateRoleDescription(s.updateRoleDescription, resolvedPartial())
-	b.UpdateAssumeRolePolicy(s.updateAssumeRolePolicy, registry.Partial{Note: withResolved(trust)})
-	b.DeleteRole(s.deleteRole, resolvedPartial())
+	b.GetRole(s.getRole, byNamePartial(), kernel.AuthorizedInHandler(),
+		kernel.WithDenialResource(func(_ *kernel.Call, in *iamapi.GetRoleInput) string { return "role " + in.RoleName }))
+	b.UpdateRole(s.updateRole, byNamePartial())
+	b.UpdateRoleDescription(s.updateRoleDescription, byNamePartial())
+	b.UpdateAssumeRolePolicy(s.updateAssumeRolePolicy, registry.Partial{Note: withByName(trust)})
+	b.DeleteRole(s.deleteRole, byNamePartial())
 	b.ListRoles(s.listRoles, registry.Full{})
-	b.PutRolePermissionsBoundary(s.putRolePermissionsBoundary, registry.Partial{Note: withResolved(boundaryNote)})
-	b.DeleteRolePermissionsBoundary(s.deleteRolePermissionsBoundary, resolvedPartial())
+	b.PutRolePermissionsBoundary(s.putRolePermissionsBoundary, registry.Partial{Note: withByName(boundaryNote)})
+	b.DeleteRolePermissionsBoundary(s.deleteRolePermissionsBoundary, byNamePartial())
 	b.ResolveRole(s.resolveRole, registry.Full{})
 }
 
@@ -134,20 +135,23 @@ func iamAction(name string) registry.IAMAction {
 // getRole reads the role, then authorizes iam:GetRole on its ARN, which
 // only the read learns: the path is part of it. Its binding leaves
 // iam:GetRole to it (kernel.AuthorizedInHandler), so this is the call's
-// only question about it.
+// only question about it, and names the role "role <name>"
+// (kernel.WithDenialResource; iam-enforcement-surfaces.md 3.2).
 //
-// A missing role answers NoSuchEntity before any authorization, as switch
-// iam.enforce.missing-resource.by-name states: deny-first, the default of
-// iam.enforce.missing-resource (iam-enforcement-surfaces.md 12.8), whose
-// AWS behavior is unverified (5.3, IAM-ENF-14), needs the ARN of a role
-// that does not exist, whose path the request does not carry.
+// A missing role is asked about before it answers NoSuchEntity, as AWS
+// denies first (switch iam.enforce.missing-resource.by-name; 5.3,
+// IAM-ENF-14): on its ARN at the path "/" (missingARN).
 func (s *Service) getRole(ctx context.Context, c *kernel.Call, in *iamapi.GetRoleInput) (*iamapi.GetRoleOutput, *awserr.Error) {
 	account := c.Scope().Account
 	r, err := store.View2(s.cells, account, func(st *State) (Role, *awserr.Error) { return st.role(in.RoleName) })
+	arn := roleARN(account, r.Path, r.Name)
 	if err != nil {
-		return nil, err
+		arn = roleARN(account, missingPath, in.RoleName)
 	}
-	if err := kernel.Authorize(ctx, c, iamAction("GetRole"), roleARN(account, r.Path, r.Name), nil); err != nil {
+	if aerr := kernel.Authorize(ctx, c, iamAction("GetRole"), arn, nil); aerr != nil {
+		return nil, aerr
+	}
+	if err != nil {
 		return nil, err
 	}
 	return &iamapi.GetRoleOutput{Role: apiRoleDetail(account, r)}, nil

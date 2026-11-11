@@ -346,7 +346,9 @@ func pairsOf(actions []registry.IAMAction, opService string, touched []aws.ARN, 
 // grants what the handler asked about (iam-enforcement-surfaces.md 12.6).
 // Action may be any service's (iam:PassRole from Lambda); keys are
 // condition keys only the handler knows, and the access record keeps an
-// iam:PassRole's iam:PassedToService from them. Like step 8 it asks nothing when
+// iam:PassRole's iam:PassedToService from them. A question about the
+// operation's primary action carries the binding's WithDenialResource text,
+// as at step 8. Like step 8 it asks nothing when
 // authorization is off or the call is a platform call.
 // Asking while holding a cell lock, about the zero ARN, or for a call that
 // names no modeled operation is a caller bug: Internal, and the Authorizer
@@ -360,7 +362,7 @@ func Authorize(ctx context.Context, c *Call, action registry.IAMAction, resource
 	case c.op == nil:
 		return awserr.Internalf(&AuthorizeError{Op: c.opID, Action: action, Reason: "the call names no modeled operation, so it has no denial identity"})
 	}
-	pair := Pair{Action: action, Resource: ResourceARN{ARN: resource}}
+	pair := c.named([]Pair{{Action: action, Resource: ResourceARN{ARN: resource}}})[0]
 	c.Touch(resource)
 	c.asked(pair, keys)
 	if _, platform := c.mode.(AsPlatform); c.k.authorizer == nil || platform {
@@ -495,6 +497,22 @@ func (b *Bindings) ResolvedFirstOps(svc *registry.Service) []string {
 	for _, op := range svc.Operations {
 		bnd, ok := b.lookup(op)
 		if !ok || op.Kind != registry.Modeled || bnd.raw || (bnd.authorization != afterResolve && len(bnd.exists) == 0) {
+			continue
+		}
+		out = append(out, op.ID.String())
+	}
+	return out
+}
+
+// NamedDenialOps lists, as AuthorizedOps does, the operations of svc bound
+// WithDenialResource: a denial names the resource by a text other than the
+// ARN its pair is evaluated on, such as the name an IAM role or a Secrets
+// Manager secret is given by (iam-enforcement-surfaces.md 5.3, 12.3).
+func (b *Bindings) NamedDenialOps(svc *registry.Service) []string {
+	var out []string
+	for _, op := range svc.Operations {
+		bnd, ok := b.lookup(op)
+		if !ok || op.Kind != registry.Modeled || bnd.raw || bnd.authorization == never || bnd.denialResource == nil {
 			continue
 		}
 		out = append(out, op.ID.String())

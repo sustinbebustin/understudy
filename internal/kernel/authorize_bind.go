@@ -168,8 +168,8 @@ func WithConditionKeys[In any](supply func(c *Call, in *In) ConditionKeys) BindO
 // is not the ARN the pair is evaluated on, such as the wildcard a list
 // operation's denial names while its pair is on any resource
 // (iam-enforcement-surfaces.md 12.3). It sets Pair.DenialResource on the
-// primary action's pairs that step 8, or a deferred authorization, forms;
-// the evaluation and the access record keep the pair's resource. "" names
+// primary action's pairs that step 8, a deferred authorization, or the
+// handler's Authorize forms, such as IAM GetRole's "role <name>"; the evaluation and the access record keep the pair's resource. "" names
 // the pair's resource. With several, the last applies.
 func WithDenialResource[In any](name func(c *Call, in *In) string) BindOption {
 	return denialResourceOf[*In](name)
