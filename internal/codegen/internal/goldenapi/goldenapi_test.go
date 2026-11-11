@@ -114,6 +114,9 @@ func TestService(t *testing.T) {
 	if want := (registry.QueryErrorEnvelope{Detail: true}); svc.QueryErrorEnvelope != want {
 		t.Fatalf("QueryErrorEnvelope = %+v, want %+v (dev.understudy#queryErrorEnvelope)", svc.QueryErrorEnvelope, want)
 	}
+	if svc.UnknownOperationAnswer != registry.UnknownOperationAWSFault {
+		t.Fatalf("UnknownOperationAnswer = %d, want UnknownOperationAWSFault (dev.understudy#unknownOperationAnswer)", svc.UnknownOperationAnswer)
+	}
 }
 
 // TestIdentities: __type is namespaced by errorNamespace for awsJson1_0,

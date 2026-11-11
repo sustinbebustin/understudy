@@ -207,7 +207,7 @@ func TestSNSHTTPPolicyRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
 	}
-	const want = `"policy":{"backoff":3,"backoffFunction":"linear","kind":"sns-http","maxDelay":0,"maxDelayTargetMillis":20000,"maxReceivesPerSecond":0,"minDelay":0,"minDelayTargetMillis":20000,"noDelay":0}`
+	const want = `"policy":{"backoff":3,"backoffFunction":"linear","kind":"sns-http","maxDelay":0,"maxDelayTargetMillis":20000,"minDelay":0,"minDelayTargetMillis":20000,"noDelay":0}`
 	if !strings.Contains(string(data), want) {
 		t.Errorf("record\n%s\ndoes not hold %s", data, want)
 	}
@@ -229,14 +229,13 @@ func TestSNSHTTPPolicyRecordRoundTrips(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		minMs := rapid.IntRange(1000, 3_600_000).Draw(t, "minDelayTargetMillis")
 		p := delivery.SNSHTTP{
-			NoDelay:              rapid.IntRange(0, 25).Draw(t, "noDelay"),
-			MinDelay:             rapid.IntRange(0, 25).Draw(t, "minDelay"),
-			Backoff:              rapid.IntRange(0, 25).Draw(t, "backoff"),
-			MaxDelay:             rapid.IntRange(0, 25).Draw(t, "maxDelay"),
-			MinDelayTarget:       time.Duration(minMs) * time.Millisecond,
-			MaxDelayTarget:       time.Duration(rapid.IntRange(minMs, 3_600_000).Draw(t, "maxDelayTargetMillis")) * time.Millisecond,
-			BackoffFunction:      rapid.SampledFrom([]delivery.BackoffFunction{delivery.BackoffLinear, delivery.BackoffArithmetic, delivery.BackoffGeometric, delivery.BackoffExponential}).Draw(t, "function"),
-			MaxReceivesPerSecond: rapid.IntRange(0, 50).Draw(t, "maxReceivesPerSecond"),
+			NoDelay:         rapid.IntRange(0, 25).Draw(t, "noDelay"),
+			MinDelay:        rapid.IntRange(0, 25).Draw(t, "minDelay"),
+			Backoff:         rapid.IntRange(0, 25).Draw(t, "backoff"),
+			MaxDelay:        rapid.IntRange(0, 25).Draw(t, "maxDelay"),
+			MinDelayTarget:  time.Duration(minMs) * time.Millisecond,
+			MaxDelayTarget:  time.Duration(rapid.IntRange(minMs, 3_600_000).Draw(t, "maxDelayTargetMillis")) * time.Millisecond,
+			BackoffFunction: rapid.SampledFrom([]delivery.BackoffFunction{delivery.BackoffLinear, delivery.BackoffArithmetic, delivery.BackoffGeometric, delivery.BackoffExponential}).Draw(t, "function"),
 		}
 		data, err := c.Marshal(&requestRecord{Mechanism: delivery.SNSToHTTP, Policy: policyRecordOf(p)})
 		if err != nil {
@@ -369,9 +368,7 @@ func TestEndHTTPOutcomes(t *testing.T) {
 		{"retries exhausted", delivery.None{}, httpRetry{reason: "HTTP 503 Service Unavailable"}, func(o journal.DeliveryOutcome) bool {
 			return o == journal.Dropped{Reason: "no dead-letter queue is set and its retries are exhausted; the last attempt failed with HTTP 503 Service Unavailable"}
 		}},
-		{"permanent with retries left", delivery.SNSManaged{}, httpPermanent{status: 404}, func(o journal.DeliveryOutcome) bool {
-			return o == journal.Dropped{Reason: "no dead-letter queue is set and the endpoint's answer is a permanent failure, which is not retried: HTTP 404 Not Found"}
-		}},
+		{"a 404 answer, which AWS counts as delivered", delivery.SNSManaged{}, httpAccepted{status: 404}, func(o journal.DeliveryOutcome) bool { return o == journal.Delivered{} }},
 	}
 	for _, c := range cases {
 		got, ok := httpAttempt(t, c.policy).endHTTP(t.Context(), c.result, 0)
@@ -386,16 +383,15 @@ func TestEndHTTPOutcomes(t *testing.T) {
 	}
 }
 
-// A 4xx other than 429 is a permanent failure under the retries page's
-// reading, which sns-http-delivery.md 6.1 recommends; the endpoint
-// preparation page conflicts, and the class is UNVERIFIED (SNSH-05).
-func TestPostHTTPClassifiesA404AsPermanent(t *testing.T) {
+// A 404 is a delivered answer, as AWS recorded in SNSH-05, with its status
+// kept (sns-http-delivery.md 6.1).
+func TestPostHTTPCountsA404AsDelivered(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		e := &endpoint{status: http.StatusNotFound}
 		got := postHTTP(t.Context(), egressTo(t, e), hook(t, "http://127.0.0.1:8080/hook"))
 		synctest.Wait()
-		if r, ok := got.(httpPermanent); !ok || r.status != http.StatusNotFound {
-			t.Errorf("postHTTP to a 404 = %#v, want permanent 404", got)
+		if r, ok := got.(httpAccepted); !ok || r.status != http.StatusNotFound {
+			t.Errorf("postHTTP to a 404 = %#v, want delivered with status 404", got)
 		}
 	})
 }
@@ -410,7 +406,7 @@ func TestHTTPDeadLetterCarriesTheBody(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := &Entry{Request: delivery.Request{Mechanism: delivery.SNSToSQS, Target: delivery.HTTPEndpoint{URL: *hook, Body: []byte("hook body")}}}
-	m := deadLetterMessage(e, dlq, endpointError{reason: "HTTP 404 Not Found"}, refused)
+	m := deadLetterMessage(e, dlq, endpointError{reason: "HTTP 503 Service Unavailable"}, exhausted)
 	if m.body != "hook body" || m.queue != dlq || len(m.attributes) != 0 {
 		t.Errorf("dead letter = %+v, want the body alone in %s", m, dlq)
 	}
@@ -442,6 +438,21 @@ func TestCheckDLQ(t *testing.T) {
 		err := checkDLQ(delivery.Request{Mechanism: c.mechanism, Target: c.target, DLQ: &dlq})
 		if refused := err != nil && err.Field == "DLQ"; refused != c.refused {
 			t.Errorf("checkDLQ(%T under %s with a queue) = %v, want refused %t", c.target, c.mechanism, err, c.refused)
+		}
+	}
+	fn := delivery.LambdaFunction{ARN: aws.ARN{Partition: "aws", Service: "lambda", Region: "us-east-1", Account: "000000000000", Resource: "function:f"}}
+	built := &delivery.DeadLetterMessage{Body: "{}"}
+	for _, c := range []struct {
+		req     delivery.Request
+		refused bool
+	}{
+		{delivery.Request{Mechanism: delivery.SNSToLambda, Target: fn, DLQ: &dlq, DLQMessage: built}, false},
+		{delivery.Request{Mechanism: delivery.SNSToLambda, Target: fn, DLQMessage: built}, true},
+		{delivery.Request{Mechanism: delivery.EventsToLambda, Target: fn, DLQ: &dlq, DLQMessage: built}, true},
+	} {
+		err := checkDLQ(c.req)
+		if refused := err != nil && err.Field == "DLQMessage"; refused != c.refused {
+			t.Errorf("checkDLQ(a built dead letter under %s, DLQ %v) = %v, want refused %t", c.req.Mechanism, c.req.DLQ, err, c.refused)
 		}
 	}
 }

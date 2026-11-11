@@ -190,7 +190,7 @@ func (k *Kernel) internalCall(parent *Call, id ref.OperationID, t Target) *Call 
 	return &Call{
 		forwarder: forwarder,
 		k:         k,
-		id:        k.ids.RequestID(),
+		id:        k.ids.RequestID().ForService(string(id.Service)),
 		scope:     t.Scope,
 		principal: resolvePrincipal(parent, t.As),
 		origin:    ref.Internal{Via: t.Via},

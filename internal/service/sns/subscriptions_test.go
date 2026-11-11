@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -201,6 +202,25 @@ func TestSubscribeErrors(t *testing.T) {
 			{topic, "sms", "/+15551234567", nil, "InvalidParameter", "Invalid SMS endpoint: /+15551234567"},
 			{topic, "sms", "+15551234567", nil, "NotImplemented", "understudy does not implement SNS delivery to sms endpoints; subscribe an sqs or lambda endpoint instead (http, https, email and email-json subscriptions are accepted but receive nothing). Run 'understudy coverage --service sns' for what is supported."},
 			{"arn:aws:sns:us-east-1:000000000000:missing", "sqs", queueARN, nil, "NotFound", "Topic does not exist"},
+			// testdata/parity/sns/R16/04-subscribe-fifo-lambda.json and
+			// 04-subscribe-fifo-http.json; the other protocols follow their
+			// form and are inferred.
+			{fifo, "lambda", "arn:aws:lambda:us-east-1:000000000000:function:f", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: lambda"},
+			{fifo, "http", "http://example.com/", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: http"},
+			{fifo, "https", "https://example.com/", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: https"},
+			{fifo, "email", "a@example.com", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: email"},
+			{fifo, "email-json", "a@example.com", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: email-json"},
+			{fifo, "sms", "+15551234567", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: sms"},
+			{fifo, "firehose", "arn:aws:firehose:us-east-1:000000000000:deliverystream/s", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: firehose"},
+			{fifo, "application", "arn:aws:sns:us-east-1:000000000000:app/GCM/a/b", nil, "InvalidParameter", "Invalid parameter: Invalid protocol type: application"},
+			// testdata/parity/sns/R16/05-application-non-arn.json: refused
+			// before anything else, a FIFO topic included.
+			{topic, "application", "not-an-arn", nil, "InvalidParameter", "Invalid parameter: Application endpoint arn invalid:not-an-arn"},
+			{fifo, "application", "not-an-arn", nil, "InvalidParameter", "Invalid parameter: Application endpoint arn invalid:not-an-arn"},
+			{topic, "application", "", nil, "InvalidParameter", "Invalid parameter: Application endpoint arn invalid:"},
+			// A valid application ARN is still NotImplemented: mobile push is
+			// not built.
+			{topic, "application", "arn:aws:sns:us-east-1:000000000000:app/GCM/a/b", nil, "NotImplemented", "understudy does not implement SNS delivery to application endpoints; subscribe an sqs or lambda endpoint instead (http, https, email and email-json subscriptions are accepted but receive nothing). Run 'understudy coverage --service sns' for what is supported."},
 		}
 		for _, tc := range cases {
 			_, err := call(h, snsapi.OpSubscribe, &snsapi.SubscribeInput{TopicArn: tc.topic, Protocol: tc.protocol, Endpoint: new(tc.endpoint), Attributes: tc.attrs})
@@ -435,9 +455,11 @@ func TestConfirmLinkChecksTheTokensScope(t *testing.T) {
 // TestDeletedTopicsSubscriptionsStayReadable replays LocalStack's
 // test_delete_subscriptions_on_delete_topic (AWS-recorded): after
 // DeleteTopic its subscription still reads back with every attribute, its
-// TopicArn naming the deleted topic. It is not listed, receives nothing
+// TopicArn naming the deleted topic. ListSubscriptions still lists it, as
+// sns/R16 06-list-subscriptions-after-delete records. It receives nothing
 // from a topic recreated under the name, Unsubscribe removes it, and it is
-// gone once detached-retention passes.
+// gone, from GetSubscriptionAttributes and ListSubscriptions alike, once
+// detached-retention passes.
 func TestDeletedTopicsSubscriptionsStayReadable(t *testing.T) {
 	run(t, func(h *harness) {
 		topic := h.topic("events", nil)
@@ -448,8 +470,9 @@ func TestDeletedTopicsSubscriptionsStayReadable(t *testing.T) {
 		if after := h.subscriptionAttributes(arn); !maps.Equal(after, before) {
 			h.Errorf("GetSubscriptionAttributes after DeleteTopic =\n%v\nwant\n%v", after, before)
 		}
-		if listed := must(h, snsapi.OpListSubscriptions, &snsapi.ListSubscriptionsInput{}).Subscriptions; len(listed) != 0 {
-			h.Errorf("ListSubscriptions = %+v, want none", listed)
+		want := snsapi.Subscription{SubscriptionArn: &arn, Owner: new("000000000000"), Protocol: new("sqs"), Endpoint: new(queueARN), TopicArn: &topic}
+		if listed := must(h, snsapi.OpListSubscriptions, &snsapi.ListSubscriptionsInput{}).Subscriptions; len(listed) != 1 || !reflect.DeepEqual(listed[0], want) {
+			h.Errorf("ListSubscriptions = %+v, want the detached subscription %+v", listed, want)
 		}
 		h.topic("events", nil)
 		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
@@ -466,9 +489,15 @@ func TestDeletedTopicsSubscriptionsStayReadable(t *testing.T) {
 		must(h, snsapi.OpDeleteTopic, &snsapi.DeleteTopicInput{TopicArn: topic})
 		h.advance(48*time.Hour - time.Millisecond)
 		h.subscriptionAttributes(other)
+		if listed := must(h, snsapi.OpListSubscriptions, &snsapi.ListSubscriptionsInput{}).Subscriptions; len(listed) != 1 || *listed[0].SubscriptionArn != other {
+			h.Errorf("ListSubscriptions inside detached-retention = %+v, want %s", listed, other)
+		}
 		h.advance(time.Millisecond)
 		_, err = call(h, snsapi.OpGetSubscriptionAttributes, &snsapi.GetSubscriptionAttributesInput{SubscriptionArn: other})
 		wantError(h, err, "NotFound", "Subscription does not exist")
+		if listed := must(h, snsapi.OpListSubscriptions, &snsapi.ListSubscriptionsInput{}).Subscriptions; len(listed) != 0 {
+			h.Errorf("ListSubscriptions after detached-retention = %+v, want none", listed)
+		}
 	})
 }
 

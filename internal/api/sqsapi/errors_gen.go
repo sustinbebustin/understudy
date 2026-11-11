@@ -250,7 +250,7 @@ func (*InvalidMessageContents) ErrorIdentity() awserr.Identity {
 
 // IdentityInvalidParameterValue returns the identity of com.amazonaws.sqs#InvalidParameterValue.
 func IdentityInvalidParameterValue() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sqs#InvalidParameterValue", JSONType: "com.amazonaws.sqs#InvalidParameterValueException", QueryCode: "InvalidParameterValue", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sqs#InvalidParameterValue", JSONType: "com.amazon.coral.service#InvalidParameterValueException", QueryCode: "InvalidParameterValue", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrInvalidParameterValue returns an InvalidParameterValue error with message.
@@ -425,7 +425,7 @@ func (*MissingAuthenticationTokenException) ErrorIdentity() awserr.Identity {
 
 // IdentityMissingParameter returns the identity of com.amazonaws.sqs#MissingParameter.
 func IdentityMissingParameter() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.sqs#MissingParameter", JSONType: "com.amazonaws.sqs#MissingRequiredParameterException", QueryCode: "MissingParameter", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazonaws.sqs#MissingParameter", JSONType: "com.amazon.coral.service#MissingRequiredParameterException", QueryCode: "MissingParameter", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrMissingParameter returns a MissingParameter error with message.
@@ -575,7 +575,7 @@ func (*ResourceNotFoundException) ErrorIdentity() awserr.Identity {
 
 // IdentitySerializationException returns the identity of com.amazon.coral.service#SerializationException.
 func IdentitySerializationException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazon.coral.service#SerializationException", JSONType: "com.amazon.coral.service#SerializationException", QueryCode: "SerializationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+	return awserr.Identity{Shape: "com.amazon.coral.service#SerializationException", JSONType: "com.amazon.coral.service#SerializationException", QueryCode: "MalformedInput", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
 }
 
 // ErrSerializationException returns a SerializationException error with message.
@@ -631,7 +631,7 @@ func (*TooManyEntriesInBatchRequest) ErrorIdentity() awserr.Identity {
 
 // IdentityUnknownOperationException returns the identity of com.amazon.coral.service#UnknownOperationException.
 func IdentityUnknownOperationException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazon.coral.service#UnknownOperationException", JSONType: "com.amazon.coral.service#UnknownOperationException", QueryCode: "UnknownOperationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazon.coral.service#UnknownOperationException", JSONType: "com.amazon.coral.service#UnknownOperationException", QueryCode: "InvalidAction", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrUnknownOperationException returns an UnknownOperationException error with message.

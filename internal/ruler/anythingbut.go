@@ -45,7 +45,7 @@ func (c *compiler) anythingBut() (matcher, *CompileError) {
 	if e != nil {
 		return nil, e
 	}
-	if e := c.anythingButVariantShape(op, t.text, v); e != nil {
+	if e := anythingButVariantShape(op, v); e != nil {
 		return nil, e
 	}
 	m, e := c.anythingButSet(op, v)
@@ -86,13 +86,10 @@ func anythingButValueShape(v token) *CompileError {
 	return operandError(OperatorAnythingBut, anythingButShape)
 }
 
-// anythingButVariantShape checks the operand of an anything-but object form.
-// SNS words a non-string operand as "<name> match pattern must be a string"
-// (recorded for prefix, sns.md 6.5) where Ruler reports the shape message.
-func (c *compiler) anythingButVariantShape(op Operator, name string, v token) *CompileError {
-	if _, ok := c.profile.(SNS); ok && v.kind != tokStartArray && v.kind != tokString {
-		return operandError(op, name+" match pattern must be a string")
-	}
+// anythingButVariantShape checks the operand of an anything-but object form
+// with Ruler's shape message, which SNS answers too
+// (sns/R09/H7b-08-subscribe.json).
+func anythingButVariantShape(op Operator, v token) *CompileError {
 	if anythingButValueShape(v) != nil {
 		return operandError(op, anythingButShape)
 	}
@@ -103,7 +100,7 @@ func (c *compiler) anythingButVariantShape(op Operator, name string, v token) *C
 func (c *compiler) anythingButPlain(v token) (matcher, *CompileError) {
 	switch v.kind {
 	case tokString:
-		s, e := stringText(v)
+		s, e := c.lx.text(v)
 		if e != nil {
 			return nil, e
 		}
@@ -138,7 +135,7 @@ func (c *compiler) anythingButList() (matcher, *CompileError) {
 			}
 			return matchAnythingBut{texts: texts}, nil
 		case tokString:
-			s, e := stringText(t)
+			s, e := c.lx.text(t)
 			if e != nil {
 				return nil, e
 			}
@@ -150,7 +147,9 @@ func (c *compiler) anythingButList() (matcher, *CompileError) {
 			}
 			numbers = append(numbers, f)
 		case tokEOF, tokStartObject, tokEndObject, tokStartArray, tokFieldName, tokTrue, tokFalse, tokNull:
-			return nil, operandError(OperatorAnythingBut, "Inside anything but list, start|null|boolean is not supported.")
+			e := operandError(OperatorAnythingBut, "Inside anything but list, start|null|boolean is not supported.")
+			e.relocated = true
+			return nil, e
 		}
 	}
 }
@@ -158,7 +157,7 @@ func (c *compiler) anythingButList() (matcher, *CompileError) {
 // anythingButSet compiles the string or list operand of an object form.
 func (c *compiler) anythingButSet(op Operator, v token) (matcher, *CompileError) {
 	if v.kind != tokStartArray {
-		s, e := anythingButSetMember(op, v)
+		s, e := c.anythingButSetMember(op, v)
 		if e != nil {
 			return nil, e
 		}
@@ -173,7 +172,7 @@ func (c *compiler) anythingButSet(op Operator, v token) (matcher, *CompileError)
 		if t.kind == tokEndArray {
 			return anythingButSetMatcher(op, values)
 		}
-		s, e := anythingButSetMember(op, t)
+		s, e := c.anythingButSetMember(op, t)
 		if e != nil {
 			return nil, e
 		}
@@ -181,11 +180,11 @@ func (c *compiler) anythingButSet(op Operator, v token) (matcher, *CompileError)
 	}
 }
 
-func anythingButSetMember(op Operator, t token) (string, *CompileError) {
+func (c *compiler) anythingButSetMember(op Operator, t token) (string, *CompileError) {
 	affix := op == OperatorAnythingButPrefix || op == OperatorAnythingButSuffix
 	switch {
 	case t.kind == tokString:
-		s, e := stringText(t)
+		s, e := c.lx.text(t)
 		if e == nil && s == "" && affix {
 			return "", operandError(op, "Null prefix/suffix not allowed")
 		}

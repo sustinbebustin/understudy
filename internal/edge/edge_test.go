@@ -241,7 +241,8 @@ func TestRequestsSignedForAServiceAreAnsweredByIt(t *testing.T) {
 		// Content-Type too.
 		{"signed-dynamodb-json-1.1-content-type", http.MethodPost, "/", jsonHeader("DynamoDB_20120810.ListTables", "application/x-amz-json-1.1"), `{}`, "dynamodb"},
 		// A target of another service than the one signed is the signed
-		// service's to answer.
+		// service's to answer, without its x-amzn-query-error
+		// (testdata/parity/sqs/R11/03-wrong-target-prefix.json).
 		{"signed-sqs-with-dynamodb-target", http.MethodPost, "/", jsonHeader("DynamoDB_20120810.ListTables", "application/x-amz-json-1.0"), `{}`, "sqs"},
 	}
 	for _, tt := range cases {
@@ -250,6 +251,35 @@ func TestRequestsSignedForAServiceAreAnsweredByIt(t *testing.T) {
 			golden(t, tt.name, f.serve(t, request(t, tt.method, tt.path, tt.header, tt.body, tt.signedFor)))
 			if reasons := f.unclaimedReasons(t); len(reasons) == 0 {
 				t.Error("the Unclaimed event lists no reasons")
+			}
+		})
+	}
+}
+
+// The x-amzn-RequestId of an SQS answer, a success or an error, is a
+// version 5 UUID, as nearly every one under testdata/parity/sqs is; other
+// services' stay version 4, which their captures show.
+func TestSQSRequestIDsAreVersion5(t *testing.T) {
+	cases := []struct {
+		name, target string
+		wantVersion  string
+	}{
+		{"sqs success", "AmazonSQS.ListQueues", "5"},
+		{"sqs unknown operation", "AmazonSQS.NoSuchOperation", "5"},
+		{"dynamodb", "DynamoDB_20120810.ListTables", "4"},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := "sqs"
+			if strings.HasPrefix(tt.target, "DynamoDB") {
+				svc = "dynamodb"
+			}
+			f := newFront(t, nil)
+			rec := httptest.NewRecorder()
+			f.handler.ServeHTTP(rec, request(t, http.MethodPost, "/", jsonHeader(tt.target, "application/x-amz-json-1.0"), `{}`, svc))
+			id := rec.Header().Get("X-Amzn-Requestid")
+			if len(id) != 36 || id[14:15] != tt.wantVersion {
+				t.Errorf("x-amzn-RequestId = %q, want a version %s UUID", id, tt.wantVersion)
 			}
 		})
 	}
@@ -312,7 +342,9 @@ func TestSmithyProtocolPathMayCarryAPrefix(t *testing.T) {
 }
 
 // SQS binds every operation, so the unbound one is a CloudWatch Logs
-// operation of a registered service nothing binds.
+// operation of a registered service nothing binds. SQS's unknown target
+// sends x-amzn-query-error InvalidAction;Sender
+// (testdata/parity/sqs/R11/03-unknown-operation.json).
 func TestUnknownAndUnboundOperations(t *testing.T) {
 	f := newFront(t, nil, logsapi.Service())
 	golden(t, "json-unknown-operation", f.serve(t, request(t, http.MethodPost, "/", jsonHeader("AmazonSQS.Bogus", "application/x-amz-json-1.0"), `{}`, "sqs")))
@@ -456,11 +488,11 @@ type pathCodec struct {
 	uri, path string
 }
 
-func (p *pathCodec) Claim(r *http.Request, reg *registry.Registry) edge.Claim {
+func (p *pathCodec) Claim(r *http.Request, reg *registry.Registry, signedFor string) edge.Claim {
 	p.mu.Lock()
 	p.uri, p.path = r.RequestURI, r.URL.EscapedPath()
 	p.mu.Unlock()
-	return p.Codec.Claim(r, reg)
+	return p.Codec.Claim(r, reg, signedFor)
 }
 
 func (p *pathCodec) seen() (uri, path string) {

@@ -118,7 +118,7 @@ With `--output json`, each attempt also carries `"http": {"status": 200, "class"
 
 ## Retries and dead letters
 
-A 2xx answer delivers. A 429, a 5xx, a failed connection and no answer within 15 seconds are retried; any other status is a permanent failure. Retries follow the subscription's `DeliveryPolicy`, over its topic's `http.defaultHealthyRetryPolicy`, over AWS's default of three retries 20 seconds apart. They run on the [emulator clock](clock.md) and resend the same bytes. A [fault rule](faults.md#delivery-faults) can answer an attempt without a receiver:
+A 429, a 5xx, a failed connection and no answer within 15 seconds are retried; any other status delivers, a 3xx or a 4xx such as 404 included, with one attempt, no retry and no dead letter. The journal still records the status. Retries follow the subscription's `DeliveryPolicy`, over its topic's `http.defaultHealthyRetryPolicy`, over AWS's default of three retries 20 seconds apart. They run on the [emulator clock](clock.md) and resend the same bytes. A [fault rule](faults.md#delivery-faults) can answer an attempt without a receiver:
 
 ```sh
 understudy faults add --id unavailable --phase delivery --mechanism sns-to-http --http-status 503 --next 1
@@ -139,10 +139,23 @@ understudy journal --kind delivery
 The 503 is retried 20 seconds after the attempt. The injected timeout stands for an attempt that waited out its 15-second deadline, so its retry is due 20 seconds after that deadline, 35 seconds after the attempt.
 
 - The phases `numNoDelayRetries`, `numMinDelayRetries`, the backoff retries and `numMaxDelayRetries` run in that order. AWS does not document its backoff curves, so every `backoffFunction` steps linearly from `minDelayTarget` to `maxDelayTarget`, without jitter.
-- `throttlePolicy.maxReceivesPerSecond` spaces a subscription's attempts at least `1/maxReceivesPerSecond` seconds apart, and a delayed attempt uses up no retry.
-- A Notification that fails permanently or runs out of retries goes to the subscription's `RedrivePolicy` queue: the envelope, or for raw delivery the message with its attributes as SQS message attributes. Without a queue it is dropped. A SubscriptionConfirmation or UnsubscribeConfirmation is retried the same way but never goes to a queue.
-- Redirects are not followed: a 3xx is a permanent failure.
-- `sicklyRetryPolicy` and `guaranteed` are stored and never applied, and the 3,600-second total-retry limit is not checked.
+- `throttlePolicy.maxReceivesPerSecond` is validated, stored and returned by `GetSubscriptionAttributes`, but does not pace deliveries.
+- A Notification that runs out of retries goes to the subscription's `RedrivePolicy` queue: the envelope, or for raw delivery the message with its attributes as SQS message attributes. Without a queue it is dropped. A SubscriptionConfirmation or UnsubscribeConfirmation is retried the same way but never goes to a queue.
+- Redirects are not followed: a 3xx is the attempt's answer, and it delivers.
+- `sicklyRetryPolicy` and `guaranteed` are stored and never applied.
+
+`DeliveryPolicy` is validated as AWS validates it. A retry policy (`healthyRetryPolicy`, `sicklyRetryPolicy`, or a topic's `http.defaultHealthyRetryPolicy` and `http.defaultSicklyRetryPolicy`) must carry `numRetries` and `minDelayTarget`, so a partial one is refused. This includes a Terraform `delivery_policy` that sets only some members:
+
+```sh
+aws sns set-topic-attributes --topic-arn arn:aws:sns:us-east-1:000000000000:orders \
+  --attribute-name DeliveryPolicy --attribute-value '{"http":{"defaultHealthyRetryPolicy":{"numRetries":5}}}'
+```
+
+```text
+aws: [ERROR]: An error occurred (InvalidParameter) when calling the SetTopicAttributes operation: Invalid parameter: DeliveryPolicy: http.defaultHealthyRetryPolicy.minDelayTarget must be specified
+```
+
+Also refused: a policy whose retries wait more than 3,600 seconds in total, an unknown member, a member of the wrong type, an unknown `backoffFunction`, and a `maxReceivesPerSecond` below 1. Without raw delivery, a `headerContentType` must be `application/json` or `text/plain`, with or without parameters such as `; charset=UTF-8`. A topic's must be one of those two whatever the subscriptions' raw delivery.
 
 ## https endpoints
 
@@ -228,18 +241,33 @@ Each prints `Verified OK`. The UnsubscribeConfirmation checked over `sns-validat
 
 ## Unsubscribing
 
-A GET of a Notification's `UnsubscribeURL` removes the subscription and sends it an UnsubscribeConfirmation. AWS documents that visiting that message's `SubscribeURL` re-confirms the subscription; understudy's `Token` and `SubscribeURL` do not restore it, a difference the `UnsubscribeLink` coverage note records. Whether AWS restores the same subscription ARN is not recorded. understudy answers that token as it answers any unknown one:
+A GET of a Notification's `UnsubscribeURL` removes the subscription and sends it an UnsubscribeConfirmation. The subscription is then gone: it is not listed, `get-subscription-attributes` answers `NotFound`, and nothing is delivered to it. Visiting the UnsubscribeConfirmation's `SubscribeURL` restores it, as on AWS, under the same ARN and with its attributes:
 
 ```sh
-aws sns confirm-subscription --topic-arn arn:aws:sns:us-east-1:000000000000:orders \
-  --token "$(jq -r .Token UnsubscribeConfirmation.json)"
+curl -s "$(jq -r .UnsubscribeURL Notification.json)"
+understudy settle
+curl -s "$(jq -r .SubscribeURL UnsubscribeConfirmation.json)"
+aws sns list-subscriptions-by-topic --topic-arn arn:aws:sns:us-east-1:000000000000:orders
 ```
 
 ```text
-aws: [ERROR]: An error occurred (InvalidParameter) when calling the ConfirmSubscription operation: Invalid parameter: Token
+<ConfirmSubscriptionResponse xmlns="http://sns.amazonaws.com/doc/2010-03-31/"><ConfirmSubscriptionResult><SubscriptionArn>arn:aws:sns:us-east-1:000000000000:orders:8eab1859-80e3-4ecf-8cfe-ffa5728d4717</SubscriptionArn></ConfirmSubscriptionResult><ResponseMetadata><RequestId>2c05d9c6-372c-429e-915e-a8ac3143fb60</RequestId></ResponseMetadata></ConfirmSubscriptionResponse>
+{
+    "Subscriptions": [
+        {
+            "SubscriptionArn": "arn:aws:sns:us-east-1:000000000000:orders:8eab1859-80e3-4ecf-8cfe-ffa5728d4717",
+            "Owner": "000000000000",
+            "Protocol": "http",
+            "Endpoint": "http://127.0.0.1:8080/orders",
+            "TopicArn": "arn:aws:sns:us-east-1:000000000000:orders"
+        }
+    ]
+}
 ```
 
-A signed `aws sns unsubscribe` sends nothing to the endpoint.
+The restored subscription is confirmed, with `ConfirmationWasAuthenticated` `false`, and receives what is published from then on; what was published while it was gone is not delivered. `aws sns confirm-subscription` with the message's `Token` restores it too. AWS does not record how long that token lasts. understudy keeps it for two days of emulator time, the documented lifetime of a confirmation token, after which it answers `InvalidParameter` `Invalid parameter: Token`, as an unknown token does. It answers the same once the topic has subscribed the endpoint again.
+
+A signed `aws sns unsubscribe` sends nothing to the endpoint, and leaves nothing to restore.
 
 ## What is inferred
 

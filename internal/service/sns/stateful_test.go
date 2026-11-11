@@ -62,6 +62,33 @@ func TestSnapshotRoundTripKeepsTopicsSubscriptionsAndKey(t *testing.T) {
 	})
 }
 
+// A snapshot round trip keeps a subscription its UnsubscribeConfirmation's
+// SubscribeURL can restore (sns-http-delivery.md 2.4).
+func TestSnapshotRoundTripKeepsARestorableSubscription(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "http", hookURL, nil)
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
+		u := unsubscribeByLink(h, arn)
+
+		saved, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(saved); err != nil {
+			h.Fatal(err)
+		}
+		restored, aerr := followSubscribeURL(h, u.SubscribeURL)
+		if aerr != nil || restored != arn {
+			h.Fatalf("SubscribeURL after the load = %s, %v; want %s", restored, aerr, arn)
+		}
+		if got := h.subscriptionAttributes(arn)["PendingConfirmation"]; got != "false" {
+			h.Errorf("PendingConfirmation after the restore = %q, want false", got)
+		}
+	})
+}
+
 // certURLOf returns the SigningCertURL of the last envelope sent to the
 // queue a subscription delivers to.
 func certURLOf(h *harness, subscription string) string {

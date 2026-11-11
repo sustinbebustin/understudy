@@ -26,8 +26,13 @@ import (
 // section is refused rather than restored without it (ADR 0009). A
 // Scheduler entry's principal and invocation (requestRecord.As,
 // Invocation) are absent from every other entry, so they need no new
-// version.
-const stateVersion = 4
+// version. 5: an SNS-to-Lambda entry keeps the dead letter SNS built
+// (dlqMessage); an earlier one would dead-letter the Lambda event, so its
+// section is refused (ADR 0009, amendment of 2026-11-10). 6: an entry
+// keeps the order number its producing write drew (Entry.Order), which
+// orders a FIFO lane; an earlier entry has none, so its section is
+// refused rather than restored with its lane unordered.
+const stateVersion = 6
 
 // State is the outbox of one account and region, the scope of the targets
 // its deliveries land in: every accepted delivery not yet delivered,
@@ -56,6 +61,15 @@ func (s *State) lastSeq() uint64 {
 	return last
 }
 
+// lastOrder returns the greatest Order of the pending entries, 0 for none.
+func (s *State) lastOrder() uint64 {
+	var last uint64
+	for id := range s.Entries {
+		last = max(last, s.Entries[id].Order)
+	}
+	return last
+}
+
 // Entry is one pending delivery (ARCHITECTURE.md 16).
 type Entry struct {
 	ID      ids.DeliveryID
@@ -75,6 +89,11 @@ type Entry struct {
 	// counter of the outbox, under the cell lock, when the entry is
 	// inserted.
 	Seq uint64
+	// Order is the kernel's order number for the delivery
+	// (kernel.Delivery.Order), drawn inside the producing write's commit,
+	// so it follows commit order where Seq follows the order deliveries
+	// reached the outbox. A FIFO lane is ordered by it.
+	Order uint64
 	// Jitter seeds an EventBridge target's retry jitter and is 0 under
 	// every other policy. It is drawn once, at acceptance, so the delays do
 	// not depend on how concurrent attempts interleave.
@@ -104,6 +123,7 @@ type entryRecord struct {
 	Cause    causeRecord   `json:"cause"`
 	Accepted clock.Instant `json:"accepted"`
 	Seq      uint64        `json:"seq"`
+	Order    uint64        `json:"order"`
 	Jitter   uint64        `json:"jitter,omitzero"`
 }
 
@@ -121,11 +141,22 @@ type requestRecord struct {
 	Target        targetRecord       `json:"target"`
 	Policy        policyRecord       `json:"policy"`
 	DLQ           string             `json:"dlq,omitempty"`
-	Sender        *senderRecord      `json:"sender,omitempty"`
+	// DLQMessage is the dead letter an SNS-to-Lambda delivery's producer
+	// built; absent for every other entry.
+	DLQMessage *deadLetterRecord `json:"dlqMessage,omitempty"`
+	Sender     *senderRecord     `json:"sender,omitempty"`
 	// As and Invocation are a Scheduler delivery's (scheduler.md 14.4.2,
 	// 14.4.4); absent for every other, so earlier entries load unchanged.
 	As         *executionRoleRecord `json:"as,omitempty"`
 	Invocation *invocationRecord    `json:"invocation,omitempty"`
+}
+
+// deadLetterRecord is the persisted form of a delivery.DeadLetterMessage.
+type deadLetterRecord struct {
+	Body       string            `json:"body"`
+	Attributes []attributeRecord `json:"attributes,omitempty"`
+	GroupID    string            `json:"groupId,omitempty"`
+	DedupID    string            `json:"dedupId,omitempty"`
 }
 
 // executionRoleRecord is the persisted form of a delivery.ExecutionRole,
@@ -312,7 +343,6 @@ type snsHTTPRecord struct {
 	MinDelayTargetMillis *int64                    `json:"minDelayTargetMillis"`
 	MaxDelayTargetMillis *int64                    `json:"maxDelayTargetMillis"`
 	BackoffFunction      *delivery.BackoffFunction `json:"backoffFunction"`
-	MaxReceivesPerSecond *int                      `json:"maxReceivesPerSecond"`
 }
 
 // missing names the first member r lacks, "" when it has every one.
@@ -328,7 +358,6 @@ func (r snsHTTPRecord) missing() string {
 		{"minDelayTargetMillis", r.MinDelayTargetMillis != nil},
 		{"maxDelayTargetMillis", r.MaxDelayTargetMillis != nil},
 		{"backoffFunction", r.BackoffFunction != nil},
-		{"maxReceivesPerSecond", r.MaxReceivesPerSecond != nil},
 	}
 	for _, m := range members {
 		if !m.set {
@@ -361,10 +390,14 @@ func recordOf(e *Entry) entryRecord {
 		Cause:    causeRecord{Parent: e.Cause.Parent, Trace: e.Cause.Trace},
 		Accepted: e.Accepted,
 		Seq:      e.Seq,
+		Order:    e.Order,
 		Jitter:   e.Jitter,
 	}
 	if req.DLQ != nil {
 		r.Request.DLQ = req.DLQ.String()
+	}
+	if dm := req.DLQMessage; dm != nil {
+		r.Request.DLQMessage = &deadLetterRecord{Body: dm.Body, Attributes: attributeRecordsOf(dm.Attributes), GroupID: dm.GroupID, DedupID: dm.DedupID}
 	}
 	if s := req.Sender; s != nil {
 		r.Request.Sender = &senderRecord{Role: s.Role.String(), Carries: s.Carries}
@@ -404,6 +437,7 @@ func entryOf(id ids.DeliveryID, r *entryRecord) (Entry, error) {
 		Cause:    ref.Cause{Parent: r.Cause.Parent, Trace: r.Cause.Trace},
 		Accepted: r.Accepted,
 		Seq:      r.Seq,
+		Order:    r.Order,
 		Jitter:   r.Jitter,
 	}, nil
 }
@@ -449,6 +483,13 @@ func requestOf(r *requestRecord) (delivery.Request, *RequestError) {
 			return delivery.Request{}, err
 		}
 		req.DLQ = &dlq
+	}
+	if dm := r.DLQMessage; dm != nil {
+		attrs, err := attributesOf("DLQMessage.Attributes", dm.Attributes)
+		if err != nil {
+			return delivery.Request{}, err
+		}
+		req.DLQMessage = &delivery.DeadLetterMessage{Body: dm.Body, Attributes: attrs, GroupID: dm.GroupID, DedupID: dm.DedupID}
 	}
 	if s := r.Sender; s != nil {
 		role, err := parseARN("Sender.Role", s.Role)
@@ -542,7 +583,7 @@ func targetOf(r targetRecord) (delivery.Target, *RequestError) {
 		if err != nil {
 			return nil, err
 		}
-		attrs, err := attributesOf(r.Attributes)
+		attrs, err := attributesOf("Target.Attributes", r.Attributes)
 		if err != nil {
 			return nil, err
 		}
@@ -558,7 +599,7 @@ func targetOf(r targetRecord) (delivery.Target, *RequestError) {
 		if err != nil {
 			return nil, err
 		}
-		attrs, err := attributesOf(r.Attributes)
+		attrs, err := attributesOf("Target.Attributes", r.Attributes)
 		if err != nil {
 			return nil, err
 		}
@@ -596,7 +637,7 @@ func httpEndpointOf(r httpEndpointRecord) (delivery.Target, *RequestError) {
 	for _, h := range r.Headers {
 		headers = append(headers, delivery.HTTPHeader(h))
 	}
-	attrs, rerr := attributesOf(r.DeadLetterAttributes)
+	attrs, rerr := attributesOf("Target.DeadLetterAttributes", r.DeadLetterAttributes)
 	if rerr != nil {
 		return nil, rerr
 	}
@@ -623,8 +664,9 @@ func attributeRecordsOf(attrs []delivery.MessageAttribute) []attributeRecord {
 	return out
 }
 
-// attributesOf returns the attributes rs persist; nil for none.
-func attributesOf(rs []attributeRecord) ([]delivery.MessageAttribute, *RequestError) {
+// attributesOf returns the attributes rs persist in the request field
+// field; nil for none.
+func attributesOf(field string, rs []attributeRecord) ([]delivery.MessageAttribute, *RequestError) {
 	if len(rs) == 0 {
 		return nil, nil
 	}
@@ -639,7 +681,7 @@ func attributesOf(rs []attributeRecord) ([]delivery.MessageAttribute, *RequestEr
 		case binaryValueRecord:
 			out[i].Value = delivery.BinaryAttribute{Label: v.Label, Value: v.Value}
 		default:
-			return nil, &RequestError{Field: "Target.Attributes", Reason: fmt.Sprintf("has no value for attribute %q", r.Name)}
+			return nil, &RequestError{Field: field, Reason: fmt.Sprintf("has no value for attribute %q", r.Name)}
 		}
 	}
 	return out, nil
@@ -662,7 +704,7 @@ func policyRecordOf(p delivery.RetryPolicy) policyRecord {
 		return snsHTTPRecord{
 			NoDelay: &p.NoDelay, MinDelay: &p.MinDelay, Backoff: &p.Backoff, MaxDelay: &p.MaxDelay,
 			MinDelayTargetMillis: &minMillis, MaxDelayTargetMillis: &maxMillis,
-			BackoffFunction: &p.BackoffFunction, MaxReceivesPerSecond: &p.MaxReceivesPerSecond,
+			BackoffFunction: &p.BackoffFunction,
 		}
 	}
 	return nil
@@ -687,7 +729,7 @@ func policyOf(r policyRecord) (delivery.RetryPolicy, bool) {
 		return delivery.SNSHTTP{
 			NoDelay: *r.NoDelay, MinDelay: *r.MinDelay, Backoff: *r.Backoff, MaxDelay: *r.MaxDelay,
 			MinDelayTarget: millis(*r.MinDelayTargetMillis), MaxDelayTarget: millis(*r.MaxDelayTargetMillis),
-			BackoffFunction: *r.BackoffFunction, MaxReceivesPerSecond: *r.MaxReceivesPerSecond,
+			BackoffFunction: *r.BackoffFunction,
 		}, true
 	}
 	return nil, false

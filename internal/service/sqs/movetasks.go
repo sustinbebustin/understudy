@@ -231,7 +231,9 @@ func (s *Service) listMessageMoveTasks(_ context.Context, c *kernel.Call, in *sq
 	return &sqsapi.ListMessageMoveTasksOutput{Results: results}, nil
 }
 
-// cancelMessageMoveTask stops a running task; what it moved stays moved.
+// cancelMessageMoveTask stops a running task; what it moved stays moved. A
+// task that has finished is refused as inactive, one the source does not
+// hold as missing (sqs/R02 std-07-cancel-completed).
 func (s *Service) cancelMessageMoveTask(_ context.Context, c *kernel.Call, in *sqsapi.CancelMessageMoveTaskInput) (*sqsapi.CancelMessageMoveTaskOutput, *awserr.Error) {
 	h, ok := decodeTaskHandle(in.TaskHandle)
 	if !ok {
@@ -242,11 +244,12 @@ func (s *Service) cancelMessageMoveTask(_ context.Context, c *kernel.Call, in *s
 		return nil, err
 	}
 	moved, err := writeQueue(s, c, src, func(st *State, _ *Queue, _ clock.Instant, tx *kernel.Tx) (int64, *awserr.Error) {
-		i := slices.IndexFunc(st.Tasks, func(t MoveTask) bool {
-			return t.ID == h.TaskID && t.Source == src && t.running()
-		})
-		if i < 0 {
+		i := slices.IndexFunc(st.Tasks, func(t MoveTask) bool { return t.ID == h.TaskID && t.Source == src })
+		switch {
+		case i < 0:
 			return 0, errNoSuchTask()
+		case !st.Tasks[i].running():
+			return 0, errTaskNotActive()
 		}
 		t := st.Tasks[i]
 		s.endTask(tx, &t, TaskCancelled{})
@@ -304,11 +307,10 @@ func (s *Service) step(c *kernel.Call, st *State, src queueRef, source *Queue, t
 	movedTo := map[queueRef][]ids.MessageID{}
 	var order []queueRef
 	failed := false
-	for i := range source.Messages {
+	for i, m := range source.Messages.all() {
 		if int64(len(moved)) == budget {
 			break
 		}
-		m := &source.Messages[i]
 		if !m.visible(now) {
 			continue
 		}
@@ -331,7 +333,7 @@ func (s *Service) step(c *kernel.Call, st *State, src queueRef, source *Queue, t
 	for name, q := range dests {
 		st.Queues[name] = *q
 	}
-	s.removeMessages(tx, src, source, moved)
+	s.removeMessages(tx, st, src, source, moved)
 	if len(order) > 0 {
 		handle := encodeTaskHandle(t)
 		for _, to := range order {
@@ -396,8 +398,8 @@ func (t *MoveTask) targetOf(m *Message) (queueRef, bool) {
 // movable counts the messages of queue t moves that are receivable at now.
 func (t *MoveTask) movable(queue *Queue, now clock.Instant) int64 {
 	var n int64
-	for i := range queue.Messages {
-		if m := &queue.Messages[i]; m.visible(now) && t.moves(m) {
+	for _, m := range queue.Messages.all() {
+		if m.visible(now) && t.moves(m) {
 			n++
 		}
 	}
@@ -407,8 +409,8 @@ func (t *MoveTask) movable(queue *Queue, now clock.Instant) int64 {
 // anyLeft reports whether queue holds a message t moves, receivable or
 // not.
 func (t *MoveTask) anyLeft(queue *Queue) bool {
-	for i := range queue.Messages {
-		if t.moves(&queue.Messages[i]) {
+	for _, m := range queue.Messages.all() {
+		if t.moves(m) {
 			return true
 		}
 	}
@@ -416,24 +418,30 @@ func (t *MoveTask) anyLeft(queue *Queue) bool {
 }
 
 // moveMessage copies m to dest, the working copy of the queue d, as a new
-// message: a new id, sent now, never received (movedIdentity). The caller
-// takes m out of its queue.
+// message: a new id, sent now, never received; a FIFO one keeps m's
+// deduplication id (sqs/R02 fifo-06-recv-src). The caller takes m out of
+// its queue.
 func (s *Service) moveMessage(c *kernel.Call, m *Message, d queueRef, dest *Queue, now clock.Instant, tx *kernel.Tx) {
 	moved := Message{
-		ID:            s.ids.MessageID(),
-		Body:          m.Body,
-		BodyMD5:       m.BodyMD5,
-		Attributes:    cloneAttributes(m.Attributes),
-		System:        cloneAttributes(m.System),
-		GroupID:       m.GroupID,
-		SenderID:      m.SenderID,
-		Enqueued:      c.Event(),
-		EnqueuedTrace: c.Cause().Trace,
-		Sent:          now,
-		VisibleAt:     now.Add(seconds(dest.Attributes.DelaySeconds)),
+		ID:             s.ids.MessageID(),
+		Body:           m.Body,
+		BodyMD5:        m.BodyMD5,
+		Attributes:     cloneAttributes(m.Attributes),
+		System:         cloneAttributes(m.System),
+		GroupID:        m.GroupID,
+		SenderID:       m.SenderID,
+		Enqueued:       c.Event(),
+		EnqueuedTrace:  c.Cause().Trace,
+		Sent:           now,
+		RetentionStart: now,
+		VisibleAt:      now.Add(seconds(dest.Attributes.DelaySeconds)),
 	}
 	if dest.FIFO != nil {
-		moved.FIFO = &FIFOMessage{DedupID: string(moved.ID), Sequence: dest.FIFO.nextSequence()}
+		dedup := string(moved.ID)
+		if m.FIFO != nil {
+			dedup = m.FIFO.DedupID
+		}
+		moved.FIFO = &FIFOMessage{DedupID: dedup, Sequence: dest.FIFO.nextSequence()}
 	}
 	s.append(tx, d, dest, moved, now)
 }

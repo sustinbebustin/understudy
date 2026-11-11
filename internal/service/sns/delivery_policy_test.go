@@ -11,12 +11,16 @@ import (
 
 // TestRetryPolicyConstraints checks over random retry policies, each member
 // drawn absent or from a range around its bounds, that a policy is refused
-// exactly when it breaks a documented constraint (sns.md 7.3): numRetries
-// 0 to 100, minDelayTarget 1 to maxDelayTarget, maxDelayTarget at most
-// 3600, phase counts at least 0 and summing to at most numRetries, and a
-// known backoffFunction. Constraints between two members apply when both
-// are given; minDelayTarget is at most 3600 alone, since it can be at most
-// a maxDelayTarget that is at most 3600.
+// when it breaks a documented constraint (sns.md 7.3): numRetries and
+// minDelayTarget given (SNSH-18), numRetries 0 to 100, minDelayTarget 1 to
+// maxDelayTarget, maxDelayTarget at most 3600, phase counts at least 0 and
+// summing to at most numRetries, and a known backoffFunction. Constraints
+// between two members apply when both are given; minDelayTarget is at most
+// 3600 alone, since it can be at most a maxDelayTarget that is at most
+// 3600. A policy that keeps them is accepted when its total retry time
+// cannot pass 3,600 seconds (sns-http-delivery.md 6.3): no retry waits
+// longer than the larger of minDelayTarget and maxDelayTarget (20, the
+// system default's, when absent).
 func TestRetryPolicyConstraints(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		var retry document.Map
@@ -42,15 +46,24 @@ func TestRetryPolicyConstraints(t *testing.T) {
 			retry = append(retry, document.Entry{Key: "backoffFunction", Value: document.String(backoff)})
 		}
 
-		valid := (!hasMin || (minDelay >= 1 && minDelay <= maxDelayTargetSecond)) &&
-			(!hasMax || maxDelay <= maxDelayTargetSecond) &&
-			(!hasMin || !hasMax || minDelay <= maxDelay) &&
-			(!hasRetries || (retries >= 0 && retries <= maxDeliveryRetries && phases <= retries)) &&
+		valid := hasMin && hasRetries &&
+			minDelay >= 1 && minDelay <= 3600 &&
+			(!hasMax || maxDelay <= 3600) &&
+			(!hasMax || minDelay <= maxDelay) &&
+			retries >= 0 && retries <= 100 && phases <= retries &&
 			phasesValid && backoff != "cubic"
+		longest := 20
+		if hasMax {
+			longest = maxDelay
+		}
+		longest = max(longest, minDelay)
 
-		detail := checkSubscriptionDeliveryPolicy(document.Map{{Key: "healthyRetryPolicy", Value: retry}})
-		if valid != (detail == "") {
-			t.Fatalf("policy %v: valid = %t, detail = %q", retry, valid, detail)
+		detail := checkSubscriptionDeliveryPolicy(document.Map{{Key: "healthyRetryPolicy", Value: retry}}, false)
+		switch {
+		case !valid && detail == "":
+			t.Fatalf("policy %v breaks a constraint and is accepted", retry)
+		case valid && retries*longest <= 3600 && detail != "":
+			t.Fatalf("policy %v keeps every constraint and is refused: %q", retry, detail)
 		}
 	})
 }

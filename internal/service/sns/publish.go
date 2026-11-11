@@ -167,11 +167,13 @@ func validFIFOID(s string) bool {
 
 // parseStructure parses a MessageStructure=json message: an object with a
 // string "default" and other string members by protocol; members of other
-// types are ignored (sns.md 4.1). AWS documents that duplicate keys are not
-// allowed and fail the whole Publish (API_Publish.html); answering them
-// with the parse-failure text is inferred.
+// types are ignored (sns.md 4.1). A duplicate key is accepted and the last
+// value wins: AWS recorded that for "default" despite API_Publish.html
+// saying duplicates are not allowed (testdata/parity/sns/R16
+// 03-x-message-structure-duplicate-key.json); for a protocol member it is
+// inferred.
 func parseStructure(body string) (def string, perProtocol map[string]string, err *awserr.Error) {
-	members, ok := uniqueMembers(body)
+	members, ok := parseObject(body)
 	if !ok {
 		return "", nil, errInvalidParameter("Message Structure - JSON message body failed to parse")
 	}
@@ -245,8 +247,12 @@ func publishTarget(c *kernel.Call, in *snsapi.PublishInput) (topicRef, *awserr.E
 	return topicRef{}, errReason("TopicArn or TargetArn", "no value for required parameter")
 }
 
-// publishBatch publishes up to ten messages to a topic. Every check fails
-// the whole call: no recorded case puts an entry in Failed (sns.md 4.4).
+// publishBatch publishes up to ten messages to a topic. An entry whose
+// Subject is invalid fails alone, in Failed, and the others are published
+// (sns/R16 02-subject-101); every other check fails the whole call, an
+// invalid message attribute among them (02-invalid-attribute, sns.md 4.4).
+// Subject is the only member recorded to fail its entry alone; the
+// whole-call checks of every entry run before it, which is inferred.
 func (s *Service) publishBatch(_ context.Context, c *kernel.Call, in *snsapi.PublishBatchInput) (*snsapi.PublishBatchOutput, *awserr.Error) {
 	if err := checkBatchEntries(in.PublishBatchRequestEntries); err != nil {
 		return nil, err
@@ -257,12 +263,29 @@ func (s *Service) publishBatch(_ context.Context, c *kernel.Call, in *snsapi.Pub
 	}
 	msgs := make([]message, 0, len(in.PublishBatchRequestEntries))
 	for _, e := range in.PublishBatchRequestEntries {
-		m, err := newMessage(e.Message, e.Subject, e.MessageStructure, e.MessageAttributes, e.MessageGroupId, e.MessageDeduplicationId)
+		m, err := newMessage(e.Message, nil, e.MessageStructure, e.MessageAttributes, e.MessageGroupId, e.MessageDeduplicationId)
 		if err != nil {
 			return nil, err
 		}
 		msgs = append(msgs, m)
 	}
+	out := &snsapi.PublishBatchOutput{Successful: []snsapi.PublishBatchResultEntry{}, Failed: []snsapi.BatchResultErrorEntry{}}
+	// ids[i] is the entry msgs[i] publishes once the failed entries are
+	// left out.
+	ids := make([]string, 0, len(msgs))
+	kept := make([]message, 0, len(msgs))
+	for i, e := range in.PublishBatchRequestEntries {
+		if e.Subject != nil {
+			if !validSubject(*e.Subject) {
+				out.Failed = append(out.Failed, failedEntry(e.Id, errInvalidParameter("Subject")))
+				continue
+			}
+			msgs[i].subject = *e.Subject
+		}
+		ids = append(ids, e.Id)
+		kept = append(kept, msgs[i])
+	}
+	msgs = kept
 	published, err := s.fanOut(c, ref, msgs, func(t *Topic) *awserr.Error {
 		total := 0
 		for i := range msgs {
@@ -276,15 +299,19 @@ func (s *Service) publishBatch(_ context.Context, c *kernel.Call, in *snsapi.Pub
 	if err != nil {
 		return nil, err
 	}
-	out := &snsapi.PublishBatchOutput{Successful: make([]snsapi.PublishBatchResultEntry, 0, len(published)), Failed: []snsapi.BatchResultErrorEntry{}}
 	for i, p := range published {
 		out.Successful = append(out.Successful, snsapi.PublishBatchResultEntry{
-			Id:             new(in.PublishBatchRequestEntries[i].Id),
+			Id:             new(ids[i]),
 			MessageId:      new(p.messageID),
 			SequenceNumber: p.sequence,
 		})
 	}
 	return out, nil
+}
+
+// failedEntry is the Failed member of the batch entry id that err refused.
+func failedEntry(id string, err *awserr.Error) snsapi.BatchResultErrorEntry {
+	return snsapi.BatchResultErrorEntry{Id: id, Code: err.ID.QueryCode, Message: new(err.Message), SenderFault: err.ID.Fault == awserr.Sender}
 }
 
 // checkBatchEntries checks a batch's shape (sns.md 4.4): one to ten
@@ -615,7 +642,8 @@ func (n notifier) admits(sub *Subscription, m *message, to endpoint, tx *kernel.
 // request is the delivery of m to sub at to: the raw message or the
 // envelope for a queue or an http or https endpoint, the event for a
 // function, with sub's RedrivePolicy queue as the dead-letter queue
-// (sns.md 7.4, sns-http-delivery.md 6.5).
+// (sns.md 7.4, sns-http-delivery.md 6.5). A function's dead letter is the
+// SQS envelope, built here and handed over as Request.DLQMessage.
 func (n notifier) request(sub *Subscription, m *message, p published, to endpoint) (delivery.Request, *awserr.Error) {
 	dlq, err := sub.deadLetterQueue()
 	if err != nil {
@@ -647,6 +675,15 @@ func (n notifier) request(sub *Subscription, m *message, p published, to endpoin
 			return delivery.Request{}, awserr.Internalf(err)
 		}
 		req.Target = delivery.LambdaFunction{ARN: to.function, Qualifier: to.qualifier, Event: event, Invocation: delivery.InvocationEvent}
+		if dlq != nil {
+			// The dead letter is what an SQS subscription would have
+			// received (sns.md 7.4); a function takes no raw delivery.
+			dl, err := n.sqsTarget(sub, m, note, p, *dlq)
+			if err != nil {
+				return delivery.Request{}, err
+			}
+			req.DLQMessage = &delivery.DeadLetterMessage{Body: dl.Body, Attributes: dl.Attributes, GroupID: dl.GroupID, DedupID: dl.DedupID}
+		}
 	case httpEndpoint:
 		note.UnsubscribeURL = n.links.http.unsubscribe(subARN)
 		target, err := n.httpTarget(sub, m, note, subARN, to)

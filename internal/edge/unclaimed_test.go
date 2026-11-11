@@ -1,16 +1,151 @@
 package edge_test
 
 import (
+	"encoding/xml"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+	"github.com/sustinbebustin/understudy/internal/api/sesv2api"
+	"github.com/sustinbebustin/understudy/internal/api/snsapi"
+	"github.com/sustinbebustin/understudy/internal/api/stsapi"
 	"github.com/sustinbebustin/understudy/internal/edge"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/server"
 )
+
+// queryFault is the awsQuery ErrorResponse, its namespace and Detail kept.
+type queryFault struct {
+	XMLName xml.Name `xml:"ErrorResponse"`
+	Error   struct {
+		Type    string  `xml:"Type"`
+		Code    string  `xml:"Code"`
+		Message string  `xml:"Message"`
+		Detail  *string `xml:"Detail"`
+	} `xml:"Error"`
+	RequestID string `xml:"RequestId"`
+}
+
+// An unknown Action is answered per service, as each was recorded: SNS
+// and SES v1 in Coral's AWSFault form (sns/R11/05-sns-unknown-action.json,
+// ses/SES-24/01-v1-unknown.json; ses.md 3.1), SQS in its own namespace
+// with Detail (sqs/R11/05-sqs-unknown-action.json). STS is unrecorded and
+// keeps the form it had.
+func TestUnknownQueryActionsAreAnsweredInEachServicesForm(t *testing.T) {
+	const awsFault = "http://webservices.amazon.com/AWSFault/2005-15-09"
+	cases := []struct {
+		name, body, signedFor, namespace, message string
+		detail                                    bool
+	}{
+		{"sns", "Action=NoSuchAction&Version=2010-03-31", "sns", awsFault, "Could not find operation NoSuchAction for version 2010-03-31", false},
+		{"ses", "Action=FooBar&Version=2010-12-01", "ses", awsFault, "Could not find operation FooBar for version 2010-12-01", false},
+		{"sqs", "Action=NoSuchAction&Version=2012-11-05", "sqs", "http://queue.amazonaws.com/doc/2012-11-05/", "The action NoSuchAction is not valid for this endpoint.", true},
+		{"sts", "Action=NoSuchAction&Version=2011-06-15", "sts", "https://sts.amazonaws.com/doc/2011-06-15/", "The action NoSuchAction is not valid for this endpoint.", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := newFront(t, server.Codecs(), snsapi.Service(), sesapi.Service(), sesv2api.Service(), stsapi.Service())
+			rec := httptest.NewRecorder()
+			header := http.Header{"Content-Type": {"application/x-www-form-urlencoded"}}
+			f.handler.ServeHTTP(rec, request(t, http.MethodPost, "/", header, c.body, c.signedFor))
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("status = %d, want 400", rec.Code)
+			}
+			if got := rec.Header().Get("Content-Type"); got != "text/xml" {
+				t.Errorf("Content-Type = %q, want text/xml", got)
+			}
+			var got queryFault
+			if err := xml.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+				t.Fatalf("body %s: %v", rec.Body, err)
+			}
+			if got.XMLName.Space != c.namespace {
+				t.Errorf("xmlns = %q, want %q", got.XMLName.Space, c.namespace)
+			}
+			if got.Error.Type != "Sender" || got.Error.Code != "InvalidAction" || got.Error.Message != c.message {
+				t.Errorf("Error = %s %s %q, want Sender InvalidAction %q", got.Error.Type, got.Error.Code, got.Error.Message, c.message)
+			}
+			if (got.Error.Detail != nil) != c.detail {
+				t.Errorf("Detail present = %t, want %t", got.Error.Detail != nil, c.detail)
+			}
+			if got.RequestID == "" {
+				t.Error("RequestId is empty")
+			}
+		})
+	}
+}
+
+// AWS answers a Query SendMessage without Version 200, its body opening
+// with the XML declaration (sqs/R11/x-query-sendmessage-no-version.json):
+// the request reaches SQS when it is signed for sqs, at the account root or
+// on the queue path. With nothing naming the service, the awsQuery rule
+// still declines it.
+func TestQuerySendMessageWithoutVersion(t *testing.T) {
+	f := newFront(t, server.Codecs())
+	form := http.Header{"Content-Type": {"application/x-www-form-urlencoded"}}
+	rec := httptest.NewRecorder()
+	f.handler.ServeHTTP(rec, request(t, http.MethodPost, "/", form, "Action=CreateQueue&QueueName=q11&Version=2012-11-05", "sqs"))
+	var created struct {
+		QueueURL string `xml:"CreateQueueResult>QueueUrl"`
+	}
+	if err := xml.Unmarshal(rec.Body.Bytes(), &created); err != nil || rec.Code != http.StatusOK {
+		t.Fatalf("CreateQueue = %d %s (%v)", rec.Code, rec.Body, err)
+	}
+	queue, err := url.Parse(created.QueueURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = `<?xml version="1.0"?><SendMessageResponse xmlns="http://queue.amazonaws.com/doc/2012-11-05/"><SendMessageResult>`
+	for _, c := range []struct{ name, path, body string }{
+		{"account root", "/", "Action=SendMessage&MessageBody=x&QueueUrl=" + url.QueryEscape(created.QueueURL)},
+		{"queue path", queue.Path, "Action=SendMessage&MessageBody=x"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			f.handler.ServeHTTP(rec, request(t, http.MethodPost, c.path, form, c.body, "sqs"))
+			if rec.Code != http.StatusOK || !strings.HasPrefix(rec.Body.String(), want) {
+				t.Errorf("answer = %d %s, want 200 starting %s", rec.Code, rec.Body, want)
+			}
+		})
+	}
+	t.Run("nothing names the service", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		f.handler.ServeHTTP(rec, request(t, http.MethodPost, "/", form, "Action=SendMessage&MessageBody=x", ""))
+		if rec.Code == http.StatusOK {
+			t.Errorf("answer = %d %s, want the request declined", rec.Code, rec.Body)
+		}
+		reasons := f.unclaimedReasons(t)
+		if !slices.ContainsFunc(reasons, func(r string) bool { return strings.Contains(r, "no Version parameter") }) {
+			t.Errorf("reasons %q do not name the missing Version", reasons)
+		}
+	})
+}
+
+// A REST request signed for ses that no sesv2 route matches is Coral's
+// 404: the body <UnknownOperationException/> and a newline, with no
+// Content-Type and no x-amzn-ErrorType (ses/SES-24/02-v2-unknown.json;
+// ses.md 3.2).
+func TestSESv2UnknownPathIsCoralsNotFound(t *testing.T) {
+	f := newFront(t, server.Codecs(), sesapi.Service(), sesv2api.Service())
+	rec := httptest.NewRecorder()
+	f.handler.ServeHTTP(rec, request(t, http.MethodGet, "/v2/email/nonexistent", nil, "", "ses"))
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", rec.Code)
+	}
+	if got := rec.Body.String(); got != "<UnknownOperationException/>\n" {
+		t.Errorf("body = %q, want %q", got, "<UnknownOperationException/>\n")
+	}
+	for _, name := range []string{"Content-Type", "X-Amzn-Errortype"} {
+		// A nil entry is how a handler keeps net/http from sniffing a
+		// Content-Type; it sends no header.
+		if got := rec.Result().Header.Values(name); len(got) != 0 {
+			t.Errorf("%s = %q, want none", name, got)
+		}
+	}
+}
 
 // A request signed for a service understudy does not emulate is 501
 // NotImplemented, which no SDK retries, in the envelope of the protocol the

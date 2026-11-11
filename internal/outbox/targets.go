@@ -181,15 +181,14 @@ func (b objectBody) Len() (int64, bool) { return int64(len(b)), true }
 func (objectBody) Trailer(string) (string, bool) { return "", false }
 
 // postHTTP POSTs t's body to its URL with its headers through client, the
-// one outbound dialer, and classifies the answer under
-// sns.http.status-classes, the reading sns-http-delivery.md 6.1
-// recommends: 2xx accepted; 429, 5xx and a timed-out exchange retried; any
-// other status permanent (statusResult). Two of those classes are
-// UNVERIFIED there: a connection-level failure (refused, reset, DNS or
-// TLS) is retried under the server-side reading (SNSH-24), and 3xx and 4xx
-// other than 429 are permanent (SNSH-05). A redirect is not followed: its
-// 3xx is the answer (sns.http.redirects). A request client refuses, or any
-// request when client is nil, is refused (7.3).
+// one outbound dialer, and classifies the answer as AWS does
+// (sns-http-delivery.md 6.1, SNSH-05): 429, 5xx and a timed-out exchange
+// are retried; every other status ends the delivery as delivered
+// (statusResult). Whether a connection-level failure (refused, reset, DNS
+// or TLS) is retried is UNVERIFIED (SNSH-24): it is retried under the
+// server-side reading (sns.http.connection-failure). A redirect is not followed: its 3xx is the answer
+// (sns.http.redirects). A request client refuses, or any request when
+// client is nil, is refused (7.3).
 func postHTTP(ctx context.Context, client *egress.Client, t delivery.HTTPEndpoint) httpResult {
 	if client == nil {
 		return httpRefused{reason: "outbound HTTP delivery is off: no allow-list enables it, so nothing was sent to " + endpointOf(t)}
@@ -210,16 +209,14 @@ func postHTTP(ctx context.Context, client *egress.Client, t delivery.HTTPEndpoin
 }
 
 // statusResult classes an answer of status s, the endpoint's or one a
-// fault rule injected, as postHTTP does.
+// fault rule injected, as postHTTP does: a 429 or 5xx is retried and every
+// other status, 3xx and 4xx included, is delivered with s kept for the
+// journal (SNSH-05).
 func statusResult(s int) httpResult {
-	switch {
-	case s >= 200 && s < 300:
-		return httpAccepted{status: s}
-	case s == http.StatusTooManyRequests || s >= 500:
+	if s == http.StatusTooManyRequests || s >= 500 {
 		return httpRetry{status: s, reason: statusText(s)}
-	default:
-		return httpPermanent{status: s}
 	}
+	return httpAccepted{status: s}
 }
 
 // exchangeOf is the journal's account of an HTTP attempt that ended as r
@@ -231,8 +228,6 @@ func exchangeOf(r httpResult, took time.Duration) *journal.HTTPExchange {
 		x.Status, x.Class = r.status, journal.HTTPSuccess
 	case httpRetry:
 		x.Status, x.Class = r.status, journal.HTTPRetryable
-	case httpPermanent:
-		x.Status, x.Class = r.status, journal.HTTPPermanent
 	case httpRefused:
 		x.Class = journal.HTTPRefused
 	}
@@ -264,7 +259,7 @@ func endpointOf(t delivery.Target) string {
 //sumtype:decl
 type httpResult interface{ isHTTPResult() }
 
-// httpAccepted is a 2xx answer: the delivery is done.
+// httpAccepted is any answer but a 429 or 5xx: the delivery is done.
 type httpAccepted struct{ status int }
 
 // httpRetry is a 429 or 5xx answer, or an exchange that failed or timed
@@ -274,17 +269,13 @@ type httpRetry struct {
 	reason string
 }
 
-// httpPermanent is a 1xx, 3xx or other 4xx answer: not retried.
-type httpPermanent struct{ status int }
-
 // httpRefused is a request egress refused, or one with no client to send
 // it: never retried or dead-lettered (journal.Refused).
 type httpRefused struct{ reason string }
 
-func (httpAccepted) isHTTPResult()  {}
-func (httpRetry) isHTTPResult()     {}
-func (httpPermanent) isHTTPResult() {}
-func (httpRefused) isHTTPResult()   {}
+func (httpAccepted) isHTTPResult() {}
+func (httpRetry) isHTTPResult()    {}
+func (httpRefused) isHTTPResult()  {}
 
 // operationOf is the operation a delivery to t calls; its IAM actions are
 // what the target's resource policy must allow. It is nil for an HTTP

@@ -47,7 +47,10 @@
 //     AuthenticateOnUnsubscribe=true, or an sqs subscription its queue's
 //     owner made, which AWS documents as setting it automatically, refuses
 //     the unsigned UnsubscribeURL with InvalidParameter and an inferred
-//     text.
+//     text. An unsigned unsubscribe of an http or https subscription keeps
+//     it, out of reads and deliveries, for 48 hours of emulator time, the
+//     confirmation token's lifetime, during which its
+//     UnsubscribeConfirmation's token restores it under the same ARN.
 //   - MaximumMessageSize above 262144 bytes limits the topic to 100 sqs
 //     and lambda subscriptions; SetTopicAttributes and Subscribe refuse a
 //     change that breaks it with InvalidParameter and an inferred text.
@@ -55,9 +58,10 @@
 //     the SNS message id stream of internal/ids, so a seeded run repeats
 //     them; ids has no stream of their own.
 //   - DeleteTopic detaches the topic's subscriptions: they receive
-//     nothing and are not listed, but GetSubscriptionAttributes still
-//     reads them, as AWS-recorded, and Unsubscribe removes them, for 48
-//     hours of emulator time (the fidelity switch
+//     nothing, but ListSubscriptions still lists them and
+//     GetSubscriptionAttributes still reads them, as AWS-recorded, and
+//     Unsubscribe removes them, for 48 hours of emulator time (the
+//     fidelity switch
 //     sns.delete-topic.detached-retention).
 //   - FIFO. A duplicate inside the five-minute window gets a fresh
 //     MessageId and the topic's next SequenceNumber and is not delivered

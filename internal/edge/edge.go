@@ -254,6 +254,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	a, parseErr := auth.Parse(r, h.opts.Regions)
 	rt := h.claim(r, a, parseErr)
+	x.id = x.id.ForService(string(routedService(rt)))
 	target = routed(rt)
 	x.w = imposePolicy(x.w, policyOf(rt))
 	if h.refusedPage(ctx, x, rt) {
@@ -290,8 +291,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		x.r = rt.req
 		id := ref.OperationID{Service: rt.svc.ID, Name: rt.name}
 		h.noteUnknown(ctx, x, rt.svc.ModelSource, id)
-		h.dispatch(ctx, x, rt.codec, id, a, h.resolve(ctx, a), nil, func() kernel.Decoded {
-			return kernel.Rejected{Err: h.unknownOperation(rt.svc, rt.codec.Protocol(), rt.name)}
+		rejected := h.unknownOperation(rt.svc, rt.codec.Protocol(), rt.name)
+		h.dispatch(ctx, x, unknownAnswer{Codec: rt.codec, rejected: rejected}, id, a, h.resolve(ctx, a), nil, func() kernel.Decoded {
+			return kernel.Rejected{Err: rejected}
 		})
 	case toRaw:
 		h.dispatchRaw(ctx, x, rt, a, parseErr)

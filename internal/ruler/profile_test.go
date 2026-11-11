@@ -6,10 +6,10 @@ import (
 )
 
 // TestAllowLists checks each profile's operator allow-list
-// (matching-engines.md 5.1): EventBridge takes every documented operator,
-// SNS leaves out the equals-ignore-case forms of prefix, suffix and
-// anything-but, and Lambda takes only the operators its filtering table
-// lists.
+// (matching-engines.md 5.1): EventBridge and SNS take every Ruler operator.
+// Lambda takes its filtering table's operators plus those lambda/R03
+// recorded it accepting (H13-01-create.json to H13-06-create.json), and
+// refuses the three forms neither lists nor records.
 func TestAllowLists(t *testing.T) {
 	t.Parallel()
 	operands := []struct {
@@ -30,24 +30,16 @@ func TestAllowLists(t *testing.T) {
 		{OperatorNumeric, `{"x":[{"numeric":[">",1]}]}`},
 		{OperatorExists, `{"x":[{"exists":true}]}`},
 		{OperatorCIDR, `{"x":[{"cidr":"10.0.0.0/8"}]}`},
+		{OperatorExactly, `{"x":[{"exactly":"a"}]}`},
 		{OperatorOr, `{"$or":[{"x":["a"]},{"y":["b"]}]}`},
 	}
 	rejected := map[string]map[Operator]string{
 		"EventBridge": {},
-		"SNS": {
-			OperatorPrefixEqualsIgnoreCase:      "prefix match pattern must be a string",
-			OperatorSuffixEqualsIgnoreCase:      "suffix match pattern must be a string",
-			OperatorAnythingButEqualsIgnoreCase: "Unsupported anything-but pattern: equals-ignore-case",
-		},
+		"SNS":         {},
 		"LambdaESM": {
-			OperatorPrefixEqualsIgnoreCase:      "prefix match pattern must be a string",
 			OperatorSuffixEqualsIgnoreCase:      "suffix match pattern must be a string",
-			OperatorWildcard:                    "Unrecognized match type wildcard",
-			OperatorAnythingButPrefix:           "Unsupported anything-but pattern: prefix",
-			OperatorAnythingButSuffix:           "Unsupported anything-but pattern: suffix",
 			OperatorAnythingButEqualsIgnoreCase: "Unsupported anything-but pattern: equals-ignore-case",
 			OperatorAnythingButWildcard:         "Unsupported anything-but pattern: wildcard",
-			OperatorCIDR:                        "Unrecognized match type cidr",
 		},
 	}
 	profiles := map[string]Profile{"EventBridge": EventBridge{}, "SNS": SNS{Scope: MessageBody}, "LambdaESM": LambdaESM{}}
@@ -67,13 +59,106 @@ func TestAllowLists(t *testing.T) {
 	}
 }
 
-// TestExactlyIsUnknown: Ruler's "exactly" is documented by no service.
-func TestExactlyIsUnknown(t *testing.T) {
+// TestExactlyInEveryProfile: no service documents Ruler's "exactly", but AWS
+// accepts it in all three: EventBridge matches {"x":"a"}
+// (events/R14/H14-01.json), SNS subscribes (sns/R09/H7b-07-subscribe.json)
+// and Lambda invokes for {"x":"a"}, not {"x":"b"}
+// (lambda/R03/H13-11-create.json).
+func TestExactlyInEveryProfile(t *testing.T) {
 	t.Parallel()
-	for _, p := range []Profile{EventBridge{}, SNS{}, LambdaESM{}} {
-		_, err := Compile([]byte(`{"x":[{"exactly":"a"}]}`), p)
-		if err == nil || err.Detail != "Unrecognized match type exactly" {
-			t.Errorf("%T: Compile(exactly) = %v", p, err)
+	for _, p := range []Profile{EventBridge{}, SNS{Scope: MessageBody}, LambdaESM{}} {
+		compiled := mustCompile(t, `{"x":[{"exactly":"a"}]}`, p)
+		if !matchEvent(t, compiled, `{"x":"a"}`) {
+			t.Errorf("%T: exactly a does not match {\"x\":\"a\"}", p)
+		}
+		if matchEvent(t, compiled, `{"x":"b"}`) {
+			t.Errorf("%T: exactly a matched {\"x\":\"b\"}", p)
+		}
+	}
+	attrs := mustCompile(t, `{"x":[{"exactly":"a"}]}`, SNS{})
+	ok, err := MatchAttributes(attrs, map[string]Attribute{"x": StringAttribute{Value: "a"}})
+	if err != nil || !ok {
+		t.Errorf("SNS MessageAttributes: exactly a on String a = %t, %v; want a match", ok, err)
+	}
+}
+
+// lambdaRecorded are lambda/R03's filter cases: each pattern is a recorded
+// create's filter (lambda/R03/<id>-create.json, accepted), each event an SQS
+// record's body as the filter sees it (lambda/R03/H-bodies.*.tsv), and the
+// outcome whether AWS invoked the function for it (logs/R03/<step>.json).
+var lambdaRecorded = []struct {
+	step, pattern, event string
+	invoked              bool
+}{
+	{"H13-01-01", `{"body":{"ip":[{"cidr":"10.0.0.0/24"}]}}`, `{"body":{"ip":"10.0.0.7"}}`, true},
+	{"H13-01-02", `{"body":{"ip":[{"cidr":"10.0.0.0/24"}]}}`, `{"body":{"ip":"10.0.1.7"}}`, false},
+	// No positive control: a.png did not invoke within 90 s although the
+	// glob matches it under Ruler.
+	{"H13-02-01", `{"body":{"f":[{"wildcard":"*.png"}]}}`, `{"body":{"f":"a.png"}}`, false},
+	{"H13-02-02", `{"body":{"f":[{"wildcard":"*.png"}]}}`, `{"body":{"f":"a.jpg"}}`, false},
+	{"H13-03-01", `{"body":{"f":[{"anything-but":{"prefix":"a"}}]}}`, `{"body":{"f":"abc"}}`, false},
+	{"H13-03-02", `{"body":{"f":[{"anything-but":{"prefix":"a"}}]}}`, `{"body":{"f":"xyz"}}`, true},
+	{"H13-04-01", `{"body":{"f":[{"anything-but":{"suffix":".png"}}]}}`, `{"body":{"f":"a.png"}}`, false},
+	{"H13-04-02", `{"body":{"f":[{"anything-but":{"suffix":".png"}}]}}`, `{"body":{"f":"a.jpg"}}`, true},
+	{"H13-05-01", `{"body":{"f":[{"equals-ignore-case":"A"}]}}`, `{"body":{"f":"a"}}`, true},
+	{"H13-05-02", `{"body":{"f":[{"equals-ignore-case":"A"}]}}`, `{"body":{"f":"b"}}`, false},
+	{"H13-06-01", `{"body":{"f":[{"prefix":{"equals-ignore-case":"A"}}]}}`, `{"body":{"f":"abc"}}`, true},
+	{"H13-06-02", `{"body":{"f":[{"prefix":{"equals-ignore-case":"A"}}]}}`, `{"body":{"f":"xbc"}}`, false},
+	{"H13-11-01", `{"body":{"x":[{"exactly":"a"}]}}`, `{"body":{"x":"a"}}`, true},
+	{"H13-11-02", `{"body":{"x":[{"exactly":"a"}]}}`, `{"body":{"x":"b"}}`, false},
+	{"H8-01-01", `{"body":{"n":[{"numeric":[">",5]}]}}`, `{"body":{"n":"10"}}`, false},
+	{"H8-02-01", `{"body":{"n":["10"]}}`, `{"body":{"n":10}}`, true},
+	{"H8-03-01", `{"body":{"n":[10]}}`, `{"body":{"n":"10"}}`, false},
+	{"H7a-01-04", `{"body":{"n":[300]}}`, `{"body":{"n":"300"}}`, false},
+	{"H9-03-01", `{"body":{"ip":[{"cidr":"0.0.0.0/0"}]}}`, `{"body":{"ip":"10.0.0.1"}}`, true},
+	{"H9-03-02", `{"body":{"ip":[{"cidr":"0.0.0.0/0"}]}}`, `{"body":{"ip":"2001:db8::1"}}`, true},
+}
+
+// TestLambdaESMRecorded holds the LambdaESM profile to lambda/R03's
+// recorded accepts and invocations.
+func TestLambdaESMRecorded(t *testing.T) {
+	t.Parallel()
+	for _, tc := range lambdaRecorded {
+		t.Run(tc.step, func(t *testing.T) {
+			t.Parallel()
+			if got := matchEvent(t, mustCompile(t, tc.pattern, LambdaESM{}), tc.event); got != tc.invoked {
+				t.Errorf("%s: Match(%s, %s) = %t, want %t", tc.step, tc.pattern, tc.event, got, tc.invoked)
+			}
+		})
+	}
+}
+
+// TestStringRuleOnNumberOnlyUnderLambda: a string rule matching a number
+// with the same text is Lambda's (lambda/R03 H8-02); EventBridge and SNS
+// keep Ruler's type match (V10).
+func TestStringRuleOnNumberOnlyUnderLambda(t *testing.T) {
+	t.Parallel()
+	for _, p := range []Profile{EventBridge{}, SNS{Scope: MessageBody}} {
+		if matchEvent(t, mustCompile(t, `{"n":["10"]}`, p), `{"n":10}`) {
+			t.Errorf("%T: string rule 10 matched the number 10", p)
+		}
+	}
+	lambda := mustCompile(t, `{"n":["10"]}`, LambdaESM{})
+	for event, want := range map[string]bool{`{"n":10}`: true, `{"n":"10"}`: true, `{"n":10.0}`: false, `{"n":1e1}`: false} {
+		if got := matchEvent(t, lambda, event); got != want {
+			t.Errorf("LambdaESM: string rule 10 on %s = %t, want %t", event, got, want)
+		}
+	}
+}
+
+// TestSNSIgnoreCaseForms: SNS accepts equals-ignore-case under anything-but,
+// prefix and suffix, which its documentation does not list
+// (sns/R09/H7b-03-subscribe.json to H7b-05-subscribe.json, MessageAttributes
+// scope).
+func TestSNSIgnoreCaseForms(t *testing.T) {
+	t.Parallel()
+	for _, policy := range []string{
+		`{"x":[{"anything-but":{"equals-ignore-case":"A"}}]}`,
+		`{"x":[{"prefix":{"equals-ignore-case":"A"}}]}`,
+		`{"x":[{"suffix":{"equals-ignore-case":"A"}}]}`,
+	} {
+		if _, err := Compile([]byte(policy), SNS{Scope: MessageAttributes}); err != nil {
+			t.Errorf("Compile(%s) = %q, want accepted", policy, err.Detail)
 		}
 	}
 }
@@ -120,31 +205,31 @@ func TestOptions(t *testing.T) {
 	}
 }
 
-// TestMalformedOr: the strict compiler rejects malformed "$or" shapes; the
-// ordinary-key option recompiles with "$or" as a plain key, as
-// Machine.addRule does (V70 to V72).
+// TestMalformedOr: the strict compiler rejects malformed "$or" shapes
+// (V70 to V72). The ordinary-key option rejects them too, with the reason
+// of a second reading that takes "$or" as a plain key when that reading
+// fails as well: EventBridge refuses all six H10 shapes, the two a plain key
+// accepts with the strict reason (events/R14/H10-01.json, H10-02.json) and
+// the others with the plain one (H10-03.json to H10-06.json). A valid "$or"
+// still compiles.
 func TestMalformedOr(t *testing.T) {
 	t.Parallel()
-	ordinary := SNS{Scope: MessageBody, Options: Options{MalformedOr: MalformedOrOrdinaryKey}}
-	p := mustCompile(t, `{"s":["a"],"$or":{"m":["x"]}}`, ordinary)
-	if !matchEvent(t, p, `{"s":"a","$or":{"m":"x"}}`) {
-		t.Error("V71 with ordinary-key does not match the $or.m event")
-	}
-	if matchEvent(t, p, `{"s":"a","m":"x"}`) {
-		t.Error("V71 with ordinary-key matched without the $or key")
-	}
-	p = mustCompile(t, `{"$or":["x","y"]}`, ordinary)
-	if !matchEvent(t, p, `{"$or":"y"}`) {
-		t.Error(`{"$or":["x","y"]} does not match {"$or":"y"}`)
-	}
+	ordinary := SNS{Scope: MessageBody, Options: SNSOptions{MalformedOr: MalformedOrOrdinaryKey}}
 	for pattern, detail := range map[string]string{
+		`{"s":["a"],"$or":{"m":["x"]}}`:              "It must be an Array followed with $or.",
+		`{"$or":["x","y"]}`:                          "Only JSON object is allowed in array of $or relationship.",
 		`{"$or":[{"m":["x"]}]}`:                      "Unrecognized match type m",
 		`{"$or":[{"numeric":123},{"prefix":"abc"}]}`: "Value of numeric must be an array.",
+		`{"$or":[{},{"a":["1"]}]}`:                   "Match expression name not found",
 	} {
 		_, err := Compile([]byte(pattern), ordinary)
 		if err == nil || err.Detail != detail {
 			t.Errorf("ordinary-key Compile(%s) = %v, want %q", pattern, err, detail)
 		}
+	}
+	p := mustCompile(t, `{"s":["a"],"$or":[{"m":["x"]},{"n":["y"]}]}`, ordinary)
+	if !matchEvent(t, p, `{"s":"a","n":"y"}`) {
+		t.Error("V68 with ordinary-key does not match")
 	}
 }
 
@@ -158,26 +243,20 @@ func TestSwitches(t *testing.T) {
 		profile Profile
 		want    []Switch
 	}{
-		{EventBridge{Options: Options{EmptyInput: EmptyInputNeverMatches}}, []Switch{
+		{EventBridge{Options: Options{EmptyInput: EmptyInputNeverMatches, MalformedOr: MalformedOrOrdinaryKey}}, []Switch{
 			{Name: "events.pattern.exists-true-empty-value", Value: "any-value", Ref: switchRef, Record: ""},
 			{Name: "events.pattern.empty-input", Value: "never-matches", Ref: switchRef, Record: "matching-engines.md H1"},
 			{Name: "events.pattern.bare-number", Value: "numeric-or-text", Ref: switchRef, Record: ""},
-			{Name: "events.pattern.malformed-or", Value: "rejected", Ref: switchRef, Record: "matching-engines.md H10"},
-			{Name: "events.pattern.exactly-operator", Value: "rejected", Ref: operatorsRef, Record: "matching-engines.md H14"},
+			{Name: "events.pattern.malformed-or", Value: "ordinary-key", Ref: switchRef, Record: "events/R14 H10 (matching-engines.md H10)"},
 			{Name: "events.pattern.or-shared-values", Value: "documented", Ref: humanRecordsRef, Record: "matching-engines.md H14"},
 			{Name: "events.pattern.wildcard-complexity-cap", Value: "11", Ref: humanRecordsRef, Record: "matching-engines.md H11"},
 			{Name: "events.pattern.or-combination-counting", Value: "product-including-nested", Ref: humanRecordsRef, Record: "matching-engines.md H12"},
 		}},
-		{SNS{Options: Options{ExistsTrue: ExistsTrueNonEmpty}}, []Switch{
-			{Name: "sns.filter-policy.exists-true-empty-value", Value: "non-empty", Ref: switchRef, Record: "matching-engines.md H2"},
-			{Name: "sns.filter-policy.empty-input", Value: "matchable", Ref: switchRef, Record: "R09/6 (matching-engines.md H1)"},
-			{Name: "sns.filter-policy.bare-number", Value: "numeric-or-text", Ref: switchRef, Record: "R09/1 (matching-engines.md H6)"},
+		{SNS{Options: SNSOptions{BareNumber: BareNumberTextOnly}}, []Switch{
+			{Name: "sns.filter-policy.bare-number", Value: "text-only", Ref: switchRef, Record: "R09/1 (matching-engines.md H6)"},
 			{Name: "sns.filter-policy.malformed-or", Value: "rejected", Ref: switchRef, Record: "matching-engines.md H10"},
-			{Name: "sns.filter-policy.exactly-operator", Value: "rejected", Ref: operatorsRef, Record: "matching-engines.md H7"},
 			{Name: "sns.filter-policy.anything-but-suffix", Value: "accepted", Ref: humanRecordsRef, Record: "R09/7 (matching-engines.md H7)"},
 			{Name: "sns.filter-policy.anything-but-list-forms", Value: "accepted", Ref: operatorsRef, Record: "matching-engines.md H7"},
-			{Name: "sns.filter-policy.ignore-case-forms", Value: "rejected", Ref: humanRecordsRef, Record: "matching-engines.md H7"},
-			{Name: "sns.filter-policy.key-counting", Value: "leaf-keys-per-branch", Ref: humanRecordsRef, Record: "R09/11, R09/12 (matching-engines.md H3)"},
 			{Name: "sns.filter-policy.wildcard-points", Value: "3-per-star", Ref: humanRecordsRef, Record: "matching-engines.md H11"},
 			{Name: "sns.filter-policy.limit-order", Value: "nesting-keys-combinations-wildcards", Ref: "docs/research/sns.md#6", Record: "R09/13"},
 			{Name: "sns.filter-policy.number-attribute-type", Value: "json-number", Ref: "docs/research/matching-engines.md#5.4", Record: "R09/19 (matching-engines.md H6)"},
@@ -190,8 +269,6 @@ func TestSwitches(t *testing.T) {
 			{Name: "lambda.esm-filter.empty-input", Value: "matchable", Ref: switchRef, Record: ""},
 			{Name: "lambda.esm-filter.bare-number", Value: "text-only", Ref: switchRef, Record: "matching-engines.md H7"},
 			{Name: "lambda.esm-filter.malformed-or", Value: "ordinary-key", Ref: switchRef, Record: "matching-engines.md H10"},
-			{Name: "lambda.esm-filter.exactly-operator", Value: "rejected", Ref: operatorsRef, Record: "matching-engines.md H13"},
-			{Name: "lambda.esm-filter.operator-allow-list", Value: "documented-table", Ref: humanRecordsRef, Record: "matching-engines.md H13"},
 		}},
 	}
 	for _, tc := range tests {

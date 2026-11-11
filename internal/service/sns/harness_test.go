@@ -28,7 +28,8 @@ import (
 
 // harness is a running kernel with the SNS service, the outbox behind a
 // sink that records every accepted delivery, and stub SQS SendMessage and
-// Lambda Invoke handlers that record what they receive. kerneltest builds
+// Lambda Invoke handlers that record what they receive, Invoke failing for
+// missingFunctionARN. kerneltest builds
 // its kernel without a DeliverSink, so publish tests build their own here.
 type harness struct {
 	*testing.T
@@ -50,11 +51,40 @@ type harness struct {
 type sink struct {
 	box *outbox.Outbox
 	recorder[kernel.Delivery]
+
+	mu sync.Mutex
+	// gate, when set, holds the next delivery (holdNext).
+	gate *gate
+}
+
+// gate holds one delivery between its write's unlock and the outbox:
+// held is closed once the delivery waits, and closing release lets it on.
+type gate struct {
+	held    chan struct{}
+	release chan struct{}
 }
 
 func (s *sink) Deliver(d kernel.Delivery) error {
+	s.mu.Lock()
+	g := s.gate
+	s.gate = nil
+	s.mu.Unlock()
+	if g != nil {
+		close(g.held)
+		<-g.release
+	}
 	s.add(d)
 	return s.box.Deliver(d)
+}
+
+// holdNext makes the next delivery handed over wait before the outbox
+// takes it, as a slow goroutine would after its write unlocked.
+func (s *sink) holdNext() *gate {
+	g := &gate{held: make(chan struct{}), release: make(chan struct{})}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.gate = g
+	return g
 }
 
 // recorder collects values from concurrent delivery attempts.
@@ -167,6 +197,9 @@ func build(t *testing.T, o harnessOptions) *harness {
 	}, registry.Full{})
 	kernel.Bind(k.Binder(lambdaapi.Service()), lambdaapi.OpInvoke, func(_ context.Context, _ *kernel.Call, in *lambdaapi.InvokeInput) (*lambdaapi.InvokeOutput, *awserr.Error) {
 		h.invoked.add(*in)
+		if in.FunctionName == missingFunctionARN {
+			return nil, lambdaapi.ErrResourceNotFoundException("Function not found: " + in.FunctionName)
+		}
 		return &lambdaapi.InvokeOutput{StatusCode: http.StatusAccepted}, nil
 	}, registry.Full{})
 	return h
@@ -293,4 +326,7 @@ const (
 	queueARN     = "arn:aws:sqs:us-east-1:000000000000:orders"
 	fifoQueueARN = "arn:aws:sqs:us-east-1:000000000000:orders.fifo"
 	functionARN  = "arn:aws:lambda:us-east-1:000000000000:function:worker"
+	// missingFunctionARN is a function the stub Invoke answers
+	// ResourceNotFoundException for, as Lambda answers a deleted one.
+	missingFunctionARN = "arn:aws:lambda:us-east-1:000000000000:function:gone"
 )

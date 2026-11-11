@@ -5,6 +5,7 @@ import (
 	"context"
 	"maps"
 	"net/http"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -173,6 +174,10 @@ func TestCreateQueueRefusesBadNamesAndAttributes(t *testing.T) {
 			// (invalid-attribute-content-based-deduplication).
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"ContentBasedDeduplication": "false"}}, "InvalidAttributeName", "Unknown Attribute ContentBasedDeduplication."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"DelaySeconds": "901"}}, "InvalidAttributeValue", "Invalid value for the parameter DelaySeconds."},
+			// testdata/parity/sqs/R11/02-create-max-size-1023.json
+			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"MaximumMessageSize": "1023"}}, "InvalidAttributeValue", "Invalid value for the parameter MaximumMessageSize."},
+			// testdata/parity/sqs/R11/02-create-visibility-minus-1.json
+			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "-1"}}, "InvalidAttributeValue", "Invalid value for the parameter VisibilityTimeout."},
 			{sqsapi.CreateQueueInput{QueueName: "q", Attributes: map[sqsapi.QueueAttributeName]string{"KmsMasterKeyId": "alias/k", "SqsManagedSseEnabled": "true"}}, "InvalidAttributeName", "You can use one type of server-side encryption (SSE) at one time. You can either enable KMS SSE or SQS SSE."},
 			{redrive(`{"maxReceiveCount":3}`), "InvalidParameterValue", "The required parameter 'deadLetterTargetArn' is missing"},
 			{redrive(`{"deadLetterTargetArn":"arn:aws:sqs:us-east-1:000000000000:dlq"}`), "InvalidParameterValue", "The required parameter 'maxReceiveCount' is missing"},
@@ -482,6 +487,39 @@ func TestSNSDeliveriesSkipTheQueuesSizeLimit(t *testing.T) {
 	})
 }
 
+// A message SNS delivers carries SenderId <AROA role id>:AWS-CLOUDCAST
+// (sqs/R16/01-sqs-enveloped.json), the same under every seed, and the
+// service principal still authorizes the send. The role is AWS's own, so
+// the id is a fixed one (inferred).
+func TestSNSDeliveriesCarryAWSsSenderID(t *testing.T) {
+	senderID := regexp.MustCompile(`^AROA[A-Z0-9]{17}:AWS-CLOUDCAST$`)
+	got := map[uint64]string{}
+	for _, seed := range []uint64{1, 2} {
+		t.Run(strconv.FormatUint(seed, 10), func(t *testing.T) {
+			kerneltest.Run(t, func(k *kerneltest.K) {
+				h := &harness{K: k, svc: sqs.New(k.Deps(sqsapi.Service()), sqs.Options{})}
+				url := h.queue("q", nil)
+				send := op[sqsapi.SendMessageInput, sqsapi.SendMessageOutput](h, "SendMessage")
+				delivery := kernel.Target{Scope: h.Scope, As: kernel.AsService{Name: "sns.amazonaws.com"}, Via: ref.SNSDelivery}
+				if _, err := kernel.Invoke(h.Context(), h.Kernel, h.Call(send.Descriptor()), send, delivery, &sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "b"}); err != nil {
+					h.Fatalf("an SNS delivery = %s: %s", err.ID.QueryCode, err.Message)
+				}
+				msgs := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url, AttributeNames: []sqsapi.QueueAttributeName{"SenderId"}})
+				if len(msgs) != 1 {
+					h.Fatalf("ReceiveMessage = %d messages, want the delivery", len(msgs))
+				}
+				got[seed] = msgs[0].Attributes["SenderId"]
+				if !senderID.MatchString(got[seed]) {
+					h.Errorf("SenderId = %q, want %s", got[seed], senderID)
+				}
+			}, kerneltest.Services(sqsapi.Service()), kerneltest.Seed(seed))
+		})
+	}
+	if got[1] != got[2] {
+		t.Errorf("SenderId under seed 1 = %q, under seed 2 = %q, want the same", got[1], got[2])
+	}
+}
+
 func TestLongPollOnAFrozenClockEndsAtTheWallCap(t *testing.T) {
 	run(t, func(h *harness) {
 		url := h.queue("idle", nil)
@@ -672,6 +710,66 @@ func TestDeleteMessageReceiptHandles(t *testing.T) {
 	})
 }
 
+// AWS's receipt handles: base64 of a fixed-size blob starting AQEB, 412
+// characters with == padding from a standard queue (sqs/R01
+// 02-recv1.json) and 304 with = padding from a FIFO queue (sqs/R02
+// fifo-04-dlq-poll-0s.json). The final character before the padding
+// carries only the blob's last bits, so its unused low bits are zero.
+var (
+	standardHandle = regexp.MustCompile(`^AQEB[A-Za-z0-9+/]{405}[AQgw]==$`)
+	fifoHandle     = regexp.MustCompile(`^AQEB[A-Za-z0-9+/]{298}[AEIMQUYcgkosw048]=$`)
+)
+
+func TestReceiptHandlesHaveAWSsLengthAndAlphabet(t *testing.T) {
+	for _, seed := range []uint64{1, 2, 3} {
+		kerneltest.Run(t, func(k *kerneltest.K) {
+			h := &harness{K: k, svc: sqs.New(k.Deps(sqsapi.Service()), sqs.Options{})}
+			standard := h.queue("standard", nil)
+			fifo := h.fifoQueue("handles.fifo", map[sqsapi.QueueAttributeName]string{"ContentBasedDeduplication": "true"})
+			for i := range 10 {
+				h.mustSend(standard, "m"+strconv.Itoa(i))
+				h.sendTo(fifo, "g"+strconv.Itoa(i), "m"+strconv.Itoa(i), nil)
+			}
+			ten := int32(10)
+			for _, m := range h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: standard, MaxNumberOfMessages: &ten}) {
+				if handle := val(m.ReceiptHandle); !standardHandle.MatchString(handle) {
+					h.Errorf("standard-queue handle %q (%d characters) does not match %s", handle, len(handle), standardHandle)
+				}
+			}
+			for _, m := range h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: fifo, MaxNumberOfMessages: &ten}) {
+				if handle := val(m.ReceiptHandle); !fifoHandle.MatchString(handle) {
+					h.Errorf("FIFO handle %q (%d characters) does not match %s", handle, len(handle), fifoHandle)
+				}
+			}
+		}, kerneltest.Services(sqsapi.Service()), kerneltest.Seed(seed))
+	}
+}
+
+// Receipt handles come from the seeded identifier stream: one seed gives
+// the same handles on every run.
+func TestReceiptHandlesRepeatForASeed(t *testing.T) {
+	handles := func() []string {
+		var out []string
+		kerneltest.Run(t, func(k *kerneltest.K) {
+			h := &harness{K: k, svc: sqs.New(k.Deps(sqsapi.Service()), sqs.Options{})}
+			standard := h.queue("standard", nil)
+			fifo := h.fifoQueue("handles.fifo", map[sqsapi.QueueAttributeName]string{"ContentBasedDeduplication": "true"})
+			h.mustSend(standard, "m")
+			h.sendTo(fifo, "g", "m", nil)
+			for _, url := range []string{standard, fifo} {
+				for _, m := range h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url}) {
+					out = append(out, val(m.ReceiptHandle))
+				}
+			}
+		}, kerneltest.Services(sqsapi.Service()), kerneltest.Seed(42))
+		return out
+	}
+	first, second := handles(), handles()
+	if len(first) != 2 || !slices.Equal(first, second) {
+		t.Errorf("handles of two runs with seed 42:\n%q\n%q\nwant two, equal", first, second)
+	}
+}
+
 func TestRetentionDropsOldMessages(t *testing.T) {
 	run(t, func(h *harness) {
 		url := h.queue("short", map[sqsapi.QueueAttributeName]string{"MessageRetentionPeriod": "60"})
@@ -839,6 +937,60 @@ func TestSnapshotRoundTripAndRearm(t *testing.T) {
 		res := h.svc.Resources(h.Scope)
 		if i := slices.IndexFunc(res, func(r kernel.Resource) bool { return r.ARN.String() == arnPrefix+"saved" }); i < 0 || res[i].Summary != "0 messages" {
 			h.Errorf("Resources after retention = %+v", res)
+		}
+	})
+}
+
+// A snapshot load keeps what each receipt handle reaches: an older handle
+// still deletes its message (sqs/R01 03-recv-after-6s), and a handle of
+// another queue still fails a batch entry as not valid for this queue
+// (06-delete-batch).
+func TestSnapshotKeepsOlderAndForeignHandles(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.queue("kept", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "5"})
+		other := h.queue("kept-other", nil)
+		older, _ := receivedTwice(h, url, func() { h.mustSend(url, "m") })
+		h.mustSend(other, "other")
+		foreign := val(h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: other})[0].ReceiptHandle)
+		sections, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		h.Kernel.Timers().Scheduler().Clear()
+		if err := h.svc.Import(sections); err != nil {
+			h.Fatal(err)
+		}
+		h.svc.Rearm(h.Clock.Now())
+		del, derr := h.Invoke(h.Context(), sqsapi.OpDeleteMessageBatch, &sqsapi.DeleteMessageBatchInput{QueueUrl: url, Entries: []sqsapi.DeleteMessageBatchRequestEntry{
+			{Id: "stale", ReceiptHandle: older},
+			{Id: "otherqueue", ReceiptHandle: foreign},
+		}})
+		if derr != nil || len(del.Successful) != 1 || del.Successful[0].Id != "stale" || len(del.Failed) != 1 || del.Failed[0].Id != "otherqueue" || val(del.Failed[0].Message) != `The receipt handle "`+foreign+`" is not valid for this queue.` {
+			h.Fatalf("DeleteMessageBatch after the load = %+v, %v", del, derr)
+		}
+		h.advance(6 * time.Second)
+		if got := h.receiveBodies(url, 10); len(got) != 0 {
+			h.Fatalf("receive after the older handle's delete = %q, want none", got)
+		}
+	})
+}
+
+// A section of state version 6 holds 36-character receipt handles, which
+// no longer parse, so it is refused rather than migrated (ADR 0009,
+// amendment of 2026-11-10).
+func TestImportRefusesStateWithShortReceiptHandles(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.queue("old", nil)
+		h.mustSend(url, "m")
+		h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url})
+		sections, err := h.svc.Export()
+		if err != nil {
+			h.Fatal(err)
+		}
+		sections[0].Version = 6
+		if err := h.svc.Import(sections); err == nil {
+			h.Fatal("Import of a version 6 section succeeded, want it refused")
 		}
 	})
 }

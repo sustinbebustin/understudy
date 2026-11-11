@@ -110,6 +110,7 @@ type Kernel struct {
 
 	bindings *Bindings
 	work     *tracker
+	orders   *orders
 
 	wg      sync.WaitGroup
 	running atomic.Bool
@@ -161,6 +162,7 @@ func New(o Options) (*Kernel, error) {
 		strict:     o.Strict,
 		bindings:   newBindings(o.Registry),
 		work:       newTracker(),
+		orders:     newOrders(),
 		cancels:    map[*context.CancelFunc]struct{}{},
 	}
 	if err := o.Timers.attach(k); err != nil {

@@ -39,7 +39,9 @@ func TestSNSRecordedErrors(t *testing.T) {
 		{`{"key":[{"exists":"no"}]}`, attrs, "exists match pattern must be either true or false.", InvalidOperand{Operator: OperatorExists}},
 		{`{"key":[{"anything-but":{"wrong-operator":null}}]}`, attrs, "Unsupported anything-but pattern: wrong-operator", InvalidOperand{Operator: OperatorAnythingBut}},
 		{`{"key":[{"anything-but":{"exists":false}}]}`, attrs, "Unsupported anything-but pattern: exists", InvalidOperand{Operator: OperatorAnythingBut}},
-		{`{"key":[{"anything-but":{"prefix":false}}]}`, attrs, "prefix match pattern must be a string", InvalidOperand{Operator: OperatorAnythingButPrefix}},
+		// sns.md 6.5 recorded "prefix match pattern must be a string" here;
+		// sns/R09/H7b-08-subscribe.json (2026-10-14) answers Ruler's text.
+		{`{"key":[{"anything-but":{"prefix":false}}]}`, attrs, "Value of anything-but must be an array or single string/number value.", InvalidOperand{Operator: OperatorAnythingButPrefix}},
 		{`{"key":[{"cidr":["bad-filter"]}]}`, attrs, "prefix match pattern must be a string", InvalidOperand{Operator: OperatorCIDR}},
 		{`{"key":[{"cidr":"bad-filter"}]}`, attrs, "Malformed CIDR, one '/' required", InvalidOperand{Operator: OperatorCIDR}},
 		{`{"key":[{"cidr":"bad-filter/64"}]}`, attrs, "Nonstandard IP address: bad-filter", InvalidOperand{Operator: OperatorCIDR}},
@@ -295,8 +297,13 @@ func TestMessages(t *testing.T) {
 		pattern string
 		want    string
 	}{
-		{EventBridge{}, `{"x":[]}`, "Event pattern is not valid. Reason: Empty arrays are not allowed"},
-		{SNS{}, `{"x":[]}`, "FilterPolicy: Empty arrays are not allowed"},
+		{EventBridge{}, `{"x":[]}`, "Event pattern is not valid. Reason: Empty arrays are not allowed\n at [Source: (String)\"{\"x\":[]}\"; line: 1, column: 8]"},
+		{SNS{}, `{"x":[]}`, "FilterPolicy: Empty arrays are not allowed\n at [Source: (String)\"{\"x\":[]}\"; line: 1, column: 8]"},
+		// SNS locates within the policy as written back (sns/R09/H5-08).
+		{SNS{}, `{ "x" : [ ] }`, "FilterPolicy: Empty arrays are not allowed\n at [Source: (String)\"{\"x\":[]}\"; line: 1, column: 8]"},
+		{EventBridge{}, `{"x":[{"cidr":"10.0.0.1/32"}]}`, "Event pattern is not valid. Reason: IPv4 mask bits must be < 32"},
+		{SNS{}, `{"a":["1"],"b":["1"],"c":["1"],"d":["1"],"e":["1"],"f":["1"]}`, "FilterPolicy: Filter policy can not have more than 5 keys"},
+		{SNS{}, `{"x":[{"wildcard":"a*b*c*d*e"}]}`, "Wildcard complexity too high: pattern exceeds maximum allowed wildcards"},
 		{SNS{}, `{"o":{"k":["v"]}}`, "Filter policy scope MessageAttributes does not support nested filter policy"},
 		{LambdaESM{}, `{"x":[]}`, "Invalid filter pattern definition."},
 		{LambdaESM{}, `{"body":"plain"}`, "Invalid filter pattern definition."},

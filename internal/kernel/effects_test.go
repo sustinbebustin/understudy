@@ -195,7 +195,9 @@ func TestCatalogueListsModeledAndGenericErrors(t *testing.T) {
 	if !ok {
 		t.Fatal("SendMessage has no catalogue")
 	}
-	for _, want := range []awserr.Identity{sqsapi.IdentityQueueDoesNotExist(), awserr.UnknownOperationException(), awserr.InvalidAction()} {
+	// SQS's UnknownOperationException carries its own Query code,
+	// InvalidAction (testdata/parity/sqs/R11/03-unknown-operation.json).
+	for _, want := range []awserr.Identity{sqsapi.IdentityQueueDoesNotExist(), sqsapi.IdentityUnknownOperationException(), awserr.InvalidAction()} {
 		if !slices.Contains(errs, want) {
 			t.Errorf("the catalogue lacks %s", want.Shape)
 		}

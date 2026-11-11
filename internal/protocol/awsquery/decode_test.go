@@ -38,7 +38,7 @@ func snsService() *registry.Service {
 
 func decode(t *testing.T, svc *registry.Service, r *http.Request) (dynStruct, *awserr.Error) {
 	t.Helper()
-	claim := awsquery.Codec{}.Claim(r, newRegistry(t, svc))
+	claim := awsquery.Codec{}.Claim(r, newRegistry(t, svc), "")
 	c, ok := claim.(awsquery.Claimed)
 	if !ok {
 		t.Fatalf("Claim = %#v, want Claimed", claim)
@@ -271,7 +271,7 @@ func TestClaimPutsTheCompressedBodyBack(t *testing.T) {
 	t.Parallel()
 	body := gzipped(t, "Action=PutMetricData&Version=2010-08-01&Namespace=app")
 	r := encodedPost(body, "gzip")
-	if c, ok := (awsquery.Codec{}).Claim(r, newRegistry(t, cloudWatchService())).(awsquery.Claimed); !ok {
+	if c, ok := (awsquery.Codec{}).Claim(r, newRegistry(t, cloudWatchService()), "").(awsquery.Claimed); !ok {
 		t.Fatalf("Claim = %#v, want Claimed", c)
 	}
 	got, err := io.ReadAll(r.Body)
@@ -304,7 +304,7 @@ func TestContentEncodingRefused(t *testing.T) {
 		{"gzip bomb", gzipped(t, prefix+strings.Repeat("a", 1<<20)), "gzip", false, "the decompressed request body exceeds 1024 bytes"},
 	}
 	for _, tc := range cases {
-		claim := awsquery.Codec{}.Claim(encodedPost(tc.body, tc.encoding), newRegistry(t, svc))
+		claim := awsquery.Codec{}.Claim(encodedPost(tc.body, tc.encoding), newRegistry(t, svc), "")
 		if c, ok := claim.(awsquery.Declined); ok != tc.declined || (ok && !strings.Contains(c.Reason, tc.want)) {
 			t.Errorf("%s: Claim = %#v, want declined %t for %q", tc.name, claim, tc.declined, tc.want)
 		}
@@ -341,7 +341,7 @@ func TestClaim(t *testing.T) {
 	}
 	for _, tc := range cases {
 		var got string
-		switch c := (awsquery.Codec{}).Claim(tc.r, reg).(type) {
+		switch c := (awsquery.Codec{}).Claim(tc.r, reg, "").(type) {
 		case awsquery.Claimed:
 			got = "Claimed " + c.Op.ID.Name
 		case awsquery.UnknownOperation:
@@ -363,7 +363,7 @@ func TestClaimPutsTheBodyBack(t *testing.T) {
 	t.Parallel()
 	body := "Action=Publish&Version=2010-03-31&Message=m"
 	r := formPost("http://localhost/", body)
-	awsquery.Codec{}.Claim(r, newRegistry(t, snsService()))
+	awsquery.Codec{}.Claim(r, newRegistry(t, snsService()), "")
 	got, err := io.ReadAll(r.Body)
 	if err != nil || string(got) != body {
 		t.Errorf("body after Claim = %q, %v", got, err)

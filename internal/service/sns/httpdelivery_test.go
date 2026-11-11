@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"encoding/xml"
 	"net/url"
 	"regexp"
 	"slices"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -259,23 +261,29 @@ func TestHTTPSwitchesAreListed(t *testing.T) {
 		anchor, record string
 		ops            []string
 	}{
-		{"sns.http.status-classes", "retries-doc", inf, "61-response-classes", "SNSH-05, SNSH-24", A},
 		{"sns.http.redirects", "not-followed", rec, "31-method-url-and-connection", "SNSH-06", A},
 		{"sns.http.retry-body", "identical", rec, "46-field-values", "SNSH-07", A},
 		{"sns.http.dlq-body", "as-sqs", rec, "65-dead-letter-queue", "SNSH-08", P},
 		{"sns.http.backoff-curves", "linear-for-all", inf, "63-retry-schedule", "SNSH-09", A},
 		{"sns.http.retry-jitter", "none", rec, "63-retry-schedule", "SNSH-10", A},
 		{"sns.http.pending-messages", "dropped", rec, "22-the-confirmation-post-and-the-pending-period", "SNSH-11", P},
-		{"sns.http.resubscribe-pending", "resend-same-token", inf, "22-the-confirmation-post-and-the-pending-period", "SNSH-12", []string{"sns.Subscribe"}},
 		{"sns.http.unsubscribe-confirmation", "unauthenticated-only", rec, "24-unsubscribing-and-the-unsubscribeconfirmation", "SNSH-15", []string{"sns.Unsubscribe", "sns.UnsubscribeLink"}},
 		{"sns.http.control-dlq", "never", rec, "65-dead-letter-queue", "SNSH-17", C},
 		{"sns.http.control-content-type", "as-request-policy", rec, "33-content-type", "SNSH-03", C},
 		{"sns.http.basic-auth", "preemptive", inf, "31-method-url-and-connection", "SNSH-22", A},
+		// A refused or dropped connection is retried; SNSH-24 was n/a
+		// (sns-http-delivery.md 6.1).
+		{"sns.http.connection-failure", "retried", inf, "61-response-classes", "SNSH-24", A},
 	}
 	run(t, func(h *harness) {
 		listed := map[string]fidelity.Entry{}
 		for _, e := range h.svc.Switches() {
 			listed[e.Name] = e
+		}
+		// SNSH-12 settled the repeated Subscribe of a pending endpoint as
+		// AWS does it (2.2), so it is no longer a switch.
+		if _, ok := listed["sns.http.resubscribe-pending"]; ok {
+			h.Error("switch sns.http.resubscribe-pending is listed, want it gone")
 		}
 		for _, w := range want {
 			e, ok := listed[w.name]
@@ -313,13 +321,13 @@ func TestHTTPCoverageNotes(t *testing.T) {
 			"sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced"},
 		"Publish":      registry.Partial{Note: publishNote},
 		"PublishBatch": registry.Partial{Note: publishNote},
-		"SetSubscriptionAttributes": registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; " +
-			"sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced"},
+		"SetSubscriptionAttributes": registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy and requestPolicy apply to http and https deliveries; " +
+			"throttlePolicy, sicklyRetryPolicy and guaranteed are stored and echoed, never applied, so deliveries are not paced (AWS's pacing above a burst of 10 is unrecorded, SNSH-20); the quota of 10,000 filter policies per account is not enforced"},
 		"SetTopicAttributes": registry.Partial{Note: "Policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
 			"KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never applied; " +
 			"the http defaults in DeliveryPolicy apply to http and https subscriptions"},
 		"UnsubscribeLink": registry.Partial{Note: "the UnsubscribeConfirmation reaches the endpoint only when its host and port are in sns.httpDelivery.allow; " +
-			"its Token and SubscribeURL do not restore the subscription"},
+			"its Token and SubscribeURL restore the subscription for two days of emulator time, an inferred lifetime"},
 		"ConfirmSubscription":       registry.Full{},
 		"Unsubscribe":               registry.Full{},
 		"GetSubscriptionAttributes": registry.Full{},
@@ -597,45 +605,60 @@ func TestPendingHTTPSubscriptionMissesWhatIsPublished(t *testing.T) {
 	})
 }
 
-// A repeated Subscribe of a pending endpoint resends its confirmation under
-// sns.http.resubscribe-pending: the same token, a new MessageId, the
-// current Timestamp; once confirmed, a repeat sends nothing
-// (sns-http-delivery.md 2.2).
+// A repeated Subscribe of a pending endpoint returns the same ARN and sends
+// a second confirmation with a new token, a new MessageId and the current
+// Timestamp; either token confirms, and the other then answers 403
+// AuthorizationError "Subscription already confirmed"; once confirmed, a
+// repeat sends nothing (sns-http-delivery.md 2.2, SNSH-12).
 func TestResubscribingAPendingEndpoint(t *testing.T) {
-	run(t, func(h *harness) {
-		topic := h.topic("events", nil)
-		arn := h.subscribe(topic, "http", hookURL, nil)
-		h.advance(time.Minute)
-		again := h.subscribe(topic, "http", hookURL, nil)
-		if again != arn {
-			h.Fatalf("the repeat Subscribe returned %s, want the pending subscription %s", again, arn)
-		}
-		_, cs := ofKind(h, delivery.HTTPSubscriptionConfirmation)
-		switch v := switchValue(h, "sns.http.resubscribe-pending"); v {
-		case "resend-same-token":
-			if len(cs) != 2 {
-				h.Fatalf("%d SubscriptionConfirmations, want one per Subscribe", len(cs))
-			}
-			first, second := parseBody(h, cs[0].Body), parseBody(h, cs[1].Body)
-			if second.Token != first.Token || second.Token != h.token(arn) || second.SubscribeURL != first.SubscribeURL {
-				h.Errorf("the second confirmation's token %q and link %q, want the first's %q and %q", second.Token, second.SubscribeURL, first.Token, first.SubscribeURL)
-			}
-			if second.MessageID == first.MessageID {
-				h.Errorf("both confirmations have MessageId %s", first.MessageID)
-			}
-			if ts := timestampOf(h, second); !ts.Equal(h.clock.Now().Wire()) {
-				h.Errorf("the second confirmation's Timestamp %s, want now", second.Timestamp)
-			}
-		default:
-			noExpectation(h, "sns.http.resubscribe-pending", v)
-		}
-		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
-		before := len(h.sink.all())
-		h.subscribe(topic, "http", hookURL, nil)
-		if n := len(h.sink.all()); n != before {
-			h.Errorf("a Subscribe of the confirmed endpoint took %d deliveries, want none", n-before)
-		}
-	})
+	for _, confirmWith := range []string{"first", "second"} {
+		t.Run("confirmed with the "+confirmWith+" token", func(t *testing.T) {
+			run(t, func(h *harness) {
+				topic := h.topic("events", nil)
+				arn := h.subscribe(topic, "http", hookURL, nil)
+				h.advance(time.Minute)
+				again := h.subscribe(topic, "http", hookURL, nil)
+				if again != arn {
+					h.Fatalf("the repeat Subscribe returned %s, want the pending subscription %s", again, arn)
+				}
+				_, cs := ofKind(h, delivery.HTTPSubscriptionConfirmation)
+				if len(cs) != 2 {
+					h.Fatalf("%d SubscriptionConfirmations, want one per Subscribe", len(cs))
+				}
+				first, second := parseBody(h, cs[0].Body), parseBody(h, cs[1].Body)
+				if second.Token == first.Token || second.SubscribeURL == first.SubscribeURL {
+					h.Errorf("the second confirmation repeats the first's token %q and link %q, want new ones", first.Token, first.SubscribeURL)
+				}
+				if want := base + "ConfirmSubscriptionLink?Action=ConfirmSubscription&TopicArn=" + topic + "&Token=" + second.Token; second.SubscribeURL != want {
+					h.Errorf("the second SubscribeURL = %q, want %q", second.SubscribeURL, want)
+				}
+				if second.MessageID == first.MessageID {
+					h.Errorf("both confirmations have MessageId %s", first.MessageID)
+				}
+				if ts := timestampOf(h, second); !ts.Equal(h.clock.Now().Wire()) {
+					h.Errorf("the second confirmation's Timestamp %s, want now", second.Timestamp)
+				}
+				used, other := first.Token, second.Token
+				if confirmWith == "second" {
+					used, other = other, used
+				}
+				confirmed := must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: used})
+				if *confirmed.SubscriptionArn != arn {
+					h.Errorf("ConfirmSubscription = %s, want %s", *confirmed.SubscriptionArn, arn)
+				}
+				_, err := call(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: other})
+				wantError(h, err, "AuthorizationError", "Subscription already confirmed")
+				if err.ID.Status != 403 {
+					h.Errorf("the other token answers HTTP %d, want 403", err.ID.Status)
+				}
+				before := len(h.sink.all())
+				h.subscribe(topic, "http", hookURL, nil)
+				if n := len(h.sink.all()); n != before {
+					h.Errorf("a Subscribe of the confirmed endpoint took %d deliveries, want none", n-before)
+				}
+			})
+		})
+	}
 }
 
 // An unsigned GET of a confirmed subscription's UnsubscribeURL sends the
@@ -700,10 +723,6 @@ func TestUnsubscribeLinkSendsAnUnsubscribeConfirmation(t *testing.T) {
 			h.Errorf("UnsubscribeConfirmation headers = %v", hs)
 		}
 		noAWSHost(h, "the UnsubscribeConfirmation", string(tg.Body))
-		// Re-confirmation is UNVERIFIED (2.4, SNSH-16); understudy's token
-		// restores nothing, as its UnsubscribeLink coverage note says.
-		_, err := call(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: b.Token})
-		wantError(h, err, "InvalidParameter", "Invalid parameter: Token")
 
 		other := h.subscribe(topic, "http", "http://127.0.0.1:8080/other", nil)
 		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(other)})
@@ -731,6 +750,184 @@ func TestRefusedUnsubscribeLinkSendsNothing(t *testing.T) {
 		}
 		if _, us := ofKind(h, delivery.HTTPUnsubscribeConfirmation); len(us) != 0 {
 			h.Errorf("%d UnsubscribeConfirmations after a refused link, want none", len(us))
+		}
+	})
+}
+
+// unsubscribeByLink GETs arn's UnsubscribeURL and returns the
+// UnsubscribeConfirmation it sent the endpoint.
+func unsubscribeByLink(h *harness, arn string) httpBody {
+	h.Helper()
+	before, _ := ofKind(h, delivery.HTTPUnsubscribeConfirmation)
+	if _, aerr := h.link("UnsubscribeLink", "/_understudy/sns/UnsubscribeLink?Action=Unsubscribe&SubscriptionArn="+url.QueryEscape(arn)); aerr != nil {
+		h.Fatalf("UnsubscribeLink = %s %q", aerr.ID.QueryCode, aerr.Message)
+	}
+	_, ts := ofKind(h, delivery.HTTPUnsubscribeConfirmation)
+	if len(ts) != len(before)+1 {
+		h.Fatalf("%d UnsubscribeConfirmations, want %d", len(ts), len(before)+1)
+	}
+	return parseBody(h, ts[len(ts)-1].Body)
+}
+
+// followSubscribeURL GETs subscribeURL and returns the subscription ARN
+// its ConfirmSubscriptionResponse carries.
+func followSubscribeURL(h *harness, subscribeURL string) (string, *awserr.Error) {
+	h.Helper()
+	u, err := url.Parse(subscribeURL)
+	if err != nil {
+		h.Fatal(err)
+	}
+	rec, aerr := h.link("ConfirmSubscriptionLink", u.RequestURI())
+	if aerr != nil {
+		return "", aerr
+	}
+	var doc struct {
+		XMLName xml.Name `xml:"ConfirmSubscriptionResponse"`
+		ARN     string   `xml:"ConfirmSubscriptionResult>SubscriptionArn"`
+	}
+	if rec.Code != 200 {
+		h.Fatalf("ConfirmSubscriptionLink answered HTTP %d", rec.Code)
+	}
+	if err := xml.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		h.Fatalf("ConfirmSubscriptionLink answered %s: %v", rec.Body, err)
+	}
+	return doc.ARN, nil
+}
+
+// listedARNs returns the subscription ARNs ListSubscriptionsByTopic shows
+// for topic.
+func listedARNs(h *harness, topic string) []string {
+	h.Helper()
+	listed := must(h, snsapi.OpListSubscriptionsByTopic, &snsapi.ListSubscriptionsByTopicInput{TopicArn: topic}).Subscriptions
+	out := make([]string, 0, len(listed))
+	for _, s := range listed {
+		out = append(out, *s.SubscriptionArn)
+	}
+	return out
+}
+
+// Visiting an UnsubscribeConfirmation's SubscribeURL restores the
+// subscription under its old ARN: 200 ConfirmSubscriptionResponse with
+// that ARN, PendingConfirmation and ConfirmationWasAuthenticated false,
+// listed again (sns-http-delivery.md 2.4, SNSH-16, AWS-recorded). A
+// second visit answers the same ARN, as confirming is idempotent (2.3).
+// Until then the subscription is gone and receives nothing, which is
+// inferred: AWS did not record what the old ARN answers in between.
+// Keeping its attributes across the restore is inferred too, as the
+// recorded subscription had only defaults; delivery after the restore is
+// inferred from it being confirmed again.
+func TestUnsubscribeConfirmationLinkRestoresTheSubscription(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "http", hookURL, map[string]string{"RawMessageDelivery": "true"})
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
+		u := unsubscribeByLink(h, arn)
+
+		_, err := call(h, snsapi.OpGetSubscriptionAttributes, &snsapi.GetSubscriptionAttributesInput{SubscriptionArn: arn})
+		wantError(h, err, "NotFound", "Subscription does not exist")
+		if listed := listedARNs(h, topic); len(listed) != 0 {
+			h.Errorf("listed while unsubscribed: %v", listed)
+		}
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "while-gone"})
+		if ns, _ := ofKind(h, delivery.HTTPNotification); len(ns) != 0 {
+			h.Errorf("%d Notifications while unsubscribed, want none", len(ns))
+		}
+
+		restored, aerr := followSubscribeURL(h, u.SubscribeURL)
+		if aerr != nil {
+			h.Fatalf("SubscribeURL = %s %q", aerr.ID.QueryCode, aerr.Message)
+		}
+		if restored != arn {
+			h.Errorf("SubscribeURL answered ARN %s, want %s", restored, arn)
+		}
+		attrs := h.subscriptionAttributes(arn)
+		want := map[string]string{
+			"SubscriptionArn": arn, "TopicArn": topic, "Protocol": "http", "Endpoint": hookURL,
+			"PendingConfirmation": "false", "ConfirmationWasAuthenticated": "false", "RawMessageDelivery": "true",
+		}
+		for k, v := range want {
+			if attrs[k] != v {
+				h.Errorf("%s after the restore = %q, want %q", k, attrs[k], v)
+			}
+		}
+		if listed := listedARNs(h, topic); !slices.Equal(listed, []string{arn}) {
+			h.Errorf("listed after the restore: %v, want [%s]", listed, arn)
+		}
+		if again, aerr := followSubscribeURL(h, u.SubscribeURL); aerr != nil || again != arn {
+			h.Errorf("a second visit = %s, %v; want %s", again, aerr, arn)
+		}
+
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "after-restore"})
+		_, ns := ofKind(h, delivery.HTTPNotification)
+		if len(ns) != 1 || ns[0].URL.String() != hookURL || string(ns[0].Body) != "after-restore" {
+			h.Errorf("Notifications after the restore = %+v, want the raw message at %s", ns, hookURL)
+		}
+	})
+}
+
+// Two days after the unsubscribe the UnsubscribeConfirmation's SubscribeURL
+// answers as an unknown token does (sns-http-delivery.md 2.3); the two
+// days are the confirmation token's lifetime (2.2), as AWS did not record
+// this token's, so the lifetime is inferred.
+func TestUnsubscribeConfirmationLinkLastsTwoDays(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "http", hookURL, nil)
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
+		early := h.subscribe(topic, "http", "http://127.0.0.1:8080/early", nil)
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(early)})
+		u, earlyU := unsubscribeByLink(h, arn), unsubscribeByLink(h, early)
+		h.advance(48*time.Hour - time.Second)
+		if restored, aerr := followSubscribeURL(h, earlyU.SubscribeURL); aerr != nil || restored != early {
+			h.Fatalf("a second before two days the link = %s, %v; want %s", restored, aerr, early)
+		}
+		h.advance(time.Second)
+		_, err := followSubscribeURL(h, u.SubscribeURL)
+		wantError(h, err, "InvalidParameter", "Invalid parameter: Token")
+		if listed := listedARNs(h, topic); !slices.Equal(listed, []string{early}) {
+			h.Errorf("listed after the link expired: %v, want [%s]", listed, early)
+		}
+	})
+}
+
+// ConfirmSubscription with the UnsubscribeConfirmation's Token restores
+// the subscription as its SubscribeURL does, the link being that call
+// without credentials (sns-http-delivery.md 2.3); with credentials it
+// reads ConfirmationWasAuthenticated true. AWS recorded only the link, so
+// this is inferred.
+func TestUnsubscribeConfirmationTokenRestoresThroughTheCall(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "http", hookURL, nil)
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
+		u := unsubscribeByLink(h, arn)
+		restored := must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: u.Token})
+		if *restored.SubscriptionArn != arn {
+			h.Errorf("ConfirmSubscription = %s, want %s", *restored.SubscriptionArn, arn)
+		}
+		if got := h.subscriptionAttributes(arn)["ConfirmationWasAuthenticated"]; got != "true" {
+			h.Errorf("ConfirmationWasAuthenticated after the call = %q, want true", got)
+		}
+	})
+}
+
+// A topic that subscribed the endpoint again before the restore holds the
+// new subscription only: the old token answers as an unknown one, which is
+// inferred, since AWS did not record it.
+func TestUnsubscribeConfirmationLinkAfterResubscribing(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		arn := h.subscribe(topic, "http", hookURL, nil)
+		must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
+		u := unsubscribeByLink(h, arn)
+		again := h.subscribe(topic, "http", hookURL, nil)
+		if again == arn {
+			h.Fatalf("the new Subscribe reused the unsubscribed ARN %s", arn)
+		}
+		_, err := followSubscribeURL(h, u.SubscribeURL)
+		wantError(h, err, "InvalidParameter", "Invalid parameter: Token")
+		if listed := listedARNs(h, topic); !slices.Equal(listed, []string{"PendingConfirmation"}) {
+			h.Errorf("listed = %v, want the new pending subscription only", listed)
 		}
 	})
 }
@@ -843,8 +1040,8 @@ func TestEndpointCredentialsSendBasicAuthorization(t *testing.T) {
 // default, else for healthyRetryPolicy the system default; the phases are
 // numNoDelayRetries, numMinDelayRetries, the backoff retries that remain of
 // numRetries, and numMaxDelayRetries (sns-http-delivery.md 6.2,
-// third-party-recorded; 6.3, aws-doc); maxReceivesPerSecond is the
-// effective throttlePolicy's (6.4).
+// third-party-recorded; 6.3, aws-doc); a throttlePolicy is stored and not
+// applied (6.4, SNSH-20).
 func TestHTTPRetryPolicyResolution(t *testing.T) {
 	const full = `{"minDelayTarget":1,"maxDelayTarget":4,"numRetries":5,"numNoDelayRetries":2,"numMinDelayRetries":0,"numMaxDelayRetries":0,"backoffFunction":"exponential"}`
 	const topicDefault = `{"minDelayTarget":2,"maxDelayTarget":30,"numRetries":6,"numNoDelayRetries":1,"numMinDelayRetries":1,"numMaxDelayRetries":1,"backoffFunction":"arithmetic"}`
@@ -867,12 +1064,12 @@ func TestHTTPRetryPolicyResolution(t *testing.T) {
 			delivery.SNSHTTP{NoDelay: 2, Backoff: 3, MinDelayTarget: time.Second, MaxDelayTarget: 4 * time.Second, BackoffFunction: delivery.BackoffExponential},
 		},
 		{
-			"the subscription's throttlePolicy", "", `{"throttlePolicy":{"maxReceivesPerSecond":2}}`,
-			delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * time.Second, MaxDelayTarget: 20 * time.Second, BackoffFunction: delivery.BackoffLinear, MaxReceivesPerSecond: 2},
+			"the subscription's throttlePolicy is not applied (SNSH-20)", "", `{"throttlePolicy":{"maxReceivesPerSecond":2}}`,
+			systemHTTPPolicy(),
 		},
 		{
-			"the topic's throttlePolicy", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":3}}}`, "",
-			delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * time.Second, MaxDelayTarget: 20 * time.Second, BackoffFunction: delivery.BackoffLinear, MaxReceivesPerSecond: 3},
+			"the topic's throttlePolicy is not applied (SNSH-20)", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":3}}}`, "",
+			systemHTTPPolicy(),
 		},
 	}
 	for _, c := range cases {

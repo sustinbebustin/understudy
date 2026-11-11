@@ -613,33 +613,68 @@ func TestIgnoreCase(t *testing.T) {
 	}
 }
 
-// TestSNSDocumentedEmptyAttributes: with the SNS documentation's options,
-// exists:false needs at least one attribute and exists:true needs a
-// non-empty value. "An empty set of attributes" counts attributes, or the
-// members of a message body, not the values they hold.
-func TestSNSDocumentedEmptyAttributes(t *testing.T) {
+// snsRecordedVectors are the delivery outcomes testdata/parity/sns/R09/
+// summary.tsv records for empty input and exists:true, one row per case
+// and message. A row with attrs set publishes those message attributes
+// under MessageAttributes scope; a row without publishes body under
+// MessageBody scope.
+var snsRecordedVectors = []struct {
+	row, policy string
+	attrs       map[string]Attribute
+	body        string
+	delivered   bool
+}{
+	{"T06 m1", `{"t":[{"exists":false}]}`, map[string]Attribute{}, "", false},
+	{"H1-attr m1", `{"store":[{"exists":false}]}`, map[string]Attribute{}, "", false},
+	{"H1-attr m2", `{"store":[{"exists":false}]}`, map[string]Attribute{"other": StringAttribute{Value: "x"}}, "", true},
+	{"H1-body m1", `{"store":[{"exists":false}]}`, nil, `{}`, true},
+	{"H1-body m2", `{"store":[{"exists":false}]}`, nil, `{"other":"x"}`, true},
+	{"H2-body m1", `{"store":[{"exists":true}]}`, nil, `{"store":null}`, false},
+	{"H2-body m2", `{"store":[{"exists":true}]}`, nil, `{"store":""}`, true},
+	{"H2-body m3", `{"store":[{"exists":true}]}`, nil, `{"store":[]}`, false},
+	{"H2-body m4", `{"store":[{"exists":true}]}`, nil, `{"store":{}}`, false},
+	{"H2-body m5", `{"store":[{"exists":true}]}`, nil, `{"store":0}`, true},
+	{"H2-body m6", `{"store":[{"exists":true}]}`, nil, `{"store":false}`, true},
+	{"H2-attr m1", `{"store":[{"exists":true}]}`, map[string]Attribute{"store": StringAttribute{Value: "x"}}, "", true},
+	{"H2-attr m2", `{"store":[{"exists":true}]}`, map[string]Attribute{"store": StringAttribute{Value: ""}}, "", false},
+}
+
+// TestSNSRecordedEmptyInputAndExists: under MessageAttributes scope a
+// message without attributes never matches and exists:true fails on an
+// empty value; under MessageBody scope {} can match and exists:true fails
+// only on null, [] and {} (sns/R09 T06, H1, H2).
+func TestSNSRecordedEmptyInputAndExists(t *testing.T) {
 	t.Parallel()
-	options := Options{ExistsTrue: ExistsTrueNonEmpty, EmptyInput: EmptyInputNeverMatches}
-	documented := SNS{Options: options}
-	absent := mustCompile(t, `{"store":[{"exists":false}]}`, documented)
+	for _, tc := range snsRecordedVectors {
+		t.Run(tc.row, func(t *testing.T) {
+			t.Parallel()
+			var got bool
+			if tc.attrs != nil {
+				got = matchAttrs(t, mustCompile(t, tc.policy, SNS{Scope: MessageAttributes}), tc.attrs)
+			} else {
+				got = matchEvent(t, mustCompile(t, tc.policy, SNS{Scope: MessageBody}), tc.body)
+			}
+			if got != tc.delivered {
+				t.Fatalf("%s: match = %t, want %t", tc.policy, got, tc.delivered)
+			}
+		})
+	}
+}
+
+// TestSNSEmptyAttributeSet: "an empty set of attributes" counts attributes,
+// not the values they hold, so an empty String.Array or a Binary attribute,
+// which SNS ignores when it filters, still lets exists:false match. No
+// recording covers these; matching-engines.md H1 records String attributes
+// only.
+func TestSNSEmptyAttributeSet(t *testing.T) {
+	t.Parallel()
+	absent := mustCompile(t, `{"store":[{"exists":false}]}`, SNS{Scope: MessageAttributes})
 	for name, attrs := range map[string]map[string]Attribute{
-		"empty set":          {},
-		"another attribute":  {"other": StringAttribute{Value: "x"}},
 		"empty String.Array": {"other": StringArrayAttribute{JSON: `[]`}},
 		"Binary attribute":   {"other": BinaryAttribute{}},
 	} {
-		if got, want := matchAttrs(t, absent, attrs), name != "empty set"; got != want {
-			t.Errorf("exists:false on %s = %t, want %t", name, got, want)
+		if !matchAttrs(t, absent, attrs) {
+			t.Errorf("exists:false on %s does not match", name)
 		}
-	}
-	body := mustCompile(t, `{"store":[{"exists":false}]}`, SNS{Scope: MessageBody, Options: options})
-	for event, want := range map[string]bool{`{}`: false, `{"other":"x"}`: true, `{"y":[]}`: true, `{"y":{}}`: true} {
-		if got := matchEvent(t, body, event); got != want {
-			t.Errorf("exists:false on body %s = %t, want %t", event, got, want)
-		}
-	}
-	present := mustCompile(t, `{"store":[{"exists":true}]}`, documented)
-	if matchAttrs(t, present, map[string]Attribute{"store": StringAttribute{Value: ""}}) {
-		t.Error("exists:true matched an empty string attribute")
 	}
 }

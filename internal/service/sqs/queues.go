@@ -124,7 +124,7 @@ func (s *Service) createQueue(_ context.Context, c *kernel.Call, in *sqsapi.Crea
 		if err := checkThroughput(&queue); err != nil {
 			return struct{}{}, err
 		}
-		if err := checkRedrive(st, q.scope, &queue); err != nil {
+		if err := checkRedrive(st, q.scope, &queue, in.Attributes[sqsapi.QueueAttributeNameRedrivePolicy]); err != nil {
 			return struct{}{}, err
 		}
 		st.Queues[q.name] = queue
@@ -208,8 +208,9 @@ func (s *Service) deleteQueue(_ context.Context, c *kernel.Call, in *sqsapi.Dele
 		if !ok {
 			return struct{}{}, errQueueDoesNotExist()
 		}
-		for i := range queue.Messages {
-			s.disarmMessage(tx, q, queue.Messages[i].ID)
+		for _, m := range queue.Messages.all() {
+			s.disarmMessage(tx, q, m.ID)
+			st.forget(m)
 		}
 		delete(st.Queues, q.name)
 		if s.opts.DeletedRecently == DeletedRecentlyEnforce {
@@ -368,7 +369,7 @@ func (s *Service) setQueueAttributes(_ context.Context, c *kernel.Call, in *sqsa
 			return struct{}{}, err
 		}
 		if sets(settings, sqsapi.QueueAttributeNameRedrivePolicy) {
-			if err := checkRedrive(st, q.scope, queue); err != nil {
+			if err := checkRedrive(st, q.scope, queue, in.Attributes[sqsapi.QueueAttributeNameRedrivePolicy]); err != nil {
 				return struct{}{}, err
 			}
 		}
@@ -392,14 +393,14 @@ func (s *Service) retime(tx *kernel.Tx, q queueRef, old Attributes, queue *Queue
 	if !retention && !retroactive {
 		return
 	}
-	for i := range queue.Messages {
-		if retroactive && queue.Messages[i].Receives == nil {
-			m := queue.message(i)
+	for i, m := range queue.Messages.all() {
+		if retroactive && m.Receives == nil {
+			m = queue.Messages.change(i)
 			m.VisibleAt = m.Sent.Add(seconds(queue.Attributes.DelaySeconds))
 			s.armVisibility(tx, q, m, now)
 		}
 		if retention {
-			s.armRetention(tx, q, queue, &queue.Messages[i])
+			s.armRetention(tx, q, queue, m)
 		}
 	}
 }
@@ -412,14 +413,15 @@ func (s *Service) purgeQueue(_ context.Context, c *kernel.Call, in *sqsapi.Purge
 	if err != nil {
 		return nil, err
 	}
-	_, err = writeQueue(s, c, q, func(_ *State, queue *Queue, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
+	_, err = writeQueue(s, c, q, func(st *State, queue *Queue, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		if !queue.Purged.IsZero() && now.Before(queue.Purged.Add(purgeWait)) {
 			return struct{}{}, errPurgeInProgress(queue.Name)
 		}
-		for i := range queue.Messages {
-			s.disarmMessage(tx, q, queue.Messages[i].ID)
+		for _, m := range queue.Messages.all() {
+			s.disarmMessage(tx, q, m.ID)
+			st.forget(m)
 		}
-		queue.Messages = nil
+		queue.Messages = Messages{}
 		if queue.FIFO != nil {
 			queue.FIFO.Dedup = DedupCache{}
 			queue.FIFO.Attempts = nil

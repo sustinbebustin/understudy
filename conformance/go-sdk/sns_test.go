@@ -328,11 +328,12 @@ func TestSNSSubscriptions(t *testing.T) {
 			{"RawMessageDelivery", "wrongvalue", "Invalid parameter: RawMessageDelivery: Invalid value [wrongvalue]. Must be true or false."},
 			{"FilterPolicyScope", "RandomValue", "Invalid parameter: FilterPolicyScope: Invalid value [RandomValue]. Please use either MessageBody or MessageAttributes"},
 			{"Owner", "x", "Invalid parameter: AttributeName"},
-			{"FilterPolicy", `{"key":[]}`, "Invalid parameter: FilterPolicy: Empty arrays are not allowed"},
+			// A grammar refusal goes on with Jackson's parser position line (sns/R09 H10); limit refusals carry none.
+			{"FilterPolicy", `{"key":[]}`, "Invalid parameter: FilterPolicy: Empty arrays are not allowed\n at [Source: (String)\"{\"key\":[]}\"; line: 1, column: 10]"},
 			{"FilterPolicy", `{"a":["1"],"b":["1"],"c":["1"],"d":["1"],"e":["1"],"f":["1"]}`, "Invalid parameter: FilterPolicy: Filter policy can not have more than 5 keys"},
-			{"FilterPolicy", `{"key":[{"wrong-operator":true}]}`, "Invalid parameter: FilterPolicy: Unrecognized match type wrong-operator"},
-			{"FilterPolicy", `{"key":[{"exists":"no"}]}`, "Invalid parameter: FilterPolicy: exists match pattern must be either true or false."},
-			{"FilterPolicy", `{"key":[{"numeric":[">",3,"<",1]}]}`, "Invalid parameter: FilterPolicy: Bottom must be less than top"},
+			{"FilterPolicy", `{"key":[{"wrong-operator":true}]}`, "Invalid parameter: FilterPolicy: Unrecognized match type wrong-operator\n at [Source: (String)\"{\"key\":[{\"wrong-operator\":true}]}\"; line: 1, column: 31]"},
+			{"FilterPolicy", `{"key":[{"exists":"no"}]}`, "Invalid parameter: FilterPolicy: exists match pattern must be either true or false.\n at [Source: (String)\"{\"key\":[{\"exists\":\"no\"}]}\"; line: 1, column: 20]"},
+			{"FilterPolicy", `{"key":[{"numeric":[">",3,"<",1]}]}`, "Invalid parameter: FilterPolicy: Bottom must be less than top\n at [Source: (String)\"{\"key\":[{\"numeric\":[\">\",3,\"<\",1]}]}\"; line: 1, column: 33]"},
 			{"FilterPolicy", `{"object":{"key":[{"prefix":"auto-"}]}}`, "Invalid parameter: Filter policy scope MessageAttributes does not support nested filter policy"},
 			{"RedrivePolicy", `{"deadLetterTargetArn":"not-an-arn"}`, "Invalid parameter: RedrivePolicy: deadLetterTargetArn is an invalid arn"},
 		}

@@ -115,6 +115,30 @@ func routed(rt route) string {
 	return "unrouted"
 }
 
+// routedService is the service a route sends a request to, "" for a route
+// that names none. Its request ids take the form that service's answers
+// show (ids.RequestID.ForService).
+func routedService(rt route) ref.ServiceID {
+	switch rt := rt.(type) {
+	case toOperation:
+		return rt.op.ID.Service
+	case toUnknown:
+		return rt.svc.ID
+	case toRaw:
+		return rt.op.ID.Service
+	case toLink:
+		return rt.op.ID.Service
+	case toService:
+		return rt.svc.ID
+	case legacyQuery:
+		return rt.svc.ID
+	case misscoped:
+		return rt.svc.ID
+	case toAdmin, notEmulated, unclaimed, toLocalStack, toExecuteAPI, executeAPIClaimedTwice, kinesisCBOR, http2Preface:
+	}
+	return ""
+}
+
 // statusOf is the status a response was sent with: net/http sends 200
 // when a handler writes nothing.
 func statusOf(d *datedWriter) int {

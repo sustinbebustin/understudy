@@ -29,13 +29,9 @@ func (s *Service) bindReceives(b sqsapi.Binder) {
 		queueByURL(s, func(in *sqsapi.ReceiveMessageInput) string { return in.QueueUrl }))
 }
 
-// checkReceiveMessage checks the VisibilityTimeout range (sqs.md 7.1) and
-// the form of ReceiveRequestAttemptId (sqs.md 8.3), whose hand texts no
-// overlay template renders.
+// checkReceiveMessage checks the form of ReceiveRequestAttemptId
+// (sqs.md 8.3), whose hand text no overlay template renders.
 func checkReceiveMessage(in *sqsapi.ReceiveMessageInput) *awserr.Error {
-	if v := in.VisibilityTimeout; v != nil && (*v < 0 || *v > maxVisibility) {
-		return errReceiveVisibilityTimeout(*v)
-	}
 	if id := in.ReceiveRequestAttemptId; id != nil && !validFIFOID(*id) {
 		return errInvalidAttemptID(*id)
 	}
@@ -122,7 +118,7 @@ func (s *Service) receive(c *kernel.Call, st *State, q queueRef, queue *Queue, p
 	if p.visibility != nil {
 		vt = *p.visibility
 	}
-	changed := s.dropExpired(tx, q, queue, now)
+	changed := s.dropExpired(tx, st, q, queue, now)
 	fifo := queue.FIFO
 	if fifo != nil && p.attempt != nil {
 		changed = fifo.pruneDedup(now) || changed
@@ -135,8 +131,15 @@ func (s *Service) receive(c *kernel.Call, st *State, q queueRef, queue *Queue, p
 	}
 	take, move := plan(st, q, queue, p.max, now)
 	for _, i := range take {
-		m := queue.message(i)
-		m.receive(s.ids.ReceiptHandle(), now)
+		m := queue.Messages.change(i)
+		var handle ids.ReceiptHandle
+		if fifo != nil {
+			handle = s.ids.FIFOReceiptHandle()
+		} else {
+			handle = s.ids.ReceiptHandle()
+		}
+		m.receive(handle, now)
+		st.recordIssue(handle, q.name)
 		m.VisibleAt = now.Add(seconds(vt))
 		s.armVisibility(tx, q, m, now)
 		out.messages = append(out.messages, m.clone())
@@ -157,15 +160,15 @@ func (s *Service) receive(c *kernel.Call, st *State, q queueRef, queue *Queue, p
 
 // dropExpired deletes the messages past the queue's retention at now, as
 // their retention timers would (sqs.md 7.3), and reports whether any was.
-func (s *Service) dropExpired(tx *kernel.Tx, q queueRef, queue *Queue, now clock.Instant) bool {
+func (s *Service) dropExpired(tx *kernel.Tx, st *State, q queueRef, queue *Queue, now clock.Instant) bool {
 	retention := seconds(queue.Attributes.MessageRetentionPeriod)
 	var expired []int
-	for i := range queue.Messages {
-		if queue.Messages[i].expired(retention, now) {
+	for i, m := range queue.Messages.all() {
+		if m.expired(retention, now) {
 			expired = append(expired, i)
 		}
 	}
-	s.removeMessages(tx, q, queue, expired)
+	s.removeMessages(tx, st, q, queue, expired)
 	return len(expired) > 0
 }
 
@@ -204,14 +207,19 @@ type planner struct {
 
 func (p *planner) full() bool { return len(p.take) == p.limit }
 
-// offer considers message i, reporting whether it was receivable: one
+// moves reports whether a receive moves m, receivable, to the dead-letter
+// queue rather than taking it: m is past the redrive limit.
+func (p *planner) moves(m *Message) bool {
+	return p.redrive > 0 && m.receiveCount() >= p.redrive
+}
+
+// offer considers m, message i, reporting whether it was receivable: one
 // past the redrive limit is moved, any other taken while there is room.
-func (p *planner) offer(i int) bool {
-	m := &p.queue.Messages[i]
+func (p *planner) offer(i int, m *Message) bool {
 	if !m.visible(p.now) {
 		return false
 	}
-	if p.redrive > 0 && m.receiveCount() >= p.redrive {
+	if p.moves(m) {
 		p.move = append(p.move, i)
 		return true
 	}
@@ -235,12 +243,12 @@ func (p *planner) standard() {
 // pass offers, oldest first, the messages pick selects until the receive
 // is full.
 func (p *planner) pass(pick func(*Message) bool) {
-	for i := range p.queue.Messages {
+	for i, m := range p.queue.Messages.all() {
 		if p.full() {
 			return
 		}
-		if pick(&p.queue.Messages[i]) {
-			p.offer(i)
+		if pick(m) {
+			p.offer(i, m)
 		}
 	}
 }
@@ -248,28 +256,54 @@ func (p *planner) pass(pick func(*Message) bool) {
 // fifo offers a FIFO queue's messages group by group, each group up to its
 // first message that is not receivable.
 func (p *planner) fifo() {
-	for _, group := range groups(p.queue.Messages) {
-		for _, i := range group {
-			if p.full() || !p.offer(i) {
+	for _, group := range p.groups() {
+		for _, c := range group {
+			if p.full() || !p.offer(c.i, c.m) {
 				break
 			}
 		}
 	}
 }
 
-// groups returns the indices of a FIFO queue's messages by group, the
-// groups in the order their first message appears.
-func groups(ms []Message) [][]int {
-	var out [][]int
+// candidate is message m, at index i, as a FIFO receive may offer it.
+type candidate struct {
+	i int
+	m *Message
+}
+
+// groups returns the messages fifo may offer, by group, the groups in the
+// order their first message appears: each group's messages in send order
+// up to its first that is not receivable, which closes the group, or up to
+// the limit-th that a receive would take, past which the receive is full.
+// Stopping there keeps a receive's cost to what it can offer, not the
+// backlog.
+func (p *planner) groups() [][]candidate {
+	type group struct {
+		taken  int
+		closed bool
+	}
+	var out [][]candidate
+	var state []group
 	at := map[string]int{}
-	for i := range ms {
-		g, ok := at[ms[i].GroupID]
+	for i, m := range p.queue.Messages.all() {
+		g, ok := at[m.GroupID]
 		if !ok {
 			g = len(out)
-			at[ms[i].GroupID] = g
+			at[m.GroupID] = g
 			out = append(out, nil)
+			state = append(state, group{})
 		}
-		out[g] = append(out[g], i)
+		if state[g].closed {
+			continue
+		}
+		out[g] = append(out[g], candidate{i: i, m: m})
+		switch {
+		case !m.visible(p.now):
+			state[g].closed = true
+		case !p.moves(m):
+			state[g].taken++
+			state[g].closed = state[g].taken == p.limit
+		}
 	}
 	return out
 }
@@ -294,8 +328,9 @@ func redriveLimit(st *State, q queueRef, queue *Queue) int {
 // deadLetter moves the messages at the indices move from queue to its
 // dead-letter queue, in queue order, and returns the dead-letter queue's
 // ARN. A moved message keeps its id, body, attributes and receive count
-// and gains DeadLetterQueueSourceArn; a FIFO one restarts its retention
-// and takes its id as its deduplication id (sqs.md 9.2). The receive is
+// and gains DeadLetterQueueSourceArn; a FIFO one keeps its SentTimestamp
+// but restarts its retention (sqs/R02 fifo-04-dlq-poll-0s) and takes its
+// id as its deduplication id (sqs.md 9.2). The receive is
 // the cause of its enqueue there, and it records one journal.Redrive, its
 // child (ADR 0007, amendment 2026-10-13). The dead-letter queue changes
 // through a working copy stored back at the end; redriveLimit made sure it
@@ -307,20 +342,20 @@ func (s *Service) deadLetter(c *kernel.Call, st *State, q queueRef, queue *Queue
 	dlq := stored.clone()
 	slices.Sort(move)
 	moved := make([]ids.MessageID, 0, len(move))
-	for _, i := range move {
-		m := queue.Messages[i].clone()
+	for _, stored := range queue.Messages.pick(move) {
+		m := stored.clone()
 		moved = append(moved, m.ID)
 		m.DeadLetterSource = &q
 		m.dropHandle()
 		m.VisibleAt, m.Enqueued, m.EnqueuedTrace = now, c.Event(), c.Cause().Trace
 		if dlq.FIFO != nil {
-			m.Sent = now
+			m.RetentionStart = now
 			m.FIFO = &FIFOMessage{DedupID: string(m.ID), Sequence: dlq.FIFO.nextSequence()}
 		}
 		s.append(tx, dq, &dlq, m, now)
 	}
 	st.Queues[dq.name] = dlq
-	s.removeMessages(tx, q, queue, move)
+	s.removeMessages(tx, st, q, queue, move)
 	tx.Record(q.scope, journal.Redrive{From: q.arn(), To: dq.arn(), Messages: moved, Reason: journal.MaxReceiveCount{Count: policy.MaxReceiveCount}})
 	return dq.arn()
 }
@@ -341,7 +376,7 @@ func (s *Service) retryAttempt(tx *kernel.Tx, q queueRef, queue *Queue, id strin
 	at := make([]int, len(a.Received))
 	for k, r := range a.Received {
 		i := queue.find(r.ID)
-		if i < 0 || !queue.Messages[i].holds(string(r.Receipt)) {
+		if i < 0 || !queue.Messages.at(i).holds(string(r.Receipt)) {
 			delete(queue.FIFO.attempts(), id)
 			return nil, true
 		}
@@ -349,7 +384,7 @@ func (s *Service) retryAttempt(tx *kernel.Tx, q queueRef, queue *Queue, id strin
 	}
 	out := make([]Message, len(at))
 	for k, i := range at {
-		m := queue.message(i)
+		m := queue.Messages.change(i)
 		m.VisibleAt = now.Add(seconds(vt))
 		s.armVisibility(tx, q, m, now)
 		out[k] = m.clone()

@@ -83,12 +83,8 @@ func TestHTTPRetryPolicyInferredRules(t *testing.T) {
 		},
 		{"a minDelayTarget above 3600 takes the system default's", "", `{"healthyRetryPolicy":{"minDelayTarget":4000}}`, system},
 		{
-			"a null throttlePolicy takes the topic's", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":5}}}`, `{"throttlePolicy":null}`,
-			delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * s, MaxDelayTarget: 20 * s, BackoffFunction: delivery.BackoffLinear, MaxReceivesPerSecond: 5},
-		},
-		{
-			"the subscription's throttlePolicy over the topic's", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":5}}}`, `{"throttlePolicy":{"maxReceivesPerSecond":2}}`,
-			delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * s, MaxDelayTarget: 20 * s, BackoffFunction: delivery.BackoffLinear, MaxReceivesPerSecond: 2},
+			"a throttlePolicy, the topic's or the subscription's, changes nothing (SNSH-20)", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":5}}}`, `{"throttlePolicy":{"maxReceivesPerSecond":2}}`,
+			system,
 		},
 		{
 			"sicklyRetryPolicy, guaranteed and disableSubscriptionOverrides change nothing",
@@ -120,11 +116,16 @@ func TestHTTPRetryPolicyStaysInTheOutboxBounds(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		retryPolicy := func(level string) document.Map {
 			var retry document.Map
+			// numRetries and minDelayTarget are required (SNSH-18), and
+			// the delays stay short enough for numRetries of them to keep
+			// the 3,600-second total retry time (sns-http-delivery.md 6.3).
+			retries := rapid.IntRange(0, 100).Draw(t, level+"numRetries")
+			longest := 3600 / max(retries, 1)
 			for _, m := range []struct {
 				name   string
 				lo, hi int
-			}{{"minDelayTarget", 1, 4000}, {"maxDelayTarget", 1, 3600}, {"numRetries", 0, 100}, {"numNoDelayRetries", 0, 60}, {"numMinDelayRetries", 0, 60}, {"numMaxDelayRetries", 0, 60}} {
-				if rapid.Bool().Draw(t, level+m.name+"Given") {
+			}{{"minDelayTarget", 1, longest}, {"maxDelayTarget", 1, longest}, {"numRetries", retries, retries}, {"numNoDelayRetries", 0, 60}, {"numMinDelayRetries", 0, 60}, {"numMaxDelayRetries", 0, 60}} {
+				if m.name == "numRetries" || m.name == "minDelayTarget" || rapid.Bool().Draw(t, level+m.name+"Given") {
 					retry = append(retry, document.Entry{Key: m.name, Value: document.Number(strconv.Itoa(rapid.IntRange(m.lo, m.hi).Draw(t, level+m.name)))})
 				}
 			}
@@ -148,7 +149,7 @@ func TestHTTPRetryPolicyStaysInTheOutboxBounds(t *testing.T) {
 			http = append(http, document.Entry{Key: "defaultThrottlePolicy", Value: th})
 		}
 		topic := document.Map{{Key: "http", Value: http}}
-		if checkSubscriptionDeliveryPolicy(sub) != "" || checkTopicDeliveryPolicy(topic) != "" {
+		if checkSubscriptionDeliveryPolicy(sub, false) != "" || checkTopicDeliveryPolicy(topic) != "" {
 			t.Skip("a write check refuses the policies")
 		}
 		storedSub, ok := storedSubscriptionDeliveryPolicy(sub)
@@ -165,8 +166,8 @@ func TestHTTPRetryPolicyStaysInTheOutboxBounds(t *testing.T) {
 			t.Fatalf("phase counts out of bounds: %+v", p)
 		case p.MinDelayTarget < time.Second || p.MinDelayTarget > p.MaxDelayTarget || p.MaxDelayTarget > time.Hour:
 			t.Fatalf("delay targets out of bounds: %+v", p)
-		case !p.BackoffFunction.Valid() || p.MaxReceivesPerSecond < 0:
-			t.Fatalf("function or throttle out of bounds: %+v", p)
+		case !p.BackoffFunction.Valid():
+			t.Fatalf("function out of bounds: %+v", p)
 		}
 		want := int64(3)
 		if n, ok := intMember(mapMember(http, "defaultHealthyRetryPolicy"), "numRetries"); ok {

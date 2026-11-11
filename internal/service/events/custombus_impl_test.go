@@ -84,7 +84,8 @@ func TestPutRuleCheckOrder(t *testing.T) {
 		}
 
 		_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", EventBusName: new("never-created"), EventPattern: new(`{"source": "s"}`)})
-		wantError(t, err, "InvalidEventPatternException", `Event pattern is not valid. Reason: "source" must be an object or an array`)
+		wantError(t, err, "InvalidEventPatternException", `Event pattern is not valid. Reason: "source" must be an object or an array`+
+			"\n at [Source: (String)\"{\"source\": \"s\"}\"; line: 1, column: 13]")
 	})
 }
 

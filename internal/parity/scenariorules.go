@@ -209,7 +209,7 @@ func checkTarget(field string, t Target) error {
 		return fieldError(field, "names neither a switch nor an overlay entry; a settles entry settles one")
 	case SwitchTarget:
 		if !switchPattern.MatchString(t.Name) {
-			return fieldError(field+".switch", fmt.Sprintf("%q is not a fidelity switch name, such as sqs.receipt.stale-handle", t.Name))
+			return fieldError(field+".switch", fmt.Sprintf("%q is not a fidelity switch name, such as sqs.fifo.receipt-expiry", t.Name))
 		}
 	case OverlayTarget:
 		if !isShapeID(t.Shape) {

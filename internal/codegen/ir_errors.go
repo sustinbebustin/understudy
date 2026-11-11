@@ -178,21 +178,25 @@ func (b *builder) errorIR(s *ShapeIR, src *Shape, namespace string) (*ErrorIR, e
 		}
 		e.QueryErrorWhen = when
 	}
-	name := s.ID.Name()
+	jt := jsonType{Name: s.ID.Name()}
 	if raw, ok := src.Traits[utJSONType]; ok {
-		v, err := parseNonEmptyString(raw)
+		v, err := parseJSONType(raw)
 		if err != nil {
 			return nil, failf(StageIR, subject, "%w", err)
 		}
-		name = v
+		jt = v
 	}
-	e.JSONType = name
+	e.JSONType = jt.Name
 	if slices.Contains(b.ir.Protocols, ref.AWSJSON10) {
-		ns := namespace
-		if e.Generic {
+		ns := jt.Namespace
+		switch {
+		case ns != "":
+		case e.Generic:
 			ns = s.ID.Namespace()
+		default:
+			ns = namespace
 		}
-		e.JSONType = ns + "#" + name
+		e.JSONType = ns + "#" + jt.Name
 	}
 	key, err := b.messageKey(src)
 	if err != nil {

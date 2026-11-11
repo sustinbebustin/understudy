@@ -26,9 +26,7 @@ import (
 // goroutine, and a new drain takes over the queue. The call's fault draws
 // keep the sequencer's order; the ids its target draws after the wait fall
 // in wall-time order, as after a Delivery-phase delay (ADR 0018, amendment
-// 2026-11-11). The engine's sequencer releases; a throttled subscription's
-// does not, so it keeps journaling its attempts in the order they start,
-// as it does through a Delivery-phase delay.
+// 2026-11-11). The engine's sequencer releases.
 type sequencer struct {
 	releases bool
 
@@ -77,15 +75,7 @@ func (s *sequencer) handOff() (start bool) {
 	return true
 }
 
-// idle reports whether s has no attempt queued and no drain running.
-func (s *sequencer) idle() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return !s.draining && len(s.queue) == 0
-}
-
-// sequence runs a on s after every attempt handed to s before it: the
-// engine's sequencer, or a throttled subscription's (pacer).
+// sequence runs a on s after every attempt handed to s before it.
 func (e *engine) sequence(s *sequencer, a *attempt) {
 	if s.push(a) {
 		e.startDrain(s)

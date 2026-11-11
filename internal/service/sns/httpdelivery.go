@@ -78,28 +78,29 @@ func (e *EndpointError) Error() string {
 // through subscriptionEffectiveDeliveryPolicy (sns-http-delivery.md 6.2,
 // third-party-recorded): the effective healthyRetryPolicy is the
 // subscription's members over the topic's http.defaultHealthyRetryPolicy
-// over the system default, and the effective throttlePolicy is the
-// subscription's, else the topic's http.defaultThrottlePolicy.
-// sicklyRetryPolicy, guaranteed and disableSubscriptionOverrides change
-// nothing, since no source says what they do (6.2).
+// over the system default. sicklyRetryPolicy, guaranteed and
+// disableSubscriptionOverrides change nothing, since no source says what
+// they do (6.2). throttlePolicy is stored and not applied: a burst of 10
+// at maxReceivesPerSecond 1 was not paced on AWS, and how AWS paces a
+// longer burst is unrecorded (6.4; SNSH-20).
 //
-// A member AWS would not accept (not an integer, outside the bounds of
-// sns.md 7.3, or not a backoffFunction name in any case) takes the system
-// default's value (inferred); understudy's write checks leave only a
-// non-integer member, or state an older build wrote, to reach this. The
-// 3,600-second total retry time AWS documents as a hard limit for an
-// http or https policy is neither checked at write nor applied here, as
-// the SNS HTTP delivery guide says: whether AWS refuses such a policy or
-// truncates it is UNVERIFIED (6.3, SNSH-18). The phases take
-// numRetries in the order numNoDelayRetries,
-// numMinDelayRetries, numMaxDelayRetries, each capped at what remains, and
-// the backoff phase gets the rest (6.3, aws-doc order; the capping is
-// inferred). A maxDelayTarget below minDelayTarget is raised to it
-// (inferred). maxReceivesPerSecond is 0, no throttling, when the effective
-// throttlePolicy has none (6.4).
+// The schedule is retrySchedule's.
 func httpRetryPolicy(subscriptionPolicy, topicPolicy string) delivery.SNSHTTP {
 	effective, _ := parseObject(subscriptionEffectiveDeliveryPolicy(subscriptionPolicy, topicPolicy))
-	retry, system := mapMember(effective, "healthyRetryPolicy"), defaultHealthyRetryPolicy()
+	return retrySchedule(mapMember(effective, "healthyRetryPolicy"))
+}
+
+// retrySchedule is the retry schedule of a retry policy. A member that is
+// absent, or that AWS would not accept (not an integer, outside the bounds
+// of sns.md 7.3, or not a backoffFunction name in any case), takes the
+// system default's value (inferred); understudy's write checks leave only
+// state an older build wrote to reach the latter. The phases take
+// numRetries in the order numNoDelayRetries, numMinDelayRetries,
+// numMaxDelayRetries, each capped at what remains, and the backoff phase
+// gets the rest (6.3, aws-doc order; the capping is inferred). A
+// maxDelayTarget below minDelayTarget is raised to it (inferred).
+func retrySchedule(retry document.Map) delivery.SNSHTTP {
+	system := defaultHealthyRetryPolicy()
 	member := func(name string, lowest, highest int64) int {
 		if n, ok := intMember(retry, name); ok && n >= lowest && n <= highest {
 			return int(n)
@@ -123,9 +124,6 @@ func httpRetryPolicy(subscriptionPolicy, topicPolicy string) delivery.SNSHTTP {
 	}
 	p.Backoff = remaining
 	p.MaxDelayTarget = max(p.MaxDelayTarget, p.MinDelayTarget)
-	if n, ok := intMember(mapMember(effective, "throttlePolicy"), "maxReceivesPerSecond"); ok && n >= 1 {
-		p.MaxReceivesPerSecond = int(n)
-	}
 	return p
 }
 
@@ -201,35 +199,34 @@ func (s *Service) httpConfirmation(st *State, ref topicRef, t *Topic, sub *Subsc
 // unsigned GET of the UnsubscribeURL of sub, a confirmed http or https
 // subscription of the topic ref names, sends its endpoint, due at now
 // (sns-http-delivery.md 2.4, 4.4): a new MessageId and a new token, signed
-// over the confirmation field list with Token (5.1). AWS documents its
-// SubscribeURL as the one to visit to re-confirm the subscription (2.4,
-// aws-doc). understudy keeps the token nowhere, so its SubscribeURL
-// confirms nothing, a deviation the UnsubscribeLink coverage note records;
-// whether AWS restores the same subscription ARN, and how long the token
-// lasts, are UNVERIFIED (2.4, SNSH-16). A stored endpoint that is not a URL
-// gets nothing, journaled as Dropped, and the unsubscribe still succeeds.
+// over the confirmation field list with Token (5.1). It adds sub to t's
+// Restorable for that token's lifetime from now (RestorableSubscription);
+// t must not alias a cell. A stored endpoint that is not a URL gets
+// nothing, journaled as Dropped, is not restorable, and the unsubscribe
+// still succeeds.
 func (s *Service) sendUnsubscribeConfirmation(tx *kernel.Tx, st *State, ref subscriptionRef, t *Topic, sub *Subscription, l links, now clock.Instant) *awserr.Error {
 	to, bad := httpEndpointOf(sub)
 	if bad != nil {
 		tx.Record(ref.topic.scope, unusableEndpoint(ref.topic.arn(), bad))
 		return nil
 	}
-	r, err := s.unsubscribeConfirmation(st, ref, t, sub, to, l, now)
+	token := hex.EncodeToString(s.ids.Draw(ids.KindSNSMessageID, tokenBytes))
+	r, err := s.unsubscribeConfirmation(st, ref, t, sub, to, token, l, now)
 	if err != nil {
 		return err
 	}
+	t.Restorable = append(t.Restorable, RestorableSubscription{Subscription: sub.clone(), Token: token, Until: now.Add(tokenValidity)})
 	tx.Deliver(r)
 	return nil
 }
 
 // unsubscribeConfirmation is the delivery of sendUnsubscribeConfirmation's
-// message to to, sub's endpoint.
-func (s *Service) unsubscribeConfirmation(st *State, ref subscriptionRef, t *Topic, sub *Subscription, to httpEndpoint, l links, now clock.Instant) (delivery.Request, *awserr.Error) {
+// message of token to to, sub's endpoint.
+func (s *Service) unsubscribeConfirmation(st *State, ref subscriptionRef, t *Topic, sub *Subscription, to httpEndpoint, token string, l links, now clock.Instant) (delivery.Request, *awserr.Error) {
 	signing, err := s.signing(st.Signing, ref.topic, t.signatureVersion(), l)
 	if err != nil {
 		return delivery.Request{}, err
 	}
-	token := hex.EncodeToString(s.ids.Draw(ids.KindSNSMessageID, tokenBytes))
 	topicARN := ref.topic.arn().String()
 	u := envelope.UnsubscribeConfirmation{
 		MessageID:       string(s.ids.SNSMessageID()),
@@ -262,8 +259,6 @@ func httpSwitches() []fidelity.Switch[string] {
 	all := []string{"sns.Subscribe", "sns.Publish", "sns.PublishBatch", "sns.UnsubscribeLink"}
 	control := []string{"sns.Subscribe", "sns.UnsubscribeLink"}
 	return []fidelity.Switch[string]{
-		httpSwitch("sns.http.status-classes", "retries-doc", evidence.Inferred, "61-response-classes", "SNSH-05, SNSH-24",
-			"recorded in SNSH-05 (2026-11-03): AWS counts 3xx and 4xx other than 429 as delivered, which understudy does not yet; SNSH-24 is unrecorded", all),
 		httpSwitch("sns.http.redirects", "not-followed", evidence.AWSRecorded, "31-method-url-and-connection", "SNSH-06", unreplayed("SNSH-06"), all),
 		httpSwitch("sns.http.retry-body", "identical", evidence.AWSRecorded, "46-field-values", "SNSH-07", unreplayed("SNSH-07"), all),
 		httpSwitch("sns.http.dlq-body", "as-sqs", evidence.AWSRecorded, "65-dead-letter-queue", "SNSH-08", unreplayed("SNSH-08"), publishOps()),
@@ -271,14 +266,14 @@ func httpSwitches() []fidelity.Switch[string] {
 			"recorded in SNSH-09 (2026-11-03): linear matches, and AWS's arithmetic, geometric and exponential curves differ, which understudy does not model yet", all),
 		httpSwitch("sns.http.retry-jitter", "none", evidence.AWSRecorded, "63-retry-schedule", "SNSH-10", unreplayed("SNSH-10"), all),
 		httpSwitch("sns.http.pending-messages", "dropped", evidence.AWSRecorded, "22-the-confirmation-post-and-the-pending-period", "SNSH-11", unreplayed("SNSH-11"), publishOps()),
-		httpSwitch("sns.http.resubscribe-pending", "resend-same-token", evidence.Inferred, "22-the-confirmation-post-and-the-pending-period", "SNSH-12",
-			"recorded in SNSH-12 (2026-11-03): AWS sends a new token and the first stays valid, which understudy does not yet", []string{"sns.Subscribe"}),
 		httpSwitch("sns.http.unsubscribe-confirmation", "unauthenticated-only", evidence.AWSRecorded, "24-unsubscribing-and-the-unsubscribeconfirmation", "SNSH-15",
 			unreplayed("SNSH-15"), []string{"sns.Unsubscribe", "sns.UnsubscribeLink"}),
 		httpSwitch("sns.http.control-dlq", "never", evidence.AWSRecorded, "65-dead-letter-queue", "SNSH-17", unreplayed("SNSH-17"), control),
 		httpSwitch("sns.http.control-content-type", "as-request-policy", evidence.AWSRecorded, "33-content-type", "SNSH-03", unreplayed("SNSH-03"), control),
 		httpSwitch("sns.http.basic-auth", "preemptive", evidence.Inferred, "31-method-url-and-connection", "SNSH-22",
 			"recorded in SNSH-22 (2026-11-03): no Authorization header reached the endpoint, which may be the function URL's doing, so the value stays inferred", all),
+		httpSwitch("sns.http.connection-failure", "retried", evidence.Inferred, "61-response-classes", "SNSH-24",
+			"SNSH-24 was n/a on 2026-11-03 (the free plan refused its EC2 receiver), and the documentation both retries an unavailable endpoint and counts an unreachable one a client error, so a refused, reset, DNS or TLS failure is retried by the server-side reading", all),
 	}
 }
 

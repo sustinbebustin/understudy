@@ -595,7 +595,8 @@ func (c *claimer) codecClaim(p ref.ProtocolID, rule int) (route, bool) {
 	}
 	var svc *registry.Service
 	var rt route
-	switch cl := codec.Claim(c.r, c.h.opts.Registry).(type) {
+	signed, isSigned := signingName(c.auth)
+	switch cl := codec.Claim(c.r, c.h.opts.Registry, signed).(type) {
 	case Claimed:
 		svc, rt = cl.Op.Service, toOperation{codec: codec, op: cl.Op, req: c.r}
 	case UnknownOperation:
@@ -604,7 +605,7 @@ func (c *claimer) codecClaim(p ref.ProtocolID, rule int) (route, bool) {
 		c.decline(rule, "the %s codec declined: %s", p, cl.Reason)
 		return nil, false
 	}
-	if signed, ok := signingName(c.auth); ok && signed != svc.SigningName {
+	if isSigned && signed != svc.SigningName {
 		if _, named := rt.(toOperation); named && signed == refusedScope(svc.ID) {
 			c.decline(rule, "the request names %s service %s, whose credentials AWS refuses when scoped to %q: sign for %q", p, svc.ID, signed, svc.SigningName)
 			return misscoped{codec: codec, svc: svc, reasons: c.reasons}, true

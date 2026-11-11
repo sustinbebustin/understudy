@@ -12,14 +12,15 @@ import "strconv"
 type Profile interface {
 	options() Options
 	input() Input
-	switchPrefix() string
-	switchRecords() switchRecords
+	// optionSwitches describes the Options fields the profile leaves open.
+	optionSwitches() []Switch
 	// fixedSwitches describes the allow-list and limit choices the profile
 	// makes without AWS-recorded evidence.
 	fixedSwitches() []Switch
 	allows(op Operator) bool
-	// admit checks the raw pattern before Ruler's compiler sees it.
-	admit(src []byte) *CompileError
+	// admit checks the raw pattern before Ruler's compiler sees it, and
+	// returns the text the service hands to Ruler.
+	admit(src []byte) ([]byte, *CompileError)
 	// overrun returns a limit the pattern is already certain to exceed, judged
 	// by counts that only grow while it is read, or nil.
 	overrun(x expansion) *CompileError
@@ -29,8 +30,8 @@ type Profile interface {
 }
 
 // EventBridge is an event bus rule's event pattern. Every Ruler operator is
-// allowed except the undocumented "exactly"; the limits are the 1000 $or
-// combination cap and Ruler's wildcard complexity evaluator.
+// allowed; the limits are the 1000 $or combination cap and Ruler's wildcard
+// complexity evaluator.
 type EventBridge struct {
 	Options Options
 }
@@ -46,18 +47,33 @@ const (
 	MessageBody
 )
 
-// SNS is a subscription filter policy. The allow-list leaves out the
-// equals-ignore-case forms of prefix, suffix and anything-but, which the SNS
-// documentation does not list; the limits are 5 keys, 150 combinations, the
-// wildcard point budget and 256 KB.
+// SNS is a subscription filter policy. The allow-list is every Ruler
+// operator but none of the documentation leaves out: the equals-ignore-case
+// forms of prefix, suffix and anything-but (sns/R09/H7b-03-subscribe.json to
+// H7b-05-subscribe.json) and "exactly" (sns/R09/H7b-07-subscribe.json) are
+// accepted. The limits are 5 keys, 150 combinations, the wildcard point
+// budget and 256 KB. Empty input and exists:true follow the R09 recordings
+// per scope, so only the other two Options fields are open.
 type SNS struct {
 	Scope   SNSScope
-	Options Options
+	Options SNSOptions
+}
+
+// SNSOptions are the Options fields the SNS profile leaves open.
+type SNSOptions struct {
+	BareNumber  BareNumber
+	MalformedOr MalformedOr
 }
 
 // LambdaESM is an event source mapping filter pattern. The allow-list is the
-// operator table of the Lambda filtering documentation; every rejection is
-// reported with Lambda's generic message.
+// operator table of the Lambda filtering documentation plus the undocumented
+// operators Lambda accepts: cidr, wildcard, anything-but with prefix or
+// suffix, prefix with equals-ignore-case (lambda/R03/H13-01-create.json to
+// H13-06-create.json) and "exactly" (H13-11-create.json). The three forms
+// neither the table nor a recording covers stay refused. Every rejection is
+// reported with Lambda's generic message. A string rule also matches a
+// number with its text, and a wildcard rule matches nothing (lambda/R03 H8-02,
+// H13-02); both are fixed, not Options.
 type LambdaESM struct {
 	Options Options
 }
@@ -81,8 +97,28 @@ const (
 )
 
 func (p EventBridge) options() Options { return p.Options }
-func (p SNS) options() Options         { return p.Options }
-func (p LambdaESM) options() Options   { return p.Options }
+
+// options: logs/R03/H8-02-01.json and H13-02-01.json.
+func (p LambdaESM) options() Options {
+	o := p.Options
+	o.stringRule, o.wildcardRule = stringRuleNumberText, wildcardRuleNothing
+	return o
+}
+
+// options: under MessageAttributes scope a message without attributes never
+// matches and an empty String value does not exist (sns/R09 T06, H1-attr,
+// H2-attr); under MessageBody scope {} can match and only null fails
+// exists:true (H1-body, H2-body).
+func (p SNS) options() Options {
+	o := Options{BareNumber: p.Options.BareNumber, MalformedOr: p.Options.MalformedOr}
+	switch p.Scope {
+	case MessageAttributes:
+		o.ExistsTrue, o.EmptyInput = ExistsTrueNonEmpty, EmptyInputNeverMatches
+	case MessageBody:
+		o.ExistsTrue, o.EmptyInput = ExistsTrueNonNull, EmptyInputMatchable
+	}
+	return o
+}
 
 func (EventBridge) input() Input { return InputEvent }
 func (LambdaESM) input() Input   { return InputEvent }
@@ -94,50 +130,47 @@ func (p SNS) input() Input {
 	return InputEvent
 }
 
-func (EventBridge) switchPrefix() string { return "events.pattern" }
-func (SNS) switchPrefix() string         { return "sns.filter-policy" }
-func (LambdaESM) switchPrefix() string   { return "lambda.esm-filter" }
-
-// switchRecords follows matching-engines.md section 8: H1 covers SNS and
-// EventBridge, H2 SNS and Lambda, H6 SNS bare numbers, H7(a) Lambda bare
-// numbers, and H10 every service. The record backlog's R09 items 6 and 1 ask
-// SNS the H1 and H6 questions. EventBridge's exists:true and bare-number
-// behaviors have no item: the research rates them from Ruler, which
-// EventBridge runs.
-func (EventBridge) switchRecords() switchRecords {
-	return switchRecords{emptyInput: "matching-engines.md H1", malformedOr: "matching-engines.md H10"}
-}
-
-func (SNS) switchRecords() switchRecords {
-	return switchRecords{
-		existsTrue: "matching-engines.md H2", emptyInput: "R09/6 (matching-engines.md H1)",
-		bareNumber: "R09/1 (matching-engines.md H6)", malformedOr: "matching-engines.md H10",
+// The option switch records follow matching-engines.md section 8: H1 covers
+// SNS and EventBridge, H2 SNS and Lambda, H6 SNS bare numbers, H7(a) Lambda
+// bare numbers, and H10 every service. The record backlog's R09 item 1 asks
+// SNS the H6 question. EventBridge's exists:true and bare-number behaviors
+// have no item: the research rates them from Ruler, which EventBridge runs.
+func (p EventBridge) optionSwitches() []Switch {
+	const prefix = "events.pattern"
+	return []Switch{
+		optionSwitch(prefix, "exists-true-empty-value", p.Options.ExistsTrue, ""),
+		optionSwitch(prefix, "empty-input", p.Options.EmptyInput, "matching-engines.md H1"),
+		optionSwitch(prefix, "bare-number", p.Options.BareNumber, ""),
+		optionSwitch(prefix, "malformed-or", p.Options.MalformedOr, "events/R14 H10 (matching-engines.md H10)"),
 	}
 }
 
-func (LambdaESM) switchRecords() switchRecords {
-	return switchRecords{
-		existsTrue: "matching-engines.md H2", bareNumber: "matching-engines.md H7",
-		malformedOr: "matching-engines.md H10",
+func (p SNS) optionSwitches() []Switch {
+	const prefix = "sns.filter-policy"
+	return []Switch{
+		optionSwitch(prefix, "bare-number", p.Options.BareNumber, "R09/1 (matching-engines.md H6)"),
+		optionSwitch(prefix, "malformed-or", p.Options.MalformedOr, "matching-engines.md H10"),
+	}
+}
+
+func (p LambdaESM) optionSwitches() []Switch {
+	const prefix = "lambda.esm-filter"
+	return []Switch{
+		optionSwitch(prefix, "exists-true-empty-value", p.Options.ExistsTrue, "matching-engines.md H2"),
+		optionSwitch(prefix, "empty-input", p.Options.EmptyInput, ""),
+		optionSwitch(prefix, "bare-number", p.Options.BareNumber, "matching-engines.md H7"),
+		optionSwitch(prefix, "malformed-or", p.Options.MalformedOr, "matching-engines.md H10"),
 	}
 }
 
 const (
 	humanRecordsRef = "docs/research/matching-engines.md#8"
-	// operatorsRef is the documented operator table, which lists "exactly"
-	// for no service although Ruler accepts it.
+	// operatorsRef is the documented operator table.
 	operatorsRef = "docs/research/matching-engines.md#5.1"
 )
 
-// exactlyRejected is the switch for Ruler's "exactly" operator, which every
-// profile rejects as an unknown match type.
-func exactlyRejected(prefix, record string) Switch {
-	return Switch{Name: prefix + ".exactly-operator", Value: "rejected", Ref: operatorsRef, Record: record}
-}
-
-func (p EventBridge) fixedSwitches() []Switch {
+func (EventBridge) fixedSwitches() []Switch {
 	return []Switch{
-		exactlyRejected(p.switchPrefix(), "matching-engines.md H14"),
 		{
 			// Ruler loses a later "$or" member's values that an earlier
 			// member with the same key shares, so its answer depends on
@@ -156,9 +189,8 @@ func (p EventBridge) fixedSwitches() []Switch {
 	}
 }
 
-func (p SNS) fixedSwitches() []Switch {
+func (SNS) fixedSwitches() []Switch {
 	return []Switch{
-		exactlyRejected(p.switchPrefix(), "matching-engines.md H7"),
 		{
 			Name: "sns.filter-policy.anything-but-suffix", Value: "accepted",
 			Ref: humanRecordsRef, Record: "R09/7 (matching-engines.md H7)",
@@ -169,14 +201,6 @@ func (p SNS) fixedSwitches() []Switch {
 			// string.
 			Name: "sns.filter-policy.anything-but-list-forms", Value: "accepted",
 			Ref: operatorsRef, Record: "matching-engines.md H7",
-		},
-		{
-			Name: "sns.filter-policy.ignore-case-forms", Value: "rejected",
-			Ref: humanRecordsRef, Record: "matching-engines.md H7",
-		},
-		{
-			Name: "sns.filter-policy.key-counting", Value: "leaf-keys-per-branch",
-			Ref: humanRecordsRef, Record: "R09/11, R09/12 (matching-engines.md H3)",
 		},
 		{
 			Name: "sns.filter-policy.wildcard-points", Value: "3-per-star",
@@ -207,57 +231,42 @@ func (p SNS) fixedSwitches() []Switch {
 	}
 }
 
-func (p LambdaESM) fixedSwitches() []Switch {
-	return []Switch{
-		exactlyRejected(p.switchPrefix(), "matching-engines.md H13"),
-		{
-			Name: "lambda.esm-filter.operator-allow-list", Value: "documented-table",
-			Ref: humanRecordsRef, Record: "matching-engines.md H13",
-		},
-	}
-}
+func (LambdaESM) fixedSwitches() []Switch { return nil }
 
 func (EventBridge) allows(Operator) bool { return true }
 
-func (SNS) allows(op Operator) bool {
-	switch op {
-	case OperatorPrefixEqualsIgnoreCase, OperatorSuffixEqualsIgnoreCase, OperatorAnythingButEqualsIgnoreCase:
-		return false
-	case OperatorPrefix, OperatorSuffix, OperatorEqualsIgnoreCase, OperatorWildcard, OperatorAnythingBut,
-		OperatorAnythingButPrefix, OperatorAnythingButSuffix, OperatorAnythingButWildcard, OperatorNumeric,
-		OperatorExists, OperatorCIDR, OperatorOr:
-		return true
-	}
-	return false
-}
+func (SNS) allows(Operator) bool { return true }
 
 func (LambdaESM) allows(op Operator) bool {
 	switch op {
 	case OperatorPrefix, OperatorSuffix, OperatorEqualsIgnoreCase, OperatorAnythingBut, OperatorNumeric,
-		OperatorExists, OperatorOr:
+		OperatorExists, OperatorExactly, OperatorOr, OperatorCIDR, OperatorWildcard, OperatorAnythingButPrefix,
+		OperatorAnythingButSuffix, OperatorPrefixEqualsIgnoreCase:
 		return true
-	case OperatorPrefixEqualsIgnoreCase, OperatorSuffixEqualsIgnoreCase, OperatorWildcard,
-		OperatorAnythingButPrefix, OperatorAnythingButSuffix, OperatorAnythingButEqualsIgnoreCase,
-		OperatorAnythingButWildcard, OperatorCIDR:
+	case OperatorSuffixEqualsIgnoreCase, OperatorAnythingButEqualsIgnoreCase, OperatorAnythingButWildcard:
 		return false
 	}
 	return false
 }
 
-func (EventBridge) admit([]byte) *CompileError { return nil }
-func (LambdaESM) admit([]byte) *CompileError   { return nil }
+func (EventBridge) admit(src []byte) ([]byte, *CompileError) { return src, nil }
+func (LambdaESM) admit(src []byte) ([]byte, *CompileError)   { return src, nil }
 
-// admit applies the size limit, then parses the whole policy as JSON first,
-// as SNS does: its syntax errors carry a "failed to parse JSON. " prefix and
-// win over Ruler's grammar errors anywhere in the policy.
-func (SNS) admit(src []byte) *CompileError {
+// admit applies the size limit in UTF-8 bytes (sns/R09/T16-subscribe.json),
+// then parses the whole policy as JSON first, as SNS does: its syntax errors
+// carry a "failed to parse JSON. " prefix and win over Ruler's grammar
+// errors anywhere in the policy. Ruler reads the policy as SNS writes the
+// parsed tree back (reserialize). The location line of a syntax error,
+// which names SNS's own parser and not Ruler's, is left out: no recording
+// shows it whole.
+func (SNS) admit(src []byte) ([]byte, *CompileError) {
 	if len(src) > snsMaxBytes {
-		return limitError(LimitSize, "Filter policy can not be larger than "+strconv.Itoa(snsMaxBytes/1024)+" KB")
+		return nil, limitError(LimitSize, "must be at most "+strconv.Itoa(snsMaxBytes)+" bytes long in UTF-8 encoding")
 	}
 	if message, ok := SyntaxError(src); ok {
-		return &CompileError{Cause: InvalidJSON{}, Detail: "failed to parse JSON. " + message}
+		return nil, &CompileError{Cause: InvalidJSON{}, Detail: "failed to parse JSON. " + message}
 	}
-	return nil
+	return reserialize(src), nil
 }
 
 // SyntaxError is the first JSON syntax error in src, worded as Jackson
@@ -279,13 +288,13 @@ func SyntaxError(src []byte) (string, bool) {
 }
 
 // expansion is what a profile's limits can see of a pattern while it is
-// read. Each count only grows: branches are never dropped, and a branch's
-// keys are never removed (a duplicate key replaces a rule array, not a key).
+// read. Each count only grows: branches are never dropped, and keys are
+// never removed (a duplicate key replaces a rule array, not a key).
 type expansion struct {
 	// branches is the size of one partial expansion of "$or"; the final
 	// expansion holds at least as many.
 	branches int
-	// keys is the key count of one branch.
+	// keys is the count of distinct key paths read, across every branch.
 	keys int
 	// orProduct is the product of the sizes of the "$or" arrays read so far.
 	orProduct int
@@ -295,7 +304,7 @@ type expansion struct {
 // read, so more than 1000 branches is more than 1000 combinations.
 func (EventBridge) overrun(x expansion) *CompileError {
 	if x.orProduct > ebMaxOrCombinations || x.branches > ebMaxOrCombinations {
-		return limitError(LimitCombinations, "The pattern has more than "+strconv.Itoa(ebMaxOrCombinations)+" $or combinations")
+		return limitError(LimitCombinations, "Or operator is producing over "+strconv.Itoa(ebMaxOrCombinations)+" rule combinations")
 	}
 	return nil
 }
@@ -303,8 +312,8 @@ func (EventBridge) overrun(x expansion) *CompileError {
 // overrun: every branch contributes at least one combination, so more than
 // 150 branches is more than 150 combinations. Keys come before combinations
 // in check, so a key overrun is reported as check would. A combination
-// overrun stops the expansion, so a branch that reaches six keys only after
-// the policy passes 150 branches is reported as too complex, not as having
+// overrun comes first when the policy passes 150 branches before its sixth
+// key is read, so such a policy is reported as too complex, not as having
 // too many keys.
 func (SNS) overrun(x expansion) *CompileError {
 	if x.keys > snsMaxKeys {
@@ -347,10 +356,8 @@ func (p SNS) check(c *compiler) *CompileError {
 	if c.overrun != nil {
 		return c.overrun
 	}
-	for _, b := range c.branches {
-		if len(b) > snsMaxKeys {
-			return snsKeysError()
-		}
+	if len(c.paths) > snsMaxKeys {
+		return snsKeysError()
 	}
 	if snsCombinations(c.branches) > snsMaxCombinations {
 		return limitError(LimitCombinations, snsTooComplex)
@@ -359,28 +366,38 @@ func (p SNS) check(c *compiler) *CompileError {
 	for _, cd := range c.liveConditions() {
 		for _, g := range cd.globs() {
 			if g.stars() > snsMaxWildcardsPerGlob {
-				return limitError(LimitWildcardsPerPattern, snsTooComplex)
+				return limitError(LimitWildcardsPerPattern, snsWildcardComplexity+": pattern exceeds maximum allowed wildcards")
 			}
 		}
 		points += cd.snsWildcardPoints()
 	}
 	if points > snsMaxWildcardPoints {
-		return limitError(LimitWildcardComplexity, snsTooComplex)
+		return limitError(LimitWildcardComplexity, snsWildcardComplexity)
 	}
 	return nil
 }
 
+// snsWildcardComplexity is the SNS text for the wildcard limits, which SNS
+// puts after "Attributes Reason: " without "FilterPolicy: " (sns/R09
+// H11-11-single, H11-5-two-wildcard; H11-4-wildcards and T13 add the
+// per-pattern suffix).
+const snsWildcardComplexity = "Wildcard complexity too high"
+
 func (LambdaESM) check(c *compiler) *CompileError { return c.overrun }
 
 func (EventBridge) message(e *CompileError) string {
-	return "Event pattern is not valid. Reason: " + e.Detail
+	return "Event pattern is not valid. Reason: " + e.reason()
 }
 
 func (SNS) message(e *CompileError) string {
-	if c, ok := e.Cause.(LimitExceeded); ok && c.Limit == LimitNesting {
-		return e.Detail
+	if c, ok := e.Cause.(LimitExceeded); ok {
+		switch c.Limit {
+		case LimitNesting, LimitWildcardComplexity, LimitWildcardsPerPattern:
+			return e.Detail
+		case LimitSize, LimitKeys, LimitCombinations:
+		}
 	}
-	return "FilterPolicy: " + e.Detail
+	return "FilterPolicy: " + e.reason()
 }
 
 func (LambdaESM) message(*CompileError) string { return "Invalid filter pattern definition." }

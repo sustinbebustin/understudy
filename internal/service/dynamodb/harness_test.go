@@ -201,7 +201,7 @@ type jsonCodec struct{ v awsjson.Version }
 
 func (j jsonCodec) Protocol() ref.ProtocolID { return j.codec().Protocol() }
 
-func (j jsonCodec) Claim(r *http.Request, reg *registry.Registry) edge.Claim {
+func (j jsonCodec) Claim(r *http.Request, reg *registry.Registry, _ string) edge.Claim {
 	switch c := j.codec().Claim(r, reg).(type) {
 	case awsjson.Claimed:
 		return edge.Claimed{Op: c.Op}

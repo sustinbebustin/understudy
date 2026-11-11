@@ -165,6 +165,22 @@ func TestStageFailures(t *testing.T) {
 				`"send" is "sometimes"; the one value is "query-mode"`,
 		},
 		{
+			name: "unknownOperationAnswer with an unknown value",
+			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "replace": true, "traits": {
+				"dev.understudy#unknownOperationAnswer": "teapot", ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: com.example.golden#Golden: dev.understudy#unknownOperationAnswer: " +
+				`unknownOperationAnswer is "teapot"; the values are "awsFault" and "notFound"`,
+		},
+		{
+			name: "unknownOperationAnswer notFound on a service with no REST protocol",
+			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "replace": true, "traits": {
+				"dev.understudy#unknownOperationAnswer": "notFound", ` + evidence + `}}`),
+			stage: codegen.StageIR,
+			want: "understudy-gen ir: com.example.golden#Golden: dev.understudy#unknownOperationAnswer \"notFound\" answers " +
+				"a REST path no route matches, but the service speaks no REST protocol",
+		},
+		{
 			name: "unknown dev.understudy trait",
 			extra: overlay(`"com.example.golden#Golden": {"type": "apply", "traits": {
 				"dev.understudy#flavor": "vanilla", ` + evidence + `}}`),
@@ -175,8 +191,8 @@ func TestStageFailures(t *testing.T) {
 				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#patternEcho " +
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryErrorHeader dev.understudy#queryKeyAlias " +
 				"dev.understudy#refuseDuplicateMembers dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
-				"dev.understudy#throttleError dev.understudy#unknownOperationError dev.understudy#validationError " +
-				"dev.understudy#validationInputRoot dev.understudy#validationPathStyle]",
+				"dev.understudy#throttleError dev.understudy#unknownOperationAnswer dev.understudy#unknownOperationError dev.understudy#validationError " +
+				"dev.understudy#validationInputRoot dev.understudy#validationPathStyle dev.understudy#xmlDeclaration]",
 		},
 		{
 			name: "dev.understudy trait on the wrong site",
@@ -1000,8 +1016,10 @@ func TestClassifyOverlayTraits(t *testing.T) {
 		"dev.understudy#malformedRequestError":  codegen.Honor,
 		"dev.understudy#statusOverride":         codegen.Honor,
 		"dev.understudy#unknownOperationError":  codegen.Honor,
+		"dev.understudy#unknownOperationAnswer": codegen.Honor,
 		"dev.understudy#queryErrorEnvelope":     codegen.Honor,
 		"dev.understudy#responseCrc32":          codegen.Honor,
+		"dev.understudy#xmlDeclaration":         codegen.Honor,
 		"dev.understudy#refuseDuplicateMembers": codegen.Honor,
 		"dev.understudy#enumOrder":              codegen.Honor,
 		"dev.understudy#validationInputRoot":    codegen.Honor,

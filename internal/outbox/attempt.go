@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/egress"
 	"github.com/sustinbebustin/understudy/internal/fault"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
@@ -24,8 +25,7 @@ import (
 // entry (Entry.Running), evaluates the Delivery-phase fault rules and hands
 // the attempt due at due to tracked work, which Settle counts until it
 // ends. A timer whose entry is gone, rescheduled or already being attempted
-// is stale and does nothing. An attempt its subscription's throttle paces
-// is re-armed for the instant the throttle allows instead (pacer).
+// is stale and does nothing.
 //
 // The clock dispatches timers one at a time in firing order, and the
 // outbox keeps that order: the Delivery-phase rules are evaluated here, and
@@ -34,13 +34,11 @@ import (
 // spend a NextN budget, draw from a seeded Probability stream and draw
 // seeded ids in that order, in both fault phases, not in the order
 // goroutines happen to run. An attempt that would hold the sequencer for
-// wall time runs on its own goroutine instead (attempt.blocks), or, for a
-// throttled subscription, on that subscription's sequencer (pacer).
+// wall time runs on its own goroutine instead (attempt.blocks).
 //
 // The claim is a plain cell update, not a kernel.Write: it has no effects,
 // and Write would create the cell of a scope a reset just dropped. It
-// leaves the revision alone, since Running is never saved. A paced
-// attempt's re-arm is a plain update too, like Enqueue's arm.
+// leaves the revision alone, since Running is never saved.
 func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant) {
 	scope, id, ok := parseTimerID(key.ID)
 	if !ok {
@@ -51,39 +49,62 @@ func (e *engine) onAttempt(c *kernel.Call, key clock.TimerKey, due clock.Instant
 	if !ok {
 		return
 	}
-	var throttled *sequencer
+	var handOver <-chan struct{}
 	entry := store.Update(cell, func(st *State) (*Entry, bool) {
 		en, ok := st.Entries[id]
 		if cell.Retired() || !ok || en.Running || en.NextAt.Compare(due) != 0 {
 			return nil, false
 		}
-		rearm, paced, ready := e.pace.admit(&en, due)
-		if paced {
-			// Re-armed under the cell lock, as Enqueue arms, its attempt
-			// number unchanged: a paced attempt is not made, so it spends
-			// no retry and no fault rule's budget.
-			en.NextAt = rearm
-			st.Entries[id] = en
-			e.k.Timers().Scheduler().Arm(key, rearm)
-			return nil, true
+		if l, inLane := laneOf(&en); inLane {
+			if head, _ := st.nextInLane(l); head.ID != id {
+				// An earlier commit's delivery took the head after this
+				// timer was armed; its end arms this one.
+				return nil, false
+			}
+			if ok, changed := e.k.HandedOver(en.Order); !ok {
+				handOver = changed
+				return nil, false
+			}
 		}
-		throttled = ready
 		en.Running = true
 		st.Entries[id] = en
 		return &en, false
 	})
+	if handOver != nil {
+		e.k.Go(kernel.DeliveryAttempt, func(ctx context.Context) { e.awaitHandOver(ctx, handOver, cell, key, id, due) })
+		return
+	}
 	if entry == nil {
 		return
 	}
 	a := &attempt{e: e, c: c, cell: cell, scope: scope, entry: *entry, due: due, decision: e.evaluateFaults(scope, entry)}
 	switch {
-	case throttled != nil:
-		e.sequence(throttled, a)
 	case a.blocks():
 		e.k.Go(kernel.DeliveryAttempt, a.do)
 	default:
 		e.sequence(&e.ready, a)
 	}
+}
+
+// awaitHandOver re-arms the attempt of lane head id, due at due, once the
+// kernel hands over another delivery (changed), so onAttempt asks again
+// whether every delivery committed before it has reached the outbox. A
+// delivery that did may take the lane's head (enqueue), and the timer then
+// finds this one no longer the head. The re-arm keeps the due instant, so
+// the attempt is stamped as if it had not waited; it is skipped when the
+// kernel stopped or the entry was reloaded, reset or moved on meanwhile.
+func (e *engine) awaitHandOver(ctx context.Context, changed <-chan struct{}, cell *store.Cell[State], key clock.TimerKey, id ids.DeliveryID, due clock.Instant) {
+	select {
+	case <-changed:
+	case <-ctx.Done():
+		return
+	}
+	store.Read(cell, func(st *State) struct{} {
+		if en, ok := st.Entries[id]; ok && !cell.Retired() && !en.Running && en.NextAt.Compare(due) == 0 {
+			e.k.Timers().Scheduler().Arm(key, due)
+		}
+		return struct{}{}
+	})
 }
 
 // evaluateFaults returns the Delivery-phase fault decision for the attempt
@@ -328,12 +349,11 @@ func (a *attempt) permanent(ctx context.Context, f failure) (journal.DeliveryOut
 
 // endHTTP is the outcome of an HTTPEndpoint attempt that ended as r; false
 // when the kernel stopped first. By the reading sns-http-delivery.md 6.1
-// recommends, a 2xx delivers; 429, 5xx and a failed or timed-out exchange
-// are retried; any other answer is a permanent failure, dead-lettered when
-// the delivery has a queue. 6.1 leaves UNVERIFIED whether a
-// connection-level failure is retried (SNSH-24), and the class of 3xx and
-// other 4xx and whether a permanent failure goes to the DLQ (SNSH-05). A
-// request egress refused, or one with no client to send it, is Refused:
+// recommends and SNSH-05 recorded, 429, 5xx and a failed or timed-out
+// exchange are retried; any other answer delivers, 3xx and 4xx included.
+// 6.1 leaves UNVERIFIED whether a connection-level failure is retried
+// (SNSH-24); it is, under sns.http.connection-failure. A request egress
+// refused, or one with no client to send it, is Refused:
 // never retried or dead-lettered (7.3). The retry delay runs from the end
 // of the attempt (attemptEnd), waited of wall time after due. The exchange
 // is kept for the attempt's Delivery event.
@@ -351,8 +371,6 @@ func (a *attempt) endHTTP(ctx context.Context, r httpResult, waited time.Duratio
 			ended = attemptEnd(a.e.k.Clock().Mode(), a.due, waited)
 		}
 		return a.retry(ctx, endpointError{reason: r.reason}, ended)
-	case httpPermanent:
-		return a.deadLetter(ctx, endpointError{reason: statusText(r.status)}, refused)
 	case httpRefused:
 		return journal.Refused{Reason: r.reason}, true
 	}

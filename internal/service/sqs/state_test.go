@@ -22,6 +22,15 @@ func bodiesOf(ms []Message) []string {
 	return out
 }
 
+// queuedBodies lists the ids and bodies of ms, as bodiesOf does.
+func queuedBodies(ms *Messages) []string {
+	var out []string
+	for _, m := range ms.all() {
+		out = append(out, string(m.ID)+"="+m.Body)
+	}
+	return out
+}
+
 // A working copy's changes (Queue.clone) reach the stored record only when
 // the write stores the copy back: rounds of appends, changes in place and
 // removals, each committed or discarded, leave the stored messages exactly
@@ -31,38 +40,46 @@ func TestWorkingCopiesNeverChangeTheStoredQueue(t *testing.T) {
 		var stored Queue
 		var model []Message
 		next := 0
+		for range rapid.IntRange(0, 4*messageChunkSize).Draw(t, "backlog") {
+			m := Message{ID: ids.MessageID("m" + strconv.Itoa(next)), Body: "sent"}
+			next++
+			stored.Messages.push(m)
+			model = append(model, m)
+		}
 		for round := range rapid.IntRange(1, 8).Draw(t, "rounds") {
-			before := bodiesOf(stored.Messages)
+			before := queuedBodies(&stored.Messages)
 			work, want := stored.clone(), slices.Clone(model)
-			for range rapid.IntRange(0, 12).Draw(t, "ops") {
+			for range rapid.IntRange(0, 3*messageChunkSize).Draw(t, "ops") {
 				switch op := rapid.IntRange(0, 2).Draw(t, "op"); {
 				case op == 0 || len(want) == 0:
 					m := Message{ID: ids.MessageID("m" + strconv.Itoa(next)), Body: "sent"}
 					next++
-					work.Messages = append(work.Messages, m)
+					work.Messages.push(m)
 					want = append(want, m)
 				case op == 1:
 					i := rapid.IntRange(0, len(want)-1).Draw(t, "change")
 					body := "changed in round " + strconv.Itoa(round)
-					work.message(i).Body = body
+					work.Messages.change(i).Body = body
 					want[i].Body = body
 				default:
+					// Sparse removals let the queue grow past a chunk.
 					var at []int
+					oneIn := rapid.IntRange(1, 16).Draw(t, "oneIn")
 					for i := range want {
-						if rapid.Bool().Draw(t, "remove") {
+						if rapid.IntRange(1, oneIn).Draw(t, "remove") == 1 {
 							at = append(at, i)
 						}
 					}
-					work.remove(at)
+					work.Messages.remove(at)
 					for _, i := range slices.Backward(at) {
 						want = slices.Delete(want, i, i+1)
 					}
 				}
 			}
-			if got := bodiesOf(stored.Messages); !slices.Equal(got, before) {
+			if got := queuedBodies(&stored.Messages); !slices.Equal(got, before) {
 				t.Fatalf("round %d: the working copy changed the stored record: %q, was %q", round, got, before)
 			}
-			if got := bodiesOf(work.Messages); !slices.Equal(got, bodiesOf(want)) {
+			if got := queuedBodies(&work.Messages); !slices.Equal(got, bodiesOf(want)) {
 				t.Fatalf("round %d: working copy = %q, want %q", round, got, bodiesOf(want))
 			}
 			if rapid.Bool().Draw(t, "commit") {

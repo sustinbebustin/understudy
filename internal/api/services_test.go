@@ -304,9 +304,9 @@ func TestServiceWideOverlayTraits(t *testing.T) {
 // awserr catalogue describe the same protocol-level errors per family; a
 // service speaks the vocabulary of each family it belongs to and no other.
 // The __type is compared by name alone, since awsJson1_1 and restJson1
-// services send it bare. A service overlay may correct a generic status
-// its service documents otherwise; each correction is listed here, so any
-// other drift still fails.
+// services send it bare. A service overlay may correct a generic status,
+// message key or Query code its service documents or records otherwise;
+// each correction is listed here, so any other drift still fails.
 func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 	statusOverrides := map[ref.ServiceID]map[string]int{
 		// DynamoDB's developer guide lists AccessDeniedException under HTTP
@@ -326,6 +326,15 @@ func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 		"scheduler":       {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
 		"sesv2":           {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
 		"sfn":             {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
+	}
+	// SQS's x-amzn-query-error codes for the JSON family's protocol errors
+	// (testdata/parity/sqs/R11/03-string-for-integer.json,
+	// testdata/parity/sqs/R11/03-unknown-operation.json).
+	queryCodeOverrides := map[ref.ServiceID]map[string]string{
+		"sqs": {
+			"com.amazon.coral.service#SerializationException":    "MalformedInput",
+			"com.amazon.coral.service#UnknownOperationException": "InvalidAction",
+		},
 	}
 	generic := map[ref.ServiceID]func(awserr.Family) []awserr.Identity{
 		"cloudwatch": cloudwatchapi.GenericErrors, "dynamodb": dynamodbapi.GenericErrors, "eventbridge": eventbridgeapi.GenericErrors,
@@ -375,6 +384,12 @@ func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 			for shape, key := range keyOverrides[svc.ID] {
 				if id, ok := wantByShape[shape]; ok {
 					id.MessageKey = key
+					wantByShape[shape] = id
+				}
+			}
+			for shape, code := range queryCodeOverrides[svc.ID] {
+				if id, ok := wantByShape[shape]; ok {
+					id.QueryCode = code
 					wantByShape[shape] = id
 				}
 			}

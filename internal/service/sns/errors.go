@@ -46,6 +46,13 @@ func errInvalidToken() *awserr.Error {
 	return snsapi.ErrInvalidParameterException("Invalid token")
 }
 
+// errAlreadyConfirmed answers a ConfirmSubscription with a token a
+// subscription held while pending but was not confirmed with; AWS-recorded
+// (SNSH-12, sns-http-delivery.md 2.2).
+func errAlreadyConfirmed() *awserr.Error {
+	return snsapi.ErrAuthorizationErrorException("Subscription already confirmed")
+}
+
 // errLargeMessages answers a SetTopicAttributes or Subscribe that would
 // break the rule of a MaximumMessageSize above 262144 bytes; reason is
 // Topic.largeMessageViolation's inferred text.

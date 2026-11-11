@@ -30,12 +30,18 @@ type ServiceIR struct {
 	// ResponseCRC32 is dev.understudy#responseCrc32: every encoded answer
 	// carries x-amz-crc32.
 	ResponseCRC32 bool
+	// XMLDeclaration is dev.understudy#xmlDeclaration: every awsQuery body
+	// opens with the XML declaration.
+	XMLDeclaration bool
 	// RefuseDuplicateMembers is dev.understudy#refuseDuplicateMembers: a
 	// request body repeating a member name is refused.
 	RefuseDuplicateMembers bool
 	// QueryErrorEnvelope is dev.understudy#queryErrorEnvelope, the zero
 	// value without one.
 	QueryErrorEnvelope registry.QueryErrorEnvelope
+	// UnknownAnswer is dev.understudy#unknownOperationAnswer, the zero
+	// value without one.
+	UnknownAnswer registry.UnknownOperationAnswer
 
 	Operations []*OperationIR  // sorted by name; Ordinal is the index
 	Shapes     []*ShapeIR      // every data shape, sorted by id; synthetic unit IO shapes and per-use streaming IO copies last

@@ -1,6 +1,7 @@
 package sqs
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -19,7 +20,9 @@ import (
 // Attributes are the settable attributes every queue has. Policy is
 // checked for form, size and statement count, KmsDataKeyReusePeriodSeconds
 // for range, and KmsMasterKeyId not at all; all three are stored and
-// echoed and have no runtime effect.
+// echoed. Messages are not encrypted, but a send to a queue with a
+// KmsMasterKeyId asks KMS for a data key as the caller (Service.dataKey);
+// KmsDataKeyReusePeriodSeconds has no runtime effect.
 type Attributes struct {
 	DelaySeconds                  int32  `json:"delaySeconds"`
 	MaximumMessageSize            int32  `json:"maximumMessageSize"`
@@ -79,15 +82,9 @@ type RedriveAllowPolicy struct {
 // sorted, the count a number. Terraform plans a change on every other
 // spelling (tf-messaging.md 4.1).
 func (p *RedrivePolicy) String() string {
-	return redrivePolicyText(p.DeadLetterTarget.arn().String(), p.MaxReceiveCount)
-}
-
-// redrivePolicyText renders a redrive policy as RedrivePolicy.String does,
-// from a target ARN that may not parse, for the error that refuses it.
-func redrivePolicyText(target string, maxReceiveCount int) string {
-	b := append([]byte(`{"deadLetterTargetArn":`), jsonx.AppendString(nil, target)...)
+	b := append([]byte(`{"deadLetterTargetArn":`), jsonx.AppendString(nil, p.DeadLetterTarget.arn().String())...)
 	b = append(b, `,"maxReceiveCount":`...)
-	b = strconv.AppendInt(b, int64(maxReceiveCount), 10)
+	b = strconv.AppendInt(b, int64(p.MaxReceiveCount), 10)
 	return string(append(b, '}'))
 }
 
@@ -228,12 +225,13 @@ const (
 )
 
 // parsePolicy accepts a JSON object of at most 8,192 bytes and 20
-// statements, or "" for no policy (sqs.md 4). The statements are stored as
-// sent, except that a bare account id named as an AWS principal becomes
-// the account's root ARN in partition (iam-evaluation.md 5.4,
-// IAM-EVAL-25); the limits apply to the text as sent, since where AWS
-// measures them is unrecorded. JSON null decodes to no object, so it is
-// refused too. Statement is one object or a list.
+// statements, or "" for no policy (sqs.md 4). The document is stored
+// compacted, whitespace gone and key order kept
+// (testdata/parity/sqs/R05/01-get-a.json), with a bare account id named as
+// an AWS principal written as the account's root ARN in partition
+// (iam-evaluation.md 5.4, IAM-EVAL-25); the limits apply to the text as
+// sent, since where AWS measures them is unrecorded. JSON null decodes to
+// no object, so it is refused too. Statement is one object or a list.
 func parsePolicy(v string, partition aws.Partition) (canonical string, apply func(*Queue), err *awserr.Error) {
 	if v == "" {
 		return v, func(q *Queue) { q.Attributes.Policy = "" }, nil
@@ -249,7 +247,11 @@ func parsePolicy(v string, partition aws.Partition) (canonical string, apply fun
 	if json.Unmarshal(doc["Statement"], &statements) == nil && len(statements) > maxPolicyStatements {
 		return "", nil, errPolicyStatements(len(statements))
 	}
-	stored := policydoc.RootAccountPrincipals(v, partition)
+	var compact bytes.Buffer
+	if json.Compact(&compact, []byte(policydoc.RootAccountPrincipals(v, partition))) != nil {
+		return "", nil, errInvalidAttributeValue(sqsapi.QueueAttributeNamePolicy)
+	}
+	stored := compact.String()
 	return stored, func(q *Queue) { q.Attributes.Policy = stored }, nil
 }
 
@@ -285,7 +287,7 @@ func parseRedrivePolicy(v string) (canonical string, apply func(*Queue), err *aw
 	}
 	dlq, ok := parseQueueARN(target)
 	if !ok {
-		return "", nil, errRedriveTarget(redrivePolicyText(target, n), "Invalid value for deadLetterTargetArn.")
+		return "", nil, errRedriveTarget(v, "Invalid value for deadLetterTargetArn.")
 	}
 	p := RedrivePolicy{DeadLetterTarget: dlq, MaxReceiveCount: n}
 	return p.String(), func(q *Queue) { q.Attributes.RedrivePolicy = &p }, nil
@@ -461,14 +463,14 @@ func sets(ss []setting, name sqsapi.QueueAttributeName) bool {
 // checkRedrive checks source's redrive policy against the state when the
 // request set one (sqs.md 9.1): the target is a queue of the same account,
 // region and type whose redrive allow policy admits source. AWS rejects
-// the other cases; the type and allow-policy texts are recorded, the
-// account and existence ones are not.
-func checkRedrive(st *State, scope aws.Scope, source *Queue) *awserr.Error {
+// the other cases, quoting policy, the RedrivePolicy text the request sent
+// (testdata/parity/sqs/R02/07-redrive-missing-dlq.json); the existence,
+// type and allow-policy texts are recorded, the account one is not.
+func checkRedrive(st *State, scope aws.Scope, source *Queue, policy string) *awserr.Error {
 	p := source.Attributes.RedrivePolicy
 	if p == nil {
 		return nil
 	}
-	policy := p.String()
 	if p.DeadLetterTarget.scope != scope {
 		return errRedriveTarget(policy, "Invalid value for deadLetterTargetArn.")
 	}
@@ -494,8 +496,7 @@ func report(q *Queue, arn aws.ARN, now clock.Instant) map[sqsapi.QueueAttributeN
 	a := q.Attributes
 	itoa := func(n int32) string { return strconv.FormatInt(int64(n), 10) }
 	var available, inFlight, delayed int
-	for i := range q.Messages {
-		m := &q.Messages[i]
+	for _, m := range q.Messages.all() {
 		switch {
 		case m.visible(now):
 			available++

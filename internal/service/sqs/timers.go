@@ -3,7 +3,6 @@ package sqs
 import (
 	"context"
 	"log/slog"
-	"slices"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -60,9 +59,9 @@ func (s *Service) wakeTimer(m *Message) (wake, other kernel.HandledKind) {
 }
 
 // armRetention arms the retention timer of m for the end of queue's
-// MessageRetentionPeriod, counted from the message's enqueue (sqs.md 7.3).
+// MessageRetentionPeriod (Message.retentionEnd).
 func (s *Service) armRetention(tx *kernel.Tx, q queueRef, queue *Queue, m *Message) {
-	tx.Arm(s.retention, timerID(q, string(m.ID)), m.Sent.Add(seconds(queue.Attributes.MessageRetentionPeriod)))
+	tx.Arm(s.retention, timerID(q, string(m.ID)), m.retentionEnd(seconds(queue.Attributes.MessageRetentionPeriod)))
 }
 
 // disarmMessage disarms every timer of a message leaving the queue.
@@ -73,21 +72,23 @@ func (s *Service) disarmMessage(tx *kernel.Tx, q queueRef, id ids.MessageID) {
 }
 
 // removeMessage takes message i out of queue, as removeMessages does.
-func (s *Service) removeMessage(tx *kernel.Tx, q queueRef, queue *Queue, i int) {
-	s.removeMessages(tx, q, queue, []int{i})
+func (s *Service) removeMessage(tx *kernel.Tx, st *State, q queueRef, queue *Queue, i int) {
+	s.removeMessages(tx, st, q, queue, []int{i})
 }
 
 // removeMessages takes the messages at the ascending indices at out of
-// queue in one pass, with their timers, and wakes the queue's receivers,
-// as a FIFO group a message held may open.
-func (s *Service) removeMessages(tx *kernel.Tx, q queueRef, queue *Queue, at []int) {
+// queue in one pass, with their timers and their receipt handles' entries
+// in st, and wakes the queue's receivers, as a FIFO group a message held
+// may open.
+func (s *Service) removeMessages(tx *kernel.Tx, st *State, q queueRef, queue *Queue, at []int) {
 	if len(at) == 0 {
 		return
 	}
-	for _, i := range at {
-		s.disarmMessage(tx, q, queue.Messages[i].ID)
+	for _, m := range queue.Messages.pick(at) {
+		s.disarmMessage(tx, q, m.ID)
+		st.forget(m)
 	}
-	queue.remove(at)
+	queue.Messages.remove(at)
 	tx.Wake(q.waitKey())
 }
 
@@ -101,7 +102,7 @@ func (s *Service) onVisibility(_ *kernel.Call, key clock.TimerKey, due clock.Ins
 	}
 	visible, err := readQueue(s, q, func(_ *State, queue *Queue) bool {
 		i := queue.find(ids.MessageID(id))
-		return i >= 0 && queue.Messages[i].visible(due)
+		return i >= 0 && queue.Messages.at(i).visible(due)
 	})
 	if err == nil && visible {
 		s.k.Waiters().Wake(q.waitKey())
@@ -116,12 +117,12 @@ func (s *Service) onRetention(c *kernel.Call, key clock.TimerKey, _ clock.Instan
 	if !ok {
 		return
 	}
-	s.timerWrite(c, q, "message retention", func(_ *State, queue *Queue, now clock.Instant, tx *kernel.Tx) bool {
+	s.timerWrite(c, q, "message retention", func(st *State, queue *Queue, now clock.Instant, tx *kernel.Tx) bool {
 		i := queue.find(ids.MessageID(id))
-		if i < 0 || !queue.Messages[i].expired(seconds(queue.Attributes.MessageRetentionPeriod), now) {
+		if i < 0 || !queue.Messages.at(i).expired(seconds(queue.Attributes.MessageRetentionPeriod), now) {
 			return false
 		}
-		s.removeMessage(tx, q, queue, i)
+		s.removeMessage(tx, st, q, queue, i)
 		return true
 	})
 }
@@ -157,11 +158,16 @@ func (s *Service) timerWrite(c *kernel.Call, q queueRef, what string, fn func(st
 
 // find returns the index of the message id, or -1.
 func (q *Queue) find(id ids.MessageID) int {
-	return slices.IndexFunc(q.Messages, func(m Message) bool { return m.ID == id })
+	return q.Messages.index(func(m *Message) bool { return m.ID == id })
 }
 
-// byReceipt returns the index of the message whose latest receipt handle is
-// handle, or -1.
-func (q *Queue) byReceipt(handle string) int {
-	return slices.IndexFunc(q.Messages, func(m Message) bool { return m.holds(handle) })
+// byReceipt returns the index of the message that was issued handle and
+// which of its receives issued it, or -1 and notIssued.
+func (q *Queue) byReceipt(handle string) (int, issue) {
+	how := notIssued
+	i := q.Messages.index(func(m *Message) bool {
+		how = m.issued(handle)
+		return how != notIssued
+	})
+	return i, how
 }

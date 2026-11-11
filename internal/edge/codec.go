@@ -17,8 +17,10 @@ type Codec interface {
 	// Protocol is the id the codec registers under.
 	Protocol() ref.ProtocolID
 	// Claim decides whether r is a request of this protocol and which
-	// operation it names.
-	Claim(r *http.Request, reg *registry.Registry) Claim
+	// operation it names. signedFor is the SigV4 credential scope's
+	// service, "" for a request with none; only awsQuery reads it, to find
+	// SQS for a request without Version.
+	Claim(r *http.Request, reg *registry.Registry, signedFor string) Claim
 	// BodyLimit is op's request body cap: the operation's own
 	// MaxRequestBytes, or the protocol default.
 	BodyLimit(op *registry.Operation) int64

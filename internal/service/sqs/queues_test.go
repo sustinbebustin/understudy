@@ -117,9 +117,7 @@ func TestSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 			got[e.Name] = e.Value
 		}
 		want := map[string]string{
-			"sqs.receipt.stale-handle":           "succeed-without-delete",
 			"sqs.queueDeletedRecently":           "ignore",
-			"sqs.move-task.message-identity":     "new-message",
 			"sqs.visibility.ceiling-from":        "latest-receive",
 			"sqs.fifo.receipt-expiry":            "delete-and-change-visibility",
 			"sqs.fifo.duplicate":                 "original-message-id-and-sequence",
@@ -141,6 +139,12 @@ func TestSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 			// A missing queue answers QueueDoesNotExist before
 			// authorization (iam-enforcement-surfaces.md 5.3, IAM-ENF-14).
 			"sqs.enforce.missing-resource": "resolve-first",
+			// A send the queue's key refuses answers KMS's denial with the
+			// KMS client's suffix (iam-enforcement-surfaces.md 3.2,
+			// IAM-ENF-29, recorded 2026-11-03).
+			"sqs.sse-kms.denied-text": "KmsAccessDenied, KMS.AccessDeniedException;Sender, 400, KMS's message then (Service: AWSKMS; Status Code: <status>; Error Code: <code>; Request ID: <id>; Proxy: null)",
+			"sqs.sse-kms.key-error":   "KmsNotFound, KmsDisabled or KmsInvalidState, KMS's message then the AWSKMS suffix",
+			"sqs.sse-kms.data-key":    "generate-on-every-send",
 		}
 		if !maps.Equal(got, want) {
 			h.Errorf("switches = %v, want %v", got, want)
@@ -263,6 +267,27 @@ func TestPolicyStoresAnAccountPrincipalAsItsRootARN(t *testing.T) {
 		want = `{"Statement":{"Principal":{"Service":"sns.amazonaws.com","AWS":["arn:aws:iam::111111111111:root","arn:aws:iam::222222222222:user/u","*"]},"Effect":"Allow"},"Version":"2012-10-17"}`
 		if got := h.attributes(url, "Policy")["Policy"]; got != want {
 			h.Errorf("Policy after SetQueueAttributes = %s\nwant %s", got, want)
+		}
+	})
+}
+
+// testdata/parity/sqs/R05/01-get-a.json: Policy reads back compacted,
+// whitespace gone and key order kept (Sid before Effect), and a bare
+// account id principal rewritten as above. CreateQueue of the same
+// spaced request again finds no conflict.
+func TestPolicyReadsBackCompacted(t *testing.T) {
+	run(t, func(h *harness) {
+		arn := arnPrefix + "spaced"
+		sent := `{ "Version": "2012-10-17", "Statement": [ { "Sid": "a", "Effect": "Allow", "Principal": { "Service": "sns.amazonaws.com" }, "Action": "sqs:SendMessage", "Resource": "` + arn + `" },` + "\n\t" +
+			`{ "Sid": "b", "Effect": "Allow", "Principal": { "AWS": "000000000000" }, "Action": "sqs:ReceiveMessage", "Resource": "` + arn + `" } ] }`
+		url := h.queue("spaced", map[sqsapi.QueueAttributeName]string{"Policy": sent})
+		want := `{"Version":"2012-10-17","Statement":[{"Sid":"a","Effect":"Allow","Principal":{"Service":"sns.amazonaws.com"},"Action":"sqs:SendMessage","Resource":"` + arn + `"},` +
+			`{"Sid":"b","Effect":"Allow","Principal":{"AWS":"arn:aws:iam::000000000000:root"},"Action":"sqs:ReceiveMessage","Resource":"` + arn + `"}]}`
+		if got := h.attributes(url, "Policy")["Policy"]; got != want {
+			h.Errorf("Policy = %s\nwant     %s", got, want)
+		}
+		if again := h.queue("spaced", map[sqsapi.QueueAttributeName]string{"Policy": sent}); again != url {
+			h.Errorf("CreateQueue again = %s, want %s", again, url)
 		}
 	})
 }
@@ -429,8 +454,9 @@ func TestRetentionRemovesInFlightMessages(t *testing.T) {
 	})
 }
 
-// sqs.md 7.2: ChangeMessageVisibility needs a current handle, makes the
-// message receivable at 0, and stops at 12 hours from the receive.
+// sqs.md 7.2: ChangeMessageVisibility needs a handle of a message still
+// there, makes the message receivable at 0, and stops at 12 hours from
+// the receive.
 func TestChangeMessageVisibility(t *testing.T) {
 	run(t, func(h *harness) {
 		url := h.queue("vis", nil)
@@ -451,6 +477,12 @@ func TestChangeMessageVisibility(t *testing.T) {
 		if len(again) != 1 {
 			h.Fatal("a zero visibility timeout did not make the message receivable")
 		}
+		// The older handle still changes the message (sqs/R01 05-cmv-stale)
+		// until it is deleted (05-cmv-stale-deleted).
+		if err := change(handle, 10); err != nil {
+			h.Fatalf("change with the older handle = %s", err.Message)
+		}
+		h.mustDelete(url, &again[0])
 		wantError(h.T, change(handle, 10), "InvalidParameterValue", "Value "+handle+" for parameter ReceiptHandle is invalid. Reason: Message does not exist or is not available for visibility timeout change.")
 	})
 }

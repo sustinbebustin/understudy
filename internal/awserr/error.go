@@ -183,7 +183,13 @@ type Identity struct {
 // Receiver>, and false when id sends none. queryMode says whether the
 // request sent x-amzn-query-mode: true.
 func (id Identity) QueryErrorHeader(queryMode bool) (string, bool) {
-	if id.QueryErrorWhen == QueryErrorInQueryMode && !queryMode {
+	switch id.QueryErrorWhen {
+	case QueryErrorAlways:
+	case QueryErrorInQueryMode:
+		if !queryMode {
+			return "", false
+		}
+	case QueryErrorNever:
 		return "", false
 	}
 	return id.QueryCode + ";" + id.Fault.String(), true
@@ -202,6 +208,11 @@ const (
 	// x-amzn-query-mode: true (CloudWatch's IAM denial,
 	// iam-enforcement-surfaces.md 12.3).
 	QueryErrorInQueryMode
+	// QueryErrorNever sends none: the edge's answer to a request signed for
+	// the service that none of its operations claimed, such as SQS's answer
+	// to an AmazonSNS target (testdata/parity/sqs/R11/03-wrong-target-prefix.json).
+	// No overlay sets it.
+	QueryErrorNever
 )
 
 // Fault says whose mistake an error is; Query renders it as <Type>.

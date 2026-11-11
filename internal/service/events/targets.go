@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"slices"
 
@@ -322,15 +323,22 @@ func (s *Service) listTargetsByRule(_ context.Context, c *kernel.Call, in *event
 	if !ok {
 		return nil, errRuleNotFound(r.name, r.bus)
 	}
-	listed := make([]eventbridgeapi.Target, len(rule.Targets))
-	for i := range rule.Targets {
-		listed[i] = rule.Targets[i].api()
-	}
-	out, next, err := page(listed, in.NextToken, in.Limit)
+	stored, next, err := page(listingTargets, slices.Clone(rule.Targets), creationKey, in.NextToken, in.Limit)
 	if err != nil {
 		return nil, err
 	}
+	out := make([]eventbridgeapi.Target, len(stored))
+	for i := range stored {
+		out[i] = stored[i].api()
+	}
 	return &eventbridgeapi.ListTargetsByRuleOutput{Targets: out, NextToken: next}, nil
+}
+
+// creationKey orders targets by creation, which Seq records and a
+// replacement keeps, and which a deletion leaves alone. It is fixed-width
+// so the keys sort as the numbers do.
+func creationKey(t Target) string {
+	return fmt.Sprintf("%020d", t.Seq)
 }
 
 // api returns the target as PutTargets sent it.

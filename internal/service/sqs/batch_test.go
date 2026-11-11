@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -111,6 +112,38 @@ func TestFIFOBatchWithoutAGroupFailsWhole(t *testing.T) {
 		}
 		if got := h.receiveBodies(url, 10); strings.Join(got, ",") != "first,second" {
 			h.Errorf("received %q, want the batch order", got)
+		}
+	})
+}
+
+// sqs/R01 06-cmv-batch and 06-delete-batch: a handle another queue issued
+// fails its entry in both batches as not valid for this queue, and deletes
+// or changes nothing there; a garbage handle keeps its own text.
+func TestBatchEntryWithAnotherQueuesHandleFails(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.queue("handles-here", nil)
+		other := h.queue("handles-other", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "5"})
+		h.mustSend(other, "other")
+		foreign := val(h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: other})[0].ReceiptHandle)
+		notValid := "otherqueue true ReceiptHandleIsInvalid The receipt handle \"" + foreign + "\" is not valid for this queue."
+		garbage := `garbage true ReceiptHandleIsInvalid The input receipt handle "garbage" is not a valid receipt handle.`
+		change, err := h.Invoke(h.Context(), sqsapi.OpChangeMessageVisibilityBatch, &sqsapi.ChangeMessageVisibilityBatchInput{QueueUrl: url, Entries: []sqsapi.ChangeMessageVisibilityBatchRequestEntry{
+			{Id: "garbage", ReceiptHandle: "garbage", VisibilityTimeout: new(int32(30))},
+			{Id: "otherqueue", ReceiptHandle: foreign, VisibilityTimeout: new(int32(30))},
+		}})
+		if err != nil || len(change.Successful) != 0 || len(change.Failed) != 2 || failure(change.Failed[0]) != garbage || failure(change.Failed[1]) != notValid {
+			h.Fatalf("ChangeMessageVisibilityBatch = %+v, %v", change, err)
+		}
+		del, err := h.Invoke(h.Context(), sqsapi.OpDeleteMessageBatch, &sqsapi.DeleteMessageBatchInput{QueueUrl: url, Entries: []sqsapi.DeleteMessageBatchRequestEntry{
+			{Id: "garbage", ReceiptHandle: "garbage"},
+			{Id: "otherqueue", ReceiptHandle: foreign},
+		}})
+		if err != nil || len(del.Successful) != 0 || len(del.Failed) != 2 || failure(del.Failed[0]) != garbage || failure(del.Failed[1]) != notValid {
+			h.Fatalf("DeleteMessageBatch = %+v, %v", del, err)
+		}
+		h.advance(6 * time.Second)
+		if got := h.receiveBodies(other, 10); len(got) != 1 {
+			h.Fatalf("the other queue after its visibility timeout = %q, want its message", got)
 		}
 	})
 }

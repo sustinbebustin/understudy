@@ -309,11 +309,11 @@ func subscribeConfirmed(h *harness, s *hookServer, topic, endpoint string, attrs
 	return h.clock.Now()
 }
 
-// Under sns.http.status-classes 2xx delivers; 429, 5xx and a failed
-// connection are retried under the delivery policy; any other status is a
-// permanent failure, not retried, and the message goes to the
-// RedrivePolicy queue (sns-http-delivery.md 6.1, 6.5).
-func TestHTTPStatusClassesFollowTheSwitch(t *testing.T) {
+// 429, 5xx and a failed connection are retried under the delivery policy,
+// and once the retries are spent the message goes to the RedrivePolicy
+// queue; every other status, 3xx and 4xx included, delivers once with no
+// retry and no dead letter (sns-http-delivery.md 6.1, 6.5; SNSH-05).
+func TestHTTPStatusClassesFollowTheRecording(t *testing.T) {
 	const dlq = "arn:aws:sqs:us-east-1:000000000000:orders-dlq"
 	cases := []struct {
 		name     string
@@ -321,20 +321,23 @@ func TestHTTPStatusClassesFollowTheSwitch(t *testing.T) {
 		status   int
 		retried  bool
 	}{
-		{"404", hookURL, http.StatusNotFound, false},
+		{"301", hookURL, http.StatusMovedPermanently, false},
+		{"302", hookURL, http.StatusFound, false},
+		{"307", hookURL, http.StatusTemporaryRedirect, false},
 		{"400", hookURL, http.StatusBadRequest, false},
+		{"403", hookURL, http.StatusForbidden, false},
+		{"404", hookURL, http.StatusNotFound, false},
+		{"410", hookURL, http.StatusGone, false},
 		{"429", hookURL, http.StatusTooManyRequests, true},
 		{"500", hookURL, http.StatusInternalServerError, true},
 		{"503", hookURL, http.StatusServiceUnavailable, true},
+		// Inferred, not recorded: sns.http.connection-failure (SNSH-24 n/a).
 		{"a refused connection", "http://127.0.0.1:8090/hook", 0, true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			s := confirmingThen(func(int) (int, http.Header) { return c.status, nil })
 			onTheWire(t, s, func(h *harness) {
-				if v := switchValue(h, "sns.http.status-classes"); v != "retries-doc" {
-					noExpectation(h, "sns.http.status-classes", v)
-				}
 				topic := h.topic("events", nil)
 				arn := h.subscribe(topic, "http", c.endpoint, map[string]string{"RedrivePolicy": `{"deadLetterTargetArn":"` + dlq + `"}`})
 				h.settle()
@@ -355,19 +358,21 @@ func TestHTTPStatusClassesFollowTheSwitch(t *testing.T) {
 					h.Fatalf("%d attempts, want %d", len(ds), want)
 				}
 				last := ds[len(ds)-1]
-				if last.Outcome != (journal.DeadLettered{DLQ: mustARN(h, dlq)}) {
-					h.Errorf("last attempt outcome = %#v, want dead-lettered to %s", last.Outcome, dlq)
-				}
-				wantClass := journal.HTTPPermanent
+				var wantOutcome journal.DeliveryOutcome = journal.Delivered{}
+				wantClass := journal.HTTPSuccess
+				wantSent := 0
 				if c.retried {
-					wantClass = journal.HTTPRetryable
+					wantOutcome, wantClass, wantSent = journal.DeadLettered{DLQ: mustARN(h, dlq)}, journal.HTTPRetryable, 1
+				}
+				if last.Outcome != wantOutcome {
+					h.Errorf("last attempt outcome = %#v, want %#v", last.Outcome, wantOutcome)
 				}
 				if last.HTTP == nil || last.HTTP.Class != wantClass || last.HTTP.Status != c.status {
 					h.Errorf("last exchange = %+v, want status %d classed %v", last.HTTP, c.status, wantClass)
 				}
 				sent := h.sent.all()
-				if len(sent) != 1 || !strings.HasSuffix(sent[0].QueueUrl, "/orders-dlq") {
-					h.Errorf("SendMessage calls = %+v, want one dead letter", sent)
+				if len(sent) != wantSent || (wantSent == 1 && !strings.HasSuffix(sent[0].QueueUrl, "/orders-dlq")) {
+					h.Errorf("SendMessage calls = %+v, want %d dead letters", sent, wantSent)
 				}
 			})
 		})

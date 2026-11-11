@@ -174,13 +174,6 @@ func errSystemAttributeName(name string) *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value " + name + " for parameter MessageSystemAttributeName is invalid. Reason: AWSTraceHeader is the only system attribute a message can be sent with.")
 }
 
-// errReceiveVisibilityTimeout refuses a ReceiveMessage VisibilityTimeout
-// out of range (recorded,
-// testdata/parity/sqs/R11/02-receive-visibility-43201.json).
-func errReceiveVisibilityTimeout(v int32) *awserr.Error {
-	return sqsapi.ErrInvalidParameterValue("Value " + strconv.Itoa(int(v)) + " for parameter VisibilityTimeout is invalid. Reason: Must be between 0 and " + strconv.Itoa(maxVisibility) + ", if provided.")
-}
-
 // errVisibilityTimeout refuses a ChangeMessageVisibility timeout out of
 // range. It frames the documented range in the recorded "Value X for
 // parameter P is invalid" form; the exact text is unrecorded, and the
@@ -267,6 +260,12 @@ func errNotForQueueType(param, value string) *awserr.Error {
 
 func errReceiptHandleIsInvalid(handle string) *awserr.Error {
 	return sqsapi.ErrReceiptHandleIsInvalid(`The input receipt handle "` + handle + `" is not a valid receipt handle.`)
+}
+
+// errReceiptHandleNotForQueue is a batch entry's handle another queue
+// issued (sqs/R01 06-delete-batch).
+func errReceiptHandleNotForQueue(handle string) *awserr.Error {
+	return sqsapi.ErrReceiptHandleIsInvalid(`The receipt handle "` + handle + `" is not valid for this queue.`)
 }
 
 func errReceiptHandleExpired(handle string) *awserr.Error {
@@ -392,6 +391,10 @@ func errMoveToSource() *awserr.Error {
 
 func errTaskHandle() *awserr.Error {
 	return sqsapi.ErrInvalidParameterValue("Value for parameter TaskHandle is invalid.")
+}
+
+func errTaskNotActive() *awserr.Error {
+	return sqsapi.ErrInvalidParameterValue("Only active tasks can be cancelled.")
 }
 
 func errNoSuchTask() *awserr.Error {

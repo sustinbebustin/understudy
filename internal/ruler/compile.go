@@ -37,12 +37,15 @@ type condition struct {
 // source order is the one reported, with Ruler's text; then the profile's
 // limits apply.
 func Compile(pattern []byte, p Profile) (*Pattern, *CompileError) {
-	if e := p.admit(pattern); e != nil {
+	pattern, e := p.admit(pattern)
+	if e != nil {
 		return nil, e.forProfile(p)
 	}
 	c, e := compileWith(pattern, p, false)
-	if e != nil && p.options().MalformedOr == MalformedOrOrdinaryKey && e.Cause == (InvalidOperand{Operator: OperatorOr}) {
-		c, e = compileWith(pattern, p, true)
+	if e != nil && p.options().MalformedOr == MalformedOrOrdinaryKey {
+		if _, plain := compileWith(pattern, p, true); plain != nil {
+			e = plain
+		}
 	}
 	if e != nil {
 		return nil, e.forProfile(p)
@@ -148,6 +151,9 @@ type compiler struct {
 	// orProduct saturates at maxExpansion.
 	orProduct int
 	maxDepth  int
+	// paths holds the distinct key paths of the whole pattern, every "$or"
+	// branch included, sorted, at most keysTracked of them.
+	paths []string
 	// work counts the conditions and segments written, up to maxExpansion.
 	work int
 	// overrun is the first limit the pattern is certain to exceed. Once it is
@@ -164,33 +170,21 @@ type compiler struct {
 type segment struct {
 	parent *segment
 	conds  []*condition
-	// paths holds the distinct paths of the branch up to this segment,
-	// sorted, at most keysTracked of them.
-	paths []string
 }
 
 // keysTracked bounds the key counting while a pattern is read: one past the
 // SNS key limit is enough to know the limit is exceeded.
 const keysTracked = snsMaxKeys + 1
 
-func (s *segment) branchPaths() []string {
-	if s == nil {
-		return nil
+// addPath adds path to the pattern's distinct paths, unless they hold it or
+// already hold keysTracked paths.
+func (c *compiler) addPath(path string) {
+	if len(c.paths) == keysTracked {
+		return
 	}
-	return s.paths
-}
-
-// addPath returns the sorted set into with path added, unless into holds it
-// or holds keysTracked paths. It copies into rather than change it, so
-// segments can share a set.
-func addPath(into []string, path string) []string {
-	if len(into) == keysTracked {
-		return into
+	if i, found := slices.BinarySearch(c.paths, path); !found {
+		c.paths = slices.Insert(c.paths, i, path)
 	}
-	if i, found := slices.BinarySearch(into, path); !found {
-		into = slices.Insert(slices.Clip(into), i, path)
-	}
-	return into
 }
 
 // spend charges n units of expansion work. It reports false once the
@@ -213,40 +207,53 @@ func expansionDetail() string {
 }
 
 // bound records the first limit made certain by the branches built so far,
-// counted as branches, of which one holds keys distinct paths.
-func (c *compiler) bound(branches, keys int) {
+// counted as branches, and the distinct paths read so far.
+func (c *compiler) bound(branches int) {
 	if c.overrun == nil {
-		c.overrun = c.profile.overrun(expansion{branches: branches, keys: keys, orProduct: c.orProduct})
+		c.overrun = c.profile.overrun(expansion{branches: branches, keys: len(c.paths), orProduct: c.orProduct})
 	}
 }
 
+// compileWith reads src with Ruler's grammar, "$or" read as a plain key when
+// orAsKey is set. A rejection carries the location where the parser stood,
+// as Ruler's JsonParseException does.
 func compileWith(src []byte, p Profile, orAsKey bool) (*compiler, *CompileError) {
 	c := &compiler{lx: newLexer(src), profile: p, orAsKey: orAsKey, heads: []*segment{nil}, orProduct: 1}
+	if e := c.read(); e != nil {
+		if e.at == "" && !e.unlocated {
+			e.at = c.lx.location(c.lx.here())
+		}
+		return c, e
+	}
+	return c, nil
+}
+
+func (c *compiler) read() *CompileError {
 	t, e := c.next()
 	if e != nil {
-		return nil, e
+		return e
 	}
 	if t.kind != tokStartObject {
-		return nil, structureError("Filter is not an object")
+		return structureError("Filter is not an object")
 	}
 	if e := c.object(nil, false); e != nil {
-		return nil, e
+		return e
 	}
 	t, e = c.next()
 	if e != nil {
-		return nil, e
+		return e
 	}
 	if t.kind != tokEOF {
-		return nil, structureError("Filter must be a single JSON object; found content after it")
+		return structureError("Filter must be a single JSON object; found content after it")
 	}
 	c.expand()
-	return c, nil
+	return nil
 }
 
 func (c *compiler) next() (token, *CompileError) {
 	t, err := c.lx.next()
 	if err != nil {
-		return token{}, &CompileError{Cause: InvalidJSON{}, Detail: err.message}
+		return token{}, c.lx.compileError(err)
 	}
 	return t, nil
 }
@@ -329,14 +336,14 @@ func (c *compiler) or(path []string) *CompileError {
 			return e
 		}
 		done = append(done, c.close()...)
-		c.bound(len(done), 0)
+		c.bound(len(done))
 	}
 	if members < 2 {
 		return orError("There must have at least 2 Objects in $or relationship.")
 	}
 	c.heads, c.pending = done, nil
 	c.orProduct = min(c.orProduct*members, maxExpansion)
-	c.bound(len(done), 0)
+	c.bound(len(done))
 	return nil
 }
 
@@ -356,30 +363,17 @@ func (c *compiler) close() []*segment {
 	if !c.spend(len(c.heads) + len(c.pending)) {
 		return nil
 	}
-	// Capped at keysTracked, the pending paths still decide every capped
-	// union: a capped set is either complete or already full.
-	var added []string
-	for _, cd := range c.pending {
-		added = addPath(added, cd.path)
-	}
 	out := make([]*segment, len(c.heads))
-	keys := 0
 	for i, h := range c.heads {
-		paths := h.branchPaths()
-		for _, p := range added {
-			paths = addPath(paths, p)
-		}
-		out[i] = &segment{parent: h, conds: c.pending, paths: paths}
-		keys = max(keys, len(paths))
+		out[i] = &segment{parent: h, conds: c.pending}
 	}
-	c.bound(len(out), keys)
+	c.bound(len(out))
 	return out
 }
 
 // expand writes out the branches: each holds, per path, the last condition
 // written to it (a later key with the same path replaces an earlier one), in
-// path order. Its work counts toward the budget, and each branch's key count
-// toward the profile's limits.
+// path order. Its work counts toward the budget.
 func (c *compiler) expand() {
 	heads := c.close()
 	if c.overrun != nil {
@@ -400,10 +394,6 @@ func (c *compiler) expand() {
 			}
 			for _, cd := range seg.conds {
 				byPath[cd.path] = cd
-			}
-			c.bound(len(heads), len(byPath))
-			if c.overrun != nil {
-				return
 			}
 		}
 		// Ruler sorts a rule's keys (GenericMachine.addPatternRule) with Java's
@@ -531,6 +521,8 @@ func (c *compiler) leaf(path string, depth int) *CompileError {
 		return structureError("Empty arrays are not allowed")
 	}
 	c.maxDepth = max(c.maxDepth, depth)
+	c.addPath(path)
+	c.bound(len(c.heads))
 	if c.spend(1) {
 		c.pending = append(c.pending, &condition{
 			path: path, matchers: ms, depth: depth, absent: slices.ContainsFunc(ms, isNotExists),
@@ -545,7 +537,7 @@ func (c *compiler) rule(t token) (matcher, *CompileError) {
 	case tokStartObject:
 		return c.expression()
 	case tokString:
-		s, e := stringText(t)
+		s, e := c.lx.text(t)
 		if e != nil {
 			return nil, e
 		}
@@ -600,14 +592,15 @@ func (c *compiler) expression() (matcher, *CompileError) {
 		return c.equalsIgnoreCase()
 	case OperatorWildcard:
 		return c.wildcard()
+	case OperatorExactly:
+		return c.exactly()
 	case OperatorPrefixEqualsIgnoreCase, OperatorSuffixEqualsIgnoreCase, OperatorAnythingButPrefix,
 		OperatorAnythingButSuffix, OperatorAnythingButEqualsIgnoreCase, OperatorAnythingButWildcard, OperatorOr:
 	}
 	return nil, &CompileError{Cause: UnknownOperator{Name: t.text}, Detail: "Unrecognized match type " + t.text}
 }
 
-// operatorNamed maps a match type name to its base operator. "exactly" is a
-// Ruler operator no service documents, so it is unknown here.
+// operatorNamed maps a match type name to its base operator.
 func operatorNamed(name string) (Operator, bool) {
 	switch name {
 	case "prefix":
@@ -626,8 +619,30 @@ func operatorNamed(name string) (Operator, bool) {
 		return OperatorEqualsIgnoreCase, true
 	case "wildcard":
 		return OperatorWildcard, true
+	case "exactly":
+		return OperatorExactly, true
 	}
 	return 0, false
+}
+
+// exactly compiles {"exactly": "s"}, Ruler's Patterns.exactMatch: the string
+// text only, never an IP range as a bare string rule is.
+func (c *compiler) exactly() (matcher, *CompileError) {
+	v, e := c.next()
+	if e != nil {
+		return nil, e
+	}
+	if v.kind != tokString {
+		return nil, operandError(OperatorExactly, "exact match pattern must be a string")
+	}
+	s, e := c.lx.text(v)
+	if e != nil {
+		return nil, e
+	}
+	if e := c.end(OperatorExactly, onlyOneKey); e != nil {
+		return nil, e
+	}
+	return matchEquals{text: s}, nil
 }
 
 // end consumes the '}' closing an operator object.
@@ -662,7 +677,7 @@ func (c *compiler) affix(op Operator) (matcher, *CompileError) {
 	if v.kind != tokString {
 		return nil, operandError(op, name+" match pattern must be a string")
 	}
-	s, e := stringText(v)
+	s, e := c.lx.text(v)
 	if e != nil {
 		return nil, e
 	}
@@ -693,7 +708,7 @@ func (c *compiler) affixIgnoreCase(name string, op Operator) (matcher, *CompileE
 	if v.kind != tokString {
 		return nil, operandError(op, "equals-ignore-case match pattern must be a string")
 	}
-	s, e := stringText(v)
+	s, e := c.lx.text(v)
 	if e != nil {
 		return nil, e
 	}
@@ -738,13 +753,15 @@ func (c *compiler) cidr() (matcher, *CompileError) {
 		// Ruler's text, sic.
 		return nil, operandError(OperatorCIDR, "prefix match pattern must be a string")
 	}
-	s, e := stringText(v)
+	s, e := c.lx.text(v)
 	if e != nil {
 		return nil, e
 	}
 	prefix, detail := parseCIDR(s)
 	if detail != "" {
-		return nil, operandError(OperatorCIDR, detail)
+		e := operandError(OperatorCIDR, detail)
+		e.unlocated = true
+		return nil, e
 	}
 	if e := c.end(OperatorCIDR, onlyOneKey); e != nil {
 		return nil, e
@@ -760,7 +777,7 @@ func (c *compiler) equalsIgnoreCase() (matcher, *CompileError) {
 	if v.kind != tokString {
 		return nil, operandError(OperatorEqualsIgnoreCase, "equals-ignore-case match pattern must be a string")
 	}
-	s, e := stringText(v)
+	s, e := c.lx.text(v)
 	if e != nil {
 		return nil, e
 	}
@@ -778,7 +795,7 @@ func (c *compiler) wildcard() (matcher, *CompileError) {
 	if v.kind != tokString {
 		return nil, operandError(OperatorWildcard, "wildcard match pattern must be a string")
 	}
-	s, e := stringText(v)
+	s, e := c.lx.text(v)
 	if e != nil {
 		return nil, e
 	}

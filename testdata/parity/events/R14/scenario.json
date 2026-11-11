@@ -86,11 +86,6 @@
       "field": "body/Result"
     },
     {
-      "switch": "events.pattern.exactly-operator",
-      "step": "H14-01",
-      "field": "status"
-    },
-    {
       "switch": "events.pattern.or-shared-values",
       "step": "H14-02",
       "field": "body/Result"

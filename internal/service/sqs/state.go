@@ -1,6 +1,7 @@
 package sqs
 
 import (
+	"iter"
 	"maps"
 	"slices"
 	"time"
@@ -14,7 +15,7 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 4
+const stateVersion = 7
 
 // State is the SQS state of one account and region: its queues by name,
 // the names deleted recently and the message move tasks. Records are
@@ -32,6 +33,10 @@ type State struct {
 	Deleted map[string]clock.Instant `json:"deleted,omitempty"`
 	// Tasks are the message move tasks, oldest first.
 	Tasks []MoveTask `json:"tasks,omitempty"`
+	// issuers is the queue that issued each receipt handle a message here
+	// still holds (receiptIssuers); derived from the messages, so not
+	// persisted.
+	issuers receiptIssuers
 }
 
 func newState(aws.Scope) State { return State{Queues: map[string]Queue{}} }
@@ -58,23 +63,20 @@ type Queue struct {
 	// Purged is when PurgeQueue last ran, zero before the first.
 	Purged clock.Instant `json:"purged,omitzero"`
 	// Messages are in enqueue order, which receives follow.
-	Messages []Message `json:"messages,omitempty"`
-	// borrowed reports that a working copy (clone) still shares Messages'
-	// backing array with the stored record; message and remove copy it
-	// before the first change in place. It is never persisted.
-	borrowed bool
+	Messages Messages `json:"messages,omitzero"`
 }
 
 // clone returns a working copy of q for a write. The copy shares q's
-// messages and FIFO caches until it first changes them in place (message,
-// remove, DedupCache.put, FIFO.attempts), so a write pays for copying only
-// what it changes: an enqueue appends past the length q's slice sees and
-// copies no message, and an empty poll copies nothing. What else the copy
-// shares, the tags, the attribute policies and each message's maps and
-// pointers, is never changed in place, only replaced.
+// messages and FIFO caches until it first changes them in place
+// (Messages.change, Messages.remove, DedupCache.put, FIFO.attempts), so a
+// write pays for copying only what it changes: an enqueue copies no
+// message, a change to one copies its chunk, and an empty poll copies
+// nothing. What else the copy shares, the tags, the attribute policies and
+// each message's maps and pointers, is never changed in place, only
+// replaced.
 func (q *Queue) clone() Queue {
 	c := *q
-	c.borrowed = true
+	c.Messages.lend()
 	if q.FIFO != nil {
 		f := *q.FIFO
 		f.Dedup.lend()
@@ -82,50 +84,6 @@ func (q *Queue) clone() Queue {
 		c.FIFO = &f
 	}
 	return c
-}
-
-// message returns message i of a working copy for a change in place.
-func (q *Queue) message(i int) *Message {
-	q.ownMessages()
-	return &q.Messages[i]
-}
-
-// ownMessages copies the messages of a working copy while they are the
-// stored record's.
-func (q *Queue) ownMessages() {
-	if q.borrowed {
-		q.Messages = slices.Clone(q.Messages)
-		q.borrowed = false
-	}
-}
-
-// remove takes the messages at the ascending indices at out of a working
-// copy in one pass. Removing the oldest messages only reslices, which
-// leaves the stored record's slice as it was; any other removal copies
-// the messages first while they are the stored record's.
-func (q *Queue) remove(at []int) {
-	if len(at) == 0 {
-		return
-	}
-	if at[len(at)-1] == len(at)-1 {
-		if !q.borrowed {
-			clear(q.Messages[:len(at)])
-		}
-		q.Messages = q.Messages[len(at):]
-		return
-	}
-	q.ownMessages()
-	kept, next := at[0], 0
-	for i := at[0]; i < len(q.Messages); i++ {
-		if next < len(at) && at[next] == i {
-			next++
-			continue
-		}
-		q.Messages[kept] = q.Messages[i]
-		kept++
-	}
-	clear(q.Messages[kept:])
-	q.Messages = q.Messages[:kept]
 }
 
 // DedupScope is the scope of FIFO deduplication (sqs.md 8.2).
@@ -234,9 +192,14 @@ type Message struct {
 	// cause of what its delivery leads to, and EnqueuedTrace that event's
 	// trace. A saved state without enqueuedTrace loads it as zero, and
 	// MessageCauses then reports Enqueued as the trace.
-	Enqueued      ref.EventID   `json:"enqueuedEventId"`
-	EnqueuedTrace ref.EventID   `json:"enqueuedTrace,omitzero"`
-	Sent          clock.Instant `json:"sent"`
+	Enqueued      ref.EventID `json:"enqueuedEventId"`
+	EnqueuedTrace ref.EventID `json:"enqueuedTrace,omitzero"`
+	// Sent is the SentTimestamp system attribute.
+	Sent clock.Instant `json:"sent"`
+	// RetentionStart is when the queue's MessageRetentionPeriod counts
+	// from: the send, or the move to a FIFO dead-letter queue, which keeps
+	// Sent but restarts retention (sqs.md 9.2).
+	RetentionStart clock.Instant `json:"retentionStart"`
 	// VisibleAt is when the message can next be received: the end of its
 	// delay before the first receive, of its visibility timeout after one.
 	VisibleAt clock.Instant `json:"visibleAt"`
@@ -252,7 +215,7 @@ type FIFOMessage struct {
 }
 
 // Receives is a received message's history: how many receives took it,
-// when the first did, and the latest one while its handle still reaches
+// when the first did, and the handles they issued while those still reach
 // the message.
 type Receives struct {
 	Count int           `json:"count"`
@@ -260,7 +223,24 @@ type Receives struct {
 	// Latest is the latest receive; nil once a redrive moved the message to
 	// a dead-letter queue, where no handle reaches it.
 	Latest *Receive `json:"latest,omitempty"`
+	// Earlier are the handles the receives before Latest issued, oldest
+	// first, dropped with Latest. On a standard queue each still deletes
+	// the message and changes its visibility; on a FIFO queue each has
+	// expired (sqs/R01 03-recv-after-6s, 05-cmv-stale,
+	// 07-fifo-delete-h1-after-rereceive). The slice is never changed in
+	// place, so a clone may share it.
+	Earlier []ids.ReceiptHandle `json:"earlier,omitempty"`
 }
+
+// issue is which of a message's receives issued a receipt handle.
+type issue int
+
+// The issue values.
+const (
+	notIssued issue = iota
+	issuedLatest
+	issuedEarlier
+)
 
 // Receive is one receive of a message: the handle it issued, when, and
 // whether HoldVisibility pins the message invisible whatever VisibleAt
@@ -286,10 +266,16 @@ func (m *Message) visible(now clock.Instant) bool {
 	return !m.pinned() && m.VisibleAt.Compare(now) <= 0
 }
 
-// expired reports whether m is past the queue's retention at now,
-// measured from its enqueue (sqs.md 7.3).
+// expired reports whether m is past the queue's retention at now
+// (retentionEnd).
 func (m *Message) expired(retention time.Duration, now clock.Instant) bool {
-	return m.Sent.Add(retention).Compare(now) <= 0
+	return m.retentionEnd(retention).Compare(now) <= 0
+}
+
+// retentionEnd is when m leaves a queue that keeps messages for retention,
+// counted from RetentionStart (sqs.md 7.3).
+func (m *Message) retentionEnd(retention time.Duration) clock.Instant {
+	return m.RetentionStart.Add(retention)
 }
 
 // receiveCount is ApproximateReceiveCount: 0 before the first receive.
@@ -323,6 +309,33 @@ func (m *Message) holds(handle string) bool {
 	return ok && string(r.Handle) == handle
 }
 
+// issued reports which of m's receives issued handle, while it still
+// reaches m.
+func (m *Message) issued(handle string) issue {
+	switch {
+	case m.holds(handle):
+		return issuedLatest
+	case m.Receives != nil && slices.Contains(m.Receives.Earlier, ids.ReceiptHandle(handle)):
+		return issuedEarlier
+	}
+	return notIssued
+}
+
+// handles yields every handle that still reaches m, latest first.
+func (m *Message) handles() iter.Seq[ids.ReceiptHandle] {
+	return func(yield func(ids.ReceiptHandle) bool) {
+		r, ok := m.latest()
+		if !ok || !yield(r.Handle) {
+			return
+		}
+		for _, h := range m.Receives.Earlier {
+			if !yield(h) {
+				return
+			}
+		}
+	}
+}
+
 func (m *Message) pinned() bool {
 	r, ok := m.latest()
 	return ok && r.Pinned
@@ -337,6 +350,9 @@ func (m *Message) receive(handle ids.ReceiptHandle, now clock.Instant) {
 		r = *m.Receives
 	}
 	r.Count++
+	if r.Latest != nil {
+		r.Earlier = append(slices.Clip(r.Earlier), r.Latest.Handle)
+	}
 	r.Latest = &Receive{Handle: handle, At: now}
 	m.Receives = &r
 }
@@ -353,8 +369,8 @@ func (m *Message) pin(pinned bool) {
 	m.Receives = &r
 }
 
-// dropHandle forgets m's latest receive, keeping the count and the first
-// receive, as a redrive does.
+// dropHandle forgets the handles of m's receives, keeping the count and
+// the first receive, as a redrive does.
 func (m *Message) dropHandle() {
 	if m.Receives != nil {
 		m.Receives = &Receives{Count: m.Receives.Count, First: m.Receives.First}

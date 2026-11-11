@@ -103,12 +103,12 @@ func TestHTTPRetryScheduleReplaysUnderAdvanceAndSettle(t *testing.T) {
 	}
 }
 
-// Under sns.http.status-classes 429, 5xx and a refused connection are
-// retried under the DeliveryPolicy set after the subscription was
-// confirmed, and once the retries are spent the message goes to the
-// RedrivePolicy queue; any other status goes there at once
-// (sns-http-delivery.md 6.1, 6.5). TestHTTPStatusClassesFollowTheSwitch
-// asserts the same without a settle after its advance.
+// 429, 5xx and a refused connection are retried under the DeliveryPolicy
+// set after the subscription was confirmed, and once the retries are spent
+// the message goes to the RedrivePolicy queue; any other status delivers
+// at once with no dead letter (sns-http-delivery.md 6.1, 6.5; SNSH-05).
+// TestHTTPStatusClassesFollowTheRecording asserts the same without a
+// settle after its advance.
 func TestHTTPStatusClassesAfterASettle(t *testing.T) {
 	const dlq = "arn:aws:sqs:us-east-1:000000000000:orders-dlq"
 	cases := []struct {
@@ -127,9 +127,6 @@ func TestHTTPStatusClassesAfterASettle(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			s := confirmingThen(func(int) (int, http.Header) { return c.status, nil })
 			onTheWire(t, s, func(h *harness) {
-				if v := switchValue(h, "sns.http.status-classes"); v != "retries-doc" {
-					noExpectation(h, "sns.http.status-classes", v)
-				}
 				topic := h.topic("events", nil)
 				arn := h.subscribe(topic, "http", c.endpoint, map[string]string{"RedrivePolicy": `{"deadLetterTargetArn":"` + dlq + `"}`})
 				h.settle()
@@ -150,18 +147,20 @@ func TestHTTPStatusClassesAfterASettle(t *testing.T) {
 					h.Fatalf("attempts at %v, want %v", at, want)
 				}
 				last := ds[len(ds)-1]
-				if last.Outcome != (journal.DeadLettered{DLQ: mustARN(h, dlq)}) {
-					h.Errorf("last attempt outcome = %#v, want dead-lettered to %s", last.Outcome, dlq)
-				}
-				wantClass := journal.HTTPPermanent
+				var wantOutcome journal.DeliveryOutcome = journal.Delivered{}
+				wantClass := journal.HTTPSuccess
+				wantSent := 0
 				if c.retried {
-					wantClass = journal.HTTPRetryable
+					wantOutcome, wantClass, wantSent = journal.DeadLettered{DLQ: mustARN(h, dlq)}, journal.HTTPRetryable, 1
+				}
+				if last.Outcome != wantOutcome {
+					h.Errorf("last attempt outcome = %#v, want %#v", last.Outcome, wantOutcome)
 				}
 				if last.HTTP == nil || last.HTTP.Class != wantClass || last.HTTP.Status != c.status {
 					h.Errorf("last exchange = %+v, want status %d classed %v", last.HTTP, c.status, wantClass)
 				}
-				if sent := h.sent.all(); len(sent) != 1 || !strings.HasSuffix(sent[0].QueueUrl, "/orders-dlq") {
-					h.Errorf("SendMessage calls = %+v, want one dead letter", sent)
+				if sent := h.sent.all(); len(sent) != wantSent || (wantSent == 1 && !strings.HasSuffix(sent[0].QueueUrl, "/orders-dlq")) {
+					h.Errorf("SendMessage calls = %+v, want %d dead letters", sent, wantSent)
 				}
 			})
 		})
@@ -205,18 +204,18 @@ func TestHTTPRetryAfterASettleResendsTheSameBytes(t *testing.T) {
 }
 
 // throttlePolicy.maxReceivesPerSecond, the subscription's or the topic's
-// http default, spaces the subscription's notifications 1/n seconds apart
-// on the emulator clock, and a paced notification spends no retry
-// (sns-http-delivery.md 6.4, aws-doc; 8.2 item 5).
-func TestHTTPThrottlePolicyPacesNotifications(t *testing.T) {
+// http default, is stored but does not pace: a burst of 10 messages at rate
+// 1 reached the endpoint within 0.3 s on AWS, and nothing records how AWS
+// paces a longer burst (sns-http-delivery.md 6.4, 9.8; SNSH-20).
+func TestHTTPThrottlePolicyDoesNotPaceNotifications(t *testing.T) {
+	const burst = 10
 	cases := []struct {
 		name                    string
 		topicPolicy, subscriber string
-		want                    []time.Duration
 	}{
-		{"unthrottled", "", "", []time.Duration{0, 0, 0}},
-		{"the subscription's", "", `{"throttlePolicy":{"maxReceivesPerSecond":2}}`, []time.Duration{0, 500 * time.Millisecond, time.Second}},
-		{"the topic's http default", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":4}}}`, "", []time.Duration{0, 250 * time.Millisecond, 500 * time.Millisecond}},
+		{"unthrottled", "", ""},
+		{"the subscription's", "", `{"throttlePolicy":{"maxReceivesPerSecond":1}}`},
+		{"the topic's http default", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":1}}}`, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -231,19 +230,19 @@ func TestHTTPThrottlePolicyPacesNotifications(t *testing.T) {
 				}
 				topic := h.topic("events", topicAttrs)
 				t1 := subscribeConfirmed(h, s, topic, hookURL, subAttrs)
-				for range 3 {
+				for range burst {
 					must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
 				}
 				h.settle()
 				h.advance(10 * time.Second)
 				h.settle()
 				at, ds := attemptsSince(h, t1)
-				if !slices.Equal(at, c.want) {
-					h.Errorf("notifications attempted at %v, want %v", at, c.want)
+				if want := make([]time.Duration, burst); !slices.Equal(at, want) {
+					h.Errorf("notifications attempted at %v, want all at once %v", at, want)
 				}
 				for i, d := range ds {
 					if d.Attempt != 1 || d.Outcome != (journal.Delivered{}) {
-						h.Errorf("notification %d = %+v, want attempt 1 delivered: pacing spends no retry", i, d)
+						h.Errorf("notification %d = %+v, want attempt 1 delivered", i, d)
 					}
 				}
 			})

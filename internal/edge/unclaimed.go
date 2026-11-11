@@ -18,7 +18,8 @@ import (
 // unknownOperation is svc's answer for a request of protocol p naming no
 // operation of it: the descriptor's UnknownOperationError for the protocol
 // family, else the generic one. Coral sends the JSON family's without a
-// message (error-matrix.md 5.5 T5); the Query family's names the action.
+// message (error-matrix.md 5.5 T5); the Query family's names the action,
+// and, in the AWSFault form, the version (ses.md 3.1).
 func (h *Handler) unknownOperation(svc *registry.Service, p ref.ProtocolID, name string) *awserr.Error {
 	family, ok := awserr.FamilyOf(p)
 	if !ok {
@@ -36,10 +37,55 @@ func (h *Handler) unknownOperation(svc *registry.Service, p ref.ProtocolID, name
 		}
 	}
 	e := &awserr.Error{ID: id, Origin: awserr.Generic{}}
-	if family == awserr.QueryFamily {
+	switch {
+	case family == awserr.QueryFamily && svc.UnknownOperationAnswer == registry.UnknownOperationAWSFault:
+		e.Message = "Could not find operation " + name + " for version " + svc.QueryVersion
+	case family == awserr.QueryFamily:
 		e.Message = "The action " + name + " is not valid for this endpoint."
 	}
 	return e
+}
+
+// awsFaultNamespace is the xmlns of Coral's AWSFault ErrorResponse, which
+// SNS and SES v1 answer an unknown Action in (error-matrix.md 3, ses.md
+// 3.1).
+const awsFaultNamespace = "http://webservices.amazon.com/AWSFault/2005-15-09"
+
+// unknownAnswer is the codec of a request naming no operation of its
+// service, rendering rejected, the edge's unknown-operation error, in the
+// form the service's UnknownOperationAnswer names. Any other error the
+// call ends with, such as a panic's InternalFailure, keeps the codec's own
+// envelope.
+type unknownAnswer struct {
+	Codec
+	rejected *awserr.Error
+}
+
+func (c unknownAnswer) EncodeError(r *http.Request, svc *registry.Service, requestID string, e *awserr.Error) Response {
+	if e != c.rejected || svc == nil {
+		return c.Codec.EncodeError(r, svc, requestID, e)
+	}
+	switch svc.UnknownOperationAnswer {
+	case registry.UnknownOperationAWSFault:
+		if c.Protocol() == ref.AWSQuery {
+			// The awsQuery codec reads the envelope from the descriptor, so a
+			// copy names the AWSFault one: its namespace, no Detail.
+			fault := *svc
+			fault.XMLNamespace = awsFaultNamespace
+			fault.QueryErrorEnvelope = registry.QueryErrorEnvelope{Namespace: true}
+			return c.Codec.EncodeError(r, &fault, requestID, e)
+		}
+	case registry.UnknownOperationNotFound:
+		if p := c.Protocol(); p == ref.RESTJSON1 || p == ref.RESTXML {
+			return Response{
+				Status: http.StatusNotFound,
+				Header: http.Header{"Content-Type": nil},
+				Body:   strings.NewReader(unknownOperationXML),
+			}
+		}
+	case registry.UnknownOperationInEnvelope:
+	}
+	return c.Codec.EncodeError(r, svc, requestID, e)
 }
 
 // unknownOperationXML is Coral's answer to a request that reaches a JSON
@@ -65,7 +111,14 @@ func (h *Handler) answerForService(ctx context.Context, x *exchange, svc *regist
 				continue
 			}
 			if codec, ok := h.opts.Codecs[p]; ok {
-				h.write(ctx, x, codec.EncodeError(x.r, svc, string(x.id), h.unknownOperation(svc, p, "")))
+				// No operation of svc claimed the request, so its
+				// query-compatible x-amzn-query-error is not sent (recorded
+				// for a wrong target prefix,
+				// testdata/parity/sqs/R11/03-wrong-target-prefix.json;
+				// inferred for the other unclaimed POSTs).
+				e := h.unknownOperation(svc, p, "")
+				e.ID.QueryErrorWhen = awserr.QueryErrorNever
+				h.write(ctx, x, codec.EncodeError(x.r, svc, string(x.id), e))
 				return
 			}
 		}

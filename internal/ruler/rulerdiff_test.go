@@ -31,7 +31,7 @@ func TestJavaRulerDifferential(t *testing.T) {
 				c.pattern, c.event, got, want, k.reason)
 		case got != want && !isKnown:
 			disagreements++
-			t.Errorf("pattern %s event %s: understudy %s, Java Ruler %s", c.pattern, c.event, got, want)
+			t.Errorf("pattern %s event %s: understudy %q, Java Ruler %q", c.pattern, c.event, got, want)
 		case got == want && isKnown:
 			t.Errorf("pattern %s event %s: both answer %s, but it is listed as a known difference (%s); remove it from knownDiffs",
 				c.pattern, c.event, got, k.reason)
@@ -63,11 +63,6 @@ func knownDiffs() map[diffCase]knownDiff {
 			"rulesForJSONEvent reads the first JSON value and ignores the rest; understudy refuses content after the " +
 				"event (event.go); AWS's answer is not recorded (differences.md, Event patterns and filter policies)",
 		},
-		{
-			`{"a":[{"exactly":"x"}]}`, `{"a":"x"}`,
-			"the EventBridge profile refuses \"exactly\" (doc.go); AWS accepts it (differences.md, Event patterns and " +
-				"filter policies, events/R14/H14-*.json)",
-		},
 	} {
 		known[diffCase{d.pattern, d.event}] = knownDiff{d.reason, rulerDiffers}
 	}
@@ -78,7 +73,7 @@ func knownDiffs() map[diffCase]knownDiff {
 func understudyAnswer(c diffCase) string {
 	p, cerr := Compile([]byte(c.pattern), EventBridge{})
 	if cerr != nil {
-		return "reject: " + cerr.Detail
+		return "reject: " + cerr.reason()
 	}
 	ok, err := Match(p, []byte(c.event))
 	var evErr *EventError

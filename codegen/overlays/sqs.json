@@ -8,6 +8,7 @@
         "dev.understudy#errorNamespace": "com.amazonaws.sqs",
         "dev.understudy#emptyCollection": "omit",
         "dev.understudy#queryErrorEnvelope": {"namespace": true, "detail": true},
+        "dev.understudy#xmlDeclaration": {},
         "dev.understudy#throttleError": "com.amazonaws.sqs#RequestThrottled",
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDenied",
         "dev.understudy#unknownOperationError": {
@@ -42,6 +43,12 @@
             "covers": ["dev.understudy#queryErrorEnvelope"]
           },
           {
+            "label": "aws-recorded",
+            "source": "testdata/parity/sqs/R11/04-deletemessage-query.json and testdata/parity/sqs/R11/05-sqs-query-nonexistent-queue.json: success and error bodies open with <?xml version=\"1.0\"?> and no newline",
+            "validated": "2026-10-14",
+            "covers": ["dev.understudy#xmlDeclaration"]
+          },
+          {
             "label": "inferred",
             "source": "docs/research/error-matrix.md#51-sqs-json-10",
             "covers": ["dev.understudy#throttleError", "dev.understudy#unknownOperationError", "dev.understudy#validationError"]
@@ -66,6 +73,28 @@
         }
       }
     },
+    "com.amazon.coral.service#SerializationException": {
+      "type": "apply",
+      "traits": {
+        "aws.protocols#awsQueryError": {"code": "MalformedInput", "httpResponseCode": 400},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/03-string-for-integer.json: a string for an integer answers x-amzn-query-error MalformedInput;Sender; no other query-compatible service's recording shows this code, so it is applied for SQS only",
+          "validated": "2026-10-14"
+        }
+      }
+    },
+    "com.amazon.coral.service#UnknownOperationException": {
+      "type": "apply",
+      "traits": {
+        "aws.protocols#awsQueryError": {"code": "InvalidAction", "httpResponseCode": 400},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/03-unknown-operation.json: an unknown AmazonSQS target answers x-amzn-query-error InvalidAction;Sender; no other query-compatible service's recording shows this code, so it is applied for SQS only",
+          "validated": "2026-10-14"
+        }
+      }
+    },
     "com.amazonaws.sqs#QueueDoesNotExist": {
       "type": "apply",
       "traits": {
@@ -85,11 +114,11 @@
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
         "aws.protocols#awsQueryError": {"code": "InvalidParameterValue", "httpResponseCode": 400},
-        "dev.understudy#jsonType": "InvalidParameterValueException",
+        "dev.understudy#jsonType": "com.amazon.coral.service#InvalidParameterValueException",
         "dev.understudy#evidence": {
-          "label": "third-party-recorded",
-          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L2",
-          "validated": "2024-04-30"
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/02-receive-max-0.json: 400, x-amzn-query-error InvalidParameterValue;Sender and __type com.amazon.coral.service#InvalidParameterValueException",
+          "validated": "2026-10-14"
         }
       }
     },
@@ -102,12 +131,140 @@
         "smithy.api#error": "client",
         "smithy.api#httpError": 400,
         "aws.protocols#awsQueryError": {"code": "MissingParameter", "httpResponseCode": 400},
-        "dev.understudy#jsonType": "MissingRequiredParameterException",
+        "dev.understudy#jsonType": "com.amazon.coral.service#MissingRequiredParameterException",
         "dev.understudy#evidence": {
-          "label": "third-party-recorded",
-          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3759",
-          "validated": "2025-09-22"
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/02-send-empty-body.json: 400, x-amzn-query-error MissingParameter;Sender and __type com.amazon.coral.service#MissingRequiredParameterException",
+          "validated": "2026-10-14"
         }
+      }
+    },
+    "com.amazonaws.sqs#ReceiveMessageRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {
+          "code": "com.amazonaws.sqs#QueueDoesNotExist",
+          "style": "fixed",
+          "constraints": ["required"],
+          "reason": "The specified queue does not exist."
+        },
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: a JSON ReceiveMessage with body {} answers 400, x-amzn-query-error AWS.SimpleQueueService.NonExistentQueue;Sender and QueueDoesNotExist, not MissingParameter",
+          "validated": "2026-11-03"
+        }
+      }
+    },
+    "com.amazonaws.sqs#AddPermissionRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#ChangeMessageVisibilityRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#ChangeMessageVisibilityBatchRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#DeleteMessageRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#DeleteMessageBatchRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#DeleteQueueRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#GetQueueAttributesRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#ListDeadLetterSourceQueuesRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#ListQueueTagsRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#PurgeQueueRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#RemovePermissionRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#SendMessageRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#SendMessageBatchRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#SetQueueAttributesRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#TagQueueRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
+      }
+    },
+    "com.amazonaws.sqs#UntagQueueRequest$QueueUrl": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.amazonaws.sqs#QueueDoesNotExist", "style": "fixed", "constraints": ["required"], "reason": "The specified queue does not exist."},
+        "dev.understudy#evidence": {"label": "inferred", "source": "testdata/parity/sqs/IAM-ENF/13-sqs-noqueue.json: recorded for ReceiveMessage only, applied to every operation that takes QueueUrl"}
       }
     },
     "com.amazonaws.sqs#CreateQueueRequest$QueueName": {
@@ -223,9 +380,9 @@
           "reason": "Must be between 1 and 10, if provided."
         },
         "dev.understudy#evidence": {
-          "label": "third-party-recorded",
-          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L2",
-          "validated": "2024-04-30"
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/02-receive-max-0.json and testdata/parity/sqs/R11/02-receive-max-11.json",
+          "validated": "2026-10-14"
         }
       }
     },
@@ -240,9 +397,26 @@
           "reason": "Must be >= 0 and <= 20, if provided."
         },
         "dev.understudy#evidence": {
-          "label": "third-party-recorded",
-          "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/sqs/test_sqs.snapshot.json#L3599",
-          "validated": "2025-02-10"
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/02-receive-wait-21.json",
+          "validated": "2026-10-14"
+        }
+      }
+    },
+    "com.amazonaws.sqs#ReceiveMessageRequest$VisibilityTimeout": {
+      "type": "apply",
+      "traits": {
+        "smithy.api#range": {"min": 0, "max": 43200},
+        "dev.understudy#validationError": {
+          "code": "com.amazonaws.sqs#InvalidParameterValue",
+          "style": "parameter",
+          "constraints": ["range"],
+          "reason": "Must be between 0 and 43200, if provided."
+        },
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/sqs/R11/02-receive-visibility-43201.json: 43201 is refused with the reason that states the range",
+          "validated": "2026-10-14"
         }
       }
     },

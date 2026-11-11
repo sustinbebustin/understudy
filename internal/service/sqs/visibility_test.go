@@ -23,6 +23,19 @@ type modelMessage struct {
 	visibleAt clock.Instant
 	// handle is the latest receipt handle, empty before the first receive.
 	handle string
+	// older are the handles earlier receives issued, each of which still
+	// deletes the message and changes its visibility (sqs/R01
+	// 03-recv-after-6s, 05-cmv-stale).
+	older []string
+}
+
+// handles lists every handle of msg, latest first; none before the first
+// receive.
+func (msg *modelMessage) handles() []string {
+	if msg.handle == "" {
+		return nil
+	}
+	return append([]string{msg.handle}, msg.older...)
 }
 
 // visibilityMachine drives one queue through random sends with delays,
@@ -40,9 +53,9 @@ type visibilityMachine struct {
 	arn string
 	// messages are the queue's messages in enqueue order.
 	messages []modelMessage
-	// stale are handles that delete nothing: superseded by a later receive,
-	// or of a message deleted already.
-	stale   []string
+	// gone are the handles of messages deleted already, which delete
+	// nothing.
+	gone    []string
 	deleted map[string]bool
 	// purged is when the last PurgeQueue ran; purgedOnce says one has.
 	purged     clock.Instant
@@ -109,20 +122,25 @@ func (m *visibilityMachine) receive(t *rapid.T) {
 	for i, j := range want {
 		msg := &m.messages[j]
 		handle := val(out.Messages[i].ReceiptHandle)
-		if handle == msg.handle || slices.Contains(m.stale, handle) {
+		if m.minted(handle) {
 			t.Fatalf("receive of %s reused the receipt handle %s", msg.id, handle)
 		}
 		if msg.handle != "" {
-			m.stale = append(m.stale, msg.handle)
+			msg.older = append(msg.older, msg.handle)
 		}
 		msg.handle = handle
 		msg.visibleAt = now.Add(time.Duration(vt) * time.Second)
 	}
 }
 
-// deleteCurrent deletes a received message with its latest handle, visible
-// again or not (sqs.md 7.2).
-func (m *visibilityMachine) deleteCurrent(t *rapid.T) {
+// minted reports whether a receive issued handle.
+func (m *visibilityMachine) minted(handle string) bool {
+	return slices.Contains(m.gone, handle) || slices.ContainsFunc(m.messages, func(msg modelMessage) bool { return slices.Contains(msg.handles(), handle) })
+}
+
+// drawHandle draws a received message and one of its handles, the latest
+// or an older one.
+func (m *visibilityMachine) drawHandle(t *rapid.T) (i int, handle string) {
 	var received []int
 	for i, msg := range m.messages {
 		if msg.handle != "" {
@@ -132,33 +150,40 @@ func (m *visibilityMachine) deleteCurrent(t *rapid.T) {
 	if len(received) == 0 {
 		t.Skip("no message has been received")
 	}
-	i := rapid.SampledFrom(received).Draw(t, "message")
+	i = rapid.SampledFrom(received).Draw(t, "message")
+	return i, rapid.SampledFrom(m.messages[i].handles()).Draw(t, "handle")
+}
+
+// deleteReceived deletes a received message with any of its handles,
+// visible again or not (sqs.md 7.2; sqs/R01 03-recv-after-6s).
+func (m *visibilityMachine) deleteReceived(t *rapid.T) {
+	i, handle := m.drawHandle(t)
 	msg := m.messages[i]
-	if err := m.h.remove(&sqsapi.DeleteMessageInput{QueueUrl: m.url, ReceiptHandle: msg.handle}); err != nil {
+	if err := m.h.remove(&sqsapi.DeleteMessageInput{QueueUrl: m.url, ReceiptHandle: handle}); err != nil {
 		t.Fatalf("DeleteMessage(%s) = %s: %s", msg.id, err.ID.QueryCode, err.Message)
 	}
 	m.messages = slices.Delete(m.messages, i, i+1)
 	m.deleted[msg.id] = true
-	m.stale = append(m.stale, msg.handle)
+	m.gone = append(m.gone, msg.handles()...)
 }
 
-// deleteStale deletes with a handle a later receive superseded, or one of
-// a deleted message: it succeeds and deletes nothing.
-func (m *visibilityMachine) deleteStale(t *rapid.T) {
-	if len(m.stale) == 0 {
-		t.Skip("no stale handle")
+// deleteGone deletes with a handle of a deleted message: it succeeds and
+// deletes nothing (sqs/R01 04-delete-stale-gone).
+func (m *visibilityMachine) deleteGone(t *rapid.T) {
+	if len(m.gone) == 0 {
+		t.Skip("no handle of a deleted message")
 	}
-	handle := rapid.SampledFrom(m.stale).Draw(t, "handle")
+	handle := rapid.SampledFrom(m.gone).Draw(t, "handle")
 	if err := m.h.remove(&sqsapi.DeleteMessageInput{QueueUrl: m.url, ReceiptHandle: handle}); err != nil {
-		t.Fatalf("DeleteMessage with a stale handle = %s: %s", err.ID.QueryCode, err.Message)
+		t.Fatalf("DeleteMessage with a deleted message's handle = %s: %s", err.ID.QueryCode, err.Message)
 	}
 }
 
 // deleteUnknown deletes with a well-formed handle no receive minted: it
 // succeeds and deletes nothing.
 func (m *visibilityMachine) deleteUnknown(t *rapid.T) {
-	handle := "AQEB" + rapid.StringMatching(`[A-Za-z0-9]{32}`).Draw(t, "handle")
-	if slices.Contains(m.stale, handle) || slices.ContainsFunc(m.messages, func(msg modelMessage) bool { return msg.handle == handle }) {
+	handle := "AQEB" + rapid.StringMatching(`[A-Za-z0-9+/]{405}[AQgw]==`).Draw(t, "handle")
+	if m.minted(handle) {
 		t.Skip("the drawn handle is a minted one")
 	}
 	if err := m.h.remove(&sqsapi.DeleteMessageInput{QueueUrl: m.url, ReceiptHandle: handle}); err != nil {
@@ -166,37 +191,29 @@ func (m *visibilityMachine) deleteUnknown(t *rapid.T) {
 	}
 }
 
-// changeCurrent sets a received message's visibility timeout from now with
-// its latest handle, receivable again or not (sqs.md 7.2).
-func (m *visibilityMachine) changeCurrent(t *rapid.T) {
-	var received []int
-	for i, msg := range m.messages {
-		if msg.handle != "" {
-			received = append(received, i)
-		}
-	}
-	if len(received) == 0 {
-		t.Skip("no message has been received")
-	}
-	i := rapid.SampledFrom(received).Draw(t, "message")
+// changeReceived sets a received message's visibility timeout from now
+// with any of its handles, receivable again or not (sqs.md 7.2; sqs/R01
+// 05-cmv-stale).
+func (m *visibilityMachine) changeReceived(t *rapid.T) {
+	i, handle := m.drawHandle(t)
 	vt := rapid.Int32Range(0, 60).Draw(t, "visibilityTimeout")
 	msg := &m.messages[i]
-	if _, err := m.h.Invoke(m.h.Context(), sqsapi.OpChangeMessageVisibility, &sqsapi.ChangeMessageVisibilityInput{QueueUrl: m.url, ReceiptHandle: msg.handle, VisibilityTimeout: vt}); err != nil {
+	if _, err := m.h.Invoke(m.h.Context(), sqsapi.OpChangeMessageVisibility, &sqsapi.ChangeMessageVisibilityInput{QueueUrl: m.url, ReceiptHandle: handle, VisibilityTimeout: vt}); err != nil {
 		t.Fatalf("ChangeMessageVisibility(%s) = %s: %s", msg.id, err.ID.QueryCode, err.Message)
 	}
 	msg.visibleAt = m.h.Clock.Now().Add(time.Duration(vt) * time.Second)
 }
 
-// changeStale changes visibility with a handle that matches no message:
-// it fails and changes nothing.
-func (m *visibilityMachine) changeStale(t *rapid.T) {
-	if len(m.stale) == 0 {
-		t.Skip("no stale handle")
+// changeGone changes visibility with a handle of a deleted message: it
+// fails and changes nothing (sqs/R01 05-cmv-stale-deleted).
+func (m *visibilityMachine) changeGone(t *rapid.T) {
+	if len(m.gone) == 0 {
+		t.Skip("no handle of a deleted message")
 	}
-	handle := rapid.SampledFrom(m.stale).Draw(t, "handle")
+	handle := rapid.SampledFrom(m.gone).Draw(t, "handle")
 	_, err := m.h.Invoke(m.h.Context(), sqsapi.OpChangeMessageVisibility, &sqsapi.ChangeMessageVisibilityInput{QueueUrl: m.url, ReceiptHandle: handle, VisibilityTimeout: 10})
 	if err == nil || err.ID.QueryCode != "InvalidParameterValue" {
-		t.Fatalf("ChangeMessageVisibility with a stale handle = %v, want InvalidParameterValue", err)
+		t.Fatalf("ChangeMessageVisibility with a deleted message's handle = %v, want InvalidParameterValue", err)
 	}
 }
 
@@ -216,9 +233,7 @@ func (m *visibilityMachine) purge(t *rapid.T) {
 	}
 	for _, msg := range m.messages {
 		m.deleted[msg.id] = true
-		if msg.handle != "" {
-			m.stale = append(m.stale, msg.handle)
-		}
+		m.gone = append(m.gone, msg.handles()...)
 	}
 	m.messages = nil
 	m.purged, m.purgedOnce = now, true
@@ -273,6 +288,85 @@ func (m *visibilityMachine) checkTimers(t *rapid.T, kind clock.TimerKind, want m
 	}
 }
 
+// receivedTwice sends one message to url, whose VisibilityTimeout is 5,
+// and receives it twice, the second time after the first timeout ran out,
+// as sqs/R01 steps 2 and 3 do. It returns the older handle and the latest.
+func receivedTwice(h *harness, url string, send func()) (older, latest string) {
+	h.Helper()
+	send()
+	first := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url})
+	h.advance(6 * time.Second)
+	second := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url})
+	if len(first) != 1 || len(second) != 1 {
+		h.Fatalf("receives = %d then %d messages, want one each", len(first), len(second))
+	}
+	return val(first[0].ReceiptHandle), val(second[0].ReceiptHandle)
+}
+
+// sqs/R01 03-delete-stale, 03-recv-after-stale-delete and 03-recv-after-6s:
+// on a standard queue an older handle of a message received again since
+// deletes it, so no receive finds it, even after the visibility timeout.
+func TestOlderStandardHandleDeletesTheMessage(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.queue("older-delete", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "5"})
+		older, _ := receivedTwice(h, url, func() { h.mustSend(url, "m") })
+		if err := h.remove(&sqsapi.DeleteMessageInput{QueueUrl: url, ReceiptHandle: older}); err != nil {
+			h.Fatalf("DeleteMessage with the older handle = %s: %s", err.ID.QueryCode, err.Message)
+		}
+		if got := h.receiveBodies(url, 10); len(got) != 0 {
+			h.Fatalf("receive after the delete = %q, want none", got)
+		}
+		h.advance(6 * time.Second)
+		if got := h.receiveBodies(url, 10); len(got) != 0 {
+			h.Fatalf("receive after the visibility timeout = %q, want none", got)
+		}
+	})
+}
+
+// sqs/R01 05-cmv-stale and 06-cmv-batch: on a standard queue a visibility
+// change with an older handle of a message received again since answers
+// 200, alone and as a batch entry, and changes the message's visibility.
+func TestOlderStandardHandleChangesVisibility(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.queue("older-change", map[sqsapi.QueueAttributeName]string{"VisibilityTimeout": "5"})
+		older, _ := receivedTwice(h, url, func() { h.mustSend(url, "m") })
+		if _, err := h.Invoke(h.Context(), sqsapi.OpChangeMessageVisibility, &sqsapi.ChangeMessageVisibilityInput{QueueUrl: url, ReceiptHandle: older, VisibilityTimeout: 30}); err != nil {
+			h.Fatalf("ChangeMessageVisibility with the older handle = %s: %s", err.ID.QueryCode, err.Message)
+		}
+		h.advance(6 * time.Second)
+		if got := h.receiveBodies(url, 10); len(got) != 0 {
+			h.Fatalf("receive 6 s into the changed 30 s timeout = %q, want none", got)
+		}
+		out, err := h.Invoke(h.Context(), sqsapi.OpChangeMessageVisibilityBatch, &sqsapi.ChangeMessageVisibilityBatchInput{QueueUrl: url, Entries: []sqsapi.ChangeMessageVisibilityBatchRequestEntry{
+			{Id: "stale", ReceiptHandle: older, VisibilityTimeout: new(int32(0))},
+		}})
+		if err != nil || len(out.Failed) != 0 || len(out.Successful) != 1 || out.Successful[0].Id != "stale" {
+			h.Fatalf("ChangeMessageVisibilityBatch with the older handle = %+v, %v", out, err)
+		}
+		if got := h.receiveBodies(url, 10); len(got) != 1 {
+			h.Fatalf("receive after a zero timeout = %q, want the message", got)
+		}
+	})
+}
+
+// sqs/R01 07-fifo-delete-h1-after-rereceive: on a FIFO queue an older
+// handle of a message received again since has expired, for DeleteMessage
+// and, as sqs.fifo.receipt-expiry infers, ChangeMessageVisibility; the
+// latest still deletes (07-fifo-delete-h2).
+func TestOlderFIFOHandleHasExpired(t *testing.T) {
+	run(t, func(h *harness) {
+		url := h.fifoQueue("older.fifo", map[sqsapi.QueueAttributeName]string{"ContentBasedDeduplication": "true", "VisibilityTimeout": "5"})
+		older, latest := receivedTwice(h, url, func() { h.sendTo(url, "g", "m", nil) })
+		expired := "Value " + older + " for parameter ReceiptHandle is invalid. Reason: The receipt handle has expired."
+		wantError(h.T, h.remove(&sqsapi.DeleteMessageInput{QueueUrl: url, ReceiptHandle: older}), "InvalidParameterValue", expired)
+		_, err := h.Invoke(h.Context(), sqsapi.OpChangeMessageVisibility, &sqsapi.ChangeMessageVisibilityInput{QueueUrl: url, ReceiptHandle: older, VisibilityTimeout: 10})
+		wantError(h.T, err, "InvalidParameterValue", expired)
+		if err := h.remove(&sqsapi.DeleteMessageInput{QueueUrl: url, ReceiptHandle: latest}); err != nil {
+			h.Fatalf("DeleteMessage with the latest handle = %s: %s", err.ID.QueryCode, err.Message)
+		}
+	})
+}
+
 // bubbleTB hides *testing.T from rapid, which would otherwise call
 // T.Deadline, forbidden inside a synctest bubble.
 type bubbleTB struct{ *testing.T }
@@ -284,16 +378,16 @@ func TestVisibilityStateMachine(t *testing.T) {
 			queues++
 			m := newVisibilityMachine(t, h, fmt.Sprintf("machine-%d", queues))
 			t.Repeat(map[string]func(*rapid.T){
-				"send":          m.send,
-				"receive":       m.receive,
-				"deleteCurrent": m.deleteCurrent,
-				"deleteStale":   m.deleteStale,
-				"deleteUnknown": m.deleteUnknown,
-				"changeCurrent": m.changeCurrent,
-				"changeStale":   m.changeStale,
-				"purge":         m.purge,
-				"advance":       m.advance,
-				"":              m.check,
+				"send":           m.send,
+				"receive":        m.receive,
+				"deleteReceived": m.deleteReceived,
+				"deleteGone":     m.deleteGone,
+				"deleteUnknown":  m.deleteUnknown,
+				"changeReceived": m.changeReceived,
+				"changeGone":     m.changeGone,
+				"purge":          m.purge,
+				"advance":        m.advance,
+				"":               m.check,
 			})
 		})
 	})

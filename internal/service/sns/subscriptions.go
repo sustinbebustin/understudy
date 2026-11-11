@@ -17,6 +17,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/paging"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
 	"github.com/sustinbebustin/understudy/internal/store"
@@ -38,9 +39,8 @@ const (
 // bindSubscriptions binds the subscription lifecycle and listings.
 // Subscribe's note is sns-http-delivery.md 8.1's text. A DeliveryPolicy
 // passed to Subscribe applies as SetSubscriptionAttributes's does:
-// sicklyRetryPolicy and guaranteed are stored and echoed, never applied
-// (6.2, SNSH-18), and the 3,600-second total retry time is not checked
-// (httpRetryPolicy).
+// throttlePolicy, sicklyRetryPolicy and guaranteed are stored and echoed,
+// never applied (6.2, 6.4, SNSH-18, SNSH-20).
 func (s *Service) bindSubscriptions(b snsapi.Binder) {
 	b.Subscribe(s.subscribe, registry.Partial{Note: "sqs and lambda endpoints are delivered to, and their failed deliveries go to the RedrivePolicy queue; " +
 		"the endpoint's policy is not checked at Subscribe (sns.subscribe.policy-check), so under iam.enforce=enforce a policy that refuses SNS refuses each delivery; " +
@@ -72,7 +72,7 @@ func (s *Service) subscribe(_ context.Context, c *kernel.Call, in *snsapi.Subscr
 	if in.Endpoint != nil {
 		endpoint = *in.Endpoint
 	}
-	protocol, err := subscribeProtocol(in.Protocol, endpoint)
+	protocol, err := subscribeProtocol(in.Protocol, endpoint, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -164,9 +164,9 @@ type added struct {
 // endpoint when settings agree with it. A new subscription whose
 // FilterPolicy would pass the topic's quota is still stored, without the
 // policy, and Subscribe answers the quota error, as AWS still creates it
-// (sns.md 3.1). Under sns.http.resubscribe-pending a repeat for a pending
-// http or https subscription sends its endpoint the SubscriptionConfirmation
-// again, with the same token and expiry (sns-http-delivery.md 2.2).
+// (sns.md 3.1). A repeat for a pending http or https subscription gives it
+// token as a further token and sends its endpoint a SubscriptionConfirmation
+// carrying it (sns-http-delivery.md 2.2).
 func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscription, settings []subscriptionSetting, route confirmRoute) (Subscription, *awserr.Error) {
 	token := ""
 	if route != confirmedAtSubscribe {
@@ -187,11 +187,10 @@ func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscr
 			return added{}, errTopicNotFound()
 		}
 		if existing, ok := t.subscribed(candidate.Protocol, candidate.Endpoint); ok {
-			tx.Unchanged()
-			return added{sub: existing}, s.resubscribe(tx, route, st, ref, &t, &existing, settings, l, now)
+			return added{sub: existing}, s.resubscribe(tx, route, st, ref, &t, &existing, settings, token, l, now)
 		}
 		if route != confirmedAtSubscribe {
-			candidate.Status = Pending{Token: token, Expires: now.Add(tokenValidity)}
+			candidate.Status = Pending{Tokens: []string{token}, Expires: now.Add(tokenValidity)}
 		}
 		refused := t.admitFilterPolicy(&candidate)
 		t.Subscriptions = append(t.Subscriptions, candidate)
@@ -212,20 +211,30 @@ func (s *Service) addSubscription(c *kernel.Call, ref topicRef, candidate Subscr
 
 // resubscribe answers a repeated Subscribe of existing, the topic's
 // subscription of the same protocol and endpoint: the conflict when
-// settings disagree with it, else nil. Under sns.http.resubscribe-pending a
-// pending http or https subscription's endpoint gets its
-// SubscriptionConfirmation again, with the same token and expiry, a new
-// MessageId and the current Timestamp (sns-http-delivery.md 2.2); a
-// confirmed one gets nothing.
-func (s *Service) resubscribe(tx *kernel.Tx, route confirmRoute, st *State, ref topicRef, t *Topic, existing *Subscription, settings []subscriptionSetting, l links, now clock.Instant) *awserr.Error {
+// settings disagree with it, else nil. A pending http or https subscription
+// keeps its tokens and expiry, gains token, and its endpoint gets a
+// SubscriptionConfirmation carrying token, with a new MessageId and the
+// current Timestamp; each of its tokens then confirms it
+// (sns-http-delivery.md 2.2, SNSH-12). Keeping the expiry is inferred:
+// SNSH-12 did not record whether the repeat extends it. A confirmed
+// subscription, or one of another protocol, gets nothing and is unchanged.
+func (s *Service) resubscribe(tx *kernel.Tx, route confirmRoute, st *State, ref topicRef, t *Topic, existing *Subscription, settings []subscriptionSetting, token string, l links, now clock.Instant) *awserr.Error {
 	if err := existing.agrees(settings); err != nil {
 		return err
 	}
 	pending, isPending := existing.Status.(Pending)
 	if !isPending || route != confirmedFromEndpoint {
+		tx.Unchanged()
 		return nil
 	}
-	return s.sendConfirmation(tx, route, st, ref, t, existing, pending.Token, l, now)
+	pending.Tokens = append(slices.Clone(pending.Tokens), token)
+	existing.Status = pending
+	t.Subscriptions[t.indexOf(existing.ID)].Status = pending
+	if err := s.sendConfirmation(tx, route, st, ref, t, existing, token, l, now); err != nil {
+		return err
+	}
+	st.Topics[ref.name] = *t
+	return nil
 }
 
 // sendConfirmation hands tx the SubscriptionConfirmation of token that
@@ -326,10 +335,13 @@ func (s *Service) confirmationMessage(ref topicRef, token string, l links, now c
 
 // subscribeProtocol parses Subscribe's Protocol: sms, application and
 // firehose, which understudy does not accept, are NotImplemented (ADR
-// 0015); anything else unknown is AWS's recorded text (sns.md 3.1). An sms
-// endpoint is checked first, so a number AWS refuses gets AWS's answer
-// rather than NotImplemented.
-func subscribeProtocol(name, endpoint string) (Protocol, *awserr.Error) {
+// 0015) on a standard topic and "Invalid protocol type" on a FIFO one, as
+// every protocol but sqs is; anything else unknown is AWS's recorded text
+// (sns.md 3.1). An sms endpoint is checked first, so a number AWS refuses
+// gets AWS's answer rather than NotImplemented, and an application
+// endpoint that is not an ARN is refused before anything else, as AWS
+// recorded (testdata/parity/sns/R16/05-application-non-arn.json).
+func subscribeProtocol(name, endpoint string, topic topicRef) (Protocol, *awserr.Error) {
 	if p, ok := parseProtocol(name); ok {
 		return p, nil
 	}
@@ -338,11 +350,26 @@ func subscribeProtocol(name, endpoint string) (Protocol, *awserr.Error) {
 		if !e164.MatchString(endpoint) {
 			return 0, errSMSEndpoint(endpoint)
 		}
-		return 0, errProtocolNotImplemented(name)
-	case "application", "firehose":
-		return 0, errProtocolNotImplemented(name)
+	case "application":
+		if _, err := aws.ParseARN(endpoint); err != nil {
+			return 0, errInvalidParameter("Application endpoint arn invalid:" + endpoint)
+		}
+	case "firehose":
+	default:
+		return 0, errInvalidParameter("Amazon SNS does not support this protocol string: " + name)
 	}
-	return 0, errInvalidParameter("Amazon SNS does not support this protocol string: " + name)
+	if topic.fifo() {
+		return 0, errFIFOProtocol(name)
+	}
+	return 0, errProtocolNotImplemented(name)
+}
+
+// errFIFOProtocol answers a Subscribe of a FIFO topic with a protocol other
+// than sqs. AWS recorded it for lambda and http (testdata/parity/sns/R16
+// 04-subscribe-fifo-lambda.json, 04-subscribe-fifo-http.json); for the
+// other protocols the text is inferred.
+func errFIFOProtocol(protocol string) *awserr.Error {
+	return errInvalidParameter("Invalid protocol type: " + protocol)
 }
 
 // e164 is an E.164 phone number with an optional leading plus, the form
@@ -355,17 +382,17 @@ var e164 = regexp.MustCompile(`^\+?[1-9]\d{1,14}$`)
 // the others. An sqs or lambda ARN must name a scope the outbox delivers
 // to (aws.ScopeOf), or every later publish to the topic would fail. Only
 // the SQS endpoint ARN text and the FIFO-queue-on-a-standard-topic text
-// are AWS-recorded (sns.md 3.1); the FIFO-topic endpoint text, whose
-// wording sns.md 3.1 leaves UNVERIFIED, and the lambda and email texts are
-// inferred. The http text is AWS's for an endpoint without the protocol's
-// scheme (sns-http-delivery.md 2.1); giving it for a URL with the scheme
-// that does not parse with a host is inferred.
+// are AWS-recorded (sns.md 3.1), as is the FIFO-topic protocol text
+// (errFIFOProtocol); the lambda and email texts are inferred. The http
+// text is AWS's for an endpoint without the protocol's scheme
+// (sns-http-delivery.md 2.1); giving it for a URL with the scheme that
+// does not parse with a host is inferred.
 func checkEndpoint(p Protocol, endpoint string, topic topicRef) (string, *awserr.Error) {
 	if endpoint == "" {
 		return "", errReason("Endpoint", "no value for required parameter")
 	}
 	if topic.fifo() && p != ProtocolSQS {
-		return "", errReason("Endpoint", "FIFO topics support only Amazon SQS endpoints")
+		return "", errFIFOProtocol(p.String())
 	}
 	switch p {
 	case ProtocolSQS:
@@ -446,9 +473,12 @@ func (s *Service) confirmSubscription(_ context.Context, c *kernel.Call, in *sns
 
 // confirm confirms the subscription of any topic of scope that waits for
 // by's token, as by says, and returns its ARN. Confirming again with the
-// token it was confirmed with succeeds and changes nothing. A token with a
-// character that is not hex is "Invalid token"; any other token that
-// confirms nothing, expired included, is "Invalid parameter: Token"
+// token it was confirmed with succeeds and changes nothing; any other of
+// its tokens is 403 AuthorizationError "Subscription already confirmed"
+// (sns-http-delivery.md 2.2, SNSH-12, AWS-recorded). The token of an
+// UnsubscribeConfirmation restores the subscription it removed (restore).
+// A token with a character that is not hex is "Invalid token"; any other
+// token that confirms nothing, expired included, is "Invalid parameter: Token"
 // (LocalStack test_sns_confirm_subscription_wrong_token and
 // test_subscribe_external_http_endpoint, AWS-recorded). Which text an
 // odd-length hex token gets is inferred: none was recorded.
@@ -460,15 +490,19 @@ func (s *Service) confirm(c *kernel.Call, scope aws.Scope, by tokenConfirmation)
 	ref, err := kernel.Write(c, s.cells, scope, func(st *State, now clock.Instant, tx *kernel.Tx) (subscriptionRef, *awserr.Error) {
 		name, i, ok := st.holder(token, now)
 		if !ok {
-			return subscriptionRef{}, errInvalidParameter("Token")
+			return st.restore(scope, token, by, now)
 		}
 		ref := subscriptionRef{topic: topicRef{scope: scope, name: name}, id: st.Topics[name].Subscriptions[i].ID}
-		if _, pending := st.Topics[name].Subscriptions[i].Status.(Pending); !pending {
+		pending, isPending := st.Topics[name].Subscriptions[i].Status.(Pending)
+		if !isPending {
 			tx.Unchanged()
-			return ref, nil
+			if st.Topics[name].Subscriptions[i].confirmedWith(token) {
+				return ref, nil
+			}
+			return subscriptionRef{}, errAlreadyConfirmed()
 		}
 		t, _ := st.writable(name, now)
-		t.Subscriptions[t.indexOf(ref.id)].Status = Confirmed{By: by}
+		t.Subscriptions[t.indexOf(ref.id)].Status = Confirmed{By: by, Unused: pending.othersThan(token)}
 		st.Topics[name] = t
 		return ref, nil
 	})
@@ -478,28 +512,86 @@ func (s *Service) confirm(c *kernel.Call, scope aws.Scope, by tokenConfirmation)
 	return ref.arn(), nil
 }
 
-// holder finds the subscription token confirms: the pending one waiting
-// for it, unless expired by now, or the one already confirmed with it. It
-// returns the topic's name and the subscription's index in it; topics are
-// searched in name order, though a token drawn from 144 random bytes is in
-// at most one of them.
+// holder finds the subscription that holds token: the pending one with it
+// among its tokens, unless expired by now, or the confirmed one that was
+// confirmed with it or held it unused. It returns the topic's name and the
+// subscription's index in it; topics are searched in name order, though a
+// token drawn from 144 random bytes is in at most one of them.
 func (s *State) holder(token string, now clock.Instant) (topic string, index int, ok bool) {
 	for _, name := range slices.Sorted(maps.Keys(s.Topics)) {
 		subs := s.Topics[name].Subscriptions
 		for i := range subs {
 			switch status := subs[i].Status.(type) {
 			case Pending:
-				if status.Token == token && !subs[i].expired(now) {
+				if slices.Contains(status.Tokens, token) && !subs[i].expired(now) {
 					return name, i, true
 				}
 			case Confirmed:
-				if prior, ok := status.By.(tokenConfirmation); ok && prior.token() == token {
+				if subs[i].confirmedWith(token) || slices.Contains(status.Unused, token) {
 					return name, i, true
 				}
 			}
 		}
 	}
 	return "", 0, false
+}
+
+// restore puts back, confirmed as by says, the restorable subscription of
+// any topic of scope that token restores, and returns its ref
+// (RestorableSubscription). A token that restores none, gone by now
+// included, is "Invalid parameter: Token", as any token that confirms
+// nothing (2.3). So is one whose topic has subscribed the same endpoint
+// again since, which would otherwise hold it twice; that answer is
+// inferred. A FilterPolicy the topic's quota no longer has room for
+// refuses the restore with the quota error and keeps it restorable, which
+// is inferred too.
+func (s *State) restore(scope aws.Scope, token string, by tokenConfirmation, now clock.Instant) (subscriptionRef, *awserr.Error) {
+	for _, name := range slices.Sorted(maps.Keys(s.Topics)) {
+		if existing := s.Topics[name]; existing.restorableIndex(token, now) < 0 {
+			continue
+		}
+		t, _ := s.writable(name, now)
+		j := t.restorableIndex(token, now)
+		sub := t.Restorable[j].Subscription
+		if _, again := t.subscribed(sub.Protocol, sub.Endpoint); again {
+			return subscriptionRef{}, errInvalidParameter("Token")
+		}
+		if _, filtered := sub.Attributes[attrFilterPolicy]; filtered {
+			if err := t.checkFilterPolicyQuota(sub.ID); err != nil {
+				return subscriptionRef{}, err
+			}
+		}
+		sub.Status = Confirmed{By: by}
+		t.Restorable = slices.Delete(t.Restorable, j, j+1)
+		if len(t.Restorable) == 0 {
+			t.Restorable = nil
+		}
+		t.Subscriptions = append(t.Subscriptions, sub)
+		s.Topics[name] = t
+		return subscriptionRef{topic: topicRef{scope: scope, name: name}, id: sub.ID}, nil
+	}
+	return subscriptionRef{}, errInvalidParameter("Token")
+}
+
+// restores reports whether token restores a subscription of s, unless
+// gone by now.
+func (s *State) restores(token string, now clock.Instant) bool {
+	for _, t := range s.Topics {
+		if t.restorableIndex(token, now) >= 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// confirmedWith reports a subscription confirmed with token.
+func (sub *Subscription) confirmedWith(token string) bool {
+	c, ok := sub.Status.(Confirmed)
+	if !ok {
+		return false
+	}
+	prior, ok := c.By.(tokenConfirmation)
+	return ok && prior.token() == token
 }
 
 // hexText reports whether s holds hex digits only.
@@ -542,7 +634,8 @@ const (
 // by an authenticated caller. Under sns.http.unsubscribe-confirmation an
 // unauthenticated caller that removes an http or https subscription still
 // attached to its topic sends its endpoint an UnsubscribeConfirmation
-// (sns-http-delivery.md 2.4); a detached one, whose topic is gone, sends
+// (sns-http-delivery.md 2.4), whose token then restores it
+// (RestorableSubscription); a detached one, whose topic is gone, sends
 // nothing, which is inferred.
 func (s *Service) unsubscribe(c *kernel.Call, ref subscriptionRef, by caller) *awserr.Error {
 	l := s.httpLinks(c.Endpoint())
@@ -599,36 +692,43 @@ func mayUnsubscribe(sub *Subscription, by caller) *awserr.Error {
 // region, those it owns on another account's topic included: "Returns a
 // list of the requester's subscriptions" (API_ListSubscriptions.html). A
 // subscription another account made on the caller's topic is that
-// account's. They come by topic account, then topic name, then in
-// creation order.
+// account's. The subscriptions of a deleted topic are listed until they
+// are gone (sns/R16 06-list-subscriptions-after-delete, detachedRetention).
+// They come ordered by subscription ARN.
 func (s *Service) listSubscriptions(_ context.Context, c *kernel.Call, in *snsapi.ListSubscriptionsInput) (*snsapi.ListSubscriptionsOutput, *awserr.Error) {
 	own := c.Scope()
 	owner := own.Account.String()
 	now := s.clock.Now()
-	var all []snsapi.Subscription
+	var all []listedSubscription
 	for _, scope := range s.cells.Keys(store.ScopeKeys()) {
 		if scope.Partition != own.Partition || scope.Region != own.Region {
 			continue
 		}
-		mine := store.View(s.cells, scope, func(st *State) []snsapi.Subscription {
-			out := make([]snsapi.Subscription, 0, len(st.Topics))
+		mine := store.View(s.cells, scope, func(st *State) []listedSubscription {
+			out := make([]listedSubscription, 0, len(st.Topics))
 			for _, name := range slices.Sorted(maps.Keys(st.Topics)) {
 				t := st.Topics[name]
 				t.Subscriptions = slices.DeleteFunc(slices.Clone(t.Subscriptions), func(sub Subscription) bool { return sub.OwnerAccountID != owner })
 				out = append(out, listed(topicRef{scope: scope, name: name}, &t, now)...)
 			}
+			for i := range st.Detached {
+				d := &st.Detached[i]
+				if d.Subscription.OwnerAccountID == owner && !d.gone(now) {
+					out = append(out, listedOne(topicRef{scope: scope, name: d.Topic}, &d.Subscription))
+				}
+			}
 			return out
 		})
 		all = append(all, mine...)
 	}
-	items, next, err := page(all, in.NextToken)
+	items, next, err := subscriptionsPage(listingSubscriptions, all, in.NextToken)
 	if err != nil {
 		return nil, err
 	}
-	return &snsapi.ListSubscriptionsOutput{Subscriptions: nonNil(items), NextToken: next}, nil
+	return &snsapi.ListSubscriptionsOutput{Subscriptions: items, NextToken: next}, nil
 }
 
-// listSubscriptionsByTopic lists a topic's subscriptions in creation order.
+// listSubscriptionsByTopic lists a topic's subscriptions ordered by ARN.
 func (s *Service) listSubscriptionsByTopic(_ context.Context, c *kernel.Call, in *snsapi.ListSubscriptionsByTopicInput) (*snsapi.ListSubscriptionsByTopicOutput, *awserr.Error) {
 	ref, err := resolveTopic(c, "TopicArn", in.TopicArn)
 	if err != nil {
@@ -638,36 +738,66 @@ func (s *Service) listSubscriptionsByTopic(_ context.Context, c *kernel.Call, in
 	if !ok {
 		return nil, errTopicNotFound()
 	}
-	items, next, err := page(listed(ref, &t, s.clock.Now()), in.NextToken)
+	items, next, err := subscriptionsPage(listingTopicSubscriptions, listed(ref, &t, s.clock.Now()), in.NextToken)
 	if err != nil {
 		return nil, err
 	}
-	return &snsapi.ListSubscriptionsByTopicOutput{Subscriptions: nonNil(items), NextToken: next}, nil
+	return &snsapi.ListSubscriptionsByTopicOutput{Subscriptions: items, NextToken: next}, nil
 }
+
+// listedSubscription is a subscription as a listing renders it, with the
+// ARN the listing pages by. That is the subscription's own ARN even where
+// the listing shows PendingConfirmation, which is not unique.
+type listedSubscription struct {
+	arn string
+	api snsapi.Subscription
+}
+
+func (l listedSubscription) key() string { return l.arn }
 
 // listed renders t's subscriptions for a listing, without those expired by
 // now; a pending one shows PendingConfirmation in place of its ARN
 // (sns.md 3.4), and an endpoint's password is masked (maskedEndpoint).
-func listed(ref topicRef, t *Topic, now clock.Instant) []snsapi.Subscription {
-	out := make([]snsapi.Subscription, 0, len(t.Subscriptions))
-	topicARN := ref.arn().String()
-	for _, sub := range t.Subscriptions {
-		if sub.expired(now) {
-			continue
+func listed(ref topicRef, t *Topic, now clock.Instant) []listedSubscription {
+	out := make([]listedSubscription, 0, len(t.Subscriptions))
+	for i := range t.Subscriptions {
+		if !t.Subscriptions[i].expired(now) {
+			out = append(out, listedOne(ref, &t.Subscriptions[i]))
 		}
-		arn := subscriptionRef{topic: ref, id: sub.ID}.arn().String()
-		if _, pending := sub.Status.(Pending); pending {
-			arn = pendingInListings().Value
-		}
-		out = append(out, snsapi.Subscription{
-			SubscriptionArn: new(arn),
-			Owner:           new(sub.OwnerAccountID),
-			Protocol:        new(sub.Protocol.String()),
-			Endpoint:        new(maskedEndpoint(sub.Endpoint)),
-			TopicArn:        new(topicARN),
-		})
 	}
 	return out
+}
+
+// listedOne renders sub, a subscription to the topic ref names, for a
+// listing.
+func listedOne(ref topicRef, sub *Subscription) listedSubscription {
+	own := subscriptionRef{topic: ref, id: sub.ID}.arn().String()
+	shown := own
+	if _, pending := sub.Status.(Pending); pending {
+		shown = pendingInListings().Value
+	}
+	return listedSubscription{arn: own, api: snsapi.Subscription{
+		SubscriptionArn: new(shown),
+		Owner:           new(sub.OwnerAccountID),
+		Protocol:        new(sub.Protocol.String()),
+		Endpoint:        new(maskedEndpoint(sub.Endpoint)),
+		TopicArn:        new(ref.arn().String()),
+	}}
+}
+
+// subscriptionsPage is the page of listing l that token names, as the
+// Subscription members a response carries; none is an empty list, so the
+// member is sent.
+func subscriptionsPage(l paging.Listing, all []listedSubscription, token *string) ([]snsapi.Subscription, *string, *awserr.Error) {
+	p, err := page(l, all, listedSubscription.key, token)
+	if err != nil {
+		return nil, nil, err
+	}
+	items := make([]snsapi.Subscription, len(p.Items))
+	for i, s := range p.Items {
+		items[i] = s.api
+	}
+	return items, p.Next, nil
 }
 
 // maskedEndpoint is endpoint as a listing shows it: the password of a
@@ -692,12 +822,4 @@ func maskedEndpoint(endpoint string) string {
 		return endpoint
 	}
 	return scheme + "://" + user + ":****" + rest[at:]
-}
-
-// nonNil returns an empty list for none, so the member is sent.
-func nonNil(items []snsapi.Subscription) []snsapi.Subscription {
-	if items == nil {
-		return []snsapi.Subscription{}
-	}
-	return items
 }

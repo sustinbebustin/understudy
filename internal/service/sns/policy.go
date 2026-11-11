@@ -33,37 +33,6 @@ func parseObject(s string) (document.Map, bool) {
 	return m, ok
 }
 
-// uniqueMembers decodes s as one JSON object whose member names are all
-// distinct; false when s is not one. parseObject lets the last of
-// duplicate names win.
-func uniqueMembers(s string) (document.Map, bool) {
-	d := jsonx.NewDecoder([]byte(s))
-	if d.BeginObject() != nil {
-		return nil, false
-	}
-	m := document.Map{}
-	seen := map[string]struct{}{}
-	for {
-		name, more, err := d.NextName()
-		if err != nil {
-			return nil, false
-		}
-		if !more {
-			break
-		}
-		if _, dup := seen[name]; dup {
-			return nil, false
-		}
-		seen[name] = struct{}{}
-		v, err := d.ReadValue()
-		if err != nil {
-			return nil, false
-		}
-		m = append(m, document.Entry{Key: name, Value: v})
-	}
-	return m, d.End() == nil
-}
-
 // parseJSON decodes s as one JSON value.
 func parseJSON(s string) (document.Value, bool) {
 	d := jsonx.NewDecoder([]byte(s))

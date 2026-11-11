@@ -1,8 +1,10 @@
 package awsquery_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -38,6 +40,60 @@ func TestErrorResponseRootMatchesRecording(t *testing.T) {
 			}
 		})
 	}
+}
+
+// What precedes the root element is what AWS sent before it: SQS opens
+// every Query body, success and error, with <?xml version="1.0"?> and no
+// newline; SNS sends no declaration.
+func TestBodyPrologMatchesRecording(t *testing.T) {
+	t.Parallel()
+	deleteMessage := func(t *testing.T) []byte {
+		t.Helper()
+		resp, aerr := awsquery.Codec{}.Encode(operation(t, sqsapi.Service(), "DeleteMessage"), requestID, nil, http.StatusOK)
+		if aerr != nil {
+			t.Fatalf("Encode = %s %q", aerr.ID.Shape, aerr.Message)
+		}
+		return resp.Body
+	}
+	encodeError := func(svc *registry.Service, e *awserr.Error) func(*testing.T) []byte {
+		return func(*testing.T) []byte { return awsquery.Codec{}.EncodeError(svc, requestID, e).Body }
+	}
+	cases := []struct {
+		fixture string
+		encode  func(*testing.T) []byte
+	}{
+		{"sqs/R11/04-deletemessage-query.json", deleteMessage},
+		{"sqs/R11/05-sqs-query-nonexistent-queue.json", encodeError(sqsapi.Service(), sqsapi.ErrQueueDoesNotExist("The specified queue does not exist."))},
+		{"sqs/R11/05-sqs-unknown-action.json", encodeError(sqsapi.Service(), sqsapi.ErrInvalidAction("The action NoSuchAction is not valid for this endpoint."))},
+		{"sns/R11/05-sns-unknown-action.json", encodeError(snsapi.Service(), snsapi.ErrInvalidParameterException("Could not find operation NoSuchAction for version 2010-03-31"))},
+	}
+	for _, c := range cases {
+		t.Run(c.fixture, func(t *testing.T) {
+			t.Parallel()
+			want := prolog(t, recordedBody(t, c.fixture))
+			if got := prolog(t, c.encode(t)); got != want {
+				t.Errorf("prolog = %q, recorded %q", got, want)
+			}
+		})
+	}
+}
+
+// prolog is the text of body before its root element's start tag.
+func prolog(t *testing.T, body []byte) string {
+	t.Helper()
+	start := 0
+	if bytes.HasPrefix(body, []byte("<?")) {
+		end := bytes.Index(body, []byte("?>"))
+		if end < 0 {
+			t.Fatalf("unterminated declaration in %s", body)
+		}
+		start = end + len("?>")
+	}
+	root := bytes.IndexByte(body[start:], '<')
+	if root < 0 {
+		t.Fatalf("no root element in %s", body)
+	}
+	return string(body[:start+root])
 }
 
 // recordedBody is the body of the single response a parity fixture records.

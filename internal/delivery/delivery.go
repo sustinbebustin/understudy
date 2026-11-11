@@ -27,6 +27,11 @@ type Request struct {
 	// DLQ is where a delivery goes when its retries are exhausted or the
 	// target is gone; nil drops it.
 	DLQ *aws.ARN
+	// DLQMessage is the dead letter the producer built, which the outbox
+	// sends to DLQ as it is instead of deriving one from Target; nil for
+	// every delivery but SNSToLambda's with a DLQ, whose dead letter is the
+	// SQS notification envelope only SNS can write (sns.md 7.4).
+	DLQMessage *DeadLetterMessage
 	// Sender is set for the Lambda* and ESM* mechanisms and nil for every
 	// other: Lambda delivers an asynchronous invocation's record or dead
 	// letter (lambda-destinations-layers.md 2.5, 11.3), and an event source
@@ -44,6 +49,16 @@ type Request struct {
 	// other: the outbox renders the target's payload from it before each
 	// attempt (scheduler.md 14.4.2).
 	Invocation *SchedulerInvocation
+}
+
+// DeadLetterMessage is a dead letter its producer built: the SQS message
+// body and attributes, and the group and deduplication ids a FIFO
+// dead-letter queue takes.
+type DeadLetterMessage struct {
+	Body       string
+	Attributes []MessageAttribute
+	GroupID    string
+	DedupID    string
 }
 
 // LambdaSender is a Lambda* delivery's sender: the execution role it runs
@@ -496,9 +511,6 @@ type SNSHTTP struct {
 	// BackoffFunction is kept for when a recording settles the curves;
 	// under sns.http.backoff-curves every function steps linearly.
 	BackoffFunction BackoffFunction
-	// MaxReceivesPerSecond is throttlePolicy.maxReceivesPerSecond; 0 for
-	// none.
-	MaxReceivesPerSecond int
 }
 
 // Retries is the number of retries after the first attempt, the sum of the
@@ -536,14 +548,15 @@ func (p SNSHTTP) Delay(retry int) (time.Duration, bool) {
 	}
 }
 
-// PaceInterval is the least time between the starts of two attempts to
-// the subscription, 1/maxReceivesPerSecond in whole nanoseconds, 0 without
-// throttling (sns-http-delivery.md 6.4).
-func (p SNSHTTP) PaceInterval() time.Duration {
-	if p.MaxReceivesPerSecond <= 0 {
-		return 0
+// TotalDelay is the sum of the delays of every retry, the time a delivery
+// that keeps failing spends waiting between attempts.
+func (p SNSHTTP) TotalDelay() time.Duration {
+	var total time.Duration
+	for retry := 1; retry <= p.Retries(); retry++ {
+		d, _ := p.Delay(retry)
+		total += d
 	}
-	return time.Second / time.Duration(p.MaxReceivesPerSecond)
+	return total
 }
 
 func (SNSManaged) isRetryPolicy()        {}

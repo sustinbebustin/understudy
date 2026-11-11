@@ -24,7 +24,7 @@ func TestStateCodecRoundTrips(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		st := newState(aws.Scope{})
 		if rapid.Bool().Draw(t, "signed") {
-			st.Signing = &SigningKey{Private: bytes(t, "private"), Certificate: bytes(t, "certificate")}
+			st.Signing = &SigningKey{Private: someBytes(t, "private"), Certificate: someBytes(t, "certificate")}
 		}
 		for i := range rapid.IntRange(0, 3).Draw(t, "topics") {
 			name := "t" + strconv.Itoa(i)
@@ -37,6 +37,7 @@ func TestStateCodecRoundTrips(t *testing.T) {
 				Tags:               stringMap(t, "tags"),
 				Subscriptions:      subscriptions(t),
 				Unsubscribed:       rapid.IntRange(0, 100).Draw(t, "unsubscribed"),
+				Restorable:         restorables(t),
 			}
 		}
 		for _, sub := range subscriptions(t) {
@@ -86,14 +87,37 @@ func subscriptions(t *rapid.T) []Subscription {
 			Principal:          rapid.SampledFrom([]string{"", "arn:aws:iam::000000000000:root"}).Draw(t, "principal"),
 			RawMessageDelivery: rapid.Bool().Draw(t, "raw"),
 			Attributes:         stringMap(t, "subscriptionAttributes"),
-			Status:             Confirmed{By: confirmedBy(t)},
+			Status:             Confirmed{By: confirmedBy(t), Unused: tokens(t, 0, "unused")},
 		}
 		if rapid.Bool().Draw(t, "pending") {
-			sub.Status = Pending{Token: rapid.StringMatching(`[0-9a-f]{8}`).Draw(t, "token"), Expires: instant(t, "expires")}
+			sub.Status = Pending{Tokens: tokens(t, 1, "tokens"), Expires: instant(t, "expires")}
 		}
 		out = append(out, sub)
 	}
 	return out
+}
+
+// restorables draws nil or subscriptions with the tokens that restore them.
+func restorables(t *rapid.T) []RestorableSubscription {
+	subs := subscriptions(t)
+	if len(subs) == 0 {
+		return nil
+	}
+	out := make([]RestorableSubscription, 0, len(subs))
+	for _, sub := range subs {
+		out = append(out, RestorableSubscription{Subscription: sub, Token: rapid.StringMatching(`[0-9a-f]{8}`).Draw(t, "restoreToken"), Until: instant(t, "restorableUntil")})
+	}
+	return out
+}
+
+// tokens draws nil when least is 0 and it draws none, else least to 3
+// tokens.
+func tokens(t *rapid.T, least int, label string) []string {
+	n := rapid.IntRange(least, 3).Draw(t, label)
+	if n == 0 {
+		return nil
+	}
+	return rapid.SliceOfN(rapid.StringMatching(`[0-9a-f]{8}`), n, n).Draw(t, label+"Values")
 }
 
 // confirmedBy draws one of the ways a subscription can be confirmed.
@@ -117,7 +141,7 @@ func stringMap(t *rapid.T, label string) map[string]string {
 	return rapid.MapOfN(rapid.StringMatching(`[A-Za-z]{1,8}`), rapid.String(), 1, 3).Draw(t, label+"Entries")
 }
 
-func bytes(t *rapid.T, label string) []byte {
+func someBytes(t *rapid.T, label string) []byte {
 	return rapid.SliceOfN(rapid.Byte(), 1, 16).Draw(t, label)
 }
 

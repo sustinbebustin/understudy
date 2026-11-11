@@ -13,7 +13,7 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections.
-const stateVersion = 2
+const stateVersion = 4
 
 // State is the SNS state of one account and region: its topics by name and
 // the key notifications from them are signed with. Records are values,
@@ -26,8 +26,8 @@ type State struct {
 	// ever made (sns.md Implications 7).
 	Signing *SigningKey `json:"signing,omitempty"`
 	// Detached are the subscriptions of deleted topics, oldest first.
-	// GetSubscriptionAttributes and Unsubscribe still find them until they
-	// are gone; nothing is delivered to them.
+	// ListSubscriptions, GetSubscriptionAttributes and Unsubscribe still
+	// find them until they are gone; nothing is delivered to them.
 	Detached []DetachedSubscription `json:"detached,omitempty"`
 }
 
@@ -111,6 +111,41 @@ type Topic struct {
 	// Unsubscribed counts subscriptions removed from the topic, as
 	// SubscriptionsDeleted reports it.
 	Unsubscribed int `json:"unsubscribed,omitempty"`
+	// Restorable are the subscriptions removed from the topic that an
+	// UnsubscribeConfirmation's token can still restore, oldest first.
+	Restorable []RestorableSubscription `json:"restorable,omitempty"`
+}
+
+// RestorableSubscription is a confirmed http or https subscription an
+// unsigned unsubscribe removed, and the token of the UnsubscribeConfirmation
+// that sent its endpoint. Confirming with the token restores it under the
+// same ARN (sns-http-delivery.md 2.4, SNSH-16, AWS-recorded) until Until;
+// until then it is gone: not read, listed or delivered to. AWS did not
+// record what the old ARN answers in between, nor how long the token
+// lasts: treating it as gone, and the two days a confirmation token is
+// valid (2.2, aws-doc), are inferred. It keeps its attributes, which is
+// inferred too: the recorded subscription had only defaults.
+type RestorableSubscription struct {
+	// Subscription is as it was when removed; a restore replaces its
+	// Status.
+	Subscription Subscription  `json:"subscription"`
+	Token        string        `json:"token"`
+	Until        clock.Instant `json:"until"`
+}
+
+// gone reports a restorable subscription whose token stopped restoring it
+// at or before now.
+func (r *RestorableSubscription) gone(now clock.Instant) bool { return !now.Before(r.Until) }
+
+// restorableIndex returns the index in t.Restorable of the subscription
+// token restores, unless gone by now; -1 when there is none.
+func (t *Topic) restorableIndex(token string, now clock.Instant) int {
+	for i := range t.Restorable {
+		if t.Restorable[i].Token == token && !t.Restorable[i].gone(now) {
+			return i
+		}
+	}
+	return -1
 }
 
 // TopicKind says whether a topic is standard or FIFO and holds what only a
@@ -175,15 +210,36 @@ type Confirmation interface{ isConfirmation() }
 // Confirmed is a subscription that receives notifications.
 type Confirmed struct {
 	By ConfirmedBy `json:"by"`
+	// Unused are the tokens it held while pending other than the one it
+	// was confirmed with. ConfirmSubscription answers each with
+	// "Subscription already confirmed" (sns-http-delivery.md 2.2); that
+	// they keep that answer past the two days a token is valid is inferred.
+	Unused []string `json:"unused,omitempty"`
 }
 
-// Pending is a subscription waiting for ConfirmSubscription with Token.
+// Pending is a subscription waiting for ConfirmSubscription with any of
+// Tokens.
 type Pending struct {
-	Token string `json:"token"`
-	// Expires is when the token stops confirming and the subscription is
-	// gone: two days after Subscribe.
+	// Tokens are its tokens in the order they were sent, never empty: one
+	// from Subscribe, and one more from each repeat of it while pending
+	// (sns-http-delivery.md 2.2).
+	Tokens []string `json:"tokens"`
+	// Expires is when the tokens stop confirming and the subscription is
+	// gone: two days after the first Subscribe.
 	Expires clock.Instant `json:"expires"`
 }
+
+// othersThan returns p's tokens other than token, nil when there are none.
+func (p Pending) othersThan(token string) []string {
+	others := slices.DeleteFunc(slices.Clone(p.Tokens), func(t string) bool { return t == token })
+	if len(others) == 0 {
+		return nil
+	}
+	return others
+}
+
+// latest is the token p was given last, the one its endpoint got last.
+func (p Pending) latest() string { return p.Tokens[len(p.Tokens)-1] }
 
 func (Confirmed) isConfirmation() {}
 func (Pending) isConfirmation()   {}
@@ -274,11 +330,15 @@ func (sub *Subscription) expired(now clock.Instant) bool {
 	return ok && !now.Before(p.Expires)
 }
 
-// dropExpired removes the expired pending subscriptions from t, which must
-// not alias a cell. They are not counted in SubscriptionsDeleted: no source
-// says AWS counts them.
+// dropExpired removes the expired pending subscriptions and the gone
+// restorable ones from t, which must not alias a cell. They are not
+// counted in SubscriptionsDeleted: no source says AWS counts them.
 func (t *Topic) dropExpired(now clock.Instant) {
 	t.Subscriptions = slices.DeleteFunc(t.Subscriptions, func(sub Subscription) bool { return sub.expired(now) })
+	t.Restorable = slices.DeleteFunc(t.Restorable, func(r RestorableSubscription) bool { return r.gone(now) })
+	if len(t.Restorable) == 0 {
+		t.Restorable = nil
+	}
 }
 
 // writable returns a copy of the topic named name, to change and store
@@ -482,6 +542,10 @@ func (t *Topic) clone() Topic {
 	out.Subscriptions = slices.Clone(t.Subscriptions)
 	for i := range out.Subscriptions {
 		out.Subscriptions[i] = out.Subscriptions[i].clone()
+	}
+	out.Restorable = slices.Clone(t.Restorable)
+	for i := range out.Restorable {
+		out.Restorable[i].Subscription = out.Restorable[i].Subscription.clone()
 	}
 	if f, ok := t.Kind.(FIFO); ok {
 		f.Dedup = slices.Clone(f.Dedup)

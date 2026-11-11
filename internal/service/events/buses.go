@@ -3,7 +3,6 @@ package events
 import (
 	"context"
 	"errors"
-	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
@@ -363,7 +362,7 @@ func (s *Service) listEventBuses(_ context.Context, c *kernel.Call, in *eventbri
 			LastModifiedTime: new(b.Modified.Wire()),
 		})
 	}
-	out, next, err := page(listed, in.NextToken, in.Limit)
+	out, next, err := page(listingBuses, listed, func(b eventbridgeapi.EventBus) string { return *b.Name }, in.NextToken, in.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -568,36 +567,4 @@ func busSwitches() []fidelity.Switch[string] {
 		sw("events.bus-target.missing-bus", "dropped", evidence.AWSRecorded, "62-an-event-bus-as-a-target", "EBB-08", ebb("08-missing-target-bus"),
 			"eventbridge.PutTargets"),
 	}
-}
-
-// defaultPageSize is the page size of a List call without Limit; the
-// models cap Limit at 100 and AWS documents no default.
-const defaultPageSize = 100
-
-// page returns the page of items a NextToken and Limit select, and the
-// token of the next page. A token is the decimal offset of the page's first
-// item; one understudy did not issue answers ValidationException. An empty
-// page is an empty slice, never nil: the serializers leave a nil list out,
-// and AWS sends an empty one ({"Rules": []}).
-func page[T any](items []T, token *string, limit *int32) (out []T, next *string, err *awserr.Error) {
-	start := 0
-	if token != nil {
-		n, err := strconv.Atoi(*token)
-		if err != nil || n < 0 || n > len(items) || strconv.Itoa(n) != *token {
-			return nil, nil, errInvalidParameter("NextToken")
-		}
-		start = n
-	}
-	size := defaultPageSize
-	if limit != nil && *limit > 0 {
-		size = int(*limit)
-	}
-	end := min(start+size, len(items))
-	if start == end {
-		return []T{}, nil, nil
-	}
-	if end == len(items) {
-		return items[start:end], nil, nil
-	}
-	return items[start:end], new(strconv.Itoa(end)), nil
 }

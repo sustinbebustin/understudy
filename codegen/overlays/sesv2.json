@@ -18,7 +18,14 @@
         "dev.understudy#throttleError": "com.amazonaws.sesv2#TooManyRequestsException",
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDeniedException",
         "dev.understudy#validationError": {"code": "com.amazonaws.sesv2#BadRequestException"},
+        "dev.understudy#unknownOperationAnswer": "notFound",
         "dev.understudy#evidence": [
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/ses/SES-24/02-v2-unknown.json",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#unknownOperationAnswer"]
+          },
           {
             "label": "aws-recorded",
             "source": "testdata/parity/ses/IAM-ENF/39-sesv2.json: an IAM denial answers 403 with x-amzn-ErrorType AccessDeniedException; its model declares no AccessDeniedException, so the generic com.amazon.coral.service#AccessDeniedException answers (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",

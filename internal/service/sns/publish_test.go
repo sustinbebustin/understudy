@@ -10,14 +10,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"net/http"
 	"net/url"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/service/sns/envelope"
@@ -336,10 +341,6 @@ func TestMessageStructureJSONPicksTheProtocolEntry(t *testing.T) {
 			"not json":            "Invalid parameter: Message Structure - JSON message body failed to parse",
 			`{"sqs":"x"}`:         "Invalid parameter: Message Structure - No default entry in JSON message body",
 			`{"default":{"a":1}}`: "Invalid parameter: Message Structure - No default entry in JSON message body",
-			// Duplicate keys fail the whole Publish (API_Publish.html); the
-			// text is inferred.
-			`{"default":"a","sqs":"x","sqs":"y"}`: "Invalid parameter: Message Structure - JSON message body failed to parse",
-			`{"default":"a","default":"b"}`:       "Invalid parameter: Message Structure - JSON message body failed to parse",
 		} {
 			_, err := call(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, MessageStructure: new("json"), Message: body})
 			wantError(h, err, "InvalidParameter", msg)
@@ -347,6 +348,26 @@ func TestMessageStructureJSONPicksTheProtocolEntry(t *testing.T) {
 		h.settle()
 		if n := len(h.sent.all()); n != 1 {
 			h.Errorf("SQS received %d messages, want only the first publish's: a refused publish delivers nothing", n)
+		}
+	})
+}
+
+// TestMessageStructureDuplicateKeyLastWins checks that a duplicate member
+// is accepted and its last value delivered, as AWS recorded for "default"
+// (testdata/parity/sns/R16/03-x-message-structure-duplicate-key.json);
+// doing the same for a protocol member is inferred.
+func TestMessageStructureDuplicateKeyLastWins(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		h.subscribe(topic, "sqs", queueARN, map[string]string{"RawMessageDelivery": "true"})
+		h.subscribe(topic, "lambda", functionARN, nil)
+		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, MessageStructure: new("json"), Message: `{"default":"a","default":"b","sqs":"x","sqs":"y"}`})
+		h.settle()
+		if body := h.sent.all()[0].MessageBody; body != "y" {
+			h.Errorf("sqs body = %q, want the last sqs member", body)
+		}
+		if payload := string(h.invoked.all()[0].Payload); !strings.Contains(payload, `"Message":"b"`) {
+			h.Errorf("lambda event %s, want the last default member", payload)
 		}
 	})
 }
@@ -413,6 +434,13 @@ func TestMessageAttributeErrors(t *testing.T) {
 			{"list", attr("String.Array", "red"), "The message attribute 'list' with type 'String.Array' has a value that is not a JSON array of strings, numbers, true, false or null: red"},
 			{"list", attr("String.Array", `{"a":1}`), `The message attribute 'list' with type 'String.Array' has a value that is not a JSON array of strings, numbers, true, false or null: {"a":1}`},
 			{"list", attr("String.Array", `["a",["b"]]`), `The message attribute 'list' with type 'String.Array' has a value that is not a JSON array of strings, numbers, true, false or null: ["a",["b"]]`},
+			// testdata/parity/sns/R16/03-attr-number-abc.json (and
+			// 02-invalid-attribute.json for PublishBatch).
+			{"n", attr("Number", "abc"), "Could not cast message attribute 'n' value to number."},
+			// testdata/parity/sns/R16/03-attr-aws-prefix.json and
+			// 03-attr-amazon-prefix.json.
+			{"AWS.x", attr("String", "v"), "Message attribute names starting with 'AWS.' or 'Amazon.' are reserved for use by Amazon."},
+			{"Amazon.x", attr("String", "v"), "Message attribute names starting with 'AWS.' or 'Amazon.' are reserved for use by Amazon."},
 		} {
 			_, err := call(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m", MessageAttributes: map[string]snsapi.MessageAttributeValue{tc.name: tc.value}})
 			wantError(h, err, "ParameterValueInvalid", tc.message)
@@ -469,6 +497,84 @@ func TestPublishBatch(t *testing.T) {
 			{Id: "a", Message: strings.Repeat("x", 600)}, {Id: "b", Message: strings.Repeat("x", 600)},
 		}})
 		wantError(h, err, "BatchRequestTooLong", "The length of all the messages put together is more than the limit.")
+	})
+}
+
+// SNS message ids are version 5 UUIDs: those Publish and PublishBatch
+// answer and the envelope's MessageId, which is the same id
+// (sqs/R16/01-sqs-enveloped.json, sns/R16/02-subject-101.json).
+func TestMessageIDsAreVersion5(t *testing.T) {
+	v5 := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		h.subscribe(topic, "sqs", queueARN, nil)
+		one := must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "hello"})
+		batch := must(h, snsapi.OpPublishBatch, &snsapi.PublishBatchInput{TopicArn: topic, PublishBatchRequestEntries: []snsapi.PublishBatchRequestEntry{
+			{Id: "a", Message: "x"}, {Id: "b", Message: "y"},
+		}})
+		ids := make([]*string, 0, 1+len(batch.Successful))
+		ids = append(ids, one.MessageId)
+		for _, s := range batch.Successful {
+			ids = append(ids, s.MessageId)
+		}
+		if len(ids) != 3 {
+			h.Fatalf("Publish and PublishBatch answered %d ids, want 3", len(ids))
+		}
+		for _, id := range ids {
+			if id == nil || !v5.MatchString(*id) {
+				h.Errorf("message id %v, want a version 5 UUID", id)
+			}
+		}
+		h.settle()
+		for _, in := range h.sent.all() {
+			var env struct {
+				MessageID string `json:"MessageId"`
+			}
+			if err := json.Unmarshal([]byte(in.MessageBody), &env); err != nil || !v5.MatchString(env.MessageID) {
+				h.Errorf("envelope %s: MessageId %q (%v), want a version 5 UUID", in.MessageBody, env.MessageID, err)
+			}
+		}
+	})
+}
+
+// TestPublishBatchFailsOnlyABadSubjectsEntry replays sns/R16
+// 02-subject-101 and 02-invalid-attribute: a 101-character Subject fails
+// only its entry, in Failed, and the other entry is published; an invalid
+// message attribute still fails the whole call.
+func TestPublishBatchFailsOnlyABadSubjectsEntry(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events", nil)
+		h.subscribe(topic, "sqs", queueARN, map[string]string{"RawMessageDelivery": "true"})
+		out := must(h, snsapi.OpPublishBatch, &snsapi.PublishBatchInput{TopicArn: topic, PublishBatchRequestEntries: []snsapi.PublishBatchRequestEntry{
+			{Id: "ok", Message: "x"},
+			{Id: "bad", Message: "x", Subject: new(strings.Repeat("s", 101))},
+		}})
+		wantFailed := []snsapi.BatchResultErrorEntry{{Id: "bad", Code: "InvalidParameter", Message: new("Invalid parameter: Subject"), SenderFault: true}}
+		if len(out.Failed) != 1 || out.Failed[0].Id != wantFailed[0].Id || out.Failed[0].Code != wantFailed[0].Code ||
+			out.Failed[0].Message == nil || *out.Failed[0].Message != *wantFailed[0].Message || !out.Failed[0].SenderFault {
+			h.Errorf("Failed = %+v, want %+v", out.Failed, wantFailed)
+		}
+		if len(out.Successful) != 1 || *out.Successful[0].Id != "ok" || out.Successful[0].MessageId == nil {
+			h.Errorf("Successful = %+v, want the one entry ok with a MessageId", out.Successful)
+		}
+		got := h.sink.all()
+		if len(got) != 1 {
+			h.Fatalf("outbox took %d deliveries, want the ok entry's one", len(got))
+		}
+		if q, ok := got[0].Request.Target.(delivery.SQSQueue); !ok || q.Body != "x" {
+			h.Errorf("delivery target = %+v, want the raw message x to the queue", got[0].Request.Target)
+		}
+
+		_, err := call(h, snsapi.OpPublishBatch, &snsapi.PublishBatchInput{TopicArn: topic, PublishBatchRequestEntries: []snsapi.PublishBatchRequestEntry{
+			{Id: "ok", Message: "x"},
+			{Id: "bad", Message: "x", MessageAttributes: map[string]snsapi.MessageAttributeValue{"n": attr("Number", "abc")}},
+		}})
+		if err == nil || err.ID.QueryCode != "ParameterValueInvalid" || err.ID.Status != http.StatusBadRequest {
+			h.Errorf("PublishBatch with an invalid attribute = %+v, want the whole call refused 400 ParameterValueInvalid", err)
+		}
+		if n := len(h.sink.all()); n != 1 {
+			h.Errorf("outbox took %d deliveries after the refused batch, want still 1", n)
+		}
 	})
 }
 
@@ -604,6 +710,89 @@ func TestFilteredMessageNeverReachesTheDeadLetterQueue(t *testing.T) {
 		}
 		for _, in := range h.sent.all() {
 			h.Errorf("SendMessage ran for %s; a filtered message reached a queue", in.QueueUrl)
+		}
+	})
+}
+
+// TestLambdaDeadLetterIsTheNotificationEnvelope: a missing function is a
+// client error, so the notification goes at once to the subscription's
+// dead-letter queue (sns.md 7.1), and with raw delivery off its body is the
+// full notification envelope, the message attributes inside it and none
+// as SQS attributes (sns.md 7.4): what an SQS subscription would have
+// received, not the Lambda Records event.
+func TestLambdaDeadLetterIsTheNotificationEnvelope(t *testing.T) {
+	run(t, func(h *harness) {
+		const dlq = "arn:aws:sqs:us-east-1:000000000000:orders-dlq"
+		topic := h.topic("events", nil)
+		sub := h.subscribe(topic, "lambda", missingFunctionARN, map[string]string{"RedrivePolicy": `{"deadLetterTargetArn":"` + dlq + `"}`})
+		out := must(h, snsapi.OpPublish, &snsapi.PublishInput{
+			TopicArn: &topic, Message: "hello", Subject: new("greeting"),
+			MessageAttributes: map[string]snsapi.MessageAttributeValue{
+				"store": attr("String", "north"),
+				"blob":  {DataType: "Binary", BinaryValue: []byte{2, 3, 4}},
+			},
+		})
+		h.settle()
+		if n := len(h.invoked.all()); n != 1 {
+			h.Fatalf("Invoke ran %d times, want one attempt and no retry", n)
+		}
+		sent := h.sent.all()
+		if len(sent) != 1 || !strings.HasSuffix(sent[0].QueueUrl, "/orders-dlq") {
+			h.Fatalf("SendMessage = %+v, want one dead letter in orders-dlq", sent)
+		}
+		checkEnvelope(h, sent[0], topic, sub, *out.MessageId)
+	})
+}
+
+// TestConcurrentFIFOPublishesArriveInSequenceOrder: SNS numbers a FIFO
+// topic's messages in increasing order per message group and delivers
+// them to a FIFO queue in that order (sns.md 4.3, 5.3), even when the
+// first publish's delivery reaches the outbox after the second's.
+func TestConcurrentFIFOPublishesArriveInSequenceOrder(t *testing.T) {
+	run(t, func(h *harness) {
+		topic := h.topic("events.fifo", map[string]string{"FifoTopic": "true"})
+		h.subscribe(topic, "sqs", fifoQueueARN, nil)
+		publish := func(body string) (*snsapi.PublishOutput, *awserr.Error) {
+			return call(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: body, MessageGroupId: new("g1"), MessageDeduplicationId: new(body)})
+		}
+		type result struct {
+			out *snsapi.PublishOutput
+			err *awserr.Error
+		}
+		g := h.sink.holdNext()
+		firstDone := make(chan result, 1)
+		go func() {
+			out, err := publish("first")
+			firstDone <- result{out, err}
+		}()
+		<-g.held
+		second, err := publish("second")
+		if err != nil {
+			h.Fatalf("second Publish = %s %q", err.ID.QueryCode, err.Message)
+		}
+		// Whatever can run before the first delivery reaches the outbox runs.
+		synctest.Wait()
+		close(g.release)
+		first := <-firstDone
+		if first.err != nil {
+			h.Fatalf("first Publish = %s %q", first.err.ID.QueryCode, first.err.Message)
+		}
+		if *first.out.SequenceNumber >= *second.SequenceNumber {
+			h.Fatalf("sequence numbers %s, %s: the first commit numbered after the second", *first.out.SequenceNumber, *second.SequenceNumber)
+		}
+		h.settle()
+		sent := h.sent.all()
+		got := make([]string, 0, len(sent))
+		for _, in := range sent {
+			var env sqsEnvelope
+			if err := json.Unmarshal([]byte(in.MessageBody), &env); err != nil {
+				h.Fatal(err)
+			}
+			got = append(got, env.Message+"@"+env.SequenceNumber)
+		}
+		want := []string{"first@" + *first.out.SequenceNumber, "second@" + *second.SequenceNumber}
+		if !slices.Equal(got, want) {
+			h.Errorf("the queue received %v, want %v in sequence-number order", got, want)
 		}
 	})
 }

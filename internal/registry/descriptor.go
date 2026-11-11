@@ -33,6 +33,10 @@ type Service struct {
 	// answer the awsJson codec encodes, success and error, carries
 	// x-amz-crc32, the CRC-32 (IEEE) of its body in decimal.
 	ResponseCRC32 bool
+	// XMLDeclaration is the overlay's dev.understudy#xmlDeclaration: every
+	// body the awsQuery codec encodes, success and error, opens with
+	// <?xml version="1.0"?> and no newline after it.
+	XMLDeclaration bool
 	// RefuseDuplicateMembers is the overlay's
 	// dev.understudy#refuseDuplicateMembers: the awsJson codec refuses a
 	// request body whose objects repeat a member name, at any depth,
@@ -60,6 +64,11 @@ type Service struct {
 	// it is nil otherwise, and the edge then answers the family's generic
 	// identity.
 	UnknownOperationError func(f awserr.Family) (awserr.Identity, bool)
+	// UnknownOperationAnswer is the overlay's
+	// dev.understudy#unknownOperationAnswer: the form the edge answers an
+	// unknown operation in. The zero value is UnknownOperationError's
+	// identity in the protocol's error envelope.
+	UnknownOperationAnswer UnknownOperationAnswer
 	// ModelSource names the vendored model the descriptor was generated
 	// from, as the generated file headers do: "api-models-aws@1cfdfb4" and
 	// "sqs-2012-11-05.json". It is zero on a hand-built descriptor.
@@ -125,6 +134,27 @@ type QueryErrorEnvelope struct {
 	// Detail adds an empty <Detail/> after the message.
 	Detail bool
 }
+
+// UnknownOperationAnswer is the form a service answers a request naming
+// none of its operations in, where AWS departs from the identity in the
+// protocol's error envelope.
+type UnknownOperationAnswer uint8
+
+// UnknownOperationAnswer values.
+const (
+	// UnknownOperationInEnvelope is the unknown-operation identity in the
+	// protocol's error envelope, the service's own namespace included.
+	UnknownOperationInEnvelope UnknownOperationAnswer = iota
+	// UnknownOperationAWSFault is the awsQuery identity in Coral's AWSFault
+	// envelope: xmlns http://webservices.amazon.com/AWSFault/2005-15-09, no
+	// Detail, and "Could not find operation <Action> for version <Version>"
+	// (SNS and SES v1; error-matrix.md 3, ses.md 3.1).
+	UnknownOperationAWSFault
+	// UnknownOperationNotFound is Coral's 404 for a REST path no route
+	// matches: the body <UnknownOperationException/> and a newline, with no
+	// Content-Type (SES v2; ses.md 3.2).
+	UnknownOperationNotFound
+)
 
 // Operation finds the operation of s named name.
 func (s *Service) Operation(name string) (*Operation, bool) {

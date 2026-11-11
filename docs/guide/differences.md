@@ -6,61 +6,32 @@ Most differences are in error texts, codes and response details, not in the happ
 
 ## SQS
 
-- Receipt handles are 36 characters (`AQEB` and 32 base64 characters); AWS's are 412. Code that stores or validates handles by length sees the difference (`sqs/R01/08-handles.txt`).
-- On a standard queue AWS still deletes a message with an older receipt handle of it, and answers 200 to a visibility change with one. understudy acts only on the latest handle: an older one deletes nothing and succeeds (`sqs/R01/03-delete-stale.json`, `sqs/R01/03-recv-after-6s.json`), and a visibility change with it is 400 `InvalidParameterValue` "... Message does not exist or is not available for visibility timeout change.", a failed entry in a batch (`sqs/R01/05-cmv-stale.json`, `sqs/R01/06-cmv-batch.json`).
-- On a FIFO queue AWS answers an older handle of a re-received message with "The receipt handle has expired."; understudy accepts it and changes nothing (`sqs/R01/07-fifo-delete-h1-after-rereceive.json`).
-- A handle from another queue in `DeleteMessageBatch` or `ChangeMessageVisibilityBatch` is, on AWS, `ReceiptHandleIsInvalid` "The receipt handle "<H>" is not valid for this queue."; understudy reports the `DeleteMessageBatch` entry successful, deleting nothing, and fails the `ChangeMessageVisibilityBatch` entry with the not-available text (`sqs/R01/06-delete-batch.json`, `sqs/R01/06-cmv-batch.json`).
 - `Attributes` order: AWS writes a message's `Attributes` as `SenderId`, `ApproximateFirstReceiveTimestamp`, `ApproximateReceiveCount`, `SentTimestamp`, then the FIFO ones; understudy sorts them by name. A client that decodes the JSON is unaffected; one that compares bytes is not (`sqs/R01/02-recv1.json`, `sqs/R01/07-fifo-recv1.json`).
-- A message moved to a FIFO dead-letter queue keeps its `SentTimestamp` on AWS; understudy sets it to the time of the move (`sqs/R02/fifo-04-dlq-poll-0s.json`).
-- A FIFO message redriven by a move task keeps the dead-letter copy's `MessageDeduplicationId` (the original `MessageId`) on AWS; understudy uses the new message id (`sqs/R02/fifo-06-recv-src.json`).
-- `CancelMessageMoveTask` on a completed task is 400 `InvalidParameterValue` "Only active tasks can be cancelled." on AWS; understudy answers 404 `ResourceNotFoundException` (`sqs/R02/std-07-cancel-completed.json`). understudy cancels at once, so a task never reads `CANCELLING` before `CANCELLED` (`sqs/R02/07-list-after-cancel.json`).
-- `RedrivePolicy` errors echo the policy as sent (`"maxReceiveCount":"2"`) on AWS; understudy echoes it normalized (`sqs/R02/07-redrive-missing-dlq.json`).
-- The queue `Policy` attribute reads back compacted (whitespace removed, key order kept) on AWS; understudy returns it as sent (`sqs/R05/01-get-a.json`).
-- Unmodeled validation errors carry `com.amazon.coral.service#InvalidParameterValueException` and `#MissingRequiredParameterException` on AWS, not `com.amazonaws.sqs#...` (`sqs/R11/02-receive-max-0.json`).
-- `x-amzn-query-error` is `MalformedInput;Sender` for a string sent as an integer and `InvalidAction;Sender` for an unknown target, and absent for a wrong target prefix; understudy gives other codes (`sqs/R11/03-*.json`).
-- Query-protocol responses: on AWS every body starts with `<?xml version="1.0"?>`, and `Accept: application/json` gets a JSON rendering. understudy sends no declaration, and always XML (`sqs/R11/05-*.json`). Current SDKs use the JSON protocol and are unaffected.
-- A Query `SendMessage` without `Version` is accepted by AWS; understudy cannot tell which service it is for and declines it. Send `Version=2012-11-05` (`sqs/R11/x-query-sendmessage-no-version.json`).
-- Messages SNS delivers carry `SenderId` `<role id>:AWS-CLOUDCAST` and version 5 UUID message ids on AWS; understudy's differ (`sqs/R16/01-sqs-enveloped.json`).
+- understudy cancels a message move task at once, so a task never reads `CANCELLING` before `CANCELLED` (`sqs/R02/07-list-after-cancel.json`).
+- Query-protocol responses: `Accept: application/json` gets a JSON rendering on AWS; understudy always answers XML (`sqs/R11/05-sqs-query-accept-json.json`, `sqs/R11/05-sqs-query-accept-json-error.json`). Current SDKs use the JSON protocol and are unaffected.
+- A Query request without `Version` is SQS's when it is signed for `sqs` or posted to a queue URL, as on AWS (`sqs/R11/x-query-sendmessage-no-version.json`). One that is neither, such as an unsigned request to the endpoint's root, names no service behind the shared endpoint and is declined; AWS knows the service from its host. Send `Version=2012-11-05`.
+- On an SSE-KMS queue AWS reuses a data key for `KmsDataKeyReusePeriodSeconds`, so a revoked `kms:GenerateDataKey` grant or a disabled key refuses sends only once the period ends; understudy asks KMS on every send, so the next send is refused. Messages are stored unencrypted.
 
 ## SNS
 
-- An unknown `Action` is "Could not find operation NoSuchAction for version 2010-03-31" under the `http://webservices.amazon.com/AWSFault/2005-15-09` namespace on AWS; understudy answers "The action NoSuchAction is not valid for this endpoint." under the SNS namespace (`sns/R11/05-sns-unknown-action.json`).
-- `FilterPolicy` reads back compacted on AWS; understudy returns it as sent (`sns/R05/05-get-sub-attrs.json`).
-- `PublishBatch` with a 101-character `Subject` reports that entry in `Failed` and sends the rest on AWS; understudy fails the whole call (`sns/R16/02-subject-101.json`).
-- `MessageStructure=json` with a duplicate `default` key is accepted on AWS, last value winning; understudy refuses it as unparseable (`sns/R16/03-x-message-structure-duplicate-key.json`).
-- Texts that differ: "Could not cast message attribute 'n' value to number.", "Message attribute names starting with 'AWS.' or 'Amazon.' are reserved for use by Amazon.", "Invalid parameter: Invalid protocol type: lambda" for a Lambda subscription to a FIFO topic (`sns/R16/03-*.json`, `sns/R16/04-subscribe-fifo-lambda.json`).
-- An `application` endpoint that is not an ARN is 400 "Invalid parameter: Application endpoint arn invalid:not-an-arn" on AWS; understudy answers 501, since mobile push is not implemented (`sns/R16/05-application-non-arn.json`).
-- `DeliveryPolicy` refusals: malformed JSON gets Jackson's message with its location on AWS, and an unknown member "Unexpected JSON member: http.nope"; understudy uses its own texts (`sns/R16/x-delivery-policy-*.json`).
-- Subscriptions of a deleted topic still appear in `ListSubscriptions` on AWS; understudy leaves them out (`sns/R16/06-list-subscriptions-after-delete.json`).
-- Lambda deliveries: AWS types `Number` and `String.Array` attributes as `String`, puts `Subject` after `SigningCertUrl`, and orders `MessageAttributes` as a Java HashMap does; understudy keeps the published types and its own order (`logs/R16/01-lambda-events.json`).
-- A failed delivery to a Lambda subscription is dead-lettered as the Lambda `Records` event; AWS sends the SQS-style notification envelope.
-- Two concurrent publishes to one FIFO topic and message group can reach a subscribed queue in the reverse of their sequence numbers. Publishes made one after another arrive in order.
+- `DeliveryPolicy` malformed JSON gets Jackson's message with its location on AWS; understudy answers "Invalid parameter: DeliveryPolicy: failed to parse JSON." (`sns/R16/x-delivery-policy-malformed.json`, `sns/SNSH/E-malformed.json`).
+- Lambda deliveries: AWS orders `MessageAttributes` as a Java HashMap does; understudy sorts them by name (`logs/R16/01-lambda-events.json`).
 - The 10,000 filter policies per account quota is not enforced.
 - HTTP and HTTPS endpoints (`sns/SNSH`, recorded 2026-11-03):
-  - AWS counts a 3xx and a 4xx other than 429 as delivered; understudy treats them as permanent failures and dead-letters them.
   - AWS's `arithmetic`, `geometric` and `exponential` backoff curves are not linear; understudy steps every curve linearly.
   - AWS waited at least 20 seconds for an answer; understudy gives up after 15.
-  - `throttlePolicy.maxReceivesPerSecond` did not pace a 10-message burst on AWS; understudy spaces attempts by it.
-  - A repeated `Subscribe` of a pending endpoint sends a new token on AWS, and the first stays valid; understudy resends the same token.
+  - `throttlePolicy.maxReceivesPerSecond` is stored, not applied; AWS's pacing above a burst of 10 is unrecorded (a 10-message burst at rate 1 was not paced, `sns/SNSH` SNSH-20).
   - AWS sent no `Authorization` header, not even after a 401 challenge (possibly the receiver's doing); understudy sends the URL's credentials on every request.
   - AWS refuses a loopback or private endpoint at `Subscribe` ("Not authorized to subscribe internal endpoints"); understudy delivers to the endpoints its allow-list names, which are usually local.
-  - Visiting an UnsubscribeConfirmation's `SubscribeURL` restores the subscription on AWS; understudy's confirms nothing.
-  - `DeliveryPolicy` bound texts: AWS first requires `numRetries` and `minDelayTarget` in a retry policy, and checks `sicklyRetryPolicy` and the 3,600-second total; understudy does neither and uses its own texts.
 - Filter policy matching and texts: see [Event patterns and filter policies](#event-patterns-and-filter-policies).
 
 ## Event patterns and filter policies
 
 SNS filter policies, EventBridge event patterns and Lambda event source mapping filters share one matching engine. Where AWS's answer is unrecorded, understudy chose one and labelled it a fidelity switch (`understudy coverage --switches` lists them). Most items below are where a recording contradicts that choice.
 
-- `exactly` is accepted by all three on AWS; understudy refuses it as an unknown operator (`events/R14/H14-*.json`, `sns/R09/H7b-*-subscribe.json`).
-- SNS accepts `equals-ignore-case` under `anything-but`, `prefix` and `suffix` on AWS; understudy refuses them. `{"anything-but":{"prefix":false}}` is "Value of anything-but must be an array or single string/number value." on AWS (`sns/R09/H7b-*-subscribe.json`).
-- Lambda event source mapping filters accept `cidr`, wildcard, `anything-but` with `prefix` or `suffix`, `prefix` with `equals-ignore-case`, and `exactly` on AWS; understudy refuses them. On AWS `eventSource` is not matchable, a string rule matches a number with the same text, and cidr `/32` and `/128` give HTTP 500 (`lambda/R03/H13-*-create.json`, `logs/R03/H13-10-01.json`, `logs/R03/H8-02-01.json`, `lambda/R03/H9-01-create.json`).
-- In SNS MessageAttributes scope, `exists:false` never matches a message without attributes on AWS (body scope `{}` does match); understudy matches it (`sns/R09/summary.tsv` T06, H1).
-- In SNS body scope, `exists:true` fails on `null` and passes on `""` on AWS; understudy passes `null` (`sns/R09/summary.tsv` H2-body).
-- SNS counts leaf keys across the whole policy, `$or` branches included: "Filter policy can not have more than 5 keys". understudy counts per `$or` branch (`sns/R09/T12-subscribe.json`).
-- SNS limit texts on AWS: "Wildcard complexity too high: pattern exceeds maximum allowed wildcards", "Wildcard complexity too high", "FilterPolicy: must be at most 262144 bytes long in UTF-8 encoding", "Could not complete request: filter policy quota exceeded"; `["=",1e309]` is "Value of equals must be numeric" (`sns/R09/H11-*.json`, `sns/R09/T16-subscribe.json`, `sns/R09/limit-201.json`, `sns/R09/H5-08-attr-subscribe.json`).
-- Parse errors on AWS (SNS and EventBridge) end with Jackson's `\n at [Source: (String)"..."; line: 1, column: N]`; understudy leaves the location out (`sns/R09/H10-01-subscribe.json`, `events/R14/H10-01.json`).
-- EventBridge: malformed `$or` reasons are the legacy compiler's on AWS, and more than 1000 combinations is "Event pattern is not valid. Reason: Or operator is producing over 1000 rule combinations" (`events/R14/H10-*.json`, `events/R14/H12-02-7x11x13.json`).
+- A Lambda event source mapping filter with a cidr `/32` or `/128` gives HTTP 500 on AWS; understudy refuses it as an invalid filter pattern (`lambda/R03/H9-01-create.json`, `lambda/R03/H9-02-create.json`).
+- SNS filter policy quota text on AWS: "Could not complete request: filter policy quota exceeded"; understudy words it differently (`sns/R09/limit-201.json`).
+- An SNS filter policy that is not valid JSON ("failed to parse JSON. ...") gets a location line naming SNS's own parser on AWS; understudy leaves it out, as no recording shows the line whole.
 - `$or` members that share values: AWS follows Event Ruler's order-dependent result (`{"$or":[{"x":["q"]},{"x":["q","y"]}]}` misses `{"x":"y"}`); understudy matches (`events/R14/H14-*.json`).
 - An event or message body with content after the JSON value (`{"a":"x"} {}`) is refused by understudy; Event Ruler reads the first value and ignores the rest, and AWS's answer is not recorded.
 - A number matched against a `cidr` rule follows Event Ruler (`{"ip":5}` matches `0.0.0.0/0`); only the IPv6 half of that behavior is recorded against AWS.
@@ -277,7 +248,6 @@ Scheduler was recorded against AWS on 2026-11-03 (`testdata/parity/scheduler/SCH
 
 SES was recorded against AWS on 2026-11-03 from a sandbox account with no verified sender (`testdata/parity/ses/SES-*`), so the answers to sends that pass the sender check are unrecorded and labelled per item on the [coverage page](../coverage.md#ses). Recorded differences:
 
-- An unknown v1 `Action` is `InvalidAction` in the `http://webservices.amazon.com/AWSFault/2005-15-09` namespace, "Could not find operation FooBar for version 2010-12-01", on AWS; understudy answers the SES namespace and "The action FooBar is not valid for this endpoint." (`ses/SES-24/01-v1-unknown.json`). An unknown v2 path is a 404 with the body `<UnknownOperationException/>` and no `Content-Type` on AWS; understudy answers `sesv2`'s JSON unknown operation (`ses/SES-24/02-v2-unknown.json`).
 - `ConfigurationSetName` naming a missing set is `ConfigurationSetDoesNotExist` "Configuration set <name> does not exist.", checked before the sender, on AWS; understudy answers 501, since configuration sets are not implemented (`ses/SES-17/02-unverified.json`).
 - `GetIdentityNotificationAttributes` leaves the `BounceTopic`, `ComplaintTopic` and `DeliveryTopic` elements out of an identity with no topics; understudy sends them empty (`ses/SES-08/03-notif-raw.json`).
 - `GetSendQuota` spells its numbers `200.0`, `1.0` and `0.0` and lists `SentLast24Hours` first; understudy writes `200`, `1`, `0` in the model's order. SDKs read both the same (`ses/SES-15/02-quota.json`).

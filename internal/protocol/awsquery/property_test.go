@@ -137,7 +137,7 @@ func TestPropertyRequestRoundTrip(t *testing.T) {
 			body = strings.ReplaceAll(body, "%20", "+")
 		}
 		r := formPost("http://localhost/", body)
-		claim, ok := awsquery.Codec{}.Claim(r, reg).(awsquery.Claimed)
+		claim, ok := awsquery.Codec{}.Claim(r, reg, "").(awsquery.Claimed)
 		if !ok {
 			t.Fatalf("the request was not claimed: %s", body)
 		}

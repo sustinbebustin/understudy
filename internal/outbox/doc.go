@@ -19,11 +19,7 @@
 //     attempts due together hit NextN budgets and seeded Probability draws
 //     in firing order. The attempt then joins the sequencer, which runs
 //     attempts one at a time in that order, so the request-phase rules and
-//     seeded ids of their target calls follow it too. Before any of that,
-//     an attempt of a throttled SNS HTTP subscription that comes too soon
-//     after the subscription's last one, or before a slot an earlier
-//     paced attempt holds, is re-armed once for a slot of its own,
-//     spending no retry and no rule budget (pacer).
+//     seeded ids of their target calls follow it too.
 //  2. When a PolicySource is set, access.Advise checks the target's stored
 //     resource policy and a would-deny becomes a journal Advisory; the
 //     attempt is made anyway. An events-to-events delivery is not checked:
@@ -114,13 +110,20 @@
 // counter of the outbox drawn under the cell lock at insertion, so the
 // fan-out of one publish keeps the order the producer delivered it in;
 // Import raises the counter past every loaded entry. Deliveries into one
-// message group of a FIFO queue form a lane, ordered by Seq alone, the
-// order Enqueue arms it in, so a live run and a reload agree on its head
-// even when deliveries reached the outbox out of commit order. Only the
+// message group of a FIFO queue form a lane, ordered by Order, the number
+// kernel.Delivery carries, drawn inside the producing write's commit under
+// the source cell's lock, so two writes to one topic or bus order their
+// deliveries in commit order whichever reaches the outbox first. Import
+// raises the kernel's order counter past every loaded entry's too. Only the
 // head is armed, a retry keeps the lane blocked, and a terminal outcome
 // arms the next, due no earlier than the attempt that ended the previous
-// one, so a group arrives in order (sns.md 4.3). A message group of a
-// standard queue promises no order (sqs.md 8.5) and forms no lane.
+// one, so a group arrives in order (sns.md 4.3). A delivery that reaches
+// its lane after one committed later takes the head from it while that one
+// has no attempt in flight, and a head is not attempted until every
+// delivery numbered before it has been handed over (kernel.HandedOver), so
+// a delivery still between its write's unlock and the outbox is not
+// overtaken. A message group of a standard queue promises no order (sqs.md
+// 8.5) and forms no lane.
 //
 // Attempts run one at a time in firing order on the sequencer, so the same
 // seed, rule set and call order give the same fault hits and ids however
@@ -139,17 +142,17 @@
 // wait, and the sequencer moves on to the next attempt while the held one
 // finishes alone. Its fault draws keep the firing order; the ids its
 // target draws after the wait fall in wall-time order, as after a
-// Delivery-phase delay (ADR 0018). The attempts of a throttled SNS HTTP
-// subscription run on a sequencer of their own instead, one at a time in
-// the order they start, so one Advance that starts several journals them
-// in that order; a latency does not release it.
+// Delivery-phase delay (ADR 0018).
 // A delivery has at most one attempt in flight: the attempt claims its
 // entry (Entry.Running) until it records its outcome, so a timer that fires
 // again meanwhile, as a Rearm does for every armable entry, starts
 // no second attempt. The claim is never saved; an entry a snapshot load
 // brings back is attempted afresh.
 //
-// A dead letter is the payload the target would have received: for SQS the
+// An SNS-to-Lambda dead letter is the SQS notification envelope, which only
+// SNS can write: SNS builds it and hands it over as
+// delivery.Request.DLQMessage, and the outbox sends it as it is (sns.md
+// 7.4). Any other dead letter is the payload the target would have received: for SQS the
 // body (the SNS envelope, or the raw message with its attributes as SQS
 // message attributes, sns.md 7.4) with group and deduplication ids kept for
 // a FIFO dead-letter queue; a function's event, a topic's message or an
@@ -166,21 +169,6 @@
 // ERROR_CODE, ERROR_MESSAGE, RETRY_ATTEMPTS and, when retries ran out,
 // EXHAUSTED_RETRY_CONDITION (eb-rule-dlq). A dead letter the queue refuses
 // is dropped, both reasons journaled.
-//
-// # Known gaps
-//
-// An SNS-to-Lambda dead letter's body is the Lambda Records event. AWS
-// puts the SQS-style notification envelope there (Type, MessageId,
-// TopicArn, ..., SigningCertURL, UnsubscribeURL), which only the SNS
-// envelope builder can produce; closing the gap needs the producer to hand
-// the outbox its dead letter in delivery.Request.
-//
-// A FIFO lane is ordered by Seq, drawn when Enqueue runs, after the source
-// cell unlocked. Two publishes to one FIFO topic and group that commit
-// concurrently can reach Enqueue in the reverse of their commit order, so
-// the queue receives them in the reverse of their SNS sequence numbers.
-// Closing the gap needs the kernel to stamp each delivery with an order
-// drawn under the source cell's lock and hand it over in kernel.Delivery.
 //
 // The attempt's journal events (Delivery, Advisory, FaultInjected) and its
 // target call carry the source call's cause: the call resumes the entry's

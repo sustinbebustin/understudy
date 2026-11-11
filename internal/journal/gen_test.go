@@ -285,7 +285,7 @@ func genHTTPExchange() *rapid.Generator[*HTTPExchange] {
 		rapid.Custom(func(t *rapid.T) *HTTPExchange {
 			return &HTTPExchange{
 				Status:   rapid.OneOf(rapid.Just(0), rapid.IntRange(100, 599)).Draw(t, "status"),
-				Class:    rapid.SampledFrom([]HTTPClass{HTTPSuccess, HTTPRetryable, HTTPPermanent, HTTPRefused}).Draw(t, "class"),
+				Class:    rapid.SampledFrom([]HTTPClass{HTTPSuccess, HTTPRetryable, HTTPRefused}).Draw(t, "class"),
 				Duration: time.Duration(rapid.Int64Range(0, int64(time.Minute)).Draw(t, "duration")),
 			}
 		}),

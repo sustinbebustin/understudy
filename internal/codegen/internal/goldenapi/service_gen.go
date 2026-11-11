@@ -13,21 +13,22 @@ import (
 )
 
 var service = registry.Service{
-	ID:                    "golden",
-	Shape:                 "com.example.golden#Golden",
-	SigningName:           "golden",
-	IAMPrefix:             "golden",
-	ARNNamespace:          "golden",
-	Protocols:             []ref.ProtocolID{ref.AWSJSON10, ref.AWSQuery},
-	JSONTargetPrefix:      "Golden",
-	QueryVersion:          "2026-10-09",
-	QueryCompatible:       true,
-	QueryErrorEnvelope:    registry.QueryErrorEnvelope{Namespace: false, Detail: true},
-	MalformedRequestError: IdentitySerializationException(),
-	ThrottleError:         IdentityThrottled(),
-	UnknownOperationError: UnknownOperationError,
-	ModelSource:           registry.ModelSource{Origin: "api-models-aws@fixture", File: "golden.json"},
-	NewErrorMembers:       NewErrorMembers,
+	ID:                     "golden",
+	Shape:                  "com.example.golden#Golden",
+	SigningName:            "golden",
+	IAMPrefix:              "golden",
+	ARNNamespace:           "golden",
+	Protocols:              []ref.ProtocolID{ref.AWSJSON10, ref.AWSQuery},
+	JSONTargetPrefix:       "Golden",
+	QueryVersion:           "2026-10-09",
+	QueryCompatible:        true,
+	QueryErrorEnvelope:     registry.QueryErrorEnvelope{Namespace: false, Detail: true},
+	MalformedRequestError:  IdentitySerializationException(),
+	ThrottleError:          IdentityThrottled(),
+	UnknownOperationError:  UnknownOperationError,
+	UnknownOperationAnswer: registry.UnknownOperationAWSFault,
+	ModelSource:            registry.ModelSource{Origin: "api-models-aws@fixture", File: "golden.json"},
+	NewErrorMembers:        NewErrorMembers,
 }
 
 // The operations point back at the service, so the list is linked once

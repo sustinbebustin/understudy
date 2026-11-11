@@ -126,6 +126,7 @@ type Response struct {
 // an Internal error, returned before anything is written.
 func (Codec) Encode(op *registry.Operation, requestID string, out smithy.Serializable, status int) (Response, *awserr.Error) {
 	var buf bytes.Buffer
+	writeProlog(&buf, op.Service)
 	s := newSerializer(xmlw.New(&buf))
 	s.start(op.ID.Name+"Response", op.Service.XMLNamespace)
 	if op.Output != nil && op.Output.Type != smithy.TypeUnit {
@@ -194,6 +195,7 @@ func (e *membersError) Unwrap() error { return e.err }
 // value whose members do not serialize is a *membersError.
 func errorBody(svc *registry.Service, requestID string, e *awserr.Error, fields []awserr.Field) ([]byte, error) {
 	var buf bytes.Buffer
+	writeProlog(&buf, svc)
 	s := newSerializer(xmlw.New(&buf))
 	env := errorEnvelopeOf(svc)
 	s.start("ErrorResponse", env.namespace)
@@ -224,6 +226,20 @@ func errorBody(svc *registry.Service, requestID string, e *awserr.Error, fields 
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// declaration is the XML declaration a service with XMLDeclaration opens
+// every body with: no encoding and no newline after it, unlike xmlw's
+// (aws-recorded, testdata/parity/sqs/R11/04-deletemessage-query.json).
+const declaration = `<?xml version="1.0"?>`
+
+// writeProlog writes what precedes the root element of svc's bodies: the
+// declaration when svc has XMLDeclaration, else nothing. svc may be nil
+// for a request no service claimed.
+func writeProlog(buf *bytes.Buffer, svc *registry.Service) {
+	if svc != nil && svc.XMLDeclaration {
+		buf.WriteString(declaration)
+	}
 }
 
 // errorStatus is the awsQuery status of an identity, falling back on the

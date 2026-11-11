@@ -39,14 +39,6 @@ type token struct {
 	malformed *syntaxError
 }
 
-// stringText is a tokString's text, or its syntax error.
-func stringText(t token) (string, *CompileError) {
-	if t.malformed != nil {
-		return "", &CompileError{Cause: InvalidJSON{}, Detail: t.malformed.message}
-	}
-	return t.text, nil
-}
-
 // display is the token's text as Jackson's getText reports it, which Ruler
 // quotes in several error messages ("Invalid member in numeric match: ]").
 func (t token) display() string {
@@ -71,6 +63,11 @@ func (t token) display() string {
 // ReaderBasedJsonParser words it (jackson.go).
 type syntaxError struct {
 	message string
+	// at is where the parser stood when it failed, which Jackson's
+	// message ends with; next sets it.
+	at sourcePos
+	// located reports that at is set.
+	located bool
 }
 
 // frameState is where a container is in its grammar.
@@ -125,6 +122,14 @@ type lexer struct {
 	malformed *syntaxError
 	// source is how locations in error messages name the source.
 	source locationSource
+	// unread is the position after the opening quote of the string value
+	// just returned, while its text is unread: Jackson reads a string's
+	// body only when its text is asked for or the parser moves on, so its
+	// location stays there. Nil otherwise.
+	unread *sourcePos
+	// peeked reports that the field name just returned has a string or
+	// container value, whose first character Jackson consumed with the name.
+	peeked bool
 }
 
 // locationSource is how a Jackson location names its source: Ruler's
@@ -141,6 +146,22 @@ func newLexer(src []byte) *lexer {
 	return &lexer{src: src, line: 1, source: sourceIncluded}
 }
 
+// text is the text of t, the tokString just read, or its syntax error.
+// Reading the text moves the location past the string, as Jackson's
+// getText does.
+func (l *lexer) text(t token) (string, *CompileError) {
+	if t.malformed != nil {
+		return "", l.compileError(t.malformed)
+	}
+	l.unread = nil
+	return t.text, nil
+}
+
+// compileError is a syntax error as a CompileError, with its location.
+func (l *lexer) compileError(err *syntaxError) *CompileError {
+	return &CompileError{Cause: InvalidJSON{}, Detail: err.message, at: l.location(err.at)}
+}
+
 func (l *lexer) top() *frame {
 	if len(l.stack) == 0 {
 		return nil
@@ -151,6 +172,27 @@ func (l *lexer) top() *frame {
 // next returns the next token, or tokEOF once the input is exhausted
 // outside every container.
 func (l *lexer) next() (token, *syntaxError) {
+	l.unread, l.peeked = nil, false
+	t, err := l.scan()
+	if err != nil && !err.located {
+		err.at, err.located = l.here(), true
+	}
+	return t, err
+}
+
+// here is where Jackson's parser stands: its current location, which a
+// JsonParseException names.
+func (l *lexer) here() sourcePos {
+	switch {
+	case l.unread != nil:
+		return *l.unread
+	case l.peeked:
+		return sourcePos{offset: l.pos + 1, line: l.line, lineStart: l.lineStart}
+	}
+	return sourcePos{offset: l.pos, line: l.line, lineStart: l.lineStart}
+}
+
+func (l *lexer) scan() (token, *syntaxError) {
 	if l.malformed != nil {
 		return token{}, l.malformed
 	}
@@ -231,6 +273,7 @@ func (l *lexer) fieldName(top *frame) (token, *syntaxError) {
 	}
 	switch l.src[l.pos] {
 	case '"', '[', '{':
+		l.peeked = true
 	default:
 		v, err := l.value()
 		if err != nil {
@@ -293,8 +336,13 @@ func (l *lexer) value() (token, *syntaxError) {
 		return l.open(tokStartArray)
 	case '"':
 		l.pos++
+		body := l.here()
 		s, err := l.stringBody(inValue)
+		l.unread = &body
 		if err != nil {
+			if !err.located {
+				err.at, err.located = l.at(l.pos), true
+			}
 			l.malformed = err
 			return token{kind: tokString, malformed: err}, nil
 		}
@@ -323,7 +371,7 @@ func (l *lexer) value() (token, *syntaxError) {
 	r, size := javaChar(l.src[l.pos:])
 	if isJavaIdentifierStart(r) {
 		l.pos += size
-		return token{}, l.invalidToken(string(r))
+		return token{}, l.invalidToken(string(r), size)
 	}
 	return token{}, l.unexpected("expected a valid value " + validValues)
 }
@@ -366,14 +414,14 @@ func (l *lexer) nonStandard(word string, from int) *syntaxError {
 func (l *lexer) keyword(word string, from int) *syntaxError {
 	for i := from; i < len(word); i++ {
 		if l.pos >= len(l.src) || l.src[l.pos] != word[i] {
-			return l.invalidToken(word[:i])
+			return l.invalidToken(word[:i], i)
 		}
 		l.pos++
 	}
 	if l.pos < len(l.src) {
 		if c := l.src[l.pos]; c >= '0' && c != ']' && c != '}' {
 			if r, _ := javaChar(l.src[l.pos:]); isJavaIdentifierPart(r) {
-				return l.invalidToken(word)
+				return l.invalidToken(word, len(word))
 			}
 		}
 	}
@@ -382,8 +430,10 @@ func (l *lexer) keyword(word string, from int) *syntaxError {
 
 // invalidToken reports an unrecognized token: the text matched so far and
 // the Java identifier characters after it, at most maxErrorTokenLength
-// characters before an ellipsis (Jackson's _reportInvalidToken).
-func (l *lexer) invalidToken(matched string) *syntaxError {
+// characters before an ellipsis (Jackson's _reportInvalidToken). Jackson
+// locates it at the token's start, whose first read bytes were consumed.
+func (l *lexer) invalidToken(matched string, read int) *syntaxError {
+	at := l.at(l.pos - read)
 	var b strings.Builder
 	b.WriteString(matched)
 	n := utf8.RuneCountInString(matched)
@@ -400,7 +450,13 @@ func (l *lexer) invalidToken(matched string) *syntaxError {
 			break
 		}
 	}
-	return &syntaxError{message: "Unrecognized token '" + b.String() + "': was expecting " + validValues}
+	return &syntaxError{message: "Unrecognized token '" + b.String() + "': was expecting " + validValues, at: at, located: true}
+}
+
+// at is the position offset bytes into the current line's input, on that
+// line.
+func (l *lexer) at(offset int) sourcePos {
+	return sourcePos{offset: offset, line: l.line, lineStart: l.lineStart}
 }
 
 // number reads a number as Jackson's ReaderBasedJsonParser does: it stops at
@@ -420,7 +476,8 @@ func (l *lexer) number() (token, *syntaxError) {
 	}
 	leadingZero := l.src[l.pos] == '0'
 	if leadingZero && l.pos+1 < len(l.src) && isDigit(l.src[l.pos+1]) {
-		return token{}, &syntaxError{message: "Invalid numeric value: Leading zeroes not allowed"}
+		// Jackson has read the digit after the zero.
+		return token{}, &syntaxError{message: "Invalid numeric value: Leading zeroes not allowed", at: l.at(l.pos + 1), located: true}
 	}
 	integer := l.pos
 	l.pos = l.digitsEnd()
@@ -558,7 +615,10 @@ func (l *lexer) digits(missing string) (int, *syntaxError) {
 	end := l.digitsEnd()
 	if end == l.pos {
 		r, _ := utf8.DecodeRune(l.src[l.pos:])
-		return 0, unexpectedNumberChar(r, missing)
+		err := unexpectedNumberChar(r, missing)
+		// Jackson locates it one character before the unexpected one.
+		err.at, err.located = l.at(l.pos-1), true
+		return 0, err
 	}
 	n := end - l.pos
 	l.pos = end
@@ -659,7 +719,8 @@ func (l *lexer) escape(b *strings.Builder) *syntaxError {
 		b.WriteRune(r)
 	default:
 		r, _ := utf8.DecodeRune(l.src[l.pos-1:])
-		return &syntaxError{message: "Unrecognized character escape " + charDesc(r)}
+		// Jackson locates it at the escaped character, not after it.
+		return &syntaxError{message: "Unrecognized character escape " + charDesc(r), at: l.at(l.pos - 1), located: true}
 	}
 	return nil
 }

@@ -289,7 +289,7 @@ func (s *Service) listRules(_ context.Context, c *kernel.Call, in *eventbridgeap
 	if err != nil {
 		return nil, err
 	}
-	rules, next, err := page(listed, in.NextToken, in.Limit)
+	rules, next, err := page(listingRules, listed, func(r eventbridgeapi.Rule) string { return *r.Name }, in.NextToken, in.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +388,7 @@ func (s *Service) listRuleNamesByTarget(_ context.Context, c *kernel.Call, in *e
 	if err != nil {
 		return nil, err
 	}
-	out, next, err := page(names, in.NextToken, in.Limit)
+	out, next, err := page(listingRuleNamesByTarget, names, func(name string) string { return name }, in.NextToken, in.Limit)
 	if err != nil {
 		return nil, err
 	}

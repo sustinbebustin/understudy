@@ -13,19 +13,20 @@ import (
 )
 
 var service = registry.Service{
-	ID:                    "sesv2",
-	Shape:                 "com.amazonaws.sesv2#SimpleEmailService_v2",
-	SigningName:           "ses",
-	IAMPrefix:             "ses",
-	ARNNamespace:          "ses",
-	Protocols:             []ref.ProtocolID{ref.RESTJSON1},
-	MalformedRequestError: IdentitySerializationException(),
-	ThrottleError:         IdentityTooManyRequestsException(),
-	UnknownOperationError: UnknownOperationError,
-	ModelSource:           registry.ModelSource{Origin: "api-models-aws@1cfdfb4", File: "sesv2-2019-09-27.json"},
-	Denial:                registry.Denial{Identity: IdentityAccessDeniedException(), Label: "aws-recorded"},
-	NewErrorMembers:       NewErrorMembers,
-	GenericErrors:         GenericErrors,
+	ID:                     "sesv2",
+	Shape:                  "com.amazonaws.sesv2#SimpleEmailService_v2",
+	SigningName:            "ses",
+	IAMPrefix:              "ses",
+	ARNNamespace:           "ses",
+	Protocols:              []ref.ProtocolID{ref.RESTJSON1},
+	MalformedRequestError:  IdentitySerializationException(),
+	ThrottleError:          IdentityTooManyRequestsException(),
+	UnknownOperationError:  UnknownOperationError,
+	UnknownOperationAnswer: registry.UnknownOperationNotFound,
+	ModelSource:            registry.ModelSource{Origin: "api-models-aws@1cfdfb4", File: "sesv2-2019-09-27.json"},
+	Denial:                 registry.Denial{Identity: IdentityAccessDeniedException(), Label: "aws-recorded"},
+	NewErrorMembers:        NewErrorMembers,
+	GenericErrors:          GenericErrors,
 }
 
 // The operations point back at the service, so the list is linked once

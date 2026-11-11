@@ -12,14 +12,17 @@ type diffCase struct {
 }
 
 // diffCases is the differential corpus: the seed vectors, the IP range
-// vectors, the Ruler defects and every pattern of each diffGroups entry
-// crossed with its events.
+// vectors, the exactly vectors, the Ruler defects and every pattern of each
+// diffGroups entry crossed with its events.
 func diffCases() []diffCase {
-	cases := make([]diffCase, 0, len(seedVectors)+len(ipRangeVectors)+len(rulerDefects))
+	cases := make([]diffCase, 0, len(seedVectors)+len(ipRangeVectors)+len(exactlyVectors)+len(rulerDefects))
 	for _, v := range seedVectors {
 		cases = append(cases, diffCase{v.pattern, v.event})
 	}
 	for _, v := range ipRangeVectors {
+		cases = append(cases, diffCase{v.pattern, v.event})
+	}
+	for _, v := range exactlyVectors {
 		cases = append(cases, diffCase{v.pattern, v.event})
 	}
 	for _, v := range rulerDefects {
@@ -218,12 +221,6 @@ var diffGroups = []struct {
 			`{"a":[{"exists":true,"prefix":"a"}]}`,
 		},
 		[]string{`{"a":"abc"}`},
-	},
-	{
-		// Ruler's own operator, which the EventBridge profile refuses.
-		"exactly",
-		[]string{`{"a":[{"exactly":"x"}]}`},
-		[]string{`{"a":"x"}`},
 	},
 }
 

@@ -45,9 +45,11 @@ const (
 	utMalformedRequest    = understudyNamespace + "malformedRequestError"
 	utStatusOverride      = understudyNamespace + "statusOverride"
 	utUnknownOperation    = understudyNamespace + "unknownOperationError"
+	utUnknownAnswer       = understudyNamespace + "unknownOperationAnswer"
 	utQueryErrorEnvelope  = understudyNamespace + "queryErrorEnvelope"
 	utQueryErrorHeader    = understudyNamespace + "queryErrorHeader"
 	utResponseCRC32       = understudyNamespace + "responseCrc32"
+	utXMLDeclaration      = understudyNamespace + "xmlDeclaration"
 	utRefuseDuplicates    = understudyNamespace + "refuseDuplicateMembers"
 	utEnumOrder           = understudyNamespace + "enumOrder"
 	utValidationInputRoot = understudyNamespace + "validationInputRoot"
@@ -97,7 +99,7 @@ func understudyTraits() map[string]understudyTrait {
 	return map[string]understudyTrait{
 		utEvidence:            {GenerationOnly, siteAnyShape | siteMember, func(r json.RawMessage) error { _, err := parseEvidence(r); return err }},
 		utErrorNamespace:      {Honor, siteService, func(r json.RawMessage) error { _, err := parseErrorNamespace(r); return err }},
-		utJSONType:            {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseNonEmptyString(r); return err }},
+		utJSONType:            {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseJSONType(r); return err }},
 		utMessageByProtocol:   {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseMessageByProtocol(r); return err }},
 		utMessageKey:          {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseMessageKey(r); return err }},
 		utValidationError:     {Honor, siteService | siteOperation | siteMember, func(r json.RawMessage) error { _, err := parseValidationRules(r); return err }},
@@ -116,9 +118,11 @@ func understudyTraits() map[string]understudyTrait {
 		utMalformedRequest:    {Honor, siteService, shapeRef},
 		utStatusOverride:      {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
 		utUnknownOperation:    {Honor, siteService, func(r json.RawMessage) error { _, err := parseUnknownOperation(r); return err }},
+		utUnknownAnswer:       {Honor, siteService, func(r json.RawMessage) error { _, err := parseUnknownOperationAnswer(r); return err }},
 		utQueryErrorEnvelope:  {Honor, siteService, func(r json.RawMessage) error { _, err := parseQueryErrorEnvelope(r); return err }},
 		utQueryErrorHeader:    {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseQueryErrorHeader(r); return err }},
 		utResponseCRC32:       {Honor, siteService, parseAnnotation},
+		utXMLDeclaration:      {Honor, siteService, parseAnnotation},
 		utRefuseDuplicates:    {Honor, siteService, parseAnnotation},
 		utEnumOrder:           {Honor, siteEnumShape, func(r json.RawMessage) error { _, err := parseEnumOrder(r); return err }},
 		utValidationInputRoot: {Honor, siteService, parseAnnotation},
@@ -153,6 +157,23 @@ func parseQueryErrorEnvelope(raw json.RawMessage) (registry.QueryErrorEnvelope, 
 		return registry.QueryErrorEnvelope{}, errors.New(`set "namespace" or "detail" to true; an envelope that follows Smithy's example needs no trait`)
 	}
 	return registry.QueryErrorEnvelope{Namespace: v.Namespace, Detail: v.Detail}, nil
+}
+
+// parseUnknownOperationAnswer reads dev.understudy#unknownOperationAnswer:
+// "awsFault" or "notFound". The identity in the protocol's envelope is the
+// absence of the trait, so it has no spelling.
+func parseUnknownOperationAnswer(raw json.RawMessage) (registry.UnknownOperationAnswer, error) {
+	var v string
+	if err := decodeTrait(raw, &v); err != nil {
+		return 0, errors.New(`unknownOperationAnswer takes a string: "awsFault" or "notFound"`)
+	}
+	switch v {
+	case "awsFault":
+		return registry.UnknownOperationAWSFault, nil
+	case "notFound":
+		return registry.UnknownOperationNotFound, nil
+	}
+	return 0, fmt.Errorf(`unknownOperationAnswer is %q; the values are "awsFault" and "notFound"`, v)
 }
 
 // parseQueryErrorHeader reads dev.understudy#queryErrorHeader, {send}: when
@@ -289,6 +310,33 @@ func parseAnnotation(raw json.RawMessage) error {
 		return errors.New("an annotation trait takes {}")
 	}
 	return nil
+}
+
+// jsonType is dev.understudy#jsonType: the error's __type name, and the
+// namespace an awsJson1_0 __type carries when the value is an absolute
+// namespace#Name (SQS's com.amazon.coral.service#InvalidParameterValueException,
+// testdata/parity/sqs/R11/02-receive-max-0.json). An empty Namespace keeps
+// the service's or the shape's.
+type jsonType struct {
+	Namespace string
+	Name      string
+}
+
+// parseJSONType reads dev.understudy#jsonType: a bare name, or an absolute
+// shape ID when the namespace differs too.
+func parseJSONType(raw json.RawMessage) (jsonType, error) {
+	s, err := parseNonEmptyString(raw)
+	if err != nil {
+		return jsonType{}, err
+	}
+	if !strings.Contains(s, "#") {
+		return jsonType{Name: s}, nil
+	}
+	id, err := smithy.Parse(s)
+	if err != nil {
+		return jsonType{}, fmt.Errorf("%w; or give a bare name such as InvalidParameterValueException", err)
+	}
+	return jsonType{Namespace: id.Namespace(), Name: id.Name()}, nil
 }
 
 func parseNonEmptyString(raw json.RawMessage) (string, error) {

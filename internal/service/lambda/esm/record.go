@@ -72,11 +72,14 @@ func NewRecord(m *sqsapi.Message, queue aws.ARN) Record {
 }
 
 // filterView is a record as filter patterns see it: the body as JSON when
-// it is valid JSON, and as a string otherwise (lambda-events.md 2.4). The
-// outer Body shadows the record's.
+// it is valid JSON, and as a string otherwise (lambda-events.md 2.4), and no
+// eventSource, which AWS accepts in a filter but never matches
+// (logs/R03/H13-10-01.json). The outer fields shadow the record's; the
+// always-nil EventSource leaves the key out.
 type filterView struct {
 	Record
-	Body json.RawMessage `json:"body"`
+	Body        json.RawMessage `json:"body"`
+	EventSource *struct{}       `json:"eventSource,omitempty"`
 }
 
 // filterEvent encodes r for filter matching.

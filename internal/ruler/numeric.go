@@ -33,7 +33,7 @@ func (c *compiler) numericRange() (matcher, *CompileError) {
 	if t.kind != tokString {
 		return nil, numericError("Invalid member in numeric match: " + t.display())
 	}
-	op, e := stringText(t)
+	op, e := c.lx.text(t)
 	if e != nil {
 		return nil, e
 	}
@@ -96,7 +96,7 @@ func (c *compiler) numericLower(bottom string, inclusive bool) (matcher, *Compil
 	if t.kind != tokString {
 		return nil, numericError("Bad value in numeric range: " + t.display())
 	}
-	op, e := stringText(t)
+	op, e := c.lx.text(t)
 	if e != nil {
 		return nil, e
 	}

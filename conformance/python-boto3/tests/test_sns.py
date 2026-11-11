@@ -564,7 +564,8 @@ def test_invalid_filter_policy_on_subscribe_names_the_attributes_parameter(
     topic = make_topic()
     with raises("InvalidParameter") as exc:
         sns.subscribe(TopicArn=topic, Protocol="sqs", Endpoint=queue_arn(make_queue()), Attributes={"FilterPolicy": '{"key":[]}'})
-    assert exc.value.response["Error"]["Message"] == "Invalid parameter: Attributes Reason: FilterPolicy: Empty arrays are not allowed"
+    # The message goes on with the parser position line (sns/R09 H10); the first line is the contract.
+    assert exc.value.response["Error"]["Message"].split("\n")[0] == "Invalid parameter: Attributes Reason: FilterPolicy: Empty arrays are not allowed"
 
 
 def test_invalid_filter_policy_scope(sns: Any, make_topic: Callable[..., str], subscribe_queue: Callable[..., tuple[str, str]]) -> None:

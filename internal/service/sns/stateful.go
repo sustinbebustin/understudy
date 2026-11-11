@@ -90,8 +90,9 @@ func (t *Topic) live(now clock.Instant) int {
 
 // SubscriptionToken returns the confirmation token of a pending
 // subscription, for the admin API (ADR 0015): tests confirm http, https
-// and email subscriptions with it. A confirmed subscription has no token
-// to read.
+// and email subscriptions with it. Of a subscription given several tokens
+// it returns the latest, though each confirms it. A confirmed subscription
+// has no token to read.
 func (s *Service) SubscriptionToken(subscription aws.ARN) (string, *awserr.Error) {
 	named, ok := s.subscriptionOf(subscription.String())
 	if !ok {
@@ -105,7 +106,7 @@ func (s *Service) SubscriptionToken(subscription aws.ARN) (string, *awserr.Error
 	if !ok {
 		return "", errReason("SubscriptionArn", "the subscription is confirmed, so it has no pending token")
 	}
-	return pending.Token, nil
+	return pending.latest(), nil
 }
 
 // readTopic returns a copy of the topic named, without the pending

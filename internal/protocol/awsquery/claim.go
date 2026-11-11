@@ -26,7 +26,7 @@ type Claimed struct {
 }
 
 // UnknownOperation is a request whose Version names a service that speaks
-// awsQuery but whose Action names no modeled operation of it, or names one
+// awsQuery, or that is SQS's without one, but whose Action names no modeled operation of it, or names one
 // the endpoint does not serve (CreateQueue on an SQS queue path). The
 // service's unknownOperationError answers it.
 type UnknownOperation struct {
@@ -54,10 +54,13 @@ const formMediaType = "application/x-www-form-urlencoded"
 // from the Action and Version parameters, read alone so that a bad value
 // elsewhere in the form is the service's malformed-request answer from
 // Decode; cross-checking the service against the SigV4 signing name is the
-// edge's job. A form body is read to find them, gzip-decompressed when its
-// Content-Encoding says so, and then put back as sent, so r.Body reads
-// from the start again.
-func (Codec) Claim(r *http.Request, reg *registry.Registry) Claim {
+// edge's job. Without Version, the service is SQS when signedFor, the
+// SigV4 credential scope's service ("" for none), is SQS's signing name or
+// the path is a queue path, as AWS accepts (unversionedSQS); otherwise the
+// request is declined. A form body is read to find them, gzip-decompressed
+// when its Content-Encoding says so, and then put back as sent, so r.Body
+// reads from the start again.
+func (Codec) Claim(r *http.Request, reg *registry.Registry, signedFor string) Claim {
 	text, reason := claimText(r)
 	if reason != "" {
 		return Declined{Reason: reason}
@@ -72,6 +75,13 @@ func (Codec) Claim(r *http.Request, reg *registry.Registry) Claim {
 	version, _, perr := form.Lookup(text, "Version")
 	if perr != nil {
 		return Declined{Reason: "the Version parameter cannot be decoded: " + perr.Error()}
+	}
+	if version == "" {
+		svc, ok := unversionedSQS(r, reg, signedFor)
+		if !ok {
+			return Declined{Reason: "the form has no Version parameter, and neither its credential scope nor its path names a service that takes one without it"}
+		}
+		version = svc.QueryVersion
 	}
 	op, ok := reg.ByQueryAction(action, version)
 	if !ok {

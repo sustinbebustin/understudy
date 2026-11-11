@@ -227,9 +227,13 @@ func TestFIFOTopicAttributes(t *testing.T) {
 // TestTopicDeliveryPolicyKeepsRetryConstraints: a topic DeliveryPolicy
 // outside the documented retry and throttle constraints (sns.md 7.3) is
 // refused at CreateTopic and SetTopicAttributes, with the numRetries text
-// AWS-recorded in ballerina topics-tests.bal and the others in its form,
-// and the stored policy is unchanged; the recorded valid policy and the
-// bounds themselves are accepted.
+// AWS-recorded in ballerina topics-tests.bal and the other bounds in its
+// form, the backoffFunction and maxReceivesPerSecond texts in the form
+// SNSH-18 recorded for a subscription, and the stored policy is
+// unchanged; the recorded valid policy and the bounds themselves are
+// accepted. Each policy carries the required numRetries and
+// minDelayTarget (SNSH-18), and no accepted one passes the 3,600-second
+// total retry time (sns-http-delivery.md 6.3).
 func TestTopicDeliveryPolicyKeepsRetryConstraints(t *testing.T) {
 	const valid = `{"http":{"defaultHealthyRetryPolicy":{"minDelayTarget":10,"maxDelayTarget":20,"numRetries":3,"numNoDelayRetries":1,` +
 		`"numMinDelayRetries":1,"numMaxDelayRetries":1,"backoffFunction":"linear"},"disableSubscriptionOverrides":true,` +
@@ -244,9 +248,10 @@ func TestTopicDeliveryPolicyKeepsRetryConstraints(t *testing.T) {
 			return err
 		}
 		for _, ok := range []string{
-			retry(`"minDelayTarget":1,"maxDelayTarget":3600,"numRetries":100,"backoffFunction":"exponential"`),
-			retry(`"numRetries":0`),
-			retry(`"numRetries":3,"numNoDelayRetries":1,"numMinDelayRetries":1,"numMaxDelayRetries":1`),
+			retry(`"minDelayTarget":1,"maxDelayTarget":3600,"numRetries":1,"backoffFunction":"exponential"`),
+			retry(`"minDelayTarget":1,"numRetries":100`),
+			retry(`"minDelayTarget":1,"numRetries":0`),
+			retry(`"minDelayTarget":1,"numRetries":3,"numNoDelayRetries":1,"numMinDelayRetries":1,"numMaxDelayRetries":1`),
 			`{"http":{"defaultHealthyRetryPolicy":null,"defaultThrottlePolicy":{"maxReceivesPerSecond":1}}}`,
 			valid,
 		} {
@@ -256,14 +261,14 @@ func TestTopicDeliveryPolicyKeepsRetryConstraints(t *testing.T) {
 		}
 		for policy, detail := range map[string]string{
 			retry(`"minDelayTarget":10,"maxDelayTarget":20,"numRetries":300,"numNoDelayRetries":1,"numMinDelayRetries":1,"numMaxDelayRetries":1,"backoffFunction":"linear"`): "http.defaultHealthyRetryPolicy.numRetries must be less than or equal to 100",
-			retry(`"numRetries":-1`):                                             "http.defaultHealthyRetryPolicy.numRetries must be greater than or equal to 0",
-			retry(`"minDelayTarget":0`):                                          "http.defaultHealthyRetryPolicy.minDelayTarget must be greater than or equal to 1",
-			retry(`"minDelayTarget":30,"maxDelayTarget":20`):                     "http.defaultHealthyRetryPolicy.minDelayTarget must be less than or equal to 20",
-			retry(`"maxDelayTarget":3601`):                                       "http.defaultHealthyRetryPolicy.maxDelayTarget must be less than or equal to 3600",
-			retry(`"numNoDelayRetries":-2`):                                      "http.defaultHealthyRetryPolicy.numNoDelayRetries must be greater than or equal to 0",
-			retry(`"numRetries":2,"numNoDelayRetries":2,"numMaxDelayRetries":1`): "http.defaultHealthyRetryPolicy.numRetries must be greater than or equal to 3",
-			retry(`"backoffFunction":"cubic"`):                                   "http.defaultHealthyRetryPolicy.backoffFunction must be one of arithmetic, exponential, geometric, linear",
-			`{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":0}}}`:      "http.defaultThrottlePolicy.maxReceivesPerSecond must be greater than or equal to 1",
+			retry(`"minDelayTarget":1,"numRetries":-1`):                                             "http.defaultHealthyRetryPolicy.numRetries must be greater than or equal to 0",
+			retry(`"minDelayTarget":0,"numRetries":3`):                                              "http.defaultHealthyRetryPolicy.minDelayTarget must be greater than or equal to 1",
+			retry(`"minDelayTarget":30,"maxDelayTarget":20,"numRetries":3`):                         "http.defaultHealthyRetryPolicy.minDelayTarget must be less than or equal to 20",
+			retry(`"minDelayTarget":1,"maxDelayTarget":3601,"numRetries":3`):                        "http.defaultHealthyRetryPolicy.maxDelayTarget must be less than or equal to 3600",
+			retry(`"minDelayTarget":1,"numRetries":3,"numNoDelayRetries":-2`):                       "http.defaultHealthyRetryPolicy.numNoDelayRetries must be greater than or equal to 0",
+			retry(`"minDelayTarget":1,"numRetries":2,"numNoDelayRetries":2,"numMaxDelayRetries":1`): "http.defaultHealthyRetryPolicy.numRetries must be greater than or equal to 3",
+			retry(`"backoffFunction":"cubic"`):                                                      "Invalid JSON member value [http.defaultHealthyRetryPolicy.backoffFunction]: the value [cubic] is not a valid backoff function",
+			`{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":0}}}`:                         "http.defaultThrottlePolicy.maxReceivesPerSecond must be >= 1",
 		} {
 			wantError(h, setPolicy(policy), "InvalidParameter", "Invalid parameter: DeliveryPolicy: "+detail)
 			_, err := call(h, snsapi.OpCreateTopic, &snsapi.CreateTopicInput{Name: "refused", Attributes: map[string]string{"DeliveryPolicy": policy}})

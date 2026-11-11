@@ -14,11 +14,16 @@ import (
 
 // Delivery is one accepted cross-service delivery, as the DeliverSink
 // receives it: the request, the cause it carries (the call that produced
-// it) and the commit instant it was accepted at.
+// it), the commit instant it was accepted at and its order number.
 type Delivery struct {
 	Request  delivery.Request
 	Cause    ref.Cause
 	Accepted clock.Instant
+	// Order is drawn from a kernel counter inside the commit, under the
+	// source cell's lock, so the deliveries of two writes to one cell are
+	// numbered in commit order even when the later write hands its
+	// deliveries over first (Kernel.HandedOver).
+	Order uint64
 }
 
 // Tx collects the effects of one Write: journal records and timer arms and
@@ -31,6 +36,8 @@ type Tx struct {
 	timers []timerEffect
 	wakes  []store.WaitKey
 	sends  []delivery.Request
+	// orders are the sends' order numbers, drawn once fn committed.
+	orders []uint64
 	// records are journal events applied in the critical section, in
 	// Record order, before the timers.
 	records []recordEffect
@@ -276,6 +283,7 @@ func commit[S any](c *Call, cell *store.Cell[S], fn func(s *S, now clock.Instant
 				k.timers.sched.Disarm(t.key)
 			}
 		}
+		tx.orders = k.orders.draw(len(tx.sends))
 		if n := len(tx.wakes) + len(tx.sends); n > 0 {
 			k.work.add(EffectPending, n)
 		}
@@ -284,15 +292,25 @@ func commit[S any](c *Call, cell *store.Cell[S], fn func(s *S, now clock.Instant
 }
 
 // afterUnlock runs a committed write's wakes and deliveries. A refused
-// delivery is the call's Internal error, logged and journaled by Dispatch.
+// delivery is the call's Internal error, logged and journaled by Dispatch;
+// the deliveries after it are not handed over, and every order number the
+// write drew stops counting as pending either way.
 func (k *Kernel) afterUnlock(c *Call, tx *Tx) *awserr.Error {
 	defer k.work.done(EffectPending, len(tx.wakes)+len(tx.sends))
+	defer func() {
+		for _, n := range tx.orders {
+			k.orders.done(n)
+		}
+	}()
 	for _, key := range tx.wakes {
 		k.waiters.Wake(key)
 	}
 	cause := tx.cause(c)
 	for i := range tx.sends {
-		if err := k.deliver.Deliver(Delivery{Request: tx.sends[i], Cause: cause, Accepted: tx.now}); err != nil {
+		d := Delivery{Request: tx.sends[i], Cause: cause, Accepted: tx.now, Order: tx.orders[i]}
+		err := k.deliver.Deliver(d)
+		k.orders.done(d.Order)
+		if err != nil {
 			return awserr.Internalf(&DeliverError{Err: err})
 		}
 	}

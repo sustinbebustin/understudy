@@ -209,6 +209,10 @@ func TestDelayPhasesInOrder(t *testing.T) {
 	if got, ok := p.Delay(len(want) + 1); ok {
 		t.Errorf("Delay(%d) = %v, true; want none past the last retry", len(want)+1, got)
 	}
+	// 0 + 0 + 3 * 5 s + 2 * 60 s.
+	if got, want := p.TotalDelay(), 135*time.Second; got != want {
+		t.Errorf("TotalDelay() = %v, want %v", got, want)
+	}
 }
 
 // genSNSHTTP draws a policy inside the documented bounds: phase counts at
@@ -220,14 +224,13 @@ func genSNSHTTP() *rapid.Generator[delivery.SNSHTTP] {
 		minS := rapid.IntRange(1, 3600).Draw(t, "minDelayTarget")
 		maxS := rapid.IntRange(minS, 3600).Draw(t, "maxDelayTarget")
 		return delivery.SNSHTTP{
-			NoDelay:              rapid.IntRange(0, 25).Draw(t, "noDelay"),
-			MinDelay:             rapid.IntRange(0, 25).Draw(t, "minDelay"),
-			Backoff:              rapid.IntRange(0, 25).Draw(t, "backoff"),
-			MaxDelay:             rapid.IntRange(0, 25).Draw(t, "maxDelay"),
-			MinDelayTarget:       time.Duration(minS) * time.Second,
-			MaxDelayTarget:       time.Duration(maxS) * time.Second,
-			BackoffFunction:      rapid.SampledFrom([]delivery.BackoffFunction{delivery.BackoffLinear, delivery.BackoffArithmetic, delivery.BackoffGeometric, delivery.BackoffExponential}).Draw(t, "function"),
-			MaxReceivesPerSecond: rapid.IntRange(0, 100).Draw(t, "maxReceivesPerSecond"),
+			NoDelay:         rapid.IntRange(0, 25).Draw(t, "noDelay"),
+			MinDelay:        rapid.IntRange(0, 25).Draw(t, "minDelay"),
+			Backoff:         rapid.IntRange(0, 25).Draw(t, "backoff"),
+			MaxDelay:        rapid.IntRange(0, 25).Draw(t, "maxDelay"),
+			MinDelayTarget:  time.Duration(minS) * time.Second,
+			MaxDelayTarget:  time.Duration(maxS) * time.Second,
+			BackoffFunction: rapid.SampledFrom([]delivery.BackoffFunction{delivery.BackoffLinear, delivery.BackoffArithmetic, delivery.BackoffGeometric, delivery.BackoffExponential}).Draw(t, "function"),
 		}
 	})
 }
@@ -292,26 +295,6 @@ func TestDelayFollowsThePhasesForEveryPolicy(t *testing.T) {
 			}
 		}
 	})
-}
-
-// throttlePolicy.maxReceivesPerSecond limits "the maximum average number
-// of message deliveries per second, per subscription", with no throttling
-// by default (sns-http-delivery.md 6.4, aws-doc); attempts start at least
-// 1/maxReceivesPerSecond apart (8.2 item 5).
-func TestPaceInterval(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		p := genSNSHTTP().Draw(t, "policy")
-		want := time.Duration(0)
-		if p.MaxReceivesPerSecond > 0 {
-			want = time.Second / time.Duration(p.MaxReceivesPerSecond)
-		}
-		if got := p.PaceInterval(); got != want {
-			t.Fatalf("PaceInterval() with maxReceivesPerSecond %d = %v, want %v", p.MaxReceivesPerSecond, got, want)
-		}
-	})
-	if got := (delivery.SNSHTTP{MaxReceivesPerSecond: 3}).PaceInterval(); got != 333333333*time.Nanosecond {
-		t.Errorf("PaceInterval() at 3 per second = %v, want 333.333333ms", got)
-	}
 }
 
 // An SNS http delivery is a policy of its own, beside the managed SQS and

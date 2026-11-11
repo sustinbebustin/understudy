@@ -38,7 +38,9 @@ type value struct {
 // rule is one element of a policy key's rule array, with the reference
 // semantics of sns.md 6.2 and 6.3 (and Ruler's, matching-engines.md 4):
 // operators other than exists hold when any value satisfies them, and only
-// exists:false holds for a key without values.
+// exists:false holds for a key without values. exists:true needs a value
+// other than null in either scope (sns/R09 H2-body); the generated strings
+// are never empty, which MessageAttributes scope would also refuse (H2-attr).
 type rule struct {
 	json    string
 	exists  *bool
@@ -46,10 +48,13 @@ type rule struct {
 }
 
 func (r rule) holds(vs []value) bool {
-	if r.exists != nil {
-		return *r.exists == (len(vs) > 0)
+	switch {
+	case r.exists == nil:
+		return slices.ContainsFunc(vs, r.accepts)
+	case *r.exists:
+		return slices.ContainsFunc(vs, func(v value) bool { return v.kind != kindLiteral || v.text != "null" })
 	}
-	return slices.ContainsFunc(vs, r.accepts)
+	return len(vs) == 0
 }
 
 // policyKey is a key and its rules, which hold when any rule does.
@@ -308,14 +313,16 @@ func (m message) body() string {
 // TestPropertyMatchesReference: a flat policy matches a message exactly when
 // the reference evaluator says it does, in the MessageAttributes scope over
 // typed attributes and in the MessageBody scope over the same values as a
-// JSON body (sns.md Implications 3).
+// JSON body (sns.md Implications 3). In MessageAttributes scope a message
+// without attributes, Binary ones included, never matches (sns/R09 T06,
+// H1-attr); in MessageBody scope {} can (H1-body).
 func TestPropertyMatchesReference(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		p := policyGen().Draw(t, "policy")
 		m := messageGen().Draw(t, "message")
-		want := p.matches(m.values)
 		for _, scope := range []filterpolicy.Scope{filterpolicy.MessageAttributes, filterpolicy.MessageBody} {
+			want := p.matches(m.values) && (scope == filterpolicy.MessageBody || len(m.attrs) > 0)
 			compiled, err := filterpolicy.Compile(p.json(), scope)
 			if err != nil {
 				t.Fatalf("Compile(%s, %s): %q", p.json(), scope, err.Reason)

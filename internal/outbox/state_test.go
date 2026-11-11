@@ -233,6 +233,17 @@ func genEntry() *rapid.Generator[Entry] {
 			if rapid.Bool().Draw(t, "dlq") {
 				a := genARN("sqs").Draw(t, "dlqARN")
 				req.DLQ = &a
+				// SNS builds its Lambda dead letter, the SQS envelope
+				// (sns.md 7.4); an entry an earlier build accepted has
+				// none.
+				if req.Mechanism == delivery.SNSToLambda && rapid.Bool().Draw(t, "built") {
+					req.DLQMessage = &delivery.DeadLetterMessage{
+						Body:       rapid.String().Draw(t, "dlqBody"),
+						Attributes: genAttributes().Draw(t, "dlqAttributes"),
+						GroupID:    rapid.StringMatching(`[a-z]{0,4}`).Draw(t, "dlqGroup"),
+						DedupID:    rapid.StringMatching(`[a-z]{0,4}`).Draw(t, "dlqDedup"),
+					}
+				}
 			}
 		}
 		return Entry{

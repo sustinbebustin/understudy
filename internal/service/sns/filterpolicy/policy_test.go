@@ -41,7 +41,9 @@ func TestRecordedValidationTexts(t *testing.T) {
 		{`{"key":[{"exists":"no"}]}`, attrs, "FilterPolicy: exists match pattern must be either true or false."},
 		{`{"key":[{"anything-but":{"wrong-operator":null}}]}`, attrs, "FilterPolicy: Unsupported anything-but pattern: wrong-operator"},
 		{`{"key":[{"anything-but":{"exists":false}}]}`, attrs, "FilterPolicy: Unsupported anything-but pattern: exists"},
-		{`{"key":[{"anything-but":{"prefix":false}}]}`, attrs, "FilterPolicy: prefix match pattern must be a string"},
+		// sns.md 6.5's "prefix match pattern must be a string" is superseded
+		// by sns/R09/H7b-08-subscribe.json (2026-10-14).
+		{`{"key":[{"anything-but":{"prefix":false}}]}`, attrs, "FilterPolicy: Value of anything-but must be an array or single string/number value."},
 		{`{"key":[{"cidr":["bad-filter"]}]}`, attrs, "FilterPolicy: prefix match pattern must be a string"},
 		{`{"key":[{"cidr":"bad-filter"}]}`, attrs, "FilterPolicy: Malformed CIDR, one '/' required"},
 		{`{"key":[{"cidr":"bad-filter/64"}]}`, attrs, "FilterPolicy: Nonstandard IP address: bad-filter"},
@@ -64,6 +66,10 @@ func TestRecordedValidationTexts(t *testing.T) {
 		{`{"key":[{"numeric":[">",20,"<","30"]}]}`, attrs, "FilterPolicy: Value of < must be numeric"},
 		{`{"key":[{"numeric":[">",20,"<",30,"<",50]}]}`, attrs, "FilterPolicy: Too many terms in numeric range expression"},
 		{`{"a":["1"],"b":["1"],"c":["1"],"d":["1"],"e":["1"],"f":["1"]}`, attrs, "FilterPolicy: Filter policy can not have more than 5 keys"},
+		// Keys count across "$or" branches (sns/R09 T12, H3-c, H3-d).
+		{`{"$or":[{"a":["x"]},{"b":["y"]}],"c":["z"],"d":["1"],"e":["2"],"f":["3"]}`, body, "FilterPolicy: Filter policy can not have more than 5 keys"},
+		{`{"$or":[{"a":["1"],"b":["1"],"c":["1"]},{"d":["1"],"e":["1"],"f":["1"]}]}`, body, "FilterPolicy: Filter policy can not have more than 5 keys"},
+		{`{"a":["1"],"$or":[{"b":["1"],"c":["1"]},{"d":["1"],"e":["1"],"f":["1"]}]}`, body, "FilterPolicy: Filter policy can not have more than 5 keys"},
 		{`{"key":[` + numbers(151) + `]}`, attrs, "FilterPolicy: Filter policy is too complex"},
 		{`{"key1":[` + numbers(3) + `],"key2":[` + numbers(51) + `]}`, attrs, "FilterPolicy: Filter policy is too complex"},
 		// Nested under the default scope: the scope text alone, without
@@ -235,10 +241,11 @@ func TestMatchUndecided(t *testing.T) {
 }
 
 // TestSwitches lists every unverified choice as a fidelity switch with its
-// record-backlog reference and the value in effect: the four conflicts
+// record-backlog reference and the value in effect: the two open conflicts
 // between Ruler and the SNS documentation keep Ruler's behavior (ADR 0015,
 // matching-engines.md 3 and 10), and anything-but suffix is accepted
-// although a 2024 recording refused it (matching-engines.md H7).
+// although a 2024 recording refused it (matching-engines.md H7). The
+// behaviors sns/R09 settles are fixed and listed no more.
 func TestSwitches(t *testing.T) {
 	t.Parallel()
 	type setting struct{ value, record string }
@@ -247,16 +254,88 @@ func TestSwitches(t *testing.T) {
 		got[e.Name] = setting{e.Value, e.Record}
 	}
 	for name, want := range map[string]setting{
-		"sns.filter-policy.exists-true-empty-value": {"any-value", "matching-engines.md H2"},
-		"sns.filter-policy.empty-input":             {"matchable", "R09/6 (matching-engines.md H1)"},
-		"sns.filter-policy.bare-number":             {"numeric-or-text", "R09/1 (matching-engines.md H6)"},
-		"sns.filter-policy.malformed-or":            {"rejected", "matching-engines.md H10"},
-		"sns.filter-policy.anything-but-suffix":     {"accepted", "R09/7 (matching-engines.md H7)"},
-		"sns.filter-policy.anything-but-arrays":     {"any-element", "R09/8 (matching-engines.md H4)"},
+		"sns.filter-policy.bare-number":         {"numeric-or-text", "R09/1 (matching-engines.md H6)"},
+		"sns.filter-policy.malformed-or":        {"rejected", "matching-engines.md H10"},
+		"sns.filter-policy.anything-but-suffix": {"accepted", "R09/7 (matching-engines.md H7)"},
+		"sns.filter-policy.anything-but-arrays": {"any-element", "R09/8 (matching-engines.md H4)"},
 	} {
 		if g, ok := got[name]; !ok || g != want {
 			t.Errorf("switch %s = %+v (present %v), want %+v", name, g, ok, want)
 		}
+	}
+	for _, name := range []string{
+		"sns.filter-policy.empty-input", "sns.filter-policy.exists-true-empty-value",
+		"sns.filter-policy.ignore-case-forms", "sns.filter-policy.key-counting",
+	} {
+		if g, ok := got[name]; ok {
+			t.Errorf("switch %s = %+v is listed; sns/R09 settles it", name, g)
+		}
+	}
+}
+
+// TestRecordedIgnoreCaseForms: SNS accepts equals-ignore-case under
+// anything-but, prefix and suffix (sns/R09/H7b-03-subscribe.json to
+// H7b-05-subscribe.json).
+func TestRecordedIgnoreCaseForms(t *testing.T) {
+	t.Parallel()
+	for _, policy := range []string{
+		`{"x":[{"anything-but":{"equals-ignore-case":"A"}}]}`,
+		`{"x":[{"prefix":{"equals-ignore-case":"A"}}]}`,
+		`{"x":[{"suffix":{"equals-ignore-case":"A"}}]}`,
+	} {
+		if _, err := filterpolicy.Compile(policy, filterpolicy.MessageAttributes); err != nil {
+			t.Errorf("Compile(%s) = %q, want accepted", policy, err.Reason)
+		}
+	}
+}
+
+// TestRecordedEmptyInputAndExists replays the delivery outcomes
+// testdata/parity/sns/R09/summary.tsv records for empty input and
+// exists:true. A row with attrs set publishes under MessageAttributes scope;
+// one without publishes body under MessageBody scope. AWS refused the
+// H2-attr m2 publish itself (an empty String value), so that row checks only
+// the policy's answer.
+func TestRecordedEmptyInputAndExists(t *testing.T) {
+	t.Parallel()
+	str := func(name, v string) []delivery.MessageAttribute {
+		return []delivery.MessageAttribute{{Name: name, Value: delivery.StringAttribute{Value: v}}}
+	}
+	none := []delivery.MessageAttribute{}
+	tests := []struct {
+		row, policy string
+		attrs       []delivery.MessageAttribute
+		body        string
+		delivered   bool
+	}{
+		{"T06 m1", `{"t":[{"exists":false}]}`, none, "m1", false},
+		{"H1-attr m1", `{"store":[{"exists":false}]}`, none, "m1", false},
+		{"H1-attr m2", `{"store":[{"exists":false}]}`, str("other", "x"), "m2", true},
+		{"H1-body m1", `{"store":[{"exists":false}]}`, nil, `{}`, true},
+		{"H1-body m2", `{"store":[{"exists":false}]}`, nil, `{"other":"x"}`, true},
+		{"H2-body m1", `{"store":[{"exists":true}]}`, nil, `{"store":null}`, false},
+		{"H2-body m2", `{"store":[{"exists":true}]}`, nil, `{"store":""}`, true},
+		{"H2-body m3", `{"store":[{"exists":true}]}`, nil, `{"store":[]}`, false},
+		{"H2-body m4", `{"store":[{"exists":true}]}`, nil, `{"store":{}}`, false},
+		{"H2-body m5", `{"store":[{"exists":true}]}`, nil, `{"store":0}`, true},
+		{"H2-body m6", `{"store":[{"exists":true}]}`, nil, `{"store":false}`, true},
+		{"H2-attr m1", `{"store":[{"exists":true}]}`, str("store", "x"), "m1", true},
+		{"H2-attr m2", `{"store":[{"exists":true}]}`, str("store", ""), "m2", false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.row, func(t *testing.T) {
+			t.Parallel()
+			scope := filterpolicy.MessageBody
+			if tc.attrs != nil {
+				scope = filterpolicy.MessageAttributes
+			}
+			p, err := filterpolicy.Compile(tc.policy, scope)
+			if err != nil {
+				t.Fatalf("Compile(%s): %q", tc.policy, err.Reason)
+			}
+			if got, merr := p.Match(tc.attrs, tc.body); merr != nil || got != tc.delivered {
+				t.Fatalf("Match = %v, %v; want %v", got, merr, tc.delivered)
+			}
+		})
 	}
 }
 

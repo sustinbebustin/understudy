@@ -8,7 +8,14 @@
         "dev.understudy#denialError": "com.amazon.coral.service#AccessDenied",
         "dev.understudy#validationError": {"code": "com.amazonaws.ses#InvalidParameterValue"},
         "dev.understudy#queryErrorEnvelope": {"namespace": true},
+        "dev.understudy#unknownOperationAnswer": "awsFault",
         "dev.understudy#evidence": [
+          {
+            "label": "aws-recorded",
+            "source": "testdata/parity/ses/SES-24/01-v1-unknown.json",
+            "validated": "2026-11-03",
+            "covers": ["dev.understudy#unknownOperationAnswer"]
+          },
           {
             "label": "aws-recorded",
             "source": "testdata/parity/ses/IAM-ENF/38-raw.json: an IAM denial answers 403 with Type Sender and Code AccessDenied in the SES namespace envelope; its model declares no denial shape (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",

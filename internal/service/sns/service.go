@@ -93,20 +93,6 @@ func fifoSequence() fidelity.Switch[string] {
 	}
 }
 
-// lambdaAttributeTypes is the DataType a Lambda event carries for Number
-// and String.Array attributes: the published one, where the docs say
-// String (sns.md 9).
-func lambdaAttributeTypes() fidelity.Switch[string] {
-	return fidelity.Switch[string]{
-		Name:    "sns.lambda.attribute-type",
-		Value:   "as-published",
-		Label:   evidence.Inferred,
-		Ref:     "docs/research/sns.md#9-conflicts-between-sources",
-		Ops:     publishOps(),
-		Settles: fidelity.NoScenario{Reason: "logs/R16/01-lambda-events.json is recorded; no scenario replays it, as the delivery runs a Lambda function under Docker"},
-	}
-}
-
 // fifoDuplicate is what a FIFO publish inside the deduplication window
 // answers: a fresh MessageId and SequenceNumber with no delivery, as the
 // research recommends; no recording shows whether AWS returns the
@@ -123,17 +109,18 @@ func fifoDuplicate() fidelity.Switch[string] {
 }
 
 // detachedRetention is how long the subscriptions of a deleted topic stay
-// readable through GetSubscriptionAttributes, and removable through
-// Unsubscribe. AWS keeps them after DeleteTopic (LocalStack
-// test_delete_subscriptions_on_delete_topic, AWS-recorded) for a time no
-// source documents; 48 hours is LocalStack's report.
+// listed by ListSubscriptions, readable through GetSubscriptionAttributes,
+// and removable through Unsubscribe. AWS keeps them after DeleteTopic
+// (LocalStack test_delete_subscriptions_on_delete_topic, AWS-recorded;
+// sns/R16 06-list-subscriptions-after-delete) for a time no source
+// documents; 48 hours is LocalStack's report.
 func detachedRetention() fidelity.Switch[time.Duration] {
 	return fidelity.Switch[time.Duration]{
 		Name:  "sns.delete-topic.detached-retention",
 		Value: 48 * time.Hour,
 		Label: evidence.Inferred,
 		Ref:   "docs/research/sns.md#22-topic-attributes",
-		Ops:   []string{"sns.DeleteTopic", "sns.GetSubscriptionAttributes", "sns.Unsubscribe"},
+		Ops:   []string{"sns.DeleteTopic", "sns.GetSubscriptionAttributes", "sns.ListSubscriptions", "sns.Unsubscribe"},
 		Settles: fidelity.NoScenario{
 			Reason: "sns/R16/06-list-subscriptions-after-delete.json shows the subscriptions 5 s after DeleteTopic; how long they stay is unrecorded",
 		},
@@ -145,7 +132,7 @@ func detachedRetention() fidelity.Switch[time.Duration] {
 // deliveries (iam-enforcement-surfaces.md 12.8) among them.
 func (s *Service) Switches() []fidelity.Entry {
 	entries := []fidelity.Entry{
-		pendingInListings().Entry(), fifoSequence().Entry(), lambdaAttributeTypes().Entry(), fifoDuplicate().Entry(),
+		pendingInListings().Entry(), fifoSequence().Entry(), fifoDuplicate().Entry(),
 		detachedRetention().Entry(),
 		authz.AccountIDPrincipalSwitch("sns", "IAM-EVAL-25", []string{"sns.CreateTopic", "sns.SetTopicAttributes"}),
 		// The code and status are the model's AuthorizationErrorException

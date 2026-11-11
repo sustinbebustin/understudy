@@ -68,8 +68,9 @@ func TestIdentities(t *testing.T) {
 			Shape: "com.amazonaws.sqs#PurgeQueueInProgress", JSONType: "com.amazonaws.sqs#PurgeQueueInProgress",
 			QueryCode: "AWS.SimpleQueueService.PurgeQueueInProgress", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower,
 		}},
+		// testdata/parity/sqs/R11/02-send-empty-body.json
 		{"MissingParameter", IdentityMissingParameter(), awserr.Identity{
-			Shape: "com.amazonaws.sqs#MissingParameter", JSONType: "com.amazonaws.sqs#MissingRequiredParameterException",
+			Shape: "com.amazonaws.sqs#MissingParameter", JSONType: "com.amazon.coral.service#MissingRequiredParameterException",
 			QueryCode: "MissingParameter", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower,
 		}},
 		{"RequestThrottled is the throttle identity, so retryable", IdentityRequestThrottled(), awserr.Identity{
@@ -90,10 +91,14 @@ func TestIdentities(t *testing.T) {
 
 // TestGenericIdentitiesMatchTheCatalogue: overlays/common.json and the
 // awserr catalogue describe the same protocol-level errors; they must not
-// drift apart.
+// drift apart. SQS's JSON unknown operation keeps the catalogue's identity
+// but sends InvalidAction as its x-amzn-query-error code
+// (testdata/parity/sqs/R11/03-unknown-operation.json).
 func TestGenericIdentitiesMatchTheCatalogue(t *testing.T) {
-	if got, ok := UnknownOperationError(awserr.JSONFamily); !ok || got != awserr.UnknownOperationException() {
-		t.Errorf("JSON unknown operation = %+v, want %+v", got, awserr.UnknownOperationException())
+	wantJSON := awserr.UnknownOperationException()
+	wantJSON.QueryCode = "InvalidAction"
+	if got, ok := UnknownOperationError(awserr.JSONFamily); !ok || got != wantJSON {
+		t.Errorf("JSON unknown operation = %+v, want %+v", got, wantJSON)
 	}
 	if got, ok := UnknownOperationError(awserr.QueryFamily); !ok || got != awserr.InvalidAction() {
 		t.Errorf("Query unknown operation = %+v, want %+v", got, awserr.InvalidAction())

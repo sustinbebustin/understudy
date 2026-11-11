@@ -7,9 +7,10 @@
 // write changes a working copy and stores it back (ARCHITECTURE.md 3.5).
 // The copy shares the stored messages and caches until the write first
 // changes them, so a send copies no queued message and filling a queue
-// stays linear (Queue.clone, DedupCache). A message keeps the journal
-// event of the call that enqueued it. ReceiveMessage is the long-poll
-// reference of ARCHITECTURE.md 8.
+// stays linear, and a change to one message copies the chunk that holds
+// it, not the backlog (Queue.clone, Messages, DedupCache). A message
+// keeps the journal event of the call that enqueued it. ReceiveMessage is
+// the long-poll reference of ARCHITECTURE.md 8.
 //
 // Timers, all on the emulator clock and re-armed by Rearm from the state:
 // sqs.delay fires when a message's delay ends and sqs.visibility when a
@@ -27,12 +28,15 @@
 //     Reference; the size counts the body and every message attribute's
 //     name, type and value.
 //   - A receipt handle is well formed when it has the form understudy
-//     mints (AQEB and 32 base64 characters); anything else is
-//     ReceiptHandleIsInvalid. A well-formed handle that matches no message
-//     deletes nothing and succeeds (sqs.receipt.stale-handle). A FIFO
-//     handle expires with its visibility timeout for DeleteMessage, as
-//     recorded, and for ChangeMessageVisibility too
-//     (sqs.fifo.receipt-expiry).
+//     mints: AQEB and padded base64, 412 characters from a standard queue
+//     and 304 from a FIFO one, as AWS's (sqs.md 7.2). Either length is well
+//     formed on either kind of queue, which is inferred; anything else is
+//     ReceiptHandleIsInvalid. A well-formed handle that reaches no message
+//     deletes nothing and succeeds, as recorded for a deleted message; one
+//     another queue issued does the same outside a batch, unrecorded. A
+//     FIFO handle expires with its visibility timeout, and an older one
+//     once its message is received again, for DeleteMessage, as recorded,
+//     and for ChangeMessageVisibility too (sqs.fifo.receipt-expiry).
 //   - Redrive happens on the receive that would exceed maxReceiveCount
 //     (sqs.md 9.2). A policy whose dead-letter queue no longer exists, or
 //     names the queue itself, moves nothing. The receive's journal event
@@ -69,14 +73,16 @@
 //     stays, its receipt handle valid, ApproximateNumberOfMessagesToMove
 //     counts the messages receivable at the start, and a task whose
 //     remaining messages are all in flight keeps running until each is
-//     receivable or gone. It moves each as a new message
-//     (sqs.move-task.message-identity). A destination that does not exist
+//     receivable or gone. It moves each as a new message, a new id and
+//     SentTimestamp, that keeps a FIFO message's deduplication id
+//     (sqs/R02 fifo-06-recv-src). A destination that does not exist
 //     fails the task with AWS.SimpleQueueService.NonExistentQueue; one
 //     that is the source is refused at the start. Without a DestinationArn
 //     a task moves only messages dead-lettered from another queue: one
 //     sent straight to the dead-letter queue has no source to go back to,
 //     so it stays, and ApproximateNumberOfMessagesToMove leaves it out.
-//     Cancelling is immediate, so no task is seen CANCELLING. A source
+//     Cancelling is immediate, so no task is seen CANCELLING; cancelling a
+//     finished task is refused as inactive. A source
 //     queue keeps its ten newest tasks, ListMessageMoveTasks' cap. Task
 //     ids are UUIDs drawn from the message id stream, as EventBridge event
 //     ids are.

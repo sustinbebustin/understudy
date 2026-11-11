@@ -1,7 +1,9 @@
 package sns
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -37,14 +39,12 @@ const (
 )
 
 // bindSubscriptionAttributes binds Get and SetSubscriptionAttributes.
-// SetSubscriptionAttributes's note is sns-http-delivery.md 8.1's text; the
-// 3,600-second total retry time of an http or https policy is not checked
-// either (6.3, SNSH-18; httpRetryPolicy).
+// SetSubscriptionAttributes's note is sns-http-delivery.md 8.1's text.
 func (s *Service) bindSubscriptionAttributes(b snsapi.Binder) {
 	b.GetSubscriptionAttributes(s.getSubscriptionAttributes, registry.Full{},
 		kernel.WithResourceARN(func(in *snsapi.GetSubscriptionAttributesInput) string { return in.SubscriptionArn }))
-	b.SetSubscriptionAttributes(s.setSubscriptionAttributes, registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy, throttlePolicy and requestPolicy apply to http and https deliveries; " +
-		"sicklyRetryPolicy and guaranteed are stored and echoed, never applied; the quota of 10,000 filter policies per account is not enforced"},
+	b.SetSubscriptionAttributes(s.setSubscriptionAttributes, registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy and requestPolicy apply to http and https deliveries; " +
+		"throttlePolicy, sicklyRetryPolicy and guaranteed are stored and echoed, never applied, so deliveries are not paced (AWS's pacing above a burst of 10 is unrecorded, SNSH-20); the quota of 10,000 filter policies per account is not enforced"},
 		kernel.WithResourceARN(func(in *snsapi.SetSubscriptionAttributesInput) string { return in.SubscriptionArn }),
 		kernel.WithResources(func(_ *kernel.Call, in *snsapi.SetSubscriptionAttributesInput) []aws.ARN {
 			if in.AttributeName != attrSubscriptionRoleArn || in.AttributeValue == nil {
@@ -67,6 +67,9 @@ type subscriber struct {
 	// policy valid.
 	scope  filterpolicy.Scope
 	policy string
+	// raw is the RawMessageDelivery in effect, which decides the content
+	// types a DeliveryPolicy's requestPolicy may name.
+	raw bool
 }
 
 // subscriptionSetting is one checked subscription attribute.
@@ -98,8 +101,8 @@ func storedSubscriptionAttribute(name, value string) subscriptionSetting {
 // RedrivePolicy (tf-messaging.md 3.5). detail is the text after "Invalid
 // parameter: " (after "Attributes Reason: " at Subscribe), recorded where
 // sns.md has it and inferred otherwise; it is "" when the setting is good.
-// FilterPolicy is stored as given once it compiles for the scope in
-// effect; a DeliveryPolicy that parses as a JSON object and keeps
+// FilterPolicy is stored compacted (compactPolicy) once it compiles for the
+// scope in effect; a DeliveryPolicy that parses as a JSON object and keeps
 // checkSubscriptionDeliveryPolicy's constraints is stored as
 // storedSubscriptionDeliveryPolicy shapes it.
 func (s *Service) subscriptionAttribute(sub subscriber, name string, value *string) (set subscriptionSetting, detail string) {
@@ -124,12 +127,13 @@ func (s *Service) subscriptionAttribute(sub subscriber, name string, value *stri
 		if _, err := s.policies.Compile(v, sub.scope); err != nil {
 			return subscriptionSetting{}, err.Reason
 		}
+		return storedSubscriptionAttribute(name, compactPolicy(v)), ""
 	case attrFilterPolicyScope:
 		if detail := s.checkFilterPolicyScope(sub, v); detail != "" {
 			return subscriptionSetting{}, detail
 		}
 	case attrDeliveryPolicy:
-		return subscriptionDeliveryPolicy(v)
+		return subscriptionDeliveryPolicy(v, sub.raw)
 	case attrReplayPolicy:
 		// Message replay exists only for FIFO topics (sns.md 3.3); the
 		// text is inferred, in the form of a standard topic's
@@ -144,10 +148,21 @@ func (s *Service) subscriptionAttribute(sub subscriber, name string, value *stri
 	return storedSubscriptionAttribute(name, v), ""
 }
 
+// compactPolicy is a FilterPolicy as AWS stores it: whitespace removed, key
+// order and string escapes kept (sns/R05 05-get-sub-attrs). A policy that
+// compiled is JSON, so the fallback to v as given is never taken.
+func compactPolicy(v string) string {
+	var b bytes.Buffer
+	if err := json.Compact(&b, []byte(v)); err != nil {
+		return v
+	}
+	return b.String()
+}
+
 // subscriptionDeliveryPolicy checks a subscription DeliveryPolicy: "" unsets
 // it, and anything else must be a JSON object that keeps
-// checkSubscriptionDeliveryPolicy's constraints.
-func subscriptionDeliveryPolicy(v string) (set subscriptionSetting, detail string) {
+// checkSubscriptionDeliveryPolicy's constraints under raw delivery raw.
+func subscriptionDeliveryPolicy(v string, raw bool) (set subscriptionSetting, detail string) {
 	if v == "" {
 		return storedSubscriptionAttribute(attrDeliveryPolicy, ""), ""
 	}
@@ -155,7 +170,7 @@ func subscriptionDeliveryPolicy(v string) (set subscriptionSetting, detail strin
 	if !ok {
 		return subscriptionSetting{}, attrDeliveryPolicy + ": failed to parse JSON."
 	}
-	if detail := checkSubscriptionDeliveryPolicy(m); detail != "" {
+	if detail := checkSubscriptionDeliveryPolicy(m, raw); detail != "" {
 		return subscriptionSetting{}, detail
 	}
 	stored, ok := storedSubscriptionDeliveryPolicy(m)
@@ -254,11 +269,13 @@ func isFIFOQueue(queue string) bool { return strings.HasSuffix(queue, fifoSuffix
 
 // subscriptionSettings checks Subscribe's Attributes in name order; a
 // FilterPolicy compiles for the FilterPolicyScope beside it, when that
-// scope is valid, else for the default.
+// scope is valid, else for the default, and a DeliveryPolicy is checked
+// under the RawMessageDelivery beside it.
 func (s *Service) subscriptionSettings(sub subscriber, attrs map[string]string) ([]subscriptionSetting, *awserr.Error) {
 	if scope, ok := filterpolicy.ParseScope(attrs[attrFilterPolicyScope]); ok {
 		sub.scope = scope
 	}
+	sub.raw = strings.EqualFold(attrs[attrRawMessageDelivery], "true")
 	out := make([]subscriptionSetting, 0, len(attrs))
 	for _, name := range slices.Sorted(maps.Keys(attrs)) {
 		v := attrs[name]
@@ -424,7 +441,7 @@ func (s *Service) setSubscriptionAttributes(_ context.Context, c *kernel.Call, i
 		}
 		current := subscriber{
 			protocol: sub.Protocol, endpoint: sub.Endpoint, topicFIFO: ref.topic.fifo(), home: ref.topic.scope,
-			scope: scope, policy: sub.Attributes[attrFilterPolicy],
+			scope: scope, policy: sub.Attributes[attrFilterPolicy], raw: sub.RawMessageDelivery,
 		}
 		set, detail := s.subscriptionAttribute(current, in.AttributeName, in.AttributeValue)
 		if detail != "" {

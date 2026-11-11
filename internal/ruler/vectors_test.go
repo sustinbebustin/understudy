@@ -18,7 +18,7 @@ var (
 
 // seedVectors are matching-engines.md section 9, executed against Ruler
 // v2.2.0. All of them run under the EventBridge profile, whose allow-list is
-// Ruler's operator set minus the undocumented "exactly".
+// Ruler's operator set.
 var seedVectors = []struct {
 	id, pattern, event string
 	want               outcome
@@ -230,6 +230,52 @@ func TestJavaDoubleToString(t *testing.T) {
 			want = rejectsAs("Cannot compare number : " + tc.number)
 		}
 		checkVector(t, `{"a":[{"numeric":["=",`+tc.number+`]}]}`, `{"a":`+tc.number+`}`, want)
+	}
+}
+
+// exactlyVectors: Ruler's {"exactly": "s"} matches a string value whose text
+// is s, and nothing else: no number with that text, and no other spelling of
+// an IP address, which a bare string rule would take. Its operand must be a
+// string. AWS accepts it in EventBridge (events/R14/H14-01.json matches
+// {"x":"a"}), SNS (sns/R09/H7b-07-subscribe.json) and Lambda
+// (lambda/R03/H13-11-create.json invokes for {"x":"a"}, not {"x":"b"}).
+// The differential harness (rulerdiff_test.go) executes every row against
+// Ruler v2.2.0.
+var exactlyVectors = []struct {
+	pattern, event string
+	want           outcome
+}{
+	{`{"a":[{"exactly":"x"}]}`, `{"a":"x"}`, matches},
+	{`{"a":[{"exactly":"x"}]}`, `{"a":"X"}`, noMatch},
+	{`{"a":[{"exactly":"x"}]}`, `{"a":"y"}`, noMatch},
+	{`{"a":[{"exactly":"x"}]}`, `{"a":["y","x"]}`, matches},
+	{`{"a":[{"exactly":"x"}]}`, `{"b":"x"}`, noMatch},
+	{`{"a":[{"exactly":""}]}`, `{"a":""}`, matches},
+	{`{"a":[{"exactly":""}]}`, `{"a":null}`, noMatch},
+	{`{"a":[{"exactly":"5"}]}`, `{"a":5}`, noMatch},
+	{`{"a":[{"exactly":"é"}]}`, `{"a":"é"}`, matches},
+	{`{"a":[{"exactly":"10.0.0.1"}]}`, `{"a":"10.0.0.1"}`, matches},
+	{`{"a":[{"exactly":"10.0.0.1"}]}`, `{"a":"010.0.0.1"}`, noMatch},
+	{`{"a":[{"exactly":"2001:db8::1"}]}`, `{"a":"2001:0db8:0:0:0:0:0:1"}`, noMatch},
+	{`{"a":[{"exactly":5}]}`, `{"a":5}`, rejectsAs("exact match pattern must be a string")},
+	{`{"a":[{"exactly":true}]}`, `{"a":true}`, rejectsAs("exact match pattern must be a string")},
+	{`{"a":[{"exactly":null}]}`, `{"a":null}`, rejectsAs("exact match pattern must be a string")},
+	{`{"a":[{"exactly":["x"]}]}`, `{"a":"x"}`, rejectsAs("exact match pattern must be a string")},
+	{`{"a":[{"exactly":{"x":1}}]}`, `{"a":"x"}`, rejectsAs("exact match pattern must be a string")},
+	{`{"a":[{"exactly":"x","prefix":"x"}]}`, `{"a":"x"}`, rejectsAs("Only one key allowed in match expression")},
+	{`{"a":[{"anything-but":{"exactly":"x"}}]}`, `{"a":"y"}`, rejectsAs("Unsupported anything-but pattern: exactly")},
+	{`{"a":[{"prefix":{"exactly":"x"}}]}`, `{"a":"x"}`, rejectsAs("Unsupported prefix pattern: exactly")},
+	{`{"exactly":["x"]}`, `{"exactly":"x"}`, matches},
+	{`{"$or":[{"exactly":["x"]},{"b":["y"]}]}`, `{"exactly":"x"}`, rejectsAs("exactly is Ruler reserved fieldName which cannot be used inside $or.")},
+}
+
+func TestExactly(t *testing.T) {
+	t.Parallel()
+	for _, tc := range exactlyVectors {
+		t.Run(tc.pattern+" "+tc.event, func(t *testing.T) {
+			t.Parallel()
+			checkVector(t, tc.pattern, tc.event, tc.want)
+		})
 	}
 }
 
