@@ -10,15 +10,23 @@ test_exec := "env HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 N
 # The GoReleaser that release-check runs; release.yml pins the same version.
 goreleaser_version := "v2.19.0"
 
+# Optional throttle for a machine that verifies many checkouts at once. Each
+# whole-repo vet, lint and test run is sized to every core, so a dozen
+# worktrees verifying together exhaust memory. With qrun (a local command
+# queue) on PATH, those runs wait in one machine-wide line and share a CPU and
+# memory budget; their output and exit status are unchanged. Without it, as
+# in CI, the prefix is empty and they run directly.
+gate := `command -v qrun >/dev/null 2>&1 && echo 'qrun exec --' || true`
+
 # List the recipes.
 default:
     @just --list
 
 # Format, vet, lint and test everything. This is the gate for every change.
 verify: fmt-check
-    go vet ./...
-    golangci-lint run ./...
-    go test -race -exec '{{test_exec}}' ./...
+    {{gate}} go vet ./...
+    {{gate}} golangci-lint run ./...
+    {{gate}} go test -race -exec '{{test_exec}}' ./...
 
 # Fail when gofmt would change a hand-written Go file. Generated files are skipped.
 fmt-check:
@@ -39,11 +47,11 @@ fmt:
 
 # Run the linters.
 lint:
-    golangci-lint run ./...
+    {{gate}} golangci-lint run ./...
 
 # Run the unit tests with the race detector.
 test:
-    go test -race -exec '{{test_exec}}' ./...
+    {{gate}} go test -race -exec '{{test_exec}}' ./...
 
 # Run the tests that need a Docker daemon: every package whose test files
 # change under the docker tag. Only test files carry the tag, so in every
@@ -57,7 +65,7 @@ test-docker:
         echo "just test-docker found no package whose test files change under -tags docker; expected the Lambda, DynamoDB and topology tests. Check 'go list -tags docker ./...'." >&2
         exit 1
     fi
-    go test -race -tags docker -exec '{{test_exec}}' "${pkgs[@]}"
+    {{gate}} go test -race -tags docker -exec '{{test_exec}}' "${pkgs[@]}"
 
 # Compare internal/ruler with AWS's Java Event Ruler, pinned in
 # internal/ruler/testdata/rulerdiff/pom.xml. Needs Docker, or a JDK 21 with Maven.
@@ -153,7 +161,7 @@ budgets:
 # Build and start the binary and send one request per service. The test
 # builds the binary itself, which Go's test cache cannot see, so it always runs.
 smoke:
-    go test -race -count=1 -tags smoke -exec '{{test_exec}}' ./internal/smoke
+    {{gate}} go test -race -count=1 -tags smoke -exec '{{test_exec}}' ./internal/smoke
 
 # Build the image, then run the Go, Python and Node Testcontainers suites on it.
 testcontainers: image
