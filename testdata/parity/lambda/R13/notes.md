@@ -53,13 +53,13 @@ Understudy side checked by code reading and a local sealed run (same function co
 - 4 DryRun on a Pending function (04-dryrun-pending): differs: AWS 409 ResourceConflictException `{"Type":null,"message":"The operation cannot be performed at this time. The function is currently in the following state: Pending"}`; understudy same text with `"Type":"User"` (errors.go:75-77), reachable only under lambda.stateTransitions clock
 - 4 create-function State (04-create-oom): n/a (AWS Pending / "The function is being created." / Creating; understudy Active by the lambda.stateTransitions final default)
 - 4 OOM invoke (04-invoke-oom): matches (200, Unhandled, `{"errorType":"Runtime.OutOfMemory","errorMessage":"RequestId: <id> Error: Runtime exited with error: signal: killed"}`)
-- 4 weighted alias X-Amz-Executed-Version (04-create-weighted-alias, 04-invoke-alias-1..4): n/a (CLI rejected the --routing-config syntax; alias never created)
-- 4 invoke of a missing alias (04-invoke-alias-1..4): matches (404 ResourceNotFoundException `Function not found: arn:aws:lambda:us-east-2:123456789012:function:usr-rec-20261014-url:live`, Type User)
+- 4 weighted alias X-Amz-Executed-Version (04-create-weighted-alias, 04-invoke-alias-1..6): n/a, not compared byte for byte (AWS 201 alias `live` on version 4 with AdditionalVersionWeights {"5":0.5}; six invokes 200 with X-Amz-Executed-Version 4,4,4,5,5,5; see "Re-recorded 2026-10-14" below)
+- 4 invoke of a missing alias: n/a (no longer recorded: the re-recording replaced 04-invoke-alias-1..4, which now invoke the created alias `live` and answer 200)
 - 5 reserved env key AWS_REGION (05-env-aws-region): matches (400 InvalidParameterValueException, Type User, `Lambda was unable to configure your environment variables because the environment variables you have provided contains reserved keys that are currently not supported for modification. Reserved keys used in this request: AWS_REGION`)
 - 5 timeout 901 (05-timeout-901): differs: AWS 400 ValidationException `{"message":"Value '901' at 'timeout' failed to satisfy constraint: Member must have value less than or equal to 900"}` (no `1 validation error detected: ` prefix); understudy adds the prefix (internal/awserr/violation.go:162-177)
 - 5 memory 10241 (05-memory-10241): differs: AWS 400 ValidationException `{"message":"'MemorySize' value failed to satisfy constraint: Member must have value less than or equal to 3008"}` (free-plan account quota); understudy `1 validation error detected: Value '10241' at 'memorySize' failed to satisfy constraint: Member must have value less than or equal to 10240`
 - 5 memory 127 (05-memory-127): n/a (rejected client-side by the CLI)
-- 6 version numbers after deleting version 2 (06-delete-version-2, 06-publish-after-delete, 06-publish-again-unchanged): matches (delete 204; next publish is 3, not 2; unchanged publish returns 3) (state.go:115-117)
+- 6 version numbers after deleting version 2 (06-delete-version-2, 06-publish-after-delete, 06-publish-again-unchanged): matches (delete 204; next publish is 3, not 2; unchanged publish returns 3) (versions.go:105-116)
 - 7 identity inside the function: n/a (02-resp-whoami returned 502 on AWS)
 - 8 log stream name (08-describe-log-streams, 08-describe-log-streams-oom): matches (`2026/10/14/[$LATEST]<32 hex>`)
 

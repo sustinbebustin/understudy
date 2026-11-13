@@ -33,7 +33,7 @@ Compared against understudy built locally (same corpus replayed on a local insta
 - 03 Detail over 256 KiB: matches (accepted, FailedEntryCount 0; understudy limit 1 MiB, internal/service/events/putevents.go:24)
 - 03 past Time: matches (accepted)
 - 03 nonexistent EventBusName: matches (200, EventId, FailedEntryCount 0)
-- 04 schedule rule on a custom bus: matches (400 ValidationException "ScheduleExpression is supported only on the default event bus.", refused before the bus is looked up, so for the bus the recording never created too; internal/service/events/rules.go checkPutRule). Replay: matches (internal/parity/baseline.json, events/R14#04-custom-bus-schedule)
+- 04 schedule rule on a custom bus: matches (400 ValidationException "ScheduleExpression is supported only on the default event bus.", on a bus that exists: AWS looks the bus up before the schedule check, a missing custom bus answering 400 ResourceNotFoundException (events/EBB/03-put-rule-schedule.json), so the recording's bus existed, and scenario.json creates it in setup; understudy keeps the same order, internal/service/events/rules.go putRule). Replay: matches (internal/parity/baseline.json, events/R14#04-custom-bus-schedule)
 - H1-01, H1-02 exists:false on empty/other detail: matches (true, true)
 - H8-01..03 string vs number: matches (false x3)
 - H9-01, H9-02 full-length masks: matches (InvalidEventPatternException "Event pattern is not valid. Reason: IPv4 mask bits must be < 32" / "IPv6 mask bits must be < 128", no location suffix)
