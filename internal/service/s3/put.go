@@ -101,6 +101,14 @@ func (s *Service) putObject(ctx context.Context, c *kernel.Call, in *s3api.PutOb
 	if isKMS(enc) && in.SSEKMSEncryptionContext != nil {
 		out.SSEKMSEncryptionContext = in.SSEKMSEncryptionContext
 	}
+	// A class other than STANDARD is answered in a header the output does
+	// not model: recorded for STANDARD_IA
+	// (testdata/parity/s3/R06/07-put-object-ia.json) and absent for STANDARD
+	// (testdata/parity/s3/R06/07-put-object.json); inferred for every other
+	// class from the same rule.
+	if obj.StorageClass != s3api.StorageClassStandard {
+		c.SetSuccessHeader(storageClassHeader, string(obj.StorageClass))
+	}
 	return out, nil
 }
 

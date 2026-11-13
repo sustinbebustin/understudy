@@ -47,7 +47,18 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	lv1 := func(in *s3api.ListObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjects(reader(s, lv1, listObjects), registry.Partial{Note: "no RestoreStatus"}, touches(s, lv1))
 	lv2 := func(in *s3api.ListObjectsV2Input) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.ListObjectsV2(reader(s, lv2, listObjectsV2), registry.Partial{Note: "no RestoreStatus"}, touches(s, lv2))
+	// Every ListObjectsV2 200 names the bucket's home region, a header the
+	// output does not model, whatever region the request asserts
+	// (testdata/parity/s3/R06/07-list-objects-v2.json).
+	b.ListObjectsV2(func(ctx context.Context, c *kernel.Call, in *s3api.ListObjectsV2Input) (*s3api.ListObjectsV2Output, *awserr.Error) {
+		return read(ctx, s, c, lv2(in), func(b *Bucket) (*s3api.ListObjectsV2Output, *awserr.Error) {
+			out, err := listObjectsV2(in, b)
+			if err == nil {
+				c.SetSuccessHeader(regionHeader, b.Home.Region.String())
+			}
+			return out, err
+		})
+	}, registry.Partial{Note: "no RestoreStatus"}, touches(s, lv2))
 	lvv := func(in *s3api.ListObjectVersionsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjectVersions(reader(s, lvv, listObjectVersions), registry.Partial{Note: "no RestoreStatus"}, touches(s, lvv))
 	s.bindObjectTagging(b)

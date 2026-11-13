@@ -18,6 +18,10 @@ const malformedXMLMessage = "The XML you provided was not well-formed or did not
 // regionHeader is the response header naming a bucket's home region.
 const regionHeader = "x-amz-bucket-region"
 
+// storageClassHeader is the response header naming the class an object
+// was stored in.
+const storageClassHeader = "x-amz-storage-class"
+
 // The not-configured texts of the bucket subresources (s3.md 4.1,
 // wire-rest.md 3.6).
 const (

@@ -215,7 +215,7 @@ package kernel
 
 // Call is the context of one operation invocation, external or internal. The edge or Invoke
 // builds it; handlers read it through accessors and may Touch resources. Fields are unexported.
-type Call struct{ /* id, scope, region source, principal, verified auth, origin, mode, op, event, cause, links, admitted, endpoint, trace, headers, touched, holding */ }
+type Call struct{ /* id, scope, region source, principal, verified auth, origin, mode, op, event, cause, links, admitted, endpoint, trace, headers, touched, holding, success headers */ }
 
 func (c *Call) ID() ids.RequestID
 func (c *Call) Scope() aws.Scope
@@ -233,6 +233,7 @@ func (c *Call) Trace() string                 // X-Amzn-Trace-Id, or inherited f
 func (c *Call) Header(name string) (string, bool) // read-only view of a closed set of unmodeled request headers
 func (c *Call) Touch(arns ...aws.ARN)        // feeds the journal and fault matching, and the access recorder up to step 8's pairing
 func (c *Call) Record(ctx context.Context, scope aws.Scope, d journal.Detail) // journal an event beside the call's own (section 10)
+func (c *Call) SetSuccessHeader(name, value string) // a response header sent only if the call succeeds (Output.Headers)
 
 // Handler implements one AWS operation. Dispatch maps (nil, nil) and (out, err) to Internal,
 // naming the operation; unit outputs are the empty struct, so nil is never legitimate.
@@ -282,9 +283,17 @@ type Unauthenticated struct{ Err *awserr.Error } // refused at authentication: j
 //
 //sumtype:decl
 type Result interface{ isResult() }
-type Output struct{ Out any; Status int }
+type Output struct{ Out any; Status int; Headers http.Header } // Headers: the handler's SetSuccessHeader calls
 type Failure struct{ Err *awserr.Error }
 type StatusOKFailure struct{ Err *awserr.Error } // S3's 200-with-error answer
+
+// Success headers: a handler that must answer a header AWS sends beside a modeled output, but which
+// the output does not model (S3's x-amz-bucket-region on ListObjectsV2, x-amz-storage-class on a
+// non-STANDARD PutObject), sets it with Call.SetSuccessHeader; an overlay cannot add the member
+// (ADR 0002). Only Output carries the headers, and the edge writes them beside the codec's answer on
+// every protocol, replacing an encoded header of the same name. A call that fails after the handler
+// set them (its error, a deferred denial, an after-commit fault, a strict refusal) sends none: an
+// error's headers are its own awserr.Error.Headers. Invoke's internal callers receive only the output.
 
 func (k *Kernel) Dispatch(ctx context.Context, c *Call, d Decoded) Result
 
@@ -920,7 +929,7 @@ The corpus is a ratchet, not a wall. `internal/protocoltest/baseline.json` recor
 ## 7. Identity, auth, accounts and regions
 
 - Account from access key (ADR 0012): a key minted by understudy (`CreateAccessKey`, `AssumeRole`, Lambda execution environment) maps to its principal; a 12-digit numeric key is that account's root; anything else, including real-looking `AKIA`/`ASIA` keys and `AKIAIOSFODNN7EXAMPLE`, is the default account `000000000000`. Real-looking keys are never decoded into foreign account numbers; the server logs one warning per such key. Minted keys embed the account with the documented bit layout so they decode correctly in other tools (`iam-sts-kms.md 2.2`).
-- Region: `aws.RegionSource` is `CredentialScope{Region}` from SigV4, `HostRegion{Region}` from a `<svc>.<region>.<base>` host, or `None` for SigV2, presigned-SigV2, unsigned and anonymous requests. Regions are validated against the table of real AWS names (Terraform's `aws_region` data source rejects others, `tf-remaining.md 10`); `regions.extra` adds names. The edge passes the source on the call (`kernel.Call.RegionSource`). With `None`, S3 serves the bucket from its home region and sets `x-amz-bucket-region` (on every error about an existing bucket and on the successes whose output models the header, HeadBucket; a handler cannot add a header to another modeled success, see [differences](guide/differences.md)); the cross-region error rules of ADR 0013 apply only when the request asserts a region; non-S3 calls with `None` use the default region `us-east-1`. IAM and STS accept any region in the scope; their cells are keyed by account.
+- Region: `aws.RegionSource` is `CredentialScope{Region}` from SigV4, `HostRegion{Region}` from a `<svc>.<region>.<base>` host, or `None` for SigV2, presigned-SigV2, unsigned and anonymous requests. Regions are validated against the table of real AWS names (Terraform's `aws_region` data source rejects others, `tf-remaining.md 10`); `regions.extra` adds names. The edge passes the source on the call (`kernel.Call.RegionSource`). With `None`, S3 serves the bucket from its home region and sets `x-amz-bucket-region` (on every error about an existing bucket, on HeadBucket, whose output models the header, and on ListObjectsV2, whose handler sets it with `Call.SetSuccessHeader` (section 3.2) on every request, asserted region or not, as every recorded ListObjectsV2 200 carries it; see [differences](guide/differences.md)); the cross-region error rules of ADR 0013 apply only when the request asserts a region; non-S3 calls with `None` use the default region `us-east-1`. IAM and STS accept any region in the scope; their cells are keyed by account.
 - Auth is always parsed, verified only with `sigv4: verify`. Verification runs in the edge after the claim (the family vocabulary and S3's path-style form are known then) and before decode; a failure is dispatched as `kernel.Unauthenticated`, so it is journaled but records no IAM action. The verified credentials travel on the call (`kernel.Call.VerifiedAuth`), which S3 uses to verify aws-chunked chunk and trailer signatures; under `parse` the call carries none. A presigned SigV4 request's `x-amz-*` query parameters reach the call's headers as if sent in the header (`auth.HoistedHeader`, a header sent wins), so S3 reads hoisted aws-chunked framing in both modes. An operation may refuse credentials in its own vocabulary (`edge.Options.OperationAuth`): Lambda's `InvokeFunctionUrl` answers the JSON family's identities with 403, as the function URL front end refuses (the status for a refused signature is inferred, not recorded). A service may refuse in other words over one protocol than its family does (`edge.Options.ProtocolAuth`, after `ServiceAuth`): SQS over awsJson1_0 answers a request outside the skew window with 403, where DynamoDB answers the same `InvalidSignatureException` with 400 (`testdata/parity/sqs/R18/03-sqs-json-skew-16min.json`). Secrets resolve by the same rules as principals (`identity.Resolution`, ADR 0012). The verifier is a pure function over a normalized request with the payload hash as a tagged value (`Hex | Unsigned | StreamingUnsignedTrailer | StreamingSigned | StreamingSignedTrailer | NotSent`); the seven DOC vectors are table tests and a rapid sign-then-verify property covers the rest. Skew checks and the `Date` header use wall time; presign expiry uses the emulator clock (`lambda-runtime-contract.md` rows 9 and 10).
 - SigV2 presigned S3 URLs are supported because boto3 emits them by default in the legacy regions (`sigv4-checksums-endpoints.md 2.3`).
 - STS mints `ASIA` credentials with `Expiration = wall now + DurationSeconds`; `AssumeRole` succeeds only if the role exists (`AccessDenied` otherwise; `iam.assumeRole: lenient` relaxes it). The same path mints execution-role credentials for Lambda environments.

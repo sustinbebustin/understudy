@@ -38,11 +38,18 @@ func (c *readCounter) Read(p []byte) (int, error) {
 }
 
 // objectEdge is an S3 service with a blob store behind the edge: send
-// signs a request to target on the S3 host with an unsigned payload and
-// returns the recorded answer.
+// signs a request to target on the S3 host for region with an unsigned
+// payload and returns the recorded answer.
 type objectEdge struct {
-	k     *kerneltest.K
-	front http.Handler
+	k      *kerneltest.K
+	front  http.Handler
+	region aws.Region
+}
+
+// signedFor returns e sending requests signed for region.
+func (e objectEdge) signedFor(region aws.Region) objectEdge {
+	e.region = region
+	return e
 }
 
 // newObjectEdge builds an objectEdge on k; the blob store closes when the
@@ -70,7 +77,7 @@ func newObjectEdge(k *kerneltest.K) objectEdge {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return objectEdge{k: k, front: front}
+	return objectEdge{k: k, front: front, region: aws.DefaultRegion()}
 }
 
 // send sends method to target with body and header, declaring length.
@@ -79,7 +86,7 @@ func (e objectEdge) send(method, target string, body io.Reader, length int64, he
 	r.ContentLength = length
 	maps.Copy(r.Header, header)
 	r.Header.Set("X-Amz-Content-Sha256", "UNSIGNED-PAYLOAD")
-	auth.Sign(r, nil, auth.Signer{AccessKeyID: aws.DefaultAccount().String(), SecretAccessKey: "secret", Region: aws.DefaultRegion(), Service: "s3"}, e.k.Clock.Wall())
+	auth.Sign(r, nil, auth.Signer{AccessKeyID: aws.DefaultAccount().String(), SecretAccessKey: "secret", Region: e.region, Service: "s3"}, e.k.Clock.Wall())
 	rec := httptest.NewRecorder()
 	e.front.ServeHTTP(rec, r)
 	return rec

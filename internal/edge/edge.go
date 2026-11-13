@@ -398,11 +398,14 @@ func (h *Handler) dispatch(ctx context.Context, x *exchange, codec Codec, op ref
 	}
 }
 
+// writeOutput writes a successful call's answer: the codec's encoding of
+// the output, or a passthrough handler's bytes, with the handler's success
+// headers set over it (withSuccessHeaders).
 func (h *Handler) writeOutput(ctx context.Context, x *exchange, codec Codec, c *kernel.Call, svc *registry.Service, out kernel.Output) {
 	switch v := out.Out.(type) {
 	case *kernel.RawOutput:
 		r := v.Response
-		h.write(ctx, x, Response{Status: r.Status, Header: r.Header, Body: bytes.NewReader(r.Body)})
+		h.write(ctx, x, Response{Status: r.Status, Header: withSuccessHeaders(r.Header, out.Headers), Body: bytes.NewReader(r.Body)})
 	case smithy.Serializable:
 		resp, err := codec.Encode(x.r, c.Op(), string(x.id), v, out.Status)
 		if err != nil {
@@ -415,11 +418,42 @@ func (h *Handler) writeOutput(ctx context.Context, x *exchange, codec Codec, c *
 			h.write(ctx, x, codec.EncodeError(x.r, svc, string(x.id), err))
 			return
 		}
+		resp.Header = withSuccessHeaders(resp.Header, out.Headers)
 		h.write(ctx, x, resp)
 	default:
 		h.log.LogAttrs(ctx, slog.LevelError, "handler output has no encoding", slog.String("op", c.OperationID().String()))
 		h.write(ctx, x, codec.EncodeError(x.r, svc, string(x.id), awserr.Internalf(&OutputError{Op: c.OperationID()})))
 	}
+}
+
+// withSuccessHeaders returns encoded, a successful answer's headers, with
+// the handler's success headers (kernel.Output.Headers) set over a copy: a
+// success header replaces the encoded header of the same name, matched
+// without regard to case, since the two may spell it differently.
+func withSuccessHeaders(encoded, success http.Header) http.Header {
+	if len(success) == 0 {
+		return encoded
+	}
+	merged := make(http.Header, len(encoded)+len(success))
+	for name, values := range encoded {
+		if !holdsHeader(success, name) {
+			merged[name] = values
+		}
+	}
+	for name, values := range success {
+		merged[name] = slices.Clone(values)
+	}
+	return merged
+}
+
+// holdsHeader reports whether h holds name, spelled in any case.
+func holdsHeader(h http.Header, name string) bool {
+	for k := range h {
+		if strings.EqualFold(k, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // OutputError is a handler output the codec cannot serialize.
