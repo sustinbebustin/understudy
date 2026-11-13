@@ -188,10 +188,9 @@ func (s *Service) onImage(c *kernel.Call, key clock.TimerKey, _ clock.Instant) {
 	if !w.ok {
 		return
 	}
-	// The pull counts as InvocationRunning, the closed WorkKind set's only
-	// kind for Lambda work in progress, so settling waits for it; status
-	// and diagnostics therefore list an image pull as an invocation.
-	s.k.Go(kernel.InvocationRunning, func(ctx context.Context) {
+	// Settling waits for the pull; status and diagnostics list it as an
+	// image pull.
+	s.k.Go(kernel.ImagePull, func(ctx context.Context) {
 		digest, failure := s.ensureImage(ctx, w.uri, w.arch)
 		if ctx.Err() != nil {
 			return

@@ -31,6 +31,7 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 ### Changed
 
+- A Lambda image function's pending pull shows as `image-pull` in `settle` timeouts and the status listing, where it showed as `invocation-running`. Settling still waits for pulls.
 - **BREAKING:** The SQS snapshot section moves to state version 7, SNS to version 4, S3 to version 3, SES to version 4 and the outbox (pending cross-service deliveries) to version 6, so a snapshot or `--persist` state file holding any of them written by an earlier version is refused with a message naming both versions.
 - SQS receipt handles are as long as AWS's: 412 characters from a standard queue and 304 from a FIFO queue, where they were 36. Like AWS's they are `AQEB` and padded base64; what lies inside AWS's is unknown, so understudy's are random beyond the prefix. A run with a fixed `--seed` therefore receives different handles than the same run on an earlier version, and a handle in the old 36-character form is refused as `ReceiptHandleIsInvalid`.
 - SNS `throttlePolicy.maxReceivesPerSecond` on an HTTP or HTTPS subscription is validated, stored and read back but no longer spaces deliveries. AWS delivered a burst of 10 messages at rate 1 without pacing them, and how it paces a longer burst is unrecorded.

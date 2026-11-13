@@ -33,7 +33,7 @@ SNS fan-out, S3 notifications, EventBridge targets and Lambda async retries all 
 - A due attempt is tracked work stamped with the due instant (ADR 0006) that invokes the target as `AsService{name}`; ESM polling and Lambda logs run `AsExecutionRole`; forward-access KMS calls run `AsCaller` (ADR 0004). Before an attempt the access recorder checks the target's stored resource policy and journals an `Advisory` when AWS would deny the delivery; the delivery is still attempted.
 - SNS outbound HTTP/S delivery and its allow-list are not built yet. What is built keeps `Subscribe` pending with a readable token, `ConfirmSubscription`, and the unsubscribe and certificate links as raw operations. (The amendments of 2026-10-26 build the allow-list, egress and then SNS HTTP delivery.)
 - Lambda async throttles and 5xx requeue with 1 s to 5 min backoff for up to 6 h.
-- The work tracker counts a closed `WorkKind` set (`EffectPending`, `DeliveryAttempt`, `AsyncInvokeQueued`, `InvocationRunning`, `TimerDue`); parked waiters never count; on timeout `settle` names what is pending by kind.
+- The work tracker counts a closed `WorkKind` set (`EffectPending`, `DeliveryAttempt`, `AsyncInvokeQueued`, `InvocationRunning`, `TimerDue`, `ImagePull`); parked waiters never count; on timeout `settle` names what is pending by kind.
 
 ## Amendment 2026-10-26: egress, the allow-list key and three targets
 

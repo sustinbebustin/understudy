@@ -1451,7 +1451,7 @@ Envelope and event builders are pure functions with golden fixtures and rapid pr
 
 The shared `ruler` engine serves EventBridge patterns, SNS filter policies (behind SNS's operator allow-list and limits) and ESM filters, compiled once to a typed pattern ADT at configuration time. The four Ruler-versus-doc conflicts (`matching-engines.md 10`) are fidelity switches, default Ruler, strict compile errors for malformed `$or` shapes.
 
-Settling: the kernel's work tracker counts a closed `WorkKind` set: `EffectPending`, `DeliveryAttempt`, `AsyncInvokeQueued`, `InvocationRunning`, `TimerDue`. Parked waiters never count: a client long poll, an idle ESM poller waiting on its `WaitKey`, a journal stream. `GET /_understudy/v1/settle?timeout=30s` returns when all are zero or names what is still pending grouped by kind; in Running mode it ignores timers not yet due.
+Settling: the kernel's work tracker counts a closed `WorkKind` set: `EffectPending`, `DeliveryAttempt`, `AsyncInvokeQueued`, `InvocationRunning`, `TimerDue`, `ImagePull`. Parked waiters never count: a client long poll, an idle ESM poller waiting on its `WaitKey`, a journal stream. `GET /_understudy/v1/settle?timeout=30s` returns when all are zero or names what is still pending grouped by kind; in Running mode it ignores timers not yet due.
 
 ## 17. Admin API and CLI (ADR 0017)
 

@@ -673,6 +673,25 @@ func TestATimerCallIsItsTimerFiredEvent(t *testing.T) {
 	})
 }
 
+// TestWorkKindNames: each kind has the name settle diagnostics and the
+// status listing show.
+func TestWorkKindNames(t *testing.T) {
+	for kind, want := range map[kernel.WorkKind]string{
+		kernel.EffectPending:     "effect-pending",
+		kernel.DeliveryAttempt:   "delivery-attempt",
+		kernel.AsyncInvokeQueued: "async-invoke-queued",
+		kernel.InvocationRunning: "invocation-running",
+		kernel.TimerDue:          "timer-due",
+		kernel.ImagePull:         "image-pull",
+		kernel.WorkKind(0):       "WorkKind(0)",
+		kernel.ImagePull + 1:     "WorkKind(7)",
+	} {
+		if got := kind.String(); got != want {
+			t.Errorf("WorkKind(%d).String() = %q, want %q", uint8(kind), got, want)
+		}
+	}
+}
+
 func TestBlockingTimerWorkDoesNotStallLaterTimers(t *testing.T) {
 	run(t, func(k *kerneltest.K) {
 		t := k.T

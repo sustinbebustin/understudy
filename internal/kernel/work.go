@@ -31,6 +31,9 @@ const (
 	// TimerDue is a timer whose due instant has passed and whose handler has
 	// not finished.
 	TimerDue
+	// ImagePull is the background pull that makes an image function's
+	// container image present, taking it from Pending to Active.
+	ImagePull
 )
 
 // String returns the kind's name, such as "timer-due".
@@ -46,6 +49,8 @@ func (w WorkKind) String() string {
 		return "invocation-running"
 	case TimerDue:
 		return "timer-due"
+	case ImagePull:
+		return "image-pull"
 	default:
 		return "WorkKind(" + strconv.Itoa(int(w)) + ")"
 	}
