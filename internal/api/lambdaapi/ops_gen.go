@@ -951,17 +951,18 @@ var descListVersionsByFunction = registry.Operation{
 }
 
 var descPublishLayerVersion = registry.Operation{
-	Service:     &service,
-	ID:          ref.OperationID{Service: "lambda", Name: "PublishLayerVersion"},
-	Ordinal:     64,
-	Kind:        registry.Modeled,
-	Shape:       "com.amazonaws.lambda#PublishLayerVersion",
-	Input:       &schemaPublishLayerVersionInput,
-	Output:      &schemaPublishLayerVersionOutput,
-	Errors:      []awserr.Identity{IdentityCodeStorageExceededException(), IdentityInvalidParameterValueException(), IdentityResourceNotFoundException(), IdentityServiceException(), IdentityTooManyRequestsException(), IdentityValidationException()},
-	IAM:         []registry.IAMAction{{Prefix: "lambda", Name: "PublishLayerVersion"}},
-	HTTP:        &registry.HTTPBinding{Method: "POST", Path: []registry.Segment{registry.Literal{Value: "2018-10-31"}, registry.Literal{Value: "layers"}, registry.Label{Name: "LayerName"}, registry.Literal{Value: "versions"}}},
-	SuccessCode: 201,
+	Service:         &service,
+	ID:              ref.OperationID{Service: "lambda", Name: "PublishLayerVersion"},
+	Ordinal:         64,
+	Kind:            registry.Modeled,
+	Shape:           "com.amazonaws.lambda#PublishLayerVersion",
+	Input:           &schemaPublishLayerVersionInput,
+	Output:          &schemaPublishLayerVersionOutput,
+	Errors:          []awserr.Identity{IdentityCodeStorageExceededException(), IdentityInvalidParameterValueException(), IdentityResourceNotFoundException(), IdentityServiceException(), IdentityTooManyRequestsException(), IdentityValidationException()},
+	IAM:             []registry.IAMAction{{Prefix: "lambda", Name: "PublishLayerVersion"}},
+	HTTP:            &registry.HTTPBinding{Method: "POST", Path: []registry.Segment{registry.Literal{Value: "2018-10-31"}, registry.Literal{Value: "layers"}, registry.Label{Name: "LayerName"}, registry.Literal{Value: "versions"}}},
+	SuccessCode:     201,
+	MaxRequestBytes: 70167211,
 }
 
 var descPublishVersion = registry.Operation{

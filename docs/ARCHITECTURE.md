@@ -485,6 +485,7 @@ type Service struct {
 	QueryErrorEnvelope QueryErrorEnvelope // overlay queryErrorEnvelope
 	UnknownOperationAnswer UnknownOperationAnswer // overlay unknownOperationAnswer; zero is unknownOperationError's identity in the protocol's envelope
 	MalformedRequestError awserr.Identity // overlay malformedRequestError; zero means the codec's protocol default
+	RequestTooLargeError awserr.Identity // overlay requestTooLargeError; zero means the generic RequestEntityTooLargeException with understudy's text
 	Denial           Denial          // overlay denialError: the identity an authorization refusal answers with and its evidence label; zero is a 500 naming the missing trait
 	NewErrorMembers  func(smithy.ShapeID) (awserr.DecodableMembers, bool) // an empty value of an error shape, for fault rules (section 11)
 	GenericErrors    func(awserr.Family) []awserr.Identity                // the generic vocabulary per protocol family (3.3)
@@ -747,7 +748,8 @@ The closed set of `dev.understudy#` traits; the generator fails on anything else
 | `alwaysEmit` | output member | promote to a plain value in the generated output type |
 | `optionalOutput` | required member of an output-only structure | annotation: the member AWS leaves out of an answer although the model requires it stops being required, so its Go field is a pointer and every protocol writes it only when set (SES v1 `IdentityNotificationAttributes` topics, `ses.md 9.1`); refused on a member the model does not require, one with a modeled default, one beside `alwaysEmit`, or a structure input also uses |
 | `memberOrder` | output structure | the member names in the order AWS writes them in an answer, when it differs from the model's; the serializer follows it in every protocol, and everything else keeps the model's order (SES v1 `IdentityNotificationAttributes`, `ses.md 9.1`); refused unless it names every member exactly once, when it repeats the model's order, or on a structure no output uses |
-| `maxRequestBytes` | operation | body cap (Lambda `CreateFunction` 70,167,211; SQS above the encoded 1 MiB batch) |
+| `maxRequestBytes` | operation | body cap (Lambda `CreateFunction` and `PublishLayerVersion` 70,167,211; SQS above the encoded 1 MiB batch) |
+| `requestTooLargeError` | service | the identity the edge answers a body past its operation's cap with, in Coral's text `Request must be smaller than <cap> bytes for the <operation> operation`, emitted as `registry.Service.RequestTooLargeError` (Lambda, `testdata/parity/lambda/LDL-14/03-publish-53-zipped.json`); without it the edge answers the generic `RequestEntityTooLargeException` with understudy's own text |
 | `throttleError` | service | the identity `fault.Throttle` resolves to |
 | `denialError` | service | the identity an authorization refusal answers with (pipeline step 8, `kernel.Authorize`), emitted as `DenialError()` and `registry.Service.Denial` with the weakest label of the evidence covering the trait; the shape joins the closure even when no operation lists it (`iam-enforcement-surfaces.md 12.3`) |
 | `notConfigured` | S3 Get* operation | error shape or default document when the subresource is unset |

@@ -473,6 +473,17 @@ func (v *PutKindsOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.CloseStruct()
 }
 
+// Serialize writes v through s.
+func (v *RequestEntityTooLargeException) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *RequestEntityTooLargeException) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaRequestEntityTooLargeException)
+	if v.Message != nil {
+		s.WriteString(&memberRequestEntityTooLargeException_message, *v.Message)
+	}
+	s.CloseStruct()
+}
+
 func deserializeSecretMap(d smithy.Deserializer, m *smithy.Member) (map[string]string, error) {
 	if err := d.ReadMap(m); err != nil {
 		return nil, err

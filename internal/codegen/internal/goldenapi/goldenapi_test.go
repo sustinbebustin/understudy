@@ -153,6 +153,9 @@ func TestIdentities(t *testing.T) {
 		Service().MalformedRequestError != IdentitySerializationException() || Service().ThrottleError != IdentityThrottled() {
 		t.Error("service-level identities do not resolve to their shapes")
 	}
+	if got := Service().RequestTooLargeError; got.Shape != "com.amazon.coral.service#RequestEntityTooLargeException" || got.Status != 413 || got.MessageKey != awserr.MessageUpper {
+		t.Errorf("RequestTooLargeError = %+v, want RequestEntityTooLargeException 413 with Message (dev.understudy#requestTooLargeError)", got)
+	}
 	if got := Service().ModelSource; got.Origin != "api-models-aws@fixture" || got.File != "golden.json" {
 		t.Errorf("descriptor's model source = %+v, want the fixture's origin and golden.json", got)
 	}

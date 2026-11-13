@@ -493,11 +493,11 @@ func (h *Handler) decode(x *exchange, codec Codec, op *registry.Operation) kerne
 	}
 	limit := codec.BodyLimit(op)
 	if x.r.ContentLength > limit {
-		return kernel.Rejected{Err: tooLarge(op.ID, limit)}
+		return kernel.Rejected{Err: tooLarge(op, limit)}
 	}
 	var wire kernel.Wire
 	if h.opts.Kernel.Passthrough(op) {
-		client, err := clientRequest(x.r, limit, op.ID)
+		client, err := clientRequest(x.r, limit, op)
 		if err != nil {
 			return kernel.Rejected{Err: err}
 		}
@@ -506,7 +506,7 @@ func (h *Handler) decode(x *exchange, codec Codec, op *registry.Operation) kerne
 	if err := codec.DecodeHead(x.r, op, des); err != nil {
 		return kernel.Rejected{Err: err}
 	}
-	if err := codec.DecodeBody(x.r, op, &requestBody{r: x.r, limit: limit, op: op.ID}, des); err != nil {
+	if err := codec.DecodeBody(x.r, op, &requestBody{r: x.r, limit: limit, op: op}, des); err != nil {
 		return kernel.Rejected{Err: err}
 	}
 	return kernel.Ok{In: in, Wire: wire}
@@ -515,7 +515,7 @@ func (h *Handler) decode(x *exchange, codec Codec, op *registry.Operation) kerne
 // clientRequest buffers r's body, within limit, for a passthrough handler
 // that forwards the client's exact bytes (ADR 0014), and leaves r reading
 // the same bytes for the codec.
-func clientRequest(r *http.Request, limit int64, op ref.OperationID) (kernel.FromClient, *awserr.Error) {
+func clientRequest(r *http.Request, limit int64, op *registry.Operation) (kernel.FromClient, *awserr.Error) {
 	var body []byte
 	if r.Body != nil {
 		read, err := io.ReadAll(&cappedReader{rc: r.Body, limit: limit, op: op})

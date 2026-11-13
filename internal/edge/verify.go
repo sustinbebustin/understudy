@@ -245,9 +245,9 @@ func (h *Handler) verifiedBody(t verifyTarget, sent auth.PayloadHash) (auth.Body
 	if t.signed.Body != nil {
 		limit := t.codec.BodyLimit(t.op)
 		if t.signed.ContentLength > limit {
-			return nil, tooLarge(t.op.ID, limit)
+			return nil, tooLarge(t.op, limit)
 		}
-		read, err := io.ReadAll(&cappedReader{rc: t.signed.Body, limit: limit, op: t.op.ID})
+		read, err := io.ReadAll(&cappedReader{rc: t.signed.Body, limit: limit, op: t.op})
 		if err != nil {
 			if boundary, ok := errors.AsType[*awserr.BoundaryError](err); ok && boundary.Err != nil {
 				return nil, boundary.Err

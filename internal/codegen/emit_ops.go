@@ -63,6 +63,9 @@ func emitService(ir *ServiceIR) ([]byte, error) {
 	if e := ir.Throttle; e != nil {
 		f.p("\tThrottleError: Identity%s(),", e.Shape.GoName)
 	}
+	if e := ir.RequestTooLarge; e != nil {
+		f.p("\tRequestTooLargeError: Identity%s(),", e.Shape.GoName)
+	}
 	if ir.UnknownJSON != nil || ir.UnknownQuery != nil {
 		f.p("\tUnknownOperationError: UnknownOperationError,")
 	}

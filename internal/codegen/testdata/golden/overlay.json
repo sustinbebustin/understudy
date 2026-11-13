@@ -7,6 +7,7 @@
         "dev.understudy#errorNamespace": "com.example.golden.v1",
         "dev.understudy#throttleError": "com.example.golden#Throttled",
         "dev.understudy#malformedRequestError": "com.amazon.coral.service#SerializationException",
+        "dev.understudy#requestTooLargeError": "com.amazon.coral.service#RequestEntityTooLargeException",
         "dev.understudy#unknownOperationError": {"json": "com.amazon.coral.service#UnknownOperationException"},
         "dev.understudy#validationError": {"code": "com.example.golden#InvalidInput"},
         "dev.understudy#queryErrorEnvelope": {"detail": true},
@@ -28,6 +29,16 @@
       "members": {"Message": {"target": "smithy.api#String"}},
       "traits": {
         "smithy.api#error": "client",
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
+    "com.amazon.coral.service#RequestEntityTooLargeException": {
+      "type": "structure",
+      "members": {"message": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 413,
+        "dev.understudy#messageKey": "Message",
         "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
       }
     },

@@ -318,11 +318,13 @@ func TestGenericVocabularyMatchesTheCatalogue(t *testing.T) {
 		"sfn": {"com.amazon.coral.service#AccessDeniedException": 400},
 	}
 	// An IAM denial names its message "Message" where the shared shape's
-	// member is "message" (iam-enforcement-surfaces.md 12.3).
+	// member is "message" (iam-enforcement-surfaces.md 12.3), and so does a
+	// Lambda 413 (testdata/parity/lambda/LDL-14/03-publish-53-zipped.json).
 	keyOverrides := map[ref.ServiceID]map[string]awserr.MessageKey{
 		"apigateway":      {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
 		"dynamodb":        {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
 		"dynamodbstreams": {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
+		"lambda":          {"com.amazon.coral.service#RequestEntityTooLargeException": awserr.MessageUpper},
 		"scheduler":       {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
 		"sesv2":           {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},
 		"sfn":             {"com.amazon.coral.service#AccessDeniedException": awserr.MessageUpper},

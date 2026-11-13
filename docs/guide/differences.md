@@ -86,7 +86,6 @@ The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-k
 ## Lambda
 
 - `AddPermission` with a foreign account principal can be refused on AWS with "The provided principal was invalid."; understudy accepts any 12-digit account (`lambda/R07/02-add-permission-account.json`).
-- Invoke: an Event invocation over 1 MB is 413 `{"Message":"<n> byte payload is too large for the Event invocation type (limit 1048576 bytes)"}`, where understudy's text differs (`lambda/R13/04-*.json`).
 - A record over SNS's 256 KB limit is delivered on AWS with both payloads left out and a `deliveryError` (413 `RequestEntityTooLargeException`, "The total destination payload is too large. ..."); understudy publishes it whole and SNS refuses it (`lambda/LDL-05/`).
 - Another account's layer version that its owner's policy does not grant, or that does not exist, is refused on AWS with 403 `AccessDeniedException` ("... is not authorized to perform: lambda:GetLayerVersion on resource: ... because no resource-based policy allows the lambda:GetLayerVersion action"); understudy attaches one it holds and journals an advisory, and refuses one it does not hold with 400 (`lambda/LDL-15/09-foreign-create.json`).
 - `ListLayers` and `ListLayerVersions` items carry `"Description":null`, `"State":null` and `"NextMarker":null` on AWS; understudy leaves unset members out (`lambda/LDL-11/`).

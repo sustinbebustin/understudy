@@ -539,12 +539,12 @@ func invocationCause(c *kernel.Call) (ref.Cause, []ref.EventID) {
 // replace invalid bytes rather than refuse them. An empty payload is the
 // empty object, as SDKs send no body for a nil payload.
 func checkPayload(p []byte, mode lambdaapi.InvocationType) ([]byte, *awserr.Error) {
-	limit := maxSyncRequest
 	if mode == lambdaapi.InvocationTypeEvent {
-		limit = maxAsyncRequest
-	}
-	if len(p) > limit {
-		return nil, errPayloadTooLarge(limit)
+		if len(p) > maxAsyncRequest {
+			return nil, errEventPayloadTooLarge(len(p))
+		}
+	} else if len(p) > maxSyncRequest {
+		return nil, errPayloadTooLarge(maxSyncRequest)
 	}
 	if len(p) == 0 {
 		return []byte("{}"), nil
@@ -891,12 +891,19 @@ func errService(message string) *awserr.Error {
 	return lambdaapi.ErrServiceException(message)
 }
 
-// errPayloadTooLarge is the front end's refusal of an oversized Invoke
-// body: the unmodeled RequestEntityTooLargeException, with no Type, as for
-// CreateFunction (errZippedTooLarge), worded as AWS's own Lambda test tool
-// words it. The Event limit's wording is assumed to follow the same shape.
+// errPayloadTooLarge is the front end's refusal of an oversized synchronous
+// Invoke body: the unmodeled RequestEntityTooLargeException, with no Type,
+// as for CreateFunction (errZippedTooLarge), worded as AWS's own Lambda test
+// tool words it; the text is unrecorded (lambda-api.md 8.2).
 func errPayloadTooLarge(limit int) *awserr.Error {
 	return lambdaapi.ErrRequestEntityTooLargeException("Request must be smaller than " + strconv.Itoa(limit) + " bytes for the InvokeFunction operation")
+}
+
+// errEventPayloadTooLarge is the refusal of an Event Invoke whose payload
+// of size bytes is over maxAsyncRequest
+// (testdata/parity/lambda/R13/04-event-over-1mb.json).
+func errEventPayloadTooLarge(size int) *awserr.Error {
+	return lambdaapi.ErrRequestEntityTooLargeException(strconv.Itoa(size) + " byte payload is too large for the Event invocation type (limit " + strconv.Itoa(maxAsyncRequest) + " bytes)")
 }
 
 // errPayloadNotJSON is the recorded prefix with Go's parser message in

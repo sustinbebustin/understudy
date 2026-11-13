@@ -25,6 +25,7 @@ var service = registry.Service{
 	QueryErrorEnvelope:     registry.QueryErrorEnvelope{Namespace: false, Detail: true},
 	MalformedRequestError:  IdentitySerializationException(),
 	ThrottleError:          IdentityThrottled(),
+	RequestTooLargeError:   IdentityRequestEntityTooLargeException(),
 	UnknownOperationError:  UnknownOperationError,
 	UnknownOperationAnswer: registry.UnknownOperationAWSFault,
 	ModelSource:            registry.ModelSource{Origin: "api-models-aws@fixture", File: "golden.json"},

@@ -155,6 +155,10 @@ var memberPutKindsOutput_Choice = smithy.Member{Name: "Choice", Index: 4, Target
 
 var memberPutKindsOutput_Secret = smithy.Member{Name: "Secret", Index: 5, Target: &schemaSecret, Sensitive: true}
 
+var schemaRequestEntityTooLargeException = smithy.Schema{ID: "com.amazon.coral.service#RequestEntityTooLargeException", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberRequestEntityTooLargeException_message}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 413}}
+
+var memberRequestEntityTooLargeException_message = smithy.Member{Name: "message", Index: 0, Target: &schemaSmithyString}
+
 var schemaScore = smithy.Schema{ID: "com.example.golden#Score", Type: smithy.TypeDouble}
 
 var schemaSecret = smithy.Schema{ID: "com.example.golden#Secret", Type: smithy.TypeString, Sensitive: true}

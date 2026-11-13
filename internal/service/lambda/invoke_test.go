@@ -602,8 +602,11 @@ func TestInvokeRefusesBadRequestsBeforeRunning(t *testing.T) {
 			{"$LATEST.PUBLISHED qualifier", &lambdaapi.InvokeInput{FunctionName: "fn", Qualifier: new("$LATEST.PUBLISHED")}, "NoPublishedVersionException", noLatestPublished},
 			{"$LATEST.PUBLISHED in the name", invokeInput("fn:$LATEST.PUBLISHED", `{}`), "NoPublishedVersionException", noLatestPublished},
 			{"$LATEST.PUBLISHED of a missing function", invokeInput("nope:$LATEST.PUBLISHED", `{}`), "ResourceNotFoundException", "Function not found: arn:aws:lambda:us-east-1:000000000000:function:nope"},
+			// The synchronous text is unrecorded (lambda-api.md 8.2).
 			{"sync payload over 6 MB", invokeInput("fn", big), "RequestEntityTooLargeException", "Request must be smaller than 6291456 bytes for the InvokeFunction operation"},
-			{"async payload over 1 MB", &lambdaapi.InvokeInput{FunctionName: "fn", InvocationType: new(lambdaapi.InvocationTypeEvent), Payload: []byte(async)}, "RequestEntityTooLargeException", "Request must be smaller than 1048576 bytes for the InvokeFunction operation"},
+			// The Event text names the payload's size
+			// (testdata/parity/lambda/R13/04-event-over-1mb.json).
+			{"async payload over 1 MB", &lambdaapi.InvokeInput{FunctionName: "fn", InvocationType: new(lambdaapi.InvocationTypeEvent), Payload: []byte(async)}, "RequestEntityTooLargeException", "1048578 byte payload is too large for the Event invocation type (limit 1048576 bytes)"},
 			{"payload not JSON", invokeInput("fn", `{nope`), "InvalidRequestContentException", "Could not parse request body into json: Could not parse payload into json: invalid character 'n' looking for beginning of object key string"},
 			// Latin-1 text inside a JSON string, which Go's parser alone
 			// would accept (test_lambda_invoke_payload_encoding_error).
