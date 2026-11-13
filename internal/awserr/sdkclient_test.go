@@ -5,6 +5,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
+	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
@@ -13,7 +14,10 @@ import (
 // by Step Functions for Lambda (SFN-15); v2 by EventBridge for KMS
 // (eventbridge-buses.md) and by a function-ARN Task for Lambda (SFN-15).
 // The v1 error code is the error's wire code, so KMS's NotFoundException is
-// NotFoundException, not its Query code NotFound.
+// NotFoundException, not its Query code NotFound. A v1 client of an
+// awsQuery-compatible service reports the Query code instead: EventBridge's
+// SQS client names SQS's denial AccessDenied (iam-enforcement-surfaces.md
+// 8.4, testdata/parity/sqs/IAM-ENF/22-dlq-sa.json).
 func TestSDKClientMessage(t *testing.T) {
 	const id = "8476b5e8-1af2-41b1-b423-ddcfc3d3340e"
 	cases := []struct {
@@ -30,6 +34,11 @@ func TestSDKClientMessage(t *testing.T) {
 			awserr.SDKv1("AWSLambda"),
 			lambdaapi.ErrTooManyRequestsException("Rate Exceeded."),
 			"Rate Exceeded. (Service: AWSLambda; Status Code: 429; Error Code: TooManyRequestsException; Request ID: " + id + "; Proxy: null)",
+		},
+		{
+			awserr.SDKv1Query("AmazonSQS"),
+			sqsapi.ErrAccessDenied("User: events.amazonaws.com is not authorized to perform: sqs:sendmessage"),
+			"User: events.amazonaws.com is not authorized to perform: sqs:sendmessage (Service: AmazonSQS; Status Code: 403; Error Code: AccessDenied; Request ID: " + id + "; Proxy: null)",
 		},
 		{
 			awserr.SDKv2("Kms"),
@@ -54,8 +63,9 @@ func TestSDKClientMessage(t *testing.T) {
 // report.
 func TestSDKClientString(t *testing.T) {
 	cases := map[awserr.SDKClient]string{
-		awserr.SDKv1("AWSKMS"): "(Service: AWSKMS; Status Code: <status>; Error Code: <code>; Request ID: <id>; Proxy: null)",
-		awserr.SDKv2("Kms"):    "(Service: Kms, Status Code: <status>, Request ID: <id>) (SDK Attempt Count: 1)",
+		awserr.SDKv1("AWSKMS"):         "(Service: AWSKMS; Status Code: <status>; Error Code: <code>; Request ID: <id>; Proxy: null)",
+		awserr.SDKv1Query("AmazonSQS"): "(Service: AmazonSQS; Status Code: <status>; Error Code: <code>; Request ID: <id>; Proxy: null)",
+		awserr.SDKv2("Kms"):            "(Service: Kms, Status Code: <status>, Request ID: <id>) (SDK Attempt Count: 1)",
 	}
 	for c, want := range cases {
 		if got := c.String(); got != want {

@@ -172,7 +172,7 @@ func TestUnservableActionIsNotRunAndTheRestRun(t *testing.T) {
 		if notRun := h.advisories(journal.AdvisoryAlarmActionNotRun); len(notRun) != 1 || !strings.Contains(notRun[0].Text, bad) {
 			h.Errorf("not-run advisories = %+v, want the unservable topic", notRun)
 		}
-		if s := summaries(h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu")})); len(s) != 1 {
+		if s := summaries(h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu"), HistoryItemType: new(cloudwatchapi.HistoryItemTypeStateUpdate)})); len(s) != 1 {
 			h.Errorf("history = %v, want the transition", s)
 		}
 		if ev := fx.bus.of("CloudWatch Alarm State Change"); len(ev) != 1 {
@@ -208,15 +208,15 @@ func TestTransitionEventsReachTheBusInClockOrder(t *testing.T) {
 	})
 }
 
-// historySink is a DeliverSink that reads the alarm's history as each
-// delivery arrives.
+// historySink is a DeliverSink that reads the alarm's StateUpdate items as
+// each delivery arrives.
 type historySink struct {
 	h     *harness
 	items []int
 }
 
 func (s *historySink) Deliver(kernel.Delivery) error {
-	s.items = append(s.items, len(s.h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu")})))
+	s.items = append(s.items, len(s.h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu"), HistoryItemType: new(cloudwatchapi.HistoryItemTypeStateUpdate)})))
 	return nil
 }
 

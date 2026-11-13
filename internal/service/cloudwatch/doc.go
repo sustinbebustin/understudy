@@ -16,14 +16,18 @@
 //     stored with an Advisory and never evaluated (cloudwatch-alarms.md
 //     12.7); their state changes only through SetAlarmState. A transition
 //     writes the state, journals a StateChange, runs the new state's actions
-//     when ActionsEnabled and appends a StateUpdate history item; history
-//     lives in its own store, outlives the alarm and is dropped after 30 days
-//     of emulator time (cloudwatch-alarms.md 8.1).
+//     when ActionsEnabled and appends a StateUpdate history item. A create,
+//     update, delete, EnableAlarmActions or DisableAlarmActions appends a
+//     ConfigurationUpdate item (cloudwatch-alarms.md 8.3). History lives in
+//     its own store, outlives the alarm and is dropped after 30 days of
+//     emulator time (cloudwatch-alarms.md 8.1).
 //   - SNS and Lambda actions are outbox deliveries (CloudWatchToSNS,
 //     CloudWatchToLambda) as cloudwatch.amazonaws.com and
 //     lambda.alarms.cloudwatch.amazonaws.com, attempted once with no retry
 //     schedule and no dead-letter queue: AWS documents guarantees, not a
-//     policy (cloudwatch-alarms.md 12.4). EC2, Auto Scaling, Systems
+//     policy (cloudwatch-alarms.md 12.4). The outbox reports how each SNS
+//     action ended (Service.ActionEnded), which appends its Action history
+//     item; a Lambda action writes none (cloudwatch-alarms.md 8.3). EC2, Auto Scaling, Systems
 //     Manager and investigation actions are journaled as not run. The
 //     state change event, and the configuration change events of
 //     PutMetricAlarm and DeleteAlarms, go to the default event bus through
@@ -53,9 +57,12 @@
 //     documentation; the text is inferred).
 //   - DeleteAlarms, EnableAlarmActions and DisableAlarmActions skip names
 //     that match no alarm, so deleting a missing alarm succeeds
-//     (wire-cbor.md 3.5). ListTagsForResource of an ARN that names no alarm
-//     is an empty list, as AWS records for a deleted one; TagResource and
-//     UntagResource of such an ARN are ResourceNotFoundException.
+//     (wire-cbor.md 3.5). ListTagsForResource of an ARN that names an
+//     alarm never created is ResourceNotFoundException without a message
+//     (AWS-recorded); of a deleted alarm it is an empty list for as long as
+//     its history is held (a third-party recording; the window is
+//     inferred). TagResource and UntagResource of an ARN naming no alarm
+//     are ResourceNotFoundException (inferred).
 //   - A metric series is a namespace, a name and a dimension set, whatever
 //     order a request lists the dimensions in. Its points are kept until
 //     reset at the resolution they were put at, a regular metric's

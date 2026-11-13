@@ -3,13 +3,16 @@ package scheduler_test
 import (
 	"context"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/schedulerapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/service/scheduler"
 )
 
@@ -99,7 +102,17 @@ func (g *gate) reset() {
 	g.asked = nil
 }
 
-func withGate(g *gate) harnessOptions { return harnessOptions{authorizer: g} }
+func withGate(g *gate) harnessOptions {
+	return harnessOptions{authorizer: g, scheduler: scheduler.Options{KeyPolicies: heldKey{}}}
+}
+
+// heldKey is a KMS that holds the one key the harness names (keyArn) and
+// no other.
+type heldKey struct{}
+
+func (heldKey) ResourcePolicy(target aws.ARN) (*policydoc.Document, bool) {
+	return nil, strings.HasSuffix(target.Resource, "key/1234abcd-12ab-34cd-56ef-1234567890ab")
+}
 
 // A caller denied at step 8 gets Scheduler's denial identity:
 // AccessDeniedException at the status of scheduler.denial.status
@@ -276,6 +289,22 @@ func TestKmsKeyCallerAuthorization(t *testing.T) {
 			_, err := call(h, schedulerapi.OpCreateSchedule, in)
 			wantError(h, err, "AccessDeniedException", scheduler.DenialStatus().Value, "")
 			wantError(h, errOf(call(h, schedulerapi.OpGetSchedule, &schedulerapi.GetScheduleInput{Name: "denied"})), "ResourceNotFoundException", 404, "")
+		}
+	})
+}
+
+// A KmsKeyArn naming no key the KMS holds is accepted and no KMS question
+// is asked, as AWS accepted one (SCH-04 04-kms-missing).
+func TestKmsKeyMissingAsksNothing(t *testing.T) {
+	g := &gate{deny: func(q question, action, _ string) bool { return q.caller() && strings.HasPrefix(action, "kms:") }}
+	runWith(t, withGate(g), func(h *harness) {
+		in := schedule("missing", "rate(1 hour)", h.queueTarget("q", nil))
+		in.KmsKeyArn = new(strings.Replace(h.keyArn(), "1234abcd", "00000000", 1))
+		h.create(in)
+		for _, p := range g.callerPairs("CreateSchedule") {
+			if strings.HasPrefix(p, "kms:") {
+				h.Errorf("a create with a missing key asked %s", p)
+			}
 		}
 	})
 }

@@ -158,8 +158,8 @@ func TestFilterLogEventsPagesConcatenateToTheListing(t *testing.T) {
 				StartTime: new(lo), EndTime: new(hi),
 			}
 			unpaged := must(h, logsapi.OpFilterLogEvents, &in)
-			if unpaged.NextToken != nil {
-				t.Fatalf("an unlimited listing of %d events carries nextToken %s", len(unpaged.Events), *unpaged.NextToken)
+			if (unpaged.NextToken != nil) != (len(unpaged.Events) > 0) {
+				t.Fatalf("an unlimited listing of %d events carries nextToken %s; want one exactly when it has events", len(unpaged.Events), val(unpaged.NextToken))
 			}
 			want := f.listing(func(e stored) bool {
 				return e.ts >= lo && e.ts <= hi && (len(streams) == 0 || slices.Contains(streams, e.stream)) && filterMatches(pattern, e.message)
@@ -193,6 +193,96 @@ func TestFilterLogEventsPagesConcatenateToTheListing(t *testing.T) {
 			}
 		})
 	}, kerneltest.Mode(clock.Frozen{At: clock.FromWire(backwardEra)}))
+}
+
+// sevenEvents is the batch R10 step 05 pages: p1 to p7, one millisecond
+// apart, the newest a millisecond before now.
+func sevenEvents(now int64) []logsapi.InputLogEvent {
+	batch := make([]logsapi.InputLogEvent, 7)
+	for i := range batch {
+		batch[i] = event(now-7+int64(i), fmt.Sprintf("p%d", i+1))
+	}
+	return batch
+}
+
+// FilterLogEvents hands out nextToken on every page with events, the last
+// one included, and ends with an empty page that carries none, as AWS paged
+// seven events by three (testdata/parity/logs/R10/05-filter-page-*.json).
+func TestFilterLogEventsTokenOnEveryPageWithEvents(t *testing.T) {
+	run(t, func(h *harness) {
+		h.group("g")
+		h.stream("g", "s3")
+		h.put("g", "s3", sevenEvents(h.now())...)
+
+		in := logsapi.FilterLogEventsInput{LogGroupName: new("g"), LogStreamNames: []string{"s3"}, Limit: new(int32(3))}
+		want := [][]string{{"p1", "p2", "p3"}, {"p4", "p5", "p6"}, {"p7"}}
+		for i, w := range want {
+			page := must(h, logsapi.OpFilterLogEvents, &in)
+			if got := filteredMessages(page.Events); !slices.Equal(got, w) || page.NextToken == nil {
+				h.Fatalf("page %d = %v, nextToken %s; want %v and a token", i+1, got, val(page.NextToken), w)
+			}
+			in.NextToken = page.NextToken
+		}
+		last := must(h, logsapi.OpFilterLogEvents, &in)
+		if len(last.Events) != 0 || last.NextToken != nil {
+			h.Errorf("page 4 = %v, nextToken %s; want no events and no token", filteredMessages(last.Events), val(last.NextToken))
+		}
+	})
+}
+
+// A FilterLogEvents whose matches all fit on the first page still carries
+// nextToken, and the page it reads is empty and carries none
+// (testdata/parity/logs/R10/03-filter-*.json).
+func TestFilterLogEventsSinglePageCarriesAToken(t *testing.T) {
+	run(t, func(h *harness) {
+		h.group("g")
+		h.stream("g", "s")
+		now := h.now()
+		h.put("g", "s", event(now-2, "ERROR a"), event(now-1, "INFO b"))
+
+		in := logsapi.FilterLogEventsInput{LogGroupName: new("g"), FilterPattern: new("ERROR")}
+		first := must(h, logsapi.OpFilterLogEvents, &in)
+		if got := filteredMessages(first.Events); !slices.Equal(got, []string{"ERROR a"}) || first.NextToken == nil {
+			h.Fatalf("first page = %v, nextToken %s; want [ERROR a] and a token", got, val(first.NextToken))
+		}
+		in.NextToken = first.NextToken
+		next := must(h, logsapi.OpFilterLogEvents, &in)
+		if len(next.Events) != 0 || next.NextToken != nil {
+			h.Errorf("next page = %v, nextToken %s; want no events and no token", filteredMessages(next.Events), val(next.NextToken))
+		}
+	})
+}
+
+// GetLogEvents read forward to the end: the first empty page hands out a new
+// forward token, and the empty page it reads repeats that token, so the
+// token stops changing one call after the last events, as AWS paged seven
+// events by three (testdata/parity/logs/R10/05-get-page-*.json).
+func TestGetLogEventsForwardTokenSettlesAfterTheFirstEmptyPage(t *testing.T) {
+	run(t, func(h *harness) {
+		h.group("g")
+		h.stream("g", "s3")
+		h.put("g", "s3", sevenEvents(h.now())...)
+
+		in := logsapi.GetLogEventsInput{LogGroupName: new("g"), LogStreamName: "s3", Limit: new(int32(3)), StartFromHead: new(true)}
+		want := [][]string{{"p1", "p2", "p3"}, {"p4", "p5", "p6"}, {"p7"}}
+		for i, w := range want {
+			page := h.get(&in)
+			if got := messages(page.Events); !slices.Equal(got, w) {
+				h.Fatalf("page %d = %v, want %v", i+1, got, w)
+			}
+			in.NextToken = page.NextForwardToken
+		}
+		third := val(in.NextToken)
+		fourth := h.get(&in)
+		if len(fourth.Events) != 0 || fourth.NextForwardToken == nil || *fourth.NextForwardToken == third {
+			h.Fatalf("page 4 = %v, forward token %s; want no events and a token other than page 3's %s", messages(fourth.Events), val(fourth.NextForwardToken), third)
+		}
+		in.NextToken = fourth.NextForwardToken
+		fifth := h.get(&in)
+		if len(fifth.Events) != 0 || val(fifth.NextForwardToken) != *fourth.NextForwardToken {
+			h.Errorf("page 5 = %v, forward token %s; want no events and page 4's token %s", messages(fifth.Events), val(fifth.NextForwardToken), *fourth.NextForwardToken)
+		}
+	})
 }
 
 // backwardEra is an emulator instant FilterLogEvents can read backward

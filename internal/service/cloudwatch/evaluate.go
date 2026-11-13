@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -107,7 +108,7 @@ func (s *Service) transition(tx *kernel.Tx, ref alarmRef, a *Alarm, next AlarmSt
 	ch.Old.InWarmUp = endsWarmUp
 	summary, data := alarm.StateUpdate(ch)
 	return changed{
-		item:    HistoryItem{At: next.Updated, Summary: summary, Data: data},
+		item:    HistoryItem{At: next.Updated, Type: cloudwatchapi.HistoryItemTypeStateUpdate, Summary: summary, Data: data},
 		actions: actionRuns(ref, a, ch, string(c.ID())),
 		event:   stateChangeEvent(ref, a, ch),
 	}
@@ -125,7 +126,7 @@ func (s *Service) transition(tx *kernel.Tx, ref alarmRef, a *Alarm, next AlarmSt
 // has committed, and the event is queued either way so EventBridge sees
 // every transition.
 func (s *Service) finishTransition(ctx context.Context, c *kernel.Call, ref alarmRef, ch *changed, at clock.Instant) *serviceevent.Queued {
-	if err := s.appendHistory(c, ref.scope, ref.name, ch.item, ch.actions); err != nil {
+	if err := s.appendHistory(c, ref.scope, []historyEntry{{name: ref.name, item: ch.item}}, ch.actions); err != nil {
 		s.k.Log().LogAttrs(ctx, slog.LevelError, "the history write of an alarm transition failed; the transition stands, and its history item or actions may be lost",
 			slog.String("alarm", ref.arn().String()), slog.String("error", err.Message))
 	}

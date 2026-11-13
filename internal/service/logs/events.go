@@ -306,12 +306,15 @@ type window struct{ lo, hi int64 }
 // streamPage cuts one GetLogEvents page from events in position order. A
 // page ends at limit events or maxPageBytes of messages. Its forward token
 // names the gap after its newest event and its backward token the gap
-// before its oldest, both tokens of l issued at now. An empty page hands
-// back the token it was read from, issue time included, which is how a
-// client knows it reached the end; an empty backward page instead points
-// its forward token at the window's start, since nothing in the window lies
-// before the cursor, so following it (the default read of an empty stream,
-// say) returns the events that arrive later.
+// before its oldest, both tokens of l issued at now. An empty forward page
+// read from before the end of the newest event's millisecond gets a new
+// forward token issued at now, positioned at that end; any other empty page
+// hands back the token it was read from, issue time included, which is how
+// a client knows it reached the end, one call after the last events as on
+// AWS (testdata/parity/logs/R10/05-get-page-*.json). An empty backward page
+// instead points its forward token at the window's start, since nothing in
+// the window lies before the cursor, so following it (the default read of
+// an empty stream, say) returns the events that arrive later.
 func streamPage(events []Event, w window, l listing, from issuedCursor, now clock.Instant, limit int) *logsapi.GetLogEventsOutput {
 	cur := from.cursor
 	a := firstAt(events, position{ts: w.lo})
@@ -336,17 +339,36 @@ func streamPage(events []Event, w window, l listing, from issuedCursor, now cloc
 		out.Events = append(out.Events, logsapi.OutputLogEvent{Timestamp: new(e.Timestamp), Message: new(e.Message), IngestionTime: new(e.Ingestion)})
 	}
 	if lo == hi {
-		ahead := cur.at
-		if cur.dir == backward {
-			ahead = position{ts: w.lo}
+		forwardToken := cursor{dir: forward, at: cur.at}.token(l, from.issued)
+		switch cur.dir {
+		case forward:
+			if end, ok := endOfNewest(events[a:min(lo, b)]); ok && cur.at.compare(end) < 0 {
+				forwardToken = cursor{dir: forward, at: end}.token(l, now)
+			}
+		case backward:
+			forwardToken = cursor{dir: forward, at: position{ts: w.lo}}.token(l, from.issued)
 		}
-		out.NextForwardToken = new(cursor{dir: forward, at: ahead}.token(l, from.issued))
+		out.NextForwardToken = new(forwardToken)
 		out.NextBackwardToken = new(cursor{dir: backward, at: cur.at}.token(l, from.issued))
 		return out
 	}
 	out.NextForwardToken = new(cursor{dir: forward, at: events[hi-1].pos().next()}.token(l, now))
 	out.NextBackwardToken = new(cursor{dir: backward, at: events[lo].pos()}.token(l, now))
 	return out
+}
+
+// endOfNewest is the last position in the millisecond of the newest of
+// events, which are in position order; ok is false when there is none. AWS
+// positions the forward token of the first empty page there: its eventId
+// keeps the newest event's timestamp bits and sets every lower bit
+// (testdata/parity/logs/R10/05-get-page-4.json). A later event of that same
+// millisecond falls before it, so a reader following the token skips it, as
+// such a token's position implies on AWS (inferred).
+func endOfNewest(events []Event) (position, bool) {
+	if len(events) == 0 {
+		return position{}, false
+	}
+	return position{ts: events[len(events)-1].Timestamp, seq: math.MaxUint64}, true
 }
 
 // firstAt is the index of the first event at or after p.

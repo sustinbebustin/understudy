@@ -95,7 +95,7 @@ func (s *Service) authorized(ctx context.Context, c *kernel.Call, r scheduleRef,
 	if err != nil {
 		return plan{}, err
 	}
-	if err := authorizeWrite(ctx, c, r, &p); err != nil {
+	if err := s.authorizeWrite(ctx, c, r, &p); err != nil {
 		return plan{}, err
 	}
 	return p, nil

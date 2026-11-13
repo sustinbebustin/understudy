@@ -1,6 +1,7 @@
 package events_test
 
 import (
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
+	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/evidence"
@@ -105,10 +107,11 @@ func TestBusOperationsCoverage(t *testing.T) {
 		// A bus policy is evaluated as the other stored resource policies
 		// are (iam-enforcement-surfaces.md 12.7).
 		const evaluated = "evaluated for the calls and deliveries that name the bus under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce"
-		// AWS checks the key and echoes a key id or alias name as its ARN
-		// (EBB-05, eventbridge-buses.md 3.1).
-		const kmsNote = "KmsKeyIdentifier is neither checked nor resolved, where AWS refuses a key that does not exist or does not grant EventBridge " +
-			"and echoes a key id or alias name as its ARN (events.bus.kms-key-check)"
+		// The key is checked and echoed as EBB-05 recorded; a missing alias
+		// was not recorded (eventbridge-buses.md 3.1).
+		const kmsNote = "a KmsKeyIdentifier must name a key or alias understudy's KMS holds and, under iam.enforce=enforce, a key whose policy allows " +
+			"events.amazonaws.com kms:GenerateDataKey; a key id is echoed as its key ARN and an alias name as its alias ARN; " +
+			"an alias KMS does not find is refused as a missing key is, which is inferred"
 		want := map[string]registry.BindCoverage{
 			"CreateEventBus":        registry.Partial{Note: "custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged; " + kmsNote},
 			"UpdateEventBus":        registry.StoredOnly{Note: "Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged; " + kmsNote},
@@ -118,7 +121,7 @@ func TestBusOperationsCoverage(t *testing.T) {
 			"PutPermission":         registry.Partial{Note: "statements are stored in the bus Policy that DescribeEventBus returns, " + evaluated},
 			"RemovePermission":      registry.Partial{Note: "statements are removed from the bus Policy, which is " + evaluated},
 			"PutRule":               registry.Partial{Note: "default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented"},
-			"PutTargets":            registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; an event bus target with a RoleArn is delivered as a session of that role, which under iam.enforce=enforce must trust events.amazonaws.com and be allowed events:PutEvents on the bus, and one events.amazonaws.com cannot assume is not retried and goes to the dead-letter queue with ERROR_CODE FAILED_TO_ASSUME_ROLE; the session name and the trust request's aws:SourceArn and aws:SourceAccount are inferred; the RoleArn of a function, queue or topic target is not assumed, so under iam.enforce=enforce those deliveries, a bus target without a RoleArn and a bus target whose RoleArn names no IAM role (which AWS fails with FAILED_TO_ASSUME_ROLE) are decided for events.amazonaws.com against the target's policy; a delivery the target refuses is not retried and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, fails its entry with NotImplemented; an event bus target of the rule's account without a RoleArn is accepted, where AWS refuses the call; a rule on another account's or region's bus answers NotImplemented"},
+			"PutTargets":            registry.Partial{Note: "Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; an event bus target with a RoleArn is delivered as a session of that role, which under iam.enforce=enforce must trust events.amazonaws.com and be allowed events:PutEvents on the bus, and one events.amazonaws.com cannot assume is not retried and goes to the dead-letter queue with ERROR_CODE FAILED_TO_ASSUME_ROLE; the session name and the trust request's aws:SourceArn and aws:SourceAccount are inferred; the RoleArn of a function, queue or topic target is not assumed, so under iam.enforce=enforce those deliveries and a bus target whose RoleArn names no IAM role (which AWS fails with FAILED_TO_ASSUME_ROLE) are decided for events.amazonaws.com against the target's policy; a delivery the target refuses is not retried and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented"},
 			"PutEvents":             registry.Partial{Note: "default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used"},
 			"TagResource":           registry.Full{},
 			"UntagResource":         registry.Full{},
@@ -183,7 +186,6 @@ func TestBusSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 		want := map[string]sw{
 			"events.delete-bus.with-rules":                {"rejected", evidence.AWSRecorded, "EBB-01", []string{"eventbridge.DeleteEventBus"}, "01-delete-with-rule"},
 			"events.update-bus.omitted-members":           {"kept", evidence.AWSRecorded, "EBB-04", []string{"eventbridge.UpdateEventBus"}, "04-update-name-only"},
-			"events.bus.kms-key-check":                    {"none", evidence.Inferred, "EBB-05", []string{"eventbridge.CreateEventBus", "eventbridge.UpdateEventBus"}, ""},
 			"events.bus-policy.remove-last-statement":     {"policy-removed", evidence.AWSRecorded, "EBB-06", []string{"eventbridge.RemovePermission"}, ""},
 			"events.bus-policy.remove-all-without-policy": {"succeed", evidence.AWSRecorded, "EBB-06", []string{"eventbridge.RemovePermission"}, "06-remove-all-empty"},
 			"events.list-buses.order":                     {"by-name", evidence.AWSRecorded, "EBB-07", []string{"eventbridge.ListEventBuses"}, ""},
@@ -196,6 +198,11 @@ func TestBusSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 		got := map[string]fidelity.Entry{}
 		for _, e := range h.svc.Switches() {
 			got[e.Name] = e
+		}
+		// Retired: the bus's KMS key is checked and echoed as EBB-05
+		// recorded (eventbridge-buses.md 3.1).
+		if e, ok := got["events.bus.kms-key-check"]; ok {
+			t.Errorf("Switches() lists the retired %+v", e)
 		}
 		for name, w := range want {
 			e, ok := got[name]
@@ -268,20 +275,14 @@ func TestCreateEventBusAnswers(t *testing.T) {
 	})
 }
 
-// DescribeEventBus echoes a bus's KmsKeyIdentifier, DeadLetterConfig and
-// LogConfig exactly as sent, explicit NONE and OFF included, which
-// Terraform's second plan relies on (eventbridge-buses.md 8.1, 10.6.15,
-// TF-ACC bus_test.go L114, L126, L335-L339). Under
-// events.bus.kms-key-check, a key is stored without a check.
+// DescribeEventBus echoes a bus's key ARN, DeadLetterConfig and LogConfig
+// exactly as sent, explicit NONE and OFF included, which Terraform's second
+// plan relies on (eventbridge-buses.md 8.1, 10.6.15, TF-ACC bus_test.go
+// L114, L126, L335-L339).
 func TestCreateEventBusStoresSettingsAsSent(t *testing.T) {
-	run(t, func(h *harness) {
-		const key = "arn:aws:kms:us-east-1:000000000000:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+	runWithKMS(t, func(h *harness) {
+		key := h.kmsKey().arn
 		const dlq = "arn:aws:sqs:us-east-1:000000000000:bus-dlq"
-		switch v := h.switchValue("events.bus.kms-key-check"); v {
-		case "none":
-		default:
-			h.Fatalf("no expectation for events.bus.kms-key-check = %q", v)
-		}
 		must(h, eventbridgeapi.OpCreateEventBus, &eventbridgeapi.CreateEventBusInput{
 			Name: "settings", KmsKeyIdentifier: new(key), DeadLetterConfig: &eventbridgeapi.DeadLetterConfig{Arn: new(dlq)},
 			LogConfig: &eventbridgeapi.LogConfig{IncludeDetail: new(eventbridgeapi.IncludeDetailNone), Level: new(eventbridgeapi.LevelOff)},
@@ -291,6 +292,105 @@ func TestCreateEventBusStoresSettingsAsSent(t *testing.T) {
 			d.LogConfig == nil || d.LogConfig.IncludeDetail == nil || *d.LogConfig.IncludeDetail != eventbridgeapi.IncludeDetailNone ||
 			d.LogConfig.Level == nil || *d.LogConfig.Level != eventbridgeapi.LevelOff {
 			t.Errorf("DescribeEventBus = %+v, want the key, dead-letter queue and NONE/OFF log config as sent", d)
+		}
+	})
+}
+
+// key is a KMS key understudy holds.
+type key struct{ id, arn string }
+
+// kmsKey creates a KMS key under the default key policy.
+func (h *harness) kmsKey() key {
+	h.Helper()
+	m := must(h, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata
+	if m == nil || m.Arn == nil {
+		h.Fatalf("CreateKey answered no key ARN")
+	}
+	return key{id: m.KeyId, arn: *m.Arn}
+}
+
+// kmsMissingText is the frame of EventBridge's refusal of a key KMS does
+// not find: KMS's message, the KMS client's SDK v2 suffix with a request id,
+// and "is not valid." (testdata/parity/events/EBB/05-missing-key.json).
+var kmsMissingText = regexp.MustCompile(`^Parameter (.*) \(Service: Kms, Status Code: 400, Request ID: [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\) \(SDK Attempt Count: 1\) is not valid\.$`)
+
+// wantKMSMissing checks err is EventBridge's refusal of a key KMS does not
+// find, relaying kmsMessage.
+func wantKMSMissing(t *testing.T, what string, err *awserr.Error, kmsMessage string) {
+	t.Helper()
+	if err == nil {
+		t.Errorf("%s = no error, want ValidationException relaying %q", what, kmsMessage)
+		return
+	}
+	m := kmsMissingText.FindStringSubmatch(err.Message)
+	if err.ID.JSONType != "ValidationException" || err.ID.MessageKey != awserr.MessageLower || m == nil || m[1] != kmsMessage {
+		t.Errorf("%s = %s %q, want ValidationException under message relaying %q", what, err.ID.JSONType, err.Message, kmsMessage)
+	}
+}
+
+// CreateEventBus looks the KmsKeyIdentifier up in KMS and stores and echoes
+// it as AWS does: a key id as its key ARN, an alias name as its alias ARN
+// (not resolved to the key), and a key or alias ARN as sent
+// (testdata/parity/events/EBB/05-key-id.json, 05-key-id-describe.json,
+// 05-alias.json, 05-alias-describe.json, 05-alias-arn.json,
+// 05-alias-arn-describe.json). A key KMS does not find is refused with
+// ValidationException relaying KMS's message (05-missing-key.json), and an
+// alias KMS does not find likewise (inferred: unrecorded); the bus is not
+// created.
+func TestCreateEventBusChecksAndEchoesTheKMSKey(t *testing.T) {
+	runWithKMS(t, func(h *harness) {
+		k := h.kmsKey()
+		const prefix = "arn:aws:kms:us-east-1:000000000000:"
+		must(h, kmsapi.OpCreateAlias, &kmsapi.CreateAliasInput{AliasName: "alias/ebb", TargetKeyId: k.id})
+		for _, c := range []struct{ bus, sent, echoed string }{
+			{"k0", k.arn, k.arn},
+			{"k1", k.id, k.arn},
+			{"k2", "alias/ebb", prefix + "alias/ebb"},
+			{"k3", prefix + "alias/ebb", prefix + "alias/ebb"},
+		} {
+			out := must(h, eventbridgeapi.OpCreateEventBus, &eventbridgeapi.CreateEventBusInput{Name: c.bus, KmsKeyIdentifier: new(c.sent)})
+			if got := deref(out.KmsKeyIdentifier); got != c.echoed {
+				t.Errorf("CreateEventBus with key %s echoed %s, want %s", c.sent, got, c.echoed)
+			}
+			if got := deref(h.describeBus(new(c.bus)).KmsKeyIdentifier); got != c.echoed {
+				t.Errorf("DescribeEventBus of a bus created with key %s = %s, want %s", c.sent, got, c.echoed)
+			}
+		}
+
+		missing := prefix + "key/00000000-0000-0000-0000-000000000000"
+		_, err := call(h, eventbridgeapi.OpCreateEventBus, &eventbridgeapi.CreateEventBusInput{Name: "k4", KmsKeyIdentifier: new(missing)})
+		wantKMSMissing(t, "CreateEventBus with a missing key", err, "Key '"+missing+"' does not exist")
+		_, err = call(h, eventbridgeapi.OpCreateEventBus, &eventbridgeapi.CreateEventBusInput{Name: "k5", KmsKeyIdentifier: new("alias/none")})
+		wantKMSMissing(t, "CreateEventBus with a missing alias", err, "Alias "+prefix+"alias/none is not found.")
+		for _, name := range []string{"k4", "k5"} {
+			if _, err := call(h, eventbridgeapi.OpDescribeEventBus, &eventbridgeapi.DescribeEventBusInput{Name: new(name)}); err == nil {
+				t.Errorf("bus %s was created with a key KMS does not hold", name)
+			}
+		}
+	})
+}
+
+// UpdateEventBus checks and echoes a KmsKeyIdentifier as CreateEventBus
+// does, and a refused key leaves the bus's key as it was; "" clears the key
+// without asking KMS (testdata/parity/events/EBB/05-clear.json,
+// 05-clear-describe.json).
+func TestUpdateEventBusChecksTheKMSKey(t *testing.T) {
+	runWithKMS(t, func(h *harness) {
+		k := h.kmsKey()
+		h.createBus("u")
+		out := must(h, eventbridgeapi.OpUpdateEventBus, &eventbridgeapi.UpdateEventBusInput{Name: new("u"), KmsKeyIdentifier: new(k.id)})
+		if got := deref(out.KmsKeyIdentifier); got != k.arn {
+			t.Errorf("UpdateEventBus with a key id echoed %s, want the key ARN %s", got, k.arn)
+		}
+		missing := "11111111-2222-3333-4444-555555555555"
+		_, err := call(h, eventbridgeapi.OpUpdateEventBus, &eventbridgeapi.UpdateEventBusInput{Name: new("u"), KmsKeyIdentifier: new(missing)})
+		wantKMSMissing(t, "UpdateEventBus with a missing key id", err, "Key 'arn:aws:kms:us-east-1:000000000000:key/"+missing+"' does not exist")
+		if got := deref(h.describeBus(new("u")).KmsKeyIdentifier); got != k.arn {
+			t.Errorf("key after a refused update = %s, want %s kept", got, k.arn)
+		}
+		out = must(h, eventbridgeapi.OpUpdateEventBus, &eventbridgeapi.UpdateEventBusInput{Name: new("u"), KmsKeyIdentifier: new("")})
+		if out.KmsKeyIdentifier != nil || h.describeBus(new("u")).KmsKeyIdentifier != nil {
+			t.Errorf("UpdateEventBus with KmsKeyIdentifier \"\" = %+v, want the key cleared", out)
 		}
 	})
 }

@@ -158,6 +158,23 @@ func corpusPattern(t *testing.T, cell string) string {
 	return m[1]
 }
 
+// A broken-syntax pattern is refused with the bare text AWS recorded
+// (testdata/parity/logs/R10/03-filter-14.json).
+func TestFilterLogEventsSyntaxErrorIsBare(t *testing.T) {
+	run(t, func(h *harness) {
+		h.group("g")
+		_, err := call(h, logsapi.OpFilterLogEvents, &logsapi.FilterLogEventsInput{
+			LogGroupName: new("g"), FilterPattern: new("{ $.n = }"),
+		})
+		if err == nil {
+			h.Fatalf("pattern accepted")
+		}
+		if err.ID.JSONType != "InvalidParameterException" || err.Message != "Invalid filter pattern" {
+			h.Errorf("got %s %q, want InvalidParameterException %q", err.ID.JSONType, err.Message, "Invalid filter pattern")
+		}
+	})
+}
+
 // Every vector of logs-filter-patterns.md section 8 gives the same answer
 // through FilterLogEvents: the row's event alone in a stream is returned
 // for "match", not returned for "no match", and the pattern is rejected

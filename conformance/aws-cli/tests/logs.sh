@@ -271,9 +271,17 @@ test_get_log_events_forward_token_pagination() {
   aws_ok logs get-log-events --log-group-name "$GROUP" --log-stream-name "$STREAM" --start-from-head --limit 2 --next-token "$token" --no-paginate
   assert_jq '[.events[].message] | join(",")' 'e5'
   token=$(jqv '.nextForwardToken')
+  # The first empty page past the end hands out a new forward token and the next
+  # one repeats it (testdata/parity/logs/R10/05-get-page-4.json, -5.json).
   aws_ok logs get-log-events --log-group-name "$GROUP" --log-stream-name "$STREAM" --start-from-head --limit 2 --next-token "$token" --no-paginate
   assert_jq '.events | length' '0'
-  assert_jq '.nextForwardToken' "$token" 'at the end of the stream the same token comes back'
+  local end
+  end=$(jqv '.nextForwardToken')
+  assert_match '^f/' "$end" 'past the end of the stream'
+  assert_ne "$token" "$end" 'the first empty page hands out a new token'
+  aws_ok logs get-log-events --log-group-name "$GROUP" --log-stream-name "$STREAM" --start-from-head --limit 2 --next-token "$end" --no-paginate
+  assert_jq '.events | length' '0'
+  assert_jq '.nextForwardToken' "$end" 'at the end of the stream the same token comes back'
 }
 
 test_get_log_events_invalid_token() {

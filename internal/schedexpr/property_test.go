@@ -46,8 +46,9 @@ func (f cronField) draw(t *rapid.T) (text string, values []int) {
 }
 
 // drawItem generates one list item: *, a value, a range, a value with an
-// increment, a range with an increment or * with an increment. A range may
-// wrap past hi back to lo.
+// increment, a range with an increment, a value with the increment 0 (the
+// value alone, doc.go) or * with an increment. A range may wrap past hi
+// back to lo.
 func (f cronField) drawItem(t *rapid.T) (text string, values []int) {
 	val := func(v int) string {
 		if f.name != nil && rapid.Bool().Draw(t, f.label+"-named") {
@@ -59,7 +60,7 @@ func (f cronField) drawItem(t *rapid.T) (text string, values []int) {
 	step := func() int { return rapid.IntRange(1, f.hi-f.lo+1).Draw(t, f.label+"-step") }
 	kinds := 2
 	if f.steps {
-		kinds = 5
+		kinds = 6
 	}
 	switch rapid.IntRange(0, kinds).Draw(t, f.label+"-kind") {
 	case 0:
@@ -76,6 +77,9 @@ func (f cronField) drawItem(t *rapid.T) (text string, values []int) {
 	case 4:
 		a, b, n := value("-from"), value("-to"), step()
 		return val(a) + "-" + val(b) + "/" + strconv.Itoa(n), every(f.cycle(a, b), n)
+	case 5:
+		v := value("")
+		return strconv.Itoa(v) + "/0", []int{v}
 	}
 	n := step()
 	return "*/" + strconv.Itoa(n), span(f.lo, f.hi, n)
@@ -90,12 +94,17 @@ func (f cronField) cycle(a, b int) []int {
 }
 
 // drawYear generates the year field as *, a range, a value with an
-// increment or a range with an increment. Years do not wrap, and the start
+// increment, a range with an increment or a year outside 1970-2199, which
+// never fires (doc.go). Years do not wrap, and the start of the others
 // stays inside the instants instantGen draws.
 func drawYear(t *rapid.T) (text string, values []int) {
-	kind := rapid.IntRange(0, 3).Draw(t, "year-kind")
-	if kind == 0 {
+	kind := rapid.IntRange(0, 4).Draw(t, "year-kind")
+	switch kind {
+	case 0:
 		return "*", span(minYear, maxYear, 1)
+	case 4:
+		y := rapid.OneOf(rapid.IntRange(1000, 1969), rapid.IntRange(2200, 9999)).Draw(t, "year-outside")
+		return strconv.Itoa(y), nil
 	}
 	a := rapid.IntRange(2000, 2100).Draw(t, "year-from")
 	from := strconv.Itoa(a)
@@ -160,7 +169,13 @@ func nearestWeekdayOracle(t time.Time, n int) bool {
 // dayField draws the day-of-month and day-of-week pair, exactly one of which
 // is ?, and its oracle.
 func dayField(t *rapid.T) (dom, dow string, fires func(time.Time) bool) {
-	switch rapid.IntRange(0, 6).Draw(t, "day-kind") {
+	switch rapid.IntRange(0, 7).Draw(t, "day-kind") {
+	case 7:
+		n := rapid.IntRange(0, 30).Draw(t, "last-offset")
+		return "L-" + strconv.Itoa(n), "?", func(x time.Time) bool {
+			later := x.AddDate(0, 0, n)
+			return later.Month() == x.Month() && lastOfMonth(later)
+		}
 	case 0:
 		text, days := cronField{label: "dom", lo: 1, hi: 31, steps: true}.draw(t)
 		return text, "?", func(x time.Time) bool { return slices.Contains(days, x.Day()) }

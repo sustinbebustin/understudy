@@ -818,6 +818,29 @@ func TestPutMetricAlarmExtendedStatistic(t *testing.T) {
 	})
 }
 
+// ListTagsForResource tells a deleted alarm, which answers an empty list
+// while its history is held, from one never created, which is
+// ResourceNotFoundException without a message. After the history ages out
+// a deleted alarm reads as never created.
+func TestListTagsForResourceTellsDeletedFromNeverCreated(t *testing.T) {
+	run(t, func(h *harness) {
+		never := "arn:aws:cloudwatch:" + h.Scope.Region.String() + ":" + h.Scope.Account.String() + ":alarm:never"
+		_, err := call(h, cloudwatchapi.OpListTagsForResource, &cloudwatchapi.ListTagsForResourceInput{ResourceARN: never})
+		wantError(h.T, err, "ResourceNotFoundException", "")
+
+		must(h, cloudwatchapi.OpPutMetricAlarm, minimalAlarm("gone"))
+		arn := *h.describe("gone").MetricAlarms[0].AlarmArn
+		must(h, cloudwatchapi.OpDeleteAlarms, &cloudwatchapi.DeleteAlarmsInput{AlarmNames: []string{"gone"}})
+		if got := h.tags(arn); got == nil || len(got) != 0 {
+			h.Errorf("tags of a deleted alarm = %v, want an empty list", got)
+		}
+
+		h.advance(30*24*time.Hour + time.Minute)
+		_, err = call(h, cloudwatchapi.OpListTagsForResource, &cloudwatchapi.ListTagsForResourceInput{ResourceARN: arn})
+		wantError(h.T, err, "ResourceNotFoundException", "")
+	})
+}
+
 // A merge that leaves no tags is nil, even over an empty, non-nil map.
 func TestTagMapIsNilWhenEmpty(t *testing.T) {
 	for name, existing := range map[string]map[string]string{"nil": nil, "empty": {}} {

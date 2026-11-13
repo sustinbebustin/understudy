@@ -15,6 +15,46 @@
   ],
   "steps": [
     {
+      "fixture": "events/R14/01-07-put.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/01-07-describe.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/01-18-put.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/01-18-describe.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/01-19-put.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/01-19-describe.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/01-26-put.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/01-26-describe.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/01-29-put.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/01-30-put.json",
+      "compare": "all"
+    },
+    {
       "fixture": "events/R14/04-custom-bus-schedule.json",
       "compare": "all"
     },

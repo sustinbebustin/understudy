@@ -422,24 +422,25 @@ func TestInvalidTermCharacterErrorText(t *testing.T) {
 }
 
 // The corpus rows AWS documents as rejected must fail for the documented
-// reason, not an earlier, unrelated one. The texts are this package's own
-// (AWS's are unrecorded); the detail and offset pin which rule fired.
+// reason, not an earlier, unrelated one. The wire text is the same bare
+// text for all of them; Detail pins which rule fired.
 func TestDocumentedRejectionsFailForTheDocumentedReason(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct{ id, pattern, want string }{
-		{"J16", `{ $.["cluster.name"] = "c" }`, "Invalid filter pattern: bracket notation takes a single-quoted property name at offset 5."},
-		{"J25", `{ $.SomeObject IS NOT NULL }`, "Invalid filter pattern: IS NOT is not supported; use != or NOT EXISTS at offset 15."},
-		{"J26", `{ $.eventType EXISTS }`, "Invalid filter pattern: EXISTS is not supported; use = * or NOT EXISTS at offset 14."},
-		{"P01", `%something!%`, "Invalid filter pattern: character '!' is not allowed in a regular expression at offset 0."},
-		{"P02", `%(a|b)%`, "Invalid filter pattern: character '(' is not allowed in a regular expression at offset 0."},
+		{"J16", `{ $.["cluster.name"] = "c" }`, "bracket notation takes a single-quoted property name at offset 5"},
+		{"J25", `{ $.SomeObject IS NOT NULL }`, "IS NOT is not supported; use != or NOT EXISTS at offset 15"},
+		{"J26", `{ $.eventType EXISTS }`, "EXISTS is not supported; use = * or NOT EXISTS at offset 14"},
+		{"P01", `%something!%`, "character '!' is not allowed in a regular expression at offset 0"},
+		{"P02", `%(a|b)%`, "character '(' is not allowed in a regular expression at offset 0"},
 	} {
 		_, err := Compile(c.pattern)
 		if err == nil {
 			t.Errorf("%s: Compile(%q) accepted", c.id, c.pattern)
 			continue
 		}
-		if err.Cause() != CauseSyntax || err.Message() != c.want {
-			t.Errorf("%s: Compile(%q) = %v %q, want %v %q", c.id, c.pattern, err.Cause(), err.Message(), CauseSyntax, c.want)
+		if err.Cause() != CauseSyntax || err.Message() != "Invalid filter pattern" || err.Detail() != c.want {
+			t.Errorf("%s: Compile(%q) = %v %q detail %q, want %v %q detail %q", c.id, c.pattern,
+				err.Cause(), err.Message(), err.Detail(), CauseSyntax, "Invalid filter pattern", c.want)
 		}
 	}
 }

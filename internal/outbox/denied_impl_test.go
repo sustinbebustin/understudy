@@ -86,7 +86,8 @@ func TestEveryCallOfADeliveryCarriesItsSourceAccount(t *testing.T) {
 // client-side error (iam-enforcement-surfaces.md 8.2, 8.4), and an
 // EventBridge dead letter of it carries ERROR_CODE NO_PERMISSIONS (switch
 // events.delivery.denied-code) even when the identity's name says nothing
-// of access.
+// of access, and no retry attributes (aws-recorded,
+// testdata/parity/sqs/IAM-ENF/22-dlq-sa.json).
 func TestARefusalIsNotRetriedWhateverItsStatus(t *testing.T) {
 	refusal := &awserr.Error{
 		ID:      awserr.Identity{Shape: "test#Refused", Status: 503, Fault: awserr.Receiver},
@@ -120,11 +121,13 @@ func TestARefusalIsNotRetriedWhateverItsStatus(t *testing.T) {
 			}
 			return *v.StringValue
 		}
-		if attr("ERROR_CODE") != delivery.EventBridgeDeniedCode || attr("ERROR_MESSAGE") != "refused by policy" || attr("RETRY_ATTEMPTS") != "0" {
-			k.Errorf("dead letter attributes = %+v, want ERROR_CODE %s, the denial's message and RETRY_ATTEMPTS 0", got[1].attributes, delivery.EventBridgeDeniedCode)
+		if attr("ERROR_CODE") != delivery.EventBridgeDeniedCode || !strings.HasPrefix(attr("ERROR_MESSAGE"), "refused by policy (Service: AmazonSQS; ") {
+			k.Errorf("dead letter attributes = %+v, want ERROR_CODE %s and the denial's message with SQS's client suffix", got[1].attributes, delivery.EventBridgeDeniedCode)
 		}
-		if _, ok := got[1].attributes["EXHAUSTED_RETRY_CONDITION"]; ok {
-			k.Errorf("dead letter attributes = %+v, want no EXHAUSTED_RETRY_CONDITION: no retry limit was reached", got[1].attributes)
+		for _, name := range []string{"RETRY_ATTEMPTS", "EXHAUSTED_RETRY_CONDITION"} {
+			if _, ok := got[1].attributes[name]; ok {
+				k.Errorf("dead letter attributes = %+v, want no %s: a refusal's dead letter carries none (22-dlq-sa.json)", got[1].attributes, name)
+			}
 		}
 		events := deliveries(k)
 		if len(events) != 1 {

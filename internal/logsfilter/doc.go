@@ -18,8 +18,9 @@
 //   - Error text: only the over-long pattern text and "Invalid character(s)
 //     in term '<chars>'" for a term with one illegal character are recorded;
 //     a term with several lists each once in order of first appearance.
-//     Every other syntax error reads "Invalid filter pattern: <problem> at
-//     offset <n>."
+//     Every other syntax error reads "Invalid filter pattern": recorded for
+//     `{ $.n = }`, inferred for the rest. The problem and offset are in
+//     Error.Detail.
 //   - Whitespace is ASCII space, tab, CR and LF everywhere in the grammar. A
 //     blank term or pattern (rule N2) is made only of those, so a phrase of
 //     no-break or other Unicode spaces is searched for as text.

@@ -31,8 +31,11 @@ import (
 // section is refused (ADR 0009, amendment of 2026-11-10). 6: an entry
 // keeps the order number its producing write drew (Entry.Order), which
 // orders a FIFO lane; an earlier entry has none, so its section is
-// refused rather than restored with its lane unordered.
-const stateVersion = 6
+// refused rather than restored with its lane unordered. 7: a
+// CloudWatch-to-SNS entry keeps the alarm action it reports
+// (alarmAction); an earlier one would end without its Action history
+// item, so its section is refused.
+const stateVersion = 7
 
 // State is the outbox of one account and region, the scope of the targets
 // its deliveries land in: every accepted delivery not yet delivered,
@@ -149,6 +152,15 @@ type requestRecord struct {
 	// 14.4.4); absent for every other, so earlier entries load unchanged.
 	As         *executionRoleRecord `json:"as,omitempty"`
 	Invocation *invocationRecord    `json:"invocation,omitempty"`
+	// AlarmAction is a CloudWatch-to-SNS delivery's (cloudwatch-alarms.md
+	// 8.3); absent for every other.
+	AlarmAction *alarmActionRecord `json:"alarmAction,omitempty"`
+}
+
+// alarmActionRecord is the persisted form of a delivery.AlarmAction.
+type alarmActionRecord struct {
+	StateUpdated time.Time `json:"stateUpdated"`
+	Published    string    `json:"published"`
 }
 
 // deadLetterRecord is the persisted form of a delivery.DeadLetterMessage.
@@ -416,6 +428,9 @@ func recordOf(e *Entry) entryRecord {
 			r.Request.Invocation.Key = inv.Key.String()
 		}
 	}
+	if aa := req.AlarmAction; aa != nil {
+		r.Request.AlarmAction = &alarmActionRecord{StateUpdated: aa.StateUpdated, Published: aa.Published}
+	}
 	return r
 }
 
@@ -491,28 +506,41 @@ func requestOf(r *requestRecord) (delivery.Request, *RequestError) {
 		}
 		req.DLQMessage = &delivery.DeadLetterMessage{Body: dm.Body, Attributes: attrs, GroupID: dm.GroupID, DedupID: dm.DedupID}
 	}
+	if err := setProducerMembers(&req, r); err != nil {
+		return delivery.Request{}, err
+	}
+	return req, nil
+}
+
+// setProducerMembers sets the members of req only some producers persist:
+// a Lambda delivery's sender, a Scheduler delivery's principal and
+// invocation, and an alarm notification's action.
+func setProducerMembers(req *delivery.Request, r *requestRecord) *RequestError {
 	if s := r.Sender; s != nil {
 		role, err := parseARN("Sender.Role", s.Role)
 		if err != nil {
-			return delivery.Request{}, err
+			return err
 		}
 		req.Sender = &delivery.LambdaSender{Role: role, Carries: s.Carries}
 	}
 	if as := r.As; as != nil {
 		role, err := parseARN("As.Role", as.Role)
 		if err != nil {
-			return delivery.Request{}, err
+			return err
 		}
 		req.As = delivery.ExecutionRole{Role: role, RoleID: as.RoleID, Session: as.Session}
 	}
 	if inv := r.Invocation; inv != nil {
 		got, err := invocationOf(inv)
 		if err != nil {
-			return delivery.Request{}, err
+			return err
 		}
 		req.Invocation = got
 	}
-	return req, nil
+	if aa := r.AlarmAction; aa != nil {
+		req.AlarmAction = &delivery.AlarmAction{StateUpdated: aa.StateUpdated, Published: aa.Published}
+	}
+	return nil
 }
 
 // invocationOf returns the delivery.SchedulerInvocation r persists.

@@ -287,7 +287,7 @@ From [TF] `internal/service/events/bus.go`:
 | PutPermission | StoredOnly | statements are stored in the bus Policy that DescribeEventBus returns; not enforced |
 | RemovePermission | StoredOnly | statements are removed from the bus Policy; not enforced |
 | PutRule | Partial | default and custom buses of the caller's account and region; ScheduleExpression only on the default bus, as AWS; RoleArn is stored, not used; a rule on another account's or region's bus answers NotImplemented |
-| PutTargets | Partial | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; an event bus target with a RoleArn is delivered as a session of that role (10.4 item 14), and the RoleArn of a function, queue or topic target is not assumed; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented; an event bus target of the rule's account without a RoleArn is accepted, where AWS refuses the call; a rule on another account's or region's bus answers NotImplemented (amended 2026-11-03: an input form on such a target now refuses the call as AWS does, EBB-08) |
+| PutTargets | Partial | Lambda function, SQS queue and SNS topic targets in the rule's region, and event bus targets in any served account and region; RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; an event bus target with a RoleArn is delivered as a session of that role (10.4 item 14), and the RoleArn of a function, queue or topic target is not assumed; a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters fails its entry with NotImplemented; a rule on another account's or region's bus answers NotImplemented (amended 2026-11-03: an input form on such a target now refuses the call as AWS does, EBB-08; amended 2026-11-13: so does an event bus target of the rule's account without a RoleArn, EBB-08) |
 | PutEvents | Partial | default and custom buses in the caller's region, its own or another account's by ARN; EndpointId and TraceHeader are accepted and not used |
 | TagResource, UntagResource, ListTagsForResource | Full | (today Partial "rules only; the default bus takes no tags"; section 5.5 shows AWS tags every bus) |
 | DescribeRule, DeleteRule, EnableRule, DisableRule, ListRules, ListRuleNamesByTarget, ListTargetsByRule, RemoveTargets | Partial | another account's or region's bus answers NotImplemented |
@@ -324,7 +324,7 @@ Amended 2026-10-26: DescribeEventBus and the rule and target row were Full, and 
 |---|---|---|---|---|
 | `events.delete-bus.with-rules` | `rejected`: `ValidationException` "EventBus can't be deleted since it has rules." | aws-recorded (EBB-01) | section 3.5 | EBB-01 |
 | `events.update-bus.omitted-members` | `kept` | aws-recorded (EBB-04) | section 3.4 | EBB-04 |
-| `events.bus.kms-key-check` | `none`: any identifier matching the model pattern is stored. AWS checks that the key exists and grants EventBridge (section 3.1), a recorded deviation | inferred | section 3.1 | EBB-05 |
+| `events.bus.kms-key-check` | retired (2026-11-13): understudy checks that the key exists and grants EventBridge, and echoes it, as EBB-05 recorded (section 3.1) | | section 3.1 | EBB-05 |
 | `events.bus-policy.remove-last-statement` | `policy-removed` | aws-recorded (EBB-06) | section 4.3 | EBB-06 |
 | `events.bus-policy.remove-all-without-policy` | `succeed` | aws-recorded (EBB-06) | section 4.3 | EBB-06 |
 | `events.list-buses.order` | `by-name`, the default bus sorted with the rest | aws-recorded (EBB-07) | section 3.3 | EBB-07 |
@@ -523,7 +523,7 @@ aws events delete-event-bus --name "$P-u"
 
 ### 12.6 EBB-05: KmsKeyIdentifier forms and checks
 
-Settles section 3.1 and `events.bus.kms-key-check`. About USD 0.25 (one KMS key through the 7-day minimum deletion window, [recording-kit.md](../recording-kit.md) section 4), 10 minutes.
+Settles section 3.1 and `events.bus.kms-key-check` (since retired). About USD 0.25 (one KMS key through the 7-day minimum deletion window, [recording-kit.md](../recording-kit.md) section 4), 10 minutes.
 
 ```sh
 K=$(aws kms create-key --description "$P-ebb" --query KeyMetadata.KeyId --output text)

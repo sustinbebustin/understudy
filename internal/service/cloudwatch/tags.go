@@ -26,7 +26,7 @@ func (s *Service) bindTags(b cloudwatchapi.Binder) {
 		kernel.WithResourceARN(func(in *cloudwatchapi.TagResourceInput) string { return in.ResourceARN }))
 	b.UntagResource(s.untagResource, registry.Partial{Note: note},
 		kernel.WithResourceARN(func(in *cloudwatchapi.UntagResourceInput) string { return in.ResourceARN }))
-	b.ListTagsForResource(s.listTagsForResource, registry.Partial{Note: note},
+	b.ListTagsForResource(s.listTagsForResource, registry.Partial{Note: note + "; a deleted alarm lists no tags for as long as its history is held, 30 days of emulator time, which is inferred"},
 		kernel.WithResourceARN(func(in *cloudwatchapi.ListTagsForResourceInput) string { return in.ResourceARN }))
 }
 
@@ -119,26 +119,55 @@ func (s *Service) updateTags(c *kernel.Call, resource string, change func(tags m
 	return err
 }
 
-// listTagsForResource lists an alarm's tags by key. An ARN that names no
-// alarm, a deleted one included, has an empty list (AWS-recorded,
-// secrets-logs-events-alarms.md 5.1).
+// listTagsForResource lists an alarm's tags by key. An ARN that names an
+// alarm that was never created is ResourceNotFoundException without a
+// message (AWS-recorded, cloudwatch/R07/cw-ListTagsForResource.json). A
+// deleted alarm has an empty list (third-party-recorded,
+// secrets-logs-events-alarms.md 5.1). The two are told apart by the
+// alarm's history, which outlives it: a gone alarm whose history is still
+// held is a deleted one. How long AWS answers [] for a deleted alarm is
+// unknown; understudy does so while it holds the history, historyRetention
+// (inferred).
 func (s *Service) listTagsForResource(_ context.Context, c *kernel.Call, in *cloudwatchapi.ListTagsForResourceInput) (*cloudwatchapi.ListTagsForResourceOutput, *awserr.Error) {
-	out := &cloudwatchapi.ListTagsForResourceOutput{Tags: []cloudwatchapi.Tag{}}
 	ref, ok := taggableAlarm(c, in.ResourceARN)
 	if !ok {
-		return out, nil
+		return nil, errListTagsTargetNotFound()
 	}
-	cell, ok := s.cells.Lookup(ref.scope)
-	if !ok {
-		return out, nil
-	}
-	out.Tags = store.Read(cell, func(st *State) []cloudwatchapi.Tag {
-		tags := st.Alarms[ref.name].Tags
-		list := make([]cloudwatchapi.Tag, 0, len(tags))
-		for _, k := range slices.Sorted(maps.Keys(tags)) {
-			list = append(list, cloudwatchapi.Tag{Key: k, Value: tags[k]})
+	if cell, ok := s.cells.Lookup(ref.scope); ok {
+		listed := store.Read(cell, func(st *State) alarmTags {
+			a, ok := st.Alarms[ref.name]
+			list := make([]cloudwatchapi.Tag, 0, len(a.Tags))
+			for _, k := range slices.Sorted(maps.Keys(a.Tags)) {
+				list = append(list, cloudwatchapi.Tag{Key: k, Value: a.Tags[k]})
+			}
+			return alarmTags{list: list, found: ok}
+		})
+		if listed.found {
+			return &cloudwatchapi.ListTagsForResourceOutput{Tags: listed.list}, nil
 		}
-		return list
+	}
+	if s.holdsHistory(ref, c.Admitted()) {
+		return &cloudwatchapi.ListTagsForResourceOutput{Tags: []cloudwatchapi.Tag{}}, nil
+	}
+	return nil, errListTagsTargetNotFound()
+}
+
+// alarmTags is an alarm's tags by key; found is false when the scope
+// stores no such alarm.
+type alarmTags struct {
+	list  []cloudwatchapi.Tag
+	found bool
+}
+
+// holdsHistory reports whether the alarm ref has a history item not older
+// than historyRetention at now.
+func (s *Service) holdsHistory(ref alarmRef, now clock.Instant) bool {
+	cell, ok := s.history.Lookup(ref.scope)
+	if !ok {
+		return false
+	}
+	cutoff := now.Add(-historyRetention)
+	return store.Read(cell, func(h *History) bool {
+		return slices.ContainsFunc(h.Items[ref.name], func(it HistoryItem) bool { return !it.At.Before(cutoff) })
 	})
-	return out, nil
 }

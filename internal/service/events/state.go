@@ -167,8 +167,8 @@ type Bus struct {
 	Name string `json:"name"`
 	// Description is nil when absent or empty.
 	Description *string `json:"description,omitempty"`
-	// KMSKeyIdentifier is stored as sent and never applied; nil when absent
-	// or empty.
+	// KMSKeyIdentifier is stored as busKeyIdentifier gives it and never
+	// applied; nil when absent or empty.
 	KMSKeyIdentifier *string `json:"kmsKeyIdentifier,omitempty"`
 	// DeadLetter is stored as sent and never applied.
 	DeadLetter *DeadLetterConfig `json:"deadLetter,omitempty"`
@@ -302,7 +302,8 @@ func newTrigger(pattern, expr *string) (Trigger, *awserr.Error) {
 
 // Schedule is a parsed schedule expression. It is stored as the
 // expression's text and parsed again on load, so a stored schedule always
-// parses: a snapshot with one that does not fails to load.
+// parses: a snapshot with one that does not fails to load. Load takes the
+// cron field separation earlier builds stored (schedexpr.ParseStored).
 type Schedule struct {
 	text   string
 	parsed schedexpr.Schedule
@@ -322,14 +323,32 @@ func (s Schedule) String() string { return s.text }
 // MarshalText writes the expression.
 func (s Schedule) MarshalText() ([]byte, error) { return []byte(s.text), nil }
 
-// UnmarshalText parses a stored expression.
+// UnmarshalText parses a stored expression, keeping its text verbatim.
 func (s *Schedule) UnmarshalText(b []byte) error {
-	parsed, err := parseSchedule(string(b))
+	expr := string(b)
+	parsed, err := schedexpr.ParseStored(expr)
 	if err != nil {
-		return &StoredScheduleError{Expression: string(b), Detail: err.Detail()}
+		return &StoredScheduleError{Expression: expr, Detail: err.Detail()}
 	}
-	*s = parsed
+	*s = Schedule{text: expr, parsed: parsed}
 	return nil
+}
+
+// first is the first fire of the schedule started at start: start itself
+// for a rate, as AWS fires a rate rule at its creation and its enable
+// (events/R14 02), and the first fire strictly after start for a cron.
+func (s Schedule) first(start clock.Instant) clock.Instant {
+	if s.rate() {
+		return start
+	}
+	return s.next(start)
+}
+
+// rate reports whether s is a rate expression, whose fires are counted
+// from when it starts rather than named by the expression.
+func (s Schedule) rate() bool {
+	_, ok := s.parsed.(schedexpr.Rate)
+	return ok
 }
 
 // next is the first fire strictly after after; zero when the schedule never

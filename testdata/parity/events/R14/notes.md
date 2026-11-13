@@ -13,12 +13,12 @@ Compared against understudy built locally (same corpus replayed on a local insta
 - 01 stored ScheduleExpression (describe-rule): matches (stored verbatim, no normalisation, 01-NN-describe.out)
 - 01-01..06, 01-08..14, 01-27 accept: matches
 - 01-15, 01-16, 01-17, 01-20..25, 01-28, 01-31 reject: matches
-- 01-07 cron(0 12 L-3 * ? *): differs: AWS accepts (01-07-put.out, 01-07-describe.out); understudy rejects, no L-n day-of-month form (internal/schedexpr/days.go:112-131)
-- 01-18 cron(0 12 * * ? 1969), 01-19 cron(0 12 * * ? 2200): differs: AWS accepts both (01-18-*, 01-19-*); understudy rejects, year bounded 1970-2199 (internal/schedexpr/cron.go:10-13, 48)
-- 01-26 cron(5/0 * * * ? *): differs: AWS accepts (01-26-*); understudy rejects increment 0 (internal/schedexpr/cron.go:96-99)
-- 01-29 cron(0  12 * * ? *) (double space), 01-30 tab-separated: differs: AWS rejects 400 ValidationException "Parameter ScheduleExpression is not valid." (01-29-put.http, 01-30-put.http); understudy accepts runs of spaces and tabs (internal/schedexpr/cron.go:62; documented at internal/schedexpr/doc.go:26-28)
+- 01-07 cron(0 12 L-3 * ? *): differs: AWS accepts (01-07-put.out, 01-07-describe.out); understudy rejects, no L-n day-of-month form (internal/schedexpr/days.go:112-131). Replay: matches; understudy now accepts and stores it verbatim (internal/parity/baseline.json, events/R14#01-07-put, #01-07-describe)
+- 01-18 cron(0 12 * * ? 1969), 01-19 cron(0 12 * * ? 2200): differs: AWS accepts both (01-18-*, 01-19-*); understudy rejects, year bounded 1970-2199 (internal/schedexpr/cron.go:10-13, 48). Replay: matches; understudy now accepts both, and they never fire (internal/parity/baseline.json, events/R14#01-18-put, #01-19-put)
+- 01-26 cron(5/0 * * * ? *): differs: AWS accepts (01-26-*); understudy rejects increment 0 (internal/schedexpr/cron.go:96-99). Replay: matches; understudy now accepts it (internal/parity/baseline.json, events/R14#01-26-put)
+- 01-29 cron(0  12 * * ? *) (double space), 01-30 tab-separated: differs: AWS rejects 400 ValidationException "Parameter ScheduleExpression is not valid." (01-29-put.http, 01-30-put.http); understudy accepts runs of spaces and tabs (internal/schedexpr/cron.go:62; documented at internal/schedexpr/doc.go:26-28). Replay: matches; rules now take exactly one space between fields (internal/parity/baseline.json, events/R14#01-29-put, #01-30-put)
 - 01 rate rows (01-32..45): matches (accepts 1 minute, 5 minutes, 1 hour, 1 day, 7 days; rejects the rest)
-- 02 rate first fire: differs: AWS event times run creation + k*60s from k=0 (created 07:04:32.314Z, first event "time":"2026-10-14T07:04:34Z", delivered 07:05:09Z, 02-arrivals.jsonl); understudy first fires one interval after creation, time = creation + 60s (internal/service/events/rules.go:152 -> internal/schedexpr/schedule.go:110)
+- 02 rate first fire: matches, but for AWS's offset (AWS event times run creation + k*60s from k=0: created 07:04:32.314Z, first event "time":"2026-10-14T07:04:34Z", delivered 07:05:09Z, 02-arrivals.jsonl; understudy fires at creation, then every interval, internal/service/events/state.go Schedule.first). The 1.7 s offset is latency, not modelled, as in the delivery-latency row. The rule had no target until PutTargets at 07:04:33Z (02-targets-rate.json), so understudy restarts a rate at its first target, which is inferred (switch events.schedule.restart)
 - 02 cron first fire (cron(0/2 * * * ? *)): matches (next matching minute, "time":"2026-10-14T07:06:00Z")
 - 02 scheduled-event envelope (member order, detail-type "Scheduled Event", source aws.events, resources [rule ARN], detail {}): matches (internal/service/events/envelope/event.go:29-40, 49-)
 - 02 Input constant target body {"c":1}: matches
@@ -26,7 +26,7 @@ Compared against understudy built locally (same corpus replayed on a local insta
 - 02 event id format: differs (cosmetic): AWS ids are not RFC 4122 v4 (version nibble varies, e.g. "...-a2c4-...", 02-arrivals.jsonl, 03-*.out); understudy emits v4 UUIDs
 - 02 delivery latency: n/a (AWS delivers 35-45 s after the event time; understudy delivers at the due instant on the emulator clock, by design)
 - 02 while disabled: matches (no deliveries, 02-arrivals-while-disabled.jsonl empty)
-- 02 enable restarts rate phase: matches in kind (AWS re-anchors at enable: enabled 07:11:21.433Z, next event time 07:11:22Z, phase moved from :34; understudy restarts at enable, internal/service/events/rules.go:280-298); differs in offset as in the first-fire row: AWS's first event after enable has time = enable instant (delivered 07:12:05Z), understudy's is enable + 60s
+- 02 enable restarts rate phase: matches, but for AWS's 0.6 s offset (AWS re-anchors at enable: enabled 07:11:21.433Z, next event time 07:11:22Z, delivered 07:12:05Z, phase moved from :34; understudy fires at the enable instant, then every interval, internal/service/events/rules.go setSchedule)
 - 03 source aws.foo / aws.events: matches (NotAuthorizedForSourceException "Not authorized for the source.", now AWS-recorded; internal/service/events/errors.go:100-109)
 - 03 missing DetailType: matches (InvalidArgument "Parameter DetailType is not valid. Reason: DetailType is a required argument.")
 - 03 Detail not JSON: matches (MalformedDetail "Detail is malformed.")

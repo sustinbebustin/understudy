@@ -77,6 +77,23 @@ func errForeignBus(bus aws.ARN) *awserr.Error {
 		"Run 'understudy coverage --service eventbridge' for what is supported.")
 }
 
+// errBusKeyMissing relays KMS's refusal of a bus's KmsKeyIdentifier,
+// already carrying the KMS client's suffix: AWS-recorded for a key ARN
+// (eventbridge-buses.md 3.1, EBB-05 05-missing-key), inferred for an alias
+// or another identifier KMS does not find.
+func errBusKeyMissing(relayed string) *awserr.Error {
+	return eventbridgeapi.ErrValidationException("Parameter " + relayed + " is not valid.")
+}
+
+// errBusKeyDenied is AWS-recorded (eventbridge-buses.md 3.1, EBB-05
+// 05-default-policy): the key's policy does not allow EventBridge
+// kms:GenerateDataKey on key, the key ARN.
+func errBusKeyDenied(key string) *awserr.Error {
+	return eventbridgeapi.ErrAccessDeniedException("Access to call kms:GenerateDataKey is denied. Reason: " + servicePrincipal +
+		" is not authorized to perform: kms:GenerateDataKey on " + key +
+		" because the resource does not exist in this Region, no resource-based policies allow access, or a resource-based policy explicitly denies access")
+}
+
 // errStatementNotFound is third-party-recorded (eventbridge-buses.md 4.3).
 func errStatementNotFound() *awserr.Error {
 	return eventbridgeapi.ErrResourceNotFoundException("Statement with the provided id does not exist.")
@@ -238,6 +255,13 @@ func errCrossAccountRole(targetID string) *awserr.Error {
 
 func errCrossAccountInput() *awserr.Error {
 	return eventbridgeapi.ErrValidationException("Input, InputPath, and InputTransformer are not available with PutTarget if the target is an event bus of a different AWS account.")
+}
+
+// errBusTargetRole is AWS-recorded: an event bus target of the rule's
+// account without a RoleArn refuses the whole call, naming the target's Arn
+// (eventbridge-buses.md 6.2, EBB-08).
+func errBusTargetRole(targetARN string) *awserr.Error {
+	return eventbridgeapi.ErrValidationException("RoleArn is required for target " + targetARN + ".")
 }
 
 // errBusTargetInput is AWS-recorded: an input form on an event bus target of

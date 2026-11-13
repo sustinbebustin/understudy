@@ -28,11 +28,10 @@ const targetsNote = "templated Lambda, SQS, SNS, EventBridge event bus and Step 
 // (iam-enforcement-surfaces.md 3, 6.3).
 const createNote = targetsNote + "; Lambda, SQS, SNS and Step Functions targets in another Region " +
 	"answer NotImplemented once the expression, time zone, window, dates and target are validated; " +
-	"KmsKeyArn is stored and echoed, the payload is not encrypted, and under iam.enforce=enforce the caller's KMS permissions at create and update and the execution role's kms:Decrypt at invocation are evaluated against identity policies and the key's policy, which for a key understudy's KMS does not hold allows nothing, " +
-	"so under enforce a KmsKeyArn naming no key is refused at create where AWS accepted one (SCH-04); " +
+	"KmsKeyArn is stored and echoed, the payload is not encrypted, and under iam.enforce=enforce the caller's KMS permissions at create and update and the execution role's kms:Decrypt at invocation are evaluated against identity policies and the key's policy for a key understudy's KMS holds, " +
+	"and a KmsKeyArn naming no key is accepted with no KMS action asked, as AWS accepted one (SCH-04); " +
 	"the execution role's trust is checked only under iam.enforce=enforce, at create, update and invocation, so under off and advise a missing or untrusting role still delivers; " +
 	"the 10,000,000-schedule quota is not counted; " +
-	"cron() takes the rules' grammar, so years outside 1970-2199 are refused as malformed where AWS refuses them as never firing (SCH-03); " +
 	"unrecorded, understudy's choice: a FLEXIBLE window delays each invocation by a seeded whole-second offset inside it, " +
 	"one execution id covers an invocation's retries, the Scheduled Event payload's id is the execution id and a Step Functions target without Input receives it too, " +
 	"a dead letter of a Lambda, SNS, Step Functions or event bus target carries the payload as its body, " +

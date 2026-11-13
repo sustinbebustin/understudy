@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
+	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -147,6 +149,9 @@ type attempt struct {
 	// dropped.
 	took     time.Duration
 	exchange *journal.HTTPExchange
+	// failure is how the attempt failed when it ended the delivery
+	// undelivered (deadLetter); nil otherwise.
+	failure failure
 	// onLatency hands the sequencer on when a request-phase latency rule
 	// holds one of the attempt's calls (kernel.Target.OnLatency); nil for an
 	// attempt on its own goroutine or on a sequencer that does not release.
@@ -185,9 +190,51 @@ func (a *attempt) do(ctx context.Context) {
 	// kernel stopped first or the attempt panicked, so the next Rearm can
 	// attempt the delivery again.
 	defer a.release()
-	if outcome, ok := a.run(ctx); ok {
-		a.finish(ctx, a.counted(outcome))
+	if outcome, ok := a.run(ctx); ok && a.finish(ctx, a.counted(outcome)) {
+		a.report(ctx, outcome)
 	}
+}
+
+// report tells Options.Alarms how a delivery that carries an AlarmAction
+// ended, once finish has removed its entry; a retry is no end. The
+// outcome is told by the last attempt's failure (deadLetter): a refusal
+// by the target's policy, another target error, or, when no target call
+// answered, the journal's reason.
+func (a *attempt) report(ctx context.Context, outcome journal.DeliveryOutcome) {
+	req := a.entry.Request
+	if req.AlarmAction == nil || a.e.alarms == nil {
+		return
+	}
+	var o delivery.Outcome
+	switch out := outcome.(type) {
+	case journal.Retrying:
+		return
+	case journal.Delivered:
+		o = delivery.Delivered{}
+	case journal.Dropped:
+		o = a.undelivered(out.Reason)
+	case journal.Refused:
+		o = a.undelivered(out.Reason)
+	case journal.DeadLettered:
+		o = a.undelivered("dead-lettered to " + out.DLQ.String())
+	case journal.Filtered:
+		o = a.undelivered("filtered by " + out.Rule)
+	}
+	a.e.alarms.ActionEnded(ctx, a.c, req, a.due, o)
+}
+
+// undelivered is the Outcome of a delivery that ended undelivered, by how
+// its last attempt failed; reason is the journal's, for an attempt no
+// target call answered.
+func (a *attempt) undelivered(reason string) delivery.Outcome {
+	switch f := a.failure.(type) {
+	case targetRefusal:
+		return delivery.Denied{}
+	case targetError:
+		return delivery.TargetFailed{Message: f.err.Message}
+	case endpointError, senderRefusal, nil:
+	}
+	return delivery.Undelivered{Reason: reason}
 }
 
 // counted is outcome with, for a Lambda delivery that ends undelivered, the
@@ -327,12 +374,43 @@ func (a *attempt) end(ctx context.Context, err *awserr.Error) (journal.DeliveryO
 		// status the target's denial identity carries: SNS does not retry
 		// it and EventBridge sends it straight to the dead-letter queue
 		// (iam-enforcement-surfaces.md 8.2, 8.4, aws-doc).
-		return a.permanent(ctx, targetError{err: err})
+		return a.permanent(ctx, a.refusal(err))
+	case a.entry.Request.Mechanism == delivery.EventsToLambda && err.ID.Shape == lambdaapi.IdentityResourceNotFoundException().Shape:
+		return a.permanent(ctx, a.refusal(goneFunctionDenial(a.entry.Request)))
 	case retryable(err.ID):
 		return a.retry(ctx, targetError{err: err}, a.due)
 	default:
 		return a.permanent(ctx, targetError{err: err})
 	}
+}
+
+// refusal is the failure of an attempt its target refused with err, a
+// denial. An EventBridge dead letter names the refused call's request id in
+// its message (eventBridgeAttributes), so one is drawn, in the form the
+// target service writes its ids (ids.RequestID.ForService), for a target
+// whose SDK client EventBridge is recorded to use; any other delivery
+// leaves the ids stream as it was.
+func (a *attempt) refusal(err *awserr.Error) targetRefusal {
+	r := targetRefusal{err: err}
+	req := a.entry.Request
+	if _, ok := eventBridgeClient(req.Target); ok && req.Mechanism.Via() == ref.EventsTarget {
+		r.requestID = a.e.k.IDs().RequestID().ForService(string(req.Mechanism.Target()))
+	}
+	return r
+}
+
+// goneFunctionDenial is Lambda's denial of an EventBridge delivery to the
+// function req names, which Lambda answered ResourceNotFoundException: no
+// policy admits events.amazonaws.com to a function that does not exist, so
+// AWS dead-letters it NO_PERMISSIONS with this text, the implicit denial in
+// authz.GrammarIAM, whatever the iam.enforce mode, which decides nothing
+// here (aws-recorded, testdata/parity/sqs/IAM-ENF/22-dlq-gone.json;
+// iam-enforcement-surfaces.md 8.2).
+func goneFunctionDenial(req delivery.Request) *awserr.Error {
+	const action = "lambda:InvokeFunction"
+	message := "User: " + servicePrincipal(req.Mechanism) + " is not authorized to perform: " + action +
+		" on resource: " + deliveredTo(req).String() + " because no " + authz.ResourceBased.String() + " allows the " + action + " action"
+	return &awserr.Error{ID: lambdaapi.DenialError(), Message: message, Origin: awserr.Denial{}}
 }
 
 // permanent ends an attempt the target failed with a client-side error:
@@ -546,6 +624,7 @@ func (a *attempt) deadLetterAs(scope aws.Scope) kernel.Target {
 // drops it when it has none or the queue refuses it. f is how the last
 // attempt failed and end why it was not retried again.
 func (a *attempt) deadLetter(ctx context.Context, f failure, end ending) (journal.DeliveryOutcome, bool) {
+	a.failure = f
 	why := end.reason(f)
 	dlq := a.entry.Request.DLQ
 	if dlq == nil {
@@ -587,8 +666,8 @@ func (a *attempt) deadLetter(ctx context.Context, f failure, end ending) (journa
 // the delivery it led to. The write can fail only on a zero HandledKind,
 // which Bind rules out; if it ever fails, the error is logged. The outcome
 // is then recorded but the next attempt's timer is not armed, so the next
-// Rearm arms it.
-func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) {
+// Rearm arms it. finish reports whether the write recorded the outcome.
+func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) bool {
 	id := a.entry.ID
 	req := a.entry.Request
 	event := journal.Delivery{
@@ -629,12 +708,13 @@ func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) {
 	if err != nil {
 		a.e.k.Log().LogAttrs(ctx, slog.LevelError, "outbox could not record a delivery attempt; the delivery stays pending for the next Rearm",
 			slog.String("delivery", string(id)), slog.String("error", describe(err)))
-		return
+		return false
 	}
 	if !changed {
 		a.e.k.Log().LogAttrs(ctx, slog.LevelDebug, "outbox discarded the outcome of a delivery attempt: the delivery was reset, reloaded or moved on while the attempt ran",
 			slog.String("delivery", string(id)), slog.Int("attempt", a.entry.Attempt+1))
 	}
+	return changed
 }
 
 // journal records d at the due instant, caused by the source call.

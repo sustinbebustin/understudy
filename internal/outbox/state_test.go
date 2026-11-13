@@ -229,6 +229,14 @@ func genEntry() *rapid.Generator[Entry] {
 			role.Region, role.Resource = "", "role/"+rapid.StringMatching(`([a-z]{1,8}/)?`).Draw(t, "path")+role.Resource
 			req.Sender = &delivery.LambdaSender{Role: role, Carries: rapid.SampledFrom(carries).Draw(t, "carries")}
 		} else {
+			if req.Mechanism == delivery.CloudWatchToSNS {
+				// An alarm notification reports its outcome for the alarm's
+				// Action history item (cloudwatch-alarms.md 8.3).
+				req.AlarmAction = &delivery.AlarmAction{
+					StateUpdated: at.Add(time.Duration(rapid.IntRange(0, 1e6).Draw(t, "stateUpdated")) * time.Millisecond).Wire(),
+					Published:    rapid.String().Draw(t, "published"),
+				}
+			}
 			req.Policy = genPolicy().Draw(t, "policy")
 			if rapid.Bool().Draw(t, "dlq") {
 				a := genARN("sqs").Draw(t, "dlqARN")

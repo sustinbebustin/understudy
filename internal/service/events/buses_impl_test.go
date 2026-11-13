@@ -128,16 +128,18 @@ func TestStoredPolicyIsThePolicyMember(t *testing.T) {
 // UpdateEventBus without a Name updates the default bus, which stores it
 // with the scope's first use as its creation time and the update as its
 // last modification (eventbridge-buses.md 3.4, 3.6, 10.2.2;
-// events.default-bus.creation-time). A KmsKeyIdentifier of "" clears the
-// key and keeps the omitted Description (events.update-bus.omitted-members).
+// events.default-bus.creation-time). An alias name is echoed as its alias
+// ARN (EBB-05 05-alias; without KMS bound it is not looked up). A
+// KmsKeyIdentifier of "" clears the key and keeps the omitted Description
+// (events.update-bus.omitted-members).
 func TestUpdateEventBusOnTheDefaultBus(t *testing.T) {
 	run(t, func(h *harness) {
-		const key = "alias/bus"
+		const key = "arn:aws:kms:us-east-1:000000000000:alias/bus"
 		first := h.Clock.Now().Wire()
 		h.createBus("seed")
 		h.advance(time.Minute)
 		updated := h.Clock.Now().Wire()
-		out := must(h, eventbridgeapi.OpUpdateEventBus, &eventbridgeapi.UpdateEventBusInput{Description: new("d"), KmsKeyIdentifier: new(key)})
+		out := must(h, eventbridgeapi.OpUpdateEventBus, &eventbridgeapi.UpdateEventBusInput{Description: new("d"), KmsKeyIdentifier: new("alias/bus")})
 		if deref(out.Name) != "default" || deref(out.Arn) != busPrefix+"default" || deref(out.Description) != "d" ||
 			deref(out.KmsKeyIdentifier) != key || out.DeadLetterConfig != nil || out.LogConfig != nil {
 			t.Errorf("UpdateEventBus of the default bus = %+v", out)
