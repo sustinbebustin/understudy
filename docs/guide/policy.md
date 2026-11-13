@@ -275,7 +275,7 @@ arn:aws:iam::000000000000:role/worker  direct  sqs:SendMessage     arn:aws:sqs:u
 
 - `direct`: the principal itself.
 - `caller`: a service, with the principal's identity, such as S3 calling KMS for an SSE-KMS object.
-- `execution-role`: understudy, as a function's role, such as creating its log group, writing its logs or polling its SQS event source.
+- `execution-role`: understudy, as a function's role, such as creating its log group, writing its logs or polling its SQS event source, or a permission of the role a configuration call checks, such as its write to a Lambda destination.
 
 `--service sqs` narrows to one IAM prefix. The usage lists exact ARNs, except that S3 object calls are listed per bucket as `arn:aws:s3:::<bucket>/*`, so the record grows with the buckets a run used, not its keys; `understudy journal` shows each call's exact object.
 
@@ -413,6 +413,16 @@ The output is built from what your tests exercised. Check it before it goes into
 - **`s3:ListBucket` for a missing key.** A `GetObject`, `HeadObject` or `GetObjectAttributes` of a key that does not exist records `s3:ListBucket` on the bucket: AWS answers `404 NoSuchKey` to a caller with it and `403 AccessDenied` to one without, so a test that reads a missing key needs it.
 - **S3 objects per bucket.** Object operations touch the object's ARN (`journal` shows it), and are recorded, listed by `iam usage` and granted on `arn:aws:s3:::<bucket>/*`. Narrow that to a key prefix if your code only uses one.
 - **Lambda log delivery** records `logs:CreateLogGroup`, `logs:CreateLogStream` and `logs:PutLogEvents` for the function's execution role.
+- **A role's permission a configuration call checks** is recorded for that role, in mode `execution-role`, whether or not anything is ever sent: `sns:Publish` or `sqs:SendMessage` on each SNS or SQS destination and dead-letter target a Lambda call checks ([Configuration checks](#configuration-checks)), and the log-delivery actions a Step Functions `CreateStateMachine` or `UpdateStateMachine` with logging checks for the machine's role. The role's policy then lets the same calls through under `enforce`. After `put-function-event-invoke-config` sends `worker`'s successes to the queue `worker-results`, under `advise`:
+
+  ```sh
+  understudy iam usage --principal arn:aws:iam::000000000000:role/worker-role
+  ```
+
+  ```text
+  PRINCIPAL                                   MODE            ACTION           RESOURCE                                           CALLS  FAILURES  LAST
+  arn:aws:iam::000000000000:role/worker-role  execution-role  sqs:SendMessage  arn:aws:sqs:us-east-1:000000000000:worker-results  1      0         2026-11-13T20:22:38Z
+  ```
 - **`*` for the first use of an AWS managed key.** The first call that uses an `alias/aws/<service>` alias creates that key, such as an SSE-KMS `PutObject` without a key id (`alias/aws/s3`) or a `CreateSecret` without `KmsKeyId` (`alias/aws/secretsmanager`). understudy authorizes the call before the key exists, so `kms:GenerateDataKey`, `kms:Encrypt`, `kms:GenerateDataKeyWithoutPlaintext`, `kms:DescribeKey` or `kms:ReEncryptTo` is recorded on `*`, and the policy grants it on `*`. Later uses are recorded on the key. Replace `*` with the key's ARN, which `aws kms describe-key --key-id alias/aws/<service>` prints.
 
 Only code paths your tests ran appear. A branch that never ran, or a request member your tests never sent, needs permissions the record cannot know.

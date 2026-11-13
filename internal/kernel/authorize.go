@@ -435,8 +435,16 @@ func Authorize(ctx context.Context, c *Call, action registry.IAMAction, resource
 // given (AsService), or whether that role may deliver its logs
 // (AsExecutionRole). The question is asked within c: an Authorizer's
 // journal entries are c's, and a denial is c's service's denial identity,
-// which the handler may reword. Nothing is touched or access-recorded,
-// since c's caller does not use the pairs. Like Authorize it asks nothing
+// which the handler may reword. Nothing is touched, and c's caller's
+// access record does not take the pairs, since the caller does not use
+// them. A question about an execution role (AsExecutionRole) is
+// access-recorded as that role's own use, whatever the verdict and whether
+// or not an Authorizer runs, as Authorize records the caller's: the
+// policy rendered for the role then grants what the role was asked about,
+// such as sqs:SendMessage on a Lambda destination
+// (iam-enforcement-surfaces.md 8.5, 12.6). A question about a service
+// principal is not recorded: what it needs is a grant in a trust or
+// resource policy, not an identity policy. Like Authorize it asks nothing
 // when authorization is off, about a platform principal (AsPlatform),
 // which no policy grants, or about no pair. Asking while holding a cell
 // lock, without a mode, or for a call that names no modeled operation is a
@@ -453,6 +461,9 @@ func AuthorizeAs(ctx context.Context, c *Call, as PrincipalMode, q AuthzQuery) *
 		return awserr.Internalf(&AuthorizeError{Op: c.opID, Action: action, Reason: "the principal mode is nil; say whose permission is asked about"})
 	case c.op == nil:
 		return awserr.Internalf(&AuthorizeError{Op: c.opID, Action: action, Reason: "the call names no modeled operation, so it has no denial identity"})
+	}
+	if role, ok := as.(AsExecutionRole); ok && len(q.Pairs) > 0 {
+		c.askedAsRole(executionRole(role), q)
 	}
 	if _, platform := as.(AsPlatform); c.k.authorizer == nil || platform || len(q.Pairs) == 0 {
 		return nil

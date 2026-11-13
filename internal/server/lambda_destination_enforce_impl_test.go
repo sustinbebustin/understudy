@@ -168,6 +168,50 @@ func TestDeadLetterTargetRoleCheckUnderAdviseAndOff(t *testing.T) {
 	})
 }
 
+// The least-privilege loop for a function's destinations: under advise
+// the execution role's write to each SNS or SQS destination and
+// dead-letter target it is asked about is access-recorded for the role,
+// so the policy GET /iam/policy writes for the role grants it, and that
+// policy lets the same configuration through under enforce
+// (iam-enforcement-surfaces.md 8.5, 12.6).
+func TestDestinationRoleChecksAreGrantedByTheRolesGeneratedPolicy(t *testing.T) {
+	const role = "arn:aws:iam::000000000000:role/fn"
+	for _, tc := range []struct {
+		name      string
+		configure func(t *testing.T, endpoint string) wire
+	}{
+		{"event-invoke destinations", func(t *testing.T, endpoint string) wire {
+			t.Helper()
+			return eventInvoke(t, endpoint, http.MethodPut, `{"DestinationConfig":{"OnSuccess":{"Destination":"`+destQueue+`"},"OnFailure":{"Destination":"`+destTopic+`"}}}`)
+		}},
+		{"dead-letter target", func(t *testing.T, endpoint string) wire {
+			t.Helper()
+			return deadLetter(t, endpoint, destQueue)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, endpoint := destinationServer(t, server.IAMEnforceAdvise)
+			if w := tc.configure(t, endpoint); w.status != http.StatusOK {
+				t.Fatalf("configure under advise = %d %s, want 200", w.status, w.body)
+			}
+			got := granted(t, c, role)
+			if !slices.Equal(got[destQueue], []string{"sqs:SendMessage"}) {
+				t.Errorf("/iam/policy for %s grants %v, want sqs:SendMessage on %s", role, got, destQueue)
+			}
+			p, err := c.IAMPolicy(t.Context(), role)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, endpoint = destinationServer(t, server.IAMEnforceEnforce)
+			iamAsRoot(t, endpoint, url.Values{"Action": {"PutRolePolicy"}, "RoleName": {"fn"}, "PolicyName": {"generated"}, "PolicyDocument": {string(p.Document)}})
+			if w := tc.configure(t, endpoint); w.status != http.StatusOK {
+				t.Errorf("configure under enforce with the generated policy = %d %s, want 200", w.status, w.body)
+			}
+		})
+	}
+}
+
 // Under advise the configuration is stored and the role's denial
 // journaled; under off nothing is asked.
 func TestEventInvokeConfigRoleCheckUnderAdviseAndOff(t *testing.T) {

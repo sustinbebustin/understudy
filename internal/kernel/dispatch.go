@@ -414,10 +414,29 @@ func (k *Kernel) journalFault(ctx context.Context, c *Call, inj fault.Injection)
 // through the handler's Authorize, never on "*". It records nothing for an
 // anonymous caller, a service acting on its own behalf (AsPlatform), which
 // no policy grants, or a call with no pair, such as an internal operation
-// that declares no action. Dispatch skips it for an injected fault and for
-// an Unauthenticated request. bnd is nil for an unbound operation.
+// that declares no action. Each execution role the handler asked about
+// through AuthorizeAs is recorded apart (recordRoleAsks), whoever the
+// caller. Dispatch skips it for an injected fault and for an
+// Unauthenticated request. bnd is nil for an unbound operation.
 func (k *Kernel) recordAccess(ctx context.Context, c *Call, bnd *binding, res Result, used secondaries) {
-	if _, platform := c.mode.(AsPlatform); k.access == nil || c.op == nil || platform {
+	if k.access == nil || c.op == nil {
+		return
+	}
+	var outcome access.Outcome = access.Succeeded{}
+	switch r := res.(type) {
+	case Failure:
+		outcome = access.Failed{Code: r.Err.ID.Shape.Name()}
+	case StatusOKFailure:
+		outcome = access.Failed{Code: r.Err.ID.Shape.Name()}
+	case Output:
+	}
+	k.recordCaller(ctx, c, bnd, outcome, used)
+	k.recordRoleAsks(ctx, c, outcome)
+}
+
+// recordCaller records the caller's entry for recordAccess.
+func (k *Kernel) recordCaller(ctx context.Context, c *Call, bnd *binding, outcome access.Outcome, used secondaries) {
+	if _, platform := c.mode.(AsPlatform); platform {
 		return
 	}
 	principal, ok := accessPrincipal(c.principal)
@@ -447,14 +466,6 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, bnd *binding, res Re
 	if len(pairs) == 0 {
 		return
 	}
-	var outcome access.Outcome = access.Succeeded{}
-	switch r := res.(type) {
-	case Failure:
-		outcome = access.Failed{Code: r.Err.ID.Shape.Name()}
-	case StatusOKFailure:
-		outcome = access.Failed{Code: r.Err.ID.Shape.Name()}
-	case Output:
-	}
 	err := k.access.Record(access.Entry{
 		Principal: principal,
 		Mode:      accessMode(c.mode),
@@ -468,6 +479,43 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, bnd *binding, res Re
 	if err != nil {
 		k.log.LogAttrs(ctx, slog.LevelWarn, "access recorder refused a call",
 			slog.String("op", c.label), slog.String("request_id", string(c.id)), slog.String("error", err.Error()))
+	}
+}
+
+// recordRoleAsks records, for each question the handler asked through
+// AuthorizeAs about an execution role, its pairs as the role's own use
+// (access.AsExecutionRole), with the call's outcome and admission
+// instant: Lambda asks whether a function's execution role may write to
+// its SNS or SQS destination or dead-letter target before storing it
+// (iam-enforcement-surfaces.md 8.5), and the policy rendered for the role
+// must grant that for the same configuration to pass under enforce. A
+// role ARN that names no role resolves to an anonymous principal and is
+// not recorded.
+func (k *Kernel) recordRoleAsks(ctx context.Context, c *Call, outcome access.Outcome) {
+	for _, a := range c.roleAsks() {
+		principal, ok := accessPrincipal(a.principal)
+		if !ok {
+			continue
+		}
+		actions := make([]registry.IAMAction, 0, len(a.query.Pairs))
+		for _, p := range a.query.Pairs {
+			if !slices.Contains(actions, p.Action) {
+				actions = append(actions, p.Action)
+			}
+		}
+		err := k.access.Record(access.Entry{
+			Principal: principal,
+			Mode:      access.AsExecutionRole{},
+			Service:   c.op.Service.IAMPrefix,
+			Actions:   actions,
+			Pairs:     accessPairs(a.query.Pairs, a.query.Keys),
+			Outcome:   outcome,
+			At:        c.admitted.Wire(),
+		})
+		if err != nil {
+			k.log.LogAttrs(ctx, slog.LevelWarn, "access recorder refused an execution role's use a call asked about",
+				slog.String("op", c.label), slog.String("request_id", string(c.id)), slog.String("role", principal.String()), slog.String("error", err.Error()))
+		}
 	}
 }
 

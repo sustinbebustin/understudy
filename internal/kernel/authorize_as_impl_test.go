@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -60,19 +61,26 @@ func authorizeAs(mode kernel.PrincipalMode, q kernel.AuthzQuery) kernel.Handler[
 
 // AuthorizeAs asks about the principal the mode resolves to, a service
 // principal or the execution role's session, in the mode, and a denial is
-// the call's service's denial identity. The pair is neither touched nor
-// access-recorded: the caller did not use it.
+// the call's service's denial identity. The pair is not touched, and the
+// caller's access record does not take it: the caller did not use it. A
+// question about an execution role is access-recorded as the role's own
+// use, failed with the call, so the role's rendered policy grants it; one
+// about a service principal is not recorded.
 func TestAuthorizeAsAsksAboutTheNamedPrincipal(t *testing.T) {
 	const message = "the service may not assume the role"
+	runner := access.Role{Account: mustAccount(guardRole.Account), Path: "/", Name: "runner"}
 	cases := []struct {
 		name string
 		mode kernel.PrincipalMode
 		want identity.Principal
+		// recorded is the use the access record keeps of the pair; nil
+		// for none.
+		recorded *access.Use
 	}{
-		{"service", kernel.AsService{Name: "guard.amazonaws.com"}, identity.ServicePrincipal{Name: "guard.amazonaws.com"}},
+		{"service", kernel.AsService{Name: "guard.amazonaws.com"}, identity.ServicePrincipal{Name: "guard.amazonaws.com"}, nil},
 		{"execution role", kernel.AsExecutionRole{Role: guardRole}, identity.AssumedRole{
 			Account: mustAccount(guardRole.Account), Role: identity.RoleRef{Name: "runner", Path: "/"}, Session: "understudy", Source: identity.FromAssumeRole{},
-		}},
+		}, &access.Use{Principal: runner, Mode: access.AsExecutionRole{}, Action: assumeRole, Resource: access.OnResource{ARN: guardRole}, Calls: 1, Failures: 1}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -93,8 +101,17 @@ func TestAuthorizeAsAsksAboutTheNamedPrincipal(t *testing.T) {
 				if slices.Contains(callEvent(k, c).Resources, guardRole) {
 					k.Errorf("the role was touched; AuthorizeAs touches nothing")
 				}
-				if u, ok := useOf(k, assumeRole, access.OnResource{ARN: guardRole}); ok {
+				u, ok := useOf(k, assumeRole, access.OnResource{ARN: guardRole})
+				switch {
+				case tc.recorded == nil && ok:
 					k.Errorf("access record of sts:AssumeRole = %+v, want none", u)
+				case tc.recorded != nil && !ok:
+					k.Errorf("access record of sts:AssumeRole is empty, want %+v", *tc.recorded)
+				case tc.recorded != nil:
+					u.First, u.Last = time.Time{}, time.Time{}
+					if !reflect.DeepEqual(u, *tc.recorded) {
+						k.Errorf("access record of sts:AssumeRole = %+v, want %+v", u, *tc.recorded)
+					}
 				}
 			})
 		})

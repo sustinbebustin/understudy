@@ -11,7 +11,7 @@ The order follows from what understudy is for: fast, deterministic, free tests o
 
 ## Permissions
 
-- **A green least-privilege loop.** `conformance/iam-loop` runs each suite as a user holding only its generated policy. Every group passes under advise; under enforce the S3 groups pass, and two Lambda groups fail (`aws-cli-lambda`, `go-sdk-lambda_layers`): the event-invoke destinations test (`test_event_invoke_config_destinations`, `TestLambdaEventInvokeDestinations`) is denied `sqs:SendMessage` for the function's execution role on the destination queue, because the policy generated from the advise run does not grant it.
+- **A green least-privilege loop.** `conformance/iam-loop` runs each suite as a user holding only its generated policy. Every group passes under advise and under enforce, the Lambda groups (`aws-cli-lambda`, `go-sdk-lambda_layers`) included: the policy generated for a function's execution role grants `sqs:SendMessage` or `sns:Publish` on each destination and dead-letter target Lambda checks when it is configured. The loop needs Docker and runs by hand, not in CI.
 - **The gaps in evaluation:** IAM groups, KMS grants, the policy simulator and S3 Block Public Access. The [policy guide](guide/policy.md#what-is-not-enforced) lists every one.
 
 ## Depth in the services that exist
