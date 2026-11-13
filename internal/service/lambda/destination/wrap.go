@@ -1,6 +1,7 @@
 package destination
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"time"
@@ -207,10 +208,17 @@ func To(d Destination, s Sender, o Outgoing) (delivery.Request, error) {
 	case Function:
 		in, req.Mechanism, req.Target = d.ARN, delivery.LambdaToLambda, delivery.LambdaFunction{ARN: d.ARN, Qualifier: d.Qualifier, Event: o.Body, Invocation: recordInvocation}
 	case Bus:
+		// The detail is the record compact throughout, its payloads included
+		// (11.4, LDL-10); whether Lambda or EventBridge compacts it is not
+		// visible, and understudy compacts it here.
+		var detail bytes.Buffer
+		if err := json.Compact(&detail, o.Body); err != nil {
+			return delivery.Request{}, &WrapError{Reason: "the record is not JSON, so it cannot be an EventBridge event's detail: " + err.Error()}
+		}
 		// Resources are the bus, then the qualified function: the switch
 		// lambda.destination.eventbridge-resources-order (4.4, LDL-10).
 		in, req.Mechanism, req.Target = d.ARN, delivery.LambdaToEvents, delivery.EventBus{ARN: d.ARN, Entries: []delivery.EventEntry{{
-			Source: "lambda", DetailType: o.Condition.DetailType(), Detail: string(o.Body), Resources: []string{d.ARN.String(), s.Qualified},
+			Source: "lambda", DetailType: o.Condition.DetailType(), Detail: detail.String(), Resources: []string{d.ARN.String(), s.Qualified},
 		}}}
 	case Bucket:
 		in, req.Mechanism, req.Target = s.Function, delivery.LambdaToS3, delivery.S3Object{Bucket: d.Name, Key: o.ObjectKey, Body: o.Body}

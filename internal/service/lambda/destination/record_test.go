@@ -6,7 +6,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -62,9 +61,12 @@ func golden(t *testing.T, name string) []byte {
 }
 
 // Build writes the records AWS delivered in the recorded tests, keys in
-// AWS's order at every level, compact (lambda-destinations-layers.md 3.1,
-// 3.4, 11.4). Each case's inputs are the recording's, its placeholders
-// replaced by the fixed values above.
+// AWS's order at every level, the envelope compact and both payloads the
+// bytes given (lambda-destinations-layers.md 3.1, 3.4, 11.4). Each case's
+// inputs are the recording's, its placeholders replaced by the fixed values
+// above. The LocalStack snapshot stores parsed bodies, so its cases take
+// their payload spacing from LDL-02, which recorded the raw bytes
+// (testdata/parity/lambda/LDL-02/notes.md, row "raw `Body` spacing").
 func TestBuildMatchesTheRecordedRecords(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -113,6 +115,41 @@ func TestBuildMatchesTheRecordedRecords(t *testing.T) {
 					ExecutedVersion: "$LATEST", FunctionError: "Unhandled", Payload: []byte(maxEventAgeResponse),
 				}},
 				Payload: []byte(`{"message": "msg-0001"}`),
+			},
+		},
+		{
+			// The raw SQS Body of the LDL-02 ok record: the envelope compact,
+			// both payloads the bytes the caller sent and the Python runtime
+			// returned, spaces kept (lambda-destinations-layers.md 11.4:
+			// testdata/parity/lambda/LDL-02/notes.md, row "raw `Body`
+			// spacing"; testdata/parity/lambda/LDL-02/01-invoke-ok.json).
+			"spaced-payloads",
+			destination.Record{
+				At: goldenAt, RequestID: goldenRequestID, FunctionARN: goldenQualified, Condition: destination.Success,
+				Invocation: destination.Ran{Attempts: 1, Response: destination.Response{ExecutedVersion: "$LATEST", Payload: []byte(`{"ok": true, "mode": "ok"}`)}},
+				Payload:    []byte(`{"mode": "ok",  "pad": [1, 2]}`),
+			},
+		},
+		{
+			// A handler returning None: "responsePayload":null, the key
+			// present (testdata/parity/lambda/LDL-02/notes.md, row
+			// "`responsePayload` for `none`").
+			"null-response",
+			destination.Record{
+				At: goldenAt, RequestID: goldenRequestID, FunctionARN: goldenQualified, Condition: destination.Success,
+				Invocation: destination.Ran{Attempts: 1, Response: destination.Response{ExecutedVersion: "$LATEST", Payload: []byte(`null`)}},
+				Payload:    []byte(`{"mode": "none",  "pad": [1, 2]}`),
+			},
+		},
+		{
+			// A handler returning a string: the runtime's JSON string,
+			// embedded as such (testdata/parity/lambda/LDL-02/notes.md, row
+			// "`responsePayload` for `text`").
+			"string-response",
+			destination.Record{
+				At: goldenAt, RequestID: goldenRequestID, FunctionARN: goldenQualified, Condition: destination.Success,
+				Invocation: destination.Ran{Attempts: 1, Response: destination.Response{ExecutedVersion: "$LATEST", Payload: []byte(`"plain text"`)}},
+				Payload:    []byte(`{"mode": "text",  "pad": [1, 2]}`),
 			},
 		},
 	}
@@ -286,15 +323,15 @@ func TestBuildRefusesRecordsAWSNeverWrites(t *testing.T) {
 	}
 }
 
-// For any record Build accepts: valid compact JSON; the keys in AWS's
-// order at every level (lambda-destinations-layers.md 3.1, 11.4); version
-// 1.0; the timestamp in UTC to the millisecond; approximateInvokeCount the
-// attempts made, 0 when the function never ran (3.2); the response half
-// present exactly when it ran (finding 5), with statusCode 200 and
-// functionError only for a function error (3.2); and both payloads
-// embedded as JSON values, compacted with member order and number text
-// kept, so requestPayload decodes to the event as invoked (11.4: compact
-// until LDL-02 records the bytes).
+// For any record Build accepts: valid JSON; a compact envelope with the
+// keys in AWS's order at every level (lambda-destinations-layers.md 3.1,
+// 11.4); version 1.0; the timestamp in UTC to the millisecond;
+// approximateInvokeCount the attempts made, 0 when the function never ran
+// (3.2); the response half present exactly when it ran (finding 5), with
+// statusCode 200 and functionError only for a function error (3.2); and
+// both payloads embedded byte for byte as given, whitespace included
+// (11.4: testdata/parity/lambda/LDL-02/notes.md, row "raw `Body`
+// spacing").
 func TestBuildProperties(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		r := genRecord().Draw(t, "record")
@@ -305,10 +342,6 @@ func TestBuildProperties(t *testing.T) {
 		out := got.JSON
 		if !json.Valid(out) {
 			t.Fatalf("Build wrote invalid JSON: %s", out)
-		}
-		var compact bytes.Buffer
-		if err := json.Compact(&compact, out); err != nil || !bytes.Equal(compact.Bytes(), out) {
-			t.Fatalf("Build output is not compact: %s", out)
 		}
 		if got.ResponseOmitted {
 			t.Fatalf("ResponseOmitted = true for JSON response %s", responseOf(r))
@@ -341,16 +374,24 @@ func TestBuildProperties(t *testing.T) {
 			t.Fatalf("requestContext = %s, want %s, %s, %s, %d", rc, r.RequestID, r.FunctionARN, r.Condition, count)
 		}
 
-		if p, want := member(t, out, "requestPayload"), compacted(t, r.Payload); !bytes.Equal(p, want) {
-			t.Fatalf("requestPayload = %s, want %s compacted to %s", p, r.Payload, want)
+		if p, want := member(t, out, "requestPayload"), unpadded(r.Payload); !bytes.Equal(p, want) {
+			t.Fatalf("requestPayload = %s, want the event's bytes %s", p, want)
 		}
-		if a, b := decode(t, member(t, out, "requestPayload")), decode(t, r.Payload); !reflect.DeepEqual(a, b) {
-			t.Fatalf("requestPayload decodes to %#v, the event to %#v", a, b)
-		}
+		// The envelope is compact: out is the compact contexts and the
+		// payloads joined with no whitespace.
+		ts := `"` + r.At.UTC().Format("2006-01-02T15:04:05.000Z") + `"`
+		want := `{"version":"1.0","timestamp":` + ts + `,"requestContext":` + string(compacted(t, rc)) + `,"requestPayload":` + string(unpadded(r.Payload))
 		if !didRun {
+			if string(out) != want+"}" {
+				t.Fatalf("Build =\n%s\nwant\n%s}", out, want)
+			}
 			return
 		}
 		resp := member(t, out, "responseContext")
+		want += `,"responseContext":` + string(compacted(t, resp)) + `,"responsePayload":` + string(unpadded(ran.Response.Payload)) + "}"
+		if string(out) != want {
+			t.Fatalf("Build =\n%s\nwant\n%s", out, want)
+		}
 		wantResp := []string{"statusCode", "executedVersion"}
 		if ran.Response.FunctionError != "" {
 			wantResp = append(wantResp, "functionError")
@@ -364,11 +405,13 @@ func TestBuildProperties(t *testing.T) {
 		if ran.Response.FunctionError != "" && stringMember(t, resp, "functionError") != ran.Response.FunctionError {
 			t.Fatalf("responseContext = %s, want functionError %s", resp, ran.Response.FunctionError)
 		}
-		if p, want := member(t, out, "responsePayload"), compacted(t, ran.Response.Payload); !bytes.Equal(p, want) {
-			t.Fatalf("responsePayload = %s, want %s compacted to %s", p, ran.Response.Payload, want)
-		}
 	})
 }
+
+// unpadded is p without the JSON whitespace around the whole value: how
+// AWS writes it is unrecorded, and Build leaves it out so the envelope
+// stays compact (lambda-destinations-layers.md 11.4).
+func unpadded(p []byte) []byte { return bytes.Trim(p, " \t\r\n") }
 
 // For any response that is not JSON, the record keeps its response
 // context, leaves responsePayload out and reports it
@@ -414,7 +457,7 @@ func genRecord() *rapid.Generator[destination.Record] {
 				Response: destination.Response{
 					ExecutedVersion: rapid.SampledFrom([]string{"$LATEST", "1", "42"}).Draw(t, "executedVersion"),
 					FunctionError:   functionError,
-					Payload:         []byte(genJSON(3).Draw(t, "response")),
+					Payload:         []byte(genPayload().Draw(t, "response")),
 				},
 			}
 		}
@@ -437,8 +480,19 @@ func genRecord() *rapid.Generator[destination.Record] {
 			FunctionARN: rapid.SampledFrom([]string{goldenQualified, "arn:aws:lambda:eu-west-2:222222222222:function:orders:live", "arn:aws:lambda:us-east-1:111111111111:function:orders:7"}).Draw(t, "functionArn"),
 			Condition:   cond,
 			Invocation:  inv,
-			Payload:     []byte(genJSON(3).Draw(t, "payload")),
+			Payload:     []byte(genPayload().Draw(t, "payload")),
 		}
+	})
+}
+
+// genPayload draws a payload as a caller or a runtime may write it: JSON
+// text from genJSON, sometimes with whitespace around the whole value.
+func genPayload() *rapid.Generator[string] {
+	return rapid.Custom(func(t *rapid.T) string {
+		pad := func(label string) string {
+			return rapid.SampledFrom([]string{"", "", "", " ", "\n", "\r\n\t"}).Draw(t, label)
+		}
+		return pad("leading") + genJSON(3).Draw(t, "json") + pad("trailing")
 	})
 }
 
@@ -560,18 +614,6 @@ func compacted(t fataler, raw []byte) []byte {
 		t.Fatalf("compacting %s: %v", raw, err)
 	}
 	return b.Bytes()
-}
-
-// decode decodes raw keeping numbers as their text.
-func decode(t fataler, raw []byte) any {
-	t.Helper()
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.UseNumber()
-	var v any
-	if err := dec.Decode(&v); err != nil {
-		t.Fatalf("decoding %s: %v", raw, err)
-	}
-	return v
 }
 
 // responseOf is the response payload of r's invocation, if it ran.

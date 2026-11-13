@@ -35,7 +35,10 @@ const documentedRecord = `{
 
 // Build writes the guide's example record from its own inputs, compacted:
 // three attempts, a crashed process's error object, the documented key
-// order (lambda-destinations-layers.md 3.1, 11.4).
+// order (lambda-destinations-layers.md 3.1, 11.4). The guide pretty-prints
+// the whole record, so the payload bytes its caller and function wrote are
+// unknown; the inputs are its payloads compacted, which Build embeds as
+// they are.
 func TestBuildMatchesTheDocumentedExample(t *testing.T) {
 	r := destination.Record{
 		At:          time.Date(2019, 11, 14, 18, 16, 5, 568_000_000, time.UTC),
@@ -45,9 +48,9 @@ func TestBuildMatchesTheDocumentedExample(t *testing.T) {
 		Invocation: destination.Ran{Attempts: 3, Response: destination.Response{
 			ExecutedVersion: "$LATEST",
 			FunctionError:   "Unhandled",
-			Payload:         []byte(`{ "errorMessage": "RequestId: e4b46cbf-b738-xmpl-8880-a18cdf61200e Process exited before completing request" }`),
+			Payload:         []byte(`{"errorMessage":"RequestId: e4b46cbf-b738-xmpl-8880-a18cdf61200e Process exited before completing request"}`),
 		}},
-		Payload: []byte(`{ "ORDER_IDS": ["9e07af03-ce31-4ff3-xmpl-36dce652cb4f"] }`),
+		Payload: []byte(`{"ORDER_IDS":["9e07af03-ce31-4ff3-xmpl-36dce652cb4f"]}`),
 	}
 	var want bytes.Buffer
 	if err := json.Compact(&want, []byte(documentedRecord)); err != nil {

@@ -272,6 +272,47 @@ func TestToBusPutsOneEvent(t *testing.T) {
 	}
 }
 
+// An EventBridge event's detail is the record compact throughout, its
+// payloads included, where a queue, topic, function or bucket gets the
+// payloads' bytes as given (lambda-destinations-layers.md 11.4:
+// testdata/parity/lambda/LDL-10/notes.md, row "`detail` bytes";
+// testdata/parity/lambda/LDL-02/notes.md, row "raw `Body` spacing").
+func TestOnlyTheBusDetailCompactsThePayloads(t *testing.T) {
+	s := sender(t)
+	body := golden(t, "spaced-payloads")
+	const compact = `{"version":"1.0","timestamp":"2026-10-26T09:05:07.123Z","requestContext":{"requestId":"0f0e0d0c-0b0a-4908-8706-050403020100",` +
+		`"functionArn":"arn:aws:lambda:us-east-1:111111111111:function:destination-fn:$LATEST","condition":"Success","approximateInvokeCount":1},` +
+		`"requestPayload":{"mode":"ok","pad":[1,2]},"responseContext":{"statusCode":200,"executedVersion":"$LATEST"},"responsePayload":{"ok":true,"mode":"ok"}}`
+	bus := mustARN(t, "arn:aws:events:us-east-1:111111111111:event-bus/orders")
+	req := wrapped(t, destination.Bus{ARN: bus}, destination.Outgoing{Condition: destination.Success, Body: body})
+	want := delivery.EventBus{ARN: bus, Entries: []delivery.EventEntry{{
+		Source: "lambda", DetailType: "Lambda Function Invocation Result - Success", Detail: compact, Resources: []string{bus.String(), s.Qualified},
+	}}}
+	if !reflect.DeepEqual(req.Target, want) {
+		t.Errorf("To bus = %#v, want the detail compact %#v", req.Target, want)
+	}
+	for _, d := range []destination.Destination{
+		destination.Queue{ARN: mustARN(t, "arn:aws:sqs:us-east-1:111111111111:records")},
+		destination.Topic{ARN: mustARN(t, "arn:aws:sns:us-east-1:111111111111:records")},
+		destination.Function{ARN: mustARN(t, "arn:aws:lambda:us-east-1:111111111111:function:auditor")},
+	} {
+		var got string
+		switch tg := wrapped(t, d, destination.Outgoing{Condition: destination.Success, Body: body}).Target.(type) {
+		case delivery.SQSQueue:
+			got = tg.Body
+		case delivery.SNSTopic:
+			got = tg.Message
+		case delivery.LambdaFunction:
+			got = string(tg.Event)
+		case delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
+			t.Fatalf("To %T = %#v, want a queue, topic or function delivery", d, tg)
+		}
+		if got != string(body) {
+			t.Errorf("To %T carries\n%s\nwant the record as built\n%s", d, got, body)
+		}
+	}
+}
+
 // The record is an object at the key the caller computed
 // (lambda-destinations-layers.md 4.5).
 func TestToBucketPutsTheRecordAtTheKey(t *testing.T) {

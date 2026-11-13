@@ -3,6 +3,7 @@ package destination
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
@@ -136,53 +137,76 @@ type Built struct {
 // (lambda-destinations-layers.md 3.2). Format cuts finer digits.
 const timestampLayout = "2006-01-02T15:04:05.000Z"
 
-// Build encodes r as AWS writes an invocation record: compact JSON, the
-// keys in AWS's order at every level, both payloads embedded as JSON values
-// with their member order and number text kept
-// (lambda-destinations-layers.md 3.1, 11.4). A response payload that is not
-// JSON is left out and reported in Built.ResponseOmitted rather than
-// guessed at (LDL-02). Build refuses, with a *RecordError, a record AWS
-// never writes.
+// Build encodes r as AWS writes an invocation record: a compact envelope
+// with its keys in AWS's order at every level, version, timestamp,
+// requestContext, requestPayload, responseContext, responsePayload, and
+// both payloads embedded byte for byte as the caller sent them and the
+// function's runtime returned them, whitespace included
+// (lambda-destinations-layers.md 3.1, 11.4). AWS recorded the bytes on an
+// SQS destination (both payloads, LDL-02) and an SNS one (the response,
+// LDL-05); S3 and Lambda destinations carrying the same bytes is inferred.
+// Whitespace around a whole payload is unrecorded and left out, so the
+// envelope stays compact. A response payload that is not JSON is left out
+// and reported in Built.ResponseOmitted rather than guessed at (LDL-02).
+// Build refuses, with a *RecordError, a record AWS never writes.
 func Build(r Record) (Built, error) {
 	if err := r.check(); err != nil {
 		return Built{}, err
 	}
-	out := wireRecord{
-		Version:   "1.0",
-		Timestamp: r.At.UTC().Format(timestampLayout),
-		RequestContext: wireRequestContext{
-			RequestID:   string(r.RequestID),
-			FunctionARN: r.FunctionARN,
-			Condition:   r.Condition.String(),
-		},
-		RequestPayload: r.Payload,
+	rc := wireRequestContext{
+		RequestID:   string(r.RequestID),
+		FunctionARN: r.FunctionARN,
+		Condition:   r.Condition.String(),
 	}
+	ran, didRun := r.Invocation.(Ran)
+	if didRun {
+		rc.ApproximateInvokeCount = ran.Attempts
+	}
+	var b bytes.Buffer
+	b.WriteString(`{"version":"1.0","timestamp":`)
+	err := encodeCompact(&b, r.At.UTC().Format(timestampLayout))
+	b.WriteString(`,"requestContext":`)
+	err = errors.Join(err, encodeCompact(&b, rc))
+	b.WriteString(`,"requestPayload":`)
+	b.Write(trimJSONSpace(r.Payload))
 	omitted := false
-	if ran, ok := r.Invocation.(Ran); ok {
-		out.RequestContext.ApproximateInvokeCount = ran.Attempts
+	if didRun {
+		b.WriteString(`,"responseContext":`)
 		// statusCode is 200 for a success and for a function error alike
 		// (lambda-destinations-layers.md 3.2).
-		out.ResponseContext = &wireResponseContext{
+		err = errors.Join(err, encodeCompact(&b, wireResponseContext{
 			StatusCode:      200,
 			ExecutedVersion: ran.Response.ExecutedVersion,
 			FunctionError:   ran.Response.FunctionError,
-		}
+		}))
 		if json.Valid(ran.Response.Payload) {
-			out.ResponsePayload = ran.Response.Payload
+			b.WriteString(`,"responsePayload":`)
+			b.Write(trimJSONSpace(ran.Response.Payload))
 		} else {
 			omitted = true
 		}
 	}
-	var b bytes.Buffer
-	enc := json.NewEncoder(&b)
-	// The payloads are embedded as the function and the caller wrote them:
-	// compacted, never HTML-escaped (lambda-destinations-layers.md 11.4).
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(out); err != nil {
+	if err != nil {
 		return Built{}, &RecordError{Field: "Record", Reason: "could not be encoded: " + err.Error()}
 	}
-	return Built{JSON: bytes.TrimSuffix(b.Bytes(), []byte("\n")), ResponseOmitted: omitted}, nil
+	b.WriteByte('}')
+	return Built{JSON: b.Bytes(), ResponseOmitted: omitted}, nil
 }
+
+// encodeCompact appends v to b as compact JSON, never HTML-escaped.
+func encodeCompact(b *bytes.Buffer, v any) error {
+	enc := json.NewEncoder(b)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return err
+	}
+	// Encode ends the value with a newline.
+	b.Truncate(b.Len() - 1)
+	return nil
+}
+
+// trimJSONSpace is p without the JSON whitespace around it.
+func trimJSONSpace(p []byte) []byte { return bytes.Trim(p, " \t\r\n") }
 
 // check refuses a record AWS never writes.
 func (r Record) check() error {
@@ -228,17 +252,9 @@ func (inv Ran) check(c Condition) error {
 	}
 }
 
-// wireRecord is the record's JSON: the field order is AWS's key order
+// wireRequestContext and wireResponseContext are the record's two
+// contexts: the field order is AWS's key order
 // (lambda-destinations-layers.md 3.1, 11.4).
-type wireRecord struct {
-	Version         string               `json:"version"`
-	Timestamp       string               `json:"timestamp"`
-	RequestContext  wireRequestContext   `json:"requestContext"`
-	RequestPayload  json.RawMessage      `json:"requestPayload"`
-	ResponseContext *wireResponseContext `json:"responseContext,omitempty"`
-	ResponsePayload json.RawMessage      `json:"responsePayload,omitempty"`
-}
-
 type wireRequestContext struct {
 	RequestID   string `json:"requestId"`
 	FunctionARN string `json:"functionArn"`
