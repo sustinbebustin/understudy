@@ -73,15 +73,15 @@ type Created struct {
 	Sequencer Sequencer
 }
 
-// Removed is an ObjectRemoved event. The record carries no size and no
-// eTag.
+// Removed is an ObjectRemoved event. The record carries no size, and no
+// eTag except a delete marker's, which is the empty object's.
 type Removed struct {
 	Action    RemovedAction
 	Sequencer Sequencer
 }
 
-// Tagged is an ObjectTagging event. The record is eventVersion 2.3 and
-// carries the eTag but no size or sequencer.
+// Tagged is an ObjectTagging event. The record carries the eTag but no size
+// or sequencer.
 type Tagged struct {
 	Action TaggingAction
 	ETag   string
@@ -170,6 +170,16 @@ func (a TaggingAction) String() string {
 	return fmt.Sprintf("TaggingAction(%d)", uint8(a))
 }
 
+// eventVersion is every record's version: R17 recorded 2.6 for Put, Copy,
+// CompleteMultipartUpload and DeleteMarkerCreated (sqs/R17/02-events-*.json),
+// and S3 has used one version for every event type since 2.4 (aws-doc,
+// s3-ssec-object-lock.md 7).
+const eventVersion = "2.6"
+
+// emptyETag is the eTag of an empty object, the MD5 of no bytes, which a
+// delete marker's record carries (sqs/R17/02-events-1.json).
+const emptyETag = "d41d8cd98f00b204e9800998ecf8427e"
+
 // Record returns the notification message of ev for the configuration
 // configID: {"Records":[...]} with one record, in AWS's key order. A change
 // that is nil or names no event S3 reports is a *ChangeError.
@@ -178,18 +188,22 @@ func Record(ev Event, configID string) ([]byte, error) {
 		return nil, err
 	}
 	obj := object{Key: EncodeKey(ev.Key), VersionID: ev.VersionID}
-	version := "2.1"
 	switch c := ev.Change.(type) {
 	case Created:
 		obj.Size, obj.ETag, obj.Sequencer = &c.Size, c.ETag, c.Sequencer.String()
+		if c.Action == CreatedCopy {
+			obj.HasObjectAnnotation = new(false)
+		}
 	case Removed:
 		obj.Sequencer = c.Sequencer.String()
+		if c.Action == RemovedDeleteMarkerCreated {
+			obj.ETag = emptyETag
+		}
 	case Tagged:
 		obj.ETag = c.ETag
-		version = "2.3"
 	}
 	r := record{
-		EventVersion:      version,
+		EventVersion:      eventVersion,
 		EventSource:       "aws:s3",
 		AWSRegion:         ev.Region,
 		EventTime:         wireTime(ev.Time),
@@ -305,6 +319,9 @@ type object struct {
 	ETag      string `json:"eTag,omitempty"`
 	VersionID string `json:"versionId,omitempty"`
 	Sequencer string `json:"sequencer,omitempty"`
+	// HasObjectAnnotation is set on a copy's record only, which R17
+	// recorded as false (sqs/R17/02-events-3.json).
+	HasObjectAnnotation *bool `json:"hasObjectAnnotation,omitempty"`
 }
 
 type testEvent struct {

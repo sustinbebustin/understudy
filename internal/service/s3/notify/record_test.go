@@ -16,8 +16,7 @@ import (
 )
 
 // documented is the object event of the S3 content-structure example
-// (lambda-events.md 6.2) with its change left to each test, at eventVersion
-// 2.1 as the recordings show.
+// (lambda-events.md 6.2) with its change left to each test.
 func documented(change notify.Change) notify.Event {
 	return notify.Event{
 		Time:   time.Unix(0, 0).UTC(),
@@ -40,24 +39,105 @@ func documented(change notify.Change) notify.Event {
 
 const exampleSequencer notify.Sequencer = 0x55AED6DCD90281E5
 
-func TestObjectCreatedPutMatchesTheDocumentedRecord(t *testing.T) {
-	const golden = `{"Records":[{"eventVersion":"2.1","eventSource":"aws:s3","awsRegion":"us-west-2","eventTime":"1970-01-01T00:00:00.000Z","eventName":"ObjectCreated:Put","userIdentity":{"principalId":"AIDAJDPLRKLG7UEXAMPLE"},"requestParameters":{"sourceIPAddress":"172.16.0.1"},"responseElements":{"x-amz-request-id":"C3D13FE58DE4C810","x-amz-id-2":"FMyUVURIY8/IgAtTv8xRjskZQpcIZ9KG4V5Wp6S7S/JRWeUWerMUE5JgHvANOjpD"},"s3":{"s3SchemaVersion":"1.0","configurationId":"testConfigRule","bucket":{"name":"amzn-s3-demo-bucket","ownerIdentity":{"principalId":"A3NL1KOZZKExample"},"arn":"arn:aws:s3:::amzn-s3-demo-bucket"},"object":{"key":"HappyFace.jpg","size":1024,"eTag":"d41d8cd98f00b204e9800998ecf8427e","versionId":"096fKKXTRTtl3on89fVO.nfljtsv6qko","sequencer":"0055AED6DCD90281E5"}}}]}`
-	ev := documented(notify.Created{Action: notify.CreatedPut, Size: 1024, ETag: "d41d8cd98f00b204e9800998ecf8427e", Sequencer: exampleSequencer})
-	ev.VersionID = "096fKKXTRTtl3on89fVO.nfljtsv6qko"
-	got, err := notify.Record(ev, "testConfigRule")
-	if err != nil {
-		t.Fatal(err)
+// recorded is an event as R17 recorded it (sqs/R17/02-events-*.json): a
+// role session's call on a bucket in us-east-2, with the per-event fields
+// left to each case.
+func recorded(at time.Time, bucket, requestID, hostID string, change notify.Change) notify.Event {
+	return notify.Event{
+		Time:   at,
+		Region: "us-east-2",
+		Bucket: notify.Bucket{
+			Name:  bucket,
+			ARN:   aws.ARN{Partition: "aws", Service: "s3", Resource: bucket},
+			Owner: "AEXAMPLE000009",
+		},
+		Change: change,
+		Request: notify.Request{
+			ID:        requestID,
+			HostID:    hostID,
+			Principal: "AWS:AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003",
+			SourceIP:  "198.51.100.100",
+		},
 	}
-	if string(got) != golden {
-		t.Fatalf("record =\n%s\nwant\n%s", got, golden)
+}
+
+// r17 is an instant of R17's events, 2026-10-14 07:07:ss.ms UTC.
+func r17(second, ms int) time.Time {
+	return time.Date(2026, time.October, 14, 7, 7, second, ms*int(time.Millisecond), time.UTC)
+}
+
+// Each record is the body S3 delivered to SQS in R17, byte for byte:
+// eventVersion 2.6, AWS's key order, the empty-object eTag on a delete
+// marker, and hasObjectAnnotation after a copy's sequencer.
+func TestRecordsMatchTheR17Records(t *testing.T) {
+	for name, tc := range map[string]struct {
+		ev       notify.Event
+		key      string
+		version  string
+		configID string
+		golden   string
+	}{
+		// sqs/R17/02-events-2.json
+		"ObjectCreated:Put": {
+			ev: recorded(r17(45, 557), "usr-rec-20261014-ev", "GYNBJ1SRNVBCV8YY",
+				"wY6U2xs0cPOStW72e9IcHUw6Rv0Vvmgw88Jd/QeHGGga5nXyrCvoNL4lHlHO89S+SBs/q3y3QmouL4wupRszKqfofFL3fXYn",
+				notify.Created{Action: notify.CreatedPut, Size: 5, ETag: "5d41402abc4b2a76b9719d911017c592", Sequencer: 0x6ACF2A417B72EE95}),
+			key:      "a b/ü+1.txt",
+			configID: "ps",
+			golden:   `{"Records":[{"eventVersion":"2.6","eventSource":"aws:s3","awsRegion":"us-east-2","eventTime":"2026-10-14T07:07:45.557Z","eventName":"ObjectCreated:Put","userIdentity":{"principalId":"AWS:AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003"},"requestParameters":{"sourceIPAddress":"198.51.100.100"},"responseElements":{"x-amz-request-id":"GYNBJ1SRNVBCV8YY","x-amz-id-2":"wY6U2xs0cPOStW72e9IcHUw6Rv0Vvmgw88Jd/QeHGGga5nXyrCvoNL4lHlHO89S+SBs/q3y3QmouL4wupRszKqfofFL3fXYn"},"s3":{"s3SchemaVersion":"1.0","configurationId":"ps","bucket":{"name":"usr-rec-20261014-ev","ownerIdentity":{"principalId":"AEXAMPLE000009"},"arn":"arn:aws:s3:::usr-rec-20261014-ev"},"object":{"key":"a+b/%C3%BC%2B1.txt","size":5,"eTag":"5d41402abc4b2a76b9719d911017c592","sequencer":"006ACF2A417B72EE95"}}}]}`,
+		},
+		// sqs/R17/02-events-3.json
+		"ObjectCreated:Copy": {
+			ev: recorded(r17(56, 858), "usr-rec-20261014-ev-v", "NQTFJJ3RKSBR3PPT",
+				"VBClJ8X2J99UyorXSHSDm8jjMg9RR9BAu66RT3CPnCAXHk/LRhUJ0Jtk7lYLeX4mI3ZFgIouGCfe8hNj5XwooB3nR33jlFQHMZooLBYW6mo=",
+				notify.Created{Action: notify.CreatedCopy, Size: 5, ETag: "5d41402abc4b2a76b9719d911017c592", Sequencer: 0x6ACF2A4CCFF09D11}),
+			key:      "copy",
+			version:  "5ZmtzXDLMSf5lrLkWAN7zJ3Z1MzEQ79s",
+			configID: "q",
+			golden:   `{"Records":[{"eventVersion":"2.6","eventSource":"aws:s3","awsRegion":"us-east-2","eventTime":"2026-10-14T07:07:56.858Z","eventName":"ObjectCreated:Copy","userIdentity":{"principalId":"AWS:AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003"},"requestParameters":{"sourceIPAddress":"198.51.100.100"},"responseElements":{"x-amz-request-id":"NQTFJJ3RKSBR3PPT","x-amz-id-2":"VBClJ8X2J99UyorXSHSDm8jjMg9RR9BAu66RT3CPnCAXHk/LRhUJ0Jtk7lYLeX4mI3ZFgIouGCfe8hNj5XwooB3nR33jlFQHMZooLBYW6mo="},"s3":{"s3SchemaVersion":"1.0","configurationId":"q","bucket":{"name":"usr-rec-20261014-ev-v","ownerIdentity":{"principalId":"AEXAMPLE000009"},"arn":"arn:aws:s3:::usr-rec-20261014-ev-v"},"object":{"key":"copy","size":5,"eTag":"5d41402abc4b2a76b9719d911017c592","versionId":"5ZmtzXDLMSf5lrLkWAN7zJ3Z1MzEQ79s","sequencer":"006ACF2A4CCFF09D11","hasObjectAnnotation":false}}}]}`,
+		},
+		// sqs/R17/02-events-1.json
+		"ObjectCreated:CompleteMultipartUpload": {
+			ev: recorded(r17(56, 280), "usr-rec-20261014-ev-v", "NQT0V8EEBC5167YV",
+				"pAQx6bOdm0oPh0TJFPQDNIDw1CcDuvaysif8m91E3MAQGaFfVUp5iNjY0WHU1FxMfkhvdRFTdE9Tk2nAlkTJwzqKdxir5J73",
+				notify.Created{Action: notify.CreatedCompleteMultipartUpload, Size: 5242880, ETag: "81485c0e873d222199469076b60f30e9-1", Sequencer: 0x6ACF2A4A9C030DFF}),
+			key:      "mp",
+			version:  "_yoZJVEe6v1PGluqtQPKrWbYFg_FaODV",
+			configID: "q",
+			golden:   `{"Records":[{"eventVersion":"2.6","eventSource":"aws:s3","awsRegion":"us-east-2","eventTime":"2026-10-14T07:07:56.280Z","eventName":"ObjectCreated:CompleteMultipartUpload","userIdentity":{"principalId":"AWS:AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003"},"requestParameters":{"sourceIPAddress":"198.51.100.100"},"responseElements":{"x-amz-request-id":"NQT0V8EEBC5167YV","x-amz-id-2":"pAQx6bOdm0oPh0TJFPQDNIDw1CcDuvaysif8m91E3MAQGaFfVUp5iNjY0WHU1FxMfkhvdRFTdE9Tk2nAlkTJwzqKdxir5J73"},"s3":{"s3SchemaVersion":"1.0","configurationId":"q","bucket":{"name":"usr-rec-20261014-ev-v","ownerIdentity":{"principalId":"AEXAMPLE000009"},"arn":"arn:aws:s3:::usr-rec-20261014-ev-v"},"object":{"key":"mp","size":5242880,"eTag":"81485c0e873d222199469076b60f30e9-1","versionId":"_yoZJVEe6v1PGluqtQPKrWbYFg_FaODV","sequencer":"006ACF2A4A9C030DFF"}}}]}`,
+		},
+		// sqs/R17/02-events-1.json
+		"ObjectRemoved:DeleteMarkerCreated": {
+			ev: recorded(r17(59, 690), "usr-rec-20261014-ev-v", "4481M9ER9D4REVSV",
+				"bGJ0CivAdUUNqhqg/+IuYzgFpF/XC4wIbxStgOzqD010b3SRJKPE+jjHxHNi+GRI6K6l5jCa9P2FhlhFA5sxRaduIuCVnjI97Y3HvmVsEVM=",
+				notify.Removed{Action: notify.RemovedDeleteMarkerCreated, Sequencer: 0x6ACF2A4FABAE61EF}),
+			key:      "d2",
+			version:  "gKoDFTmrHTAhS9oM65xDEI3P_3xjxL2I",
+			configID: "q",
+			golden:   `{"Records":[{"eventVersion":"2.6","eventSource":"aws:s3","awsRegion":"us-east-2","eventTime":"2026-10-14T07:07:59.690Z","eventName":"ObjectRemoved:DeleteMarkerCreated","userIdentity":{"principalId":"AWS:AROARZPUZDIKAAAAAAACA:00000000-0000-0000-0000-000000000003"},"requestParameters":{"sourceIPAddress":"198.51.100.100"},"responseElements":{"x-amz-request-id":"4481M9ER9D4REVSV","x-amz-id-2":"bGJ0CivAdUUNqhqg/+IuYzgFpF/XC4wIbxStgOzqD010b3SRJKPE+jjHxHNi+GRI6K6l5jCa9P2FhlhFA5sxRaduIuCVnjI97Y3HvmVsEVM="},"s3":{"s3SchemaVersion":"1.0","configurationId":"q","bucket":{"name":"usr-rec-20261014-ev-v","ownerIdentity":{"principalId":"AEXAMPLE000009"},"arn":"arn:aws:s3:::usr-rec-20261014-ev-v"},"object":{"key":"d2","eTag":"d41d8cd98f00b204e9800998ecf8427e","versionId":"gKoDFTmrHTAhS9oM65xDEI3P_3xjxL2I","sequencer":"006ACF2A4FABAE61EF"}}}]}`,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ev := tc.ev
+			ev.Key, ev.VersionID = tc.key, tc.version
+			got, err := notify.Record(ev, tc.configID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != tc.golden {
+				t.Fatalf("record =\n%s\nwant\n%s", got, tc.golden)
+			}
+		})
 	}
 }
 
 // A removal carries only the key and the sequencer: no size and no eTag
 // (AWS-recorded, lambda-events.md 6.2), and no versionId on an unversioned
-// bucket.
+// bucket. R17 recorded no ObjectRemoved:Delete record, so its eventVersion
+// is the one version S3 documents for every event type since 2.4 (aws-doc,
+// s3-ssec-object-lock.md 7).
 func TestObjectRemovedDeleteMatchesTheRecordedRecord(t *testing.T) {
-	const golden = `{"Records":[{"eventVersion":"2.1","eventSource":"aws:s3","awsRegion":"us-west-2","eventTime":"1970-01-01T00:00:00.000Z","eventName":"ObjectRemoved:Delete","userIdentity":{"principalId":"AIDAJDPLRKLG7UEXAMPLE"},"requestParameters":{"sourceIPAddress":"172.16.0.1"},"responseElements":{"x-amz-request-id":"C3D13FE58DE4C810","x-amz-id-2":"FMyUVURIY8/IgAtTv8xRjskZQpcIZ9KG4V5Wp6S7S/JRWeUWerMUE5JgHvANOjpD"},"s3":{"s3SchemaVersion":"1.0","configurationId":"testConfigRule","bucket":{"name":"amzn-s3-demo-bucket","ownerIdentity":{"principalId":"A3NL1KOZZKExample"},"arn":"arn:aws:s3:::amzn-s3-demo-bucket"},"object":{"key":"HappyFace.jpg","sequencer":"0055AED6DCD90281E5"}}}]}`
+	const golden = `{"Records":[{"eventVersion":"2.6","eventSource":"aws:s3","awsRegion":"us-west-2","eventTime":"1970-01-01T00:00:00.000Z","eventName":"ObjectRemoved:Delete","userIdentity":{"principalId":"AIDAJDPLRKLG7UEXAMPLE"},"requestParameters":{"sourceIPAddress":"172.16.0.1"},"responseElements":{"x-amz-request-id":"C3D13FE58DE4C810","x-amz-id-2":"FMyUVURIY8/IgAtTv8xRjskZQpcIZ9KG4V5Wp6S7S/JRWeUWerMUE5JgHvANOjpD"},"s3":{"s3SchemaVersion":"1.0","configurationId":"testConfigRule","bucket":{"name":"amzn-s3-demo-bucket","ownerIdentity":{"principalId":"A3NL1KOZZKExample"},"arn":"arn:aws:s3:::amzn-s3-demo-bucket"},"object":{"key":"HappyFace.jpg","sequencer":"0055AED6DCD90281E5"}}}]}`
 	got, err := notify.Record(documented(notify.Removed{Action: notify.RemovedDelete, Sequencer: exampleSequencer}), "testConfigRule")
 	if err != nil {
 		t.Fatal(err)
@@ -67,8 +147,10 @@ func TestObjectRemovedDeleteMatchesTheRecordedRecord(t *testing.T) {
 	}
 }
 
-// A tagging event is eventVersion 2.3 and carries the eTag but no size or
-// sequencer (AWS-recorded, s3.md 13.2).
+// A tagging event carries the eTag but no size or sequencer (AWS-recorded,
+// s3.md 13.2). Its eventVersion is 2.6: S3 has used one version for every
+// event type since 2.4 (aws-doc, s3-ssec-object-lock.md 7), which supersedes
+// the 2.3 of the 2025 recording; R17 recorded no tagging event.
 func TestObjectTaggingCarriesTheETagWithoutSizeOrSequencer(t *testing.T) {
 	got, err := notify.Record(documented(notify.Tagged{Action: notify.TaggingPut, ETag: "d41d8cd98f00b204e9800998ecf8427e"}), "c")
 	if err != nil {
@@ -87,8 +169,8 @@ func TestObjectTaggingCarriesTheETagWithoutSizeOrSequencer(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := doc.Records[0]
-	if r.EventVersion != "2.3" || r.EventName != "ObjectTagging:Put" {
-		t.Fatalf("eventVersion, eventName = %q, %q; want 2.3, ObjectTagging:Put", r.EventVersion, r.EventName)
+	if r.EventVersion != "2.6" || r.EventName != "ObjectTagging:Put" {
+		t.Fatalf("eventVersion, eventName = %q, %q; want 2.6, ObjectTagging:Put", r.EventVersion, r.EventName)
 	}
 	if want := map[string]any{"key": "HappyFace.jpg", "eTag": "d41d8cd98f00b204e9800998ecf8427e"}; !maps.Equal(r.S3.Object, want) {
 		t.Fatalf("object = %v, want %v", r.S3.Object, want)

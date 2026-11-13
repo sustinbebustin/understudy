@@ -27,7 +27,7 @@ import (
 // the deliveries of SNS, S3, EventBridge and CloudWatch, and a delivery to
 // a deleted queue fails as QueueDoesNotExist, not as a denial (sns.md 7.1).
 func (s *Service) bindSends(b sqsapi.Binder) {
-	b.SendMessage(s.sendMessage, registry.Partial{Note: "a message SNS delivers shows SenderId <role id>:AWS-CLOUDCAST with one fixed AROA role id for the partition, where AWS shows a role id of its own that no capture has recorded (inferred)"},
+	b.SendMessage(s.sendMessage, registry.Partial{Note: "a message SNS or S3 delivers shows SenderId <role id>:AWS-CLOUDCAST or <role id>:S3-PROD-END with one fixed AROA role id for the partition, where AWS shows role ids of its own (inferred)"},
 		kernel.WithCheck(checkSendMessage),
 		kernel.AuthorizedAfterResolveForDeliveries(),
 		queueByURL(s, func(in *sqsapi.SendMessageInput) string { return in.QueueUrl }))
@@ -574,14 +574,19 @@ func attributesSize(attrs map[string]Attribute) int {
 	return n
 }
 
-// snsPrincipal is the service principal of SNS deliveries.
-const snsPrincipal = "sns.amazonaws.com"
+// snsPrincipal and s3Principal are the service principals of SNS
+// deliveries and S3 notifications.
+const (
+	snsPrincipal = "sns.amazonaws.com"
+	s3Principal  = "s3.amazonaws.com"
+)
 
 // senderID is the SenderId system attribute: the account of a root caller,
 // the unique id of a user, role-id:session for a role session, the name of
-// a service principal, and empty for an anonymous caller. SNS's own role
-// is AWS's: its deliveries show a fixed role id and the AWS-CLOUDCAST
-// session (sqs/R16/01-sqs-enveloped.json; the role id is inferred).
+// a service principal, and empty for an anonymous caller. SNS's and S3's
+// own roles are AWS's: their deliveries show a fixed role id and the
+// AWS-CLOUDCAST (sqs/R16/01-sqs-enveloped.json) or S3-PROD-END
+// (sqs/R17/02-events-1.json) session; the role id is inferred.
 func senderID(p identity.Principal, partition aws.Partition) string {
 	switch p := p.(type) {
 	case identity.Root:
@@ -591,8 +596,11 @@ func senderID(p identity.Principal, partition aws.Partition) string {
 	case identity.AssumedRole:
 		return p.Role.ID + ":" + p.Session
 	case identity.ServicePrincipal:
-		if p.Name == snsPrincipal {
+		switch p.Name {
+		case snsPrincipal:
 			return identity.ServiceSenderID(partition, identity.SNSRoleSession)
+		case s3Principal:
+			return identity.ServiceSenderID(partition, identity.S3RoleSession)
 		}
 		return p.Name
 	case identity.Anonymous, nil:

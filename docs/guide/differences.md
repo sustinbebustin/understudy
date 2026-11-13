@@ -48,7 +48,7 @@ SNS filter policies, EventBridge event patterns and Lambda event source mapping 
 - `PutObjectRetention` sends no `s3:ObjectRetention:Put` event notification; a notification configuration that names the event is stored.
 - `POST` on an object without `uploadId` is 405 `MethodNotAllowed` with `Allow: HEAD, DELETE, GET, PUT` on AWS; understudy routes it to `CompleteMultipartUpload` and answers a validation error (`s3/R12/14-post-without-upload-id.json`).
 - With a KMS key id but no `aws:kms`, AWS sends no `ArgumentValue` (`s3/R15/x-kms-key-id-without-aws-kms.json`).
-- Event notifications on AWS: `eventVersion` 2.6, `ObjectRemoved:DeleteMarkerCreated` carries the empty-object `eTag`, Copy events end with `hasObjectAnnotation`, `ownerIdentity.principalId` is a 14-character id, overlap errors name `Event` or `FilterRule`, a destination without a queue policy is refused (understudy refuses it only under `--iam-enforce enforce`), and `SenderId` is `<role id>:S3-PROD-END` (`sqs/R17/02-events-*.json`, `s3/R17/01-config-*.json`).
+- Event notifications on AWS: `ownerIdentity.principalId` is a 14-character id, and a destination without a queue policy is refused (understudy refuses it only under `--iam-enforce enforce`) (`sqs/R17/02-events-*.json`, `s3/R17/01-config-without-queue-policy.json`).
 
 ### S3 auth
 

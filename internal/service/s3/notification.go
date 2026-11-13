@@ -134,9 +134,14 @@ func configError(err error) *awserr.Error {
 	)
 	switch {
 	case errors.As(err, &overlap) && overlap.Overlap == notify.SameFilter:
-		return s3api.ErrInvalidArgument("Configurations overlap. Configurations on the same bucket cannot share a common event type.")
+		// s3/R17/01-config-full.json; the two events in configuration
+		// order is inferred.
+		return errInvalidArgument("Configurations overlap. Configurations on the same bucket cannot share a common event type.",
+			"Event", string(overlap.FirstEvent)+", "+string(overlap.SecondEvent))
 	case errors.As(err, &overlap):
-		return s3api.ErrInvalidArgument("Configuration is ambiguously defined. Cannot have overlapping suffixes in two rules if the prefixes are overlapping for the same event type.")
+		// s3/R17/01-config-overlapping-prefixes.json: no ArgumentValue.
+		return withField(s3api.ErrInvalidArgument("Configuration is ambiguously defined. Cannot have overlapping suffixes in two rules if the prefixes are overlapping for the same event type."),
+			"ArgumentName", "FilterRule")
 	case errors.As(err, &region):
 		return s3api.ErrInvalidArgument("The notification destination service region is not valid for the bucket location constraint")
 	case errors.As(err, &arn):

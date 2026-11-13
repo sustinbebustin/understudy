@@ -263,22 +263,61 @@ func TestNotificationConfigurationRefusals(t *testing.T) {
 		cfg     s3api.NotificationConfiguration
 		code    string
 		fields  map[string]string
-		message string // checked when set
+		order   []string // the context elements in order, checked when set
+		message string   // checked when set
 	}{
-		"two unfiltered configurations sharing an event": {
-			cfg: s3api.NotificationConfiguration{QueueConfigurations: []s3api.QueueConfiguration{
-				{QueueArn: notifyQueue, Events: created()},
-				{QueueArn: notifyQueue, Events: []s3api.Event{s3api.EventS3ObjectcreatedPut}},
-			}},
+		// s3/R17/01-config-full.json, its destinations moved to this
+		// harness's: the queue's ObjectRemoved:* meets the topic's too, but
+		// AWS names the queue's and the function's ObjectCreated events, the
+		// first change type in the model's order that two configurations
+		// share.
+		"the recorded configuration sharing an event": {
+			cfg: s3api.NotificationConfiguration{
+				QueueConfigurations: []s3api.QueueConfiguration{{QueueArn: notifyQueue, Events: []s3api.Event{s3api.EventS3Objectcreated, s3api.EventS3Objectremoved}}},
+				TopicConfigurations: []s3api.TopicConfiguration{{Id: new("t"), TopicArn: notifyTopic, Events: []s3api.Event{s3api.EventS3Objectremoved}}},
+				LambdaFunctionConfigurations: []s3api.LambdaFunctionConfiguration{{
+					Id: new("l"), LambdaFunctionArn: notifyFunction, Events: []s3api.Event{s3api.EventS3ObjectcreatedPut},
+				}},
+			},
 			code:    "InvalidArgument",
+			fields:  map[string]string{"ArgumentName": "Event", "ArgumentValue": "s3:ObjectCreated:*, s3:ObjectCreated:Put"},
+			order:   []string{"ArgumentName", "ArgumentValue"},
 			message: "Configurations overlap. Configurations on the same bucket cannot share a common event type.",
 		},
+		// s3/R17/01-config-overlapping-prefixes.json: FilterRule and no
+		// ArgumentValue.
+		"the recorded overlapping prefixes": {
+			cfg: s3api.NotificationConfiguration{QueueConfigurations: []s3api.QueueConfiguration{
+				{Id: new("a"), QueueArn: notifyQueue, Events: created(), Filter: keyFilter(filterRule("prefix", "x"))},
+				{Id: new("b"), QueueArn: notifyQueue, Events: created(), Filter: keyFilter(filterRule("prefix", "xy"))},
+			}},
+			code:    "InvalidArgument",
+			fields:  map[string]string{"ArgumentName": "FilterRule"},
+			order:   []string{"ArgumentName"},
+			message: "Configuration is ambiguously defined. Cannot have overlapping suffixes in two rules if the prefixes are overlapping for the same event type.",
+		},
+		// The two event types in configuration order (inferred; R17 recorded
+		// one order, which is also the configuration's).
+		"two unfiltered configurations sharing an event": {
+			cfg: s3api.NotificationConfiguration{QueueConfigurations: []s3api.QueueConfiguration{
+				{QueueArn: notifyQueue, Events: []s3api.Event{s3api.EventS3ObjectcreatedPut}},
+				{QueueArn: notifyQueue, Events: created()},
+			}},
+			code:    "InvalidArgument",
+			fields:  map[string]string{"ArgumentName": "Event", "ArgumentValue": "s3:ObjectCreated:Put, s3:ObjectCreated:*"},
+			order:   []string{"ArgumentName", "ArgumentValue"},
+			message: "Configurations overlap. Configurations on the same bucket cannot share a common event type.",
+		},
+		// Overlapping suffixes answer as R17's overlapping prefixes do
+		// (inferred: one message covers both).
 		"overlapping suffixes for one event": {
 			cfg: s3api.NotificationConfiguration{
 				TopicConfigurations: []s3api.TopicConfiguration{{TopicArn: notifyTopic, Events: created(), Filter: keyFilter(filterRule("suffix", "jpg"))}},
 				QueueConfigurations: []s3api.QueueConfiguration{{QueueArn: notifyQueue, Events: created(), Filter: keyFilter(filterRule("suffix", "pg"))}},
 			},
 			code:    "InvalidArgument",
+			fields:  map[string]string{"ArgumentName": "FilterRule"},
+			order:   []string{"ArgumentName"},
 			message: "Configuration is ambiguously defined. Cannot have overlapping suffixes in two rules if the prefixes are overlapping for the same event type.",
 		},
 		"destination in another region": {
@@ -316,6 +355,9 @@ func TestNotificationConfigurationRefusals(t *testing.T) {
 					n.Fatalf("message = %q, want %q", err.Message, tc.message)
 				}
 				wantFields(n.T, err, tc.fields)
+				if tc.order != nil {
+					wantFieldOrder(n.T, err, tc.order...)
+				}
 				if r := header(err, "x-amz-bucket-region"); r != "us-east-1" {
 					n.Fatalf("x-amz-bucket-region = %q, want us-east-1", r)
 				}
@@ -608,8 +650,9 @@ func recordOf(n *notifier, t delivery.Target) s3Record {
 	if err := json.Unmarshal([]byte(body), &doc); err != nil || len(doc.Records) != 1 {
 		n.Fatalf("notification %q: %v", body, err)
 	}
-	if !strings.HasPrefix(body, `{"Records":[{"eventVersion":"2.1"`) {
-		n.Fatalf("notification %s does not lead with eventVersion 2.1", body)
+	// sqs/R17/02-events-*.json
+	if !strings.HasPrefix(body, `{"Records":[{"eventVersion":"2.6"`) {
+		n.Fatalf("notification %s does not lead with eventVersion 2.6", body)
 	}
 	return doc.Records[0]
 }

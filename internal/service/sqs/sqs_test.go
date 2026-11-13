@@ -487,36 +487,47 @@ func TestSNSDeliveriesSkipTheQueuesSizeLimit(t *testing.T) {
 	})
 }
 
-// A message SNS delivers carries SenderId <AROA role id>:AWS-CLOUDCAST
-// (sqs/R16/01-sqs-enveloped.json), the same under every seed, and the
-// service principal still authorizes the send. The role is AWS's own, so
-// the id is a fixed one (inferred).
-func TestSNSDeliveriesCarryAWSsSenderID(t *testing.T) {
-	senderID := regexp.MustCompile(`^AROA[A-Z0-9]{17}:AWS-CLOUDCAST$`)
-	got := map[uint64]string{}
-	for _, seed := range []uint64{1, 2} {
-		t.Run(strconv.FormatUint(seed, 10), func(t *testing.T) {
-			kerneltest.Run(t, func(k *kerneltest.K) {
-				h := &harness{K: k, svc: sqs.New(k.Deps(sqsapi.Service()), sqs.Options{})}
-				url := h.queue("q", nil)
-				send := op[sqsapi.SendMessageInput, sqsapi.SendMessageOutput](h, "SendMessage")
-				delivery := kernel.Target{Scope: h.Scope, As: kernel.AsService{Name: "sns.amazonaws.com"}, Via: ref.SNSDelivery}
-				if _, err := kernel.Invoke(h.Context(), h.Kernel, h.Call(send.Descriptor()), send, delivery, &sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "b"}); err != nil {
-					h.Fatalf("an SNS delivery = %s: %s", err.ID.QueryCode, err.Message)
-				}
-				msgs := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url, AttributeNames: []sqsapi.QueueAttributeName{"SenderId"}})
-				if len(msgs) != 1 {
-					h.Fatalf("ReceiveMessage = %d messages, want the delivery", len(msgs))
-				}
-				got[seed] = msgs[0].Attributes["SenderId"]
-				if !senderID.MatchString(got[seed]) {
-					h.Errorf("SenderId = %q, want %s", got[seed], senderID)
-				}
-			}, kerneltest.Services(sqsapi.Service()), kerneltest.Seed(seed))
+// A message SNS or S3 delivers carries SenderId <AROA role id>:<session>,
+// the same under every seed, and the service principal still authorizes
+// the send. The role is AWS's own, so the id is a fixed one (inferred).
+func TestServiceDeliveriesCarryAWSsSenderID(t *testing.T) {
+	for name, tc := range map[string]struct {
+		principal string
+		via       ref.Via
+		senderID  *regexp.Regexp
+	}{
+		// sqs/R16/01-sqs-enveloped.json
+		"sns": {principal: "sns.amazonaws.com", via: ref.SNSDelivery, senderID: regexp.MustCompile(`^AROA[A-Z0-9]{17}:AWS-CLOUDCAST$`)},
+		// sqs/R17/02-events-1.json
+		"s3": {principal: "s3.amazonaws.com", via: ref.S3Notification, senderID: regexp.MustCompile(`^AROA[A-Z0-9]{17}:S3-PROD-END$`)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := map[uint64]string{}
+			for _, seed := range []uint64{1, 2} {
+				t.Run(strconv.FormatUint(seed, 10), func(t *testing.T) {
+					kerneltest.Run(t, func(k *kerneltest.K) {
+						h := &harness{K: k, svc: sqs.New(k.Deps(sqsapi.Service()), sqs.Options{})}
+						url := h.queue("q", nil)
+						send := op[sqsapi.SendMessageInput, sqsapi.SendMessageOutput](h, "SendMessage")
+						delivery := kernel.Target{Scope: h.Scope, As: kernel.AsService{Name: tc.principal}, Via: tc.via}
+						if _, err := kernel.Invoke(h.Context(), h.Kernel, h.Call(send.Descriptor()), send, delivery, &sqsapi.SendMessageInput{QueueUrl: url, MessageBody: "b"}); err != nil {
+							h.Fatalf("a delivery by %s = %s: %s", tc.principal, err.ID.QueryCode, err.Message)
+						}
+						msgs := h.mustReceive(&sqsapi.ReceiveMessageInput{QueueUrl: url, AttributeNames: []sqsapi.QueueAttributeName{"SenderId"}})
+						if len(msgs) != 1 {
+							h.Fatalf("ReceiveMessage = %d messages, want the delivery", len(msgs))
+						}
+						got[seed] = msgs[0].Attributes["SenderId"]
+						if !tc.senderID.MatchString(got[seed]) {
+							h.Errorf("SenderId = %q, want %s", got[seed], tc.senderID)
+						}
+					}, kerneltest.Services(sqsapi.Service()), kerneltest.Seed(seed))
+				})
+			}
+			if got[1] != got[2] {
+				t.Errorf("SenderId under seed 1 = %q, under seed 2 = %q, want the same", got[1], got[2])
+			}
 		})
-	}
-	if got[1] != got[2] {
-		t.Errorf("SenderId under seed 1 = %q, under seed 2 = %q, want the same", got[1], got[2])
 	}
 }
 

@@ -1615,7 +1615,7 @@ Raw operations:
 | DeleteMessageBatch | partial | inferred, 2 of 9 claims | a receipt handle of a queue in another account or Region, or of a message gone from another queue, is reported successful as one of a deleted message, where AWS fails it as not valid for this queue by inference from sqs/R01 06-delete-batch |
 | ReceiveMessage | partial | contradicted (sqs/R01/02-recv1.json), 15 of 33 claims | a message's Attributes are sorted by name, where AWS writes them in an order of its own |
 | RemovePermission | partial | inferred, 1 of 7 claims | statements are stored in the queue's Policy attribute, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; conditions on keys understudy cannot compute evaluate as absent and journal an advisory naming the key |
-| SendMessage | partial | inferred, 7 of 25 claims | a message SNS delivers shows SenderId <role id>:AWS-CLOUDCAST with one fixed AROA role id for the partition, where AWS shows a role id of its own that no capture has recorded (inferred) |
+| SendMessage | partial | inferred, 7 of 25 claims | a message SNS or S3 delivers shows SenderId <role id>:AWS-CLOUDCAST or <role id>:S3-PROD-END with one fixed AROA role id for the partition, where AWS shows role ids of its own (inferred) |
 
 Internal operations:
 
