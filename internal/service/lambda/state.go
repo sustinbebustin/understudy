@@ -59,6 +59,11 @@ const stateVersionNoRetiredVersions = 4
 // scaling beside their source kind, which Import still reads.
 const stateVersionUnkindedScaling = 3
 
+// stateVersionOldest is the oldest version Import reads, so a snapshot load
+// accepts a section of it or of any version up to stateVersion
+// (OldestSchemaVersion).
+const stateVersionOldest = stateVersionUnkindedScaling
+
 // State is the Lambda state of one account and region: its functions by
 // name, its event source mappings by UUID and its layers by name. Records
 // are values replaced on change; a value read out of a cell is always a

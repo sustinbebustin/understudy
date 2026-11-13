@@ -95,6 +95,16 @@ type stateful struct{ kernel.Stateful }
 
 func (s stateful) ResetAll() { s.Reset(kernel.ResetScope{}) }
 
+// OldestSchemaVersion passes on the oldest version the service declares it
+// reads (snapshot.OlderReader), which the embedded interface hides; a
+// service that declares none reads only its SchemaVersion.
+func (s stateful) OldestSchemaVersion() int {
+	if o, ok := s.Stateful.(snapshot.OlderReader); ok {
+		return o.OldestSchemaVersion()
+	}
+	return s.SchemaVersion()
+}
+
 // identityFile is the path of the identity section under
 // services/identity/.
 const identityFile = "keys.json"

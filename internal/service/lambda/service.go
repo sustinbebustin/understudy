@@ -254,6 +254,10 @@ func (*Service) Name() ref.ServiceID { return "lambda" }
 // SchemaVersion returns the version of State.
 func (*Service) SchemaVersion() int { return stateVersion }
 
+// OldestSchemaVersion returns the oldest version Import reads
+// (snapshot.OlderReader).
+func (*Service) OldestSchemaVersion() int { return stateVersionOldest }
+
 // Export serializes every non-empty scope to one section.
 func (s *Service) Export() ([]store.Section, error) {
 	return s.cells.Export(store.ScopeKeys(), stateVersion)

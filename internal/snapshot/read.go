@@ -27,12 +27,29 @@ type ReadOptions struct {
 	// included. Read holds the whole archive in memory, so it must be
 	// positive.
 	MaxBytes int64
-	// Schemas is the running binary's state schema version per service.
-	// When it is non-nil, every section must belong to a listed service and
-	// carry its version, or Read fails with *SchemaError. Nil accepts any
-	// version, for inspecting and diffing archives without loading them.
-	Schemas map[ref.ServiceID]int
+	// Schemas is the running binary's state schema per service. When it is
+	// non-nil, every section must belong to a listed service and carry a
+	// version its Schema reads, or Read fails with *SchemaError. Nil
+	// accepts any version, for inspecting and diffing archives without
+	// loading them.
+	Schemas map[ref.ServiceID]Schema
 }
+
+// Schema is the range of a service's state schema versions the running
+// binary loads: Running, the version it writes, and every older version
+// down to Oldest, which its import reads as is or migrates (ADR 0009's
+// exceptions to "refused, not migrated"). A service that reads no older
+// version has Oldest equal to Running.
+type Schema struct {
+	Oldest, Running int
+}
+
+// Exactly is the Schema of a service that reads only the version it
+// writes.
+func Exactly(version int) Schema { return Schema{Oldest: version, Running: version} }
+
+// reads reports whether a section of version loads.
+func (s Schema) reads(version int) bool { return s.Oldest <= version && version <= s.Running }
 
 // gzipMagic starts every gzip stream (RFC 1952).
 const gzipMagic = "\x1f\x8b"
@@ -49,8 +66,9 @@ const gzipMagic = "\x1f\x8b"
 //   - an entry name that is not local (filepath.IsLocal) and clean
 //     (fs.ValidPath), a non-regular entry (sparse files included) or a
 //     repeated name (*EntryError);
-//   - with Schemas set, a section of an unknown service or schema version,
-//     naming both versions and the writer (*SchemaError);
+//   - with Schemas set, a section of an unknown service or of a schema
+//     version its Schema does not read, naming the section's version, the
+//     versions read and the writer (*SchemaError);
 //   - a section or blob whose bytes do not match its digest, a listed entry
 //     the archive lacks, an entry the manifest does not account for and a
 //     blob entry in an archive whose blobs are external (*EntryError).
@@ -205,7 +223,7 @@ func readError(reason string, err error) error {
 
 // assemble checks the entries against the manifest and builds the Archive.
 // Every entry must be accounted for exactly once.
-func assemble(files map[string][]byte, schemas map[ref.ServiceID]int) (*Archive, error) {
+func assemble(files map[string][]byte, schemas map[ref.ServiceID]Schema) (*Archive, error) {
 	raw, ok := files[manifestName]
 	if !ok {
 		return nil, &EntryError{Name: manifestName, Defect: MissingEntry}
@@ -288,16 +306,16 @@ func take(files map[string][]byte, name, digest string) ([]byte, error) {
 }
 
 // checkSchemas refuses a section of a service schemas does not list or at a
-// version other than the listed one.
-func checkSchemas(m Manifest, schemas map[ref.ServiceID]int) error {
+// version its Schema does not read.
+func checkSchemas(m Manifest, schemas map[ref.ServiceID]Schema) error {
 	for _, s := range m.Sections {
 		svc, err := sectionService(s.Path)
 		if err != nil {
 			return err
 		}
-		running, known := schemas[svc]
-		if !known || running != s.Version {
-			return &SchemaError{Path: s.Path, Service: svc, Section: s.Version, Running: running, Known: known, Writer: m.Writer}
+		schema, known := schemas[svc]
+		if !known || !schema.reads(s.Version) {
+			return &SchemaError{Path: s.Path, Service: svc, Section: s.Version, Running: schema.Running, Oldest: schema.Oldest, Known: known, Writer: m.Writer}
 		}
 	}
 	return nil

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/coverage"
 	"github.com/sustinbebustin/understudy/internal/server"
 	"github.com/sustinbebustin/understudy/internal/snapshot"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // frozenAt is where the admin tests freeze the emulator clock.
@@ -400,6 +402,107 @@ func TestAdminSnapshotRestoresAfterReset(t *testing.T) {
 	}
 	_, err = c.LoadSnapshot(t.Context(), strings.NewReader("not an archive"))
 	wantCode(t, err, admin.Conflict)
+}
+
+// withSections is the archive base with sections added and no late data,
+// as a --persist checkpoint holds: the state a build that wrote other
+// section versions would have saved. Without late data a load leaves
+// DynamoDB Local alone, which these tests run without.
+func withSections(t *testing.T, base []byte, sections ...store.Section) io.Reader {
+	t.Helper()
+	a, err := snapshot.Read(bytes.NewReader(base), snapshot.ReadOptions{MaxBytes: 1 << 24})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Sections = append(a.Sections, sections...)
+	a.Late, a.Manifest.LateServices = nil, nil
+	var out bytes.Buffer
+	if err := snapshot.Write(&out, *a, snapshot.WriteOptions{Blobs: snapshot.EmbedBlobs, MaxBytes: 1 << 24}); err != nil {
+		t.Fatal(err)
+	}
+	return &out
+}
+
+// resourceARNs lists the ARNs of every resource c's server holds.
+func resourceARNs(t *testing.T, c *admin.Client) []string {
+	t.Helper()
+	res, err := c.Resources(t.Context(), admin.ResourceQuery{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	arns := make([]string, len(res))
+	for i, r := range res {
+		arns[i] = r.ARN
+	}
+	return arns
+}
+
+// A snapshot load accepts the older section versions DynamoDB and Lambda
+// declare they read, which ADR 0009 records as exceptions to "refused, not
+// migrated" (amendments of 2026-10-27, 2026-11-13), and refuses an older or
+// newer one naming the versions.
+func TestAdminSnapshotLoadsTheOlderSectionVersionsServicesRead(t *testing.T) {
+	c, _ := adminServer(t, server.Config{})
+	// Saved while no DynamoDB table exists: a save holding one needs
+	// DynamoDB Local.
+	var base bytes.Buffer
+	if _, err := c.SaveSnapshot(t.Context(), &base, admin.SaveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	// DynamoDB version 3 is version 4 without streams; Lambda version 3
+	// holds an SQS mapping's scaling beside its source kind.
+	dynamodb3 := store.Section{Path: "services/dynamodb/000000000000/us-east-1.json", Version: 3, Data: []byte(
+		`{"tables":{"Jobs":{"id":"x","created":"2000-01-01T00:00:00Z","billing":{"kind":"on-demand","since":"2000-01-01T00:00:00Z"}}}}`)}
+	lambda3 := store.Section{Path: "services/lambda/000000000000/us-east-1.json", Version: 3, Data: []byte(
+		`{"functions":{"f3":{"name":"f3","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"generation":1}},` +
+			`"mappings":{"q":{"uuid":"q","source":"arn:aws:sqs:us-east-1:000000000000:orders","sourceKind":{"kind":"sqs"},"function":"f3","batchSize":10,"window":0,` +
+			`"scaling":{"kind":"maximum-concurrency","n":3},"enabled":false}}}`)}
+	// Lambda version 4 kept no deleted function's number, version 5 no
+	// layer policy history, version 6 no image digest kind, and version 7
+	// no stream mapping's self-disable.
+	lambda4 := store.Section{Path: "services/lambda/000000000000/us-east-1.json", Version: 4, Data: []byte(
+		`{"functions":{"f4":{"name":"f4","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":3,"generation":1}},"serial":7}`)}
+	lambda5 := store.Section{Path: "services/lambda/000000000000/us-east-1.json", Version: 5, Data: []byte(
+		`{"functions":{"f5":{"name":"f5","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":1,"generation":1}},"retiredVersions":{"gone":2},"serial":7}`)}
+	lambda6 := store.Section{Path: "services/lambda/000000000000/us-east-1.json", Version: 6, Data: []byte(
+		`{"functions":{"f6":{"name":"f6","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":1,"generation":1}},"retiredVersions":{"gone":2},"serial":7}`)}
+	lambda7 := store.Section{Path: "services/lambda/000000000000/us-east-1.json", Version: 7, Data: []byte(
+		`{"functions":{"f7":{"name":"f7","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":1,"generation":1}},"retiredVersions":{"gone":2},"serial":7}`)}
+
+	if _, err := c.LoadSnapshot(t.Context(), withSections(t, base.Bytes(), dynamodb3, lambda3)); err != nil {
+		t.Fatalf("loading DynamoDB and Lambda version 3 sections: %v", err)
+	}
+	arns := resourceARNs(t, c)
+	for _, want := range []string{"arn:aws:dynamodb:us-east-1:000000000000:table/Jobs", "arn:aws:lambda:us-east-1:000000000000:function:f3"} {
+		if !slices.Contains(arns, want) {
+			t.Errorf("after loading version 3 sections the resources are %q, missing %s", arns, want)
+		}
+	}
+
+	for _, sec := range []struct {
+		section  store.Section
+		function string
+	}{{lambda4, "f4"}, {lambda5, "f5"}, {lambda6, "f6"}, {lambda7, "f7"}} {
+		if _, err := c.LoadSnapshot(t.Context(), withSections(t, base.Bytes(), sec.section)); err != nil {
+			t.Fatalf("loading a Lambda version %d section: %v", sec.section.Version, err)
+		}
+		if arns := resourceARNs(t, c); !slices.Contains(arns, "arn:aws:lambda:us-east-1:000000000000:function:"+sec.function) {
+			t.Errorf("after loading a version %d section the resources are %q, missing function %s", sec.section.Version, arns, sec.function)
+		}
+	}
+
+	for _, version := range []int{2, 1000} {
+		refused := lambda4
+		refused.Version = version
+		_, err := c.LoadSnapshot(t.Context(), withSections(t, base.Bytes(), refused))
+		e := adminErr(t, err, admin.Conflict)
+		if want := fmt.Sprintf("has lambda state version %d but this understudy runs version ", version); !strings.Contains(e.Message, want) || !strings.Contains(e.Message, " and reads versions 3 to ") {
+			t.Errorf("refusing version %d: message %q does not name the section's version and the versions read", version, e.Message)
+		}
+	}
+	if arns := resourceARNs(t, c); !slices.Contains(arns, "arn:aws:lambda:us-east-1:000000000000:function:f7") {
+		t.Errorf("a refused load changed the state: resources %q", arns)
+	}
 }
 
 // Reset by service and region drops only what it selects.

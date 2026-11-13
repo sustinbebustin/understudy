@@ -83,3 +83,8 @@ understudy needs a versioned, deterministic file for the whole emulator state an
 ## Amendment 2026-11-13: Lambda state version 8 records a stream mapping's self-disable
 
 - Lambda's state version 8 adds whether a stream mapping disabled itself because its stream closed, which sets its `StateTransitionReason` and `LastProcessingResult` (`lambda-stream-sources.md` 7.3). The field is optional, so Lambda's `Import` reads a version 7 section, and a version 6, 5 or 4 section as the amendments above allow, as version 8, with no mapping disabled that way. A version 3 section is still migrated, under the same coordinator limit as above.
+
+## Amendment 2026-11-13: declared readable versions pass the load check
+
+- The exceptions above ran only when a service's import was called directly: the load check refused every section whose version differed from the running one, so `snapshot load` and a `--persist` restart refused them, the coordinator limit the version 6 and 8 amendments name. A service now declares the oldest section version its import reads (`snapshot.OlderReader`), and the load check accepts any version from it to the running one. DynamoDB declares 3 and Lambda 3.
+- A service that declares nothing keeps the exact-match refusal, and a newer section is refused as before. The refusal names the section's version, the running version, the readable range when one is declared, and the writing binary.
