@@ -37,8 +37,15 @@ type Ok struct {
 }
 
 // Rejected is a request the edge refused before the handler: a body that
-// does not decode, an operation the service does not model.
-type Rejected struct{ Err *awserr.Error }
+// does not decode, an operation the service does not model. Partial is
+// the *In the codec was binding when it refused, holding the members it
+// bound before the one it refused, in the input's member order; nil when
+// decoding never began. Only WithRefusalHeaders reads it: it is never
+// validated or handled.
+type Rejected struct {
+	Err     *awserr.Error
+	Partial any
+}
 
 // Unauthenticated is a request the edge refused at authentication:
 // credentials that cannot be read or do not verify, or a body the
@@ -142,7 +149,7 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	var in Ok
 	switch d := d.(type) {
 	case Rejected:
-		return Failure(d), nil
+		return Failure{Err: refusal(bnd, c, d.Partial, d.Err)}, nil
 	case Unauthenticated:
 		return Failure(d), nil
 	case Ok:
@@ -157,7 +164,7 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 		return Failure{Err: NotImplemented(c.op)}, nil
 	}
 	if err := bnd.validate(in.In); err != nil {
-		return Failure{Err: err}, nil
+		return Failure{Err: refusal(bnd, c, in.In, err)}, nil
 	}
 	c.Touch(bnd.resources(c, in.In)...)
 	scoped, resolved := bnd.scoping(c, in.In)
@@ -169,10 +176,10 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	c.denialResource = bnd.denialResourceOf(c, in.In)
 	c.chosenPrimary = bnd.primaryOf(c, in.In)
 	if err := k.resolveFirst(ctx, c, bnd, in.In); err != nil {
-		return Failure{Err: err}, nil
+		return Failure{Err: refusal(bnd, c, in.In, err)}, nil
 	}
 	if err := k.authorize(ctx, c, bnd, *used, c.keys); err != nil {
-		return Failure{Err: err}, nil
+		return Failure{Err: refusal(bnd, c, in.In, err)}, nil
 	}
 	items := bnd.items(in.In)
 	if res, inj, stop := k.before(ctx, c, items); stop {
@@ -186,7 +193,7 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	// now, and a denial replaces its output.
 	if err := c.authorizeDeferred(); err != nil {
 		k.discard(ctx, c, out)
-		return Failure{Err: err}, nil
+		return Failure{Err: refusal(bnd, c, in.In, err)}, nil
 	}
 	if res, inj, hit := k.after(ctx, c, items); hit {
 		k.discard(ctx, c, out)

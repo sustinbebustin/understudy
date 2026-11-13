@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 	"sync/atomic"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -22,8 +23,8 @@ type Binder struct {
 // BindOption adjusts one binding: WithValidator, WithCheck, WithResources,
 // WithResourcesFor, WithItemCount, WithActions, WithoutSecondaryActions,
 // WithConditionKeys, WithConditionKeysFor, RefuseConditionKeys,
-// ResolveFirst, AuthorizedInHandler, NeverAuthorized and
-// AuthorizedAfterResolve build them, and BindOptions groups them.
+// ResolveFirst, WithRefusalHeaders, AuthorizedInHandler, NeverAuthorized
+// and AuthorizedAfterResolve build them, and BindOptions groups them.
 type BindOption interface {
 	// apply adds the option to cfg, the *bindConfig of the operation's input
 	// type, and reports false when the option is for another input type.
@@ -71,6 +72,8 @@ type bindConfig struct {
 	refused []string
 	// exists are every ResolveFirst option's checks.
 	exists []func(context.Context, *Call, any) *awserr.Error
+	// refusalHeaders are every WithRefusalHeaders option's headers.
+	refusalHeaders []func(*Call, any) []awserr.Header
 }
 
 // erasedConfig is what WithResourcesFor, WithConditionKeys,
@@ -316,6 +319,34 @@ func WithItemCount[In any](count func(*In) int) BindOption {
 	return countOf[*In](count)
 }
 
+// WithRefusalHeaders gives the response headers a refusal the kernel makes
+// before the handler runs carries: a request the codec refused (Rejected),
+// a validation error (step 7), a ResolveFirst answer, and a denial at
+// step 8 or of a deferred authorization. It is for a header AWS sends on
+// every error of an operation that the handler adds to its own errors,
+// such as S3's x-amz-bucket-region on ListObjectsV2, which a refusal made
+// before the handler would otherwise lack. For a codec refusal, headers
+// meets the input as far as the codec bound it (Rejected.Partial), so it
+// reads only what it finds set; it meets no input when the codec never
+// began. A header the error already carries is kept. Unauthenticated
+// requests, fault rules and the handler's own errors are left as they
+// are. Several options add in order.
+func WithRefusalHeaders[In any](headers func(c *Call, in *In) []awserr.Header) BindOption {
+	return refusalHeadersOf[*In](headers)
+}
+
+func refusalHeadersOf[P any](headers func(*Call, P) []awserr.Header) BindOption {
+	var token P
+	f := func(c *Call, in any) []awserr.Header {
+		typed, ok := in.(P)
+		if !ok {
+			return nil
+		}
+		return headers(c, typed)
+	}
+	return typedOption{in: token, add: func(c *bindConfig) { c.refusalHeaders = append(c.refusalHeaders, f) }}
+}
+
 // Bind binds h as op's handler with the coverage the bind site states.
 // Mistakes (op bound twice, op outside the binder's service or the registry,
 // an option of another input type) are kept for Kernel.BindErr.
@@ -444,16 +475,17 @@ type inputType struct {
 // with cfg's, so extending one leaves the other as it was.
 func (cfg *bindConfig) clone() bindConfig {
 	return bindConfig{
-		in:            cfg.in,
-		validators:    slices.Clone(cfg.validators),
-		checks:        slices.Clone(cfg.checks),
-		resources:     slices.Clone(cfg.resources),
-		actions:       slices.Clone(cfg.actions),
-		erased:        cfg.erased.clone(),
-		count:         cfg.count,
-		authorization: cfg.authorization,
-		refused:       slices.Clone(cfg.refused),
-		exists:        slices.Clone(cfg.exists),
+		in:             cfg.in,
+		validators:     slices.Clone(cfg.validators),
+		checks:         slices.Clone(cfg.checks),
+		resources:      slices.Clone(cfg.resources),
+		actions:        slices.Clone(cfg.actions),
+		erased:         cfg.erased.clone(),
+		count:          cfg.count,
+		authorization:  cfg.authorization,
+		refused:        slices.Clone(cfg.refused),
+		exists:         slices.Clone(cfg.exists),
+		refusalHeaders: slices.Clone(cfg.refusalHeaders),
 	}
 }
 
@@ -497,6 +529,7 @@ func configured(b *Binder, id ref.OperationID, base bindConfig, opts []BindOptio
 		authorization:  cfg.authorization,
 		refused:        cfg.refused,
 		exists:         cfg.exists,
+		refusalHeaders: cfg.refusalHeaders,
 	}
 	if len(cfg.actions) > 0 {
 		bnd.actions = func(c *Call, in any) []registry.IAMAction {
@@ -592,6 +625,37 @@ type binding struct {
 	// exists are the binding's ResolveFirst checks, run before step 8;
 	// nil without the option and for raw HTTP bindings.
 	exists []func(ctx context.Context, c *Call, in any) *awserr.Error
+	// refusalHeaders give the headers a refusal the kernel makes before the
+	// handler carries (WithRefusalHeaders); nil without the option and for
+	// raw HTTP bindings.
+	refusalHeaders []func(c *Call, in any) []awserr.Header
+}
+
+// refusal returns err, a refusal the kernel made before the handler ran,
+// carrying the headers bnd's WithRefusalHeaders options give in, each
+// unless err already carries a header of that name; a copy when it adds
+// one, so an error value a caller shares is never changed. in may be a
+// partly bound input (Rejected.Partial) or nil; an option meets only an
+// input of its type. bnd is nil for an unbound operation.
+func refusal(bnd *binding, c *Call, in any, err *awserr.Error) *awserr.Error {
+	if bnd == nil || err == nil || in == nil {
+		return err
+	}
+	out := err
+	for _, give := range bnd.refusalHeaders {
+		for _, h := range give(c, in) {
+			if slices.ContainsFunc(out.Headers, func(x awserr.Header) bool { return strings.EqualFold(x.Name, h.Name) }) {
+				continue
+			}
+			if out == err {
+				cp := *err
+				cp.Headers = slices.Clone(err.Headers)
+				out = &cp
+			}
+			out.Headers = append(out.Headers, h)
+		}
+	}
+	return out
 }
 
 // denialResourceOf returns the resource text the binding's

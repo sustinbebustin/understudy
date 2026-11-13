@@ -275,9 +275,9 @@ func WithValidator[In any](v func(*In) []awserr.Violation) BindOption // statele
 //
 //sumtype:decl
 type Decoded interface{ isDecoded() }
-type Ok struct{ In any; Wire Wire }              // Wire carries the client's request to a BindRaw handler; nil means Synthesized
-type Rejected struct{ Err *awserr.Error }        // a body that does not decode, an operation the service does not model
-type Unauthenticated struct{ Err *awserr.Error } // refused at authentication: journaled like Rejected, no IAM action recorded
+type Ok struct{ In any; Wire Wire }                    // Wire carries the client's request to a BindRaw handler; nil means Synthesized
+type Rejected struct{ Err *awserr.Error; Partial any } // a body that does not decode, an operation the service does not model; Partial: the *In as far as the codec bound it
+type Unauthenticated struct{ Err *awserr.Error }       // refused at authentication: journaled like Rejected, no IAM action recorded
 
 // Result is what the pipeline returns to the edge or to Invoke.
 //
@@ -294,6 +294,13 @@ type StatusOKFailure struct{ Err *awserr.Error } // S3's 200-with-error answer
 // every protocol, replacing an encoded header of the same name. A call that fails after the handler
 // set them (its error, a deferred denial, an after-commit fault, a strict refusal) sends none: an
 // error's headers are its own awserr.Error.Headers. Invoke's internal callers receive only the output.
+//
+// Refusal headers: a header AWS sends on every error of an operation, which its handler adds to its
+// own errors, also goes on the refusals the kernel makes before the handler through the bind option
+// kernel.WithRefusalHeaders: a Rejected decode (read from Partial), a step 7 validation error, a
+// resolve-first answer, a step 8 or deferred denial. S3 ListObjectsV2 gives them x-amz-bucket-region
+// when the bucket exists (ADR 0013, amendment 2026-11-13). A header the error carries is kept;
+// Unauthenticated requests and fault rules are left as they are.
 
 func (k *Kernel) Dispatch(ctx context.Context, c *Call, d Decoded) Result
 

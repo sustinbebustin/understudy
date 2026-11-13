@@ -25,6 +25,7 @@ func typedOptions[In any]() map[string]kernel.BindOption {
 		"WithConditionKeys":    kernel.WithConditionKeys(func(*kernel.Call, *In) kernel.ConditionKeys { return nil }),
 		"WithConditionKeysFor": kernel.WithConditionKeysFor(nil, func(*kernel.Call, *In) kernel.ConditionKeys { return nil }),
 		"ResolveFirst":         kernel.ResolveFirst(func(context.Context, *kernel.Call, *In) *awserr.Error { return nil }),
+		"WithRefusalHeaders":   kernel.WithRefusalHeaders(func(*kernel.Call, *In) []awserr.Header { return nil }),
 		"BindOptions":          kernel.BindOptions(kernel.WithCheck(func(*In) *awserr.Error { return nil })),
 	}
 }

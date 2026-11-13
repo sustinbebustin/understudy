@@ -52,7 +52,12 @@
 //     not-configured 404 carries none
 //     (testdata/parity/s3/R06/01-get-get-bucket-policy.json). An access's
 //     errorRegion says which errors read, change and DeleteBucket answer
-//     with it; the error builders leave it out. A success carries it where
+//     with it; the error builders leave it out. ListObjectsV2's refusals
+//     made before the handler, a denial and the codec's refusal of a
+//     max-keys that is not an integer, carry it through
+//     kernel.WithRefusalHeaders (regionOnRefusals) when the bucket exists
+//     (testdata/parity/s3/IAM-ENF/12-list.json,
+//     testdata/parity/s3/R12/05-list-max-keys-abc.json). A success carries it where
 //     the output models it (HeadBucket) and on every ListObjectsV2 200,
 //     asserted region or not, which sets it with
 //     kernel.Call.SetSuccessHeader as every recorded ListObjectsV2 200
