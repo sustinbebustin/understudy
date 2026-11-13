@@ -549,8 +549,9 @@ func errCollectionSize(param string, limit int) *awserr.Error {
 //
 // StrictEntityValidation is required with EntityMetricData, and an entity
 // error refuses the request only when it is true; otherwise AWS ingests
-// the metric data and reports the error in a response header, which
-// understudy does not send (AWS-documented; the texts are inferred).
+// the metric data and reports the error in a response header, which the
+// handler sets for an over-limit count (AWS-documented; the texts are
+// inferred).
 func checkPutMetricData(in *cloudwatchapi.PutMetricDataInput) *awserr.Error {
 	if strings.HasPrefix(in.Namespace, "AWS/") || strings.ContainsFunc(in.Namespace, unprintable) {
 		return errInvalidValue(in.Namespace, "Namespace")

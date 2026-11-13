@@ -405,7 +405,7 @@ Raw operations:
 | ListMetrics | partial | third-party-recorded, 2 of 3 claims | no linked accounts: IncludeLinkedAccounts and OwningAccount select nothing more |
 | ListTagsForResource | partial | third-party-recorded, 2 of 3 claims | alarms only: insight rules and metric streams are never stored |
 | PutMetricAlarm | partial | inferred, 3 of 22 claims | alarms on a Statistic with a sliding window are evaluated on the emulator clock; alarms on an ExtendedStatistic, Metrics, a ThresholdMetricId or EvaluationCriteria, or with a WallClockWindow, are stored and never evaluated; SNS and Lambda actions run, and EC2, Auto Scaling, Systems Manager and investigation actions are journaled and never run; EvaluationState is never reported |
-| PutMetricData | partial | inferred, 1 of 5 claims | entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution |
+| PutMetricData | partial | inferred, 1 of 5 claims | entities are not kept; with StrictEntityValidation false only an over-limit entity count is detected, answered in X-Amzn-Failure-Message, and the other entity errors are not detected; points are kept until reset, not aged out by resolution |
 | SetAlarmState | partial | third-party-recorded, 4 of 12 claims | the state is set and its actions run when it changes; the next evaluation re-derives it, except on alarms that are never evaluated (see PutMetricAlarm) |
 | TagResource | partial | third-party-recorded, 2 of 3 claims | alarms only: insight rules and metric streams are never stored |
 | UntagResource | partial | third-party-recorded, 2 of 3 claims | alarms only: insight rules and metric streams are never stored |

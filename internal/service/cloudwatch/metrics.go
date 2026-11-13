@@ -25,10 +25,17 @@ const (
 	recentlyActive = 3 * time.Hour
 )
 
+// The response header that reports an entity error of a non-strict
+// PutMetricData, and the one value of it understudy sends.
+const (
+	failureMessageHeader = "X-Amzn-Failure-Message"
+	entitySizeTooLarge   = "EntitySizeTooLarge"
+)
+
 // bindMetrics binds the metric data operations.
 func (s *Service) bindMetrics(b cloudwatchapi.Binder) {
 	b.PutMetricData(s.putMetricData,
-		registry.Partial{Note: "entities are not kept; with StrictEntityValidation false an entity error stores the data without the X-Amzn-Failure-Message header; points are kept until reset, not aged out by resolution"},
+		registry.Partial{Note: "entities are not kept; with StrictEntityValidation false only an over-limit entity count is detected, answered in X-Amzn-Failure-Message, and the other entity errors are not detected; points are kept until reset, not aged out by resolution"},
 		kernel.WithCheck(checkPutMetricData))
 	b.GetMetricData(s.getMetricData,
 		registry.Partial{Note: "MetricStat queries with SampleCount, Average, Sum, Minimum or Maximum; metric math, Metrics Insights and percentiles answer 501; LabelOptions is ignored"},
@@ -79,6 +86,13 @@ func (s *Service) putMetricData(_ context.Context, c *kernel.Call, in *cloudwatc
 	})
 	if err != nil {
 		return nil, err
+	}
+	if len(in.EntityMetricData) > maxEntities {
+		// Only a non-strict request reaches here with too many entities:
+		// the check refuses a strict one. EntitySizeTooLarge is the one
+		// value of the header's enumeration that understudy detects (the
+		// model documentation of PutMetricDataInput$StrictEntityValidation).
+		c.SetSuccessHeader(failureMessageHeader, entitySizeTooLarge)
 	}
 	return &cloudwatchapi.PutMetricDataOutput{}, nil
 }
