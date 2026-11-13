@@ -11,6 +11,19 @@ export function uniq(prefix: string): string {
   return `${prefix}-${runId}-${counter}`.toLowerCase();
 }
 
+/**
+ * Throws unless link's host is localhost, a *.localhost name or a loopback IP,
+ * so a link understudy delivered is never followed off the machine.
+ */
+export function assertLoopbackLink(link: string): void {
+  const refuse = (): never => {
+    throw new Error(`link [${link}] is not on loopback; not following it`);
+  };
+  const host = URL.canParse(link) ? new URL(link).hostname.toLowerCase() : refuse();
+  if (host === "localhost" || host.endsWith(".localhost") || host === "[::1]" || /^127(\.\d{1,3}){3}$/.test(host)) return;
+  refuse();
+}
+
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

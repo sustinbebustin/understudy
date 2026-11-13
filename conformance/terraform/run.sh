@@ -196,10 +196,24 @@ conformance_require_ddb_enabled "$endpoint/_understudy/v1" "$logs_dir/server.log
 # (sns-http-delivery.md 2.3). Its log is logs/sns-receiver.jsonl.
 echo "==> starting the SNS HTTPS receiver on $receiver_url"
 python3 -I - "$run_dir/receiver.pem" "$run_dir/receiver.key" "$receiver_port" "$logs_dir/sns-receiver.jsonl" <<'PY' >"$logs_dir/sns-receiver.log" 2>&1 &
-import http.server, json, ssl, sys, urllib.request
+import http.server, ipaddress, json, ssl, sys, urllib.parse, urllib.request
 
 cert, key, port, log = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def is_loopback(link):
+    """True when the link's host is localhost, a *.localhost name or a loopback IP."""
+    try:
+        host = (urllib.parse.urlsplit(link).hostname or "").lower()
+    except ValueError:
+        return False
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 def note(entry):
@@ -217,6 +231,11 @@ class Hook(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         if kind == "SubscriptionConfirmation":
             link = json.loads(body)["SubscribeURL"]
+            if not is_loopback(link):
+                # Never follow a link off the machine; the missing "confirmed"
+                # entry fails the test, and this log names the link.
+                note({"refused": self.path, "link": link})
+                return
             with opener.open(link, timeout=10) as r:
                 note({"confirmed": self.path, "status": r.status})
 

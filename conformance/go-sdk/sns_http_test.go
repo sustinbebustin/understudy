@@ -4,7 +4,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -69,8 +71,32 @@ func (r *hookReceiver) ofType(typ string) []hookPost {
 	return out
 }
 
+// loopbackOnly refuses any request whose host is not loopback before it is
+// sent, so a wrong link can never leave the machine, an AWS host least of
+// all (8.8). Redirects pass through it too.
+type loopbackOnly struct{ next http.RoundTripper }
+
+func (l loopbackOnly) RoundTrip(req *http.Request) (*http.Response, error) {
+	if !isLoopbackHost(req.URL.Hostname()) {
+		return nil, fmt.Errorf("link [%s] is not on loopback; not following it", req.URL)
+	}
+	return l.next.RoundTrip(req)
+}
+
+// isLoopbackHost reports whether host is localhost, a *.localhost name or a
+// loopback IP.
+func isLoopbackHost(host string) bool {
+	host = strings.ToLower(host)
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 // linkClient follows SNS links: an https link is on understudy's TLS
-// listener, whose certificate run.sh puts in AWS_CA_BUNDLE.
+// listener, whose certificate run.sh puts in AWS_CA_BUNDLE. It refuses a
+// link off loopback.
 func linkClient(t *testing.T) *http.Client {
 	t.Helper()
 	roots, err := x509.SystemCertPool()
@@ -84,7 +110,7 @@ func linkClient(t *testing.T) *http.Client {
 		}
 		roots.AppendCertsFromPEM(pem)
 	}
-	c := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}}
+	c := &http.Client{Timeout: 10 * time.Second, Transport: loopbackOnly{&http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}}}
 	t.Cleanup(c.CloseIdleConnections)
 	return c
 }
