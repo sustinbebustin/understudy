@@ -1187,7 +1187,7 @@ Internal operations:
 | AbortMultipartUpload | partial | inferred, 1 of 4 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
 | CompleteMultipartUpload | partial | inferred, 1 of 9 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error; an identical Complete retried after success answers 200 again while the version it made is its key's current version (inferred: how long AWS honours a retry is unrecorded) |
 | CopyObject | partial | inferred, 5 of 20 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
-| CreateMultipartUpload | partial | inferred, 4 of 15 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
+| CreateMultipartUpload | partial | inferred, 4 of 16 claims | an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented |
 | DeleteBucketOwnershipControls | partial | inferred, 1 of 4 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | DeleteBucketPolicy | partial | inferred, 2 of 5 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated, and Block Public Access is not applied (PutPublicAccessBlock) |
 | DeleteObject | partial | inferred, 1 of 6 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
@@ -2045,7 +2045,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-425 evidence items: 118 aws-recorded, 107 third-party-recorded, 58 aws-doc, 5 sdk-source, 137 inferred.
+428 evidence items: 119 aws-recorded, 109 third-party-recorded, 58 aws-doc, 5 sdk-source, 137 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2092,6 +2092,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | logs.json | `com.amazonaws.cloudwatchlogs#Logs_20140328` | dev.understudy#validationError | testdata/parity/logs/R10/06-10001-events.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#AuthorizationQueryParametersError` |  | testdata/parity/s3/R18/01-presign-expires-minus-1.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#BadDigest` |  | testdata/parity/s3/R08/04-checksum-plus-wrong-content-md5.json (validated 2026-10-14) |
+| aws-recorded | s3.json | `com.amazonaws.s3#CreateMultipartUploadRequest$ChecksumAlgorithm` |  | testdata/parity/s3/R08/08-create-alg-foo.json: an unknown x-amz-checksum-algorithm is 400 InvalidRequest with the unsupported-algorithm text, not the enum's InvalidArgument (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#GetBucketAccelerateConfiguration` |  | testdata/parity/s3/R06/01-get-get-bucket-accelerate-configuration.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#GetBucketAnalyticsConfiguration` |  | testdata/parity/s3/R06/01-get-analytics-nope.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#GetBucketCors` |  | testdata/parity/s3/R06/01-get-get-bucket-cors.json (validated 2026-10-14) |
@@ -2218,6 +2219,8 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | third-party-recorded | s3.json | `com.amazonaws.s3#CreateMultipartUploadRequest$ObjectLockMode` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json L17950: a bad mode with a date on CreateMultipartUpload is InvalidArgument "Unknown wormMode directive." naming x-amz-object-lock-mode (s3-ssec-object-lock.md 6.2) (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#DefaultRetention$Mode` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json L2571: a bad DefaultRetention Mode is MalformedXML (s3-ssec-object-lock.md 5.2) (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#EntityTooSmall` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#Grant$Permission` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2926: an AccessControlPolicy with an unknown Permission is MalformedACLError (validated 2026-02-21) |
+| third-party-recorded | s3.json | `com.amazonaws.s3#Grantee$Type` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2926: an AccessControlPolicy with an unknown Grantee Type is MalformedACLError; the shape is shared with PutBucketLogging's TargetGrant, whose handler keeps the enum's InvalidArgument because AWS's logging answer is unrecorded (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#IllegalLocationConstraintException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json (validated 2026-02-23) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#IllegalVersioningConfigurationException` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_api.snapshot.json (validated 2026-02-21) |
 | third-party-recorded | s3.json | `com.amazonaws.s3#InvalidArgument` |  | https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2880 (validated 2026-02-21) |
