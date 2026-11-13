@@ -71,7 +71,8 @@ const exampleFile = `  {
     "lambda": {
       "network": "auto", "startConcurrency": 16, "maxEnvironments": 64, "idleTimeout": "10m",
       "stateTransitions": "final",
-      "hotReload": [{"function": "worker", "dir": "/abs/path/to/build", "account": "000000000000", "region": "us-east-1"}]
+      "hotReload": [{"function": "worker", "dir": "/abs/path/to/build", "account": "000000000000", "region": "us-east-1"}],
+      "hotReloadRoots": ["/abs/path/to/builds"]
     },
     "sqs": {"queueDeletedRecently": "ignore"},
     "sns": {"httpDelivery": {"allow": ["127.0.0.1:8080"]}},
@@ -93,6 +94,9 @@ const sectionChoices = `
   lambda.stateTransitions    final or clock
   lambda.hotReload           functions whose code is read from a host directory; account and
                              region may be left out
+  lambda.hotReloadRoots      directories a binding made with 'understudy lambda hot-reload'
+                             must resolve under; unset allows any directory the user
+                             running understudy owns. lambda.hotReload is not checked
   sqs.queueDeletedRecently   ignore or enforce
   ses.verifiedIdentities     SES identities that start verified when created, in any account
                              and region: exact addresses (case-sensitive), domains, and
@@ -280,6 +284,7 @@ func serverConfig(cfg config.Config, version string) server.Config {
 	for _, h := range cfg.Lambda.HotReload {
 		s.HotReload = append(s.HotReload, server.HotReload{Account: h.Account.String(), Region: h.Region.String(), Function: h.Function, Dir: h.Dir})
 	}
+	s.HotReloadRoots = cfg.Lambda.HotReloadRoots
 	if cfg.Log.Format == config.LogJSON {
 		s.LogFormat = server.LogJSON
 	}

@@ -325,6 +325,11 @@ type Lambda struct {
 	MaxEnvironments  int
 	StateTransitions StateTransitions
 	HotReload        []HotReload
+	// HotReloadRoots are the absolute directories a hot-reload binding made
+	// through an API must resolve under (lambda.hotReloadRoots); nil, when
+	// the file leaves the key out, confines nothing. Load refuses an empty
+	// list, so a set value always names a directory.
+	HotReloadRoots []string
 }
 
 // LambdaNetwork is how function containers reach understudy.

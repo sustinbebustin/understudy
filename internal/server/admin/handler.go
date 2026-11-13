@@ -85,6 +85,10 @@ type Options struct {
 	// Uptime reports how long the server has run.
 	Uptime func() time.Duration
 
+	// HotReloadRoots are the directories a hot-reload call's directory must
+	// resolve under (lambda.hotReloadRoots); empty confines nothing.
+	HotReloadRoots []string
+
 	Drainer       Drainer
 	Pollers       PollerRearmer
 	HotReloader   HotReloader

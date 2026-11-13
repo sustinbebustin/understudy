@@ -89,6 +89,16 @@ Whatever the list says, understudy never delivers to a name under an AWS domain 
 
 While `--tls` serves, the `SubscribeURL`, `UnsubscribeURL` and `SigningCertURL` an HTTP delivery carries are on `https://localhost:<TLS port>`; otherwise they are on the address the calling client used, unless that address is an AWS name, in which case they are on `localhost` at the port the client used. They never name an AWS host.
 
+## Hot-reload roots
+
+`lambda.hotReloadRoots`, a file key with no flag or variable, lists the directories a binding made through the admin API (`understudy lambda hot-reload`) may come from:
+
+```json
+{"lambda": {"hotReloadRoots": ["/work/src", "/srv/builds"]}}
+```
+
+With the key set, the directory a call names must resolve, after every symbolic link in it and in each root, to one of the roots or a directory below one. Anything else is refused with `invalid_request` on `dir`, naming the setting and the resolved path, and nothing is bound. A link inside a root that leads out of it is judged by where it leads. The other checks still apply: the path is absolute, a directory, and owned by the user understudy runs as. Each entry must be an absolute path, and an empty list is refused; leave the key out to allow any directory that user owns, as `understudy lambda hot-reload` and Testcontainers expect. Bindings declared under `lambda.hotReload` are the operator's own and are not checked. Set it on a host with other local users: see [SECURITY.md](../SECURITY.md).
+
 ## Exit codes
 
 `serve` exits 2 when it refuses a flag, variable or file setting, and 1 when it fails after loading them, such as a port already in use. Every CLI command shares one table, which `understudy --help` prints:
@@ -195,7 +205,8 @@ setting has one; any key may be left out:
     "lambda": {
       "network": "auto", "startConcurrency": 16, "maxEnvironments": 64, "idleTimeout": "10m",
       "stateTransitions": "final",
-      "hotReload": [{"function": "worker", "dir": "/abs/path/to/build", "account": "000000000000", "region": "us-east-1"}]
+      "hotReload": [{"function": "worker", "dir": "/abs/path/to/build", "account": "000000000000", "region": "us-east-1"}],
+      "hotReloadRoots": ["/abs/path/to/builds"]
     },
     "sqs": {"queueDeletedRecently": "ignore"},
     "sns": {"httpDelivery": {"allow": ["127.0.0.1:8080"]}},
@@ -215,6 +226,9 @@ setting has one; any key may be left out:
   lambda.stateTransitions    final or clock
   lambda.hotReload           functions whose code is read from a host directory; account and
                              region may be left out
+  lambda.hotReloadRoots      directories a binding made with 'understudy lambda hot-reload'
+                             must resolve under; unset allows any directory the user
+                             running understudy owns. lambda.hotReload is not checked
   sqs.queueDeletedRecently   ignore or enforce
   ses.verifiedIdentities     SES identities that start verified when created, in any account
                              and region: exact addresses (case-sensitive), domains, and

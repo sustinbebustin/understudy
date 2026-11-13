@@ -83,3 +83,74 @@ func TestHotReloadBindsOnlyDirectoriesTheServerUserOwns(t *testing.T) {
 		}
 	})
 }
+
+// With lambda.hotReloadRoots set, hot reload binds only a directory that,
+// with every link resolved, lies under one of the roots, a root that is
+// itself a link judged by where it leads. A directory elsewhere, or a link
+// inside a root that leads out of it, is refused naming the setting and the
+// resolved path, even though the user understudy runs as owns it: on
+// loopback any local user can call the admin API, so without roots one
+// could bind that user's home directory and read it from a function
+// (SECURITY.md, "Hot-reload bindings").
+func TestHotReloadRootsConfineBindings(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		resolved := func(dir string) string {
+			k.Helper()
+			r, err := filepath.EvalSymlinks(dir)
+			if err != nil {
+				k.Fatal(err)
+			}
+			return r
+		}
+		symlink := func(target, link string) string {
+			k.Helper()
+			if err := os.Symlink(target, link); err != nil {
+				k.Fatal(err)
+			}
+			return link
+		}
+		root := resolved(k.TempDir())
+		outside := resolved(k.TempDir())
+		under := filepath.Join(root, "worker")
+		if err := os.Mkdir(under, 0o700); err != nil {
+			k.Fatal(err)
+		}
+		rootLink := symlink(root, filepath.Join(k.TempDir(), "builds"))
+		hook := &reloads{}
+		h := handlerWith(k, func(o *serveradmin.Options) {
+			o.HotReloader = hook
+			o.HotReloadRoots = []string{rootLink}
+		})
+
+		bound := []struct{ dir, want string }{
+			{under, under},
+			{root, root},
+			{filepath.Join(rootLink, "worker"), under},
+			{symlink(under, filepath.Join(outside, "into-root")), under},
+		}
+		for _, c := range bound {
+			hook.dirs = nil
+			if rec := hotReload(k, h, c.dir); rec.Code != http.StatusNoContent || len(hook.dirs) != 1 || hook.dirs[0] != c.want {
+				k.Errorf("hot reload of %s under a root = %d %s, bound %q; want 204 binding %s", c.dir, rec.Code, rec.Body, hook.dirs, c.want)
+			}
+		}
+
+		hook.dirs = nil
+		refused := []string{outside, symlink(outside, filepath.Join(root, "escape"))}
+		for _, dir := range refused {
+			rec := hotReload(k, h, dir)
+			e := envelope(k, rec)
+			if rec.Code != http.StatusBadRequest || e.Code != admin.InvalidRequest || e.Field != "dir" {
+				k.Errorf("hot reload of %s outside the roots = %d %+v; want 400 on dir", dir, rec.Code, e)
+			}
+			for _, part := range []string{"lambda.hotReloadRoots", outside, "nothing was bound"} {
+				if !strings.Contains(e.Message, part) {
+					k.Errorf("refusal of %s = %q; want it to name %q", dir, e.Message, part)
+				}
+			}
+		}
+		if len(hook.dirs) != 0 {
+			k.Errorf("bound %q; want nothing outside the roots", hook.dirs)
+		}
+	})
+}

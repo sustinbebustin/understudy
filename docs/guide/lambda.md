@@ -302,6 +302,21 @@ The directory holds what the zip would: `handler.py`, or a built `bootstrap`. un
 
 While a binding is active it wins over `UpdateFunctionCode`; the update is stored and the journal says the binding shadows it. When understudy runs in a container, the directory must be given as understudy's own container sees it.
 
+`understudy lambda hot-reload` binds only a directory owned by the user understudy runs as, by its path with every symbolic link resolved. On a host with other local users, also list the directories bindings may come from, since on loopback any of them can call the admin API:
+
+```json
+{"lambda": {"hotReloadRoots": ["/work/src"]}}
+```
+
+A directory that does not resolve under one of them is refused, and nothing is bound:
+
+```console
+$ understudy lambda hot-reload hello /work/private
+understudy lambda hot-reload: /work/private is not under a directory lambda.hotReloadRoots lists (/work/src); nothing was bound; build under one of those directories, add the directory to lambda.hotReloadRoots, or declare the binding under lambda.hotReload in the configuration file
+```
+
+Bindings in `lambda.hotReload` are not checked. See [Hot-reload roots](../configuration.md#hot-reload-roots).
+
 ## Event sources and triggers
 
 - **SQS event source mappings**: batch size, batching window (on the emulator clock), filter criteria, `ReportBatchItemFailures` and redrive to the queue's dead-letter queue after `maxReceiveCount`, as AWS does them.

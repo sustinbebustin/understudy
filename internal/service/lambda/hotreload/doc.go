@@ -1,6 +1,7 @@
 // Package hotreload watches a local directory that a Lambda function's
 // code is overlaid from at the execution layer, invisible to the Lambda
-// control plane (ARCHITECTURE.md 14.4).
+// control plane (ARCHITECTURE.md 14.4), and decides with Bindable which
+// directories a binding made through an API may name.
 //
 // A Watcher polls the tree's file names, sizes, modes and modification
 // times every Interval (300 ms by default) and reports a change once the

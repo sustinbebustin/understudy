@@ -3,19 +3,15 @@ package admin
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io/fs"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/hotreload"
 )
 
 // The hooks below are implemented by the services that own the behavior;
@@ -151,9 +147,10 @@ func (h *Handler) hotReload(w http.ResponseWriter, r *http.Request, args []strin
 		h.fail(w, r, err)
 		return
 	}
-	dir, err := overlayDir(in.Dir)
-	if err != nil {
-		h.fail(w, r, err)
+	// The directory checks and their threat model are hotreload.Bindable's.
+	dir, refusal := hotreload.Bindable(in.Dir, h.o.HotReloadRoots)
+	if refusal != nil {
+		h.fail(w, r, &admin.Error{Code: admin.InvalidRequest, Field: "dir", Message: refusal.Message + "; nothing was bound", Hint: refusal.Hint})
 		return
 	}
 	if err := h.o.HotReloader.HotReload(r.Context(), scope, args[0], dir); err != nil {
@@ -161,58 +158,6 @@ func (h *Handler) hotReload(w http.ResponseWriter, r *http.Request, args []strin
 		return
 	}
 	h.noContent(w)
-}
-
-// overlayDir resolves dir, the directory a hot-reload call names, to the
-// one the function container binds: an absolute path with every symbolic
-// link resolved, to a directory the user understudy runs as owns. On
-// loopback the admin API answers any local user without a token, and the
-// Docker daemon binds the directory into a container that reads it as
-// root, so without the owner check any local user could read a directory
-// only root may, such as /root or /etc, through a function. The resolved
-// path is what is bound, so Docker does not follow a link the caller
-// controls. Bindings declared in the configuration file are the
-// operator's and are not checked here.
-func overlayDir(dir string) (string, *admin.Error) {
-	const nothing = "; nothing was bound"
-	refuse := func(msg, hint string) (string, *admin.Error) {
-		return "", &admin.Error{Code: admin.InvalidRequest, Field: "dir", Message: msg + nothing, Hint: hint}
-	}
-	if !filepath.IsAbs(dir) {
-		return refuse(fmt.Sprintf("%q is not an absolute path", dir), "give the directory's absolute host path, such as $PWD/build")
-	}
-	resolved, err := filepath.EvalSymlinks(dir)
-	if err != nil {
-		return refuse(fmt.Sprintf("%s cannot be resolved on the host: %v", dir, err), "check that the directory exists and that the user understudy runs as can reach it")
-	}
-	named := resolved
-	if resolved != filepath.Clean(dir) {
-		named = fmt.Sprintf("%s (where %s leads)", resolved, dir)
-	}
-	info, err := os.Lstat(resolved)
-	switch {
-	case err != nil:
-		return refuse(fmt.Sprintf("%s cannot be read on the host: %v", named, err), "check that the user understudy runs as can reach the directory")
-	case !info.IsDir():
-		return refuse(named+" is not a directory", "give the directory the function's build writes its code to")
-	}
-	if owner, ok := ownerUID(info); !ok || owner != os.Getuid() {
-		return refuse(
-			fmt.Sprintf("%s is not owned by the user understudy runs as (uid %d): the function container reads the directory as root, so the admin API binds only directories that user owns", named, os.Getuid()),
-			"build into a directory the user running understudy owns, or declare the binding under lambda.hotReload in the configuration file",
-		)
-	}
-	return resolved, nil
-}
-
-// ownerUID is the uid that owns the file info describes; false where the
-// platform reports none.
-func ownerUID(info fs.FileInfo) (int, bool) {
-	st, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return 0, false
-	}
-	return int(st.Uid), true
 }
 
 func (h *Handler) imagePull(w http.ResponseWriter, r *http.Request, _ []string) {

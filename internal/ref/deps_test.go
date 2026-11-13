@@ -277,6 +277,10 @@ func importRules() []importRule {
 			// POST /iam/evaluate asks the enforce.Authorizer and renders its
 			// authz outcomes.
 			"internal/enforce", "internal/authz",
+			// A hot-reload call's directory passes hotreload.Bindable, which
+			// lives with Lambda's hot reload so the Lambda API can apply the
+			// same checks; the package imports only the standard library.
+			"internal/service/lambda/hotreload",
 		}},
 		// Config parses and validates the default account and the regions
 		// through aws, carries the fault rules to preload as fault.Rule, and

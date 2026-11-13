@@ -194,6 +194,25 @@ func (d *draft) applyLambda(l *fileLambda, where string) *Error {
 		}
 		d.cfg.Lambda.HotReload = append(d.cfg.Lambda.HotReload, m)
 	}
+	return d.applyHotReloadRoots(l.HotReloadRoots, where+".hotReloadRoots")
+}
+
+// applyHotReloadRoots reads lambda.hotReloadRoots. An empty list is
+// refused: it would confine every binding to no directory, which leaving
+// the key out does not mean.
+func (d *draft) applyHotReloadRoots(roots *[]string, where string) *Error {
+	if roots == nil {
+		return nil
+	}
+	if len(*roots) == 0 {
+		return &Error{Where: where, Reason: "lists no directory", Hint: "name the directories hot-reload bindings may come from, or remove the key to allow any directory the user running understudy owns"}
+	}
+	for i, root := range *roots {
+		if !filepath.IsAbs(root) {
+			return &Error{Where: where + "[" + strconv.Itoa(i) + "]", Reason: quote(root) + " is not an absolute path", Hint: "write the directory's absolute host path"}
+		}
+		d.cfg.Lambda.HotReloadRoots = append(d.cfg.Lambda.HotReloadRoots, filepath.Clean(root))
+	}
 	return nil
 }
 

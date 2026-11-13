@@ -250,6 +250,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		Uptime:           clk.Stopwatch(),
 		Components:       components{host: w.host, local: w.local},
 		Log:              log,
+		HotReloadRoots:   cfg.HotReloadRoots,
 
 		Drainer:       w.lambda,
 		Pollers:       w.lambda,

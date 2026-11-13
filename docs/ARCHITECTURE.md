@@ -1536,7 +1536,7 @@ type Config struct {
 	Regions     []aws.Region   // additions to the real-name table
 	Docker      Docker         // DockerSocket{Path} | DockerTCP{Addr} | DockerTLS{Addr, CertDir} | DockerDisabled
 	S3          S3             // BaseDomains (localhost.localstack.cloud may be added); CrossRegion: AWS | Lenient
-	Lambda      Lambda         // Network: Auto | Bridge{Gateway} | Disabled; StartConcurrency; IdleTimeout; MaxEnvironments; StateTransitions; HotReload
+	Lambda      Lambda         // Network: Auto | Bridge{Gateway} | Disabled; StartConcurrency; IdleTimeout; MaxEnvironments; StateTransitions; HotReload; HotReloadRoots
 	SQS         SQS            // DeletedRecently: Ignore | Enforce
 	SNS         SNS            // HTTPDelivery: Allow (egress allow-list), CABundle
 	SES         SES            // VerifiedIdentities; ProductionAccess
