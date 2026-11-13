@@ -174,6 +174,14 @@ aws lambda invoke --function-name layered out.json && cat out.json
 
 understudy sets `AWS_ENDPOINT_URL` in the function's environment to an address the container can reach, and mints execution-role credentials for the function's role. An SDK built with default configuration therefore calls understudy, as that role, with no code change. Those calls appear in [the journal](journal.md) under the invocation that made them, and in the role's [generated policy](policy.md).
 
+understudy links a call to its invocation by the credentials it minted, so a function whose configuration sets its own credentials, such as `AWS_ACCESS_KEY_ID=test`, makes calls that are served as usual but root traces of their own. Where understudy sees the function container's own address on the call, it journals an `unminted-credentials` advisory naming the function for each such call:
+
+```sh
+understudy journal --kind advisory
+```
+
+That is the Linux bridge network and understudy running in a container ([Networking](#networking)). On Docker Desktop and with a remote daemon the call arrives from another address, and nothing is journaled. Remove the static credentials from the function's environment to link its calls again.
+
 ## Invoking
 
 - `RequestResponse` (the default), `Event` and `DryRun` work. Event invocations queue on the emulator clock and retry function errors after 60 s and 120 s of emulator time, as AWS does.

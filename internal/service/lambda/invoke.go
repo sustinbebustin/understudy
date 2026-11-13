@@ -313,9 +313,11 @@ func (x *Execution) Drain(ctx context.Context, scope kernel.ResetScope) error {
 
 // Link links a call made with an environment's minted credentials to the
 // invocation the environment runs, init phase included; calls between
-// invocations link to nothing.
-func (x *Execution) Link(p identity.Principal, _ netip.AddrPort) (ref.Cause, bool) {
-	return x.envs.link(p)
+// invocations link to nothing. A call from an environment's container
+// with credentials no environment minted is Unminted, on the topologies
+// where the remote address is the container's own (ARCHITECTURE.md 10).
+func (x *Execution) Link(p identity.Principal, remote netip.AddrPort) kernel.Link {
+	return x.envs.link(p, remote)
 }
 
 // target is the function version an invocation runs, read from the state
@@ -717,6 +719,7 @@ func (x *Execution) lease(ctx context.Context, r *run, fn fnVersion) (leased, *a
 	if l.cold {
 		l.init = started()
 		s.env, s.stream = env, x.openStream(env, t, spec.LogGroup) //nolint:contextcheck // the stream's follower outlives the invocation and ends at Close
+		x.envs.locate(s, env)
 	}
 	return l, nil
 }

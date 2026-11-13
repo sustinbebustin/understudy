@@ -91,12 +91,12 @@ type linkTo struct {
 	x  *lambda.Execution
 }
 
-func (l *linkTo) Link(p identity.Principal, remote netip.AddrPort) (ref.Cause, bool) {
+func (l *linkTo) Link(p identity.Principal, remote netip.AddrPort) kernel.Link {
 	l.mu.Lock()
 	x := l.x
 	l.mu.Unlock()
 	if x == nil {
-		return ref.Cause{}, false
+		return kernel.Unlinked{}
 	}
 	return x.Link(p, remote)
 }
@@ -915,8 +915,96 @@ func TestCallsWithTheEnvironmentsKeyLinkToTheInvocation(t *testing.T) {
 		if got := gets[1].Cause; got.Parent != 0 {
 			t.Errorf("the call between invocations has cause %+v, want none: it roots its own trace", got)
 		}
-		if _, ok := h.x.Link(identity.Root{Account: h.Scope.Account}, netip.AddrPort{}); ok {
-			t.Error("Link linked a principal that is no environment's")
+		if got := h.x.Link(identity.Root{Account: h.Scope.Account}, netip.AddrPort{}); got != (kernel.Unlinked{}) {
+			t.Errorf("Link of a principal that is no environment's = %#v, want Unlinked", got)
+		}
+	})
+}
+
+// A call from an execution environment's container that carries
+// credentials no environment minted, as when a function's configuration
+// sets AWS_ACCESS_KEY_ID=test, journals one unminted-credentials Advisory
+// naming the function, during an invocation and between invocations, and
+// otherwise proceeds unlinked, rooting its own trace (ARCHITECTURE.md 10).
+// Minted credentials from the same address link to the invocation with no
+// advisory, and unminted ones from an address no environment holds journal
+// nothing.
+func TestCallsFromAFunctionContainerWithUnmintedCredentialsJournalAnAdvisory(t *testing.T) {
+	s := newScript()
+	runLinkedExec(t, s.handle, func(h *execHarness) {
+		h.createFunction("fn")
+		get := func(key string, from netip.Addr) *awserr.Error {
+			p, _ := h.Identity.Resolve(key)
+			c := h.Kernel.NewCall(kernel.ExternalCall{
+				RequestID: h.Kernel.IDs().RequestID(),
+				Operation: lambdaapi.OpGetFunction.Descriptor().ID,
+				Scope:     h.Scope,
+				Principal: p,
+				Origin:    ref.External{Protocol: ref.RESTJSON1, Listener: ref.ListenerContainer, RemoteAddr: netip.AddrPortFrom(from, 41000)},
+				Admitted:  h.Clock.Now(),
+				Endpoint:  h.Endpoint,
+			})
+			_, err := kerneltest.Dispatch[lambdaapi.GetFunctionInput, lambdaapi.GetFunctionOutput](h.Context(), h.K, c, &lambdaapi.GetFunctionInput{FunctionName: "fn"})
+			return err
+		}
+		var container netip.Addr
+		during := make(chan []*awserr.Error, 1)
+		s.setDuring(func(runtimeapi.Invocation) {
+			started := h.launcher.Started()[0]
+			container = started.Container.Addr
+			minted := get(string(started.Spec.Credentials.AccessKeyID), container)
+			during <- []*awserr.Error{minted, get("test", container)}
+		})
+		h.invoke(invokeInput("fn", `{}`))
+		s.setDuring(nil)
+		errs := <-during
+		if !container.IsValid() {
+			t.Fatal("the fake launcher gave the environment's container no address")
+		}
+		errs = append(errs, get("test", container), get("test", netip.MustParseAddr("172.17.99.99")))
+		for i, err := range errs {
+			if err != nil {
+				t.Fatalf("GetFunction %d: %s %s; an advisory must not change the call", i, err.ID.Shape.Name(), err.Message)
+			}
+		}
+		invoke := h.Journal.Query(journal.Filter{Kind: journal.KindAPICall, Operation: lambdaapi.OpInvoke.Descriptor().ID}).Events
+		gets := h.Journal.Query(journal.Filter{Kind: journal.KindAPICall, Operation: lambdaapi.OpGetFunction.Descriptor().ID}).Events
+		if len(invoke) != 1 || len(gets) != 4 {
+			t.Fatalf("journal holds %d Invoke and %d GetFunction calls, want 1 and 4", len(invoke), len(gets))
+		}
+		if got := gets[0].Cause.Parent; got != invoke[0].ID {
+			t.Errorf("the minted call's parent = %d, want the Invoke call's event %d", got, invoke[0].ID)
+		}
+		for _, g := range gets[1:] {
+			if g.Cause.Parent != 0 {
+				t.Errorf("an unminted call has cause %+v, want none: it roots its own trace", g.Cause)
+			}
+		}
+		advisories := h.Journal.Query(journal.Filter{Kind: journal.KindAdvisory, Limit: 100}).Events
+		if len(advisories) != 2 {
+			t.Fatalf("journal holds %d advisories, want 2, one for each unminted call from the container: %+v", len(advisories), advisories)
+		}
+		function := "arn:aws:lambda:" + h.Scope.Region.String() + ":" + h.Scope.Account.String() + ":function:fn"
+		for i, adv := range advisories {
+			a, ok := adv.Detail.(journal.Advisory)
+			if !ok || a.Kind != journal.AdvisoryUnmintedCredentials || a.Resource.String() != function || !strings.Contains(a.Text, "AWS_ACCESS_KEY_ID") {
+				t.Errorf("advisory %d = %+v, want unminted-credentials naming %s and AWS_ACCESS_KEY_ID", i, adv.Detail, function)
+			}
+			if want := gets[i+1].ID; adv.Cause.Parent != want {
+				t.Errorf("advisory %d is caused by event %d, want the unminted call's event %d", i, adv.Cause.Parent, want)
+			}
+			if adv.Scope != h.Scope {
+				t.Errorf("advisory %d scope = %+v, want the function's %+v", i, adv.Scope, h.Scope)
+			}
+		}
+		// A removed container's address goes back to the daemon, which may
+		// hand it to a container that is no function's.
+		h.drainAll()
+		if err := get("test", container); err != nil {
+			t.Fatalf("GetFunction after the drain: %s %s", err.ID.Shape.Name(), err.Message)
+		}
+		if n := len(h.Journal.Query(journal.Filter{Kind: journal.KindAdvisory, Limit: 100}).Events); n != 2 {
+			t.Errorf("journal holds %d advisories after a call from a removed container's address, want still 2", n)
 		}
 	})
 }

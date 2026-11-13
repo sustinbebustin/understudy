@@ -134,12 +134,12 @@ type linker struct {
 	x  *lambda.Execution
 }
 
-func (l *linker) Link(p identity.Principal, remote netip.AddrPort) (ref.Cause, bool) {
+func (l *linker) Link(p identity.Principal, remote netip.AddrPort) kernel.Link {
 	l.mu.Lock()
 	x := l.x
 	l.mu.Unlock()
 	if x == nil {
-		return ref.Cause{}, false
+		return kernel.Unlinked{}
 	}
 	return x.Link(p, remote)
 }

@@ -9,6 +9,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"net"
+	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -89,6 +93,9 @@ type dockerStack struct {
 	x     *lambda.Execution
 	logs  *logSink
 	scope aws.Scope
+	// top is the detected topology the launcher and the runtime API
+	// were built for.
+	top topology.Topology
 }
 
 func randomID(t *testing.T) string {
@@ -221,6 +228,7 @@ func newDockerStack(t *testing.T, extra ...stackServices) *dockerStack {
 	return &dockerStack{
 		k: k, clock: clk, x: x, logs: logs,
 		scope: aws.Scope{Partition: aws.PartitionAWS(), Account: aws.DefaultAccount(), Region: aws.DefaultRegion()},
+		top:   top,
 	}
 }
 
@@ -459,6 +467,107 @@ func TestDockerDeadlineIgnoresTheEmulatorClock(t *testing.T) {
 		// 2026-11-06), so a few milliseconds above the timeout are skew.
 		if d := 3*time.Second - time.Duration(remaining)*time.Millisecond; !ok || d < -50*time.Millisecond || d > 100*time.Millisecond {
 			t.Errorf("invocation %d: get_remaining_time_in_millis() = %v, want within 100 ms of 3 s", i, remaining)
+		}
+	}
+}
+
+// callerRuntime is a custom runtime that, in each invocation, calls the
+// server at $CALLS twice, as function code calling understudy would: once
+// with the environment's minted access key and once with the static key
+// "test" a function's configuration might set; X-Key carries the key.
+const callerRuntime = `#!/bin/sh
+set -eu
+API="http://${AWS_LAMBDA_RUNTIME_API}/2018-06-01/runtime"
+while true; do
+  HEADERS=$(mktemp)
+  curl -sS -D "$HEADERS" -o /dev/null "$API/invocation/next"
+  ID=$(grep -i '^Lambda-Runtime-Aws-Request-Id:' "$HEADERS" | tr -d '\r' | cut -d' ' -f2)
+  MINTED=$(curl -sS -o /dev/null -w '%{http_code}' -H "X-Key: $AWS_ACCESS_KEY_ID" "http://$CALLS/")
+  FOREIGN=$(curl -sS -o /dev/null -w '%{http_code}' -H "X-Key: test" "http://$CALLS/")
+  curl -sS -X POST "$API/invocation/$ID/response" -d "{\"minted\":$MINTED,\"foreign\":$FOREIGN}" >/dev/null
+done
+`
+
+// A real function container's calls reach understudy from the address
+// the launcher recorded for its environment on the topologies where that
+// is the peer address (Linux bridge, in a container), so the call with
+// the static key journals one unminted-credentials Advisory naming the
+// function, and the call with the minted key links to the Invoke. On the
+// other topologies neither call journals one (ARCHITECTURE.md 10).
+func TestDockerCallsWithUnmintedCredentialsFromAFunctionContainerJournalAnAdvisory(t *testing.T) {
+	s := newDockerStack(t)
+	addrs, err := s.top.Addresses()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := 0
+	switch s.top.(type) {
+	case topology.LinuxBridge, topology.InContainer:
+		want = 1
+	}
+	ln, err := net.Listen("tcp", netip.AddrPortFrom(addrs.ListenerBind, 0).String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The handler serves each call as the edge does: the principal its key
+	// resolves to and the connection's remote address.
+	srv := &http.Server{ReadHeaderTimeout: time.Minute, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		remote, _ := netip.ParseAddrPort(r.RemoteAddr) //nolint:errcheck // the edge journals a malformed remote address as the zero address too
+		p, _ := s.k.Identity().Resolve(r.Header.Get("X-Key"))
+		c := s.k.NewCall(kernel.ExternalCall{
+			RequestID: s.k.IDs().RequestID(),
+			Operation: lambdaapi.OpGetFunction.Descriptor().ID,
+			Scope:     s.scope,
+			Principal: p,
+			Origin:    ref.External{Protocol: ref.RESTJSON1, Listener: ref.ListenerContainer, RemoteAddr: remote},
+			Admitted:  s.clock.Now(),
+			Endpoint:  kernel.Endpoint{Scheme: "http", Host: r.Host},
+		})
+		if _, ok := s.k.Dispatch(r.Context(), c, kernel.Ok{In: &lambdaapi.GetFunctionInput{FunctionName: "caller"}}).(kernel.Output); !ok {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	})}
+	served := make(chan error, 1)
+	go func() { served <- srv.Serve(ln) }()
+	t.Cleanup(func() {
+		if err := srv.Close(); err != nil {
+			t.Errorf("close the caller server: %v", err)
+		}
+		if err := <-served; !errors.Is(err, http.ErrServerClosed) {
+			t.Errorf("caller server: %v", err)
+		}
+	})
+	mustDispatch(t, s, lambdaapi.OpCreateFunction, &lambdaapi.CreateFunctionInput{
+		FunctionName: "caller",
+		Role:         role,
+		Runtime:      new(lambdaapi.RuntimeProvidedal2023),
+		Handler:      new("bootstrap"),
+		Code:         lambdaapi.FunctionCode{ZipFile: zipFiles(t, map[string]string{"bootstrap": callerRuntime})},
+		MemorySize:   new(int32(128)),
+		Timeout:      new(int32(30)),
+		PackageType:  new(lambdaapi.PackageTypeZip),
+		Environment:  &lambdaapi.Environment{Variables: map[string]string{"CALLS": ln.Addr().String()}},
+	})
+	if got := result(t, s.invoke(t, "caller", `{}`)); got["minted"] != 200.0 || got["foreign"] != 200.0 {
+		t.Fatalf("the function's calls answered %v, want 200 to both: an advisory must not change the call", got)
+	}
+	j := s.k.Journal()
+	invoke := j.Query(journal.Filter{Kind: journal.KindAPICall, Operation: lambdaapi.OpInvoke.Descriptor().ID}).Events
+	gets := j.Query(journal.Filter{Kind: journal.KindAPICall, Operation: lambdaapi.OpGetFunction.Descriptor().ID}).Events
+	if len(invoke) != 1 || len(gets) != 2 {
+		t.Fatalf("journal holds %d Invoke and %d GetFunction calls, want 1 and 2", len(invoke), len(gets))
+	}
+	if gets[0].Cause.Parent != invoke[0].ID {
+		t.Errorf("the minted call's parent = %d, want the Invoke call's event %d", gets[0].Cause.Parent, invoke[0].ID)
+	}
+	advisories := j.Query(journal.Filter{Kind: journal.KindAdvisory, Limit: 100}).Events
+	if len(advisories) != want {
+		t.Fatalf("on %s the journal holds %d advisories, want %d: %+v", s.top, len(advisories), want, advisories)
+	}
+	function := "arn:aws:lambda:" + s.scope.Region.String() + ":" + s.scope.Account.String() + ":function:caller"
+	for _, adv := range advisories {
+		if a, ok := adv.Detail.(journal.Advisory); !ok || a.Kind != journal.AdvisoryUnmintedCredentials || a.Resource.String() != function || adv.Cause.Parent != gets[1].ID {
+			t.Errorf("advisory = %+v caused by %d, want unminted-credentials naming %s caused by the static-key call %d", adv.Detail, adv.Cause.Parent, function, gets[1].ID)
 		}
 	}
 }

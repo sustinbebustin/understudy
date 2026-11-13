@@ -51,6 +51,9 @@ type Call struct {
 	label string
 	event ref.EventID
 	cause ref.Cause
+	// link is what the Linker found about an external call; nil for every
+	// other call and without a Linker.
+	link Link
 	// links are the related events an internal call's Target named; the
 	// call's journal event carries them.
 	links []ref.EventID
@@ -368,7 +371,9 @@ type ExternalCall struct {
 
 // NewCall builds the Call of an external request. When a Linker ties the
 // principal to a running invocation, the call becomes that invocation's
-// child; otherwise it roots its own trace.
+// child; otherwise it roots its own trace, and when the Linker finds it
+// came from a function container with unminted credentials, journal begin
+// journals an Advisory it causes.
 func (k *Kernel) NewCall(e ExternalCall) *Call {
 	op, _ := k.reg.Operation(e.Operation)
 	kept := http.Header{}
@@ -400,8 +405,9 @@ func (k *Kernel) NewCall(e ExternalCall) *Call {
 		elapsed:   k.clock.Stopwatch(),
 	}
 	if k.linker != nil {
-		if cause, ok := k.linker.Link(e.Principal, e.Origin.RemoteAddr); ok {
-			c.cause = cause
+		c.link = k.linker.Link(e.Principal, e.Origin.RemoteAddr)
+		if l, ok := c.link.(Linked); ok {
+			c.cause = l.Cause
 		}
 	}
 	return c

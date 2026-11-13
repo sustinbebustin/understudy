@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"net/netip"
 	"runtime"
 	"slices"
 	"strings"
@@ -63,6 +64,7 @@ type generations struct {
 // makes names the invocation (ARCHITECTURE.md 10).
 type slot struct {
 	id    identity.EnvID
+	fn    fnVersion
 	creds launcher.Credentials
 	// trees are the code store trees the slot's environments mount, held
 	// from mint to revocation: the extracted package (none for an overlay
@@ -79,6 +81,17 @@ type slot struct {
 	// stream its log stream; a lease of another environment is a cold start.
 	env    *pool.Env
 	stream *logStream
+	// addr is the address byAddr holds the slot under, guarded by the
+	// environments' lock; the zero Addr when it holds none.
+	addr netip.Addr
+}
+
+// located is the slot whose environment runs in the container at an
+// address, and that environment, whose state tells whether the container
+// still holds the address.
+type located struct {
+	slot *slot
+	env  *pool.Env
 }
 
 // versionSlots are the slots of one function version's current generation.
@@ -117,11 +130,17 @@ type environments struct {
 	mu       sync.Mutex
 	versions map[fnVersion]*versionSlots
 	byID     map[identity.EnvID]*slot
-	serial   uint64
+	// byAddr finds a slot by its container's address, on the topologies
+	// where that is the peer address of the container's calls.
+	byAddr map[netip.Addr]located
+	serial uint64
 }
 
 func newEnvironments(store *identity.Store, clk *clock.Clock, trees *codeTrees) *environments {
-	return &environments{identity: store, clock: clk, trees: trees, versions: map[fnVersion]*versionSlots{}, byID: map[identity.EnvID]*slot{}}
+	return &environments{
+		identity: store, clock: clk, trees: trees,
+		versions: map[fnVersion]*versionSlots{}, byID: map[identity.EnvID]*slot{}, byAddr: map[netip.Addr]located{},
+	}
 }
 
 // lease takes a free slot of v's current generation for an invocation,
@@ -169,25 +188,72 @@ func (e *environments) release(s *slot) {
 	}
 }
 
-// link returns the cause of the invocation the environment whose
-// credentials p resolved from is running, and false for any other
-// principal or an environment between invocations.
-func (e *environments) link(p identity.Principal) (ref.Cause, bool) {
-	role, ok := p.(identity.AssumedRole)
-	if !ok {
-		return ref.Cause{}, false
+// link links a call made with the credentials of the environment p
+// resolved from to the invocation it is running, and to nothing between
+// invocations. A call with credentials no environment minted from the
+// address of an environment's live container is Unminted, naming the
+// environment's function; an unsigned call carries no credentials, so it
+// is Unlinked wherever it comes from.
+func (e *environments) link(p identity.Principal, remote netip.AddrPort) kernel.Link {
+	if src, ok := mintedFor(p); ok {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		s, ok := e.byID[src.Env]
+		if !ok || s.running == nil {
+			return kernel.Unlinked{}
+		}
+		return kernel.Linked{Cause: *s.running}
 	}
-	src, ok := role.Source.(identity.FromExecutionEnvironment)
-	if !ok {
-		return ref.Cause{}, false
+	if _, unsigned := p.(identity.Anonymous); unsigned {
+		return kernel.Unlinked{}
 	}
 	e.mu.Lock()
-	defer e.mu.Unlock()
-	s, ok := e.byID[src.Env]
-	if !ok || s.running == nil {
-		return ref.Cause{}, false
+	at, ok := e.byAddr[remote.Addr().Unmap()]
+	e.mu.Unlock()
+	if !ok {
+		return kernel.Unlinked{}
 	}
-	return *s.running, true
+	// A removed container gave its address back to the daemon, which may
+	// have handed it to a container that is no function's.
+	if _, gone := at.env.State().(pool.Gone); gone {
+		return kernel.Unlinked{}
+	}
+	return kernel.Unminted{Scope: at.slot.fn.scope, Function: at.slot.fn.arn()}
+}
+
+// mintedFor reports the environment whose minted credentials p resolved
+// from.
+func mintedFor(p identity.Principal) (identity.FromExecutionEnvironment, bool) {
+	role, ok := p.(identity.AssumedRole)
+	if !ok {
+		return identity.FromExecutionEnvironment{}, false
+	}
+	src, ok := role.Source.(identity.FromExecutionEnvironment)
+	return src, ok
+}
+
+// locate records that s's environment runs in env's container, so a call
+// from the container's address finds s; a container without an address
+// is found by nothing.
+func (e *environments) locate(s *slot, env *pool.Env) {
+	addr := env.Container().Addr
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.unlocateLocked(s)
+	if !addr.IsValid() {
+		return
+	}
+	s.addr = addr
+	e.byAddr[addr] = located{slot: s, env: env}
+}
+
+// unlocateLocked forgets s's container address, unless a newer container
+// of another slot holds it now. Callers hold e.mu.
+func (e *environments) unlocateLocked(s *slot) {
+	if at, ok := e.byAddr[s.addr]; ok && at.slot == s {
+		delete(e.byAddr, s.addr)
+	}
+	s.addr = netip.Addr{}
 }
 
 // drop retires the slots of the function versions in scope and returns
@@ -226,6 +292,7 @@ func (e *environments) retireLocked(vs *versionSlots) {
 func (e *environments) revokeLocked(s *slot) {
 	e.identity.Revoke(string(s.creds.AccessKeyID))
 	delete(e.byID, s.id)
+	e.unlocateLocked(s)
 	for _, t := range s.trees {
 		e.trees.unhold(t)
 	}
@@ -254,7 +321,7 @@ func (e *environments) mintLocked(v fnVersion, role aws.ARN, trees []treeKey) (*
 	if tmp, ok := creds.Lifetime.(identity.Temporary); ok {
 		token = tmp.SessionToken
 	}
-	s := &slot{id: id, trees: trees, creds: launcher.Credentials{AccessKeyID: creds.AccessKeyID, SecretAccessKey: creds.SecretAccessKey, SessionToken: token}}
+	s := &slot{id: id, fn: v, trees: trees, creds: launcher.Credentials{AccessKeyID: creds.AccessKeyID, SecretAccessKey: creds.SecretAccessKey, SessionToken: token}}
 	e.byID[id] = s
 	for _, t := range trees {
 		e.trees.hold(t)
@@ -270,6 +337,7 @@ func (e *environments) revokeAll() {
 		e.identity.Revoke(string(s.creds.AccessKeyID))
 	}
 	clear(e.byID)
+	clear(e.byAddr)
 	clear(e.versions)
 }
 

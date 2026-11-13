@@ -226,6 +226,39 @@ func TestStartDefaultsTheEndpointToTheTopologyAddress(t *testing.T) {
 	}
 }
 
+// A started container carries its address where understudy sees it as
+// the peer of the container's calls: on Linux bridge, the default bridge's
+// address, and inside a container, the address on understudy's network,
+// since neither path is translated. Docker Desktop forwards the calls to
+// the host's loopback and a remote daemon's host translates them, so
+// there the container has no address (ARCHITECTURE.md 10).
+func TestStartGivesTheContainerItsAddressWhereItIsThePeerAddress(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		top  topology.Topology
+		want netip.Addr
+	}{
+		{"Linux bridge", bridge(), netip.MustParseAddr("172.17.0.2")},
+		{"in a container", topology.InContainer{Network: "understudy-net", Self: netip.MustParseAddr("172.18.0.100")}, netip.MustParseAddr("172.18.0.2")},
+		{"Docker Desktop", topology.DockerDesktop{}, netip.Addr{}},
+		{"remote daemon", topology.Remote{Daemon: netip.MustParseAddr("172.30.0.3"), Self: netip.MustParseAddr("172.30.0.2")}, netip.Addr{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newDaemon(t)
+			if _, err := d.Client(t).NetworkCreate(t.Context(), "understudy-net", docker.NetworkOptions{}); err != nil {
+				t.Fatal(err)
+			}
+			c, err := newLauncher(t, d, tc.top).Start(t.Context(), spec(t), slot())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.Addr != tc.want {
+				t.Errorf("container address = %v, want %v", c.Addr, tc.want)
+			}
+		})
+	}
+}
+
 func TestStartInsideAContainerCopiesTheCodeAndJoinsUnderstudysNetwork(t *testing.T) {
 	d := newDaemon(t)
 	if _, err := d.Client(t).NetworkCreate(t.Context(), "understudy-net", docker.NetworkOptions{}); err != nil {

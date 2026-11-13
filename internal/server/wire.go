@@ -835,10 +835,10 @@ type deferredLinker struct {
 
 // Link links through the execution layer, and to nothing before it is
 // set.
-func (d *deferredLinker) Link(p identity.Principal, remote netip.AddrPort) (ref.Cause, bool) {
+func (d *deferredLinker) Link(p identity.Principal, remote netip.AddrPort) kernel.Link {
 	x := d.x.Load()
 	if x == nil {
-		return ref.Cause{}, false
+		return kernel.Unlinked{}
 	}
 	return x.Link(p, remote)
 }

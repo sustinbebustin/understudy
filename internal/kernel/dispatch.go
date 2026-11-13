@@ -318,6 +318,9 @@ func (k *Kernel) begin(ctx context.Context, c *Call, d Decoded, bnd *binding) {
 	if c.cause.Trace == 0 && c.cause.Parent == 0 {
 		c.cause.Trace = id
 	}
+	if u, ok := c.link.(Unminted); ok {
+		c.Record(ctx, u.Scope, u.advisory())
+	}
 }
 
 // redacted renders the input for the journal through the generated Redact.
