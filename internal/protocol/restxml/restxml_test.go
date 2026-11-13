@@ -316,6 +316,24 @@ func TestArgumentTexts(t *testing.T) {
 	if got, want := restxml.S3Dialect(invalidArgument()).ArgumentTexts[retainUntil], "The retain until date must be provided in ISO 8601 format"; got != want {
 		t.Errorf("S3Dialect ArgumentTexts[%s] = %q, want %q", retainUntil, got, want)
 	}
+	// S3 answers a max-keys that is not an int32 with its own text
+	// (testdata/parity/s3/R12/05-list-max-keys-abc.json; out-of-range
+	// values share the text per the same message, and ListObjects and
+	// ListObjectVersions read max-keys alike, inferred).
+	const maxKeys = "max-keys"
+	if got, want := restxml.S3Dialect(invalidArgument()).ArgumentTexts[maxKeys], "Provided max-keys not an integer or within integer range"; got != want {
+		t.Errorf("S3Dialect ArgumentTexts[%s] = %q, want %q", maxKeys, got, want)
+	}
+	lo := op(s3(), "ListObjectsV2", http.MethodGet, "/{Bucket}?list-type=2", listIn, listOut)
+	s3Codec := restxml.Codec{Dialect: func(ref.ServiceID) restxml.Dialect { return restxml.S3Dialect(invalidArgument()) }}
+	for _, sent := range []string{"abc", "2147483648"} {
+		r := newRequest(http.MethodGet, "/b?list-type=2&max-keys="+sent, "", nil)
+		err := s3Codec.Decode(r, lo, edgeBody{r}, &listInput{})
+		fields := []awserr.Field{{Name: "ArgumentName", Value: maxKeys}, {Name: "ArgumentValue", Value: sent}}
+		if err == nil || err.ID.QueryCode != "InvalidArgument" || err.Message != "Provided max-keys not an integer or within integer range" || !reflect.DeepEqual(err.Fields, fields) {
+			t.Errorf("max-keys=%s: %+v", sent, err)
+		}
+	}
 	o := op(s3(), "CompleteMultipartUpload", http.MethodPost, "/{Bucket}/{Key+}", completeIn, nil)
 	named := restxml.Codec{Dialect: func(ref.ServiceID) restxml.Dialect {
 		d := restxml.S3Dialect(invalidArgument())

@@ -207,7 +207,7 @@ An error occurred (AccessDenied) when calling the DeleteObject operation: Access
 ```
 
 - **Refused deletes:** until the clock reaches the date, the versioned delete fails with 403 `AccessDenied`, as above. A delete without `--version-id` succeeds, because it only adds a delete marker.
-- **Bypass:** `--bypass-governance-retention` lifts GOVERNANCE retention but never COMPLIANCE retention. understudy does not evaluate `s3:BypassGovernanceRetention` ([differences](differences.md#s3)).
+- **Bypass:** `--bypass-governance-retention` lifts GOVERNANCE retention but never COMPLIANCE retention. understudy makes no separate bypass decision: the header alone bypasses once the call is admitted, and under `--iam-enforce enforce` a principal denied `s3:BypassGovernanceRetention` is refused the whole call ([differences](differences.md#s3)).
 - **Legal holds:** `put-object-legal-hold --legal-hold Status=ON` blocks deletes, bypass or not, until the hold is set to `OFF`.
 - **Default retention:** a bucket default from `put-object-lock-configuration` dates each new version from its creation. A `put-object` into such a bucket needs `Content-MD5` or a checksum, which the AWS CLI and current SDKs send by default.
 - **Reset:** `understudy reset` drops locked versions along with everything else, so COMPLIANCE retention never outlives a test run.

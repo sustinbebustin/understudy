@@ -828,7 +828,7 @@ func TestPutObjectRefusals(t *testing.T) {
 			{
 				name: "KMS key id without aws:kms", in: s3api.PutObjectInput{SSEKMSKeyId: new("alias/x")},
 				code: "InvalidArgument", status: http.StatusBadRequest,
-				fields: map[string]string{"ArgumentName": "x-amz-server-side-encryption", "ArgumentValue": "AES256"},
+				fields: map[string]string{"ArgumentName": "x-amz-server-side-encryption"},
 			},
 			{
 				name: "aws:fsx encryption", in: s3api.PutObjectInput{ServerSideEncryption: new(s3api.ServerSideEncryptionAwsFsx)},
@@ -935,7 +935,12 @@ func TestKMSKeyIDNeedsKMSOnAKMSDefaultBucket(t *testing.T) {
 		named := ok(h, who{}, kmsapi.OpCreateKey, &kmsapi.CreateKeyInput{}).KeyMetadata.KeyId
 		_, err := as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: "kms-default", Key: "k", SSEKMSKeyId: new(named), Body: &body{r: unreadable{t: h.T}, n: 1}})
 		wantCode(t, err, "InvalidArgument", http.StatusBadRequest)
-		wantFields(t, err, map[string]string{"ArgumentName": "x-amz-server-side-encryption", "ArgumentValue": "aws:kms"})
+		// No header was sent, so no ArgumentValue, not even the bucket's
+		// default (testdata/parity/s3/R15/x-kms-key-id-without-aws-kms.json).
+		wantFields(t, err, map[string]string{"ArgumentName": "x-amz-server-side-encryption"})
+		if slices.ContainsFunc(err.Fields, func(f awserr.Field) bool { return f.Name == "ArgumentValue" }) {
+			t.Errorf("fields %v, want no ArgumentValue", err.Fields)
+		}
 		_, err = as(h, who{}, s3api.OpCopyObject, &s3api.CopyObjectInput{Bucket: "kms-default", Key: "k", CopySource: "kms-default/source", SSEKMSKeyId: new(named)})
 		wantCode(t, err, "InvalidArgument", http.StatusBadRequest)
 		if _, err := as(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "kms-default", Key: "k"}); err == nil {

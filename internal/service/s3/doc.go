@@ -43,12 +43,24 @@
 //   - PermanentRedirect's Endpoint is the request's host with the region
 //     label after the bucket's own labels replaced by the bucket's, port
 //     kept.
-//   - Every error read, change and DeleteBucket answer about an existing
-//     bucket carries x-amz-bucket-region; the error builders leave it out.
-//     This narrows ARCHITECTURE.md 7, which has S3 always set the header
-//     for a request that asserts no region: a success carries it only
-//     where the operation's output models it (HeadBucket), since a
-//     handler cannot add a header to a modeled success response.
+//   - x-amz-bucket-region goes on HeadBucket, on every ListObjectsV2
+//     answer, on the cross-region refusals, and on every error about an
+//     existing bucket to a request that asserts no region, and nowhere
+//     else (ADR 0013, amendment 2026-11-13). Of the recorded S3 errors,
+//     the ones that carry it are all ListObjectsV2's
+//     (testdata/parity/s3/IAM-ENF/13-s3.json); a same-region
+//     not-configured 404 carries none
+//     (testdata/parity/s3/R06/01-get-get-bucket-policy.json). An access's
+//     errorRegion says which errors read, change and DeleteBucket answer
+//     with it; the error builders leave it out. A success carries it where
+//     the output models it (HeadBucket) and on every ListObjectsV2 200,
+//     asserted region or not, which sets it with
+//     kernel.Call.SetSuccessHeader as every recorded ListObjectsV2 200
+//     carries it (testdata/parity/s3/R06/07-list-objects-v2.json). No
+//     other success carries it. A PutObject that stores a class other
+//     than STANDARD names that class in x-amz-storage-class the same way:
+//     recorded for STANDARD_IA (testdata/parity/s3/R06/07-put-object-ia.json),
+//     inferred for the other classes.
 //   - A request from an account that does not own the bucket is served:
 //     understudy evaluates no bucket policy or ACL (s3.bucket.cross-account).
 //     x-amz-expected-bucket-owner naming another account is AccessDenied.

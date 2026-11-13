@@ -59,20 +59,31 @@ func TestS3ControlTagsOverHTTP(t *testing.T) {
 // TestS3ControlErrorsOverHTTP: S3 Control is restXml without
 // noErrorWrapping, so its errors are <ErrorResponse><Error>, which the
 // SDKs' s3control deserializers read as Error>Code; S3's bare <Error>
-// would reach them as UnknownError.
+// would reach them as UnknownError. ListTagsForResource of a missing
+// bucket and of another account's bucket each answer 404 NoSuchResource
+// with no context element (testdata/parity/s3/R06/06-s3control-list-missing.json,
+// 06-s3control-list-not-owned.json).
 func TestS3ControlErrorsOverHTTP(t *testing.T) {
 	kerneltest.Run(t, func(k *kerneltest.K) {
 		t := k.T
-		send := edgeClient(k)
-		code, body := send(http.MethodGet, controlHost, tagsPath("missing"), "")
-		var doc struct {
-			XMLName xml.Name `xml:"ErrorResponse"`
-			Error   struct {
-				Code string `xml:"Code"`
-			} `xml:"Error"`
+		sendAs := edgeClientAs(k)
+		if code, body := sendAs(otherAccount, http.MethodPut, s3Host, "/foreign", ""); code != http.StatusOK {
+			t.Fatalf("CreateBucket as %s = %d %s, want 200", otherAccount, code, body)
 		}
-		if err := xml.Unmarshal([]byte(body), &doc); err != nil || code != http.StatusNotFound || doc.Error.Code != "NoSuchBucket" {
-			t.Fatalf("ListTagsForResource of a missing bucket = %d %s, want 404 <ErrorResponse><Error><Code>NoSuchBucket", code, body)
+		for _, bucket := range []string{"missing", "foreign"} {
+			code, body := sendAs(aws.DefaultAccount().String(), http.MethodGet, controlHost, tagsPath(bucket), "")
+			var doc struct {
+				XMLName xml.Name `xml:"ErrorResponse"`
+				Error   struct {
+					Code       string  `xml:"Code"`
+					Message    string  `xml:"Message"`
+					BucketName *string `xml:"BucketName"`
+				} `xml:"Error"`
+			}
+			err := xml.Unmarshal([]byte(body), &doc)
+			if err != nil || code != http.StatusNotFound || doc.Error.Code != "NoSuchResource" || doc.Error.Message != noSuchResourceMessage || doc.Error.BucketName != nil {
+				t.Errorf("ListTagsForResource of %s = %d %s, want 404 <ErrorResponse><Error><Code>NoSuchResource</Code><Message>%s</Message>", bucket, code, body, noSuchResourceMessage)
+			}
 		}
 	}, kerneltest.Services(s3api.Service()))
 }
@@ -84,10 +95,22 @@ const (
 	controlHost = "000000000000.localhost:4566"
 )
 
-// edgeClient returns a sender of signed requests through an edge in front
-// of a new S3 service; a request to the account host carries
-// x-amz-account-id as the SDKs send it. It answers the status and body.
+// edgeClient returns a sender of requests signed by the default account
+// through an edge in front of a new S3 service, as edgeClientAs does.
 func edgeClient(k *kerneltest.K) func(method, host, target, body string) (int, string) {
+	sendAs := edgeClientAs(k)
+	account := aws.DefaultAccount().String()
+	return func(method, host, target, body string) (int, string) {
+		k.Helper()
+		return sendAs(account, method, host, target, body)
+	}
+}
+
+// edgeClientAs returns a sender of requests signed by an account's root
+// through an edge in front of a new S3 service; a request to the default
+// account's S3 Control host carries x-amz-account-id as the SDKs send it.
+// It answers the status and body.
+func edgeClientAs(k *kerneltest.K) func(account, method, host, target, body string) (int, string) {
 	t := k.T
 	svc := s3.New(k.Deps(s3api.Service()), s3.Options{})
 	front, err := edge.New(edge.Options{
@@ -102,12 +125,12 @@ func edgeClient(k *kerneltest.K) func(method, host, target, body string) (int, s
 	if err != nil {
 		t.Fatal(err)
 	}
-	account := aws.DefaultAccount().String()
-	return func(method, host, target, body string) (int, string) {
+	hostAccount := aws.DefaultAccount().String()
+	return func(account, method, host, target, body string) (int, string) {
 		t.Helper()
 		r := httptest.NewRequestWithContext(k.Context(), method, "http://"+host+target, strings.NewReader(body))
-		if strings.HasPrefix(host, account+".") {
-			r.Header.Set("X-Amz-Account-Id", account)
+		if strings.HasPrefix(host, hostAccount+".") {
+			r.Header.Set("X-Amz-Account-Id", hostAccount)
 		}
 		auth.Sign(r, []byte(body), auth.Signer{AccessKeyID: account, SecretAccessKey: "secret", Region: aws.DefaultRegion(), Service: "s3"}, k.Clock.Wall())
 		rec := httptest.NewRecorder()

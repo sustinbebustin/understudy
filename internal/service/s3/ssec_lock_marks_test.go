@@ -35,34 +35,39 @@ func TestSSECAndObjectLockCoverageMarks(t *testing.T) {
 		readNote     = "presigned URLs are verified and expire on the emulator clock under sigv4 verify"
 		copyNote     = "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented"
 		createNote   = "an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented"
-		partNote     = "chunk signatures are verified under sigv4 verify"
+		partNote     = "chunk signatures are verified under sigv4 verify; a part without a checksum is refused on an upload that declared XXHASH3, XXHASH128, SHA512 or MD5 by inference from the recorded refusal for XXHASH64"
 		answeredNote = "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"
-		deleteNote   = "no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention"
-		notifyNote   = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
+		bypassText   = "once the call is admitted, x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention; " +
+			"under iam.enforce=enforce a principal denied s3:BypassGovernanceRetention is refused the whole call, " +
+			"and whether AWS refuses the call or only withholds the bypass is unrecorded"
+		deleteNote = "no MFA delete; " + bypassText
+		notifyNote = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
 			"destination validation checks existence, refuses FIFO queues and topics, and asks whether each destination's policy admits s3.amazonaws.com from the bucket: " +
 			"under iam.enforce=enforce a refusal fails the call, under advise it is journaled, and under off it is not asked, where AWS refuses in every case; " +
-			"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied); " +
-			"s3:ObjectRetention:Put is stored but sends nothing"
+			"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied)"
+		retentionNote = "event holds (EventHold, EventHoldDuration) are refused with NotImplemented; " + bypassText + "; " +
+			"the s3:ObjectRetention:Put record carries mode and retainUntilDate as documented, and its object fields, the date's form and whether a removed retention sends one (here: none) are unrecorded"
 	)
 	marks := map[string]registry.BindCoverage{
-		"PutObject":                          registry.Partial{Note: putNote},
-		"GetObject":                          registry.Partial{Note: readNote},
-		"HeadObject":                         registry.Partial{Note: readNote},
-		"GetObjectAttributes":                registry.Full{},
-		"CopyObject":                         registry.Partial{Note: copyNote},
-		"CreateMultipartUpload":              registry.Partial{Note: createNote},
-		"UploadPart":                         registry.Partial{Note: partNote},
-		"UploadPartCopy":                     registry.Partial{Note: answeredNote},
-		"CompleteMultipartUpload":            registry.Partial{Note: answeredNote},
+		"PutObject":             registry.Partial{Note: putNote},
+		"GetObject":             registry.Partial{Note: readNote},
+		"HeadObject":            registry.Partial{Note: readNote},
+		"GetObjectAttributes":   registry.Full{},
+		"CopyObject":            registry.Partial{Note: copyNote},
+		"CreateMultipartUpload": registry.Partial{Note: createNote},
+		"UploadPart":            registry.Partial{Note: partNote},
+		"UploadPartCopy":        registry.Partial{Note: answeredNote},
+		"CompleteMultipartUpload": registry.Partial{Note: answeredNote + "; an identical Complete retried after success answers 200 again while the version it made is its key's current version " +
+			"(inferred: how long AWS honours a retry is unrecorded)"},
 		"DeleteObject":                       registry.Partial{Note: deleteNote},
-		"DeleteObjects":                      registry.Partial{Note: deleteNote},
-		"PutObjectRetention":                 registry.Partial{Note: "event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent"},
+		"DeleteObjects":                      registry.Partial{Note: deleteNote + "; " + checksumRequiredNote},
+		"PutObjectRetention":                 registry.Partial{Note: retentionNote + "; " + checksumRequiredNote},
 		"GetObjectRetention":                 registry.Full{},
-		"PutObjectLegalHold":                 registry.Full{},
+		"PutObjectLegalHold":                 registry.Partial{Note: checksumRequiredNote},
 		"GetObjectLegalHold":                 registry.Full{},
-		"PutObjectLockConfiguration":         registry.Partial{Note: "DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored"},
+		"PutObjectLockConfiguration":         registry.Partial{Note: "DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored; " + checksumRequiredNote},
 		"GetObjectLockConfiguration":         registry.Full{},
-		"PutBucketEncryption":                registry.Full{},
+		"PutBucketEncryption":                registry.Partial{Note: checksumRequiredNote},
 		"GetBucketEncryption":                registry.Full{},
 		"DeleteBucketEncryption":             registry.Full{},
 		"PutBucketNotificationConfiguration": registry.Partial{Note: notifyNote},
@@ -181,16 +186,16 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 	})
 }
 
-// TestStateVersionTwo: the object version's lock state and SSE-C
-// fingerprint are a new state format, version 2 (s3-ssec-object-lock.md
-// 11.2), and before the first tagged release a snapshot section of another
-// version is refused, not migrated (ARCHITECTURE.md 13), leaving the state
-// as it was.
-func TestStateVersionTwo(t *testing.T) {
+// TestStateVersion: the object version's lock state and SSE-C fingerprint
+// made state format version 2 (s3-ssec-object-lock.md 11.2), and the
+// Complete a multipart version keeps made version 3; before the first
+// tagged release a snapshot section of another version is refused, not
+// migrated (ARCHITECTURE.md 13), leaving the state as it was.
+func TestStateVersion(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		if v := h.svc.SchemaVersion(); v != 2 {
-			t.Errorf("SchemaVersion = %d, want 2", v)
+		if v := h.svc.SchemaVersion(); v != 3 {
+			t.Errorf("SchemaVersion = %d, want 3", v)
 		}
 		h.createBucket("kept")
 		sections, err := h.svc.Export()
@@ -199,13 +204,13 @@ func TestStateVersionTwo(t *testing.T) {
 		}
 		old := make([]store.Section, len(sections))
 		for i, s := range sections {
-			s.Version = 1
+			s.Version = 2
 			old[i] = s
 		}
 		ierr := h.svc.Import(old)
 		var mismatch *store.VersionMismatchError
-		if !errors.As(ierr, &mismatch) || mismatch.Section != 1 || mismatch.Running != 2 {
-			t.Errorf("Import of version 1 sections = %v, want a VersionMismatchError of section 1 against 2", ierr)
+		if !errors.As(ierr, &mismatch) || mismatch.Section != 2 || mismatch.Running != 3 {
+			t.Errorf("Import of version 2 sections = %v, want a VersionMismatchError of section 2 against 3", ierr)
 		}
 		if _, err := as(h, who{}, s3api.OpHeadBucket, &s3api.HeadBucketInput{Bucket: "kept"}); err != nil {
 			t.Errorf("the refused import changed the state: HeadBucket = %s", err.ID.QueryCode)

@@ -3,6 +3,7 @@ package s3
 import (
 	"bytes"
 	"cmp"
+	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -13,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -29,6 +31,23 @@ import (
 // without acting on it.
 func stored(what string) registry.StoredOnly {
 	return registry.StoredOnly{Note: what + " stored and echoed; not applied"}
+}
+
+// checksumRequiredNote is the sentence of every bound operation whose model
+// carries requestChecksumRequired (s3-ssec-object-lock.md 8, 11.1).
+const checksumRequiredNote = "a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded"
+
+// checksumUnchecked is c with checksumRequiredNote appended. A Full mark
+// becomes Partial, since the gap is a deviation.
+func checksumUnchecked(c registry.BindCoverage) registry.BindCoverage {
+	switch c := c.(type) {
+	case registry.Partial:
+		return registry.Partial{Note: c.Note + "; " + checksumRequiredNote}
+	case registry.StoredOnly:
+		return registry.StoredOnly{Note: c.Note + "; " + checksumRequiredNote}
+	case registry.Full:
+	}
+	return registry.Partial{Note: checksumRequiredNote}
 }
 
 // bindSubresources binds the Get, Put and Delete operations of every
@@ -75,7 +94,7 @@ func (s *Service) bindVersioning(b s3api.Binder) {
 		}
 		b.Versioning = &cfg
 		return nil
-	}), registry.Partial{Note: "MFA delete is stored, not enforced, and the x-amz-mfa header is not verified"}, touches(s, put),
+	}), checksumUnchecked(registry.Partial{Note: "MFA delete is stored, not enforced, and the x-amz-mfa header is not verified"}), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketVersioningInput) *awserr.Error {
 			st := in.VersioningConfiguration.Status
 			switch {
@@ -94,7 +113,7 @@ func (s *Service) bindACL(b s3api.Binder) {
 		return &s3api.GetBucketAclOutput{Owner: &s3api.Owner{ID: new(canonicalID(b.Home.OwnerAccount))}, Grants: b.Grants}, nil
 	}), stored("the access control list is"), touches(s, get))
 	put := func(in *s3api.PutBucketAclInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutBucketAcl(s.putBucketACL, registry.StoredOnly{Note: publicACLNote}, touches(s, put),
+	b.PutBucketAcl(s.putBucketACL, checksumUnchecked(registry.StoredOnly{Note: publicACLNote}), touches(s, put),
 		kernel.WithCheck(checkACLRequest))
 }
 
@@ -174,7 +193,7 @@ func (s *Service) bindCORS(b s3api.Binder) {
 	b.PutBucketCors(writer[s3api.PutBucketCorsInput, s3api.PutBucketCorsOutput](s, put, func(in *s3api.PutBucketCorsInput, b *Bucket) *awserr.Error {
 		b.CORS = &in.CORSConfiguration
 		return nil
-	}), stored("the CORS configuration is"), touches(s, put),
+	}), checksumUnchecked(stored("the CORS configuration is")), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketCorsInput) *awserr.Error {
 			for _, r := range in.CORSConfiguration.CORSRules {
 				for _, m := range r.AllowedMethods {
@@ -208,7 +227,7 @@ func (s *Service) bindWebsite(b s3api.Binder) {
 	b.PutBucketWebsite(writer[s3api.PutBucketWebsiteInput, s3api.PutBucketWebsiteOutput](s, put, func(in *s3api.PutBucketWebsiteInput, b *Bucket) *awserr.Error {
 		b.Website = &in.WebsiteConfiguration
 		return nil
-	}), stored("the website configuration is"), touches(s, put))
+	}), checksumUnchecked(stored("the website configuration is")), touches(s, put))
 	del := func(in *s3api.DeleteBucketWebsiteInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketWebsite(writer[s3api.DeleteBucketWebsiteInput, s3api.DeleteBucketWebsiteOutput](s, del, func(_ *s3api.DeleteBucketWebsiteInput, b *Bucket) *awserr.Error {
 		b.Website = nil
@@ -235,7 +254,7 @@ func (s *Service) bindPolicy(b s3api.Binder) {
 		}
 		return &s3api.GetBucketPolicyOutput{Policy: new(b.Policy)}, nil
 	}), evaluated, touches(s, get))
-	b.PutBucketPolicy(s.putBucketPolicy, putNote, touches(s, put),
+	b.PutBucketPolicy(s.putBucketPolicy, checksumUnchecked(putNote), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketPolicyInput) *awserr.Error { return checkPolicy(in.Policy) }))
 	del := func(in *s3api.DeleteBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketPolicy(writer[s3api.DeleteBucketPolicyInput, s3api.DeleteBucketPolicyOutput](s, del, func(_ *s3api.DeleteBucketPolicyInput, b *Bucket) *awserr.Error {
@@ -274,7 +293,30 @@ func (s *Service) bindLogging(b s3api.Binder) {
 	b.PutBucketLogging(writer[s3api.PutBucketLoggingInput, s3api.PutBucketLoggingOutput](s, put, func(in *s3api.PutBucketLoggingInput, b *Bucket) *awserr.Error {
 		b.Logging = in.BucketLoggingStatus.LoggingEnabled
 		return nil
-	}), stored("the logging configuration is"), touches(s, put))
+	}), checksumUnchecked(stored("the logging configuration is")), touches(s, put), kernel.WithCheck(checkLoggingGrantees))
+}
+
+// checkLoggingGrantees refuses a TargetGrant whose grantee Type S3 does not
+// know with the generated enum check's InvalidArgument. The overlay leaves
+// Grantee$Type to the handlers for PutBucketAcl's MalformedACLError, but
+// AWS's answer for logging is unrecorded, so logging keeps the enum's.
+func checkLoggingGrantees(in *s3api.PutBucketLoggingInput) *awserr.Error {
+	le := in.BucketLoggingStatus.LoggingEnabled
+	if le == nil {
+		return nil
+	}
+	var vs []awserr.Violation
+	for i, g := range le.TargetGrants {
+		if g.Grantee == nil || g.Grantee.Type.Known() {
+			continue
+		}
+		vs = append(vs, awserr.Violation{
+			Path:       awserr.Path{"bucketLoggingStatus", "loggingEnabled", "targetGrants", strconv.Itoa(i + 1), "member", "grantee", "type"},
+			Value:      awserr.RenderedText{Text: string(g.Grantee.Type)},
+			Constraint: awserr.Enum{Values: []string{"CanonicalUser", "AmazonCustomerByEmail", "Group"}},
+		})
+	}
+	return kernel.Validate[s3api.PutBucketLoggingInput](vs)
 }
 
 func (s *Service) bindLifecycle(b s3api.Binder) {
@@ -291,15 +333,29 @@ func (s *Service) bindLifecycle(b s3api.Binder) {
 	put := func(in *s3api.PutBucketLifecycleConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
-	b.PutBucketLifecycleConfiguration(writer[s3api.PutBucketLifecycleConfigurationInput, s3api.PutBucketLifecycleConfigurationOutput](s, put, func(in *s3api.PutBucketLifecycleConfigurationInput, b *Bucket) *awserr.Error {
-		b.Lifecycle = &Lifecycle{Rules: in.LifecycleConfiguration.Rules, TransitionDefaultMinimumObjectSize: transitionDefault(in)}
-		return nil
-	}), stored("the lifecycle rules are"), touches(s, put), kernel.WithCheck(checkLifecycle))
+	b.PutBucketLifecycleConfiguration(s.putBucketLifecycle, checksumUnchecked(stored("the lifecycle rules are")), touches(s, put), kernel.WithCheck(checkLifecycle))
 	del := func(in *s3api.DeleteBucketLifecycleInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketLifecycle(writer[s3api.DeleteBucketLifecycleInput, s3api.DeleteBucketLifecycleOutput](s, del, func(_ *s3api.DeleteBucketLifecycleInput, b *Bucket) *awserr.Error {
 		b.Lifecycle = nil
 		return nil
 	}), stored("the lifecycle rules are"), touches(s, del))
+}
+
+// putBucketLifecycle stores the rules and answers the stored
+// x-amz-transition-default-minimum-object-size: all_storage_classes_128K
+// for a request that sent none
+// (testdata/parity/s3/R12/12-lifecycle-transition-7-standard-ia.json), and
+// the request's value otherwise, inferred.
+func (s *Service) putBucketLifecycle(ctx context.Context, c *kernel.Call, in *s3api.PutBucketLifecycleConfigurationInput) (*s3api.PutBucketLifecycleConfigurationOutput, *awserr.Error) {
+	size := transitionDefault(in)
+	err := s.change(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), func(b *Bucket, _ clock.Instant) *awserr.Error {
+		b.Lifecycle = &Lifecycle{Rules: in.LifecycleConfiguration.Rules, TransitionDefaultMinimumObjectSize: size}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &s3api.PutBucketLifecycleConfigurationOutput{TransitionDefaultMinimumObjectSize: &size}, nil
 }
 
 // transitionDefault is the x-amz-transition-default-minimum-object-size a
@@ -384,13 +440,14 @@ func checkLifecycleDays(r s3api.LifecycleRule) *awserr.Error {
 	if e := r.NoncurrentVersionExpiration; e != nil && e.NoncurrentDays != nil && *e.NoncurrentDays < 1 {
 		return errInvalidArgument(lifecycleNoncurrentExpirationDaysMessage, "NoncurrentDays", strconv.Itoa(int(*e.NoncurrentDays)))
 	}
+	filter := lifecycleFilterText(r)
 	current := make([]transitionStep, 0, len(r.Transitions))
 	for _, t := range r.Transitions {
 		if t.StorageClass != nil && t.Date == nil {
 			current = append(current, transitionStep{days: smithy.Deref(t.Days), class: *t.StorageClass})
 		}
 	}
-	if err := checkTransitionDays(transitionAction{name: "Transition", days: "Days"}, current); err != nil {
+	if err := checkTransitionDays(transitionAction{name: "Transition", days: "Days", filter: filter}, current); err != nil {
 		return err
 	}
 	noncurrent := make([]transitionStep, 0, len(r.NoncurrentVersionTransitions))
@@ -399,74 +456,138 @@ func checkLifecycleDays(r s3api.LifecycleRule) *awserr.Error {
 			noncurrent = append(noncurrent, transitionStep{days: smithy.Deref(t.NoncurrentDays), class: *t.StorageClass})
 		}
 	}
-	return checkTransitionDays(transitionAction{name: "NoncurrentVersionTransition", days: "NoncurrentDays"}, noncurrent)
+	return checkTransitionDays(transitionAction{name: "NoncurrentVersionTransition", days: "NoncurrentDays", filter: filter}, noncurrent)
+}
+
+// lifecycleFilterText is a rule's filter as S3's transition refusals name
+// it. Only the empty prefix, "(prefix=)", is recorded
+// (testdata/parity/s3/R12/12-lifecycle-glacier-ir-4-deep-archive-20.json);
+// any other prefix renders the same way, and the tags and size bounds of a
+// filter are left out: both inferred.
+func lifecycleFilterText(r s3api.LifecycleRule) string {
+	prefix := r.Prefix
+	if f := r.Filter; f != nil {
+		prefix = f.Prefix
+		if f.And != nil {
+			prefix = f.And.Prefix
+		}
+	}
+	return "(prefix=" + smithy.Deref(prefix) + ")"
 }
 
 // The lifecycle day limits. AWS documents them: Expiration Days is "a
-// non-zero positive integer" (API_LifecycleExpiration), and "you can't
-// create a single Lifecycle rule that transitions objects from one storage
-// class to another before the minimum storage duration period has passed"
-// (lifecycle-transition-general-considerations). Transition Days may be 0
-// (API_Transition), save to the Infrequent Access classes, which take 30
-// days at least. The IA text is an AWS answer quoted in a Terraform
-// write-up (zenn.dev/thaim 2024-04-s3-lifecycle-configuration-min-duration)
-// and the storage-duration text is composed, so both are UNVERIFIED
-// (lifecycleRuleLimits). The expiration texts, with the ArgumentName and
-// ArgumentValue S3 adds, are recorded
-// (testdata/parity/s3/R12/12-lifecycle-expiration-0.json,
+// non-zero positive integer" (API_LifecycleExpiration), Transition Days may
+// be 0 (API_Transition), and "you can't create a single Lifecycle rule that
+// transitions objects from one storage class to another before the minimum
+// storage duration period has passed"
+// (lifecycle-transition-general-considerations). AWS accepts a 7-day
+// transition and a 10-day noncurrent transition to STANDARD_IA, so the
+// Infrequent Access classes take no minimum of their own
+// (testdata/parity/s3/R12/12-lifecycle-transition-7-standard-ia.json,
+// testdata/parity/s3/R12/12-lifecycle-noncurrent-10-standard-ia.json). The
+// expiration texts, with the ArgumentName and ArgumentValue S3 adds, are
+// recorded (testdata/parity/s3/R12/12-lifecycle-expiration-0.json,
 // testdata/parity/s3/R12/12-lifecycle-noncurrent-expiration-0.json).
 const (
 	lifecycleExpirationDaysMessage           = "'Days' for Expiration action must be a positive integer"
 	lifecycleNoncurrentExpirationDaysMessage = "'NoncurrentDays' for NoncurrentVersionExpiration action must be a positive integer"
-	infrequentAccessMinDays                  = 30
 )
 
 // transitionStep is one Days-based transition of a rule: the days after
 // creation (or after becoming noncurrent) and the class it moves to. A
-// transition with neither Days nor Date is a 0-day one, as AWS reads it.
+// transition with neither Days nor Date is a 0-day one, to an Infrequent
+// Access class too: inferred, as AWS takes no minimum of its own for those
+// classes (see the day limits above); no such request is recorded.
 type transitionStep struct {
 	days  int32
 	class s3api.TransitionStorageClass
 }
 
-// transitionAction names a transition action and its days member in a
-// refusal: Transition/Days or NoncurrentVersionTransition/NoncurrentDays.
+// transitionAction names a transition action, its days member and its
+// rule's filter in a refusal: Transition/Days or
+// NoncurrentVersionTransition/NoncurrentDays, and lifecycleFilterText.
 type transitionAction struct {
-	name string
-	days string
+	name   string
+	days   string
+	filter string
 }
 
-// checkTransitionDays refuses a transition to an Infrequent Access class
-// before 30 days, and a transition sooner after the one before it than
-// that one's class must hold an object.
+// checkTransitionDays refuses a rule whose transitions go to classes out of
+// S3's order, and then one that moves an object on sooner than the earlier
+// class must hold it. A rule out of order may break a hold as well, and S3
+// answers the order refusal
+// (testdata/parity/s3/R12/15-lifecycle-glacier-then-onezone-ia.json). Both
+// refusals carry the later transition's days as ArgumentValue. The texts
+// are recorded for Transition; NoncurrentVersionTransition takes them with
+// its own names, inferred.
 func checkTransitionDays(a transitionAction, steps []transitionStep) *awserr.Error {
-	for _, s := range steps {
-		if (s.class == s3api.TransitionStorageClassStandardIa || s.class == s3api.TransitionStorageClassOnezoneIa) && s.days < infrequentAccessMinDays {
-			return s3api.ErrInvalidArgument(fmt.Sprintf("'%s' in %s action must be greater than or equal to %d for storageClass '%s'", a.days, a.name, infrequentAccessMinDays, s.class))
+	slices.SortStableFunc(steps, func(x, y transitionStep) int {
+		return cmp.Or(cmp.Compare(transitionRank(x.class), transitionRank(y.class)), cmp.Compare(x.days, y.days))
+	})
+	for i := 1; i < len(steps); i++ {
+		lower, higher := steps[i-1], steps[i]
+		if transitionRank(lower.class) < transitionRank(higher.class) && higher.days <= lower.days {
+			return errInvalidArgument(fmt.Sprintf("'%s' in the '%s' action for StorageClass '%s' for filter '%s' must be greater than '%s' in the '%s' action for StorageClass '%s' for filter '%s'",
+				a.days, a.name, higher.class, a.filter, a.days, a.name, lower.class, a.filter), a.days, strconv.Itoa(int(lower.days)))
 		}
 	}
-	slices.SortStableFunc(steps, func(x, y transitionStep) int { return cmp.Compare(x.days, y.days) })
 	for i := 1; i < len(steps); i++ {
 		prev, next := steps[i-1], steps[i]
 		if hold := minStorageDays(prev.class); next.days-prev.days < hold {
-			return s3api.ErrInvalidArgument(fmt.Sprintf("'%s' in the '%s' action for StorageClass '%s' must be at least %d days more than '%s' in the '%s' action for StorageClass '%s'",
-				a.days, a.name, next.class, hold, a.days, a.name, prev.class))
+			return errInvalidArgument(fmt.Sprintf("'%s' in the '%s' action for StorageClass '%s' for filter '%s' must be %d days more than 'filter '%s'' in the '%s' action for StorageClass '%s'",
+				a.days, a.name, next.class, a.filter, hold, a.filter, a.name, prev.class), a.days, strconv.Itoa(int(next.days)))
 		}
 	}
 	return nil
 }
 
-// minStorageDays is the minimum storage duration of class c (DOC
+// transitionWaterfall is S3's transition waterfall, lowest class first
+// (lifecycle-transition-general-considerations, "Supported transitions"):
+// a rule moves objects only to classes later in it. Only GLACIER before
+// ONEZONE_IA is recorded as refused
+// (testdata/parity/s3/R12/15-lifecycle-glacier-then-onezone-ia.json); the
+// other places follow the documented waterfall, inferred. A linear order
+// cannot express one gap in the documented list: it omits ONEZONE_IA to
+// GLACIER_IR, so AWS documents that pair as unsupported, but this order
+// accepts it, and AWS's refusal is unrecorded (docs/guide/differences.md,
+// "S3").
+var transitionWaterfall = [...]s3api.TransitionStorageClass{ //nolint:gochecknoglobals // a constant table; Go has no constant arrays.
+	s3api.TransitionStorageClassStandardIa,
+	s3api.TransitionStorageClassIntelligentTiering,
+	s3api.TransitionStorageClassOnezoneIa,
+	s3api.TransitionStorageClassGlacierIr,
+	s3api.TransitionStorageClassGlacier,
+	s3api.TransitionStorageClassDeepArchive,
+}
+
+// transitionRank is class c's place in transitionWaterfall, or -1 for a
+// class outside it, which sorts before every class in it.
+func transitionRank(c s3api.TransitionStorageClass) int {
+	return slices.Index(transitionWaterfall[:], c)
+}
+
+// The minimum storage durations, in days, of the transition classes (DOC
 // storage-class-intro, "Comparing the Amazon S3 storage classes"):
-// Intelligent-Tiering has none.
+// Intelligent-Tiering has none. The 30 days after STANDARD_IA and the 90
+// after GLACIER_IR are recorded
+// (testdata/parity/s3/R12/12-lifecycle-standard-ia-30-glacier-40.json,
+// testdata/parity/s3/R12/12-lifecycle-glacier-ir-4-deep-archive-20.json).
+const (
+	infrequentAccessMinDays int32 = 30
+	glacierMinDays          int32 = 90
+	deepArchiveMinDays      int32 = 180
+)
+
+// minStorageDays is the minimum storage duration of class c: how long a
+// rule must hold an object in c before its next transition.
 func minStorageDays(c s3api.TransitionStorageClass) int32 {
 	switch c {
 	case s3api.TransitionStorageClassStandardIa, s3api.TransitionStorageClassOnezoneIa:
 		return infrequentAccessMinDays
 	case s3api.TransitionStorageClassGlacierIr, s3api.TransitionStorageClassGlacier:
-		return 90
+		return glacierMinDays
 	case s3api.TransitionStorageClassDeepArchive:
-		return 180
+		return deepArchiveMinDays
 	case s3api.TransitionStorageClassIntelligentTiering:
 	}
 	return 0
@@ -516,7 +637,7 @@ func (s *Service) bindReplication(b s3api.Binder) {
 		}
 		b.Replication = &in.ReplicationConfiguration
 		return nil
-	}), stored("the replication configuration is"), touches(s, put))
+	}), checksumUnchecked(stored("the replication configuration is")), touches(s, put))
 	del := func(in *s3api.DeleteBucketReplicationInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketReplication(writer[s3api.DeleteBucketReplicationInput, s3api.DeleteBucketReplicationOutput](s, del, func(_ *s3api.DeleteBucketReplicationInput, b *Bucket) *awserr.Error {
 		b.Replication = nil
@@ -544,7 +665,7 @@ func (s *Service) bindEncryption(b s3api.Binder) {
 		rule.BlockedEncryptionTypes = nil
 		b.Encryption = &s3api.ServerSideEncryptionConfiguration{Rules: []s3api.ServerSideEncryptionRule{rule}}
 		return nil
-	}), registry.Full{}, touches(s, put), kernel.WithCheck(checkEncryption))
+	}), checksumUnchecked(registry.Full{}), touches(s, put), kernel.WithCheck(checkEncryption))
 	del := func(in *s3api.DeleteBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketEncryption(writer[s3api.DeleteBucketEncryptionInput, s3api.DeleteBucketEncryptionOutput](s, del, func(_ *s3api.DeleteBucketEncryptionInput, b *Bucket) *awserr.Error {
 		// The SSE-C block goes back to a new bucket's: SSE-C blocked after
@@ -602,7 +723,7 @@ func (s *Service) bindObjectLock(b s3api.Binder) {
 		}
 		b.ObjectLock = in.ObjectLockConfiguration
 		return nil
-	}), registry.Partial{Note: "DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored"}, touches(s, put), kernel.WithCheck(checkObjectLock))
+	}), checksumUnchecked(registry.Partial{Note: "DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored"}), touches(s, put), kernel.WithCheck(checkObjectLock))
 }
 
 // checkObjectLock checks an Object Lock configuration (s3.md 4.2.10;
@@ -663,7 +784,7 @@ func (s *Service) bindRequestPayment(b s3api.Binder) {
 	b.PutBucketRequestPayment(writer[s3api.PutBucketRequestPaymentInput, s3api.PutBucketRequestPaymentOutput](s, put, func(in *s3api.PutBucketRequestPaymentInput, b *Bucket) *awserr.Error {
 		b.RequestPayment = &in.RequestPaymentConfiguration
 		return nil
-	}), stored("the payer is"), touches(s, put))
+	}), checksumUnchecked(stored("the payer is")), touches(s, put))
 }
 
 func (s *Service) bindAccelerate(b s3api.Binder) {
@@ -697,7 +818,7 @@ func (s *Service) bindPublicAccessBlock(b s3api.Binder) {
 	b.PutPublicAccessBlock(writer[s3api.PutPublicAccessBlockInput, s3api.PutPublicAccessBlockOutput](s, put, func(in *s3api.PutPublicAccessBlockInput, b *Bucket) *awserr.Error {
 		b.PublicAccessBlock = publicAccessBlock(in.PublicAccessBlockConfiguration)
 		return nil
-	}), registry.StoredOnly{Note: blockPublicAccessNote}, touches(s, put),
+	}), checksumUnchecked(registry.StoredOnly{Note: blockPublicAccessNote}), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutPublicAccessBlockInput) *awserr.Error {
 			if c := in.PublicAccessBlockConfiguration; c.BlockPublicAcls == nil && c.IgnorePublicAcls == nil && c.BlockPublicPolicy == nil && c.RestrictPublicBuckets == nil {
 				return errInvalidRequest("Must specify at least one configuration.")
@@ -739,7 +860,7 @@ func (s *Service) bindOwnership(b s3api.Binder) {
 	b.PutBucketOwnershipControls(writer[s3api.PutBucketOwnershipControlsInput, s3api.PutBucketOwnershipControlsOutput](s, put, func(in *s3api.PutBucketOwnershipControlsInput, b *Bucket) *awserr.Error {
 		b.Ownership = &in.OwnershipControls
 		return nil
-	}), registry.Partial{Note: "BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build"}, touches(s, put),
+	}), checksumUnchecked(registry.Partial{Note: "BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build"}), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketOwnershipControlsInput) *awserr.Error {
 			rules := in.OwnershipControls.Rules
 			if len(rules) != 1 || !rules[0].ObjectOwnership.Known() {

@@ -85,7 +85,7 @@ type ChangeError struct {
 
 func (e *ChangeError) Error() string {
 	if e.Change == nil {
-		return "s3 notify: the event carries no change, so it names no event type; set Change to a Created, Removed or Tagged value"
+		return "s3 notify: the event carries no change, so it names no event type; set Change to a Created, Removed, Tagged or Retained value"
 	}
 	return fmt.Sprintf("s3 notify: the change %q names no event S3 reports, as its action is outside the declared values; build it with a declared action", e.Change.Name())
 }
@@ -290,54 +290,77 @@ const (
 type OverlapError struct {
 	// First and Second are the Ids of the two rules, in document order.
 	First, Second string
-	Overlap       Overlap
+	// FirstEvent and SecondEvent are the event types of First and Second
+	// that name the change both select, which S3 names in its refusal.
+	FirstEvent, SecondEvent s3api.Event
+	Overlap                 Overlap
 }
 
 func (e *OverlapError) Error() string {
-	return fmt.Sprintf("the configurations %q and %q select a common event type for a common key; give them disjoint event types or non-overlapping prefix or suffix filters", e.First, e.Second)
+	return fmt.Sprintf("the configurations %q (%s) and %q (%s) select a common event type for a common key; give them disjoint event types or non-overlapping prefix or suffix filters",
+		e.First, e.FirstEvent, e.Second, e.SecondEvent)
 }
 
-// checkOverlaps refuses the first pair of rules, in document order, that
-// a change of some key selects both of.
+// checkOverlaps refuses the first pair of rules that a change of some key
+// selects both of, trying each change type in the model's enum order and,
+// for each, the pairs of rules in document order. R17 shows AWS naming
+// the pair that shares ObjectCreated over an earlier pair that shares only
+// ObjectRemoved (s3/R17/01-config-full.json); the order beyond that one
+// recording is inferred.
 func checkOverlaps(rules []Rule) error {
-	for i := range rules {
-		for j := i + 1; j < len(rules); j++ {
-			a, b := &rules[i], &rules[j]
-			if !eventsMeet(a.Events, b.Events) {
+	for _, change := range s3api.Event("").Values() {
+		if strings.HasSuffix(string(change), "*") {
+			continue
+		}
+		for i := range rules {
+			x, ok := namedBy(&rules[i], change)
+			if !ok {
 				continue
 			}
-			ap, as := filterValue(a, Prefix), filterValue(a, Suffix)
-			bp, bs := filterValue(b, Prefix), filterValue(b, Suffix)
-			if !overlapping(ap, bp, strings.HasPrefix) || !overlapping(as, bs, strings.HasSuffix) {
-				continue
+			for j := i + 1; j < len(rules); j++ {
+				y, ok := namedBy(&rules[j], change)
+				if !ok {
+					continue
+				}
+				if o, ok := filtersOverlap(&rules[i], &rules[j]); ok {
+					return &OverlapError{First: rules[i].ID, Second: rules[j].ID, FirstEvent: x, SecondEvent: y, Overlap: o}
+				}
 			}
-			o := OverlappingFilter
-			if ap == bp && as == bs {
-				o = SameFilter
-			}
-			return &OverlapError{First: a.ID, Second: b.ID, Overlap: o}
 		}
 	}
 	return nil
+}
+
+// filtersOverlap reports whether some key satisfies the filters of both a
+// and b, and how: one prefix starts the other and one suffix ends the
+// other, an absent rule counting as the empty one.
+func filtersOverlap(a, b *Rule) (Overlap, bool) {
+	ap, as := filterValue(a, Prefix), filterValue(a, Suffix)
+	bp, bs := filterValue(b, Prefix), filterValue(b, Suffix)
+	switch {
+	case !overlapping(ap, bp, strings.HasPrefix) || !overlapping(as, bs, strings.HasSuffix):
+		return 0, false
+	case ap == bp && as == bs:
+		return SameFilter, true
+	}
+	return OverlappingFilter, true
+}
+
+// namedBy is the first of r's event types that names change, a concrete
+// event type.
+func namedBy(r *Rule, change s3api.Event) (s3api.Event, bool) {
+	for _, e := range r.Events {
+		if covers(e, change) {
+			return e, true
+		}
+	}
+	return "", false
 }
 
 // overlapping reports whether some key satisfies both filter values: one
 // starts (or ends) the other.
 func overlapping(x, y string, has func(s, part string) bool) bool {
 	return has(x, y) || has(y, x)
-}
-
-// eventsMeet reports whether some change is named by an event type of a
-// and one of b.
-func eventsMeet(a, b []s3api.Event) bool {
-	for _, x := range a {
-		for _, y := range b {
-			if covers(x, y) || covers(y, x) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // covers reports whether every change y names is one x names: x is y, or

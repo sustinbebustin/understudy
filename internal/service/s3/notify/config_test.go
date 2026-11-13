@@ -457,14 +457,21 @@ func TestParseRefusesExactlyOverlappingRules(t *testing.T) {
 			t.Fatalf("Parse = %v, want an OverlapError or nothing", err)
 		}
 		a, b := rules[overlap.First], rules[overlap.Second]
+		if !slices.Contains(a.config.Events, overlap.FirstEvent) || !slices.Contains(b.config.Events, overlap.SecondEvent) {
+			t.Fatalf("Parse refused %s and %s naming %s and %s, which are not theirs", overlap.First, overlap.Second, overlap.FirstEvent, overlap.SecondEvent)
+		}
 		key := witness(a, b)
 		alone := func(d drawn) notify.Config {
 			return parse(t, s3api.NotificationConfiguration{QueueConfigurations: []s3api.QueueConfiguration{d.config}})
 		}
+		named := func(d drawn, e s3api.Event) drawn {
+			d.config.Events = []s3api.Event{e}
+			return d
+		}
 		if !slices.ContainsFunc(changes, func(ch notify.Change) bool {
-			return selected(t, alone(a), ch, key) == 1 && selected(t, alone(b), ch, key) == 1
+			return selected(t, alone(named(a, overlap.FirstEvent)), ch, key) == 1 && selected(t, alone(named(b, overlap.SecondEvent)), ch, key) == 1
 		}) {
-			t.Fatalf("Parse refused %s and %s, but no change of %q selects both", overlap.First, overlap.Second, key)
+			t.Fatalf("Parse refused %s (%s) and %s (%s), but no change of %q selects both", overlap.First, overlap.FirstEvent, overlap.Second, overlap.SecondEvent, key)
 		}
 		if same := a.prefix == b.prefix && a.suffix == b.suffix; same != (overlap.Overlap == notify.SameFilter) {
 			t.Fatalf("overlap = %d for filters %q/%q and %q/%q", overlap.Overlap, a.prefix, a.suffix, b.prefix, b.suffix)

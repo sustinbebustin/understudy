@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -217,6 +218,61 @@ func TestQueryBodiesAreCappedPerOperation(t *testing.T) {
 			if over.Code < 400 || over.Code >= 500 || !strings.Contains(over.Body.String(), c.over) {
 				t.Errorf("%s of %d bytes = %d %s, want a client error saying it %s", c.name, c.limit+1, over.Code, over.Body, c.over)
 			}
+		}
+	})
+}
+
+// entityForm is a PutMetricData form with n entities of one datum each.
+func entityForm(n int, strict string) string {
+	form := "Action=PutMetricData&Version=2010-08-01&Namespace=ns&StrictEntityValidation=" + strict
+	var formSb228 strings.Builder
+	for i := 1; i <= n; i++ {
+		formSb228.WriteString("&EntityMetricData.member." + strconv.Itoa(i) + ".MetricData.member.1.MetricName=m")
+		formSb228.WriteString("&EntityMetricData.member." + strconv.Itoa(i) + ".MetricData.member.1.Value=1")
+	}
+	form += formSb228.String()
+	return form
+}
+
+// With StrictEntityValidation false, more than two EntityMetricData entries
+// answer 200 with X-Amzn-Failure-Message: EntitySizeTooLarge and store the
+// data; two entries send no header; with it true the request is refused.
+// Not recorded: the model documentation of
+// PutMetricDataInput$StrictEntityValidation lists the header's values,
+// including "EntitySizeTooLarge - The number of EntityMetricData objects
+// allowed is 2".
+func TestPutMetricDataReportsAnOverLimitEntityCountInTheFailureMessageHeader(t *testing.T) {
+	cases := []struct {
+		name, strict string
+		entities     int
+		code         int
+		header       string
+	}{
+		{"three entities, not strict", "false", 3, http.StatusOK, "EntitySizeTooLarge"},
+		{"two entities, not strict", "false", 2, http.StatusOK, ""},
+		{"three entities, strict", "true", 3, http.StatusBadRequest, ""},
+	}
+	run(t, func(h *harness) {
+		front, err := edge.New(edge.Options{
+			Kernel: h.Kernel, Registry: h.Kernel.Registry(), Identity: h.Identity, Regions: aws.KnownRegions(),
+			Codecs: server.Codecs(), Listener: ref.ListenerMain, Unclaimed: ref.AWSQuery,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range cases {
+			form := entityForm(c.entities, c.strict)
+			rec := httptest.NewRecorder()
+			front.ServeHTTP(rec, queryForm(t, form, len(form)+len("&Pad=")+1, false))
+			if rec.Code != c.code {
+				t.Errorf("%s = %d %s, want %d", c.name, rec.Code, rec.Body, c.code)
+			}
+			if got := rec.Header().Get("X-Amzn-Failure-Message"); got != c.header {
+				t.Errorf("%s: X-Amzn-Failure-Message = %q, want %q", c.name, got, c.header)
+			}
+		}
+		if got := results(h.around(stat("n", "m", "SampleCount", 60))); !equalResults(got, []labelled{{"n", "m", []float64{5}}}) {
+			t.Errorf("results = %+v, want the five points of the two accepted requests", got)
 		}
 	})
 }

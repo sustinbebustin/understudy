@@ -94,6 +94,9 @@ type Call struct {
 	// in order, without repeats, each with the keys it was first asked
 	// with.
 	authorized []askedPair
+	// success are the response headers the handler set with
+	// SetSuccessHeader; nil until it sets one.
+	success http.Header
 }
 
 // askedPair is a pair a handler asked about through Authorize and the
@@ -206,6 +209,26 @@ func (c *Call) Header(name string) (string, bool) {
 	return v[0], true
 }
 
+// SetSuccessHeader sets a response header that the call sends only if it
+// succeeds, replacing a value set before. It is for a header AWS sends
+// beside a modeled output that is not a member of it, such as S3's
+// x-amz-bucket-region on ListObjectsV2. An overlay cannot add such a
+// member (ADR 0002). The kernel hands the headers on in the call's Output,
+// and the edge writes them beside the codec's answer on every protocol.
+// When the call fails anyway, through the handler's error, a deferred
+// denial, an after-commit fault or a strict refusal, the headers are
+// dropped with the output, so an error carries only its own
+// awserr.Error.Headers. An internal caller of Invoke receives the output
+// alone and never sees them (ARCHITECTURE.md 3).
+func (c *Call) SetSuccessHeader(name, value string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.success == nil {
+		c.success = http.Header{}
+	}
+	c.success.Set(name, value)
+}
+
 // Touch records resources the call reads or changes. The journal lists
 // them on the call's event and fault rules match on them. The access
 // recorder pairs the operation's IAM actions only with the resources
@@ -248,6 +271,14 @@ func (c *Call) Touched() []aws.ARN {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return slices.Clone(c.touched)
+}
+
+// successHeaders returns a copy of the headers set with SetSuccessHeader;
+// nil when none were set.
+func (c *Call) successHeaders() http.Header {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.success.Clone()
 }
 
 // fixPairing returns the resources the call has touched so far and fixes

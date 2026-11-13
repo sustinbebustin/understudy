@@ -457,6 +457,113 @@ func TestCrossRegionAppliesToEveryBucketOperation(t *testing.T) {
 	})
 }
 
+// TestBucketRegionOnSameRegionErrors: of the recorded S3 errors on requests
+// signed for the bucket's own region, only ListObjectsV2's carry
+// x-amz-bucket-region (ADR 0013, amendment 2026-11-13). HeadBucket keeps
+// it, and so does every error on a request that asserts no region
+// (amendment 2026-10-08). The cross-region refusals are
+// TestCrossRegionRules.
+func TestBucketRegionOnSameRegionErrors(t *testing.T) {
+	other := new("111111111111")
+	cases := map[string]struct {
+		w      who
+		call   func(h *harness) *awserr.Error
+		code   string
+		status int
+		region bool
+	}{
+		// testdata/parity/s3/R06/01-get-get-bucket-policy.json: 404 with
+		// no x-amz-bucket-region.
+		"GetBucketPolicy with no policy": {
+			call: func(h *harness) *awserr.Error {
+				return errOnly(invoke(h, s3api.OpGetBucketPolicy, &s3api.GetBucketPolicyInput{Bucket: "home"}))
+			},
+			code: "NoSuchBucketPolicy", status: http.StatusNotFound,
+		},
+		// testdata/parity/s3/IAM-ENF/13-s3.json: x-amz-bucket-region:
+		// us-east-2 on a request to s3.us-east-2.
+		"ListObjectsV2 with a negative max-keys": {
+			call: func(h *harness) *awserr.Error {
+				return errOnly(invoke(h, s3api.OpListObjectsV2, &s3api.ListObjectsV2Input{Bucket: "home", MaxKeys: new(int32(-1))}))
+			},
+			code: "InvalidArgument", status: http.StatusBadRequest, region: true,
+		},
+		// Inferred: an error about the bucket's owner is a ListObjectsV2
+		// error like the recorded ones.
+		"ListObjectsV2 naming another owner": {
+			call: func(h *harness) *awserr.Error {
+				return errOnly(invoke(h, s3api.OpListObjectsV2, &s3api.ListObjectsV2Input{Bucket: "home", ExpectedBucketOwner: other}))
+			},
+			code: "AccessDenied", status: http.StatusForbidden, region: true,
+		},
+		// Inferred: ListObjects and ListObjectVersions are unrecorded and
+		// take the default, no header.
+		"ListObjects with a negative max-keys": {
+			call: func(h *harness) *awserr.Error {
+				return errOnly(invoke(h, s3api.OpListObjects, &s3api.ListObjectsInput{Bucket: "home", MaxKeys: new(int32(-1))}))
+			},
+			code: "InvalidArgument", status: http.StatusBadRequest,
+		},
+		"ListObjectVersions with a negative max-keys": {
+			call: func(h *harness) *awserr.Error {
+				return errOnly(invoke(h, s3api.OpListObjectVersions, &s3api.ListObjectVersionsInput{Bucket: "home", MaxKeys: new(int32(-1))}))
+			},
+			code: "InvalidArgument", status: http.StatusBadRequest,
+		},
+		"GetBucketPolicy naming another owner": {
+			call: func(h *harness) *awserr.Error {
+				return errOnly(invoke(h, s3api.OpGetBucketPolicy, &s3api.GetBucketPolicyInput{Bucket: "home", ExpectedBucketOwner: other}))
+			},
+			code: "AccessDenied", status: http.StatusForbidden,
+		},
+		"DeleteBucket on a bucket with objects": {
+			call: func(h *harness) *awserr.Error {
+				h.put("home", "k", "v")
+				return errOnly(invoke(h, s3api.OpDeleteBucket, &s3api.DeleteBucketInput{Bucket: "home"}))
+			},
+			code: "BucketNotEmpty", status: http.StatusConflict,
+		},
+		// ADR 0013: HeadBucket names the region on its errors too.
+		"HeadBucket naming another owner": {
+			call: func(h *harness) *awserr.Error {
+				return errOnly(invoke(h, s3api.OpHeadBucket, &s3api.HeadBucketInput{Bucket: "home", ExpectedBucketOwner: other}))
+			},
+			code: "AccessDenied", status: http.StatusForbidden, region: true,
+		},
+		// ADR 0013, amendment 2026-10-08: a request that asserts no region
+		// is told the bucket's.
+		"GetBucketPolicy over SigV2": {
+			call: func(h *harness) *awserr.Error {
+				return errOnly(as(h, who{sigV2: true}, s3api.OpGetBucketPolicy, &s3api.GetBucketPolicyInput{Bucket: "home"}))
+			},
+			code: "NoSuchBucketPolicy", status: http.StatusNotFound, region: true,
+		},
+		"DeleteBucket with objects over SigV2": {
+			call: func(h *harness) *awserr.Error {
+				h.put("home", "k", "v")
+				return errOnly(as(h, who{sigV2: true}, s3api.OpDeleteBucket, &s3api.DeleteBucketInput{Bucket: "home"}))
+			},
+			code: "BucketNotEmpty", status: http.StatusConflict, region: true,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			runObjects(t, func(h *harness) {
+				h.createBucket("home")
+				err := tc.call(h)
+				wantCode(h.T, err, tc.code, tc.status)
+				want := ""
+				if tc.region {
+					want = "us-east-1"
+				}
+				if r := header(err, "x-amz-bucket-region"); r != want {
+					h.Fatalf("x-amz-bucket-region = %q, want %q", r, want)
+				}
+			})
+		})
+	}
+}
+
 func TestSnapshotRoundTrip(t *testing.T) {
 	run(t, s3.Options{}, func(h *harness) {
 		h.createBucket("kept")

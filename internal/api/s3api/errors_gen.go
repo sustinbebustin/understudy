@@ -944,6 +944,19 @@ func ErrNoSuchPublicAccessBlockConfigurationMembers(message string, v NoSuchPubl
 	return awserr.WithMembers(&v, message, awserr.Modeled{})
 }
 
+// IdentityNoSuchResource returns the identity of com.amazonaws.s3#NoSuchResource.
+func IdentityNoSuchResource() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazonaws.s3#NoSuchResource", JSONType: "NoSuchResource", QueryCode: "NoSuchResource", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrNoSuchResource returns a NoSuchResource error with message.
+func ErrNoSuchResource(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityNoSuchResource(), Message: message, Origin: awserr.Modeled{}}
+}
+
+// ErrorIdentity returns the identity of com.amazonaws.s3#NoSuchResource.
+func (*NoSuchResource) ErrorIdentity() awserr.Identity { return IdentityNoSuchResource() }
+
 // IdentityNoSuchTagSet returns the identity of com.amazonaws.s3#NoSuchTagSet.
 func IdentityNoSuchTagSet() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazonaws.s3#NoSuchTagSet", JSONType: "NoSuchTagSet", QueryCode: "NoSuchTagSet", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}

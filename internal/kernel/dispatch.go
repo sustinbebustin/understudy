@@ -56,10 +56,16 @@ func (Unauthenticated) isDecoded() {}
 //sumtype:decl
 type Result interface{ isResult() }
 
-// Output is a handler's output and the HTTP status to send it with.
+// Output is a handler's output, the HTTP status to send it with, and the
+// response headers the handler set with Call.SetSuccessHeader. The edge
+// writes Headers beside the codec's answer, replacing a header of the same
+// name; only a successful call has an Output, so a failure never sends
+// them.
 type Output struct {
 	Out    any
 	Status int
+	// Headers are the handler's success headers; nil when it set none.
+	Headers http.Header
 }
 
 // Failure is the error the call answers with.
@@ -196,7 +202,7 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	if status == 0 {
 		status = http.StatusOK
 	}
-	return Output{Out: out, Status: status}, nil
+	return Output{Out: out, Status: status, Headers: c.successHeaders()}, nil
 }
 
 // before runs the request-phase fault rules (step 8) on a call whose input

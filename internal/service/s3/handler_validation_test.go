@@ -44,6 +44,24 @@ func TestGetObjectAttributes(t *testing.T) {
 	})
 }
 
+// TestUnknownUploadChecksumAlgorithm: an x-amz-checksum-algorithm no
+// algorithm matches answers 400 InvalidRequest with the ten-algorithm text,
+// not the generated enum check's InvalidArgument
+// (testdata/parity/s3/R08/08-create-alg-foo.json).
+func TestUnknownUploadChecksumAlgorithm(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("bucket")
+		_, err := invoke(h, s3api.OpCreateMultipartUpload, &s3api.CreateMultipartUploadInput{
+			Bucket: "bucket", Key: "k", ChecksumAlgorithm: new(s3api.ChecksumAlgorithm("FOO")),
+		})
+		wantCode(t, err, "InvalidRequest", http.StatusBadRequest)
+		const want = "Checksum algorithm provided is unsupported. Please try again with any of the valid types: [CRC32, CRC32C, CRC64NVME, MD5, SHA1, SHA256, SHA512, XXHASH128, XXHASH3, XXHASH64]"
+		if err.Message != want {
+			t.Errorf("message = %q, want %q", err.Message, want)
+		}
+	})
+}
+
 // TestHandlerOwnedValidationMessages: a copy source that is not bucket/key
 // and an encoding-type other than url pass the generated validator and
 // reach the handlers, which answer AWS's InvalidArgument texts (s3.md 7,

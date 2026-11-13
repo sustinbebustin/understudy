@@ -46,6 +46,17 @@ func (h *Handler) unknownOperation(svc *registry.Service, p ref.ProtocolID, name
 	return e
 }
 
+// unmatchedRoute is the service's own answer to rt, a request naming no
+// operation of it, from Options.UnmatchedRoute; false when the service
+// gives none and the request is its unknown operation.
+func (h *Handler) unmatchedRoute(rt toUnknown) (*awserr.Error, bool) {
+	answer, ok := h.opts.UnmatchedRoute[rt.svc.ID]
+	if !ok {
+		return nil, false
+	}
+	return answer(rt.req)
+}
+
 // awsFaultNamespace is the xmlns of Coral's AWSFault ErrorResponse, which
 // SNS and SES v1 answer an unknown Action in (error-matrix.md 3, ses.md
 // 3.1).

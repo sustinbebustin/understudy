@@ -2,6 +2,7 @@ package s3
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 )
 
 // keyGen draws keys from a small alphabet so prefixes, delimiters and
@@ -294,6 +296,49 @@ func TestContinuationTokenRoundTrips(t *testing.T) {
 	for _, bad := range []string{"", "abc", "!!", continuationToken("")} {
 		if _, err := parseContinuationToken(bad); err == nil || err.ID.QueryCode != "InvalidArgument" {
 			t.Errorf("token %q: got %v, want InvalidArgument", bad, err)
+		}
+	}
+}
+
+// TestListMaxKeysAboveCapIsEchoed: a max-keys above 1,000 is echoed as sent
+// while the page holds at most 1,000 entries and is truncated
+// (testdata/parity/s3/R12/05-list-max-keys-1001.json; ListObjects and
+// ListObjectVersions apply the same rule, inferred).
+func TestListMaxKeysAboveCapIsEchoed(t *testing.T) {
+	keys := make([]string, 1001)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("k%04d", i)
+	}
+	b := liveBucket(keys...)
+	out, err := listObjectsV2(&s3api.ListObjectsV2Input{MaxKeys: new(int32(1001))}, b)
+	if err != nil {
+		t.Fatal(err.AsError())
+	}
+	if len(out.Contents) != 1000 || out.MaxKeys == nil || *out.MaxKeys != 1001 || out.IsTruncated == nil || !*out.IsTruncated {
+		t.Errorf("V2: %d entries, MaxKeys %v, truncated %v; want 1000, 1001, true", len(out.Contents), out.MaxKeys, out.IsTruncated)
+	}
+	v1, err := listObjects(&s3api.ListObjectsInput{MaxKeys: new(int32(1001))}, b)
+	if err != nil {
+		t.Fatal(err.AsError())
+	}
+	if len(v1.Contents) != 1000 || v1.MaxKeys == nil || *v1.MaxKeys != 1001 {
+		t.Errorf("V1: %d entries, MaxKeys %v; want 1000, 1001", len(v1.Contents), v1.MaxKeys)
+	}
+}
+
+// TestListNegativeMaxKeysIsRefused: a negative max-keys is InvalidArgument
+// with ArgumentName maxKeys (testdata/parity/s3/IAM-ENF/13-s3.json;
+// ListObjects and ListObjectVersions inferred).
+func TestListNegativeMaxKeysIsRefused(t *testing.T) {
+	b := liveBucket("a")
+	want := []awserr.Field{{Name: "ArgumentName", Value: "maxKeys"}, {Name: "ArgumentValue", Value: "-1"}}
+	const message = "Argument maxKeys must be an integer between 0 and 2147483647"
+	_, v2 := listObjectsV2(&s3api.ListObjectsV2Input{MaxKeys: new(int32(-1))}, b)
+	_, v1 := listObjects(&s3api.ListObjectsInput{MaxKeys: new(int32(-1))}, b)
+	_, vv := listObjectVersions(&s3api.ListObjectVersionsInput{MaxKeys: new(int32(-1))}, b)
+	for name, err := range map[string]*awserr.Error{"V2": v2, "V1": v1, "Versions": vv} {
+		if err == nil || err.ID.QueryCode != "InvalidArgument" || err.Message != message || !reflect.DeepEqual(err.Fields, want) {
+			t.Errorf("%s: %+v, want InvalidArgument %q %v", name, err, message, want)
 		}
 	}
 }

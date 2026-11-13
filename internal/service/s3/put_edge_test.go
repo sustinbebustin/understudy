@@ -18,6 +18,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/edge"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
@@ -38,11 +39,26 @@ func (c *readCounter) Read(p []byte) (int, error) {
 }
 
 // objectEdge is an S3 service with a blob store behind the edge: send
-// signs a request to target on the S3 host with an unsigned payload and
-// returns the recorded answer.
+// signs a request to target on the S3 host for region with an unsigned
+// payload and returns the recorded answer.
 type objectEdge struct {
-	k     *kerneltest.K
-	front http.Handler
+	k      *kerneltest.K
+	front  http.Handler
+	region aws.Region
+	// tls sends requests over HTTPS, as SSE-C requires.
+	tls bool
+}
+
+// overHTTPS returns e sending requests over HTTPS.
+func (e objectEdge) overHTTPS() objectEdge {
+	e.tls = true
+	return e
+}
+
+// signedFor returns e sending requests signed for region.
+func (e objectEdge) signedFor(region aws.Region) objectEdge {
+	e.region = region
+	return e
 }
 
 // newObjectEdge builds an objectEdge on k; the blob store closes when the
@@ -65,21 +81,26 @@ func newObjectEdge(k *kerneltest.K) objectEdge {
 		Kernel: k.Kernel, Registry: k.Kernel.Registry(), Identity: k.Identity, Regions: aws.KnownRegions(),
 		Codecs:       map[ref.ProtocolID]edge.Codec{ref.RESTXML: xmlCodec{c: restxml.Codec{Dialect: s3Dialect}}},
 		BucketExists: svc.BucketExists, S3BaseDomains: []string{"localhost"},
-		Listener: ref.ListenerMain, Unclaimed: ref.RESTXML,
+		UnmatchedRoute: map[ref.ServiceID]func(*http.Request) (*awserr.Error, bool){s3api.Service().ID: s3.UnmatchedRoute},
+		Listener:       ref.ListenerMain, Unclaimed: ref.RESTXML,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return objectEdge{k: k, front: front}
+	return objectEdge{k: k, front: front, region: aws.DefaultRegion()}
 }
 
 // send sends method to target with body and header, declaring length.
 func (e objectEdge) send(method, target string, body io.Reader, length int64, header http.Header) *httptest.ResponseRecorder {
-	r := httptest.NewRequestWithContext(e.k.Context(), method, "http://"+s3Host+target, body)
+	scheme := "http"
+	if e.tls {
+		scheme = "https"
+	}
+	r := httptest.NewRequestWithContext(e.k.Context(), method, scheme+"://"+s3Host+target, body)
 	r.ContentLength = length
 	maps.Copy(r.Header, header)
 	r.Header.Set("X-Amz-Content-Sha256", "UNSIGNED-PAYLOAD")
-	auth.Sign(r, nil, auth.Signer{AccessKeyID: aws.DefaultAccount().String(), SecretAccessKey: "secret", Region: aws.DefaultRegion(), Service: "s3"}, e.k.Clock.Wall())
+	auth.Sign(r, nil, auth.Signer{AccessKeyID: aws.DefaultAccount().String(), SecretAccessKey: "secret", Region: e.region, Service: "s3"}, e.k.Clock.Wall())
 	rec := httptest.NewRecorder()
 	e.front.ServeHTTP(rec, r)
 	return rec

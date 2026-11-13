@@ -29,7 +29,7 @@ func (s *Service) bindObjectTagging(b s3api.Binder) {
 	get := func(in *s3api.GetObjectTaggingInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetObjectTagging(reader(s, get, getObjectTagging), registry.Full{}, touches(s, get))
 	put := func(in *s3api.PutObjectTaggingInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutObjectTagging(s.putObjectTagging, registry.Full{}, touches(s, put),
+	b.PutObjectTagging(s.putObjectTagging, checksumUnchecked(registry.Full{}), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutObjectTaggingInput) *awserr.Error {
 			_, err := objectTagSet(in.Tagging.TagSet)
 			return err

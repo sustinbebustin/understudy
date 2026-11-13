@@ -26,11 +26,12 @@ func (s *Service) bindMultipart(b s3api.Binder) {
 	create := func(in *s3api.CreateMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.CreateMultipartUpload(s.createMultipartUpload, registry.Partial{Note: "an object ACL a bucket accepts is not stored; no lifecycle abort date; " + eventHoldNote}, touches(s, create))
 	part := func(in *s3api.UploadPartInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.UploadPart(s.uploadPart, registry.Partial{Note: "chunk signatures are verified under sigv4 verify"}, touches(s, part))
+	b.UploadPart(s.uploadPart, registry.Partial{Note: "chunk signatures are verified under sigv4 verify; a part without a checksum is refused on an upload that declared XXHASH3, XXHASH128, SHA512 or MD5 by inference from the recorded refusal for XXHASH64"}, touches(s, part))
 	partCopy := func(in *s3api.UploadPartCopyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.UploadPartCopy(s.uploadPartCopy, registry.Partial{Note: "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"}, touches(s, partCopy))
 	complete := func(in *s3api.CompleteMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.CompleteMultipartUpload(s.completeMultipartUpload, registry.Partial{Note: "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"}, touches(s, complete))
+	b.CompleteMultipartUpload(s.completeMultipartUpload, registry.Partial{Note: "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error; " +
+		"an identical Complete retried after success answers 200 again while the version it made is its key's current version (inferred: how long AWS honours a retry is unrecorded)"}, touches(s, complete))
 	abort := func(in *s3api.AbortMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.AbortMultipartUpload(s.abortMultipartUpload, registry.Partial{Note: "x-amz-if-match-initiated-time, a directory bucket header, answers 501"}, touches(s, abort))
 	lp := func(in *s3api.ListPartsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
@@ -326,13 +327,30 @@ type completion struct {
 	size   int64
 }
 
+// completeOutcome is a Complete judged under the bucket's lock: a
+// completion to commit, or a retry of one already committed.
+//
+//sumtype:decl
+type completeOutcome interface{ completeOutcome() }
+
+// retry is an identical Complete sent again after success (retried): the
+// version the first one made and the version id it reported.
+type retry struct {
+	version  Version
+	reported *string
+}
+
+func (completion) completeOutcome() {}
+func (retry) completeOutcome()      {}
+
 // completeMultipartUpload assembles the listed parts into the object
 // (s3.md 10, 6.4). Every check runs under the bucket's lock against the
 // upload: the part list, the parts' ETags and sizes, the checksum mode and
 // values, x-amz-mp-object-size and the write condition. Then the parts
 // are concatenated into the object's blob, and the object is committed
 // under the lock, where the upload must still hold the listed parts and
-// the write condition is judged again.
+// the write condition is judged again. An identical Complete of an upload
+// already completed answers from the version it made (retried).
 func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, in *s3api.CompleteMultipartUploadInput) (*s3api.CompleteMultipartUploadOutput, *awserr.Error) {
 	blobs, err := s.blobStore()
 	if err != nil {
@@ -343,10 +361,30 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 		return nil, err
 	}
 	a := at(in.Bucket, in.ExpectedBucketOwner)
-	plan, err := read(ctx, s, c, a, func(b *Bucket) (completion, *awserr.Error) { return s.judgeCompletion(ctx, blobs, b, req) })
+	outcome, err := read(ctx, s, c, a, func(b *Bucket) (completeOutcome, *awserr.Error) {
+		if r, ok := retried(b, req); ok {
+			return r, nil
+		}
+		return s.judgeCompletion(ctx, blobs, b, req)
+	})
 	if err != nil {
 		return nil, err
 	}
+	switch o := outcome.(type) {
+	case retry:
+		// A retry reports no checksum, though the first answer did
+		// (testdata/parity/s3/R12/03-complete-again.json).
+		return completeResult(c, in.Bucket, in.Key, o.version.Object, o.reported, req.customer), nil
+	case completion:
+		return s.commitCompletion(ctx, c, a, blobs, in, req, o)
+	default:
+		return nil, awserr.Internalf(fmt.Errorf("CompleteMultipartUpload of upload %s judged to %T, which is no completeOutcome variant", req.id, outcome))
+	}
+}
+
+// commitCompletion concatenates a judged Complete's parts into the
+// object's blob and commits the object.
+func (s *Service) commitCompletion(ctx context.Context, c *kernel.Call, a access, blobs *blob.Store, in *s3api.CompleteMultipartUploadInput, req completeRequest, plan completion) (*s3api.CompleteMultipartUploadOutput, *awserr.Error) {
 	refs := make([]blob.Ref, len(plan.parts))
 	for i := range plan.parts {
 		refs[i] = plan.parts[i].part.Blob
@@ -372,15 +410,13 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 	obj := &Object{
 		Blob: ref, Size: size, ETag: etag, Checksum: plan.sum, Header: u.Header, Metadata: u.Metadata, Tags: u.Tags,
 		StorageClass: u.StorageClass, Encryption: u.Encryption, Parts: objectParts(plan.parts, plan.sum.Type), Lock: u.Lock,
+		CompletedBy: completedBy(req.id, plan.parts),
 	}
 	done, err := s.commitOwned(ctx, c, a, obj, s.completeWrite(req, plan, obj))
 	if err != nil {
 		return nil, err
 	}
-	out := &s3api.CompleteMultipartUploadOutput{
-		Location: new(objectLocation(c.Endpoint(), in.Bucket, in.Key)), Bucket: new(in.Bucket), Key: new(in.Key),
-		ETag: new(quote(obj.ETag)), VersionId: done.reported,
-	}
+	out := completeResult(c, in.Bucket, in.Key, obj, done.reported, req.customer)
 	// An SSE-KMS or SSE-C result reports no checksum, though the object
 	// keeps one that reads report (REC test_s3_multipart_upload_sse steps
 	// multi-sse-compete-multipart and get-obj; LocalStack
@@ -393,9 +429,59 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 		out.ChecksumType = new(obj.Checksum.Type)
 		completeMultipartUploadOutputFields(out).set(membersOf(obj.Checksum))
 	}
+	return out, nil
+}
+
+// completeResult is what every successful Complete of obj answers, first
+// or retried (testdata/parity/s3/R12/03-complete.json,
+// 03-complete-again.json): the object's URL, bucket, key and ETag, the
+// version id reported, and the encryption headers. An SSE-C object whose
+// Complete carried its key also answers the customer headers
+// (S3SOL-08 08-right-key); the retried Complete does the same when it
+// resends the key (inferred, unrecorded).
+func completeResult(c *kernel.Call, bucket, key string, obj *Object, reported *string, customer customerHeaders) *s3api.CompleteMultipartUploadOutput {
+	out := &s3api.CompleteMultipartUploadOutput{
+		Location: new(objectLocation(c.Endpoint(), bucket, key)), Bucket: new(bucket), Key: new(key),
+		ETag: new(quote(obj.ETag)), VersionId: reported,
+	}
 	h := encryptionHeaders(obj.Encryption)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
-	return out, nil
+	setCustomerCompleteHeaders(c, obj.Encryption, customer)
+	return out
+}
+
+// completedBy is what the version a Complete of upload id makes keeps of
+// its part list.
+func completedBy(id string, parts []listedPart) *CompletedUpload {
+	out := &CompletedUpload{ID: id, Parts: make([]PartETag, len(parts))}
+	for i := range parts {
+		out.Parts[i] = PartETag{Number: parts[i].number, ETag: parts[i].etag}
+	}
+	return out
+}
+
+// retried finds the version an earlier Complete of req's upload made, when
+// req lists the same parts with the same ETags: S3 answers that Complete
+// sent again with 200, and one with a changed part list with NoSuchUpload
+// (testdata/parity/s3/R12/notes.md step 3). How long S3 honours a retry is
+// unrecorded; it is honoured while that version is its key's current
+// version (inferred), so a later write or delete of the key ends it.
+func retried(b *Bucket, req completeRequest) (retry, bool) {
+	v, ok := b.Objects.live(req.key)
+	if !ok || v.Object.CompletedBy == nil || !v.Object.CompletedBy.matches(req.id, req.parts) {
+		return retry{}, false
+	}
+	return retry{version: v, reported: writtenVersion(b, v.ID)}, true
+}
+
+// matches reports whether a Complete of upload id listing sent is the one
+// that made the version: the same upload and the same part numbers and
+// ETags, quoted or not, in the same order. Restated part checksums are not
+// compared (inferred: R12/03 restates none).
+func (u *CompletedUpload) matches(id string, sent []s3api.CompletedPart) bool {
+	return u.ID == id && slices.EqualFunc(u.Parts, sent, func(p PartETag, cp s3api.CompletedPart) bool {
+		return cp.PartNumber != nil && *cp.PartNumber == p.Number && unquote(smithy.Deref(cp.ETag)) == p.ETag
+	})
 }
 
 // objectParts is what the completed object keeps of its listed parts: each
