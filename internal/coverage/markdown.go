@@ -181,13 +181,14 @@ func (r Report) operations(b *strings.Builder, svc ref.ServiceID, ops []Operatio
 func (r Report) writeSwitches(b *strings.Builder) {
 	b.WriteString("\n## Evidence\n\n### Fidelity switches\n\n")
 	if r.showsEvidence() {
-		b.WriteString("Behaviors chosen without AWS-recorded evidence, with the research they rest on and the " +
-			"parity scenario step that settles them, or why none does. The count and order follow the label the " +
-			"code states; the Label column shows the recording's verdict where a replayed step settles or " +
-			"contradicts the switch.\n\n")
+		b.WriteString("Named behavior choice points, labelled by what backs their values, with the research they rest on " +
+			"and the parity scenario step that settles them, or why none does. A recorded deviation, where AWS was " +
+			"recorded doing otherwise, keeps the label of understudy's own choice and a reason that opens \"AWS " +
+			"contradicts it\". The count and order follow the label the code states; the Label column shows the " +
+			"recording's verdict where a replayed step settles or contradicts the switch.\n\n")
 	} else {
-		b.WriteString("Behaviors chosen without AWS-recorded evidence, with the research they rest on and the " +
-			"record-backlog item that settles them.\n\n")
+		b.WriteString("Named behavior choice points, labelled by what backs their values, with the research they rest on " +
+			"and the record-backlog item that settles them.\n\n")
 	}
 	if len(r.Switches) == 0 {
 		b.WriteString("No wired service declares a switch.\n")
@@ -224,8 +225,9 @@ func settledBy(s Switch) string {
 func (r Report) writeRetirement(b *strings.Builder) {
 	b.WriteString("\n### Settled by recording, pending retirement\n\n")
 	b.WriteString("Switches and overlay evidence items whose recorded step matches AWS and fails once the settled field " +
-		"is changed, while the code still labels them below aws-recorded. Each is ready to retire: fix its label or " +
-		"remove the switch, with a test that cites the fixture (docs/recording-kit.md 6).\n\n")
+		"is changed, while the code still labels them below aws-recorded. Each is ready to retire its lower label: label it " +
+		"aws-recorded, with a test that cites the fixture. A switch stays, so the replay keeps checking it; it goes only " +
+		"when its choice point leaves the code (ADR 0003, docs/recording-kit.md 6).\n\n")
 	list := r.PendingRetirement()
 	if len(list) == 0 {
 		b.WriteString("None.\n")

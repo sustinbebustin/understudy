@@ -535,8 +535,8 @@ type Label string // aws-recorded | third-party-recorded | aws-doc | sdk-source 
 ```go
 package fidelity
 
-// Switch is a behavior chosen without AWS-recorded evidence; the coverage report lists every
-// switch. Configuration sets four (s3.crossRegion, lambda.stateTransitions,
+// Switch is a named behavior choice point, labelled by what backs its value, recorded or not
+// (ADR 0003, amendment 2026-11-13); the coverage report lists every switch. Configuration sets four (s3.crossRegion, lambda.stateTransitions,
 // sqs.queueDeletedRecently, iam.assumeRole); the rest are fixed.
 type Switch[T comparable] struct {
 	Name    string         // "logs.filter.term-boundary"

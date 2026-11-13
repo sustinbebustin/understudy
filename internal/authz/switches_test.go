@@ -1,10 +1,12 @@
 package authz_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/evidence"
+	"github.com/sustinbebustin/understudy/internal/fidelity"
 )
 
 // The evaluation and context switches of iam-evaluation.md 12.3 and
@@ -66,6 +68,20 @@ func TestSwitchesRegisterEveryEvaluationChoice(t *testing.T) {
 		// understudy deliberately does not check (iam-evaluation.md 3.4).
 		if e.Name == "iam.policy.principal-existence" && (e.Value != "unchecked" || e.Label != evidence.Inferred) {
 			t.Errorf("iam.policy.principal-existence = %s (%s), want unchecked (%s)", e.Value, e.Label, evidence.Inferred)
+		}
+		// A recorded deviation (ADR 0003, amendment 2026-11-13): AWS
+		// authorizes first in SQS, CloudWatch and Logs, understudy
+		// validates first everywhere (iam-enforcement-surfaces.md 5.3,
+		// IAM-ENF-13).
+		if e.Name == "iam.enforce.order" {
+			reason := ""
+			if s, ok := e.Settles.(fidelity.NoScenario); ok {
+				reason = s.Reason
+			}
+			if e.Value != "validate-first" || e.Label != evidence.Inferred || !strings.HasPrefix(reason, "AWS contradicts it: IAM-ENF-13 recorded ") {
+				t.Errorf("iam.enforce.order = %s (%s), settles %q; want validate-first (%s), a reason opening \"AWS contradicts it: IAM-ENF-13 recorded \"",
+					e.Value, e.Label, reason, evidence.Inferred)
+			}
 		}
 		if e.Name == "iam.resource-tag.case-duplicates" {
 			t.Errorf("iam.resource-tag.case-duplicates is registered, but aws:ResourceTag/ is never supplied (iam-evaluation.md 8.2)")

@@ -30,8 +30,9 @@ const (
 		"describe behavior it does not have. Overlay items on a service shape apply to every operation of the service and " +
 		"are attributed to none; the Overlay entries table shows their labels."
 	retirementIntro = "Switches and overlay evidence items whose recorded step matches AWS and fails once the settled field " +
-		"is changed, while the code still labels them below aws-recorded. Each is ready to retire: fix its label or remove " +
-		"the switch, with a test that cites the fixture (docs/recording-kit.md 6)."
+		"is changed, while the code still labels them below aws-recorded. Each is ready to retire its lower label: label it " +
+		"aws-recorded, with a test that cites the fixture. A switch stays, so the replay keeps checking it; it goes only " +
+		"when its choice point leaves the code (ADR 0003, docs/recording-kit.md 6)."
 )
 
 // r01 settles a switch by a step of the sqs/R01 scenario.

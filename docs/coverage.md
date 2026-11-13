@@ -1801,7 +1801,7 @@ Internal operations:
 
 ### Fidelity switches
 
-Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
+Named behavior choice points, labelled by what backs their values, with the research they rest on and the parity scenario step that settles them, or why none does. A recorded deviation, where AWS was recorded doing otherwise, keeps the label of understudy's own choice and a reason that opens "AWS contradicts it". The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
 234 switches: 138 aws-recorded, 1 third-party-recorded, 13 aws-doc, 82 inferred.
 
@@ -1982,7 +1982,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `iam.context.secure-transport` | `assume-tls` | inferred | docs/research/iam-evaluation.md#8.2 | none: none needed: AWS's own value is always true for its HTTPS endpoints, so no recording can tell the values apart and the choice is understudy's (iam-evaluation.md 12.3, iam-enforcement-surfaces.md 12.8) |
 | `iam.context.service-principal-identity-keys` | `absent` | inferred | docs/research/iam-evaluation.md#2.9 | none: IAM-EVAL-33 recorded 2026-11-03 that a delivery by sns.amazonaws.com carries aws:PrincipalType, aws:PrincipalAccount and aws:userid, but not their values; the value stays absent until a recording shows them (iam-evaluation.md 2.9) |
 | `iam.denial.list-resource` | `names the service wildcard, evaluated on *` | inferred | docs/research/iam-enforcement-surfaces.md#12.3 | none: IAM-ENF-35, IAM-ENF-37 and IAM-ENF-39 to IAM-ENF-41 recorded 2026-11-03 the wildcard resource a list operation's denial names (IAM-ENF-36 and IAM-ENF-38: none for Kinesis ListStreams and SES v1 ListIdentities); inferred: whether AWS matches a policy's Resource against that wildcard rather than "*" is unrecorded, so evaluation and the access record keep "*" (iam-enforcement-surfaces.md 12.3) |
-| `iam.enforce.order` | `validate-first` | inferred | docs/research/iam-enforcement-surfaces.md#5.3 | none: IAM-ENF-13 recorded 2026-11-03 (testdata/parity): AWS validates before authorizing in every service it covers except SQS, CloudWatch and Logs, which authorize first; understudy validates first in all of them (iam-enforcement-surfaces.md 5.3, 12.8) |
+| `iam.enforce.order` | `validate-first` | inferred | docs/research/iam-enforcement-surfaces.md#5.3 | none: AWS contradicts it: IAM-ENF-13 recorded 2026-11-03 (testdata/parity) that SQS, CloudWatch and Logs authorize before validating, while every other service it covers validates first; understudy validates first in all of them (iam-enforcement-surfaces.md 5.3, 12.8); the recorded caller is a role session, and the replay signs only as the account's root |
 | `iam.policy.principal-existence` | `unchecked` | inferred | docs/research/iam-evaluation.md#3.4 | none: AWS contradicts it: IAM-EVAL-24 recorded 2026-11-03 that IAM refuses a trust policy naming a role that does not exist (MalformedPolicyDocument) and SQS a queue policy naming a missing user (InvalidAttributeValue); understudy stores such a policy, so that setups naming roles never created in understudy keep working (iam-evaluation.md 3.4) |
 | `iam.principal-tag.case-duplicates` | `exact-case` | inferred | docs/research/iam-evaluation.md#6.13 | none: IAM-EVAL-31 recorded 2026-11-03 that aws:ResourceTag/env found the queue tag env and not Env; principal tags, and spellings matching neither tag, follow it by inference until a recording of aws:PrincipalTag shows them (iam-evaluation.md 6.13) |
 | `kinesis.get-records.millis-behind-latest` | `now-minus-next-unread-arrival` | inferred | docs/research/kinesis.md#510-approximatearrivaltimestamp-and-millisbehindlatest | none: unrecorded: KIN-10 is queued |
@@ -2494,7 +2494,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 
 ### Settled by recording, pending retirement
 
-Switches and overlay evidence items whose recorded step matches AWS and fails once the settled field is changed, while the code still labels them below aws-recorded. Each is ready to retire: fix its label or remove the switch, with a test that cites the fixture (docs/recording-kit.md 6).
+Switches and overlay evidence items whose recorded step matches AWS and fails once the settled field is changed, while the code still labels them below aws-recorded. Each is ready to retire its lower label: label it aws-recorded, with a test that cites the fixture. A switch stays, so the replay keeps checking it; it goes only when its choice point leaves the code (ADR 0003, docs/recording-kit.md 6).
 
 | Switch or shape | Code label | Fixture | Field |
 |---|---|---|---|
