@@ -589,7 +589,7 @@ Takeaways for the understudy generator are in section 17.
 ## 18. Open questions
 
 - Does AWS accept or reject JSON bodies with duplicate member names, invalid UTF-8 and `1.0` for integer members? v2 defaults reject all three; the Smithy protocol compliance tests are the place to check. Related files: [smithy-protocol-tests.md](smithy-protocol-tests.md).
-- RESOLVED: XXHASH* digest wire format (see 7.1; the SDKs that send them are botocore, Java v2 and C++, all via the CRT). Still open: S3's behaviour when an unknown algorithm header arrives (record-backlog item R08).
+- RESOLVED: XXHASH* digest wire format (see 7.1; the SDKs that send them are botocore, Java v2 and C++, all via the CRT). Recorded 2026-10-14: an unknown `x-amz-checksum-algorithm` on CreateMultipartUpload answers 400 `InvalidRequest` listing the ten valid types, and an unknown `x-amz-trailer` name 400 `InvalidRequest` "The value specified in the x-amz-trailer header is not supported" (`testdata/parity/s3/R08/08-create-alg-foo.json`, `03-trailer-nope.json`). Still open: an unknown `x-amz-checksum-<name>` request header on PutObject.
 - Is `encoding/json/v2` covered by the Go 1 compatibility promise in 1.27, and when is `GOEXPERIMENT=nojsonv2` removed?
 - Whether `GODEBUG=fips140=only` affects MD5/SHA-1 (relevant only if users run understudy under FIPS mode).
 - `rapid` use under `t.Parallel()` was not exercised.

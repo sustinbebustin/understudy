@@ -264,7 +264,7 @@ SQS model facts (https://github.com/aws/api-models-aws/blob/main/models/sqs/serv
 | `KmsAccessDenied`, `KmsDisabled`, `KmsInvalidKeyUsage`, `KmsInvalidState`, `KmsNotFound`, `KmsThrottled` | `KMS.AccessDeniedException`, `KMS.DisabledException`, `KMS.InvalidKeyUsageException`, `KMS.InvalidStateException`, `KMS.NotFoundException`, `KMS.ThrottlingException` | 400 |
 | `KmsOptInRequired` | `KMS.OptInRequired` | 403 |
 
-The same model gives every error `smithy.api#httpError` equal to that status (e.g. 404 for `ReceiptHandleIsInvalid`). What status the real SQS JSON endpoint returns for these (the Smithy test says 400 for the one custom-code example; the model says 404) is UNVERIFIED; the SQS researcher should settle it from SDK/recorded behavior. For SQS over the legacy Query wire the awsQuery rules apply (status from `awsQueryError.httpResponseCode`, XML `ErrorResponse`).
+The same model gives every error `smithy.api#httpError` equal to that status (e.g. 404 for `ReceiptHandleIsInvalid`). What status the real SQS JSON endpoint returns for these (the Smithy test says 400 for the one custom-code example; the model says 404) is the model's for `ResourceNotFoundException` (404, recorded 2026-10-14, `testdata/parity/sqs/R02/07-start-deleted.json`) and otherwise UNVERIFIED; the SQS researcher should settle it from SDK/recorded behavior. For SQS over the legacy Query wire the awsQuery rules apply (status from `awsQueryError.httpResponseCode`, XML `ErrorResponse`).
 
 ### 7.3 Other service-specific slices (not phase 1)
 
@@ -298,7 +298,7 @@ Glacier (account id `-` default, checksum headers), API Gateway (`Accept` header
 10. Quality gating: run the suite in CI on every protocol-layer change with a checked-in, reason-annotated skip list; report pass, skip and fail counts per protocol, and feed the totals into the `understudy coverage` report as a fidelity statistic (for example "restJson1: 229 of 229 runnable cases, 3 skipped with reasons").
 
 ### Open items for other researchers or the implementer
-- The real wire status code for SQS JSON errors whose model `httpResponseCode` is not 400 (UNVERIFIED).
+- The real wire status code for SQS JSON errors whose model `httpResponseCode` is not 400, beyond `ResourceNotFoundException` (404 as modeled, recorded 2026-10-14, `testdata/parity/sqs/R02/07-start-deleted.json`).
 - How `localhost:PORT` custom endpoints are treated by each SDK for S3 (path vs virtual-host) (UNVERIFIED; check rule set text and SDK behavior).
 - RESOLVED (CORRECTED (G1): botocore resolves to `json`, not `rpcv2Cbor`): Go v2 uses `rpcv2Cbor`; botocore (boto3, AWS CLI) and JS v3 use `awsJson1_0`, wire-captured in [wire-cbor.md](wire-cbor.md); a CBOR codec is needed in phase 1 (sources in the protocol table note above).
 - Provenance of the botocore protocol JSON corpus (UNVERIFIED).

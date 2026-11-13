@@ -113,7 +113,7 @@ Terraform keys on the **code** (`tfawserr.ErrCodeEquals`), not on the status; th
 | `ObjectLockConfigurationNotFoundError` | `GetObjectLockConfiguration` | 404 |
 | `OwnershipControlsNotFoundError` | `GetBucketOwnershipControls` | 404 |
 | `ServerSideEncryptionConfigurationNotFoundError` | `GetBucketEncryption` | **400** in the AWS table. Disagreement: s3.md says every other not-configured error is 404 and no recording of this one exists. The provider does not look at the status, so either works for Terraform ([errors.go L11-L48](https://github.com/hashicorp/terraform-provider-aws/blob/972faab3f6e4e37aff0453fe05366f3bd3fc2b97/internal/service/s3/errors.go#L11-L48)) |
-| `NoSuchPublicAccessBlockConfiguration` | `GetPublicAccessBlock` | not in the AWS error table I fetched: UNVERIFIED (404 per [s3.md 4.1](s3.md)) |
+| `NoSuchPublicAccessBlockConfiguration` | `GetPublicAccessBlock` | not in the AWS error table I fetched; AWS answers 404 "The public access block configuration was not found" with `BucketName` (recorded 2026-10-14, `testdata/parity/s3/R06/03-get-pab-after-delete.json`) |
 | `MethodNotAllowed` | tolerated on most legacy reads | 405 |
 | `OperationAborted` | retried on create/put | 409 |
 | `BucketNotEmpty`, `InvalidBucketState` | delete, versioning suspend with Object Lock | 409 |
@@ -272,14 +272,14 @@ Delete ([secret_version.go L377-L435](https://github.com/hashicorp/terraform-pro
 
 ### 5.3 Perpetual-diff risks (Secrets Manager)
 
-1. `kms_key_id` is written to state verbatim from `DescribeSecret.KmsKeyId` ([secret.go L231-L240](https://github.com/hashicorp/terraform-provider-aws/blob/972faab3f6e4e37aff0453fe05366f3bd3fc2b97/internal/service/secretsmanager/secret.go#L231-L240)): return exactly what `CreateSecret`/`UpdateSecret` received. What real AWS returns when a key ID or alias was passed is UNVERIFIED here (an alias or key ID in config against an ARN in the answer would diff).
+1. `kms_key_id` is written to state verbatim from `DescribeSecret.KmsKeyId` ([secret.go L231-L240](https://github.com/hashicorp/terraform-provider-aws/blob/972faab3f6e4e37aff0453fe05366f3bd3fc2b97/internal/service/secretsmanager/secret.go#L231-L240)): return exactly what `CreateSecret`/`UpdateSecret` received. Real AWS echoes a key ID, an ARN or an alias exactly as passed (recorded 2026-10-14, `testdata/parity/secretsmanager/R07/06-describe-s-bare.json`, `06-describe-s-arn.json`, `06-describe-s-alias.json`), so no diff arises.
 2. `DescribeSecret.Tags` must reflect `CreateSecret.Tags`, or `tags` diffs forever.
 3. `version_stages` on a version resource is `Optional+Computed`; a second `PutSecretValue` demotes the earlier version to `AWSPREVIOUS`, and the earlier `aws_secretsmanager_secret_version` then reads `["AWSPREVIOUS"]` in state without a diff (computed). Make the label moves exact ([secrets-logs-events-alarms.md section 2.2](secrets-logs-events-alarms.md)).
 4. The secret ID in state is the ARN with the 6-character suffix (`-ZMysbk`); it must be stable for the secret's lifetime.
 
 ## 6. Cross-resource ordering the workload depends on
 
-- `aws_s3_bucket_server_side_encryption_configuration` with `kms_master_key_id = aws_kms_key.k.arn` needs only the key ARN string at apply time (PROBE: the Put carried `<KMSMasterKeyID>arn:aws:kms:...:key/<id></KMSMasterKeyID>`); whether real S3 validates the key on `PutBucketEncryption` is UNVERIFIED (it validates on object writes, [s3.md section 5.7](s3.md)). The emulator may validate or not; Terraform does not depend on it.
+- `aws_s3_bucket_server_side_encryption_configuration` with `kms_master_key_id = aws_kms_key.k.arn` needs only the key ARN string at apply time (PROBE: the Put carried `<KMSMasterKeyID>arn:aws:kms:...:key/<id></KMSMasterKeyID>`); real S3 does not validate the key on `PutBucketEncryption`: a nonexistent, a disabled and a pending-deletion key and a missing alias all answered 200 (recorded 2026-10-14, `testdata/parity/s3/R06/02-put-encryption-nonexistent-key.json`, `02-put-encryption-disabled-key.json`, `02-put-encryption-pending-deletion-key.json`, `02-put-encryption-missing-alias.json`; it validates on object writes, [s3.md section 5.7](s3.md)). The emulator may validate or not; Terraform does not depend on it.
 - `aws_secretsmanager_secret.kms_key_id` likewise is passed through; `GetSecretValue` then exercises KMS in the emulator's own pipeline.
 - Destroy order observed (PROBE): alias before key; secret version before secret; S3 subresources before the bucket; `ScheduleKeyDeletion` only after `DeleteAlias`, `DELETE ?encryption` and `DeleteSecret`, the three resources that referenced the key, had completed. Terraform's graph destroys dependents first, so the emulator never sees a key deleted while a Terraform-managed resource still references it.
 
@@ -345,9 +345,7 @@ Requirements, each traceable to a section above.
 
 ## Open questions and UNVERIFIED
 
-- Real status code and body for `NoSuchPublicAccessBlockConfiguration` (not in the AWS error table).
-- Whether real S3 validates the KMS key on `PutBucketEncryption`.
-- What real Secrets Manager returns in `DescribeSecret.KmsKeyId` when `CreateSecret` received a key ID or an alias.
+- Closed (recorded 2026-10-14): `NoSuchPublicAccessBlockConfiguration` is 404 with `BucketName` (`testdata/parity/s3/R06/03-get-pab-after-delete.json`); S3 does not validate the KMS key on `PutBucketEncryption` (`testdata/parity/s3/R06/02-put-encryption-*.json`); `DescribeSecret.KmsKeyId` echoes what `CreateSecret` received (`testdata/parity/secretsmanager/R07/06-describe-s-*.json`).
 - The root element name of the S3 Control `TagResource` request body (not exercised; the Go serializer writes a `Tags` member element).
 - Whether `inttypes.IsZero` treats an SDK output with only `ResultMetadata` as zero for an empty `NotificationConfiguration`.
 - Behavior of `ListTagsForResource` for bucket ARNs that the caller does not own (provider path not exercised).

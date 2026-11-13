@@ -227,7 +227,7 @@ STREAM_TYPE: 0 stdin (delivered on stdout), 1 stdout, 2 stderr, 3 systemerr (an 
 
 Resource limits that the host cannot honor degrade silently or with a warning: `Warnings` on create (swap), and in rootless Docker without cgroup v2 + systemd "rootless mode ignores the cgroup-related `docker run` flags" ([tips.md#L139-L145](https://github.com/docker/docs/blob/7ba25eeb0c4c594f79e6efadad1af5eaca0500a8/content/manuals/engine/security/rootless/tips.md#L139-L145)). Check `GET /info` `MemoryLimit`/`SwapLimit`/`PidsLimit`/`CgroupDriver` once at startup and log a plain-language notice instead of discovering it per container.
 
-OOM behavior (observed E7d): a 64 MiB container allocating 300 MB ended `State.OOMKilled=true`, `ExitCode=137`, events `oom` then `die`. A Lambda `Runtime.OutOfMemory` style error for the caller is derived from `OOMKilled` (the exact AWS error text for OOM is not in the pages I read; UNVERIFIED).
+OOM behavior (observed E7d): a 64 MiB container allocating 300 MB ended `State.OOMKilled=true`, `ExitCode=137`, events `oom` then `die`. A Lambda `Runtime.OutOfMemory` style error for the caller is derived from `OOMKilled`. AWS answers the invoke 200 with `X-Amz-Function-Error: Unhandled` and `{"errorType":"Runtime.OutOfMemory","errorMessage":"RequestId: <id> Error: Runtime exited with error: signal: killed"}`, which understudy matches (recorded 2026-10-14, `testdata/parity/lambda/R13/04-invoke-oom.json`).
 
 ### 3.3 `Binds` versus `Mounts`
 
@@ -429,7 +429,7 @@ Which call Docker Desktop refuses, observed on the macOS Docker Desktop run of 2
 |---|---|---|
 | Runtime POSTs `/invocation/<id>/error` | Runtime API | 200 + `X-Amz-Function-Error: Unhandled` + payload |
 | Container `die` with exit code != 0 while `Busy` | events, observed E7 | `Runtime.ExitError`: `{"errorType":"Runtime.ExitError","errorMessage":"RequestId: <id> Error: Runtime exited with error: exit status <n>"}` (+ `X-Amz-Function-Error: Unhandled`); drop the environment |
-| `State.OOMKilled == true` / event `oom` | observed E7d | an out-of-memory function error (exact AWS text UNVERIFIED), drop the environment |
+| `State.OOMKilled == true` / event `oom` | observed E7d; AWS text recorded 2026-10-14 (`testdata/parity/lambda/R13/04-invoke-oom.json`) | `Runtime.OutOfMemory`: `{"errorType":"Runtime.OutOfMemory","errorMessage":"RequestId: <id> Error: Runtime exited with error: signal: killed"}` (+ `X-Amz-Function-Error: Unhandled`); drop the environment |
 | Exit before first `/next`, `/init/error` | Runtime API, observed E2 | init failure payload; function may be marked `Failed` on repeated init errors (design) |
 | No `/next` within the init deadline and container still running | - | include address diagnostics (section 8.4) |
 | Docker API unreachable mid-invoke | 2.3 | typed infrastructure error, not a function error; do not drop healthy containers |

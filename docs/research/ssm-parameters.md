@@ -1370,7 +1370,7 @@ Cost USD 0, 1 min.
 
 ### 13.36 SSM-35: the resource GetParametersByPath is authorized on, and the denial identity
 
-Settles the path ARN form understudy uses for `ssm:GetParametersByPath` (7.4 says AWS authorizes the path; no source gives the ARN): the path without its leading slash and without a trailing slash, so `Path: "/"` is `arn:<partition>:ssm:<region>:<account>:parameter/`. Step 01 also records SSM's denial identity (the SSM row of [iam-enforcement-surfaces.md 12.3](iam-enforcement-surfaces.md), IAM-ENF-41): `AccessDeniedException`, 400, the IAM grammar.
+Settles the path ARN form understudy uses for `ssm:GetParametersByPath` (7.4 says AWS authorizes the path; no source gives the ARN): the path without its leading slash, a trailing slash kept (recorded 2026-11-03, step 02 below), so `Path: "/"` is `arn:<partition>:ssm:<region>:<account>:parameter/`. Step 01 also records SSM's denial identity (the SSM row of [iam-enforcement-surfaces.md 12.3](iam-enforcement-surfaces.md), IAM-ENF-41): `AccessDeniedException`, 400, the IAM grammar.
 
 ```sh
 aws ssm put-parameter --name "$N/p35/a" --type String --value v >/dev/null
@@ -1383,4 +1383,4 @@ ssmunrole "$P-ssm-p35"
 ssmsweep
 ```
 
-Step 02 allowed means AWS drops the trailing slash as understudy does. Step 03 is denied (the policy names only the `p35` path), and its message names the ARN AWS evaluated for `/`. Cost USD 0, 2 min.
+Step 02 was denied: AWS keeps the trailing slash and evaluates `arn:aws:ssm:us-east-2:<account>:parameter/us1103/ssm/p35/`, which the policy's `p35` resource does not match (recorded 2026-11-03, `testdata/parity/ssm/SSM-35/02-by-path-trailing-slash.json`); understudy now keeps the slash too. Step 03 is denied (the policy names only the `p35` path), and its message names the ARN AWS evaluated for `/`. Cost USD 0, 2 min.
