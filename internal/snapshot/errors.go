@@ -21,18 +21,20 @@ func (e *FormatError) Error() string {
 		e.Archive, e.Reader, writerName(e.Writer))
 }
 
-// SchemaError reports a section whose state schema version differs from the
-// running binary's, or that belongs to a service the binary does not have.
-// Until the first tagged release there are no migrations (ADR 0009), so the
-// archive is refused and nothing is loaded.
+// SchemaError reports a section whose state schema version the running
+// binary does not read, or that belongs to a service the binary does not
+// have. Before 1.0 only the older versions a service declares are migrated
+// (ADR 0009), so the archive is refused and nothing is loaded.
 type SchemaError struct {
 	Path    string
 	Service ref.ServiceID
 	// Section is the section's schema version.
 	Section int
-	// Running is the running binary's schema version for Service; Known is
-	// false when the binary has no such service.
+	// Running is the running binary's schema version for Service, and
+	// Oldest the oldest it reads (Schema); Known is false when the binary
+	// has no such service.
 	Running int
+	Oldest  int
 	Known   bool
 	// Writer names the build that wrote the archive.
 	Writer string
@@ -43,8 +45,12 @@ func (e *SchemaError) Error() string {
 		return fmt.Sprintf("snapshot section %q belongs to service %q at state version %d, which this understudy does not have; the archive was written by %s; nothing was loaded (load it with that understudy version)",
 			e.Path, e.Service, e.Section, writerName(e.Writer))
 	}
-	return fmt.Sprintf("snapshot section %q has %s state version %d but this understudy runs version %d; the archive was written by %s; nothing was loaded (load it with that understudy version)",
-		e.Path, e.Service, e.Section, e.Running, writerName(e.Writer))
+	reads := ""
+	if e.Oldest < e.Running {
+		reads = fmt.Sprintf(" and reads versions %d to %d", e.Oldest, e.Running)
+	}
+	return fmt.Sprintf("snapshot section %q has %s state version %d but this understudy runs version %d%s; the archive was written by %s; nothing was loaded (load it with that understudy version)",
+		e.Path, e.Service, e.Section, e.Running, reads, writerName(e.Writer))
 }
 
 // EntryError reports an archive entry that cannot be read or written. The

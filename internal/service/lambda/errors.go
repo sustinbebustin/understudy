@@ -7,6 +7,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/docker"
+	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
 )
 
@@ -161,12 +162,13 @@ func errLayerNotFound(arn string) *awserr.Error {
 // hold may well exist on AWS (lambda-destinations-layers.md 8.4, 11.5.6).
 const layerNeverFetched = " understudy has only the layers published to it and never fetches layers from AWS; "
 
-// errForeignLayerNotFound is errLayerNotFound for a version of account,
-// another account than the caller's, then why understudy lacks it and how
-// to give it one.
-func errForeignLayerNotFound(arn, account string) *awserr.Error {
-	return user(lambdaapi.ErrInvalidParameterValueException("Layer version " + arn + " does not exist." + layerNeverFetched +
-		"publish the archive to understudy with credentials for account " + account + " and use the version that returns."))
+// errLayerVersionDenied answers caller for another account's layer version
+// arn that its owner's policy does not grant the caller's account, or that
+// does not exist: AWS does not tell the two apart, and sends no Type
+// (lambda-destinations-layers.md 7.4: LDL-15 09, 10).
+func errLayerVersionDenied(caller identity.Principal, arn string) *awserr.Error {
+	return lambdaapi.ErrAccessDeniedException("User: " + identity.Render(caller) + " is not authorized to perform: lambda:GetLayerVersion on resource: " +
+		arn + " because no resource-based policy allows the lambda:GetLayerVersion action")
 }
 
 // errManagedLayerNotFound is errLayerNotFound for an AWS-managed awslayer
@@ -358,6 +360,15 @@ func errInvalidPrincipal() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("The provided principal was invalid. Please check the principal and try again."))
 }
 
+// errLayerPolicyEmptied is GetLayerVersionPolicy's answer for a version
+// whose last statement was removed (aws-recorded,
+// testdata/parity/lambda/LDL-15/06-policy-emptied.json). A version that never
+// had a statement answers errNoPolicy (lambda-destinations-layers.md 6.8:
+// test_lambda_api.snapshot.json:L8915-L8926).
+func errLayerPolicyEmptied(arn string) *awserr.Error {
+	return user(lambdaapi.ErrResourceNotFoundException("Layer version " + arn + " does not have any resource policy."))
+}
+
 func errNoPolicy() *awserr.Error {
 	return user(lambdaapi.ErrResourceNotFoundException("No policy is associated with the given resource."))
 }
@@ -370,8 +381,10 @@ func errStatementNotFound(sid string) *awserr.Error {
 	return user(lambdaapi.ErrResourceNotFoundException("Statement " + sid + " is not found in resource policy."))
 }
 
-// errPolicyTooLarge carries the text AWS users report; it is unrecorded in
-// the research corpus.
+// errPolicyTooLarge is AWS's refusal of a statement that takes a policy past
+// maxPolicyBytes (aws-recorded for a layer version's policy,
+// testdata/parity/lambda/LDL-15/07-size-limit-at-086.txt); that a function
+// policy gets the same text is inferred.
 func errPolicyTooLarge(size int) *awserr.Error {
 	return user(lambdaapi.ErrPolicyLengthExceededException("The final policy size (" + strconv.Itoa(size) + ") is bigger than the limit (" + strconv.Itoa(maxPolicyBytes) + ")."))
 }
@@ -526,11 +539,23 @@ func errPollerConfigs() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("ScalingConfig and ProvisionedPollerConfig cannot both be set on an event source mapping."))
 }
 
-// errTooManyFilters is understudy's text for more filters than the default
-// quota of 5 per mapping; AWS's text is unrecorded (lambda-events.md 1.2).
+// errFIFOWindow refuses a batching window on a FIFO queue (aws-recorded,
+// R03 C-fifo-window-5).
+func errFIFOWindow() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Batching window is not supported for FIFO queues"))
+}
+
+// errPollerRange refuses a ProvisionedPollerConfig outside AWS's bounds
+// (aws-recorded, R03 C-scaling-and-provisioned).
+func errPollerRange() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("MinimumPollers should be between [2, 200] and MaximumPollers should be between [MinimumPollers, 10000]"))
+}
+
+// errTooManyFilters refuses more filters than the default quota of 5 per
+// mapping (aws-recorded, R03 C-six-filters).
 func errTooManyFilters(n int) *awserr.Error {
-	return user(lambdaapi.ErrInvalidParameterValueException("FilterCriteria has " + strconv.Itoa(n) + " filters, above the quota of " +
-		strconv.Itoa(maxFilters) + " per event source mapping. Combine patterns or remove filters."))
+	return user(lambdaapi.ErrInvalidParameterValueException("Too many filter patterns, maximum allowed " + strconv.Itoa(maxFilters) +
+		" patterns, provided " + strconv.Itoa(n) + " patterns."))
 }
 
 func errInvalidFilter() *awserr.Error {
@@ -583,6 +608,46 @@ func errESMRoleDenied(action, service string) *awserr.Error {
 // 8.5, testdata/parity/lambda/IAM-ENF/27-sns.json, 27-sqs.json).
 func errDestinationRoleDenied(action, arn string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException(esmRoleDeniedText(action, arn)))
+}
+
+// errDeadLetterRoleDenied is what CreateFunction and
+// UpdateFunctionConfiguration answer when iam.enforce=enforce refuses the
+// execution role action on the dead-letter target of service (SQS or
+// SNS): "The provided execution role does not have permissions to call
+// SendMessage on SQS", which names the service, not the ARN (aws-recorded,
+// lambda-destinations-layers.md 5.1: testdata/parity/lambda/LDL-08/14-no-permission-dlq.json).
+// The topic's "... Publish on SNS" is inferred from the queue's.
+func errDeadLetterRoleDenied(action, service string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("The provided execution role does not have permissions to call " + action + " on " + service))
+}
+
+// errDeadLetterQueueMissing is the answer for a dead-letter queue that does
+// not exist (aws-recorded, lambda-destinations-layers.md 5.1:
+// testdata/parity/lambda/LDL-08/09-dlq-missing.json).
+func errDeadLetterQueueMissing() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Error occurred while SendMessage. SQS Error Code: AWS.SimpleQueueService.NonExistentQueue. SQS Error Message: The specified queue does not exist."))
+}
+
+// errDeadLetterTopicMissing is understudy's answer for a dead-letter topic
+// that does not exist, inferred from the queue's (errDeadLetterQueueMissing)
+// with SNS's own NotFound answer for a missing topic; AWS's is unrecorded
+// (lambda-destinations-layers.md 5.1).
+func errDeadLetterTopicMissing() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Error occurred while Publish. SNS Error Code: NotFound. SNS Error Message: Topic does not exist"))
+}
+
+// errDeadLetterFIFO is the answer for a FIFO dead-letter queue
+// (aws-recorded, lambda-destinations-layers.md 5.1:
+// testdata/parity/lambda/LDL-08/10-dlq-fifo.json).
+func errDeadLetterFIFO() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Invalid dead letter queue ARN: FIFO SQS queue is not supported for dead letter configuration"))
+}
+
+// errDeadLetterService is the answer for a dead-letter target of a service
+// other than SQS or SNS (aws-recorded for an event bus,
+// lambda-destinations-layers.md 5.1: testdata/parity/lambda/LDL-08/11-dlq-bus.json).
+func errDeadLetterService() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Invalid dead letter queue ARN: The service specified by the TargetArn is not supported for dead letter configuration."))
 }
 
 // errRoleNotAssumable is CreateFunction's answer when iam.enforce=enforce

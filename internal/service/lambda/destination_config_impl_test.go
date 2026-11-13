@@ -73,6 +73,50 @@ func TestEventInvokeConfigFindsDestinationsInTheirServices(t *testing.T) {
 	}, kerneltest.Services(lambdaapi.Service(), sqsapi.Service(), snsapi.Service(), eventbridgeapi.Service(), s3api.Service()))
 }
 
+// A dead-letter queue or topic is looked up in its own service, not in the
+// stubs of destination_config_test.go: ones that were created are taken,
+// and a missing queue is refused in AWS's words (aws-recorded,
+// lambda-destinations-layers.md 5.1: testdata/parity/lambda/LDL-08/09-dlq-missing.json).
+func TestDeadLetterTargetIsFoundInItsService(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		blobs, err := blob.NewMemory("", 0)
+		if err != nil {
+			k.Fatal(err)
+		}
+		defer func() {
+			if err := blobs.Close(); err != nil {
+				k.Error(err)
+			}
+		}()
+		deps := k.Deps(lambdaapi.Service())
+		deps.Blob = blobs
+		sqs.New(k.Deps(sqsapi.Service()), sqs.Options{})
+		sns.New(k.Deps(snsapi.Service()), sns.Options{})
+		h := &harness{K: k, svc: lambda.New(deps, lambda.Options{})}
+		t := h.T
+		call(h, sqsapi.OpCreateQueue, &sqsapi.CreateQueueInput{QueueName: "fn-dlq"})
+		call(h, snsapi.OpCreateTopic, &snsapi.CreateTopicInput{Name: "alerts"})
+
+		in := zipFunction(h, "fn")
+		in.DeadLetterConfig = &lambdaapi.DeadLetterConfig{TargetArn: new(dlqA)}
+		if out := call(h, lambdaapi.OpCreateFunction, in); out.DeadLetterConfig == nil || deref(out.DeadLetterConfig.TargetArn) != dlqA {
+			t.Errorf("CreateFunction DeadLetterConfig = %+v, want %s", out.DeadLetterConfig, dlqA)
+		}
+		h.settle()
+		out := call(h, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{
+			FunctionName: "fn", DeadLetterConfig: &lambdaapi.DeadLetterConfig{TargetArn: new(alertsTopic)},
+		})
+		if out.DeadLetterConfig == nil || deref(out.DeadLetterConfig.TargetArn) != alertsTopic {
+			t.Errorf("UpdateFunctionConfiguration DeadLetterConfig = %+v, want %s", out.DeadLetterConfig, alertsTopic)
+		}
+		h.settle()
+		errorIs(t, fail(h, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{
+			FunctionName: "fn", DeadLetterConfig: &lambdaapi.DeadLetterConfig{TargetArn: new("arn:aws:sqs:us-east-1:000000000000:no-such-dlq")},
+		}), "InvalidParameterValueException",
+			"Error occurred while SendMessage. SQS Error Code: AWS.SimpleQueueService.NonExistentQueue. SQS Error Message: The specified queue does not exist.")
+	}, kerneltest.Services(lambdaapi.Service(), sqsapi.Service(), snsapi.Service()))
+}
+
 // A function of the same name in another account is not the function
 // itself, which AWS refuses in other words (lambda-api.md 7.7): it is
 // looked up in its own account, where it does not exist.

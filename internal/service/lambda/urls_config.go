@@ -235,9 +235,10 @@ func (s *Service) listFunctionURLConfigs(_ context.Context, c *kernel.Call, in *
 }
 
 // urlTime renders a function URL timestamp as AWS does: ISO 8601 with
-// microseconds, in UTC.
+// nanoseconds (nine fractional digits), in UTC
+// (testdata/parity/lambda/R13/00-create-url-1.json).
 func urlTime(at clock.Instant) string {
-	return at.Wire().UTC().Format("2006-01-02T15:04:05.000000Z")
+	return at.Wire().UTC().Format("2006-01-02T15:04:05.000000000Z")
 }
 
 // fromCors stores a CORS configuration; an empty one clears it, as

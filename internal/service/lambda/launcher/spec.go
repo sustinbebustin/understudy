@@ -229,6 +229,27 @@ func deliveryFor(t topology.Topology) delivery {
 	return bindMount{}
 }
 
+// peerNetwork is the network on which a function container's address is
+// the peer address understudy sees on the container's calls, and "" where
+// the topology hides it. On Linux bridge the container calls the
+// gateway of the default bridge, and inside a container it calls
+// understudy's address on their shared network, so neither call is
+// translated. Docker Desktop forwards calls to the host's loopback, a
+// remote daemon's host translates them on the way out, and the rootless
+// topologies run no functions. Rootful Podman is left out: what its
+// default network is named and whether its calls arrive untranslated is
+// unobserved.
+func peerNetwork(t topology.Topology) string {
+	switch t := t.(type) {
+	case topology.LinuxBridge:
+		return "bridge"
+	case topology.InContainer:
+		return t.Network
+	case topology.DockerDesktop, topology.RootlessDocker, topology.Podman, topology.Remote:
+	}
+	return ""
+}
+
 // containerName is unique per environment and valid as a Docker name:
 // understudy-<instance>-<function>-<slot id prefix>.
 func containerName(instance string, s Spec, slot Slot) string {

@@ -36,6 +36,15 @@ const defaultStreamBatchSize = 100
 // reports (recorded LS-D:L173-L197; lambda-stream-sources.md 3.5).
 const streamTransitionReason = "User action"
 
+// streamClosedReason and streamClosedResult are the StateTransitionReason
+// and LastProcessingResult of a stream mapping that disabled itself because
+// its stream closed (recorded after DeleteTable, ESMS-14 11;
+// lambda-stream-sources.md 7.3).
+const (
+	streamClosedReason = "Unrecoverable error"
+	streamClosedResult = "PROBLEM: Stream is closed"
+)
+
 // The MaximumRecordAgeInSeconds range besides -1 (smithy member doc,
 // lambda-stream-sources.md 2.2).
 const (
@@ -584,6 +593,9 @@ func renderStreamMapping(out *lambdaapi.EventSourceMappingConfiguration, m *Mapp
 	result := "No records processed"
 	if m.Processed {
 		result = "OK"
+	}
+	if m.StreamClosed {
+		out.StateTransitionReason, result = new(streamClosedReason), streamClosedResult
 	}
 	out.LastProcessingResult = new(result)
 }

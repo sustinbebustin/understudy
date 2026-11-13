@@ -130,6 +130,10 @@ func (*Service) Name() ref.ServiceID { return "dynamodb" }
 // SchemaVersion returns the version of State.
 func (*Service) SchemaVersion() int { return stateVersion }
 
+// OldestSchemaVersion returns the oldest version Import and ImportLate
+// read (snapshot.OlderReader).
+func (*Service) OldestSchemaVersion() int { return stateVersionNoStreams }
+
 // Export serializes every non-empty scope to one section.
 func (s *Service) Export() ([]store.Section, error) {
 	return s.cells.Export(store.ScopeKeys(), stateVersion)

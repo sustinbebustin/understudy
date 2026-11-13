@@ -186,7 +186,7 @@ func (m *Model) referencedErrors(c *closure) ([]errorRef, error) {
 // serviceErrorRefs lists the identities the service-level traits name.
 func serviceErrorRefs(svc *Shape) ([]errorRef, error) {
 	var out []errorRef
-	for _, t := range []string{utThrottleError, utDenialError, utMalformedRequest} {
+	for _, t := range []string{utThrottleError, utDenialError, utMalformedRequest, utRequestTooLarge} {
 		if raw, ok := svc.Traits[t]; ok {
 			id, err := parseShapeRef(raw)
 			if err != nil {

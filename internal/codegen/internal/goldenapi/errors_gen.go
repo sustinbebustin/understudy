@@ -35,6 +35,21 @@ func ErrKindsFault(message string) *awserr.Error {
 // ErrorIdentity returns the identity of com.example.golden#KindsFault.
 func (*KindsFault) ErrorIdentity() awserr.Identity { return IdentityKindsFault() }
 
+// IdentityRequestEntityTooLargeException returns the identity of com.amazon.coral.service#RequestEntityTooLargeException.
+func IdentityRequestEntityTooLargeException() awserr.Identity {
+	return awserr.Identity{Shape: "com.amazon.coral.service#RequestEntityTooLargeException", JSONType: "com.amazon.coral.service#RequestEntityTooLargeException", QueryCode: "RequestEntityTooLargeException", Status: 413, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+}
+
+// ErrRequestEntityTooLargeException returns a RequestEntityTooLargeException error with message.
+func ErrRequestEntityTooLargeException(message string) *awserr.Error {
+	return &awserr.Error{ID: IdentityRequestEntityTooLargeException(), Message: message, Origin: awserr.Generic{}}
+}
+
+// ErrorIdentity returns the identity of com.amazon.coral.service#RequestEntityTooLargeException.
+func (*RequestEntityTooLargeException) ErrorIdentity() awserr.Identity {
+	return IdentityRequestEntityTooLargeException()
+}
+
 // IdentitySerializationException returns the identity of com.amazon.coral.service#SerializationException.
 func IdentitySerializationException() awserr.Identity {
 	return awserr.Identity{Shape: "com.amazon.coral.service#SerializationException", JSONType: "com.amazon.coral.service#SerializationException", QueryCode: "SerializationException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}

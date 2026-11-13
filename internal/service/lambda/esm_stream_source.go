@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
@@ -136,7 +137,7 @@ func (e *deniedReadError) Error() string {
 // lambdaRecord is r as a stream mapping's function receives it
 // (dynamodb-streams.md 7.8): GetRecords' record with
 // eventSourceARN added, ApproximateCreationDateTime as whole epoch
-// seconds, and userIdentity in Lambda's casing. Its Arrival is the
+// seconds with a fraction, and userIdentity in Lambda's casing. Its Arrival is the
 // creation time as answered, which for a mapping's read is the stored
 // arrival, not floored.
 func lambdaRecord(r *dynamodbstreamsapi.Record, stream aws.ARN) (esm.StreamRecord, error) {
@@ -162,7 +163,7 @@ func lambdaRecord(r *dynamodbstreamsapi.Record, stream aws.ARN) (esm.StreamRecor
 	var arrival clock.Instant
 	if d.ApproximateCreationDateTime != nil {
 		arrival = clock.FromWire(*d.ApproximateCreationDateTime)
-		ev.Dynamodb.ApproximateCreationDateTime = d.ApproximateCreationDateTime.Unix()
+		ev.Dynamodb.ApproximateCreationDateTime = epochSecondsFloat(d.ApproximateCreationDateTime.Unix())
 	}
 	if ev.Dynamodb.Keys, err = attributeMap(d.Keys); err != nil {
 		return esm.StreamRecord{}, err
@@ -200,17 +201,28 @@ type lambdaStreamRecord struct {
 	UserIdentity   *lambdaIdentity  `json:"userIdentity,omitempty"`
 }
 
+// epochSecondsFloat is whole epoch seconds that marshals as `<seconds>.0`.
+type epochSecondsFloat int64
+
+// MarshalJSON writes the seconds with a `.0` fraction.
+func (s epochSecondsFloat) MarshalJSON() ([]byte, error) {
+	return append(strconv.AppendInt(nil, int64(s), 10), ".0"...), nil
+}
+
 // lambdaStreamData is a record's dynamodb member in the event.
 type lambdaStreamData struct {
-	// ApproximateCreationDateTime is whole epoch seconds (recorded
-	// ESM-TEST:L190: 10 integral digits).
-	ApproximateCreationDateTime int64          `json:"ApproximateCreationDateTime"`
-	Keys                        map[string]any `json:"Keys"`
-	NewImage                    map[string]any `json:"NewImage,omitempty"`
-	OldImage                    map[string]any `json:"OldImage,omitempty"`
-	SequenceNumber              string         `json:"SequenceNumber"`
-	SizeBytes                   int64          `json:"SizeBytes"`
-	StreamViewType              string         `json:"StreamViewType"`
+	// ApproximateCreationDateTime is whole epoch seconds written with a
+	// fraction, so a Python handler reads a float (recorded ESMS-17
+	// 09-ddb.json: 1793725107.0; the third-party ESM-TEST:L190 records 10
+	// integral digits). The float type is observed; the `.0` spelling,
+	// rather than an exponent form, is inferred.
+	ApproximateCreationDateTime epochSecondsFloat `json:"ApproximateCreationDateTime"`
+	Keys                        map[string]any    `json:"Keys"`
+	NewImage                    map[string]any    `json:"NewImage,omitempty"`
+	OldImage                    map[string]any    `json:"OldImage,omitempty"`
+	SequenceNumber              string            `json:"SequenceNumber"`
+	SizeBytes                   int64             `json:"SizeBytes"`
+	StreamViewType              string            `json:"StreamViewType"`
 }
 
 // lambdaIdentity is a TTL delete's userIdentity in the event's casing

@@ -74,7 +74,7 @@
 //   - Deleting a mapping answers with State Deleting; with the default
 //     transitions the mapping is already gone.
 //   - The admin API's Drainer, HotReloader and ImagePuller are the
-//     Execution, not the Service, whose Drain has nothing to stop. When
+//     Execution, not the Service. When
 //     the Execution binds a hot-reload overlay, UpdateFunctionCode of a
 //     zip function under it records the shadowed-update Advisory.
 //   - Publishing while $LATEST waits for an image update publishes that

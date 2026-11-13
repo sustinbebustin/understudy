@@ -41,6 +41,36 @@ type LateExporter interface {
 	ExportLate(ctx context.Context) ([]store.Section, error)
 }
 
+// OlderReader is implemented by an Exporter or LateExporter whose import
+// also reads sections of schema versions older than SchemaVersion, which it
+// reads as is or migrates (ADR 0009 amendment of 2026-11-13).
+// OldestSchemaVersion is the oldest such version, at least 1 and at most
+// SchemaVersion; a load accepts a section of any version from it to
+// SchemaVersion. A service that does not implement it loads sections of
+// SchemaVersion only.
+type OlderReader interface {
+	OldestSchemaVersion() int
+}
+
+// schemaOf is the Schema a Stateful or Late participant declares. It
+// refuses an oldest readable version outside 1 to SchemaVersion.
+func schemaOf(kind string, p interface {
+	Name() ref.ServiceID
+	SchemaVersion() int
+},
+) (Schema, error) {
+	s := Exactly(p.SchemaVersion())
+	o, ok := p.(OlderReader)
+	if !ok {
+		return s, nil
+	}
+	s.Oldest = o.OldestSchemaVersion()
+	if s.Oldest < 1 || s.Oldest > s.Running {
+		return Schema{}, &ConfigError{Reason: fmt.Sprintf("%s service %q declares %d as the oldest schema version it reads, which is not between 1 and its schema version %d", kind, p.Name(), s.Oldest, s.Running)}
+	}
+	return s, nil
+}
+
 // Stateful is a service the Coordinator saves and loads with the cut.
 type Stateful interface {
 	Exporter
@@ -49,7 +79,8 @@ type Stateful interface {
 	// dropped state held; the Coordinator releases those.
 	ResetAll()
 	// Import loads sections with paths relative to the service's directory,
-	// under the gate. It refuses a section of another schema version.
+	// under the gate. It refuses a section of a schema version it does not
+	// read: SchemaVersion, or one OlderReader declares.
 	Import(sections []store.Section) error
 	// Rearm rebuilds the service's timers and pollers from its state once
 	// the gate is released.
@@ -152,7 +183,7 @@ type Config struct {
 // Load waiting its turn gives up when its context ends.
 type Coordinator struct {
 	cfg     Config
-	schemas map[ref.ServiceID]int
+	schemas map[ref.ServiceID]Schema
 	// turn holds a token while a Cut is outstanding or a Load runs.
 	turn chan struct{}
 }
@@ -160,14 +191,15 @@ type Coordinator struct {
 // NewCoordinator checks cfg and returns a Coordinator. It refuses a missing
 // gate, blob store, runtime, effects counter or writer, a service name that
 // is not one clean path element, two services of one kind with the same
-// name, and a service that is both Stateful and Late with two schema
-// versions.
+// name, an oldest readable version (OlderReader) outside 1 to the
+// service's schema version, and a service that is both Stateful and Late
+// with two schemas.
 func NewCoordinator(cfg Config) (*Coordinator, error) {
 	if cfg.Gate == nil || cfg.Blobs == nil || cfg.Runtime == nil || cfg.Effects == nil || cfg.Writer == "" {
 		return nil, &ConfigError{Reason: "a Coordinator needs a Gate, a BlobStore, a Runtime, an Effects counter and a Writer"}
 	}
-	schemas := map[ref.ServiceID]int{}
-	add := func(kind string, name ref.ServiceID, version int, seen map[ref.ServiceID]bool) error {
+	schemas := map[ref.ServiceID]Schema{}
+	add := func(kind string, name ref.ServiceID, schema Schema, seen map[ref.ServiceID]bool) error {
 		if !validServiceName(name) {
 			return &ConfigError{Reason: fmt.Sprintf("%s service name %q is not one clean path element", kind, name)}
 		}
@@ -175,30 +207,38 @@ func NewCoordinator(cfg Config) (*Coordinator, error) {
 			return &ConfigError{Reason: fmt.Sprintf("two %s services are named %q", kind, name)}
 		}
 		seen[name] = true
-		if v, ok := schemas[name]; ok && v != version {
-			return &ConfigError{Reason: fmt.Sprintf("service %q reports schema version %d to Stateful and %d to Late", name, v, version)}
+		if v, ok := schemas[name]; ok && v != schema {
+			return &ConfigError{Reason: fmt.Sprintf("service %q reports schema versions %d to %d to Stateful and %d to %d to Late", name, v.Oldest, v.Running, schema.Oldest, schema.Running)}
 		}
-		schemas[name] = version
+		schemas[name] = schema
 		return nil
 	}
 	seen := map[ref.ServiceID]bool{}
 	for _, s := range cfg.Services {
-		if err := add("stateful", s.Name(), s.SchemaVersion(), seen); err != nil {
+		schema, err := schemaOf("stateful", s)
+		if err != nil {
+			return nil, err
+		}
+		if err := add("stateful", s.Name(), schema, seen); err != nil {
 			return nil, err
 		}
 	}
 	seen = map[ref.ServiceID]bool{}
 	for _, l := range cfg.Late {
-		if err := add("late", l.Name(), l.SchemaVersion(), seen); err != nil {
+		schema, err := schemaOf("late", l)
+		if err != nil {
+			return nil, err
+		}
+		if err := add("late", l.Name(), schema, seen); err != nil {
 			return nil, err
 		}
 	}
 	return &Coordinator{cfg: cfg, schemas: schemas, turn: make(chan struct{}, 1)}, nil
 }
 
-// Schemas returns the running schema version of every service, for
+// Schemas returns the schema versions every service loads, for
 // ReadOptions.Schemas.
-func (c *Coordinator) Schemas() map[ref.ServiceID]int {
+func (c *Coordinator) Schemas() map[ref.ServiceID]Schema {
 	return maps.Clone(c.schemas)
 }
 

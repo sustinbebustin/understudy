@@ -50,8 +50,11 @@ type fakeStream struct {
 	records []fakeRecord
 	// trimmed is how many leading records are gone.
 	trimmed int
-	gone    bool
-	calls   []string // "<op> <principal>"
+	// closed is a closed shard, as after DeleteTable: still readable, and
+	// a page that reaches its end has no NextShardIterator.
+	closed bool
+	gone   bool
+	calls  []string // "<op> <principal>"
 }
 
 type fakeRecord struct {
@@ -100,6 +103,15 @@ func (s *fakeStream) trim(through clock.Instant) {
 	}
 }
 
+// close closes the shard, as DeleteTable does, and wakes the stream's
+// readers as the stream log does.
+func (s *fakeStream) close() {
+	s.mu.Lock()
+	s.closed = true
+	s.mu.Unlock()
+	s.k.Kernel.Waiters().Wake(shardlog.WaitKey(mustARN(s.k, streamARN)))
+}
+
 func (s *fakeStream) setGone() {
 	s.mu.Lock()
 	s.gone = true
@@ -115,9 +127,13 @@ func (s *fakeStream) describe(_ context.Context, c *kernel.Call, in *dynamodbstr
 		return nil, dynamodbstreamsapi.ErrResourceNotFoundException("Requested resource not found: Stream: " + in.StreamArn + " not found")
 	}
 	status, view := dynamodbstreamsapi.StreamStatus("ENABLED"), dynamodbstreamsapi.StreamViewType("NEW_IMAGE")
+	seqs := &dynamodbstreamsapi.SequenceNumberRange{StartingSequenceNumber: new(seqAt(-1))}
+	if s.closed {
+		status, seqs.EndingSequenceNumber = "DISABLED", new(seqAt(len(s.records)-1))
+	}
 	return &dynamodbstreamsapi.DescribeStreamOutput{StreamDescription: &dynamodbstreamsapi.StreamDescription{
 		StreamArn: new(streamARN), StreamStatus: &status, StreamViewType: &view, TableName: new("Orders"),
-		Shards: []dynamodbstreamsapi.Shard{{ShardId: new(streamShard), SequenceNumberRange: &dynamodbstreamsapi.SequenceNumberRange{StartingSequenceNumber: new(seqAt(-1))}}},
+		Shards: []dynamodbstreamsapi.Shard{{ShardId: new(streamShard), SequenceNumberRange: seqs}},
 	}}, nil
 }
 
@@ -182,6 +198,11 @@ func (s *fakeStream) getRecords(_ context.Context, c *kernel.Call, in *dynamodbs
 	}
 	end := min(idx+limit, len(s.records))
 	out := &dynamodbstreamsapi.GetRecordsOutput{Records: []dynamodbstreamsapi.Record{}, NextShardIterator: new(streamARN + "|1|" + strconv.Itoa(end))}
+	if s.closed && end == len(s.records) {
+		// The page that exhausts a closed shard has no NextShardIterator
+		// (dynamodb-streams.md 5.3).
+		out.NextShardIterator = nil
+	}
 	for _, r := range s.records[idx:end] {
 		out.Records = append(out.Records, r.wire())
 	}
@@ -678,6 +699,12 @@ func TestStreamRecordReachesTheFunction(t *testing.T) {
 		if n, ok := new(big.Rat).SetString(d.ApproximateCreationDateTime.String()); !ok || n.Cmp(big.NewRat(at.Wire().Unix(), 1)) != 0 {
 			h.Errorf("ApproximateCreationDateTime = %s, want %d", d.ApproximateCreationDateTime, at.Wire().Unix())
 		}
+		// ESMS-17 09-ddb.json: the handler's logged event reads the
+		// field as the Python float 1793725107.0. The `.0` spelling
+		// (not an exponent form) is inferred.
+		if whole, ok := strings.CutSuffix(d.ApproximateCreationDateTime.String(), ".0"); !ok || strings.ContainsAny(whole, ".eE") {
+			h.Errorf("ApproximateCreationDateTime = %s, want whole seconds spelled <seconds>.0 (ESMS-17)", d.ApproximateCreationDateTime)
+		}
 		if d.SequenceNumber != seqAt(0) || d.StreamViewType != "NEW_IMAGE" {
 			h.Errorf("dynamodb = %+v", d)
 		}
@@ -1089,9 +1116,24 @@ func stateChanges(h *streamHarness, resource string) []string {
 	return out
 }
 
-// A stream that is gone stops its reader with a journal entry, and the
-// mapping stays Enabled (recorded: the mapping stays Enabled after
-// DeleteTable, LS-D:L272-L301; lambda-stream-sources.md 7.3, 12.4 item 12).
+// streamClosedDelay is how long a DynamoDB mapping stayed Enabled after its
+// table was deleted: Enabled reads from 17:00:31 to 17:02:17 UTC, the first
+// Disabled read at 17:02:19 (ESMS-14 11, one sample).
+const streamClosedDelay = 108 * time.Second
+
+// mappingStatus is a mapping's State, StateTransitionReason and
+// LastProcessingResult as GetEventSourceMapping answers them.
+func mappingStatus(h *streamHarness, uuid string) [3]any {
+	h.Helper()
+	m := h.get(uuid)
+	return [3]any{derefAny(m.State), derefAny(m.StateTransitionReason), derefAny(m.LastProcessingResult)}
+}
+
+// A stream that is gone stops its reader with a journal entry. The mapping
+// stays Enabled with its fields unchanged (recorded: the mapping stays
+// Enabled after DeleteTable, LS-D:L272-L301) for the delay, timed from the
+// reader finding the stream gone, then disables itself with AWS's reason
+// and stays so (ESMS-14 11; lambda-stream-sources.md 7.3, 12.4 item 12).
 func TestStreamGoneStopsTheReader(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		m := h.mapStream(lambdaapi.CreateEventSourceMappingInput{})
@@ -1101,8 +1143,63 @@ func TestStreamGoneStopsTheReader(t *testing.T) {
 		if got := stateChanges(h, *m.EventSourceMappingArn); !slices.Contains(got, "Polling->StreamGone") {
 			h.Errorf("mapping state changes %v, want Polling->StreamGone", got)
 		}
-		if got := derefAny(h.get(*m.UUID).State); got != "Enabled" {
-			h.Errorf("State = %v, want Enabled", got)
+		enabled := [3]any{"Enabled", "User action", "No records processed"}
+		if got := mappingStatus(h, *m.UUID); got != enabled {
+			h.Errorf("right after the stream is gone: %v, want %v", got, enabled)
+		}
+		h.advancePolled(streamClosedDelay - time.Millisecond)
+		if got := mappingStatus(h, *m.UUID); got != enabled {
+			h.Errorf("1 ms before the delay: %v, want %v", got, enabled)
+		}
+		h.advancePolled(time.Millisecond)
+		disabled := [3]any{"Disabled", "Unrecoverable error", "PROBLEM: Stream is closed"}
+		if got := mappingStatus(h, *m.UUID); got != disabled {
+			h.Errorf("at the delay: %v, want %v", got, disabled)
+		}
+		if got := stateChanges(h, *m.EventSourceMappingArn); !slices.Contains(got, "Enabled->Disabled") {
+			h.Errorf("mapping state changes %v, want Enabled->Disabled", got)
+		}
+		h.advancePolled(20 * time.Minute)
+		if got := mappingStatus(h, *m.UUID); got != disabled {
+			h.Errorf("20 minutes later: %v, want %v", got, disabled)
+		}
+	})
+}
+
+// A deleted table's stream stays readable with its shard closed
+// (dynamodb-streams.md 5.4), so the reader delivers the records left on it,
+// then finds it closed and journals that; the mapping disables itself the
+// delay later (ESMS-14 11, "PROBLEM: Stream is closed"; timed from the
+// reader finding the stream closed, inferred). Enabling it again reports a
+// user action (inferred: unrecorded).
+func TestStreamClosedDisablesTheMapping(t *testing.T) {
+	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
+		m := h.mapStream(lambdaapi.CreateEventSourceMappingInput{})
+		h.start()
+		h.stream.add(h.Clock.Now(), "a")
+		h.quiesce()
+		h.stream.add(h.Clock.Now(), "b")
+		h.stream.close()
+		h.quiesce()
+		if got, want := h.rec.ids(), [][]string{{"a"}, {"b"}}; !slices.EqualFunc(got, want, slices.Equal) {
+			h.Errorf("invocations %v, want %v", got, want)
+		}
+		if got := stateChanges(h, *m.EventSourceMappingArn); !slices.Contains(got, "Polling->StreamClosed") {
+			h.Errorf("mapping state changes %v, want Polling->StreamClosed", got)
+		}
+		enabled := [3]any{"Enabled", "User action", "OK"}
+		h.advancePolled(streamClosedDelay - time.Millisecond)
+		if got := mappingStatus(h, *m.UUID); got != enabled {
+			h.Errorf("1 ms before the delay: %v, want %v", got, enabled)
+		}
+		h.advancePolled(time.Millisecond)
+		disabled := [3]any{"Disabled", "Unrecoverable error", "PROBLEM: Stream is closed"}
+		if got := mappingStatus(h, *m.UUID); got != disabled {
+			h.Errorf("at the delay: %v, want %v", got, disabled)
+		}
+		up := call(h.harness, lambdaapi.OpUpdateEventSourceMapping, &lambdaapi.UpdateEventSourceMappingInput{UUID: *m.UUID, Enabled: new(true)})
+		if got := derefAny(up.StateTransitionReason); got != "User action" {
+			h.Errorf("enabled again: StateTransitionReason %v, want User action", got)
 		}
 	})
 }

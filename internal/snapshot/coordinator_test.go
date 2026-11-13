@@ -521,6 +521,99 @@ func TestLoadRefusesAnotherSchemaVersionBeforeChangingAnything(t *testing.T) {
 	}
 }
 
+// migrating is a service whose Import also reads sections from oldest up
+// to its version, as a service with a migration does.
+type migrating struct {
+	*service
+	oldest int
+}
+
+func (m migrating) OldestSchemaVersion() int { return m.oldest }
+
+func (m migrating) Import(ss []store.Section) error {
+	read := make([]store.Section, len(ss))
+	for i, s := range ss {
+		if m.oldest <= s.Version && s.Version < m.version {
+			s.Version = m.version
+		}
+		read[i] = s
+	}
+	return m.service.Import(read)
+}
+
+// emulatorWith returns an emulator whose sqs runs version and declares it
+// reads sections down to oldest.
+func emulatorWith(t *testing.T, version, oldest int) *emulator {
+	t.Helper()
+	e := newEmulator(t)
+	e.sqs.version = version
+	var err error
+	e.coord, err = snapshot.NewCoordinator(snapshot.Config{
+		Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Effects: e.effects,
+		Services: []snapshot.Stateful{migrating{service: e.sqs, oldest: oldest}}, Late: []snapshot.Late{e.late},
+		Writer: "understudy v0.0.0-test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e
+}
+
+// A section of an older version the service declares it reads passes the
+// load check and reaches its Import (ADR 0009 amendment of 2026-11-13).
+func TestLoadAcceptsAnOlderSchemaVersionTheServiceDeclares(t *testing.T) {
+	t.Parallel()
+	src := newEmulator(t)
+	src.sqs.set("orders", queues{Attributes: map[string]string{"DelaySeconds": "5"}})
+	saved := src.save(t)
+
+	dst := emulatorWith(t, 3, 1)
+	if got := dst.coord.Schemas()["sqs"]; got != (snapshot.Schema{Oldest: 1, Running: 3}) {
+		t.Errorf("Schemas()[sqs] = %+v, want versions 1 to 3", got)
+	}
+	if err := dst.load(t, saved); err != nil {
+		t.Fatalf("Load of a version 1 section into a service reading 1 to 3: %v", err)
+	}
+	if got := dst.sqs.get("orders"); got.Attributes["DelaySeconds"] != "5" {
+		t.Errorf("loaded state %+v, want the saved queue", got)
+	}
+}
+
+// A section older than the oldest version the service declares, or newer
+// than the one it runs, is refused before anything changes, naming the
+// versions read.
+func TestLoadRefusesSchemaVersionsOutsideTheDeclaredRange(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                   string
+		saved, running, oldest int
+	}{
+		{name: "older", saved: 1, running: 3, oldest: 2},
+		{name: "newer", saved: 4, running: 3, oldest: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			src := newEmulator(t)
+			src.sqs.version = tc.saved
+			src.sqs.set("orders", queues{Attributes: map[string]string{"DelaySeconds": "5"}})
+			a := read(t, src.save(t))
+
+			dst := emulatorWith(t, tc.running, tc.oldest)
+			err := dst.coord.Load(context.Background(), a)
+			var se *snapshot.SchemaError
+			if !errors.As(err, &se) || se.Section != tc.saved || se.Running != tc.running || se.Oldest != tc.oldest {
+				t.Fatalf("Load error %v; want *SchemaError naming version %d against %d to %d", err, tc.saved, tc.oldest, tc.running)
+			}
+			if want := fmt.Sprintf("has sqs state version %d but this understudy runs version %d and reads versions %d to %d;", tc.saved, tc.running, tc.oldest, tc.running); !strings.Contains(err.Error(), want) {
+				t.Errorf("message %q does not contain %q", err, want)
+			}
+			if calls := dst.rec.list(); len(calls) != 0 {
+				t.Errorf("a refused load still called %q", calls)
+			}
+		})
+	}
+}
+
 func TestNewCoordinatorRefusesConflictingServices(t *testing.T) {
 	t.Parallel()
 	e := newEmulator(t)
@@ -531,6 +624,8 @@ func TestNewCoordinatorRefusesConflictingServices(t *testing.T) {
 		"bad name":        {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Effects: e.effects, Writer: "w", Services: []snapshot.Stateful{&service{name: "a/b"}}},
 		"dot name":        {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Effects: e.effects, Writer: "w", Services: []snapshot.Stateful{&service{name: "."}}},
 		"two versions":    {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Effects: e.effects, Writer: "w", Services: []snapshot.Stateful{&service{name: "dynamodb", version: 2}}, Late: []snapshot.Late{e.late}},
+		"oldest above":    {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Effects: e.effects, Writer: "w", Services: []snapshot.Stateful{migrating{service: &service{name: "sqs", version: 2}, oldest: 3}}},
+		"oldest below 1":  {Gate: e.gate, Blobs: e.blobs, Runtime: e.rt, Effects: e.effects, Writer: "w", Services: []snapshot.Stateful{migrating{service: &service{name: "sqs", version: 2}, oldest: 0}}},
 	}
 	for name, cfg := range cases {
 		if _, err := snapshot.NewCoordinator(cfg); !errors.As(err, new(*snapshot.ConfigError)) {

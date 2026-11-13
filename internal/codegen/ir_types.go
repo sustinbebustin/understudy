@@ -75,6 +75,9 @@ type ServiceIR struct {
 	UnknownJSON      *ErrorIR
 	UnknownQuery     *ErrorIR
 	MalformedRequest *ErrorIR
+	// RequestTooLarge is dev.understudy#requestTooLargeError, nil when the
+	// overlay names none.
+	RequestTooLarge *ErrorIR
 	// Denial is dev.understudy#denialError, nil when the overlay names none.
 	Denial *DenialIR
 	// Vocabularies are the generic vocabularies of the protocol families

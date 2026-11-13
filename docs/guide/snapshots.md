@@ -57,7 +57,7 @@ understudy serve --load-snapshot fixtures/base.tar
 
 or load it between tests with `understudy snapshot load`.
 
-The archive format is version 0 until the first release. An archive whose service sections were written by a different schema version is refused with a message naming both versions, never loaded wrongly.
+The archive format is version 0 until the first release. An archive whose service sections were written by a schema version this understudy does not read is refused with a message naming the versions, never loaded wrongly. DynamoDB and Lambda also read the sections some earlier versions wrote, so their saved state survives an upgrade.
 
 ## Persistence across restarts
 

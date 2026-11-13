@@ -1917,8 +1917,8 @@ type GetFunctionCodeSigningConfigInput struct {
 
 // GetFunctionCodeSigningConfigOutput is the output of GetFunctionCodeSigningConfig, com.amazonaws.lambda#GetFunctionCodeSigningConfigResponse.
 type GetFunctionCodeSigningConfigOutput struct {
-	CodeSigningConfigArn string
-	FunctionName         string
+	CodeSigningConfigArn *string
+	FunctionName         *string
 }
 
 // GetFunctionConcurrencyInput is the input of GetFunctionConcurrency, com.amazonaws.lambda#GetFunctionConcurrencyRequest.

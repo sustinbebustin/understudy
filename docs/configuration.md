@@ -50,7 +50,7 @@ The AWS API checks no signature by default, and every client may sign with `test
 
 ## Docker
 
-Lambda and DynamoDB Local run on the Docker Engine `--docker` names, else `DOCKER_HOST`, else `unix:///var/run/docker.sock`. Besides a unix socket, a `tcp://<host>:<port>` daemon is read as the Docker CLI reads it: no port means 2375 and no host means `localhost`. With `DOCKER_TLS_VERIFY` set to anything non-empty, understudy speaks TLS, verifies the daemon against `ca.pem` and presents `cert.pem` and `key.pem`, all from `DOCKER_CERT_PATH`, else `DOCKER_CONFIG`, else `~/.docker`. A missing or unreadable file, a refused connection, or TLS on one side only fails the first container call, and `understudy doctor`, with what to change. A `DOCKER_HOST` understudy cannot use, such as `ssh://` or a `tcp://` address with a path, turns containers off with a warning; the same value in `--docker` is refused.
+Lambda and DynamoDB Local run on the Docker Engine `--docker` names, else `DOCKER_HOST`, else the current Docker context's, else `unix:///var/run/docker.sock`. The current context is found as the Docker CLI finds it: `DOCKER_CONTEXT`, else `currentContext` in `config.json` under `DOCKER_CONFIG`, else `~/.docker`. That is what `docker context use` sets, so understudy reaches the Engine the `docker` command reaches, such as Docker Desktop's, without `DOCKER_HOST`. The context `default`, or none, is the default socket. understudy does not look for sockets anywhere else. Besides a unix socket, a `tcp://<host>:<port>` daemon is read as the Docker CLI reads it: no port means 2375 and no host means `localhost`. With `DOCKER_TLS_VERIFY` set to anything non-empty, understudy speaks TLS, verifies the daemon against `ca.pem` and presents `cert.pem` and `key.pem`, all from `DOCKER_CERT_PATH`, else `DOCKER_CONFIG`, else `~/.docker`. A missing or unreadable file, a refused connection, or TLS on one side only fails the first container call, and `understudy doctor`, with what to change. A `DOCKER_HOST` understudy cannot use, such as `ssh://` or a `tcp://` address with a path, turns containers off with a warning; the same value in `--docker` is refused. So does a Docker context understudy cannot use: one whose endpoint is `ssh://`, one that speaks TLS (understudy reads TLS settings only from `DOCKER_TLS_VERIFY` and `DOCKER_CERT_PATH`, never from a context), or one whose meta file is missing or unreadable. The warning names the context and what to set instead. `understudy doctor` says where the endpoint came from: the setting, `DOCKER_HOST`, the context, or the default.
 
 A daemon on another host, such as a docker:dind CI service, is detected when the first container is needed: functions reach understudy at its own address on the daemon's network, so understudy must run on that network ([CI guide](guide/ci.md#docker-in-docker)). `understudy doctor` reports the daemon, its transport and the topology.
 
@@ -88,6 +88,16 @@ Whatever the list says, understudy never delivers to a name under an AWS domain 
 `--sns-http-delivery-ca-bundle` (`UNDERSTUDY_SNS_HTTP_DELIVERY_CA_BUNDLE`, file key `sns.httpDelivery.caBundle`) names a PEM file of CA certificates an `https` endpoint may chain to, beside the system roots; certificate verification is never skipped. The file is read at start, and one that cannot be read, holds no certificate or holds one that does not parse stops `serve`.
 
 While `--tls` serves, the `SubscribeURL`, `UnsubscribeURL` and `SigningCertURL` an HTTP delivery carries are on `https://localhost:<TLS port>`; otherwise they are on the address the calling client used, unless that address is an AWS name, in which case they are on `localhost` at the port the client used. They never name an AWS host.
+
+## Hot-reload roots
+
+`lambda.hotReloadRoots`, a file key with no flag or variable, lists the directories a binding made through the admin API (`understudy lambda hot-reload`), or a function's code in the hot-reload bucket ([Lambda guide](guide/lambda.md)), may come from:
+
+```json
+{"lambda": {"hotReloadRoots": ["/work/src", "/srv/builds"]}}
+```
+
+With the key set, the directory a call names must resolve, after every symbolic link in it and in each root, to one of the roots or a directory below one. Anything else is refused with `invalid_request` on `dir`, naming the setting and the resolved path, and nothing is bound; CreateFunction and UpdateFunctionCode refuse it with `InvalidParameterValueException` and store nothing. A link inside a root that leads out of it is judged by where it leads. The other checks still apply: the path is absolute, a directory, and owned by the user understudy runs as. Each entry must be an absolute path, and an empty list is refused; leave the key out to allow any directory that user owns, as `understudy lambda hot-reload` and Testcontainers expect. Bindings declared under `lambda.hotReload` are the operator's own and are not checked. Set it on a host with other local users: see [SECURITY.md](../SECURITY.md).
 
 ## Exit codes
 
@@ -165,7 +175,7 @@ This is what `understudy serve --help` prints under Flags.
       PEM file of CA certificates an https subscription endpoint may chain to, beside the system roots (default none)
       variable UNDERSTUDY_SNS_HTTP_DELIVERY_CA_BUNDLE, file key "httpDelivery.caBundle" in the "sns" section
   --docker URL
-      Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)
+      Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else the current Docker context's endpoint, else unix:///var/run/docker.sock)
       variable UNDERSTUDY_DOCKER, file key "docker"
   --docker-labels JSON
       labels added to every container understudy creates, function environments and DynamoDB Local, as a JSON object of string values, such as {"org.testcontainers.session-id":"<id>"} so a Testcontainers reaper also removes them; keys under understudy.dev/ are understudy's own and refused (default none)
@@ -195,7 +205,8 @@ setting has one; any key may be left out:
     "lambda": {
       "network": "auto", "startConcurrency": 16, "maxEnvironments": 64, "idleTimeout": "10m",
       "stateTransitions": "final",
-      "hotReload": [{"function": "worker", "dir": "/abs/path/to/build", "account": "000000000000", "region": "us-east-1"}]
+      "hotReload": [{"function": "worker", "dir": "/abs/path/to/build", "account": "000000000000", "region": "us-east-1"}],
+      "hotReloadRoots": ["/abs/path/to/builds"]
     },
     "sqs": {"queueDeletedRecently": "ignore"},
     "sns": {"httpDelivery": {"allow": ["127.0.0.1:8080"]}},
@@ -215,6 +226,10 @@ setting has one; any key may be left out:
   lambda.stateTransitions    final or clock
   lambda.hotReload           functions whose code is read from a host directory; account and
                              region may be left out
+  lambda.hotReloadRoots      directories a binding made with 'understudy lambda hot-reload'
+                             or code in the hot-reload bucket must resolve under; unset
+                             allows any directory the user running understudy owns.
+                             lambda.hotReload is not checked
   sqs.queueDeletedRecently   ignore or enforce
   ses.verifiedIdentities     SES identities that start verified when created, in any account
                              and region: exact addresses (case-sensitive), domains, and

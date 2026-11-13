@@ -18,6 +18,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/hotreload"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -45,13 +46,24 @@ type s3Source struct {
 // imageSource is a container image.
 type imageSource struct{ uri string }
 
+// dirSource is a host directory named in the hot-reload bucket, unchecked.
+type dirSource struct{ dir string }
+
 func (zipSource) isCodeSource()   {}
 func (s3Source) isCodeSource()    {}
 func (imageSource) isCodeSource() {}
+func (dirSource) isCodeSource()   {}
+
+// hotReloadBucket is the S3Bucket whose S3Key names a host directory to
+// run as the function's code instead of an object to fetch: LocalStack's
+// convention, understudy's extension (ADR 0010); AWS has no such bucket.
+const hotReloadBucket = "hot-reload"
 
 // sourceOf reads which code source the members name for a function of the
 // package type: exactly one of ZipFile, S3Bucket with S3Key, or ImageUri,
-// matching the type; S3ObjectVersion goes with an S3 location.
+// matching the type; S3ObjectVersion goes with an S3 location. An S3
+// location in hotReloadBucket is a directory, whose S3ObjectVersion is
+// ignored.
 func sourceOf(packageType lambdaapi.PackageType, zipFile []byte, bucket, key, version, imageURI *string) (codeSource, *awserr.Error) {
 	hasZip, hasS3, hasImage := zipFile != nil, bucket != nil || key != nil, imageURI != nil
 	switch {
@@ -65,9 +77,26 @@ func sourceOf(packageType lambdaapi.PackageType, zipFile []byte, bucket, key, ve
 	case packageType == lambdaapi.PackageTypeZip && hasZip && !hasS3 && !hasImage:
 		return zipSource{bytes: zipFile}, nil
 	case packageType == lambdaapi.PackageTypeZip && hasS3 && bucket != nil && key != nil && !hasZip && !hasImage:
+		if *bucket == hotReloadBucket {
+			return dirSource{dir: *key}, nil
+		}
 		return s3Source{bucket: *bucket, key: *key, version: version}, nil
 	}
 	return nil, errCodeSource(string(packageType))
+}
+
+// dirCode checks the directory src names as a binding made through the
+// admin API is checked (hotreload.Bindable), under the configured roots,
+// since the Lambda API may be reachable by more callers than the admin API
+// (ARCHITECTURE.md 14.4). A refusal is InvalidParameterValueException
+// naming the check.
+func (s *Service) dirCode(src dirSource) (DirCode, *awserr.Error) {
+	dir, refusal := hotreload.Bindable(src.dir, s.opts.HotReloadRoots)
+	if refusal != nil {
+		return DirCode{}, user(lambdaapi.ErrInvalidParameterValueException("The " + hotReloadBucket + " bucket's S3Key names a directory to run, but " +
+			refusal.Message + "; nothing was stored. To fix it, " + refusal.Hint + "."))
+	}
+	return DirCode{Dir: dir}, nil
 }
 
 // checkZip checks a package sent inline: at most maxZipped bytes, and an
@@ -188,15 +217,14 @@ func (s *Service) onImage(c *kernel.Call, key clock.TimerKey, _ clock.Instant) {
 	if !w.ok {
 		return
 	}
-	// The pull counts as InvocationRunning, the closed WorkKind set's only
-	// kind for Lambda work in progress, so settling waits for it; status
-	// and diagnostics therefore list an image pull as an invocation.
-	s.k.Go(kernel.InvocationRunning, func(ctx context.Context) {
-		digest, failure := s.ensureImage(ctx, w.uri, w.arch)
+	// Settling waits for the pull; status and diagnostics list it as an
+	// image pull.
+	s.k.Go(kernel.ImagePull, func(ctx context.Context) {
+		img, failure := s.ensureImage(ctx, w.uri, w.arch)
 		if ctx.Err() != nil {
 			return
 		}
-		s.imageReady(ctx, c, ref, w.uri, digest, failure)
+		s.imageReady(ctx, c, ref, w.uri, img, failure)
 	})
 }
 
@@ -232,20 +260,20 @@ func awaitedImage(v *Version) (string, bool) {
 	return "", false
 }
 
-// ensureImage makes uri present for the architecture and returns its
-// digest, or why it could not.
-func (s *Service) ensureImage(ctx context.Context, uri, arch string) (string, *imageFailure) {
+// ensureImage makes uri present for the architecture and returns the
+// image present, or why it could not.
+func (s *Service) ensureImage(ctx context.Context, uri, arch string) (launcher.Image, *imageFailure) {
 	if s.opts.Images == nil {
-		return "", &imageFailure{code: string(lambdaapi.StateReasonCodeImageAccessDenied), reason: "Lambda could not make the image " + uri +
+		return launcher.Image{}, &imageFailure{code: string(lambdaapi.StateReasonCodeImageAccessDenied), reason: "Lambda could not make the image " + uri +
 			" present: no Docker daemon is reachable from understudy. Start Docker, check it with `understudy doctor`, then delete and create the function again."}
 	}
 	a, err := launcher.ParseArchitecture(arch)
 	if err != nil {
-		return "", &imageFailure{code: string(lambdaapi.StateReasonCodeInvalidImage), reason: "Lambda could not make the image " + uri + " present: " + err.Error()}
+		return launcher.Image{}, &imageFailure{code: string(lambdaapi.StateReasonCodeInvalidImage), reason: "Lambda could not make the image " + uri + " present: " + err.Error()}
 	}
 	img, err := s.opts.Images.EnsureImage(ctx, uri, a, nil)
 	if err == nil {
-		return img.Digest, nil
+		return img, nil
 	}
 	code := lambdaapi.StateReasonCodeInvalidImage
 	var pull *launcher.PullError
@@ -253,12 +281,13 @@ func (s *Service) ensureImage(ctx context.Context, uri, arch string) (string, *i
 	if errors.As(err, &pull) || errors.As(err, &ecr) {
 		code = lambdaapi.StateReasonCodeImageAccessDenied
 	}
-	return "", &imageFailure{code: string(code), reason: "Lambda could not make the image " + uri + " present: " + err.Error()}
+	return launcher.Image{}, &imageFailure{code: string(code), reason: "Lambda could not make the image " + uri + " present: " + err.Error()}
 }
 
-// imageReady commits the outcome of making uri present to the version
-// still waiting for it; a version that moved on is left as it is.
-func (s *Service) imageReady(ctx context.Context, c *kernel.Call, ref versionRef, uri, digest string, failure *imageFailure) {
+// imageReady commits the outcome of making uri present, img or failure,
+// to the version still waiting for it; a version that moved on is left as
+// it is.
+func (s *Service) imageReady(ctx context.Context, c *kernel.Call, ref versionRef, uri string, img launcher.Image, failure *imageFailure) {
 	_, err := write(s, c, ref.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		v, ok := st.versionOf(ref)
 		if awaited, waiting := awaitedImage(&v); !ok || !waiting || awaited != uri {
@@ -269,7 +298,7 @@ func (s *Service) imageReady(ctx context.Context, c *kernel.Call, ref versionRef
 		f := st.Functions[ref.name]
 		switch {
 		case failure == nil:
-			v.Code, v.Status = ImageCode{URI: uri, Digest: digest}, Active{Update: Successful{}}
+			v.Code, v.Status = ImageCode{URI: uri, Digest: img.Digest, DigestKind: digestKindOf(img.Kind)}, Active{Update: Successful{}}
 			if ref.number == latest {
 				// The code $LATEST runs changes only now: environments
 				// started during the pull run the previous image and must

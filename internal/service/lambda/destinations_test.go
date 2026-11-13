@@ -326,13 +326,15 @@ func TestAsyncSuccessSendsARecordToOnSuccess(t *testing.T) {
 		if rc.RequestID != string(calls[0].RequestID) || rc.FunctionArn != fnUnqualified+":$LATEST" || rc.Condition != "Success" || rc.ApproximateInvokeCount != 1 {
 			t.Errorf("requestContext = %+v, want request %s, %s:$LATEST, Success, count 1", rc, calls[0].RequestID, fnUnqualified)
 		}
-		if string(r.RequestPayload) != `{"n":1}` {
-			t.Errorf("requestPayload = %s, want the event compacted", r.RequestPayload)
+		// Both payloads are the bytes as sent and returned, spaces kept
+		// (11.4: testdata/parity/lambda/LDL-02/notes.md, row "raw `Body` spacing").
+		if string(r.RequestPayload) != `{"n": 1}` {
+			t.Errorf("requestPayload = %s, want the event as sent", r.RequestPayload)
 		}
 		if r.ResponseContext == nil || r.ResponseContext.StatusCode != http.StatusOK || r.ResponseContext.ExecutedVersion != "$LATEST" || r.ResponseContext.FunctionError != nil {
 			t.Errorf("responseContext = %+v, want statusCode 200, $LATEST and no functionError", r.ResponseContext)
 		}
-		if string(r.ResponsePayload) != `{"n":1}` {
+		if string(r.ResponsePayload) != `{"n": 1}` {
 			t.Errorf("responsePayload = %s, want the echoed event", r.ResponsePayload)
 		}
 	})
@@ -364,8 +366,9 @@ func TestAsyncFunctionErrorWithoutRetriesSendsRetriesExhausted(t *testing.T) {
 		if string(r.ResponsePayload) != `{"errorMessage":"boom","errorType":"Error"}` {
 			t.Errorf("responsePayload = %s, want the error object the runtime posted", r.ResponsePayload)
 		}
-		if string(r.RequestPayload) != `{"action":"fail"}` {
-			t.Errorf("requestPayload = %s, want the event", r.RequestPayload)
+		// The event as sent, spaces kept (11.4: testdata/parity/lambda/LDL-02/notes.md).
+		if string(r.RequestPayload) != `{"action": "fail"}` {
+			t.Errorf("requestPayload = %s, want the event as sent", r.RequestPayload)
 		}
 	})
 }
@@ -700,10 +703,34 @@ var keyShape = regexp.MustCompile(`^aws/lambda/async/fn/(\d{4}/\d{2}/\d{2})/(\d{
 // says (4.3), one EventBridge entry from source lambda with the bus then
 // the qualified function as resources (4.4:
 // test_lambda_destinations.snapshot.json:L576-L585), and an S3 object at the
-// documented key for a failure (4.5) (lambda-destinations-layers.md).
+// documented key for a failure (4.5) (lambda-destinations-layers.md). A
+// queue, topic, function or bucket record carries both payloads byte for
+// byte as the caller sent them and the function returned them, spaces kept,
+// and an EventBridge detail carries them compact (11.4:
+// testdata/parity/lambda/LDL-02/notes.md, row "raw `Body` spacing";
+// testdata/parity/lambda/LDL-05/notes.md, the small record;
+// testdata/parity/lambda/LDL-10/notes.md, row "`detail` bytes"; the
+// function and bucket records are inferred).
 func TestRecordsReachEveryDestinationKind(t *testing.T) {
-	s := newScript()
-	runDestinations(t, s.handle, func(h *destHarness) {
+	const (
+		sent     = `{"mode": "ok",  "pad": [1, 2]}`
+		returned = `{"ok": true, "mode": "ok"}`
+		failed   = `{"action": "fail",  "pad": [1, 2]}`
+		raised   = `{"errorMessage": "boom", "errorType": "Error"}`
+	)
+	spaced := func(_ context.Context, inv runtimeapi.Invocation) (runtimeapi.Outcome, error) {
+		if string(inv.Payload) == failed {
+			return runtimeapi.FunctionError{Type: "Runtime.Unknown", Payload: []byte(raised)}, nil
+		}
+		return runtimeapi.Success{Payload: []byte(returned)}, nil
+	}
+	payloads := func(t *testing.T, d kernel.Delivery, request, response string) {
+		t.Helper()
+		if r := recordOf(t, d); string(r.RequestPayload) != request || string(r.ResponsePayload) != response {
+			t.Errorf("record %s, want requestPayload %s and responsePayload %s", carried(t, d), request, response)
+		}
+	}
+	runDestinations(t, spaced, func(h *destHarness) {
 		t := h.T
 		invocation, err := delivery.ParseInvocationType(h.switchValue("lambda.destination.lambda-invocation-type"))
 		if err != nil {
@@ -715,7 +742,12 @@ func TestRecordsReachEveryDestinationKind(t *testing.T) {
 			dest  string
 			check func(d kernel.Delivery)
 		}{
+			{successQueue, func(d kernel.Delivery) {
+				queueTarget(t, d, successQueue)
+				payloads(t, d, sent, returned)
+			}},
 			{alertsTopic, func(d kernel.Delivery) {
+				payloads(t, d, sent, returned)
 				topic, ok := d.Request.Target.(delivery.SNSTopic)
 				if d.Request.Mechanism != delivery.LambdaToSNS || !ok || topic.ARN.String() != alertsTopic || topic.Subject != "" || len(topic.Attributes) != 0 {
 					t.Errorf("SNS delivery = %s %#v, want lambda-to-sns of the record alone", d.Request.Mechanism, d.Request.Target)
@@ -726,6 +758,7 @@ func TestRecordsReachEveryDestinationKind(t *testing.T) {
 				if d.Request.Mechanism != delivery.LambdaToLambda || !ok || fn.ARN.String() != auditorARN || fn.Qualifier != "" || fn.Invocation != invocation {
 					t.Errorf("Lambda delivery = %s %#v, want lambda-to-lambda of auditor as %s", d.Request.Mechanism, d.Request.Target, invocation)
 				}
+				payloads(t, d, sent, returned)
 			}},
 			{auditBus, func(d kernel.Delivery) {
 				bus, ok := d.Request.Target.(delivery.EventBus)
@@ -737,11 +770,12 @@ func TestRecordsReachEveryDestinationKind(t *testing.T) {
 					len(e.Resources) != 2 || e.Resources[0] != auditBus || e.Resources[1] != fnUnqualified+":$LATEST" || e.Forwarded != nil {
 					t.Errorf("entry = %+v, want source lambda, the Success detail-type and resources [bus, function:$LATEST]", e)
 				}
+				payloads(t, d, `{"mode":"ok","pad":[1,2]}`, `{"ok":true,"mode":"ok"}`)
 			}},
 		} {
 			h.configure("", 0, c.dest, "")
 			before := len(h.sink.lambda())
-			h.invoke(fnEvent(`{"n":1}`))
+			h.invoke(fnEvent(sent))
 			h.settle()
 			got := h.sink.lambda()
 			if len(got) != before+1 {
@@ -757,7 +791,7 @@ func TestRecordsReachEveryDestinationKind(t *testing.T) {
 
 		h.configure("", 0, "", auditBucket)
 		before := len(h.sink.lambda())
-		h.invoke(fnEvent(`{"action":"fail"}`))
+		h.invoke(fnEvent(failed))
 		h.settle()
 		got := h.sink.lambda()
 		if len(got) != before+1 {
@@ -776,6 +810,60 @@ func TestRecordsReachEveryDestinationKind(t *testing.T) {
 		}
 		if r := recordOf(t, d); r.RequestContext.Condition != "RetriesExhausted" {
 			t.Errorf("S3 record condition = %s, want RetriesExhausted", r.RequestContext.Condition)
+		}
+		payloads(t, d, failed, raised)
+	})
+}
+
+// A 300 KB event to a function with an SNS on-success destination is
+// published to the topic with both payloads left out and a deliveryError
+// after responseContext naming the payloads' sizes as sent and returned
+// (lambda-destinations-layers.md 4.2: testdata/parity/lambda/LDL-05/notes.md,
+// row "300 KB record"; testdata/parity/lambda/LDL-05/01-invoke-big.json,
+// 300026 bytes sent). A small record to the same topic keeps its payloads.
+func TestOversizeRecordReachesTheTopicWithoutItsPayloads(t *testing.T) {
+	const returned = `{"ok": true, "mode": "ok"}`
+	big := `{"mode": "ok", "pad": "` + strings.Repeat("x", 300000) + "\"}\n"
+	ok := func(_ context.Context, _ runtimeapi.Invocation) (runtimeapi.Outcome, error) {
+		return runtimeapi.Success{Payload: []byte(returned)}, nil
+	}
+	runDestinations(t, ok, func(h *destHarness) {
+		t := h.T
+		h.createFunction("fn")
+		h.configure("", 0, alertsTopic, "")
+		h.invoke(fnEvent(`{"mode": "ok"}`))
+		h.invoke(fnEvent(big))
+		h.settle()
+		got := h.sink.lambda()
+		if len(got) != 2 {
+			t.Fatalf("deliveries = %+v, want two", got)
+		}
+		for _, d := range got {
+			h.fromFn(d, delivery.DestinationRecord)
+			if topic, isTopic := d.Request.Target.(delivery.SNSTopic); d.Request.Mechanism != delivery.LambdaToSNS || !isTopic || topic.ARN.String() != alertsTopic {
+				t.Fatalf("delivery = %s %#v, want lambda-to-sns to %s", d.Request.Mechanism, d.Request.Target, alertsTopic)
+			}
+		}
+		// The two events settle in an order the test does not fix.
+		var small, oversize kernel.Delivery
+		for _, d := range got {
+			if recordOf(t, d).RequestPayload == nil {
+				oversize = d
+			} else {
+				small = d
+			}
+		}
+		if r := recordOf(t, small); string(r.RequestPayload) != `{"mode": "ok"}` || string(r.ResponsePayload) != returned {
+			t.Errorf("small record %s, want both payloads", carried(t, small))
+		}
+		r := recordOf(t, oversize)
+		want := `{"version":"1.0","timestamp":"` + timestampOf(oversize) + `","requestContext":{"requestId":"` + r.RequestContext.RequestID +
+			`","functionArn":"` + fnUnqualified + `:$LATEST","condition":"Success","approximateInvokeCount":1},` +
+			`"responseContext":{"statusCode":200,"executedVersion":"$LATEST"},` +
+			`"deliveryError":{"statusCode":413,"errorCode":"RequestEntityTooLargeException",` +
+			`"errorMessage":"The total destination payload is too large. RequestPayload size: 300026 bytes, ResponsePayload size: 26 bytes"}}`
+		if got := string(carried(t, oversize)); got != want {
+			t.Errorf("oversize record\n%.400s\nwant\n%s", got, want)
 		}
 	})
 }

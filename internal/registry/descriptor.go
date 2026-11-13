@@ -58,6 +58,14 @@ type Service struct {
 	// the zero Identity on a hand-built descriptor, which then throttles with
 	// the generic ThrottlingException.
 	ThrottleError awserr.Identity
+	// RequestTooLargeError is the overlay's
+	// dev.understudy#requestTooLargeError: the identity the edge answers a
+	// request body past its operation's cap with, in Coral's text "Request
+	// must be smaller than <cap> bytes for the <operation> operation"
+	// (Lambda). It is the zero Identity when the overlay names none; the
+	// edge then answers the generic RequestEntityTooLargeException with
+	// understudy's own text.
+	RequestTooLargeError awserr.Identity
 	// UnknownOperationError returns the overlay's
 	// dev.understudy#unknownOperationError for protocol family f, the
 	// identity for a request naming no operation of the service, or false

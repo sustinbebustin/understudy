@@ -737,8 +737,10 @@ func TestKinesisMappingDisable(t *testing.T) {
 }
 
 // A deleted stream stops its reader with a StreamGone entry and the
-// mapping stays Enabled (recorded for DynamoDB, lambda-stream-sources.md
-// 7.3; one reader serves both kinds of stream).
+// mapping stays Enabled, also past the delay after which a DynamoDB
+// mapping disables itself: what AWS does to a Kinesis mapping is
+// unrecorded (ESMS-14's Kinesis steps did not run, lambda-stream-sources.md
+// 7.3).
 func TestKinesisMappingStreamGoneStopsTheReader(t *testing.T) {
 	runRealKinesis(t, esm.StreamFidelity{}, func(h *realKinesisHarness) {
 		h.createStream(1)
@@ -757,9 +759,10 @@ func TestKinesisMappingStreamGoneStopsTheReader(t *testing.T) {
 		if changes := h.mappingChanges(*m.EventSourceMappingArn); !slices.Contains(changes, "Polling->StreamGone") {
 			h.Errorf("mapping state changes %v, want Polling->StreamGone", changes)
 		}
+		h.advancePolled(20 * time.Minute)
 		got := call(h.harness, lambdaapi.OpGetEventSourceMapping, &lambdaapi.GetEventSourceMappingInput{UUID: *m.UUID})
-		if derefAny(got.State) != "Enabled" {
-			h.Errorf("State = %v, want Enabled", derefAny(got.State))
+		if derefAny(got.State) != "Enabled" || derefAny(got.StateTransitionReason) != "User action" {
+			h.Errorf("20 minutes later: State %v, StateTransitionReason %v; want Enabled, User action", derefAny(got.State), derefAny(got.StateTransitionReason))
 		}
 	})
 }

@@ -45,6 +45,7 @@ const (
 	utDenialError         = understudyNamespace + "denialError"
 	utNotConfigured       = understudyNamespace + "notConfigured"
 	utMalformedRequest    = understudyNamespace + "malformedRequestError"
+	utRequestTooLarge     = understudyNamespace + "requestTooLargeError"
 	utStatusOverride      = understudyNamespace + "statusOverride"
 	utUnknownOperation    = understudyNamespace + "unknownOperationError"
 	utUnknownAnswer       = understudyNamespace + "unknownOperationAnswer"
@@ -121,6 +122,7 @@ func understudyTraits() map[string]understudyTrait {
 		utDenialError:         {Honor, siteService, shapeRef},
 		utNotConfigured:       {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseNotConfigured(r); return err }},
 		utMalformedRequest:    {Honor, siteService, shapeRef},
+		utRequestTooLarge:     {Honor, siteService, shapeRef},
 		utStatusOverride:      {Honor, siteErrorShape, func(r json.RawMessage) error { _, err := parseStatus(r); return err }},
 		utUnknownOperation:    {Honor, siteService, func(r json.RawMessage) error { _, err := parseUnknownOperation(r); return err }},
 		utUnknownAnswer:       {Honor, siteService, func(r json.RawMessage) error { _, err := parseUnknownOperationAnswer(r); return err }},

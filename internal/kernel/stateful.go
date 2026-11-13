@@ -19,7 +19,9 @@ type Stateful interface {
 	Name() ref.ServiceID
 	SchemaVersion() int
 	Export() ([]store.Section, error)
-	// Import refuses a section whose version differs from SchemaVersion.
+	// Import refuses a section whose version differs from SchemaVersion,
+	// unless the service declares it reads that older version
+	// (snapshot.OlderReader).
 	Import(ss []store.Section) error
 	Reset(scope ResetScope)
 	// Rearm rebuilds the timers state implies; timers are never saved.

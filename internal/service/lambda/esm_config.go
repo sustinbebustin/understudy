@@ -25,6 +25,9 @@ import (
 const (
 	defaultBatchSize  = 10
 	maxFIFOBatchSize  = 10
+	minPollers        = 2
+	maxMinPollers     = 200
+	maxPollersCap     = 10000
 	sqsBatchWindowCap = 10
 	// maxFilters is the default quota of filters per mapping; AWS raises
 	// it to 10 on request, which understudy does not model.
@@ -67,6 +70,10 @@ type Mapping struct {
 	// turns its LastProcessingResult from "No records processed" to "OK"
 	// (recorded LS-K:L3066, LS-D:L184).
 	Processed bool `json:"processed,omitzero"`
+	// StreamClosed is set, with Enabled false, once a stream mapping
+	// disabled itself because its stream closed or was gone (ESMS-14 11);
+	// enabling the mapping clears it.
+	StreamClosed bool `json:"streamClosed,omitzero"`
 }
 
 // Transition is a mapping's transient state under TransitionsClock, until
@@ -106,6 +113,7 @@ func (s *Service) bindMappings(b lambdaapi.Binder) {
 	const note = "SQS queues, DynamoDB streams and Kinesis data streams; serve polls the source and invokes the function with each batch; " +
 		"Kinesis stream consumers, AT_TIMESTAMP on a Kinesis stream, ParallelizationFactor above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a valid FilterCriteria on a stream and an S3 on-failure destination answer 501; " +
 		"a stream is read as soon as it receives a record rather than at AWS's polling rate (4 per second for DynamoDB, once per second for Kinesis), which is used as the delay before a retry; " +
+		"a DynamoDB mapping whose stream is closed or gone, as after DeleteTable, disables itself with StateTransitionReason Unrecoverable error and LastProcessingResult PROBLEM: Stream is closed 108 s after its reader finds the stream closed, a delay inferred from one sample (lambda/ESMS-14), and a Kinesis mapping whose stream is gone stays Enabled, which is unrecorded; " +
 		"UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.3, 5.5, 5.6, 7.1): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a Kinesis stream, " +
 		"members of the SQS type being ignored on a stream mapping, an Update refusing the stream type's members on an SQS mapping as Create does, destination existence checked only at delivery, a retried batch keeping its records, the 6 MB limit counted over the serialized event, " +
 		"record age measured from the record's arrival in the stream, RetryAttemptsExhausted reported when the last retry fails after the records have also passed their age, one on-failure record per expired record, " +
@@ -121,7 +129,9 @@ func (s *Service) bindMappings(b lambdaapi.Binder) {
 		"a role lacking only dynamodb:ListStreams, or at TRIM_HORIZON only dynamodb:GetShardIterator or dynamodb:GetRecords, is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +
 		"a Kinesis mapping's role must be allowed kinesis:DescribeStreamSummary on the stream, and at LATEST kinesis:ListShards, kinesis:GetShardIterator and kinesis:GetRecords; " +
 		"a role lacking only those reads at TRIM_HORIZON is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +
-		"a role refused its polls or stream reads leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss)"
+		"a role refused its polls or stream reads leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss); " +
+		"an SQS mapping whose function is deleted stays Enabled and keeps receiving from its queue (sqs/R03 F-queue-attrs-90s, lambda/R03 F-get-mapping-90s); " +
+		"that each received batch then fails its invocation, returns to the queue after its visibility timeout and is redriven to the dead-letter queue after maxReceiveCount is inferred, as AWS's handling of the batch is unrecorded"
 	b.CreateEventSourceMapping(s.createMapping, partial(note), kernel.WithValidator(validateCreateMapping))
 	b.GetEventSourceMapping(s.getMapping, full())
 	b.ListEventSourceMappings(s.listMappings, full())
@@ -206,6 +216,9 @@ func (u mappingSettings) applyBatching(m *Mapping) *awserr.Error {
 	if strings.HasSuffix(m.Source, ".fifo") && m.BatchSize > maxFIFOBatchSize {
 		return errFIFOBatchSize(m.BatchSize)
 	}
+	if strings.HasSuffix(m.Source, ".fifo") && m.Window > 0 {
+		return errFIFOWindow()
+	}
 	return nil
 }
 
@@ -216,6 +229,9 @@ func (u mappingSettings) applyScaling(m *Mapping) *awserr.Error {
 	kind := esm.SQS{Scaling: esm.Unbounded{}}
 	if k, ok := m.SourceKind.(esm.SQS); ok && k.Scaling != nil {
 		kind = k
+	}
+	if u.pollers != nil && !pollersInRange(u.pollers) {
+		return errPollerRange()
 	}
 	switch {
 	case u.scaling != nil && u.pollers != nil:
@@ -229,6 +245,22 @@ func (u mappingSettings) applyScaling(m *Mapping) *awserr.Error {
 	}
 	m.SourceKind = kind
 	return nil
+}
+
+// pollersInRange reports whether a ProvisionedPollerConfig keeps
+// MinimumPollers within [minPollers, maxPollersCap] and MaximumPollers
+// within [MinimumPollers, maxPollersCap] (aws-recorded, R03
+// C-scaling-and-provisioned). A member left out is not checked.
+func pollersInRange(p *lambdaapi.ProvisionedPollerConfig) bool {
+	if p.MinimumPollers != nil && (*p.MinimumPollers < minPollers || *p.MinimumPollers > maxMinPollers) {
+		return false
+	}
+	if p.MaximumPollers != nil {
+		if *p.MaximumPollers > maxPollersCap || (p.MinimumPollers != nil && *p.MaximumPollers < *p.MinimumPollers) {
+			return false
+		}
+	}
+	return true
 }
 
 // mappingTarget is the function a mapping invokes, read before the cell
@@ -475,12 +507,14 @@ func (s *Service) retarget(ctx context.Context, c *kernel.Call, uuid string, nam
 
 // toggle sets the mapping's Enabled and returns the transition an update
 // starts: Enabling or Disabling when Enabled changes, Updating otherwise.
+// Enabling clears StreamClosed, so the mapping reports a user action again
+// (inferred: AWS's answer to enabling such a mapping is unrecorded).
 func toggle(m *Mapping, enabled *bool) MappingState {
 	switch {
 	case enabled == nil || *enabled == m.Enabled:
 		return MappingUpdating
 	case *enabled:
-		m.Enabled = true
+		m.Enabled, m.StreamClosed = true, false
 		return MappingEnabling
 	}
 	m.Enabled = false

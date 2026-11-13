@@ -2,14 +2,17 @@ package lambda_test
 
 import (
 	"bytes"
+	"context"
 	"net/netip"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/docker/dockertest"
+	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
@@ -45,6 +48,40 @@ func imageLauncher(t *testing.T, locals ...string) (*launcher.Launcher, *docker.
 		t.Fatal(err)
 	}
 	return l, client
+}
+
+// gatedImages is an ImageSource that holds every pull until released.
+type gatedImages struct {
+	lambda.ImageSource
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (g gatedImages) EnsureImage(ctx context.Context, ref string, arch launcher.Architecture, progress func(docker.Progress)) (launcher.Image, error) {
+	g.entered <- struct{}{}
+	<-g.release
+	return g.ImageSource.EnsureImage(ctx, ref, arch, progress)
+}
+
+// TestPendingImagePullIsTrackedAsImagePull: the background pull that takes
+// an image function from Pending to Active is pending work named
+// image-pull, which settle waits for (GLOSSARY "Tracked work", "Settle").
+func TestPendingImagePullIsTrackedAsImagePull(t *testing.T) {
+	images, client := imageLauncher(t, "local/fn:latest")
+	gate := gatedImages{ImageSource: images, entered: make(chan struct{}, 1), release: make(chan struct{})}
+	run(t, lambda.Options{Images: gate}, func(h *harness) {
+		defer client.Close()
+		call(h, lambdaapi.OpCreateFunction, imageFunction("good", "local/fn:latest"))
+		<-gate.entered
+		ended, end := context.WithCancel(h.Context())
+		end()
+		pending, err := h.Kernel.Settle(ended, time.Second)
+		if err == nil || pending[kernel.ImagePull] != 1 || len(pending) != 1 || pending.String() != "image-pull=1" {
+			t.Errorf("Settle during the pull = %v, %v; want a SettleError with image-pull=1", pending, err)
+		}
+		close(gate.release)
+		h.settle()
+	})
 }
 
 // TestImageFunctionStates: an image function is Pending while its image

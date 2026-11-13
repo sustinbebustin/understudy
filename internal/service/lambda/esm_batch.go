@@ -10,6 +10,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/journal"
@@ -140,14 +141,14 @@ const lambdaService = "lambda.amazonaws.com"
 // messages' are its links (ADR 0007), and the deletes hang from the same
 // event. It deletes the messages that succeeded and releases the pins of
 // the rest, which return to the queue when their visibility timeout ends.
-func (p *pollers) invoke(ctx context.Context, c *kernel.Call, pl *poller, m *Mapping, t target, sqs kernel.Target) {
+func (p *pollers) invoke(ctx context.Context, c *kernel.Call, pl *poller, m *Mapping, invoked aws.ARN, sqs kernel.Target) {
 	h := &pl.held
 	batch := h.batch
 	h.batch, h.opened = esm.QueueBatch{}, clock.Instant{}
 	cause, links := p.causes(ctx, c, pl, sqs, &batch)
 	fn := kernel.Target{Scope: pl.scope, As: kernel.AsPlatform{Name: lambdaService}, Via: ref.LambdaESM, Resume: cause, Links: links}
 	out, err := kernel.Invoke(ctx, p.x.k, c, lambdaapi.OpInvoke, fn, &lambdaapi.InvokeInput{
-		FunctionName: t.invoked.String(), InvocationType: new(lambdaapi.InvocationTypeRequestResponse), Payload: batch.Event(),
+		FunctionName: invoked.String(), InvocationType: new(lambdaapi.InvocationTypeRequestResponse), Payload: batch.Event(),
 	})
 	v := verdict(out, err, m.ReportFailures, batch.MessageIDs())
 	if f, ok := v.(esm.Failed); ok {

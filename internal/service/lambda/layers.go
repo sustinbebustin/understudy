@@ -60,6 +60,11 @@ type LayerVersion struct {
 	// PolicyRevision its RevisionId, "" while Policy is empty.
 	Policy         []Statement `json:"policy,omitempty"`
 	PolicyRevision string      `json:"policyRevision,omitempty"`
+	// HadPolicy is set by the first statement added and stays set after the
+	// last is removed, when GetLayerVersionPolicy answers differently from
+	// a version that never had one (LDL-15 06). A snapshot saved before it
+	// was kept loads every version as never having had a policy.
+	HadPolicy bool `json:"hadPolicy,omitempty"`
 }
 
 // blobRefs lists the blob reference of every version l holds.
@@ -120,12 +125,13 @@ func (r layerRef) versionARN(n int64) string { return r.arn() + ":" + strconv.Fo
 // from it is then one no layer has, and only PublishLayerVersion, which
 // would store it, refuses it (isLayerName).
 //
-// An ARN of another account is served in that account with no check and no
-// advisory, for every layer operation. AWS lets another account call
-// GetLayerVersion and GetLayerVersionByArn on a version whose policy grants
-// it; that it refuses the other operations rests on a test's comment the
-// recording does not exercise, so it is UNVERIFIED
-// (lambda-destinations-layers.md 6.4). docs/guide/differences.md says so.
+// An ARN of another account is served in that account. GetLayerVersion and
+// GetLayerVersionByArn answer only a version whose policy grants the
+// caller's account (readableLayerVersion, lambda-destinations-layers.md
+// 7.4); every other layer operation acts with no check and no advisory.
+// That AWS refuses those rests on a test's comment the recording does not
+// exercise, so it is UNVERIFIED (lambda-destinations-layers.md 6.4).
+// docs/guide/differences.md says so.
 func parseLayerName(c *kernel.Call, s string) (layerRef, *awserr.Error) {
 	if !strings.HasPrefix(s, "arn:") {
 		return layerRef{scope: c.Scope(), name: s}, nil
@@ -326,17 +332,22 @@ func validatePublishLayerVersion(in *lambdaapi.PublishLayerVersionInput) []awser
 // pattern ^\d{12}|\*|arn:...:root$ is three unanchored alternatives, so a
 // value that merely contains one passes the generated check; such a value
 // names no principal and is refused with AddPermission's recorded text, as
-// AWS's answer for a layer is unrecorded.
-func layerPrincipal(scope aws.Scope, p string) (policydoc.PrincipalElement, *awserr.Error) {
+// AWS's answer for a layer is unrecorded. sent is the principal as the
+// caller wrote it, an account id as {"AWS": <account id>}, which the policy
+// size limit measures (lambda/LDL-15/07).
+func layerPrincipal(scope aws.Scope, p string) (rendered, sent policydoc.PrincipalElement, err *awserr.Error) {
 	switch {
 	case p == "*":
-		return policydoc.Principal{Who: policydoc.Anyone{}}, nil
+		anyone := policydoc.Principal{Who: policydoc.Anyone{}}
+		return anyone, anyone, nil
 	case len(p) == 12 && isVersionNumber(p):
-		return policydoc.Principal{Who: policydoc.Named{AWS: []string{aws.RootARN(scope.Partition, p).String()}}}, nil
+		return policydoc.Principal{Who: policydoc.Named{AWS: []string{aws.RootARN(scope.Partition, p).String()}}},
+			policydoc.Principal{Who: policydoc.Named{AWS: []string{p}}}, nil
 	case rootARN.MatchString(p):
-		return policydoc.Principal{Who: policydoc.Named{AWS: []string{p}}}, nil
+		root := policydoc.Principal{Who: policydoc.Named{AWS: []string{p}}}
+		return root, root, nil
 	}
-	return nil, errInvalidPrincipal()
+	return nil, nil, errInvalidPrincipal()
 }
 
 // rootARN is the root ARN branch of the model's LayerPermissionAllowedPrincipal
@@ -374,6 +385,22 @@ func checkLayerPolicyRevision(v LayerVersion, rev *string) *awserr.Error {
 		return errLayerPolicyRevisionMismatch()
 	}
 	return nil
+}
+
+// policySize is the size of a policy of the statements ss as
+// AddLayerVersionPermission checks it against maxPolicyBytes: the length of
+// the policy document with each statement at its measured size
+// (aws-recorded, lambda/LDL-15/07: 85 statements measure 20453 bytes, and an
+// 86th of 239 bytes and its comma make the recorded 20693).
+func policySize(ss []Statement) int {
+	size := len(Policy{}.document())
+	for i, s := range ss {
+		if i > 0 {
+			size++
+		}
+		size += s.measuredSize()
+	}
+	return size
 }
 
 // policyDocument is the version's policy as GetLayerVersionPolicy returns

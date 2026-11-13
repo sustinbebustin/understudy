@@ -61,6 +61,27 @@ func PollInterval(k EventSourceKind) time.Duration {
 	return 0
 }
 
+// DynamoDBClosedDelay is how long a DynamoDB stream mapping stays Enabled
+// after its reader finds the stream closed or gone, before it disables
+// itself. Inferred from one sample (ESMS-14 11): after DeleteTable the
+// mapping read Enabled from 17:00:31 to 17:02:17 UTC and Disabled from
+// 17:02:19 (lambda-stream-sources.md 7.3).
+const DynamoDBClosedDelay = 108 * time.Second
+
+// ClosedDelay is how long after its reader finds the stream closed or gone
+// a mapping of kind k disables itself: DynamoDBClosedDelay for a DynamoDB
+// stream. False for a Kinesis stream, whose mapping stays Enabled since
+// AWS's behaviour is unrecorded (ESMS-14's Kinesis steps did not run), and
+// for an SQS queue.
+func ClosedDelay(k EventSourceKind) (time.Duration, bool) {
+	switch k.(type) {
+	case DynamoDBStream:
+		return DynamoDBClosedDelay, true
+	case KinesisStream, SQS:
+	}
+	return 0, false
+}
+
 // StreamStart is a stream mapping's StartingPosition. AT_TIMESTAMP is not
 // one: on a DynamoDB stream it is refused (lambda-stream-sources.md 3.3
 // row 3).

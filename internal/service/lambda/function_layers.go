@@ -8,9 +8,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
-	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
-	"github.com/sustinbebustin/understudy/internal/journal"
+	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -53,19 +52,21 @@ func layerSwitches() []fidelity.Switch[string] {
 	return []fidelity.Switch[string]{
 		// A path two of a function's layers hold has the later layer's
 		// content in /opt (codestore.Store.Merge).
-		recorded(ldlSwitch("lambda.layers.merge-conflict", "later-overwrites", evidence.AWSRecorded, "81-extraction-and-merge-order", "LDL-12",
-			"lambda.Invoke")),
+		ldlSwitch("lambda.layers.merge-conflict", "later-overwrites", "81-extraction-and-merge-order", "LDL-12",
+			"lambda.Invoke"),
 		// A layer marked for another runtime or architecture attaches: the
 		// compatible lists are metadata ListLayers filters on (resolveLayers
 		// checks neither).
-		recorded(ldlSwitch("lambda.layers.compatibility", "not-enforced", evidence.AWSRecorded, "73-compatibility-is-metadata", "LDL-13",
-			"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration")),
-		// Another account's layer attaches whatever its owner's policy says,
-		// and an Advisory names a policy that would not grant the caller
-		// (resolveLayer). AWS refuses it instead (LDL-15).
-		differs(ldlSwitch("lambda.layers.cross-account-policy", "advise", evidence.Inferred, "74-layers-of-other-accounts", "LDL-15",
+		ldlSwitch("lambda.layers.compatibility", "not-enforced", "73-compatibility-is-metadata", "LDL-13",
 			"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration"),
-			"AWS refuses a version its owner's policy does not grant, and one that does not exist, with 403 AccessDeniedException"),
+		// Another account's layer version its owner's policy does not
+		// grant the caller, or that does not exist, is refused with 403
+		// AccessDeniedException, whatever --iam-enforce says
+		// (readableLayerVersion). LDL-15 recorded CreateFunction and
+		// GetLayerVersionByArn; UpdateFunctionConfiguration and
+		// GetLayerVersion follow them.
+		ldlSwitch("lambda.layers.cross-account-policy", "refuse", "74-layers-of-other-accounts", "LDL-15",
+			"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration", "lambda.GetLayerVersionByArn", "lambda.GetLayerVersion"),
 	}
 }
 
@@ -102,21 +103,21 @@ func checkLayers(layers []string) *awserr.Error {
 
 // attachment is a function's Layers resolved: one LayerRef per entry, in
 // order, each holding one blob reference that the caller stores or
-// releases, and the advisories the write storing them journals.
+// releases.
 type attachment struct {
-	layers     []LayerRef
-	advisories []journal.Advisory
+	layers []LayerRef
 }
 
 // blobs lists the references a's layers hold.
 func (a attachment) blobs() []blob.Ref { return layerBlobs(a.layers) }
 
-// resolveLayers resolves the Layers of a function in scope, in order:
-// every entry in the function's region first, then each one a version
-// understudy holds (lambda-destinations-layers.md 7.1, 11.5.6). Nothing is
-// checked against the versions' compatible runtimes or architectures
-// (switch lambda.layers.compatibility). On an error it holds nothing.
-func (s *Service) resolveLayers(ctx context.Context, scope aws.Scope, arns []string) (attachment, *awserr.Error) {
+// resolveLayers resolves the Layers caller gives a function in scope, in
+// order: every entry in the function's region first, then each one a
+// version understudy holds that caller may use (lambda-destinations-layers.md
+// 7.1, 7.4, 11.5.6). Nothing is checked against the versions' compatible
+// runtimes or architectures (switch lambda.layers.compatibility). On an
+// error it holds nothing.
+func (s *Service) resolveLayers(ctx context.Context, caller identity.Principal, scope aws.Scope, arns []string) (attachment, *awserr.Error) {
 	for _, arn := range arns {
 		if ref, _, ok := parseLayerVersionARN(arn); ok && ref.scope.Region != scope.Region {
 			return attachment{}, errLayerRegion(scope.Region.String())
@@ -124,68 +125,58 @@ func (s *Service) resolveLayers(ctx context.Context, scope aws.Scope, arns []str
 	}
 	var out attachment
 	for _, arn := range arns {
-		l, advisory, err := s.resolveLayer(ctx, scope, arn)
+		l, err := s.resolveLayer(ctx, caller, scope, arn)
 		if err != nil {
 			s.release(ctx, out.blobs()...)
 			return attachment{}, err
 		}
 		out.layers = append(out.layers, l)
-		if advisory != nil {
-			out.advisories = append(out.advisories, *advisory)
-		}
 	}
 	return out, nil
 }
 
-// resolveLayer finds the layer version arn names for a function in scope
-// and takes one blob reference on its archive, under the layer cell's lock
-// so a concurrent DeleteLayerVersion cannot free it first. A version of
-// another account attaches as one of the caller's would; when its policy
-// grants the caller's account nothing, the advisory says AWS would refuse
-// it (lambda-destinations-layers.md 7.4, switch
-// lambda.layers.cross-account-policy).
-func (s *Service) resolveLayer(ctx context.Context, scope aws.Scope, arn string) (LayerRef, *journal.Advisory, *awserr.Error) {
+// resolveLayer finds the layer version arn names for caller's function in
+// scope and takes one blob reference on its archive, under the layer cell's
+// lock so a concurrent DeleteLayerVersion cannot free it first. A version
+// of another account attaches only when its owner's policy grants scope's
+// account (readableLayerVersion).
+func (s *Service) resolveLayer(ctx context.Context, caller identity.Principal, scope aws.Scope, arn string) (LayerRef, *awserr.Error) {
 	if a, err := aws.ParseARN(arn); err == nil && strings.HasPrefix(a.Resource, "awslayer:") {
-		return LayerRef{}, nil, errManagedLayerNotFound(arn)
+		return LayerRef{}, errManagedLayerNotFound(arn)
 	}
 	ref, n, ok := parseLayerVersionARN(arn)
 	if !ok {
 		// A version number past int64 names no version understudy holds.
-		return LayerRef{}, nil, errLayerNotFound(arn)
+		return LayerRef{}, errLayerNotFound(arn)
 	}
-	foreign := ref.scope.Account != scope.Account
-	type found struct {
-		layer   LayerRef
-		granted bool
-	}
-	f, err := store.View2(s.cells, ref.scope, func(st *State) (found, *awserr.Error) {
-		v, ok := st.layerVersion(ref, n)
+	return store.View2(s.cells, ref.scope, func(st *State) (LayerRef, *awserr.Error) {
+		v, ok, err := st.readableLayerVersion(caller, scope, ref, n)
 		switch {
-		case !ok && foreign:
-			return found{}, errForeignLayerNotFound(arn, ref.scope.Account.String())
+		case err != nil:
+			return LayerRef{}, err
 		case !ok:
-			return found{}, errLayerNotFound(arn)
+			return LayerRef{}, errLayerNotFound(arn)
 		}
 		if err := s.retain(ctx, v.Blob); err != nil {
-			return found{}, err
+			return LayerRef{}, err
 		}
-		l := LayerRef{ARN: ref.versionARN(n), CodeSize: v.Size, Sha256: v.Sha256, Unzipped: v.Unzipped, Blob: v.Blob}
-		return found{layer: l, granted: !foreign || v.grants(scope.Partition, scope.Account)}, nil
+		return LayerRef{ARN: ref.versionARN(n), CodeSize: v.Size, Sha256: v.Sha256, Unzipped: v.Unzipped, Blob: v.Blob}, nil
 	})
-	if err != nil || f.granted {
-		return f.layer, nil, err
+}
+
+// readableLayerVersion finds version n of the layer ref names for caller,
+// who calls in scope; ok is false for a missing version of scope's
+// account. Another account's version its owner's policy does not grant
+// scope's account, or that does not exist, is errLayerVersionDenied in
+// every --iam-enforce mode, since AWS's resource-policy gate does not
+// depend on the caller's own policies (lambda-destinations-layers.md 7.4:
+// LDL-15 09, 10; switch lambda.layers.cross-account-policy).
+func (st *State) readableLayerVersion(caller identity.Principal, scope aws.Scope, ref layerRef, n int64) (LayerVersion, bool, *awserr.Error) {
+	v, ok := st.layerVersion(ref, n)
+	if ref.scope.Account != scope.Account && (!ok || !v.grants(scope.Partition, scope.Account)) {
+		return LayerVersion{}, false, errLayerVersionDenied(caller, ref.versionARN(n))
 	}
-	resource, perr := aws.ParseARN(f.layer.ARN)
-	if perr != nil {
-		s.release(ctx, f.layer.Blob)
-		return LayerRef{}, nil, awserr.Internalf(perr)
-	}
-	return f.layer, &journal.Advisory{
-		Kind: journal.AdvisoryPolicyWouldDeny, Resource: resource,
-		Text: "the layer version " + f.layer.ARN + " belongs to account " + ref.scope.Account.String() + ", whose policy does not grant account " +
-			scope.Account.String() + " lambda:GetLayerVersion; AWS refuses to attach it (lambda-destinations-layers.md 7.4) and understudy attached it " +
-			"(switch lambda.layers.cross-account-policy)",
-	}, nil
+	return v, ok, nil
 }
 
 // grants reports whether v's policy lets account use the version: an Allow

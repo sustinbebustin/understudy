@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"maps"
 	"net/url"
@@ -250,6 +251,36 @@ func TestLayerVersionLookupErrors(t *testing.T) {
 		errorIs(t, failByArn(h, layerPrefix+"shared"), "ValidationException",
 			"1 validation error detected: Value '"+layerPrefix+"shared' at 'arn' failed to satisfy constraint: Member must satisfy regular expression pattern: "+
 				`(arn:(aws[a-zA-Z-]*)?:lambda:(eusc-)?[a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\d{1}:\d{12}:layer:[a-zA-Z0-9-_]+:[0-9]+)|(arn:[a-zA-Z0-9-]+:lambda:::awslayer:[a-zA-Z0-9-_]+)`)
+	})
+}
+
+// Another account's layer version reads only when its owner's policy
+// grants the caller's account: GetLayerVersionByArn on an ungranted version,
+// or one that does not exist, answers layerDenied (recorded), and
+// GetLayerVersion on the same versions answers alike (inferred: LDL-15
+// recorded only GetLayerVersionByArn). A granted version reads as one of
+// the caller's own.
+func TestAnotherAccountsUngrantedLayerVersionIsNotReadable(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		t := h.T
+		h.publishTheirLayers()
+		for _, v := range []struct {
+			name    string
+			version int64
+		}{{"private", 1}, {"nosuch", 1}, {"private", 2}} {
+			arn := theirLayers + v.name + ":" + itoa(v.version)
+			layerDenied("GetLayerVersionByArn on "+arn, arn).check(t, failByArn(h, arn))
+			layerDenied("GetLayerVersion on "+arn, arn).check(t, failGet(h, theirLayers+v.name, v.version))
+		}
+		for _, name := range []string{"granted", "public", "org"} {
+			arn := theirLayers + name + ":1"
+			if got := call(h, lambdaapi.OpGetLayerVersionByArn, &lambdaapi.GetLayerVersionByArnInput{Arn: arn}); deref(got.LayerVersionArn) != arn {
+				t.Errorf("GetLayerVersionByArn on %s, which the owner granted, = %s", arn, mustJSON(t, got))
+			}
+			if got := call(h, lambdaapi.OpGetLayerVersion, &lambdaapi.GetLayerVersionInput{LayerName: theirLayers + name, VersionNumber: 1}); deref(got.LayerVersionArn) != arn {
+				t.Errorf("GetLayerVersion on %s, which the owner granted, = %s", arn, mustJSON(t, got))
+			}
+		}
 	})
 }
 
@@ -617,6 +648,42 @@ func TestLayerVersionPermissionErrors(t *testing.T) {
 			}
 		}
 		errorIs(t, remove("shared", 1, "s1", new("wrong")), "PreconditionFailedException", revision)
+	})
+}
+
+// A version's policy is capped at 20480 bytes measured as compact JSON with
+// each principal as the caller sent it: 85 statements of an account id
+// principal are accepted, though the policy GetLayerVersionPolicy returns
+// for them is 21983 bytes, and the 86th is refused at 20693 bytes
+// (aws-recorded, testdata/parity/lambda/LDL-15/07-size-limit-at-086.txt,
+// testdata/parity/lambda/LDL-15/08-size-policy.json). The Sids, the
+// principal and the layer name are the recording's; the test account and
+// Region are as long as the recording's, so every ARN is too.
+func TestLayerPolicySizeIsMeasuredWithPrincipalsAsSent(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		t := h.T
+		h.publish("us1103-ldl-pol", pythonLayer(t))
+		add := func(n int) *lambdaapi.AddLayerVersionPermissionInput {
+			return &lambdaapi.AddLayerVersionPermissionInput{
+				LayerName: "us1103-ldl-pol", VersionNumber: 1, StatementId: fmt.Sprintf("fill-%03d-", n) + strings.Repeat("x", 60),
+				Action: "lambda:GetLayerVersion", Principal: "123456789012",
+			}
+		}
+		for n := 1; n <= 85; n++ {
+			call(h, lambdaapi.OpAddLayerVersionPermission, add(n))
+		}
+		policy := call(h, lambdaapi.OpGetLayerVersionPolicy, &lambdaapi.GetLayerVersionPolicyInput{LayerName: "us1103-ldl-pol", VersionNumber: 1})
+		if got := len(deref(policy.Policy)); got != 21983 {
+			t.Errorf("policy of 85 statements is %d bytes, want the recorded 21983", got)
+		}
+		refused := fail(h, lambdaapi.OpAddLayerVersionPermission, add(86))
+		errorIs(t, refused, "PolicyLengthExceededException", "The final policy size (20693) is bigger than the limit (20480).")
+		if refused.ID.Status != 400 {
+			t.Errorf("refused statement status %d, want 400", refused.ID.Status)
+		}
+		if after := call(h, lambdaapi.OpGetLayerVersionPolicy, &lambdaapi.GetLayerVersionPolicyInput{LayerName: "us1103-ldl-pol", VersionNumber: 1}); deref(after.Policy) != deref(policy.Policy) {
+			t.Errorf("the refused statement changed the policy")
+		}
 	})
 }
 

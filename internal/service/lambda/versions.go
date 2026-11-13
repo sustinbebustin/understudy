@@ -161,6 +161,8 @@ func codeSha256(code Code) string {
 		return code.Sha256
 	case ImageCode:
 		return imageSha256(code)
+	case DirCode:
+		return dirSha256(code)
 	}
 	return ""
 }

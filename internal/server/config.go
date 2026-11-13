@@ -90,6 +90,11 @@ type Config struct {
 	DynamoDB DynamoDB
 	// HotReload binds directories as functions' code from the start.
 	HotReload []HotReload
+	// HotReloadRoots are the absolute directories a hot-reload binding made
+	// through the admin API or the Lambda API's hot-reload bucket must
+	// resolve under (lambda.hotReloadRoots);
+	// empty confines nothing. HotReload's bindings are not checked.
+	HotReloadRoots []string
 	// Lambda bounds the execution environments; zero values take the
 	// pool's defaults.
 	Lambda LambdaLimits

@@ -123,7 +123,37 @@ aws lambda invoke --function-name layered out.json && cat out.json
 
 - understudy merges a function's layers into `/opt` in the order listed, and mounts the merged tree read-only, or copies it into the container where a bind mount is not possible. A later layer's file replaces an earlier one's at the same path. AWS does not say which layer wins, so this is the fidelity switch `lambda.layers.merge-conflict`. A file in one layer where another has a directory fails the invoke with a `ServiceException` naming the path.
 - understudy sets no `PYTHONPATH`, `NODE_PATH` or `PATH`. The runtimes in AWS's base images search `/opt/python`, `/opt/python/lib/python3.x/site-packages`, `/opt/nodejs/node_modules`, `/opt/bin` and `/opt/lib` themselves, and `provided.al2023` runs a layer's `/opt/bootstrap` when the package has none.
-- Only layers published to understudy exist, because understudy never fetches a layer from AWS. An AWS-published layer such as Powertools is refused:
+- A layer version of another account attaches, and `get-layer-version` and `get-layer-version-by-arn` read it, only when its owner granted your account `lambda:GetLayerVersion` with `add-layer-version-permission`. An ungranted version, and one that does not exist, are refused alike, as AWS refuses them, in every `--iam-enforce` mode (fidelity switch `lambda.layers.cross-account-policy`):
+
+  ```sh
+  AWS_ACCESS_KEY_ID=111111111111 aws lambda publish-layer-version --layer-name shared --zip-file fileb://layer.zip \
+    --query LayerVersionArn --output text
+  aws lambda update-function-configuration --function-name layered \
+    --layers arn:aws:lambda:us-east-1:111111111111:layer:shared:1
+  ```
+
+  ```text
+  arn:aws:lambda:us-east-1:111111111111:layer:shared:1
+
+  An error occurred (AccessDeniedException) when calling the UpdateFunctionConfiguration operation: User: arn:aws:iam::000000000000:root is not authorized to perform: lambda:GetLayerVersion on resource: arn:aws:lambda:us-east-1:111111111111:layer:shared:1 because no resource-based policy allows the lambda:GetLayerVersion action
+  ```
+
+  Once the owner grants your account, the version attaches:
+
+  ```sh
+  AWS_ACCESS_KEY_ID=111111111111 aws lambda add-layer-version-permission --layer-name shared --version-number 1 \
+    --statement-id share --action lambda:GetLayerVersion --principal 000000000000
+  aws lambda update-function-configuration --function-name layered \
+    --layers arn:aws:lambda:us-east-1:111111111111:layer:shared:1 --query 'Layers[].Arn'
+  ```
+
+  ```text
+  [
+      "arn:aws:lambda:us-east-1:111111111111:layer:shared:1"
+  ]
+  ```
+
+- Only layers published to understudy exist, because understudy never fetches a layer from AWS. An AWS-published layer such as Powertools is therefore refused as another account's version that does not exist, where AWS attaches a public one:
 
   ```sh
   aws lambda update-function-configuration --function-name layered \
@@ -131,11 +161,10 @@ aws lambda invoke --function-name layered out.json && cat out.json
   ```
 
   ```text
-  An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: Layer version arn:aws:lambda:us-east-1:017000801446:layer:AWSLambdaPowertoolsPythonV3-python313-x86_64:7 does not exist. understudy has only the layers published to it and never fetches layers from AWS; publish the archive to understudy with credentials for account 017000801446 and use the version that returns.
+  An error occurred (AccessDeniedException) when calling the UpdateFunctionConfiguration operation: User: arn:aws:iam::000000000000:root is not authorized to perform: lambda:GetLayerVersion on resource: arn:aws:lambda:us-east-1:017000801446:layer:AWSLambdaPowertoolsPythonV3-python313-x86_64:7 because no resource-based policy allows the lambda:GetLayerVersion action
   ```
 
-  Publish the layer's content to understudy yourself, in your own account or in its owner's (`AWS_ACCESS_KEY_ID=017000801446` signs as that account), and use the version ARN that returns.
-- A layer of another account attaches whether or not its owner granted your account `lambda:GetLayerVersion` with `add-layer-version-permission`. AWS refuses an ungranted one; understudy journals an advisory (`understudy journal --kind advisory`) and attaches it (fidelity switch `lambda.layers.cross-account-policy`).
+  Publish the layer's content to understudy yourself, in your own account or in its owner's (`AWS_ACCESS_KEY_ID=017000801446` signs as that account, then `add-layer-version-permission` with `--principal '*'` shares it), and use the version ARN that returns.
 - `--compatible-runtimes` and `--compatible-architectures` filter `list-layers` and `list-layer-versions`. They are not checked when a layer is attached, because AWS's answer to a mismatch is unrecorded (fidelity switch `lambda.layers.compatibility`).
 - A deleted layer version stays on the functions that use it and keeps working, but no function can add it.
 - The function's code and its layers together may be 250 MB (262,144,000 bytes) unzipped.
@@ -144,6 +173,14 @@ aws lambda invoke --function-name layered out.json && cat out.json
 ## Calls from inside a function
 
 understudy sets `AWS_ENDPOINT_URL` in the function's environment to an address the container can reach, and mints execution-role credentials for the function's role. An SDK built with default configuration therefore calls understudy, as that role, with no code change. Those calls appear in [the journal](journal.md) under the invocation that made them, and in the role's [generated policy](policy.md).
+
+understudy links a call to its invocation by the credentials it minted, so a function whose configuration sets its own credentials, such as `AWS_ACCESS_KEY_ID=test`, makes calls that are served as usual but root traces of their own. Where understudy sees the function container's own address on the call, it journals an `unminted-credentials` advisory naming the function for each such call:
+
+```sh
+understudy journal --kind advisory
+```
+
+That is the Linux bridge network and understudy running in a container ([Networking](#networking)). On Docker Desktop and with a remote daemon the call arrives from another address, and nothing is journaled. Remove the static credentials from the function's environment to link its calls again.
 
 ## Invoking
 
@@ -242,7 +279,16 @@ aws sqs receive-message --queue-url http://localhost:4566/000000000000/orders-dl
   - an EventBridge bus, default or custom. The event's `source` is `lambda` and its `detail-type` is `Lambda Function Invocation Result - Success` or `- Failure`;
   - on failure only, an S3 bucket. The key is `aws/lambda/async/<function>/YYYY/MM/DD/YYYY-MM-DDTHH.MM.SS-<uuid>`.
 
-  The dead-letter target is an SQS queue or an SNS topic.
+  The dead-letter target is a standard SQS queue or an SNS topic. `create-function` and `update-function-configuration` check it before storing it, as AWS does: a queue or topic that does not exist, a FIFO queue, and an ARN of any other service are refused, and so, under `--iam-enforce enforce`, is a target the execution role may not send to (`sqs:SendMessage`) or publish to (`sns:Publish`). Under `advise` the denial is journaled and the target stored; under `off` it is not asked. `--dead-letter-config TargetArn=` clears the target:
+
+  ```text
+  An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: Error occurred while SendMessage. SQS Error Code: AWS.SimpleQueueService.NonExistentQueue. SQS Error Message: The specified queue does not exist.
+  An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: Invalid dead letter queue ARN: FIFO SQS queue is not supported for dead letter configuration
+  An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: Invalid dead letter queue ARN: The service specified by the TargetArn is not supported for dead letter configuration.
+  An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: The provided execution role does not have permissions to call SendMessage on SQS
+  ```
+
+  AWS's answers for a missing topic and for a topic the role may not publish to are unrecorded; understudy's follow the queue's.
 - Retries run on the emulator clock first. With the default two retries, the record waits for an attempt 60 s after the first failure and another 120 s after the second; on a frozen or slow clock, move it:
 
   ```sh
@@ -256,6 +302,12 @@ aws sqs receive-message --queue-url http://localhost:4566/000000000000/orders-dl
 
   ```text
   An error occurred (InvalidParameterValueException) when calling the PutFunctionEventInvokeConfig operation: The destination ARN arn:aws:sqs:us-east-1:000000000000:no-such-queue is invalid.
+  ```
+
+- A record over SNS's 256 KB limit (262,144 bytes) reaches a topic with both payloads left out and a `deliveryError` after `responseContext` that gives their sizes as sent and returned, as AWS recorded for an on-success record (fidelity switch `lambda.destination.sns-oversize`). An on-failure record is handled the same way, which is inferred:
+
+  ```text
+  {"version":"1.0","timestamp":"...","requestContext":{...},"responseContext":{"statusCode":200,"executedVersion":"$LATEST"},"deliveryError":{"statusCode":413,"errorCode":"RequestEntityTooLargeException","errorMessage":"The total destination payload is too large. RequestPayload size: 300026 bytes, ResponsePayload size: 26 bytes"}}
   ```
 
 - `UpdateFunctionEventInvokeConfig` with one side of `DestinationConfig` keeps the other side, as on AWS.
@@ -292,6 +344,42 @@ The directory holds what the zip would: `handler.py`, or a built `bootstrap`. un
 ```
 
 While a binding is active it wins over `UpdateFunctionCode`; the update is stored and the journal says the binding shadows it. When understudy runs in a container, the directory must be given as understudy's own container sees it.
+
+`understudy lambda hot-reload` binds only a directory owned by the user understudy runs as, by its path with every symbolic link resolved. On a host with other local users, also list the directories bindings may come from, since on loopback any of them can call the admin API:
+
+```json
+{"lambda": {"hotReloadRoots": ["/work/src"]}}
+```
+
+A directory that does not resolve under one of them is refused, and nothing is bound:
+
+```console
+$ understudy lambda hot-reload hello /work/private
+understudy lambda hot-reload: /work/private is not under a directory lambda.hotReloadRoots lists (/work/src); nothing was bound; build under one of those directories, add the directory to lambda.hotReloadRoots, or declare the binding under lambda.hotReload in the configuration file
+```
+
+Bindings in `lambda.hotReload` are not checked. See [Hot-reload roots](../configuration.md#hot-reload-roots).
+
+### The `hot-reload` bucket
+
+A configuration written for LocalStack works unchanged: code in the bucket `hot-reload`, with an absolute directory as its key, is that directory, run under a hot-reload binding instead of fetched from S3. AWS has no such bucket; this is understudy's extension.
+
+```sh
+aws lambda create-function --function-name hello --runtime provided.al2023 --handler bootstrap \
+  --role arn:aws:iam::000000000000:role/lambda-role --code S3Bucket=hot-reload,S3Key=$PWD/fn
+```
+
+In Terraform, `s3_bucket = "hot-reload"` and `s3_key = abspath("fn")` do the same. `UpdateFunctionCode` takes the bucket too. Edits cold-start the next invoke, as with any binding. The function reports a `CodeSha256` derived from the path rather than the contents, so it stays the same across edits and a second `plan` stays empty. `GetFunction` reports `RepositoryType` `S3` with no `Location`, since there is no package to download. The directory is saved with snapshots and bound again after a reset or load. A binding made with `understudy lambda hot-reload` or `lambda.hotReload` wins over it.
+
+The directory passes the checks `understudy lambda hot-reload` applies, `lambda.hotReloadRoots` included, since the Lambda API may be reachable by more callers than the admin API. A refused directory stores nothing:
+
+```console
+$ aws lambda create-function --function-name bad --runtime provided.al2023 --handler bootstrap \
+  --role arn:aws:iam::000000000000:role/lambda-role --code S3Bucket=hot-reload,S3Key=fn
+An error occurred (InvalidParameterValueException) when calling the CreateFunction operation: The hot-reload bucket's S3Key names a directory to run, but "fn" is not an absolute path; nothing was stored. To fix it, give the directory's absolute host path, such as $PWD/build.
+```
+
+When understudy runs in a container, the key is the path as understudy's own container sees it, as for other bindings.
 
 ## Event sources and triggers
 
@@ -334,6 +422,7 @@ understudy detects how containers reach it the first time a function runs, and `
 | Docker Desktop (macOS) | `host.docker.internal`, forwarded to understudy on the host's loopback; functions are handed Desktop's documented address, `192.168.65.254`. Supported, not CI-tested: a manual run on Docker Desktop 4.98.0 (2026-11-06) ran functions from the host and from the image |
 | In a container (the image) | understudy's own container network; functions join it |
 | Rootless Docker, rootless Podman | Not supported; understudy says so when a function would start |
+| Colima (macOS) | Not supported, and never run. understudy finds Colima's Docker context, but takes its daemon for a Linux bridge network whose gateway it cannot bind on the Mac host |
 
 On a Linux host functions reach only the AWS API and the read-only health and clock endpoints. On Docker Desktop and in a container they call the main listener, so function code can reach the whole admin API; [SECURITY.md](../../SECURITY.md) says when an admin token closes that.
 
@@ -345,5 +434,4 @@ On a Linux host functions reach only the AWS API and the read-only health and cl
 - `EphemeralStorage` is validated but not enforced. Reserved concurrency is enforced; the provisioned concurrency operations answer 501.
 - AWS-published layers, such as Powertools, exist only once you publish their content to understudy ([Layers](#layers)).
 - An alias's weighted routing is stored but not applied: an invoke always runs the primary version.
-- The LocalStack convention of creating a function from the `hot-reload` bucket is not supported; use `understudy lambda hot-reload` or the configuration file.
 - A fault rule scoped to a resource matches Lambda's `Invoke` only; scope rules on other Lambda operations by operation, account or region.

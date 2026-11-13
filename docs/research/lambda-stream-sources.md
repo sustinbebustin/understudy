@@ -357,7 +357,7 @@ LocalStack has no tumbling-window case, so this section is aws-doc and sdk-sourc
 
 - Recorded: immediately after `DeleteTable`, `ListEventSourceMappings` still shows the mapping `Enabled` (LS-D.py:L329-L372, LS-D:L272-L301). After the function is deleted, the DynamoDB mapping also stays `Enabled` (lambda-events.md 1.5).
 - "If you disable and then re-enable a stream on the table, a new stream is created with a different stream descriptor." ([Streams](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html)), so a mapping keeps pointing at the old stream (inferred).
-- Recorded for a deleted table (ESMS-14 10-11, 2026-11-03): the mapping stayed `Enabled` / "User action" / "No records processed" for about 108 s, then read `Disabled` / "Unrecoverable error" / "PROBLEM: Stream is closed", still so 19 minutes later. AWS disables the mapping itself; understudy has no such transition (a follow-up).
+- Recorded for a deleted table (ESMS-14 10-11, 2026-11-03): the mapping stayed `Enabled` / "User action" / "No records processed" for about 108 s, then read `Disabled` / "Unrecoverable error" / "PROBLEM: Stream is closed", still so 19 minutes later. AWS disables the mapping itself. understudy does the same 108 s after its reader finds the stream closed (all shards closed and read to their end) or gone, a delay inferred from this one sample, and journals the change from `Enabled` to `Disabled`; closing the stream with `UpdateTable` is treated the same, which is inferred. Enabling the mapping again reports "User action" (inferred).
 - UNVERIFIED: the same for a gone function, and the states after failures and throttles (ESMS-14 01-09, 12-14: n/a, free-plan SCP denies Kinesis).
 
 ## 8. Event records

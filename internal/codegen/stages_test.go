@@ -269,7 +269,7 @@ func TestStageFailures(t *testing.T) {
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
 				"dev.understudy#maxRequestBytes dev.understudy#memberOrder dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#optionalOutput dev.understudy#patternEcho " +
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryErrorHeader dev.understudy#queryKeyAlias " +
-				"dev.understudy#refuseDuplicateMembers dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
+				"dev.understudy#refuseDuplicateMembers dev.understudy#requestTooLargeError dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationAnswer dev.understudy#unknownOperationError dev.understudy#validationError " +
 				"dev.understudy#validationInputRoot dev.understudy#validationPathStyle dev.understudy#xmlDeclaration]",
 		},
@@ -1095,6 +1095,7 @@ func TestClassifyOverlayTraits(t *testing.T) {
 		"dev.understudy#throttleError":          codegen.Honor,
 		"dev.understudy#notConfigured":          codegen.Honor,
 		"dev.understudy#malformedRequestError":  codegen.Honor,
+		"dev.understudy#requestTooLargeError":   codegen.Honor,
 		"dev.understudy#statusOverride":         codegen.Honor,
 		"dev.understudy#unknownOperationError":  codegen.Honor,
 		"dev.understudy#unknownOperationAnswer": codegen.Honor,

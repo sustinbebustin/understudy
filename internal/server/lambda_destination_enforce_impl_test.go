@@ -17,7 +17,9 @@ import (
 // Lambda under iam.enforce: PutFunctionEventInvokeConfig and
 // UpdateFunctionEventInvokeConfig ask whether the function's execution
 // role may write to an SNS or SQS destination (iam-enforcement-surfaces.md
-// 8.5, IAM-ENF-27).
+// 8.5, IAM-ENF-27), and CreateFunction and UpdateFunctionConfiguration
+// whether it may write to the dead-letter target
+// (lambda-destinations-layers.md 5.1, LDL-08 14).
 
 const (
 	destTopic = "arn:aws:sns:us-east-1:000000000000:t"
@@ -101,6 +103,69 @@ func TestEventInvokeConfigChecksTheExecutionRoleUnderEnforce(t *testing.T) {
 	if w := eventInvoke(t, endpoint, http.MethodPut, `{"DestinationConfig":{"OnSuccess":{"Destination":"`+destTopic+`"},"OnFailure":{"Destination":"`+destQueue+`"}}}`); w.status != http.StatusOK {
 		t.Errorf("Put once the role may = %d %s, want 200", w.status, w.body)
 	}
+}
+
+// deadLetter sends UpdateFunctionConfiguration for fn setting its
+// dead-letter target to arn, as root.
+func deadLetter(t *testing.T, endpoint, arn string) wire {
+	t.Helper()
+	return lambdaCall(t, dummy, endpoint, http.MethodPut, "/2015-03-31/functions/fn/configuration", `{"DeadLetterConfig":{"TargetArn":"`+arn+`"}}`)
+}
+
+// Under enforce a role that may not send to the dead-letter queue refuses
+// UpdateFunctionConfiguration with the recorded answer, which names the
+// service, not the ARN (testdata/parity/lambda/LDL-08/14-no-permission-dlq.json),
+// and CreateFunction the same way (inferred: only the update was
+// recorded); the topic's sentence names Publish on SNS (inferred from the
+// queue's). Nothing is stored, and once the role may, the target is taken.
+func TestDeadLetterTargetChecksTheExecutionRoleUnderEnforce(t *testing.T) {
+	_, endpoint := destinationServer(t, server.IAMEnforceEnforce)
+	const (
+		send    = "The provided execution role does not have permissions to call SendMessage on SQS"
+		publish = "The provided execution role does not have permissions to call Publish on SNS"
+	)
+	wantDestinationRefused(t, "Update to the queue", deadLetter(t, endpoint, destQueue), send)
+	wantDestinationRefused(t, "Update to the topic", deadLetter(t, endpoint, destTopic), publish)
+	pkg := base64.StdEncoding.EncodeToString(zipped(t, "unused"))
+	create := `{"FunctionName":"fn2","Runtime":"provided.al2023","Handler":"bootstrap","Role":"arn:aws:iam::000000000000:role/fn","Code":{"ZipFile":"` + pkg + `"},` +
+		`"DeadLetterConfig":{"TargetArn":"` + destQueue + `"}}`
+	wantDestinationRefused(t, "Create with the queue", lambdaCall(t, dummy, endpoint, http.MethodPost, "/2015-03-31/functions", create), send)
+	if w := lambdaCall(t, dummy, endpoint, http.MethodGet, "/2015-03-31/functions/fn/configuration", ""); strings.Contains(w.body, "DeadLetterConfig") {
+		t.Errorf("GetFunctionConfiguration = %s, want no dead-letter target stored", w.body)
+	}
+
+	iamAsRoot(t, endpoint, url.Values{"Action": {"PutRolePolicy"}, "RoleName": {"fn"}, "PolicyName": {"p"}, "PolicyDocument": {
+		`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["sns:Publish","sqs:SendMessage"],"Resource":["` + destTopic + `","` + destQueue + `"]}]}`,
+	}})
+	if w := deadLetter(t, endpoint, destQueue); w.status != http.StatusOK || !strings.Contains(w.body, destQueue) {
+		t.Errorf("Update to the queue once the role may = %d %s, want 200 with the target", w.status, w.body)
+	}
+}
+
+// Under advise the dead-letter target is stored and the role's denial
+// journaled; under off nothing is asked.
+func TestDeadLetterTargetRoleCheckUnderAdviseAndOff(t *testing.T) {
+	t.Run("advise", func(t *testing.T) {
+		c, endpoint := destinationServer(t, server.IAMEnforceAdvise)
+		if w := deadLetter(t, endpoint, destQueue); w.status != http.StatusOK {
+			t.Fatalf("Update under advise = %d %s, want 200", w.status, w.body)
+		}
+		advised := enforcementAdvisories(t, c, "access-would-deny")
+		if !slices.ContainsFunc(advised, func(s string) bool {
+			return strings.Contains(s, "role/fn") && strings.Contains(s, "sqs:SendMessage") && strings.Contains(s, destQueue)
+		}) {
+			t.Errorf("access-would-deny advisories = %q, want one for the role sending to %s", advised, destQueue)
+		}
+	})
+	t.Run("off", func(t *testing.T) {
+		c, endpoint := destinationServer(t, server.IAMEnforceOff)
+		if w := deadLetter(t, endpoint, destTopic); w.status != http.StatusOK {
+			t.Fatalf("Update under off = %d %s, want 200", w.status, w.body)
+		}
+		if got := enforcementAdvisories(t, c, "access-would-deny"); len(got) != 0 {
+			t.Errorf("off journaled access-would-deny advisories %q, want none", got)
+		}
+	})
 }
 
 // Under advise the configuration is stored and the role's denial

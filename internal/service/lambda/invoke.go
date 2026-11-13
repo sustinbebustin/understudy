@@ -165,6 +165,9 @@ type Execution struct {
 	running  *concurrency
 	groups   logGroups
 	overlays *overlays
+	// codeSync orders syncCode's calls, so one never ends a binding
+	// another's newer reading of the state wants.
+	codeSync sync.Mutex
 	async    kernel.HandledKind
 	queues   *store.Partitioned[aws.Scope, asyncQueue]
 
@@ -230,6 +233,7 @@ func NewExecution(svc *Service, d kernel.ServiceDeps, o ExecutionOptions) (*Exec
 	}
 	x.async = d.Kernel.Timers().Handle(TimerAsync, x.onAsync)
 	svc.overlayDir = x.overlays.dirOf
+	svc.codeChanged = func(scope aws.Scope) { x.syncCode(func(s aws.Scope) bool { return s == scope }) }
 	// A delivery is authorized at step 8, as every call is, so one to a
 	// deleted function is denied before the function is looked up
 	// (lambda.enforce.missing-resource.delivery deny-first;
@@ -313,9 +317,11 @@ func (x *Execution) Drain(ctx context.Context, scope kernel.ResetScope) error {
 
 // Link links a call made with an environment's minted credentials to the
 // invocation the environment runs, init phase included; calls between
-// invocations link to nothing.
-func (x *Execution) Link(p identity.Principal, _ netip.AddrPort) (ref.Cause, bool) {
-	return x.envs.link(p)
+// invocations link to nothing. A call from an environment's container
+// with credentials no environment minted is Unminted, on the topologies
+// where the remote address is the container's own (ARCHITECTURE.md 10).
+func (x *Execution) Link(p identity.Principal, remote netip.AddrPort) kernel.Link {
+	return x.envs.link(p, remote)
 }
 
 // target is the function version an invocation runs, read from the state
@@ -465,6 +471,11 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 	if tail {
 		out.LogResult = new(base64.StdEncoding.EncodeToString(lastBytes(res.tail, maxTail)))
 	}
+	// AWS answers the payload as application/json, a function error's too
+	// (lambda/R13/04-raise, 04-payload-null). The model gives Payload no
+	// mediaType, and the REST binder's octet-stream default for a blob
+	// payload stays for the other services that rely on it.
+	c.SetSuccessHeader("Content-Type", "application/json")
 	return out, nil
 }
 
@@ -534,12 +545,12 @@ func invocationCause(c *kernel.Call) (ref.Cause, []ref.EventID) {
 // replace invalid bytes rather than refuse them. An empty payload is the
 // empty object, as SDKs send no body for a nil payload.
 func checkPayload(p []byte, mode lambdaapi.InvocationType) ([]byte, *awserr.Error) {
-	limit := maxSyncRequest
 	if mode == lambdaapi.InvocationTypeEvent {
-		limit = maxAsyncRequest
-	}
-	if len(p) > limit {
-		return nil, errPayloadTooLarge(limit)
+		if len(p) > maxAsyncRequest {
+			return nil, errEventPayloadTooLarge(len(p))
+		}
+	} else if len(p) > maxSyncRequest {
+		return nil, errPayloadTooLarge(maxSyncRequest)
 	}
 	if len(p) == 0 {
 		return []byte("{}"), nil
@@ -691,6 +702,16 @@ func (x *Execution) lease(ctx context.Context, r *run, fn fnVersion) (leased, *a
 		if layers := t.version.Config.Layers; len(layers) > 0 {
 			w.trees = append(w.trees, layersKey(layers))
 		}
+	case DirCode:
+		var err error
+		//nolint:contextcheck // the binding outlives the invocation; it ends with syncCode or Close
+		if overlayDir, w.overlay, err = x.codeDir(fnKey{scope: fn.scope, name: fn.name}, code.Dir); err != nil {
+			return leased{}, errService(fmt.Sprintf("Lambda could not run %s from the hot-reload directory %s its code names: %v. "+
+				"Recreate the directory, or point the function at another with UpdateFunctionCode.", fn.arn(), code.Dir, err))
+		}
+		if layers := t.version.Config.Layers; len(layers) > 0 {
+			w.trees = append(w.trees, layersKey(layers))
+		}
 	case ImageCode:
 	}
 	s, gen, err := x.envs.lease(fn, w)
@@ -712,6 +733,7 @@ func (x *Execution) lease(ctx context.Context, r *run, fn fnVersion) (leased, *a
 	if l.cold {
 		l.init = started()
 		s.env, s.stream = env, x.openStream(env, t, spec.LogGroup) //nolint:contextcheck // the stream's follower outlives the invocation and ends at Close
+		x.envs.locate(s, env)
 	}
 	return l, nil
 }
@@ -886,12 +908,19 @@ func errService(message string) *awserr.Error {
 	return lambdaapi.ErrServiceException(message)
 }
 
-// errPayloadTooLarge is the front end's refusal of an oversized Invoke
-// body: the unmodeled RequestEntityTooLargeException, with no Type, as for
-// CreateFunction (errZippedTooLarge), worded as AWS's own Lambda test tool
-// words it. The Event limit's wording is assumed to follow the same shape.
+// errPayloadTooLarge is the front end's refusal of an oversized synchronous
+// Invoke body: the unmodeled RequestEntityTooLargeException, with no Type,
+// as for CreateFunction (errZippedTooLarge), worded as AWS's own Lambda test
+// tool words it; the text is unrecorded (lambda-api.md 8.2).
 func errPayloadTooLarge(limit int) *awserr.Error {
 	return lambdaapi.ErrRequestEntityTooLargeException("Request must be smaller than " + strconv.Itoa(limit) + " bytes for the InvokeFunction operation")
+}
+
+// errEventPayloadTooLarge is the refusal of an Event Invoke whose payload
+// of size bytes is over maxAsyncRequest
+// (testdata/parity/lambda/R13/04-event-over-1mb.json).
+func errEventPayloadTooLarge(size int) *awserr.Error {
+	return lambdaapi.ErrRequestEntityTooLargeException(strconv.Itoa(size) + " byte payload is too large for the Event invocation type (limit " + strconv.Itoa(maxAsyncRequest) + " bytes)")
 }
 
 // errPayloadNotJSON is the recorded prefix with Go's parser message in
@@ -904,11 +933,6 @@ func errPayloadNotJSON(err error) *awserr.Error {
 func errClientContext(problem string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidRequestContentException("X-Amz-Client-Context " + problem + "; send the base64 encoding of a JSON object of at most " + strconv.Itoa(maxClientContext) + " bytes."))
 }
-
-// Drain has nothing to stop on the Service: execution environments,
-// asynchronous queues and hot-reload overlays belong to the Execution built
-// for it, which is the admin API's Drainer.
-func (*Service) Drain(context.Context, kernel.ResetScope) error { return nil }
 
 // hotReloadAdvisory runs after a committed UpdateFunctionCode of the
 // function fn names: when a hot-reload overlay runs instead of the zip
@@ -924,8 +948,8 @@ func (s *Service) hotReloadAdvisory(ctx context.Context, c *kernel.Call, fn func
 	}
 	sha, err := store.View2(s.cells, fn.scope, func(st *State) (string, *awserr.Error) {
 		if f, ok := st.Functions[fn.name]; ok {
-			if z, ok := f.Latest.Code.(ZipCode); ok {
-				return z.Sha256, nil
+			if _, image := f.Latest.Code.(ImageCode); !image {
+				return codeSha256(f.Latest.Code), nil
 			}
 		}
 		return "", nil

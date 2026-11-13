@@ -61,7 +61,9 @@ const defaultRoute = "$default"
 // for a Public caller or the signer's account for an IAMCaller, which
 // authorizer.iam reports. pathParameters, stageVariables and
 // requestContext.authentication are left out, as the guide allows and
-// LocalStack's recorded echoes show.
+// LocalStack's recorded echoes show. As AWS recorded (R13
+// 01-logged-events), headers keep cookie beside cookies and
+// x-amzn-trace-id carries the Root= part alone.
 func Event(r Request, c Context) ([]byte, error) {
 	hc := httpevent.Context{
 		AccountID: "anonymous", APIID: c.URLID, DomainName: c.DomainName, DomainPrefix: c.URLID,
@@ -77,5 +79,5 @@ func Event(r Request, c Context) ([]byte, error) {
 		}
 	case Public:
 	}
-	return httpevent.EventV2(httpevent.Request(r), hc)
+	return httpevent.EventV2For(httpevent.Request(r), hc, httpevent.FunctionURL{CookieHeader: true, RootOnlyTrace: true})
 }

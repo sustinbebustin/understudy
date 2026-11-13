@@ -7,8 +7,11 @@ import (
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
+	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
+	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 )
 
@@ -56,6 +59,7 @@ func TestLambdaOperationsAreAskedAboutTheResourceTheirInputAddresses(t *testing.
 		fn      = "arn:aws:lambda:us-east-1:000000000000:function:ghost"
 		mapping = "arn:aws:lambda:us-east-1:000000000000:event-source-mapping:00000000-0000-0000-0000-000000000001"
 		uuid    = "00000000-0000-0000-0000-000000000001"
+		layer   = "arn:aws:lambda:us-east-1:000000000000:layer:ghost"
 	)
 	queue := "arn:aws:sqs:us-east-1:000000000000:orders"
 	cases := []struct {
@@ -176,6 +180,32 @@ func TestLambdaOperationsAreAskedAboutTheResourceTheirInputAddresses(t *testing.
 		{"DeleteEventSourceMapping", "lambda:DeleteEventSourceMapping on " + mapping, func(h *harness) {
 			invoke(h, lambdaapi.OpDeleteEventSourceMapping, &lambdaapi.DeleteEventSourceMappingInput{UUID: uuid})
 		}},
+		{"PublishLayerVersion", "lambda:PublishLayerVersion on " + layer, func(h *harness) {
+			invoke(h, lambdaapi.OpPublishLayerVersion, &lambdaapi.PublishLayerVersionInput{LayerName: "ghost", Content: lambdaapi.LayerVersionContentInput{ZipFile: zipOf(h, "x")}})
+		}},
+		{"GetLayerVersion", "lambda:GetLayerVersion on " + layer + ":2", func(h *harness) {
+			invoke(h, lambdaapi.OpGetLayerVersion, &lambdaapi.GetLayerVersionInput{LayerName: "ghost", VersionNumber: 2})
+		}},
+		{"GetLayerVersionByArn", "lambda:GetLayerVersion on " + layer + ":2", func(h *harness) {
+			invoke(h, lambdaapi.OpGetLayerVersionByArn, &lambdaapi.GetLayerVersionByArnInput{Arn: layer + ":2"})
+		}},
+		{"ListLayerVersions", "lambda:ListLayerVersions on " + layer, func(h *harness) {
+			invoke(h, lambdaapi.OpListLayerVersions, &lambdaapi.ListLayerVersionsInput{LayerName: layer})
+		}},
+		{"DeleteLayerVersion", "lambda:DeleteLayerVersion on " + layer + ":2", func(h *harness) {
+			invoke(h, lambdaapi.OpDeleteLayerVersion, &lambdaapi.DeleteLayerVersionInput{LayerName: "ghost", VersionNumber: 2})
+		}},
+		{"AddLayerVersionPermission", "lambda:AddLayerVersionPermission on " + layer + ":2", func(h *harness) {
+			invoke(h, lambdaapi.OpAddLayerVersionPermission, &lambdaapi.AddLayerVersionPermissionInput{
+				LayerName: "ghost", VersionNumber: 2, StatementId: "s", Action: "lambda:GetLayerVersion", Principal: "*",
+			})
+		}},
+		{"RemoveLayerVersionPermission", "lambda:RemoveLayerVersionPermission on " + layer + ":2", func(h *harness) {
+			invoke(h, lambdaapi.OpRemoveLayerVersionPermission, &lambdaapi.RemoveLayerVersionPermissionInput{LayerName: "ghost", VersionNumber: 2, StatementId: "s"})
+		}},
+		{"GetLayerVersionPolicy", "lambda:GetLayerVersionPolicy on " + layer + ":2", func(h *harness) {
+			invoke(h, lambdaapi.OpGetLayerVersionPolicy, &lambdaapi.GetLayerVersionPolicyInput{LayerName: "ghost", VersionNumber: 2})
+		}},
 	}
 	gate := &pairGate{}
 	run(t, lambda.Options{}, func(h *harness) {
@@ -188,6 +218,68 @@ func TestLambdaOperationsAreAskedAboutTheResourceTheirInputAddresses(t *testing.
 	}, kerneltest.Authorizer(gate))
 }
 
+// A request-phase fault rule scoped to a resource matches the Lambda
+// operation whose input addresses it, whichever ARN form that is
+// (docs/guide/faults.md, resource matching): the rule fires before the
+// handler, so none of the addressed resources exists. A rule for another
+// resource leaves the call to the handler.
+func TestResourceScopedFaultRuleMatchesTheARNFormTheInputAddresses(t *testing.T) {
+	const (
+		fn      = "arn:aws:lambda:us-east-1:000000000000:function:ghost"
+		mapping = "arn:aws:lambda:us-east-1:000000000000:event-source-mapping:00000000-0000-0000-0000-000000000001"
+		layer   = "arn:aws:lambda:us-east-1:000000000000:layer:ghost"
+	)
+	cases := []struct {
+		name     string
+		op       ref.OperationID
+		resource string
+		call     func(h *harness) *awserr.Error
+	}{
+		{"unqualified function", lambdaapi.OpGetFunctionConfiguration.Descriptor().ID, fn, func(h *harness) *awserr.Error {
+			return try(h, lambdaapi.OpGetFunctionConfiguration, &lambdaapi.GetFunctionConfigurationInput{FunctionName: "ghost"})
+		}},
+		{"qualified function", lambdaapi.OpGetFunction.Descriptor().ID, fn + ":1", func(h *harness) *awserr.Error {
+			return try(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: "ghost", Qualifier: new("1")})
+		}},
+		{"alias", lambdaapi.OpGetAlias.Descriptor().ID, fn + ":live", func(h *harness) *awserr.Error {
+			return try(h, lambdaapi.OpGetAlias, &lambdaapi.GetAliasInput{FunctionName: "ghost", Name: "live"})
+		}},
+		{"event source mapping", lambdaapi.OpGetEventSourceMapping.Descriptor().ID, mapping, func(h *harness) *awserr.Error {
+			return try(h, lambdaapi.OpGetEventSourceMapping, &lambdaapi.GetEventSourceMappingInput{UUID: "00000000-0000-0000-0000-000000000001"})
+		}},
+		{"layer", lambdaapi.OpListLayerVersions.Descriptor().ID, layer, func(h *harness) *awserr.Error {
+			return try(h, lambdaapi.OpListLayerVersions, &lambdaapi.ListLayerVersionsInput{LayerName: "ghost"})
+		}},
+		{"layer version", lambdaapi.OpGetLayerVersion.Descriptor().ID, layer + ":2", func(h *harness) *awserr.Error {
+			return try(h, lambdaapi.OpGetLayerVersion, &lambdaapi.GetLayerVersionInput{LayerName: "ghost", VersionNumber: 2})
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			run(t, lambda.Options{}, func(h *harness) {
+				add := func(resource string) {
+					if _, err := h.Faults.Add(fault.Rule{
+						Match:   fault.Match{Operations: []ref.OperationID{tc.op}, Resource: fault.NewARNGlob(resource)},
+						Phase:   fault.Request,
+						Action:  fault.Error{Shape: lambdaapi.IdentityTooManyRequestsException().Shape, Message: "injected"},
+						Trigger: fault.Always{},
+					}); err != nil {
+						h.Fatal(err)
+					}
+				}
+				add(tc.resource + "-other")
+				if err := tc.call(h); isInjected(err) {
+					h.Errorf("a rule for another resource fired: %v", err)
+				}
+				add(tc.resource)
+				if err := tc.call(h); !isInjected(err) {
+					h.Errorf("rule on %s did not fire: got %v", tc.resource, err)
+				}
+			})
+		})
+	}
+}
+
 // A function name step 8 cannot read as an ARN of the caller's region is
 // asked about on no resource, as Invoke's is, and the handler answers it.
 func TestALambdaNameOfAnotherRegionNamesNoResource(t *testing.T) {
@@ -198,6 +290,16 @@ func TestALambdaNameOfAnotherRegionNamesNoResource(t *testing.T) {
 			h.Errorf("step 8 asked %q, want only lambda:GetFunction on *", asked)
 		}
 	}, kerneltest.Authorizer(gate))
+}
+
+// isInjected reports whether err is the error the fault rules above inject.
+func isInjected(err *awserr.Error) bool { return err != nil && err.Message == "injected" }
+
+// try runs op as a client request and answers its error, nil on success.
+func try[In, Out any](h *harness, op kernel.Op[In, Out], in *In) *awserr.Error {
+	h.Helper()
+	_, err := h.Invoke(h.Context(), op, in)
+	return err
 }
 
 // invoke runs op as a client request, whatever it answers.

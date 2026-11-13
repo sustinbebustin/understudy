@@ -2,6 +2,7 @@ package furl_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -49,6 +50,14 @@ func TestInferResponseMatrix(t *testing.T) {
 		},
 		{name: "structured status and body keep application/json", payload: `{"statusCode": 418, "body": "i'm a teapot"}`, status: 418, contentType: json200, body: "i'm a teapot"},
 		{name: "base64 body is decoded", payload: `{"statusCode": 200, "body": "aGk=", "isBase64Encoded": true}`, status: 200, contentType: json200, body: "hi"},
+		{name: "unpadded base64 body is decoded", payload: `{"statusCode": 200, "body": "aGk", "isBase64Encoded": true}`, status: 200, contentType: json200, body: "hi"},
+		// AWS's six bytes 9e8b5b6ac7ba (lambda/R13/02-resp-badb64.json).
+		{name: "invalid base64 body is decoded leniently", payload: `{"statusCode": 200, "body": "not base64!!", "isBase64Encoded": true}`, status: 200, contentType: json200, body: "\x9e\x8b\x5b\x6a\xc7\xba"},
+		// Inferred beyond the recorded sample: characters outside the
+		// alphabet are skipped, so nothing is left to decode.
+		{name: "base64 body of no base64 characters is empty", payload: `{"statusCode": 200, "body": "%%%", "isBase64Encoded": true}`, status: 200, contentType: json200},
+		// (lambda/R13/02-resp-body123.json)
+		{name: "numeric body is its JSON text", payload: `{"statusCode":200,"body":123}`, status: 200, contentType: json200, body: "123"},
 		{name: "no body", payload: `{"statusCode": 204}`, status: 204, contentType: json200},
 		{name: "null body", payload: `{"statusCode": 200, "body": null}`, status: 200, contentType: json200},
 		{
@@ -117,13 +126,29 @@ func TestInferRefusesMalformedResponses(t *testing.T) {
 		`{"statusCode": 200, "cookies": "a=b"}`,
 		`{"statusCode": 200, "body": {"a": 1}}`,
 		`{"statusCode": 200, "isBase64Encoded": "yes"}`,
-		`{"statusCode": 200, "body": "%%%", "isBase64Encoded": true}`,
 	} {
 		_, err := furl.Infer([]byte(payload))
 		if m, ok := errors.AsType[*furl.MalformedError](err); !ok || m.Problem == "" {
 			t.Errorf("Infer(%s) = %v, want a MalformedError naming the problem", payload, err)
 		}
 	}
+}
+
+// Lenient decoding leaves valid base64, padded or not, as it was: the body
+// sent is the bytes the function encoded.
+func TestInferDecodesValidBase64Bodies(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		want := rapid.SliceOfN(rapid.Byte(), 0, 64).Draw(t, "bytes")
+		enc := rapid.SampledFrom([]*base64.Encoding{base64.StdEncoding, base64.RawStdEncoding}).Draw(t, "encoding")
+		payload, err := json.Marshal(map[string]any{"statusCode": 200, "body": enc.EncodeToString(want), "isBase64Encoded": true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := furl.Infer(payload)
+		if err != nil || !bytes.Equal(r.Body, want) {
+			t.Fatalf("Infer(%s) = %x, %v; want %x", payload, r.Body, err, want)
+		}
+	})
 }
 
 func TestWriteSendsEachCookieAsASetCookieHeader(t *testing.T) {
@@ -138,6 +163,9 @@ func TestWriteSendsEachCookieAsASetCookieHeader(t *testing.T) {
 	}
 }
 
+// The bad gateway row is AWS's answer to an invalid statusCode, a raise and
+// a timeout alike (lambda/R13/02-resp-sc99.json, 02-resp-raise.json,
+// 02-resp-timeout.json).
 func TestErrorAnswers(t *testing.T) {
 	for _, c := range []struct {
 		name        string
@@ -147,7 +175,7 @@ func TestErrorAnswers(t *testing.T) {
 		errorType   string
 		body        string
 	}{
-		{"bad gateway", furl.BadGateway(), http.StatusBadGateway, "text/plain", "", "Internal Server Error"},
+		{"bad gateway", furl.BadGateway(), http.StatusBadGateway, "application/json", "", "Internal Server Error"},
 		{"unknown url", furl.UnknownURL(), http.StatusForbidden, "application/json", "AccessDeniedException", `{"Message":null}`},
 		{
 			"forbidden", furl.Forbidden(), http.StatusForbidden, "application/json", "AccessDeniedException",

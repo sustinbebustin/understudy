@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"net/netip"
 	"sync"
 
 	"github.com/sustinbebustin/understudy/internal/docker"
@@ -36,6 +37,10 @@ type Options struct {
 type Container struct {
 	ID   string
 	Name string
+	// Addr is the container's address on its network where understudy
+	// sees it as the peer of the container's calls (Linux bridge, in a
+	// container); the zero Addr where the topology hides it.
+	Addr netip.Addr
 }
 
 // Launcher creates, starts, watches and removes function containers. It is
@@ -48,6 +53,9 @@ type Launcher struct {
 	addrs        topology.Addresses
 	endpointPort uint16
 	log          *slog.Logger
+	// peerNet is the network whose address of a container Start reports
+	// as Container.Addr; "" where the topology hides it (peerNetwork).
+	peerNet string
 
 	pulls flights[imageKey, Image]
 
@@ -105,6 +113,7 @@ func New(client *docker.Client, opts Options) (*Launcher, error) {
 		extraLabels:  maps.Clone(opts.ExtraLabels),
 		addrs:        addrs,
 		delivery:     deliveryFor(opts.Topology),
+		peerNet:      peerNetwork(opts.Topology),
 		endpointPort: opts.EndpointPort,
 		log:          log,
 		live:         map[string]tracked{},
@@ -195,7 +204,41 @@ func (l *Launcher) launch(ctx context.Context, name string, spec Spec, slot Slot
 	if err := l.prepare(ctx, c, spec, d); err != nil {
 		return Container{}, errors.Join(err, l.Remove(context.WithoutCancel(ctx), c.ID))
 	}
+	c.Addr = l.peerAddr(ctx, c)
 	return c, nil
+}
+
+// peerAddr is c's address on the peer network, which the daemon assigns
+// on start; the zero Addr where the topology hides it. The address only
+// tells calls from c with unminted credentials, so failing to read it
+// costs that advisory and is logged, not the start.
+func (l *Launcher) peerAddr(ctx context.Context, c Container) netip.Addr {
+	if l.peerNet == "" {
+		return netip.Addr{}
+	}
+	addr, err := l.readPeerAddr(ctx, c.ID)
+	if err != nil {
+		l.log.WarnContext(ctx, "reading a function container's address failed; calls from it with credentials understudy did not mint journal no unminted-credentials advisory",
+			slog.String("container", c.Name), slog.String("error", err.Error()))
+	}
+	return addr
+}
+
+// readPeerAddr reads container id's address on the peer network.
+func (l *Launcher) readPeerAddr(ctx context.Context, id string) (netip.Addr, error) {
+	got, err := l.client.ContainerInspect(ctx, id)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	ep, ok := got.NetworkSettings.Networks[l.peerNet]
+	if !ok {
+		return netip.Addr{}, fmt.Errorf("the container has no endpoint on network %q", l.peerNet)
+	}
+	addr, err := netip.ParseAddr(ep.IPAddress)
+	if err != nil {
+		return netip.Addr{}, fmt.Errorf("network %q reports the address %q: %w", l.peerNet, ep.IPAddress, err)
+	}
+	return addr.Unmap(), nil
 }
 
 func (l *Launcher) codeDelivery() delivery {

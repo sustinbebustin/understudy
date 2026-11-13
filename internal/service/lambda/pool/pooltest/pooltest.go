@@ -2,9 +2,10 @@
 // Runtime, so the pool and the Lambda service can be tested without Docker
 // or a runtime in a container.
 //
-// FakeLauncher starts nothing: it records specs, hands out container IDs,
-// reports the exits a test scripts with Crash, and fails the Start or
-// Remove calls a test queues. FakeRuntime opens endpoints whose
+// FakeLauncher starts nothing: it records specs, hands out container IDs
+// and Linux bridge addresses, reports the exits a test scripts with Crash,
+// and fails the Start or Remove calls a test queues. FakeRuntime opens
+// endpoints whose
 // invocations a test handler answers; a Terminate fails the in-flight and
 // every later invocation with the exit's outcome, as the real Runtime API
 // does.
@@ -62,10 +63,17 @@ func (f *FakeLauncher) Start(ctx context.Context, spec launcher.Spec, slot launc
 		return launcher.Container{}, err
 	}
 	n := len(f.started) + 1
-	c := launcher.Container{ID: fmt.Sprintf("fake%060d", n), Name: fmt.Sprintf("understudy-fake-%s-%d", spec.Function.Name, n)}
+	c := launcher.Container{ID: fmt.Sprintf("fake%060d", n), Name: fmt.Sprintf("understudy-fake-%s-%d", spec.Function.Name, n), Addr: fakeAddr(n)}
 	f.started = append(f.started, Started{Container: c, Spec: spec, Slot: slot})
 	f.live[c.ID] = true
 	return c, nil
+}
+
+// fakeAddr is the address of the nth container started, handed out as the
+// default bridge of a Linux bridge daemon does: 172.17.0.2 onwards, after
+// the gateway.
+func fakeAddr(n int) netip.Addr {
+	return netip.AddrFrom4([4]byte{172, 17, byte(n / 254), byte(n%254 + 1)}) //nolint:gosec // tests start far fewer than 65000 containers
 }
 
 // Remove deletes the container; removing an unknown one is not an error,

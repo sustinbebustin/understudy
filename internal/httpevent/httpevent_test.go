@@ -83,8 +83,9 @@ func functionURLContext(c furl.Context) httpevent.Context {
 	return hc
 }
 
-// The shared builder writes, for a function URL's context, exactly the
-// event a function URL sends today, whose furl tests are pinned to AWS's
+// The shared builder writes, for a function URL's context and the
+// FunctionURL options AWS recorded, exactly the event a function URL
+// sends, whose furl tests are pinned to AWS's
 // (lambda-events.md 7.3): function URLs and HTTP APIs share payload format
 // 2.0 (apigateway-http.md 5.1).
 func TestEventV2MatchesFunctionURLEvents(t *testing.T) {
@@ -100,7 +101,7 @@ func TestEventV2MatchesFunctionURLEvents(t *testing.T) {
 			c.TraceID = "Root=1-5e5fe6fe-0123456789abcdef01234567"
 		}
 		want, werr := furl.Event(r, c)
-		got, gerr := httpevent.EventV2(httpevent.Request(r), functionURLContext(c))
+		got, gerr := httpevent.EventV2For(httpevent.Request(r), functionURLContext(c), httpevent.FunctionURL{CookieHeader: true, RootOnlyTrace: true})
 		if (werr == nil) != (gerr == nil) || !bytes.Equal(got, want) {
 			t.Fatalf("EventV2 = %s, %v\nfurl.Event = %s, %v", got, gerr, want, werr)
 		}

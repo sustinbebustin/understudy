@@ -287,25 +287,3 @@ func TestDryRunCodeCountsTheLayers(t *testing.T) {
 		}
 	})
 }
-
-// UpdateFunctionConfiguration attaching another account's layer whose
-// policy grants the caller nothing journals the advisory too, and a
-// refused call journals none (lambda-destinations-layers.md 7.4, switch
-// lambda.layers.cross-account-policy).
-func TestUpdateWithAnotherAccountsLayerAdvises(t *testing.T) {
-	run(t, lambda.Options{}, func(h *harness) {
-		t := h.T
-		const theirs = "arn:aws:lambda:us-east-1:111111111111:layer:private:1"
-		h.asAccount("111111111111", func() { h.publish("private", pythonLayer(t)) })
-		h.createFunction("fn")
-		h.settle()
-		fail(h, lambdaapi.OpCreateFunction, withLayers(t, "fn", theirs))
-		if got := policyWouldDeny(h, theirs); len(got) != 0 {
-			t.Fatalf("a refused CreateFunction journaled %+v", got)
-		}
-		call(h, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{FunctionName: "fn", Layers: []string{theirs}})
-		if got := policyWouldDeny(h, theirs); len(got) != 1 {
-			t.Errorf("policy-would-deny advisories after the update = %+v, want one", got)
-		}
-	})
-}

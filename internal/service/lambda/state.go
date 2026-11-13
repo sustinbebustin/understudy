@@ -16,21 +16,39 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshot sections. Version
-// 2 added Mapping.SourceKind, version 3 the layer store, and version 4
-// moved an SQS mapping's scaling into its source kind and saves stream
-// checkpoints. A version 3 section is migrated on import
-// (migrateUnkindedScaling); a section of an earlier version is refused
-// (ADR 0009).
-const stateVersion = 4
+// stateVersion is the schema version of State in snapshot sections. What
+// each version added:
+//
+//   - 2: Mapping.SourceKind
+//   - 3: the layer store
+//   - 4: an SQS mapping's scaling moved into its source kind; stream
+//     checkpoints saved
+//   - 5: State.RetiredVersions
+//   - 6: LayerVersion.HadPolicy and each layer statement's measured size
+//     (Statement.MeasuredSize)
+//   - 7: ImageCode.DigestKind
+//   - 8: Mapping.StreamClosed
+//   - 9: directory code (DirCode)
+//
+// Every version after 3 only adds optional fields, so a section of version
+// 4 to stateVersion-1 loads as is, the added fields unset; a version 3
+// section is migrated on import (migrateUnkindedScaling); a section of an
+// earlier version is refused (ADR 0009).
+const stateVersion = 9
 
 // stateVersionUnkindedScaling is the version whose mappings hold their
 // scaling beside their source kind, which Import still reads.
 const stateVersionUnkindedScaling = 3
+
+// stateVersionOldest is the oldest version Import reads, so a snapshot load
+// accepts a section of it or of any version up to stateVersion
+// (OldestSchemaVersion).
+const stateVersionOldest = stateVersionUnkindedScaling
 
 // State is the Lambda state of one account and region: its functions by
 // name, its event source mappings by UUID and its layers by name. Records
@@ -48,6 +66,12 @@ type State struct {
 	// directly or with their alias or function, which a request then finds
 	// forbidden rather than unknown, as on AWS.
 	RetiredURLs map[string]bool `json:"retiredUrls,omitempty"`
+	// RetiredVersions are the highest version numbers published under the
+	// names of deleted functions, which a function created again under a
+	// name continues from, as on AWS (lambda/R13/04-create-weighted-alias.json).
+	// A name's number lives on its function while it exists
+	// (Function.LastVersion) and here while it does not.
+	RetiredVersions map[string]int `json:"retiredVersions,omitempty"`
 	// Checkpoints are where each stream mapping's reader resumes, by
 	// mapping UUID, one per shard read so far. A mapping without one reads
 	// from its StartingPosition. Saved, so a loaded mapping resumes where
@@ -61,10 +85,12 @@ func newState(aws.Scope) State {
 
 // IsZero reports whether the scope holds nothing, which snapshots skip. A scope
 // that minted identifiers is not empty even once its functions are gone:
-// its serial and retired URL ids keep later ids from repeating them, as a
-// layer whose versions are all deleted keeps its numbering.
+// its serial, retired URL ids and retired version numbers keep later ones
+// from repeating them, as a layer whose versions are all deleted keeps its
+// numbering.
 func (s *State) IsZero() bool {
-	return len(s.Functions) == 0 && len(s.Mappings) == 0 && len(s.Layers) == 0 && s.Serial == 0 && len(s.RetiredURLs) == 0
+	return len(s.Functions) == 0 && len(s.Mappings) == 0 && len(s.Layers) == 0 && s.Serial == 0 &&
+		len(s.RetiredURLs) == 0 && len(s.RetiredVersions) == 0
 }
 
 // Partitioned finds IsZero and BlobRefs by type assertions; these keep a
@@ -100,6 +126,28 @@ func (s *State) retireURLs(urls ...URLConfig) {
 		}
 		s.RetiredURLs[u.ID] = true
 	}
+}
+
+// retireFunction removes f, keeping the highest version number published
+// under its name for a function created again under it (reclaimVersions).
+func (s *State) retireFunction(f *Function) {
+	delete(s.Functions, f.Name)
+	if f.LastVersion == 0 {
+		return
+	}
+	if s.RetiredVersions == nil {
+		s.RetiredVersions = map[string]int{}
+	}
+	s.RetiredVersions[f.Name] = f.LastVersion
+}
+
+// reclaimVersions is the LastVersion of a function created under name: the
+// highest number published under the name before, which moves from
+// RetiredVersions onto the function.
+func (s *State) reclaimVersions(name string) int {
+	n := s.RetiredVersions[name]
+	delete(s.RetiredVersions, name)
+	return n
 }
 
 // checkpoint is where mapping uuid's reader resumes shard; nil when it has
@@ -148,14 +196,21 @@ func (s *State) revision(scope aws.Scope) string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", h[0:4], h[4:6], h[6:8], h[8:10], h[10:16])
 }
 
-// urlID mints a function URL id: 32 lowercase letters and digits. Any web
-// page a browser visits can send requests to a function URL, so, as on
-// AWS, the id must not be guessable: it also hashes request, the id of the
-// call creating the URL, which is random unless understudy runs under a
-// seed.
+// urlIDZeroIndex is where every recorded AWS function URL id has a "0", a
+// character outside base32's alphabet
+// (testdata/parity/lambda/R13/00-create-url-*.json).
+const urlIDZeroIndex = 26
+
+// urlID mints a function URL id: 32 characters of lowercase base32 with a
+// "0" at urlIDZeroIndex, as AWS's are. Any web page a browser visits can
+// send requests to a function URL, so, as on AWS, the id must not be
+// guessable: it also hashes request, the id of the call creating the URL,
+// which is random unless understudy runs under a seed.
 func (s *State) urlID(scope aws.Scope, request ids.RequestID) string {
 	h := s.mint(scope, "url\x00"+string(request))
-	return strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(h[:20]))
+	id := []byte(strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(h[:20])))
+	id[urlIDZeroIndex] = '0'
+	return string(id)
 }
 
 // Function is one function: its $LATEST version, its published versions
@@ -166,8 +221,9 @@ type Function struct {
 	Latest  Version       `json:"latest"`
 	// Versions are the published versions, oldest first.
 	Versions []Version `json:"versions,omitempty"`
-	// LastVersion is the highest version number ever published; numbers
-	// are never reused, even after the version is deleted.
+	// LastVersion is the highest version number ever published under the
+	// function's name; numbers are never reused, even after the version or
+	// the function is deleted (State.RetiredVersions).
 	LastVersion int              `json:"lastVersion,omitzero"`
 	Aliases     map[string]Alias `json:"aliases,omitempty"`
 	// Policies are the resource policies by qualifier; "" is the
@@ -326,12 +382,64 @@ type ZipCode struct {
 type ImageCode struct {
 	URI string `json:"uri"`
 	// Digest is the repository digest (or image ID) of the image present
-	// locally; empty until the image is present.
-	Digest string `json:"digest,omitempty"`
+	// locally, as DigestKind says; empty until the image is present.
+	Digest     string     `json:"digest,omitempty"`
+	DigestKind DigestKind `json:"digestKind,omitempty"`
+}
+
+// DigestKind is what an image code's Digest is, which decides the one
+// reference invoke resolves (Execution.pinnedImage). A value enters only
+// from the launcher (digestKindOf) or a snapshot import, which
+// UnmarshalText checks.
+type DigestKind string
+
+const (
+	// DigestUnrecorded is the kind of an image code saved before kinds
+	// were (state version 6 and earlier), or still waiting for its image:
+	// invoke tries repository@digest, then the digest as an image ID.
+	DigestUnrecorded DigestKind = ""
+	// DigestRepository is a repository digest, resolved as
+	// repository@digest.
+	DigestRepository DigestKind = "repository-digest"
+	// DigestImageID is a local build's image ID, resolved as is.
+	DigestImageID DigestKind = "image-id"
+)
+
+// digestKindOf is the recorded kind of a launcher image's digest.
+func digestKindOf(k launcher.DigestKind) DigestKind {
+	switch k {
+	case launcher.RepositoryDigest:
+		return DigestRepository
+	case launcher.ImageID:
+		return DigestImageID
+	}
+	return DigestUnrecorded
+}
+
+// UnmarshalText refuses a snapshot whose stored kind is not one of the
+// three.
+func (k *DigestKind) UnmarshalText(b []byte) error {
+	switch v := DigestKind(b); v {
+	case DigestUnrecorded, DigestRepository, DigestImageID:
+		*k = v
+		return nil
+	}
+	return fmt.Errorf("lambda: stored image digest kind %q is neither %q nor %q", b, DigestRepository, DigestImageID)
+}
+
+// DirCode is a host directory named through the hot-reload bucket
+// (S3Bucket "hot-reload", ADR 0010), which invocations run under a
+// hot-reload binding of the directory: a zip function whose package is
+// the directory as it is when an environment starts.
+type DirCode struct {
+	// Dir is the directory as hotreload.Bindable resolved it: absolute,
+	// every symbolic link resolved, as understudy sees it.
+	Dir string `json:"dir"`
 }
 
 func (ZipCode) isCode()   {}
 func (ImageCode) isCode() {}
+func (DirCode) isCode()   {}
 
 // Status is a version's provisioning status: State and LastUpdateStatus
 // together (lambda-api.md 5.1). Only Pending, Active and Failed are ever
@@ -485,6 +593,20 @@ type Policy struct {
 type Statement struct {
 	Sid  string `json:"sid"`
 	JSON string `json:"json"`
+	// MeasuredSize is the statement's length in AWS's layer policy size
+	// measure: compact JSON with the principal as the caller sent it, shorter
+	// than JSON when an account id was written as its root ARN
+	// (lambda/LDL-15/07, lambda/LDL-15/08). 0 means len(JSON), as for a
+	// function statement or a layer statement saved before version 5.
+	MeasuredSize int `json:"measuredSize,omitempty"`
+}
+
+// measuredSize is s's length in the policy size measure.
+func (s Statement) measuredSize() int {
+	if s.MeasuredSize == 0 {
+		return len(s.JSON)
+	}
+	return s.MeasuredSize
 }
 
 // URLConfig is a function URL configuration.
@@ -585,6 +707,7 @@ func unions() (jsonx.Codec, error) {
 	code, err := jsonx.NewUnion("lambda.Code",
 		jsonx.Variant[Code, ZipCode]("zip"),
 		jsonx.Variant[Code, ImageCode]("image"),
+		jsonx.Variant[Code, DirCode]("dir"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)

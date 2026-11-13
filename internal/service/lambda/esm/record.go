@@ -20,9 +20,9 @@ type Record struct {
 	// MessageAttributes are the user's attributes; {} when none.
 	MessageAttributes map[string]MessageAttribute `json:"messageAttributes"`
 	MD5OfBody         string                      `json:"md5OfBody"`
-	// MD5OfMessageAttributes is null when the message has no attributes,
-	// as AWS delivers it.
-	MD5OfMessageAttributes *string `json:"md5OfMessageAttributes"`
+	// MD5OfMessageAttributes is left out when the message has no attributes,
+	// as AWS delivers it (testdata/parity/logs/R03/E-payloads.json).
+	MD5OfMessageAttributes *string `json:"md5OfMessageAttributes,omitempty"`
 	EventSource            string  `json:"eventSource"`
 	EventSourceARN         string  `json:"eventSourceARN"`
 	AWSRegion              string  `json:"awsRegion"`

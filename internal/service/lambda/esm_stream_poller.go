@@ -46,7 +46,12 @@ import (
 // Every checkpoint move is journaled on the mapping's ARN as a StateChange
 // between positions (TRIM_HORIZON, LATEST, AFTER <seq>, AT <seq>). A
 // stream that is gone stops the reader with a StateChange from Polling to
-// StreamGone; the mapping stays Enabled (recorded, 7.3). A checkpoint, or
+// StreamGone, and a DynamoDB stream whose shards are all closed and read
+// to their end, as a deleted table's are, with one from Polling to
+// StreamClosed. The mapping stays Enabled; a DynamoDB mapping disables
+// itself esm.DynamoDBClosedDelay later with AWS's reason (recorded, 7.3,
+// the delay inferred from one sample) and journals Enabled to Disabled. A
+// Kinesis mapping stays Enabled (unrecorded). A checkpoint, or
 // the oldest record of a batch being retried, that falls behind the
 // stream's retention drops the lost records without an on-failure record
 // (inferred, UNVERIFIED), journals Polling to RecordsTrimmed and back, and
@@ -68,6 +73,7 @@ import (
 // The stream reader's journal states, recorded on the mapping's ARN.
 const (
 	pollerStreamGone     journal.ResourceState = "StreamGone"
+	pollerStreamClosed   journal.ResourceState = "StreamClosed"
 	pollerRecordsTrimmed journal.ResourceState = "RecordsTrimmed"
 )
 
@@ -83,10 +89,11 @@ type streamHeld struct {
 	// window is when the batching window opened: the reader's first step,
 	// then the end of each invocation; zero before the first step.
 	window clock.Instant
-	// gone is set once a read found the stream gone: the reader then reads
-	// nothing until a load or reset replaces the mapping's state, or the
-	// mapping is disabled and enabled again, which starts a new reader.
-	gone bool
+	// ended is when a read found the stream gone, or closed with nothing
+	// left to read; zero before. The reader then reads nothing until a load
+	// or reset replaces the mapping's state, or the mapping is disabled and
+	// enabled again, which starts a new reader.
+	ended clock.Instant
 }
 
 // streamRetry is a failed batch and when it is retried.
@@ -132,8 +139,8 @@ func (p *pollers) streamStep(ctx context.Context, c *kernel.Call, pl *poller) po
 		return pollStop{}
 	case m.Transition != nil && (m.Transition.State == MappingCreating || m.Transition.State == MappingEnabling):
 		return pollAt{at: m.Transition.Settles}
-	case sh.gone:
-		return pollIdle{}
+	case !sh.ended.IsZero():
+		return p.afterEnd(ctx, c, pl, m)
 	}
 	kind := m.SourceKind
 	start, _, ok := esm.StreamOf(kind)
@@ -161,7 +168,7 @@ func (p *pollers) streamStep(ctx context.Context, c *kernel.Call, pl *poller) po
 		// A failed read keeps the batch for its retry.
 		retention, rerr := src.Retention(ctx)
 		if rerr != nil {
-			return p.readFailed(ctx, c, pl, rerr)
+			return p.readFailed(ctx, c, pl, kind, rerr)
 		}
 		sh.retry = nil
 		if oldest := r.batch.Records()[0].Arrival; oldest.Compare(now.Add(-retention)) <= 0 {
@@ -177,7 +184,7 @@ func (p *pollers) streamStep(ctx context.Context, c *kernel.Call, pl *poller) po
 	shard, b, cut, rerr := p.readBatch(ctx, c, pl, src, int(m.BatchSize), start)
 	switch {
 	case rerr != nil:
-		return p.readFailed(ctx, c, pl, rerr)
+		return p.readFailed(ctx, c, pl, kind, rerr)
 	case b.Len() == 0:
 		return pollIdle{}
 	}
@@ -202,7 +209,7 @@ func (p *pollers) expireAndInvoke(ctx context.Context, c *kernel.Call, pl *polle
 	rest, err := p.expireStream(ctx, c, pl, t, kind, shard, b, attempts, request)
 	switch {
 	case err != nil:
-		return p.readFailed(ctx, c, pl, err)
+		return p.readFailed(ctx, c, pl, kind, err)
 	case rest.Len() == 0:
 		return pollAgain{}
 	}
@@ -341,8 +348,9 @@ func onFailureDelivery(dest esm.OnFailure, source, role aws.ARN, record []byte) 
 // readBatch reads the first shard of pl's stream that has records past
 // its checkpoint, page after page, until the batch holds limit records,
 // the next record would not fit in its 6 MB (cut), or the shard has no
-// more; an empty batch when no shard has any. A read that succeeds ends
-// the backoff of earlier failures.
+// more; an empty batch when no shard has any, and errStreamClosed when
+// every shard is closed with nothing past its checkpoint. A read that
+// succeeds ends the backoff of earlier failures.
 func (p *pollers) readBatch(ctx context.Context, c *kernel.Call, pl *poller, src esm.StreamSource, limit int, start esm.StreamStart) (shard string, b esm.Batch[esm.StreamRecord], cut bool, err error) {
 	sh := pl.stream
 	if sh.shards == nil {
@@ -352,63 +360,76 @@ func (p *pollers) readBatch(ctx context.Context, c *kernel.Call, pl *poller, src
 		}
 		sh.shards = shards
 	}
+	ended := len(sh.shards) > 0
 	for _, shard := range sh.shards {
 		from, err := p.checkpoint(ctx, c, pl, src, shard, start)
 		if err != nil {
 			return "", b, false, err
 		}
-		b, cut, err = p.readShard(ctx, pl, src, shard, from, limit)
+		var closed bool
+		b, cut, closed, err = p.readShard(ctx, pl, src, shard, from, limit)
 		if err != nil || b.Len() > 0 {
 			return shard, b, cut, err
 		}
+		ended = ended && closed
+	}
+	if ended {
+		return "", b, false, errStreamClosed
 	}
 	return "", b, false, nil
 }
 
+// errStreamClosed is a stream whose shards are all closed and read to
+// their end, as a deleted table's or a disabled stream's are.
+var errStreamClosed = errors.New("every shard of the stream is closed and read to its end")
+
 // readShard batches the records of shard from from, page after page, as
-// readBatch describes. A read that fails after earlier pages filled part
-// of the batch ends the filling: the batch goes on, and the next step
-// meets the error.
-func (p *pollers) readShard(ctx context.Context, pl *poller, src esm.StreamSource, shard string, from shardlog.Position, limit int) (esm.Batch[esm.StreamRecord], bool, error) {
-	var b esm.Batch[esm.StreamRecord]
+// readBatch describes; closed reports an empty batch from a closed shard,
+// which has nothing past from. A read that fails after earlier pages
+// filled part of the batch ends the filling: the batch goes on, and the
+// next step meets the error.
+func (p *pollers) readShard(ctx context.Context, pl *poller, src esm.StreamSource, shard string, from shardlog.Position, limit int) (b esm.Batch[esm.StreamRecord], cut, closed bool, err error) {
 	for b.Len() < limit {
 		page, err := src.Read(ctx, shard, from, limit-b.Len())
 		switch {
 		case err != nil && b.Len() > 0:
-			return b, false, nil
+			return b, false, false, nil
 		case err != nil:
-			return b, false, err
+			return b, false, false, err
 		}
 		pl.held.retry = 0
 		for _, r := range page.Records {
 			added, err := b.Add(r)
 			if err != nil {
-				return esm.Batch[esm.StreamRecord]{}, false, err
+				return esm.Batch[esm.StreamRecord]{}, false, false, err
 			}
 			if !added {
-				return b, true, nil
+				return b, true, false, nil
 			}
 		}
 		if len(page.Records) == 0 || page.Closed {
-			break
+			return b, false, page.Closed && b.Len() == 0, nil
 		}
 		from = page.Next
 	}
-	return b, false, nil
+	return b, false, false, nil
 }
 
-// readFailed follows a read of pl's stream that failed. A stream that is
-// gone stops the reader with a journal entry, the mapping staying Enabled
-// (lambda-stream-sources.md 7.3); a checkpoint behind the trim horizon
-// drops the lost records and resumes at TRIM_HORIZON (5.1, 5.3); any
-// other failure is logged and backs off.
-func (p *pollers) readFailed(ctx context.Context, c *kernel.Call, pl *poller, err error) pollNext {
+// readFailed follows a read of pl's stream, of kind, that failed. A
+// stream that is gone, or for a kind with a esm.ClosedDelay closed and
+// read to its end, ends the reader (streamEnded); a checkpoint behind the
+// trim horizon drops the lost records and resumes at TRIM_HORIZON
+// (lambda-stream-sources.md 5.1, 5.3); any other failure is logged and
+// backs off.
+func (p *pollers) readFailed(ctx context.Context, c *kernel.Call, pl *poller, kind esm.EventSourceKind, err error) pollNext {
 	if gone, ok := errors.AsType[*esm.GoneError](err); ok {
-		pl.stream.gone = true
-		p.record(ctx, c, pl, pollerPolling, pollerStreamGone)
-		p.x.k.Log().LogAttrs(ctx, slog.LevelWarn, "an event source mapping's stream is gone; its reader stops and the mapping stays Enabled, as on AWS. Delete the mapping, or create one on the table's new stream",
-			pl.attrs(slog.String("reason", gone.Reason))...)
-		return pollIdle{}
+		return p.streamEnded(ctx, c, pl, kind, pollerStreamGone, gone.Reason)
+	}
+	if errors.Is(err, errStreamClosed) {
+		if _, disables := esm.ClosedDelay(kind); !disables {
+			return pollIdle{}
+		}
+		return p.streamEnded(ctx, c, pl, kind, pollerStreamClosed, err.Error())
 	}
 	if trimmed, ok := errors.AsType[*shardlog.TrimmedError](err); ok {
 		if _, horizon := trimmed.From.(shardlog.TrimHorizon); !horizon {
@@ -419,6 +440,75 @@ func (p *pollers) readFailed(ctx context.Context, c *kernel.Call, pl *poller, er
 	p.x.k.Log().LogAttrs(ctx, slog.LevelWarn, "an event source mapping could not read its stream; it tries again, backing off from a second to five minutes of emulator time, or at once when the stream receives a record",
 		pl.attrs(slog.String("error", err.Error()))...)
 	return pollAt{at: p.x.k.Clock().Now().Add(pl.held.backoff())}
+}
+
+// streamEnded stops pl's reader, whose stream of kind a read found ended
+// for reason, journaling the change from Polling to state. A kind with a
+// esm.ClosedDelay steps again once the delay has passed, to disable the
+// mapping (afterEnd); any other kind's mapping stays Enabled, reading
+// nothing.
+func (p *pollers) streamEnded(ctx context.Context, c *kernel.Call, pl *poller, kind esm.EventSourceKind, state journal.ResourceState, reason string) pollNext {
+	now := p.x.k.Clock().Now()
+	pl.stream.ended = now
+	p.record(ctx, c, pl, pollerPolling, state)
+	delay, disables := esm.ClosedDelay(kind)
+	if !disables {
+		p.x.k.Log().LogAttrs(ctx, slog.LevelWarn, "an event source mapping's stream is gone; its reader stops and the mapping stays Enabled, which on AWS is unrecorded for this kind of stream. Delete the mapping, or create one on a new stream",
+			pl.attrs(slog.String("reason", reason))...)
+		return pollIdle{}
+	}
+	p.x.k.Log().LogAttrs(ctx, slog.LevelWarn, "an event source mapping's stream is closed or gone; its reader stops and the mapping disables itself once the delay has passed, as on AWS. Delete the mapping, or create one on the table's new stream",
+		pl.attrs(slog.String("reason", reason), slog.Duration("delay", delay))...)
+	return pollAt{at: now.Add(delay)}
+}
+
+// afterEnd is a step of pl's reader after its stream ended: a mapping m
+// whose kind has a esm.ClosedDelay disables itself once that delay from
+// the end has passed (disableClosed); any other waits, reading nothing.
+func (p *pollers) afterEnd(ctx context.Context, c *kernel.Call, pl *poller, m Mapping) pollNext {
+	delay, disables := esm.ClosedDelay(m.SourceKind)
+	switch {
+	case !disables:
+		return pollIdle{}
+	case m.Transition != nil:
+		return pollAt{at: m.Transition.Settles}
+	}
+	if at := pl.stream.ended.Add(delay); p.x.k.Clock().Now().Before(at) {
+		return pollAt{at: at}
+	}
+	return p.disableClosed(ctx, c, pl)
+}
+
+// disableClosed disables pl's mapping because its stream closed or is
+// gone, reporting AWS's reason (ESMS-14 11), and journals the change from
+// Enabled to Disabled on the mapping's ARN. It settles at once: AWS's
+// reads two seconds apart showed no Disabling between. LastModified is
+// unchanged (inferred: the capture does not report it). A mapping that
+// changed since the step read it is read again.
+func (p *pollers) disableClosed(ctx context.Context, c *kernel.Call, pl *poller) pollNext {
+	disabled, err := write(p.x.svc, c, pl.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (bool, *awserr.Error) {
+		m, ok := st.Mappings[pl.uuid]
+		if !ok || m.Source != pl.source().String() || !m.polled() || m.Transition != nil {
+			tx.Unchanged()
+			return false, nil
+		}
+		m.Enabled, m.StreamClosed = false, true
+		st.Mappings[pl.uuid] = m
+		tx.Wake(mappingsChanged)
+		return true, nil
+	})
+	switch {
+	case err != nil:
+		p.x.k.Log().LogAttrs(ctx, slog.LevelError, "an event source mapping whose stream is closed could not disable itself; it stays Enabled, reading nothing, and tries again",
+			pl.attrs(slog.String("error", err.Message))...)
+		return pollAt{at: p.x.k.Clock().Now().Add(pl.held.backoff())}
+	case !disabled:
+		return pollAgain{}
+	}
+	p.record(ctx, c, pl, journal.ResourceState(MappingEnabled), journal.ResourceState(MappingDisabled))
+	p.x.k.Log().LogAttrs(ctx, slog.LevelWarn, "an event source mapping disabled itself because its stream is closed, as on AWS; enabling it again reads the stream again",
+		pl.attrs()...)
+	return pollStop{}
 }
 
 // dropTrimmed drops the records of shard that pl lost to the stream's
@@ -567,7 +657,7 @@ func (p *pollers) invokeStream(ctx context.Context, c *kernel.Call, pl *poller, 
 		p.saveCheckpoint(ctx, c, pl, shard, shardlog.After{Seq: records[lowest-1].Seq}, false)
 		rest, err := batchOf(records[lowest:])
 		if err != nil {
-			return p.readFailed(ctx, c, pl, err)
+			return p.readFailed(ctx, c, pl, kind, err)
 		}
 		if p.x.svc.opts.Streams.ResendBudget == esm.ResendRestart {
 			attempts = 0

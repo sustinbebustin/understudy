@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 
 	"github.com/sustinbebustin/understudy/internal/access"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/identity"
@@ -40,11 +41,51 @@ type DeliverSink interface {
 }
 
 // Linker links an external call made by function code to the invocation
-// that runs it, from the principal its minted credentials resolve to and,
-// on Linux bridge, the remote address (ARCHITECTURE.md 10). The Lambda
-// service implements it.
+// that runs it, from the principal its minted credentials resolve to, and
+// tells a call from a function container that carries credentials no
+// environment minted by its remote address, on the topologies where that
+// is the container's own (ARCHITECTURE.md 10). The Lambda service
+// implements it.
 type Linker interface {
-	Link(p identity.Principal, remote netip.AddrPort) (ref.Cause, bool)
+	Link(p identity.Principal, remote netip.AddrPort) Link
+}
+
+// Link is what a Linker found about one external call.
+//
+//sumtype:decl
+type Link interface{ isLink() }
+
+// Unlinked is a call tied to no running invocation: it roots its own
+// trace.
+type Unlinked struct{}
+
+// Linked is a call made with an execution environment's minted
+// credentials while the environment runs an invocation, whose Cause the
+// call takes.
+type Linked struct{ Cause ref.Cause }
+
+// Unminted is a call from the container of an execution environment of
+// Function, in Scope, that carries credentials no environment minted. It
+// roots its own trace, and the kernel journals an unminted-credentials
+// Advisory caused by it.
+type Unminted struct {
+	Scope    aws.Scope
+	Function aws.ARN
+}
+
+func (Unlinked) isLink() {}
+func (Linked) isLink()   {}
+func (Unminted) isLink() {}
+
+// advisory is the Advisory the kernel journals for an Unminted call.
+func (u Unminted) advisory() journal.Advisory {
+	return journal.Advisory{
+		Kind:     journal.AdvisoryUnmintedCredentials,
+		Resource: u.Function,
+		Text: "a call from a container of " + u.Function.String() + " carried credentials understudy did not mint for its execution environment, " +
+			"so the call is not linked to the invocation that made it; the call itself was served as sent. " +
+			"The function's configuration probably sets AWS_ACCESS_KEY_ID (or other static credentials): remove them so its SDK uses the execution role credentials understudy hands each environment",
+	}
 }
 
 // Options configures New. Registry, Clock, Timers, IDs and Journal are

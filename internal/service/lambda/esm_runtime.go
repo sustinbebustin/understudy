@@ -37,7 +37,8 @@ import (
 // Decisions the architecture leaves open:
 //
 //   - The batching window opens when the first message of a batch is
-//     received, on the emulator clock. A FIFO queue's window is ignored.
+//     received, on the emulator clock. A FIFO queue takes no window; one
+//     kept from an earlier build is ignored.
 //   - A message received past the 6 MB of a batch starts the next one.
 //   - Under a Frozen or Scaled clock, received messages are pinned
 //     invisible with HoldVisibility until their batch's invocation
@@ -85,10 +86,19 @@ import (
 //     whose mapping's cell was replaced gives back what it held without
 //     invoking it, since those messages belong to the state before; a
 //     reset that leaves the Lambda state alone keeps the batches held.
-//   - A mapping whose function is gone keeps its messages in the queue: its
-//     poller journals a StateChange from Polling to FunctionMissing on the
-//     mapping's ARN, polls nothing, and journals the way back once the
-//     function exists again, which a retry finds.
+//   - A mapping whose function is gone keeps receiving from its queue, as
+//     AWS's does: recorded, a message sent after DeleteFunction is in flight
+//     90 s later and the mapping stays Enabled with its FunctionArn
+//     (sqs/R03/F-queue-attrs-90s.json, lambda/R03/F-get-mapping-90s.json).
+//     Inferred, as AWS's handling of the batch is unrecorded: the poller
+//     invokes the function through Invoke, which fails and is journaled as
+//     that failed call; the batch is not deleted and returns to the queue
+//     when its visibility timeout ends, so its receive count grows and the
+//     queue's redrive policy moves it to the dead-letter queue after
+//     maxReceiveCount. Once the function exists again the next batch is
+//     invoked. The poller receives as the execution role it last resolved,
+//     or as Lambda itself when it never resolved one (queueTarget). A
+//     function that exists but cannot run yet is the retry above.
 //   - ScalingConfig and ProvisionedPollerConfig are stored only.
 
 // TimerPoll runs one step of an event source mapping's SQS poller: at once
@@ -172,10 +182,13 @@ func (x *Execution) StartPollers() {
 // poller of a mapping that is gone stops, and every poller steps at once,
 // so a batching window or retry whose timer was cleared still ends. A
 // poller whose mapping was replaced gives back the batch it held, which
-// came from the state before. It also ends the hold Drain put on
+// came from the state before. It binds the hot-reload directories the
+// state's functions store as code again and ends the bindings of those no
+// version names any more (syncCode). It also ends the hold Drain put on
 // invocations, as the state is replaced by now. Call it after every
 // service's Rearm.
 func (x *Execution) RearmPollers() {
+	x.syncCode(func(aws.Scope) bool { return true })
 	x.running.resume()
 	x.k.Waiters().Wake(mappingsChanged)
 }
@@ -256,6 +269,10 @@ type held struct {
 	// retry is the wait after the next failed step that holds nothing:
 	// zero until a step fails, and again once a receive succeeds.
 	retry time.Duration
+	// role is the execution role of the mapping's function as the step
+	// last resolved it, kept while the function is gone; zero until one is
+	// resolved and after a reset or load replaces the cell.
+	role aws.ARN
 	// cell is the Lambda cell the mapping was last read from, retired once
 	// a reset or load replaces it.
 	cell *store.Cell[State]
@@ -514,8 +531,10 @@ func (p *pollers) step(ctx context.Context, c *kernel.Call, pl *poller) pollNext
 	if pl.stream != nil {
 		return p.streamStep(ctx, c, pl)
 	}
+	h := &pl.held
 	if p.replaced(pl) {
 		p.giveBack(ctx, c, pl)
+		h.role = aws.ARN{}
 	}
 	m, ok := p.mapping(pl)
 	switch {
@@ -525,9 +544,12 @@ func (p *pollers) step(ctx context.Context, c *kernel.Call, pl *poller) pollNext
 	case m.Transition != nil && (m.Transition.State == MappingCreating || m.Transition.State == MappingEnabling):
 		return pollAt{at: m.Transition.Settles}
 	}
-	t, err := p.x.resolve(functionRef{scope: pl.scope, name: m.Function, qualifier: m.Qualifier})
-	h := &pl.held
-	if err != nil {
+	fn := functionRef{scope: pl.scope, name: m.Function, qualifier: m.Qualifier}
+	t, err := p.x.resolve(fn)
+	switch {
+	case err == nil:
+		h.role = t.role
+	case !functionMissing(err):
 		p.unavailable(ctx, c, pl, err)
 		return pollAt{at: p.x.k.Clock().Now().Add(h.backoff())}
 	}
@@ -537,7 +559,7 @@ func (p *pollers) step(ctx context.Context, c *kernel.Call, pl *poller) pollNext
 		p.giveBack(ctx, c, pl)
 		return pollIdle{}
 	}
-	target := kernel.Target{Scope: pl.queueScope, As: kernel.AsExecutionRole{Role: t.role}, Via: ref.LambdaESM}
+	target := pl.queueTarget()
 	p.pinHeld(ctx, c, pl, target)
 	received, err := p.receive(ctx, c, pl, &m, filters, target)
 	p.receiveResult(ctx, pl, err)
@@ -553,8 +575,21 @@ func (p *pollers) step(ctx context.Context, c *kernel.Call, pl *poller) pollNext
 	if closes, open := windowOpen(&m, h, p.x.k.Clock().Now()); open {
 		return pollAt{at: closes}
 	}
-	p.invoke(ctx, c, pl, &m, t, target)
+	p.invoke(ctx, c, pl, &m, invokedARN(fn), target)
 	return pollAgain{}
+}
+
+// queueTarget is how pl calls its queue: as the execution role of its
+// mapping's function when it last resolved one, which it keeps while the
+// function is gone, or as Lambda itself when it never resolved one. Which
+// credentials AWS keeps polling with once the function is deleted is
+// unrecorded; the kept role is inferred.
+func (pl *poller) queueTarget() kernel.Target {
+	var as kernel.PrincipalMode = kernel.AsPlatform{Name: lambdaService}
+	if pl.held.role != (aws.ARN{}) {
+		as = kernel.AsExecutionRole{Role: pl.held.role}
+	}
+	return kernel.Target{Scope: pl.queueScope, As: as, Via: ref.LambdaESM}
 }
 
 // replaced reports whether a reset or load replaced the cell of pl's
@@ -582,10 +617,12 @@ func (pl *poller) source() aws.ARN {
 	return pl.queue
 }
 
-// unavailable gives back what pl holds when its function cannot run. The
-// poller journals that it stopped polling when the function is gone, and
-// that it polls again when the function is back but cannot run yet; any
-// other reason is logged. Each is reported once, not at every retry.
+// unavailable gives back what pl holds when its function cannot run. A
+// stream reader journals that it stopped polling when the function is gone,
+// and that it polls again when the function is back but cannot run yet; an
+// SQS poller keeps receiving while its function is gone, so it reaches
+// here only for another reason, which is logged. Each is reported once,
+// not at every retry.
 func (p *pollers) unavailable(ctx context.Context, c *kernel.Call, pl *poller, err *awserr.Error) {
 	p.giveBack(ctx, c, pl)
 	h := &pl.held

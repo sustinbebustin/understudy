@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/netip"
 	"slices"
@@ -91,12 +92,12 @@ type linkTo struct {
 	x  *lambda.Execution
 }
 
-func (l *linkTo) Link(p identity.Principal, remote netip.AddrPort) (ref.Cause, bool) {
+func (l *linkTo) Link(p identity.Principal, remote netip.AddrPort) kernel.Link {
 	l.mu.Lock()
 	x := l.x
 	l.mu.Unlock()
 	if x == nil {
-		return ref.Cause{}, false
+		return kernel.Unlinked{}
 	}
 	return x.Link(p, remote)
 }
@@ -261,24 +262,55 @@ func (h *execHarness) started() []launcher.Spec {
 	return specs
 }
 
-// fakeImages makes every image present at once and counts the requests.
+// fakeImages makes every image present at once, by a repository digest
+// derived from its reference, and counts the requests. The images in
+// built are local builds instead, present by tag and by image ID only: as
+// with the launcher (ARCHITECTURE.md 14.3), repository@<image ID> is not
+// present, so asking for it pulls, which fails, and is counted.
 type fakeImages struct {
-	mu   sync.Mutex
-	refs []string
+	mu    sync.Mutex
+	built map[string]string // tag -> image ID
+	refs  []string
+	pulls []string
 }
 
 func (f *fakeImages) EnsureImage(_ context.Context, image string, arch launcher.Architecture, _ func(docker.Progress)) (launcher.Image, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.refs = append(f.refs, image)
+	for tag, id := range f.built {
+		switch image {
+		case tag, id:
+			return launcher.Image{Ref: image, Digest: id, Kind: launcher.ImageID, Architecture: arch}, nil
+		case launcher.Repository(tag) + "@" + id:
+			f.pulls = append(f.pulls, image)
+			return launcher.Image{}, &launcher.PullError{Ref: image, Platform: arch.Platform(), Err: errors.New("manifest unknown")}
+		}
+	}
 	sum := sha256.Sum256([]byte(image))
-	return launcher.Image{Ref: image, Digest: "sha256:" + hex.EncodeToString(sum[:]), Architecture: arch}, nil
+	return launcher.Image{Ref: image, Digest: "sha256:" + hex.EncodeToString(sum[:]), Kind: launcher.RepositoryDigest, Architecture: arch}, nil
 }
 
 func (f *fakeImages) requested() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return slices.Clone(f.refs)
+}
+
+func (f *fakeImages) pulled() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.pulls)
+}
+
+// build makes tag a local build with image ID id.
+func (f *fakeImages) build(tag, id string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.built == nil {
+		f.built = map[string]string{}
+	}
+	f.built[tag] = id
 }
 
 // fakeOutput is a LogSource whose containers print what Print sends: a
@@ -602,8 +634,11 @@ func TestInvokeRefusesBadRequestsBeforeRunning(t *testing.T) {
 			{"$LATEST.PUBLISHED qualifier", &lambdaapi.InvokeInput{FunctionName: "fn", Qualifier: new("$LATEST.PUBLISHED")}, "NoPublishedVersionException", noLatestPublished},
 			{"$LATEST.PUBLISHED in the name", invokeInput("fn:$LATEST.PUBLISHED", `{}`), "NoPublishedVersionException", noLatestPublished},
 			{"$LATEST.PUBLISHED of a missing function", invokeInput("nope:$LATEST.PUBLISHED", `{}`), "ResourceNotFoundException", "Function not found: arn:aws:lambda:us-east-1:000000000000:function:nope"},
+			// The synchronous text is unrecorded (lambda-api.md 8.2).
 			{"sync payload over 6 MB", invokeInput("fn", big), "RequestEntityTooLargeException", "Request must be smaller than 6291456 bytes for the InvokeFunction operation"},
-			{"async payload over 1 MB", &lambdaapi.InvokeInput{FunctionName: "fn", InvocationType: new(lambdaapi.InvocationTypeEvent), Payload: []byte(async)}, "RequestEntityTooLargeException", "Request must be smaller than 1048576 bytes for the InvokeFunction operation"},
+			// The Event text names the payload's size
+			// (testdata/parity/lambda/R13/04-event-over-1mb.json).
+			{"async payload over 1 MB", &lambdaapi.InvokeInput{FunctionName: "fn", InvocationType: new(lambdaapi.InvocationTypeEvent), Payload: []byte(async)}, "RequestEntityTooLargeException", "1048578 byte payload is too large for the Event invocation type (limit 1048576 bytes)"},
 			{"payload not JSON", invokeInput("fn", `{nope`), "InvalidRequestContentException", "Could not parse request body into json: Could not parse payload into json: invalid character 'n' looking for beginning of object key string"},
 			// Latin-1 text inside a JSON string, which Go's parser alone
 			// would accept (test_lambda_invoke_payload_encoding_error).
@@ -912,8 +947,96 @@ func TestCallsWithTheEnvironmentsKeyLinkToTheInvocation(t *testing.T) {
 		if got := gets[1].Cause; got.Parent != 0 {
 			t.Errorf("the call between invocations has cause %+v, want none: it roots its own trace", got)
 		}
-		if _, ok := h.x.Link(identity.Root{Account: h.Scope.Account}, netip.AddrPort{}); ok {
-			t.Error("Link linked a principal that is no environment's")
+		if got := h.x.Link(identity.Root{Account: h.Scope.Account}, netip.AddrPort{}); got != (kernel.Unlinked{}) {
+			t.Errorf("Link of a principal that is no environment's = %#v, want Unlinked", got)
+		}
+	})
+}
+
+// A call from an execution environment's container that carries
+// credentials no environment minted, as when a function's configuration
+// sets AWS_ACCESS_KEY_ID=test, journals one unminted-credentials Advisory
+// naming the function, during an invocation and between invocations, and
+// otherwise proceeds unlinked, rooting its own trace (ARCHITECTURE.md 10).
+// Minted credentials from the same address link to the invocation with no
+// advisory, and unminted ones from an address no environment holds journal
+// nothing.
+func TestCallsFromAFunctionContainerWithUnmintedCredentialsJournalAnAdvisory(t *testing.T) {
+	s := newScript()
+	runLinkedExec(t, s.handle, func(h *execHarness) {
+		h.createFunction("fn")
+		get := func(key string, from netip.Addr) *awserr.Error {
+			p, _ := h.Identity.Resolve(key)
+			c := h.Kernel.NewCall(kernel.ExternalCall{
+				RequestID: h.Kernel.IDs().RequestID(),
+				Operation: lambdaapi.OpGetFunction.Descriptor().ID,
+				Scope:     h.Scope,
+				Principal: p,
+				Origin:    ref.External{Protocol: ref.RESTJSON1, Listener: ref.ListenerContainer, RemoteAddr: netip.AddrPortFrom(from, 41000)},
+				Admitted:  h.Clock.Now(),
+				Endpoint:  h.Endpoint,
+			})
+			_, err := kerneltest.Dispatch[lambdaapi.GetFunctionInput, lambdaapi.GetFunctionOutput](h.Context(), h.K, c, &lambdaapi.GetFunctionInput{FunctionName: "fn"})
+			return err
+		}
+		var container netip.Addr
+		during := make(chan []*awserr.Error, 1)
+		s.setDuring(func(runtimeapi.Invocation) {
+			started := h.launcher.Started()[0]
+			container = started.Container.Addr
+			minted := get(string(started.Spec.Credentials.AccessKeyID), container)
+			during <- []*awserr.Error{minted, get("test", container)}
+		})
+		h.invoke(invokeInput("fn", `{}`))
+		s.setDuring(nil)
+		errs := <-during
+		if !container.IsValid() {
+			t.Fatal("the fake launcher gave the environment's container no address")
+		}
+		errs = append(errs, get("test", container), get("test", netip.MustParseAddr("172.17.99.99")))
+		for i, err := range errs {
+			if err != nil {
+				t.Fatalf("GetFunction %d: %s %s; an advisory must not change the call", i, err.ID.Shape.Name(), err.Message)
+			}
+		}
+		invoke := h.Journal.Query(journal.Filter{Kind: journal.KindAPICall, Operation: lambdaapi.OpInvoke.Descriptor().ID}).Events
+		gets := h.Journal.Query(journal.Filter{Kind: journal.KindAPICall, Operation: lambdaapi.OpGetFunction.Descriptor().ID}).Events
+		if len(invoke) != 1 || len(gets) != 4 {
+			t.Fatalf("journal holds %d Invoke and %d GetFunction calls, want 1 and 4", len(invoke), len(gets))
+		}
+		if got := gets[0].Cause.Parent; got != invoke[0].ID {
+			t.Errorf("the minted call's parent = %d, want the Invoke call's event %d", got, invoke[0].ID)
+		}
+		for _, g := range gets[1:] {
+			if g.Cause.Parent != 0 {
+				t.Errorf("an unminted call has cause %+v, want none: it roots its own trace", g.Cause)
+			}
+		}
+		advisories := h.Journal.Query(journal.Filter{Kind: journal.KindAdvisory, Limit: 100}).Events
+		if len(advisories) != 2 {
+			t.Fatalf("journal holds %d advisories, want 2, one for each unminted call from the container: %+v", len(advisories), advisories)
+		}
+		function := "arn:aws:lambda:" + h.Scope.Region.String() + ":" + h.Scope.Account.String() + ":function:fn"
+		for i, adv := range advisories {
+			a, ok := adv.Detail.(journal.Advisory)
+			if !ok || a.Kind != journal.AdvisoryUnmintedCredentials || a.Resource.String() != function || !strings.Contains(a.Text, "AWS_ACCESS_KEY_ID") {
+				t.Errorf("advisory %d = %+v, want unminted-credentials naming %s and AWS_ACCESS_KEY_ID", i, adv.Detail, function)
+			}
+			if want := gets[i+1].ID; adv.Cause.Parent != want {
+				t.Errorf("advisory %d is caused by event %d, want the unminted call's event %d", i, adv.Cause.Parent, want)
+			}
+			if adv.Scope != h.Scope {
+				t.Errorf("advisory %d scope = %+v, want the function's %+v", i, adv.Scope, h.Scope)
+			}
+		}
+		// A removed container's address goes back to the daemon, which may
+		// hand it to a container that is no function's.
+		h.drainAll()
+		if err := get("test", container); err != nil {
+			t.Fatalf("GetFunction after the drain: %s %s", err.ID.Shape.Name(), err.Message)
+		}
+		if n := len(h.Journal.Query(journal.Filter{Kind: journal.KindAdvisory, Limit: 100}).Events); n != 2 {
+			t.Errorf("journal holds %d advisories after a call from a removed container's address, want still 2", n)
 		}
 	})
 }
@@ -996,6 +1119,92 @@ func TestImageFunctionsRunTheDeployedDigest(t *testing.T) {
 		}
 		if n := countOf(h.images.requested(), pinned); n != 1 {
 			t.Errorf("%s was asked of Docker %d times over two invocations, want once", pinned, n)
+		}
+	})
+}
+
+// localBuildID is the image ID of an image built locally, which has no
+// repository digest.
+const localBuildID = "sha256:4c1b2f0e8d7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c"
+
+// An image function whose image is a local build was recorded by its image
+// ID, and invoke runs that ID: it never asks Docker for
+// repository@<image ID>, which a local build lacks and which would send a
+// pull to the registry (ARCHITECTURE.md 14.3).
+func TestImageFunctionsBuiltLocallyRunTheirImageID(t *testing.T) {
+	runExec(t, pooltest.Echo, func(h *execHarness) {
+		h.images.build("local/fn:latest", localBuildID)
+		call(h.harness, lambdaapi.OpCreateFunction, imageFunction("img", "local/fn:latest"))
+		h.settle()
+		h.invoke(invokeInput("img", `{}`))
+		if specs := h.started(); len(specs) != 1 || specs[0].Image != localBuildID {
+			t.Fatalf("started %+v, want one environment of %s", specs, localBuildID)
+		}
+		if n := countOf(h.images.requested(), "local/fn@"+localBuildID); n != 0 {
+			t.Errorf("local/fn@%s was asked of Docker %d times, want never", localBuildID, n)
+		}
+		if pulls := h.images.pulled(); len(pulls) != 0 {
+			t.Errorf("pulled %v, want no pull", pulls)
+		}
+	})
+}
+
+// An image code loaded from a version 6 snapshot, which recorded no digest
+// kind, still invokes: repository@digest first, then the digest as an
+// image ID, which a local build answers.
+func TestImageFunctionsFromAVersion6SnapshotTryBothReferences(t *testing.T) {
+	runExec(t, pooltest.Echo, func(h *execHarness) {
+		h.images.build("local/fn:latest", localBuildID)
+		call(h.harness, lambdaapi.OpCreateFunction, imageFunction("img", "local/fn:latest"))
+		h.settle()
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range sections {
+			sections[i].Version = 6
+			sections[i].Data = []byte(strings.ReplaceAll(string(sections[i].Data), `,"digestKind":"image-id"`, ""))
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(sections); err != nil {
+			t.Fatal(err)
+		}
+		h.invoke(invokeInput("img", `{}`))
+		if specs := h.started(); len(specs) != 1 || specs[0].Image != localBuildID {
+			t.Fatalf("started %+v, want one environment of %s", specs, localBuildID)
+		}
+		byDigest := "local/fn@" + localBuildID
+		if got := h.images.requested(); countOf(got, byDigest) != 1 || countOf(got, localBuildID) != 1 {
+			t.Errorf("asked Docker for %v, want %s once, then %s once", got, byDigest, localBuildID)
+		}
+	})
+}
+
+// A version 7 section, saved with digest kinds but before a stream mapping
+// recorded that it disabled itself, loads with its kinds, so a local
+// build still runs by its image ID alone.
+func TestImageFunctionsFromAVersion7SnapshotKeepTheirDigestKind(t *testing.T) {
+	runExec(t, pooltest.Echo, func(h *execHarness) {
+		h.images.build("local/fn:latest", localBuildID)
+		call(h.harness, lambdaapi.OpCreateFunction, imageFunction("img", "local/fn:latest"))
+		h.settle()
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range sections {
+			sections[i].Version = 7
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(sections); err != nil {
+			t.Fatalf("Import(a version 7 section) = %v, want it loaded", err)
+		}
+		h.invoke(invokeInput("img", `{}`))
+		if specs := h.started(); len(specs) != 1 || specs[0].Image != localBuildID {
+			t.Fatalf("started %+v, want one environment of %s", specs, localBuildID)
+		}
+		if n := countOf(h.images.requested(), "local/fn@"+localBuildID); n != 0 {
+			t.Errorf("local/fn@%s was asked of Docker %d times, want never", localBuildID, n)
 		}
 	})
 }

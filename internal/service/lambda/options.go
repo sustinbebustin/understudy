@@ -22,6 +22,9 @@ type Options struct {
 	// Streams are the stream poller's switches (lambda.esm-stream.*): the
 	// LATEST anchor, the retry delay and the partial-resend budget.
 	Streams esm.StreamFidelity
+	// HotReloadRoots are the directories code in the hot-reload bucket
+	// must resolve under (lambda.hotReloadRoots); empty confines nothing.
+	HotReloadRoots []string
 }
 
 // StateTransitions says when the provisioning states of functions and event

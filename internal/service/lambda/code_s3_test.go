@@ -42,6 +42,37 @@ func (r closeRecorder) Close() error {
 	return nil
 }
 
+// Code in the hot-reload bucket is a directory, not an object: neither
+// CreateFunction nor UpdateFunctionCode reads S3 for it, even when a
+// bucket of that name holds the key (ADR 0010).
+func TestHotReloadBucketIsNotFetchedFromS3(t *testing.T) {
+	var gets atomic.Int32
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		blobs, err := blob.NewMemory("", 0)
+		if err != nil {
+			k.Fatal(err)
+		}
+		defer func() {
+			if err := blobs.Close(); err != nil {
+				k.Error(err)
+			}
+		}()
+		s3api.NewBinder(k.Deps(s3api.Service()).Binder).GetObject(func(context.Context, *kernel.Call, *s3api.GetObjectInput) (*s3api.GetObjectOutput, *awserr.Error) {
+			gets.Add(1)
+			return &s3api.GetObjectOutput{Body: &openedBody{}}, nil
+		}, registry.Full{})
+		deps := k.Deps(lambdaapi.Service())
+		deps.Blob = blobs
+		h := &harness{K: k, svc: lambda.New(deps, lambda.Options{})}
+		dir := buildDir(t)
+		call(h, lambdaapi.OpCreateFunction, bucketFunction(t, dir))
+		call(h, lambdaapi.OpUpdateFunctionCode, &lambdaapi.UpdateFunctionCodeInput{FunctionName: "fn", S3Bucket: new("hot-reload"), S3Key: new(dir)})
+		if n := gets.Load(); n != 0 {
+			t.Errorf("GetObject calls = %d, want none for the hot-reload bucket", n)
+		}
+	}, kerneltest.Services(lambdaapi.Service(), s3api.Service()))
+}
+
 // An S3 package larger than a package can unzip to is refused unread, and
 // the body GetObject opened for it is closed rather than leaked.
 func TestOversizedS3PackageClosesTheObjectBody(t *testing.T) {

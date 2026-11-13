@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
-	"github.com/sustinbebustin/understudy/internal/ref"
+	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // requestBody is the edge's view of a request body (smithy.Body): opened
@@ -17,7 +17,7 @@ import (
 type requestBody struct {
 	r     *http.Request
 	limit int64
-	op    ref.OperationID
+	op    *registry.Operation
 
 	once sync.Once
 }
@@ -111,7 +111,7 @@ type cappedReader struct {
 	rc    io.ReadCloser
 	limit int64
 	n     int64
-	op    ref.OperationID
+	op    *registry.Operation
 }
 
 func (c *cappedReader) Read(p []byte) (int, error) {
@@ -128,11 +128,20 @@ func (c *cappedReader) Read(p []byte) (int, error) {
 
 func (c *cappedReader) Close() error { return c.rc.Close() }
 
-// tooLarge is the answer for a body past op's cap.
-func tooLarge(op ref.OperationID, limit int64) *awserr.Error {
+// tooLarge is the answer for a body past op's cap: its service's
+// RequestTooLargeError in Coral's text, else the generic identity in
+// understudy's own.
+func tooLarge(op *registry.Operation, limit int64) *awserr.Error {
+	if svc := op.Service; svc != nil && svc.RequestTooLargeError.Shape != "" {
+		return &awserr.Error{
+			ID:      svc.RequestTooLargeError,
+			Message: fmt.Sprintf("Request must be smaller than %d bytes for the %s operation", limit, op.ID.Name),
+			Origin:  awserr.Generic{},
+		}
+	}
 	return &awserr.Error{
 		ID:      awserr.RequestEntityTooLarge(),
-		Message: fmt.Sprintf("The request body exceeds the %d-byte limit of %s; send a smaller body.", limit, op),
+		Message: fmt.Sprintf("The request body exceeds the %d-byte limit of %s; send a smaller body.", limit, op.ID),
 		Origin:  awserr.Generic{},
 	}
 }

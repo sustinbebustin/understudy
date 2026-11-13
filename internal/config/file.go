@@ -59,6 +59,7 @@ type fileLambda struct {
 	MaxEnvironments  *int            `json:"maxEnvironments"`
 	StateTransitions *string         `json:"stateTransitions"`
 	HotReload        []fileHotReload `json:"hotReload"`
+	HotReloadRoots   *[]string       `json:"hotReloadRoots"`
 }
 
 type fileHotReload struct {

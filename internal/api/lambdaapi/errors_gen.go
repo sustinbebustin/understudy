@@ -1074,7 +1074,7 @@ func ErrRecursiveInvocationExceptionMembers(message string, v RecursiveInvocatio
 
 // IdentityRequestEntityTooLargeException returns the identity of com.amazon.coral.service#RequestEntityTooLargeException.
 func IdentityRequestEntityTooLargeException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazon.coral.service#RequestEntityTooLargeException", JSONType: "RequestEntityTooLargeException", QueryCode: "RequestEntityTooLarge", Status: 413, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
+	return awserr.Identity{Shape: "com.amazon.coral.service#RequestEntityTooLargeException", JSONType: "RequestEntityTooLargeException", QueryCode: "RequestEntityTooLarge", Status: 413, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
 }
 
 // ErrRequestEntityTooLargeException returns a RequestEntityTooLargeException error with message.

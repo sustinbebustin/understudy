@@ -226,6 +226,39 @@ func TestStartDefaultsTheEndpointToTheTopologyAddress(t *testing.T) {
 	}
 }
 
+// A started container carries its address where understudy sees it as
+// the peer of the container's calls: on Linux bridge, the default bridge's
+// address, and inside a container, the address on understudy's network,
+// since neither path is translated. Docker Desktop forwards the calls to
+// the host's loopback and a remote daemon's host translates them, so
+// there the container has no address (ARCHITECTURE.md 10).
+func TestStartGivesTheContainerItsAddressWhereItIsThePeerAddress(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		top  topology.Topology
+		want netip.Addr
+	}{
+		{"Linux bridge", bridge(), netip.MustParseAddr("172.17.0.2")},
+		{"in a container", topology.InContainer{Network: "understudy-net", Self: netip.MustParseAddr("172.18.0.100")}, netip.MustParseAddr("172.18.0.2")},
+		{"Docker Desktop", topology.DockerDesktop{}, netip.Addr{}},
+		{"remote daemon", topology.Remote{Daemon: netip.MustParseAddr("172.30.0.3"), Self: netip.MustParseAddr("172.30.0.2")}, netip.Addr{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := newDaemon(t)
+			if _, err := d.Client(t).NetworkCreate(t.Context(), "understudy-net", docker.NetworkOptions{}); err != nil {
+				t.Fatal(err)
+			}
+			c, err := newLauncher(t, d, tc.top).Start(t.Context(), spec(t), slot())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.Addr != tc.want {
+				t.Errorf("container address = %v, want %v", c.Addr, tc.want)
+			}
+		})
+	}
+}
+
 func TestStartInsideAContainerCopiesTheCodeAndJoinsUnderstudysNetwork(t *testing.T) {
 	d := newDaemon(t)
 	if _, err := d.Client(t).NetworkCreate(t.Context(), "understudy-net", docker.NetworkOptions{}); err != nil {
@@ -760,12 +793,38 @@ func TestEnsureImageUsesALocalImageAndRecordsItsDigest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if img.Digest != "sha256:e10c4765865b384b15eacc855a3f25ac61745d8dd1f510217deecf23b88fdbd5" {
-		t.Errorf("Digest = %q, want the repository digest", img.Digest)
+	if img.Digest != "sha256:e10c4765865b384b15eacc855a3f25ac61745d8dd1f510217deecf23b88fdbd5" || img.Kind != launcher.RepositoryDigest {
+		t.Errorf("Digest = %q of kind %v, want the repository digest", img.Digest, img.Kind)
 	}
 	for _, r := range d.Requests() {
 		if strings.HasSuffix(r.Path, "/images/create") {
 			t.Error("a present image was pulled")
+		}
+	}
+}
+
+// An image built locally has no repository digest for its repository, so
+// its image ID is recorded, as an image ID (ARCHITECTURE.md 14.3): one with
+// no repository digest at all, and one whose only digest is another
+// repository's.
+func TestEnsureImageRecordsALocalBuildByItsImageID(t *testing.T) {
+	const (
+		built  = "my-function:dev"
+		retag  = "my-copy:dev"
+		id     = "sha256:4c1b2f0e8d7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c"
+		digest = "public.ecr.aws/lambda/provided@sha256:e10c4765865b384b15eacc855a3f25ac61745d8dd1f510217deecf23b88fdbd5"
+	)
+	d := dockertest.New(t, dockertest.Options{})
+	d.AddImage(built, docker.Image{Architecture: "amd64", ID: id})
+	d.AddImage(retag, docker.Image{Architecture: "amd64", ID: id, RepoDigests: []string{digest}})
+	l := newLauncher(t, d, bridge())
+	for _, ref := range []string{built, retag} {
+		img, err := l.EnsureImage(t.Context(), ref, launcher.X86, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if img.Digest != id || img.Kind != launcher.ImageID {
+			t.Errorf("%s: Digest = %q of kind %v, want the image ID %s", ref, img.Digest, img.Kind, id)
 		}
 	}
 }

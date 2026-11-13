@@ -61,7 +61,8 @@ func (b *builder) operationErrors() error {
 }
 
 // serviceErrors resolves throttleError, denialError, malformedRequestError,
-// unknownOperationError and the families' generic vocabularies.
+// requestTooLargeError, unknownOperationError and the families' generic
+// vocabularies.
 func (b *builder) serviceErrors() error {
 	for _, v := range b.clo.vocabularies {
 		voc := VocabularyIR{Family: v.family}
@@ -87,6 +88,9 @@ func (b *builder) serviceErrors() error {
 		return err
 	}
 	if b.ir.MalformedRequest, err = b.serviceError(utMalformedRequest); err != nil {
+		return err
+	}
+	if b.ir.RequestTooLarge, err = b.serviceError(utRequestTooLarge); err != nil {
 		return err
 	}
 	svc := b.clo.service

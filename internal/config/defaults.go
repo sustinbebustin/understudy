@@ -49,14 +49,15 @@ func Defaults(p Placement) Config {
 		listen = Exposed{Addr: netip.AddrPortFrom(netip.IPv4Unspecified(), DefaultPort), Auth: ContainerPublished{}}
 	}
 	return Config{
-		Listen:      listen,
-		TLS:         TLSOff{},
-		Persistence: Ephemeral{},
-		Snapshot:    Snapshot{MaxBytes: DefaultSnapshotMaxBytes},
-		SigV4:       ParseOnly,
-		Clock:       Running{},
-		Accounts:    Accounts{Default: aws.DefaultAccount()},
-		Docker:      DockerSocket{Path: DefaultDockerSocket},
+		Listen:       listen,
+		TLS:          TLSOff{},
+		Persistence:  Ephemeral{},
+		Snapshot:     Snapshot{MaxBytes: DefaultSnapshotMaxBytes},
+		SigV4:        ParseOnly,
+		Clock:        Running{},
+		Accounts:     Accounts{Default: aws.DefaultAccount()},
+		Docker:       DockerSocket{Path: DefaultDockerSocket},
+		DockerOrigin: DockerFromDefault{},
 		S3: S3{
 			BaseDomains: DefaultBaseDomains(),
 			CrossRegion: CrossRegionAWS,

@@ -581,7 +581,7 @@ func (x *Execution) invocationRecord(sender destination.Sender, ev asyncEvent, t
 	if err != nil {
 		return delivery.Request{}, false, err
 	}
-	o := destination.Outgoing{Condition: condition, Body: built.JSON}
+	o := destination.Outgoing{Condition: condition, Body: built.JSON, Oversize: built.Oversize}
 	if _, ok := d.(destination.Bucket); ok {
 		// The key's UUID is drawn only for a bucket, so other destinations
 		// leave the seeded id streams as they were.

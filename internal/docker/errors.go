@@ -122,7 +122,8 @@ func (e *UnavailableError) Error() string {
 	at := e.Endpoint.String()
 	switch e.Reason {
 	case SocketMissing:
-		return fmt.Sprintf("docker daemon unavailable: no socket at %s; start Docker, or set DOCKER_HOST=unix:///path/to/docker.sock for Docker Desktop, Colima or Podman", at)
+		return fmt.Sprintf("docker daemon unavailable: no socket at %s; start Docker, or select its Docker context or set DOCKER_HOST=unix:///path/to/docker.sock for Docker Desktop or Podman. "+
+			"Lambda on Colima is unsupported and has not been run: understudy takes its daemon for a Linux bridge whose gateway it cannot bind on the Mac host", at)
 	case ConnectionRefused:
 		if _, unix := e.Endpoint.(Unix); unix {
 			return fmt.Sprintf("docker daemon unavailable: connection refused at %s; the socket exists but no daemon is listening, so start or restart Docker", at)

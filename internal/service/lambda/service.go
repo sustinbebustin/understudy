@@ -51,6 +51,11 @@ type Service struct {
 	// overlay, false when none: the Execution's overlays, which
 	// NewExecution sets before any call is served; nil without one.
 	overlayDir func(fnKey) (string, bool)
+	// codeChanged follows a committed call that changed which code the
+	// functions of a scope store, so the Execution binds the directories
+	// stored as code and ends the bindings no version names; set by
+	// NewExecution, nil without one.
+	codeChanged func(aws.Scope)
 }
 
 // The service is the snapshot and reset view of its state.
@@ -254,17 +259,26 @@ func (*Service) Name() ref.ServiceID { return "lambda" }
 // SchemaVersion returns the version of State.
 func (*Service) SchemaVersion() int { return stateVersion }
 
+// OldestSchemaVersion returns the oldest version Import reads
+// (snapshot.OlderReader).
+func (*Service) OldestSchemaVersion() int { return stateVersionOldest }
+
 // Export serializes every non-empty scope to one section.
 func (s *Service) Export() ([]store.Section, error) {
 	return s.cells.Export(store.ScopeKeys(), stateVersion)
 }
 
 // Import loads sections written by Export of this schema version or of
-// version 3, which it migrates first (migrateUnkindedScaling).
+// version 4 up to the one before it, which read as this version without
+// what was added since, or of version 3, which it migrates first
+// (migrateUnkindedScaling).
 func (s *Service) Import(ss []store.Section) error {
 	out := make([]store.Section, 0, len(ss))
 	for _, sec := range ss {
-		if sec.Version == stateVersionUnkindedScaling {
+		switch {
+		case sec.Version > stateVersionUnkindedScaling && sec.Version < stateVersion:
+			sec.Version = stateVersion
+		case sec.Version == stateVersionUnkindedScaling:
 			data, err := migrateUnkindedScaling(sec.Data)
 			if err != nil {
 				return &store.SectionError{Path: sec.Path, Defect: store.UndecodableState, Err: err}

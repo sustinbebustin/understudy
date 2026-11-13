@@ -85,16 +85,7 @@ The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-k
 
 ## Lambda
 
-- `GetFunctionCodeSigningConfig` with none set returns null for both members on AWS; understudy fills in `FunctionName` (`lambda/R07/01-get-code-signing-config.json`).
 - `AddPermission` with a foreign account principal can be refused on AWS with "The provided principal was invalid."; understudy accepts any 12-digit account (`lambda/R07/02-add-permission-account.json`).
-- Invoke: a successful answer is `application/json` on AWS; an Event invocation over 1 MB is 413 `{"Message":"<n> byte payload is too large for the Event invocation type (limit 1048576 bytes)"}`, where understudy's text differs (`lambda/R13/04-*.json`).
-- `Timeout` 901 has no "1 validation error detected" prefix on AWS; version numbers continue across a delete and recreate of a function (`lambda/R13/05-timeout-901.json`, `lambda/R13/04-*.json`).
-- Event source mappings on AWS: a batching window on a FIFO queue is "Batching window is not supported for FIFO queues"; provisioned pollers are range-checked first; six filters are "Too many filter patterns, maximum allowed 5 patterns, provided 6 patterns."; records leave out `md5OfMessageAttributes` when a message has no attributes, where understudy sends `null` (`lambda/R03/C-*.json`, `logs/R03/E-payloads.json`).
-- A mapping keeps receiving from its queue after its function is deleted on AWS; understudy stops polling (`sqs/R03/F-queue-attrs-90s.json`).
-- An invocation record sent to a queue, topic or bucket keeps `requestPayload` and `responsePayload` as the bytes the caller and the function wrote, spaces included, on AWS; understudy compacts them (`lambda/LDL-02/`).
-- A record over SNS's 256 KB limit is delivered on AWS with both payloads left out and a `deliveryError` (413 `RequestEntityTooLargeException`, "The total destination payload is too large. ..."); understudy publishes it whole and SNS refuses it (`lambda/LDL-05/`).
-- Another account's layer version that its owner's policy does not grant, or that does not exist, is refused on AWS with 403 `AccessDeniedException` ("... is not authorized to perform: lambda:GetLayerVersion on resource: ... because no resource-based policy allows the lambda:GetLayerVersion action"); understudy attaches one it holds and journals an advisory, and refuses one it does not hold with 400 (`lambda/LDL-15/09-foreign-create.json`).
-- A layer version whose last permission statement was removed answers 404 "Layer version <arn> does not have any resource policy." on AWS; understudy answers "No policy is associated with the given resource." (`lambda/LDL-15/06-policy-emptied.json`).
 - `ListLayers` and `ListLayerVersions` items carry `"Description":null`, `"State":null` and `"NextMarker":null` on AWS; understudy leaves unset members out (`lambda/LDL-11/`).
 - Mapping filters: see [Event patterns and filter policies](#event-patterns-and-filter-policies).
 - Asynchronous invocation:
@@ -102,9 +93,8 @@ The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-k
   - Under the default `--iam-enforce off`, the execution role's permission to reach a destination is not checked and no advisory is journaled for it, nor is a destination's or dead-letter queue's resource policy consulted when it is in another account than the function. Under `advise` and `enforce` both are evaluated as the execution role's call.
   - A discarded event with neither an on-failure destination nor a dead-letter queue is only logged.
 - Layers:
-  - Only layer versions published to understudy exist. An AWS-published layer, such as Powertools or an `awslayer` ARN, is refused with AWS's "Layer version <arn> does not exist." followed by why; publish its content to understudy instead.
-  - Another account's layer attaches without a grant from its owner, where AWS refuses it; understudy journals an advisory.
-  - The layer operations accept another account's layer ARN as `LayerName` or `Arn` and act in that account with no check and no advisory: publishing, deleting and changing the permissions of its versions, and reading versions its policy does not grant. That AWS lets another account only read a version its policy grants is unverified.
+  - Only layer versions published to understudy exist. An AWS-published layer in another account, such as Powertools, is refused as another account's version that does not exist, with AWS's 403 `AccessDeniedException`, where AWS attaches a public one; an `awslayer` ARN is refused with AWS's "Layer version <arn> does not exist." followed by why. Publish its content to understudy instead.
+  - The layer operations accept another account's layer ARN as `LayerName` or `Arn` and act in that account with no check and no advisory: publishing, deleting and changing the permissions of its versions. That AWS refuses them to another account is unverified.
   - `Content.Location` is a link understudy serves the archive at, not a presigned S3 URL.
   - `S3ObjectStorageMode REFERENCE` copies the archive as `COPY` does, the account's code-storage quota is not enforced, and layers are never signed.
   - Two layers with a file and a directory at the same path fail the invoke, since what AWS does is unrecorded.
@@ -112,13 +102,10 @@ The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-k
 - `EphemeralStorage` is not enforced: `/tmp` is an unsized volume.
 - Data written to `/tmp` counts against the function's memory until the host writes it to disk. On a host with a slow disk, such as a GitHub-hosted runner, a function that writes a file close to or larger than its memory size without syncing can end in `Runtime.OutOfMemory` where Lambda succeeds. Syncing as it writes (`fsync`), or a larger `MemorySize`, avoids it.
 - `Runtime.OutOfMemory` payload text is unrecorded; understudy sends `Runtime exited with error: signal: killed`.
-- A resource-scoped fault rule matches only `Invoke`, `CreateFunction` and `UpdateFunctionConfiguration`; scope rules for other Lambda operations by operation, account or Region.
 
 ### Function URLs
 
-- The 502 body for a bad function response is `application/json` on AWS; understudy's is `text/plain`. AWS also delivers `statusCode` 200 with a numeric body and an invalid base64 body, which understudy refuses (`lambda/R13/02-resp-*.json`).
-- AWS keeps `cookie` in `headers`, sends a trace header of `Root=` only, answers HEAD with `Content-Length: 0`, and does not chunk large bodies (`logs/R13/01-logged-events.json`, `lambda/R13/01-head.json`).
-- URL ids on AWS have a fixed `0` at index 26, and `CreationTime` has 9 fractional digits where understudy's has 6 (`lambda/R13/00-create-url-*.json`).
+- An `isBase64Encoded` body that is not valid base64 is decoded leniently: characters outside the base64 alphabet are skipped and the rest decoded. AWS's answer to one such body is recorded (`lambda/R13/02-resp-badb64.json`); the rule beyond it is inferred.
 
 ### Function URL refusals
 

@@ -1,10 +1,16 @@
 package lambda_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
+	"github.com/sustinbebustin/understudy/internal/auth"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/edge"
+	"github.com/sustinbebustin/understudy/internal/server"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 )
 
@@ -471,6 +477,66 @@ func TestAccountSettingsReportTheCodeStorageQuota(t *testing.T) {
 		out := call(h, lambdaapi.OpGetAccountSettings, &lambdaapi.GetAccountSettingsInput{})
 		if got := out.AccountLimit.TotalCodeSize; got != 80530636800 {
 			t.Errorf("TotalCodeSize = %d; want 80530636800", got)
+		}
+	})
+}
+
+// TestCodeSigningConfigWithoutOneSetsNoMembers: GetFunctionCodeSigningConfig
+// for a function without a code signing config answers neither
+// CodeSigningConfigArn nor FunctionName; AWS writes both as null
+// (lambda/R07/01-get-code-signing-config).
+func TestCodeSigningConfigWithoutOneSetsNoMembers(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		h.createFunction("fn")
+		out := call(h, lambdaapi.OpGetFunctionCodeSigningConfig, &lambdaapi.GetFunctionCodeSigningConfigInput{FunctionName: "fn"})
+		if out.CodeSigningConfigArn != nil || out.FunctionName != nil {
+			t.Errorf("GetFunctionCodeSigningConfig = CodeSigningConfigArn %v, FunctionName %v; want neither set", out.CodeSigningConfigArn, out.FunctionName)
+		}
+	})
+}
+
+// TestInvokeContentTypeFollowsTheInvocationType: a RequestResponse
+// Invoke answers 200 with Content-Type application/json, a function error
+// included, and an Event invoke answers 202 with no Content-Type. Recorded:
+// testdata/parity/lambda/R13/04-payload-null.json, 04-payload-empty.json
+// and 04-errmsg.json (a returned payload), 04-raise.json (X-Amz-Function-Error
+// Unhandled), 04-event.json (202, no Content-Type).
+func TestInvokeContentTypeFollowsTheInvocationType(t *testing.T) {
+	s := newScript()
+	runURLsBehind(t, s.handle, func(o *edge.Options) { o.Codecs = server.Codecs() }, func(h *urlHarness) {
+		h.createFunction("fn")
+		invoke := func(invocationType, payload string) *httptest.ResponseRecorder {
+			r := h.request(http.MethodPost, "http://localhost:4566/2015-03-31/functions/fn/invocations", payload)
+			if invocationType != "" {
+				r.Header.Set("X-Amz-Invocation-Type", invocationType)
+			}
+			auth.Sign(r, []byte(payload), auth.Signer{
+				AccessKeyID: aws.DefaultAccount().String(), SecretAccessKey: "secret", Region: aws.DefaultRegion(), Service: "lambda",
+			}, h.Clock.Wall())
+			return h.send(r)
+		}
+		rows := []struct {
+			name, invocationType, payload string
+			status                        int
+			functionError, contentType    string
+		}{
+			{"a returned payload", "", "null", http.StatusOK, "", "application/json"},
+			{"an empty request payload", "", "", http.StatusOK, "", "application/json"},
+			{"an Unhandled function error", "", `{"action":"fail"}`, http.StatusOK, "Unhandled", "application/json"},
+			{"an Event invoke", "Event", "{}", http.StatusAccepted, "", ""},
+		}
+		for _, row := range rows {
+			rec := invoke(row.invocationType, row.payload)
+			if rec.Code != row.status || rec.Header().Get("X-Amz-Function-Error") != row.functionError {
+				t.Errorf("%s = %d with X-Amz-Function-Error %q, want %d with %q; body %s", row.name, rec.Code, rec.Header().Get("X-Amz-Function-Error"), row.status, row.functionError, rec.Body)
+			}
+			got, sent := rec.Header()["Content-Type"]
+			switch {
+			case row.contentType == "" && sent:
+				t.Errorf("%s Content-Type = %q, want none", row.name, got)
+			case row.contentType != "" && (len(got) != 1 || got[0] != row.contentType):
+				t.Errorf("%s Content-Type = %q, want [%s]", row.name, got, row.contentType)
+			}
 		}
 	})
 }

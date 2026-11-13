@@ -9,12 +9,14 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/snapshot"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 type rawEntry struct {
@@ -114,7 +116,7 @@ func TestReadRefusesANewerFormat(t *testing.T) {
 func TestReadRefusesASectionOfAnotherSchemaVersion(t *testing.T) {
 	t.Parallel()
 	archive := write(t, sample(t), false)
-	running := map[ref.ServiceID]int{"sqs": 2, "s3": 2, "dynamodb": 1}
+	running := map[ref.ServiceID]snapshot.Schema{"sqs": snapshot.Exactly(2), "s3": snapshot.Exactly(2), "dynamodb": snapshot.Exactly(1)}
 	err := readErr(t, archive, snapshot.ReadOptions{Schemas: running})
 	var se *snapshot.SchemaError
 	if !errors.As(err, &se) || se.Section != 1 || se.Running != 2 || !se.Known {
@@ -126,13 +128,52 @@ func TestReadRefusesASectionOfAnotherSchemaVersion(t *testing.T) {
 	}
 
 	delete(running, "s3")
-	running["sqs"] = 1
+	running["sqs"] = snapshot.Exactly(1)
 	err = readErr(t, archive, snapshot.ReadOptions{Schemas: running})
 	if !errors.As(err, &se) || se.Known || se.Service != "s3" {
 		t.Fatalf("error %v; want *SchemaError for the unknown s3 service", err)
 	}
 	if !strings.Contains(err.Error(), `belongs to service "s3" at state version 2, which this understudy does not have; the archive was written by understudy v0.0.0-test`) {
 		t.Errorf("message %q does not name the service, its version and the writer", err)
+	}
+}
+
+// A service that declares it reads older sections (ADR 0009 amendment of
+// 2026-11-13) has every version from its oldest to its running one
+// accepted; one older than its oldest, and one newer than it runs, are
+// still refused with the readable range named.
+func TestReadAcceptsTheOlderSchemaVersionsAServiceDeclares(t *testing.T) {
+	t.Parallel()
+	archive := write(t, sample(t), false)
+	schemas := func(sqs snapshot.Schema) map[ref.ServiceID]snapshot.Schema {
+		return map[ref.ServiceID]snapshot.Schema{"sqs": sqs, "s3": snapshot.Exactly(2), "dynamodb": snapshot.Exactly(1)}
+	}
+	for _, sqs := range []snapshot.Schema{{Oldest: 1, Running: 3}, {Oldest: 1, Running: 1}} {
+		a, err := snapshot.Read(bytes.NewReader(archive), snapshot.ReadOptions{MaxBytes: 1 << 20, Schemas: schemas(sqs)})
+		if err != nil {
+			t.Fatalf("Read with sqs %+v: %v; want the version 1 section accepted", sqs, err)
+		}
+		i := slices.IndexFunc(a.Sections, func(s store.Section) bool { return s.Path == "services/sqs/000000000000/us-east-1.json" })
+		if i < 0 || a.Sections[i].Version != 1 {
+			t.Errorf("Read with sqs %+v: sections %+v; want the sqs section at its own version 1", sqs, a.Sections)
+		}
+	}
+
+	err := readErr(t, archive, snapshot.ReadOptions{Schemas: schemas(snapshot.Schema{Oldest: 2, Running: 3})})
+	var se *snapshot.SchemaError
+	if !errors.As(err, &se) || se.Section != 1 || se.Running != 3 || se.Oldest != 2 || !se.Known {
+		t.Fatalf("error %v; want *SchemaError for the sqs section at version 1 against versions 2 to 3", err)
+	}
+	want := `snapshot section "services/sqs/000000000000/us-east-1.json" has sqs state version 1 but this understudy runs version 3 and reads versions 2 to 3; the archive was written by understudy v0.0.0-test; nothing was loaded (load it with that understudy version)`
+	if err.Error() != want {
+		t.Errorf("message\n got %s\nwant %s", err, want)
+	}
+
+	running := schemas(snapshot.Exactly(1))
+	running["s3"] = snapshot.Schema{Oldest: 1, Running: 1}
+	err = readErr(t, archive, snapshot.ReadOptions{Schemas: running})
+	if !errors.As(err, &se) || se.Service != "s3" || se.Section != 2 || se.Running != 1 {
+		t.Fatalf("error %v; want *SchemaError for the s3 section at version 2, newer than 1", err)
 	}
 }
 

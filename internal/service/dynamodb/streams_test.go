@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -1034,6 +1035,34 @@ func TestDeletedTablesStreamIsDeletedAfter24Hours(t *testing.T) {
 			h.Errorf("DescribeStream at 24 h = %+v", e)
 		}
 	})
+}
+
+// Closing a stream, by DeleteTable or by an UpdateTable disabling it, wakes
+// its shardlog.WaitKey as an append does, so an event source mapping's
+// reader finds the stream closed and disables itself the delay later
+// (lambda-stream-sources.md 7.3).
+func TestClosingAStreamWakesItsReaders(t *testing.T) {
+	for name, closeStream := range map[string]func(h *streamsHarness){
+		"DeleteTable": func(h *streamsHarness) { h.mustCall("DeleteTable", `{"TableName":"Orders"}`) },
+		"UpdateTable": func(h *streamsHarness) { h.setStream("") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			runStreams(t, dynamodb.Options{}, func(h *streamsHarness) {
+				arn, _ := latest(h.createStreamTable("Orders", "KEYS_ONLY"))
+				stream, err := aws.ParseARN(arn)
+				if err != nil {
+					h.Fatal(err)
+				}
+				woke := h.Kernel.Waiters().Wait(h.Context(), shardlog.WaitKey(stream))
+				closeStream(h)
+				select {
+				case <-woke:
+				default:
+					h.Errorf("closing the stream did not wake %s", shardlog.WaitKey(stream))
+				}
+			})
+		})
+	}
 }
 
 // trimmedText is the trimmed-data message: the model's member

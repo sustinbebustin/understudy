@@ -89,15 +89,12 @@ func architectureViolation(member string, archs []lambdaapi.Architecture) []awse
 
 // limitViolations enforces the documented limits on the members the model
 // bounds more widely.
-func limitViolations(timeout, memory *int32, storage *lambdaapi.EphemeralStorage) []awserr.Violation {
+func limitViolations(memory *int32, storage *lambdaapi.EphemeralStorage) []awserr.Violation {
 	var vs []awserr.Violation
 	over := func(path string, v int32, limit int) {
 		if int(v) > limit {
-			vs = append(vs, awserr.Violation{Path: awserr.Path(strings.Split(path, ".")), Value: awserr.RenderedText{Text: strconv.Itoa(int(v))}, Constraint: awserr.RangeMax{Max: strconv.Itoa(limit)}})
+			vs = append(vs, overLimit(path, v, limit))
 		}
-	}
-	if timeout != nil {
-		over("timeout", *timeout, maxTimeout)
 	}
 	if memory != nil {
 		over("memorySize", *memory, maxMemorySize)
@@ -106,6 +103,22 @@ func limitViolations(timeout, memory *int32, storage *lambdaapi.EphemeralStorage
 		over("ephemeralStorage.size", storage.Size, maxEphemeralStorage)
 	}
 	return vs
+}
+
+func overLimit(path string, v int32, limit int) awserr.Violation {
+	return awserr.Violation{Path: awserr.Path(strings.Split(path, ".")), Value: awserr.RenderedText{Text: strconv.Itoa(int(v))}, Constraint: awserr.RangeMax{Max: strconv.Itoa(limit)}}
+}
+
+// checkTimeout refuses a Timeout over 900 as AWS does: a
+// ValidationException whose text is the bare entry, without the
+// "1 validation error detected: " prefix every other limit carries
+// (testdata/parity/lambda/R13/05-timeout-901.json). Only CreateFunction was
+// recorded; UpdateFunctionConfiguration is assumed to answer alike.
+func checkTimeout(timeout *int32) *awserr.Error {
+	if timeout == nil || int(*timeout) <= maxTimeout {
+		return nil
+	}
+	return lambdaapi.ErrValidationException(overLimit("timeout", *timeout, maxTimeout).Coral())
 }
 
 // layerVersionARN is the model's LayerVersionArn pattern, which the overlay
@@ -146,11 +159,11 @@ func layersViolation(layers []string) []awserr.Violation {
 }
 
 func validateCreateFunction(in *lambdaapi.CreateFunctionInput) []awserr.Violation {
-	return slices.Concat(architectureViolation("architectures", in.Architectures), limitViolations(in.Timeout, in.MemorySize, in.EphemeralStorage), layersViolation(in.Layers))
+	return slices.Concat(architectureViolation("architectures", in.Architectures), limitViolations(in.MemorySize, in.EphemeralStorage), layersViolation(in.Layers))
 }
 
 func validateUpdateConfiguration(in *lambdaapi.UpdateFunctionConfigurationInput) []awserr.Violation {
-	return append(limitViolations(in.Timeout, in.MemorySize, in.EphemeralStorage), layersViolation(in.Layers)...)
+	return append(limitViolations(in.MemorySize, in.EphemeralStorage), layersViolation(in.Layers)...)
 }
 
 // validateCreateMapping checks StartingPosition, which the overlay leaves
@@ -175,6 +188,9 @@ func validateUpdateCode(in *lambdaapi.UpdateFunctionCodeInput) []awserr.Violatio
 // checkCreateFunction answers the creation rules no constraint trait
 // carries, in InvalidParameterValueException's words.
 func checkCreateFunction(in *lambdaapi.CreateFunctionInput) *awserr.Error {
+	if err := checkTimeout(in.Timeout); err != nil {
+		return err
+	}
 	if name := bareName(in.FunctionName); len(name) > maxNameLength {
 		return errNameTooLong(name)
 	}
@@ -215,6 +231,9 @@ func checkCreateFunction(in *lambdaapi.CreateFunctionInput) *awserr.Error {
 }
 
 func checkUpdateConfiguration(in *lambdaapi.UpdateFunctionConfigurationInput) *awserr.Error {
+	if err := checkTimeout(in.Timeout); err != nil {
+		return err
+	}
 	if err := checkRuntime(in.Runtime); err != nil {
 		return err
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -172,12 +173,15 @@ func (s Stream) label() string { return s.Label.Wire().UTC().Format(streamLabelL
 // arn is s's StreamArn in scope, the documented form
 // arn:<partition>:dynamodb:<region>:<account>:table/<table>/stream/<label>
 // (dynamodb-streams.md 4.1).
-func (s Stream) arn(scope aws.Scope) string {
+func (s Stream) arn(scope aws.Scope) string { return s.parsedARN(scope).String() }
+
+// parsedARN is s's StreamArn in scope as an aws.ARN.
+func (s Stream) parsedARN(scope aws.Scope) aws.ARN {
 	return aws.ARN{
 		Partition: scope.Partition.String(), Service: "dynamodb",
 		Region: scope.Region.String(), Account: scope.Account.String(),
 		Resource: "table/" + s.Table + "/stream/" + s.label(),
-	}.String()
+	}
 }
 
 // latestStream is the newest stream of the table name that exists now,
@@ -206,27 +210,44 @@ func (st *State) streamLabel(name string, now clock.Instant) clock.Instant {
 	return label
 }
 
-// disableStream disables the enabled stream of the table name, if it has
-// one, closing its shard at (dynamodb-streams.md 5.3).
-func (st *State) disableStream(name string, at clock.Instant) {
+// disableStream disables the enabled stream of the table name in scope, if
+// it has one, closing its shard at (dynamodb-streams.md 5.3). It returns
+// the shardlog.WaitKey of each stream it closed, for the caller to wake,
+// so an event source mapping's reader finds the stream closed
+// (lambda-stream-sources.md 7.3).
+func (st *State) disableStream(scope aws.Scope, name string, at clock.Instant) []store.WaitKey {
+	var closed []store.WaitKey
 	for i := range st.Streams {
 		if s := &st.Streams[i]; s.Table == name && s.TableDeleted == nil {
 			s.Enabled = false
 			s.log.shard.Close(at)
+			closed = append(closed, shardlog.WaitKey(s.parsedARN(scope)))
 		}
+	}
+	return closed
+}
+
+// wakeAll wakes each of keys once tx commits.
+func wakeAll(tx *kernel.Tx, keys []store.WaitKey) {
+	for _, key := range keys {
+		tx.Wake(key)
 	}
 }
 
-// tableDeleted marks every stream of the table name, deleted at at,
-// disabled and gone with its table, closing its shard
-// (dynamodb-streams.md 5.4).
-func (st *State) tableDeleted(name string, at clock.Instant) {
+// tableDeleted marks every stream of the table name in scope, deleted at
+// at, disabled and gone with its table, closing its shard
+// (dynamodb-streams.md 5.4). It returns the shardlog.WaitKey of each
+// stream it closed, as disableStream does.
+func (st *State) tableDeleted(scope aws.Scope, name string, at clock.Instant) []store.WaitKey {
+	var closed []store.WaitKey
 	for i := range st.Streams {
 		if s := &st.Streams[i]; s.Table == name && s.TableDeleted == nil {
 			s.Enabled, s.TableDeleted = false, &at
 			s.log.shard.Close(at)
+			closed = append(closed, shardlog.WaitKey(s.parsedARN(scope)))
 		}
 	}
+	return closed
 }
 
 // streamRetention is how long a stream keeps a record, and how long a

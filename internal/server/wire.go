@@ -204,7 +204,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		return kernel.ServiceDeps{Kernel: k, Binder: k.Binder(desc), Clock: clk, IDs: src, Blob: w.blobs, Identity: idStore, Docker: w.host.client, Log: log}
 	}
 	c := &construction{
-		switches: cfg.Switches, regions: regions, local: w.local, images: w.images(), tlsPort: w.own.TLSPort,
+		switches: cfg.Switches, regions: regions, local: w.local, images: w.images(), hotReloadRoots: cfg.HotReloadRoots, tlsPort: w.own.TLSPort,
 		sesVerified: cfg.SESVerifiedIdentities, sesProduction: cfg.SESProductionAccess,
 		apigatewayEnforce: apigatewayEnforce(cfg.IAMEnforce),
 	}
@@ -250,6 +250,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 		Uptime:           clk.Stopwatch(),
 		Components:       components{host: w.host, local: w.local},
 		Log:              log,
+		HotReloadRoots:   cfg.HotReloadRoots,
 
 		Drainer:       w.lambda,
 		Pollers:       w.lambda,
@@ -838,10 +839,10 @@ type deferredLinker struct {
 
 // Link links through the execution layer, and to nothing before it is
 // set.
-func (d *deferredLinker) Link(p identity.Principal, remote netip.AddrPort) (ref.Cause, bool) {
+func (d *deferredLinker) Link(p identity.Principal, remote netip.AddrPort) kernel.Link {
 	x := d.x.Load()
 	if x == nil {
-		return ref.Cause{}, false
+		return kernel.Unlinked{}
 	}
 	return x.Link(p, remote)
 }
@@ -885,7 +886,7 @@ func wiredServices() []wiredService {
 			return dynamodb.NewStreams(d, c.dynamodb)
 		}},
 		{lambdaapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
-			c.lambda, c.lambdaDeps = lambda.New(d, lambda.Options{StateTransitions: c.switches.LambdaTransitions, Images: c.images}), d
+			c.lambda, c.lambdaDeps = lambda.New(d, lambda.Options{StateTransitions: c.switches.LambdaTransitions, Images: c.images, HotReloadRoots: c.hotReloadRoots}), d
 			return c.lambda
 		}},
 		// After Lambda's row: a Lambda proxy integration reads the function
@@ -982,6 +983,9 @@ type construction struct {
 	regions  aws.Regions
 	local    *lazyLocal
 	images   lambda.ImageSource
+	// hotReloadRoots is lambda.hotReloadRoots, which confines the
+	// hot-reload bucket's directories as it does admin bindings.
+	hotReloadRoots []string
 	// tlsPort reports the TLS listener's port once Serve binds it.
 	tlsPort func() (uint16, bool)
 	// sesVerified is ses.verifiedIdentities.

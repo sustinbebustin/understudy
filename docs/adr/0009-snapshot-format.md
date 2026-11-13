@@ -65,3 +65,30 @@ understudy needs a versioned, deterministic file for the whole emulator state an
 - An archive without `cutWall` resumes a Running clock as the 2026-10-13 amendment says. Frozen and Scaled clocks resume as before, and an explicit `snapshot load` keeps the archive's instant in every mode.
 - An explicit `snapshot save` never records `cutWall`, so its bytes still depend only on state and version (ARCHITECTURE.md 13). The checkpoint digest leaves it out, so an idle server still writes nothing.
 - The format stays `0` (the amendment of 2026-11-10); the field is optional, so an archive without it still reads.
+
+## Amendment 2026-11-13: Lambda keeps deleted functions' version numbers
+
+- Lambda's state version 5 adds each scope's retired version numbers: the highest version number published under the name of each deleted function, which a function created again under the name publishes after, as AWS does.
+- A third exception to "refused, not migrated": Lambda reads a version 4 section as it is, with no numbers kept for functions deleted before the save, and still migrates a version 3 section. A function in either keeps its own numbering.
+
+## Amendment 2026-11-13: Lambda state version 6 records layer policy history and sizes
+
+- Lambda's state version 6 adds whether a layer version ever had a policy and each layer statement's size as AWS's policy limit measures it. Both fields are optional, so Lambda's `Import` reads a version 5 section, and a version 4 section as the amendment above allows, as version 6, with every layer version as never having had a policy and each statement measured at its rendered length. A version 3 section is still migrated. Like the version 3 migration, this runs only once a section reaches `Import`: the coordinator's schema check still refuses a section whose version differs from the running one.
+
+## Amendment 2026-11-13: Lambda records the kind of an image's digest
+
+- Lambda's state version 7 records with each image function's digest whether it is a repository digest or a local build's image ID, so invoke resolves only that reference and never sends a local build's ID to the registry as `repository@<image ID>` (ARCHITECTURE.md 14.3).
+- The field is optional, so Lambda's `Import` reads a version 6 section as it is. Its image functions' kinds are unrecorded, and invoke tries both references for them, the repository digest first, as before. Version 5, 4 and 3 sections read as the amendments above say, their image functions' kinds unrecorded too.
+
+## Amendment 2026-11-13: Lambda state version 8 records a stream mapping's self-disable
+
+- Lambda's state version 8 adds whether a stream mapping disabled itself because its stream closed, which sets its `StateTransitionReason` and `LastProcessingResult` (`lambda-stream-sources.md` 7.3). The field is optional, so Lambda's `Import` reads a version 7 section, and a version 6, 5 or 4 section as the amendments above allow, as version 8, with no mapping disabled that way. A version 3 section is still migrated, under the same coordinator limit as above.
+
+## Amendment 2026-11-13: declared readable versions pass the load check
+
+- The exceptions above ran only when a service's import was called directly: the load check refused every section whose version differed from the running one, so `snapshot load` and a `--persist` restart refused them, the coordinator limit the version 6 and 8 amendments name. A service now declares the oldest section version its import reads (`snapshot.OlderReader`), and the load check accepts any version from it to the running one. DynamoDB declares 3 and Lambda 3.
+- A service that declares nothing keeps the exact-match refusal, and a newer section is refused as before. The refusal names the section's version, the running version, the readable range when one is declared, and the writing binary.
+
+## Amendment 2026-11-13: Lambda state version 9 adds directory code
+
+- Lambda's state version 9 adds directory code, the code a function created from the `hot-reload` bucket stores (ADR 0010, amendment 2026-11-13): a third variant of a version's code, holding the directory's resolved path. A version 8 section holds none, so Lambda's `Import` reads it as version 9 unchanged, as it reads versions 7 to 4 under the amendments above; a version 3 section is still migrated. Lambda's oldest readable version stays 3, so a snapshot load accepts versions 3 to 9. A binary before version 9 refuses a version 9 section by its version, rather than failing on a code variant it does not know.

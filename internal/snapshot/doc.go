@@ -104,7 +104,9 @@
 //     size before the body, and an Archive must write the same bytes twice.
 //   - ReadOptions.Schemas checks section versions in Read when set; nil
 //     reads any version, for inspect and diff. Load checks them again
-//     against the Coordinator's services before changing anything.
+//     against the Coordinator's services before changing anything. A
+//     service reads its own version and, when it implements OlderReader,
+//     every older one down to the oldest it declares (Schema).
 //   - The load side of a service is Stateful (ResetAll, Import, Rearm) and
 //     Late (ImportLate): the package cannot import kernel, so the server
 //     adapts kernel.Stateful's Reset(scope) to ResetAll. Runtime reads and

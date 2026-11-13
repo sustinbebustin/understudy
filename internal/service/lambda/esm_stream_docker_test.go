@@ -167,7 +167,10 @@ func TestDockerStreamPutItemReachesTheFunction(t *testing.T) {
 	if r.Dynamodb.Keys["id"]["S"] != "a" || r.Dynamodb.NewImage["v"]["N"] != "1" || r.Dynamodb.StreamViewType != "NEW_IMAGE" || r.Dynamodb.SequenceNumber == "" {
 		t.Errorf("dynamodb = %+v", r.Dynamodb)
 	}
-	if n := r.Dynamodb.ApproximateCreationDateTime.String(); len(n) != 10 || strings.ContainsAny(n, ".eE") {
-		t.Errorf("ApproximateCreationDateTime = %s, want whole epoch seconds of 10 digits", n)
+	// ESMS-17 09-ddb.json: the handler reads a Python float,
+	// 1793725107.0; the `.0` spelling is inferred.
+	n := r.Dynamodb.ApproximateCreationDateTime.String()
+	if whole, ok := strings.CutSuffix(n, ".0"); !ok || len(whole) != 10 || strings.ContainsAny(whole, ".eE") {
+		t.Errorf("ApproximateCreationDateTime = %s, want 10 integral digits then .0 (ESMS-17)", n)
 	}
 }

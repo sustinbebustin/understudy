@@ -193,6 +193,11 @@ type PutKindsOutput struct {
 	Secret *string
 }
 
+// RequestEntityTooLargeException is the error com.amazon.coral.service#RequestEntityTooLargeException.
+type RequestEntityTooLargeException struct {
+	Message *string
+}
+
 // SerializationException is the error com.amazon.coral.service#SerializationException.
 type SerializationException struct {
 	Message *string

@@ -249,8 +249,12 @@ func TestLambdaFunctionURLInvokesOverHTTP(t *testing.T) {
 	if ev.Headers["x-custom-header"] != "Value1" {
 		t.Errorf("headers %v, want x-custom-header lowercased with value Value1", ev.Headers)
 	}
-	if _, ok := ev.Headers["cookie"]; ok {
-		t.Errorf("headers carry cookie %q; cookies belong only in the cookies array", ev.Headers["cookie"])
+	// AWS keeps the cookie header beside the cookies array, joined as sent
+	// (testdata/parity/logs/R13/01-logged-events.json;
+	// testdata/parity/lambda/R13/notes.md row "1 Cookie header"). R13 sent
+	// one Cookie header; joining repeated headers with "; " is inferred.
+	if got := ev.Headers["cookie"]; got != "c1=v1; c2=v2" {
+		t.Errorf("headers cookie %q, want the sent cookies joined as c1=v1; c2=v2", got)
 	}
 	if !slices.Equal(ev.Cookies, []string{"c1=v1", "c2=v2"}) {
 		t.Errorf("cookies %v, want [c1=v1 c2=v2]", ev.Cookies)

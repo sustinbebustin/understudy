@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"net/netip"
 	"runtime"
 	"slices"
 	"strings"
@@ -63,6 +64,7 @@ type generations struct {
 // makes names the invocation (ARCHITECTURE.md 10).
 type slot struct {
 	id    identity.EnvID
+	fn    fnVersion
 	creds launcher.Credentials
 	// trees are the code store trees the slot's environments mount, held
 	// from mint to revocation: the extracted package (none for an overlay
@@ -79,6 +81,17 @@ type slot struct {
 	// stream its log stream; a lease of another environment is a cold start.
 	env    *pool.Env
 	stream *logStream
+	// addr is the address byAddr holds the slot under, guarded by the
+	// environments' lock; the zero Addr when it holds none.
+	addr netip.Addr
+}
+
+// located is the slot whose environment runs in the container at an
+// address, and that environment, whose state tells whether the container
+// still holds the address.
+type located struct {
+	slot *slot
+	env  *pool.Env
 }
 
 // versionSlots are the slots of one function version's current generation.
@@ -117,11 +130,17 @@ type environments struct {
 	mu       sync.Mutex
 	versions map[fnVersion]*versionSlots
 	byID     map[identity.EnvID]*slot
-	serial   uint64
+	// byAddr finds a slot by its container's address, on the topologies
+	// where that is the peer address of the container's calls.
+	byAddr map[netip.Addr]located
+	serial uint64
 }
 
 func newEnvironments(store *identity.Store, clk *clock.Clock, trees *codeTrees) *environments {
-	return &environments{identity: store, clock: clk, trees: trees, versions: map[fnVersion]*versionSlots{}, byID: map[identity.EnvID]*slot{}}
+	return &environments{
+		identity: store, clock: clk, trees: trees,
+		versions: map[fnVersion]*versionSlots{}, byID: map[identity.EnvID]*slot{}, byAddr: map[netip.Addr]located{},
+	}
 }
 
 // lease takes a free slot of v's current generation for an invocation,
@@ -169,25 +188,72 @@ func (e *environments) release(s *slot) {
 	}
 }
 
-// link returns the cause of the invocation the environment whose
-// credentials p resolved from is running, and false for any other
-// principal or an environment between invocations.
-func (e *environments) link(p identity.Principal) (ref.Cause, bool) {
-	role, ok := p.(identity.AssumedRole)
-	if !ok {
-		return ref.Cause{}, false
+// link links a call made with the credentials of the environment p
+// resolved from to the invocation it is running, and to nothing between
+// invocations. A call with credentials no environment minted from the
+// address of an environment's live container is Unminted, naming the
+// environment's function; an unsigned call carries no credentials, so it
+// is Unlinked wherever it comes from.
+func (e *environments) link(p identity.Principal, remote netip.AddrPort) kernel.Link {
+	if src, ok := mintedFor(p); ok {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		s, ok := e.byID[src.Env]
+		if !ok || s.running == nil {
+			return kernel.Unlinked{}
+		}
+		return kernel.Linked{Cause: *s.running}
 	}
-	src, ok := role.Source.(identity.FromExecutionEnvironment)
-	if !ok {
-		return ref.Cause{}, false
+	if _, unsigned := p.(identity.Anonymous); unsigned {
+		return kernel.Unlinked{}
 	}
 	e.mu.Lock()
-	defer e.mu.Unlock()
-	s, ok := e.byID[src.Env]
-	if !ok || s.running == nil {
-		return ref.Cause{}, false
+	at, ok := e.byAddr[remote.Addr().Unmap()]
+	e.mu.Unlock()
+	if !ok {
+		return kernel.Unlinked{}
 	}
-	return *s.running, true
+	// A removed container gave its address back to the daemon, which may
+	// have handed it to a container that is no function's.
+	if _, gone := at.env.State().(pool.Gone); gone {
+		return kernel.Unlinked{}
+	}
+	return kernel.Unminted{Scope: at.slot.fn.scope, Function: at.slot.fn.arn()}
+}
+
+// mintedFor reports the environment whose minted credentials p resolved
+// from.
+func mintedFor(p identity.Principal) (identity.FromExecutionEnvironment, bool) {
+	role, ok := p.(identity.AssumedRole)
+	if !ok {
+		return identity.FromExecutionEnvironment{}, false
+	}
+	src, ok := role.Source.(identity.FromExecutionEnvironment)
+	return src, ok
+}
+
+// locate records that s's environment runs in env's container, so a call
+// from the container's address finds s; a container without an address
+// is found by nothing.
+func (e *environments) locate(s *slot, env *pool.Env) {
+	addr := env.Container().Addr
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.unlocateLocked(s)
+	if !addr.IsValid() {
+		return
+	}
+	s.addr = addr
+	e.byAddr[addr] = located{slot: s, env: env}
+}
+
+// unlocateLocked forgets s's container address, unless a newer container
+// of another slot holds it now. Callers hold e.mu.
+func (e *environments) unlocateLocked(s *slot) {
+	if at, ok := e.byAddr[s.addr]; ok && at.slot == s {
+		delete(e.byAddr, s.addr)
+	}
+	s.addr = netip.Addr{}
 }
 
 // drop retires the slots of the function versions in scope and returns
@@ -226,6 +292,7 @@ func (e *environments) retireLocked(vs *versionSlots) {
 func (e *environments) revokeLocked(s *slot) {
 	e.identity.Revoke(string(s.creds.AccessKeyID))
 	delete(e.byID, s.id)
+	e.unlocateLocked(s)
 	for _, t := range s.trees {
 		e.trees.unhold(t)
 	}
@@ -254,7 +321,7 @@ func (e *environments) mintLocked(v fnVersion, role aws.ARN, trees []treeKey) (*
 	if tmp, ok := creds.Lifetime.(identity.Temporary); ok {
 		token = tmp.SessionToken
 	}
-	s := &slot{id: id, trees: trees, creds: launcher.Credentials{AccessKeyID: creds.AccessKeyID, SecretAccessKey: creds.SecretAccessKey, SessionToken: token}}
+	s := &slot{id: id, fn: v, trees: trees, creds: launcher.Credentials{AccessKeyID: creds.AccessKeyID, SecretAccessKey: creds.SecretAccessKey, SessionToken: token}}
 	e.byID[id] = s
 	for _, t := range trees {
 		e.trees.hold(t)
@@ -270,6 +337,7 @@ func (e *environments) revokeAll() {
 		e.identity.Revoke(string(s.creds.AccessKeyID))
 	}
 	clear(e.byID)
+	clear(e.byAddr)
 	clear(e.versions)
 }
 
@@ -289,8 +357,9 @@ func parseRole(role aws.ARN) (identity.RoleRef, aws.AccountID, error) {
 
 // spec is the container spec of t's environments for slot s in execution
 // generation gen: the function's configuration, its runtime's pinned base
-// image or the image digest its last deployment recorded, its code (the
-// hot-reload overlay's directory when one is active), the merged tree of
+// image or the image digest its last deployment recorded, its code
+// (overlayDir, the hot-reload directory lease found, when not empty;
+// always for directory code), the merged tree of
 // its layers and the slot's credentials.
 func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, overlayDir string) (launcher.Spec, error) {
 	cfg := t.version.Config
@@ -310,14 +379,18 @@ func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, ov
 	}
 	switch code := t.version.Code.(type) {
 	case ZipCode:
-		img, ok := launcher.ImageForRuntime(cfg.Runtime)
-		if !ok {
-			return launcher.Spec{}, fmt.Errorf("understudy pins no base image for the runtime %s; the runtimes it runs are listed by `understudy images pull --help`", cfg.Runtime)
+		dir := overlayDir
+		if dir == "" {
+			if dir, err = x.trees.dir(ctx, code); err != nil {
+				return launcher.Spec{}, err
+			}
 		}
-		if spec.Image, err = x.resolveImage(ctx, arch, img.Ref()); err != nil {
+		if err := x.zipCode(ctx, &spec, dir, cfg, arch); err != nil {
 			return launcher.Spec{}, err
 		}
-		if spec.Code, err = x.zipCode(ctx, code, cfg, overlayDir); err != nil {
+	case DirCode:
+		// lease binds the directory, or names the overlay that wins over it.
+		if err := x.zipCode(ctx, &spec, overlayDir, cfg, arch); err != nil {
 			return launcher.Spec{}, err
 		}
 	case ImageCode:
@@ -333,24 +406,28 @@ func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, ov
 	return spec, nil
 }
 
-// zipCode is how a zip function's code and layers reach its container:
-// the overlay's directory or the package's extracted tree at /var/task,
-// and the merged tree of cfg's layers, in order, at /opt
-// (lambda-destinations-layers.md 8.1, 11.5).
-func (x *Execution) zipCode(ctx context.Context, code ZipCode, cfg Config, overlayDir string) (launcher.ZipCode, error) {
-	out := launcher.ZipCode{Dir: overlayDir, Handler: cfg.Handler}
-	var err error
-	if out.Dir == "" {
-		if out.Dir, err = x.trees.dir(ctx, code); err != nil {
-			return launcher.ZipCode{}, err
-		}
+// zipCode sets the image and code of spec for a zip function whose code is
+// dir: its runtime's pinned base image, dir (a hot-reload directory or the
+// package's extracted tree) at /var/task, and the merged tree of cfg's
+// layers, in order, at /opt (lambda-destinations-layers.md 8.1, 11.5). On
+// an error spec is unchanged.
+func (x *Execution) zipCode(ctx context.Context, spec *launcher.Spec, dir string, cfg Config, arch launcher.Architecture) error {
+	img, ok := launcher.ImageForRuntime(cfg.Runtime)
+	if !ok {
+		return fmt.Errorf("understudy pins no base image for the runtime %s; the runtimes it runs are listed by `understudy images pull --help`", cfg.Runtime)
 	}
+	image, err := x.resolveImage(ctx, arch, img.Ref())
+	if err != nil {
+		return err
+	}
+	code := launcher.ZipCode{Dir: dir, Handler: cfg.Handler}
 	if len(cfg.Layers) > 0 {
-		if out.Opt, err = x.trees.opt(ctx, cfg.Layers); err != nil {
-			return launcher.ZipCode{}, err
+		if code.Opt, err = x.trees.opt(ctx, cfg.Layers); err != nil {
+			return err
 		}
 	}
-	return out, nil
+	spec.Image, spec.Code = image, code
+	return nil
 }
 
 // functionEnvironment is the function's Environment.Variables over the
@@ -376,12 +453,27 @@ func functionEnvironment(cfg Config) map[string]string {
 // recorded: its repository digest, so a local rebuild under the same tag
 // changes nothing until UpdateFunctionCode, as on AWS. An image built
 // locally under Docker's classic image store has no repository digest and
-// was recorded by its image ID, the second reference tried.
+// was recorded by its image ID, which is resolved as is: repository@<image
+// ID> is never present and, not being ECR, would be pulled. An image code
+// saved before kinds were recorded tries both, the repository digest
+// first.
 func (x *Execution) pinnedImage(ctx context.Context, code ImageCode, arch launcher.Architecture) (string, error) {
 	if code.Digest == "" {
 		return "", fmt.Errorf("no digest is recorded for the image %s; deploy it again with UpdateFunctionCode", code.URI)
 	}
-	image, err := x.resolveImage(ctx, arch, launcher.Repository(code.URI)+"@"+code.Digest, code.Digest)
+	byDigest := launcher.Repository(code.URI) + "@" + code.Digest
+	var refs []string
+	switch code.DigestKind {
+	case DigestRepository:
+		refs = []string{byDigest}
+	case DigestImageID:
+		refs = []string{code.Digest}
+	case DigestUnrecorded:
+		refs = []string{byDigest, code.Digest}
+	default:
+		return "", fmt.Errorf("the image %s was recorded with the unknown digest kind %q; deploy it again with UpdateFunctionCode", code.URI, code.DigestKind)
+	}
+	image, err := x.resolveImage(ctx, arch, refs...)
 	if err != nil {
 		return "", fmt.Errorf("the image %s as deployed (%s) is not present: %w; build or pull it again, or deploy the image now tagged %s with UpdateFunctionCode", code.URI, code.Digest, err, code.URI)
 	}

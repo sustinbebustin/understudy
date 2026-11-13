@@ -9,7 +9,8 @@ import (
 )
 
 // declareAddressed names, for every operation whose input addresses a
-// function, version, alias or event source mapping, the ARN it addresses,
+// function, version, alias, event source mapping, layer or layer version,
+// the ARN it addresses,
 // built from the name as Invoke's is (invokedFunction): the function
 // qualified as the input names it, an alias's ARN, a mapping's ARN, a tag
 // operation's Resource. Step 8 then asks about the operation's actions on
@@ -96,6 +97,54 @@ func declareAddressed(b *kernel.Binder) {
 	byMapping(b, lambdaapi.OpGetEventSourceMapping, func(in *lambdaapi.GetEventSourceMappingInput) string { return in.UUID })
 	byMapping(b, lambdaapi.OpUpdateEventSourceMapping, func(in *lambdaapi.UpdateEventSourceMappingInput) string { return in.UUID })
 	byMapping(b, lambdaapi.OpDeleteEventSourceMapping, func(in *lambdaapi.DeleteEventSourceMappingInput) string { return in.UUID })
+	byLayer(b, lambdaapi.OpPublishLayerVersion, func(in *lambdaapi.PublishLayerVersionInput) string { return in.LayerName })
+	byLayer(b, lambdaapi.OpListLayerVersions, func(in *lambdaapi.ListLayerVersionsInput) string { return in.LayerName })
+	byLayerVersion(b, lambdaapi.OpGetLayerVersion, func(in *lambdaapi.GetLayerVersionInput) (string, int64) {
+		return in.LayerName, in.VersionNumber
+	})
+	byLayerVersion(b, lambdaapi.OpDeleteLayerVersion, func(in *lambdaapi.DeleteLayerVersionInput) (string, int64) {
+		return in.LayerName, in.VersionNumber
+	})
+	byLayerVersion(b, lambdaapi.OpAddLayerVersionPermission, func(in *lambdaapi.AddLayerVersionPermissionInput) (string, int64) {
+		return in.LayerName, in.VersionNumber
+	})
+	byLayerVersion(b, lambdaapi.OpRemoveLayerVersionPermission, func(in *lambdaapi.RemoveLayerVersionPermissionInput) (string, int64) {
+		return in.LayerName, in.VersionNumber
+	})
+	byLayerVersion(b, lambdaapi.OpGetLayerVersionPolicy, func(in *lambdaapi.GetLayerVersionPolicyInput) (string, int64) {
+		return in.LayerName, in.VersionNumber
+	})
+	kernel.Declare(b, lambdaapi.OpGetLayerVersionByArn, kernel.WithResources(func(_ *kernel.Call, in *lambdaapi.GetLayerVersionByArnInput) []aws.ARN {
+		ref, n, ok := parseLayerVersionARN(in.Arn)
+		if !ok {
+			return nil
+		}
+		return parsedARN(ref.versionARN(n))
+	}))
+}
+
+// byLayer declares the layer op's LayerName address: the layer's ARN.
+func byLayer[In, Out any](b *kernel.Binder, op kernel.Op[In, Out], name func(*In) string) {
+	kernel.Declare(b, op, kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
+		ref, err := parseLayerName(c, name(in))
+		if err != nil {
+			return nil
+		}
+		return parsedARN(ref.arn())
+	}))
+}
+
+// byLayerVersion declares the layer op's LayerName and VersionNumber
+// address: the layer version's ARN.
+func byLayerVersion[In, Out any](b *kernel.Binder, op kernel.Op[In, Out], version func(*In) (string, int64)) {
+	kernel.Declare(b, op, kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
+		name, n := version(in)
+		ref, err := parseLayerName(c, name)
+		if err != nil {
+			return nil
+		}
+		return parsedARN(ref.versionARN(n))
+	}))
 }
 
 // byName declares the function op's FunctionName and Qualifier address,

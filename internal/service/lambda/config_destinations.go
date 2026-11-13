@@ -140,29 +140,118 @@ func (st *State) checkFunctionDestination(fn functionRef, scope aws.Scope, arn s
 // function, bus or bucket is unrecorded, so they are not checked.
 func checkDestinationRoles(ctx context.Context, c *kernel.Call, role string, dests []configuredDestination) *awserr.Error {
 	for _, d := range dests {
-		var action registry.IAMAction
-		var resource aws.ARN
-		switch dest := d.dest.(type) {
-		case destination.Topic:
-			action, resource = registry.IAMAction{Prefix: "sns", Name: "Publish"}, dest.ARN
-		case destination.Queue:
-			action, resource = registry.IAMAction{Prefix: "sqs", Name: "SendMessage"}, dest.ARN
-		case destination.Function, destination.Bus, destination.Bucket:
-			continue
-		}
-		roleARN, perr := aws.ParseARN(role)
-		if perr != nil {
-			return awserr.Internalf(fmt.Errorf("lambda: the function's stored execution role %q is not an ARN, so its permission on the destination %s cannot be checked: %w", role, d.arn, perr))
-		}
-		q := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: action, Resource: kernel.ResourceARN{ARN: resource}}}}
-		if err := kernel.AuthorizeAs(ctx, c, kernel.AsExecutionRole{Role: roleARN}, q); err != nil {
-			if _, denied := err.Origin.(awserr.Denial); denied {
-				return errDestinationRoleDenied(action.Name, d.arn)
-			}
+		denied, err := roleDenial(ctx, c, role, d)
+		if err != nil {
 			return err
+		}
+		if denied != "" {
+			return errDestinationRoleDenied(denied, d.arn)
 		}
 	}
 	return nil
+}
+
+// roleDenial asks whether role, a function's execution role, may write to
+// d: sns:Publish on a topic, sqs:SendMessage on a queue; a function, bus
+// or bucket is not asked about. It returns the name of the action refused
+// under iam.enforce=enforce, or "" when the role may, under advise, which
+// journals a denial, and under off, which asks nothing
+// (kernel.AuthorizeAs); err is any other failure to ask.
+func roleDenial(ctx context.Context, c *kernel.Call, role string, d configuredDestination) (denied string, err *awserr.Error) {
+	var action registry.IAMAction
+	var resource aws.ARN
+	switch dest := d.dest.(type) {
+	case destination.Topic:
+		action, resource = registry.IAMAction{Prefix: "sns", Name: "Publish"}, dest.ARN
+	case destination.Queue:
+		action, resource = registry.IAMAction{Prefix: "sqs", Name: "SendMessage"}, dest.ARN
+	case destination.Function, destination.Bus, destination.Bucket:
+		return "", nil
+	}
+	roleARN, perr := aws.ParseARN(role)
+	if perr != nil {
+		return "", awserr.Internalf(fmt.Errorf("lambda: the function's execution role %q is not an ARN, so its permission on %s cannot be checked: %w", role, d.arn, perr))
+	}
+	q := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: action, Resource: kernel.ResourceARN{ARN: resource}}}}
+	if err := kernel.AuthorizeAs(ctx, c, kernel.AsExecutionRole{Role: roleARN}, q); err != nil {
+		if _, refused := err.Origin.(awserr.Denial); refused {
+			return action.Name, nil
+		}
+		return "", err
+	}
+	return "", nil
+}
+
+// checkDeadLetter checks the dead-letter target a CreateFunction or
+// UpdateFunctionConfiguration of the function fn sets, before it is
+// stored; role is the execution role the function will have. Each refusal
+// is AWS's recorded answer (lambda-destinations-layers.md 5.1: LDL-08 09,
+// 10, 11 and 14, recorded on UpdateFunctionConfiguration; CreateFunction's
+// inferred to be the same), in this order:
+//   - an ARN of a service other than SQS or SNS (an event bus was
+//     recorded; any other ARN, and a value that is not one, is inferred);
+//   - a FIFO queue, before the queue is looked up (inferred). A FIFO topic
+//     is accepted, as for a destination (2.2; unrecorded);
+//   - a queue or topic that does not exist, looked up in its own service as
+//     a destination is (lookUpDestination). The topic's text is inferred
+//     from the queue's;
+//   - under iam.enforce=enforce, a role that may not send to the queue or
+//     publish to the topic (roleDenial); advise journals the denial and
+//     accepts, off asks nothing. The topic's text is inferred from the
+//     queue's, and that existence is checked before permission is inferred,
+//     as for a destination.
+//
+// The caller runs it after the execution role's trust check (inferred: no
+// recording orders the two).
+func (s *Service) checkDeadLetter(ctx context.Context, c *kernel.Call, fn functionRef, role, target string) *awserr.Error {
+	a, perr := aws.ParseARN(target)
+	if perr != nil || a.Service != "sqs" && a.Service != "sns" {
+		return errDeadLetterService()
+	}
+	missing := errDeadLetterQueueMissing()
+	if a.Service == "sns" {
+		missing = errDeadLetterTopicMissing()
+	}
+	dest, err := destination.Parse(target)
+	if err != nil {
+		// An SQS or SNS ARN that names no queue or topic: none can exist.
+		return missing
+	}
+	if queue, ok := dest.(destination.Queue); ok && strings.HasSuffix(queue.ARN.Resource, ".fifo") {
+		return errDeadLetterFIFO()
+	}
+	scope, ok := destinationScope(fn, dest)
+	if !ok {
+		return missing
+	}
+	if aerr := s.lookUpDeadLetter(ctx, c, target, scope, dest, missing); aerr != nil {
+		return aerr
+	}
+	denied, aerr := roleDenial(ctx, c, role, configuredDestination{arn: target, dest: dest})
+	switch {
+	case aerr != nil:
+		return aerr
+	case denied != "":
+		return errDeadLetterRoleDenied(denied, strings.ToUpper(a.Service))
+	}
+	return nil
+}
+
+// lookUpDeadLetter asks the queue's or topic's service whether dest, the
+// dead-letter target named target, exists in scope; missing when it does
+// not.
+func (s *Service) lookUpDeadLetter(ctx context.Context, c *kernel.Call, target string, scope aws.Scope, dest destination.Destination, missing *awserr.Error) *awserr.Error {
+	switch dest := dest.(type) {
+	case destination.Queue:
+		return lookUpDestination(ctx, s, c, target, scope, sqsapi.OpGetQueueUrl,
+			&sqsapi.GetQueueUrlInput{QueueName: dest.ARN.Resource, QueueOwnerAWSAccountId: new(dest.ARN.Account)}, sqsapi.IdentityQueueDoesNotExist(), missing)
+	case destination.Topic:
+		return lookUpDestination(ctx, s, c, target, scope, snsapi.OpGetTopicAttributes,
+			&snsapi.GetTopicAttributesInput{TopicArn: dest.ARN.String()}, snsapi.IdentityNotFoundException(), missing)
+	case destination.Function, destination.Bus, destination.Bucket:
+		// checkDeadLetter passes only SQS and SNS ARNs.
+	}
+	return awserr.Internalf(fmt.Errorf("lambda: dead-letter target %s parsed to %T, which is neither a queue nor a topic", target, dest))
 }
 
 // recheckDestination repeats, in the write that stores the configuration,
@@ -208,9 +297,9 @@ func lookUpDestination[In, Out any](ctx context.Context, s *Service, c *kernel.C
 	return awserr.Internalf(&DestinationCheckError{Destination: arn, Op: id, Err: err.AsError()})
 }
 
-// DestinationCheckError is a destination lookup that failed other than
-// with the destination service's not-found answer, so Lambda cannot tell
-// whether the destination exists and stored nothing.
+// DestinationCheckError is a destination or dead-letter target lookup that
+// failed other than with the target service's not-found answer, so Lambda
+// cannot tell whether the target exists and stored nothing.
 type DestinationCheckError struct {
 	Destination string
 	Op          ref.OperationID
@@ -219,7 +308,7 @@ type DestinationCheckError struct {
 }
 
 func (e *DestinationCheckError) Error() string {
-	return fmt.Sprintf("lambda: looking up the destination %s with %s failed: %v; whether it exists is unknown, so the event-invoke configuration was not stored; retry the request",
+	return fmt.Sprintf("lambda: looking up the destination %s with %s failed: %v; whether it exists is unknown, so the configuration naming it was not stored; retry the request",
 		e.Destination, e.Op, e.Err)
 }
 

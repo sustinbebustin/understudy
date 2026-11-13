@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/sustinbebustin/understudy/internal/httpevent"
 )
@@ -21,11 +22,29 @@ func Infer(payload []byte) (Response, error) {
 	return httpevent.InferV2(payload)
 }
 
-// BadGateway is the answer to a function error or a malformed response:
-// 502 with the plain text body AWS sends (LocalStack's
-// test_lambda_url_invocation_exception).
+// Write sends r on w, the answer to a request for method, as a function
+// URL frames it: always with a Content-Length, so a large body is never
+// chunked (lambda/R13/02-resp-big.json), and to HEAD with Content-Length
+// 0 and no body, whatever body r holds (lambda/R13/01-head.json). HTTP
+// APIs keep httpevent.Response.Write's framing.
+func Write(w http.ResponseWriter, method string, r Response) {
+	if method == http.MethodHead {
+		r.Body = nil
+	}
+	r.Header = r.Header.Clone()
+	if r.Header == nil {
+		r.Header = http.Header{}
+	}
+	r.Header.Set("Content-Length", strconv.Itoa(len(r.Body)))
+	r.Write(w)
+}
+
+// BadGateway is the answer to a function error, a timeout or a malformed
+// response: 502 Internal Server Error, labelled application/json although
+// the body is not JSON (lambda/R13/02-resp-raise.json,
+// 02-resp-timeout.json, 02-resp-sc99.json).
 func BadGateway() Response {
-	return Response{Status: http.StatusBadGateway, Header: http.Header{"Content-Type": {"text/plain"}}, Body: []byte("Internal Server Error")}
+	return Response{Status: http.StatusBadGateway, Header: http.Header{"Content-Type": {"application/json"}}, Body: []byte("Internal Server Error")}
 }
 
 // forbiddenHelp is the message of a 403 whose URL exists (lambda-events.md

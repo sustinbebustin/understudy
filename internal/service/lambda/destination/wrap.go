@@ -1,7 +1,9 @@
 package destination
 
 import (
+	"bytes"
 	"encoding/json"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -152,6 +154,9 @@ type Outgoing struct {
 	Condition Condition
 	// Body is the record, Built.JSON.
 	Body []byte
+	// Oversize is Built.Oversize, which a topic gets in Body's place when
+	// Body is over SNS's limit.
+	Oversize []byte
 	// ObjectKey is the S3 key (ObjectKey) for a Bucket, "" for every other
 	// destination.
 	ObjectKey string
@@ -173,6 +178,14 @@ func ObjectKey(function string, at time.Time, id uuid.UUID) string {
 // 4.3, 11.2; LDL-06).
 const recordInvocation = delivery.InvocationEvent
 
+// maxTopicRecord is the largest record published to a topic whole: SNS's
+// 262,144-byte message limit (lambda-destinations-layers.md 4.2). A larger
+// one goes out as Outgoing.Oversize. AWS's measure is unrecorded beyond
+// LDL-05's 300 KB record: understudy measures the record SNS would refuse,
+// so a whole record never fails at SNS, and holds to the default limit
+// whatever the topic's MaximumMessageSize, which is also inferred.
+const maxTopicRecord = 262144
+
 // To is the outbox delivery of o to d, sent by s
 // (lambda-destinations-layers.md 4, 11.3): one attempt, as the switch
 // lambda.destination.delivery-retry says (4.6), with no dead-letter queue
@@ -181,7 +194,8 @@ const recordInvocation = delivery.InvocationEvent
 // with a *WrapError, a record Lambda never sends: a Success to S3, which
 // takes on-failure records only (2.2), an S3 record without its key or a
 // key for any other destination, an undeclared condition and an empty
-// record, and one bound for a scope understudy does not serve (served).
+// record, a topic record over SNS's limit without its Oversize form, and
+// one bound for a scope understudy does not serve (served).
 func To(d Destination, s Sender, o Outgoing) (delivery.Request, error) {
 	if err := o.check(d); err != nil {
 		return delivery.Request{}, err
@@ -201,16 +215,31 @@ func To(d Destination, s Sender, o Outgoing) (delivery.Request, error) {
 		in, req.Mechanism, req.Target = d.ARN, delivery.LambdaToSQS, delivery.SQSQueue{ARN: d.ARN, Body: string(o.Body), TraceHeader: s.Trace}
 	case Topic:
 		// No subject or attributes, which are unrecorded (4.2, LDL-05). A
-		// record over SNS's limit goes out whole and SNS refuses it, as the
+		// record over SNS's limit goes out without its payloads, as the
 		// switch lambda.destination.sns-oversize says.
-		in, req.Mechanism, req.Target = d.ARN, delivery.LambdaToSNS, delivery.SNSTopic{ARN: d.ARN, Message: string(o.Body)}
+		msg := o.Body
+		if len(o.Body) > maxTopicRecord {
+			if len(o.Oversize) == 0 {
+				return delivery.Request{}, &WrapError{Reason: "the record is " + strconv.Itoa(len(o.Body)) +
+					" bytes, over SNS's limit of " + strconv.Itoa(maxTopicRecord) + ", and has no Oversize form to send in its place; Build computes it"}
+			}
+			msg = o.Oversize
+		}
+		in, req.Mechanism, req.Target = d.ARN, delivery.LambdaToSNS, delivery.SNSTopic{ARN: d.ARN, Message: string(msg)}
 	case Function:
 		in, req.Mechanism, req.Target = d.ARN, delivery.LambdaToLambda, delivery.LambdaFunction{ARN: d.ARN, Qualifier: d.Qualifier, Event: o.Body, Invocation: recordInvocation}
 	case Bus:
+		// The detail is the record compact throughout, its payloads included
+		// (11.4, LDL-10); whether Lambda or EventBridge compacts it is not
+		// visible, and understudy compacts it here.
+		var detail bytes.Buffer
+		if err := json.Compact(&detail, o.Body); err != nil {
+			return delivery.Request{}, &WrapError{Reason: "the record is not JSON, so it cannot be an EventBridge event's detail: " + err.Error()}
+		}
 		// Resources are the bus, then the qualified function: the switch
 		// lambda.destination.eventbridge-resources-order (4.4, LDL-10).
 		in, req.Mechanism, req.Target = d.ARN, delivery.LambdaToEvents, delivery.EventBus{ARN: d.ARN, Entries: []delivery.EventEntry{{
-			Source: "lambda", DetailType: o.Condition.DetailType(), Detail: string(o.Body), Resources: []string{d.ARN.String(), s.Qualified},
+			Source: "lambda", DetailType: o.Condition.DetailType(), Detail: detail.String(), Resources: []string{d.ARN.String(), s.Qualified},
 		}}}
 	case Bucket:
 		in, req.Mechanism, req.Target = s.Function, delivery.LambdaToS3, delivery.S3Object{Bucket: d.Name, Key: o.ObjectKey, Body: o.Body}

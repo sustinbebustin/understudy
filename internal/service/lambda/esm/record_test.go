@@ -23,7 +23,9 @@ func queueARN(tb testing.TB, s string) aws.ARN {
 }
 
 // The standard-queue record of lambda-events.md 3, verbatim from the
-// with-sqs guide, with the md5OfMessageAttributes AWS delivers.
+// with-sqs guide, with the md5OfMessageAttributes AWS delivers for a message
+// with attributes (testdata/parity/lambda/R03/notes.md, "E md5OfMessageAttributes
+// with attributes").
 func TestNewRecordStandard(t *testing.T) {
 	m := &sqsapi.Message{
 		MessageId:     new("059f36b4-87a3-44ab-83d2-661975830a7d"),
@@ -53,10 +55,10 @@ func TestNewRecordStandard(t *testing.T) {
 	}
 }
 
-// A message without attributes has {} for both maps and a null
-// md5OfMessageAttributes, as AWS delivered it (LocalStack's
-// test_message_body_and_attributes_passed_correctly snapshot); a binary
-// attribute carries binaryValue in base64 and no stringValue.
+// A message without attributes has {} for both maps and no
+// md5OfMessageAttributes key, as AWS delivered it (testdata/parity/logs/R03/E-payloads.json,
+// bodies {"mode":"ok2"} and {"mode":"okfifo"}; testdata/parity/lambda/R03/notes.md); a
+// binary attribute carries binaryValue in base64 and no stringValue.
 func TestNewRecordEmptyAndBinary(t *testing.T) {
 	queue := queueARN(t, "arn:aws:sqs:us-east-1:000000000000:q.fifo")
 	bare, err := json.Marshal(esm.NewRecord(&sqsapi.Message{MessageId: new("m"), ReceiptHandle: new("h"), Body: new(""), MD5OfBody: new("d41d8cd98f00b204e9800998ecf8427e")}, queue))
@@ -64,7 +66,7 @@ func TestNewRecordEmptyAndBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := `{"messageId":"m","receiptHandle":"h","body":"","attributes":{},"messageAttributes":{},"md5OfBody":"d41d8cd98f00b204e9800998ecf8427e",` +
-		`"md5OfMessageAttributes":null,"eventSource":"aws:sqs","eventSourceARN":"arn:aws:sqs:us-east-1:000000000000:q.fifo","awsRegion":"us-east-1"}`
+		`"eventSource":"aws:sqs","eventSourceARN":"arn:aws:sqs:us-east-1:000000000000:q.fifo","awsRegion":"us-east-1"}`
 	if string(bare) != want {
 		t.Fatalf("record =\n%s\nwant\n%s", bare, want)
 	}

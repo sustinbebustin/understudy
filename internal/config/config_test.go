@@ -542,16 +542,115 @@ func TestTLSAddress(t *testing.T) {
 	}
 }
 
-// Docker comes from --docker, else DOCKER_HOST, else the default socket.
+// Docker comes from --docker, else DOCKER_HOST, else the Docker context,
+// else the default socket, and the configuration says which.
 func TestDocker(t *testing.T) {
-	if cfg := load(t, nil, nil, files{}); cfg.Docker != (config.DockerSocket{Path: config.DefaultDockerSocket}) {
-		t.Errorf("default docker = %#v", cfg.Docker)
+	if cfg := load(t, nil, nil, files{}); cfg.Docker != (config.DockerSocket{Path: config.DefaultDockerSocket}) || cfg.DockerOrigin != (config.DockerFromDefault{}) {
+		t.Errorf("default docker = %#v from %#v", cfg.Docker, cfg.DockerOrigin)
 	}
-	if cfg := load(t, nil, []string{"DOCKER_HOST=unix:///run/user/1000/docker.sock"}, files{}); cfg.Docker != (config.DockerSocket{Path: "/run/user/1000/docker.sock"}) {
-		t.Errorf("DOCKER_HOST = %#v", cfg.Docker)
+	if cfg := load(t, nil, []string{"DOCKER_HOST=unix:///run/user/1000/docker.sock"}, files{}); cfg.Docker != (config.DockerSocket{Path: "/run/user/1000/docker.sock"}) || cfg.DockerOrigin != (config.DockerFromHost{}) {
+		t.Errorf("DOCKER_HOST = %#v from %#v", cfg.Docker, cfg.DockerOrigin)
 	}
-	if cfg := load(t, []string{"--docker", "disabled"}, []string{"DOCKER_HOST=tcp://x:1"}, files{}); cfg.Docker != (config.DockerDisabled{}) || len(cfg.Warnings) != 0 {
-		t.Errorf("--docker disabled = %#v, warnings %q", cfg.Docker, cfg.Warnings)
+	if cfg := load(t, []string{"--docker", "disabled"}, []string{"DOCKER_HOST=tcp://x:1"}, files{}); cfg.Docker != (config.DockerDisabled{}) || len(cfg.Warnings) != 0 || cfg.DockerOrigin != (config.DockerFromSetting{Where: "--docker"}) {
+		t.Errorf("--docker disabled = %#v from %#v, warnings %q", cfg.Docker, cfg.DockerOrigin, cfg.Warnings)
+	}
+}
+
+// Context meta files, at <config dir>/contexts/meta/<lowercase hex SHA-256
+// of the name>/meta.json in the shape the Docker CLI writes
+// (containers.md 2.1). The digests are sha256sum's for each name.
+const (
+	colimaMeta  = "/cfg/contexts/meta/f24fd3749c1368328e2b149bec149cb6795619f244c5b584e844961215dadd16/meta.json"
+	desktopMeta = "/home/u/.docker/contexts/meta/fe9c6bd7a66301f49ca9b6a70b217107cd1284598bfc254700c989b916da791e/meta.json"
+	remoteMeta  = "/cfg/contexts/meta/b71199ebd070b36beab7317920c2c2f1d777df8d05e5527d8458fda57cb17a7a/meta.json"
+	// remoteTLS is the directory the Docker CLI keeps the remote
+	// context's Docker endpoint certificates in.
+	remoteTLS = "/cfg/contexts/tls/b71199ebd070b36beab7317920c2c2f1d777df8d05e5527d8458fda57cb17a7a/docker"
+)
+
+func contextMeta(name, host string) string {
+	return `{"Name":"` + name + `","Metadata":{"Description":""},"Endpoints":{"docker":{"Host":"` + host + `","SkipTLSVerify":false}}}`
+}
+
+// With neither --docker nor DOCKER_HOST, the Docker endpoint is the current
+// Docker context's, resolved as the Docker CLI resolves it
+// (containers.md 2.1): DOCKER_CONTEXT, else currentContext in
+// <DOCKER_CONFIG, else ~/.docker>/config.json. The context default, or
+// none, is the default socket. A named context's TLS comes from its own
+// store, not DOCKER_TLS_VERIFY.
+func TestDockerContext(t *testing.T) {
+	colima := files{colimaMeta: contextMeta("colima", "unix:///Users/u/.colima/default/docker.sock")}
+	desktop := files{
+		"/home/u/.docker/config.json": `{"auths":{},"currentContext":"desktop-linux"}`,
+		desktopMeta:                   contextMeta("desktop-linux", "unix:///home/u/.docker/desktop/docker.sock"),
+	}
+	both := files{
+		"/cfg/config.json": `{"currentContext":"remote"}`,
+		colimaMeta:         contextMeta("colima", "unix:///Users/u/.colima/default/docker.sock"),
+		remoteMeta:         contextMeta("remote", "tcp://10.0.0.5:2375"),
+	}
+	cases := []struct {
+		name string
+		args []string
+		env  []string
+		f    files
+		want config.Docker
+		from config.DockerOrigin
+	}{
+		{
+			name: "DOCKER_CONTEXT", env: []string{"DOCKER_CONTEXT=colima", "DOCKER_CONFIG=/cfg"}, f: colima,
+			want: config.DockerSocket{Path: "/Users/u/.colima/default/docker.sock"}, from: config.DockerFromContext{Name: "colima"},
+		},
+		{
+			name: "currentContext under HOME", env: []string{"HOME=/home/u"}, f: desktop,
+			want: config.DockerSocket{Path: "/home/u/.docker/desktop/docker.sock"}, from: config.DockerFromContext{Name: "desktop-linux"},
+		},
+		{
+			name: "tcp context", env: []string{"DOCKER_CONFIG=/cfg"}, f: both,
+			want: config.DockerTCP{Addr: "10.0.0.5:2375"}, from: config.DockerFromContext{Name: "remote"},
+		},
+		{
+			name: "DOCKER_CONTEXT over currentContext", env: []string{"DOCKER_CONTEXT=colima", "DOCKER_CONFIG=/cfg"}, f: both,
+			want: config.DockerSocket{Path: "/Users/u/.colima/default/docker.sock"}, from: config.DockerFromContext{Name: "colima"},
+		},
+		{
+			name: "context TLS is its own", env: []string{"DOCKER_CONFIG=/cfg", "DOCKER_TLS_VERIFY=1", "DOCKER_CERT_PATH=/certs"}, f: both,
+			want: config.DockerTCP{Addr: "10.0.0.5:2375"}, from: config.DockerFromContext{Name: "remote"},
+		},
+		{
+			name: "DOCKER_HOST over the context", env: []string{"DOCKER_HOST=unix:///x.sock", "DOCKER_CONTEXT=colima", "DOCKER_CONFIG=/cfg"}, f: both,
+			want: config.DockerSocket{Path: "/x.sock"}, from: config.DockerFromHost{},
+		},
+		{
+			name: "--docker over the context", args: []string{"--docker", "unix:///y.sock"}, env: []string{"DOCKER_CONFIG=/cfg"}, f: both,
+			want: config.DockerSocket{Path: "/y.sock"}, from: config.DockerFromSetting{Where: "--docker"},
+		},
+		{
+			name: "UNDERSTUDY_DOCKER over the context", env: []string{"UNDERSTUDY_DOCKER=unix:///y.sock", "DOCKER_CONTEXT=colima", "DOCKER_CONFIG=/cfg"}, f: both,
+			want: config.DockerSocket{Path: "/y.sock"}, from: config.DockerFromSetting{Where: "UNDERSTUDY_DOCKER"},
+		},
+		{
+			name: "DOCKER_CONTEXT default", env: []string{"DOCKER_CONTEXT=default", "DOCKER_CONFIG=/cfg"}, f: both,
+			want: config.DockerSocket{Path: config.DefaultDockerSocket}, from: config.DockerFromDefault{},
+		},
+		{
+			name: "currentContext default", env: []string{"DOCKER_CONFIG=/cfg"}, f: files{"/cfg/config.json": `{"currentContext":"default"}`},
+			want: config.DockerSocket{Path: config.DefaultDockerSocket}, from: config.DockerFromDefault{},
+		},
+		{
+			name: "no currentContext", env: []string{"DOCKER_CONFIG=/cfg"}, f: files{"/cfg/config.json": `{"auths":{}}`},
+			want: config.DockerSocket{Path: config.DefaultDockerSocket}, from: config.DockerFromDefault{},
+		},
+		{
+			name: "no config.json", env: []string{"HOME=/home/u"}, f: files{},
+			want: config.DockerSocket{Path: config.DefaultDockerSocket}, from: config.DockerFromDefault{},
+		},
+	}
+	for _, tc := range cases {
+		cfg := load(t, tc.args, tc.env, tc.f)
+		if cfg.Docker != tc.want || cfg.DockerOrigin != tc.from || len(cfg.Warnings) != 0 {
+			t.Errorf("%s: docker = %#v from %#v, warnings %+v; want %#v from %#v", tc.name, cfg.Docker, cfg.DockerOrigin, cfg.Warnings, tc.want, tc.from)
+		}
 	}
 }
 
@@ -644,6 +743,62 @@ func TestUnusableDockerHostWarns(t *testing.T) {
 	}
 }
 
+// A Docker context whose endpoint understudy cannot use turns containers
+// off with one warning that names the context, where its name came from,
+// and the fix, as an unusable DOCKER_HOST does: an ssh:// endpoint, a TLS
+// endpoint (certificates in the context's TLS store, or SkipTLSVerify,
+// either of which makes the Docker CLI speak TLS), no Docker endpoint, and
+// a meta file that is missing or not JSON.
+func TestUnusableDockerContextWarns(t *testing.T) {
+	ssh := files{remoteMeta: contextMeta("remote", "ssh://user@remote")}
+	tlsStore := files{remoteMeta: contextMeta("remote", "tcp://10.0.0.5:2376"), remoteTLS + "/ca.pem": "pem"}
+	skipVerify := files{remoteMeta: `{"Name":"remote","Endpoints":{"docker":{"Host":"tcp://10.0.0.5:2376","SkipTLSVerify":true}}}`}
+	noEndpoint := files{remoteMeta: `{"Name":"remote","Metadata":{},"Endpoints":{}}`}
+	notJSON := files{remoteMeta: `{"Name":`}
+	byEnv := []string{"DOCKER_CONTEXT=remote", "DOCKER_CONFIG=/cfg"}
+	cases := []struct {
+		name    string
+		env     []string
+		f       files
+		setting string
+		says    string
+	}{
+		{name: "ssh", env: byEnv, f: ssh, setting: "DOCKER_CONTEXT", says: "ssh://user@remote"},
+		{name: "TLS store", env: byEnv, f: tlsStore, setting: "DOCKER_CONTEXT", says: remoteTLS},
+		{name: "SkipTLSVerify", env: byEnv, f: skipVerify, setting: "DOCKER_CONTEXT", says: "TLS"},
+		{name: "no Docker endpoint", env: byEnv, f: noEndpoint, setting: "DOCKER_CONTEXT", says: remoteMeta},
+		{name: "meta not JSON", env: byEnv, f: notJSON, setting: "DOCKER_CONTEXT", says: remoteMeta},
+		{name: "missing meta", env: byEnv, f: files{}, setting: "DOCKER_CONTEXT", says: remoteMeta},
+		{
+			name: "missing meta by currentContext", env: []string{"DOCKER_CONFIG=/cfg"}, f: files{"/cfg/config.json": `{"currentContext":"remote"}`},
+			setting: "/cfg/config.json: currentContext", says: remoteMeta,
+		},
+	}
+	for _, tc := range cases {
+		cfg := load(t, nil, tc.env, tc.f)
+		if cfg.Docker != (config.DockerDisabled{}) || cfg.DockerOrigin != (config.DockerFromContext{Name: "remote"}) || len(cfg.Warnings) != 1 {
+			t.Errorf("%s: docker %#v from %#v, warnings %+v; want disabled from context remote with one warning", tc.name, cfg.Docker, cfg.DockerOrigin, cfg.Warnings)
+			continue
+		}
+		w := cfg.Warnings[0]
+		if w.Setting != tc.setting || !strings.Contains(w.Message, `"remote"`) || !strings.Contains(w.Message+w.Fix, tc.says) ||
+			!strings.Contains(w.Message, "off") || !strings.Contains(w.Fix, "UNDERSTUDY_DOCKER") {
+			t.Errorf("%s: warning %+v; want it to name %s, the context, %q, and UNDERSTUDY_DOCKER as the fix", tc.name, w, tc.setting, tc.says)
+		}
+	}
+}
+
+// A config.json the Docker CLI cannot read keeps the default context, with
+// a warning naming the file, as the CLI warns and goes on (containers.md
+// 2.1).
+func TestUnreadableDockerConfigWarns(t *testing.T) {
+	cfg := load(t, nil, []string{"DOCKER_CONFIG=/cfg"}, files{"/cfg/config.json": `{"currentContext":`})
+	if cfg.Docker != (config.DockerSocket{Path: config.DefaultDockerSocket}) || cfg.DockerOrigin != (config.DockerFromDefault{}) ||
+		len(cfg.Warnings) != 1 || cfg.Warnings[0].Setting != "/cfg/config.json" {
+		t.Errorf("malformed config.json: docker %#v from %#v, warnings %+v; want the default socket and one warning naming the file", cfg.Docker, cfg.DockerOrigin, cfg.Warnings)
+	}
+}
+
 // --clock and --clock-scale combine into one start mode: a scale alone runs
 // the clock that fast, and a scale with a frozen clock is refused naming
 // both settings.
@@ -687,7 +842,7 @@ func TestLoadHostIgnoresListenerRules(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadHost = %v", err)
 	}
-	want := config.Host{Persistence: config.Dir{Path: "/data", SaveEvery: config.DefaultSaveEvery}, Docker: config.DockerDisabled{}, DynamoDB: config.DynamoDBEnabled{}}
+	want := config.Host{Persistence: config.Dir{Path: "/data", SaveEvery: config.DefaultSaveEvery}, Docker: config.DockerDisabled{}, DockerOrigin: config.DockerFromSetting{Where: "UNDERSTUDY_DOCKER"}, DynamoDB: config.DynamoDBEnabled{}}
 	if diff := cmp.Diff(want, host); diff != "" {
 		t.Errorf("LoadHost mismatch (-want +got):\n%s", diff)
 	}

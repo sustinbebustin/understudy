@@ -3,6 +3,7 @@ package lambda
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"maps"
 	"slices"
@@ -288,6 +289,13 @@ func renderConfig(scope aws.Scope, f *Function, v *Version, arn string, rows lis
 		if !rows {
 			out.RuntimeVersionConfig = &lambdaapi.RuntimeVersionConfig{RuntimeVersionArn: new(runtimeVersionARN(scope, c.Runtime))}
 		}
+	case DirCode:
+		out.PackageType = new(lambdaapi.PackageTypeZip)
+		out.CodeSha256 = new(dirSha256(code))
+		out.Runtime, out.Handler = new(lambdaapi.Runtime(c.Runtime)), new(c.Handler)
+		if !rows {
+			out.RuntimeVersionConfig = &lambdaapi.RuntimeVersionConfig{RuntimeVersionArn: new(runtimeVersionARN(scope, c.Runtime))}
+		}
 	case ImageCode:
 		out.PackageType = new(lambdaapi.PackageTypeImage)
 		out.CodeSha256 = new(imageSha256(code))
@@ -418,6 +426,14 @@ func imageSha256(code ImageCode) string {
 	}
 	h := sha256.Sum256([]byte(code.URI))
 	return hex.EncodeToString(h[:])
+}
+
+// dirSha256 is a directory function's CodeSha256: a placeholder, the base64
+// SHA-256 of the directory's path, not of its contents, so edits leave it
+// unchanged and a second terraform plan stays empty (ADR 0010).
+func dirSha256(code DirCode) string {
+	h := sha256.Sum256([]byte(code.Dir))
+	return base64.StdEncoding.EncodeToString(h[:])
 }
 
 // The asynchronous invocation configurations are stored per (function,

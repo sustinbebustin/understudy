@@ -6,6 +6,7 @@
   "cookies": ["cookie1", "cookie2"],
   "headers": {
     "content-type": "text/plain",
+    "cookie": "cookie1; cookie2",
     "header1": "value1",
     "header2": "value1,value2",
     "host": "{{URL_ID}}.lambda-url.us-east-1.localhost:4566",

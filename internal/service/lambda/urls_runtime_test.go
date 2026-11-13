@@ -1,13 +1,18 @@
 package lambda_test
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -145,8 +150,8 @@ const forbidden = `{"Message":"Forbidden. For troubleshooting Function URL autho
 // TestFunctionURLRequestEventGolden sends the Lambda guide's example
 // request (lambda-events.md 7.3) through the edge to a function that
 // echoes its event, which the URL answers as the JSON body. The request
-// carries no trace, so x-amzn-trace-id is the trace the function ran
-// under.
+// carries no trace, so x-amzn-trace-id is the Root of the trace the
+// function ran under (R13 01-logged-events).
 func TestFunctionURLRequestEventGolden(t *testing.T) {
 	var mu sync.Mutex
 	var trace string
@@ -183,7 +188,8 @@ func TestFunctionURLRequestEventGolden(t *testing.T) {
 		if ran == "" {
 			t.Fatal("the function ran without a trace id")
 		}
-		want := strings.NewReplacer("{{URL_ID}}", id, "{{REQUEST_ID}}", requestID, "{{TRACE_ID}}", ran).Replace(string(raw))
+		eventTrace, _, _ := strings.Cut(ran, ";")
+		want := strings.NewReplacer("{{URL_ID}}", id, "{{REQUEST_ID}}", requestID, "{{TRACE_ID}}", eventTrace).Replace(string(raw))
 		var compact bytes.Buffer
 		if err := json.Compact(&compact, []byte(want)); err != nil {
 			t.Fatal(err)
@@ -197,8 +203,8 @@ func TestFunctionURLRequestEventGolden(t *testing.T) {
 	})
 }
 
-// A client's X-Amzn-Trace-Id is the trace the event reports and the one
-// the function runs under, as on AWS.
+// A client's X-Amzn-Trace-Id is the trace the function runs under; the
+// event reports its Root alone, as on AWS (R13 01-logged-events).
 func TestFunctionURLRunsUnderTheClientsTrace(t *testing.T) {
 	const clientTrace = "Root=1-67891233-abcdef012345678912345678;Parent=463ac35c9f6413ad;Sampled=1"
 	var mu sync.Mutex
@@ -223,8 +229,9 @@ func TestFunctionURLRunsUnderTheClientsTrace(t *testing.T) {
 		}
 		mu.Lock()
 		defer mu.Unlock()
-		if ev.Headers["x-amzn-trace-id"] != clientTrace || ran != clientTrace {
-			t.Errorf("event x-amzn-trace-id %q, function trace %q; want both %q", ev.Headers["x-amzn-trace-id"], ran, clientTrace)
+		const wantRoot = "Root=1-67891233-abcdef012345678912345678"
+		if ev.Headers["x-amzn-trace-id"] != wantRoot || ran != clientTrace {
+			t.Errorf("event x-amzn-trace-id %q, function trace %q; want %q and %q", ev.Headers["x-amzn-trace-id"], ran, wantRoot, clientTrace)
 		}
 	})
 }
@@ -346,6 +353,8 @@ func failing(_ context.Context, inv runtimeapi.Invocation) (runtimeapi.Outcome, 
 	return runtimeapi.Success{Payload: []byte(`{"statusCode":"teapot"}`)}, nil
 }
 
+// Each answers 502 Internal Server Error as application/json
+// (lambda/R13/02-resp-raise.json, 02-resp-timeout.json, 02-resp-sc99.json).
 func TestFunctionURLAnswersFunctionErrorsAndMalformedResponsesWith502(t *testing.T) {
 	runURLs(t, failing, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
@@ -353,8 +362,8 @@ func TestFunctionURLAnswersFunctionErrorsAndMalformedResponsesWith502(t *testing
 		for _, path := range []string{"/error", "/timeout", "/malformed"} {
 			rec := h.send(h.request(http.MethodGet, "http://"+host+path, ""))
 			expect(t, rec, http.StatusBadGateway, "Internal Server Error")
-			if ct := rec.Header().Get("Content-Type"); ct != "text/plain" {
-				t.Errorf("%s: Content-Type = %q, want text/plain", path, ct)
+			if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+				t.Errorf("%s: Content-Type = %q, want application/json", path, ct)
 			}
 		}
 	})
@@ -372,6 +381,119 @@ func TestFunctionURLSendsTheFunctionsStructuredResponse(t *testing.T) {
 		expect(t, rec, http.StatusTeapot, "i'm a teapot")
 		if rec.Header().Get("X-Tea") != "pot" || rec.Header().Get("Set-Cookie") != "a=1" || rec.Header().Get("Content-Type") != "application/json" {
 			t.Errorf("headers %v, want X-Tea, Set-Cookie and the default application/json", rec.Header())
+		}
+	})
+}
+
+// wireAnswer is a response as a client read it off the connection.
+type wireAnswer struct {
+	status int
+	header http.Header
+	// contentLength is -1 when the response sent none.
+	contentLength    int64
+	transferEncoding []string
+	body             []byte
+}
+
+// sendOverTheWire sends a method request to the URL host through the edge
+// behind an http.Server, so the response is framed as a client receives
+// it. The connection is an in-memory pipe: the harness runs in a synctest
+// bubble, where a loopback socket stalls.
+func (h *urlHarness) sendOverTheWire(method, host string) wireAnswer {
+	h.Helper()
+	client, serverEnd := net.Pipe()
+	l := &oneConnListener{conn: pipeConn{serverEnd}, done: make(chan struct{})}
+	srv := &http.Server{Handler: h.edge, ReadHeaderTimeout: time.Minute}
+	served := make(chan error, 1)
+	go func() { served <- srv.Serve(l) }()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			h.Error(err)
+		}
+		if err := <-served; !errors.Is(err, http.ErrServerClosed) {
+			h.Errorf("Serve = %v, want http.ErrServerClosed", err)
+		}
+	}()
+	r, err := http.NewRequestWithContext(h.Context(), method, "http://"+host+"/", http.NoBody)
+	if err != nil {
+		h.Fatal(err)
+	}
+	if err := r.Write(client); err != nil {
+		h.Fatal(err)
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(client), r)
+	if err != nil {
+		h.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		h.Fatal(err)
+	}
+	return wireAnswer{status: resp.StatusCode, header: resp.Header, contentLength: resp.ContentLength, transferEncoding: resp.TransferEncoding, body: body}
+}
+
+// oneConnListener accepts conn once, then waits for Close.
+type oneConnListener struct {
+	conn             net.Conn
+	accepted, closed sync.Once
+	done             chan struct{}
+}
+
+func (l *oneConnListener) Accept() (net.Conn, error) {
+	var c net.Conn
+	l.accepted.Do(func() { c = l.conn })
+	if c != nil {
+		return c, nil
+	}
+	<-l.done
+	return nil, net.ErrClosed
+}
+
+func (l *oneConnListener) Close() error {
+	l.closed.Do(func() { close(l.done) })
+	return nil
+}
+
+func (*oneConnListener) Addr() net.Addr { return &net.UnixAddr{Name: "pipe", Net: "pipe"} }
+
+// pipeConn is a pipe end whose peer reads as a loopback client, as the
+// edge expects of a request's remote address.
+type pipeConn struct{ net.Conn }
+
+func (pipeConn) RemoteAddr() net.Addr {
+	return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 50000}
+}
+
+// A 6 MiB + 10 byte body goes with its Content-Length, not chunked
+// (lambda/R13/02-resp-big.json).
+func TestFunctionURLSendsLargeBodiesWithAContentLength(t *testing.T) {
+	const size = 6<<20 + 10
+	answer := func(context.Context, runtimeapi.Invocation) (runtimeapi.Outcome, error) {
+		return runtimeapi.Success{Payload: []byte(`"` + strings.Repeat("x", size) + `"`)}, nil
+	}
+	runURLs(t, answer, func(h *urlHarness) {
+		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
+		h.allowPublic()
+		a := h.sendOverTheWire(http.MethodGet, host)
+		if a.status != http.StatusOK || a.contentLength != size || len(a.transferEncoding) != 0 || len(a.body) != size {
+			t.Errorf("%d, Content-Length %d, Transfer-Encoding %q, %d bytes; want 200, %d, none, %d bytes", a.status, a.contentLength, a.transferEncoding, len(a.body), size, size)
+		}
+	})
+}
+
+// HEAD runs the function and answers 200 with Content-Length 0, not the
+// length of the body it leaves out (lambda/R13/01-head.json).
+func TestFunctionURLAnswersHEADWithContentLengthZero(t *testing.T) {
+	runURLs(t, pooltest.Echo, func(h *urlHarness) {
+		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
+		h.allowPublic()
+		a := h.sendOverTheWire(http.MethodHead, host)
+		if a.status != http.StatusOK || a.header.Get("Content-Length") != "0" || len(a.body) != 0 {
+			t.Errorf("HEAD: %d, Content-Length %q, %d bytes; want 200, 0, no body", a.status, a.header.Get("Content-Length"), len(a.body))
+		}
+		if n := len(h.invocations()); n != 1 {
+			t.Errorf("HEAD ran the function %d times, want once", n)
 		}
 	})
 }
@@ -613,4 +735,31 @@ func useActions(uses []access.Use) string {
 		names[i] = uses[i].Action.Prefix + ":" + uses[i].Action.Name
 	}
 	return strings.Join(names, ",")
+}
+
+// TestFunctionURLIDAndTimestampsLookLikeAWS: every recorded id is 32
+// characters of [a-z2-7] with 0 at index 26, and CreationTime and
+// LastModifiedTime carry nine fractional digits
+// (testdata/parity/lambda/R13/00-create-url-1.json .. 00-create-url-10.json,
+// 03-update-cors.json).
+func TestFunctionURLIDAndTimestampsLookLikeAWS(t *testing.T) {
+	id := regexp.MustCompile(`^http://[a-z2-7]{26}0[a-z2-7]{5}\.lambda-url\.`)
+	stamp := regexp.MustCompile(`^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{9}Z$`)
+	run(t, lambda.Options{}, func(h *harness) {
+		for i := range 200 {
+			name := "fn" + strconv.Itoa(i)
+			h.createFunction(name)
+			out := call(h, lambdaapi.OpCreateFunctionUrlConfig, &lambdaapi.CreateFunctionUrlConfigInput{FunctionName: name, AuthType: lambdaapi.FunctionUrlAuthTypeNone})
+			if !id.MatchString(out.FunctionUrl) {
+				t.Fatalf("FunctionUrl = %q, want a 32-character id of [a-z2-7] with 0 at index 26", out.FunctionUrl)
+			}
+			if !stamp.MatchString(out.CreationTime) {
+				t.Fatalf("CreationTime = %q, want nine fractional digits", out.CreationTime)
+			}
+			got := call(h, lambdaapi.OpGetFunctionUrlConfig, &lambdaapi.GetFunctionUrlConfigInput{FunctionName: name})
+			if !stamp.MatchString(got.LastModifiedTime) {
+				t.Fatalf("LastModifiedTime = %q, want nine fractional digits", got.LastModifiedTime)
+			}
+		}
+	})
 }

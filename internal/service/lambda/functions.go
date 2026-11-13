@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
@@ -36,17 +37,19 @@ func (s *Service) bindFunctions(b lambdaapi.Binder) {
 	const layerFound = "a layer version is found only if it was published to understudy, which never fetches layers from AWS; "
 	// The trust check is recorded for CreateFunction only
 	// (iam-enforcement-surfaces.md 13.28).
+	// The dead-letter checks are lambda-destinations-layers.md 5.1's.
 	const (
 		trust       = " under iam.enforce=enforce the caller needs iam:PassRole on the execution role, asked with iam:PassedToService lambda.amazonaws.com, then the role's trust policy must let lambda.amazonaws.com assume it"
 		trustModes  = ", else InvalidParameterValueException; under advise both are asked and a denial journaled, under off neither"
 		trustUpdate = " (inferred: only CreateFunction's trust check is recorded)"
+		deadLetter  = "; a dead-letter target must be an existing standard SQS queue or an SNS topic, and under iam.enforce=enforce the execution role must be allowed sqs:SendMessage or sns:Publish on it (advise journals a denial, off asks nothing); the answers for a missing topic and for the role's sns:Publish are inferred"
 	)
-	b.CreateFunction(s.createFunction, partial(layerFound+"PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only;"+trust+trustModes),
+	b.CreateFunction(s.createFunction, partial(layerFound+"PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only;"+trust+trustModes+deadLetter+" (inferred: only UpdateFunctionConfiguration's dead-letter checks are recorded)"),
 		kernel.WithValidator(validateCreateFunction), kernel.WithCheck(checkCreateFunction))
 	b.GetFunction(s.getFunction, partial("Code.Location is a link understudy serves the package at, not a presigned S3 URL"))
 	b.GetFunctionConfiguration(s.getFunctionConfiguration, full())
 	b.ListFunctions(s.listFunctions, full())
-	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial(layerFound+"DurableConfig is refused; code signing and VPC networking are stored only; when the update passes a Role,"+trust+trustUpdate+trustModes),
+	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial(layerFound+"DurableConfig is refused; code signing and VPC networking are stored only; when the update passes a Role,"+trust+trustUpdate+trustModes+deadLetter),
 		kernel.WithValidator(validateUpdateConfiguration), kernel.WithCheck(checkUpdateConfiguration))
 	b.UpdateFunctionCode(s.updateFunctionCode, partial(publishToRefused), kernel.WithValidator(validateUpdateCode),
 		kernel.WithCheck(func(in *lambdaapi.UpdateFunctionCodeInput) *awserr.Error {
@@ -68,6 +71,11 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 	if err := checkRoleTrust(ctx, c, ref, &in.Role); err != nil {
 		return nil, err
 	}
+	if target := deadLetterTarget(in.DeadLetterConfig); target != "" {
+		if err := s.checkDeadLetter(ctx, c, ref, in.Role, target); err != nil {
+			return nil, err
+		}
+	}
 	packageType := smithy.Deref(in.PackageType)
 	if packageType == "" {
 		packageType = lambdaapi.PackageTypeZip
@@ -76,7 +84,7 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 	if err != nil {
 		return nil, err
 	}
-	att, err := s.resolveLayers(ctx, ref.scope, in.Layers)
+	att, err := s.resolveLayers(ctx, c.Principal(), ref.scope, in.Layers)
 	if err != nil {
 		return nil, err
 	}
@@ -100,11 +108,11 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 		if _, ok := st.Functions[ref.name]; ok {
 			return lambdaapi.FunctionConfiguration{}, errFunctionExists(ref.name)
 		}
-		for _, a := range att.advisories {
-			tx.Record(ref.scope, a)
-		}
 		v := Version{Number: latest, Config: cfg, Code: code, Status: s.initialStatus(code, now), Modified: now, RevisionID: st.revision(ref.scope)}
-		f := Function{Name: ref.name, Created: now, Latest: v, Tags: maps.Clone(in.Tags), Generation: 1, Incarnation: st.revision(ref.scope)}
+		f := Function{
+			Name: ref.name, Created: now, Latest: v, LastVersion: st.reclaimVersions(ref.name),
+			Tags: maps.Clone(in.Tags), Generation: 1, Incarnation: st.revision(ref.scope),
+		}
 		s.armProvisioning(tx, ref.scope, ref.name, &v, now)
 		out := renderConfig(ref.scope, &f, &v, ref.arn(), false)
 		if in.Publish {
@@ -123,7 +131,17 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 		return nil, err
 	}
 	touch(c, ref.arn())
+	s.syncCode(ref.scope)
 	return &out, nil
+}
+
+// syncCode tells the Execution, after a committed call that changed the
+// code of functions in scope, to bind the directories they store as code
+// and end the bindings no version names.
+func (s *Service) syncCode(scope aws.Scope) {
+	if s.codeChanged != nil {
+		s.codeChanged(scope)
+	}
 }
 
 // holdForPublish retains, before a write that changes $LATEST and then
@@ -164,6 +182,8 @@ func (s *Service) newCode(ctx context.Context, c *kernel.Call, src codeSource) (
 		return s.storeZip(ctx, b, unzipped)
 	case imageSource:
 		return ImageCode{URI: src.uri}, nil
+	case dirSource:
+		return s.dirCode(src)
 	}
 	return nil, errCodeSource(string(lambdaapi.PackageTypeZip))
 }
@@ -205,6 +225,11 @@ func renderCodeLocation(e kernel.Endpoint, scope aws.Scope, function string, v V
 			out.ResolvedImageUri = new(launcher.Repository(code.URI) + "@sha256:" + digest)
 		}
 		return out
+	case DirCode:
+		// No package exists to link to; LocalStack's answer for a
+		// hot-reload function is unrecorded, so the repository type is the
+		// zip functions' and Location is left out.
+		return &lambdaapi.FunctionCodeLocation{RepositoryType: new("S3")}
 	}
 	return &lambdaapi.FunctionCodeLocation{}
 }
@@ -343,7 +368,10 @@ func (s *Service) updateFunctionConfiguration(ctx context.Context, c *kernel.Cal
 	if err := checkRoleTrust(ctx, c, ref, in.Role); err != nil {
 		return nil, err
 	}
-	att, err := s.layersForUpdate(ctx, ref, in.Layers)
+	if err := s.checkUpdatedDeadLetter(ctx, c, ref, in); err != nil {
+		return nil, err
+	}
+	att, err := s.layersForUpdate(ctx, c.Principal(), ref, in.Layers)
 	if err != nil {
 		return nil, err
 	}
@@ -372,9 +400,6 @@ func (s *Service) updateFunctionConfiguration(ctx context.Context, c *kernel.Cal
 		if err != nil {
 			return result{}, err
 		}
-		for _, a := range att.advisories {
-			tx.Record(ref.scope, a)
-		}
 		return result{out: renderConfig(ref.scope, &f, &f.Latest, ref.arn(), false), released: released}, nil
 	})
 	if err != nil {
@@ -386,11 +411,46 @@ func (s *Service) updateFunctionConfiguration(ctx context.Context, c *kernel.Cal
 	return &res.out, nil
 }
 
-// layersForUpdate resolves an UpdateFunctionConfiguration's Layers for the
-// function ref names; nothing for none. An image function takes no layer,
-// which is refused before the layers are looked up; the write checks again,
-// as the function may be created anew in between.
-func (s *Service) layersForUpdate(ctx context.Context, ref functionRef, layers []string) (attachment, *awserr.Error) {
+// deadLetterTarget is the target a DeadLetterConfig sets; "" for none,
+// which clears the target ({"TargetArn": ""}) or leaves it ({}), and needs
+// no check.
+func deadLetterTarget(d *lambdaapi.DeadLetterConfig) string {
+	if d == nil {
+		return ""
+	}
+	return smithy.Deref(d.TargetArn)
+}
+
+// checkUpdatedDeadLetter checks the dead-letter target an
+// UpdateFunctionConfiguration sets (checkDeadLetter) for the execution role
+// the function will have: the Role the update passes, else the stored one.
+// A missing function is refused first, as the write would refuse it.
+func (s *Service) checkUpdatedDeadLetter(ctx context.Context, c *kernel.Call, ref functionRef, in *lambdaapi.UpdateFunctionConfigurationInput) *awserr.Error {
+	target := deadLetterTarget(in.DeadLetterConfig)
+	if target == "" {
+		return nil
+	}
+	role, err := store.View2(s.cells, ref.scope, func(st *State) (string, *awserr.Error) {
+		f, err := st.function(ref)
+		if err != nil {
+			return "", err
+		}
+		return f.Latest.Config.Role, nil
+	})
+	if err != nil {
+		return err
+	}
+	if in.Role != nil {
+		role = *in.Role
+	}
+	return s.checkDeadLetter(ctx, c, ref, role, target)
+}
+
+// layersForUpdate resolves the Layers caller's UpdateFunctionConfiguration
+// gives the function ref names; nothing for none. An image function takes
+// no layer, which is refused before the layers are looked up; the write
+// checks again, as the function may be created anew in between.
+func (s *Service) layersForUpdate(ctx context.Context, caller identity.Principal, ref functionRef, layers []string) (attachment, *awserr.Error) {
 	if len(layers) == 0 {
 		return attachment{}, nil
 	}
@@ -401,7 +461,7 @@ func (s *Service) layersForUpdate(ctx context.Context, ref functionRef, layers [
 	if packageType == lambdaapi.PackageTypeImage {
 		return attachment{}, errImageTakesNoLayers()
 	}
-	return s.resolveLayers(ctx, ref.scope, layers)
+	return s.resolveLayers(ctx, caller, ref.scope, layers)
 }
 
 // packageType is the package type of the function ref names.
@@ -499,6 +559,7 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 	}
 	s.release(ctx, res.released...)
 	touch(c, ref.arn())
+	s.syncCode(ref.scope)
 	s.hotReloadAdvisory(ctx, c, ref)
 	return &res.out, nil
 }
@@ -569,6 +630,12 @@ func (s *Service) dryRunCode(ctx context.Context, c *kernel.Call, ref functionRe
 			return nil, err
 		}
 		code = ZipCode{Unzipped: unzipped}
+	case dirSource:
+		dir, err := s.dirCode(src)
+		if err != nil {
+			return nil, err
+		}
+		code = dir
 	case imageSource:
 	}
 	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
@@ -610,7 +677,7 @@ func (s *Service) deleteFunction(ctx context.Context, c *kernel.Call, in *lambda
 				s.disarmProvisioning(tx, ref.scope, ref.name, versions[i].Number)
 			}
 			st.retireURLs(slices.Collect(maps.Values(f.URLs))...)
-			delete(st.Functions, ref.name)
+			st.retireFunction(&f)
 			return f.blobRefs(), nil
 		case !isVersionNumber(q):
 			return nil, ref.notFound()
@@ -622,6 +689,7 @@ func (s *Service) deleteFunction(ctx context.Context, c *kernel.Call, in *lambda
 	}
 	s.release(ctx, released...)
 	touch(c, ref.arn())
+	s.syncCode(ref.scope)
 	return &lambdaapi.DeleteFunctionOutput{}, nil
 }
 
@@ -659,7 +727,8 @@ func (s *Service) getFunctionCodeSigningConfig(_ context.Context, c *kernel.Call
 		if _, err := st.function(ref); err != nil {
 			return nil, err
 		}
-		return &lambdaapi.GetFunctionCodeSigningConfigOutput{FunctionName: ref.name}, nil
+		// Without a config AWS answers neither member (lambda/R07/01-get-code-signing-config).
+		return &lambdaapi.GetFunctionCodeSigningConfigOutput{}, nil
 	})
 }
 

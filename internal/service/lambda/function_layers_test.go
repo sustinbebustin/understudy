@@ -14,7 +14,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
-	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
 )
@@ -209,20 +208,21 @@ func TestLayerAttachRefusals(t *testing.T) {
 	})
 }
 
-// A layer understudy never received keeps AWS's sentence for a version
-// that does not exist, then says why: understudy never fetches a layer from
-// AWS, so another account's must be published to it, and an AWS-managed
-// one cannot be (lambda-destinations-layers.md 8.4, 11.5.6).
+// An AWS-managed layer, which understudy never receives, keeps AWS's
+// sentence for a version that does not exist, then says why: understudy
+// never fetches a layer from AWS, and an AWS-managed one cannot be
+// published to it (lambda-destinations-layers.md 8.4, 11.5.6). Another
+// account's version understudy lacks answers as AWS answers one that does
+// not exist, with layerDenied (lambda-destinations-layers.md 7.4).
 func TestLayersUnderstudyNeverReceivedSayWhy(t *testing.T) {
-	const why = " understudy has only the layers published to it and never fetches layers from AWS; "
 	run(t, lambda.Options{}, func(h *harness) {
 		t := h.T
-		const powertools = "arn:aws:lambda:us-east-1:017000801446:layer:AWSLambdaPowertoolsPythonV3-python313-x86_64:40"
-		errorIs(t, fail(h, lambdaapi.OpCreateFunction, withLayers(t, "fn", powertools)), "InvalidParameterValueException",
-			"Layer version "+powertools+" does not exist."+why+"publish the archive to understudy with credentials for account 017000801446 and use the version that returns.")
 		const managed = "arn:aws:lambda:::awslayer:AWSLambda-Python-AWS-SDK"
 		errorIs(t, fail(h, lambdaapi.OpCreateFunction, withLayers(t, "fn", managed)), "InvalidParameterValueException",
-			"Layer version "+managed+" does not exist."+why+"an AWS-managed layer cannot be published to understudy, so publish its content as a layer of your own.")
+			"Layer version "+managed+" does not exist. understudy has only the layers published to it and never fetches layers from AWS; "+
+				"an AWS-managed layer cannot be published to understudy, so publish its content as a layer of your own.")
+		const powertools = "arn:aws:lambda:us-east-1:017000801446:layer:AWSLambdaPowertoolsPythonV3-python313-x86_64:40"
+		layerDenied("a foreign layer understudy lacks", powertools).check(t, fail(h, lambdaapi.OpCreateFunction, withLayers(t, "fn", powertools)))
 	})
 }
 
@@ -249,19 +249,6 @@ func TestLayerCompatibilityFollowsTheSwitch(t *testing.T) {
 	})
 }
 
-// policyWouldDeny returns the policy-would-deny advisories naming resource.
-func policyWouldDeny(h *harness, resource string) []journal.Advisory {
-	h.Helper()
-	var out []journal.Advisory
-	events := h.Journal.Query(journal.Filter{Kind: journal.KindAdvisory, Limit: 100}).Events
-	for i := range events {
-		if a, ok := events[i].Detail.(journal.Advisory); ok && a.Kind == journal.AdvisoryPolicyWouldDeny && a.Resource.String() == resource {
-			out = append(out, a)
-		}
-	}
-	return out
-}
-
 // asAccount runs fn with client calls made in account in the test region.
 func (h *harness) asAccount(account string, fn func()) {
 	h.Helper()
@@ -275,50 +262,80 @@ func (h *harness) asAccount(account string, fn func()) {
 	fn()
 }
 
-// Another account's layer that understudy holds attaches, and when the
-// owner's version policy grants the caller's account nothing, the journal
-// says AWS would refuse it: the switch lambda.layers.cross-account-policy
-// (lambda-destinations-layers.md 7.4, 11.2). A statement for the caller's
-// account, for everyone, or for an organization counts as a grant.
-func TestAnotherAccountsLayerFollowsTheCrossAccountSwitch(t *testing.T) {
+// theirLayers is the ARN prefix of the layers of account 111111111111, whom
+// the harness's account 000000000000 calls as another account.
+const theirLayers = "arn:aws:lambda:us-east-1:111111111111:layer:"
+
+// publishTheirLayers publishes, in account 111111111111, version 1 of
+// "private", which grants no one, and of "granted", "public" and "org",
+// which grant account 000000000000, everyone, and an organization.
+func (h *harness) publishTheirLayers() {
+	h.Helper()
+	h.asAccount("111111111111", func() {
+		for _, name := range []string{"private", "granted", "public", "org"} {
+			h.publish(name, pythonLayer(h.T))
+		}
+		for name, in := range map[string]*lambdaapi.AddLayerVersionPermissionInput{
+			"granted": {Principal: "000000000000"},
+			"public":  {Principal: "*"},
+			"org":     {Principal: "*", OrganizationId: new("o-0123456789")},
+		} {
+			in.LayerName, in.VersionNumber, in.StatementId, in.Action = name, 1, "s1", "lambda:GetLayerVersion"
+			call(h, lambdaapi.OpAddLayerVersionPermission, in)
+		}
+	})
+}
+
+// layerDenied is AWS's answer for another account's layer version that its
+// owner's policy does not grant the caller, or that does not exist, the two
+// being indistinguishable: 403 AccessDeniedException with no Type
+// (lambda-destinations-layers.md 7.4: testdata/parity/lambda/LDL-15/09-foreign-create.json,
+// 10-foreign-get.json). The capture's caller is an assumed-role session and
+// the harness calls as its account's root, so the text is AWS's grammar
+// around that principal.
+func layerDenied(name, arn string) golden {
+	return golden{
+		name, "AccessDeniedException", 403,
+		"User: arn:aws:iam::000000000000:root is not authorized to perform: lambda:GetLayerVersion on resource: " + arn +
+			" because no resource-based policy allows the lambda:GetLayerVersion action",
+		false,
+	}
+}
+
+// Another account's layer version attaches only when its owner's policy
+// grants the caller's account: CreateFunction and UpdateFunctionConfiguration
+// refuse an ungranted version, and one that does not exist, with
+// layerDenied, and change nothing (switch lambda.layers.cross-account-policy).
+// A statement for the caller's account, for everyone, or for an
+// organization counts as a grant.
+func TestAnotherAccountsUngrantedLayerIsRefused(t *testing.T) {
 	run(t, lambda.Options{}, func(h *harness) {
 		t := h.T
-		if v := h.switchValue("lambda.layers.cross-account-policy"); v != "advise" {
+		if v := h.switchValue("lambda.layers.cross-account-policy"); v != "refuse" {
 			t.Fatalf("lambda.layers.cross-account-policy = %q, a value this test does not know", v)
 		}
-		const owner = "111111111111"
-		const theirs = "arn:aws:lambda:us-east-1:" + owner + ":layer:"
-		h.asAccount(owner, func() {
-			for _, name := range []string{"private", "granted", "public", "org"} {
-				h.publish(name, pythonLayer(t))
-			}
-			for name, in := range map[string]*lambdaapi.AddLayerVersionPermissionInput{
-				"granted": {Principal: "000000000000"},
-				"public":  {Principal: "*"},
-				"org":     {Principal: "*", OrganizationId: new("o-0123456789")},
-			} {
-				in.LayerName, in.VersionNumber, in.StatementId, in.Action = name, 1, "s1", "lambda:GetLayerVersion"
-				call(h, lambdaapi.OpAddLayerVersionPermission, in)
-			}
-		})
-		created := call(h, lambdaapi.OpCreateFunction, withLayers(t, "fn", theirs+"private:1"))
-		if len(created.Layers) != 1 || deref(created.Layers[0].Arn) != theirs+"private:1" {
-			t.Fatalf("Layers = %+v, want account %s's private:1 attached", created.Layers, owner)
+		h.publishTheirLayers()
+		h.createFunction("fn")
+		h.settle()
+		for _, arn := range []string{theirLayers + "private:1", theirLayers + "nosuch:1", theirLayers + "private:2"} {
+			layerDenied("CreateFunction with "+arn, arn).check(t, fail(h, lambdaapi.OpCreateFunction, withLayers(t, "other", arn)))
+			layerDenied("UpdateFunctionConfiguration with "+arn, arn).check(t,
+				fail(h, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{FunctionName: "fn", Layers: []string{arn}}))
 		}
-		advisories := policyWouldDeny(h, theirs+"private:1")
-		if len(advisories) != 1 {
-			t.Fatalf("policy-would-deny advisories for private:1 = %+v, want one", advisories)
-		}
-		for _, want := range []string{owner, "000000000000", "lambda.layers.cross-account-policy"} {
-			if !strings.Contains(advisories[0].Text, want) {
-				t.Errorf("advisory %q does not name %s", advisories[0].Text, want)
-			}
+		errorIs(t, fail(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: "other"}),
+			"ResourceNotFoundException", "Function not found: "+fnARN("other"))
+		if got := call(h, lambdaapi.OpGetFunctionConfiguration, &lambdaapi.GetFunctionConfigurationInput{FunctionName: "fn"}); len(got.Layers) != 0 {
+			t.Errorf("after the refused update fn has Layers %+v, want none", got.Layers)
 		}
 		for _, name := range []string{"granted", "public", "org"} {
-			call(h, lambdaapi.OpCreateFunction, withLayers(t, "fn-"+name, theirs+name+":1"))
-			if got := policyWouldDeny(h, theirs+name+":1"); len(got) != 0 {
-				t.Errorf("attaching %s:1, which the owner granted, journaled %+v", name, got)
+			created := call(h, lambdaapi.OpCreateFunction, withLayers(t, "fn-"+name, theirLayers+name+":1"))
+			if len(created.Layers) != 1 || deref(created.Layers[0].Arn) != theirLayers+name+":1" {
+				t.Errorf("CreateFunction with %s:1, which the owner granted, has Layers %+v", name, created.Layers)
 			}
+		}
+		updated := call(h, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{FunctionName: "fn", Layers: []string{theirLayers + "granted:1"}})
+		if len(updated.Layers) != 1 || deref(updated.Layers[0].Arn) != theirLayers+"granted:1" {
+			t.Errorf("UpdateFunctionConfiguration with granted:1 has Layers %+v", updated.Layers)
 		}
 	})
 }
