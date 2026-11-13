@@ -127,8 +127,9 @@ func detachedRetention() fidelity.Switch[time.Duration] {
 	}
 }
 
-// Switches lists the service's fidelity switches, http delivery's, filter policy evaluation's, and SNS's denial text and
-// deliveries (iam-enforcement-surfaces.md 12.8) among them.
+// Switches lists the service's fidelity switches, http delivery's, filter
+// policy evaluation's, and SNS's denial text and deliveries
+// (iam-enforcement-surfaces.md 12.8) among them.
 func (s *Service) Switches() []fidelity.Entry {
 	entries := []fidelity.Entry{
 		pendingInListings().Entry(), fifoSequence().Entry(), fifoDuplicate().Entry(),

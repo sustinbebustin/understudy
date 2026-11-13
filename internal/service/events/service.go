@@ -168,10 +168,10 @@ func detailIntegerRange() fidelity.Switch[string] {
 	}
 }
 
-// Switches lists the service's fidelity switches: its own, the status of a denial and its deliveries under
-// enforcement (iam-enforcement-surfaces.md 12.8), and those of its Event
-// Ruler profile, with the label, operations and settling step
-// rulerSwitches states for each.
+// Switches lists the service's fidelity switches: its own, the status of a
+// denial and its deliveries under enforcement (iam-enforcement-surfaces.md
+// 12.8), and those of its Event Ruler profile, with the label, operations
+// and settling step rulerSwitches states for each.
 func (s *Service) Switches() []fidelity.Entry {
 	profile := ruler.Switches(s.profile)
 	table := rulerSwitches()

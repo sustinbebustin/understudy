@@ -164,11 +164,14 @@ type switchMeta struct {
 func switchTable() map[string]switchMeta {
 	compile := []string{"sns.Subscribe", "sns.SetSubscriptionAttributes"}
 	match := []string{"sns.Publish", "sns.PublishBatch"}
+	recorded := func(reason string) fidelity.Settles {
+		return fidelity.NoScenario{Reason: reason}
+	}
 	subscribes := func(steps string) fidelity.Settles {
-		return fidelity.NoScenario{Reason: "recorded in sns/R09 (" + steps + "); its boto3 captures hold no status, so a replay compares none of them"}
+		return recorded("recorded in sns/R09 (" + steps + "); its boto3 captures hold no status, so a replay compares none of them")
 	}
 	deliveries := func(rows string) fidelity.Settles {
-		return fidelity.NoScenario{Reason: "recorded in sns/R09/summary.tsv (" + rows + "); a delivery is no exchange a replay can compare"}
+		return recorded("recorded in sns/R09/summary.tsv (" + rows + "); a delivery is no exchange a replay can compare")
 	}
 	return map[string]switchMeta{
 		"sns.filter-policy.bare-number":         {evidence.AWSRecorded, match, deliveries("T01 to T03, H6")},
@@ -186,7 +189,7 @@ func switchTable() map[string]switchMeta {
 		"sns.filter-policy.number-attribute-type": {evidence.AWSRecorded, match, deliveries("T19a, T19b")},
 		"sns.filter-policy.numeric-range": {
 			evidence.AWSRecorded, slices.Concat(compile, match),
-			fidelity.NoScenario{Reason: "recorded in sns/R09 (T15-subscribe, the H5 subscribes) and sns/R09/summary.tsv (T15, H5); its boto3 captures hold no status and a delivery is no exchange, so a replay compares none of them"},
+			recorded("recorded in sns/R09 (T15-subscribe, the H5 subscribes) and sns/R09/summary.tsv (T15, H5); its boto3 captures hold no status and a delivery is no exchange, so a replay compares none of them"),
 		},
 		"sns.filter-policy.anything-but-arrays": {evidence.AWSRecorded, match, deliveries("T08, H4")},
 		"sns.filter-policy.array-consistency":   {evidence.AWSRecorded, match, deliveries("T14")},

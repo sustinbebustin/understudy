@@ -1,8 +1,8 @@
 package logsfilter
 
 // Options selects the filter-pattern behaviors that are fidelity switches.
-// The zero value is the documented default for each. The logs service lifts each
-// field into a fidelity switch with the metadata Switches returns; this
+// The zero value is the documented default for each. The logs service lifts
+// each field into a fidelity switch with the metadata Switches returns; this
 // package stays a leaf and does not import the fidelity ledger.
 type Options struct {
 	// TermBoundary decides how an unstructured term or phrase is found in a

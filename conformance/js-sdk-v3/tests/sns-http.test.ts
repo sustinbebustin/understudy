@@ -98,6 +98,7 @@ function validate(message: SnsMessage): Promise<string | null> {
  */
 async function opensslVerify(message: SnsMessage, fields: string[]): Promise<string> {
   const certURL = message.SigningCertURL ?? "";
+  assertLoopbackLink(certURL);
   const resp = await fetch(certURL, { tls: { ca } });
   expect(resp.status).toBe(200);
   const dir = mkdtempSync(join(work, "verify-"));

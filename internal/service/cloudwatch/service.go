@@ -83,9 +83,8 @@ func startRounding() fidelity.Switch[string] {
 }
 
 // Switches lists the service's fidelity switches, with the identity of a
-// denial per protocol, which IAM-ENF-09 recorded over
-// Query and JSON; CBOR follows JSON, inferred (iam-enforcement-surfaces.md
-// 12.8).
+// denial per protocol, which IAM-ENF-09 recorded over Query and JSON; CBOR
+// follows JSON, inferred (iam-enforcement-surfaces.md 12.8).
 func (s *Service) Switches() []fidelity.Entry {
 	return append([]fidelity.Entry{
 		timestampWindow().Entry(), startRounding().Entry(),

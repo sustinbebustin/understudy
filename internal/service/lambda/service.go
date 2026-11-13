@@ -208,13 +208,13 @@ func lambdaAction(name string) registry.IAMAction {
 	return registry.IAMAction{Prefix: "lambda", Name: name}
 }
 
-// Switches lists the service's fidelity switches: the state transitions, the asynchronous queue's, destinations' and layers'
-// choices, the event source mapping filter engine's choices, Lambda's
-// denial body, how a mapping meets a role refused the queue
-// (iam-enforcement-surfaces.md 8.6, 12.8) and the stream poller's LATEST
-// anchor, retry delay and partial-resend budget. The transitions govern
-// the calls that create or change a function or mapping and the reads that
-// report its state.
+// Switches lists the service's fidelity switches: the state transitions,
+// the asynchronous queue's, destinations' and layers' choices, the event
+// source mapping filter engine's choices, Lambda's denial body, how a
+// mapping meets a role refused the queue (iam-enforcement-surfaces.md 8.6,
+// 12.8) and the stream poller's LATEST anchor, retry delay and
+// partial-resend budget. The transitions govern the calls that create or
+// change a function or mapping and the reads that report its state.
 func (s *Service) Switches() []fidelity.Entry {
 	denial := authz.RecordedSwitch("lambda.denial.body", `AccessDeniedException 403, {"Message":"<grammar of 4.1>"}`, "3.2", "IAM-ENF-11",
 		authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(lambdaapi.Service()))
