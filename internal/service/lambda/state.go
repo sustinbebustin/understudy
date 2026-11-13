@@ -21,44 +21,25 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshot sections. Version
-// 2 added Mapping.SourceKind, version 3 the layer store, version 4 moved
-// an SQS mapping's scaling into its source kind and saves stream
-// checkpoints, version 5 added State.RetiredVersions, version 6 records
-// whether a layer version ever had a policy (LayerVersion.HadPolicy) and
-// each layer statement's size as AWS measures it (Statement.MeasuredSize),
-// version 7 ImageCode.DigestKind, version 8 whether a stream mapping
-// disabled itself because its stream closed (Mapping.StreamClosed), and
-// version 9 added directory code (DirCode). A version 8 section, which
-// holds no directory code, loads as is; so does a version 7 section, its
-// mappings not closed, a version 6 section, its image codes' kinds
-// unrecorded too, a version 5 section, which also lacks the layer-policy
-// fields, and a version 4 section, with no numbers remembered for deleted
-// functions either; a version 3 section is migrated on import
-// (migrateUnkindedScaling); a section of an earlier version is refused
-// (ADR 0009).
+// stateVersion is the schema version of State in snapshot sections. What
+// each version added:
+//
+//   - 2: Mapping.SourceKind
+//   - 3: the layer store
+//   - 4: an SQS mapping's scaling moved into its source kind; stream
+//     checkpoints saved
+//   - 5: State.RetiredVersions
+//   - 6: LayerVersion.HadPolicy and each layer statement's measured size
+//     (Statement.MeasuredSize)
+//   - 7: ImageCode.DigestKind
+//   - 8: Mapping.StreamClosed
+//   - 9: directory code (DirCode)
+//
+// Every version after 3 only adds optional fields, so a section of version
+// 4 to stateVersion-1 loads as is, the added fields unset; a version 3
+// section is migrated on import (migrateUnkindedScaling); a section of an
+// earlier version is refused (ADR 0009).
 const stateVersion = 9
-
-// stateVersionNoDirCode is the version before directory code, which Import
-// still reads.
-const stateVersionNoDirCode = 8
-
-// stateVersionNoStreamClosed is the version before a stream mapping
-// recorded that it disabled itself, which Import still reads.
-const stateVersionNoStreamClosed = 7
-
-// stateVersionNoDigestKinds is the version before image codes recorded
-// their digest's kind, which Import still reads.
-const stateVersionNoDigestKinds = 6
-
-// stateVersionUnmeasuredLayerPolicies is the version whose layer versions
-// record neither having had a policy nor their statements' measured sizes,
-// which Import still reads.
-const stateVersionUnmeasuredLayerPolicies = 5
-
-// stateVersionNoRetiredVersions is the version before deleted functions'
-// version numbers were kept, which Import still reads.
-const stateVersionNoRetiredVersions = 4
 
 // stateVersionUnkindedScaling is the version whose mappings hold their
 // scaling beside their source kind, which Import still reads.

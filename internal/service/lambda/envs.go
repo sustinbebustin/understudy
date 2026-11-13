@@ -385,12 +385,12 @@ func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, ov
 				return launcher.Spec{}, err
 			}
 		}
-		if spec.Image, spec.Code, err = x.zipCode(ctx, dir, cfg, arch); err != nil {
+		if err := x.zipCode(ctx, &spec, dir, cfg, arch); err != nil {
 			return launcher.Spec{}, err
 		}
 	case DirCode:
 		// lease binds the directory, or names the overlay that wins over it.
-		if spec.Image, spec.Code, err = x.zipCode(ctx, overlayDir, cfg, arch); err != nil {
+		if err := x.zipCode(ctx, &spec, overlayDir, cfg, arch); err != nil {
 			return launcher.Spec{}, err
 		}
 	case ImageCode:
@@ -406,26 +406,28 @@ func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, ov
 	return spec, nil
 }
 
-// zipCode is the image and code of a zip function whose code is dir: its
-// runtime's pinned base image, dir (a hot-reload directory or the
+// zipCode sets the image and code of spec for a zip function whose code is
+// dir: its runtime's pinned base image, dir (a hot-reload directory or the
 // package's extracted tree) at /var/task, and the merged tree of cfg's
-// layers, in order, at /opt (lambda-destinations-layers.md 8.1, 11.5).
-func (x *Execution) zipCode(ctx context.Context, dir string, cfg Config, arch launcher.Architecture) (string, launcher.ZipCode, error) {
+// layers, in order, at /opt (lambda-destinations-layers.md 8.1, 11.5). On
+// an error spec is unchanged.
+func (x *Execution) zipCode(ctx context.Context, spec *launcher.Spec, dir string, cfg Config, arch launcher.Architecture) error {
 	img, ok := launcher.ImageForRuntime(cfg.Runtime)
 	if !ok {
-		return "", launcher.ZipCode{}, fmt.Errorf("understudy pins no base image for the runtime %s; the runtimes it runs are listed by `understudy images pull --help`", cfg.Runtime)
+		return fmt.Errorf("understudy pins no base image for the runtime %s; the runtimes it runs are listed by `understudy images pull --help`", cfg.Runtime)
 	}
 	image, err := x.resolveImage(ctx, arch, img.Ref())
 	if err != nil {
-		return "", launcher.ZipCode{}, err
+		return err
 	}
-	out := launcher.ZipCode{Dir: dir, Handler: cfg.Handler}
+	code := launcher.ZipCode{Dir: dir, Handler: cfg.Handler}
 	if len(cfg.Layers) > 0 {
-		if out.Opt, err = x.trees.opt(ctx, cfg.Layers); err != nil {
-			return "", launcher.ZipCode{}, err
+		if code.Opt, err = x.trees.opt(ctx, cfg.Layers); err != nil {
+			return err
 		}
 	}
-	return image, out, nil
+	spec.Image, spec.Code = image, code
+	return nil
 }
 
 // functionEnvironment is the function's Environment.Variables over the
