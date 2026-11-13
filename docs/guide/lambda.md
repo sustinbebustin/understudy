@@ -242,7 +242,16 @@ aws sqs receive-message --queue-url http://localhost:4566/000000000000/orders-dl
   - an EventBridge bus, default or custom. The event's `source` is `lambda` and its `detail-type` is `Lambda Function Invocation Result - Success` or `- Failure`;
   - on failure only, an S3 bucket. The key is `aws/lambda/async/<function>/YYYY/MM/DD/YYYY-MM-DDTHH.MM.SS-<uuid>`.
 
-  The dead-letter target is an SQS queue or an SNS topic.
+  The dead-letter target is a standard SQS queue or an SNS topic. `create-function` and `update-function-configuration` check it before storing it, as AWS does: a queue or topic that does not exist, a FIFO queue, and an ARN of any other service are refused, and so, under `--iam-enforce enforce`, is a target the execution role may not send to (`sqs:SendMessage`) or publish to (`sns:Publish`). Under `advise` the denial is journaled and the target stored; under `off` it is not asked. `--dead-letter-config TargetArn=` clears the target:
+
+  ```text
+  An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: Error occurred while SendMessage. SQS Error Code: AWS.SimpleQueueService.NonExistentQueue. SQS Error Message: The specified queue does not exist.
+  An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: Invalid dead letter queue ARN: FIFO SQS queue is not supported for dead letter configuration
+  An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: Invalid dead letter queue ARN: The service specified by the TargetArn is not supported for dead letter configuration.
+  An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: The provided execution role does not have permissions to call SendMessage on SQS
+  ```
+
+  AWS's answers for a missing topic and for a topic the role may not publish to are unrecorded; understudy's follow the queue's.
 - Retries run on the emulator clock first. With the default two retries, the record waits for an attempt 60 s after the first failure and another 120 s after the second; on a frozen or slow clock, move it:
 
   ```sh

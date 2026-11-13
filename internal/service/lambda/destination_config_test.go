@@ -10,6 +10,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
@@ -262,6 +263,102 @@ func TestDeadLetterConfigWithoutATargetKeepsTheQueue(t *testing.T) {
 	})
 }
 
+// A dead-letter target that is missing, a FIFO queue or of a service other
+// than SQS or SNS is refused by CreateFunction and UpdateFunctionConfiguration
+// in AWS's recorded words, and nothing is stored
+// (lambda-destinations-layers.md 5.1: testdata/parity/lambda/LDL-08/09-dlq-missing.json,
+// 10-dlq-fifo.json, 11-dlq-bus.json; recorded on UpdateFunctionConfiguration,
+// CreateFunction's answer inferred to be the same). A FIFO queue and a bus
+// are refused before any lookup.
+func TestDeadLetterTargetIsCheckedAtConfiguration(t *testing.T) {
+	cases := []struct {
+		name, target, text string
+		lookups            int
+	}{
+		{
+			"missing queue", "arn:aws:sqs:us-east-1:000000000000:missing-dlq",
+			"Error occurred while SendMessage. SQS Error Code: AWS.SimpleQueueService.NonExistentQueue. SQS Error Message: The specified queue does not exist.", 1,
+		},
+		{
+			"FIFO queue", "arn:aws:sqs:us-east-1:000000000000:fn-dlq.fifo",
+			"Invalid dead letter queue ARN: FIFO SQS queue is not supported for dead letter configuration", 0,
+		},
+		{
+			"event bus", "arn:aws:events:us-east-1:000000000000:event-bus/default",
+			"Invalid dead letter queue ARN: The service specified by the TargetArn is not supported for dead letter configuration.", 0,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name+" on create", func(t *testing.T) {
+			runLookups(t, func(h *harness, seen *lookups) {
+				t := h.T
+				in := zipFunction(h, "fn")
+				in.DeadLetterConfig = &lambdaapi.DeadLetterConfig{TargetArn: new(c.target)}
+				err := fail(h, lambdaapi.OpCreateFunction, in)
+				errorIs(t, err, "InvalidParameterValueException", c.text)
+				userFault(t, err)
+				if n := len(seen.all()); n != c.lookups {
+					t.Errorf("%d lookups, want %d", n, c.lookups)
+				}
+				errorIs(t, fail(h, lambdaapi.OpGetFunctionConfiguration, &lambdaapi.GetFunctionConfigurationInput{FunctionName: "fn"}),
+					"ResourceNotFoundException", "Function not found: "+fnUnqualified)
+			})
+		})
+		t.Run(c.name+" on update", func(t *testing.T) {
+			runLookups(t, func(h *harness, seen *lookups) {
+				t := h.T
+				in := zipFunction(h, "fn")
+				in.DeadLetterConfig = &lambdaapi.DeadLetterConfig{TargetArn: new(dlqA)}
+				call(h, lambdaapi.OpCreateFunction, in)
+				h.settle()
+				before := len(seen.all())
+				err := fail(h, lambdaapi.OpUpdateFunctionConfiguration, &lambdaapi.UpdateFunctionConfigurationInput{
+					FunctionName: "fn", DeadLetterConfig: &lambdaapi.DeadLetterConfig{TargetArn: new(c.target)},
+				})
+				errorIs(t, err, "InvalidParameterValueException", c.text)
+				userFault(t, err)
+				if n := len(seen.all()) - before; n != c.lookups {
+					t.Errorf("%d lookups, want %d", n, c.lookups)
+				}
+				got := call(h, lambdaapi.OpGetFunctionConfiguration, &lambdaapi.GetFunctionConfigurationInput{FunctionName: "fn"})
+				if got.DeadLetterConfig == nil || deref(got.DeadLetterConfig.TargetArn) != dlqA {
+					t.Errorf("configuration after the refused update = %+v, want %s kept", got.DeadLetterConfig, dlqA)
+				}
+			})
+		})
+	}
+}
+
+// A dead-letter topic that does not exist is refused, as a missing queue
+// is, after a lookup in SNS. AWS's text for it is unrecorded
+// (lambda-destinations-layers.md 5.1), so the expectation reads
+// understudy's choice, inferred from the queue's recorded text with SNS's
+// NotFound answer, as its own constant rather than from a capture.
+func TestDeadLetterTopicThatDoesNotExistIsRefused(t *testing.T) {
+	runLookups(t, func(h *harness, seen *lookups) {
+		t := h.T
+		const missing = "arn:aws:sns:us-east-1:000000000000:missing-topic"
+		in := zipFunction(h, "fn")
+		in.DeadLetterConfig = &lambdaapi.DeadLetterConfig{TargetArn: new(missing)}
+		err := fail(h, lambdaapi.OpCreateFunction, in)
+		errorIs(t, err, "InvalidParameterValueException", "Error occurred while Publish. SNS Error Code: NotFound. SNS Error Message: Topic does not exist")
+		userFault(t, err)
+		got := seen.all()
+		if len(got) != 1 || got[0].op+" "+got[0].in != "GetTopicAttributes "+missing {
+			t.Errorf("lookups = %+v, want one GetTopicAttributes of %s", got, missing)
+		}
+	})
+}
+
+// userFault fails the test unless err is a 400 carrying Type User, as every
+// recorded dead-letter refusal does (testdata/parity/lambda/LDL-08/notes.md).
+func userFault(t *testing.T, err *awserr.Error) {
+	t.Helper()
+	if err.ID.Status != 400 || !slices.Contains(err.Fields, awserr.Field{Name: "Type", Value: "User"}) {
+		t.Errorf("refusal = %d with fields %v, want 400 with Type User", err.ID.Status, err.Fields)
+	}
+}
+
 // The operations this unit binds or changes carry the coverage marks and
 // notes of lambda-destinations-layers.md 11.1, verbatim (the CreateFunction
 // and UpdateFunctionConfiguration notes keep the TenancyConfig and
@@ -270,12 +367,15 @@ func TestDeadLetterConfigWithoutATargetKeepsTheQueue(t *testing.T) {
 // inferred for Update (iam-enforcement-surfaces.md 8.5). The CreateFunction
 // and UpdateFunctionConfiguration notes end with the iam:PassRole and
 // execution role trust checks, the trust check recorded for Create and
-// inferred for Update (iam-enforcement-surfaces.md 13.28).
+// inferred for Update (iam-enforcement-surfaces.md 13.28), then the
+// dead-letter target checks, recorded for Update and inferred for Create
+// (lambda-destinations-layers.md 5.1).
 func TestDestinationAndLayerCoverageMarks(t *testing.T) {
 	const (
 		trust       = " under iam.enforce=enforce the caller needs iam:PassRole on the execution role, asked with iam:PassedToService lambda.amazonaws.com, then the role's trust policy must let lambda.amazonaws.com assume it"
 		trustModes  = ", else InvalidParameterValueException; under advise both are asked and a denial journaled, under off neither"
 		trustUpdate = " (inferred: only CreateFunction's trust check is recorded)"
+		deadLetter  = "; a dead-letter target must be an existing standard SQS queue or an SNS topic, and under iam.enforce=enforce the execution role must be allowed sqs:SendMessage or sns:Publish on it (advise journals a denial, off asks nothing); the answers for a missing topic and for the role's sns:Publish are inferred"
 		layerFound  = "a layer version is found only if it was published to understudy, which never fetches layers from AWS; "
 		location    = "Content.Location is a link understudy serves the archive at, not a presigned S3 URL"
 		roleChecked = "the execution role's sns:Publish on an SNS destination and sqs:SendMessage on an SQS one are checked when the configuration is stored"
@@ -292,9 +392,12 @@ func TestDestinationAndLayerCoverageMarks(t *testing.T) {
 		"AddLayerVersionPermission":    registry.StoredOnly{Note: "statements are stored and returned by GetLayerVersionPolicy; another account's use of the layer is advised, not refused"},
 		"RemoveLayerVersionPermission": registry.Full{},
 		"GetLayerVersionPolicy":        registry.Full{},
-		"CreateFunction":               registry.Partial{Note: layerFound + "PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only;" + trust + trustModes},
+		"CreateFunction": registry.Partial{
+			Note: layerFound + "PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only;" + trust + trustModes + deadLetter +
+				" (inferred: only UpdateFunctionConfiguration's dead-letter checks are recorded)",
+		},
 		"UpdateFunctionConfiguration": registry.Partial{
-			Note: layerFound + "DurableConfig is refused; code signing and VPC networking are stored only; when the update passes a Role," + trust + trustUpdate + trustModes,
+			Note: layerFound + "DurableConfig is refused; code signing and VPC networking are stored only; when the update passes a Role," + trust + trustUpdate + trustModes + deadLetter,
 		},
 		"PutFunctionEventInvokeConfig":    registry.Partial{Note: roleChecked + roleCheck + delivery},
 		"UpdateFunctionEventInvokeConfig": registry.Partial{Note: roleChecked + " (inferred: only PutFunctionEventInvokeConfig's check is recorded)" + roleCheck + delivery},

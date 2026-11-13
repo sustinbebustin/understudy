@@ -597,6 +597,46 @@ func errDestinationRoleDenied(action, arn string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException(esmRoleDeniedText(action, arn)))
 }
 
+// errDeadLetterRoleDenied is what CreateFunction and
+// UpdateFunctionConfiguration answer when iam.enforce=enforce refuses the
+// execution role action on the dead-letter target of service (SQS or
+// SNS): "The provided execution role does not have permissions to call
+// SendMessage on SQS", which names the service, not the ARN (aws-recorded,
+// lambda-destinations-layers.md 5.1: testdata/parity/lambda/LDL-08/14-no-permission-dlq.json).
+// The topic's "... Publish on SNS" is inferred from the queue's.
+func errDeadLetterRoleDenied(action, service string) *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("The provided execution role does not have permissions to call " + action + " on " + service))
+}
+
+// errDeadLetterQueueMissing is the answer for a dead-letter queue that does
+// not exist (aws-recorded, lambda-destinations-layers.md 5.1:
+// testdata/parity/lambda/LDL-08/09-dlq-missing.json).
+func errDeadLetterQueueMissing() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Error occurred while SendMessage. SQS Error Code: AWS.SimpleQueueService.NonExistentQueue. SQS Error Message: The specified queue does not exist."))
+}
+
+// errDeadLetterTopicMissing is understudy's answer for a dead-letter topic
+// that does not exist, inferred from the queue's (errDeadLetterQueueMissing)
+// with SNS's own NotFound answer for a missing topic; AWS's is unrecorded
+// (lambda-destinations-layers.md 5.1).
+func errDeadLetterTopicMissing() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Error occurred while Publish. SNS Error Code: NotFound. SNS Error Message: Topic does not exist"))
+}
+
+// errDeadLetterFIFO is the answer for a FIFO dead-letter queue
+// (aws-recorded, lambda-destinations-layers.md 5.1:
+// testdata/parity/lambda/LDL-08/10-dlq-fifo.json).
+func errDeadLetterFIFO() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Invalid dead letter queue ARN: FIFO SQS queue is not supported for dead letter configuration"))
+}
+
+// errDeadLetterService is the answer for a dead-letter target of a service
+// other than SQS or SNS (aws-recorded for an event bus,
+// lambda-destinations-layers.md 5.1: testdata/parity/lambda/LDL-08/11-dlq-bus.json).
+func errDeadLetterService() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Invalid dead letter queue ARN: The service specified by the TargetArn is not supported for dead letter configuration."))
+}
+
 // errRoleNotAssumable is CreateFunction's answer when iam.enforce=enforce
 // finds that lambda.amazonaws.com may not assume the execution role
 // (iam-enforcement-surfaces.md 4.3,

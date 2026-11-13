@@ -1,6 +1,7 @@
 package lambda_test
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -164,14 +165,25 @@ func TestRecordAndDeadLetterStayInTheInvokesTrace(t *testing.T) {
 // A dead-letter target whose account understudy cannot hold passes
 // DeadLetterConfig.TargetArn's pattern (lambda-destinations-layers.md 5.1)
 // but cannot be delivered to: it is left out, and the on-failure record of
-// the same event still goes.
+// the same event still goes. Configuration refuses such a target, as no
+// queue can exist there, so it arrives here the way it still can: in a
+// snapshot written before that check.
 func TestUnservedDeadLetterTargetLeavesTheRecordGoing(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
 		t := h.T
-		in := zipFunction(h, "fn")
-		in.DeadLetterConfig = &lambdaapi.DeadLetterConfig{TargetArn: new("arn:aws:sqs:us-east-1:12345:dlq")}
-		call(h.harness, lambdaapi.OpCreateFunction, in)
+		h.createWithDLQ()
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range sections {
+			sections[i].Data = bytes.ReplaceAll(sections[i].Data, []byte(dlqA), []byte("arn:aws:sqs:us-east-1:12345:dlq"))
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(sections); err != nil {
+			t.Fatal(err)
+		}
 		h.configure("", 0, "", failureQueue)
 		h.invoke(fnEvent(`{"action":"fail"}`))
 		h.settle()

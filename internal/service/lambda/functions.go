@@ -36,17 +36,19 @@ func (s *Service) bindFunctions(b lambdaapi.Binder) {
 	const layerFound = "a layer version is found only if it was published to understudy, which never fetches layers from AWS; "
 	// The trust check is recorded for CreateFunction only
 	// (iam-enforcement-surfaces.md 13.28).
+	// The dead-letter checks are lambda-destinations-layers.md 5.1's.
 	const (
 		trust       = " under iam.enforce=enforce the caller needs iam:PassRole on the execution role, asked with iam:PassedToService lambda.amazonaws.com, then the role's trust policy must let lambda.amazonaws.com assume it"
 		trustModes  = ", else InvalidParameterValueException; under advise both are asked and a denial journaled, under off neither"
 		trustUpdate = " (inferred: only CreateFunction's trust check is recorded)"
+		deadLetter  = "; a dead-letter target must be an existing standard SQS queue or an SNS topic, and under iam.enforce=enforce the execution role must be allowed sqs:SendMessage or sns:Publish on it (advise journals a denial, off asks nothing); the answers for a missing topic and for the role's sns:Publish are inferred"
 	)
-	b.CreateFunction(s.createFunction, partial(layerFound+"PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only;"+trust+trustModes),
+	b.CreateFunction(s.createFunction, partial(layerFound+"PublishTo, TenancyConfig and DurableConfig are refused; code signing and VPC networking are stored only;"+trust+trustModes+deadLetter+" (inferred: only UpdateFunctionConfiguration's dead-letter checks are recorded)"),
 		kernel.WithValidator(validateCreateFunction), kernel.WithCheck(checkCreateFunction))
 	b.GetFunction(s.getFunction, partial("Code.Location is a link understudy serves the package at, not a presigned S3 URL"))
 	b.GetFunctionConfiguration(s.getFunctionConfiguration, full())
 	b.ListFunctions(s.listFunctions, full())
-	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial(layerFound+"DurableConfig is refused; code signing and VPC networking are stored only; when the update passes a Role,"+trust+trustUpdate+trustModes),
+	b.UpdateFunctionConfiguration(s.updateFunctionConfiguration, partial(layerFound+"DurableConfig is refused; code signing and VPC networking are stored only; when the update passes a Role,"+trust+trustUpdate+trustModes+deadLetter),
 		kernel.WithValidator(validateUpdateConfiguration), kernel.WithCheck(checkUpdateConfiguration))
 	b.UpdateFunctionCode(s.updateFunctionCode, partial(publishToRefused), kernel.WithValidator(validateUpdateCode),
 		kernel.WithCheck(func(in *lambdaapi.UpdateFunctionCodeInput) *awserr.Error {
@@ -67,6 +69,11 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 	}
 	if err := checkRoleTrust(ctx, c, ref, &in.Role); err != nil {
 		return nil, err
+	}
+	if target := deadLetterTarget(in.DeadLetterConfig); target != "" {
+		if err := s.checkDeadLetter(ctx, c, ref, in.Role, target); err != nil {
+			return nil, err
+		}
 	}
 	packageType := smithy.Deref(in.PackageType)
 	if packageType == "" {
@@ -346,6 +353,9 @@ func (s *Service) updateFunctionConfiguration(ctx context.Context, c *kernel.Cal
 	if err := checkRoleTrust(ctx, c, ref, in.Role); err != nil {
 		return nil, err
 	}
+	if err := s.checkUpdatedDeadLetter(ctx, c, ref, in); err != nil {
+		return nil, err
+	}
 	att, err := s.layersForUpdate(ctx, ref, in.Layers)
 	if err != nil {
 		return nil, err
@@ -387,6 +397,41 @@ func (s *Service) updateFunctionConfiguration(ctx context.Context, c *kernel.Cal
 	s.release(ctx, res.released...)
 	touch(c, ref.arn())
 	return &res.out, nil
+}
+
+// deadLetterTarget is the target a DeadLetterConfig sets; "" for none,
+// which clears the target ({"TargetArn": ""}) or leaves it ({}), and needs
+// no check.
+func deadLetterTarget(d *lambdaapi.DeadLetterConfig) string {
+	if d == nil {
+		return ""
+	}
+	return smithy.Deref(d.TargetArn)
+}
+
+// checkUpdatedDeadLetter checks the dead-letter target an
+// UpdateFunctionConfiguration sets (checkDeadLetter) for the execution role
+// the function will have: the Role the update passes, else the stored one.
+// A missing function is refused first, as the write would refuse it.
+func (s *Service) checkUpdatedDeadLetter(ctx context.Context, c *kernel.Call, ref functionRef, in *lambdaapi.UpdateFunctionConfigurationInput) *awserr.Error {
+	target := deadLetterTarget(in.DeadLetterConfig)
+	if target == "" {
+		return nil
+	}
+	role, err := store.View2(s.cells, ref.scope, func(st *State) (string, *awserr.Error) {
+		f, err := st.function(ref)
+		if err != nil {
+			return "", err
+		}
+		return f.Latest.Config.Role, nil
+	})
+	if err != nil {
+		return err
+	}
+	if in.Role != nil {
+		role = *in.Role
+	}
+	return s.checkDeadLetter(ctx, c, ref, role, target)
 }
 
 // layersForUpdate resolves an UpdateFunctionConfiguration's Layers for the
