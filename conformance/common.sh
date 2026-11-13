@@ -3,6 +3,7 @@
 # `set -euo pipefail`:
 #
 #   conformance_ddb_mode                   DynamoDB on, or opted out; call it before the build
+#   conformance_port DEFAULT [EXTRA]       CONFORMANCE_PORT, validated, or DEFAULT; before the build
 #   conformance_require_tool NAME ARGS...  probe a client tool through scripts/sealed; before the build
 #   conformance_isolate_serve_env          the `env -u` options that keep this shell's settings from serve
 #   conformance_require_ddb_enabled ADMIN_URL LOG
@@ -41,6 +42,26 @@ conformance_ddb_mode() {
 		exit 2
 		;;
 	esac
+}
+
+# conformance_port DEFAULT [EXTRA] sets conformance_port_number to
+# CONFORMANCE_PORT, or to DEFAULT when it is unset or empty, and exits 2
+# unless that is a port number. EXTRA is the highest offset from it the suite
+# also listens on (a derived port, or the last job's), which must stay a port
+# number too.
+conformance_port() {
+	local default=$1 extra=${2:-0}
+	local port="${CONFORMANCE_PORT:-$default}"
+	if [[ ! $port =~ ^[1-9][0-9]{0,4}$ ]] || ((port > 65535)); then
+		echo "run.sh: CONFORMANCE_PORT='$port' is not a port number. No test ran." >&2
+		exit 2
+	fi
+	if ((port + extra > 65535)); then
+		echo "run.sh: CONFORMANCE_PORT='$port' leaves no room for the port $extra above it that this run also uses; the highest port number is 65535. No test ran." >&2
+		exit 2
+	fi
+	# shellcheck disable=SC2034 # read by the run.sh scripts that source this file
+	conformance_port_number=$port
 }
 
 # conformance_require_tool NAME ARGS... runs `NAME ARGS...` (a version

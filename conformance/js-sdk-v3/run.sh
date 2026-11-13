@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Build understudy from this repository, start it on 127.0.0.1:45663 with a
-# fresh data directory, run the AWS SDK for JavaScript v3 conformance suite
-# against it through scripts/sealed, then stop it and remove its containers.
+# Build understudy from this repository into the run's work directory, start
+# it on 127.0.0.1:45663 (or CONFORMANCE_PORT) with a fresh data directory, run
+# the AWS SDK for JavaScript v3 conformance suite against it through
+# scripts/sealed, then stop it and remove its containers.
 #
 #   conformance/js-sdk-v3/run.sh                       # everything
 #   CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh
@@ -11,13 +12,15 @@
 #   CONFORMANCE_LAMBDA_EXECUTION=0 CONFORMANCE_DYNAMODB=0 conformance/js-sdk-v3/run.sh
 #                                                      # skip the Lambda tests that run functions in Docker
 #   SIGV4=verify conformance/js-sdk-v3/run.sh          # serve with --sigv4 verify (default parse)
+#   CONFORMANCE_PORT=45763 conformance/js-sdk-v3/run.sh
+#                                                      # serve on 45763, TLS on 45764, receiver on 45765 (default 45663)
 #
 # DynamoDB runs on DynamoDB Local, pulled on first use; CONFORMANCE_DYNAMODB
 # is unset or 0, and run.sh exits 2 before building on any other value.
 #
 # SNS HTTP delivery (tests/sns-http.test.ts): understudy also serves TLS on
-# 127.0.0.1:45664 and delivers only to the test's HTTPS receiver on
-# 127.0.0.1:45665, whose key and certificate openssl makes in the work
+# 127.0.0.1 on CONFORMANCE_PORT + 1 (45664) and delivers only to the test's
+# HTTPS receiver on CONFORMANCE_PORT + 2 (45665), whose key and certificate openssl makes in the work
 # directory; bun trusts understudy's certificate through NODE_EXTRA_CA_CERTS.
 #
 # bun's output is kept in the
@@ -37,15 +40,16 @@ source "$here/../common.sh"
 conformance_ddb_mode
 
 build="$repo/.build/conformance/js-sdk-v3"
-bin="$build/understudy"
-listen="127.0.0.1:45663"
+conformance_port 45663 2
+listen="127.0.0.1:$conformance_port_number"
 endpoint="http://$listen"
 sigv4="${SIGV4:-parse}"
-# The TLS listener SNS HTTP deliveries link to, and the HTTPS receiver
-# they go to (sns-http-delivery.md 8.3, 8.7).
-tls_listen="127.0.0.1:45664"
-tls_endpoint="https://localhost:45664"
-receiver="127.0.0.1:45665"
+# The TLS listener SNS HTTP deliveries link to (CONFORMANCE_PORT + 1), and
+# the HTTPS receiver they go to (CONFORMANCE_PORT + 2); see
+# sns-http-delivery.md 8.3, 8.7.
+tls_listen="127.0.0.1:$((conformance_port_number + 1))"
+tls_endpoint="https://localhost:$((conformance_port_number + 1))"
+receiver="127.0.0.1:$((conformance_port_number + 2))"
 
 if ! command -v openssl >/dev/null; then
 	echo "run.sh: openssl is not on PATH; the SNS HTTP tests need it for the receiver's certificate and to verify signatures. No test ran." >&2
@@ -54,6 +58,7 @@ fi
 
 mkdir -p -- "$build"
 work="$(mktemp -d "$build/run.XXXXXX")"
+bin="$work/understudy"
 data="$work/data"
 log="$work/understudy.log"
 pid=""

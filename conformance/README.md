@@ -13,6 +13,24 @@ Suites that check understudy from the outside, each a separate module or project
 | `patterns/` | serverless-patterns as their READMEs run them, through Terraform | `conformance/patterns/run.sh` |
 | `iam-loop/` | the aws-cli and go-sdk suites as an IAM user: record under `--iam-enforce advise`, attach the rendered policies, re-run under `enforce` | `conformance/iam-loop/run.sh` |
 
+## Ports and run directories
+
+Every `run.sh` serves understudy on `CONFORMANCE_PORT`, or on its own default below, and exits 2 with `run.sh: CONFORMANCE_PORT='<value>' is not a port number. No test ran.` when the value is not a port number. Each run builds understudy into a directory of its own under `.build/conformance/<suite>/` (`run.XXXXXX`), so two runs of one suite, on different ports, and runs of different suites never share a binary, a log or a data directory. The defaults below are pairwise distinct, derived ports included, so every suite can run at once as it is; two runs of one suite need a `CONFORMANCE_PORT` each, spaced by at least the suite's span.
+
+| Suite | Default port | Also listens on |
+|---|---|---|
+| `go-sdk/` | 45661 | a TLS listener on a free port the OS picks |
+| `python-boto3/` | 45662 | none |
+| `js-sdk-v3/` | 45663 | `CONFORMANCE_PORT` + 1 (45664) for TLS, `CONFORMANCE_PORT` + 2 (45665) for the SNS HTTPS receiver |
+| `e2e-pipeline/` | 45666 | none |
+| `patterns/` | 45667 | none |
+| `terraform/` | 45670 | `CONFORMANCE_PORT` + 1 (45671) for the SNS HTTPS receiver, unless `CONFORMANCE_SNS_RECEIVER_PORT` names another |
+| `iam-loop/` | 45680 | none; its Terraform suite and examples step runs after its server stops, on the suite's own default port |
+| `aws-cli/` | 45690 | with `CONFORMANCE_JOBS=J`, job `I` listens on `CONFORMANCE_PORT + 10*(I-1)`: 45690, 45700, 45710, ... |
+
+aws-cli's jobs are last so their steps of 10 reach no other suite's default.
+A terraform or patterns run removes its directory when it passes and keeps it, printing the path, when it fails, as the other suites do. The Terraform provider cache in `.build/conformance/<suite>/plugin-cache` is shared by runs of a suite.
+
 ## DynamoDB
 
 understudy serves DynamoDB through Amazon DynamoDB Local, pulled on first use and run under [Amazon's licence terms](https://aws.amazon.com/dynamodb/dynamodblocallicense/). Every `run.sh` runs DynamoDB's tests by default:

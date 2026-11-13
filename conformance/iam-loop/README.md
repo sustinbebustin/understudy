@@ -18,7 +18,8 @@ It needs everything the aws-cli and go-sdk suites need (the AWS CLI, Go, jq, cur
 | `IAM_LOOP_JOBS` | `1` | Groups run at most this many at a time, in the advise phase and in the enforce phase; a positive integer, else exit 2. A group whose file moves or reads the emulator clock (`/clock`, `frozenClock(`, `advanceClock(`) runs alone: the clock is one per server, and a reset rewinds it. |
 | `IAM_LOOP_ROOT_SUITES` | `1` | `0` leaves step 6 out; its line reads `SKIP root-suites`. |
 | `CONFORMANCE_NAME_SEED` | `iam-loop-<8 hex>` | One seed for every group; resource names already include the test. |
-| `CONFORMANCE_DYNAMODB`, `CONFORMANCE_PORT` | | As in the other suites. |
+| `CONFORMANCE_DYNAMODB` | | As in the other suites. |
+| `CONFORMANCE_PORT` | `45680` | Port the loop's understudy listens on, one server at a time; a value that is not a port number exits 2. The binary is built into the run's work directory. Step 6's Terraform suite and examples run after that server stops and use the port this variable names, or their own defaults when it is unset. |
 
 Exit 0 when every selected group and global check passes, 1 when any fails, 2 for a missing tool, an invalid variable, or a go-sdk test the binary lists that no file declares. The work directory is kept on failure; its path is printed.
 

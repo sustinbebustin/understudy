@@ -25,6 +25,8 @@
 # policy or service principal denied anything.
 #
 #   conformance/iam-loop/run.sh
+#   CONFORMANCE_PORT=45780 conformance/iam-loop/run.sh
+#                                         # serve on another port (default 45680)
 #   IAM_LOOP_GROUPS='^aws-cli-(sqs|sns)$' IAM_LOOP_ROOT_SUITES=0 conformance/iam-loop/run.sh
 #                                         # two groups, no Terraform suite or examples
 #   IAM_LOOP_GROUPS='^$' conformance/iam-loop/run.sh
@@ -116,8 +118,8 @@ if [ "$header_seen" -eq 0 ]; then
 fi
 
 build="$repo/.build/conformance/iam-loop"
-bin="$build/understudy"
-listen="127.0.0.1:${CONFORMANCE_PORT:-45667}"
+conformance_port 45680
+listen="127.0.0.1:$conformance_port_number"
 endpoint="http://$listen"
 admin="$endpoint/_understudy/v1"
 sealed="$repo/scripts/sealed"
@@ -139,6 +141,7 @@ go_sdk_skip='^TestSTSGetCallerIdentity$'
 
 mkdir -p -- "$build"
 work="$(mktemp -d "$build/run.XXXXXX")"
+bin="$work/understudy"
 gosdk_bin="$work/go-sdk.test"
 mkdir -p -- "$work/global" "$work/roles"
 pid=""

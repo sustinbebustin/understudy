@@ -13,7 +13,7 @@ conformance/js-sdk-v3/run.sh tests/sqs.test.ts             # one service
 conformance/js-sdk-v3/run.sh -t "FIFO"                     # by test name
 ```
 
-`run.sh` exits 2 before building when `CONFORMANCE_DYNAMODB` is set to anything but `0`. It builds understudy into `.build/conformance/js-sdk-v3/understudy`, starts it on `127.0.0.1:45663` with a fresh data directory, waits for the health endpoint, runs the suite through `scripts/sealed`, then stops the server and removes its containers. It keeps bun's output in the work directory's `test.log` and its JUnit report in `junit.xml`, and ends with a summary on stderr: `run.sh: passed=N failed=N skipped=N` from bun's counts, then a `run.sh: SKIP <file> > <describe> > <test>: <reason>` line per skipped test. bun records no skip reason, so `run.sh` names it from the setting that skips each file. It exits non-zero on failure and keeps the server log in the printed work directory.
+`run.sh` exits 2 before building when `CONFORMANCE_DYNAMODB` is set to anything but `0`. It builds understudy into its work directory (`.build/conformance/js-sdk-v3/run.XXXXXX/understudy`), starts it on `127.0.0.1:45663` (`CONFORMANCE_PORT`; a value that is not a port number exits 2) with a fresh data directory, waits for the health endpoint, runs the suite through `scripts/sealed`, then stops the server and removes its containers. It keeps bun's output in the work directory's `test.log` and its JUnit report in `junit.xml`, and ends with a summary on stderr: `run.sh: passed=N failed=N skipped=N` from bun's counts, then a `run.sh: SKIP <file> > <describe> > <test>: <reason>` line per skipped test. bun records no skip reason, so `run.sh` names it from the setting that skips each file. It exits non-zero on failure and keeps the server log in the printed work directory.
 
 Against a server you already run, from this directory:
 
@@ -32,7 +32,7 @@ Type-check with `bun run typecheck`.
 
 The suite refuses any endpoint that is not loopback http.
 
-`tests/sns-http.test.ts` needs `openssl` on `PATH` and the settings `run.sh` gives it: understudy serves TLS on `127.0.0.1:45664` (`CONFORMANCE_TLS_ENDPOINT`, trusted through `NODE_EXTRA_CA_CERTS`) and delivers SNS http and https subscriptions only to the test's HTTPS receiver on `127.0.0.1:45665` (`CONFORMANCE_SNS_RECEIVER`, with the key and certificate `run.sh` makes, `CONFORMANCE_SNS_RECEIVER_KEY` and `CONFORMANCE_SNS_RECEIVER_CERT`). It checks the messages with AWS's `sns-validator` and with `openssl dgst -verify`.
+`tests/sns-http.test.ts` needs `openssl` on `PATH` and the settings `run.sh` gives it: understudy serves TLS on `127.0.0.1:45664`, `CONFORMANCE_PORT` + 1 (`CONFORMANCE_TLS_ENDPOINT`, trusted through `NODE_EXTRA_CA_CERTS`) and delivers SNS http and https subscriptions only to the test's HTTPS receiver on `127.0.0.1:45665`, `CONFORMANCE_PORT` + 2 (`CONFORMANCE_SNS_RECEIVER`, with the key and certificate `run.sh` makes, `CONFORMANCE_SNS_RECEIVER_KEY` and `CONFORMANCE_SNS_RECEIVER_CERT`). It checks the messages with AWS's `sns-validator` and with `openssl dgst -verify`.
 
 ## Layout
 

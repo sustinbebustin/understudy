@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
 # Terraform conformance suite for understudy.
 #
-# Builds understudy from this repository, starts it on 127.0.0.1:45665 with a
-# fresh temporary data directory, and runs every service configuration (or the
-# ones named) through apply, a no-change plan, an update, another no-change
-# plan, destroy, and a check that nothing is left. The server is always
-# stopped and its containers removed. Exits non-zero when any test fails.
+# Builds understudy from this repository into a directory of the run's own,
+# starts it on 127.0.0.1:45670 (or CONFORMANCE_PORT; the SNS https receiver
+# takes the next port) with a fresh temporary data directory, and runs every
+# service configuration (or the ones named) through apply, a no-change plan,
+# an update, another no-change plan, destroy, and a check that nothing is
+# left. The server is always stopped and its containers removed. Exits
+# non-zero when any test fails; the run directory is removed on success and
+# kept, with its path printed, on failure.
 #
 #   conformance/terraform/run.sh                 # every service
 #   CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh
 #                                                # skip DynamoDB, run the rest
 #   conformance/terraform/run.sh sqs sns         # only these
 #   CONFORMANCE_JOBS=1 conformance/terraform/run.sh
+#   CONFORMANCE_PORT=45770 conformance/terraform/run.sh
+#                                                # serve on 45770, receiver on 45771 (default 45670)
 #   SIGV4=verify conformance/terraform/run.sh    # serve with --sigv4 verify (default parse)
 #   CONFORMANCE_IAM_ENFORCE=enforce CONFORMANCE_ADVISORIES_OUT=advisories.json \
 #     conformance/terraform/run.sh               # serve with --iam-enforce enforce (default off)
@@ -34,20 +39,16 @@ repo_root=$(cd -- "$suite_dir/../.." && pwd)
 source "$suite_dir/../common.sh"
 conformance_ddb_mode
 build_dir="$repo_root/.build/conformance/terraform"
-binary="$build_dir/understudy"
-run_dir="$build_dir/run"
-logs_dir="$run_dir/logs"
-work_dir="$run_dir/work"
-artifacts_dir="$run_dir/artifacts"
-results="$run_dir/results.tsv"
 sealed="$repo_root/scripts/sealed"
 
-port="${CONFORMANCE_PORT:-45665}"
+conformance_port 45670 1
+port=$conformance_port_number
 endpoint="http://127.0.0.1:$port"
-# The HTTPS receiver SNS's https subscription delivers to; it confirms each
+# The HTTPS receiver SNS's https subscription delivers to, on CONFORMANCE_PORT
+# + 1 unless CONFORMANCE_SNS_RECEIVER_PORT names another; it confirms each
 # subscription through its SubscribeURL, as endpoint_auto_confirms expects
 # (tf-messaging.md 3.5, sns-http-delivery.md 8.6).
-receiver_port="${CONFORMANCE_SNS_RECEIVER_PORT:-45667}"
+receiver_port="${CONFORMANCE_SNS_RECEIVER_PORT:-$((port + 1))}"
 receiver_url="https://127.0.0.1:$receiver_port"
 max_jobs="${CONFORMANCE_JOBS:-11}"
 phase_timeout="${CONFORMANCE_PHASE_TIMEOUT:-900}"
@@ -102,8 +103,15 @@ if curl -fsS -o /dev/null "$endpoint/_understudy/v1/health" 2>/dev/null; then
   die "something already answers on $endpoint; stop it or set CONFORMANCE_PORT"
 fi
 
-# Start from an empty run directory so results never mix with an earlier run.
-rm -rf -- "$run_dir"
+# Each run has a directory of its own, so concurrent runs never share results,
+# logs, work copies or the binary. The provider cache in $build_dir is shared.
+mkdir -p -- "$build_dir"
+run_dir=$(mktemp -d "$build_dir/run.XXXXXX")
+binary="$run_dir/understudy"
+logs_dir="$run_dir/logs"
+work_dir="$run_dir/work"
+artifacts_dir="$run_dir/artifacts"
+results="$run_dir/results.tsv"
 mkdir -p -- "$logs_dir" "$work_dir" "$artifacts_dir/go-worker"
 : >"$results"
 
@@ -161,6 +169,11 @@ stop_server() {
     echo "run.sh: understudy cleanup failed; see $logs_dir/cleanup.json" >&2
   fi
   rm -rf -- "$data_dir"
+  if ((status == 0)); then
+    rm -rf -- "$run_dir"
+  else
+    echo "run.sh: failed with status $status; the run's logs, results and work copies are kept in $run_dir" >&2
+  fi
   exit "$status"
 }
 trap stop_server EXIT

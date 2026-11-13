@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
-# Build understudy from this repository, serve it on 127.0.0.1:45666 with a
-# fresh data directory and a frozen clock, run the e2e-pipeline suite
-# against it through scripts/sealed, then stop the server and remove every
-# container and image the run left behind. Exits with the suite's status.
+# Build understudy from this repository into the run's work directory, serve
+# it on 127.0.0.1:45666 (or CONFORMANCE_PORT) with a fresh data directory and
+# a frozen clock, run the e2e-pipeline suite against it through
+# scripts/sealed, then stop the server and remove every container and image
+# the run left behind. Exits with the suite's status.
 #
 #   conformance/e2e-pipeline/run.sh                 # the whole suite
 #   CONFORMANCE_DYNAMODB=0 conformance/e2e-pipeline/run.sh
 #                                                   # skip the tests that need DynamoDB, run the rest
 #   conformance/e2e-pipeline/run.sh -run TestSQS    # extra arguments go to go test
 #   SIGV4=verify conformance/e2e-pipeline/run.sh    # serve with --sigv4 verify (default parse)
+#   CONFORMANCE_PORT=45766 conformance/e2e-pipeline/run.sh
+#                                                   # serve on another port (default 45666)
 #
 # Every worker takes a lock in DynamoDB for each record it handles; DynamoDB
 # runs on DynamoDB Local, pulled on first use. CONFORMANCE_DYNAMODB is unset
@@ -30,8 +33,8 @@ source "$here/../common.sh"
 conformance_ddb_mode
 
 build="$root/.build/conformance/e2e-pipeline"
-bin="$build/understudy"
-listen="127.0.0.1:45666"
+conformance_port 45666
+listen="127.0.0.1:$conformance_port_number"
 endpoint="http://$listen"
 run_id="e2e-$(date +%s)-$$"
 
@@ -40,11 +43,9 @@ if curl -fsS -o /dev/null "$endpoint/_understudy/v1/health" 2>/dev/null; then
     exit 2
 fi
 
-echo "run.sh: building understudy into $bin" >&2
 mkdir -p -- "$build"
-(cd -- "$root" && go build -o "$bin" ./cmd/understudy)
-
 work=$(mktemp -d "$build/run.XXXXXX")
+bin="$work/understudy"
 data="$work/data"
 log="$work/understudy.log"
 server=""
@@ -89,6 +90,9 @@ cleanup() {
 }
 trap cleanup EXIT
 trap 'exit 130' INT TERM
+
+echo "run.sh: building understudy into $bin" >&2
+(cd -- "$root" && go build -o "$bin" ./cmd/understudy)
 
 conformance_isolate_serve_env
 

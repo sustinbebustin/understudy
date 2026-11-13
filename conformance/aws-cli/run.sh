@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build understudy from this repository, start it on 127.0.0.1:45664 (or
-# CONFORMANCE_PORT) with a
+# Build understudy from this repository into the run's work directory, start
+# it on 127.0.0.1:45690 (or CONFORMANCE_PORT) with a
 # fresh data directory, run the AWS CLI conformance suite against it through
 # scripts/sealed, then stop it and remove its containers.
 #
@@ -12,7 +12,7 @@
 #                                                 # only tests whose name matches
 #   SIGV4=verify conformance/aws-cli/run.sh       # serve with --sigv4 verify (default parse)
 #   CONFORMANCE_PORT=45764 conformance/aws-cli/run.sh
-#                                                 # serve on another port (default 45664)
+#                                                 # serve on another port (default 45690)
 #   CONFORMANCE_JOBS=4 conformance/aws-cli/run.sh # four servers, a quarter of the tests each, in parallel
 #   CONFORMANCE_SHARD=2/3 conformance/aws-cli/run.sh
 #                                                 # only the second third of the tests (CI's matrix)
@@ -52,11 +52,8 @@ if [[ ! $jobs =~ ^[1-9][0-9]*$ ]]; then
 	echo "run.sh: CONFORMANCE_JOBS='$jobs' is not a positive integer. No test ran." >&2
 	exit 2
 fi
-port="${CONFORMANCE_PORT:-45664}"
-if [[ ! $port =~ ^[1-9][0-9]*$ ]]; then
-	echo "run.sh: CONFORMANCE_PORT='$port' is not a port number. No test ran." >&2
-	exit 2
-fi
+conformance_port 45690 $((10 * (jobs - 1)))
+port=$conformance_port_number
 shard="${CONFORMANCE_SHARD:-1/1}"
 if [[ ! $shard =~ ^([1-9][0-9]*)/([1-9][0-9]*)$ ]] || ((BASH_REMATCH[1] > BASH_REMATCH[2])); then
 	echo "run.sh: CONFORMANCE_SHARD='$shard' is not K/N with 1 <= K <= N (for example 2/3). No test ran." >&2
@@ -65,20 +62,27 @@ fi
 shard_index=${BASH_REMATCH[1]} shard_count=${BASH_REMATCH[2]}
 
 build="$repo/.build/conformance/aws-cli"
-bin="$build/understudy"
 mkdir -p -- "$build"
 
-# A job of a CONFORMANCE_JOBS run finds the binary its parent built: the
-# parent sets conformance_aws_cli_prebuilt, so the jobs never write the one
-# binary at the same time.
-if [ -z "${conformance_aws_cli_prebuilt:-}" ]; then
+# A job of a CONFORMANCE_JOBS run uses the binary its parent built into the
+# parent's jobs directory: the parent sets conformance_aws_cli_prebuilt to its
+# path, so the jobs never write one binary at the same time. Any other run
+# builds into its own work directory.
+bin="${conformance_aws_cli_prebuilt:-}"
+if [ -z "$bin" ]; then
 	conformance_require_tool aws --version
-	echo "run.sh: building understudy into $bin" >&2
-	(cd -- "$repo" && CGO_ENABLED=0 go build -o "$bin" ./cmd/understudy)
 fi
 
 if ((jobs > 1)); then
 	logs="$(mktemp -d "$build/jobs.XXXXXX")"
+	if [ -z "$bin" ]; then
+		bin="$logs/understudy"
+		echo "run.sh: building understudy into $bin" >&2
+		(cd -- "$repo" && CGO_ENABLED=0 go build -o "$bin" ./cmd/understudy) || {
+			rm -rf -- "$logs"
+			exit 1
+		}
+	fi
 	pids=()
 
 	# shellcheck disable=SC2329 # invoked by the trap below
@@ -94,7 +98,7 @@ if ((jobs > 1)); then
 
 	echo "run.sh: running shard $shard of the suite as $jobs jobs, on ports $port to $((port + 10 * (jobs - 1))) in steps of 10" >&2
 	for ((job = 1; job <= jobs; job++)); do
-		conformance_aws_cli_prebuilt=1 CONFORMANCE_JOBS=1 \
+		conformance_aws_cli_prebuilt="$bin" CONFORMANCE_JOBS=1 \
 			CONFORMANCE_PORT=$((port + 10 * (job - 1))) \
 			CONFORMANCE_SHARD="$(((shard_index - 1) * jobs + job))/$((shard_count * jobs))" \
 			"${BASH_SOURCE[0]}" "$@" >"$logs/job.$job.log" 2>&1 &
@@ -175,6 +179,12 @@ trap stop EXIT INT TERM
 if curl -fsS -o /dev/null "$admin/health" 2>/dev/null; then
 	echo "run.sh: something already answers on $listen; stop it first, since the suite needs a fresh understudy there" >&2
 	exit 2
+fi
+
+if [ -z "$bin" ]; then
+	bin="$work/understudy"
+	echo "run.sh: building understudy into $bin" >&2
+	(cd -- "$repo" && CGO_ENABLED=0 go build -o "$bin" ./cmd/understudy)
 fi
 
 conformance_isolate_serve_env
