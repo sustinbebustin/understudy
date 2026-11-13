@@ -29,30 +29,30 @@ func (s *Service) bindIdentities(b sesapi.Binder) {
 		" is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; " +
 		"chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04)"}
 	b.VerifyEmailIdentity(s.verifyEmailIdentity, verifyEmail,
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		identitiesNamed(func(in *sesapi.VerifyEmailIdentityInput) []string { return []string{in.EmailAddress} }))
 	b.VerifyEmailAddress(s.verifyEmailAddress, verifyEmail,
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		identitiesNamed(func(in *sesapi.VerifyEmailAddressInput) []string { return []string{in.EmailAddress} }))
-	b.ListVerifiedEmailAddresses(s.listVerifiedEmailAddresses, registry.Full{}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
+	b.ListVerifiedEmailAddresses(s.listVerifiedEmailAddresses, registry.Full{}, kernel.WithoutSecondaryActions(), v1ConditionKeys())
 	b.DeleteVerifiedEmailAddress(s.deleteVerifiedEmailAddress, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		identitiesNamed(func(in *sesapi.DeleteVerifiedEmailAddressInput) []string { return []string{in.EmailAddress} }))
 	b.VerifyDomainIdentity(s.verifyDomainIdentity,
 		registry.Partial{Note: "the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock"},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		identitiesNamed(func(in *sesapi.VerifyDomainIdentityInput) []string { return []string{in.Domain} }))
 	b.GetIdentityVerificationAttributes(s.getIdentityVerificationAttributes, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		identitiesNamed(func(in *sesapi.GetIdentityVerificationAttributesInput) []string { return in.Identities }))
 	b.GetIdentityNotificationAttributes(s.getIdentityNotificationAttributes,
 		registry.Partial{Note: "every identity reports no SNS topics, ForwardingEnabled true and headers disabled; " +
 			"SetIdentityNotificationTopic and the other setters are not implemented"},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		identitiesNamed(func(in *sesapi.GetIdentityNotificationAttributesInput) []string { return in.Identities }))
-	b.ListIdentities(s.listIdentities, registry.Full{}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
+	b.ListIdentities(s.listIdentities, registry.Full{}, kernel.WithoutSecondaryActions(), v1ConditionKeys())
 	b.DeleteIdentity(s.deleteIdentity, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		identitiesNamed(func(in *sesapi.DeleteIdentityInput) []string { return []string{in.Identity} }))
 }
 
@@ -265,10 +265,10 @@ func (s *Service) getIdentityVerificationAttributes(_ context.Context, c *kernel
 // getIdentityNotificationAttributes answers each named identity the store
 // holds, keyed by the request string byte for byte (ses.md 9.1), with no
 // topics, forwarding on and headers off, since no notification setter is
-// bound, as SES-08 recorded (ses.md 9.1). AWS leaves the three topic
-// elements out; the generated serializer writes them empty, since the model
-// marks them required (a known difference, testdata/parity/ses/SES-08). An
-// unknown identity is omitted under either value of
+// bound, as SES-08 recorded (ses.md 9.1). A topic is set only when one is
+// configured, so the three topic elements stay out of the answer, as AWS
+// leaves them out although the model marks them required (the overlay's
+// optionalOutput). An unknown identity is omitted under either value of
 // ses.verification.unknown-identity, as SES-08 recorded.
 func (s *Service) getIdentityNotificationAttributes(_ context.Context, c *kernel.Call, in *sesapi.GetIdentityNotificationAttributesInput) (*sesapi.GetIdentityNotificationAttributesOutput, *awserr.Error) {
 	out := &sesapi.GetIdentityNotificationAttributesOutput{NotificationAttributes: map[string]sesapi.IdentityNotificationAttributes{}}

@@ -36,6 +36,15 @@ const (
 	// scope does not hold: v1 TemplateDoesNotExist (model), v2
 	// NotFoundException (inferred, SES-18).
 	refusalTemplateMissing
+	// refusalConfigurationSetMissing is a send naming a configuration set
+	// the scope does not hold: v1 ConfigurationSetDoesNotExist, without
+	// the ConfigurationSetName element (recorded, SES-17 step 02), v2
+	// NotFoundException (inferred).
+	refusalConfigurationSetMissing
+	// refusalAccountSendingPaused is a send while account sending is
+	// paused: v1 AccountSendingPausedException (model), v2
+	// SendingPausedException, the only pause error its model declares.
+	refusalAccountSendingPaused
 )
 
 // refusal is the answer of a failed send check: its class and the whole
@@ -65,6 +74,10 @@ func (r *refusal) v1() *awserr.Error {
 		// With the TemplateName member the model declares: GetTemplate's
 		// recorded answer leaves it out (SES-18), a send's is unrecorded.
 		return sesapi.ErrTemplateDoesNotExistExceptionMembers(r.text, sesapi.TemplateDoesNotExistException{TemplateName: new(r.template)})
+	case refusalConfigurationSetMissing:
+		return sesapi.ErrConfigurationSetDoesNotExistException(r.text)
+	case refusalAccountSendingPaused:
+		return sesapi.ErrAccountSendingPausedException(r.text)
 	case refusalInvalid:
 	}
 	return sesapi.ErrInvalidParameterValue(r.text)
@@ -80,8 +93,10 @@ func (r *refusal) v2() *awserr.Error {
 		return sesv2api.ErrNotImplemented(r.text)
 	case refusalThrottled:
 		return sesv2api.ErrTooManyRequestsException(r.text)
-	case refusalTemplateMissing:
+	case refusalTemplateMissing, refusalConfigurationSetMissing:
 		return sesv2api.ErrNotFoundException(r.text)
+	case refusalAccountSendingPaused:
+		return sesv2api.ErrSendingPausedException(r.text)
 	case refusalInvalid:
 	}
 	return sesv2api.ErrBadRequestException(r.text)
@@ -118,7 +133,7 @@ func firstUnimplemented(svc, op string, ms []unimplemented) *refusal {
 // sendEmailCoverage is v1 SendEmail's coverage note (ses.md 11.1).
 const sendEmailCoverage = "journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message " +
 	"for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; " +
-	"ConfigurationSetName and the sending-authorization ARNs answer NotImplemented; " +
+	"the sending-authorization ARNs answer NotImplemented; " +
 	"chosen without a recording (docs/research/ses.md 11.4): address answers other than an empty Source, recipient-count, size " +
 	"and daily-quota answers, refusing a 257-character tag, check order, mailbox-simulator and label matching"
 
@@ -126,7 +141,11 @@ const sendEmailCoverage = "journal-only: validates and applies identity and sand
 // sender's identity ARN.
 func (s *Service) bindSends(b sesapi.Binder) {
 	b.SendEmail(s.sendEmail, registry.Partial{Note: sendEmailCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(),
+		v1SendConditionKeys(kernel.WithConditionKeys(func(_ *kernel.Call, in *sesapi.SendEmailInput) kernel.ConditionKeys {
+			d := in.Destination
+			return addressKeys(in.Source, d.ToAddresses, d.CcAddresses, d.BccAddresses)
+		})),
 		kernel.WithResources(func(c *kernel.Call, in *sesapi.SendEmailInput) []aws.ARN {
 			a, bad := parseAddress(in.Source)
 			if bad != nil {
@@ -149,10 +168,11 @@ func (s *Service) sendEmail(ctx context.Context, c *kernel.Call, in *sesapi.Send
 		senders = append(senders, *in.ReturnPath)
 	}
 	id, err := s.accept(ctx, c, outgoing{
-		api:      APIv1,
-		senders:  senders,
-		envelope: slices.Concat(d.ToAddresses, d.CcAddresses, d.BccAddresses),
-		refuse:   (*refusal).v1,
+		api:              APIv1,
+		configurationSet: in.ConfigurationSetName,
+		senders:          senders,
+		envelope:         slices.Concat(d.ToAddresses, d.CcAddresses, d.BccAddresses),
+		refuse:           (*refusal).v1,
 		fill: func(r *record) {
 			r.Source = in.Source
 			r.From = []string{addrSpec(in.Source)}
@@ -192,7 +212,6 @@ func content(c *sesapi.Content) *Content {
 // recipient count (SendChecks).
 func checkSendEmail(in *sesapi.SendEmailInput) *refusal {
 	if r := firstUnimplemented("ses", "SendEmail", []unimplemented{
-		{"ConfigurationSetName", "configuration sets", in.ConfigurationSetName != nil},
 		{"SourceArn", "sending authorization", in.SourceArn != nil},
 		{"ReturnPathArn", "sending authorization", in.ReturnPathArn != nil},
 	}); r != nil {
@@ -307,6 +326,16 @@ func onlyTagChars(s, extra string) bool {
 	return true
 }
 
+// addrSpecText is the addr-spec of an address as written: the text between
+// the last "<" and a final ">" of "Name <address>", else s whole. Unlike
+// addrSpec it keeps the quotes of a quoted local part.
+func addrSpecText(s string) string {
+	if i := strings.LastIndexByte(s, '<'); i >= 0 && strings.HasSuffix(s, ">") {
+		return s[i+1 : len(s)-1]
+	}
+	return s
+}
+
 // parseAddress validates an address as SES does, as far as is known
 // (ses.md 4.6, 11.6 item 5), and parses it. The texts answer in this
 // order: an empty address (recorded, SES-04); no "@" in the addr-spec;
@@ -318,10 +347,7 @@ func parseAddress(s string) (*mail.Address, *refusal) {
 	if s == "" {
 		return nil, invalid(EmptyAddressText)
 	}
-	spec := s
-	if i := strings.LastIndexByte(s, '<'); i >= 0 && strings.HasSuffix(s, ">") {
-		spec = s[i+1 : len(s)-1]
-	}
+	spec := addrSpecText(s)
 	at := strings.LastIndexByte(spec, '@')
 	switch {
 	case at < 0:

@@ -23,12 +23,13 @@ import (
 // The v2 coverage notes (ses.md 11.1).
 const (
 	createEmailIdentityCoverage = "email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; " +
-		"DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented"
-	listEmailIdentitiesCoverage = "the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation"
-	getAccountCoverage          = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; " +
+		"DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName must name an existing set and is the identity's default"
+	putIdentityConfigurationSetCoverage = "sets or clears the identity's default configuration set, which a send naming none records when the identity is verified"
+	putDkimSigningCoverage              = "stored; DKIM status never changes on its own"
+	getAccountCoverage                  = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled from the account sending setting; " +
 		"EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), " +
 		"which nothing changes; no VDM, pricing plan or account details"
-	v2TagsCoverage = "identity and template ARNs; an ARN with an empty account field names the caller's account, " +
+	v2TagsCoverage = "identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, " +
 		"as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded)"
 )
 
@@ -47,32 +48,44 @@ func (v *V2) bindV2(b sesv2api.Binder) {
 			}
 			return []registry.IAMAction{{Prefix: "ses", Name: "TagResource"}}
 		}),
-		refusedConditionKeys(),
+		v2ConditionKeys(),
 		identitiesNamed(func(in *sesv2api.CreateEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
 	b.GetEmailIdentity(v.getEmailIdentity, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		identitiesNamed(func(in *sesv2api.GetEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
+	b.PutEmailIdentityConfigurationSetAttributes(v.putEmailIdentityConfigurationSetAttributes, registry.Full{},
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
+		identitiesNamed(func(in *sesv2api.PutEmailIdentityConfigurationSetAttributesInput) []string {
+			return []string{in.EmailIdentity}
+		}))
+	b.PutEmailIdentityDkimSigningAttributes(v.putEmailIdentityDkimSigningAttributes, registry.StoredOnly{Note: putDkimSigningCoverage},
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
+		identitiesNamed(func(in *sesv2api.PutEmailIdentityDkimSigningAttributesInput) []string {
+			return []string{in.EmailIdentity}
+		}))
 	b.DeleteEmailIdentity(v.deleteEmailIdentity, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		identitiesNamed(func(in *sesv2api.DeleteEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
-	b.ListEmailIdentities(v.listEmailIdentities, registry.Partial{Note: listEmailIdentitiesCoverage}, kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+	// Both bindings (ses.md 3.2): the GET one is a codegen/services
+	// additionalRoutes entry.
+	b.ListEmailIdentities(v.listEmailIdentities, registry.Full{}, kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		// A denial names * (iam-enforcement-surfaces.md 12.3, IAM-ENF-39).
 		kernel.WithDenialResource(func(*kernel.Call, *sesv2api.ListEmailIdentitiesInput) string { return "*" }))
 	b.TagResource(v.tagResource, registry.Partial{Note: v2TagsCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		resourceNamed(func(in *sesv2api.TagResourceInput) string { return in.ResourceArn }))
 	b.UntagResource(v.untagResource, registry.Partial{Note: v2TagsCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		resourceNamed(func(in *sesv2api.UntagResourceInput) string { return in.ResourceArn }))
 	b.ListTagsForResource(v.listTagsForResource, registry.Partial{Note: v2TagsCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		resourceNamed(func(in *sesv2api.ListTagsForResourceInput) string { return in.ResourceArn }))
-	b.GetAccount(v.getAccount, registry.Partial{Note: getAccountCoverage}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
+	b.GetAccount(v.getAccount, registry.Partial{Note: getAccountCoverage}, kernel.WithoutSecondaryActions(), v2ConditionKeys())
 }
 
 // resourceNamed names a tag operation's ResourceArn as its resource: the
-// identity's or template's full ARN when it names one
-// of the caller's, else the ARN as given; an ARN that does not parse names
+// full ARN of the identity, template or configuration set it names of the
+// caller's, else the ARN as given; an ARN that does not parse names
 // none.
 func resourceNamed[In any](arnOf func(*In) string) kernel.BindOption {
 	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
@@ -93,11 +106,6 @@ func resourceNamed[In any](arnOf func(*In) string) kernel.BindOption {
 func errIdentityMissing(name string) *awserr.Error {
 	return sesv2api.ErrNotFoundException(fmt.Sprintf(IdentityMissingText, name))
 }
-
-// createConfigurationSetText refuses CreateEmailIdentity's
-// ConfigurationSetName (invariant 3).
-const createConfigurationSetText = "CreateEmailIdentity with ConfigurationSetName uses configuration sets, which understudy does not implement; " +
-	"no identity was created. Leave ConfigurationSetName out. Run 'understudy coverage --service sesv2' for what is supported."
 
 // createEmailIdentity creates an email address or domain identity through
 // v2 (ses.md 5.4). An address starts as VerifyEmailIdentity
@@ -121,6 +129,9 @@ func (v *V2) createEmailIdentity(ctx context.Context, c *kernel.Call, in *sesv2a
 		if st.find(vw, in.EmailIdentity) >= 0 {
 			return created{}, sesv2api.ErrAlreadyExistsException(fmt.Sprintf(IdentityExistsText, in.EmailIdentity))
 		}
+		if in.ConfigurationSetName != nil && st.findConfigurationSet(vw, *in.ConfigurationSetName) < 0 {
+			return created{}, (&setRefusal{class: setMissing, name: *in.ConfigurationSetName}).v2()
+		}
 		var released []blob.Ref
 		if address {
 			r, err := s.createEmail(c, st, vw, in.EmailIdentity, now, tx)
@@ -133,6 +144,9 @@ func (v *V2) createEmailIdentity(ctx context.Context, c *kernel.Call, in *sesv2a
 		}
 		id := &st.Identities[len(st.Identities)-1]
 		id.Tags = mergeTags(nil, in.Tags)
+		if in.ConfigurationSetName != nil {
+			id.ConfigurationSet = *in.ConfigurationSetName
+		}
 		return created{
 			out: &sesv2api.CreateEmailIdentityOutput{
 				IdentityType:             new(id.v2Type()),
@@ -150,14 +164,10 @@ func (v *V2) createEmailIdentity(ctx context.Context, c *kernel.Call, in *sesv2a
 }
 
 // checkCreateEmailIdentity refuses what CreateEmailIdentity checks before
-// state: ConfigurationSetName (NotImplemented), an address net/mail
-// refuses, as VerifyEmailIdentity refuses it (ses.md 4.6, SES-04), and
-// DkimSigningAttributes on an address, which the model documents as
-// domains only (ses.md 5.4).
+// state: an address net/mail refuses, as VerifyEmailIdentity refuses it
+// (ses.md 4.6, SES-04), and DkimSigningAttributes on an address, which the
+// model documents as domains only (ses.md 5.4).
 func checkCreateEmailIdentity(in *sesv2api.CreateEmailIdentityInput) *awserr.Error {
-	if in.ConfigurationSetName != nil {
-		return sesv2api.ErrNotImplemented(createConfigurationSetText)
-	}
 	if !strings.Contains(in.EmailIdentity, "@") {
 		return nil
 	}
@@ -203,8 +213,8 @@ func (s *Service) dkimTokens() []string {
 
 // getEmailIdentity answers an identity per the ses.md 5.4 table. Members
 // whose raw form is unrecorded (MailFromAttributes, Policies,
-// VerificationInfo, SES-13) are absent; no configuration set is ever
-// attached.
+// VerificationInfo, SES-13) are absent; ConfigurationSetName is the
+// identity's default set, absent when it has none.
 func (v *V2) getEmailIdentity(_ context.Context, c *kernel.Call, in *sesv2api.GetEmailIdentityInput) (*sesv2api.GetEmailIdentityOutput, *awserr.Error) {
 	var out *sesv2api.GetEmailIdentityOutput
 	v.read(c.Scope(), func(st *state) {
@@ -221,6 +231,9 @@ func (v *V2) getEmailIdentity(_ context.Context, c *kernel.Call, in *sesv2api.Ge
 			Tags:                     tagList(id.Tags),
 			VerificationStatus:       new(id.Status.v2()),
 		}
+		if id.ConfigurationSet != "" {
+			out.ConfigurationSetName = new(id.ConfigurationSet)
+		}
 	})
 	if out == nil {
 		return nil, sesv2api.ErrNotFoundException(fmt.Sprintf(GetIdentityMissingText, in.EmailIdentity))
@@ -233,6 +246,60 @@ func (v *V2) read(scope aws.Scope, fn func(st *state)) {
 	if cell, ok := v.svc.cells.Lookup(scope); ok {
 		store.Read(cell, func(st *state) struct{} { fn(st); return struct{}{} })
 	}
+}
+
+// putEmailIdentityConfigurationSetAttributes sets the identity's default
+// configuration set, or clears it when ConfigurationSetName is absent
+// (ses.md 8). The set must exist; a missing set or identity changes
+// nothing.
+func (v *V2) putEmailIdentityConfigurationSetAttributes(_ context.Context, c *kernel.Call, in *sesv2api.PutEmailIdentityConfigurationSetAttributesInput) (*sesv2api.PutEmailIdentityConfigurationSetAttributesOutput, *awserr.Error) {
+	s := v.svc
+	vw := s.view(APIv2)
+	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *state, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+		i := st.find(vw, in.EmailIdentity)
+		if i < 0 {
+			return struct{}{}, errIdentityMissing(in.EmailIdentity)
+		}
+		set := ""
+		if in.ConfigurationSetName != nil {
+			set = *in.ConfigurationSetName
+			if st.findConfigurationSet(vw, set) < 0 {
+				return struct{}{}, (&setRefusal{class: setMissing, name: set}).v2()
+			}
+		}
+		st.Identities[i].ConfigurationSet = set
+		return struct{}{}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &sesv2api.PutEmailIdentityConfigurationSetAttributesOutput{}, nil
+}
+
+// putEmailIdentityDkimSigningAttributes stores the signing attributes as
+// CreateEmailIdentity does: a BYODKIM selector makes the origin EXTERNAL,
+// origin AWS_SES drops it. Nothing signs, and the DKIM status and tokens
+// answer as they were. DKIM on an address is refused, as CreateEmailIdentity
+// refuses it.
+func (v *V2) putEmailIdentityDkimSigningAttributes(_ context.Context, c *kernel.Call, in *sesv2api.PutEmailIdentityDkimSigningAttributesInput) (*sesv2api.PutEmailIdentityDkimSigningAttributesOutput, *awserr.Error) {
+	s := v.svc
+	vw := s.view(APIv2)
+	return kernel.Write(c, s.cells, c.Scope(), func(st *state, _ clock.Instant, _ *kernel.Tx) (*sesv2api.PutEmailIdentityDkimSigningAttributesOutput, *awserr.Error) {
+		i := st.find(vw, in.EmailIdentity)
+		if i < 0 {
+			return nil, errIdentityMissing(in.EmailIdentity)
+		}
+		id := &st.Identities[i]
+		if id.Kind != sesapi.IdentityTypeDomain {
+			return nil, sesv2api.ErrBadRequestException(DkimOnAddressText)
+		}
+		id.DkimSigningAttributes = nil
+		if a := in.SigningAttributes; in.SigningAttributesOrigin == sesv2api.DkimSigningAttributesOriginExternal && a != nil && a.DomainSigningSelector != nil {
+			id.DkimSigningAttributes = &dkimSigning{Selector: *a.DomainSigningSelector}
+		}
+		d := id.dkim()
+		return &sesv2api.PutEmailIdentityDkimSigningAttributesOutput{DkimStatus: d.Status, DkimTokens: d.Tokens}, nil
+	})
 }
 
 // deleteEmailIdentity removes an identity and its expiry timer; a missing
@@ -333,9 +400,9 @@ func (id *identity) matches(filter map[sesv2api.IdentityFilterKey]string) bool {
 	return true
 }
 
-// tagged runs fn on the tags of the identity or template resourceARN names
-// in the caller's view, in a write; a missing one, or any other ARN, is
-// NotFoundException naming its resource.
+// tagged runs fn on the tags of the identity, template or configuration
+// set resourceARN names in the caller's view, in a write; a missing one,
+// or any other ARN, is NotFoundException naming its resource.
 func (v *V2) tagged(c *kernel.Call, resourceARN string, fn func(tags *[]tag, tx *kernel.Tx)) *awserr.Error {
 	s := v.svc
 	scope := c.Scope()
@@ -345,40 +412,68 @@ func (v *V2) tagged(c *kernel.Call, resourceARN string, fn func(tags *[]tag, tx 
 	}
 	vw := s.view(APIv2)
 	_, err := kernel.Write(c, s.cells, scope, func(st *state, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		if r.template {
-			i := st.findTemplate(vw, r.name)
-			if i < 0 {
-				return struct{}{}, errEmailTemplateMissing(r.name)
-			}
-			fn(&st.Templates[i].Tags, tx)
-			return struct{}{}, nil
+		tags, err := r.tags(st, vw)
+		if err != nil {
+			return struct{}{}, err
 		}
-		i := st.find(vw, r.name)
-		if i < 0 {
-			return struct{}{}, errIdentityMissing(r.name)
-		}
-		fn(&st.Identities[i].Tags, tx)
+		fn(tags, tx)
 		return struct{}{}, nil
 	})
 	return err
 }
 
+// taggableKind is the kind of resource a tag operation addresses.
+type taggableKind uint8
+
+const (
+	taggableIdentity taggableKind = iota
+	taggableTemplate
+	taggableConfigurationSet
+)
+
 // taggable is what a tag operation's ResourceArn names in the caller's
-// scope: an identity, or a template when template is set.
+// scope: the kind of resource and its name.
 type taggable struct {
-	template bool
-	name     string
+	kind taggableKind
+	name string
 }
 
 // arn is r's full ARN in scope.
 func (r taggable) arn(scope aws.Scope) aws.ARN {
-	if r.template {
+	switch r.kind {
+	case taggableTemplate:
 		return templateARN(scope, r.name)
+	case taggableConfigurationSet:
+		return configurationSetARN(scope, r.name)
+	case taggableIdentity:
 	}
 	return identityARN(scope, r.name)
 }
 
-// taggableOf reads an SES identity or template ARN in scope. An empty
+// tags is the tag list of r in st's view v, or NotFoundException when v
+// does not hold it.
+func (r taggable) tags(st *state, v view) (*[]tag, *awserr.Error) {
+	switch r.kind {
+	case taggableTemplate:
+		if i := st.findTemplate(v, r.name); i >= 0 {
+			return &st.Templates[i].Tags, nil
+		}
+		return nil, errEmailTemplateMissing(r.name)
+	case taggableConfigurationSet:
+		if i := st.findConfigurationSet(v, r.name); i >= 0 {
+			return &st.ConfigurationSets[i].Tags, nil
+		}
+		return nil, (&setRefusal{class: setMissing, name: r.name}).v2()
+	case taggableIdentity:
+	}
+	if i := st.find(v, r.name); i >= 0 {
+		return &st.Identities[i].Tags, nil
+	}
+	return nil, errIdentityMissing(r.name)
+}
+
+// taggableOf reads an SES identity, template or configuration-set ARN in
+// scope. An empty
 // account field is read as the caller's: Terraform builds an identity's
 // ARN from its own account, which is empty under
 // skip_requesting_account_id, the setting understudy's Terraform guide
@@ -390,11 +485,12 @@ func taggableOf(scope aws.Scope, resourceARN string) (taggable, bool) {
 		arn.Region != scope.Region.String() || (arn.Account != "" && arn.Account != scope.Account.String()) {
 		return taggable{}, false
 	}
-	if name, ok := strings.CutPrefix(arn.Resource, "identity/"); ok {
-		return taggable{name: name}, true
-	}
-	if name, ok := strings.CutPrefix(arn.Resource, "template/"); ok {
-		return taggable{template: true, name: name}, true
+	for prefix, kind := range map[string]taggableKind{
+		"identity/": taggableIdentity, "template/": taggableTemplate, "configuration-set/": taggableConfigurationSet,
+	} {
+		if name, ok := strings.CutPrefix(arn.Resource, prefix); ok {
+			return taggable{kind: kind, name: name}, true
+		}
 	}
 	return taggable{}, false
 }
@@ -413,7 +509,8 @@ func arnResourceName(resourceARN string) string {
 	return arn.Resource
 }
 
-// tagResource sets tags on an identity or template, a key already set
+// tagResource sets tags on an identity, template or configuration set, a
+// key already set
 // taking the new value (ses.md 5.4).
 func (v *V2) tagResource(_ context.Context, c *kernel.Call, in *sesv2api.TagResourceInput) (*sesv2api.TagResourceOutput, *awserr.Error) {
 	err := v.tagged(c, in.ResourceArn, func(tags *[]tag, _ *kernel.Tx) { *tags = mergeTags(*tags, in.Tags) })
@@ -423,8 +520,8 @@ func (v *V2) tagResource(_ context.Context, c *kernel.Call, in *sesv2api.TagReso
 	return &sesv2api.TagResourceOutput{}, nil
 }
 
-// untagResource removes the named tag keys from an identity or template; a
-// key it does not carry is ignored.
+// untagResource removes the named tag keys from an identity, template or
+// configuration set; a key it does not carry is ignored.
 func (v *V2) untagResource(_ context.Context, c *kernel.Call, in *sesv2api.UntagResourceInput) (*sesv2api.UntagResourceOutput, *awserr.Error) {
 	err := v.tagged(c, in.ResourceArn, func(tags *[]tag, tx *kernel.Tx) {
 		before := len(*tags)
@@ -439,8 +536,9 @@ func (v *V2) untagResource(_ context.Context, c *kernel.Call, in *sesv2api.Untag
 	return &sesv2api.UntagResourceOutput{}, nil
 }
 
-// listTagsForResource answers an identity's or template's tags, which
-// Terraform reads for an identity's tags (ses.md 9.3).
+// listTagsForResource answers the tags of an identity, template or
+// configuration set, which Terraform reads for an identity's and a v2
+// configuration set's tags (ses.md 9.3, 11.7).
 func (v *V2) listTagsForResource(_ context.Context, c *kernel.Call, in *sesv2api.ListTagsForResourceInput) (*sesv2api.ListTagsForResourceOutput, *awserr.Error) {
 	var tags []sesv2api.Tag
 	err := v.tagged(c, in.ResourceArn, func(stored *[]tag, tx *kernel.Tx) {
@@ -454,21 +552,22 @@ func (v *V2) listTagsForResource(_ context.Context, c *kernel.Call, in *sesv2api
 }
 
 // getAccount answers the sandbox state and the quota GetSendQuota answers
-// (ses.md 6.3). Sending cannot be paused yet, so
-// SendingEnabled is always true. Automatic dedicated-IP warm-up and the
+// (ses.md 6.3), and SendingEnabled as UpdateAccountSendingEnabled set it.
+// Automatic dedicated-IP warm-up and the
 // account suppression list for bounces and complaints are on, the defaults
 // SES-15 recorded for a sandbox account; no setter for either is bound.
 func (v *V2) getAccount(_ context.Context, c *kernel.Call, _ *sesv2api.GetAccountInput) (*sesv2api.GetAccountOutput, *awserr.Error) {
 	s := v.svc
 	q := &sesv2api.SendQuota{Max24HourSend: SandboxMax24HourSend, MaxSendRate: SandboxMaxSendRate}
-	if s.opts.ProductionAccess {
+	production := s.opts.ProductionAccess.of(c.Scope()) == accessProduction
+	if production {
 		q.Max24HourSend, q.MaxSendRate = ProductionMax24HourSend, ProductionMaxSendRate
 	}
 	v.read(c.Scope(), func(st *state) { q.SentLast24Hours = float64(st.sentLast24Hours(c.Admitted())) })
 	return &sesv2api.GetAccountOutput{
-		ProductionAccessEnabled: s.opts.ProductionAccess,
+		ProductionAccessEnabled: production,
 		SendQuota:               q,
-		SendingEnabled:          true,
+		SendingEnabled:          s.sendingEnabled(c.Scope()),
 		EnforcementStatus:       new(enforcementHealthy),
 		// The defaults SES-15 recorded.
 		DedicatedIpAutoWarmupEnabled: true,

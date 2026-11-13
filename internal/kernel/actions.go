@@ -156,24 +156,29 @@ func (bnd *binding) secondaries(c *Call, in any) secondaries {
 
 // recordedActions returns the actions the access record pairs with the
 // call's touched resources (ARCHITECTURE.md 17, ADR 0004 amendment). For
-// a binding that declared its actions: the primary action, the declared
-// actions that are in the operation's generated list, and every action of
-// the list under another service's prefix, such as iam:PassRole, which the
-// recorder keeps only where the call touched a resource of that service.
-// For one that declared none: every action of the list. An internal
+// a binding that declared its actions: the call's primary action
+// (WithPrimaryAction), the declared actions that are in the operation's
+// generated list, and every action of the list under another service's
+// prefix, such as iam:PassRole, which the recorder keeps only where the
+// call touched a resource of that service. For one that declared none:
+// every action of the list, the call's primary first. An internal
 // operation, which has no list, records only its declared actions.
 func (k *Kernel) recordedActions(ctx context.Context, c *Call, used secondaries) []registry.IAMAction {
 	op := c.op
+	primary, hasPrimary := c.primary()
 	var out []registry.IAMAction
 	switch used := used.(type) {
 	case undeclared:
 		out = op.IAM
+		if hasPrimary {
+			out = append([]registry.IAMAction{primary}, op.IAM[1:]...)
+		}
 	case declared:
 		if op.Kind == registry.Internal {
 			return compactActions(used)
 		}
-		if len(op.IAM) > 0 {
-			out = append(out, op.IAM[0])
+		if hasPrimary {
+			out = append(out, primary)
 		}
 		for _, a := range used {
 			if !slices.Contains(op.IAM, a) {

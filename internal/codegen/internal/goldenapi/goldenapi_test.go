@@ -388,7 +388,8 @@ func TestEveryMemberKindDeserializes(t *testing.T) {
 }
 
 // TestOutputSerializesInModelOrder: alwaysEmit makes Count a plain value
-// written even at zero; emptyCollection emit writes Items though nil.
+// written even at zero; emptyCollection emit writes Items though nil;
+// optionalOutput leaves the unset Owner out although the model requires it.
 func TestOutputSerializesInModelOrder(t *testing.T) {
 	var rec serdetest.Recorder
 	(&PutKindsOutput{Id: "i"}).Serialize(&rec)
@@ -398,6 +399,41 @@ func TestOutputSerializesInModelOrder(t *testing.T) {
 		"WriteInt32 Count 0",
 		"WriteList Items 0",
 		"CloseList",
+		"CloseStruct",
+	}
+	if got := rec.Strings(); !slices.Equal(got, want) {
+		t.Fatalf("recorded %q\nwant %q", got, want)
+	}
+}
+
+// TestOptionalOutputIsWrittenWhenSet: optionalOutput makes the required
+// Owner a pointer, written when the handler sets it, even to "".
+func TestOptionalOutputIsWrittenWhenSet(t *testing.T) {
+	var rec serdetest.Recorder
+	(&PutKindsOutput{Id: "i", Owner: new("")}).Serialize(&rec)
+	want := []string{
+		"WriteStruct <root> com.example.golden#PutKindsResponse",
+		"WriteString Id i",
+		"WriteString Owner ",
+		"WriteInt32 Count 0",
+		"WriteList Items 0",
+		"CloseList",
+		"CloseStruct",
+	}
+	if got := rec.Strings(); !slices.Equal(got, want) {
+		t.Fatalf("recorded %q\nwant %q", got, want)
+	}
+}
+
+// TestMemberOrderSetsTheSerializationOrder: memberOrder writes Created
+// before Name, the reverse of the model's order.
+func TestMemberOrderSetsTheSerializationOrder(t *testing.T) {
+	var rec serdetest.Recorder
+	(&GetThingOutput{Name: new("n"), Created: new(time.Unix(0, 0).UTC())}).Serialize(&rec)
+	want := []string{
+		"WriteStruct <root> com.example.golden#GetThingResponse",
+		"WriteTimestamp Created 1970-01-01 00:00:00 +0000 UTC",
+		"WriteString Name n",
 		"CloseStruct",
 	}
 	if got := rec.Strings(); !slices.Equal(got, want) {

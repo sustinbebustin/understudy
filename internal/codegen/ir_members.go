@@ -30,6 +30,41 @@ func (b *builder) members() error {
 			goNames[mem.GoName] = true
 			s.Members = append(s.Members, mem)
 		}
+		if err := memberOrder(s, src); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// memberOrder reads dev.understudy#memberOrder, which must name every
+// member of the structure exactly once and differ from the model's order;
+// that the structure is output is checked once roles are known
+// (fieldKinds).
+func memberOrder(s *ShapeIR, src *Shape) error {
+	raw, ok := src.Traits[utMemberOrder]
+	if !ok {
+		return nil
+	}
+	order, err := parseMemberOrder(raw)
+	if err != nil {
+		return failf(StageIR, string(s.ID), "%s: %w", utMemberOrder, err)
+	}
+	byName := make(map[string]*MemberIR, len(s.Members))
+	names := make([]string, len(s.Members))
+	for i, m := range s.Members {
+		byName[m.Name] = m
+		names[i] = m.Name
+	}
+	if !slices.Equal(slices.Sorted(slices.Values(order)), slices.Sorted(slices.Values(names))) {
+		return failf(StageIR, string(s.ID), "%s %q must name every member exactly once; the members are %q", utMemberOrder, order, names)
+	}
+	if slices.Equal(order, names) {
+		return failf(StageIR, string(s.ID), "%s is the model's order; drop the trait", utMemberOrder)
+	}
+	s.MemberOrder = make([]*MemberIR, len(order))
+	for i, name := range order {
+		s.MemberOrder[i] = byName[name]
 	}
 	return nil
 }
@@ -41,17 +76,21 @@ func (b *builder) member(owner *ShapeIR, src *Shape, m *Member, index int) (*Mem
 	maps.Copy(eff, m.Traits)
 	mem := &MemberIR{
 		Name: m.Name, GoName: exportName(m.Name), Index: index, Owner: owner, Target: b.shapes[m.Target], Bit: -1,
-		Var:          "member" + owner.GoName + "_" + m.Name,
-		Required:     eff.Has(traitRequired),
-		XMLFlattened: m.Traits.Has(traitXMLFlattened),
-		XMLAttribute: m.Traits.Has(traitXMLAttribute),
-		Sensitive:    eff.Has(traitSensitive),
-		AlwaysEmit:   m.Traits.Has(utAlwaysEmit),
-		Empty:        b.emptyDef,
-		rulesRaw:     m.Traits[utValidationError],
+		Var:            "member" + owner.GoName + "_" + m.Name,
+		Required:       eff.Has(traitRequired),
+		XMLFlattened:   m.Traits.Has(traitXMLFlattened),
+		XMLAttribute:   m.Traits.Has(traitXMLAttribute),
+		Sensitive:      eff.Has(traitSensitive),
+		AlwaysEmit:     m.Traits.Has(utAlwaysEmit),
+		OptionalOutput: m.Traits.Has(utOptionalOutput),
+		Empty:          b.emptyDef,
+		rulesRaw:       m.Traits[utValidationError],
 	}
 	if raw, ok := eff[traitDefault]; ok && string(raw) != "null" {
 		mem.Default = raw
+	}
+	if err := optionalOutput(mem); err != nil {
+		return nil, failf(StageEffective, subject, "%w", err)
 	}
 	if err := memberWireTraits(mem, m.Traits, eff); err != nil {
 		return nil, failf(StageEffective, subject, "%w", err)
@@ -88,6 +127,27 @@ func (b *builder) member(owner *ShapeIR, src *Shape, m *Member, index int) (*Mem
 	}
 	mem.DefaultKind = kind
 	return mem, nil
+}
+
+// optionalOutput applies dev.understudy#optionalOutput: a member the model
+// requires, which AWS nonetheless leaves out of an answer, stops being
+// required, so its Go field is a pointer written only when set. The member
+// must be required and model no default, which the serializer would write
+// in its place; that its structure is output only is checked once roles are
+// known (fieldKinds).
+func optionalOutput(m *MemberIR) error {
+	switch {
+	case !m.OptionalOutput:
+		return nil
+	case !m.Required:
+		return fmt.Errorf("%s applies only to a member the model marks required; an optional member is already left out when unset", utOptionalOutput)
+	case m.Default != nil:
+		return fmt.Errorf("%s cannot leave out a member with a modeled default, which the serializer writes when the member is unset", utOptionalOutput)
+	case m.AlwaysEmit:
+		return fmt.Errorf("%s and %s contradict each other; keep one", utOptionalOutput, utAlwaysEmit)
+	}
+	m.Required = false
+	return nil
 }
 
 // defaultKind classifies m's modeled default by how its Go field holds it

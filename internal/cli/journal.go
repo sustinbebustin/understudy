@@ -151,16 +151,7 @@ func (r *runner) printAll(ctx context.Context, c *admin.Client, q admin.JournalQ
 func (r *runner) follow(ctx context.Context, c *admin.Client, q admin.JournalQuery) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	// The buffer holds what the stream delivers while the query prints;
-	// beyond it the server's own buffer reports a gap rather than block.
-	s := &subscription{subscribed: make(chan struct{}), events: make(chan admin.JournalEvent, 1024)}
-	// The stream's answer starts once the server subscribes, so c's
-	// answer bound holds; the body that follows is not bounded.
-	var once sync.Once
-	subscribing := httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
-		GotFirstResponseByte: func() { once.Do(func() { close(s.subscribed) }) },
-	})
-	go s.read(ctx, c.JournalStream(subscribing, q, 0))
+	s := subscribe(ctx, c, q)
 	if !s.ready() {
 		return followEnd(ctx, s.err)
 	}
@@ -189,6 +180,23 @@ type subscription struct {
 	err    error
 	// early are events ready saw before it saw subscribed.
 	early []admin.JournalEvent
+}
+
+// subscribe starts reading the events q selects in the background, until
+// ctx ends.
+func subscribe(ctx context.Context, c *admin.Client, q admin.JournalQuery) *subscription {
+	// The buffer holds what the stream delivers while the caller reads
+	// the past; beyond it the server's own buffer reports a gap rather
+	// than block.
+	s := &subscription{subscribed: make(chan struct{}), events: make(chan admin.JournalEvent, 1024)}
+	// The stream's answer starts once the server subscribes, so c's
+	// answer bound holds; the body that follows is not bounded.
+	var once sync.Once
+	subscribing := httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+		GotFirstResponseByte: func() { once.Do(func() { close(s.subscribed) }) },
+	})
+	go s.read(ctx, c.JournalStream(subscribing, q, 0))
+	return s
 }
 
 func (s *subscription) read(ctx context.Context, stream iter.Seq2[admin.JournalEvent, error]) {

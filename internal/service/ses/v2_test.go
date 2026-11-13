@@ -162,7 +162,7 @@ func TestListEmailIdentities(t *testing.T) {
 // ses.md 6.3).
 func TestGetAccountReportsSandboxAndQuota(t *testing.T) {
 	for _, production := range []bool{false, true} {
-		runVerified(t, ses.Options{ProductionAccess: production}, func(h *harness) {
+		runVerified(t, ses.Options{ProductionAccess: ses.ProductionAccess{All: production}}, func(h *harness) {
 			must(h, sesapi.OpSendEmail, email(sender, recipient))
 			acct := must(h, sesv2api.OpGetAccount, &sesv2api.GetAccountInput{})
 			q := h.quota()
@@ -248,7 +248,6 @@ func TestV2SendEmailNotImplementedMembers(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		arn := h.identityARN(sender)
 		for member, set := range map[string]func(*sesv2api.SendEmailInput){
-			"ConfigurationSetName":   func(in *sesv2api.SendEmailInput) { in.ConfigurationSetName = new("set") },
 			"ConfigurationOverrides": func(in *sesv2api.SendEmailInput) { in.ConfigurationOverrides = &sesv2api.ConfigurationOverrides{} },
 			"EndpointId":             func(in *sesv2api.SendEmailInput) { in.EndpointId = new("abc123.xyz") },
 			"TenantName":             func(in *sesv2api.SendEmailInput) { in.TenantName = new("tenant") },

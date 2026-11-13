@@ -192,7 +192,7 @@ func TestSandboxRecipients(t *testing.T) {
 			h.Errorf("recipient sender+label@example.com with SandboxRecipientLabels=%v: error %+v", ses.SandboxRecipientLabels, err)
 		}
 	})
-	runVerified(t, ses.Options{ProductionAccess: true}, func(h *harness) {
+	runVerified(t, ses.Options{ProductionAccess: ses.ProductionAccess{All: true}}, func(h *harness) {
 		must(h, sesapi.OpSendEmail, email(sender, "stranger@unverified.test"))
 		_, err := call(h, sesapi.OpSendEmail, email("stranger@unverified.test", recipient))
 		wantErr(h, err, sesapi.IdentityMessageRejected(), unverifiedText(h.Scope.Region, "stranger@unverified.test"))
@@ -251,14 +251,13 @@ func TestSendEmailMessageTooLong(t *testing.T) {
 	})
 }
 
-// ConfigurationSetName and the sending-authorization ARNs are not
-// implemented and say so, naming the member (invariant 3).
+// The sending-authorization ARNs are not implemented and say so, naming
+// the member (invariant 3).
 func TestSendEmailNotImplementedMembers(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		for member, set := range map[string]func(*sesapi.SendEmailInput){
-			"ConfigurationSetName": func(in *sesapi.SendEmailInput) { in.ConfigurationSetName = new("set") },
-			"SourceArn":            func(in *sesapi.SendEmailInput) { in.SourceArn = new(h.identityARN(sender)) },
-			"ReturnPathArn":        func(in *sesapi.SendEmailInput) { in.ReturnPathArn = new(h.identityARN(sender)) },
+			"SourceArn":     func(in *sesapi.SendEmailInput) { in.SourceArn = new(h.identityARN(sender)) },
+			"ReturnPathArn": func(in *sesapi.SendEmailInput) { in.ReturnPathArn = new(h.identityARN(sender)) },
 		} {
 			in := email(sender, simulator)
 			set(in)
@@ -276,15 +275,18 @@ type sendFailure struct {
 	want  func(t *rapid.T, h *harness, err *awserr.Error)
 }
 
-// The check order is SendChecks (UNVERIFIED beyond tags before the sender,
-// ses.md 6.4; ses.send.check-order, SES-17): whatever set of failures a
-// send carries, the first of SendChecks that fails answers.
+// The check order is SendChecks (UNVERIFIED beyond tags and a missing
+// configuration set before the sender, ses.md 6.4; ses.send.check-order,
+// SES-17): whatever set of failures a send carries, the first of
+// SendChecks that fails answers.
 func TestSendChecksRunInOrder(t *testing.T) {
 	const badSender, badRecipient = "stranger@unverified.test", "someone@unverified.test"
 	failures := []sendFailure{
 		{
-			ses.CheckNotImplemented, func(in *sesapi.SendEmailInput) { in.ConfigurationSetName = new("set") },
-			func(t *rapid.T, _ *harness, err *awserr.Error) { wantNotImplemented(t, err, "ConfigurationSetName") },
+			ses.CheckNotImplemented, func(in *sesapi.SendEmailInput) {
+				in.SourceArn = new("arn:aws:ses:us-east-1:000000000000:identity/" + sender)
+			},
+			func(t *rapid.T, _ *harness, err *awserr.Error) { wantNotImplemented(t, err, "SourceArn") },
 		},
 		{
 			ses.CheckTags, func(in *sesapi.SendEmailInput) { in.Tags = []sesapi.MessageTag{{Name: "bad:name", Value: "v"}} },
@@ -304,6 +306,12 @@ func TestSendChecksRunInOrder(t *testing.T) {
 		}, func(t *rapid.T, _ *harness, err *awserr.Error) {
 			wantErr(t, err, sesapi.IdentityInvalidParameterValue(), fmt.Sprintf(ses.TooManyRecipientsText, ses.MaxRecipients))
 		}},
+		{
+			ses.CheckConfigurationSet, func(in *sesapi.SendEmailInput) { in.ConfigurationSetName = new("missing") },
+			func(t *rapid.T, _ *harness, err *awserr.Error) {
+				wantErr(t, err, sesapi.IdentityConfigurationSetDoesNotExistException(), setMissingText("missing"))
+			},
+		},
 		{
 			ses.CheckSender, func(in *sesapi.SendEmailInput) { in.Source = badSender },
 			func(t *rapid.T, h *harness, err *awserr.Error) {
@@ -420,7 +428,7 @@ func TestGetSendQuota(t *testing.T) {
 			h.Errorf("GetSendQuota = %+v, want 200, 1 and 0 sent (get-quota-0)", q)
 		}
 	})
-	runWith(t, ses.Options{ProductionAccess: true}, func(h *harness) {
+	runWith(t, ses.Options{ProductionAccess: ses.ProductionAccess{All: true}}, func(h *harness) {
 		q := h.quota()
 		if q.Max24HourSend != ses.ProductionMax24HourSend || q.MaxSendRate != ses.ProductionMaxSendRate {
 			h.Errorf("production GetSendQuota = %+v, want ProductionMax24HourSend and ProductionMaxSendRate", q)

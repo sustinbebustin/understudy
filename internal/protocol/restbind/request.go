@@ -331,14 +331,27 @@ type head struct {
 	labels map[string]string
 	query  map[string][]string
 	header http.Header
+	// queryMembers maps an input member to the query parameter the
+	// request's additional route binds it from, nil when the request came
+	// by the operation's http trait.
+	queryMembers map[string]string
 }
 
-// newHead reads r's labels by op's URI pattern and its query string. A
-// label or query value with an invalid percent-escape is a *BindError.
+// newHead reads r's labels by the URI pattern of the route it came by and
+// its query string. A label or query value with an invalid percent-escape
+// is a *BindError.
 func newHead(r *http.Request, op *registry.Operation) (head, error) {
 	h := head{labels: map[string]string{}, header: r.Header}
-	if op.HTTP != nil {
-		labels, err := pathLabels(op.HTTP.Path, requestPath(r))
+	pattern := op.HTTP
+	if added, ok := op.MatchAdditionalRoute(r.Method, requestPath(r), r.URL.Query(), r.Header); ok {
+		pattern = &added.Binding
+		h.queryMembers = make(map[string]string, len(added.QueryMembers))
+		for _, q := range added.QueryMembers {
+			h.queryMembers[q.Member] = q.Param
+		}
+	}
+	if pattern != nil {
+		labels, err := pathLabels(pattern.Path, requestPath(r))
 		if err != nil {
 			return head{}, err
 		}
@@ -350,6 +363,15 @@ func newHead(r *http.Request, op *registry.Operation) (head, error) {
 	}
 	h.query = query
 	return h, nil
+}
+
+// location is where m travels in this request: its HTTP binding, or the
+// query parameter the request's additional route binds it from.
+func (h head) location(m *smithy.Member) smithy.Location {
+	if p, ok := h.queryMembers[m.Name]; ok && m.HTTP == nil {
+		return smithy.HTTPQuery{Name: p}
+	}
+	return m.HTTP
 }
 
 // parseQuery reads a raw query string: pairs split on '&' only, so a ';'
@@ -379,7 +401,7 @@ func parseQuery(raw string) (map[string][]string, error) {
 
 // field returns m's head field when the request carries one.
 func (h head) field(m *smithy.Member) (*field, bool) {
-	switch loc := m.HTTP.(type) {
+	switch loc := h.location(m).(type) {
 	case smithy.HTTPLabel:
 		v, ok := h.labels[m.Name]
 		return &field{loc: InLabel, name: m.Name, values: []string{v}}, ok

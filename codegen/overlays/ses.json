@@ -71,6 +71,57 @@
         }
       }
     },
+    "com.amazonaws.ses#IdentityNotificationAttributes": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#memberOrder": [
+          "BounceTopic",
+          "ComplaintTopic",
+          "DeliveryTopic",
+          "HeadersInBounceNotificationsEnabled",
+          "HeadersInDeliveryNotificationsEnabled",
+          "HeadersInComplaintNotificationsEnabled",
+          "ForwardingEnabled"
+        ],
+        "dev.understudy#evidence": {
+          "label": "inferred",
+          "source": "testdata/parity/ses/SES-08/03-notif-raw.json (recorded 2026-11-03): a known identity's value lists HeadersInBounceNotificationsEnabled, HeadersInDeliveryNotificationsEnabled, HeadersInComplaintNotificationsEnabled and then ForwardingEnabled, where the model lists ForwardingEnabled first; the identity has no topics, so where AWS writes BounceTopic, ComplaintTopic and DeliveryTopic when they are set is unrecorded, and they keep the model's order ahead of the HeadersIn* members, which makes the entry inferred (ses.md 9.1)"
+        }
+      }
+    },
+    "com.amazonaws.ses#IdentityNotificationAttributes$BounceTopic": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#optionalOutput": {},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/ses/SES-08/03-notif-raw.json: a known identity with no bounce topic has no BounceTopic element, although the model marks it required (ses.md 9.1)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
+    "com.amazonaws.ses#IdentityNotificationAttributes$ComplaintTopic": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#optionalOutput": {},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/ses/SES-08/03-notif-raw.json: a known identity with no complaint topic has no ComplaintTopic element, although the model marks it required (ses.md 9.1)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
+    "com.amazonaws.ses#IdentityNotificationAttributes$DeliveryTopic": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#optionalOutput": {},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/ses/SES-08/03-notif-raw.json: a known identity with no delivery topic has no DeliveryTopic element, although the model marks it required (ses.md 9.1)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
     "com.amazonaws.ses#Throttling": {
       "type": "structure",
       "members": {

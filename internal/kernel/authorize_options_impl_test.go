@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/access"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -93,6 +94,51 @@ func TestAuthorizedInHandlerThroughDeclare(t *testing.T) {
 		}
 		if got := a.questions(); len(got) != 1 {
 			k.Errorf("the Authorizer was asked %+v, want only the handler's question", got)
+		}
+	})
+}
+
+// guardRunRaw is a primary action an input chooses in place of the
+// generated one, as SES v2 SendEmail's Raw content is ses:SendRawEmail,
+// an action outside the operation's generated list.
+var guardRunRaw = registry.IAMAction{Prefix: "guard", Name: "RunRaw"}
+
+// primaryOf chooses guardRunRaw for an input whose Member is "raw" and
+// keeps the operation's primary otherwise.
+func primaryOf(_ *kernel.Call, in *guardInput) registry.IAMAction {
+	if in.Member == "raw" {
+		return guardRunRaw
+	}
+	return registry.IAMAction{}
+}
+
+// A binding whose primary action depends on the input is asked about, and
+// records, the chosen action in place of the generated primary, on the
+// resources the call touches, with its denial resource text; an input
+// that chooses none keeps the generated primary.
+func TestWithPrimaryActionReplacesThePrimaryForTheInput(t *testing.T) {
+	g := newGuard(guardDenial())
+	a := &fakeAuthorizer{decide: denyAction(guardRunRaw, "raw denied")}
+	runGuard(t, g, a, func(k *kerneltest.K) {
+		bindGuard(k, g.run, guardDone, kernel.WithoutSecondaryActions(), kernel.WithResources(touched), kernel.WithPrimaryAction(primaryOf),
+			kernel.WithDenialResource(func(*kernel.Call, *guardInput) string { return "thing one" }))
+		_, err := k.Invoke(k.Context(), g.run, &guardInput{Touch: []aws.ARN{guardThing1}, Member: "raw"})
+		wantDenial(k, err, "raw denied")
+		if _, err := k.Invoke(k.Context(), g.run, &guardInput{Touch: []aws.ARN{guardThing1}}); err != nil {
+			k.Fatalf("call keeping the primary = %+v %q, want it allowed", err.ID, err.Message)
+		}
+		want := []asked{
+			{Op: g.runDesc.ID, Query: kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: guardRunRaw, Resource: kernel.ResourceARN{ARN: guardThing1}, DenialResource: "thing one"}}}},
+			{Op: g.runDesc.ID, Query: kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: guardRun, Resource: kernel.ResourceARN{ARN: guardThing1}, DenialResource: "thing one"}}}},
+		}
+		if got := a.questions(); !reflect.DeepEqual(got, want) {
+			k.Errorf("the Authorizer was asked %+v, want %+v", got, want)
+		}
+		if u, ok := useOf(k, guardRunRaw, access.OnResource{ARN: guardThing1}); !ok || u.Calls != 1 {
+			k.Errorf("access record of %s on %s = %+v (found %t), want the one denied call", guardRunRaw, guardThing1, u, ok)
+		}
+		if u, ok := useOf(k, guardRun, access.OnResource{ARN: guardThing1}); !ok || u.Calls != 1 {
+			k.Errorf("access record of %s on %s = %+v (found %t), want only the call that kept it", guardRun, guardThing1, u, ok)
 		}
 	})
 }

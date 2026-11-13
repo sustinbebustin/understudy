@@ -17,4 +17,4 @@ session: no verified identity and no readable mailbox; $M = us1103-me@example.co
 
 - Setup: `VerifyEmailIdentity` of us1103-me@example.com, the identity SES-00 step 01 created in the session; not made up.
 - 01-mixed settles `ses.verification.unknown-identity`.
-- 03-notif-raw differs: understudy writes empty BounceTopic, ComplaintTopic and DeliveryTopic elements, since the model marks them required.
+- 03-notif-raw matches: the topic elements are left out on both sides (the ses overlay's dev.understudy#optionalOutput), and understudy writes the three HeadersIn*NotificationsEnabled as bounce, delivery, complaint and ForwardingEnabled last, as AWS did (dev.understudy#memberOrder), not the model's order.

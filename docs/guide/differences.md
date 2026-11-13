@@ -239,11 +239,8 @@ Scheduler was recorded against AWS on 2026-11-03 (`testdata/parity/scheduler/SCH
 
 SES was recorded against AWS on 2026-11-03 from a sandbox account with no verified sender (`testdata/parity/ses/SES-*`), so the answers to sends that pass the sender check are unrecorded and labelled per item on the [coverage page](../coverage.md#ses). Recorded differences:
 
-- `ConfigurationSetName` naming a missing set is `ConfigurationSetDoesNotExist` "Configuration set <name> does not exist.", checked before the sender, on AWS; understudy answers 501, since configuration sets are not implemented (`ses/SES-17/02-unverified.json`).
-- `GetIdentityNotificationAttributes` leaves the `BounceTopic`, `ComplaintTopic` and `DeliveryTopic` elements out of an identity with no topics; understudy sends them empty (`ses/SES-08/03-notif-raw.json`).
 - `GetSendQuota` spells its numbers `200.0`, `1.0` and `0.0` and lists `SentLast24Hours` first; understudy writes `200`, `1`, `0` in the model's order. SDKs read both the same (`ses/SES-15/02-quota.json`).
 - v2 answers send unset members as explicit `null` and the GET answers carry `Content-Type: application/x-amz-json-1.1`; understudy omits unset members and sends `application/json` (`ses/SES-13`, `ses/SES-15/01-account.json`). A v2 send without `FromEmailAddress` is `BadRequestException` with `{"message":null}` on AWS; understudy sends a message text (`ses/SES-23/03-no-from.json`).
-- Under `iam.enforce` `enforce`, AWS's denial message is "User '<arn>' is not authorized to perform 'ses:SendEmail' on resource '<identity arn>'"; understudy sends the IAM grammar. v2 `SendEmail` with `Raw` content is authorized as `ses:SendRawEmail` on AWS, as `ses:SendEmail` by understudy (`ses/SES-28`).
 
 By design:
 
@@ -252,7 +249,7 @@ By design:
 - A raw message is recorded as received, without the `Message-ID` and `Date` headers SES would substitute.
 - `MaxSendRate` is reported but not enforced.
 - A templated send renders only `{{name}}` and dotted paths; any other Handlebars construct, a value the data lacks and a value whose rendering on SES is unrecorded leave their part unrendered and are listed as render gaps, where AWS would render the part or, for a rendering failure, drop the mail after accepting it ([SES](ses-email.md#templated-sends)).
-- Unrecorded, and so possibly different from AWS's: a send's invalid-address answers other than an empty `Source`, recipient-count answers, the daily quota error, and the production quota values -1 and 14. The order of the identities in the unverified-identity `MessageRejected` text follows a rule inferred from two recorded lists (`ses/SES-03`).
+- Unrecorded, and so possibly different from AWS's: a send's invalid-address answers other than an empty `Source`, recipient-count answers, the daily quota error, the production quota values -1 and 14, and a v2 send's answer for a missing configuration set, `NotFoundException` with v1's recorded text "Configuration set <name> does not exist." (v1's, checked before the sender, is recorded and matched: `ses/SES-17/02-unverified.json`). The order of the identities in the unverified-identity `MessageRejected` text follows a rule inferred from two recorded lists (`ses/SES-03`).
 - A v2 `SendEmail` with `EndpointId`, which the SDKs sign with SigV4A, answers `sesv2`'s unknown operation, since understudy does not accept SigV4A; AWS would route it to a multi-region endpoint.
 
 ## KMS, Secrets Manager, IAM and STS

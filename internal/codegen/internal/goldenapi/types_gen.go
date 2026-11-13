@@ -186,6 +186,7 @@ type PutKindsInput struct {
 // PutKindsOutput is the output of PutKinds, com.example.golden#PutKindsResponse.
 type PutKindsOutput struct {
 	Id     string
+	Owner  *string
 	Count  int32
 	Items  []Nested
 	Choice Choice

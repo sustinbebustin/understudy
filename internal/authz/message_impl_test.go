@@ -85,6 +85,25 @@ func TestDenialMessageEdgeForms(t *testing.T) {
 			"User: arn:aws:iam::123456789012:user/MaryMajor is not authorized to perform: states:ListStateMachines on resource: arn:aws:states:us-east-2:123456789012:stateMachine:* because no identity-based policy allows the states:ListStateMachines action",
 		},
 		{
+			// SES's send grammar has no reason clause, so an explicit
+			// deny reads as an implicit one (inferred: SES-28 recorded
+			// only implicit denials).
+			"SES explicit deny",
+			authz.Denial{
+				Principal: mary, Action: actionOf("ses:SendTemplatedEmail"), Resource: on("arn:aws:ses:us-east-1:123456789012:identity/a@example.com", "123456789012"),
+				Decision: authz.ExplicitDeny{PolicyType: authz.IdentityBased, PolicyARN: "arn:aws:iam::123456789012:policy/p"},
+			},
+			authz.GrammarSES,
+			"User 'arn:aws:iam::123456789012:user/MaryMajor' is not authorized to perform 'ses:SendTemplatedEmail' on resource 'arn:aws:ses:us-east-1:123456789012:identity/a@example.com'",
+		},
+		{
+			// A send whose sender does not parse names no identity.
+			"SES on no resource",
+			authz.Denial{Principal: mary, Action: actionOf("ses:SendEmail"), Resource: anyIn("123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
+			authz.GrammarSES,
+			"User 'arn:aws:iam::123456789012:user/MaryMajor' is not authorized to perform 'ses:SendEmail'",
+		},
+		{
 			"an unknown grammar renders as IAM's",
 			authz.Denial{Principal: mary, Action: actionOf("sqs:SendMessage"), Resource: anyIn("123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
 			authz.Grammar(200),
@@ -130,7 +149,7 @@ func TestPropertyDenialMessageIsOneLine(t *testing.T) {
 			Resource:  rapid.SampledFrom([]authz.Resource{on(implQueue, "111122223333"), anyIn("111122223333")}).Draw(rt, "resource"),
 			Decision:  decision,
 		}
-		g := rapid.SampledFrom([]authz.Grammar{authz.GrammarIAM, authz.GrammarS3, authz.GrammarSTS, authz.GrammarSQS, authz.GrammarSNS}).Draw(rt, "grammar")
+		g := rapid.SampledFrom([]authz.Grammar{authz.GrammarIAM, authz.GrammarS3, authz.GrammarSTS, authz.GrammarSQS, authz.GrammarSNS, authz.GrammarSES}).Draw(rt, "grammar")
 		msg := d.Message(g)
 		if strings.ContainsAny(msg, "\r\n") {
 			rt.Fatalf("Message(%d) = %q spans lines", g, msg)

@@ -2,6 +2,8 @@ package registry
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
 	"sort"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -211,6 +213,10 @@ type Operation struct {
 	IAM []IAMAction
 	// HTTP is the http trait, set for REST services only.
 	HTTP *HTTPBinding
+	// AdditionalRoutes are the routes a codegen/services additionalRoutes
+	// entry serves the operation at beside HTTP, each also a row of the
+	// service's RouteTable (ARCHITECTURE.md 5.3).
+	AdditionalRoutes []AdditionalRoute
 	// SuccessCode is dev.understudy#successCode, else the http trait's code,
 	// else 200.
 	SuccessCode int
@@ -220,6 +226,51 @@ type Operation struct {
 	MaxRequestBytes int64
 	Readonly        bool
 	Idempotent      bool
+}
+
+// AdditionalRoute is a route an operation is served at beside its http
+// trait: a binding an older model gave it that AWS still answers.
+// QueryMembers bind query parameters onto input members the http trait reads
+// from the body; the request's other members bind as the http trait binds
+// them.
+type AdditionalRoute struct {
+	Binding      HTTPBinding
+	QueryMembers []QueryMember
+}
+
+// MatchAdditionalRoute returns the additional route of o a request came
+// by: the most specific of o's routes that accepts it, as RouteTable.Match
+// picks the row the edge dispatched on, when it is not the http trait. An
+// additional route precedes the http trait, so it wins a tie, as in the
+// service's RouteTable. path is the escaped request path.
+func (o *Operation) MatchAdditionalRoute(method, path string, query url.Values, header http.Header) (*AdditionalRoute, bool) {
+	if len(o.AdditionalRoutes) == 0 {
+		return nil, false
+	}
+	segs := pathSegments(path)
+	var best *AdditionalRoute
+	var bestRow *Route
+	for i := range o.AdditionalRoutes {
+		row := &Route{HTTPBinding: o.AdditionalRoutes[i].Binding}
+		if row.accepts(method, segs, query, header) && (bestRow == nil || CompareSpecificity(row, bestRow) > 0) {
+			best, bestRow = &o.AdditionalRoutes[i], row
+		}
+	}
+	if best == nil {
+		return nil, false
+	}
+	if o.HTTP != nil {
+		if modeled := (&Route{HTTPBinding: *o.HTTP}); modeled.accepts(method, segs, query, header) && CompareSpecificity(modeled, bestRow) > 0 {
+			return nil, false
+		}
+	}
+	return best, true
+}
+
+// QueryMember binds the query parameter Param onto the input member Member.
+type QueryMember struct {
+	Param  string
+	Member string
 }
 
 // IAMAction is one IAM action, such as sqs:SendMessage.

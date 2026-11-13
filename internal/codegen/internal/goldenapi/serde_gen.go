@@ -96,11 +96,11 @@ func (v *GetThingOutput) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *GetThingOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaGetThingOutput)
-	if v.Name != nil {
-		s.WriteString(&memberGetThingOutput_Name, *v.Name)
-	}
 	if v.Created != nil {
 		s.WriteTimestamp(&memberGetThingOutput_Created, *v.Created)
+	}
+	if v.Name != nil {
+		s.WriteString(&memberGetThingOutput_Name, *v.Name)
 	}
 	s.CloseStruct()
 }
@@ -459,6 +459,9 @@ func (v *PutKindsOutput) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 func (v *PutKindsOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaPutKindsOutput)
 	s.WriteString(&memberPutKindsOutput_Id, v.Id)
+	if v.Owner != nil {
+		s.WriteString(&memberPutKindsOutput_Owner, *v.Owner)
+	}
 	s.WriteInt32(&memberPutKindsOutput_Count, v.Count)
 	serializeNestedList(s, &memberPutKindsOutput_Items, v.Items)
 	if v.Choice != nil {

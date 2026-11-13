@@ -135,6 +135,7 @@
       "type": "structure",
       "members": {
         "Id": {"target": "com.example.golden#String", "traits": {"smithy.api#required": {}}},
+        "Owner": {"target": "com.example.golden#String", "traits": {"smithy.api#required": {}}},
         "Count": {"target": "com.example.golden#Integer"},
         "Items": {"target": "com.example.golden#NestedList"},
         "Choice": {"target": "com.example.golden#Choice"},

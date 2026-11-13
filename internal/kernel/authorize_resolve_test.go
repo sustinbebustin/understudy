@@ -389,6 +389,28 @@ func TestWithConditionKeysReachStep8(t *testing.T) {
 	})
 }
 
+// WithFixedConditionKeys fits a binding of any input type and joins the
+// WithConditionKeys union in option order, a later option replacing an
+// earlier one key by key.
+func TestWithFixedConditionKeysJoinStep8sKeys(t *testing.T) {
+	g := newGuard(guardDenial())
+	a := &fakeAuthorizer{}
+	runGuard(t, g, a, func(k *kerneltest.K) {
+		bindGuard(k, g.run, guardDone,
+			kernel.WithFixedConditionKeys(kernel.ConditionKeys{"guard:ApiVersion": {"1"}, "guard:Shared": {"fixed"}}),
+			kernel.WithConditionKeys(func(*kernel.Call, *guardInput) kernel.ConditionKeys {
+				return kernel.ConditionKeys{"guard:Shared": {"input"}}
+			}))
+		if _, err := k.Invoke(k.Context(), g.run, &guardInput{}); err != nil {
+			k.Fatalf("call = %s", err.Message)
+		}
+		want := kernel.ConditionKeys{"guard:ApiVersion": {"1"}, "guard:Shared": {"input"}}
+		if got := a.about(g.runDesc); len(got) != 1 || !reflect.DeepEqual(got[0].Query.Keys, want) {
+			k.Errorf("the Authorizer was asked %+v, want Keys %v", got, want)
+		}
+	})
+}
+
 // WithConditionKeysFor: step 8 passes the keys as AuthzQuery.ActionKeys
 // under each named action, so only that action's pairs see them (over
 // Keys, which every pair sees), and an action it does not name sees Keys

@@ -1,0 +1,21 @@
+{
+  "smithy": "2.0",
+  "shapes": {
+    "com.example.routes#Routes": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"code": "com.example.routes#BadRequest"},
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/routes_additional_test.go"}
+      }
+    },
+    "com.example.routes#BadRequest": {
+      "type": "structure",
+      "members": {"message": {"target": "smithy.api#String"}},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 400,
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/routes_additional_test.go"}
+      }
+    }
+  }
+}

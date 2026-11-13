@@ -202,9 +202,16 @@ func markRole(s *ShapeIR, r Role) {
 // required member of an input structure a presence bit. A required member
 // with a default always has a value, so it needs none.
 func (s *ShapeIR) fieldKinds() error {
+	if s.MemberOrder != nil && s.Role&RoleOutput == 0 {
+		return failf(StageRoles, string(s.ID), "%s sets the order an answer writes members in, so it belongs on a structure used as output", utMemberOrder)
+	}
 	for _, m := range s.Members {
 		if m.AlwaysEmit && s.Role&RoleOutput == 0 {
 			return failf(StageRoles, string(s.ID)+"$"+m.Name, "%s belongs on output members", utAlwaysEmit)
+		}
+		if m.OptionalOutput && s.Role != RoleOutput {
+			return failf(StageRoles, string(s.ID)+"$"+m.Name, "%s belongs on members of a structure used only as output; "+
+				"on input it would drop the required check", utOptionalOutput)
 		}
 		if m.Streaming && s.Role == RoleInput|RoleOutput {
 			return failf(StageRoles, string(s.ID)+"$"+m.Name, "streams in a structure used as both input and output; a stream is a smithy.Body on input and a smithy.BodySource on output, so give each direction its own structure")

@@ -41,6 +41,9 @@ type ServiceConfig struct {
 	// RouteOverrides replace the route row the model derives for an
 	// operation (wire-rest.md 3.2).
 	RouteOverrides []RouteOverride
+	// AdditionalRoutes serve an operation at a route beside the one the
+	// model derives, which keeps serving it.
+	AdditionalRoutes []AdditionalRoute
 	// IAMPrimary names the primary action of an operation whose authorized
 	// actions leave it ambiguous (smithy-models.md 8).
 	IAMPrimary []IAMPrimary
@@ -91,6 +94,26 @@ type RouteOverride struct {
 	Reason    string
 }
 
+// AdditionalRoute is one additionalRoutes entry: a route row added beside the
+// operation's modeled one rather than replacing it (a binding an older model
+// gave the operation that AWS still answers), the query parameters it binds
+// onto input members the modeled route reads from the body, and the reason
+// and evidence. Evidence takes the overlay evidence form, as IAMAddition's.
+type AdditionalRoute struct {
+	Operation string
+	Method    string
+	URI       string
+	Query     []QueryBinding
+	Reason    string
+	Evidence  Evidence
+}
+
+// QueryBinding binds the query parameter Param onto the input member Member.
+type QueryBinding struct {
+	Param  string
+	Member string
+}
+
 // IAMPrimary is one iamPrimary entry: the action an operation's descriptor
 // lists first, chosen from the operation's authorized actions, with the
 // reason no rule picks it.
@@ -120,18 +143,19 @@ func ParseServiceConfig(r io.Reader, id ref.ServiceID) (ServiceConfig, error) {
 		return ServiceConfig{}, failf(StageLoad, subject, "read: %w", err)
 	}
 	var v struct {
-		Service        string            `json:"service"`
-		Package        string            `json:"package"`
-		Model          string            `json:"model"`
-		IAMPrefix      string            `json:"iamPrefix"`
-		SDKService     string            `json:"sdkService"`
-		ExtraProtocols []string          `json:"extraProtocols"`
-		RawBinding     bool              `json:"rawBinding"`
-		RawOperations  []json.RawMessage `json:"rawOperations"`
-		RouteOverrides []json.RawMessage `json:"routeOverrides"`
-		IAMPrimary     []json.RawMessage `json:"iamPrimary"`
-		IAMAdditions   []json.RawMessage `json:"iamAdditions"`
-		Bound          *[]string         `json:"boundOperations"`
+		Service          string            `json:"service"`
+		Package          string            `json:"package"`
+		Model            string            `json:"model"`
+		IAMPrefix        string            `json:"iamPrefix"`
+		SDKService       string            `json:"sdkService"`
+		ExtraProtocols   []string          `json:"extraProtocols"`
+		RawBinding       bool              `json:"rawBinding"`
+		RawOperations    []json.RawMessage `json:"rawOperations"`
+		RouteOverrides   []json.RawMessage `json:"routeOverrides"`
+		AdditionalRoutes []json.RawMessage `json:"additionalRoutes"`
+		IAMPrimary       []json.RawMessage `json:"iamPrimary"`
+		IAMAdditions     []json.RawMessage `json:"iamAdditions"`
+		Bound            *[]string         `json:"boundOperations"`
 	}
 	if err := strictUnmarshal(raw, &v); err != nil {
 		return ServiceConfig{}, failf(StageLoad, subject, "%w", err)
@@ -173,6 +197,9 @@ func ParseServiceConfig(r io.Reader, id ref.ServiceID) (ServiceConfig, error) {
 		return ServiceConfig{}, err
 	}
 	if cfg.RouteOverrides, err = parseEntries(subject, "routeOverrides", v.RouteOverrides, parseRouteOverride, func(o RouteOverride) string { return o.Operation }); err != nil {
+		return ServiceConfig{}, err
+	}
+	if cfg.AdditionalRoutes, err = parseEntries(subject, "additionalRoutes", v.AdditionalRoutes, parseAdditionalRoute, func(a AdditionalRoute) string { return a.Operation }); err != nil {
 		return ServiceConfig{}, err
 	}
 	if cfg.IAMPrimary, err = parseEntries(subject, "iamPrimary", v.IAMPrimary, parseIAMPrimary, func(p IAMPrimary) string { return p.Operation }); err != nil {
@@ -265,14 +292,66 @@ func parseIAMAddition(raw json.RawMessage) (IAMAddition, error) {
 		}
 		out.Actions = append(out.Actions, act)
 	}
-	if v.Evidence[0] == '[' {
-		return IAMAddition{}, errors.New("evidence: give one {label, source, validated?} object; the list form belongs to overlays")
-	}
-	ev, err := parseEvidence(v.Evidence)
+	ev, err := parseEntryEvidence(v.Evidence)
 	if err != nil {
-		return IAMAddition{}, fmt.Errorf("evidence: %w", err)
+		return IAMAddition{}, err
 	}
-	out.Evidence = ev[0]
+	out.Evidence = ev
+	return out, nil
+}
+
+// parseEntryEvidence reads the evidence of a service config entry: one
+// overlay evidence object covering the whole entry.
+func parseEntryEvidence(raw json.RawMessage) (Evidence, error) {
+	if raw[0] == '[' {
+		return Evidence{}, errors.New("evidence: give one {label, source, validated?} object; the list form belongs to overlays")
+	}
+	ev, err := parseEvidence(raw)
+	if err != nil {
+		return Evidence{}, fmt.Errorf("evidence: %w", err)
+	}
+	return ev[0], nil
+}
+
+func parseAdditionalRoute(raw json.RawMessage) (AdditionalRoute, error) {
+	var v struct {
+		Operation string `json:"operation"`
+		Method    string `json:"method"`
+		URI       string `json:"uri"`
+		Query     []struct {
+			Param  string `json:"param"`
+			Member string `json:"member"`
+		} `json:"query"`
+		Reason   string          `json:"reason"`
+		Evidence json.RawMessage `json:"evidence"`
+	}
+	if err := strictUnmarshal(raw, &v); err != nil {
+		return AdditionalRoute{}, err
+	}
+	if !token.IsExported(v.Operation) || v.Method == "" || v.URI == "" || v.Reason == "" || len(v.Evidence) == 0 {
+		return AdditionalRoute{}, errors.New(`an entry needs "operation", "method", "uri", the "reason" the modeled route does not serve and its "evidence"`)
+	}
+	hb, err := registry.ParseHTTPBinding(v.Method, v.URI)
+	if err != nil {
+		return AdditionalRoute{}, err
+	}
+	out := AdditionalRoute{Operation: v.Operation, Method: v.Method, URI: v.URI, Reason: v.Reason}
+	for i, q := range v.Query {
+		switch {
+		case q.Param == "" || q.Member == "":
+			return AdditionalRoute{}, fmt.Errorf(`query[%d]: a binding needs the query "param" and the input "member" it binds`, i)
+		case slices.ContainsFunc(out.Query, func(b QueryBinding) bool { return b.Param == q.Param }):
+			return AdditionalRoute{}, fmt.Errorf("query[%d]: the parameter %s is bound twice; remove one", i, q.Param)
+		case slices.ContainsFunc(out.Query, func(b QueryBinding) bool { return b.Member == q.Member }):
+			return AdditionalRoute{}, fmt.Errorf("query[%d]: the member %s is bound twice; remove one", i, q.Member)
+		case slices.ContainsFunc(hb.Query, func(m registry.QueryMatch) bool { return queryKeyOf(m) == q.Param }):
+			return AdditionalRoute{}, fmt.Errorf("query[%d]: the uri already requires the parameter %s as a literal; a literal is a matching condition, not a binding", i, q.Param)
+		}
+		out.Query = append(out.Query, QueryBinding{Param: q.Param, Member: q.Member})
+	}
+	if out.Evidence, err = parseEntryEvidence(v.Evidence); err != nil {
+		return AdditionalRoute{}, err
+	}
 	return out, nil
 }
 

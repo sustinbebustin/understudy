@@ -1,9 +1,13 @@
 package config
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/mail"
 	"strconv"
 	"strings"
+
+	"github.com/sustinbebustin/understudy/internal/aws"
 )
 
 // verifiedIdentityHint is the grammar a refused ses.verifiedIdentities
@@ -21,10 +25,63 @@ func (d *draft) applySES(s *fileSES, where string) *Error {
 			return &Error{Where: where + ".verifiedIdentities[" + strconv.Itoa(i) + "]", Reason: quote(entry) + " " + err, Hint: verifiedIdentityHint}
 		}
 	}
-	if s.ProductionAccess != nil {
-		d.cfg.SES.ProductionAccess = *s.ProductionAccess
+	if len(s.ProductionAccess) == 0 || string(s.ProductionAccess) == "null" {
+		return nil
 	}
+	access, err := d.productionAccess(s.ProductionAccess, where+".productionAccess")
+	if err != nil {
+		return err
+	}
+	d.cfg.SES.ProductionAccess = access
 	return nil
+}
+
+// productionAccessHint is the shapes a refused ses.productionAccess is told.
+const productionAccessHint = `write true, false, or a list such as [{"account": "000000000000", "region": "us-east-1"}]`
+
+// productionAccess reads ses.productionAccess: a bool or a list of
+// {account, region} entries. A region may be one of the configured extra
+// regions, which applyRegions has already read.
+func (d *draft) productionAccess(raw json.RawMessage, where string) (SESProductionAccess, *Error) {
+	var all bool
+	if json.Unmarshal(raw, &all) == nil {
+		return SESProductionAccess{All: all}, nil
+	}
+	var entries []json.RawMessage
+	if json.Unmarshal(raw, &entries) != nil {
+		return SESProductionAccess{}, &Error{Where: where, Reason: "is " + string(raw) + ", not true, false or a list of {account, region} entries", Hint: productionAccessHint}
+	}
+	extra := make([]string, len(d.cfg.Regions))
+	for i, r := range d.cfg.Regions {
+		extra[i] = r.String()
+	}
+	table, tableErr := aws.KnownRegions().WithExtra(extra...)
+	if tableErr != nil {
+		return SESProductionAccess{}, &Error{Where: where, Reason: tableErr.Error()}
+	}
+	var out SESProductionAccess
+	for i, entry := range entries {
+		at := where + "[" + strconv.Itoa(i) + "]"
+		var e struct {
+			Account string `json:"account"`
+			Region  string `json:"region"`
+		}
+		dec := json.NewDecoder(bytes.NewReader(entry))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&e); err != nil {
+			return SESProductionAccess{}, &Error{Where: at, Reason: string(entry) + " is not an {account, region} object: " + err.Error(), Hint: productionAccessHint}
+		}
+		account, err := aws.ParseAccountID(e.Account)
+		if err != nil {
+			return SESProductionAccess{}, &Error{Where: at, Reason: string(entry) + " has an account that is missing or not 12 digits", Hint: productionAccessHint}
+		}
+		region, err := table.Parse(e.Region)
+		if err != nil {
+			return SESProductionAccess{}, &Error{Where: at, Reason: string(entry) + " has a region that is missing or unknown: " + err.Error(), Hint: productionAccessHint}
+		}
+		out.Pairs = append(out.Pairs, SESAccountRegion{Account: account, Region: region})
+	}
+	return out, nil
 }
 
 // add classifies entry into its class: "*@domain" is an

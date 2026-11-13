@@ -53,3 +53,28 @@ func TestSESTemplatedSendThroughTheAdminAPI(t *testing.T) {
 		t.Errorf("gaps = %+v, want {{#if a}} and {{/if}} in text", m.Template.Gaps)
 	}
 }
+
+// A send naming a configuration set is readable through GET /ses/messages
+// with the set under "configurationSet" (ses.md 11.2).
+func TestSESConfigurationSetThroughTheAdminAPI(t *testing.T) {
+	c, endpoint := adminServer(t, server.Config{SESVerifiedIdentities: server.SESVerifiedIdentities{AddressDomains: []string{"example.net"}}})
+	for _, form := range []url.Values{
+		{"Action": {"VerifyEmailIdentity"}, "EmailAddress": {"from@example.net"}},
+		{"Action": {"CreateConfigurationSet"}, "ConfigurationSet.Name": {"orders"}},
+		{
+			"Action": {"SendEmail"}, "Source": {"from@example.net"}, "Destination.ToAddresses.member.1": {"success@simulator.amazonses.com"},
+			"Message.Subject.Data": {"s"}, "Message.Body.Text.Data": {"b"}, "ConfigurationSetName": {"orders"},
+		},
+	} {
+		if status, body := sesCall(t, endpoint, form); status != http.StatusOK {
+			t.Fatalf("%s = %d %s", form.Get("Action"), status, body)
+		}
+	}
+	page, err := c.SESMessages(t.Context(), admin.SESMessageQuery{To: "success@simulator.amazonses.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Messages) != 1 || page.Messages[0].ConfigurationSet != "orders" {
+		t.Errorf("SESMessages = %+v, want one send with configuration set orders", page)
+	}
+}

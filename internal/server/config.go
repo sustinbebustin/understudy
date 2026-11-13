@@ -110,9 +110,9 @@ type Config struct {
 	// SESVerifiedIdentities is ses.verifiedIdentities: identities that
 	// start verified when they are created; the zero value lists none.
 	SESVerifiedIdentities SESVerifiedIdentities
-	// SESProductionAccess is ses.productionAccess: true takes every
-	// account and Region out of the SES sandbox.
-	SESProductionAccess bool
+	// SESProductionAccess is ses.productionAccess: which accounts and
+	// Regions are out of the SES sandbox; the zero value is none.
+	SESProductionAccess SESProductionAccess
 	LogFormat           LogFormat
 	LogLevel            slog.Level
 	// ReadyFile, when set, receives {"endpoint", "pid"} once the listeners
@@ -458,6 +458,10 @@ type (
 	// SESVerifiedIdentities is ses.verifiedIdentities, re-exported for the
 	// CLI as the switch types are.
 	SESVerifiedIdentities = ses.VerifiedIdentities
+	// SESProductionAccess is ses.productionAccess, re-exported likewise.
+	SESProductionAccess = ses.ProductionAccess
+	// SESAccountRegion is one pair of a ses.productionAccess list.
+	SESAccountRegion = ses.AccountRegion
 )
 
 // Switch values, each the service's own constant.

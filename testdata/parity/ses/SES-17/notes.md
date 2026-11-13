@@ -8,8 +8,8 @@ account: in the SES sandbox (sesv2 get-account ProductionAccessEnabled false; Se
 session: no verified identity and no readable mailbox; $M = us1103-me@example.com stays Pending, so every step that sends from $M is n/a (verification needs a mailbox click)
 
 - 01-verified, 03-v2, 04-bad-tag-and-set: n/a (send from $M, which needs a mailbox click to verify)
-- 02-unverified: configuration set checked before the sender: ConfigurationSetDoesNotExist, Type Sender, 400, "Configuration set <us1103-missing> does not exist."; matches the 6.4 plausible order and the 8 recorded text; understudy answers NotImplemented for ConfigurationSetName (first slice), so its ses.send.check-order has no step here
+- 02-unverified: configuration set checked before the sender: ConfigurationSetDoesNotExist, Type Sender, 400, "Configuration set <us1103-missing> does not exist."; matches the 6.4 plausible order and the 8 recorded text; understudy's ses.send.check-order runs its configuration-set step before the sender (amended 2026-11-13, when configuration sets were bound)
 
 ## Replay (internal/parity)
 
-`scenario.json` replays 02-unverified, which differs: understudy answers 501 NotImplemented for ConfigurationSetName.
+`scenario.json` replays 02-unverified, which matches (amended 2026-11-13; until configuration sets were bound it differed, understudy answering 501 NotImplemented for ConfigurationSetName).

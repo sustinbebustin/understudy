@@ -1,0 +1,19 @@
+{
+  "service": "com.example.routes#Routes",
+  "package": "routesapi",
+  "model": "routes",
+  "iamPrefix": "routes",
+  "additionalRoutes": [
+    {
+      "operation": "ListThings",
+      "method": "GET",
+      "uri": "/things",
+      "query": [
+        {"param": "NextToken", "member": "NextToken"},
+        {"param": "page-size", "member": "PageSize"}
+      ],
+      "reason": "the fixture's older model bound ListThings to GET /things",
+      "evidence": {"label": "inferred", "source": "internal/codegen/testdata/routes/routes.service.json"}
+    }
+  ]
+}

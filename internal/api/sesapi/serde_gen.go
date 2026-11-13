@@ -2628,13 +2628,19 @@ func (v *IdentityMailFromDomainAttributes) serialize(s smithy.Serializer, m *smi
 
 func (v *IdentityNotificationAttributes) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaIdentityNotificationAttributes)
-	s.WriteString(&memberIdentityNotificationAttributes_BounceTopic, v.BounceTopic)
-	s.WriteString(&memberIdentityNotificationAttributes_ComplaintTopic, v.ComplaintTopic)
-	s.WriteString(&memberIdentityNotificationAttributes_DeliveryTopic, v.DeliveryTopic)
-	s.WriteBool(&memberIdentityNotificationAttributes_ForwardingEnabled, v.ForwardingEnabled)
+	if v.BounceTopic != nil {
+		s.WriteString(&memberIdentityNotificationAttributes_BounceTopic, *v.BounceTopic)
+	}
+	if v.ComplaintTopic != nil {
+		s.WriteString(&memberIdentityNotificationAttributes_ComplaintTopic, *v.ComplaintTopic)
+	}
+	if v.DeliveryTopic != nil {
+		s.WriteString(&memberIdentityNotificationAttributes_DeliveryTopic, *v.DeliveryTopic)
+	}
 	s.WriteBool(&memberIdentityNotificationAttributes_HeadersInBounceNotificationsEnabled, v.HeadersInBounceNotificationsEnabled)
-	s.WriteBool(&memberIdentityNotificationAttributes_HeadersInComplaintNotificationsEnabled, v.HeadersInComplaintNotificationsEnabled)
 	s.WriteBool(&memberIdentityNotificationAttributes_HeadersInDeliveryNotificationsEnabled, v.HeadersInDeliveryNotificationsEnabled)
+	s.WriteBool(&memberIdentityNotificationAttributes_HeadersInComplaintNotificationsEnabled, v.HeadersInComplaintNotificationsEnabled)
+	s.WriteBool(&memberIdentityNotificationAttributes_ForwardingEnabled, v.ForwardingEnabled)
 	s.CloseStruct()
 }
 

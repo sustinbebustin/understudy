@@ -112,9 +112,12 @@ type OperationIR struct {
 	Readonly        bool
 	Idempotent      bool
 	HTTP            *registry.HTTPBinding
-	Validation      []RuleIR // operation-level rules
-	Paths           []PathIR // every member path of the input, for validation identity selection
-	Examples        []ExampleIR
+	// AdditionalRoutes are the codegen/services additionalRoutes bindings,
+	// served beside HTTP.
+	AdditionalRoutes []registry.AdditionalRoute
+	Validation       []RuleIR // operation-level rules
+	Paths            []PathIR // every member path of the input, for validation identity selection
+	Examples         []ExampleIR
 	// IAM are the operation's IAM actions, the primary first.
 	IAM []registry.IAMAction
 	// NotConfigured is the S3 answer while the operation's subresource is
@@ -165,6 +168,10 @@ type ShapeIR struct {
 	// EnumOrder is dev.understudy#enumOrder: the values in the order an
 	// enum violation lists them, nil for the model's order.
 	EnumOrder []string
+	// MemberOrder is dev.understudy#memberOrder: the members in the order
+	// the serializer writes them, nil for the model's order. Members keeps
+	// the model's order for everything else.
+	MemberOrder []*MemberIR
 
 	TimestampFormat smithy.TimestampFormat
 	MediaType       string
@@ -191,6 +198,14 @@ type ShapeIR struct {
 	// Tracked counts the required members whose presence Deserialize
 	// records, so Validate can tell absent from zero.
 	Tracked int
+}
+
+// SerializeOrder is the order the serializer writes the members in.
+func (s *ShapeIR) SerializeOrder() []*MemberIR {
+	if s.MemberOrder != nil {
+		return s.MemberOrder
+	}
+	return s.Members
 }
 
 // IsStruct reports whether the shape is a structure or a unit.
@@ -236,7 +251,11 @@ type MemberIR struct {
 	EnumPolicy EnumPolicy
 
 	AlwaysEmit bool
-	Empty      EmptyCollection
+	// OptionalOutput marks a member the model requires that the overlay's
+	// optionalOutput makes optional: Required is false, so the Go field is a
+	// pointer written only when set.
+	OptionalOutput bool
+	Empty          EmptyCollection
 	// Value: the Go field is a plain value rather than a pointer (scalars and
 	// structures only; collections, unions and documents use nil for absent,
 	// and a DefaultPointer member is never one).

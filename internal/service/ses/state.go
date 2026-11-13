@@ -11,8 +11,11 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the version of the "ses" snapshot section.
-const stateVersion = 1
+// stateVersion is the version of the "ses" snapshot section. Version 2
+// added configuration sets and the set a message was sent with; version 3
+// added the paused account sending setting; version 4 added an identity's
+// default configuration set.
+const stateVersion = 4
 
 // state is the SES state of one account and Region, the "ses" snapshot
 // section's data.
@@ -23,6 +26,10 @@ type state struct {
 	// Templates are the v1 templates in creation order, the order
 	// ListTemplates and Resources list them in.
 	Templates []template `json:"templates,omitempty"`
+	// ConfigurationSets are the configuration sets of both APIs in
+	// creation order, the order the list operations and Resources list
+	// them in.
+	ConfigurationSets []configurationSet `json:"configurationSets,omitempty"`
 	// Messages are the recorded messages, oldest first, at most
 	// MaxStoredMessages (ses.md 11.2).
 	Messages []record `json:"messages,omitempty"`
@@ -32,14 +39,19 @@ type state struct {
 	// hours, oldest first: SentLast24Hours and the daily quota (ses.md
 	// 6.3). Clearing messages leaves it; a reset drops it with the scope.
 	Recipients []minuteCount `json:"recipients,omitempty"`
+	// SendingPaused is set by UpdateAccountSendingEnabled false; account
+	// sending starts enabled, so the zero value is the default.
+	SendingPaused bool `json:"sendingPaused,omitempty"`
 }
 
 func newState(aws.Scope) state { return state{} }
 
-// IsZero reports a scope without identities, templates, messages, evictions
-// or counted recipients, which snapshots skip.
+// IsZero reports a scope without identities, templates, configuration
+// sets, messages, evictions, counted recipients or a paused account, which
+// snapshots skip.
 func (s *state) IsZero() bool {
-	return len(s.Identities) == 0 && len(s.Templates) == 0 && len(s.Messages) == 0 && s.Evicted == 0 && len(s.Recipients) == 0
+	return len(s.Identities) == 0 && len(s.Templates) == 0 && len(s.ConfigurationSets) == 0 &&
+		len(s.Messages) == 0 && s.Evicted == 0 && len(s.Recipients) == 0 && !s.SendingPaused
 }
 
 // minuteCount is the recipients counted in one minute of emulator time,
@@ -158,6 +170,9 @@ type identity struct {
 	// DkimSigningAttributes is what CreateEmailIdentity stored of its
 	// DkimSigningAttributes; it signs nothing (StoredOnly, ses.md 11.1).
 	DkimSigningAttributes *dkimSigning `json:"dkimSigningAttributes,omitempty"`
+	// ConfigurationSet is the identity's default configuration set, "" when
+	// it has none (ses.md 8).
+	ConfigurationSet string `json:"configurationSet,omitempty"`
 	// Tags are the identity's tags in the order they were first set
 	// (ses.md 5.4).
 	Tags    []tag         `json:"tags,omitempty"`

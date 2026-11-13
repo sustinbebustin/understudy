@@ -17,15 +17,24 @@ import (
 )
 
 // Export, Reset, Import gives back the identities, the templates, the
-// messages and the recipient counter; Resources lists
-// identities then templates, each in creation order, with the v1 status
-// or "template" as summary.
+// configuration sets with their stored options, the messages and the
+// recipient counter; Resources lists identities, then templates, then
+// configuration sets, each in creation order, with the v1 status,
+// "template" or "configuration-set" as summary.
 func TestSnapshotRoundTrip(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		h.verifyEmail("pending@example.com")
 		token := h.verifyDomain("example.org")
 		must(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "welcome", SubjectPart: new("Hi"), TextPart: new("t")}})
-		id := must(h, sesapi.OpSendEmail, email(sender, recipient)).MessageId
+		created := &sesv2api.CreateConfigurationSetInput{
+			ConfigurationSetName: "orders",
+			TrackingOptions:      &sesv2api.TrackingOptions{CustomRedirectDomain: "click.example.org", HttpsPolicy: new(sesv2api.HttpsPolicyRequire)},
+			ReputationOptions:    &sesv2api.ReputationOptions{ReputationMetricsEnabled: true},
+		}
+		must(h, sesv2api.OpCreateConfigurationSet, created)
+		in := email(sender, recipient)
+		in.ConfigurationSetName = new("orders")
+		id := must(h, sesapi.OpSendEmail, in).MessageId
 
 		sections, err := h.svc.Export()
 		if err != nil || len(sections) == 0 {
@@ -53,6 +62,16 @@ func TestSnapshotRoundTrip(t *testing.T) {
 		if got := messageIDs(h.sends()); !slices.Equal(got, []string{id}) {
 			h.Errorf("sends after the load = %q, want [%s]", got, id)
 		}
+		if got := h.sends()[0].ConfigurationSet; got != "orders" {
+			h.Errorf("configuration set of the loaded send = %q, want orders", got)
+		}
+		set := must(h, sesv2api.OpGetConfigurationSet, &sesv2api.GetConfigurationSetInput{ConfigurationSetName: "orders"})
+		if tr := set.TrackingOptions; tr == nil || tr.CustomRedirectDomain != "click.example.org" || tr.HttpsPolicy == nil || *tr.HttpsPolicy != sesv2api.HttpsPolicyRequire {
+			h.Errorf("TrackingOptions after the load = %+v, want %+v", tr, created.TrackingOptions)
+		}
+		if rep := set.ReputationOptions; rep == nil || !rep.ReputationMetricsEnabled {
+			h.Errorf("ReputationOptions after the load = %+v, want metrics enabled", rep)
+		}
 		if got := h.quota().SentLast24Hours; got != 1 {
 			h.Errorf("SentLast24Hours = %v after the load, want 1", got)
 		}
@@ -72,6 +91,7 @@ func TestSnapshotRoundTrip(t *testing.T) {
 			h.identityARN("pending@example.com") + " Pending",
 			h.identityARN("example.org") + " Pending",
 			"arn:aws:ses:us-east-1:000000000000:template/welcome template",
+			h.setARN("orders") + " configuration-set",
 		}
 		if !slices.Equal(got, want) {
 			h.Errorf("Resources = %q\nwant %q", got, want)
@@ -233,25 +253,23 @@ func TestIdentityOperationsTouchTheIdentityARN(t *testing.T) {
 }
 
 // Operations outside the slice stay unbound and answer 501 (invariant 3),
-// including the first calls the LocalStack refusal checks
-// make: DeleteConfigurationSet (test_ses.py L836),
-// CreateConfigurationSetEventDestination (L817), CreateConfigurationSet
-// (L545) and CreateReceiptRuleSet (L350), localstack@8b9a79f
-// tests/aws/services/ses/test_ses.py.
+// including the first calls the LocalStack refusal checks make that
+// understudy still refuses: CreateConfigurationSetEventDestination
+// (test_ses.py L817, and the event-destination fixture after L545) and
+// CreateReceiptRuleSet (L350), localstack@8b9a79f
+// tests/aws/services/ses/test_ses.py. Event destinations stay unbound
+// with a configuration set existing or not.
 func TestOutOfScopeOperationsAnswerNotImplemented(t *testing.T) {
 	run(t, func(h *harness) {
-		_, err := call(h, sesapi.OpDeleteConfigurationSet, &sesapi.DeleteConfigurationSetInput{ConfigurationSetName: "missing"})
-		wantCode(h, err, awserr.NotImplemented())
-		_, err = call(h, sesapi.OpCreateConfigurationSetEventDestination, &sesapi.CreateConfigurationSetEventDestinationInput{
-			ConfigurationSetName: "set",
-			EventDestination:     sesapi.EventDestination{Name: "dest", MatchingEventTypes: []sesapi.EventType{sesapi.EventTypeSend}},
-		})
-		wantCode(h, err, awserr.NotImplemented())
-		_, err = call(h, sesapi.OpCreateConfigurationSet, &sesapi.CreateConfigurationSetInput{ConfigurationSet: sesapi.ConfigurationSet{Name: "set"}})
-		wantCode(h, err, awserr.NotImplemented())
-		_, err = call(h, sesapi.OpCreateReceiptRuleSet, &sesapi.CreateReceiptRuleSetInput{RuleSetName: "rules"})
-		wantCode(h, err, awserr.NotImplemented())
-		_, err = call(h, sesv2api.OpListConfigurationSets, &sesv2api.ListConfigurationSetsInput{})
+		h.createSet("set")
+		for _, name := range []string{"set", "missing"} {
+			_, err := call(h, sesapi.OpCreateConfigurationSetEventDestination, &sesapi.CreateConfigurationSetEventDestinationInput{
+				ConfigurationSetName: name,
+				EventDestination:     sesapi.EventDestination{Name: "dest", MatchingEventTypes: []sesapi.EventType{sesapi.EventTypeSend}},
+			})
+			wantCode(h, err, awserr.NotImplemented())
+		}
+		_, err := call(h, sesapi.OpCreateReceiptRuleSet, &sesapi.CreateReceiptRuleSetInput{RuleSetName: "rules"})
 		wantCode(h, err, awserr.NotImplemented())
 	})
 }

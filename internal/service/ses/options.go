@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/sesapi"
+	"github.com/sustinbebustin/understudy/internal/aws"
 )
 
 // Options are the SES settings wire.go fills from the configuration and the
@@ -16,9 +17,9 @@ type Options struct {
 	// verified when they are created, in any account or Region (ses.md
 	// 11.3 item 3).
 	VerifiedIdentities VerifiedIdentities
-	// ProductionAccess is ses.productionAccess: true takes every account
-	// and Region out of the sandbox (ses.md 11.3).
-	ProductionAccess bool
+	// ProductionAccess is ses.productionAccess; the zero value is the
+	// sandbox everywhere.
+	ProductionAccess ProductionAccess
 
 	// Store is the ses.store.shared-v1-v2 switch.
 	Store StoreSharing
@@ -30,6 +31,40 @@ type Options struct {
 	UnknownIdentity UnknownIdentity
 	// RawEnvelope is the ses.raw.envelope switch.
 	RawEnvelope RawEnvelope
+}
+
+// ProductionAccess is ses.productionAccess: which account and Region pairs
+// are out of the sandbox (ses.md 11.3; the sandbox is per Region, ses.md
+// 6.1).
+type ProductionAccess struct {
+	// All takes every account and Region out of the sandbox.
+	All bool
+	// Pairs are the only pairs out of the sandbox when All is unset.
+	Pairs []AccountRegion
+}
+
+// AccountRegion is one account and Region pair of a ProductionAccess list.
+type AccountRegion struct {
+	Account aws.AccountID
+	Region  aws.Region
+}
+
+// sendingAccess is where an account and Region send from: the sandbox,
+// which limits recipients and the daily quota (ses.md 6.1-6.3), or
+// production access.
+type sendingAccess uint8
+
+const (
+	accessSandbox sendingAccess = iota
+	accessProduction
+)
+
+// of is the sending access of scope's account and Region.
+func (p ProductionAccess) of(scope aws.Scope) sendingAccess {
+	if p.All || slices.Contains(p.Pairs, AccountRegion{Account: scope.Account, Region: scope.Region}) {
+		return accessProduction
+	}
+	return accessSandbox
 }
 
 // VerifiedIdentities is ses.verifiedIdentities parsed and classified by

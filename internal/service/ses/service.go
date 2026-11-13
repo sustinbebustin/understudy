@@ -69,7 +69,9 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindSendRaw(b)
 	s.bindSendTemplated(b)
 	s.bindQuota(b)
+	s.bindAccountSending(b)
 	s.bindTemplates(b)
+	s.bindConfigurationSets(b)
 	s.bindLink(b)
 	return s
 }
@@ -81,6 +83,7 @@ func NewV2(d kernel.ServiceDeps, svc *Service) *V2 {
 	b := sesv2api.NewBinder(d.Binder)
 	v.bindV2(b)
 	v.bindV2Templates(b)
+	v.bindV2ConfigurationSets(b)
 	v.bindV2Send(b)
 	return v
 }
@@ -123,20 +126,24 @@ func (s *Service) Reset(rs kernel.ResetScope) {
 
 // Resources lists the identities of scope in creation order, each with
 // its v1 verification status, then the templates in creation order, each
-// summarized "template".
+// summarized "template", then the configuration sets in creation order,
+// each summarized "configuration-set".
 func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 	cell, ok := s.cells.Lookup(scope)
 	if !ok {
 		return nil
 	}
 	return store.Read(cell, func(st *state) []kernel.Resource {
-		out := make([]kernel.Resource, 0, len(st.Identities)+len(st.Templates))
+		out := make([]kernel.Resource, 0, len(st.Identities)+len(st.Templates)+len(st.ConfigurationSets))
 		for i := range st.Identities {
 			id := &st.Identities[i]
 			out = append(out, kernel.Resource{ARN: identityARN(scope, id.Name), Summary: string(id.Status.v1())})
 		}
 		for i := range st.Templates {
 			out = append(out, kernel.Resource{ARN: templateARN(scope, st.Templates[i].Name), Summary: "template"})
+		}
+		for i := range st.ConfigurationSets {
+			out = append(out, kernel.Resource{ARN: configurationSetARN(scope, st.ConfigurationSets[i].Name), Summary: "configuration-set"})
 		}
 		return out
 	})
@@ -146,8 +153,8 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
 
 // Switches lists the SES switches whose behavior is implemented, with the
-// value in effect, and the denial identity (iam-enforcement-surfaces.md
-// 12.8).
+// value in effect, the condition-key derivations and the denial identity
+// (iam-enforcement-surfaces.md 12.5, 12.8).
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		storeSwitch(s.opts.Store).Entry(),
@@ -155,16 +162,20 @@ func (s *Service) Switches() []fidelity.Entry {
 		unverifiedTextSwitch(s.opts.UnverifiedText).Entry(),
 		unknownIdentitySwitch(s.opts.UnknownIdentity).Entry(),
 		rawEnvelopeSwitch(s.opts.RawEnvelope).Entry(),
+		apiVersionV1Switch(s.bindings.AuthorizedOps(sesapi.Service())),
+		addressFormSwitch(),
 		denialSwitch(s.bindings.AuthorizedOps(sesapi.Service())),
 	}
 }
 
 // storeSwitch is switch ses.store.shared-v1-v2 at value v. Ops are the v1
-// operations that read or write identities so far; a switch lists only
-// operations of the service that declares it, so the v2 identity and tag
-// operations it governs as well are not listed. SES-12 recorded "shared":
-// each API read the identity and the template the other created (ses.md
-// 2.3).
+// operations that read or write identities and configuration sets so far;
+// a switch lists only operations of the service that declares it, so the
+// v2 identity, configuration-set and tag operations it governs as well are
+// not listed. SES-12 recorded "shared": each API read the identity and the
+// template the other created (ses.md 2.3). That configuration sets are
+// shared as well is inferred (ses.md 11.4); the label is the recorded
+// one, since a switch carries one.
 func storeSwitch(v StoreSharing) fidelity.Switch[StoreSharing] {
 	return fidelity.Switch[StoreSharing]{
 		Name:   "ses.store.shared-v1-v2",
@@ -176,6 +187,7 @@ func storeSwitch(v StoreSharing) fidelity.Switch[StoreSharing] {
 			"ses.VerifyEmailIdentity", "ses.VerifyDomainIdentity", "ses.GetIdentityVerificationAttributes",
 			"ses.GetIdentityNotificationAttributes", "ses.ListIdentities", "ses.DeleteIdentity",
 			"ses.SendEmail", "ses.SendRawEmail", "ses.SendTemplatedEmail",
+			"ses.CreateConfigurationSet", "ses.DescribeConfigurationSet", "ses.DeleteConfigurationSet", "ses.ListConfigurationSets",
 		},
 		Settles: fidelity.NoScenario{Reason: "ses/SES-12 is recorded; every step crossing the APIs has a v2 REST request, which the replayer does not route"},
 	}

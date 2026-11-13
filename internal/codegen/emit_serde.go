@@ -84,7 +84,7 @@ func (f *file) structSerializer(s *ShapeIR) error {
 	}
 	f.p("func (v *%s) serialize(s smithy.Serializer, m *smithy.Member) {", s.GoName)
 	f.p("\ts.WriteStruct(m, &%s)", s.SchemaVar)
-	for _, m := range s.Members {
+	for _, m := range s.SerializeOrder() {
 		if err := f.serializeMember(m); err != nil {
 			return err
 		}

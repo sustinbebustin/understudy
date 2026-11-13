@@ -79,6 +79,9 @@ type Call struct {
 	// denialResource is the binding's WithDenialResource for the input,
 	// set once at step 7; "" without the option.
 	denialResource string
+	// chosenPrimary is the binding's WithPrimaryAction for the input, set
+	// once at step 7; the zero action without the option (primary).
+	chosenPrimary registry.IAMAction
 
 	mu      sync.Mutex
 	touched []aws.ARN

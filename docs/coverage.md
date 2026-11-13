@@ -133,8 +133,8 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | s3 | 112 | 18 | 39 | 29 | 26 | 0 | 3 |
 | scheduler | 12 | 0 | 0 | 12 | 0 | 0 | 0 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
-| ses | 71 | 10 | 0 | 8 | 53 | 0 | 1 |
-| sesv2 | 116 | 7 | 0 | 7 | 102 | 0 | 0 |
+| ses | 71 | 12 | 4 | 8 | 47 | 0 | 1 |
+| sesv2 | 116 | 9 | 5 | 6 | 96 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
 | sqs | 23 | 15 | 0 | 8 | 0 | 2 | 0 |
@@ -1293,33 +1293,37 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| CreateTemplate | full | inferred, 1 of 4 claims |  |
-| DeleteIdentity | full | inferred, 1 of 4 claims |  |
-| DeleteTemplate | full | inferred, 1 of 2 claims |  |
-| DeleteVerifiedEmailAddress | full | inferred, 1 of 2 claims |  |
-| GetIdentityVerificationAttributes | full | inferred, 1 of 8 claims |  |
-| GetTemplate | full | inferred, 1 of 3 claims |  |
-| ListIdentities | full | inferred, 1 of 6 claims |  |
-| ListTemplates | full | inferred, 1 of 2 claims |  |
-| ListVerifiedEmailAddresses | full | inferred, 1 of 2 claims |  |
-| UpdateTemplate | full | inferred, 1 of 2 claims |  |
-| GetIdentityNotificationAttributes | partial | contradicted (ses/SES-08/03-notif-raw.json), 1 of 4 claims | every identity reports no SNS topics, ForwardingEnabled true and headers disabled; SetIdentityNotificationTopic and the other setters are not implemented |
-| GetSendQuota | partial | contradicted (ses/SES-15/02-quota.json), 1 of 3 claims | Max24HourSend and MaxSendRate from the sandbox or production setting; SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; the send rate is not enforced; production values -1 and 14 are unrecorded (SES-26) |
-| SendEmail | partial | contradicted (ses/SES-17/02-unverified.json), 1 of 18 claims | journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; ConfigurationSetName and the sending-authorization ARNs answer NotImplemented; chosen without a recording (docs/research/ses.md 11.4): address answers other than an empty Source, recipient-count, size and daily-quota answers, refusing a 257-character tag, check order, mailbox-simulator and label matching |
-| SendRawEmail | partial | inferred, 3 of 7 claims | journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; ConfigurationSetName, X-SES-CONFIGURATION-SET, the ARN members and the X-SES-*-ARN headers answer NotImplemented |
-| SendTemplatedEmail | partial | inferred, 3 of 6 claims | journal-only as SendEmail; the stored template and TemplateData are recorded, and rendered subject and bodies only for {{name}} and dotted-path tags; other Handlebars constructs record a render gap, and the send is still accepted, as SES accepts before rendering; so do a value TemplateData lacks, a string holding a character Handlebars escapes and any value but a string, boolean or integer, whose rendering on SES is unrecorded; TemplateArn answers NotImplemented |
-| VerifyDomainIdentity | partial | inferred, 1 of 5 claims | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
-| VerifyEmailAddress | partial | inferred, 1 of 2 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04) |
-| VerifyEmailIdentity | partial | inferred, 2 of 7 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04) |
+| CreateTemplate | full | inferred, 2 of 5 claims |  |
+| DeleteIdentity | full | inferred, 2 of 5 claims |  |
+| DeleteTemplate | full | inferred, 2 of 3 claims |  |
+| DeleteVerifiedEmailAddress | full | inferred, 2 of 3 claims |  |
+| GetAccountSendingEnabled | full | inferred, 2 of 3 claims |  |
+| GetIdentityVerificationAttributes | full | inferred, 2 of 9 claims |  |
+| GetTemplate | full | inferred, 2 of 4 claims |  |
+| ListIdentities | full | inferred, 2 of 7 claims |  |
+| ListTemplates | full | inferred, 2 of 3 claims |  |
+| ListVerifiedEmailAddresses | full | inferred, 2 of 3 claims |  |
+| UpdateAccountSendingEnabled | full | inferred, 2 of 3 claims |  |
+| UpdateTemplate | full | inferred, 2 of 3 claims |  |
+| CreateConfigurationSet | stored-only | inferred, 2 of 4 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| DeleteConfigurationSet | stored-only | inferred, 2 of 4 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| DescribeConfigurationSet | stored-only | inferred, 2 of 4 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| ListConfigurationSets | stored-only | inferred, 2 of 4 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| GetIdentityNotificationAttributes | partial | inferred, 2 of 5 claims | every identity reports no SNS topics, ForwardingEnabled true and headers disabled; SetIdentityNotificationTopic and the other setters are not implemented |
+| GetSendQuota | partial | contradicted (ses/SES-15/02-quota.json), 1 of 4 claims | Max24HourSend and MaxSendRate from the sandbox or production setting; SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; the send rate is not enforced; production values -1 and 14 are unrecorded (SES-26) |
+| SendEmail | partial | inferred, 5 of 20 claims | journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; the sending-authorization ARNs answer NotImplemented; chosen without a recording (docs/research/ses.md 11.4): address answers other than an empty Source, recipient-count, size and daily-quota answers, refusing a 257-character tag, check order, mailbox-simulator and label matching |
+| SendRawEmail | partial | inferred, 4 of 8 claims | journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; the ARN members and the X-SES-*-ARN headers answer NotImplemented |
+| SendTemplatedEmail | partial | inferred, 5 of 8 claims | journal-only as SendEmail; the stored template and TemplateData are recorded, and rendered subject and bodies only for {{name}} and dotted-path tags; other Handlebars constructs record a render gap, and the send is still accepted, as SES accepts before rendering; so do a value TemplateData lacks, a string holding a character Handlebars escapes and any value but a string, boolean or integer, whose rendering on SES is unrecorded; TemplateArn answers NotImplemented |
+| VerifyDomainIdentity | partial | inferred, 2 of 6 claims | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
+| VerifyEmailAddress | partial | inferred, 2 of 3 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04) |
+| VerifyEmailIdentity | partial | inferred, 3 of 8 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04) |
 | CloneReceiptRuleSet | unbound | unassessed |  |
-| CreateConfigurationSet | unbound | unassessed |  |
 | CreateConfigurationSetEventDestination | unbound | unassessed |  |
 | CreateConfigurationSetTrackingOptions | unbound | unassessed |  |
 | CreateCustomVerificationEmailTemplate | unbound | unassessed |  |
 | CreateReceiptFilter | unbound | unassessed |  |
 | CreateReceiptRule | unbound | unassessed |  |
 | CreateReceiptRuleSet | unbound | unassessed |  |
-| DeleteConfigurationSet | unbound | unassessed |  |
 | DeleteConfigurationSetEventDestination | unbound | unassessed |  |
 | DeleteConfigurationSetTrackingOptions | unbound | unassessed |  |
 | DeleteCustomVerificationEmailTemplate | unbound | unassessed |  |
@@ -1328,16 +1332,13 @@ Raw operations:
 | DeleteReceiptRule | unbound | unassessed |  |
 | DeleteReceiptRuleSet | unbound | unassessed |  |
 | DescribeActiveReceiptRuleSet | unbound | unassessed |  |
-| DescribeConfigurationSet | unbound | unassessed |  |
 | DescribeReceiptRule | unbound | unassessed |  |
 | DescribeReceiptRuleSet | unbound | unassessed |  |
-| GetAccountSendingEnabled | unbound | unassessed |  |
 | GetCustomVerificationEmailTemplate | unbound | unassessed |  |
 | GetIdentityDkimAttributes | unbound | unassessed |  |
 | GetIdentityMailFromDomainAttributes | unbound | unassessed |  |
 | GetIdentityPolicies | unbound | unassessed |  |
 | GetSendStatistics | unbound | unassessed |  |
-| ListConfigurationSets | unbound | unassessed |  |
 | ListCustomVerificationEmailTemplates | unbound | unassessed |  |
 | ListIdentityPolicies | unbound | unassessed |  |
 | ListReceiptFilters | unbound | unassessed |  |
@@ -1356,7 +1357,6 @@ Raw operations:
 | SetIdentityNotificationTopic | unbound | unassessed |  |
 | SetReceiptRulePosition | unbound | unassessed |  |
 | TestRenderTemplate | unbound | unassessed |  |
-| UpdateAccountSendingEnabled | unbound | unassessed |  |
 | UpdateConfigurationSetEventDestination | unbound | unassessed |  |
 | UpdateConfigurationSetReputationMetricsEnabled | unbound | unassessed |  |
 | UpdateConfigurationSetSendingEnabled | unbound | unassessed |  |
@@ -1380,19 +1380,24 @@ Raw operations:
 | DeleteEmailTemplate | full | unassessed |  |
 | GetEmailIdentity | full | unassessed |  |
 | GetEmailTemplate | full | unassessed |  |
+| ListEmailIdentities | full | unassessed |  |
 | ListEmailTemplates | full | unassessed |  |
+| PutEmailIdentityConfigurationSetAttributes | full | unassessed |  |
 | UpdateEmailTemplate | full | unassessed |  |
-| CreateEmailIdentity | partial | unassessed | email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented |
-| GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), which nothing changes; no VDM, pricing plan or account details |
-| ListEmailIdentities | partial | unassessed | the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation |
-| ListTagsForResource | partial | unassessed | identity and template ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
-| SendEmail | partial | unassessed | journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content; Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationSetName, ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members answer NotImplemented; the SDKs sign a send with EndpointId SigV4A, which understudy refuses, so it answers sesv2's unknown operation at the edge and only a SigV4-signed one reaches the NotImplemented answer |
-| TagResource | partial | unassessed | identity and template ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
-| UntagResource | partial | unassessed | identity and template ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
+| CreateConfigurationSet | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| DeleteConfigurationSet | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| GetConfigurationSet | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| ListConfigurationSets | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| PutEmailIdentityDkimSigningAttributes | stored-only | unassessed | stored; DKIM status never changes on its own |
+| CreateEmailIdentity | partial | unassessed | email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName must name an existing set and is the identity's default |
+| GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled from the account sending setting; EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), which nothing changes; no VDM, pricing plan or account details |
+| ListTagsForResource | partial | unassessed | identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
+| SendEmail | partial | unassessed | journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content; Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members answer NotImplemented; the SDKs sign a send with EndpointId SigV4A, which understudy refuses, so it answers sesv2's unknown operation at the edge and only a SigV4-signed one reaches the NotImplemented answer |
+| TagResource | partial | unassessed | identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
+| UntagResource | partial | unassessed | identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
 | AssociateEmailIdentityCertificate | unbound | unassessed |  |
 | BatchGetMetricData | unbound | unassessed |  |
 | CancelExportJob | unbound | unassessed |  |
-| CreateConfigurationSet | unbound | unassessed |  |
 | CreateConfigurationSetEventDestination | unbound | unassessed |  |
 | CreateContact | unbound | unassessed |  |
 | CreateContactList | unbound | unassessed |  |
@@ -1405,7 +1410,6 @@ Raw operations:
 | CreateMultiRegionEndpoint | unbound | unassessed |  |
 | CreateTenant | unbound | unassessed |  |
 | CreateTenantResourceAssociation | unbound | unassessed |  |
-| DeleteConfigurationSet | unbound | unassessed |  |
 | DeleteConfigurationSetEventDestination | unbound | unassessed |  |
 | DeleteContact | unbound | unassessed |  |
 | DeleteContactList | unbound | unassessed |  |
@@ -1418,7 +1422,6 @@ Raw operations:
 | DeleteTenantResourceAssociation | unbound | unassessed |  |
 | DisassociateEmailIdentityCertificate | unbound | unassessed |  |
 | GetBlacklistReports | unbound | unassessed |  |
-| GetConfigurationSet | unbound | unassessed |  |
 | GetConfigurationSetEventDestinations | unbound | unassessed |  |
 | GetContact | unbound | unassessed |  |
 | GetContactList | unbound | unassessed |  |
@@ -1439,7 +1442,6 @@ Raw operations:
 | GetReputationEntity | unbound | unassessed |  |
 | GetSuppressedDestination | unbound | unassessed |  |
 | GetTenant | unbound | unassessed |  |
-| ListConfigurationSets | unbound | unassessed |  |
 | ListContactLists | unbound | unassessed |  |
 | ListContacts | unbound | unassessed |  |
 | ListCustomVerificationEmailTemplates | unbound | unassessed |  |
@@ -1473,9 +1475,7 @@ Raw operations:
 | PutDedicatedIpPoolScalingAttributes | unbound | unassessed |  |
 | PutDedicatedIpWarmupAttributes | unbound | unassessed |  |
 | PutDeliverabilityDashboardOption | unbound | unassessed |  |
-| PutEmailIdentityConfigurationSetAttributes | unbound | unassessed |  |
 | PutEmailIdentityDkimAttributes | unbound | unassessed |  |
-| PutEmailIdentityDkimSigningAttributes | unbound | unassessed |  |
 | PutEmailIdentityFeedbackAttributes | unbound | unassessed |  |
 | PutEmailIdentityMailFromAttributes | unbound | unassessed |  |
 | PutSuppressedDestination | unbound | unassessed |  |
@@ -1803,7 +1803,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-233 switches: 136 aws-recorded, 1 third-party-recorded, 14 aws-doc, 82 inferred.
+235 switches: 136 aws-recorded, 1 third-party-recorded, 14 aws-doc, 84 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -2009,7 +2009,9 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `scheduler.flexible-window.offset` | `seeded-uniform` | inferred | docs/research/scheduler.md#56-precision-and-flexible-time-windows | none: SCH-09 (recorded 2026-11-03) bounds the offsets only: five draws cannot settle a distribution |
 | `secretsmanager.list-secrets.all-filter-match` | `any-word,word-prefix` | inferred | https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording calls ListSecrets |
-| `ses.denial.identity` | `v1 AccessDenied, Type Sender, 403, the IAM grammar; v2 AccessDeniedException in x-amzn-ErrorType, 403, body {"message": "<grammar>"}` | inferred | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit | none: ses/SES-28 is recorded and contradicts the message and the v2 member name (ses.md 11.4); the replay signs as the account's root, which no denial reaches |
+| `ses.condition.address-form` | `a Name <address> parameter carries the address between the angle brackets, case, +label and quotes as written; ses:Recipients are To, Cc and Bcc, not ReplyTo` | inferred | docs/research/iam-enforcement-surfaces.md#125-context-keys | none: unrecorded: SES-31 steps 05, 06, 09, 10, 12 and 17 (ses.md 12.2) have not been run |
+| `ses.condition.api-version-v1` | `1` | inferred | docs/research/iam-enforcement-surfaces.md#125-context-keys | none: unrecorded: SES-31 steps 01, 02 and 04 (ses.md 12.2) have not been run |
+| `ses.denial.identity` | `v1 AccessDenied, Type Sender, 403; v2 AccessDeniedException in x-amzn-ErrorType, 403, body {"Message": "<text>"}; a send's text "User '<principal arn>' is not authorized to perform '<action>' on resource '<identity arn>'", every other action's the IAM grammar` | inferred | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit | none: ses/SES-28 is recorded and leaves v1 SendRawEmail, v1 SendTemplatedEmail and the explicit-deny form unrecorded (ses.md 11.4); the replay signs as the account's root, which no denial reaches |
 | `ses.error.unverified.text` | `hash-order` | aws-recorded (ses/SES-03/02-both.json) | docs/research/ses.md#61-sandbox-rules-per-send | ses/SES-03#02-both |
 | `ses.message-id.format` | `timestamped` | inferred | docs/research/ses.md#47-messageid | none: unrecorded: SES-07 (ses.md 12) sends from a verified address, which the 2026-11-03 session did not have |
 | `ses.raw.envelope` | `destinations` | inferred | docs/research/ses.md#42-v1-sendrawemail | none: unrecorded: SES-20 steps 01, 02 and 04 (ses.md 12) send from a verified address, which the 2026-11-03 session did not have |
@@ -2045,7 +2047,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-429 evidence items: 120 aws-recorded, 109 third-party-recorded, 58 aws-doc, 5 sdk-source, 137 inferred.
+433 evidence items: 123 aws-recorded, 109 third-party-recorded, 58 aws-doc, 5 sdk-source, 138 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2135,6 +2137,9 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | scheduler.json | `com.amazonaws.scheduler#AWSChronosService` | dev.understudy#denialError | docs/research/scheduler.md#24-errors: SCH-10 10-01-denied-get (recorded 2026-11-03) answered a denied GetSchedule with 403, x-amzn-ErrorType AccessDeniedException:http://internal.amazon.com/coral/com.amazon.coral.service/ (the generic com.amazon.coral.service#AccessDeniedException, not a chronos shape), body {"Message": ...} and the iam-enforcement-surfaces.md 4.1 grammar (switch scheduler.denial.status) |
 | aws-recorded | scheduler.json | `com.amazonaws.scheduler#AWSChronosService` | dev.understudy#validationError | docs/research/scheduler.md#24-errors: SCH-04 (recorded 2026-11-03) answered model-constraint violations with ValidationException 400, body key Message and the Coral text of error-matrix.md 4: 04-name-65 'Value ... at 'name' failed to satisfy constraint: Member must have length less than or equal to 64', 04-window-1441 (range), 04-fifo-dlq and 04-aws-source (pattern, printed without ^ and $), SCH-06 06-tag-empty-value-raw (tags.1.member.value length) |
 | aws-recorded (secretsmanager/R15/05-name-513.json) | secretsmanager.json | `com.amazonaws.secretsmanager#CreateSecretRequest$Name` |  | testdata/parity/secretsmanager/R15/05-name-513.json: a 513-character Name at CreateSecret answers ValidationException with the character-set text, not the Coral length text; AWS's answer to an empty Name is unrecorded, so the rule covers the maximum only (validated 2026-10-14) |
+| aws-recorded | ses.json | `com.amazonaws.ses#IdentityNotificationAttributes$BounceTopic` |  | testdata/parity/ses/SES-08/03-notif-raw.json: a known identity with no bounce topic has no BounceTopic element, although the model marks it required (ses.md 9.1) (validated 2026-11-03) |
+| aws-recorded | ses.json | `com.amazonaws.ses#IdentityNotificationAttributes$ComplaintTopic` |  | testdata/parity/ses/SES-08/03-notif-raw.json: a known identity with no complaint topic has no ComplaintTopic element, although the model marks it required (ses.md 9.1) (validated 2026-11-03) |
+| aws-recorded | ses.json | `com.amazonaws.ses#IdentityNotificationAttributes$DeliveryTopic` |  | testdata/parity/ses/SES-08/03-notif-raw.json: a known identity with no delivery topic has no DeliveryTopic element, although the model marks it required (ses.md 9.1) (validated 2026-11-03) |
 | aws-recorded (ses/SES-24/01-v1-unknown.json) | ses.json | `com.amazonaws.ses#SimpleEmailService` | dev.understudy#unknownOperationAnswer | testdata/parity/ses/SES-24/01-v1-unknown.json (validated 2026-11-03) |
 | aws-recorded | ses.json | `com.amazonaws.ses#SimpleEmailService` | dev.understudy#denialError | testdata/parity/ses/IAM-ENF/38-raw.json: an IAM denial answers 403 with Type Sender and Code AccessDenied in the SES namespace envelope; its model declares no denial shape (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit) (validated 2026-11-03) |
 | aws-recorded (ses/SES-01/01-cli.json) | ses.json | `com.amazonaws.ses#SimpleEmailService` | dev.understudy#queryErrorEnvelope | testdata/parity/ses/SES-01/01-cli.json (validated 2026-11-03) |
@@ -2412,6 +2417,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | inferred | s3.json | `com.amazonaws.s3#UploadPartCopyRequest$CopySource` |  | docs/research/s3.md#7-copyobject-and-uploadpartcopy: UploadPartCopy takes the same x-amz-copy-source as CopyObject |
 | inferred | scheduler.json | `com.amazonaws.scheduler#AWSChronosService` | dev.understudy#throttleError | docs/research/scheduler.md#24-errors: the model declares ThrottlingException (429) on every operation while CommonErrors.html lists a 400 ThrottlingException; no recording shows which Scheduler emits (scheduler.md 13 keeps the model's); the SCH queue has no throttle case, so J14 (error-matrix.md 10) run against scheduler settles it |
 | inferred | scheduler.json | `com.amazonaws.scheduler#Source` |  | docs/research/smithy-models.md#62-regex-dialect-33-of-319-patterns-fail-in-go: the model's ^(?=[/\.\-_A-Za-z0-9]+)((?!aws\.).*)\|(\$(\.[\w_-]+(\[(\d+\|\*)\])*)*)$ is a first character in [/.\-_A-Za-z0-9] with no leading aws., or a $-path suffix; a rendering of the model pattern, not an AWS behavior, so no recording case settles it |
+| inferred | ses.json | `com.amazonaws.ses#IdentityNotificationAttributes` |  | testdata/parity/ses/SES-08/03-notif-raw.json (recorded 2026-11-03): a known identity's value lists HeadersInBounceNotificationsEnabled, HeadersInDeliveryNotificationsEnabled, HeadersInComplaintNotificationsEnabled and then ForwardingEnabled, where the model lists ForwardingEnabled first; the identity has no topics, so where AWS writes BounceTopic, ComplaintTopic and DeliveryTopic when they are set is unrecorded, and they keep the model's order ahead of the HeadersIn* members, which makes the entry inferred (ses.md 9.1) |
 | inferred | ses.json | `com.amazonaws.ses#RawMessage$Data` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the raw MIME of a send (up to 10 MB, 2.2) is the sender's mail, which the journal must not keep; the model marks no send content sensitive |
 | inferred | ses.json | `com.amazonaws.ses#SendEmailRequest$Message` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: the subject and bodies of a send are the sender's mail, which the journal must not keep; the model marks no send content sensitive, so the generated Redact() would journal it whole |
 | inferred | ses.json | `com.amazonaws.ses#SendTemplatedEmailRequest$TemplateData` |  | docs/research/ses.md#112-journal-only-what-is-recorded-and-how-tests-read-it: TemplateData holds the replacement values of a templated send (4.3), part of the sender's mail, which the journal must not keep; the model marks no send content sensitive |

@@ -122,6 +122,9 @@ type SESMessage struct {
 	// with Template content; Subject, Text and HTML are then its rendered
 	// parts, each absent when a gap left it unrendered.
 	Template *SESTemplate `json:"template,omitempty"`
+	// ConfigurationSet is the configuration set the send named, by
+	// ConfigurationSetName or the raw X-SES-CONFIGURATION-SET header.
+	ConfigurationSet string `json:"configurationSet,omitempty"`
 
 	Tags []SESTag `json:"tags,omitempty"`
 	// Simulator maps each mailbox simulator recipient to its scenario:

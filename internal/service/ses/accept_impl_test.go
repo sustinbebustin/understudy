@@ -60,7 +60,7 @@ func TestIdentityChecksBeforeDailyQuota(t *testing.T) {
 // Max24HourSend is unlimited (ProductionMax24HourSend, SES-26), and every
 // recipient is still counted.
 func TestProductionAccessHasNoDailyQuota(t *testing.T) {
-	runVerified(t, ses.Options{ProductionAccess: true}, func(h *harness) {
+	runVerified(t, ses.Options{ProductionAccess: ses.ProductionAccess{All: true}}, func(h *harness) {
 		sent := 0
 		for batch := range int(ses.SandboxMax24HourSend)/ses.MaxRecipients + 1 {
 			to := make([]string, ses.MaxRecipients)
