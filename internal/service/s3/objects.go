@@ -46,10 +46,13 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	b.CopyObject(s.copyObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; " + eventHoldNote}, touches(s, cp))
 	lv1 := func(in *s3api.ListObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjects(reader(s, lv1, listObjects), registry.Partial{Note: "no RestoreStatus"}, touches(s, lv1))
-	lv2 := func(in *s3api.ListObjectsV2Input) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	// Every ListObjectsV2 200 names the bucket's home region, a header the
-	// output does not model, whatever region the request asserts
-	// (testdata/parity/s3/R06/07-list-objects-v2.json).
+	// Every ListObjectsV2 answer names the bucket's home region, whatever
+	// region the request asserts: each 200, with a header the output does
+	// not model (testdata/parity/s3/R06/07-list-objects-v2.json), and each
+	// error about the bucket (testdata/parity/s3/IAM-ENF/13-s3.json).
+	lv2 := func(in *s3api.ListObjectsV2Input) access {
+		return at(in.Bucket, in.ExpectedBucketOwner).namingRegion()
+	}
 	b.ListObjectsV2(func(ctx context.Context, c *kernel.Call, in *s3api.ListObjectsV2Input) (*s3api.ListObjectsV2Output, *awserr.Error) {
 		return read(ctx, s, c, lv2(in), func(b *Bucket) (*s3api.ListObjectsV2Output, *awserr.Error) {
 			out, err := listObjectsV2(in, b)
@@ -516,7 +519,7 @@ func writeObjects[R any](ctx context.Context, s *Service, c *kernel.Call, a acce
 		r, released, err := fn(&next, objectTx{tx: tx, now: now, request: req})
 		if err != nil {
 			tx.Unchanged()
-			return result{}, inRegion(err, next.Home)
+			return result{}, a.regionOn(err, src, next.Home)
 		}
 		bc.Bucket = &next
 		committed = &result{r: r, released: released, home: next.Home.Region, ad: ad}

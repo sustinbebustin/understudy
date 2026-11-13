@@ -359,8 +359,10 @@ func TestNotificationConfigurationRefusals(t *testing.T) {
 				if tc.order != nil {
 					wantFieldOrder(n.T, err, tc.order...)
 				}
-				if r := header(err, "x-amz-bucket-region"); r != "us-east-1" {
-					n.Fatalf("x-amz-bucket-region = %q, want us-east-1", r)
+				// Same-region errors other than ListObjectsV2's name no
+				// region (ADR 0013, amendment 2026-11-13).
+				if r := header(err, "x-amz-bucket-region"); r != "" {
+					n.Fatalf("x-amz-bucket-region = %q, want none", r)
 				}
 				if len(n.stored().QueueConfigurations) != 0 {
 					n.Fatal("a refused configuration was stored")

@@ -40,7 +40,7 @@ SNS filter policies, EventBridge event patterns and Lambda event source mapping 
 
 - Every XML body starts with an XML declaration; AWS leaves it off `CompleteMultipartUpload` errors and several others, writes a literal `"` in Complete's `ETag`, and puts `\n\n` after its declaration (`s3/R08/06-complete-without-part-checksums.json`, `s3/R12/03-complete.json`).
 - `GetBucketEncryption` writes the rule's elements in the model's order (`ApplyServerSideEncryptionByDefault`, `BucketKeyEnabled`, `BlockedEncryptionTypes`); AWS writes `BucketKeyEnabled` first (`s3/R06/01-get-get-bucket-encryption.json`). Both parse the same.
-- Headers: understudy adds `x-amz-bucket-region` to not-configured 404s, where AWS does not (`s3/R06/01-get-get-bucket-policy.json`).
+- A `ListObjectsV2` refused before the bucket is looked up carries no `x-amz-bucket-region`; AWS sends it. This covers an IAM denial under `--iam-enforce enforce` (`s3/IAM-ENF/12-list.json`, `s3/IAM-EVAL-18/`) and a `max-keys` that is not an integer (`s3/R12/05-list-max-keys-abc.json`).
 - `GetBucketPolicyStatus` is not implemented (`s3/R06/01-get-get-bucket-policy-status.json`).
 - Object Lock event holds (variable retention) are not implemented: an `x-amz-object-lock-event-hold*` header on `PutObject`, `CopyObject` or `CreateMultipartUpload`, or `DefaultEventHold` in `PutObjectLockConfiguration`, answers 501 `NotImplemented` naming it, on every bucket, and nothing is written.
 - `x-amz-bypass-governance-retention: true` alone lifts GOVERNANCE retention on `DeleteObject`, `DeleteObjects` and `PutObjectRetention`: understudy does not evaluate `s3:BypassGovernanceRetention`, so a principal AWS would refuse the bypass still gets it. COMPLIANCE retention and legal holds are never lifted, as on AWS.

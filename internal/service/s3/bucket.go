@@ -237,8 +237,9 @@ func newBucket(cr creation, h Home) *Bucket {
 }
 
 // headBucket answers 200 with the bucket's region, or 404 without a body.
+// Its errors about the bucket name the region too (ADR 0013).
 func (s *Service) headBucket(ctx context.Context, c *kernel.Call, in *s3api.HeadBucketInput) (*s3api.HeadBucketOutput, *awserr.Error) {
-	out, err := read(ctx, s, c, at(in.Bucket, in.ExpectedBucketOwner), func(b *Bucket) (*s3api.HeadBucketOutput, *awserr.Error) {
+	out, err := read(ctx, s, c, at(in.Bucket, in.ExpectedBucketOwner).namingRegion(), func(b *Bucket) (*s3api.HeadBucketOutput, *awserr.Error) {
 		return &s3api.HeadBucketOutput{
 			BucketRegion:     new(b.Home.Region.String()),
 			BucketArn:        new(bucketARN(b.Name).String()),
@@ -336,7 +337,7 @@ func (s *Service) deleteBucket(ctx context.Context, c *kernel.Call, in *s3api.De
 			return deleted{}, err
 		}
 		if !b.Objects.empty() {
-			return deleted{}, inRegion(errBucketNotEmpty(b), b.Home)
+			return deleted{}, a.regionOn(errBucketNotEmpty(b), src, b.Home)
 		}
 		s.buckets.Delete(a.name)
 		bc.Bucket = nil

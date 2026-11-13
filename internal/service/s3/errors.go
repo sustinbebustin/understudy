@@ -46,10 +46,11 @@ func withField(e *awserr.Error, name, value string) *awserr.Error {
 	return e
 }
 
-// inRegion returns e carrying x-amz-bucket-region, as AWS answers every
-// error about a bucket it found (ADR 0013). read, change and DeleteBucket
-// apply it to every error they answer about an existing bucket, so the
-// builders below leave it out; e keeps a region header it already has.
+// inRegion returns e carrying x-amz-bucket-region with h's region. The
+// cross-region refusals always carry it; read, change, writeObjects and
+// DeleteBucket put it on their other errors about an existing bucket as the
+// request's errorRegion says (access.regionOn), so the builders below
+// leave it out. e keeps a region header it already has.
 func inRegion(e *awserr.Error, h Home) *awserr.Error {
 	if e == nil || slices.ContainsFunc(e.Headers, func(x awserr.Header) bool { return strings.EqualFold(x.Name, regionHeader) }) {
 		return e

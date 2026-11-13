@@ -43,10 +43,18 @@
 //   - PermanentRedirect's Endpoint is the request's host with the region
 //     label after the bucket's own labels replaced by the bucket's, port
 //     kept.
-//   - Every error read, change and DeleteBucket answer about an existing
-//     bucket carries x-amz-bucket-region; the error builders leave it out.
-//     A success carries it where the output models it (HeadBucket) and on
-//     every ListObjectsV2 200, asserted region or not, which sets it with
+//   - x-amz-bucket-region goes on HeadBucket, on every ListObjectsV2
+//     answer, on the cross-region refusals, and on every error about an
+//     existing bucket to a request that asserts no region, and nowhere
+//     else (ADR 0013, amendment 2026-11-13). Of the recorded S3 errors,
+//     the ones that carry it are all ListObjectsV2's
+//     (testdata/parity/s3/IAM-ENF/13-s3.json); a same-region
+//     not-configured 404 carries none
+//     (testdata/parity/s3/R06/01-get-get-bucket-policy.json). An access's
+//     errorRegion says which errors read, change and DeleteBucket answer
+//     with it; the error builders leave it out. A success carries it where
+//     the output models it (HeadBucket) and on every ListObjectsV2 200,
+//     asserted region or not, which sets it with
 //     kernel.Call.SetSuccessHeader as every recorded ListObjectsV2 200
 //     carries it (testdata/parity/s3/R06/07-list-objects-v2.json). No
 //     other success carries it. A PutObject that stores a class other

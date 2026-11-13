@@ -86,7 +86,7 @@ func (s *Service) putNotification(ctx context.Context, c *kernel.Call, in *s3api
 	if validate {
 		src := kernel.AsService{Name: s3Principal, Source: bucketARN(in.Bucket), SourceAccount: put.home.OwnerAccount}
 		if err := s.checkDestinations(ctx, c, src, &cfg); err != nil {
-			return nil, inRegion(err, put.home)
+			return nil, a.regionOn(err, s.regionSource(c, a.name), put.home)
 		}
 	}
 	// writeObjects is the bucket write that hands fn the Tx and the call,

@@ -166,7 +166,7 @@ func fresh() map[string]struct {
 }
 
 // check fails the test unless a read answered want: the same document, or
-// the not-configured error with its exact status, body and region header.
+// the not-configured error with its exact status, body and headers.
 func (want unset) check(t *testing.T, bucket string, out any, err *awserr.Error) {
 	t.Helper()
 	if want.code == "" {
@@ -189,8 +189,10 @@ func (want unset) check(t *testing.T, bucket string, out any, err *awserr.Error)
 	if body := errorBody(want.code, want.message, fields...); got.status != http.StatusNotFound || got.body != body {
 		t.Fatalf("got %d %s, want 404 %s", got.status, got.body, body)
 	}
-	if r := got.header.Get("X-Amz-Bucket-Region"); r != "us-east-1" {
-		t.Fatalf("x-amz-bucket-region = %q, want us-east-1", r)
+	// A not-configured 404 to a request signed for the bucket's region
+	// names no region (testdata/parity/s3/R06/01-get-get-bucket-policy.json).
+	if r, sent := got.header["X-Amz-Bucket-Region"]; sent {
+		t.Fatalf("x-amz-bucket-region = %q, want none", r)
 	}
 }
 
@@ -543,9 +545,6 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 		call   func(h *harness, b string) *awserr.Error
 		code   string
 		status int
-		// stateful marks an error the bucket's state decides, which
-		// carries x-amz-bucket-region (ADR 0013).
-		stateful bool
 		// fields are context elements the error must carry.
 		fields map[string]string
 		// message, when set, is the exact error message.
@@ -577,7 +576,7 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 					Bucket: b, VersioningConfiguration: s3api.VersioningConfiguration{Status: new(s3api.BucketVersioningStatusSuspended)},
 				}))
 			},
-			code: "InvalidBucketState", status: 409, stateful: true,
+			code: "InvalidBucketState", status: 409,
 		},
 		"object lock without versioning": {
 			call: func(h *harness, b string) *awserr.Error {
@@ -585,7 +584,7 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 					Bucket: b, ObjectLockConfiguration: &s3api.ObjectLockConfiguration{ObjectLockEnabled: new(s3api.ObjectLockEnabledEnabled)},
 				}))
 			},
-			code: "InvalidBucketState", status: 409, stateful: true,
+			code: "InvalidBucketState", status: 409,
 		},
 		"replication without versioning": {
 			call: func(h *harness, b string) *awserr.Error {
@@ -595,7 +594,7 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 					}}},
 				}))
 			},
-			code: "InvalidRequest", status: 400, stateful: true,
+			code: "InvalidRequest", status: 400,
 		},
 		"two encryption rules": {
 			call: func(h *harness, b string) *awserr.Error {
@@ -679,7 +678,7 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 			call: func(h *harness, b string) *awserr.Error {
 				return errOnly(invoke(h, s3api.OpPutBucketAcl, &s3api.PutBucketAclInput{Bucket: b, ACL: new(s3api.BucketCannedACLPrivate)}))
 			},
-			code: "AccessControlListNotSupported", status: 400, stateful: true,
+			code: "AccessControlListNotSupported", status: 400,
 		},
 		"ACL with nothing to set": {
 			call: func(h *harness, b string) *awserr.Error {
@@ -809,7 +808,7 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 			call: func(h *harness, b string) *awserr.Error {
 				return errOnly(invoke(h, s3api.OpDeleteBucketMetricsConfiguration, &s3api.DeleteBucketMetricsConfigurationInput{Bucket: b, Id: "none"}))
 			},
-			code: "NoSuchConfiguration", status: 404, stateful: true,
+			code: "NoSuchConfiguration", status: 404,
 		},
 	}
 	for name, tc := range cases {
@@ -826,8 +825,10 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 				if tc.message != "" && err.Message != tc.message {
 					t.Errorf("message = %q, want %q", err.Message, tc.message)
 				}
-				if r := header(err, "x-amz-bucket-region"); tc.stateful && r != "us-east-1" {
-					t.Fatalf("x-amz-bucket-region = %q, want us-east-1", r)
+				// Same-region errors other than ListObjectsV2's name no
+				// region (ADR 0013, amendment 2026-11-13).
+				if r := header(err, "x-amz-bucket-region"); r != "" {
+					h.Fatalf("x-amz-bucket-region = %q, want none", r)
 				}
 			})
 		})

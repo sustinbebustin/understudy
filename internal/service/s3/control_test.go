@@ -178,9 +178,10 @@ func TestTagResourceAcceptsAnyRootElement(t *testing.T) {
 	})
 }
 
-// TestTagResourcePastTheLimitNamesTheBucketRegion: a merge that would hold
-// more than 50 tags is InvalidTag about the bucket, with its region header.
-func TestTagResourcePastTheLimitNamesTheBucketRegion(t *testing.T) {
+// TestTagResourcePastTheLimitIsInvalidTag: a merge that would hold more
+// than 50 tags is InvalidTag about the bucket. Like every same-region error
+// but ListObjectsV2's, it names no region (ADR 0013, amendment 2026-11-13).
+func TestTagResourcePastTheLimitIsInvalidTag(t *testing.T) {
 	run(t, s3.Options{}, func(h *harness) {
 		h.createBucket("full")
 		tags := make([]s3api.Tag, 50)
@@ -190,8 +191,8 @@ func TestTagResourcePastTheLimitNamesTheBucketRegion(t *testing.T) {
 		ok(h, who{}, s3api.OpPutBucketTagging, &s3api.PutBucketTaggingInput{Bucket: "full", Tagging: s3api.Tagging{TagSet: tags}})
 		_, err := h.raw("TagResource", http.MethodPost, tagsPath("full"), `<TagResourceRequest><Tags><Tag><Key>one-more</Key><Value>v</Value></Tag></Tags></TagResourceRequest>`)
 		wantCode(h.T, err, "InvalidTag", http.StatusBadRequest)
-		if r := header(err, "x-amz-bucket-region"); r != "us-east-1" {
-			t.Fatalf("x-amz-bucket-region = %q, want us-east-1", r)
+		if r := header(err, "x-amz-bucket-region"); r != "" {
+			h.Fatalf("x-amz-bucket-region = %q, want none", r)
 		}
 	})
 }
