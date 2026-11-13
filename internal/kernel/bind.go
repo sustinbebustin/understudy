@@ -74,18 +74,23 @@ type bindConfig struct {
 }
 
 // erasedConfig is what WithResourcesFor, WithConditionKeys,
-// WithConditionKeysFor and WithDenialResource add: what the binding hands
-// on to step 8 and the access record as is.
+// WithConditionKeysFor, WithDenialResource and WithPrimaryAction add: what
+// the binding hands on to step 8 and the access record as is.
 type erasedConfig struct {
 	scoped     []scopedResources
 	keys       []func(*Call, any) ConditionKeys
 	actionKeys []scopedKeys
 	// denialResource is the last WithDenialResource; nil without one.
 	denialResource func(*Call, any) string
+	// primary is the last WithPrimaryAction; nil without one.
+	primary func(*Call, any) registry.IAMAction
 }
 
 func (e erasedConfig) clone() erasedConfig {
-	return erasedConfig{scoped: slices.Clone(e.scoped), keys: slices.Clone(e.keys), actionKeys: slices.Clone(e.actionKeys), denialResource: e.denialResource}
+	return erasedConfig{
+		scoped: slices.Clone(e.scoped), keys: slices.Clone(e.keys), actionKeys: slices.Clone(e.actionKeys),
+		denialResource: e.denialResource, primary: e.primary,
+	}
 }
 
 // validate runs step 7 over in: the generated validator and the typed
@@ -249,6 +254,18 @@ func denialResourceOf[P any](name func(*Call, P) string) BindOption {
 		return name(c, typed)
 	}
 	return typedOption{in: token, add: func(c *bindConfig) { c.erased.denialResource = f }}
+}
+
+func primaryOf[P any](choose func(*Call, P) registry.IAMAction) BindOption {
+	var token P
+	f := func(c *Call, in any) registry.IAMAction {
+		typed, ok := in.(P)
+		if !ok {
+			return registry.IAMAction{}
+		}
+		return choose(c, typed)
+	}
+	return typedOption{in: token, add: func(c *bindConfig) { c.erased.primary = f }}
 }
 
 // WithValidator adds a stateless, typed validator that runs at pipeline
@@ -473,6 +490,7 @@ func configured(b *Binder, id ref.OperationID, base bindConfig, opts []BindOptio
 		actionKeys:     cfg.erased.actionKeys,
 		scoped:         cfg.erased.scoped,
 		denialResource: cfg.erased.denialResource,
+		primary:        cfg.erased.primary,
 		redact:         t.redact,
 		run:            t.run,
 		extend:         func(more []BindOption) *binding { return configured(b, id, cfg, more, t) },
@@ -566,6 +584,11 @@ type binding struct {
 	// primary action names (WithDenialResource); nil without the option and
 	// for raw HTTP bindings.
 	denialResource func(c *Call, in any) string
+	// primary chooses, for a valid input, the action the call is asked
+	// about and recorded as in place of the generated primary
+	// (WithPrimaryAction); nil without the option and for raw HTTP
+	// bindings.
+	primary func(c *Call, in any) registry.IAMAction
 	// exists are the binding's ResolveFirst checks, run before step 8;
 	// nil without the option and for raw HTTP bindings.
 	exists []func(ctx context.Context, c *Call, in any) *awserr.Error
@@ -578,6 +601,15 @@ func (bnd *binding) denialResourceOf(c *Call, in any) string {
 		return ""
 	}
 	return bnd.denialResource(c, in)
+}
+
+// primaryOf returns the action the binding's WithPrimaryAction chooses for
+// the valid input in; the zero action without the option.
+func (bnd *binding) primaryOf(c *Call, in any) registry.IAMAction {
+	if bnd.primary == nil {
+		return registry.IAMAction{}
+	}
+	return bnd.primary(c, in)
 }
 
 // scoping resolves the binding's WithResourcesFor options for the valid

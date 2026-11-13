@@ -57,8 +57,15 @@ func TestEveryBindingRefusesTheSESConditionKeys(t *testing.T) {
 
 // Switches lists ses.denial.identity at DenialIdentityValue, inferred,
 // with the iam-enforcement-surfaces.md 12.3 anchor and SES-28, governing
-// the authorized v1 operations (iam-enforcement-surfaces.md 12.8).
+// the authorized v1 operations (iam-enforcement-surfaces.md 12.8). The
+// value is what SES-28 and IAM-ENF-38/39 recorded: a send's own text, the
+// IAM grammar for every other action, and v2's body key "Message".
 func TestSwitchesListTheDenialIdentity(t *testing.T) {
+	const recorded = `v1 AccessDenied, Type Sender, 403; v2 AccessDeniedException in x-amzn-ErrorType, 403, body {"Message": "<text>"}; ` +
+		`a send's text "User '<principal arn>' is not authorized to perform '<action>' on resource '<identity arn>'", every other action's the IAM grammar`
+	if ses.DenialIdentityValue != recorded {
+		t.Errorf("DenialIdentityValue =\n%s\nwant the recorded\n%s", ses.DenialIdentityValue, recorded)
+	}
 	run(t, func(h *harness) {
 		entries := h.svc.Switches()
 		i := slices.IndexFunc(entries, func(e fidelity.Entry) bool { return e.Name == "ses.denial.identity" })

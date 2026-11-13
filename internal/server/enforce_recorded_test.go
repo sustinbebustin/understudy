@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"maps"
 	"net/http"
@@ -73,6 +74,13 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 	)
 	implicit := func(action, resource string) string {
 		return caller + action + " on resource: " + resource + " because no identity-based policy allows the " + action + " action"
+	}
+	// ses28Sender is SES-28's sender; a send's denial names its identity
+	// in SES's own grammar.
+	const ses28Sender = "us1103-me@example.com"
+	ses28Denial := func(action string) string {
+		return "User 'arn:aws:sts::000000000000:assumed-role/none/enf' is not authorized to perform '" + action +
+			"' on resource 'arn:aws:ses:us-east-1:000000000000:identity/" + ses28Sender + "'"
 	}
 	xmlCode := func(w wire) string { return parseXMLError(t, w).Code }
 	xmlText := func(w wire) string { return parseXMLError(t, w).Message }
@@ -284,6 +292,47 @@ func TestEnforceDenialsMatchTheRecordings(t *testing.T) {
 			},
 			http.StatusForbidden, xmlCode, "AccessDenied", xmlText,
 			caller + "ses:ListIdentities because no identity-based policy allows the ses:ListIdentities action",
+		},
+		{
+			// A send's denial is SES's own text, naming the sender's
+			// identity (SES-28); steps 01 (the CLI) and 02 (curl) sent
+			// the same v1 SendEmail.
+			"ses/SES-28/01-v1-send.json",
+			func() wire {
+				return queryCall(t, s, endpoint, "ses", url.Values{
+					"Action": {"SendEmail"}, "Version": {"2010-12-01"}, "Source": {ses28Sender},
+					"Destination.ToAddresses.member.1": {sesSimulatorTo}, "Message.Subject.Data": {"s"}, "Message.Body.Text.Data": {"b"},
+				})
+			},
+			http.StatusForbidden, xmlCode, "AccessDenied", xmlText, ses28Denial("ses:SendEmail"),
+		},
+		{
+			"ses/SES-28/02-v1-raw.json",
+			func() wire {
+				return queryCall(t, s, endpoint, "ses", url.Values{
+					"Action": {"SendEmail"}, "Version": {"2010-12-01"}, "Source": {ses28Sender},
+					"Destination.ToAddresses.member.1": {sesSimulatorTo}, "Message.Subject.Data": {"s"}, "Message.Body.Text.Data": {"b"},
+				})
+			},
+			http.StatusForbidden, xmlCode, "AccessDenied", xmlText, ses28Denial("ses:SendEmail"),
+		},
+		{
+			"ses/SES-28/03-v2-simple.json",
+			func() wire {
+				return sesV2Send(t, s, endpoint, `{"FromEmailAddress":"`+ses28Sender+`","Destination":{"ToAddresses":["`+sesSimulatorTo+`"]},`+
+					`"Content":{"Simple":{"Subject":{"Data":"s"},"Body":{"Text":{"Data":"b"}}}}}`)
+			},
+			http.StatusForbidden, jsonType, "AccessDeniedException", upper, ses28Denial("ses:SendEmail"),
+		},
+		{
+			// Raw content is authorized as ses:SendRawEmail on the
+			// identity of the raw From header.
+			"ses/SES-28/04-v2-raw.json",
+			func() wire {
+				raw := base64.StdEncoding.EncodeToString([]byte("From: " + ses28Sender + "\nTo: " + sesSimulatorTo + "\nSubject: r1\n\nb\n"))
+				return sesV2Send(t, s, endpoint, `{"Content":{"Raw":{"Data":"`+raw+`"}}}`)
+			},
+			http.StatusForbidden, jsonType, "AccessDeniedException", upper, ses28Denial("ses:SendRawEmail"),
 		},
 		{
 			"sfn/IAM-ENF/40-raw.json",

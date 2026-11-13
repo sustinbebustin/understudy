@@ -23,10 +23,21 @@ const v2SendEmailCoverage = "journal-only as the v1 sends, for Simple (with Head
 
 // bindV2Send binds v2 SendEmail, whose resource is its sender's identity
 // ARN: FromEmailAddress, else, for Raw content, the first From header
-// address.
+// address. Raw content is authorized as ses:SendRawEmail, which the
+// generated list does not hold, so the input chooses the primary action
+// (kernel.WithPrimaryAction): step 8 keeps asking before the handler's
+// checks, with the refused condition keys and, for a sender that does not
+// parse, on any resource, none of which a handler's kernel.Authorize does.
 func (v *V2) bindV2Send(b sesv2api.Binder) {
 	b.SendEmail(v.sendEmail, registry.Partial{Note: v2SendEmailCoverage},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithPrimaryAction(func(_ *kernel.Call, in *sesv2api.SendEmailInput) registry.IAMAction {
+			if in.Content.Raw != nil {
+				// SES-28 step 04.
+				return registry.IAMAction{Prefix: "ses", Name: "SendRawEmail"}
+			}
+			return registry.IAMAction{}
+		}),
 		kernel.WithResources(func(c *kernel.Call, in *sesv2api.SendEmailInput) []aws.ARN {
 			if in.Content.Raw != nil {
 				return rawSenderARN(c.Scope(), in.FromEmailAddress, in.Content.Raw.Data)

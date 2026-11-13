@@ -93,6 +93,30 @@ func TestSESSendWorkloadIAMPolicy(t *testing.T) {
 	}
 }
 
+// A v2 SendEmail with Raw content is authorized as ses:SendRawEmail on the
+// identity of the raw From header, not as ses:SendEmail (SES-28 step 04):
+// under advise the journal's would-deny advisory names it, and the policy
+// the access record renders grants it on that identity alone.
+func TestSESV2RawSendIsAuthorizedAsSendRawEmail(t *testing.T) {
+	c, endpoint := adminServer(t, sesConfig(server.IAMEnforceAdvise))
+	u := accessKey(t, endpoint, "u")
+	if w := queryCall(t, dummy, endpoint, "ses", url.Values{"Action": {"VerifyEmailIdentity"}, "Version": {sesV1Version}, "EmailAddress": {sesSender}}); w.status != http.StatusOK {
+		t.Fatalf("VerifyEmailIdentity = %d %s", w.status, w.body)
+	}
+	raw := base64.StdEncoding.EncodeToString([]byte("From: " + sesSender + "\r\nTo: " + sesSimulatorTo + "\r\nSubject: s\r\n\r\nb\r\n"))
+	if w := sesV2Send(t, u, endpoint, `{"Content":{"Raw":{"Data":"`+raw+`"}}}`); w.status != http.StatusOK {
+		t.Fatalf("v2 Raw SendEmail under advise = %d %s", w.status, w.body)
+	}
+	advisories := enforcementAdvisories(t, c, "access-would-deny")
+	if len(advisories) != 1 || !strings.Contains(advisories[0], "'ses:SendRawEmail' on resource '"+sesSenderARN+"'") {
+		t.Errorf("access-would-deny advisories = %q, want one naming ses:SendRawEmail on %s", advisories, sesSenderARN)
+	}
+	got := granted(t, c, userU)
+	if want := []string{"ses:SendRawEmail"}; !slices.Equal(got[sesSenderARN], want) || len(got) != 1 {
+		t.Errorf("generated policy = %v, want %v on %s alone", got, want, sesSenderARN)
+	}
+}
+
 // sesPolicyPairs flattens an IAM policy document into "action resource".
 func sesPolicyPairs(t *testing.T, doc json.RawMessage) []string {
 	t.Helper()
@@ -126,21 +150,22 @@ func sesPolicyPairs(t *testing.T, doc json.RawMessage) []string {
 
 // Under enforce a user with no policy is refused v1 and v2 SendEmail with
 // switch ses.denial.identity's identities (iam-enforcement-surfaces.md
-// 12.3, the SES rows; inferred, SES-28): v1 AccessDenied, Type Sender, 403;
-// v2 AccessDeniedException in x-amzn-ErrorType, 403, its text under the
-// key "message" (ses.md 3.2). Both name ses:SendEmail.
+// 12.3, the SES rows; SES-28): v1 AccessDenied, Type Sender, 403; v2
+// AccessDeniedException in x-amzn-ErrorType, 403, its text under the key
+// "Message". Both answer SES's send text naming ses:SendEmail on the
+// sender's identity.
 func TestSESDenialIdentities(t *testing.T) {
 	c, endpoint, u := enforced(t, server.IAMEnforceEnforce)
 	if v := wiredSwitch(t, c, "ses.denial.identity"); v != ses.DenialIdentityValue {
 		t.Errorf("ses.denial.identity = %q, want %q", v, ses.DenialIdentityValue)
 	}
+	const text = "User '" + userU + "' is not authorized to perform 'ses:SendEmail' on resource '" + sesSenderARN + "'"
 
 	w := sesSendEmail(t, u, endpoint)
 	e := parseXMLError(t, w)
 	v1 := sesapi.DenialError()
-	if w.status != v1.Status || w.status != http.StatusForbidden || e.Code != "AccessDenied" || e.Type != "Sender" ||
-		!strings.Contains(e.Message, "ses:SendEmail") {
-		t.Errorf("v1 SendEmail denial = %d %s, want 403 Sender AccessDenied naming ses:SendEmail", w.status, w.body)
+	if w.status != v1.Status || w.status != http.StatusForbidden || e.Code != "AccessDenied" || e.Type != "Sender" || e.Message != text {
+		t.Errorf("v1 SendEmail denial = %d %s, want 403 Sender AccessDenied with %q", w.status, w.body, text)
 	}
 
 	w = sesV2Send(t, u, endpoint, sesV2SimpleBody)
@@ -148,9 +173,8 @@ func TestSESDenialIdentities(t *testing.T) {
 	if err := json.Unmarshal([]byte(w.body), &body); err != nil {
 		t.Fatalf("v2 SendEmail denial body %q: %v", w.body, err)
 	}
-	if w.status != sesv2api.DenialError().Status || w.status != http.StatusForbidden || jsonType(w) != "AccessDeniedException" ||
-		!strings.Contains(body["Message"], "ses:SendEmail") {
-		t.Errorf("v2 SendEmail denial = %d %v %s, want 403 AccessDeniedException with Message naming ses:SendEmail", w.status, w.header, w.body)
+	if w.status != sesv2api.DenialError().Status || w.status != http.StatusForbidden || jsonType(w) != "AccessDeniedException" || body["Message"] != text {
+		t.Errorf("v2 SendEmail denial = %d %v %s, want 403 AccessDeniedException with Message %q", w.status, w.header, w.body, text)
 	}
 }
 

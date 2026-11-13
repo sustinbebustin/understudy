@@ -182,6 +182,9 @@ func TestDenialMessagesMatchTheRecordings(t *testing.T) {
 		key   = "arn:aws:kms:us-east-2:123456789012:key/45c1da4a-a2c9-4510-9930-7f77b26866b5"
 		group = "arn:aws:logs:us-east-2:123456789012:log-group:/us1103/enf"
 		rule  = "arn:aws:events:us-east-2:123456789012:rule/us1103-enf-r"
+		// identityARN is the sender identity an SES send denial names
+		// (SES-28).
+		identityARN = "arn:aws:ses:us-east-2:123456789012:identity/us1103-me@example.com"
 	)
 	cases := []struct {
 		fixture string
@@ -243,6 +246,18 @@ func TestDenialMessagesMatchTheRecordings(t *testing.T) {
 			authz.GrammarS3,
 			`User: arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf is not authorized to perform: s3:GetObject on resource: "arn:aws:s3:::us1103-enf-b/exists" because no identity-based policy allows the s3:GetObject action`,
 		},
+		{
+			"ses/SES-28/01-v1-send.json",
+			authz.Denial{Principal: none, Action: actionOf("ses:SendEmail"), Resource: on(identityARN, "123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
+			authz.GrammarSES,
+			"User 'arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf' is not authorized to perform 'ses:SendEmail' on resource '" + identityARN + "'",
+		},
+		{
+			"ses/SES-28/04-v2-raw.json",
+			authz.Denial{Principal: none, Action: actionOf("ses:SendRawEmail"), Resource: on(identityARN, "123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
+			authz.GrammarSES,
+			"User 'arn:aws:sts::123456789012:assumed-role/us1103-enf-none/enf' is not authorized to perform 'ses:SendRawEmail' on resource '" + identityARN + "'",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.fixture, func(t *testing.T) {
@@ -257,7 +272,7 @@ func TestDenialMessagesMatchTheRecordings(t *testing.T) {
 // its account root ARN (identity.Render, iam-sts-kms.md 4.1).
 func TestDenialMessageOfAnAllowIsEmptyAndRootIsItsARN(t *testing.T) {
 	root := identity.Root{Account: account("111122223333")}
-	for _, g := range []authz.Grammar{authz.GrammarIAM, authz.GrammarS3, authz.GrammarSTS, authz.GrammarSQS, authz.GrammarSNS} {
+	for _, g := range []authz.Grammar{authz.GrammarIAM, authz.GrammarS3, authz.GrammarSTS, authz.GrammarSQS, authz.GrammarSNS, authz.GrammarSES} {
 		if got := (authz.Denial{Principal: root, Action: actionOf("s3:GetObject"), Resource: anyIn("111122223333"), Decision: authz.Allow{}}).Message(g); got != "" {
 			t.Errorf("Message(%d) of an Allow = %q, want empty", g, got)
 		}

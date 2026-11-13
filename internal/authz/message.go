@@ -27,6 +27,9 @@ const (
 	// GrammarSNS is GrammarIAM with the action's prefix written "SNS",
 	// "SNS:GetTopicAttributes" (IAM-ENF-03).
 	GrammarSNS
+	// GrammarSES is SES's text for a denied send: every value in single
+	// quotes, no colons and no reason clause (SES-28).
+	GrammarSES
 )
 
 // Denial is a refused pair as its message names it.
@@ -57,6 +60,9 @@ type Denial struct {
 //     service principal or an anonymous caller (4.2, IAM-ENF-12).
 //   - GrammarSTS: "User: P is not authorized to perform: A on resource: R",
 //     with no reason (4.3, aws-recorded, IAM-ENF-16).
+//   - GrammarSES: "User 'P' is not authorized to perform 'A' on resource
+//     'R'", with no reason (aws-recorded for an implicit denial, SES-28;
+//     the explicit form is inferred to match, ses.md 11.4).
 //
 // R is d.ResourceText when set, whatever d.Resource is. An unknown Grammar
 // renders as GrammarIAM.
@@ -67,7 +73,7 @@ func (d Denial) Message(g Grammar) string {
 		action = strings.ToLower(action)
 	case GrammarSNS:
 		action = "SNS:" + d.Action.Name
-	case GrammarIAM, GrammarS3, GrammarSTS:
+	case GrammarIAM, GrammarS3, GrammarSTS, GrammarSES:
 	}
 	var reason, policyARN string
 	switch dec := d.Decision.(type) {
@@ -104,6 +110,12 @@ func (d Denial) Message(g Grammar) string {
 			return head + " on resource: " + resource
 		}
 		return head
+	case GrammarSES:
+		s := "User '" + identity.Render(d.Principal) + "' is not authorized to perform '" + action + "'"
+		if onResource {
+			s += " on resource '" + resource + "'"
+		}
+		return s
 	case GrammarIAM, GrammarSQS, GrammarSNS:
 	}
 	s := head

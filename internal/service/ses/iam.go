@@ -22,17 +22,20 @@ func refusedConditionKeys() kernel.BindOption { return kernel.RefuseConditionKey
 
 // DenialIdentityValue is switch ses.denial.identity's value: the identity a
 // denial under iam.enforce answers with in each API, from the
-// dev.understudy#denialError overlay traits.
-const DenialIdentityValue = `v1 AccessDenied, Type Sender, 403, the IAM grammar; v2 AccessDeniedException in x-amzn-ErrorType, 403, body {"message": "<grammar>"}`
+// dev.understudy#denialError and dev.understudy#messageKey overlay traits,
+// and the text, from enforce's grammar for SES actions.
+const DenialIdentityValue = `v1 AccessDenied, Type Sender, 403; v2 AccessDeniedException in x-amzn-ErrorType, 403, body {"Message": "<text>"}; ` +
+	`a send's text "User '<principal arn>' is not authorized to perform '<action>' on resource '<identity arn>'", every other action's the IAM grammar`
 
-// denialSwitch is switch ses.denial.identity, governing ops. Both
-// identities were inferred from the STS (aws-recorded) and IAM (inferred)
-// families, as iam-enforcement-surfaces.md 12.3 requires a switch for
-// every inferred denial identity. SES-28 recorded the codes, Type and
-// status as inferred, but a message without the IAM grammar's "because"
-// clause and, on v2, under "Message" (ses.md 11.4); understudy still
-// sends the IAM grammar. It governs v2's operations too, which, being
-// another service's, it does not list.
+// denialSwitch is switch ses.denial.identity, governing ops. SES-28
+// recorded v1 and v2 SendEmail's implicit denials (code, Type, status,
+// v2's key "Message" and the send text naming the sender's identity), and
+// v2 Raw content's as ses:SendRawEmail; IAM-ENF-38 and IAM-ENF-39 recorded
+// the IAM grammar for a non-send action (ses.md 11.4). It stays inferred
+// for what no capture covers, which follows the same text: v1
+// SendRawEmail, v1 SendTemplatedEmail and the explicit-deny form. It
+// governs v2's operations too, which, being another service's, it does
+// not list.
 func denialSwitch(ops []string) fidelity.Entry {
 	return fidelity.Switch[string]{
 		Name:   "ses.denial.identity",
@@ -41,7 +44,7 @@ func denialSwitch(ops []string) fidelity.Entry {
 		Ref:    "docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit",
 		Record: "SES-28",
 		Ops:    ops,
-		Settles: fidelity.NoScenario{Reason: "ses/SES-28 is recorded and contradicts the message and the v2 member name " +
-			"(ses.md 11.4); the replay signs as the account's root, which no denial reaches"},
+		Settles: fidelity.NoScenario{Reason: "ses/SES-28 is recorded and leaves v1 SendRawEmail, v1 SendTemplatedEmail and the explicit-deny form " +
+			"unrecorded (ses.md 11.4); the replay signs as the account's root, which no denial reaches"},
 	}.Entry()
 }

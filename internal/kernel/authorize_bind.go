@@ -175,14 +175,42 @@ func WithDenialResource[In any](name func(c *Call, in *In) string) BindOption {
 	return denialResourceOf[*In](name)
 }
 
+// WithPrimaryAction chooses, from a call's valid input, the action the
+// call is authorized and access-recorded as in place of the operation's
+// primary (the first of Operation.IAM), when the input decides which
+// action AWS evaluates: SES v2 SendEmail with Raw content is
+// ses:SendRawEmail, an action its generated list does not hold (SES-28).
+// The chosen action is the primary everywhere the generated one would be:
+// step 8, a deferred authorization, AuthorizedInHandler, WithDenialResource
+// and the access record. The zero action keeps the generated primary.
+// With several, the last applies.
+func WithPrimaryAction[In any](choose func(c *Call, in *In) registry.IAMAction) BindOption {
+	return primaryOf[*In](choose)
+}
+
+// primary returns the call's primary action: what the binding's
+// WithPrimaryAction chose for the input, else the first of the
+// operation's generated list; false for an internal operation or one
+// that lists none.
+func (c *Call) primary() (registry.IAMAction, bool) {
+	switch {
+	case c.op.Kind == registry.Internal || len(c.op.IAM) == 0:
+		return registry.IAMAction{}, false
+	case c.chosenPrimary != registry.IAMAction{}:
+		return c.chosenPrimary, true
+	}
+	return c.op.IAM[0], true
+}
+
 // named returns pairs with the call's denial resource text on each pair of
-// the operation's primary action; pairs unchanged without one.
+// the call's primary action; pairs unchanged without one.
 func (c *Call) named(pairs []Pair) []Pair {
-	if c.denialResource == "" || c.op.Kind == registry.Internal || len(c.op.IAM) == 0 {
+	primary, ok := c.primary()
+	if c.denialResource == "" || !ok {
 		return pairs
 	}
 	for i := range pairs {
-		if pairs[i].Action == c.op.IAM[0] {
+		if pairs[i].Action == primary {
 			pairs[i].DenialResource = c.denialResource
 		}
 	}
@@ -281,7 +309,7 @@ func (c *Call) authorizeDeferred() *awserr.Error {
 		return nil
 	}
 	d.once.Do(func() {
-		pairs := c.named(pairsOf(authorizedActions(c.op, d.used), c.op.Service.IAMPrefix, c.fixPairing(), c.scoped))
+		pairs := c.named(pairsOf(c.authorizedActions(d.used), c.op.Service.IAMPrefix, c.fixPairing(), c.scoped))
 		if c.k.authorizer == nil || len(pairs) == 0 {
 			return
 		}

@@ -161,6 +161,7 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	c.keys = bnd.conditionKeys(c, in.In)
 	c.actionKeys = bnd.actionConditionKeys(c, in.In)
 	c.denialResource = bnd.denialResourceOf(c, in.In)
+	c.chosenPrimary = bnd.primaryOf(c, in.In)
 	if err := k.resolveFirst(ctx, c, bnd, in.In); err != nil {
 		return Failure{Err: err}, nil
 	}
@@ -416,8 +417,8 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, bnd *binding, res Re
 	}
 	actions := k.recordedActions(ctx, c, used)
 	paired := actions
-	if bnd != nil && bnd.authorization == inHandler && len(c.op.IAM) > 0 {
-		paired = slices.DeleteFunc(slices.Clone(actions), func(a registry.IAMAction) bool { return a == c.op.IAM[0] })
+	if primary, ok := c.primary(); ok && bnd != nil && bnd.authorization == inHandler {
+		paired = slices.DeleteFunc(slices.Clone(actions), func(a registry.IAMAction) bool { return a == primary })
 	}
 	pairs := pairsOf(paired, c.op.Service.IAMPrefix, c.pairingResources(), c.scoped)
 	recorded := accessPairs(pairs, c.keys)

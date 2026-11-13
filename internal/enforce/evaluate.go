@@ -170,10 +170,11 @@ func arnRegion(pair kernel.Pair) string {
 // grammar is the form a denial of action, asked by a call to service, is
 // written in (iam-enforcement-surfaces.md 4.1 to 4.3): STS's recorded text
 // for a call to STS; else by the service that owns the action, S3's
-// variant, SQS's and SNS's spelling of the action, or the documented
-// grammar, which kms:Decrypt follows too (IAM-ENF-05). The action's own
-// service writes it: S3 relays KMS's text for a refused kms:Decrypt
-// (IAM-ENF-28), and EventBridge SQS's for a refused delivery (IAM-ENF-22).
+// variant, SQS's and SNS's spelling of the action, SES's text for a send,
+// or the documented grammar, which kms:Decrypt follows too (IAM-ENF-05).
+// The action's own service writes it: S3 relays KMS's text for a refused
+// kms:Decrypt (IAM-ENF-28), and EventBridge SQS's for a refused delivery
+// (IAM-ENF-22).
 // SQS answers the same text over JSON and Query (IAM-ENF-01, IAM-ENF-02).
 func grammar(service ref.ServiceID, action registry.IAMAction) authz.Grammar {
 	if service == "sts" {
@@ -186,6 +187,15 @@ func grammar(service ref.ServiceID, action registry.IAMAction) authz.Grammar {
 		return authz.GrammarSQS
 	case "sns":
 		return authz.GrammarSNS
+	case "ses":
+		// SES writes a send's denial in its own grammar in v1 and v2
+		// alike (SES-28), its other actions' in the documented one
+		// (IAM-ENF-38, IAM-ENF-39). ses:SendEmail and ses:SendRawEmail
+		// are recorded, ses:SendTemplatedEmail inferred (ses.md 11.4).
+		switch action.Name {
+		case "SendEmail", "SendRawEmail", "SendTemplatedEmail":
+			return authz.GrammarSES
+		}
 	}
 	return authz.GrammarIAM
 }

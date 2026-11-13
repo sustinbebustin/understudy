@@ -249,12 +249,12 @@ func (k *Kernel) authorize(ctx context.Context, c *Call, bnd *binding, used seco
 	if _, platform := c.mode.(AsPlatform); bnd.raw || platform {
 		return nil
 	}
-	actions := authorizedActions(c.op, used)
+	actions := c.authorizedActions(used)
 	switch bnd.authorization {
 	case atStep8:
 	case inHandler:
-		if len(c.op.IAM) > 0 {
-			actions = slices.DeleteFunc(actions, func(a registry.IAMAction) bool { return a == c.op.IAM[0] })
+		if primary, ok := c.primary(); ok {
+			actions = slices.DeleteFunc(actions, func(a registry.IAMAction) bool { return a == primary })
 		}
 	case never:
 		return nil
@@ -302,17 +302,18 @@ func denial(c *Call, d Denied) *awserr.Error {
 }
 
 // authorizedActions returns the actions step 8 asks about, in order and
-// without duplicates: the operation's primary action, then the actions its
+// without duplicates: the call's primary action, then the actions its
 // binding declared for the input that the operation lists; for an internal
 // operation, which lists none, the declared actions alone. Unlike the
 // access record, a binding that declares nothing contributes only the
 // primary: the generated list holds every action that may be checked, not
 // every one required, so asking about the whole list would deny calls AWS
 // allows (dynamodb:ReadDataForReplication on a Scan).
-func authorizedActions(op *registry.Operation, used secondaries) []registry.IAMAction {
+func (c *Call) authorizedActions(used secondaries) []registry.IAMAction {
+	op := c.op
 	var out []registry.IAMAction
-	if op.Kind != registry.Internal && len(op.IAM) > 0 {
-		out = append(out, op.IAM[0])
+	if primary, ok := c.primary(); ok {
+		out = append(out, primary)
 	}
 	switch used := used.(type) {
 	case undeclared:
@@ -372,7 +373,7 @@ func pairsOf(actions []registry.IAMAction, opService string, touched []aws.ARN, 
 // Action may be any service's (iam:PassRole from Lambda); keys are
 // condition keys only the handler knows, and the access record keeps an
 // iam:PassRole's iam:PassedToService from them. A question about the
-// operation's primary action carries the binding's WithDenialResource text,
+// call's primary action carries the binding's WithDenialResource text,
 // as at step 8. Like step 8 it asks nothing when
 // authorization is off or the call is a platform call.
 // Asking while holding a cell lock, about the zero ARN, or for a call that
