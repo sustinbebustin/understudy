@@ -4,6 +4,8 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-13
+
 ### Added
 
 - `lambda.hotReloadRoots` in the configuration file lists the directories a hot-reload binding made through the admin API (`understudy lambda hot-reload`) may come from. With it set, a directory that does not resolve, after symbolic links, to one of them or a directory below one is refused with `invalid_request` on `dir`, naming the setting and the resolved path, and nothing is bound; the absolute-path, directory and owner checks still apply. Left out, any directory the user running understudy owns binds, as before. Bindings under `lambda.hotReload` are not checked. SECURITY.md names it as the control on hosts with other local users, who on loopback can otherwise bind the understudy user's home directory and read it from a function.

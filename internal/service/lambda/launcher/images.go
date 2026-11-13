@@ -24,19 +24,19 @@ func (r RuntimeImage) Ref() string { return r.Repository + "@" + r.Digest }
 
 // RuntimeImages is the pinned table of the runtimes understudy supports
 // (lambda-api.md 4.2): each tag's multi-architecture index digest as
-// public.ecr.aws served it on 2026-10-14. scripts/repin-runtime-images
+// public.ecr.aws served it on 2026-11-13. scripts/repin-runtime-images
 // rewrites the digests and that date when a release is prepared.
 func RuntimeImages() []RuntimeImage {
 	const repo = "public.ecr.aws/lambda/"
 	return []RuntimeImage{
-		{Runtime: "provided.al2023", Repository: repo + "provided", Tag: "al2023", Digest: "sha256:a79fa3e8a59e153b5aa69323d10ee2c8f54826e9834afaa1ac4bc79fbaaaf39f"},
-		{Runtime: "python3.13", Repository: repo + "python", Tag: "3.13", Digest: "sha256:1f12740d125ab92d8ec3345058da72ba55deeca968b83044ea74af29f0d7f42b"},
-		{Runtime: "python3.12", Repository: repo + "python", Tag: "3.12", Digest: "sha256:c05509c1a303e7ca10acc26782f530ff1a8573411132e2a67c1924d687a65a96"},
-		{Runtime: "nodejs22.x", Repository: repo + "nodejs", Tag: "22", Digest: "sha256:7dd535c30683b97ea8dc29e5d3731d4ba2516ddeec37adaee204863e54bb3557"},
+		{Runtime: "provided.al2023", Repository: repo + "provided", Tag: "al2023", Digest: "sha256:75c00eca722a6a3c14ad4586777e701f2edcae65deffb86cc1edb398ac2d5ee1"},
+		{Runtime: "python3.13", Repository: repo + "python", Tag: "3.13", Digest: "sha256:6465169ec9334097b25b291e98fa704c522bd0f84622d56e43117f629cc8f5af"},
+		{Runtime: "python3.12", Repository: repo + "python", Tag: "3.12", Digest: "sha256:c453db4acf023dc6882576cc792d3f908a12d2e450580e536e3421fb24bb9e88"},
+		{Runtime: "nodejs22.x", Repository: repo + "nodejs", Tag: "22", Digest: "sha256:d95b861c8139eb5229f9703ff217e3cf0ca040430bfa090fee47fac5096a530f"},
 		{Runtime: "nodejs20.x", Repository: repo + "nodejs", Tag: "20", Digest: "sha256:a4440274d6f0fb4e6cb92cd5f2a97254efe6612f631d9974b197ecbd4a61fcab"},
-		{Runtime: "java21", Repository: repo + "java", Tag: "21", Digest: "sha256:811285999ac7833636bacfbe780012aede4e38c12d15b0ff4a7d90806549ef5c"},
-		{Runtime: "dotnet8", Repository: repo + "dotnet", Tag: "8", Digest: "sha256:729b066ac5e5b6c3259c053b84b697ea451dfae7f9ae9835568561fb6b9a5f63"},
-		{Runtime: "ruby3.3", Repository: repo + "ruby", Tag: "3.3", Digest: "sha256:588e6b7487f76d6289d4be5c129ad1092b5953822bba42757b7292d04922326e"},
+		{Runtime: "java21", Repository: repo + "java", Tag: "21", Digest: "sha256:d0cf7e06ca58e73efe356ca97e30d1b3f45b96e945ebf6bcf6bef99a80005fff"},
+		{Runtime: "dotnet8", Repository: repo + "dotnet", Tag: "8", Digest: "sha256:66395d6489d41ba2e7e3d649183c2e31291d9212227c9f3da526cdb4993b0d9b"},
+		{Runtime: "ruby3.3", Repository: repo + "ruby", Tag: "3.3", Digest: "sha256:39e51a8c7e06f5203e0848fd46c17c1bfcc3423885a3b2624635f2f5a45e3f2a"},
 	}
 }
 
