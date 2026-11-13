@@ -18,6 +18,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/edge"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
@@ -72,7 +73,8 @@ func newObjectEdge(k *kerneltest.K) objectEdge {
 		Kernel: k.Kernel, Registry: k.Kernel.Registry(), Identity: k.Identity, Regions: aws.KnownRegions(),
 		Codecs:       map[ref.ProtocolID]edge.Codec{ref.RESTXML: xmlCodec{c: restxml.Codec{Dialect: s3Dialect}}},
 		BucketExists: svc.BucketExists, S3BaseDomains: []string{"localhost"},
-		Listener: ref.ListenerMain, Unclaimed: ref.RESTXML,
+		UnmatchedRoute: map[ref.ServiceID]func(*http.Request) (*awserr.Error, bool){s3api.Service().ID: s3.UnmatchedRoute},
+		Listener:       ref.ListenerMain, Unclaimed: ref.RESTXML,
 	})
 	if err != nil {
 		t.Fatal(err)

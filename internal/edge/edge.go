@@ -92,6 +92,13 @@ type Options struct {
 	// Unclaimed is the protocol whose error envelope answers a request no
 	// rule claimed; without a codec for it the answer is plain text.
 	Unclaimed ref.ProtocolID
+	// UnmatchedRoute is a REST service's own answer to a request its route
+	// table does not match, where AWS answers other than with the service's
+	// unknown-operation identity: S3's 405 MethodNotAllowed for a method no
+	// object route takes. The request is in its path-style form; false
+	// leaves it to the unknown-operation answer. server/wire.go builds it
+	// from the service's package, which the edge may not import.
+	UnmatchedRoute map[ref.ServiceID]func(*http.Request) (*awserr.Error, bool)
 	// LegacyQuery lists the JSON services AWS also serves over the legacy
 	// Query protocol, which understudy does not (SSM, ssm-parameters.md
 	// 2.3). A POST signed for one of them that carries no X-Amz-Target and
@@ -290,8 +297,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// here.
 		x.r = rt.req
 		id := ref.OperationID{Service: rt.svc.ID, Name: rt.name}
-		h.noteUnknown(ctx, x, rt.svc.ModelSource, id)
-		rejected := h.unknownOperation(rt.svc, rt.codec.Protocol(), rt.name)
+		rejected, own := h.unmatchedRoute(rt)
+		if !own {
+			h.noteUnknown(ctx, x, rt.svc.ModelSource, id)
+			rejected = h.unknownOperation(rt.svc, rt.codec.Protocol(), rt.name)
+		}
 		h.dispatch(ctx, x, unknownAnswer{Codec: rt.codec, rejected: rejected}, id, a, h.resolve(ctx, a), nil, func() kernel.Decoded {
 			return kernel.Rejected{Err: rejected}
 		})

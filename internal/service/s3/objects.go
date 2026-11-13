@@ -422,14 +422,43 @@ func errNoSuchVersion(key, id string) *awserr.Error {
 // and Allow: DELETE, the one method a marker takes (s3.md 5.8; LocalStack
 // aws_validated test_delete_object_versioned).
 func errMarkerAddressed(method string, v Version) *awserr.Error {
-	e := s3api.ErrMethodNotAllowed("The specified method is not allowed against this resource.")
-	e = withField(withField(e, "Method", method), "ResourceType", "DeleteMarker")
+	e := errMethodNotAllowed(method, "DeleteMarker")
 	e.Headers = append(e.Headers,
 		awserr.Header{Name: "x-amz-delete-marker", Value: "true"},
 		awserr.Header{Name: "x-amz-version-id", Value: v.ID},
 		awserr.Header{Name: "Last-Modified", Value: v.Modified.Wire().UTC().Format(http.TimeFormat)},
 		awserr.Header{Name: "Allow", Value: http.MethodDelete})
 	return e
+}
+
+// errMethodNotAllowed is 405 MethodNotAllowed for method on a resource of
+// resourceType; the caller adds the Allow header, after any headers of its
+// own.
+func errMethodNotAllowed(method, resourceType string) *awserr.Error {
+	e := s3api.ErrMethodNotAllowed("The specified method is not allowed against this resource.")
+	return withField(withField(e, "Method", method), "ResourceType", resourceType)
+}
+
+// objectMethods is the Allow header of a 405 for an object
+// (testdata/parity/s3/R12/14-post-without-upload-id.json).
+const objectMethods = "HEAD, DELETE, GET, PUT"
+
+// UnmatchedRoute is S3's answer to a path-style request that no S3 route
+// matches, which the edge uses in place of the unknown-operation answer:
+// on an object, 405 MethodNotAllowed naming the method and the OBJECT
+// resource. A POST naming none of uploadId, uploads, restore and select is
+// AWS-recorded (testdata/parity/s3/R12/14-post-without-upload-id.json);
+// every other method no object route takes is inferred to answer the
+// same. A request to the service or a bucket is left to the
+// unknown-operation answer, since AWS's answer there is unrecorded.
+func UnmatchedRoute(r *http.Request) (*awserr.Error, bool) {
+	_, key, ok := strings.Cut(strings.TrimPrefix(r.URL.Path, "/"), "/")
+	if !ok || key == "" {
+		return nil, false
+	}
+	e := errMethodNotAllowed(r.Method, "OBJECT")
+	e.Headers = append(e.Headers, awserr.Header{Name: "Allow", Value: objectMethods})
+	return e, true
 }
 
 func errInvalidVersionID(id string) *awserr.Error {
