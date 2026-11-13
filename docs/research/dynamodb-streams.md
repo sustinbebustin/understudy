@@ -362,7 +362,7 @@ Sources: the view-type definitions (StreamRecord; STREAMS); recorded KEYS_ONLY (
 | Envelope | `{"Records":[...],"NextShardIterator":...}` | `{"Records":[...]}` |
 | `eventSourceARN` | absent | the stream ARN (ESM-SNAP:L95) |
 | `userIdentity` | `{"PrincipalId","Type"}` (model) | `{"type","principalId"}` (aws-lambda-go; TTL-STREAMS) |
-| `ApproximateCreationDateTime` | epoch-seconds number | epoch-seconds number, 10 integral digits (ESM-TEST:L190) |
+| `ApproximateCreationDateTime` | epoch-seconds number | whole seconds with a fraction, `1793725107.0`, a Python float in the handler (ESMS-17, `testdata/parity/logs/ESMS-17/09-ddb.json`; 10 integral digits, ESM-TEST:L190); the `.0` spelling is inferred |
 | Key order recorded | not meaningful (snapshot) | `eventID, eventName, eventVersion, eventSource, awsRegion, dynamodb, eventSourceARN` (ESM-SNAP:L70-L96) |
 
 The `with-ddb` example omits `ApproximateCreationDateTime` and shows `eventVersion "1.0"`. The recordings show both present and `"1.1"`; the recordings win.

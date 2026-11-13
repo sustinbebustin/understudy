@@ -678,6 +678,12 @@ func TestStreamRecordReachesTheFunction(t *testing.T) {
 		if n, ok := new(big.Rat).SetString(d.ApproximateCreationDateTime.String()); !ok || n.Cmp(big.NewRat(at.Wire().Unix(), 1)) != 0 {
 			h.Errorf("ApproximateCreationDateTime = %s, want %d", d.ApproximateCreationDateTime, at.Wire().Unix())
 		}
+		// ESMS-17 09-ddb.json: the handler's logged event reads the
+		// field as the Python float 1793725107.0. The `.0` spelling
+		// (not an exponent form) is inferred.
+		if whole, ok := strings.CutSuffix(d.ApproximateCreationDateTime.String(), ".0"); !ok || strings.ContainsAny(whole, ".eE") {
+			h.Errorf("ApproximateCreationDateTime = %s, want whole seconds spelled <seconds>.0 (ESMS-17)", d.ApproximateCreationDateTime)
+		}
 		if d.SequenceNumber != seqAt(0) || d.StreamViewType != "NEW_IMAGE" {
 			h.Errorf("dynamodb = %+v", d)
 		}
