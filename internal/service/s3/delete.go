@@ -37,6 +37,29 @@ type deletion struct {
 	bypass bool
 }
 
+// entryID identifies a DeleteObjects entry for deduplication; versionID is
+// empty when the entry names no version.
+type entryID struct{ key, versionID string }
+
+// entrySet is the DeleteObjects entries seen so far.
+type entrySet map[entryID]struct{}
+
+// first records o and reports whether no earlier entry had its key and
+// version id. A repeat is skipped, neither run nor reported again
+// (testdata/parity/s3/R12/04). Recorded on an unversioned bucket only;
+// applying it to version ids on a versioned bucket is inferred.
+func (e entrySet) first(o s3api.ObjectIdentifier) bool {
+	id := entryID{key: o.Key}
+	if o.VersionId != nil {
+		id.versionID = *o.VersionId
+	}
+	if _, dup := e[id]; dup {
+		return false
+	}
+	e[id] = struct{}{}
+	return true
+}
+
 // deleted is what one key's delete did (s3.md 8.1).
 type deleted struct {
 	// versionID is the version removed, or the delete marker created.
@@ -86,7 +109,11 @@ func (s *Service) deleteObjects(ctx context.Context, c *kernel.Call, in *s3api.D
 		}
 		out := &s3api.DeleteObjectsOutput{}
 		var released []blob.Ref
+		seen := make(entrySet, len(in.Delete.Objects))
 		for i, o := range in.Delete.Objects {
+			if !seen.first(o) {
+				continue
+			}
 			// A version Object Lock protects is an entry's AccessDenied, in
 			// Quiet mode too (LocalStack test_s3.snapshot.json L10054).
 			got, refs, err := s.deleteEntry(b, o, bypass[i], w)
@@ -98,21 +125,27 @@ func (s *Service) deleteObjects(ctx context.Context, c *kernel.Call, in *s3api.D
 			if quiet {
 				continue
 			}
-			entry := s3api.DeletedObject{Key: new(o.Key)}
-			switch {
-			case o.VersionId != nil:
-				entry.VersionId = o.VersionId
-				if got.marker {
-					entry.DeleteMarker, entry.DeleteMarkerVersionId = new(true), o.VersionId
-				}
-			case got.marker:
-				entry.DeleteMarker, entry.DeleteMarkerVersionId = new(true), got.versionID
-			}
-			out.Deleted = append(out.Deleted, entry)
+			out.Deleted = append(out.Deleted, deletedEntry(o, got))
 		}
 		return out, released, nil
 	})
 	return got, err
+}
+
+// deletedEntry is the DeleteResult's Deleted element for entry o, which did
+// got.
+func deletedEntry(o s3api.ObjectIdentifier, got deleted) s3api.DeletedObject {
+	entry := s3api.DeletedObject{Key: new(o.Key)}
+	switch {
+	case o.VersionId != nil:
+		entry.VersionId = o.VersionId
+		if got.marker {
+			entry.DeleteMarker, entry.DeleteMarkerVersionId = new(true), o.VersionId
+		}
+	case got.marker:
+		entry.DeleteMarker, entry.DeleteMarkerVersionId = new(true), got.versionID
+	}
+	return entry
 }
 
 // entryBypasses is each DeleteObjects entry's governanceBypass, in entry
