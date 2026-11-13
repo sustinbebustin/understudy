@@ -11,6 +11,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/ref"
 )
 
@@ -32,8 +33,17 @@ const (
 //sumtype:decl
 type failure interface{ isFailure() }
 
-// targetError is the error a target call answered.
+// targetError is the error a target call answered, other than a denial.
 type targetError struct{ err *awserr.Error }
+
+// targetRefusal is a target call its target refused on its policy: err is
+// the denial (awserr.Denial). requestID is the refused call's id as
+// EventBridge's SDK client reports it, empty for a delivery whose dead
+// letter does not name it (attempt.refusal).
+type targetRefusal struct {
+	err       *awserr.Error
+	requestID ids.RequestID
+}
 
 // endpointError is an HTTP endpoint's failing answer or a failed exchange
 // with it, which is no AWS error: reason says which, such as "HTTP 503
@@ -49,6 +59,7 @@ type endpointError struct{ reason string }
 type senderRefusal struct{ code, message string }
 
 func (targetError) isFailure()   {}
+func (targetRefusal) isFailure() {}
 func (endpointError) isFailure() {}
 func (senderRefusal) isFailure() {}
 
@@ -56,6 +67,8 @@ func (senderRefusal) isFailure() {}
 func describeFailure(f failure) string {
 	switch f := f.(type) {
 	case targetError:
+		return describe(f.err)
+	case targetRefusal:
 		return describe(f.err)
 	case endpointError:
 		return f.reason
@@ -160,23 +173,40 @@ func deadLetterOf(e *Entry, dlq aws.ARN, f failure, end ending) (sqsMessage, err
 }
 
 // eventBridgeAttributes are the String attributes EventBridge adds to a
-// dead letter (eb-rule-dlq): RULE_ARN, TARGET_ARN, ERROR_CODE,
-// ERROR_MESSAGE, EXHAUSTED_RETRY_CONDITION and RETRY_ATTEMPTS, the retries
-// made before the delivery ended. AWS documents the names, the condition
-// values and the error code vocabulary, not their data type or when the
-// condition is absent: understudy sends every one as a String and leaves
-// the condition out when the target refused the delivery outright, since
-// then no retry limit was reached. A delivery refused before its target
-// call, an event bus target whose RoleArn could not be assumed, carries
-// the refusal's code, FAILED_TO_ASSUME_ROLE. No EventBridge mechanism delivers to an
-// HTTP endpoint yet; its failure, a 429 included, is sent as
-// ERROR_FROM_TARGET with its reason as the message. That code choice is
-// UNVERIFIED: no research covers an EventBridge HTTP target's dead letter.
+// dead letter (eb-rule-dlq), which depend on how the delivery ended:
+//
+//   - A target that refused it on its policy: RULE_ARN, TARGET_ARN,
+//     ERROR_CODE delivery.EventBridgeDeniedCode and ERROR_MESSAGE only, the
+//     message being the target's denial and the suffix of the SDK client
+//     EventBridge called it through (eventBridgeClient) (aws-recorded,
+//     testdata/parity/sqs/IAM-ENF/22-dlq.json for a function,
+//     22-dlq-sa.json for a queue; iam-enforcement-surfaces.md 8.4). A
+//     deleted function is such a refusal (goneFunctionDenial,
+//     22-dlq-gone.json).
+//   - Any other failure: RULE_ARN, TARGET_ARN, ERROR_CODE, ERROR_MESSAGE,
+//     RETRY_ATTEMPTS, the retries made before the delivery ended, and
+//     EXHAUSTED_RETRY_CONDITION when retries ran out. AWS documents these
+//     names, the condition values and the error code vocabulary, not their
+//     data type or when the condition is absent: understudy sends every one
+//     as a String and leaves the condition out for a client-side error,
+//     since then no retry limit was reached. A delivery refused before its
+//     target call, an event bus target whose RoleArn could not be assumed,
+//     carries the refusal's code, FAILED_TO_ASSUME_ROLE. No EventBridge
+//     mechanism delivers to an HTTP endpoint yet; its failure, a 429
+//     included, is sent as ERROR_FROM_TARGET with its reason as the
+//     message. That code choice is UNVERIFIED: no research covers an
+//     EventBridge HTTP target's dead letter.
 func eventBridgeAttributes(e *Entry, f failure, end ending) []delivery.MessageAttribute {
 	code, message := "ERROR_FROM_TARGET", describeFailure(f)
+	refused := false
 	switch f := f.(type) {
 	case targetError:
 		code, message = eventBridgeErrorCode(f.err), errorMessage(f.err)
+	case targetRefusal:
+		code, message, refused = delivery.EventBridgeDeniedCode, errorMessage(f.err), true
+		if client, ok := eventBridgeClient(e.Request.Target); ok {
+			message = client.Message(f.err, string(f.requestID))
+		}
 	case senderRefusal:
 		code, message = f.code, f.message
 	case endpointError:
@@ -187,10 +217,31 @@ func eventBridgeAttributes(e *Entry, f failure, end ending) []delivery.MessageAt
 		stringAttribute("ERROR_CODE", code),
 		stringAttribute("ERROR_MESSAGE", message),
 	}
+	if refused {
+		return attrs
+	}
 	if p, ok := e.Request.Policy.(delivery.EventBridgeTarget); ok && end == exhausted {
 		attrs = append(attrs, stringAttribute("EXHAUSTED_RETRY_CONDITION", exhaustedCondition(e, p)))
 	}
 	return append(attrs, stringAttribute("RETRY_ATTEMPTS", strconv.Itoa(e.Attempt)))
+}
+
+// eventBridgeClient is the AWS SDK for Java client EventBridge calls
+// target t through, whose suffix ends a refusal's ERROR_MESSAGE:
+// AWSLambdaInternal for a function and AmazonSQS, reporting SQS's awsQuery
+// code, for a queue (aws-recorded, IAM-ENF-22; iam-enforcement-surfaces.md
+// 8.4). false for any other target: no recording shows the client
+// EventBridge calls a topic or event bus through, so their refusal's
+// message is the target's denial alone, UNVERIFIED.
+func eventBridgeClient(t delivery.Target) (awserr.SDKClient, bool) {
+	switch t.(type) {
+	case delivery.LambdaFunction:
+		return awserr.SDKv1("AWSLambdaInternal"), true
+	case delivery.SQSQueue:
+		return awserr.SDKv1Query("AmazonSQS"), true
+	case delivery.SNSTopic, delivery.EventBus, delivery.S3Object, delivery.HTTPEndpoint, delivery.StateMachine:
+	}
+	return awserr.SDKClient{}, false
 }
 
 func stringAttribute(name, value string) delivery.MessageAttribute {
@@ -301,17 +352,24 @@ func sqsRequestBody(body string, q delivery.SQSQueue) (string, error) {
 func schedulerError(f failure) (code, message string) {
 	switch f := f.(type) {
 	case targetError:
-		code = f.err.ID.QueryCode
-		if code == "" {
-			code = f.err.ID.Shape.Name()
-		}
-		return code, errorMessage(f.err)
+		return schedulerTargetCode(f.err), errorMessage(f.err)
+	case targetRefusal:
+		return schedulerTargetCode(f.err), errorMessage(f.err)
 	case endpointError:
 		return "AWS.Scheduler.InternalServerError", f.reason
 	case senderRefusal:
 		return f.code, f.message
 	}
 	return "AWS.Scheduler.InternalServerError", describeFailure(f)
+}
+
+// schedulerTargetCode is a target error's code as Scheduler's dead letter
+// names it: its awsQuery code, else its shape name.
+func schedulerTargetCode(err *awserr.Error) string {
+	if err.ID.QueryCode == "" {
+		return err.ID.Shape.Name()
+	}
+	return err.ID.QueryCode
 }
 
 // truncateUTF8 is s cut to at most limit bytes at a character boundary,
@@ -327,16 +385,13 @@ func truncateUTF8(s string, limit int) (string, bool) {
 	return s[:cut], true
 }
 
-// eventBridgeErrorCode maps a target error onto EventBridge's dead-letter
-// error codes: delivery.EventBridgeDeniedCode for a refusal by the
-// target's policy, THROTTLING for a throttling error or a 429, NO_RESOURCE
-// for a missing queue, function or topic, NO_PERMISSIONS for any other
-// access denial, and ERROR_FROM_TARGET for anything else the target
-// answered. AWS lists the codes, not this mapping.
+// eventBridgeErrorCode maps a target error other than a refusal by the
+// target's policy (targetRefusal) onto EventBridge's dead-letter error
+// codes: THROTTLING for a throttling error or a 429, NO_RESOURCE for a
+// missing queue, function or topic, NO_PERMISSIONS for any other access
+// denial, and ERROR_FROM_TARGET for anything else the target answered. AWS
+// lists the codes, not this mapping.
 func eventBridgeErrorCode(err *awserr.Error) string {
-	if denied(err) {
-		return delivery.EventBridgeDeniedCode
-	}
 	id := err.ID
 	name := id.Shape.Name()
 	switch {

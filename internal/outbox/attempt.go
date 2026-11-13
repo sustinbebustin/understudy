@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
+	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
@@ -327,12 +329,43 @@ func (a *attempt) end(ctx context.Context, err *awserr.Error) (journal.DeliveryO
 		// status the target's denial identity carries: SNS does not retry
 		// it and EventBridge sends it straight to the dead-letter queue
 		// (iam-enforcement-surfaces.md 8.2, 8.4, aws-doc).
-		return a.permanent(ctx, targetError{err: err})
+		return a.permanent(ctx, a.refusal(err))
+	case a.entry.Request.Mechanism == delivery.EventsToLambda && err.ID.Shape == lambdaapi.IdentityResourceNotFoundException().Shape:
+		return a.permanent(ctx, a.refusal(goneFunctionDenial(a.entry.Request)))
 	case retryable(err.ID):
 		return a.retry(ctx, targetError{err: err}, a.due)
 	default:
 		return a.permanent(ctx, targetError{err: err})
 	}
+}
+
+// refusal is the failure of an attempt its target refused with err, a
+// denial. An EventBridge dead letter names the refused call's request id in
+// its message (eventBridgeAttributes), so one is drawn, in the form the
+// target service writes its ids (ids.RequestID.ForService), for a target
+// whose SDK client EventBridge is recorded to use; any other delivery
+// leaves the ids stream as it was.
+func (a *attempt) refusal(err *awserr.Error) targetRefusal {
+	r := targetRefusal{err: err}
+	req := a.entry.Request
+	if _, ok := eventBridgeClient(req.Target); ok && req.Mechanism.Via() == ref.EventsTarget {
+		r.requestID = a.e.k.IDs().RequestID().ForService(string(req.Mechanism.Target()))
+	}
+	return r
+}
+
+// goneFunctionDenial is Lambda's denial of an EventBridge delivery to the
+// function req names, which Lambda answered ResourceNotFoundException: no
+// policy admits events.amazonaws.com to a function that does not exist, so
+// AWS dead-letters it NO_PERMISSIONS with this text, the implicit denial in
+// authz.GrammarIAM, whatever the iam.enforce mode, which decides nothing
+// here (aws-recorded, testdata/parity/sqs/IAM-ENF/22-dlq-gone.json;
+// iam-enforcement-surfaces.md 8.2).
+func goneFunctionDenial(req delivery.Request) *awserr.Error {
+	const action = "lambda:InvokeFunction"
+	message := "User: " + servicePrincipal(req.Mechanism) + " is not authorized to perform: " + action +
+		" on resource: " + deliveredTo(req).String() + " because no " + authz.ResourceBased.String() + " allows the " + action + " action"
+	return &awserr.Error{ID: lambdaapi.DenialError(), Message: message, Origin: awserr.Denial{}}
 }
 
 // permanent ends an attempt the target failed with a client-side error:
