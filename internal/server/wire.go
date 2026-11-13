@@ -977,7 +977,7 @@ type construction struct {
 	// sesVerified is ses.verifiedIdentities.
 	sesVerified ses.VerifiedIdentities
 	// sesProduction is ses.productionAccess.
-	sesProduction bool
+	sesProduction ses.ProductionAccess
 	// apigatewayEnforce is iam.enforce as REST APIs read it for a resource
 	// policy they do not evaluate.
 	apigatewayEnforce apigateway.EnforceMode

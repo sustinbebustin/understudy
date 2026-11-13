@@ -192,7 +192,7 @@ func TestSandboxRecipients(t *testing.T) {
 			h.Errorf("recipient sender+label@example.com with SandboxRecipientLabels=%v: error %+v", ses.SandboxRecipientLabels, err)
 		}
 	})
-	runVerified(t, ses.Options{ProductionAccess: true}, func(h *harness) {
+	runVerified(t, ses.Options{ProductionAccess: ses.ProductionAccess{All: true}}, func(h *harness) {
 		must(h, sesapi.OpSendEmail, email(sender, "stranger@unverified.test"))
 		_, err := call(h, sesapi.OpSendEmail, email("stranger@unverified.test", recipient))
 		wantErr(h, err, sesapi.IdentityMessageRejected(), unverifiedText(h.Scope.Region, "stranger@unverified.test"))
@@ -420,7 +420,7 @@ func TestGetSendQuota(t *testing.T) {
 			h.Errorf("GetSendQuota = %+v, want 200, 1 and 0 sent (get-quota-0)", q)
 		}
 	})
-	runWith(t, ses.Options{ProductionAccess: true}, func(h *harness) {
+	runWith(t, ses.Options{ProductionAccess: ses.ProductionAccess{All: true}}, func(h *harness) {
 		q := h.quota()
 		if q.Max24HourSend != ses.ProductionMax24HourSend || q.MaxSendRate != ses.ProductionMaxSendRate {
 			h.Errorf("production GetSendQuota = %+v, want ProductionMax24HourSend and ProductionMaxSendRate", q)

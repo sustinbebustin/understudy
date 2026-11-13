@@ -165,6 +165,14 @@ aws ses get-send-quota
 }
 ```
 
+To lift the sandbox for some accounts and regions only, give `productionAccess` a list of `{"account", "region"}` pairs. Every other pair keeps the sandbox recipient check and quota, and `get-send-quota` and the v2 `GetAccount` answer per pair:
+
+```json
+{"ses": {"productionAccess": [{"account": "000000000000", "region": "us-east-1"}]}}
+```
+
+An entry with a missing or malformed account or region, or any value that is not a bool or a list, is refused at start with an error naming `ses.productionAccess` and the entry.
+
 The production quota values, -1 and 14, are not recorded from AWS. `aws sesv2 get-account` reports the same quota with `ProductionAccessEnabled`.
 
 ## Reading messages

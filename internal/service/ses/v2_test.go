@@ -162,7 +162,7 @@ func TestListEmailIdentities(t *testing.T) {
 // ses.md 6.3).
 func TestGetAccountReportsSandboxAndQuota(t *testing.T) {
 	for _, production := range []bool{false, true} {
-		runVerified(t, ses.Options{ProductionAccess: production}, func(h *harness) {
+		runVerified(t, ses.Options{ProductionAccess: ses.ProductionAccess{All: production}}, func(h *harness) {
 			must(h, sesapi.OpSendEmail, email(sender, recipient))
 			acct := must(h, sesv2api.OpGetAccount, &sesv2api.GetAccountInput{})
 			q := h.quota()

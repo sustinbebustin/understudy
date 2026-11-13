@@ -26,7 +26,7 @@ func TestSESVerifiedIdentitiesAreWired(t *testing.T) {
 // ses.productionAccess reaches the service: GetSendQuota answers the
 // production MaxSendRate instead of the sandbox's 1 (ses.md 6.3).
 func TestSESProductionAccessIsWired(t *testing.T) {
-	_, endpoint := adminServer(t, server.Config{SESProductionAccess: true})
+	_, endpoint := adminServer(t, server.Config{SESProductionAccess: server.SESProductionAccess{All: true}})
 	status, body := sesCall(t, endpoint, url.Values{"Action": {"GetSendQuota"}})
 	want := "<MaxSendRate>" + strconv.FormatFloat(ses.ProductionMaxSendRate, 'f', -1, 64)
 	if status != http.StatusOK || !strings.Contains(body, want) {

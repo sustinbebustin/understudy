@@ -220,7 +220,9 @@ setting has one; any key may be left out:
                              and region: exact addresses (case-sensitive), domains, and
                              "*@domain" for every address of a domain, subdomains excluded
   ses.productionAccess       true takes every account and region out of the SES sandbox:
-                             any recipient, the production quota; senders are still checked
+                             any recipient, the production quota; senders are still checked.
+                             A list of {"account": "<12 digits>", "region": "<region>"}
+                             takes only those pairs out; false keeps the sandbox everywhere
   dynamodb.enabled           true, or false to turn DynamoDB off so DynamoDB Local is never
                              pulled; on, it is pulled on first use and runs under Amazon's
                              licence terms

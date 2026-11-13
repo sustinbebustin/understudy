@@ -50,7 +50,8 @@ func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (strin
 				return accepted{}, o.refuse(r)
 			}
 		}
-		if r := s.checkIdentities(st, scope.Region, o); r != nil {
+		production := s.opts.ProductionAccess.allows(scope)
+		if r := s.checkIdentities(st, scope.Region, production, o); r != nil {
 			return accepted{}, o.refuse(r)
 		}
 		counted := 0
@@ -66,7 +67,7 @@ func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (strin
 			}
 			simulated[to] = sc
 		}
-		if !s.opts.ProductionAccess && float64(st.sentLast24Hours(now)+counted) > SandboxMax24HourSend {
+		if !production && float64(st.sentLast24Hours(now)+counted) > SandboxMax24HourSend {
 			return accepted{}, o.refuse(&refusal{class: refusalThrottled, text: DailyQuotaText})
 		}
 		st.count(now, counted)
@@ -85,11 +86,11 @@ func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (strin
 
 // checkIdentities runs CheckSender and, in the sandbox,
 // CheckSandboxRecipients. Every sender must be verified (ses.md 6.1, 5.1);
-// in the sandbox every envelope recipient must be verified or a simulator
-// address (ses.md 6.1, 6.2). Both failures answer one MessageRejected
-// listing each failing identity as given, ordered per switch
-// ses.error.unverified.text.
-func (s *Service) checkIdentities(st *state, region aws.Region, o outgoing) *refusal {
+// in the sandbox (production unset) every envelope recipient must be
+// verified or a simulator address (ses.md 6.1, 6.2). Both failures answer
+// one MessageRejected listing each failing identity as given, ordered per
+// switch ses.error.unverified.text.
+func (s *Service) checkIdentities(st *state, region aws.Region, production bool, o outgoing) *refusal {
 	var senders, recipients []string
 	v := s.view(o.api)
 	for _, a := range o.senders {
@@ -97,7 +98,7 @@ func (s *Service) checkIdentities(st *state, region aws.Region, o outgoing) *ref
 			senders = append(senders, a)
 		}
 	}
-	if !s.opts.ProductionAccess {
+	if !production {
 		for _, a := range o.envelope {
 			spec := addrSpec(a)
 			if _, sim := simulatorScenario(spec); !sim && !st.verified(v, spec, SandboxRecipientLabels) {

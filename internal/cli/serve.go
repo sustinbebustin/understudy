@@ -98,7 +98,9 @@ const sectionChoices = `
                              and region: exact addresses (case-sensitive), domains, and
                              "*@domain" for every address of a domain, subdomains excluded
   ses.productionAccess       true takes every account and region out of the SES sandbox:
-                             any recipient, the production quota; senders are still checked
+                             any recipient, the production quota; senders are still checked.
+                             A list of {"account": "<12 digits>", "region": "<region>"}
+                             takes only those pairs out; false keeps the sandbox everywhere
   dynamodb.enabled           true, or false to turn DynamoDB off so DynamoDB Local is never
                              pulled; on, it is pulled on first use and runs under Amazon's
                              licence terms
@@ -252,7 +254,7 @@ func serverConfig(cfg config.Config, version string) server.Config {
 			Domains:        cfg.SES.VerifiedIdentities.Domains,
 			AddressDomains: cfg.SES.VerifiedIdentities.AddressDomains,
 		},
-		SESProductionAccess: cfg.SES.ProductionAccess,
+		SESProductionAccess: sesProductionAccess(cfg.SES.ProductionAccess),
 		LogLevel:            cfg.Log.Level,
 		ReadyFile:           cfg.ReadyFile,
 		Version:             version,
@@ -310,6 +312,14 @@ func serverConfig(cfg config.Config, version string) server.Config {
 }
 
 // mapStaticKeys maps accounts.keys onto the server's static keys.
+func sesProductionAccess(p config.SESProductionAccess) server.SESProductionAccess {
+	out := server.SESProductionAccess{All: p.All}
+	for _, pair := range p.Pairs {
+		out.Pairs = append(out.Pairs, server.SESAccountRegion{Account: pair.Account, Region: pair.Region})
+	}
+	return out
+}
+
 func mapStaticKeys(keys []config.StaticKey) []server.StaticKey {
 	out := make([]server.StaticKey, 0, len(keys))
 	for _, k := range keys {

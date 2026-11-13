@@ -172,7 +172,7 @@ func hasLineWithPrefix(text, prefix string) bool {
 // returns oldest first and pages by cursor; ClearMessages deletes what the
 // query selects and reports how many.
 func TestMessagesQueryAndClear(t *testing.T) {
-	runVerified(t, ses.Options{ProductionAccess: true}, func(h *harness) {
+	runVerified(t, ses.Options{ProductionAccess: ses.ProductionAccess{All: true}}, func(h *harness) {
 		ids := make([]string, 0, 5)
 		for i := range 5 {
 			to := fmt.Sprintf("r%d@elsewhere.test", i)
@@ -259,7 +259,7 @@ func TestMessagesRefusesBadLimitAndCursor(t *testing.T) {
 // The store keeps MaxStoredMessages per account and Region; the next
 // evicts the oldest and counts it (ses.md 11.2).
 func TestMessageStoreEvictsTheOldest(t *testing.T) {
-	runVerified(t, ses.Options{ProductionAccess: true}, func(h *harness) {
+	runVerified(t, ses.Options{ProductionAccess: ses.ProductionAccess{All: true}}, func(h *harness) {
 		first := must(h, sesapi.OpSendEmail, email(sender, simulator)).MessageId
 		for range ses.MaxStoredMessages {
 			must(h, sesapi.OpSendEmail, email(sender, simulator))

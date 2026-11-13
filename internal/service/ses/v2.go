@@ -461,12 +461,13 @@ func (v *V2) listTagsForResource(_ context.Context, c *kernel.Call, in *sesv2api
 func (v *V2) getAccount(_ context.Context, c *kernel.Call, _ *sesv2api.GetAccountInput) (*sesv2api.GetAccountOutput, *awserr.Error) {
 	s := v.svc
 	q := &sesv2api.SendQuota{Max24HourSend: SandboxMax24HourSend, MaxSendRate: SandboxMaxSendRate}
-	if s.opts.ProductionAccess {
+	production := s.opts.ProductionAccess.allows(c.Scope())
+	if production {
 		q.Max24HourSend, q.MaxSendRate = ProductionMax24HourSend, ProductionMaxSendRate
 	}
 	v.read(c.Scope(), func(st *state) { q.SentLast24Hours = float64(st.sentLast24Hours(c.Admitted())) })
 	return &sesv2api.GetAccountOutput{
-		ProductionAccessEnabled: s.opts.ProductionAccess,
+		ProductionAccessEnabled: production,
 		SendQuota:               q,
 		SendingEnabled:          true,
 		EnforcementStatus:       new(enforcementHealthy),

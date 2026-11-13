@@ -359,9 +359,24 @@ type SNSHTTPDelivery struct {
 type SES struct {
 	// VerifiedIdentities is ses.verifiedIdentities classified.
 	VerifiedIdentities SESVerifiedIdentities
-	// ProductionAccess is ses.productionAccess: true takes every account
-	// and Region out of the sandbox.
-	ProductionAccess bool
+	// ProductionAccess is ses.productionAccess; the zero value is the
+	// sandbox everywhere.
+	ProductionAccess SESProductionAccess
+}
+
+// SESProductionAccess is ses.productionAccess: true takes every account and
+// Region out of the SES sandbox, a list takes only its pairs.
+type SESProductionAccess struct {
+	// All is set by true; Pairs is then empty.
+	All bool
+	// Pairs are the listed account and Region pairs, in file order.
+	Pairs []SESAccountRegion
+}
+
+// SESAccountRegion is one entry of a ses.productionAccess list.
+type SESAccountRegion struct {
+	Account aws.AccountID
+	Region  aws.Region
 }
 
 // SESVerifiedIdentities is ses.verifiedIdentities, each entry in its class

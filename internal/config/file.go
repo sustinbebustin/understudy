@@ -84,7 +84,9 @@ type fileSNSHTTPDelivery struct {
 
 type fileSES struct {
 	VerifiedIdentities []string `json:"verifiedIdentities"`
-	ProductionAccess   *bool    `json:"productionAccess"`
+	// ProductionAccess is a bool or a list of {account, region}, read by
+	// applySES.
+	ProductionAccess json.RawMessage `json:"productionAccess"`
 }
 
 // fileIAM holds the scalar settings iam.assumeRole and iam.enforce, each
