@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"slices"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
+	"github.com/sustinbebustin/understudy/internal/service/cloudwatch/alarm"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
@@ -67,17 +69,23 @@ func splitHistory(ss []store.Section) (state, history []store.Section) {
 	return state, history
 }
 
-// appendHistory writes item to the alarm's history in scope, drops the
-// scope's items older than historyRetention at the write's instant, and
-// applies effects, the transition's actions, in the same write, so they
-// follow the item (cloudwatch-alarms.md 12.4 item 5).
+// historyEntry is one item to append to the history of the alarm name.
+type historyEntry struct {
+	name string
+	item HistoryItem
+}
+
+// appendHistory writes entries, in order, to their alarms' history in
+// scope, drops the scope's items older than historyRetention at the
+// write's instant, and applies effects, a transition's actions, in the
+// same write, so they follow the items (cloudwatch-alarms.md 12.4 item 5).
 //
-// It is a second write after the state write that made the transition: a
+// It is a second write after the state write that made the change: a
 // snapshot cut between the two saves the new state without its history
-// item or actions, and they are lost. Merging the two stores would make
+// items or actions, and they are lost. Merging the two stores would make
 // history part of the alarm's lifetime, which AWS's history outlives
 // (cloudwatch-alarms.md 8.1).
-func (s *Service) appendHistory(c *kernel.Call, scope aws.Scope, name string, item HistoryItem, effects []func(tx *kernel.Tx)) *awserr.Error {
+func (s *Service) appendHistory(c *kernel.Call, scope aws.Scope, entries []historyEntry, effects []func(tx *kernel.Tx)) *awserr.Error {
 	_, err := kernel.Write(c, s.history, scope, func(h *History, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		for _, apply := range effects {
 			apply(tx)
@@ -91,23 +99,54 @@ func (s *Service) appendHistory(c *kernel.Call, scope aws.Scope, name string, it
 				h.Items[n] = kept
 			}
 		}
-		h.Items[name] = append(slices.Clone(h.Items[name]), item)
+		for _, e := range entries {
+			h.Items[e.name] = append(slices.Clone(h.Items[e.name]), e.item)
+		}
 		return struct{}{}, nil
 	})
 	return err
 }
 
-// describeAlarmHistory lists the caller's StateUpdate items of metric
-// alarms, newest first unless ScanBy says otherwise (cloudwatch-alarms.md
-// 8.1). understudy records no ConfigurationUpdate or Action items and no
-// contributors (cloudwatch-alarms.md 8.3), so asking for them selects
-// nothing. Items older than historyRetention are never returned.
+// configUpdate is the ConfigurationUpdate item of a create, update or
+// delete of the alarm ref, written at now: a is the alarm after the
+// change, or as it was when deleted, and previous the replaced alarm on an
+// update, nil otherwise (cloudwatch-alarms.md 8.3).
+func configUpdate(op alarm.ConfigOp, ref alarmRef, a, previous *Alarm, now clock.Instant) historyEntry {
+	var prev *alarm.Subject
+	if previous != nil {
+		prev = new(subjectOf(ref, previous))
+	}
+	summary, data := alarm.ConfigurationUpdate(op, subjectOf(ref, a), prev, a.State.record())
+	return historyEntry{name: ref.name, item: HistoryItem{At: now, Type: cloudwatchapi.HistoryItemTypeConfigurationUpdate, Summary: summary, Data: data}}
+}
+
+// appendConfigUpdates appends the ConfigurationUpdate items of committed
+// configuration changes in the caller's scope. A failed write is logged
+// rather than returned: the changes have committed.
+func (s *Service) appendConfigUpdates(ctx context.Context, c *kernel.Call, entries []historyEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	if err := s.appendHistory(c, c.Scope(), entries, nil); err != nil {
+		names := make([]string, len(entries))
+		for i, e := range entries {
+			names[i] = e.name
+		}
+		s.k.Log().LogAttrs(ctx, slog.LevelError, "the history write of an alarm configuration change failed; the change stands, and its ConfigurationUpdate history item is lost",
+			slog.String("alarms", strings.Join(names, ",")), slog.String("error", err.Message))
+	}
+}
+
+// describeAlarmHistory lists the caller's StateUpdate and
+// ConfigurationUpdate items of metric alarms, newest first unless ScanBy
+// says otherwise (cloudwatch-alarms.md 8.1). understudy records no Action
+// items and no contributors (cloudwatch-alarms.md 8.3), so asking for them
+// selects nothing. Items older than historyRetention are never returned.
 func (s *Service) describeAlarmHistory(_ context.Context, c *kernel.Call, in *cloudwatchapi.DescribeAlarmHistoryInput) (*cloudwatchapi.DescribeAlarmHistoryOutput, *awserr.Error) {
 	out := &cloudwatchapi.DescribeAlarmHistoryOutput{AlarmHistoryItems: []cloudwatchapi.AlarmHistoryItem{}}
 	metric := len(in.AlarmTypes) == 0 || slices.Contains(in.AlarmTypes, cloudwatchapi.AlarmTypeMetricAlarm)
-	stateUpdates := in.HistoryItemType == nil || *in.HistoryItemType == cloudwatchapi.HistoryItemTypeStateUpdate
 	var rows []historyRow
-	if cell, ok := s.history.Lookup(c.Scope()); ok && metric && stateUpdates && in.AlarmContributorId == nil {
+	if cell, ok := s.history.Lookup(c.Scope()); ok && metric && in.AlarmContributorId == nil {
 		cutoff := c.Admitted().Add(-historyRetention)
 		rows = store.Read(cell, func(h *History) []historyRow { return h.selected(in, cutoff) })
 	}
@@ -125,7 +164,7 @@ func (s *Service) describeAlarmHistory(_ context.Context, c *kernel.Call, in *cl
 			AlarmName:       new(r.name),
 			AlarmType:       new(cloudwatchapi.AlarmTypeMetricAlarm),
 			Timestamp:       new(r.item.At.Wire()),
-			HistoryItemType: new(cloudwatchapi.HistoryItemTypeStateUpdate),
+			HistoryItemType: new(r.item.Type),
 			HistorySummary:  new(r.item.Summary),
 			HistoryData:     new(r.item.Data),
 		})
@@ -134,8 +173,8 @@ func (s *Service) describeAlarmHistory(_ context.Context, c *kernel.Call, in *cl
 	return out, nil
 }
 
-// selected are the items DescribeAlarmHistory's name and date filters
-// select, none written before cutoff, each with its page key.
+// selected are the items DescribeAlarmHistory's name, item type and date
+// filters select, none written before cutoff, each with its page key.
 func (h *History) selected(in *cloudwatchapi.DescribeAlarmHistoryInput, cutoff clock.Instant) []historyRow {
 	ascending := in.ScanBy != nil && *in.ScanBy == cloudwatchapi.ScanByTimestampAscending
 	var sel []historyRow
@@ -144,6 +183,9 @@ func (h *History) selected(in *cloudwatchapi.DescribeAlarmHistoryInput, cutoff c
 			continue
 		}
 		for i, it := range items {
+			if in.HistoryItemType != nil && *in.HistoryItemType != it.Type {
+				continue
+			}
 			if at := it.At.Wire(); !it.At.Before(cutoff) && inDates(at, in.StartDate, in.EndDate) {
 				sel = append(sel, historyRow{name: name, item: it, key: historyKey(at, name, i, ascending)})
 			}

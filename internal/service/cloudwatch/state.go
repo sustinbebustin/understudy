@@ -13,8 +13,10 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// stateVersion is the schema version of State in snapshots.
-const stateVersion = 1
+// stateVersion is the schema version of State and History in snapshots.
+// Version 2 records each history item's type; a section of an older version
+// is refused rather than read (ADR 0009).
+const stateVersion = 2
 
 // State is the CloudWatch state of one account and region: its metric
 // alarms by name and its metric series by key. Records are values replaced
@@ -67,12 +69,14 @@ type History struct {
 	Items map[string][]HistoryItem `json:"items"`
 }
 
-// HistoryItem is one StateUpdate item: when it was written and its
-// HistorySummary and HistoryData (cloudwatch-alarms.md 8.2).
+// HistoryItem is one history item: when it was written, its
+// HistoryItemType, StateUpdate or ConfigurationUpdate, and its
+// HistorySummary and HistoryData (cloudwatch-alarms.md 8.2, 8.3).
 type HistoryItem struct {
-	At      clock.Instant `json:"at"`
-	Summary string        `json:"summary"`
-	Data    string        `json:"data"`
+	At      clock.Instant                 `json:"at"`
+	Type    cloudwatchapi.HistoryItemType `json:"type"`
+	Summary string                        `json:"summary"`
+	Data    string                        `json:"data"`
 }
 
 // AlarmState is an alarm's state as PutMetricAlarm created it, or as the

@@ -127,7 +127,8 @@ Six more minutes are six more evaluations. The point leaves the alarm's evaluati
 
 ```sh
 understudy clock advance 6m --settle
-aws cloudwatch describe-alarm-history --alarm-name high-load --query 'AlarmHistoryItems[].[Timestamp,HistorySummary]' --output text
+aws cloudwatch describe-alarm-history --alarm-name high-load --history-item-type StateUpdate \
+  --query 'AlarmHistoryItems[].[Timestamp,HistorySummary]' --output text
 ```
 
 ```

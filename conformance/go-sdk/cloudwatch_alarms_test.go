@@ -107,7 +107,9 @@ func TestCloudWatchAlarmEvaluatesOnClockAdvance(t *testing.T) {
 
 	history := func() []string {
 		t.Helper()
-		out, err := client.DescribeAlarmHistory(t.Context(), &cloudwatch.DescribeAlarmHistoryInput{AlarmName: aws.String(alarmName)})
+		out, err := client.DescribeAlarmHistory(t.Context(), &cloudwatch.DescribeAlarmHistoryInput{
+			AlarmName: aws.String(alarmName), HistoryItemType: types.HistoryItemTypeStateUpdate,
+		})
 		ok(t, err, "DescribeAlarmHistory")
 		var got []string
 		for _, it := range out.AlarmHistoryItems {

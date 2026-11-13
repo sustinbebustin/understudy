@@ -53,7 +53,7 @@ func TestWarmUpEndsWhenTheWindowFills(t *testing.T) {
 		if got := h.one("cpu"); *got.StateValue != cloudwatchapi.StateValueAlarm || !got.StateTransitionedTimestamp.Equal(t0.Add(time.Minute)) {
 			h.Errorf("after the first evaluation with its one period full: %s at %v, want ALARM at %v", *got.StateValue, *got.StateTransitionedTimestamp, t0.Add(time.Minute))
 		}
-		items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu")})
+		items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu"), HistoryItemType: new(cloudwatchapi.HistoryItemTypeStateUpdate)})
 		if len(items) != 1 || *items[0].HistorySummary != "Alarm updated from INSUFFICIENT_DATA to ALARM. State now evaluated with the full set of metrics matching the query" ||
 			!strings.HasPrefix(*items[0].HistoryData, `{"version":"1.0","oldState":{"stateValue":"INSUFFICIENT_DATA","stateReason":"Alarm is in Warm-Up","evaluationState":"IN_WARM_UP"},"newState":`) {
 			h.Errorf("history = %v", summaries(items))
@@ -94,8 +94,8 @@ func TestHistoryWritePrunesExpiredItems(t *testing.T) {
 		if err := json.Unmarshal(sections[0].Data, &hist); err != nil {
 			h.Fatal(err)
 		}
-		if _, ok := hist.Items["old"]; ok || len(hist.Items["new"]) != 1 {
-			h.Errorf("stored history = %+v, want the new alarm's one item and the expired one gone", hist.Items)
+		if _, ok := hist.Items["old"]; ok || len(hist.Items["new"]) != 2 {
+			h.Errorf("stored history = %+v, want the new alarm's create and transition items and the expired ones gone", hist.Items)
 		}
 	})
 }

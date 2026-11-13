@@ -16,9 +16,11 @@
 //     stored with an Advisory and never evaluated (cloudwatch-alarms.md
 //     12.7); their state changes only through SetAlarmState. A transition
 //     writes the state, journals a StateChange, runs the new state's actions
-//     when ActionsEnabled and appends a StateUpdate history item; history
-//     lives in its own store, outlives the alarm and is dropped after 30 days
-//     of emulator time (cloudwatch-alarms.md 8.1).
+//     when ActionsEnabled and appends a StateUpdate history item. A create,
+//     update, delete, EnableAlarmActions or DisableAlarmActions appends a
+//     ConfigurationUpdate item (cloudwatch-alarms.md 8.3). History lives in
+//     its own store, outlives the alarm and is dropped after 30 days of
+//     emulator time (cloudwatch-alarms.md 8.1).
 //   - SNS and Lambda actions are outbox deliveries (CloudWatchToSNS,
 //     CloudWatchToLambda) as cloudwatch.amazonaws.com and
 //     lambda.alarms.cloudwatch.amazonaws.com, attempted once with no retry

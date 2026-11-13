@@ -248,7 +248,7 @@ test_alarm_evaluates_on_clock_advance() {
   assert_jq_match '.MetricAlarms[0].StateReason' '^Threshold Crossed: 1 datapoint \[20\.0 \([0-9/: ]+\)\] was greater than the threshold \(10\.0\)\.$'
   # cwa 4.2.
   assert_jq_true '.MetricAlarms[0].StateReasonData | fromjson | .version == "1.0" and .statistic == "Sum" and .period == 60 and .recentDatapoints == [20] and .threshold == 10'
-  aws_ok cloudwatch describe-alarm-history --alarm-name "$ALARM"
+  aws_ok cloudwatch describe-alarm-history --alarm-name "$ALARM" --history-item-type StateUpdate
   # cwa 8.2, third-party-recorded.
   assert_jq_true '[.AlarmHistoryItems[] | .HistorySummary] == ["Alarm updated from INSUFFICIENT_DATA to ALARM"]'
   assert_jq_true '.AlarmHistoryItems[0] | .HistoryItemType == "StateUpdate" and .AlarmType == "MetricAlarm"'
@@ -257,7 +257,7 @@ test_alarm_evaluates_on_clock_advance() {
   advance_clock 10m
   describe_alarm "$ALARM"
   assert_jq '.MetricAlarms[0].StateValue' 'INSUFFICIENT_DATA'
-  aws_ok cloudwatch describe-alarm-history --alarm-name "$ALARM"
+  aws_ok cloudwatch describe-alarm-history --alarm-name "$ALARM" --history-item-type StateUpdate
   assert_jq_true '[.AlarmHistoryItems[] | .HistorySummary] == ["Alarm updated from ALARM to INSUFFICIENT_DATA", "Alarm updated from INSUFFICIENT_DATA to ALARM"]'
 }
 
