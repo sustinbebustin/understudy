@@ -274,7 +274,30 @@ func (s *Service) bindLogging(b s3api.Binder) {
 	b.PutBucketLogging(writer[s3api.PutBucketLoggingInput, s3api.PutBucketLoggingOutput](s, put, func(in *s3api.PutBucketLoggingInput, b *Bucket) *awserr.Error {
 		b.Logging = in.BucketLoggingStatus.LoggingEnabled
 		return nil
-	}), stored("the logging configuration is"), touches(s, put))
+	}), stored("the logging configuration is"), touches(s, put), kernel.WithCheck(checkLoggingGrantees))
+}
+
+// checkLoggingGrantees refuses a TargetGrant whose grantee Type S3 does not
+// know with the generated enum check's InvalidArgument. The overlay leaves
+// Grantee$Type to the handlers for PutBucketAcl's MalformedACLError, but
+// AWS's answer for logging is unrecorded, so logging keeps the enum's.
+func checkLoggingGrantees(in *s3api.PutBucketLoggingInput) *awserr.Error {
+	le := in.BucketLoggingStatus.LoggingEnabled
+	if le == nil {
+		return nil
+	}
+	var vs []awserr.Violation
+	for i, g := range le.TargetGrants {
+		if g.Grantee == nil || g.Grantee.Type.Known() {
+			continue
+		}
+		vs = append(vs, awserr.Violation{
+			Path:       awserr.Path{"bucketLoggingStatus", "loggingEnabled", "targetGrants", strconv.Itoa(i + 1), "member", "grantee", "type"},
+			Value:      awserr.RenderedText{Text: string(g.Grantee.Type)},
+			Constraint: awserr.Enum{Values: []string{"CanonicalUser", "AmazonCustomerByEmail", "Group"}},
+		})
+	}
+	return kernel.Validate[s3api.PutBucketLoggingInput](vs)
 }
 
 func (s *Service) bindLifecycle(b s3api.Binder) {

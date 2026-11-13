@@ -547,6 +547,8 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 		stateful bool
 		// fields are context elements the error must carry.
 		fields map[string]string
+		// message, when set, is the exact error message.
+		message string
 	}{
 		"empty versioning configuration": {
 			call: func(h *harness, b string) *awserr.Error {
@@ -753,6 +755,39 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 			},
 			code: "InvalidArgument", status: 400, fields: map[string]string{"ArgumentName": "CanonicalUser/ID", "ArgumentValue": "wrong-id"},
 		},
+		// The LocalStack snapshot behind the overlay's MalformedACLError
+		// evidence: an unknown Permission or grantee Type is MalformedACLError.
+		"policy body with an unknown permission": {
+			call: func(h *harness, b string) *awserr.Error {
+				g := logDeliveryGrant(s3api.Permission("bogus"))
+				return putACP(h, b, ownerOf(h, b), g)
+			},
+			code: "MalformedACLError", status: 400,
+		},
+		"policy body with an unknown grantee type": {
+			call: func(h *harness, b string) *awserr.Error {
+				g := logDeliveryGrant(s3api.PermissionFullControl)
+				g.Grantee.Type = s3api.Type("bogus")
+				return putACP(h, b, ownerOf(h, b), g)
+			},
+			code: "MalformedACLError", status: 400,
+		},
+		// AWS's logging answer is unrecorded: the refusal is the generated
+		// enum check's, kept byte for byte when the Grantee enum moved to
+		// the handlers (ticket 06).
+		"logging target grant with an unknown grantee type": {
+			call: func(h *harness, b string) *awserr.Error {
+				return errOnly(invoke(h, s3api.OpPutBucketLogging, &s3api.PutBucketLoggingInput{
+					Bucket: b,
+					BucketLoggingStatus: s3api.BucketLoggingStatus{LoggingEnabled: &s3api.LoggingEnabled{
+						TargetBucket: b, TargetPrefix: "logs/",
+						TargetGrants: []s3api.TargetGrant{{Grantee: &s3api.Grantee{Type: s3api.Type("bogus")}, Permission: new(s3api.BucketLogsPermissionRead)}},
+					}},
+				}))
+			},
+			code: "InvalidArgument", status: 400,
+			message: "1 validation error detected: Value 'bogus' at 'bucketLoggingStatus.loggingEnabled.targetGrants.1.member.grantee.type' failed to satisfy constraint: Member must satisfy enum value set: [CanonicalUser, AmazonCustomerByEmail, Group]",
+		},
 		"duplicate tag keys": {
 			call: func(h *harness, b string) *awserr.Error {
 				return errOnly(invoke(h, s3api.OpPutBucketTagging, &s3api.PutBucketTaggingInput{
@@ -787,6 +822,9 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 				err := tc.call(h, b)
 				wantCode(h.T, err, tc.code, tc.status)
 				wantFields(h.T, err, tc.fields)
+				if tc.message != "" && err.Message != tc.message {
+					t.Errorf("message = %q, want %q", err.Message, tc.message)
+				}
 				if r := header(err, "x-amz-bucket-region"); tc.stateful && r != "us-east-1" {
 					t.Fatalf("x-amz-bucket-region = %q, want us-east-1", r)
 				}

@@ -464,11 +464,6 @@ func (v *CreateMultipartUploadInput) validate(path awserr.Path, out *[]awserr.Vi
 			*out = append(*out, awserr.Violation{Path: at(path, "requestPayer"), Value: awserr.RenderedText{Text: string(*v.RequestPayer)}, Constraint: awserr.Enum{Values: []string{"requester"}}})
 		}
 	}
-	if v.ChecksumAlgorithm != nil {
-		if !(*v.ChecksumAlgorithm).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "checksumAlgorithm"), Value: awserr.RenderedText{Text: string(*v.ChecksumAlgorithm)}, Constraint: awserr.Enum{Values: []string{"CRC32", "CRC32C", "SHA1", "SHA256", "CRC64NVME", "SHA512", "MD5", "XXHASH64", "XXHASH3", "XXHASH128"}}})
-		}
-	}
 	if v.ChecksumType != nil {
 		if !(*v.ChecksumType).Known() {
 			*out = append(*out, awserr.Violation{Path: at(path, "checksumType"), Value: awserr.RenderedText{Text: string(*v.ChecksumType)}, Constraint: awserr.Enum{Values: []string{"COMPOSITE", "FULL_OBJECT"}}})
@@ -1520,20 +1515,11 @@ func (v *Grant) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.Grantee != nil {
 		v.Grantee.validate(at(path, "grantee"), out)
 	}
-	if v.Permission != nil {
-		if !(*v.Permission).Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "permission"), Value: awserr.RenderedText{Text: string(*v.Permission)}, Constraint: awserr.Enum{Values: []string{"FULL_CONTROL", "WRITE", "WRITE_ACP", "READ", "READ_ACP"}}})
-		}
-	}
 }
 
 func (v *Grantee) validate(path awserr.Path, out *[]awserr.Violation) {
 	if v.missing&(1<<0) != 0 {
 		*out = append(*out, awserr.Violation{Path: at(path, "type"), Value: awserr.RenderedNull{}, Constraint: awserr.Required{}})
-	} else {
-		if !v.Type.Known() {
-			*out = append(*out, awserr.Violation{Path: at(path, "type"), Value: awserr.RenderedText{Text: string(v.Type)}, Constraint: awserr.Enum{Values: []string{"CanonicalUser", "AmazonCustomerByEmail", "Group"}}})
-		}
 	}
 }
 

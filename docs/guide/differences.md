@@ -38,7 +38,6 @@ SNS filter policies, EventBridge event patterns and Lambda event source mapping 
 
 ## S3
 
-- An unknown `x-amz-checksum-algorithm` is `InvalidArgument` from the model's enum check, not AWS's `InvalidRequest` (`s3/R08/08-create-alg-foo.json`).
 - `UploadPart` without a checksum on an XXHASH64 upload is accepted; AWS answers 400 "Checksum Type mismatch occurred, expected checksum Type: xxhash64, actual checksum Type: null" (`s3/R08/06-part-without-checksum.json`).
 - Every XML body starts with an XML declaration; AWS leaves it off `CompleteMultipartUpload` errors and several others, writes a literal `"` in Complete's `ETag`, and puts `\n\n` after its declaration (`s3/R08/06-complete-without-part-checksums.json`, `s3/R12/03-complete.json`).
 - `GetBucketEncryption` writes the rule's elements in the model's order (`ApplyServerSideEncryptionByDefault`, `BucketKeyEnabled`, `BlockedEncryptionTypes`); AWS writes `BucketKeyEnabled` first (`s3/R06/01-get-get-bucket-encryption.json`). Both parse the same.
@@ -53,7 +52,6 @@ SNS filter policies, EventBridge event patterns and Lambda event source mapping 
 - `POST` on an object without `uploadId` is 405 `MethodNotAllowed` with `Allow: HEAD, DELETE, GET, PUT` on AWS; understudy routes it to `CompleteMultipartUpload` and answers a validation error (`s3/R12/14-post-without-upload-id.json`).
 - With a KMS key id but no `aws:kms`, AWS sends no `ArgumentValue` (`s3/R15/x-kms-key-id-without-aws-kms.json`).
 - Event notifications on AWS: `eventVersion` 2.6, `ObjectRemoved:DeleteMarkerCreated` carries the empty-object `eTag`, Copy events end with `hasObjectAnnotation`, `ownerIdentity.principalId` is a 14-character id, overlap errors name `Event` or `FilterRule`, a destination without a queue policy is refused (understudy refuses it only under `--iam-enforce enforce`), and `SenderId` is `<role id>:S3-PROD-END` (`sqs/R17/02-events-*.json`, `s3/R17/01-config-*.json`).
-- An `AccessControlPolicy` with an unknown `Permission` or grantee `Type` is `InvalidArgument`; AWS answers `MalformedACLError`.
 
 ### S3 auth
 
