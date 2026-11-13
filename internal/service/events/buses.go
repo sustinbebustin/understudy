@@ -554,7 +554,7 @@ func busSwitches() []fidelity.Switch[string] {
 			"eventbridge.PutEvents"),
 		// PutTargets refuses another account's bus target without a RoleArn,
 		// by the newer user-guide rule, unless it replaces one with the same
-		// Id and Arn whose role it keeps (withCrossAccountRole).
+		// Id and Arn whose role it keeps (withBusRole).
 		sw("events.bus-target.cross-account-role", "required", evidence.AWSDoc, "63-cross-account", "EBB-09",
 			fidelity.NoScenario{Reason: "unrecorded: EBB-09 needs a second account, which the recording account lacks"},
 			"eventbridge.PutTargets"),

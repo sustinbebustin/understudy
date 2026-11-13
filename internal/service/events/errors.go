@@ -240,6 +240,13 @@ func errCrossAccountInput() *awserr.Error {
 	return eventbridgeapi.ErrValidationException("Input, InputPath, and InputTransformer are not available with PutTarget if the target is an event bus of a different AWS account.")
 }
 
+// errBusTargetRole is AWS-recorded: an event bus target of the rule's
+// account without a RoleArn refuses the whole call, naming the target's Arn
+// (eventbridge-buses.md 6.2, EBB-08).
+func errBusTargetRole(targetARN string) *awserr.Error {
+	return eventbridgeapi.ErrValidationException("RoleArn is required for target " + targetARN + ".")
+}
+
 // errBusTargetInput is AWS-recorded: an input form on an event bus target of
 // the rule's account refuses the whole call (eventbridge-buses.md 6.2,
 // EBB-08).

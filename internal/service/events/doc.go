@@ -119,9 +119,10 @@
 //     with a ValidationException whose text is inferred (EBB-09). A put
 //     without a RoleArn on a target with the same Id and Arn keeps its
 //     stored role, as API_PutTargets documents. A bus of the rule's own
-//     account with an input form refuses the whole call, as AWS does
-//     (EBB-08); one without a RoleArn is accepted, where AWS refuses it
-//     (EBB-08, the PutTargets note). A bus target stored with an input
+//     account, in any region, with an input form or without a RoleArn
+//     refuses the whole call, as AWS does (EBB-08); a put without a
+//     RoleArn on a target with the same Id and Arn keeps its stored role
+//     there too, which is inferred. A bus target stored with an input
 //     form, which only an edited snapshot holds, is journaled as a dropped
 //     delivery rather than forwarded with its input ignored.
 //   - A FIFO queue target without SqsParameters.MessageGroupId, an Input

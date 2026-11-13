@@ -27,10 +27,10 @@ func (s *Service) bindTargets(b eventbridgeapi.Binder) {
 			"RoleArn, RetryPolicy and DeadLetterConfig are stored, and the retry policy and dead-letter queue apply to deliveries; " +
 			"an event bus target with a RoleArn is delivered as a session of that role, which under iam.enforce=enforce must trust events.amazonaws.com and be allowed events:PutEvents on the bus, " +
 			"and one events.amazonaws.com cannot assume is not retried and goes to the dead-letter queue with ERROR_CODE FAILED_TO_ASSUME_ROLE; the session name and the trust request's aws:SourceArn and aws:SourceAccount are inferred; " +
-			"the RoleArn of a function, queue or topic target is not assumed, so under iam.enforce=enforce those deliveries, a bus target without a RoleArn and a bus target whose RoleArn names no IAM role (which AWS fails with FAILED_TO_ASSUME_ROLE) are decided for events.amazonaws.com against the target's policy; " +
+			"the RoleArn of a function, queue or topic target is not assumed, so under iam.enforce=enforce those deliveries and a bus target whose RoleArn names no IAM role (which AWS fails with FAILED_TO_ASSUME_ROLE) are decided for events.amazonaws.com against the target's policy; " +
 			"a delivery the target refuses is not retried and goes to the dead-letter queue with ERROR_CODE NO_PERMISSIONS (events.delivery.denied-code), else is dropped; no topic policy is added (events.put-targets.sns-policy); " +
 			"a target with HttpParameters, KinesisParameters, EcsParameters, BatchParameters, RunCommandParameters, RedshiftDataParameters, SageMakerPipelineParameters or AppSyncParameters, " +
-			"fails its entry with NotImplemented; an event bus target of the rule's account without a RoleArn is accepted, where AWS refuses the call; " +
+			"fails its entry with NotImplemented; " +
 			"a rule on another account's or region's bus answers NotImplemented"},
 		namedRule(func(in *eventbridgeapi.PutTargetsInput) *string { return in.EventBusName },
 			func(in *eventbridgeapi.PutTargetsInput) string { return in.Rule }))
@@ -101,8 +101,8 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 // merged is current, a rule's targets in scope, with accepted put: each
 // replaces the target with its Id, keeping its Seq, or is added with the
 // next number after seq. It returns the targets and the scope's last Seq,
-// or the refusal of a cross-account bus target without a role
-// (withCrossAccountRole) or of more than maxTargets.
+// or the refusal of a bus target without a role (withBusRole) or of more
+// than maxTargets.
 func merged(scope aws.Scope, current, accepted []Target, seq uint64) ([]Target, uint64, *awserr.Error) {
 	targets := slices.Clone(current)
 	for _, t := range accepted {
@@ -111,7 +111,7 @@ func merged(scope aws.Scope, current, accepted []Target, seq uint64) ([]Target, 
 		if i >= 0 {
 			replaced = &targets[i]
 		}
-		t, err := withCrossAccountRole(scope, t, replaced)
+		t, err := withBusRole(scope, t, replaced)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -134,7 +134,7 @@ func merged(scope aws.Scope, current, accepted []Target, seq uint64) ([]Target, 
 // as stored: at most one input form, each well formed, a message group for a
 // FIFO queue, no input form for an event bus, and a
 // dead-letter queue deadLetterQueue accepts. Whether such a bus target has
-// a RoleArn depends on the target it replaces (withCrossAccountRole).
+// a RoleArn depends on the target it replaces (withBusRole).
 func parseTarget(scope aws.Scope, t *eventbridgeapi.Target) (Target, *awserr.Error) {
 	input, err := parseInput(t)
 	if err != nil {
@@ -185,22 +185,29 @@ func checkBusInput(scope aws.Scope, dt busTarget, t *eventbridgeapi.Target) *aws
 	return errBusTargetInput(t.Id)
 }
 
-// withCrossAccountRole is t, a target of a rule in scope, as stored in
-// place of replaced, the rule's target with t's Id, if any. Another
-// account's bus needs a RoleArn (events.bus-target.cross-account-role:
-// "EventBridge now requires all new cross account event bus targets to add
-// IAM roles", eb-cross-account.html; the refusal's text is unrecorded,
-// eventbridge-buses.md 6.3, EBB-09), and a call without one keeps the role
-// of the target it replaces when the Arn is the same ("a PutTargets call
-// without a role on the same target (same Id and Arn) will not remove the
-// role", API_PutTargets). The fan-out delivers as the role (targetRole).
-func withCrossAccountRole(scope aws.Scope, t Target, replaced *Target) (Target, *awserr.Error) {
+// withBusRole is t, a target of a rule in scope, as stored in place of
+// replaced, the rule's target with t's Id, if any. Every event bus target
+// needs a RoleArn: one of the rule's own account, in any region, as AWS
+// refuses it (AWS-recorded, eventbridge-buses.md 6.2, EBB-08), and another
+// account's (events.bus-target.cross-account-role: "EventBridge now
+// requires all new cross account event bus targets to add IAM roles",
+// eb-cross-account.html; the refusal's text is unrecorded, 6.3, EBB-09). A
+// call without one keeps the role of the target it replaces when the Arn is
+// the same ("a PutTargets call without a role on the same target (same Id
+// and Arn) will not remove the role", API_PutTargets, which says so of a
+// cross-account target; for the rule's own account it is inferred). The
+// fan-out delivers as the role (targetRole).
+func withBusRole(scope aws.Scope, t Target, replaced *Target) (Target, *awserr.Error) {
 	dt, _ := targetOf(scope, t.ARN)
-	if bus, isBus := dt.(busTarget); !isBus || !bus.crossAccount(scope) || t.RoleARN != nil {
+	bus, isBus := dt.(busTarget)
+	if !isBus || t.RoleARN != nil {
 		return t, nil
 	}
 	if replaced == nil || replaced.ARN != t.ARN || replaced.RoleARN == nil {
-		return Target{}, errCrossAccountRole(t.ID)
+		if bus.crossAccount(scope) {
+			return Target{}, errCrossAccountRole(t.ID)
+		}
+		return Target{}, errBusTargetRole(t.ARN)
 	}
 	t.RoleARN = replaced.RoleARN
 	return t, nil

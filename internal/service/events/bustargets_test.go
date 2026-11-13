@@ -92,10 +92,10 @@ func TestBusTargetForwardsTheMatchedEvent(t *testing.T) {
 // An event bus target with a RoleArn is delivered as a session of that
 // role: the role's policy must allow events:PutEvents on the bus
 // (eb-event-bus-perms.html, eventbridge-buses.md 6.2;
-// iam-enforcement-surfaces.md 8.4). One without a RoleArn is delivered as
-// events.amazonaws.com, and so is one whose RoleArn names no IAM role, a
-// deviation the PutTargets coverage note states: PutTargets checks only the
-// RoleArn's length, and the delivery is not dropped for it.
+// iam-enforcement-surfaces.md 8.4). One whose RoleArn names no IAM role is
+// delivered as events.amazonaws.com, a deviation the PutTargets coverage
+// note states: PutTargets checks only the RoleArn's length, and the delivery
+// is not dropped for it.
 func TestBusTargetIsDeliveredAsItsRole(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createBus("source")
@@ -107,7 +107,6 @@ func TestBusTargetIsDeliveredAsItsRole(t *testing.T) {
 			want delivery.Principal
 		}{
 			{"with a RoleArn", new(invokerRole), delivery.ExecutionRole{Role: h.mustARN(invokerRole)}},
-			{"without a RoleArn", nil, nil},
 			{"with a RoleArn naming no IAM role", new("arn:aws:sqs:us-east-1:000000000000:not-a-role"), nil},
 		} {
 			h.targetOn("source", "fwd", eventbridgeapi.Target{Id: "bus", Arn: dest, RoleArn: c.role})
@@ -313,9 +312,9 @@ func TestForwardedEventOnTheReceivingBus(t *testing.T) {
 		dest := h.createBus("dest")
 		third := h.createBus("third")
 		rule := h.putRuleOn("dest", "in", `{"source": ["aws.events"]}`)
-		h.targetOn("dest", "in", eventbridgeapi.Target{Id: "onward", Arn: third, DeadLetterConfig: &eventbridgeapi.DeadLetterConfig{Arn: new("arn:aws:sqs:us-east-1:000000000000:dlq")}})
+		h.targetOn("dest", "in", eventbridgeapi.Target{Id: "onward", Arn: third, RoleArn: new(invokerRole), DeadLetterConfig: &eventbridgeapi.DeadLetterConfig{Arn: new("arn:aws:sqs:us-east-1:000000000000:dlq")}})
 		h.targetOn("dest", "in", eventbridgeapi.Target{Id: "q", Arn: queueARN})
-		h.targetOn("dest", "in", eventbridgeapi.Target{Id: "back", Arn: busPrefix + "default"})
+		h.targetOn("dest", "in", eventbridgeapi.Target{Id: "back", Arn: busPrefix + "default", RoleArn: new(invokerRole)})
 
 		at := time.Date(2026, 10, 14, 7, 14, 15, 0, time.UTC)
 		f := delivery.Forwarded{ID: "6a7e8feb-b491-4cf7-a9f1-bf3703467718", Account: "111111111111", Region: "us-east-1", Time: at}
