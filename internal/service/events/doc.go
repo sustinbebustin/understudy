@@ -54,11 +54,17 @@
 //     UpdateEventBus, PutPermission) stores it, removing a bus policy's last
 //     statement removes the policy, and RemoveAllPermissions on a bus
 //     without one succeeds, all as AWS does (EBB-01, EBB-04, EBB-06,
-//     EBB-07); a KMS key is stored unchecked, where AWS checks it (EBB-05).
-//     PutPermission and RemovePermission move a bus's LastModifiedTime
+//     EBB-07). PutPermission and RemovePermission move a bus's LastModifiedTime
 //     (EBB-06); a tag call changes it on no bus, which is inferred. UpdateEventBus
 //     without a Name updates the default bus (EBB-04), and an empty
 //     KmsKeyIdentifier clears the key (EBB-05).
+//   - CreateEventBus and UpdateEventBus look a KmsKeyIdentifier up in KMS
+//     as EventBridge's platform, under every iam.enforce mode, and refuse
+//     one KMS does not find with KMS's message and the KMS client's SDK v2
+//     suffix (EBB-05; for an alias, inferred). Then they ask whether the
+//     key's policy allows events.amazonaws.com kms:GenerateDataKey, which
+//     iam.enforce decides as any evaluation (EBB-05). A key id is stored
+//     and echoed as its key ARN and an alias name as its alias ARN.
 //   - A bus policy is stored and returned, never enforced
 //     (eventbridge-buses.md 4.4, 10.7.22): PutPermission keeps its
 //     statements in insertion order, upserted by Sid, each generated one in

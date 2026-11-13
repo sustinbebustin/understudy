@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
+	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -25,6 +26,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/outbox"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/events"
+	"github.com/sustinbebustin/understudy/internal/service/kms"
 )
 
 // sink is the kernel's delivery sink: it records every accepted delivery
@@ -145,17 +147,32 @@ const (
 // kerneltest does not wire.
 func run(t *testing.T, fn func(h *harness)) {
 	t.Helper()
-	runWith(t, false, fn)
+	runWith(t, fn)
 }
 
 // runWithOutbox is run with the outbox behind the sink and a stub SQS
 // SendMessage that records what each attempt sends (harness.sent).
 func runWithOutbox(t *testing.T, fn func(h *harness)) {
 	t.Helper()
-	runWith(t, true, fn)
+	runWith(t, fn, withOutbox)
 }
 
-func runWith(t *testing.T, withOutbox bool, fn func(h *harness)) {
+// runWithKMS is run with understudy's KMS served beside EventBridge, which
+// CreateEventBus and UpdateEventBus look a KmsKeyIdentifier up in.
+func runWithKMS(t *testing.T, fn func(h *harness)) {
+	t.Helper()
+	runWith(t, fn, withKMS)
+}
+
+// feature is what a harness serves beside EventBridge.
+type feature int
+
+const (
+	withOutbox feature = iota + 1 // the outbox behind the sink and a stub SQS SendMessage
+	withKMS                       // understudy's KMS
+)
+
+func runWith(t *testing.T, fn func(h *harness), features ...feature) {
 	t.Helper()
 	synctest.Test(t, func(t *testing.T) {
 		timers := kernel.NewTimers()
@@ -167,9 +184,13 @@ func runWith(t *testing.T, withOutbox bool, fn func(h *harness)) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		outboxed, keyed := slices.Contains(features, withOutbox), slices.Contains(features, withKMS)
 		svcs := []*registry.Service{eventbridgeapi.Service()}
-		if withOutbox {
+		if outboxed {
 			svcs = append(svcs, sqsapi.Service())
+		}
+		if keyed {
+			svcs = append(svcs, kmsapi.Service())
 		}
 		reg, err := registry.New(svcs...)
 		if err != nil {
@@ -178,7 +199,7 @@ func runWith(t *testing.T, withOutbox bool, fn func(h *harness)) {
 		src := ids.NewSeeded(1)
 		idStore := identity.New(src, aws.DefaultAccount())
 		d := &sink{}
-		if withOutbox {
+		if outboxed {
 			d.box = outbox.New()
 		}
 		l := &logs{}
@@ -196,7 +217,10 @@ func runWith(t *testing.T, withOutbox bool, fn func(h *harness)) {
 		}
 		svc := events.New(kt.Deps(eventbridgeapi.Service()), events.Options{})
 		h := &harness{K: kt, svc: svc, sink: d, logs: l}
-		if withOutbox {
+		if keyed {
+			kms.New(kt.Deps(kmsapi.Service()), kms.Options{})
+		}
+		if outboxed {
 			if err := d.box.Bind(k, outbox.Options{}); err != nil {
 				t.Fatal(err)
 			}

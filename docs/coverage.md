@@ -532,8 +532,8 @@ Raw operations:
 | TagResource | full | third-party-recorded, 2 of 3 claims |  |
 | TestEventPattern | full | contradicted (events/R14/H14-02.json), 3 of 25 claims |  |
 | UntagResource | full | third-party-recorded, 2 of 3 claims |  |
-| UpdateEventBus | stored-only | inferred, 1 of 10 claims | Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged; KmsKeyIdentifier is neither checked nor resolved, where AWS refuses a key that does not exist or does not grant EventBridge and echoes a key id or alias name as its ARN (events.bus.kms-key-check) |
-| CreateEventBus | partial | inferred, 2 of 10 claims | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged; KmsKeyIdentifier is neither checked nor resolved, where AWS refuses a key that does not exist or does not grant EventBridge and echoes a key id or alias name as its ARN (events.bus.kms-key-check) |
+| UpdateEventBus | stored-only | third-party-recorded, 2 of 9 claims | Description, KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed; events are not encrypted, dead-lettered or logged; a KmsKeyIdentifier must name a key or alias understudy's KMS holds and, under iam.enforce=enforce, a key whose policy allows events.amazonaws.com kms:GenerateDataKey; a key id is echoed as its key ARN and an alias name as its alias ARN; an alias KMS does not find is refused as a missing key is, which is inferred |
+| CreateEventBus | partial | inferred, 1 of 9 claims | custom buses; EventSourceName (partner buses) answers NotImplemented; KmsKeyIdentifier, DeadLetterConfig and LogConfig are stored and echoed, never applied: events are not encrypted, dead-lettered or logged; a KmsKeyIdentifier must name a key or alias understudy's KMS holds and, under iam.enforce=enforce, a key whose policy allows events.amazonaws.com kms:GenerateDataKey; a key id is echoed as its key ARN and an alias name as its alias ARN; an alias KMS does not find is refused as a missing key is, which is inferred |
 | DeleteRule | partial | third-party-recorded, 2 of 4 claims | another account's or region's bus answers NotImplemented |
 | DescribeEventBus | partial | third-party-recorded, 2 of 4 claims | another account's or region's bus answers NotImplemented |
 | DescribeRule | partial | third-party-recorded, 2 of 5 claims | another account's or region's bus answers NotImplemented |
@@ -1803,7 +1803,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-235 switches: 136 aws-recorded, 1 third-party-recorded, 14 aws-doc, 84 inferred.
+234 switches: 136 aws-recorded, 1 third-party-recorded, 14 aws-doc, 83 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1969,7 +1969,6 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `cloudwatch.get-metric-statistics.order` | `timestamp-ascending,then-unit` | inferred | docs/research/cloudwatch-alarms.md#92-response | none: AWS documents no order ("Data points are not returned in chronological order"), so no recording can pin one |
 | `cloudwatch.put-metric-data.timestamp-window` | `wall-or-emulator` | inferred | docs/research/secrets-logs-events-alarms.md#52-putmetricdata | none: AWS has one clock: which of understudy's two the windows read is understudy's choice, which no recording settles |
 | `dynamodb.streams.sequence-number` | `decimal-21` | inferred | docs/research/dynamodb-streams.md#43-sequence-numbers | none: recorded in dynamodb/DDBS-09: AWS numbers records with 23 digits above a 21-digit StartingSequenceNumber, which neither value does |
-| `events.bus.kms-key-check` | `none` | inferred | docs/research/eventbridge-buses.md#31-createeventbus | none: recorded in events/EBB (05-default-policy, 05-missing-key, 2026-11-03): AWS checks that the key exists and grants EventBridge, which understudy does not yet; the steps need KMS keys the replayer does not create |
 | `events.input-path.unmatched` | `not-delivered` | inferred | docs/research/secrets-logs-events-alarms.md#45-targets | none: unrecorded: no recording delivers to a target whose InputPath selects nothing |
 | `events.pattern.bare-number` | `numeric-or-text` | inferred | docs/research/matching-engines.md#10 | none: events/R14's H8 steps do not decide it: both values answer false for a string |
 | `events.pattern.empty-input` | `matchable` | aws-recorded (events/R14/H1-01.json) | docs/research/matching-engines.md#10 | events/R14#H1-01 |

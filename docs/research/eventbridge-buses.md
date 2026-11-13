@@ -324,7 +324,7 @@ Amended 2026-10-26: DescribeEventBus and the rule and target row were Full, and 
 |---|---|---|---|---|
 | `events.delete-bus.with-rules` | `rejected`: `ValidationException` "EventBus can't be deleted since it has rules." | aws-recorded (EBB-01) | section 3.5 | EBB-01 |
 | `events.update-bus.omitted-members` | `kept` | aws-recorded (EBB-04) | section 3.4 | EBB-04 |
-| `events.bus.kms-key-check` | `none`: any identifier matching the model pattern is stored. AWS checks that the key exists and grants EventBridge (section 3.1), a recorded deviation | inferred | section 3.1 | EBB-05 |
+| `events.bus.kms-key-check` | retired (2026-11-13): understudy checks that the key exists and grants EventBridge, and echoes it, as EBB-05 recorded (section 3.1) | | section 3.1 | EBB-05 |
 | `events.bus-policy.remove-last-statement` | `policy-removed` | aws-recorded (EBB-06) | section 4.3 | EBB-06 |
 | `events.bus-policy.remove-all-without-policy` | `succeed` | aws-recorded (EBB-06) | section 4.3 | EBB-06 |
 | `events.list-buses.order` | `by-name`, the default bus sorted with the rest | aws-recorded (EBB-07) | section 3.3 | EBB-07 |
@@ -523,7 +523,7 @@ aws events delete-event-bus --name "$P-u"
 
 ### 12.6 EBB-05: KmsKeyIdentifier forms and checks
 
-Settles section 3.1 and `events.bus.kms-key-check`. About USD 0.25 (one KMS key through the 7-day minimum deletion window, [recording-kit.md](../recording-kit.md) section 4), 10 minutes.
+Settles section 3.1 and `events.bus.kms-key-check` (since retired). About USD 0.25 (one KMS key through the 7-day minimum deletion window, [recording-kit.md](../recording-kit.md) section 4), 10 minutes.
 
 ```sh
 K=$(aws kms create-key --description "$P-ebb" --query KeyMetadata.KeyId --output text)

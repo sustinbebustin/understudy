@@ -167,8 +167,8 @@ type Bus struct {
 	Name string `json:"name"`
 	// Description is nil when absent or empty.
 	Description *string `json:"description,omitempty"`
-	// KMSKeyIdentifier is stored as sent and never applied; nil when absent
-	// or empty.
+	// KMSKeyIdentifier is stored as busKeyIdentifier gives it and never
+	// applied; nil when absent or empty.
 	KMSKeyIdentifier *string `json:"kmsKeyIdentifier,omitempty"`
 	// DeadLetter is stored as sent and never applied.
 	DeadLetter *DeadLetterConfig `json:"deadLetter,omitempty"`
