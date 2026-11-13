@@ -79,3 +79,7 @@ understudy needs a versioned, deterministic file for the whole emulator state an
 
 - Lambda's state version 7 records with each image function's digest whether it is a repository digest or a local build's image ID, so invoke resolves only that reference and never sends a local build's ID to the registry as `repository@<image ID>` (ARCHITECTURE.md 14.3).
 - The field is optional, so Lambda's `Import` reads a version 6 section as it is. Its image functions' kinds are unrecorded, and invoke tries both references for them, the repository digest first, as before. Version 5, 4 and 3 sections read as the amendments above say, their image functions' kinds unrecorded too.
+
+## Amendment 2026-11-13: Lambda state version 8 records a stream mapping's self-disable
+
+- Lambda's state version 8 adds whether a stream mapping disabled itself because its stream closed, which sets its `StateTransitionReason` and `LastProcessingResult` (`lambda-stream-sources.md` 7.3). The field is optional, so Lambda's `Import` reads a version 7 section, and a version 6, 5 or 4 section as the amendments above allow, as version 8, with no mapping disabled that way. A version 3 section is still migrated, under the same coordinator limit as above.

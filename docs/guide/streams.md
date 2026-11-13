@@ -134,6 +134,25 @@ aws logs filter-log-events --log-group-name /aws/lambda/order-events --filter-pa
 
 The mapping reads a stream as soon as a record arrives, rather than polling it four times a second as AWS does, so the delivery is not delayed and an idle mapping does not keep `/_understudy/v1/settle` waiting. It batches up to `BatchSize` records, the batching window or 6 MB of event, whichever comes first, and resumes where it left off after a disable and re-enable or a snapshot load. The state of a mapping is a checkpoint per shard: when it falls behind the 24-hour trim, the lost records are dropped, the mapping resumes at the oldest record left, and the journal says so.
 
+Deleting the table, or disabling its stream, closes the stream. The mapping delivers the records left on it, then stays `Enabled` for 108 seconds of emulator time, as AWS's did in one recording, and disables itself:
+
+```sh
+aws dynamodb delete-table --table-name orders
+understudy clock advance 2m
+aws lambda get-event-source-mapping --uuid 2398bb0d-faf8-43cf-987c-333548540987 \
+  --query '[State,StateTransitionReason,LastProcessingResult]'
+```
+
+```text
+[
+    "Disabled",
+    "Unrecoverable error",
+    "PROBLEM: Stream is closed"
+]
+```
+
+The journal records `Polling` to `StreamClosed` when the mapping finds the stream closed, then `Enabled` to `Disabled` on the mapping's ARN. Enabling the mapping again reads the old stream, which is still closed, so the mapping disables itself again; create a mapping on the table's new stream instead.
+
 ## Failures
 
 A batch whose invocation fails is retried, 250 milliseconds of emulator time after the failure, until `MaximumRetryAttempts` or `MaximumRecordAgeInSeconds` ends it. By default neither does, so a failing record blocks its shard until it is trimmed, as on AWS. With `FunctionResponseTypes ReportBatchItemFailures`, the function's `batchItemFailures` answer is read as AWS reads it. An on-failure destination receives a record describing each discarded batch:

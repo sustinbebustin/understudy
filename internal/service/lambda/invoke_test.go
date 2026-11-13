@@ -1180,6 +1180,35 @@ func TestImageFunctionsFromAVersion6SnapshotTryBothReferences(t *testing.T) {
 	})
 }
 
+// A version 7 section, saved with digest kinds but before a stream mapping
+// recorded that it disabled itself, loads with its kinds, so a local
+// build still runs by its image ID alone.
+func TestImageFunctionsFromAVersion7SnapshotKeepTheirDigestKind(t *testing.T) {
+	runExec(t, pooltest.Echo, func(h *execHarness) {
+		h.images.build("local/fn:latest", localBuildID)
+		call(h.harness, lambdaapi.OpCreateFunction, imageFunction("img", "local/fn:latest"))
+		h.settle()
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range sections {
+			sections[i].Version = 7
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(sections); err != nil {
+			t.Fatalf("Import(a version 7 section) = %v, want it loaded", err)
+		}
+		h.invoke(invokeInput("img", `{}`))
+		if specs := h.started(); len(specs) != 1 || specs[0].Image != localBuildID {
+			t.Fatalf("started %+v, want one environment of %s", specs, localBuildID)
+		}
+		if n := countOf(h.images.requested(), "local/fn@"+localBuildID); n != 0 {
+			t.Errorf("local/fn@%s was asked of Docker %d times, want never", localBuildID, n)
+		}
+	})
+}
+
 func countOf(refs []string, want string) int {
 	n := 0
 	for _, r := range refs {

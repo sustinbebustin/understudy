@@ -177,7 +177,7 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 	if err != nil || resp.Status != http.StatusOK {
 		return resp, err
 	}
-	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+	_, err = kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		t, ok := st.Tables[name]
 		if !ok {
 			return struct{}{}, dynamodbapi.ErrResourceNotFoundException(awsNotFound(name))
@@ -188,7 +188,7 @@ func (s *Service) updateTable(ctx context.Context, c *kernel.Call, in *dynamodba
 			minted.adopt(a.shim.seen)
 			st.Streams = append(st.Streams, minted)
 		case streamDisabled:
-			st.disableStream(name, c.Admitted())
+			wakeAll(tx, st.disableStream(c.Scope(), name, c.Admitted()))
 		case streamKept:
 		}
 		return struct{}{}, nil

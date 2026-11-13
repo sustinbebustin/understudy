@@ -248,7 +248,7 @@ func (s *Service) deleteTable(ctx context.Context, c *kernel.Call, in *dynamodba
 			return struct{}{}, nil
 		}
 		delete(st.Tables, name)
-		st.tableDeleted(name, c.Admitted())
+		wakeAll(tx, st.tableDeleted(c.Scope(), name, c.Admitted()))
 		return struct{}{}, nil
 	})
 	s.sweeps.forget(tableKey{scope: c.Scope(), table: name})

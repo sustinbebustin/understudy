@@ -70,6 +70,10 @@ type Mapping struct {
 	// turns its LastProcessingResult from "No records processed" to "OK"
 	// (recorded LS-K:L3066, LS-D:L184).
 	Processed bool `json:"processed,omitzero"`
+	// StreamClosed is set, with Enabled false, once a stream mapping
+	// disabled itself because its stream closed or was gone (ESMS-14 11);
+	// enabling the mapping clears it.
+	StreamClosed bool `json:"streamClosed,omitzero"`
 }
 
 // Transition is a mapping's transient state under TransitionsClock, until
@@ -109,6 +113,7 @@ func (s *Service) bindMappings(b lambdaapi.Binder) {
 	const note = "SQS queues, DynamoDB streams and Kinesis data streams; serve polls the source and invokes the function with each batch; " +
 		"Kinesis stream consumers, AT_TIMESTAMP on a Kinesis stream, ParallelizationFactor above 1, BisectBatchOnFunctionError, TumblingWindowInSeconds above 0, a valid FilterCriteria on a stream and an S3 on-failure destination answer 501; " +
 		"a stream is read as soon as it receives a record rather than at AWS's polling rate (4 per second for DynamoDB, once per second for Kinesis), which is used as the delay before a retry; " +
+		"a DynamoDB mapping whose stream is closed or gone, as after DeleteTable, disables itself with StateTransitionReason Unrecoverable error and LastProcessingResult PROBLEM: Stream is closed 108 s after its reader finds the stream closed, a delay inferred from one sample (lambda/ESMS-14), and a Kinesis mapping whose stream is gone stays Enabled, which is unrecorded; " +
 		"UNVERIFIED (lambda-stream-sources.md 3.3, 3.4, 3.7, 4.2, 5.1, 5.3, 5.5, 5.6, 7.1): the text refusing MaximumRecordAgeInSeconds 0 to 59, an explicit BatchSize above 10 without a window being accepted on a Kinesis stream, " +
 		"members of the SQS type being ignored on a stream mapping, an Update refusing the stream type's members on an SQS mapping as Create does, destination existence checked only at delivery, a retried batch keeping its records, the 6 MB limit counted over the serialized event, " +
 		"record age measured from the record's arrival in the stream, RetryAttemptsExhausted reported when the last retry fails after the records have also passed their age, one on-failure record per expired record, " +
@@ -502,12 +507,14 @@ func (s *Service) retarget(ctx context.Context, c *kernel.Call, uuid string, nam
 
 // toggle sets the mapping's Enabled and returns the transition an update
 // starts: Enabling or Disabling when Enabled changes, Updating otherwise.
+// Enabling clears StreamClosed, so the mapping reports a user action again
+// (inferred: AWS's answer to enabling such a mapping is unrecorded).
 func toggle(m *Mapping, enabled *bool) MappingState {
 	switch {
 	case enabled == nil || *enabled == m.Enabled:
 		return MappingUpdating
 	case *enabled:
-		m.Enabled = true
+		m.Enabled, m.StreamClosed = true, false
 		return MappingEnabling
 	}
 	m.Enabled = false

@@ -48,6 +48,38 @@ func TestMigrateUnkindedScalingRefusesMalformedData(t *testing.T) {
 	}
 }
 
+// A mapping that disabled itself because its stream closed keeps that
+// reason across a save and load, and a section of version 7 or earlier,
+// written before the field existed, loads its mappings as not closed.
+func TestStreamClosedRoundTripsAndOlderSectionsLoad(t *testing.T) {
+	st := newState(kindScope(t))
+	st.Mappings["s"] = Mapping{UUID: "s", Source: streamSource, SourceKind: esm.DynamoDBStream{Position: esm.TrimHorizon{}}, Function: "f", BatchSize: 100, StreamClosed: true}
+	data, err := stateCodec().Marshal(&st)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	got := newState(kindScope(t))
+	if err := stateCodec().Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal %s: %v", data, err)
+	}
+	if m := got.Mappings["s"]; !m.StreamClosed || m.Enabled {
+		t.Errorf("after the round trip: StreamClosed %t, Enabled %t; want true, false", m.StreamClosed, m.Enabled)
+	}
+	older := `{"mappings":{"s":{"uuid":"s","source":"` + streamSource + `",` +
+		`"sourceKind":{"kind":"dynamodb-stream","position":{"kind":"trim-horizon"},"settings":{"recordAge":{"kind":"any-age"},"retries":{"kind":"unlimited"},"onFailure":{"kind":"none"}}},` +
+		`"function":"f","batchSize":100,"window":0,"enabled":false}}}`
+	loaded := newState(kindScope(t))
+	if err := stateCodec().Unmarshal([]byte(older), &loaded); err != nil {
+		t.Fatalf("Unmarshal %s: %v", older, err)
+	}
+	if m, ok := loaded.Mappings["s"]; !ok || m.StreamClosed {
+		t.Errorf("older section: mapping %+v, want it loaded and not StreamClosed", m)
+	}
+}
+
+// streamSource is a DynamoDB stream's ARN.
+const streamSource = "arn:aws:dynamodb:us-east-1:000000000000:table/Orders/stream/2000-01-01T00:00:00.000"
+
 // A deleted function's highest version number is saved with the state, and
 // a function created under its name takes it over.
 func TestRetiredVersionsRoundTrip(t *testing.T) {

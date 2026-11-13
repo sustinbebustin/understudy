@@ -27,13 +27,20 @@ import (
 // checkpoints, version 5 added State.RetiredVersions, version 6 records
 // whether a layer version ever had a policy (LayerVersion.HadPolicy) and
 // each layer statement's size as AWS measures it (Statement.MeasuredSize),
-// and version 7 ImageCode.DigestKind. A version 6 section loads as is, its
-// image codes' kinds unrecorded; so does a version 5 section, which also
-// lacks the layer-policy fields, and a version 4 section, with no numbers
-// remembered for deleted functions either; a version 3 section is migrated
-// on import (migrateUnkindedScaling); a section of an earlier version is
-// refused (ADR 0009).
-const stateVersion = 7
+// version 7 ImageCode.DigestKind, and version 8 whether a stream mapping
+// disabled itself because its stream closed (Mapping.StreamClosed). A
+// version 7 section, which lacks only that optional field, loads as is,
+// its mappings not closed; so does a version 6 section, its image codes'
+// kinds unrecorded too, a version 5 section, which also lacks the
+// layer-policy fields, and a version 4 section, with no numbers remembered
+// for deleted functions either; a version 3 section is migrated on import
+// (migrateUnkindedScaling); a section of an earlier version is refused
+// (ADR 0009).
+const stateVersion = 8
+
+// stateVersionNoStreamClosed is the version before a stream mapping
+// recorded that it disabled itself, which Import still reads.
+const stateVersionNoStreamClosed = 7
 
 // stateVersionNoDigestKinds is the version before image codes recorded
 // their digest's kind, which Import still reads.

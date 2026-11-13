@@ -154,6 +154,27 @@ func TestRetiredVersionNumbersSurviveASnapshot(t *testing.T) {
 	})
 }
 
+// A version 6 section, saved before image codes recorded their digest's
+// kind and stream mappings their self-disable, still loads.
+func TestSnapshotLoadsAVersion6Section(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		t := h.T
+		h.createFunction("fn")
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range sections {
+			sections[i].Version = 6
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(sections); err != nil {
+			t.Fatalf("Import(a version 6 section) = %v, want it loaded", err)
+		}
+		call(h, lambdaapi.OpGetFunction, &lambdaapi.GetFunctionInput{FunctionName: "fn"})
+	})
+}
+
 // A version 4 section, saved before deleted functions' numbers were kept,
 // still loads, and a function in it keeps its own numbering.
 func TestSnapshotLoadsAVersion4Section(t *testing.T) {
@@ -183,10 +204,11 @@ func TestSnapshotLoadsAVersion4Section(t *testing.T) {
 // store and each function version's layers, version 4 moved an SQS
 // mapping's scaling into its source kind, version 5 added deleted
 // functions' version numbers, version 6 optional layer-policy fields, and
-// version 7 image digests' kinds. Before 1.0 a section an older binary
-// wrote is refused naming both versions rather than migrated (ADR 0009);
-// version 3 is migrated (the ADR's amendment of 2026-10-27) and versions 4
-// to 6 read as is (the amendments of 2026-11-13).
+// version 7 image digests' kinds, and version 8 a stream mapping's optional
+// self-disable. Before 1.0 a section an older binary wrote is refused
+// naming both versions rather than migrated (ADR 0009); version 3 is
+// migrated (the ADR's amendment of 2026-10-27) and versions 4 to 7 read as
+// is (the amendments of 2026-11-13).
 func TestSnapshotRefusesAnEarlierVersion(t *testing.T) {
 	for _, earlier := range []int{1, 2} {
 		run(t, lambda.Options{}, func(h *harness) {
@@ -204,8 +226,8 @@ func TestSnapshotRefusesAnEarlierVersion(t *testing.T) {
 			if !ok {
 				t.Fatalf("Import(a version %d section) = %v, want a *store.VersionMismatchError", earlier, err)
 			}
-			if vm.Section != earlier || vm.Running != 7 || h.svc.SchemaVersion() != 7 {
-				t.Errorf("mismatch %+v, schema version %d; want section %d refused by running 7", vm, h.svc.SchemaVersion(), earlier)
+			if vm.Section != earlier || vm.Running != 8 || h.svc.SchemaVersion() != 8 {
+				t.Errorf("mismatch %+v, schema version %d; want section %d refused by running 8", vm, h.svc.SchemaVersion(), earlier)
 			}
 		})
 	}

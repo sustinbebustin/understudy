@@ -111,7 +111,8 @@ func TestStreamSixMegabyteCut(t *testing.T) {
 
 // A stream found gone at the reader's first read stops the reader: one
 // StreamGone entry, and no further reads when the stream is woken or time
-// passes (lambda-stream-sources.md 7.3).
+// passes; by then the mapping has disabled itself (ESMS-14 11;
+// lambda-stream-sources.md 7.3).
 func TestStreamGoneReaderReadsNothingMore(t *testing.T) {
 	runStream(t, esm.StreamFidelity{}, func(h *streamHarness) {
 		m := h.mapStream(lambdaapi.CreateEventSourceMappingInput{})
@@ -135,8 +136,8 @@ func TestStreamGoneReaderReadsNothingMore(t *testing.T) {
 		if gone != 1 {
 			h.Errorf("%d Polling->StreamGone entries, want 1", gone)
 		}
-		if got := derefAny(h.get(*m.UUID).State); got != "Enabled" {
-			h.Errorf("State = %v, want Enabled", got)
+		if got := derefAny(h.get(*m.UUID).State); got != "Disabled" {
+			h.Errorf("State = %v, want Disabled", got)
 		}
 	})
 }
