@@ -34,7 +34,7 @@ func (s *Service) bindTagging(b s3api.Binder) {
 	get := func(in *s3api.GetBucketTaggingInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.GetBucketTagging(reader(s, get, getTagging), registry.Full{}, touches(s, get))
 	put := func(in *s3api.PutBucketTaggingInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutBucketTagging(writer[s3api.PutBucketTaggingInput, s3api.PutBucketTaggingOutput](s, put, putTagging), registry.Full{}, touches(s, put),
+	b.PutBucketTagging(writer[s3api.PutBucketTaggingInput, s3api.PutBucketTaggingOutput](s, put, putTagging), checksumUnchecked(registry.Full{}), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketTaggingInput) *awserr.Error {
 			_, err := tagSet(in.Tagging.TagSet, systemReservedTag)
 			return err

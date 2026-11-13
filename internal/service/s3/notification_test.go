@@ -3,6 +3,7 @@ package s3_test
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"strings"
 	"sync"
 	"testing"
@@ -263,22 +264,61 @@ func TestNotificationConfigurationRefusals(t *testing.T) {
 		cfg     s3api.NotificationConfiguration
 		code    string
 		fields  map[string]string
-		message string // checked when set
+		order   []string // the context elements in order, checked when set
+		message string   // checked when set
 	}{
-		"two unfiltered configurations sharing an event": {
-			cfg: s3api.NotificationConfiguration{QueueConfigurations: []s3api.QueueConfiguration{
-				{QueueArn: notifyQueue, Events: created()},
-				{QueueArn: notifyQueue, Events: []s3api.Event{s3api.EventS3ObjectcreatedPut}},
-			}},
+		// s3/R17/01-config-full.json, its destinations moved to this
+		// harness's: the queue's ObjectRemoved:* meets the topic's too, but
+		// AWS names the queue's and the function's ObjectCreated events, the
+		// first change type in the model's order that two configurations
+		// share.
+		"the recorded configuration sharing an event": {
+			cfg: s3api.NotificationConfiguration{
+				QueueConfigurations: []s3api.QueueConfiguration{{QueueArn: notifyQueue, Events: []s3api.Event{s3api.EventS3Objectcreated, s3api.EventS3Objectremoved}}},
+				TopicConfigurations: []s3api.TopicConfiguration{{Id: new("t"), TopicArn: notifyTopic, Events: []s3api.Event{s3api.EventS3Objectremoved}}},
+				LambdaFunctionConfigurations: []s3api.LambdaFunctionConfiguration{{
+					Id: new("l"), LambdaFunctionArn: notifyFunction, Events: []s3api.Event{s3api.EventS3ObjectcreatedPut},
+				}},
+			},
 			code:    "InvalidArgument",
+			fields:  map[string]string{"ArgumentName": "Event", "ArgumentValue": "s3:ObjectCreated:*, s3:ObjectCreated:Put"},
+			order:   []string{"ArgumentName", "ArgumentValue"},
 			message: "Configurations overlap. Configurations on the same bucket cannot share a common event type.",
 		},
+		// s3/R17/01-config-overlapping-prefixes.json: FilterRule and no
+		// ArgumentValue.
+		"the recorded overlapping prefixes": {
+			cfg: s3api.NotificationConfiguration{QueueConfigurations: []s3api.QueueConfiguration{
+				{Id: new("a"), QueueArn: notifyQueue, Events: created(), Filter: keyFilter(filterRule("prefix", "x"))},
+				{Id: new("b"), QueueArn: notifyQueue, Events: created(), Filter: keyFilter(filterRule("prefix", "xy"))},
+			}},
+			code:    "InvalidArgument",
+			fields:  map[string]string{"ArgumentName": "FilterRule"},
+			order:   []string{"ArgumentName"},
+			message: "Configuration is ambiguously defined. Cannot have overlapping suffixes in two rules if the prefixes are overlapping for the same event type.",
+		},
+		// The two event types in configuration order (inferred; R17 recorded
+		// one order, which is also the configuration's).
+		"two unfiltered configurations sharing an event": {
+			cfg: s3api.NotificationConfiguration{QueueConfigurations: []s3api.QueueConfiguration{
+				{QueueArn: notifyQueue, Events: []s3api.Event{s3api.EventS3ObjectcreatedPut}},
+				{QueueArn: notifyQueue, Events: created()},
+			}},
+			code:    "InvalidArgument",
+			fields:  map[string]string{"ArgumentName": "Event", "ArgumentValue": "s3:ObjectCreated:Put, s3:ObjectCreated:*"},
+			order:   []string{"ArgumentName", "ArgumentValue"},
+			message: "Configurations overlap. Configurations on the same bucket cannot share a common event type.",
+		},
+		// Overlapping suffixes answer as R17's overlapping prefixes do
+		// (inferred: one message covers both).
 		"overlapping suffixes for one event": {
 			cfg: s3api.NotificationConfiguration{
 				TopicConfigurations: []s3api.TopicConfiguration{{TopicArn: notifyTopic, Events: created(), Filter: keyFilter(filterRule("suffix", "jpg"))}},
 				QueueConfigurations: []s3api.QueueConfiguration{{QueueArn: notifyQueue, Events: created(), Filter: keyFilter(filterRule("suffix", "pg"))}},
 			},
 			code:    "InvalidArgument",
+			fields:  map[string]string{"ArgumentName": "FilterRule"},
+			order:   []string{"ArgumentName"},
 			message: "Configuration is ambiguously defined. Cannot have overlapping suffixes in two rules if the prefixes are overlapping for the same event type.",
 		},
 		"destination in another region": {
@@ -316,8 +356,13 @@ func TestNotificationConfigurationRefusals(t *testing.T) {
 					n.Fatalf("message = %q, want %q", err.Message, tc.message)
 				}
 				wantFields(n.T, err, tc.fields)
-				if r := header(err, "x-amz-bucket-region"); r != "us-east-1" {
-					n.Fatalf("x-amz-bucket-region = %q, want us-east-1", r)
+				if tc.order != nil {
+					wantFieldOrder(n.T, err, tc.order...)
+				}
+				// Same-region errors other than ListObjectsV2's name no
+				// region (ADR 0013, amendment 2026-11-13).
+				if r := header(err, "x-amz-bucket-region"); r != "" {
+					n.Fatalf("x-amz-bucket-region = %q, want none", r)
 				}
 				if len(n.stored().QueueConfigurations) != 0 {
 					n.Fatal("a refused configuration was stored")
@@ -507,6 +552,74 @@ func TestObjectRecordEchoesTheCall(t *testing.T) {
 
 type s3Call struct{ RequestID, HostID, Principal, SourceIP string }
 
+// A PutObjectRetention sends one ObjectRetention:Put record with the
+// version's retention in objectRetentionEventData to a configuration that
+// names s3:ObjectRetention:Put, and none to one that does not (aws-doc,
+// s3-ssec-object-lock.md 7; unrecorded). The model's Event enum has no
+// s3:ObjectRetention:* wildcard, so the event's own name is the only one
+// that selects it.
+func TestRetentionPutRaisesTheObjectRetentionEvent(t *testing.T) {
+	runNotifier(t, func(n *notifier) {
+		const bucket = "locked"
+		notifyMust(n, s3api.OpCreateBucket, &s3api.CreateBucketInput{Bucket: bucket, ObjectLockEnabledForBucket: new(true)})
+		configure := func(events ...s3api.Event) {
+			n.Helper()
+			notifyMust(n, s3api.OpPutBucketNotificationConfiguration, &s3api.PutBucketNotificationConfigurationInput{
+				Bucket: bucket, SkipDestinationValidation: new(true),
+				NotificationConfiguration: s3api.NotificationConfiguration{QueueConfigurations: []s3api.QueueConfiguration{{Id: new("lock"), QueueArn: notifyQueue, Events: events}}},
+			})
+		}
+		put := notifyMust(n, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: bucket, Key: "k", Body: bytesBody("abc"), ContentLength: new(int64(3)), ContentMD5: new("kAFQmDzST7DWlj99KOF/cg==")})
+		until := n.clock.Now().Wire().Add(24*time.Hour + 250*time.Millisecond)
+		retain := func() {
+			n.Helper()
+			notifyMust(n, s3api.OpPutObjectRetention, &s3api.PutObjectRetentionInput{Bucket: bucket, Key: "k", VersionId: put.VersionId, Retention: &s3api.ObjectLockRetention{
+				Mode: new(s3api.ObjectLockRetentionModeGovernance), RetainUntilDate: &until,
+			}})
+		}
+
+		configure(created()...)
+		retain()
+		if got := n.sink.take(); len(got) != 0 {
+			n.Fatalf("a retention put on a configuration naming only ObjectCreated raised %d deliveries", len(got))
+		}
+
+		configure(s3api.EventS3ObjectretentionPut)
+		retain()
+		got := n.sink.take()
+		if len(got) != 1 || got[0].Request.Mechanism != delivery.S3ToSQS {
+			n.Fatalf("a retention put raised %d deliveries, want 1 to SQS", len(got))
+		}
+		q, isQueue := got[0].Request.Target.(delivery.SQSQueue)
+		if !isQueue {
+			n.Fatalf("target %T, want an SQS queue", got[0].Request.Target)
+		}
+		var doc struct {
+			Records []struct {
+				EventName string `json:"eventName"`
+				S3        struct {
+					ConfigurationID string         `json:"configurationId"`
+					Object          map[string]any `json:"object"`
+				} `json:"s3"`
+				Retention map[string]any `json:"objectRetentionEventData"`
+			}
+		}
+		if err := json.Unmarshal([]byte(q.Body), &doc); err != nil || len(doc.Records) != 1 {
+			n.Fatalf("notification %q: %v", q.Body, err)
+		}
+		r := doc.Records[0]
+		if r.EventName != "ObjectRetention:Put" || r.S3.ConfigurationID != "lock" {
+			n.Fatalf("eventName, configurationId = %q, %q; want ObjectRetention:Put, lock", r.EventName, r.S3.ConfigurationID)
+		}
+		if want := map[string]any{"key": "k", "eTag": "900150983cd24fb0d6963f7d28e17f72", "versionId": *put.VersionId}; !maps.Equal(r.S3.Object, want) {
+			n.Fatalf("object = %v, want %v", r.S3.Object, want)
+		}
+		if want := map[string]any{"mode": "GOVERNANCE", "retainUntilDate": until.UTC().Format("2006-01-02T15:04:05.000Z")}; !maps.Equal(r.Retention, want) {
+			n.Fatalf("objectRetentionEventData = %v, want %v", r.Retention, want)
+		}
+	})
+}
+
 // The sequencers of one key's events strictly increase, compared as hex
 // left-padded to one length, though the clock stands still (frozen) or is
 // restored to an earlier time (s3.md 13.2, ARCHITECTURE.md 16).
@@ -608,8 +721,9 @@ func recordOf(n *notifier, t delivery.Target) s3Record {
 	if err := json.Unmarshal([]byte(body), &doc); err != nil || len(doc.Records) != 1 {
 		n.Fatalf("notification %q: %v", body, err)
 	}
-	if !strings.HasPrefix(body, `{"Records":[{"eventVersion":"2.1"`) {
-		n.Fatalf("notification %s does not lead with eventVersion 2.1", body)
+	// sqs/R17/02-events-*.json
+	if !strings.HasPrefix(body, `{"Records":[{"eventVersion":"2.6"`) {
+		n.Fatalf("notification %s does not lead with eventVersion 2.6", body)
 	}
 	return doc.Records[0]
 }

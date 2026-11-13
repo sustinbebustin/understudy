@@ -479,14 +479,23 @@ func checkBypassHeader(b *Bucket, header *bool) *awserr.Error {
 }
 
 // governanceBypass reports whether a request lifts GOVERNANCE retention on
-// the object version object names (s3-ssec-object-lock.md 6.6). IAM is
-// not enforced in this build (internal/access), so
-// x-amz-bypass-governance-retention: true alone bypasses:
-// s3:BypassGovernanceRetention is declared (declareAccess) but not
-// evaluated, as the coverage notes say. This is the seam IAM enforcement
-// plugs into. false is no bypass (switch
+// the object version object names (s3-ssec-object-lock.md 6.6). It
+// evaluates no permission, under any iam.enforce mode, so
+// x-amz-bypass-governance-retention: true alone bypasses once the call is
+// admitted. s3:BypassGovernanceRetention is declared (declareAccess), so
+// the kernel asks about it with the call's other actions and under
+// enforce refuses the whole call when it is denied; whether AWS refuses
+// the call or only withholds the bypass is unrecorded (6.6). This is the
+// seam a per-version decision plugs into. false is no bypass (switch
 // s3.object-lock.bypass-without-lock). Callers run it before kernel.Write,
 // holding no lock.
 func (*Service) governanceBypass(_ *kernel.Call, header *bool, _ aws.ARN) bool {
 	return header != nil && *header
 }
+
+// bypassNote is the part of the DeleteObject, DeleteObjects and
+// PutObjectRetention coverage notes that states governanceBypass
+// (s3-ssec-object-lock.md 11.1).
+const bypassNote = "once the call is admitted, x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention; " +
+	"under iam.enforce=enforce a principal denied s3:BypassGovernanceRetention is refused the whole call, " +
+	"and whether AWS refuses the call or only withholds the bypass is unrecorded"

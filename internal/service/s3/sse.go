@@ -159,8 +159,7 @@ func resolveSSE(r sseRequest, b *Bucket, key string, w writeCall) (sseChoice, *a
 		// A KMS key id beside SSE-C headers is refused as one without
 		// aws:kms is; AWS's answer is UNVERIFIED.
 		if r.keyID != nil {
-			alg, _, _ := bucketDefault(b)
-			return nil, errKMSKeyWithoutKMS(alg)
+			return nil, errKMSKeyWithoutKMS(r.algorithm)
 		}
 		if err := checkCustomerWrite(b, key, w); err != nil {
 			return nil, err
@@ -177,7 +176,7 @@ func resolveSSE(r sseRequest, b *Bucket, key string, w writeCall) (sseChoice, *a
 	// otherwise be encrypted under the bucket's key, not the one named.
 	// That AWS refuses it there too is UNVERIFIED.
 	if r.keyID != nil && (r.algorithm == nil || alg == s3api.ServerSideEncryptionAes256) {
-		return nil, errKMSKeyWithoutKMS(alg)
+		return nil, errKMSKeyWithoutKMS(r.algorithm)
 	}
 	if r.bucketKey != nil {
 		bucketKey = *r.bucketKey
@@ -201,11 +200,18 @@ func resolveSSE(r sseRequest, b *Bucket, key string, w writeCall) (sseChoice, *a
 }
 
 // errKMSKeyWithoutKMS answers x-amz-server-side-encryption-aws-kms-key-id
-// on a write that does not ask for aws:kms; alg is the algorithm the write
-// would otherwise use.
-func errKMSKeyWithoutKMS(alg s3api.ServerSideEncryption) *awserr.Error {
-	return errInvalidArgument("Server Side Encryption with AWS KMS managed key requires HTTP header x-amz-server-side-encryption : aws:kms",
-		"x-amz-server-side-encryption", string(alg))
+// on a write that does not ask for aws:kms; sent is the
+// x-amz-server-side-encryption header as the request carried it. Without
+// the header AWS names the argument and no value
+// (testdata/parity/s3/R15/x-kms-key-id-without-aws-kms.json). With the
+// header sent as another algorithm AWS's answer is UNRECORDED; the value
+// is echoed as an inference.
+func errKMSKeyWithoutKMS(sent *s3api.ServerSideEncryption) *awserr.Error {
+	const message = "Server Side Encryption with AWS KMS managed key requires HTTP header x-amz-server-side-encryption : aws:kms"
+	if sent == nil {
+		return withField(s3api.ErrInvalidArgument(message), "ArgumentName", "x-amz-server-side-encryption")
+	}
+	return errInvalidArgument(message, "x-amz-server-side-encryption", string(*sent))
 }
 
 // bucketDefault is the bucket's default encryption rule: SSE-S3 without a
@@ -356,6 +362,13 @@ func encryptionHeaders(e Encryption) sseHeaders {
 // customerAlgorithm is the one algorithm SSE-C takes, which SSE-C
 // responses report (s3-ssec-object-lock.md 3.1, 3.4).
 const customerAlgorithm = "AES256"
+
+// The SSE-C response headers that Complete sends beyond its modelled
+// output.
+const (
+	customerAlgorithmHeader = "x-amz-server-side-encryption-customer-algorithm"
+	customerKeyMD5Header    = "x-amz-server-side-encryption-customer-key-MD5"
+)
 
 // customerKeyLen is an SSE-C key's length in bytes once base64-decoded
 // (s3-ssec-object-lock.md 11.5).
@@ -715,6 +728,34 @@ func checkCustomerComplete(u *Upload, h customerHeaders, scheme string) *awserr.
 		return errInvalidRequest(ssecCompleteChecksumText)
 	}
 	return nil
+}
+
+// setCustomerCompleteHeaders sets the response headers of a Complete of an
+// SSE-C object whose request carried its key: the algorithm and the key's
+// MD5, as S3SOL-08 08-right-key recorded for an upload that declared a
+// checksum algorithm. CompleteMultipartUploadOutput does not model them
+// (ADR 0002), so they go out as success headers. A request that sent no
+// key, or another, gets none; the key of an object that is not SSE-C is
+// never echoed.
+func setCustomerCompleteHeaders(c *kernel.Call, e Encryption, h customerHeaders) {
+	enc, isC := e.(CustomerEncryption)
+	if !isC || !h.sent() {
+		return
+	}
+	k, err := parseCustomerWrite(h, nil)
+	if err != nil {
+		// Only a retry gets here: a first Complete with an unreadable key
+		// is refused by checkCustomerComplete, which a retry skips
+		// (retried). The retry keeps its 200 and echoes nothing, as there
+		// is no key to echo (inferred: no retry with a bad key is
+		// recorded).
+		return
+	}
+	if !enc.matches(*k) {
+		return
+	}
+	c.SetSuccessHeader(customerAlgorithmHeader, customerAlgorithm)
+	c.SetSuccessHeader(customerKeyMD5Header, k.keyMD5)
 }
 
 // checkCustomerList judges a ListParts's SSE-C headers against its

@@ -63,6 +63,13 @@
 //     the route tables of the name's REST services in registration order,
 //     and a request none matches is the first one's unknown operation.
 //     Lambda keeps its own case, so its decline texts stay as they were.
+//   - A REST service may answer a request its route table does not match
+//     with an error of its own instead of its unknown operation, through
+//     Options.UnmatchedRoute, which server/wire.go fills from the service's
+//     package so the edge holds no service's rules: S3 answers a method no
+//     object route takes with 405 MethodNotAllowed (ADR 0013 amendment
+//     2026-10-08). Such an answer is not logged as an operation missing
+//     from the vendored model.
 //   - Each request is logged at Debug (method, operation, status, latency,
 //     request id). A not-emulated service, an unclaimed request, a call to
 //     an unimplemented operation and a call to an operation the vendored

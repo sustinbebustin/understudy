@@ -4364,6 +4364,9 @@ type NoSuchPublicAccessBlockConfiguration struct {
 	BucketName *string
 }
 
+// NoSuchResource is the error com.amazonaws.s3#NoSuchResource.
+type NoSuchResource struct{}
+
 // NoSuchTagSet is the error com.amazonaws.s3#NoSuchTagSet.
 type NoSuchTagSet struct {
 	BucketName *string

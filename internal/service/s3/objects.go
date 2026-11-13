@@ -41,13 +41,12 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	del := func(in *s3api.DeleteObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteObject(s.deleteObject, registry.Partial{Note: deleteNote}, touches(s, del))
 	dels := func(in *s3api.DeleteObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.DeleteObjects(s.deleteObjects, registry.Partial{Note: deleteNote}, touches(s, dels))
+	b.DeleteObjects(s.deleteObjects, checksumUnchecked(registry.Partial{Note: deleteNote}), touches(s, dels))
 	cp := func(in *s3api.CopyObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.CopyObject(s.copyObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; " + eventHoldNote}, touches(s, cp))
 	lv1 := func(in *s3api.ListObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjects(reader(s, lv1, listObjects), registry.Partial{Note: "no RestoreStatus"}, touches(s, lv1))
-	lv2 := func(in *s3api.ListObjectsV2Input) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.ListObjectsV2(reader(s, lv2, listObjectsV2), registry.Partial{Note: "no RestoreStatus"}, touches(s, lv2))
+	b.ListObjectsV2(s.listObjectsV2, registry.Partial{Note: "no RestoreStatus"}, touches(s, listObjectsV2Access))
 	lvv := func(in *s3api.ListObjectVersionsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjectVersions(reader(s, lvv, listObjectVersions), registry.Partial{Note: "no RestoreStatus"}, touches(s, lvv))
 	s.bindObjectTagging(b)
@@ -109,6 +108,24 @@ type Object struct {
 	// Lock is the version's retention and legal hold: zero, and not
 	// written, for a version that never had either.
 	Lock ObjectLock `json:"lock,omitzero"`
+	// CompletedBy is the CompleteMultipartUpload that made the version, nil
+	// for every other write; an identical Complete sent again answers from
+	// it (retried).
+	CompletedBy *CompletedUpload `json:"completedBy,omitempty"`
+}
+
+// CompletedUpload is what a version made by CompleteMultipartUpload keeps
+// of that request: the upload id and the part list it sent.
+type CompletedUpload struct {
+	ID    string     `json:"id"`
+	Parts []PartETag `json:"parts"`
+}
+
+// PartETag is one entry of a Complete's part list: the part number and the
+// ETag sent, unquoted.
+type PartETag struct {
+	Number int32  `json:"number"`
+	ETag   string `json:"etag"`
 }
 
 // ObjectPart is one part of a multipart object: its size and, for a
@@ -393,14 +410,43 @@ func errNoSuchVersion(key, id string) *awserr.Error {
 // and Allow: DELETE, the one method a marker takes (s3.md 5.8; LocalStack
 // aws_validated test_delete_object_versioned).
 func errMarkerAddressed(method string, v Version) *awserr.Error {
-	e := s3api.ErrMethodNotAllowed("The specified method is not allowed against this resource.")
-	e = withField(withField(e, "Method", method), "ResourceType", "DeleteMarker")
+	e := errMethodNotAllowed(method, "DeleteMarker")
 	e.Headers = append(e.Headers,
 		awserr.Header{Name: "x-amz-delete-marker", Value: "true"},
 		awserr.Header{Name: "x-amz-version-id", Value: v.ID},
 		awserr.Header{Name: "Last-Modified", Value: v.Modified.Wire().UTC().Format(http.TimeFormat)},
 		awserr.Header{Name: "Allow", Value: http.MethodDelete})
 	return e
+}
+
+// errMethodNotAllowed is 405 MethodNotAllowed for method on a resource of
+// resourceType; the caller adds the Allow header, after any headers of its
+// own.
+func errMethodNotAllowed(method, resourceType string) *awserr.Error {
+	e := s3api.ErrMethodNotAllowed("The specified method is not allowed against this resource.")
+	return withField(withField(e, "Method", method), "ResourceType", resourceType)
+}
+
+// objectMethods is the Allow header of a 405 for an object
+// (testdata/parity/s3/R12/14-post-without-upload-id.json).
+const objectMethods = "HEAD, DELETE, GET, PUT"
+
+// UnmatchedRoute is S3's answer to a path-style request that no S3 route
+// matches, which the edge uses in place of the unknown-operation answer:
+// on an object, 405 MethodNotAllowed naming the method and the OBJECT
+// resource. A POST naming none of uploadId, uploads, restore and select is
+// AWS-recorded (testdata/parity/s3/R12/14-post-without-upload-id.json);
+// every other method no object route takes is inferred to answer the
+// same. A request to the service or a bucket is left to the
+// unknown-operation answer, since AWS's answer there is unrecorded.
+func UnmatchedRoute(r *http.Request) (*awserr.Error, bool) {
+	_, key, ok := strings.Cut(strings.TrimPrefix(r.URL.Path, "/"), "/")
+	if !ok || key == "" {
+		return nil, false
+	}
+	e := errMethodNotAllowed(r.Method, "OBJECT")
+	e.Headers = append(e.Headers, awserr.Header{Name: "Allow", Value: objectMethods})
+	return e, true
 }
 
 func errInvalidVersionID(id string) *awserr.Error {
@@ -458,7 +504,7 @@ func writeObjects[R any](ctx context.Context, s *Service, c *kernel.Call, a acce
 		r, released, err := fn(&next, objectTx{tx: tx, now: now, request: req})
 		if err != nil {
 			tx.Unchanged()
-			return result{}, inRegion(err, next.Home)
+			return result{}, a.regionOn(err, src, next.Home)
 		}
 		bc.Bucket = &next
 		committed = &result{r: r, released: released, home: next.Home.Region, ad: ad}

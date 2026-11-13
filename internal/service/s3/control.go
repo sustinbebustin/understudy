@@ -80,6 +80,26 @@ func controlAccess(r *http.Request) (access, *awserr.Error) {
 	return a, nil
 }
 
+// controlResource answers NoSuchResource in place of the two errors read
+// and change answer about a bucket the caller cannot see: NoSuchBucket for
+// a bucket that does not exist, and AccessDenied for one owned by another
+// account than x-amz-account-id names (checkOwner), the only AccessDenied
+// the tag operations' reads and changes answer. Both are recorded for
+// ListTagsForResource (testdata/parity/s3/R06/06-s3control-list-missing.json,
+// 06-s3control-list-not-owned.json), without a context element or
+// x-amz-bucket-region; TagResource and UntagResource follow, inferred. A
+// denial by kernel.Authorize comes before and stays AccessDenied.
+func controlResource(err *awserr.Error) *awserr.Error {
+	if err == nil {
+		return nil
+	}
+	switch err.ID.Shape {
+	case s3api.IdentityNoSuchBucket().Shape, s3api.IdentityAccessDenied().Shape:
+		return s3api.ErrNoSuchResource("The specified resource doesn't exist.")
+	}
+	return err
+}
+
 // bucketOfARN returns the bucket a general purpose bucket ARN names:
 // arn:aws:s3:::<bucket>, with no region, account or key.
 func bucketOfARN(s string) (string, bool) {
@@ -99,7 +119,7 @@ func (s *Service) listTagsForResource(ctx context.Context, c *kernel.Call, r *ht
 	}
 	tags, err := read(ctx, s, c, a, func(b *Bucket) ([]s3api.Tag, *awserr.Error) { return tagList(b.Tags), nil })
 	if err != nil {
-		return err
+		return controlResource(err)
 	}
 	var buf bytes.Buffer
 	x := xmlw.New(&buf)
@@ -158,7 +178,7 @@ func (s *Service) tagResource(ctx context.Context, c *kernel.Call, r *http.Reque
 		return nil
 	})
 	if err != nil {
-		return err
+		return controlResource(err)
 	}
 	controlHeaders(w, c)
 	w.WriteHeader(http.StatusNoContent)
@@ -195,7 +215,7 @@ func (s *Service) untagResource(ctx context.Context, c *kernel.Call, r *http.Req
 		return nil
 	})
 	if err != nil {
-		return err
+		return controlResource(err)
 	}
 	controlHeaders(w, c)
 	w.WriteHeader(http.StatusNoContent)

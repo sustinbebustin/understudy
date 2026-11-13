@@ -44,8 +44,7 @@ func (s *Service) bindNotification(b s3api.Binder) {
 const notificationNote = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
 	"destination validation checks existence, refuses FIFO queues and topics, and asks whether each destination's policy admits s3.amazonaws.com from the bucket: " +
 	"under iam.enforce=enforce a refusal fails the call, under advise it is journaled, and under off it is not asked, where AWS refuses in every case; " +
-	"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied); " +
-	"s3:ObjectRetention:Put is stored but sends nothing"
+	"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied)"
 
 // notificationPut is a configuration that passed admission and its own
 // checks, with the home of the bucket it is for.
@@ -87,7 +86,7 @@ func (s *Service) putNotification(ctx context.Context, c *kernel.Call, in *s3api
 	if validate {
 		src := kernel.AsService{Name: s3Principal, Source: bucketARN(in.Bucket), SourceAccount: put.home.OwnerAccount}
 		if err := s.checkDestinations(ctx, c, src, &cfg); err != nil {
-			return nil, inRegion(err, put.home)
+			return nil, a.regionOn(err, s.regionSource(c, a.name), put.home)
 		}
 	}
 	// writeObjects is the bucket write that hands fn the Tx and the call,
@@ -134,9 +133,14 @@ func configError(err error) *awserr.Error {
 	)
 	switch {
 	case errors.As(err, &overlap) && overlap.Overlap == notify.SameFilter:
-		return s3api.ErrInvalidArgument("Configurations overlap. Configurations on the same bucket cannot share a common event type.")
+		// s3/R17/01-config-full.json; the two events in configuration
+		// order is inferred.
+		return errInvalidArgument("Configurations overlap. Configurations on the same bucket cannot share a common event type.",
+			"Event", string(overlap.FirstEvent)+", "+string(overlap.SecondEvent))
 	case errors.As(err, &overlap):
-		return s3api.ErrInvalidArgument("Configuration is ambiguously defined. Cannot have overlapping suffixes in two rules if the prefixes are overlapping for the same event type.")
+		// s3/R17/01-config-overlapping-prefixes.json: no ArgumentValue.
+		return withField(s3api.ErrInvalidArgument("Configuration is ambiguously defined. Cannot have overlapping suffixes in two rules if the prefixes are overlapping for the same event type."),
+			"ArgumentName", "FilterRule")
 	case errors.As(err, &region):
 		return s3api.ErrInvalidArgument("The notification destination service region is not valid for the bucket location constraint")
 	case errors.As(err, &arn):
@@ -417,7 +421,8 @@ func notifications(b *Bucket, ev event, at time.Time, req notify.Request) ([]del
 	})
 }
 
-// sequenced is c with seq as its sequencer; a Tagged change carries none.
+// sequenced is c with seq as its sequencer; a Tagged or Retained change
+// carries none.
 func sequenced(c notify.Change, seq notify.Sequencer) notify.Change {
 	switch c := c.(type) {
 	case notify.Created:
@@ -426,7 +431,7 @@ func sequenced(c notify.Change, seq notify.Sequencer) notify.Change {
 	case notify.Removed:
 		c.Sequencer = seq
 		return c
-	case notify.Tagged:
+	case notify.Tagged, notify.Retained:
 	}
 	return c
 }

@@ -144,6 +144,15 @@
         "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/03-get-pab-after-delete.json", "validated": "2026-10-14"}
       }
     },
+    "com.amazonaws.s3#NoSuchResource": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/06-s3control-list-missing.json", "validated": "2026-10-14"}
+      }
+    },
     "com.amazonaws.s3#NoSuchTagSet": {
       "type": "structure",
       "members": {"BucketName": {"target": "smithy.api#String"}},
@@ -516,6 +525,27 @@
       "traits": {
         "dev.understudy#validationError": {"enumPolicy": "handler"},
         "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3_list_operations.snapshot.json test_list_ops_encoding_type_validation: InvalidArgument \"Invalid Encoding Method specified in Request\" naming encoding-type (s3.md 9.1)"}
+      }
+    },
+    "com.amazonaws.s3#CreateMultipartUploadRequest$ChecksumAlgorithm": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R08/08-create-alg-foo.json: an unknown x-amz-checksum-algorithm is 400 InvalidRequest with the unsupported-algorithm text, not the enum's InvalidArgument", "validated": "2026-10-14"}
+      }
+    },
+    "com.amazonaws.s3#Grant$Permission": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2926: an AccessControlPolicy with an unknown Permission is MalformedACLError", "validated": "2026-02-21"}
+      }
+    },
+    "com.amazonaws.s3#Grantee$Type": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#validationError": {"enumPolicy": "handler"},
+        "dev.understudy#evidence": {"label": "third-party-recorded", "source": "https://github.com/localstack/localstack/blob/8b9a79f05846835cf4dff63ab7eefdde9df83783/tests/aws/services/s3/test_s3.snapshot.json#L2926: an AccessControlPolicy with an unknown Grantee Type is MalformedACLError; the shape is shared with PutBucketLogging's TargetGrant, whose handler keeps the enum's InvalidArgument because AWS's logging answer is unrecorded", "validated": "2026-02-21"}
       }
     },
     "com.amazonaws.s3#ServerSideEncryptionConfiguration$Rules": {

@@ -20,10 +20,11 @@ import (
 // sections. The subresource documents are the S3 model's own shapes, so a
 // model pin that changes one of them bumps it. Version 2 made Encryption a
 // tagged union with an SSE-C variant and added the per-version lock state
-// and the bucket's SSE-C block (s3-ssec-object-lock.md 11.2); until the
-// first tagged release a section of another version is refused, not
-// migrated (ARCHITECTURE.md 13).
-const stateVersion = 2
+// and the bucket's SSE-C block (s3-ssec-object-lock.md 11.2). Version 3
+// added the Complete that made a multipart version (Object.CompletedBy).
+// Until the first tagged release a section of another version is refused,
+// not migrated (ARCHITECTURE.md 13).
+const stateVersion = 3
 
 // Index is the partition-wide bucket name index (ARCHITECTURE.md 8 rule 3):
 // every bucket's owner and home region, by name. Bucket names are global

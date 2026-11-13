@@ -10,6 +10,12 @@
   ],
   "routeOverrides": [
     {
+      "operation": "CompleteMultipartUpload",
+      "method": "POST",
+      "uri": "/{Bucket}/{Key+}?uploadId",
+      "reason": "the model's row names no query, so a POST on an object without uploadId would reach CompleteMultipartUpload; AWS answers it 405 MethodNotAllowed (testdata/parity/s3/R12/14-post-without-upload-id.json)"
+    },
+    {
       "operation": "ListDirectoryBuckets",
       "method": "GET",
       "uri": "/?x-id=ListDirectoryBuckets",

@@ -285,6 +285,44 @@ func TestDeleteObjects(t *testing.T) {
 	})
 }
 
+// TestDeleteObjectsDuplicateKey: a key named twice is reported once, at its
+// first position (testdata/parity/s3/R12/04-delete-missing-and-duplicate.json:
+// d2, missing answers Deleted d2, Deleted missing).
+func TestDeleteObjectsDuplicateKey(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("dup")
+		h.put("dup", "d2", "1")
+		out := ok(h, who{}, s3api.OpDeleteObjects, &s3api.DeleteObjectsInput{Bucket: "dup", Delete: s3api.Delete{Objects: []s3api.ObjectIdentifier{
+			{Key: "d2"}, {Key: "d2"}, {Key: "missing"},
+		}}})
+		got := make([]string, 0, len(out.Deleted))
+		for _, d := range out.Deleted {
+			got = append(got, *d.Key)
+		}
+		if want := []string{"d2", "missing"}; !slices.Equal(got, want) || len(out.Errors) != 0 {
+			t.Fatalf("Deleted = %v, errors %d; want %v and none", got, len(out.Errors), want)
+		}
+	})
+}
+
+// TestDeleteObjectsSameKeyDistinctVersions: entries with one key and
+// different version ids are different entries, so both are reported. Only
+// the unversioned duplicate is recorded; this rule is inferred.
+func TestDeleteObjectsSameKeyDistinctVersions(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("vdup")
+		h.enableVersioning("vdup")
+		v1 := h.mustPutLocked("vdup", "k", "1", s3api.PutObjectInput{})
+		v2 := h.mustPutLocked("vdup", "k", "2", s3api.PutObjectInput{})
+		out := ok(h, who{}, s3api.OpDeleteObjects, &s3api.DeleteObjectsInput{Bucket: "vdup", Delete: s3api.Delete{Objects: []s3api.ObjectIdentifier{
+			{Key: "k", VersionId: v1}, {Key: "k", VersionId: v2},
+		}}})
+		if len(out.Deleted) != 2 || len(out.Errors) != 0 {
+			t.Fatalf("DeleteObjects = %d deleted, %d errors; want 2 and 0", len(out.Deleted), len(out.Errors))
+		}
+	})
+}
+
 // TestDeleteObjectsWrongVersionUnversioned: on a bucket never versioned, a
 // well-formed version id naming no version of a key is a NoSuchVersion
 // entry carrying the key and id, and the object stays (LocalStack

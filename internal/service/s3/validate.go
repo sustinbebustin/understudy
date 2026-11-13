@@ -121,9 +121,8 @@ func canonicalUserID(id string) bool {
 // MalformedACLError; an Owner or CanonicalUser grantee id that is not a
 // canonical user id, InvalidArgument naming CanonicalUser/ID; a Group
 // grantee URI that names no S3 group, InvalidArgument naming Group/URI. A
-// Permission or grantee Type S3 does not know, which it answers
-// MalformedACLError too, is refused earlier by the generated enum check,
-// as InvalidArgument in the Coral grammar (package doc).
+// Permission or grantee Type S3 does not know is MalformedACLError too; the
+// overlay leaves both enums to this check (enumPolicy handler).
 func checkACP(acp *s3api.AccessControlPolicy) *awserr.Error {
 	if acp.Owner == nil {
 		return errMalformedACL()
@@ -132,7 +131,7 @@ func checkACP(acp *s3api.AccessControlPolicy) *awserr.Error {
 		return errInvalidArgument("Invalid id", "CanonicalUser/ID", *id)
 	}
 	for _, g := range acp.Grants {
-		if g.Permission == nil || g.Grantee == nil {
+		if g.Permission == nil || !g.Permission.Known() || g.Grantee == nil {
 			return errMalformedACL()
 		}
 		switch g.Grantee.Type {
@@ -145,6 +144,8 @@ func checkACP(acp *s3api.AccessControlPolicy) *awserr.Error {
 				return errInvalidArgument("Invalid group uri", "Group/URI", smithy.Deref(uri))
 			}
 		case s3api.TypeAmazonCustomerByEmail:
+		default:
+			return errMalformedACL()
 		}
 	}
 	return nil

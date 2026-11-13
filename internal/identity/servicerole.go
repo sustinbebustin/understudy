@@ -6,6 +6,10 @@ import "github.com/sustinbebustin/understudy/internal/aws"
 // delivers to SQS (sqs/R16/01-sqs-enveloped.json).
 const SNSRoleSession = "AWS-CLOUDCAST"
 
+// S3RoleSession is the session S3 shows in the SenderId of a notification
+// it delivers to SQS (sqs/R17/02-events-1.json).
+const S3RoleSession = "S3-PROD-END"
+
 // serviceRoleID is the id of the role a service delivers as in partition:
 // AROA and 17 upper-case letters and digits, as IAM mints them. The role is
 // AWS's own, so the id is fixed, not drawn from a seeded stream, and seeded

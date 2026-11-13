@@ -16,11 +16,45 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// access is how a bucket-addressed request names its bucket: the name and
-// the owner it asserts, nil when it asserts none.
+// access is how a bucket-addressed request names its bucket: the name, the
+// owner it asserts, nil when it asserts none, and which of its errors about
+// the bucket name the bucket's region.
 type access struct {
-	name  string
-	owner *ownerClaim
+	name   string
+	owner  *ownerClaim
+	region errorRegion
+}
+
+// errorRegion is which errors about a found bucket carry
+// x-amz-bucket-region. The cross-region refusals always do (ADR 0013,
+// amendment 2026-11-13).
+type errorRegion uint8
+
+const (
+	// regionIfUnasserted puts it only on errors to a request that asserts
+	// no region (ADR 0013, amendment 2026-10-08): the default, since no
+	// recorded same-region error carries it but ListObjectsV2's.
+	regionIfUnasserted errorRegion = iota
+	// regionAlways puts it on every error: HeadBucket's (ADR 0013), and
+	// ListObjectsV2's, every recorded one of which carries it
+	// (testdata/parity/s3/IAM-ENF/13-s3.json).
+	regionAlways
+)
+
+// namingRegion returns a with every error about the bucket carrying
+// x-amz-bucket-region (regionAlways).
+func (a access) namingRegion() access {
+	a.region = regionAlways
+	return a
+}
+
+// regionOn returns e carrying the bucket's home region h when a's
+// errorRegion puts it on an error to a request asserting src.
+func (a access) regionOn(e *awserr.Error, src aws.RegionSource, h Home) *awserr.Error {
+	if _, none := src.(aws.None); none || a.region == regionAlways {
+		return inRegion(e, h)
+	}
+	return e
 }
 
 // ownerClaim is the account a request asserts owns the bucket, and the
@@ -39,9 +73,10 @@ const (
 	accountIDHeader     ownerHeader = "x-amz-account-id"
 )
 
-// at builds the access of an input's Bucket and ExpectedBucketOwner.
+// at builds the access of an input's Bucket and ExpectedBucketOwner, with
+// the default errorRegion.
 func at(name string, owner *string) access {
-	a := access{name: name}
+	a := access{name: name, region: regionIfUnasserted}
 	if owner != nil {
 		a.owner = &ownerClaim{header: expectedOwnerHeader, account: *owner}
 	}
@@ -313,15 +348,16 @@ type admitted struct {
 }
 
 // admit runs the checks every request about an existing bucket passes:
-// the cross-region rules, then the owner header. Its errors carry
-// x-amz-bucket-region.
+// the cross-region rules, then the owner header. A cross-region refusal
+// carries x-amz-bucket-region; an owner refusal carries it as a's
+// errorRegion says.
 func (s *Service) admit(c *kernel.Call, src aws.RegionSource, a access, b *Bucket) (admitted, *awserr.Error) {
 	crossed, err := crossRegion(s.opts.CrossRegion, src, c.Endpoint().Host, a.name, b.Home)
 	if err != nil {
 		return admitted{}, inRegion(err, b.Home)
 	}
 	if err := checkOwner(a.owner, b.Home); err != nil {
-		return admitted{}, inRegion(err, b.Home)
+		return admitted{}, a.regionOn(err, src, b.Home)
 	}
 	return admitted{crossed: crossed}, nil
 }
@@ -395,7 +431,7 @@ func read[R any](ctx context.Context, s *Service, c *kernel.Call, a access, fn f
 				return result{err: err}
 			}
 			r, err := fn(b)
-			return result{r: r, home: b.Home.Region, ad: ad, err: inRegion(err, b.Home)}
+			return result{r: r, home: b.Home.Region, ad: ad, err: a.regionOn(err, src, b.Home)}
 		})
 		if got.retired {
 			continue
@@ -430,7 +466,7 @@ func (s *Service) change(ctx context.Context, c *kernel.Call, a access, fn func(
 		}
 		next := *bc.Bucket
 		if err := fn(&next, now); err != nil {
-			return result{}, inRegion(err, next.Home)
+			return result{}, a.regionOn(err, src, next.Home)
 		}
 		bc.Bucket = &next
 		return result{home: next.Home.Region, ad: ad}, nil

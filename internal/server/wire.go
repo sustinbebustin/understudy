@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -40,6 +41,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/config"
@@ -657,6 +659,7 @@ func (w *wiring) edges(cfg Config, k *kernel.Kernel, reg *registry.Registry, idS
 	}
 	vocabulary, refuse := s3.AuthDialect()
 	o.ServiceAuth = map[ref.ServiceID]edge.ServiceAuth{s3api.Service().ID: {Vocabulary: vocabulary, ParseError: refuse, Payload: edge.ServiceChecksPayload}}
+	o.UnmatchedRoute = map[ref.ServiceID]func(*http.Request) (*awserr.Error, bool){s3api.Service().ID: s3.UnmatchedRoute}
 	o.OperationAuth = map[ref.OperationID]auth.Vocabulary{{Service: lambdaapi.Service().ID, Name: "InvokeFunctionUrl"}: lambda.FunctionURLAuth()}
 	o.ProtocolAuth = map[edge.ServiceProtocol]auth.Vocabulary{{Service: sqsapi.Service().ID, Protocol: ref.AWSJSON10}: sqs.JSONAuth()}
 	o.Verify = cfg.SigV4 == SigV4Verify

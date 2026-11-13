@@ -1,7 +1,7 @@
 // Package notify builds S3 event notifications and routes them to SQS, SNS and
 // Lambda targets: it parses a bucket's notification configuration, selects
 // the configurations an object change matches, and builds the record
-// (eventVersion 2.1, URL-encoded key, unquoted eTag, sequencer) and the
+// (eventVersion 2.6, URL-encoded key, unquoted eTag, sequencer) and the
 // s3:TestEvent message as delivery requests under the S3Notification retry
 // policy (s3.md 13, lambda-events.md 6). The builders are pure; the s3
 // package stores the configuration and raises the deliveries.
@@ -38,8 +38,13 @@
 //     bucket cannot share a common event type."; any other overlap
 //     "Configuration is ambiguously defined. Cannot have overlapping suffixes
 //     in two rules if the prefixes are overlapping for the same event
-//     type.". Both texts are ones users report from AWS; which overlap gets
-//     which, and the absence of ArgumentName, are inferred.
+//     type.". R17 recorded both: the first with ArgumentName Event and the
+//     two rules' event types as ArgumentValue ("s3:ObjectCreated:*,
+//     s3:ObjectCreated:Put"), the second with ArgumentName FilterRule and no
+//     value. Which pair is refused follows the change types in the model's
+//     order, which R17's one shared-event refusal agrees with; the pair
+//     order beyond it, and the event types in configuration order, are
+//     inferred.
 //   - A destination outside the bucket's region is InvalidArgument "The
 //     notification destination service region is not valid for the bucket
 //     location constraint", checked even when destination validation is
@@ -56,9 +61,13 @@
 //     root and role-session shapes are inferred. sourceIPAddress is
 //     127.0.0.1, the loopback address understudy listens on, since a call
 //     carries no peer address (inferred).
-//   - Tagging events are eventVersion 2.3 and carry the eTag without size or
-//     sequencer, as recorded. A delete marker's event carries no size or
-//     eTag, like every removal.
+//   - Every record is eventVersion 2.6: R17 recorded it for Put, Copy,
+//     CompleteMultipartUpload and DeleteMarkerCreated, and the documentation
+//     gives one version to every event type since 2.4, which covers the rest
+//     (aws-doc). Tagging events carry the eTag without size or sequencer, as
+//     recorded. A removal carries no size, and no eTag except a delete
+//     marker's, which is the empty object's (recorded). Only a copy's record
+//     carries hasObjectAnnotation, false, after the sequencer (recorded).
 //   - Fan-out order is document order: topics, then queues, then functions.
 //     An EventBridgeConfiguration is stored and read back; nothing is sent to
 //     EventBridge.

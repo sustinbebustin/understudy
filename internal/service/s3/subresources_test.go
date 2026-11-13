@@ -8,6 +8,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/s3"
 )
 
@@ -165,7 +166,7 @@ func fresh() map[string]struct {
 }
 
 // check fails the test unless a read answered want: the same document, or
-// the not-configured error with its exact status, body and region header.
+// the not-configured error with its exact status, body and headers.
 func (want unset) check(t *testing.T, bucket string, out any, err *awserr.Error) {
 	t.Helper()
 	if want.code == "" {
@@ -188,8 +189,10 @@ func (want unset) check(t *testing.T, bucket string, out any, err *awserr.Error)
 	if body := errorBody(want.code, want.message, fields...); got.status != http.StatusNotFound || got.body != body {
 		t.Fatalf("got %d %s, want 404 %s", got.status, got.body, body)
 	}
-	if r := got.header.Get("X-Amz-Bucket-Region"); r != "us-east-1" {
-		t.Fatalf("x-amz-bucket-region = %q, want us-east-1", r)
+	// A not-configured 404 to a request signed for the bucket's region
+	// names no region (testdata/parity/s3/R06/01-get-get-bucket-policy.json).
+	if r, sent := got.header["X-Amz-Bucket-Region"]; sent {
+		t.Fatalf("x-amz-bucket-region = %q, want none", r)
 	}
 }
 
@@ -542,11 +545,10 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 		call   func(h *harness, b string) *awserr.Error
 		code   string
 		status int
-		// stateful marks an error the bucket's state decides, which
-		// carries x-amz-bucket-region (ADR 0013).
-		stateful bool
 		// fields are context elements the error must carry.
 		fields map[string]string
+		// message, when set, is the exact error message.
+		message string
 	}{
 		"empty versioning configuration": {
 			call: func(h *harness, b string) *awserr.Error {
@@ -574,7 +576,7 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 					Bucket: b, VersioningConfiguration: s3api.VersioningConfiguration{Status: new(s3api.BucketVersioningStatusSuspended)},
 				}))
 			},
-			code: "InvalidBucketState", status: 409, stateful: true,
+			code: "InvalidBucketState", status: 409,
 		},
 		"object lock without versioning": {
 			call: func(h *harness, b string) *awserr.Error {
@@ -582,7 +584,7 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 					Bucket: b, ObjectLockConfiguration: &s3api.ObjectLockConfiguration{ObjectLockEnabled: new(s3api.ObjectLockEnabledEnabled)},
 				}))
 			},
-			code: "InvalidBucketState", status: 409, stateful: true,
+			code: "InvalidBucketState", status: 409,
 		},
 		"replication without versioning": {
 			call: func(h *harness, b string) *awserr.Error {
@@ -592,7 +594,7 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 					}}},
 				}))
 			},
-			code: "InvalidRequest", status: 400, stateful: true,
+			code: "InvalidRequest", status: 400,
 		},
 		"two encryption rules": {
 			call: func(h *harness, b string) *awserr.Error {
@@ -676,7 +678,7 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 			call: func(h *harness, b string) *awserr.Error {
 				return errOnly(invoke(h, s3api.OpPutBucketAcl, &s3api.PutBucketAclInput{Bucket: b, ACL: new(s3api.BucketCannedACLPrivate)}))
 			},
-			code: "AccessControlListNotSupported", status: 400, stateful: true,
+			code: "AccessControlListNotSupported", status: 400,
 		},
 		"ACL with nothing to set": {
 			call: func(h *harness, b string) *awserr.Error {
@@ -753,6 +755,39 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 			},
 			code: "InvalidArgument", status: 400, fields: map[string]string{"ArgumentName": "CanonicalUser/ID", "ArgumentValue": "wrong-id"},
 		},
+		// The LocalStack snapshot behind the overlay's MalformedACLError
+		// evidence: an unknown Permission or grantee Type is MalformedACLError.
+		"policy body with an unknown permission": {
+			call: func(h *harness, b string) *awserr.Error {
+				g := logDeliveryGrant(s3api.Permission("bogus"))
+				return putACP(h, b, ownerOf(h, b), g)
+			},
+			code: "MalformedACLError", status: 400,
+		},
+		"policy body with an unknown grantee type": {
+			call: func(h *harness, b string) *awserr.Error {
+				g := logDeliveryGrant(s3api.PermissionFullControl)
+				g.Grantee.Type = s3api.Type("bogus")
+				return putACP(h, b, ownerOf(h, b), g)
+			},
+			code: "MalformedACLError", status: 400,
+		},
+		// AWS's logging answer is unrecorded: the refusal is the generated
+		// enum check's, kept byte for byte when the Grantee enum moved to
+		// the handlers (ticket 06).
+		"logging target grant with an unknown grantee type": {
+			call: func(h *harness, b string) *awserr.Error {
+				return errOnly(invoke(h, s3api.OpPutBucketLogging, &s3api.PutBucketLoggingInput{
+					Bucket: b,
+					BucketLoggingStatus: s3api.BucketLoggingStatus{LoggingEnabled: &s3api.LoggingEnabled{
+						TargetBucket: b, TargetPrefix: "logs/",
+						TargetGrants: []s3api.TargetGrant{{Grantee: &s3api.Grantee{Type: s3api.Type("bogus")}, Permission: new(s3api.BucketLogsPermissionRead)}},
+					}},
+				}))
+			},
+			code: "InvalidArgument", status: 400,
+			message: "1 validation error detected: Value 'bogus' at 'bucketLoggingStatus.loggingEnabled.targetGrants.1.member.grantee.type' failed to satisfy constraint: Member must satisfy enum value set: [CanonicalUser, AmazonCustomerByEmail, Group]",
+		},
 		"duplicate tag keys": {
 			call: func(h *harness, b string) *awserr.Error {
 				return errOnly(invoke(h, s3api.OpPutBucketTagging, &s3api.PutBucketTaggingInput{
@@ -773,7 +808,7 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 			call: func(h *harness, b string) *awserr.Error {
 				return errOnly(invoke(h, s3api.OpDeleteBucketMetricsConfiguration, &s3api.DeleteBucketMetricsConfigurationInput{Bucket: b, Id: "none"}))
 			},
-			code: "NoSuchConfiguration", status: 404, stateful: true,
+			code: "NoSuchConfiguration", status: 404,
 		},
 	}
 	for name, tc := range cases {
@@ -787,8 +822,13 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 				err := tc.call(h, b)
 				wantCode(h.T, err, tc.code, tc.status)
 				wantFields(h.T, err, tc.fields)
-				if r := header(err, "x-amz-bucket-region"); tc.stateful && r != "us-east-1" {
-					t.Fatalf("x-amz-bucket-region = %q, want us-east-1", r)
+				if tc.message != "" && err.Message != tc.message {
+					t.Errorf("message = %q, want %q", err.Message, tc.message)
+				}
+				// Same-region errors other than ListObjectsV2's name no
+				// region (ADR 0013, amendment 2026-11-13).
+				if r := header(err, "x-amz-bucket-region"); r != "" {
+					h.Fatalf("x-amz-bucket-region = %q, want none", r)
 				}
 			})
 		})
@@ -796,12 +836,13 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 }
 
 // TestLifecycleDayLimits: a lifecycle Put is refused with InvalidArgument
-// when an expiration is not a positive number of days, a transition to an
-// Infrequent Access class comes before 30 days, or a rule moves an object
-// on before the earlier class's minimum storage duration (API_Transition,
+// when an expiration is not a positive number of days, a rule's transitions
+// go to classes out of S3's order, or a rule moves an object on before the
+// earlier class's minimum storage duration (API_Transition,
 // API_LifecycleExpiration, lifecycle-transition-general-considerations).
-// A 0-day transition to another class and a chain that keeps the minimums
-// are stored.
+// A transition to any class after any number of days, and a chain that
+// keeps the order and the minimums, are stored, and the Put answers the
+// stored x-amz-transition-default-minimum-object-size.
 func TestLifecycleDayLimits(t *testing.T) {
 	transition := func(days int32, c s3api.TransitionStorageClass) s3api.Transition {
 		return s3api.Transition{Days: new(days), StorageClass: new(c)}
@@ -811,6 +852,9 @@ func TestLifecycleDayLimits(t *testing.T) {
 	}
 	for name, tc := range map[string]struct {
 		rule s3api.LifecycleRule
+		// minimumSize is the request's
+		// x-amz-transition-default-minimum-object-size, nil for none.
+		minimumSize *s3api.TransitionDefaultMinimumObjectSize
 		// refusal is the InvalidArgument message, "" when the Put succeeds.
 		refusal string
 		// fields, when set, are the refusal's ArgumentName and
@@ -822,29 +866,82 @@ func TestLifecycleDayLimits(t *testing.T) {
 			transition(150, s3api.TransitionStorageClassDeepArchive), transition(30, s3api.TransitionStorageClassStandardIa), transition(60, s3api.TransitionStorageClassGlacierIr),
 		}}},
 		"30-day noncurrent transition to One Zone-IA": {rule: s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{noncurrent(30, s3api.TransitionStorageClassOnezoneIa)}}},
-		"7-day transition to Standard-IA": {
-			rule:    s3api.LifecycleRule{Transitions: []s3api.Transition{transition(7, s3api.TransitionStorageClassStandardIa)}},
-			refusal: "'Days' in Transition action must be greater than or equal to 30 for storageClass 'STANDARD_IA'",
+		// testdata/parity/s3/R12/12-lifecycle-transition-7-standard-ia.json:
+		// accepted, answering all_storage_classes_128K for a request that
+		// sent no x-amz-transition-default-minimum-object-size.
+		"7-day transition to Standard-IA": {rule: s3api.LifecycleRule{Transitions: []s3api.Transition{transition(7, s3api.TransitionStorageClassStandardIa)}}},
+		// testdata/parity/s3/R12/12-lifecycle-noncurrent-10-standard-ia.json
+		"10-day noncurrent transition to Standard-IA": {rule: s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{noncurrent(10, s3api.TransitionStorageClassStandardIa)}}},
+		// inferred: no minimum before an Infrequent Access class, as the
+		// 7-day transition shows, so a transition without days is stored.
+		"transition to One Zone-IA without days": {rule: s3api.LifecycleRule{Transitions: []s3api.Transition{{StorageClass: new(s3api.TransitionStorageClassOnezoneIa)}}}},
+		// inferred: the stored value the Put answers is the one the request
+		// sent.
+		"Put that sends varies_by_storage_class": {
+			rule:        s3api.LifecycleRule{Transitions: []s3api.Transition{transition(7, s3api.TransitionStorageClassStandardIa)}},
+			minimumSize: new(s3api.TransitionDefaultMinimumObjectSizeVariesByStorageClass),
 		},
-		"transition to One Zone-IA without days": {
-			rule:    s3api.LifecycleRule{Transitions: []s3api.Transition{{StorageClass: new(s3api.TransitionStorageClassOnezoneIa)}}},
-			refusal: "'Days' in Transition action must be greater than or equal to 30 for storageClass 'ONEZONE_IA'",
-		},
-		"10-day noncurrent transition to Standard-IA": {
-			rule:    s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{noncurrent(10, s3api.TransitionStorageClassStandardIa)}},
-			refusal: "'NoncurrentDays' in NoncurrentVersionTransition action must be greater than or equal to 30 for storageClass 'STANDARD_IA'",
-		},
+		// testdata/parity/s3/R12/12-lifecycle-glacier-ir-4-deep-archive-20.json
 		"Deep Archive 16 days after Glacier Instant Retrieval": {
 			rule: s3api.LifecycleRule{Transitions: []s3api.Transition{
 				transition(4, s3api.TransitionStorageClassGlacierIr), transition(20, s3api.TransitionStorageClassDeepArchive),
 			}},
-			refusal: "'Days' in the 'Transition' action for StorageClass 'DEEP_ARCHIVE' must be at least 90 days more than 'Days' in the 'Transition' action for StorageClass 'GLACIER_IR'",
+			refusal: "'Days' in the 'Transition' action for StorageClass 'DEEP_ARCHIVE' for filter '(prefix=)' must be 90 days more than 'filter '(prefix=)'' in the 'Transition' action for StorageClass 'GLACIER_IR'",
+			fields:  map[string]string{"ArgumentName": "Days", "ArgumentValue": "20"},
 		},
+		// testdata/parity/s3/R12/12-lifecycle-standard-ia-30-glacier-40.json
+		"Glacier 10 days after Standard-IA": {
+			rule: s3api.LifecycleRule{Transitions: []s3api.Transition{
+				transition(30, s3api.TransitionStorageClassStandardIa), transition(40, s3api.TransitionStorageClassGlacier),
+			}},
+			refusal: "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be 30 days more than 'filter '(prefix=)'' in the 'Transition' action for StorageClass 'STANDARD_IA'",
+			fields:  map[string]string{"ArgumentName": "Days", "ArgumentValue": "40"},
+		},
+		// inferred: the recorded Transition text, with the noncurrent
+		// action's names.
 		"noncurrent Glacier 10 days after Standard-IA": {
 			rule: s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{
 				noncurrent(30, s3api.TransitionStorageClassStandardIa), noncurrent(40, s3api.TransitionStorageClassGlacier),
 			}},
-			refusal: "'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'GLACIER' must be at least 30 days more than 'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'STANDARD_IA'",
+			refusal: "'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be 30 days more than 'filter '(prefix=)'' in the 'NoncurrentVersionTransition' action for StorageClass 'STANDARD_IA'",
+			fields:  map[string]string{"ArgumentName": "NoncurrentDays", "ArgumentValue": "40"},
+		},
+		// inferred: a prefix filter renders as the empty one does.
+		"Glacier 10 days after Standard-IA under a prefix": {
+			rule: s3api.LifecycleRule{Filter: &s3api.LifecycleRuleFilter{Prefix: new("logs/")}, Transitions: []s3api.Transition{
+				transition(30, s3api.TransitionStorageClassStandardIa), transition(40, s3api.TransitionStorageClassGlacier),
+			}},
+			refusal: "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=logs/)' must be 30 days more than 'filter '(prefix=logs/)'' in the 'Transition' action for StorageClass 'STANDARD_IA'",
+			fields:  map[string]string{"ArgumentName": "Days", "ArgumentValue": "40"},
+		},
+		// testdata/parity/s3/R12/15-lifecycle-glacier-then-onezone-ia.json:
+		// the 30 days between them also break Glacier's 90-day hold, and
+		// S3 answers the order refusal.
+		"Glacier 30 then One Zone-IA 60": {
+			rule: s3api.LifecycleRule{Transitions: []s3api.Transition{
+				transition(30, s3api.TransitionStorageClassGlacier), transition(60, s3api.TransitionStorageClassOnezoneIa),
+			}},
+			refusal: "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be greater than 'Days' in the 'Transition' action for StorageClass 'ONEZONE_IA' for filter '(prefix=)'",
+			fields:  map[string]string{"ArgumentName": "Days", "ArgumentValue": "60"},
+		},
+		// inferred: the documented waterfall puts Intelligent-Tiering after
+		// Standard-IA, and the recorded order text takes the noncurrent
+		// action's names.
+		"noncurrent Intelligent-Tiering 30 then Standard-IA 60": {
+			rule: s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{
+				noncurrent(30, s3api.TransitionStorageClassIntelligentTiering), noncurrent(60, s3api.TransitionStorageClassStandardIa),
+			}},
+			refusal: "'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'INTELLIGENT_TIERING' for filter '(prefix=)' must be greater than 'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'STANDARD_IA' for filter '(prefix=)'",
+			fields:  map[string]string{"ArgumentName": "NoncurrentDays", "ArgumentValue": "60"},
+		},
+		// inferred: the order text asks for greater days, so two classes on
+		// the same day break the order.
+		"Glacier and Standard-IA on the same day": {
+			rule: s3api.LifecycleRule{Transitions: []s3api.Transition{
+				transition(30, s3api.TransitionStorageClassGlacier), transition(30, s3api.TransitionStorageClassStandardIa),
+			}},
+			refusal: "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be greater than 'Days' in the 'Transition' action for StorageClass 'STANDARD_IA' for filter '(prefix=)'",
+			fields:  map[string]string{"ArgumentName": "Days", "ArgumentValue": "30"},
 		},
 		// testdata/parity/s3/R12/12-lifecycle-expiration-0.json
 		"0-day expiration": {
@@ -863,13 +960,25 @@ func TestLifecycleDayLimits(t *testing.T) {
 			run(t, s3.Options{}, func(h *harness) {
 				h.createBucket("days")
 				rule := tc.rule
-				rule.ID, rule.Status, rule.Filter = new("r"), s3api.ExpirationStatusEnabled, &s3api.LifecycleRuleFilter{}
-				_, err := invoke(h, s3api.OpPutBucketLifecycleConfiguration, &s3api.PutBucketLifecycleConfigurationInput{
+				rule.ID, rule.Status = new("r"), s3api.ExpirationStatusEnabled
+				if rule.Filter == nil {
+					// The recorded rules' <Filter><Prefix /></Filter>.
+					rule.Filter = &s3api.LifecycleRuleFilter{Prefix: new("")}
+				}
+				out, err := invoke(h, s3api.OpPutBucketLifecycleConfiguration, &s3api.PutBucketLifecycleConfigurationInput{
 					Bucket: "days", LifecycleConfiguration: &s3api.BucketLifecycleConfiguration{Rules: []s3api.LifecycleRule{rule}},
+					TransitionDefaultMinimumObjectSize: tc.minimumSize,
 				})
 				if tc.refusal == "" {
 					if err != nil {
 						h.Fatalf("PutBucketLifecycleConfiguration = %s (%s), want success", err.ID.QueryCode, err.Message)
+					}
+					want := s3api.TransitionDefaultMinimumObjectSizeAllStorageClasses128k
+					if tc.minimumSize != nil {
+						want = *tc.minimumSize
+					}
+					if got := out.TransitionDefaultMinimumObjectSize; got == nil || *got != want {
+						h.Fatalf("x-amz-transition-default-minimum-object-size = %q (nil: %t), want %s", smithy.Deref(got), got == nil, want)
 					}
 					return
 				}

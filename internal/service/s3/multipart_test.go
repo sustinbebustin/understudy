@@ -554,6 +554,144 @@ func TestCompleteMultipartUploadPartOrder(t *testing.T) {
 	})
 }
 
+// TestCompleteMultipartUploadRetryOverHTTP: an identical Complete sent
+// again after success answers 200 with the first answer's Location, Bucket,
+// Key and ETag and the object's x-amz-server-side-encryption, and no
+// Checksum* or ChecksumType elements; a Complete of the same upload with a
+// changed part list still answers 404 NoSuchUpload with UploadId
+// (testdata/parity/s3/R12/03-complete.json, 03-complete-again.json,
+// 03-complete-changed-parts.json; testdata/parity/s3/R12/notes.md step 3).
+func TestCompleteMultipartUploadRetryOverHTTP(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		t := k.T
+		e := newObjectEdge(k)
+		send := func(method, target, body string, want int) *httptest.ResponseRecorder {
+			t.Helper()
+			rec := e.send(method, target, strings.NewReader(body), int64(len(body)), nil)
+			if rec.Code != want {
+				t.Fatalf("%s %s = %d %s, want %d", method, target, rec.Code, rec.Body, want)
+			}
+			return rec
+		}
+		send(http.MethodPut, "/retry", "", http.StatusOK)
+		var created struct {
+			UploadID string `xml:"UploadId"`
+		}
+		if err := xml.Unmarshal(send(http.MethodPost, "/retry/mp?uploads", "", http.StatusOK).Body.Bytes(), &created); err != nil || created.UploadID == "" {
+			t.Fatalf("CreateMultipartUpload: no upload id (%v)", err)
+		}
+		target := "/retry/mp?uploadId=" + created.UploadID
+		e1 := send(http.MethodPut, "/retry/mp?partNumber=1&uploadId="+created.UploadID, strings.Repeat("a", minPart), http.StatusOK).Header().Get("ETag")
+		e2 := send(http.MethodPut, "/retry/mp?partNumber=2&uploadId="+created.UploadID, "end", http.StatusOK).Header().Get("ETag")
+		part := func(n, etag string) string {
+			return "<Part><PartNumber>" + n + "</PartNumber><ETag>" + etag + "</ETag></Part>"
+		}
+		const open = `<CompleteMultipartUpload xmlns="http://s3.amazonaws.com/doc/2006-03-01/">`
+		both := open + part("1", e1) + part("2", e2) + "</CompleteMultipartUpload>"
+
+		first := send(http.MethodPost, target, both, http.StatusOK)
+		firstNames, firstValues := rootChildren(t, first.Body.Bytes())
+		if !slices.Contains(firstNames, "ChecksumType") {
+			t.Fatalf("first Complete elements = %v, want a ChecksumType as R12/03-complete records", firstNames)
+		}
+
+		again := send(http.MethodPost, target, both, http.StatusOK)
+		names, values := rootChildren(t, again.Body.Bytes())
+		if want := []string{"Location", "Bucket", "Key", "ETag"}; !slices.Equal(names, want) {
+			t.Fatalf("retried Complete elements = %v, want %v as R12/03-complete-again records", names, want)
+		}
+		for _, name := range names {
+			if values[name] != firstValues[name] {
+				t.Errorf("retried Complete %s = %q, want the first answer's %q", name, values[name], firstValues[name])
+			}
+		}
+		if got := again.Header().Get("X-Amz-Server-Side-Encryption"); got != "AES256" {
+			t.Errorf("retried Complete x-amz-server-side-encryption = %q, want AES256", got)
+		}
+
+		changed := send(http.MethodPost, target, open+part("1", e1)+"</CompleteMultipartUpload>", http.StatusNotFound).Body.String()
+		for _, want := range []string{
+			"<Code>NoSuchUpload</Code>",
+			"<Message>The specified upload does not exist. The upload ID may be invalid, or the upload may have been aborted or completed.</Message>",
+			"<UploadId>" + created.UploadID + "</UploadId>",
+		} {
+			if !strings.Contains(changed, want) {
+				t.Errorf("Complete with a changed part list = %s, want %s", changed, want)
+			}
+		}
+	}, kerneltest.Services(s3api.Service()))
+}
+
+// TestCompleteMultipartUploadRetryWindow: the retry of
+// TestCompleteMultipartUploadRetryOverHTTP is honoured across a snapshot
+// round trip, with the first answer's version id on a versioned bucket.
+// How long S3 honours it is unrecorded; it lasts while the version the
+// Complete made is its key's current version (inferred), so a later
+// PutObject of the key ends it with NoSuchUpload.
+func TestCompleteMultipartUploadRetryWindow(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		h.createBucket("window")
+		h.enableVersioning("window")
+		id := h.startUpload("window", "k", s3api.CreateMultipartUploadInput{})
+		p1 := h.sendPart("window", "k", id, 1, payload(6, minPart), s3api.UploadPartInput{})
+		p2 := h.sendPart("window", "k", id, 2, []byte("tail"), s3api.UploadPartInput{})
+		parts := []s3api.CompletedPart{{PartNumber: new(int32(1)), ETag: p1.ETag}, {PartNumber: new(int32(2)), ETag: p2.ETag}}
+		first, err := complete(h, "window", "k", id, parts, s3api.CompleteMultipartUploadInput{})
+		if err != nil {
+			h.Fatalf("CompleteMultipartUpload: %s %s", err.ID.QueryCode, err.Message)
+		}
+
+		sections, xerr := h.svc.Export()
+		if xerr != nil {
+			h.Fatalf("Export: %v", xerr)
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if ierr := h.svc.Import(sections); ierr != nil {
+			h.Fatalf("Import: %v", ierr)
+		}
+		again, err := complete(h, "window", "k", id, parts, s3api.CompleteMultipartUploadInput{})
+		if err != nil {
+			h.Fatalf("retried CompleteMultipartUpload after a snapshot round trip: %s %s", err.ID.QueryCode, err.Message)
+		}
+		if *again.ETag != *first.ETag || *again.Location != *first.Location || deref(again.VersionId) != deref(first.VersionId) || first.VersionId == nil {
+			h.Fatalf("retried Complete = ETag %s, Location %s, version %v; want the first answer's %s, %s, %v",
+				*again.ETag, *again.Location, deref(again.VersionId), *first.ETag, *first.Location, deref(first.VersionId))
+		}
+		if again.ChecksumType != nil || again.ChecksumCRC64NVME != nil || *again.ServerSideEncryption != s3api.ServerSideEncryptionAes256 {
+			h.Fatalf("retried Complete checksum %v %v, SSE %v; want no checksum and AES256", again.ChecksumType, again.ChecksumCRC64NVME, again.ServerSideEncryption)
+		}
+
+		// inferred: the retry window ends once the version is no longer
+		// current.
+		h.put("window", "k", "newer")
+		_, err = complete(h, "window", "k", id, parts, s3api.CompleteMultipartUploadInput{})
+		wantCode(h.T, err, "NoSuchUpload", http.StatusNotFound)
+		wantFields(h.T, err, map[string]string{"UploadId": id})
+	})
+}
+
+// rootChildren is the names of an XML document's root's child elements in
+// order, and each one's text.
+func rootChildren(t *testing.T, doc []byte) (names []string, values map[string]string) {
+	t.Helper()
+	var root struct {
+		Children []struct {
+			XMLName xml.Name
+			Text    string `xml:",chardata"`
+		} `xml:",any"`
+	}
+	if err := xml.Unmarshal(doc, &root); err != nil {
+		t.Fatalf("%s is not an XML document: %v", doc, err)
+	}
+	names = make([]string, len(root.Children))
+	values = make(map[string]string, len(root.Children))
+	for i, c := range root.Children {
+		names[i] = c.XMLName.Local
+		values[c.XMLName.Local] = c.Text
+	}
+	return names, values
+}
+
 // TestSnapshotKeepsUploadParts: an upload in progress survives an export,
 // a reset and a load as TestSnapshotKeepsObjectBodies runs them: the
 // sections name one reference per part, the archive embeds the parts'

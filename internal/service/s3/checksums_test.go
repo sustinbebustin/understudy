@@ -309,6 +309,61 @@ func TestCompleteMultipartUploadChecksumRules(t *testing.T) {
 	})
 }
 
+// TestUploadPartWithoutChecksum: a part sent without a checksum header or
+// trailer to an upload that declared XXHASH64 is refused as AWS refuses it
+// (testdata/parity/s3/R08/06-part-without-checksum.json and
+// 06-part-without-checksum-b.json), and so, by inference, is one to an
+// upload that declared XXHASH3, XXHASH128, SHA512 or MD5, the group s3.md
+// 6.4 sets apart from the older algorithms. An upload that declared CRC32,
+// CRC32C, CRC64NVME, SHA1 or SHA256 accepts the part and checksums it
+// itself (s3.md 6.4, upload-part-no-checksum-ok), as does an undeclared
+// upload (testdata/parity/s3/R08/06-part-no-alg.json).
+func TestUploadPartWithoutChecksum(t *testing.T) {
+	refused := refusesBarePart()
+	runObjects(t, func(h *harness) {
+		h.createBucket("bare")
+		for _, mode := range uploadModes() {
+			create := s3api.CreateMultipartUploadInput{}
+			if mode.alg != 0 {
+				create.ChecksumAlgorithm, create.ChecksumType = new(s3api.ChecksumAlgorithm(mode.alg.String())), new(mode.typ)
+			}
+			id := h.startUpload("bare", "k", create)
+			out, err := uploadPart(h, "bare", "k", id, 1, []byte("hello"), s3api.UploadPartInput{})
+			name, refuse := refused[mode.alg]
+			if !refuse {
+				if err != nil {
+					t.Errorf("%s %s: UploadPart without a checksum = %s %s, want it accepted", mode.alg, mode.typ, err.ID.QueryCode, err.Message)
+				} else if mode.alg != 0 && reported(out.ChecksumCRC32, out.ChecksumCRC32C, out.ChecksumCRC64NVME, out.ChecksumSHA1, out.ChecksumSHA256,
+					out.ChecksumSHA512, out.ChecksumMD5, out.ChecksumXXHASH64, out.ChecksumXXHASH3, out.ChecksumXXHASH128)[mode.alg] != sumOf(t, mode.alg, []byte("hello")) {
+					t.Errorf("%s %s: UploadPart without a checksum reports %+v, want S3's own %s", mode.alg, mode.typ, out, mode.alg)
+				}
+				continue
+			}
+			wantCode(t, err, "InvalidRequest", http.StatusBadRequest)
+			if want := "Checksum Type mismatch occurred, expected checksum Type: " + name + ", actual checksum Type: null"; err.Message != want {
+				t.Errorf("%s: message %q, want %q", mode.alg, err.Message, want)
+			}
+			parts := ok(h, who{}, s3api.OpListParts, &s3api.ListPartsInput{Bucket: "bare", Key: "k", UploadId: id})
+			if len(parts.Parts) != 0 {
+				t.Errorf("%s: ListParts after the refusal = %+v, want no part", mode.alg, parts.Parts)
+			}
+		}
+	})
+}
+
+// refusesBarePart are the algorithms whose uploads refuse a part sent
+// without a checksum, each with the name S3's refusal gives it
+// (TestUploadPartWithoutChecksum).
+func refusesBarePart() map[checksum.Algorithm]string {
+	return map[checksum.Algorithm]string{
+		checksum.XXHASH64:  "xxhash64",
+		checksum.XXHASH3:   "xxhash3",
+		checksum.XXHASH128: "xxhash128",
+		checksum.SHA512:    "sha512",
+		checksum.MD5:       "md5",
+	}
+}
+
 // uploadMode is how a CreateMultipartUpload declares its checksum: an
 // algorithm and type, or neither.
 type uploadMode struct {
@@ -336,7 +391,8 @@ func uploadModes() []uploadMode {
 // checksum, for a FULL_OBJECT upload of every CRC algorithm (CRC64NVME
 // when none is declared), equals the body's single-part checksum, and for
 // a COMPOSITE upload of every algorithm equals the per-part computation.
-// Parts sometimes carry their checksum and sometimes leave it to S3.
+// Parts sometimes carry their checksum and sometimes leave it to S3, where
+// their upload's algorithm accepts a part without one.
 func TestMultipartMatchesSinglePart(t *testing.T) {
 	runObjectsWith(t, func(h *harness, blobs *blob.Store) {
 		h.createBucket("split")
@@ -366,9 +422,10 @@ func TestMultipartMatchesSinglePart(t *testing.T) {
 			}
 			id := h.startUpload("split", "obj", create)
 			list := make([]s3api.CompletedPart, n)
+			_, mustSend := refusesBarePart()[mode.alg]
 			for i, p := range parts {
 				var in s3api.UploadPartInput
-				if mode.alg != 0 && rapid.Bool().Draw(rt, "send part checksum") {
+				if mustSend || mode.alg != 0 && rapid.Bool().Draw(rt, "send part checksum") {
 					in = partHeaderFor(mode.alg, sumOf(rt, mode.alg, p))
 				}
 				out, err := uploadPart(h, "split", "obj", id, int32(i+1), p, in)
@@ -430,8 +487,8 @@ func TestCompositeChecksumVectors(t *testing.T) {
 		runObjects(t, func(h *harness) {
 			h.createBucket("vectors")
 			id := h.startUpload("vectors", "k", s3api.CreateMultipartUploadInput{ChecksumAlgorithm: new(s3api.ChecksumAlgorithm(alg.String()))})
-			first := h.sendPart("vectors", "k", id, 1, p1, s3api.UploadPartInput{})
-			second := h.sendPart("vectors", "k", id, 2, p2, s3api.UploadPartInput{})
+			first := h.sendPart("vectors", "k", id, 1, p1, partHeaderFor(alg, sumOf(t, alg, p1)))
+			second := h.sendPart("vectors", "k", id, 2, p2, partHeaderFor(alg, sumOf(t, alg, p2)))
 			done, err := complete(h, "vectors", "k", id, []s3api.CompletedPart{listed(1, first), listed(2, second)}, s3api.CompleteMultipartUploadInput{})
 			if err != nil {
 				t.Fatalf("%s Complete: %s %s", alg, err.ID.QueryCode, err.Message)

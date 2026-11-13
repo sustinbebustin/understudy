@@ -83,8 +83,13 @@ const internalMessage = "We encountered an internal error. Please try again."
 func S3Dialect(invalidArgument awserr.Identity) Dialect {
 	return Dialect{
 		NoErrorWrapping: true, MillisecondTimestamps: true, InvalidArgument: invalidArgument, OmitEmptyDocumentType: true, PartialContent: true, InertStreams: true,
-		// s3-ssec-object-lock.md 6.2: S3SOL-18 18-bad-date, recorded 2026-11-03.
-		ArgumentTexts: map[string]string{"x-amz-object-lock-retain-until-date": "The retain until date must be provided in ISO 8601 format"},
+		ArgumentTexts: map[string]string{
+			// s3-ssec-object-lock.md 6.2: S3SOL-18 18-bad-date, recorded 2026-11-03.
+			"x-amz-object-lock-retain-until-date": "The retain until date must be provided in ISO 8601 format",
+			// R12 05-list-max-keys-abc, recorded 2026-10-14 for ListObjectsV2;
+			// ListObjects and ListObjectVersions share it (inferred).
+			"max-keys": "Provided max-keys not an integer or within integer range",
+		},
 	}
 }
 

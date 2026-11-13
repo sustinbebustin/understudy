@@ -90,6 +90,35 @@ func TestSSECCopySourceOverPlainHTTP(t *testing.T) {
 	})
 }
 
+// TestKMSKeyIDWithoutKMSHeader: a key id on a write that sends no
+// x-amz-server-side-encryption header names the argument and no value, on
+// the SSE-S3 default and an aws:kms bucket default alike
+// (testdata/parity/s3/R15/x-kms-key-id-without-aws-kms.json). With the
+// header sent as AES256 the value is kept; AWS's answer there is
+// unrecorded.
+func TestKMSKeyIDWithoutKMSHeader(t *testing.T) {
+	runObjects(t, func(h *harness) {
+		t := h.T
+		h.createBucket("plain")
+		const message = "Server Side Encryption with AWS KMS managed key requires HTTP header x-amz-server-side-encryption : aws:kms"
+		_, err := as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{
+			Bucket: "plain", Key: "k", Body: bytesBody("v"), SSEKMSKeyId: new("d192340e-bc50-42f6-9977-9c9287e2e4fa"),
+		})
+		failure{
+			status: 400, code: "InvalidArgument", message: message,
+			fields: map[string]string{"ArgumentName": sseArgument},
+		}.is(t, "key id without the header", err)
+		_, err = as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{
+			Bucket: "plain", Key: "k", Body: bytesBody("v"), SSEKMSKeyId: new("alias/x"),
+			ServerSideEncryption: new(s3api.ServerSideEncryptionAes256),
+		})
+		failure{
+			status: 400, code: "InvalidArgument", message: message,
+			fields: map[string]string{"ArgumentName": sseArgument, "ArgumentValue": "AES256"},
+		}.is(t, "key id with AES256", err)
+	})
+}
+
 // TestSSECKMSKeyIDIsRefused: a KMS key id beside SSE-C headers is refused
 // as a key id without aws:kms is (AWS's answer is UNVERIFIED), and nothing
 // is written.
@@ -105,7 +134,7 @@ func TestSSECKMSKeyIDIsRefused(t *testing.T) {
 		failure{
 			status: 400, code: "InvalidArgument",
 			message: "Server Side Encryption with AWS KMS managed key requires HTTP header x-amz-server-side-encryption : aws:kms",
-			fields:  map[string]string{"ArgumentName": sseArgument, "ArgumentValue": "AES256"},
+			fields:  map[string]string{"ArgumentName": sseArgument},
 		}.is(t, "SSE-C with a KMS key id", err)
 		if _, err := as(h, who{}, s3api.OpHeadObject, &s3api.HeadObjectInput{Bucket: "ssec", Key: "k"}); err == nil {
 			t.Error("a refused SSE-C write left an object")

@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"net/http"
-	"slices"
 	"testing"
 	"time"
 
@@ -756,9 +755,7 @@ func TestObjectLegalHold(t *testing.T) {
 // on a delete marker: x-amz-delete-marker, the marker's x-amz-version-id
 // and Allow: DELETE, without the Last-Modified a GetObject's 405 carries
 // (S3SOL-22 22-hold-delete-marker and 22-get-hold-delete-marker, recorded
-// 2026-11-03). x-amz-bucket-region is left out of the comparison: ADR 0013
-// puts it on every error about a found bucket, and those recordings answer
-// without it, a difference not yet settled for S3's errors as a whole.
+// 2026-11-03), and without x-amz-bucket-region.
 func wantLockMarkerHeaders(t *testing.T, name string, err *awserr.Error, version *string) {
 	t.Helper()
 	if err == nil || version == nil {
@@ -766,8 +763,7 @@ func wantLockMarkerHeaders(t *testing.T, name string, err *awserr.Error, version
 		return
 	}
 	want := []awserr.Header{{Name: "x-amz-delete-marker", Value: "true"}, {Name: "x-amz-version-id", Value: *version}, {Name: "Allow", Value: http.MethodDelete}}
-	got := slices.DeleteFunc(slices.Clone(err.Headers), func(h awserr.Header) bool { return h.Name == "x-amz-bucket-region" })
-	if diff := cmp.Diff(want, got); diff != "" {
+	if diff := cmp.Diff(want, err.Headers); diff != "" {
 		t.Errorf("%s: headers (-want +got):\n%s", name, diff)
 	}
 }
