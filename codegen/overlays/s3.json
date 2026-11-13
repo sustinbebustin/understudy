@@ -144,6 +144,15 @@
         "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/03-get-pab-after-delete.json", "validated": "2026-10-14"}
       }
     },
+    "com.amazonaws.s3#NoSuchResource": {
+      "type": "structure",
+      "members": {},
+      "traits": {
+        "smithy.api#error": "client",
+        "smithy.api#httpError": 404,
+        "dev.understudy#evidence": {"label": "aws-recorded", "source": "testdata/parity/s3/R06/06-s3control-list-missing.json", "validated": "2026-10-14"}
+      }
+    },
     "com.amazonaws.s3#NoSuchTagSet": {
       "type": "structure",
       "members": {"BucketName": {"target": "smithy.api#String"}},

@@ -10683,6 +10683,14 @@ func (v *NoSuchPublicAccessBlockConfiguration) serialize(s smithy.Serializer, m 
 }
 
 // Serialize writes v through s.
+func (v *NoSuchResource) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
+
+func (v *NoSuchResource) serialize(s smithy.Serializer, m *smithy.Member) {
+	s.WriteStruct(m, &schemaNoSuchResource)
+	s.CloseStruct()
+}
+
+// Serialize writes v through s.
 func (v *NoSuchTagSet) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *NoSuchTagSet) serialize(s smithy.Serializer, m *smithy.Member) {

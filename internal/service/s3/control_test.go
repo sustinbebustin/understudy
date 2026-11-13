@@ -82,6 +82,44 @@ func TestS3ControlTagsShareTheBucketTagSet(t *testing.T) {
 	})
 }
 
+// noSuchResourceMessage is S3 Control's NoSuchResource text, recorded in
+// testdata/parity/s3/R06/06-s3control-list-missing.json and
+// 06-s3control-list-not-owned.json.
+const noSuchResourceMessage = "The specified resource doesn't exist."
+
+// TestS3ControlTagsOfABucketTheCallerCannotSee: a bucket that does not
+// exist and one another account owns both answer 404 NoSuchResource, with
+// no context element and no x-amz-bucket-region. ListTagsForResource is
+// recorded (testdata/parity/s3/R06/06-s3control-list-missing.json,
+// 06-s3control-list-not-owned.json); TagResource and UntagResource follow
+// the same rule, inferred.
+func TestS3ControlTagsOfABucketTheCallerCannotSee(t *testing.T) {
+	const tagBody = `<TagResourceRequest><Tags><Tag><Key>k</Key><Value>v</Value></Tag></Tags></TagResourceRequest>`
+	ops := []struct{ name, method, query, body string }{
+		{"ListTagsForResource", http.MethodGet, "", ""},
+		{"TagResource", http.MethodPost, "", tagBody},
+		{"UntagResource", http.MethodDelete, "?tagKeys=k", ""},
+	}
+	for _, bucket := range []string{"missing", "foreign"} {
+		for _, op := range ops {
+			t.Run(bucket+"/"+op.name, func(t *testing.T) {
+				run(t, s3.Options{}, func(h *harness) {
+					ok(h, who{account: otherAccount}, s3api.OpCreateBucket, &s3api.CreateBucketInput{Bucket: "foreign"})
+					_, err := h.raw(op.name, op.method, tagsPath(bucket)+op.query, op.body)
+					wantCode(h.T, err, "NoSuchResource", http.StatusNotFound)
+					if err.Message != noSuchResourceMessage {
+						t.Fatalf("message = %q, want %q", err.Message, noSuchResourceMessage)
+					}
+					wantFieldOrder(h.T, err)
+					if r := header(err, "x-amz-bucket-region"); r != "" {
+						t.Fatalf("x-amz-bucket-region = %q, want none", r)
+					}
+				})
+			})
+		}
+	}
+}
+
 func TestS3ControlErrors(t *testing.T) {
 	cases := map[string]struct {
 		name, method, target, body string
@@ -93,7 +131,6 @@ func TestS3ControlErrors(t *testing.T) {
 		// fields are context elements the error must carry.
 		fields map[string]string
 	}{
-		"missing bucket":       {name: "ListTagsForResource", method: http.MethodGet, target: tagsPath("missing"), code: "NoSuchBucket", status: http.StatusNotFound},
 		"not a bucket ARN":     {name: "ListTagsForResource", method: http.MethodGet, target: "/v20180820/tags/arn%3Aaws%3As3%3Aus-east-1%3A000000000000%3Aaccesspoint%2Fap", code: "InvalidRequest", status: http.StatusBadRequest},
 		"malformed tag body":   {name: "TagResource", method: http.MethodPost, target: tagsPath("present"), body: "<TagResourceRequest><Tags><Tag><Key>k</Key></Tag></Tags></TagResourceRequest>", code: "MalformedXML", status: http.StatusBadRequest},
 		"body without Tags":    {name: "TagResource", method: http.MethodPost, target: tagsPath("present"), body: "<TagResourceRequest></TagResourceRequest>", code: "MalformedXML", status: http.StatusBadRequest},
@@ -104,7 +141,10 @@ func TestS3ControlErrors(t *testing.T) {
 			code: "InvalidArgument", status: http.StatusBadRequest,
 			fields: map[string]string{"ArgumentName": "x-amz-account-id", "ArgumentValue": "not-an-account"},
 		},
-		"another account": {name: "ListTagsForResource", method: http.MethodGet, target: tagsPath("present"), account: otherAccount, code: "AccessDenied", status: http.StatusForbidden},
+		// x-amz-account-id naming an account that does not own the bucket
+		// fails the owner claim, as a caller's own account does at another
+		// account's bucket (testdata/parity/s3/R06/06-s3control-list-not-owned.json).
+		"another account": {name: "ListTagsForResource", method: http.MethodGet, target: tagsPath("present"), account: otherAccount, code: "NoSuchResource", status: http.StatusNotFound},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

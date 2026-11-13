@@ -3187,6 +3187,8 @@ var schemaNoSuchPublicAccessBlockConfiguration = smithy.Schema{ID: "com.amazonaw
 
 var memberNoSuchPublicAccessBlockConfiguration_BucketName = smithy.Member{Name: "BucketName", Index: 0, Target: &schemaSmithyString}
 
+var schemaNoSuchResource = smithy.Schema{ID: "com.amazonaws.s3#NoSuchResource", Type: smithy.TypeStructure, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
+
 var schemaNoSuchTagSet = smithy.Schema{ID: "com.amazonaws.s3#NoSuchTagSet", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberNoSuchTagSet_BucketName}, Error: &smithy.ErrorTrait{Fault: smithy.ClientFault, HTTPError: 404}}
 
 var memberNoSuchTagSet_BucketName = smithy.Member{Name: "BucketName", Index: 0, Target: &schemaSmithyString}

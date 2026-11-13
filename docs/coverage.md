@@ -2045,7 +2045,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 
 Corrections to the vendored models in `codegen/overlays`, one row per evidence item. The count and order, strongest evidence first, follow the label the overlay states; the Label column shows the recording's verdict where a replayed step settles or contradicts the item.
 
-428 evidence items: 119 aws-recorded, 109 third-party-recorded, 58 aws-doc, 5 sdk-source, 137 inferred.
+429 evidence items: 120 aws-recorded, 109 third-party-recorded, 58 aws-doc, 5 sdk-source, 137 inferred.
 
 | Label | Overlay | Shape | Covers | Source |
 |---|---|---|---|---|
@@ -2124,6 +2124,7 @@ Corrections to the vendored models in `codegen/overlays`, one row per evidence i
 | aws-recorded | s3.json | `com.amazonaws.s3#NoSuchConfiguration` |  | testdata/parity/s3/R06/01-get-metrics-nope.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#NoSuchLifecycleConfiguration` |  | testdata/parity/s3/R06/01-get-get-bucket-lifecycle-configuration.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#NoSuchPublicAccessBlockConfiguration` |  | testdata/parity/s3/R06/03-get-pab-after-delete.json (validated 2026-10-14) |
+| aws-recorded | s3.json | `com.amazonaws.s3#NoSuchResource` |  | testdata/parity/s3/R06/06-s3control-list-missing.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#NoSuchTagSet` |  | testdata/parity/s3/R06/01-get-get-bucket-tagging.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#NoSuchWebsiteConfiguration` |  | testdata/parity/s3/R06/01-get-get-bucket-website.json (validated 2026-10-14) |
 | aws-recorded | s3.json | `com.amazonaws.s3#ObjectLockConfigurationNotFoundError` |  | testdata/parity/s3/R06/01-get-get-object-lock-configuration.json (validated 2026-10-14) |
