@@ -26,7 +26,7 @@ func (s *Service) bindMultipart(b s3api.Binder) {
 	create := func(in *s3api.CreateMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.CreateMultipartUpload(s.createMultipartUpload, registry.Partial{Note: "an object ACL a bucket accepts is not stored; no lifecycle abort date; " + eventHoldNote}, touches(s, create))
 	part := func(in *s3api.UploadPartInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.UploadPart(s.uploadPart, registry.Partial{Note: "chunk signatures are verified under sigv4 verify"}, touches(s, part))
+	b.UploadPart(s.uploadPart, registry.Partial{Note: "chunk signatures are verified under sigv4 verify; a part without a checksum is refused on an upload that declared XXHASH3, XXHASH128, SHA512 or MD5 by inference from the recorded refusal for XXHASH64"}, touches(s, part))
 	partCopy := func(in *s3api.UploadPartCopyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.UploadPartCopy(s.uploadPartCopy, registry.Partial{Note: "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"}, touches(s, partCopy))
 	complete := func(in *s3api.CompleteMultipartUploadInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }

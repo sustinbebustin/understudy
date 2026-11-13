@@ -35,7 +35,7 @@ func TestSSECAndObjectLockCoverageMarks(t *testing.T) {
 		readNote     = "presigned URLs are verified and expire on the emulator clock under sigv4 verify"
 		copyNote     = "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented"
 		createNote   = "an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented"
-		partNote     = "chunk signatures are verified under sigv4 verify"
+		partNote     = "chunk signatures are verified under sigv4 verify; a part without a checksum is refused on an upload that declared XXHASH3, XXHASH128, SHA512 or MD5 by inference from the recorded refusal for XXHASH64"
 		answeredNote = "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"
 		deleteNote   = "no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention"
 		notifyNote   = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +

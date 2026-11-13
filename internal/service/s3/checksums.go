@@ -146,23 +146,34 @@ func declaredOf(m checksumMode) (*s3api.ChecksumAlgorithm, *s3api.ChecksumType) 
 
 // checkPartChecksum refuses, before the body is read, a part whose
 // checksum header or trailer names another algorithm than the one its
-// upload declared (s3.md 6.4); an undeclared upload accepts any, and a part
-// without one is checksummed by S3.
+// upload declared (s3.md 6.4); an undeclared upload accepts any. A part
+// without one is refused when its upload declared one of the newer
+// algorithms, which S3 names "null" (XXHASH64 recorded,
+// testdata/parity/s3/R08/06-part-without-checksum.json; the rest of
+// newerAlgorithms inferred from it), and is checksummed by S3 otherwise
+// (s3.md 6.4, upload-part-no-checksum-ok).
 func checkPartChecksum(m checksumMode, d declaredChecksum) *awserr.Error {
 	if _, undeclared := m.(undeclaredChecksum); undeclared {
 		return nil
 	}
+	want := m.partAlgorithm()
 	if _, none := d.(noChecksum); none {
+		if slices.Contains(newerAlgorithms(), want) {
+			return errChecksumTypeMismatch(lower(want), "null")
+		}
 		return nil
 	}
-	if want, got := m.partAlgorithm(), d.algorithm(); got != want {
-		return errChecksumTypeMismatch(want, got)
+	if got := d.algorithm(); got != want {
+		return errChecksumTypeMismatch(lower(want), lower(got))
 	}
 	return nil
 }
 
-func errChecksumTypeMismatch(want, got checksum.Algorithm) *awserr.Error {
-	return errInvalidRequest("Checksum Type mismatch occurred, expected checksum Type: " + lower(want) + ", actual checksum Type: " + lower(got))
+// errChecksumTypeMismatch refuses a request whose checksum algorithm is
+// not the upload's. Each side is an algorithm as lower names it, or "null"
+// for none.
+func errChecksumTypeMismatch(want, got string) *awserr.Error {
+	return errInvalidRequest("Checksum Type mismatch occurred, expected checksum Type: " + want + ", actual checksum Type: " + got)
 }
 
 // reportedPartChecksum is the part checksum UploadPartCopy and ListParts
@@ -339,7 +350,8 @@ func checkCompleteType(m checksumMode, t *s3api.ChecksumType) *awserr.Error {
 
 // newerAlgorithms are the algorithms a Complete may not name for an
 // upload that declared none (s3-checksum-residuals-and-record-backlog.md
-// 1.6).
+// 1.6), and whose uploads refuse a part sent without a checksum
+// (checkPartChecksum).
 func newerAlgorithms() []checksum.Algorithm {
 	return []checksum.Algorithm{checksum.MD5, checksum.SHA512, checksum.XXHASH64, checksum.XXHASH3, checksum.XXHASH128}
 }
@@ -368,7 +380,7 @@ func checkCompleteHeader(m checksumMode, sent *sentChecksum, typ *s3api.Checksum
 		case slices.Contains(newerAlgorithms(), sent.alg):
 			// S3 names the undeclared upload's type "null"
 			// (testdata/parity/s3/R08/06-complete-xxhash64-header-no-create-alg.json).
-			return errInvalidRequest("Checksum Type mismatch occurred, expected checksum Type: null, actual checksum Type: " + lower(sent.alg))
+			return errChecksumTypeMismatch("null", lower(sent.alg))
 		default:
 			return nil
 		}

@@ -1207,7 +1207,7 @@ Internal operations:
 | PutObjectLockConfiguration | partial | inferred, 1 of 5 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
 | PutObjectRetention | partial | inferred, 1 of 9 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
 | PutObjectTagging | partial | inferred, 1 of 4 claims | a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
-| UploadPart | partial | inferred, 1 of 9 claims | chunk signatures are verified under sigv4 verify |
+| UploadPart | partial | inferred, 1 of 9 claims | chunk signatures are verified under sigv4 verify; a part without a checksum is refused on an upload that declared XXHASH3, XXHASH128, SHA512 or MD5 by inference from the recorded refusal for XXHASH64 |
 | UploadPartCopy | partial | inferred, 2 of 11 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CreateBucketMetadataConfiguration | unbound | unassessed |  |
 | CreateBucketMetadataTableConfiguration | unbound | unassessed |  |
