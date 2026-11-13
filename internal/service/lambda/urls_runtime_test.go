@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -613,4 +615,31 @@ func useActions(uses []access.Use) string {
 		names[i] = uses[i].Action.Prefix + ":" + uses[i].Action.Name
 	}
 	return strings.Join(names, ",")
+}
+
+// TestFunctionURLIDAndTimestampsLookLikeAWS: every recorded id is 32
+// characters of [a-z2-7] with 0 at index 26, and CreationTime and
+// LastModifiedTime carry nine fractional digits
+// (testdata/parity/lambda/R13/00-create-url-1.json .. 00-create-url-10.json,
+// 03-update-cors.json).
+func TestFunctionURLIDAndTimestampsLookLikeAWS(t *testing.T) {
+	id := regexp.MustCompile(`^http://[a-z2-7]{26}0[a-z2-7]{5}\.lambda-url\.`)
+	stamp := regexp.MustCompile(`^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{9}Z$`)
+	run(t, lambda.Options{}, func(h *harness) {
+		for i := range 200 {
+			name := "fn" + strconv.Itoa(i)
+			h.createFunction(name)
+			out := call(h, lambdaapi.OpCreateFunctionUrlConfig, &lambdaapi.CreateFunctionUrlConfigInput{FunctionName: name, AuthType: lambdaapi.FunctionUrlAuthTypeNone})
+			if !id.MatchString(out.FunctionUrl) {
+				t.Fatalf("FunctionUrl = %q, want a 32-character id of [a-z2-7] with 0 at index 26", out.FunctionUrl)
+			}
+			if !stamp.MatchString(out.CreationTime) {
+				t.Fatalf("CreationTime = %q, want nine fractional digits", out.CreationTime)
+			}
+			got := call(h, lambdaapi.OpGetFunctionUrlConfig, &lambdaapi.GetFunctionUrlConfigInput{FunctionName: name})
+			if !stamp.MatchString(got.LastModifiedTime) {
+				t.Fatalf("LastModifiedTime = %q, want nine fractional digits", got.LastModifiedTime)
+			}
+		}
+	})
 }

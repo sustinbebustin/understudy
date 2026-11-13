@@ -109,7 +109,8 @@ func TestCreateFunctionValidationRows(t *testing.T) {
 			{
 				golden{
 					"timeout over 900", "ValidationException", 400,
-					"1 validation error detected: Value '901' at 'timeout' failed to satisfy constraint: Member must have value less than or equal to 900", false,
+					// testdata/parity/lambda/R13/05-timeout-901.json: no count prefix.
+					"Value '901' at 'timeout' failed to satisfy constraint: Member must have value less than or equal to 900", false,
 				},
 				func(in *lambdaapi.CreateFunctionInput) { in.Timeout = new(int32(901)) },
 			},

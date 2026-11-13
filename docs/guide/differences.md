@@ -87,7 +87,7 @@ The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-k
 
 - `AddPermission` with a foreign account principal can be refused on AWS with "The provided principal was invalid."; understudy accepts any 12-digit account (`lambda/R07/02-add-permission-account.json`).
 - Invoke: a successful answer is `application/json` on AWS; an Event invocation over 1 MB is 413 `{"Message":"<n> byte payload is too large for the Event invocation type (limit 1048576 bytes)"}`, where understudy's text differs (`lambda/R13/04-*.json`).
-- `Timeout` 901 has no "1 validation error detected" prefix on AWS; version numbers continue across a delete and recreate of a function (`lambda/R13/05-timeout-901.json`, `lambda/R13/04-*.json`).
+- Version numbers continue across a delete and recreate of a function on AWS (`lambda/R13/04-*.json`).
 - Event source mappings on AWS: a batching window on a FIFO queue is "Batching window is not supported for FIFO queues"; provisioned pollers are range-checked first; six filters are "Too many filter patterns, maximum allowed 5 patterns, provided 6 patterns."; records leave out `md5OfMessageAttributes` when a message has no attributes, where understudy sends `null` (`lambda/R03/C-*.json`, `logs/R03/E-payloads.json`).
 - A mapping keeps receiving from its queue after its function is deleted on AWS; understudy stops polling (`sqs/R03/F-queue-attrs-90s.json`).
 - A record over SNS's 256 KB limit is delivered on AWS with both payloads left out and a `deliveryError` (413 `RequestEntityTooLargeException`, "The total destination payload is too large. ..."); understudy publishes it whole and SNS refuses it (`lambda/LDL-05/`).
@@ -116,7 +116,6 @@ The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-k
 
 - The 502 body for a bad function response is `application/json` on AWS; understudy's is `text/plain`. AWS also delivers `statusCode` 200 with a numeric body and an invalid base64 body, which understudy refuses (`lambda/R13/02-resp-*.json`).
 - AWS keeps `cookie` in `headers`, sends a trace header of `Root=` only, answers HEAD with `Content-Length: 0`, and does not chunk large bodies (`logs/R13/01-logged-events.json`, `lambda/R13/01-head.json`).
-- URL ids on AWS have a fixed `0` at index 26, and `CreationTime` has 9 fractional digits where understudy's has 6 (`lambda/R13/00-create-url-*.json`).
 
 ### Function URL refusals
 

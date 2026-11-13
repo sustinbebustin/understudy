@@ -148,14 +148,21 @@ func (s *State) revision(scope aws.Scope) string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", h[0:4], h[4:6], h[6:8], h[8:10], h[10:16])
 }
 
-// urlID mints a function URL id: 32 lowercase letters and digits. Any web
-// page a browser visits can send requests to a function URL, so, as on
-// AWS, the id must not be guessable: it also hashes request, the id of the
-// call creating the URL, which is random unless understudy runs under a
-// seed.
+// urlIDZeroIndex is where every recorded AWS function URL id has a "0", a
+// character outside base32's alphabet
+// (testdata/parity/lambda/R13/00-create-url-*.json).
+const urlIDZeroIndex = 26
+
+// urlID mints a function URL id: 32 characters of lowercase base32 with a
+// "0" at urlIDZeroIndex, as AWS's are. Any web page a browser visits can
+// send requests to a function URL, so, as on AWS, the id must not be
+// guessable: it also hashes request, the id of the call creating the URL,
+// which is random unless understudy runs under a seed.
 func (s *State) urlID(scope aws.Scope, request ids.RequestID) string {
 	h := s.mint(scope, "url\x00"+string(request))
-	return strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(h[:20]))
+	id := []byte(strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(h[:20])))
+	id[urlIDZeroIndex] = '0'
+	return string(id)
 }
 
 // Function is one function: its $LATEST version, its published versions
