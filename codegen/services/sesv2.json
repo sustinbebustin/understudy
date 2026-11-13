@@ -4,6 +4,30 @@
   "model": "sesv2",
   "iamPrefix": "ses",
   "sdkService": "sesv2",
+  "additionalRoutes": [
+    {
+      "operation": "ListConfigurationSets",
+      "method": "GET",
+      "uri": "/v2/email/configuration-sets",
+      "query": [
+        {"param": "NextToken", "member": "NextToken"},
+        {"param": "PageSize", "member": "PageSize"}
+      ],
+      "reason": "the binding, with NextToken and PageSize as httpQuery, of the sesv2 model before 2026-09-29, which SDKs generated before then send",
+      "evidence": {"label": "inferred", "source": "docs/research/ses.md 3.2: api-models-aws a877f97 binds GET /v2/email/configuration-sets with httpQuery NextToken and PageSize; that AWS still serves it is inferred from SES-14, which recorded the GET binding of ListEmailIdentities"}
+    },
+    {
+      "operation": "ListEmailIdentities",
+      "method": "GET",
+      "uri": "/v2/email/identities",
+      "query": [
+        {"param": "NextToken", "member": "NextToken"},
+        {"param": "PageSize", "member": "PageSize"}
+      ],
+      "reason": "the binding, with NextToken and PageSize as httpQuery, of the sesv2 model before 2026-09-29, which SDKs generated before then send; POST /v2/email/identities stays CreateEmailIdentity",
+      "evidence": {"label": "aws-recorded", "source": "docs/research/ses.md 3.2 and 5.4: SES-14 recorded GET /v2/email/identities?PageSize=2 answering the same first page as the POST binding; IAM-ENF-39 recorded it authorized as ses:ListEmailIdentities"}
+    }
+  ],
   "boundOperations": [
     "CreateEmailIdentity",
     "CreateEmailTemplate",

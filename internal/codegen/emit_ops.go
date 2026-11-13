@@ -146,6 +146,22 @@ func (f *file) descriptor(svc ref.ServiceID, o *OperationIR) error {
 	if o.HTTP != nil {
 		f.p("\tHTTP: %s,", httpBindingLit(o.HTTP))
 	}
+	if len(o.AdditionalRoutes) > 0 {
+		f.p("\tAdditionalRoutes: []registry.AdditionalRoute{")
+		for _, a := range o.AdditionalRoutes {
+			members := make([]string, len(a.QueryMembers))
+			for i, q := range a.QueryMembers {
+				members[i] = fmt.Sprintf("{Param: %s, Member: %s}", goString(q.Param), goString(q.Member))
+			}
+			binding := strings.TrimPrefix(httpBindingLit(&a.Binding), "&")
+			if len(members) == 0 {
+				f.p("\t\t{Binding: %s},", binding)
+				continue
+			}
+			f.p("\t\t{Binding: %s, QueryMembers: []registry.QueryMember{%s}},", binding, strings.Join(members, ", "))
+		}
+		f.p("\t},")
+	}
 	f.p("\tSuccessCode: %d,", o.SuccessCode)
 	if o.MaxRequestBytes > 0 {
 		f.p("\tMaxRequestBytes: %d,", o.MaxRequestBytes)

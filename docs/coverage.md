@@ -134,7 +134,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | scheduler | 12 | 0 | 0 | 12 | 0 | 0 | 0 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
 | ses | 71 | 10 | 0 | 8 | 53 | 0 | 1 |
-| sesv2 | 116 | 7 | 0 | 7 | 102 | 0 | 0 |
+| sesv2 | 116 | 8 | 0 | 6 | 102 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
 | sqs | 23 | 15 | 0 | 8 | 0 | 2 | 0 |
@@ -1380,11 +1380,11 @@ Raw operations:
 | DeleteEmailTemplate | full | unassessed |  |
 | GetEmailIdentity | full | unassessed |  |
 | GetEmailTemplate | full | unassessed |  |
+| ListEmailIdentities | full | unassessed |  |
 | ListEmailTemplates | full | unassessed |  |
 | UpdateEmailTemplate | full | unassessed |  |
 | CreateEmailIdentity | partial | unassessed | email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented |
 | GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), which nothing changes; no VDM, pricing plan or account details |
-| ListEmailIdentities | partial | unassessed | the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation |
 | ListTagsForResource | partial | unassessed | identity and template ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
 | SendEmail | partial | unassessed | journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content; Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationSetName, ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members answer NotImplemented; the SDKs sign a send with EndpointId SigV4A, which understudy refuses, so it answers sesv2's unknown operation at the edge and only a SigV4-signed one reaches the NotImplemented answer |
 | TagResource | partial | unassessed | identity and template ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |

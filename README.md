@@ -151,7 +151,7 @@ Counts are from [docs/coverage.md](docs/coverage.md), which lists every operatio
 | API Gateway (HTTP and REST APIs) | 227 | 0 | 2 | 68 | 157 |
 | SSM (Parameter Store) | 152 | 0 | 0 | 13 | 139 |
 | Step Functions | 37 | 7 | 0 | 9 | 21 |
-| SES (v1 and v2) | 187 | 17 | 0 | 15 | 155 |
+| SES (v1 and v2) | 187 | 18 | 0 | 14 | 155 |
 
 The implemented operations are the ones an event-driven pipeline uses: API Gateway in front of Lambda, SNS fan-out to SQS, queues and DynamoDB or Kinesis streams feeding Lambda, Step Functions workflows, EventBridge rules and schedules, and the IAM, KMS, S3, secrets, parameters and logs around them. Each service has a page in the [guide](docs/guide/README.md).
 

@@ -1,0 +1,74 @@
+{
+  "smithy": "2.0",
+  "metadata": {"suppressions": []},
+  "shapes": {
+    "com.example.routes#Routes": {
+      "type": "service",
+      "version": "2026-11-13",
+      "operations": [
+        {"target": "com.example.routes#CreateThing"},
+        {"target": "com.example.routes#GetThing"},
+        {"target": "com.example.routes#ListThings"}
+      ],
+      "traits": {
+        "aws.api#service": {"sdkId": "Routes", "arnNamespace": "routes"},
+        "aws.auth#sigv4": {"name": "routes"},
+        "aws.protocols#restJson1": {},
+        "smithy.api#documentation": "<p>A REST fixture service for the additionalRoutes tests.</p>",
+        "smithy.rules#endpointRuleSet": {"version": "1.0", "parameters": {}, "rules": []}
+      }
+    },
+    "com.example.routes#CreateThing": {
+      "type": "operation",
+      "input": {"target": "com.example.routes#CreateThingRequest"},
+      "output": {"target": "smithy.api#Unit"},
+      "traits": {"smithy.api#http": {"method": "POST", "uri": "/things", "code": 200}}
+    },
+    "com.example.routes#CreateThingRequest": {
+      "type": "structure",
+      "members": {"Name": {"target": "com.example.routes#String", "traits": {"smithy.api#required": {}}}},
+      "traits": {"smithy.api#input": {}}
+    },
+    "com.example.routes#GetThing": {
+      "type": "operation",
+      "input": {"target": "com.example.routes#GetThingRequest"},
+      "output": {"target": "smithy.api#Unit"},
+      "traits": {"smithy.api#readonly": {}, "smithy.api#http": {"method": "GET", "uri": "/things/{Name}", "code": 200}}
+    },
+    "com.example.routes#GetThingRequest": {
+      "type": "structure",
+      "members": {"Name": {"target": "com.example.routes#String", "traits": {"smithy.api#required": {}, "smithy.api#httpLabel": {}}}},
+      "traits": {"smithy.api#input": {}}
+    },
+    "com.example.routes#ListThings": {
+      "type": "operation",
+      "input": {"target": "com.example.routes#ListThingsRequest"},
+      "output": {"target": "com.example.routes#ListThingsResponse"},
+      "traits": {"smithy.api#readonly": {}, "smithy.api#http": {"method": "POST", "uri": "/list-things", "code": 200}}
+    },
+    "com.example.routes#ListThingsRequest": {
+      "type": "structure",
+      "members": {
+        "NextToken": {"target": "com.example.routes#String"},
+        "PageSize": {"target": "com.example.routes#Integer"},
+        "Filter": {"target": "com.example.routes#String"},
+        "Caller": {"target": "com.example.routes#String", "traits": {"smithy.api#httpHeader": "x-caller"}}
+      },
+      "traits": {"smithy.api#input": {}}
+    },
+    "com.example.routes#ListThingsResponse": {
+      "type": "structure",
+      "members": {
+        "Names": {"target": "com.example.routes#NameList"},
+        "NextToken": {"target": "com.example.routes#String"}
+      },
+      "traits": {"smithy.api#output": {}}
+    },
+    "com.example.routes#NameList": {
+      "type": "list",
+      "member": {"target": "com.example.routes#String"}
+    },
+    "com.example.routes#String": {"type": "string"},
+    "com.example.routes#Integer": {"type": "integer"}
+  }
+}

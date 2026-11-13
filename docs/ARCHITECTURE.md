@@ -765,7 +765,8 @@ Overlays are applied after loading and before validation of the merged model. Ap
   "extraProtocols": ["aws.protocols#awsQuery"],
   "rawBinding": false,
   "rawOperations": [],
-  "routeOverrides": []
+  "routeOverrides": [],
+  "additionalRoutes": []
 }
 ```
 
@@ -777,6 +778,7 @@ The optional keys:
 - `rawBinding: true` (DynamoDB only) adds a `<Op>Raw` binder method per operation.
 - `rawOperations` declares synthetic operations outside the model that still need a descriptor, IAM actions, journal, faults and coverage. Each gets a `registry.Operation` of kind `Raw` and a `BindRawHTTP` method: Lambda `InvokeFunctionUrl` (claimed by the function URL host and path rules) and `DownloadFunctionCode`, SNS `ConfirmSubscriptionLink`, `UnsubscribeLink` and `SigningCert`, SES `VerificationLink`, the S3 Control tag operations, and the execute-api fronts `apigatewayv2.InvokeApi` and `apigateway.InvokeRestApi` (4.1).
 - `routeOverrides` carries the hand S3 dispatch rows (`wire-rest.md` Implications 2), so the generated `RouteTable` is complete and the edge needs no S3-specific code.
+- `additionalRoutes` (`[{operation, method, uri, query, reason, evidence}]`) adds a row beside an operation's modeled one instead of replacing it: a binding an older model gave the operation that AWS still answers (sesv2 `GET /v2/email/identities` to `ListEmailIdentities`, `ses.md` 3.2). `query` (`[{param, member}]`) binds query parameters onto input members the modeled route reads from the body document; `evidence` takes the `iamAdditions` form. The descriptor lists the route in `registry.Operation.AdditionalRoutes`, and `restbind` reads labels and those members by the route a request arrived by. One entry per operation; generation fails for a route another row already serves (the operation's own modeled row included), a member the input lacks or one the modeled route binds with an HTTP trait, and on a service that is not REST. A body member the route also binds from the query keeps the body's value, as the modeled route reads it.
 
 ### 5.4 Stages
 
@@ -814,7 +816,7 @@ String `length` counts Unicode scalar values (`utf8.RuneCountInString`). `jsonx`
 | `errors_gen.go` | `Identity` constants and constructors per error shape; per-operation error lists |
 | `ops_gen.go` | immutable `registry.Operation` descriptors, IAM actions, `MaxRequestBytes`, `SuccessCode`, kinds (modeled, internal, raw) |
 | `bind_gen.go` | `kernel.Op` handles and the typed `Binder` over `kernel.Binder` |
-| `routes_gen.go` | REST only: `registry.RouteTable` rows: Lambda routes by Smithy specificity; S3 rows `(method, scope, query-key presence, required header)` plus `routeOverrides`, ordered by specificity, `x-id` stripped (`wire-rest.md` Implications 2) |
+| `routes_gen.go` | REST only: `registry.RouteTable` rows: Lambda routes by Smithy specificity; S3 rows `(method, scope, query-key presence, required header)` plus `routeOverrides` and `additionalRoutes`, ordered by specificity, `x-id` stripped (`wire-rest.md` Implications 2) |
 | `redact_gen.go` | `Redact()` per input and output type from `sensitive` plus overlay additions |
 | `examples_gen_test.go` | each model `examples` input decoded and validated, for the services whose models carry examples; an over-strict overlay or a bad regex translation fails here |
 

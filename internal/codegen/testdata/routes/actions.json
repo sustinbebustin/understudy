@@ -1,0 +1,19 @@
+{
+  "source": "https://servicereference.us-east-1.amazonaws.com/",
+  "retrieved": "2026-11-13",
+  "services": [
+    {
+      "prefix": "routes",
+      "url": "https://servicereference.us-east-1.amazonaws.com/v1/routes/routes.json",
+      "version": "v1.0",
+      "modified": 1791496902,
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "operations": [
+        {"name": "CreateThing", "authorized": ["routes:CreateThing"]},
+        {"name": "GetThing", "authorized": ["routes:GetThing"]},
+        {"name": "ListThings", "authorized": ["routes:ListThings"]}
+      ],
+      "actions": []
+    }
+  ]
+}

@@ -211,6 +211,10 @@ type Operation struct {
 	IAM []IAMAction
 	// HTTP is the http trait, set for REST services only.
 	HTTP *HTTPBinding
+	// AdditionalRoutes are the routes a codegen/services additionalRoutes
+	// entry serves the operation at beside HTTP, each also a row of the
+	// service's RouteTable (ARCHITECTURE.md 5.3).
+	AdditionalRoutes []AdditionalRoute
 	// SuccessCode is dev.understudy#successCode, else the http trait's code,
 	// else 200.
 	SuccessCode int
@@ -220,6 +224,22 @@ type Operation struct {
 	MaxRequestBytes int64
 	Readonly        bool
 	Idempotent      bool
+}
+
+// AdditionalRoute is a route an operation is served at beside its http
+// trait: a binding an older model gave it that AWS still answers.
+// QueryMembers bind query parameters onto input members the http trait reads
+// from the body; the request's other members bind as the http trait binds
+// them.
+type AdditionalRoute struct {
+	Binding      HTTPBinding
+	QueryMembers []QueryMember
+}
+
+// QueryMember binds the query parameter Param onto the input member Member.
+type QueryMember struct {
+	Param  string
+	Member string
 }
 
 // IAMAction is one IAM action, such as sqs:SendMessage.

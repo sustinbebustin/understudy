@@ -112,9 +112,12 @@ type OperationIR struct {
 	Readonly        bool
 	Idempotent      bool
 	HTTP            *registry.HTTPBinding
-	Validation      []RuleIR // operation-level rules
-	Paths           []PathIR // every member path of the input, for validation identity selection
-	Examples        []ExampleIR
+	// AdditionalRoutes are the codegen/services additionalRoutes bindings,
+	// served beside HTTP.
+	AdditionalRoutes []registry.AdditionalRoute
+	Validation       []RuleIR // operation-level rules
+	Paths            []PathIR // every member path of the input, for validation identity selection
+	Examples         []ExampleIR
 	// IAM are the operation's IAM actions, the primary first.
 	IAM []registry.IAMAction
 	// NotConfigured is the S3 answer while the operation's subresource is

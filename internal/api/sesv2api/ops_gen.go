@@ -807,16 +807,19 @@ var descGetTenant = registry.Operation{
 }
 
 var descListConfigurationSets = registry.Operation{
-	Service:     &service,
-	ID:          ref.OperationID{Service: "sesv2", Name: "ListConfigurationSets"},
-	Ordinal:     57,
-	Kind:        registry.Modeled,
-	Shape:       "com.amazonaws.sesv2#ListConfigurationSets",
-	Input:       &schemaListConfigurationSetsInput,
-	Output:      &schemaListConfigurationSetsOutput,
-	Errors:      []awserr.Identity{IdentityBadRequestException(), IdentityTooManyRequestsException()},
-	IAM:         []registry.IAMAction{{Prefix: "ses", Name: "ListConfigurationSets"}},
-	HTTP:        &registry.HTTPBinding{Method: "POST", Path: []registry.Segment{registry.Literal{Value: "v2"}, registry.Literal{Value: "email"}, registry.Literal{Value: "list-configuration-sets"}}},
+	Service: &service,
+	ID:      ref.OperationID{Service: "sesv2", Name: "ListConfigurationSets"},
+	Ordinal: 57,
+	Kind:    registry.Modeled,
+	Shape:   "com.amazonaws.sesv2#ListConfigurationSets",
+	Input:   &schemaListConfigurationSetsInput,
+	Output:  &schemaListConfigurationSetsOutput,
+	Errors:  []awserr.Identity{IdentityBadRequestException(), IdentityTooManyRequestsException()},
+	IAM:     []registry.IAMAction{{Prefix: "ses", Name: "ListConfigurationSets"}},
+	HTTP:    &registry.HTTPBinding{Method: "POST", Path: []registry.Segment{registry.Literal{Value: "v2"}, registry.Literal{Value: "email"}, registry.Literal{Value: "list-configuration-sets"}}},
+	AdditionalRoutes: []registry.AdditionalRoute{
+		{Binding: registry.HTTPBinding{Method: "GET", Path: []registry.Segment{registry.Literal{Value: "v2"}, registry.Literal{Value: "email"}, registry.Literal{Value: "configuration-sets"}}}, QueryMembers: []registry.QueryMember{{Param: "NextToken", Member: "NextToken"}, {Param: "PageSize", Member: "PageSize"}}},
+	},
 	SuccessCode: 200,
 }
 
@@ -905,16 +908,19 @@ var descListDomainDeliverabilityCampaigns = registry.Operation{
 }
 
 var descListEmailIdentities = registry.Operation{
-	Service:     &service,
-	ID:          ref.OperationID{Service: "sesv2", Name: "ListEmailIdentities"},
-	Ordinal:     64,
-	Kind:        registry.Modeled,
-	Shape:       "com.amazonaws.sesv2#ListEmailIdentities",
-	Input:       &schemaListEmailIdentitiesInput,
-	Output:      &schemaListEmailIdentitiesOutput,
-	Errors:      []awserr.Identity{IdentityBadRequestException(), IdentityTooManyRequestsException()},
-	IAM:         []registry.IAMAction{{Prefix: "ses", Name: "ListEmailIdentities"}},
-	HTTP:        &registry.HTTPBinding{Method: "POST", Path: []registry.Segment{registry.Literal{Value: "v2"}, registry.Literal{Value: "email"}, registry.Literal{Value: "list-identities"}}},
+	Service: &service,
+	ID:      ref.OperationID{Service: "sesv2", Name: "ListEmailIdentities"},
+	Ordinal: 64,
+	Kind:    registry.Modeled,
+	Shape:   "com.amazonaws.sesv2#ListEmailIdentities",
+	Input:   &schemaListEmailIdentitiesInput,
+	Output:  &schemaListEmailIdentitiesOutput,
+	Errors:  []awserr.Identity{IdentityBadRequestException(), IdentityTooManyRequestsException()},
+	IAM:     []registry.IAMAction{{Prefix: "ses", Name: "ListEmailIdentities"}},
+	HTTP:    &registry.HTTPBinding{Method: "POST", Path: []registry.Segment{registry.Literal{Value: "v2"}, registry.Literal{Value: "email"}, registry.Literal{Value: "list-identities"}}},
+	AdditionalRoutes: []registry.AdditionalRoute{
+		{Binding: registry.HTTPBinding{Method: "GET", Path: []registry.Segment{registry.Literal{Value: "v2"}, registry.Literal{Value: "email"}, registry.Literal{Value: "identities"}}}, QueryMembers: []registry.QueryMember{{Param: "NextToken", Member: "NextToken"}, {Param: "PageSize", Member: "PageSize"}}},
+	},
 	SuccessCode: 200,
 }
 

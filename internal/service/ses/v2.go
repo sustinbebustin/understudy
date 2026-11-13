@@ -24,8 +24,7 @@ import (
 const (
 	createEmailIdentityCoverage = "email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; " +
 		"DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented"
-	listEmailIdentitiesCoverage = "the GET /v2/email/identities binding sent by SDKs generated before 2026-09-29 is not routed and answers sesv2's unknown operation"
-	getAccountCoverage          = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; " +
+	getAccountCoverage = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; " +
 		"EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), " +
 		"which nothing changes; no VDM, pricing plan or account details"
 	v2TagsCoverage = "identity and template ARNs; an ARN with an empty account field names the caller's account, " +
@@ -55,7 +54,9 @@ func (v *V2) bindV2(b sesv2api.Binder) {
 	b.DeleteEmailIdentity(v.deleteEmailIdentity, registry.Full{},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesv2api.DeleteEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
-	b.ListEmailIdentities(v.listEmailIdentities, registry.Partial{Note: listEmailIdentitiesCoverage}, kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+	// Both bindings (ses.md 3.2): the GET one is a codegen/services
+	// additionalRoutes entry.
+	b.ListEmailIdentities(v.listEmailIdentities, registry.Full{}, kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		// A denial names * (iam-enforcement-surfaces.md 12.3, IAM-ENF-39).
 		kernel.WithDenialResource(func(*kernel.Call, *sesv2api.ListEmailIdentitiesInput) string { return "*" }))
 	b.TagResource(v.tagResource, registry.Partial{Note: v2TagsCoverage},
