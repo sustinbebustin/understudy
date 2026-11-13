@@ -1104,9 +1104,9 @@ type IdentityMailFromDomainAttributes struct {
 
 // IdentityNotificationAttributes is com.amazonaws.ses#IdentityNotificationAttributes.
 type IdentityNotificationAttributes struct {
-	BounceTopic                            string
-	ComplaintTopic                         string
-	DeliveryTopic                          string
+	BounceTopic                            *string
+	ComplaintTopic                         *string
+	DeliveryTopic                          *string
 	ForwardingEnabled                      bool
 	HeadersInBounceNotificationsEnabled    bool
 	HeadersInComplaintNotificationsEnabled bool

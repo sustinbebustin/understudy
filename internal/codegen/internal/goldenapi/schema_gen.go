@@ -141,17 +141,19 @@ var memberPutKindsInput_Vault = smithy.Member{Name: "Vault", Index: 22, Target: 
 
 var memberPutKindsInput_Hints = smithy.Member{Name: "Hints", Index: 23, Target: &schemaSparseSecrets}
 
-var schemaPutKindsOutput = smithy.Schema{ID: "com.example.golden#PutKindsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutKindsOutput_Id, &memberPutKindsOutput_Count, &memberPutKindsOutput_Items, &memberPutKindsOutput_Choice, &memberPutKindsOutput_Secret}}
+var schemaPutKindsOutput = smithy.Schema{ID: "com.example.golden#PutKindsResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutKindsOutput_Id, &memberPutKindsOutput_Owner, &memberPutKindsOutput_Count, &memberPutKindsOutput_Items, &memberPutKindsOutput_Choice, &memberPutKindsOutput_Secret}}
 
 var memberPutKindsOutput_Id = smithy.Member{Name: "Id", Index: 0, Target: &schemaString, Required: true}
 
-var memberPutKindsOutput_Count = smithy.Member{Name: "Count", Index: 1, Target: &schemaInteger}
+var memberPutKindsOutput_Owner = smithy.Member{Name: "Owner", Index: 1, Target: &schemaString}
 
-var memberPutKindsOutput_Items = smithy.Member{Name: "Items", Index: 2, Target: &schemaNestedList}
+var memberPutKindsOutput_Count = smithy.Member{Name: "Count", Index: 2, Target: &schemaInteger}
 
-var memberPutKindsOutput_Choice = smithy.Member{Name: "Choice", Index: 3, Target: &schemaChoice}
+var memberPutKindsOutput_Items = smithy.Member{Name: "Items", Index: 3, Target: &schemaNestedList}
 
-var memberPutKindsOutput_Secret = smithy.Member{Name: "Secret", Index: 4, Target: &schemaSecret, Sensitive: true}
+var memberPutKindsOutput_Choice = smithy.Member{Name: "Choice", Index: 4, Target: &schemaChoice}
+
+var memberPutKindsOutput_Secret = smithy.Member{Name: "Secret", Index: 5, Target: &schemaSecret, Sensitive: true}
 
 var schemaScore = smithy.Schema{ID: "com.example.golden#Score", Type: smithy.TypeDouble}
 

@@ -112,6 +112,13 @@
         "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
       }
     },
+    "com.example.golden#PutKindsResponse$Owner": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#optionalOutput": {},
+        "dev.understudy#evidence": {"label": "inferred", "source": "internal/codegen/generate_test.go"}
+      }
+    },
     "com.example.golden#Sweep": {
       "type": "operation",
       "input": {"target": "com.example.golden#SweepRequest"},

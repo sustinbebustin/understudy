@@ -388,13 +388,33 @@ func TestEveryMemberKindDeserializes(t *testing.T) {
 }
 
 // TestOutputSerializesInModelOrder: alwaysEmit makes Count a plain value
-// written even at zero; emptyCollection emit writes Items though nil.
+// written even at zero; emptyCollection emit writes Items though nil;
+// optionalOutput leaves the unset Owner out although the model requires it.
 func TestOutputSerializesInModelOrder(t *testing.T) {
 	var rec serdetest.Recorder
 	(&PutKindsOutput{Id: "i"}).Serialize(&rec)
 	want := []string{
 		"WriteStruct <root> com.example.golden#PutKindsResponse",
 		"WriteString Id i",
+		"WriteInt32 Count 0",
+		"WriteList Items 0",
+		"CloseList",
+		"CloseStruct",
+	}
+	if got := rec.Strings(); !slices.Equal(got, want) {
+		t.Fatalf("recorded %q\nwant %q", got, want)
+	}
+}
+
+// TestOptionalOutputIsWrittenWhenSet: optionalOutput makes the required
+// Owner a pointer, written when the handler sets it, even to "".
+func TestOptionalOutputIsWrittenWhenSet(t *testing.T) {
+	var rec serdetest.Recorder
+	(&PutKindsOutput{Id: "i", Owner: new("")}).Serialize(&rec)
+	want := []string{
+		"WriteStruct <root> com.example.golden#PutKindsResponse",
+		"WriteString Id i",
+		"WriteString Owner ",
 		"WriteInt32 Count 0",
 		"WriteList Items 0",
 		"CloseList",

@@ -38,6 +38,7 @@ const (
 	utPatternEcho         = understudyNamespace + "patternEcho"
 	utPatternValidator    = understudyNamespace + "patternValidator"
 	utAlwaysEmit          = understudyNamespace + "alwaysEmit"
+	utOptionalOutput      = understudyNamespace + "optionalOutput"
 	utMaxRequestBytes     = understudyNamespace + "maxRequestBytes"
 	utThrottleError       = understudyNamespace + "throttleError"
 	utDenialError         = understudyNamespace + "denialError"
@@ -111,6 +112,7 @@ func understudyTraits() map[string]understudyTrait {
 		utPatternEcho:         {Honor, siteStringShape, func(r json.RawMessage) error { _, err := parseNonEmptyString(r); return err }},
 		utPatternValidator:    {Honor, siteStringShape, func(r json.RawMessage) error { _, err := parsePatternValidator(r); return err }},
 		utAlwaysEmit:          {Honor, siteMember, parseAnnotation},
+		utOptionalOutput:      {Honor, siteMember, parseAnnotation},
 		utMaxRequestBytes:     {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseMaxRequestBytes(r); return err }},
 		utThrottleError:       {Honor, siteService, shapeRef},
 		utDenialError:         {Honor, siteService, shapeRef},

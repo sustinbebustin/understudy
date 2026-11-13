@@ -236,7 +236,11 @@ type MemberIR struct {
 	EnumPolicy EnumPolicy
 
 	AlwaysEmit bool
-	Empty      EmptyCollection
+	// OptionalOutput marks a member the model requires that the overlay's
+	// optionalOutput makes optional: Required is false, so the Go field is a
+	// pointer written only when set.
+	OptionalOutput bool
+	Empty          EmptyCollection
 	// Value: the Go field is a plain value rather than a pointer (scalars and
 	// structures only; collections, unions and documents use nil for absent,
 	// and a DefaultPointer member is never one).

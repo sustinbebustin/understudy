@@ -265,10 +265,10 @@ func (s *Service) getIdentityVerificationAttributes(_ context.Context, c *kernel
 // getIdentityNotificationAttributes answers each named identity the store
 // holds, keyed by the request string byte for byte (ses.md 9.1), with no
 // topics, forwarding on and headers off, since no notification setter is
-// bound, as SES-08 recorded (ses.md 9.1). AWS leaves the three topic
-// elements out; the generated serializer writes them empty, since the model
-// marks them required (a known difference, testdata/parity/ses/SES-08). An
-// unknown identity is omitted under either value of
+// bound, as SES-08 recorded (ses.md 9.1). A topic is set only when one is
+// configured, so the three topic elements stay out of the answer, as AWS
+// leaves them out although the model marks them required (the overlay's
+// optionalOutput). An unknown identity is omitted under either value of
 // ses.verification.unknown-identity, as SES-08 recorded.
 func (s *Service) getIdentityNotificationAttributes(_ context.Context, c *kernel.Call, in *sesapi.GetIdentityNotificationAttributesInput) (*sesapi.GetIdentityNotificationAttributesOutput, *awserr.Error) {
 	out := &sesapi.GetIdentityNotificationAttributesOutput{NotificationAttributes: map[string]sesapi.IdentityNotificationAttributes{}}

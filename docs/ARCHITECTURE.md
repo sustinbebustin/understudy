@@ -736,6 +736,7 @@ The closed set of `dev.understudy#` traits; the generator fails on anything else
 | `patternEcho` | string shape | echo text when it is not "pattern minus anchors" |
 | `patternValidator` | string shape | hand validator for the 7 lookaround patterns RE2 cannot compile |
 | `alwaysEmit` | output member | promote to a plain value in the generated output type |
+| `optionalOutput` | required member of an output-only structure | annotation: the member AWS leaves out of an answer although the model requires it stops being required, so its Go field is a pointer and every protocol writes it only when set (SES v1 `IdentityNotificationAttributes` topics, `ses.md 9.1`); refused on a member the model does not require, one with a modeled default, one beside `alwaysEmit`, or a structure input also uses |
 | `maxRequestBytes` | operation | body cap (Lambda `CreateFunction` 70,167,211; SQS above the encoded 1 MiB batch) |
 | `throttleError` | service | the identity `fault.Throttle` resolves to |
 | `denialError` | service | the identity an authorization refusal answers with (pipeline step 8, `kernel.Authorize`), emitted as `DenialError()` and `registry.Service.Denial` with the weakest label of the evidence covering the trait; the shape joins the closure even when no operation lists it (`iam-enforcement-surfaces.md 12.3`) |

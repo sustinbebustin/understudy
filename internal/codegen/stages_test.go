@@ -50,6 +50,46 @@ func TestStageFailures(t *testing.T) {
 				`"Other" is not the member's awsQuery key "Name"; the alias names the key the member already has`,
 		},
 		{
+			name: "optionalOutput on a member the model does not require",
+			extra: overlay(`"com.example.golden#PutKindsResponse$Choice": {"type": "apply", "traits": {
+				"dev.understudy#optionalOutput": {}, ` + evidence + `}}`),
+			stage: codegen.StageEffective,
+			want: "understudy-gen effective: com.example.golden#PutKindsResponse$Choice: dev.understudy#optionalOutput applies only " +
+				"to a member the model marks required; an optional member is already left out when unset",
+		},
+		{
+			name: "optionalOutput on a member with a default",
+			extra: overlay(`"com.example.golden#PutKindsResponse$Id": {"type": "apply", "traits": {
+				"smithy.api#default": "", "dev.understudy#optionalOutput": {}, ` + evidence + `}}`),
+			stage: codegen.StageEffective,
+			want: "understudy-gen effective: com.example.golden#PutKindsResponse$Id: dev.understudy#optionalOutput cannot leave out " +
+				"a member with a modeled default, which the serializer writes when the member is unset",
+		},
+		{
+			name: "optionalOutput beside alwaysEmit",
+			extra: overlay(`"com.example.golden#PutKindsResponse$Id": {"type": "apply", "traits": {
+				"dev.understudy#alwaysEmit": {}, "dev.understudy#optionalOutput": {}, ` + evidence + `}}`),
+			stage: codegen.StageEffective,
+			want: "understudy-gen effective: com.example.golden#PutKindsResponse$Id: dev.understudy#optionalOutput and " +
+				"dev.understudy#alwaysEmit contradict each other; keep one",
+		},
+		{
+			name: "optionalOutput on an input member",
+			extra: overlay(`"com.example.golden#GetThingRequest$ThingId": {"type": "apply", "traits": {
+				"dev.understudy#optionalOutput": {}, ` + evidence + `}}`),
+			stage: codegen.StageRoles,
+			want: "understudy-gen roles: com.example.golden#GetThingRequest$ThingId: dev.understudy#optionalOutput belongs on " +
+				"members of a structure used only as output; on input it would drop the required check",
+		},
+		{
+			name: "optionalOutput without evidence",
+			extra: overlay(`"com.example.golden#PutKindsResponse$Id": {"type": "apply", "traits": {
+				"dev.understudy#optionalOutput": {}}}`),
+			stage: codegen.StageOverlay,
+			want: "understudy-gen overlay: extra.json: com.example.golden#PutKindsResponse$Id: has no dev.understudy#evidence; " +
+				"every overlay entry states its evidence {label, source, validated?}",
+		},
+		{
 			name: "notConfigured naming a shape that is not an error",
 			extra: overlay(`"com.example.golden#GetThing": {"type": "apply", "traits": {
 				"dev.understudy#notConfigured": {"error": "com.example.golden#Nested"}, ` + evidence + `}}`),
@@ -188,7 +228,7 @@ func TestStageFailures(t *testing.T) {
 			want: "understudy-gen overlay: extra.json: com.example.golden#Golden: dev.understudy#flavor is not a dev.understudy trait; " +
 				"the closed set is [dev.understudy#alwaysEmit dev.understudy#denialError dev.understudy#emptyCollection dev.understudy#enumOrder dev.understudy#errorNamespace " +
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
-				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#patternEcho " +
+				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#optionalOutput dev.understudy#patternEcho " +
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryErrorHeader dev.understudy#queryKeyAlias " +
 				"dev.understudy#refuseDuplicateMembers dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationAnswer dev.understudy#unknownOperationError dev.understudy#validationError " +
@@ -1010,6 +1050,7 @@ func TestClassifyOverlayTraits(t *testing.T) {
 		"dev.understudy#patternEcho":            codegen.Honor,
 		"dev.understudy#patternValidator":       codegen.Honor,
 		"dev.understudy#alwaysEmit":             codegen.Honor,
+		"dev.understudy#optionalOutput":         codegen.Honor,
 		"dev.understudy#maxRequestBytes":        codegen.Honor,
 		"dev.understudy#throttleError":          codegen.Honor,
 		"dev.understudy#notConfigured":          codegen.Honor,

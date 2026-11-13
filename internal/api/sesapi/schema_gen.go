@@ -633,11 +633,11 @@ var memberIdentityMailFromDomainAttributes_BehaviorOnMXFailure = smithy.Member{N
 
 var schemaIdentityNotificationAttributes = smithy.Schema{ID: "com.amazonaws.ses#IdentityNotificationAttributes", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberIdentityNotificationAttributes_BounceTopic, &memberIdentityNotificationAttributes_ComplaintTopic, &memberIdentityNotificationAttributes_DeliveryTopic, &memberIdentityNotificationAttributes_ForwardingEnabled, &memberIdentityNotificationAttributes_HeadersInBounceNotificationsEnabled, &memberIdentityNotificationAttributes_HeadersInComplaintNotificationsEnabled, &memberIdentityNotificationAttributes_HeadersInDeliveryNotificationsEnabled}}
 
-var memberIdentityNotificationAttributes_BounceTopic = smithy.Member{Name: "BounceTopic", Index: 0, Target: &schemaNotificationTopic, Required: true}
+var memberIdentityNotificationAttributes_BounceTopic = smithy.Member{Name: "BounceTopic", Index: 0, Target: &schemaNotificationTopic}
 
-var memberIdentityNotificationAttributes_ComplaintTopic = smithy.Member{Name: "ComplaintTopic", Index: 1, Target: &schemaNotificationTopic, Required: true}
+var memberIdentityNotificationAttributes_ComplaintTopic = smithy.Member{Name: "ComplaintTopic", Index: 1, Target: &schemaNotificationTopic}
 
-var memberIdentityNotificationAttributes_DeliveryTopic = smithy.Member{Name: "DeliveryTopic", Index: 2, Target: &schemaNotificationTopic, Required: true}
+var memberIdentityNotificationAttributes_DeliveryTopic = smithy.Member{Name: "DeliveryTopic", Index: 2, Target: &schemaNotificationTopic}
 
 var memberIdentityNotificationAttributes_ForwardingEnabled = smithy.Member{Name: "ForwardingEnabled", Index: 3, Target: &schemaEnabled, Required: true, Default: document.Bool(false)}
 

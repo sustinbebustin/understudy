@@ -71,6 +71,39 @@
         }
       }
     },
+    "com.amazonaws.ses#IdentityNotificationAttributes$BounceTopic": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#optionalOutput": {},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/ses/SES-08/03-notif-raw.json: a known identity with no bounce topic has no BounceTopic element, although the model marks it required (ses.md 9.1)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
+    "com.amazonaws.ses#IdentityNotificationAttributes$ComplaintTopic": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#optionalOutput": {},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/ses/SES-08/03-notif-raw.json: a known identity with no complaint topic has no ComplaintTopic element, although the model marks it required (ses.md 9.1)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
+    "com.amazonaws.ses#IdentityNotificationAttributes$DeliveryTopic": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#optionalOutput": {},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/ses/SES-08/03-notif-raw.json: a known identity with no delivery topic has no DeliveryTopic element, although the model marks it required (ses.md 9.1)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
     "com.amazonaws.ses#Throttling": {
       "type": "structure",
       "members": {

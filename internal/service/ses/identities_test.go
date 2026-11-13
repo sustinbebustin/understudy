@@ -190,7 +190,8 @@ func TestIdentityLimitPerRegion(t *testing.T) {
 // GetIdentityNotificationAttributes lists a known identity, which the
 // aws_ses_email_identity data source requires (provider, ses.md 9.1), and
 // omits an unknown one under either value of
-// ses.verification.unknown-identity.
+// ses.verification.unknown-identity. The known identity has no topic, so
+// none of the three is set and none is written (SES-08, ses.md 9.1).
 func TestNotificationAttributesListKnownIdentities(t *testing.T) {
 	for _, u := range []ses.UnknownIdentity{ses.UnknownIdentityOmitted, ses.UnknownIdentityNotStarted} {
 		runWith(t, ses.Options{UnknownIdentity: u}, func(h *harness) {
@@ -198,6 +199,10 @@ func TestNotificationAttributesListKnownIdentities(t *testing.T) {
 			out := must(h, sesapi.OpGetIdentityNotificationAttributes, &sesapi.GetIdentityNotificationAttributesInput{Identities: []string{sender, "ghost@example.com"}})
 			if got := slices.Sorted(maps.Keys(out.NotificationAttributes)); !slices.Equal(got, []string{sender}) {
 				h.Errorf("switch ses.verification.unknown-identity=%s: NotificationAttributes keys = %q, want [%s]", u, got, sender)
+			}
+			got := out.NotificationAttributes[sender]
+			if got.BounceTopic != nil || got.ComplaintTopic != nil || got.DeliveryTopic != nil {
+				h.Errorf("NotificationAttributes[%s] topics = %v, %v, %v; want none set", sender, got.BounceTopic, got.ComplaintTopic, got.DeliveryTopic)
 			}
 		})
 	}

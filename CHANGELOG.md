@@ -37,6 +37,7 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 ### Fixed
 
+- SES v1 `GetIdentityNotificationAttributes` leaves the `BounceTopic`, `ComplaintTopic` and `DeliveryTopic` elements out of an identity with no topics, as AWS recorded, where it sent them empty.
 - An SQS JSON request without `QueueUrl` answers `QueueDoesNotExist` (400, `x-amzn-query-error` `AWS.SimpleQueueService.NonExistentQueue;Sender`, `The specified queue does not exist.`), where it answered `MissingParameter`, also under `--iam-enforce enforce`. Recorded for `ReceiveMessage`; inferred for every other operation that takes `QueueUrl`. A request that names a queue but omits another required member still answers `MissingParameter`.
 - SQS JSON validation errors answer AWS's `__type`, `com.amazon.coral.service#InvalidParameterValueException` and `com.amazon.coral.service#MissingRequiredParameterException`, where they answered `com.amazonaws.sqs#...`; the Query codes are unchanged.
 - SQS JSON errors send AWS's `x-amzn-query-error`: `MalformedInput;Sender` for a body that does not decode, where it sent `SerializationException;Sender`, and `InvalidAction;Sender` for an unknown `AmazonSQS` target, where it sent `UnknownOperationException;Sender`. A target naming another service, such as `AmazonSNS.ListQueues`, answers without the header, as does any request a service's front end answers without claiming it (inferred). A Query request whose parameters do not decode answers Code `MalformedInput` to match (inferred). CloudWatch's headers are unchanged.
