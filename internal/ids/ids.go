@@ -107,14 +107,15 @@ func (r RequestID) S3Form() RequestID {
 }
 
 // ForService is the request id as the service named service answers with
-// it: version 5 for SQS and SNS, S3's form for S3 Control
-// (testdata/parity/s3/R06/06-s3control-list-missing.json), version 4, as
-// minted, for every other service.
+// it: version 5 for SQS and SNS, S3's form for S3 and S3 Control
+// (testdata/parity/s3/R12/12-lifecycle-expiration-0.json,
+// R06/06-s3control-list-missing.json), version 4, as minted, for every
+// other service.
 func (r RequestID) ForService(service string) RequestID {
 	switch service {
 	case "sqs", "sns":
 		return r.Version5()
-	case "s3control":
+	case "s3", "s3control":
 		return r.S3Form()
 	}
 	return r

@@ -315,16 +315,24 @@ func TestRequestIDVersion5KeepsTheDraw(t *testing.T) {
 	}
 }
 
-// S3 Control answers with S3's request id form, 16 characters of
-// Crockford's base32 (testdata/parity/s3/R06/06-s3control-list-missing.json),
-// derived from the drawn UUID, so one draw gives one id.
-func TestS3ControlRequestIDForm(t *testing.T) {
+// S3 and S3 Control answer with S3's request id form, 16 characters of
+// Crockford's base32 (testdata/parity/s3/R12/12-lifecycle-expiration-0.json,
+// R06/06-s3control-list-missing.json), derived from the drawn UUID, so one
+// draw gives one id. The other services that answer with a version 4 UUID,
+// restXml's among them, keep it.
+func TestS3RequestIDForm(t *testing.T) {
 	s3Form := regexp.MustCompile(`^[0-9A-HJKMNP-TV-Z]{16}$`)
 	rapid.Check(t, func(t *rapid.T) {
 		id := NewSeeded(rapid.Uint64().Draw(t, "seed")).RequestID()
-		got := id.ForService("s3control")
-		if !s3Form.MatchString(string(got)) || got != id.ForService("s3control") {
-			t.Fatalf("ForService(s3control) of %s = %q, want 16 Crockford base32 characters, the same each time", id, got)
+		for _, service := range []string{"s3", "s3control"} {
+			got := id.ForService(service)
+			if !s3Form.MatchString(string(got)) || got != id.ForService(service) {
+				t.Fatalf("ForService(%s) of %s = %q, want 16 Crockford base32 characters, the same each time", service, id, got)
+			}
+		}
+		other := rapid.SampledFrom([]string{"route53", "cloudfront", "dynamodb", "lambda", "sts"}).Draw(t, "other")
+		if got := id.ForService(other); got != id || !uuidV4.MatchString(string(got)) {
+			t.Fatalf("ForService(%s) of %s = %q, want the version 4 UUID as minted", other, id, got)
 		}
 	})
 }
