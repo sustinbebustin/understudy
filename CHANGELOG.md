@@ -34,6 +34,7 @@ Notable changes to understudy, in the form of [Keep a Changelog](https://keepach
 
 ### Changed
 
+- API Gateway HTTP API (`apigatewayv2`) control-plane errors write the message under the key `message`, as AWS records it for `AccessDeniedException`, `BadRequestException`, `NotFoundException` and `ConflictException`; `BadRequestException`, `NotFoundException` and `ConflictException` wrote `Message`. A client that matched the capital key must read `message`.
 - A Lambda image function's pending pull shows as `image-pull` in `settle` timeouts and the status listing, where it showed as `invocation-running`. Settling still waits for pulls.
 - A resource-scoped request-phase fault rule matches every Lambda operation that addresses a resource: the layer operations (`PublishLayerVersion`, `GetLayerVersion`, `GetLayerVersionByArn`, `ListLayerVersions`, `DeleteLayerVersion`, `AddLayerVersionPermission`, `RemoveLayerVersionPermission`, `GetLayerVersionPolicy`) now match on the layer or layer-version ARN they address, as the function, alias and mapping operations already did. Under `--iam-enforce` the same operations are evaluated against that ARN instead of `*`; a policy granting the action on `*` still allows them.
 - **BREAKING:** The SQS snapshot section moves to state version 7, SNS to version 4, S3 to version 3, SES to version 4 and the outbox (pending cross-service deliveries) to version 7, so a snapshot or `--persist` state file holding any of them written by an earlier version is refused with a message naming both versions.

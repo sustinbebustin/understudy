@@ -7,7 +7,40 @@
         "dev.understudy#messageKey": "message",
         "dev.understudy#evidence": {
           "label": "aws-recorded",
-          "source": "testdata/parity/apigatewayv2/IAM-ENF/34-apigatewayv2.json: the model's member is Message, the wire key message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+          "source": "testdata/parity/apigatewayv2/IAM-ENF/34-apigatewayv2.json and APIGW2-15/06-get-routes.json: the model's member is Message, the wire key message (docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit)",
+          "validated": "2026-11-03"
+        }
+      }
+    },
+    "com.amazonaws.apigatewayv2#BadRequestException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/apigatewayv2/APIGW2-01/22-subtype-partial-update.json: the body is {\"message\":\"Invalid integration URI specified\"}; the model's member is Message, the wire key message",
+          "validated": "2026-11-03"
+        }
+      }
+    },
+    "com.amazonaws.apigatewayv2#ConflictException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/apigatewayv2/APIGW2-01/08-duplicate-stage.json: the body carries \"message\" (Stage already exists); the model's member is Message, the wire key message",
+          "validated": "2026-11-03"
+        }
+      }
+    },
+    "com.amazonaws.apigatewayv2#NotFoundException": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#messageKey": "message",
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/apigatewayv2/APIGW2-01/01-get-missing-api.json: the body carries \"message\" (Invalid API identifier specified); the model's member is Message, the wire key message",
           "validated": "2026-11-03"
         }
       }

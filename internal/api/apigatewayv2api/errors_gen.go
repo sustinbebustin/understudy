@@ -22,7 +22,7 @@ func (*AccessDeniedException) ErrorIdentity() awserr.Identity { return IdentityA
 
 // IdentityBadRequestException returns the identity of com.amazonaws.apigatewayv2#BadRequestException.
 func IdentityBadRequestException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.apigatewayv2#BadRequestException", JSONType: "BadRequestException", QueryCode: "BadRequestException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+	return awserr.Identity{Shape: "com.amazonaws.apigatewayv2#BadRequestException", JSONType: "BadRequestException", QueryCode: "BadRequestException", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrBadRequestException returns a BadRequestException error with message.
@@ -35,7 +35,7 @@ func (*BadRequestException) ErrorIdentity() awserr.Identity { return IdentityBad
 
 // IdentityConflictException returns the identity of com.amazonaws.apigatewayv2#ConflictException.
 func IdentityConflictException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.apigatewayv2#ConflictException", JSONType: "ConflictException", QueryCode: "ConflictException", Status: 409, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+	return awserr.Identity{Shape: "com.amazonaws.apigatewayv2#ConflictException", JSONType: "ConflictException", QueryCode: "ConflictException", Status: 409, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrConflictException returns a ConflictException error with message.
@@ -134,7 +134,7 @@ func (*MissingAuthenticationTokenException) ErrorIdentity() awserr.Identity {
 
 // IdentityNotFoundException returns the identity of com.amazonaws.apigatewayv2#NotFoundException.
 func IdentityNotFoundException() awserr.Identity {
-	return awserr.Identity{Shape: "com.amazonaws.apigatewayv2#NotFoundException", JSONType: "NotFoundException", QueryCode: "NotFoundException", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageUpper}
+	return awserr.Identity{Shape: "com.amazonaws.apigatewayv2#NotFoundException", JSONType: "NotFoundException", QueryCode: "NotFoundException", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageLower}
 }
 
 // ErrNotFoundException returns a NotFoundException error with message.
