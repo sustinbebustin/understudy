@@ -8,7 +8,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
-	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/policydoc"
@@ -53,21 +52,21 @@ func layerSwitches() []fidelity.Switch[string] {
 	return []fidelity.Switch[string]{
 		// A path two of a function's layers hold has the later layer's
 		// content in /opt (codestore.Store.Merge).
-		recorded(ldlSwitch("lambda.layers.merge-conflict", "later-overwrites", evidence.AWSRecorded, "81-extraction-and-merge-order", "LDL-12",
-			"lambda.Invoke")),
+		ldlSwitch("lambda.layers.merge-conflict", "later-overwrites", "81-extraction-and-merge-order", "LDL-12",
+			"lambda.Invoke"),
 		// A layer marked for another runtime or architecture attaches: the
 		// compatible lists are metadata ListLayers filters on (resolveLayers
 		// checks neither).
-		recorded(ldlSwitch("lambda.layers.compatibility", "not-enforced", evidence.AWSRecorded, "73-compatibility-is-metadata", "LDL-13",
-			"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration")),
+		ldlSwitch("lambda.layers.compatibility", "not-enforced", "73-compatibility-is-metadata", "LDL-13",
+			"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration"),
 		// Another account's layer version its owner's policy does not
 		// grant the caller, or that does not exist, is refused with 403
 		// AccessDeniedException, whatever --iam-enforce says
 		// (readableLayerVersion). LDL-15 recorded CreateFunction and
 		// GetLayerVersionByArn; UpdateFunctionConfiguration and
 		// GetLayerVersion follow them.
-		recorded(ldlSwitch("lambda.layers.cross-account-policy", "refuse", evidence.AWSRecorded, "74-layers-of-other-accounts", "LDL-15",
-			"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration", "lambda.GetLayerVersionByArn", "lambda.GetLayerVersion")),
+		ldlSwitch("lambda.layers.cross-account-policy", "refuse", "74-layers-of-other-accounts", "LDL-15",
+			"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration", "lambda.GetLayerVersionByArn", "lambda.GetLayerVersion"),
 	}
 }
 
