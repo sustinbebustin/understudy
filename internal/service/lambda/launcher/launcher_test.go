@@ -793,12 +793,38 @@ func TestEnsureImageUsesALocalImageAndRecordsItsDigest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if img.Digest != "sha256:e10c4765865b384b15eacc855a3f25ac61745d8dd1f510217deecf23b88fdbd5" {
-		t.Errorf("Digest = %q, want the repository digest", img.Digest)
+	if img.Digest != "sha256:e10c4765865b384b15eacc855a3f25ac61745d8dd1f510217deecf23b88fdbd5" || img.Kind != launcher.RepositoryDigest {
+		t.Errorf("Digest = %q of kind %v, want the repository digest", img.Digest, img.Kind)
 	}
 	for _, r := range d.Requests() {
 		if strings.HasSuffix(r.Path, "/images/create") {
 			t.Error("a present image was pulled")
+		}
+	}
+}
+
+// An image built locally has no repository digest for its repository, so
+// its image ID is recorded, as an image ID (ARCHITECTURE.md 14.3): one with
+// no repository digest at all, and one whose only digest is another
+// repository's.
+func TestEnsureImageRecordsALocalBuildByItsImageID(t *testing.T) {
+	const (
+		built  = "my-function:dev"
+		retag  = "my-copy:dev"
+		id     = "sha256:4c1b2f0e8d7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c"
+		digest = "public.ecr.aws/lambda/provided@sha256:e10c4765865b384b15eacc855a3f25ac61745d8dd1f510217deecf23b88fdbd5"
+	)
+	d := dockertest.New(t, dockertest.Options{})
+	d.AddImage(built, docker.Image{Architecture: "amd64", ID: id})
+	d.AddImage(retag, docker.Image{Architecture: "amd64", ID: id, RepoDigests: []string{digest}})
+	l := newLauncher(t, d, bridge())
+	for _, ref := range []string{built, retag} {
+		img, err := l.EnsureImage(t.Context(), ref, launcher.X86, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if img.Digest != id || img.Kind != launcher.ImageID {
+			t.Errorf("%s: Digest = %q of kind %v, want the image ID %s", ref, img.Digest, img.Kind, id)
 		}
 	}
 }

@@ -182,11 +182,11 @@ func TestSnapshotLoadsAVersion4Section(t *testing.T) {
 // State version 2 added each mapping's source kind, version 3 the layer
 // store and each function version's layers, version 4 moved an SQS
 // mapping's scaling into its source kind, version 5 added deleted
-// functions' version numbers, and version 6 optional layer-policy fields.
-// Before 1.0 a section an older binary wrote is refused naming both
-// versions rather than migrated (ADR 0009); version 3 is migrated (the
-// ADR's amendment of 2026-10-27) and versions 4 and 5 read as is (the
-// amendments of 2026-11-13).
+// functions' version numbers, version 6 optional layer-policy fields, and
+// version 7 image digests' kinds. Before 1.0 a section an older binary
+// wrote is refused naming both versions rather than migrated (ADR 0009);
+// version 3 is migrated (the ADR's amendment of 2026-10-27) and versions 4
+// to 6 read as is (the amendments of 2026-11-13).
 func TestSnapshotRefusesAnEarlierVersion(t *testing.T) {
 	for _, earlier := range []int{1, 2} {
 		run(t, lambda.Options{}, func(h *harness) {
@@ -204,8 +204,8 @@ func TestSnapshotRefusesAnEarlierVersion(t *testing.T) {
 			if !ok {
 				t.Fatalf("Import(a version %d section) = %v, want a *store.VersionMismatchError", earlier, err)
 			}
-			if vm.Section != earlier || vm.Running != 6 || h.svc.SchemaVersion() != 6 {
-				t.Errorf("mismatch %+v, schema version %d; want section %d refused by running 6", vm, h.svc.SchemaVersion(), earlier)
+			if vm.Section != earlier || vm.Running != 7 || h.svc.SchemaVersion() != 7 {
+				t.Errorf("mismatch %+v, schema version %d; want section %d refused by running 7", vm, h.svc.SchemaVersion(), earlier)
 			}
 		})
 	}

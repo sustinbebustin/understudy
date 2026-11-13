@@ -444,12 +444,27 @@ func functionEnvironment(cfg Config) map[string]string {
 // recorded: its repository digest, so a local rebuild under the same tag
 // changes nothing until UpdateFunctionCode, as on AWS. An image built
 // locally under Docker's classic image store has no repository digest and
-// was recorded by its image ID, the second reference tried.
+// was recorded by its image ID, which is resolved as is: repository@<image
+// ID> is never present and, not being ECR, would be pulled. An image code
+// saved before kinds were recorded tries both, the repository digest
+// first.
 func (x *Execution) pinnedImage(ctx context.Context, code ImageCode, arch launcher.Architecture) (string, error) {
 	if code.Digest == "" {
 		return "", fmt.Errorf("no digest is recorded for the image %s; deploy it again with UpdateFunctionCode", code.URI)
 	}
-	image, err := x.resolveImage(ctx, arch, launcher.Repository(code.URI)+"@"+code.Digest, code.Digest)
+	byDigest := launcher.Repository(code.URI) + "@" + code.Digest
+	var refs []string
+	switch code.DigestKind {
+	case DigestRepository:
+		refs = []string{byDigest}
+	case DigestImageID:
+		refs = []string{code.Digest}
+	case DigestUnrecorded:
+		refs = []string{byDigest, code.Digest}
+	default:
+		return "", fmt.Errorf("the image %s was recorded with the unknown digest kind %q; deploy it again with UpdateFunctionCode", code.URI, code.DigestKind)
+	}
+	image, err := x.resolveImage(ctx, arch, refs...)
 	if err != nil {
 		return "", fmt.Errorf("the image %s as deployed (%s) is not present: %w; build or pull it again, or deploy the image now tagged %s with UpdateFunctionCode", code.URI, code.Digest, err, code.URI)
 	}

@@ -74,3 +74,8 @@ understudy needs a versioned, deterministic file for the whole emulator state an
 ## Amendment 2026-11-13: Lambda state version 6 records layer policy history and sizes
 
 - Lambda's state version 6 adds whether a layer version ever had a policy and each layer statement's size as AWS's policy limit measures it. Both fields are optional, so Lambda's `Import` reads a version 5 section, and a version 4 section as the amendment above allows, as version 6, with every layer version as never having had a policy and each statement measured at its rendered length. A version 3 section is still migrated. Like the version 3 migration, this runs only once a section reaches `Import`: the coordinator's schema check still refuses a section whose version differs from the running one.
+
+## Amendment 2026-11-13: Lambda records the kind of an image's digest
+
+- Lambda's state version 7 records with each image function's digest whether it is a repository digest or a local build's image ID, so invoke resolves only that reference and never sends a local build's ID to the registry as `repository@<image ID>` (ARCHITECTURE.md 14.3).
+- The field is optional, so Lambda's `Import` reads a version 6 section as it is. Its image functions' kinds are unrecorded, and invoke tries both references for them, the repository digest first, as before. Version 5, 4 and 3 sections read as the amendments above say, their image functions' kinds unrecorded too.

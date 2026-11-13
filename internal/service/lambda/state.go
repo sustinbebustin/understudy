@@ -16,6 +16,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/protocol/jsonx"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -23,15 +24,20 @@ import (
 // stateVersion is the schema version of State in snapshot sections. Version
 // 2 added Mapping.SourceKind, version 3 the layer store, version 4 moved
 // an SQS mapping's scaling into its source kind and saves stream
-// checkpoints, version 5 added State.RetiredVersions, and version 6
-// records whether a layer version ever had a policy
-// (LayerVersion.HadPolicy) and each layer statement's size as AWS measures
-// it (Statement.MeasuredSize). A version 5 section, which lacks only those
-// optional fields, loads as is; so does a version 4 section, with no
-// numbers remembered for deleted functions either; a version 3 section is
-// migrated on import (migrateUnkindedScaling); a section of an earlier
-// version is refused (ADR 0009).
-const stateVersion = 6
+// checkpoints, version 5 added State.RetiredVersions, version 6 records
+// whether a layer version ever had a policy (LayerVersion.HadPolicy) and
+// each layer statement's size as AWS measures it (Statement.MeasuredSize),
+// and version 7 ImageCode.DigestKind. A version 6 section loads as is, its
+// image codes' kinds unrecorded; so does a version 5 section, which also
+// lacks the layer-policy fields, and a version 4 section, with no numbers
+// remembered for deleted functions either; a version 3 section is migrated
+// on import (migrateUnkindedScaling); a section of an earlier version is
+// refused (ADR 0009).
+const stateVersion = 7
+
+// stateVersionNoDigestKinds is the version before image codes recorded
+// their digest's kind, which Import still reads.
+const stateVersionNoDigestKinds = 6
 
 // stateVersionUnmeasuredLayerPolicies is the version whose layer versions
 // record neither having had a policy nor their statements' measured sizes,
@@ -378,8 +384,49 @@ type ZipCode struct {
 type ImageCode struct {
 	URI string `json:"uri"`
 	// Digest is the repository digest (or image ID) of the image present
-	// locally; empty until the image is present.
-	Digest string `json:"digest,omitempty"`
+	// locally, as DigestKind says; empty until the image is present.
+	Digest     string     `json:"digest,omitempty"`
+	DigestKind DigestKind `json:"digestKind,omitempty"`
+}
+
+// DigestKind is what an image code's Digest is, which decides the one
+// reference invoke resolves (Execution.pinnedImage). A value enters only
+// from the launcher (digestKindOf) or a snapshot import, which
+// UnmarshalText checks.
+type DigestKind string
+
+const (
+	// DigestUnrecorded is the kind of an image code saved before kinds
+	// were (state version 6 and earlier), or still waiting for its image:
+	// invoke tries repository@digest, then the digest as an image ID.
+	DigestUnrecorded DigestKind = ""
+	// DigestRepository is a repository digest, resolved as
+	// repository@digest.
+	DigestRepository DigestKind = "repository-digest"
+	// DigestImageID is a local build's image ID, resolved as is.
+	DigestImageID DigestKind = "image-id"
+)
+
+// digestKindOf is the recorded kind of a launcher image's digest.
+func digestKindOf(k launcher.DigestKind) DigestKind {
+	switch k {
+	case launcher.RepositoryDigest:
+		return DigestRepository
+	case launcher.ImageID:
+		return DigestImageID
+	}
+	return DigestUnrecorded
+}
+
+// UnmarshalText refuses a snapshot whose stored kind is not one of the
+// three.
+func (k *DigestKind) UnmarshalText(b []byte) error {
+	switch v := DigestKind(b); v {
+	case DigestUnrecorded, DigestRepository, DigestImageID:
+		*k = v
+		return nil
+	}
+	return fmt.Errorf("lambda: stored image digest kind %q is neither %q nor %q", b, DigestRepository, DigestImageID)
 }
 
 func (ZipCode) isCode()   {}

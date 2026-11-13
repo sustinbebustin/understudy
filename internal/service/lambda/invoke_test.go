@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/netip"
 	"slices"
@@ -261,24 +262,55 @@ func (h *execHarness) started() []launcher.Spec {
 	return specs
 }
 
-// fakeImages makes every image present at once and counts the requests.
+// fakeImages makes every image present at once, by a repository digest
+// derived from its reference, and counts the requests. The images in
+// built are local builds instead, present by tag and by image ID only: as
+// with the launcher (ARCHITECTURE.md 14.3), repository@<image ID> is not
+// present, so asking for it pulls, which fails, and is counted.
 type fakeImages struct {
-	mu   sync.Mutex
-	refs []string
+	mu    sync.Mutex
+	built map[string]string // tag -> image ID
+	refs  []string
+	pulls []string
 }
 
 func (f *fakeImages) EnsureImage(_ context.Context, image string, arch launcher.Architecture, _ func(docker.Progress)) (launcher.Image, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.refs = append(f.refs, image)
+	for tag, id := range f.built {
+		switch image {
+		case tag, id:
+			return launcher.Image{Ref: image, Digest: id, Kind: launcher.ImageID, Architecture: arch}, nil
+		case launcher.Repository(tag) + "@" + id:
+			f.pulls = append(f.pulls, image)
+			return launcher.Image{}, &launcher.PullError{Ref: image, Platform: arch.Platform(), Err: errors.New("manifest unknown")}
+		}
+	}
 	sum := sha256.Sum256([]byte(image))
-	return launcher.Image{Ref: image, Digest: "sha256:" + hex.EncodeToString(sum[:]), Architecture: arch}, nil
+	return launcher.Image{Ref: image, Digest: "sha256:" + hex.EncodeToString(sum[:]), Kind: launcher.RepositoryDigest, Architecture: arch}, nil
 }
 
 func (f *fakeImages) requested() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return slices.Clone(f.refs)
+}
+
+func (f *fakeImages) pulled() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.pulls)
+}
+
+// build makes tag a local build with image ID id.
+func (f *fakeImages) build(tag, id string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.built == nil {
+		f.built = map[string]string{}
+	}
+	f.built[tag] = id
 }
 
 // fakeOutput is a LogSource whose containers print what Print sends: a
@@ -1087,6 +1119,63 @@ func TestImageFunctionsRunTheDeployedDigest(t *testing.T) {
 		}
 		if n := countOf(h.images.requested(), pinned); n != 1 {
 			t.Errorf("%s was asked of Docker %d times over two invocations, want once", pinned, n)
+		}
+	})
+}
+
+// localBuildID is the image ID of an image built locally, which has no
+// repository digest.
+const localBuildID = "sha256:4c1b2f0e8d7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c"
+
+// An image function whose image is a local build was recorded by its image
+// ID, and invoke runs that ID: it never asks Docker for
+// repository@<image ID>, which a local build lacks and which would send a
+// pull to the registry (ARCHITECTURE.md 14.3).
+func TestImageFunctionsBuiltLocallyRunTheirImageID(t *testing.T) {
+	runExec(t, pooltest.Echo, func(h *execHarness) {
+		h.images.build("local/fn:latest", localBuildID)
+		call(h.harness, lambdaapi.OpCreateFunction, imageFunction("img", "local/fn:latest"))
+		h.settle()
+		h.invoke(invokeInput("img", `{}`))
+		if specs := h.started(); len(specs) != 1 || specs[0].Image != localBuildID {
+			t.Fatalf("started %+v, want one environment of %s", specs, localBuildID)
+		}
+		if n := countOf(h.images.requested(), "local/fn@"+localBuildID); n != 0 {
+			t.Errorf("local/fn@%s was asked of Docker %d times, want never", localBuildID, n)
+		}
+		if pulls := h.images.pulled(); len(pulls) != 0 {
+			t.Errorf("pulled %v, want no pull", pulls)
+		}
+	})
+}
+
+// An image code loaded from a version 6 snapshot, which recorded no digest
+// kind, still invokes: repository@digest first, then the digest as an
+// image ID, which a local build answers.
+func TestImageFunctionsFromAVersion6SnapshotTryBothReferences(t *testing.T) {
+	runExec(t, pooltest.Echo, func(h *execHarness) {
+		h.images.build("local/fn:latest", localBuildID)
+		call(h.harness, lambdaapi.OpCreateFunction, imageFunction("img", "local/fn:latest"))
+		h.settle()
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range sections {
+			sections[i].Version = 6
+			sections[i].Data = []byte(strings.ReplaceAll(string(sections[i].Data), `,"digestKind":"image-id"`, ""))
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(sections); err != nil {
+			t.Fatal(err)
+		}
+		h.invoke(invokeInput("img", `{}`))
+		if specs := h.started(); len(specs) != 1 || specs[0].Image != localBuildID {
+			t.Fatalf("started %+v, want one environment of %s", specs, localBuildID)
+		}
+		byDigest := "local/fn@" + localBuildID
+		if got := h.images.requested(); countOf(got, byDigest) != 1 || countOf(got, localBuildID) != 1 {
+			t.Errorf("asked Docker for %v, want %s once, then %s once", got, byDigest, localBuildID)
 		}
 	})
 }

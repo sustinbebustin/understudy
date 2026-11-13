@@ -191,11 +191,11 @@ func (s *Service) onImage(c *kernel.Call, key clock.TimerKey, _ clock.Instant) {
 	// Settling waits for the pull; status and diagnostics list it as an
 	// image pull.
 	s.k.Go(kernel.ImagePull, func(ctx context.Context) {
-		digest, failure := s.ensureImage(ctx, w.uri, w.arch)
+		img, failure := s.ensureImage(ctx, w.uri, w.arch)
 		if ctx.Err() != nil {
 			return
 		}
-		s.imageReady(ctx, c, ref, w.uri, digest, failure)
+		s.imageReady(ctx, c, ref, w.uri, img, failure)
 	})
 }
 
@@ -231,20 +231,20 @@ func awaitedImage(v *Version) (string, bool) {
 	return "", false
 }
 
-// ensureImage makes uri present for the architecture and returns its
-// digest, or why it could not.
-func (s *Service) ensureImage(ctx context.Context, uri, arch string) (string, *imageFailure) {
+// ensureImage makes uri present for the architecture and returns the
+// image present, or why it could not.
+func (s *Service) ensureImage(ctx context.Context, uri, arch string) (launcher.Image, *imageFailure) {
 	if s.opts.Images == nil {
-		return "", &imageFailure{code: string(lambdaapi.StateReasonCodeImageAccessDenied), reason: "Lambda could not make the image " + uri +
+		return launcher.Image{}, &imageFailure{code: string(lambdaapi.StateReasonCodeImageAccessDenied), reason: "Lambda could not make the image " + uri +
 			" present: no Docker daemon is reachable from understudy. Start Docker, check it with `understudy doctor`, then delete and create the function again."}
 	}
 	a, err := launcher.ParseArchitecture(arch)
 	if err != nil {
-		return "", &imageFailure{code: string(lambdaapi.StateReasonCodeInvalidImage), reason: "Lambda could not make the image " + uri + " present: " + err.Error()}
+		return launcher.Image{}, &imageFailure{code: string(lambdaapi.StateReasonCodeInvalidImage), reason: "Lambda could not make the image " + uri + " present: " + err.Error()}
 	}
 	img, err := s.opts.Images.EnsureImage(ctx, uri, a, nil)
 	if err == nil {
-		return img.Digest, nil
+		return img, nil
 	}
 	code := lambdaapi.StateReasonCodeInvalidImage
 	var pull *launcher.PullError
@@ -252,12 +252,13 @@ func (s *Service) ensureImage(ctx context.Context, uri, arch string) (string, *i
 	if errors.As(err, &pull) || errors.As(err, &ecr) {
 		code = lambdaapi.StateReasonCodeImageAccessDenied
 	}
-	return "", &imageFailure{code: string(code), reason: "Lambda could not make the image " + uri + " present: " + err.Error()}
+	return launcher.Image{}, &imageFailure{code: string(code), reason: "Lambda could not make the image " + uri + " present: " + err.Error()}
 }
 
-// imageReady commits the outcome of making uri present to the version
-// still waiting for it; a version that moved on is left as it is.
-func (s *Service) imageReady(ctx context.Context, c *kernel.Call, ref versionRef, uri, digest string, failure *imageFailure) {
+// imageReady commits the outcome of making uri present, img or failure,
+// to the version still waiting for it; a version that moved on is left as
+// it is.
+func (s *Service) imageReady(ctx context.Context, c *kernel.Call, ref versionRef, uri string, img launcher.Image, failure *imageFailure) {
 	_, err := write(s, c, ref.scope, func(st *State, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		v, ok := st.versionOf(ref)
 		if awaited, waiting := awaitedImage(&v); !ok || !waiting || awaited != uri {
@@ -268,7 +269,7 @@ func (s *Service) imageReady(ctx context.Context, c *kernel.Call, ref versionRef
 		f := st.Functions[ref.name]
 		switch {
 		case failure == nil:
-			v.Code, v.Status = ImageCode{URI: uri, Digest: digest}, Active{Update: Successful{}}
+			v.Code, v.Status = ImageCode{URI: uri, Digest: img.Digest, DigestKind: digestKindOf(img.Kind)}, Active{Update: Successful{}}
 			if ref.number == latest {
 				// The code $LATEST runs changes only now: environments
 				// started during the pull run the previous image and must

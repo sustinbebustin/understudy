@@ -138,6 +138,60 @@ func TestLayerPolicyFieldsRoundTripAndDefaultInAVersion5Section(t *testing.T) {
 	}
 }
 
+// An image code keeps the kind of its digest across a save and load, so
+// invoke resolves the same single reference after it.
+func TestImageDigestKindRoundTrip(t *testing.T) {
+	st := newState(kindScope(t))
+	codes := map[string]ImageCode{
+		"built":  {URI: "local/fn:latest", Digest: "sha256:" + strings.Repeat("4c", 32), DigestKind: DigestImageID},
+		"pulled": {URI: "registry.example/fn:1", Digest: "sha256:" + strings.Repeat("e1", 32), DigestKind: DigestRepository},
+	}
+	for name, code := range codes {
+		st.Functions[name] = Function{Name: name, Latest: Version{Number: latest, Code: code, Status: Active{Update: Successful{}}}}
+	}
+	data, err := stateCodec().Marshal(&st)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	got := newState(kindScope(t))
+	if err := stateCodec().Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal %s: %v", data, err)
+	}
+	for name, want := range codes {
+		if code := got.Functions[name].Latest.Code; code != want {
+			t.Errorf("%s code after the round trip = %#v, want %#v", name, code, want)
+		}
+	}
+}
+
+// A version 6 section, whose image codes carry no digest kind, loads with
+// the kind unrecorded, which invoke resolves by trying both forms.
+func TestVersion6SectionLoadsImageCodeWithoutDigestKind(t *testing.T) {
+	const section = `{"functions":{"img":{"name":"img","created":"2000-01-01T00:00:00Z",` +
+		`"latest":{"number":"$LATEST","code":{"kind":"image","uri":"local/fn:latest","digest":"sha256:4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c4c"},` +
+		`"status":{"kind":"active","update":{"kind":"successful"}}},"generation":1}},"serial":1}`
+	st := newState(kindScope(t))
+	if err := stateCodec().Unmarshal([]byte(section), &st); err != nil {
+		t.Fatalf("Unmarshal %s: %v", section, err)
+	}
+	code, ok := st.Functions["img"].Latest.Code.(ImageCode)
+	if !ok || code.Digest == "" || code.DigestKind != DigestUnrecorded {
+		t.Errorf("img code = %#v, want image code with its digest and no kind", st.Functions["img"].Latest.Code)
+	}
+}
+
+// A section whose image code names a kind understudy never writes is
+// refused rather than loaded with a reference invoke cannot resolve.
+func TestImageDigestKindRefusesAnUnknownKind(t *testing.T) {
+	const section = `{"functions":{"img":{"name":"img","created":"2000-01-01T00:00:00Z",` +
+		`"latest":{"number":"$LATEST","code":{"kind":"image","uri":"local/fn:latest","digest":"sha256:4c","digestKind":"tag"},` +
+		`"status":{"kind":"active","update":{"kind":"successful"}}},"generation":1}},"serial":1}`
+	st := newState(kindScope(t))
+	if err := stateCodec().Unmarshal([]byte(section), &st); err == nil {
+		t.Errorf("Unmarshal of digestKind %q = nil error, want it refused", "tag")
+	}
+}
+
 // Checkpoints are saved with the state and dropped with their mapping.
 func TestCheckpointsRoundTripAndGoWithTheirMapping(t *testing.T) {
 	st := kindState(t)

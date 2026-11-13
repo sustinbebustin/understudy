@@ -2,6 +2,7 @@ package launcher
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/docker"
@@ -53,9 +54,35 @@ func ImageForRuntime(runtime string) (RuntimeImage, bool) {
 type Image struct {
 	Ref string
 	// Digest is the repository digest the daemon recorded for Ref, or the
-	// image ID for an image built locally that has none.
+	// image ID for an image built locally that has none, as Kind says.
 	Digest       string
+	Kind         DigestKind
 	Architecture Architecture
+}
+
+// DigestKind is what an Image's Digest is, which decides the reference
+// that names the image again: repository@digest or the digest alone.
+type DigestKind uint8
+
+const (
+	// RepositoryDigest is a digest the daemon recorded for the image's
+	// repository, named as repository@digest.
+	RepositoryDigest DigestKind = iota + 1
+	// ImageID is the ID of an image with no repository digest for its
+	// repository, as a local build has; the daemon resolves it as is.
+	ImageID
+)
+
+// String names the kind: "repository digest" or "image ID".
+func (k DigestKind) String() string {
+	switch k {
+	case RepositoryDigest:
+		return "repository digest"
+	case ImageID:
+		return "image ID"
+	default:
+		return "DigestKind(" + strconv.Itoa(int(k)) + ")"
+	}
 }
 
 type imageKey struct {
@@ -110,15 +137,13 @@ func (l *Launcher) ensureImage(ctx context.Context, ref string, arch Architectur
 }
 
 func present(ref string, arch Architecture, img docker.Image) Image {
-	digest := img.ID
 	repo := Repository(ref)
 	for _, rd := range img.RepoDigests {
 		if r, d, ok := strings.Cut(rd, "@"); ok && r == repo {
-			digest = d
-			break
+			return Image{Ref: ref, Digest: d, Kind: RepositoryDigest, Architecture: arch}
 		}
 	}
-	return Image{Ref: ref, Digest: digest, Architecture: arch}
+	return Image{Ref: ref, Digest: img.ID, Kind: ImageID, Architecture: arch}
 }
 
 // Repository strips the tag and digest from an image reference, the part
