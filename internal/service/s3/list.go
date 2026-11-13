@@ -19,7 +19,10 @@ const maxListKeys = 1000
 // The listing texts (s3.md 9.1).
 const (
 	invalidEncodingMessage = "Invalid Encoding Method specified in Request"
-	invalidMaxKeysMessage  = "Provided max-keys not an integer or within integer range"
+	// negativeMaxKeysMessage is the handler's refusal; a max-keys that is
+	// not an int32 never reaches it (the restXml codec answers, see
+	// restxml.S3Dialect).
+	negativeMaxKeysMessage = "Argument maxKeys must be an integer between 0 and 2147483647"
 	// versionMarkerWithoutKeyMessage is AWS's text, recorded in LocalStack's
 	// aws_validated snapshot test_list_objects_versions_markers.
 	versionMarkerWithoutKeyMessage = "A version-id marker cannot be specified without a key marker."
@@ -118,16 +121,19 @@ func parseContinuationToken(token string) (string, *awserr.Error) {
 	return string(raw[1:]), nil
 }
 
-// listLimit reads max-keys: absent is 1,000, larger values are capped, and
-// a negative one is refused.
-func listLimit(maxKeys *int32) (int, *awserr.Error) {
+// listLimit reads max-keys: absent is 1,000, a negative one is refused, and
+// a larger one pages at 1,000 while the listing echoes it as sent. It
+// returns the page size and the echoed value. Recorded for ListObjectsV2
+// (R12 05-list-max-keys-1001, IAM-ENF 13-s3); ListObjects and
+// ListObjectVersions apply the same rules (inferred).
+func listLimit(maxKeys *int32) (limit int, echo int32, _ *awserr.Error) {
 	switch {
 	case maxKeys == nil:
-		return maxListKeys, nil
+		return maxListKeys, maxListKeys, nil
 	case *maxKeys < 0:
-		return 0, errInvalidArgument(invalidMaxKeysMessage, "max-keys", strconv.Itoa(int(*maxKeys)))
+		return 0, 0, errInvalidArgument(negativeMaxKeysMessage, "maxKeys", strconv.Itoa(int(*maxKeys)))
 	}
-	return min(int(*maxKeys), maxListKeys), nil
+	return min(int(*maxKeys), maxListKeys), *maxKeys, nil
 }
 
 // parseEncoding reads encoding-type, which only url is (s3.md 9.1), and
@@ -147,13 +153,15 @@ type listParams struct {
 	prefix    string
 	delimiter string
 	limit     int
+	// maxKeys is the max-keys the listing echoes, which may exceed limit.
+	maxKeys int32
 	// encoding is the EncodingType the listing echoes.
 	encoding *s3api.EncodingType
 }
 
 // readListParams reads prefix, delimiter, max-keys and encoding-type.
 func readListParams(prefix, delimiter *string, maxKeys *int32, encoding *s3api.EncodingType) (listParams, *awserr.Error) {
-	limit, err := listLimit(maxKeys)
+	limit, echo, err := listLimit(maxKeys)
 	if err != nil {
 		return listParams{}, err
 	}
@@ -161,7 +169,7 @@ func readListParams(prefix, delimiter *string, maxKeys *int32, encoding *s3api.E
 	if err != nil {
 		return listParams{}, err
 	}
-	return listParams{prefix: smithy.Deref(prefix), delimiter: smithy.Deref(delimiter), limit: limit, encoding: enc}, nil
+	return listParams{prefix: smithy.Deref(prefix), delimiter: smithy.Deref(delimiter), limit: limit, maxKeys: echo, encoding: enc}, nil
 }
 
 // query is the page query that starts after after.
@@ -231,7 +239,7 @@ func listObjects(in *s3api.ListObjectsInput, b *Bucket) (*s3api.ListObjectsOutpu
 	contents, prefixes := listedObjects(b, entries, true)
 	out := &s3api.ListObjectsOutput{
 		Name: new(b.Name), Prefix: new(p.prefix), Delimiter: in.Delimiter, Marker: new(marker),
-		MaxKeys: count(p.limit), IsTruncated: new(truncated), EncodingType: p.encoding, Contents: contents, CommonPrefixes: prefixes,
+		MaxKeys: new(p.maxKeys), IsTruncated: new(truncated), EncodingType: p.encoding, Contents: contents, CommonPrefixes: prefixes,
 	}
 	if truncated && p.delimiter != "" {
 		out.NextMarker = new(last(entries))
@@ -258,7 +266,7 @@ func listObjectsV2(in *s3api.ListObjectsV2Input, b *Bucket) (*s3api.ListObjectsV
 	contents, prefixes := listedObjects(b, entries, in.FetchOwner != nil && *in.FetchOwner)
 	out := &s3api.ListObjectsV2Output{
 		Name: new(b.Name), Prefix: new(p.prefix), Delimiter: in.Delimiter,
-		MaxKeys: count(p.limit), KeyCount: count(len(entries)), IsTruncated: new(truncated), EncodingType: p.encoding,
+		MaxKeys: new(p.maxKeys), KeyCount: count(len(entries)), IsTruncated: new(truncated), EncodingType: p.encoding,
 		ContinuationToken: in.ContinuationToken, StartAfter: in.StartAfter, Contents: contents, CommonPrefixes: prefixes,
 	}
 	if truncated {
@@ -281,7 +289,7 @@ func listObjectVersions(in *s3api.ListObjectVersionsInput, b *Bucket) (*s3api.Li
 	}
 	out := &s3api.ListObjectVersionsOutput{
 		Name: new(b.Name), Prefix: new(p.prefix), Delimiter: in.Delimiter,
-		KeyMarker: new(keyMarker), VersionIdMarker: new(versionMarker), MaxKeys: count(p.limit), EncodingType: p.encoding,
+		KeyMarker: new(keyMarker), VersionIdMarker: new(versionMarker), MaxKeys: new(p.maxKeys), EncodingType: p.encoding,
 	}
 	items := versionItems(b, p, keyMarker, versionMarker)
 	truncated := len(items) > p.limit
