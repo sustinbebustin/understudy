@@ -1,8 +1,10 @@
 package lambda
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
 )
@@ -69,10 +71,15 @@ func TestRetiredVersionsRoundTrip(t *testing.T) {
 	}
 }
 
-// A version 4 section, which kept no deleted function's number, loads with
-// none remembered; a live function keeps its own.
+// A version 4 section, which kept no deleted function's number and no
+// layer policy history or sizes, loads with no numbers remembered, its
+// layer versions as never having had a policy and its statements measured
+// at their JSON's length; a live function keeps its own number.
 func TestVersion4SectionLoadsWithNoRetiredVersions(t *testing.T) {
-	const section = `{"functions":{"live":{"name":"live","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":3,"generation":1}},"serial":7}`
+	digest := strings.Repeat("ab", 32)
+	section := `{"functions":{"live":{"name":"live","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":3,"generation":1}},` +
+		`"layers":{"l":{"name":"l","lastVersion":1,"versions":{"1":{"number":1,"description":"","sha256":"","size":0,"unzipped":0,"blob":"` + digest + `",` +
+		`"policy":[{"sid":"s","json":"{\"Sid\":\"s\"}"}],"policyRevision":"r"}}}},"serial":7}`
 	st := newState(kindScope(t))
 	if err := stateCodec().Unmarshal([]byte(section), &st); err != nil {
 		t.Fatalf("Unmarshal %s: %v", section, err)
@@ -82,6 +89,52 @@ func TestVersion4SectionLoadsWithNoRetiredVersions(t *testing.T) {
 	}
 	if n := st.Functions["live"].LastVersion; n != 3 {
 		t.Errorf("live LastVersion = %d, want 3", n)
+	}
+	if v := st.Layers["l"].Versions[1]; v.HadPolicy || v.Policy[0].measuredSize() != len(`{"Sid":"s"}`) {
+		t.Errorf("version 4 layer version HadPolicy = %t, measured size %d; want false and %d", v.HadPolicy, v.Policy[0].measuredSize(), len(`{"Sid":"s"}`))
+	}
+}
+
+// A layer version's having had a policy and its statements' measured sizes
+// are saved with the state; a version 5 section, without either, reads as
+// never having had a policy, its statements measured at their JSON's
+// length, and keeps its deleted functions' numbers.
+func TestLayerPolicyFieldsRoundTripAndDefaultInAVersion5Section(t *testing.T) {
+	digest := strings.Repeat("ab", 32)
+	archive, err := blob.ParseRef(digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := newState(kindScope(t))
+	st.Layers = map[string]Layer{"l": {Name: "l", LastVersion: 2, Versions: map[int64]LayerVersion{
+		1: {Number: 1, Blob: archive, HadPolicy: true},
+		2: {Number: 2, Blob: archive, Policy: []Statement{{Sid: "s", JSON: `{"Sid":"s"}`, MeasuredSize: 4}}, PolicyRevision: "r", HadPolicy: true},
+	}}}
+	data, err := stateCodec().Marshal(&st)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	got := newState(kindScope(t))
+	if err := stateCodec().Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal %s: %v", data, err)
+	}
+	v1, v2 := got.Layers["l"].Versions[1], got.Layers["l"].Versions[2]
+	if !v1.HadPolicy || !v2.HadPolicy || v2.Policy[0].measuredSize() != 4 {
+		t.Errorf("after a round trip HadPolicy = %t, %t and measured size %d; want true, true and 4", v1.HadPolicy, v2.HadPolicy, v2.Policy[0].measuredSize())
+	}
+
+	version5 := `{"layers":{"l":{"name":"l","lastVersion":1,"versions":{"1":{"number":1,"description":"","sha256":"","size":0,"unzipped":0,"blob":"` + digest + `",` +
+		`"policy":[{"sid":"s","json":"{\"Sid\":\"s\"}"}],"policyRevision":"r"}}}},"retiredVersions":{"gone":3}}`
+	old := newState(kindScope(t))
+	if err := stateCodec().Unmarshal([]byte(version5), &old); err != nil {
+		t.Fatalf("Unmarshal a version 5 section: %v", err)
+	}
+	v := old.Layers["l"].Versions[1]
+	if v.HadPolicy || v.Policy[0].measuredSize() != len(`{"Sid":"s"}`) {
+		t.Errorf("version 5 layer version HadPolicy = %t, measured size %d; want false and %d", v.HadPolicy, v.Policy[0].measuredSize(), len(`{"Sid":"s"}`))
+	}
+	if n := old.reclaimVersions("gone"); n != 3 {
+		t.Errorf("LastVersion of gone created after loading a version 5 section = %d, want 3", n)
 	}
 }
 

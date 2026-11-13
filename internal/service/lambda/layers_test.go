@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"maps"
 	"net/url"
@@ -617,6 +618,42 @@ func TestLayerVersionPermissionErrors(t *testing.T) {
 			}
 		}
 		errorIs(t, remove("shared", 1, "s1", new("wrong")), "PreconditionFailedException", revision)
+	})
+}
+
+// A version's policy is capped at 20480 bytes measured as compact JSON with
+// each principal as the caller sent it: 85 statements of an account id
+// principal are accepted, though the policy GetLayerVersionPolicy returns
+// for them is 21983 bytes, and the 86th is refused at 20693 bytes
+// (aws-recorded, testdata/parity/lambda/LDL-15/07-size-limit-at-086.txt,
+// testdata/parity/lambda/LDL-15/08-size-policy.json). The Sids, the
+// principal and the layer name are the recording's; the test account and
+// Region are as long as the recording's, so every ARN is too.
+func TestLayerPolicySizeIsMeasuredWithPrincipalsAsSent(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		t := h.T
+		h.publish("us1103-ldl-pol", pythonLayer(t))
+		add := func(n int) *lambdaapi.AddLayerVersionPermissionInput {
+			return &lambdaapi.AddLayerVersionPermissionInput{
+				LayerName: "us1103-ldl-pol", VersionNumber: 1, StatementId: fmt.Sprintf("fill-%03d-", n) + strings.Repeat("x", 60),
+				Action: "lambda:GetLayerVersion", Principal: "123456789012",
+			}
+		}
+		for n := 1; n <= 85; n++ {
+			call(h, lambdaapi.OpAddLayerVersionPermission, add(n))
+		}
+		policy := call(h, lambdaapi.OpGetLayerVersionPolicy, &lambdaapi.GetLayerVersionPolicyInput{LayerName: "us1103-ldl-pol", VersionNumber: 1})
+		if got := len(deref(policy.Policy)); got != 21983 {
+			t.Errorf("policy of 85 statements is %d bytes, want the recorded 21983", got)
+		}
+		refused := fail(h, lambdaapi.OpAddLayerVersionPermission, add(86))
+		errorIs(t, refused, "PolicyLengthExceededException", "The final policy size (20693) is bigger than the limit (20480).")
+		if refused.ID.Status != 400 {
+			t.Errorf("refused statement status %d, want 400", refused.ID.Status)
+		}
+		if after := call(h, lambdaapi.OpGetLayerVersionPolicy, &lambdaapi.GetLayerVersionPolicyInput{LayerName: "us1103-ldl-pol", VersionNumber: 1}); deref(after.Policy) != deref(policy.Policy) {
+			t.Errorf("the refused statement changed the policy")
+		}
 	})
 }
 

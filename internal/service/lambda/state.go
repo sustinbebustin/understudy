@@ -23,11 +23,20 @@ import (
 // stateVersion is the schema version of State in snapshot sections. Version
 // 2 added Mapping.SourceKind, version 3 the layer store, version 4 moved
 // an SQS mapping's scaling into its source kind and saves stream
-// checkpoints, and version 5 added State.RetiredVersions. A version 4
-// section loads as is, with no numbers remembered for deleted functions; a
-// version 3 section is migrated on import (migrateUnkindedScaling); a
-// section of an earlier version is refused (ADR 0009).
-const stateVersion = 5
+// checkpoints, version 5 added State.RetiredVersions, and version 6
+// records whether a layer version ever had a policy
+// (LayerVersion.HadPolicy) and each layer statement's size as AWS measures
+// it (Statement.MeasuredSize). A version 5 section, which lacks only those
+// optional fields, loads as is; so does a version 4 section, with no
+// numbers remembered for deleted functions either; a version 3 section is
+// migrated on import (migrateUnkindedScaling); a section of an earlier
+// version is refused (ADR 0009).
+const stateVersion = 6
+
+// stateVersionUnmeasuredLayerPolicies is the version whose layer versions
+// record neither having had a policy nor their statements' measured sizes,
+// which Import still reads.
+const stateVersionUnmeasuredLayerPolicies = 5
 
 // stateVersionNoRetiredVersions is the version before deleted functions'
 // version numbers were kept, which Import still reads.
@@ -528,6 +537,20 @@ type Policy struct {
 type Statement struct {
 	Sid  string `json:"sid"`
 	JSON string `json:"json"`
+	// MeasuredSize is the statement's length in AWS's layer policy size
+	// measure: compact JSON with the principal as the caller sent it, shorter
+	// than JSON when an account id was written as its root ARN
+	// (lambda/LDL-15/07, lambda/LDL-15/08). 0 means len(JSON), as for a
+	// function statement or a layer statement saved before version 5.
+	MeasuredSize int `json:"measuredSize,omitempty"`
+}
+
+// measuredSize is s's length in the policy size measure.
+func (s Statement) measuredSize() int {
+	if s.MeasuredSize == 0 {
+		return len(s.JSON)
+	}
+	return s.MeasuredSize
 }
 
 // URLConfig is a function URL configuration.

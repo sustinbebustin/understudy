@@ -70,3 +70,7 @@ understudy needs a versioned, deterministic file for the whole emulator state an
 
 - Lambda's state version 5 adds each scope's retired version numbers: the highest version number published under the name of each deleted function, which a function created again under the name publishes after, as AWS does.
 - A third exception to "refused, not migrated": Lambda reads a version 4 section as it is, with no numbers kept for functions deleted before the save, and still migrates a version 3 section. A function in either keeps its own numbering.
+
+## Amendment 2026-11-13: Lambda state version 6 records layer policy history and sizes
+
+- Lambda's state version 6 adds whether a layer version ever had a policy and each layer statement's size as AWS's policy limit measures it. Both fields are optional, so Lambda's `Import` reads a version 5 section, and a version 4 section as the amendment above allows, as version 6, with every layer version as never having had a policy and each statement measured at its rendered length. A version 3 section is still migrated. Like the version 3 migration, this runs only once a section reaches `Import`: the coordinator's schema check still refuses a section whose version differs from the running one.

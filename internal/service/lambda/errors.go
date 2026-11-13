@@ -358,6 +358,15 @@ func errInvalidPrincipal() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("The provided principal was invalid. Please check the principal and try again."))
 }
 
+// errLayerPolicyEmptied is GetLayerVersionPolicy's answer for a version
+// whose last statement was removed (aws-recorded,
+// testdata/parity/lambda/LDL-15/06-policy-emptied.json). A version that never
+// had a statement answers errNoPolicy (lambda-destinations-layers.md 6.8:
+// test_lambda_api.snapshot.json:L8915-L8926).
+func errLayerPolicyEmptied(arn string) *awserr.Error {
+	return user(lambdaapi.ErrResourceNotFoundException("Layer version " + arn + " does not have any resource policy."))
+}
+
 func errNoPolicy() *awserr.Error {
 	return user(lambdaapi.ErrResourceNotFoundException("No policy is associated with the given resource."))
 }
@@ -370,8 +379,10 @@ func errStatementNotFound(sid string) *awserr.Error {
 	return user(lambdaapi.ErrResourceNotFoundException("Statement " + sid + " is not found in resource policy."))
 }
 
-// errPolicyTooLarge carries the text AWS users report; it is unrecorded in
-// the research corpus.
+// errPolicyTooLarge is AWS's refusal of a statement that takes a policy past
+// maxPolicyBytes (aws-recorded for a layer version's policy,
+// testdata/parity/lambda/LDL-15/07-size-limit-at-086.txt); that a function
+// policy gets the same text is inferred.
 func errPolicyTooLarge(size int) *awserr.Error {
 	return user(lambdaapi.ErrPolicyLengthExceededException("The final policy size (" + strconv.Itoa(size) + ") is bigger than the limit (" + strconv.Itoa(maxPolicyBytes) + ")."))
 }

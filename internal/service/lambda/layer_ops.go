@@ -139,10 +139,11 @@ func (s *Service) viewLayerVersion(c *kernel.Call, ref layerRef, n int64) (*lamb
 	return out, nil
 }
 
-// listLayers makes three choices AWS has not been recorded making, all
-// UNVERIFIED (lambda-destinations-layers.md 6.5, LDL-11): an empty result
-// renders "Layers": [] rather than {}, a layer whose versions are all
-// deleted is left out, and with no MaxItems a page holds listPageCap items.
+// listLayers leaves out a layer whose versions are all deleted
+// (aws-recorded, testdata/parity/lambda/LDL-11/02-list-after-delete.json) and
+// renders an empty result as "Layers": [] (lambda/LDL-11/01). With no
+// MaxItems a page holds listPageCap items; AWS's default page size is
+// unrecorded (lambda-destinations-layers.md 6.5).
 func (s *Service) listLayers(_ context.Context, c *kernel.Call, in *lambdaapi.ListLayersInput) (*lambdaapi.ListLayersOutput, *awserr.Error) {
 	scope := c.Scope()
 	items, _ := store.View2(s.cells, scope, func(st *State) ([]lambdaapi.LayersListItem, *awserr.Error) {
@@ -243,12 +244,13 @@ func (s *Service) addLayerVersionPermission(_ context.Context, c *kernel.Call, i
 	if in.OrganizationId != nil && in.Principal != "*" {
 		return nil, errLayerOrgPrincipal()
 	}
-	principal, err := layerPrincipal(ref.scope, in.Principal)
+	principal, sent, err := layerPrincipal(ref.scope, in.Principal)
 	if err != nil {
 		return nil, err
 	}
 	versionARN := ref.versionARN(in.VersionNumber)
 	text := statementJSON(layerStatement(in, principal, versionARN))
+	measured := len(statementJSON(layerStatement(in, sent, versionARN)))
 	revision, err := write(s, c, ref.scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (string, *awserr.Error) {
 		v, ok := st.layerVersion(ref, in.VersionNumber)
 		if !ok {
@@ -260,8 +262,12 @@ func (s *Service) addLayerVersionPermission(_ context.Context, c *kernel.Call, i
 		if slices.ContainsFunc(v.Policy, func(s Statement) bool { return s.Sid == in.StatementId }) {
 			return "", errStatementExists(in.StatementId)
 		}
-		v.Policy = append(slices.Clone(v.Policy), Statement{Sid: in.StatementId, JSON: text})
+		v.Policy = append(slices.Clone(v.Policy), Statement{Sid: in.StatementId, JSON: text, MeasuredSize: measured})
+		if size := policySize(v.Policy); size > maxPolicyBytes {
+			return "", errPolicyTooLarge(size)
+		}
 		v.PolicyRevision = st.revision(ref.scope)
+		v.HadPolicy = true
 		st.withLayerVersion(ref, v)
 		return v.PolicyRevision, nil
 	})
@@ -323,10 +329,11 @@ func (s *Service) getLayerVersionPolicy(_ context.Context, c *kernel.Call, in *l
 		if !ok {
 			return nil, errLayerVersionMissing(versionARN)
 		}
-		// No statement yet is recorded; after the last is removed the same
-		// answer is inferred (LDL-15).
 		doc := v.policyDocument()
-		if doc == "" {
+		switch {
+		case doc == "" && v.HadPolicy:
+			return nil, errLayerPolicyEmptied(versionARN)
+		case doc == "":
 			return nil, errNoPolicy()
 		}
 		return &lambdaapi.GetLayerVersionPolicyOutput{Policy: new(doc), RevisionId: new(v.PolicyRevision)}, nil

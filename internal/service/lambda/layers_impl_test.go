@@ -1,6 +1,7 @@
 package lambda_test
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"slices"
@@ -9,8 +10,10 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/lambda"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // What was not sent stays apart from what was sent empty across a
@@ -111,9 +114,9 @@ func TestGetLayerVersionByArnOfAnAWSManagedLayerFindsNothing(t *testing.T) {
 	})
 }
 
-// ListLayers pages by layer name, answers an empty list when there is none,
-// and leaves out a layer whose versions are all deleted (both shapes
-// UNVERIFIED, LDL-11; lambda-destinations-layers.md 6.5).
+// ListLayers pages by layer name and answers an empty list when there is
+// none (aws-recorded, testdata/parity/lambda/LDL-11/01-list-before.json;
+// lambda-destinations-layers.md 6.5).
 func TestListLayersPagesByName(t *testing.T) {
 	run(t, lambda.Options{}, func(h *harness) {
 		t := h.T
@@ -137,6 +140,25 @@ func TestListLayersPagesByName(t *testing.T) {
 		}
 		if !slices.Equal(names, []string{"a", "b", "c"}) {
 			t.Errorf("paged layers = %v, want [a b c]", names)
+		}
+	})
+}
+
+// ListLayers leaves out a layer whose only version was deleted and lists
+// the other (aws-recorded, testdata/parity/lambda/LDL-11/02-list-after-delete.json).
+func TestListLayersLeavesOutALayerWithEveryVersionDeleted(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		t := h.T
+		h.publish("us1103-ldl-x", pythonLayer(t))
+		h.publish("us1103-ldl-del", pythonLayer(t))
+		call(h, lambdaapi.OpDeleteLayerVersion, &lambdaapi.DeleteLayerVersionInput{LayerName: "us1103-ldl-del", VersionNumber: 1})
+		layers := call(h, lambdaapi.OpListLayers, &lambdaapi.ListLayersInput{}).Layers
+		names := make([]string, 0, len(layers))
+		for _, l := range layers {
+			names = append(names, deref(l.LayerName))
+		}
+		if !slices.Equal(names, []string{"us1103-ldl-x"}) {
+			t.Errorf("listed layers = %v, want [us1103-ldl-x]", names)
 		}
 	})
 }
@@ -217,8 +239,9 @@ func TestAddLayerVersionPermissionRefusesWhatOnlyContainsAPrincipal(t *testing.T
 }
 
 // Removing the last statement leaves no policy: GetLayerVersionPolicy
-// answers as before any statement (UNVERIFIED, LDL-15), the old RevisionId
-// no longer matches, and ResourcePolicy reads no document
+// answers that the version does not have any resource policy, naming it
+// (aws-recorded, testdata/parity/lambda/LDL-15/06-policy-emptied.json), the
+// old RevisionId no longer matches, and ResourcePolicy reads no document
 // (lambda-destinations-layers.md 6.7, 6.8).
 func TestRemovingTheLastStatementLeavesNoPolicy(t *testing.T) {
 	run(t, lambda.Options{}, func(h *harness) {
@@ -232,12 +255,52 @@ func TestRemovingTheLastStatementLeavesNoPolicy(t *testing.T) {
 		})
 		call(h, lambdaapi.OpRemoveLayerVersionPermission, &lambdaapi.RemoveLayerVersionPermissionInput{LayerName: "shared", VersionNumber: 1, StatementId: "s1"})
 		errorIs(t, fail(h, lambdaapi.OpGetLayerVersionPolicy, &lambdaapi.GetLayerVersionPolicyInput{LayerName: "shared", VersionNumber: 1}),
-			"ResourceNotFoundException", "No policy is associated with the given resource.")
+			"ResourceNotFoundException", "Layer version "+version.String()+" does not have any resource policy.")
 		errorIs(t, fail(h, lambdaapi.OpAddLayerVersionPermission, &lambdaapi.AddLayerVersionPermissionInput{
 			LayerName: "shared", VersionNumber: 1, StatementId: "s2", Action: "lambda:GetLayerVersion", Principal: "*", RevisionId: added.RevisionId,
 		}), "PreconditionFailedException", "The Revision Id provided does not match the latest Revision Id. Call the GetLayerPolicy API to retrieve the latest Revision Id")
 		if doc, ok := h.svc.ResourcePolicy(version); !ok || doc != nil {
 			t.Errorf("ResourcePolicy after the last statement went = %+v, %t; want no document for an existing version", doc, ok)
+		}
+	})
+}
+
+// A version whose policy was emptied still answers so after a snapshot
+// round trip (LDL-15 06). A version 5 or 4 section, saved before versions
+// recorded having had a policy, loads with every version as never having
+// had one, which answers the text of a version that never had a statement.
+func TestEmptiedLayerPolicySurvivesASnapshot(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		t := h.T
+		version := deref(h.publish("shared", pythonLayer(t)).LayerVersionArn)
+		call(h, lambdaapi.OpAddLayerVersionPermission, &lambdaapi.AddLayerVersionPermissionInput{
+			LayerName: "shared", VersionNumber: 1, StatementId: "s1", Action: "lambda:GetLayerVersion", Principal: "*",
+		})
+		call(h, lambdaapi.OpRemoveLayerVersionPermission, &lambdaapi.RemoveLayerVersionPermissionInput{LayerName: "shared", VersionNumber: 1, StatementId: "s1"})
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		reload := func(ss []store.Section) *awserr.Error {
+			h.svc.Reset(kernel.ResetScope{})
+			if err := h.svc.Import(ss); err != nil {
+				t.Fatalf("Import: %v", err)
+			}
+			return fail(h, lambdaapi.OpGetLayerVersionPolicy, &lambdaapi.GetLayerVersionPolicyInput{LayerName: "shared", VersionNumber: 1})
+		}
+		errorIs(t, reload(sections), "ResourceNotFoundException", "Layer version "+version+" does not have any resource policy.")
+
+		for _, earlier := range []int{5, 4} {
+			older := make([]store.Section, len(sections))
+			for i, sec := range sections {
+				if !bytes.Contains(sec.Data, []byte(`"hadPolicy":true`)) {
+					t.Fatalf("section %s does not record the emptied policy: %s", sec.Path, sec.Data)
+				}
+				sec.Version = earlier
+				sec.Data = bytes.ReplaceAll(bytes.ReplaceAll(sec.Data, []byte(`,"hadPolicy":true`), nil), []byte(`"hadPolicy":true,`), nil)
+				older[i] = sec
+			}
+			errorIs(t, reload(older), "ResourceNotFoundException", "No policy is associated with the given resource.")
 		}
 	})
 }
