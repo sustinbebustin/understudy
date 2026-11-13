@@ -219,7 +219,7 @@ func wire(cfg Config, log *slog.Logger) (w *wiring, err error) {
 	if err := k.BindErr(); err != nil {
 		return w, err
 	}
-	if err := bindPolicies(authorizer, box, k, w.faults, c.iam, cfg.SNSHTTPDelivery, w.own, built); err != nil {
+	if err := bindPolicies(authorizer, box, k, w.faults, c, cfg.SNSHTTPDelivery, w.own, built); err != nil {
 		return w, err
 	}
 	stateful, late := collect(box, built, w.lambda)
@@ -334,8 +334,9 @@ func (w *wiring) images() lambda.ImageSource {
 // advisory asks the services that store resource policies; under advise
 // and enforce step 8 decides each delivery call instead, so the advisory,
 // which assumes the clauses it cannot evaluate hold, is not journaled
-// beside it.
-func bindPolicies(a *enforce.Authorizer, box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, identities *iam.Service, delivery SNSHTTPDelivery, own *ownAddrs, built []wiredBuilt) error {
+// beside it. CloudWatch hears how each alarm notification ended, for its
+// Action history item (cloudwatch-alarms.md 8.3).
+func bindPolicies(a *enforce.Authorizer, box *outbox.Outbox, k *kernel.Kernel, faults *fault.Store, c *construction, delivery SNSHTTPDelivery, own *ownAddrs, built []wiredBuilt) error {
 	policies, err := policyProviders(built)
 	if err != nil {
 		return err
@@ -344,10 +345,13 @@ func bindPolicies(a *enforce.Authorizer, box *outbox.Outbox, k *kernel.Kernel, f
 	if err != nil {
 		return err
 	}
-	if err := a.Bind(enforce.Sources{Identities: identities, Resources: policies, Clock: k.Clock()}); err != nil {
+	if err := a.Bind(enforce.Sources{Identities: c.iam, Resources: policies, Clock: k.Clock()}); err != nil {
 		return err
 	}
 	o := outbox.Options{Faults: faults, Egress: out}
+	if c.cloudwatch != nil {
+		o.Alarms = c.cloudwatch
+	}
 	if a.Mode() == enforce.Off {
 		o.Policies = policies
 	}
@@ -921,8 +925,9 @@ func wiredServices() []wiredService {
 		{eventbridgeapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return events.New(d, events.Options{})
 		}},
-		{cloudwatchapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
-			return cloudwatch.New(d, cloudwatch.Options{})
+		{cloudwatchapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.cloudwatch = cloudwatch.New(d, cloudwatch.Options{})
+			return c.cloudwatch
 		}},
 		{sfnapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return sfn.New(d, sfn.Options{})
@@ -998,6 +1003,9 @@ type construction struct {
 	iam *iam.Service
 	// ses is the store SES v2's view shares.
 	ses *ses.Service
+	// cloudwatch hears how each alarm notification the outbox delivers
+	// ended, for its Action history item.
+	cloudwatch *cloudwatch.Service
 	// apigatewayv2 and apigateway own the execute-api API ids the edge
 	// resolves (ADR 0019).
 	apigatewayv2 *apigatewayv2.Service

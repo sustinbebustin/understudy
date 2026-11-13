@@ -49,6 +49,22 @@ type Request struct {
 	// other: the outbox renders the target's payload from it before each
 	// attempt (scheduler.md 14.4.2).
 	Invocation *SchedulerInvocation
+	// AlarmAction is set for CloudWatchToSNS and nil for every other
+	// mechanism: the alarm state change the notification is of, which
+	// CloudWatch records in an Action history item once the delivery has
+	// an Outcome (cloudwatch-alarms.md 8.3).
+	AlarmAction *AlarmAction
+}
+
+// AlarmAction is the alarm state change a CloudWatchToSNS delivery
+// notifies of, as its Action history item records it.
+type AlarmAction struct {
+	// StateUpdated is the instant of the state change, the item's
+	// stateUpdateTimestamp.
+	StateUpdated time.Time
+	// Published is the message CloudWatch publishes, the item's
+	// publishedMessage when the topic accepts it.
+	Published string
 }
 
 // DeadLetterMessage is a dead letter its producer built: the SQS message

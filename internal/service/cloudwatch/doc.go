@@ -25,7 +25,9 @@
 //     CloudWatchToLambda) as cloudwatch.amazonaws.com and
 //     lambda.alarms.cloudwatch.amazonaws.com, attempted once with no retry
 //     schedule and no dead-letter queue: AWS documents guarantees, not a
-//     policy (cloudwatch-alarms.md 12.4). EC2, Auto Scaling, Systems
+//     policy (cloudwatch-alarms.md 12.4). The outbox reports how each SNS
+//     action ended (Service.ActionEnded), which appends its Action history
+//     item; a Lambda action writes none (cloudwatch-alarms.md 8.3). EC2, Auto Scaling, Systems
 //     Manager and investigation actions are journaled as not run. The
 //     state change event, and the configuration change events of
 //     PutMetricAlarm and DeleteAlarms, go to the default event bus through

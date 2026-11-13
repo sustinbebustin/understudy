@@ -137,11 +137,12 @@ func (s *Service) appendConfigUpdates(ctx context.Context, c *kernel.Call, entri
 	}
 }
 
-// describeAlarmHistory lists the caller's StateUpdate and
-// ConfigurationUpdate items of metric alarms, newest first unless ScanBy
-// says otherwise (cloudwatch-alarms.md 8.1). understudy records no Action
-// items and no contributors (cloudwatch-alarms.md 8.3), so asking for them
-// selects nothing. Items older than historyRetention are never returned.
+// describeAlarmHistory lists the caller's StateUpdate, ConfigurationUpdate
+// and Action items of metric alarms, newest first unless ScanBy says
+// otherwise (cloudwatch-alarms.md 8.1). understudy records no Action item
+// for a Lambda action and no contributors (cloudwatch-alarms.md 8.3), so
+// asking for contributors selects nothing. Items older than
+// historyRetention are never returned.
 func (s *Service) describeAlarmHistory(_ context.Context, c *kernel.Call, in *cloudwatchapi.DescribeAlarmHistoryInput) (*cloudwatchapi.DescribeAlarmHistoryOutput, *awserr.Error) {
 	out := &cloudwatchapi.DescribeAlarmHistoryOutput{AlarmHistoryItems: []cloudwatchapi.AlarmHistoryItem{}}
 	metric := len(in.AlarmTypes) == 0 || slices.Contains(in.AlarmTypes, cloudwatchapi.AlarmTypeMetricAlarm)

@@ -149,6 +149,9 @@ type attempt struct {
 	// dropped.
 	took     time.Duration
 	exchange *journal.HTTPExchange
+	// failure is how the attempt failed when it ended the delivery
+	// undelivered (deadLetter); nil otherwise.
+	failure failure
 	// onLatency hands the sequencer on when a request-phase latency rule
 	// holds one of the attempt's calls (kernel.Target.OnLatency); nil for an
 	// attempt on its own goroutine or on a sequencer that does not release.
@@ -187,9 +190,51 @@ func (a *attempt) do(ctx context.Context) {
 	// kernel stopped first or the attempt panicked, so the next Rearm can
 	// attempt the delivery again.
 	defer a.release()
-	if outcome, ok := a.run(ctx); ok {
-		a.finish(ctx, a.counted(outcome))
+	if outcome, ok := a.run(ctx); ok && a.finish(ctx, a.counted(outcome)) {
+		a.report(ctx, outcome)
 	}
+}
+
+// report tells Options.Alarms how a delivery that carries an AlarmAction
+// ended, once finish has removed its entry; a retry is no end. The
+// outcome is told by the last attempt's failure (deadLetter): a refusal
+// by the target's policy, another target error, or, when no target call
+// answered, the journal's reason.
+func (a *attempt) report(ctx context.Context, outcome journal.DeliveryOutcome) {
+	req := a.entry.Request
+	if req.AlarmAction == nil || a.e.alarms == nil {
+		return
+	}
+	var o delivery.Outcome
+	switch out := outcome.(type) {
+	case journal.Retrying:
+		return
+	case journal.Delivered:
+		o = delivery.Delivered{}
+	case journal.Dropped:
+		o = a.undelivered(out.Reason)
+	case journal.Refused:
+		o = a.undelivered(out.Reason)
+	case journal.DeadLettered:
+		o = a.undelivered("dead-lettered to " + out.DLQ.String())
+	case journal.Filtered:
+		o = a.undelivered("filtered by " + out.Rule)
+	}
+	a.e.alarms.ActionEnded(ctx, a.c, req, a.due, o)
+}
+
+// undelivered is the Outcome of a delivery that ended undelivered, by how
+// its last attempt failed; reason is the journal's, for an attempt no
+// target call answered.
+func (a *attempt) undelivered(reason string) delivery.Outcome {
+	switch f := a.failure.(type) {
+	case targetRefusal:
+		return delivery.Denied{}
+	case targetError:
+		return delivery.TargetFailed{Message: f.err.Message}
+	case endpointError, senderRefusal, nil:
+	}
+	return delivery.Undelivered{Reason: reason}
 }
 
 // counted is outcome with, for a Lambda delivery that ends undelivered, the
@@ -579,6 +624,7 @@ func (a *attempt) deadLetterAs(scope aws.Scope) kernel.Target {
 // drops it when it has none or the queue refuses it. f is how the last
 // attempt failed and end why it was not retried again.
 func (a *attempt) deadLetter(ctx context.Context, f failure, end ending) (journal.DeliveryOutcome, bool) {
+	a.failure = f
 	why := end.reason(f)
 	dlq := a.entry.Request.DLQ
 	if dlq == nil {
@@ -620,8 +666,8 @@ func (a *attempt) deadLetter(ctx context.Context, f failure, end ending) (journa
 // the delivery it led to. The write can fail only on a zero HandledKind,
 // which Bind rules out; if it ever fails, the error is logged. The outcome
 // is then recorded but the next attempt's timer is not armed, so the next
-// Rearm arms it.
-func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) {
+// Rearm arms it. finish reports whether the write recorded the outcome.
+func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) bool {
 	id := a.entry.ID
 	req := a.entry.Request
 	event := journal.Delivery{
@@ -662,12 +708,13 @@ func (a *attempt) finish(ctx context.Context, outcome journal.DeliveryOutcome) {
 	if err != nil {
 		a.e.k.Log().LogAttrs(ctx, slog.LevelError, "outbox could not record a delivery attempt; the delivery stays pending for the next Rearm",
 			slog.String("delivery", string(id)), slog.String("error", describe(err)))
-		return
+		return false
 	}
 	if !changed {
 		a.e.k.Log().LogAttrs(ctx, slog.LevelDebug, "outbox discarded the outcome of a delivery attempt: the delivery was reset, reloaded or moved on while the attempt ran",
 			slog.String("delivery", string(id)), slog.Int("attempt", a.entry.Attempt+1))
 	}
+	return changed
 }
 
 // journal records d at the due instant, caused by the source call.

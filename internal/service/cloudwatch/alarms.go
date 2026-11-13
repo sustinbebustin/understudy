@@ -53,7 +53,7 @@ func (s *Service) bindAlarms(b cloudwatchapi.Binder) {
 		}))
 	b.DescribeAlarmsForMetric(s.describeAlarmsForMetric, registry.Full{})
 	b.DescribeAlarmHistory(s.describeAlarmHistory,
-		registry.Partial{Note: "StateUpdate and ConfigurationUpdate items, kept 30 days on the emulator clock and after the alarm is deleted; Action items are never recorded, and AlarmContributorId selects nothing; inferred: EnableAlarmActions writes an update item as DisableAlarmActions does, and the item's alarm object carries alarmDescription, unit, datapointsToAlarm, evaluateLowSampleCountPercentile and thresholdMetricId only when set and leaves out Metrics, EvaluationCriteria, EvaluationWindow, EvaluationInterval and WarmUpConfiguration"})
+		registry.Partial{Note: "StateUpdate, ConfigurationUpdate and SNS actions' Action items, kept 30 days on the emulator clock and after the alarm is deleted; Lambda actions write no Action item, since no recording shows one, and AlarmContributorId selects nothing; inferred: EnableAlarmActions writes an update item as DisableAlarmActions does, the item's alarm object carries alarmDescription, unit, datapointsToAlarm, evaluateLowSampleCountPercentile and thresholdMetricId only when set and leaves out Metrics, EvaluationCriteria, EvaluationWindow, EvaluationInterval and WarmUpConfiguration, and an Action item's email text shows a description, dimensions, a unit, an ExtendedStatistic and DatapointsToAlarm in unrecorded forms"})
 	b.DeleteAlarms(s.deleteAlarms, registry.Full{},
 		alarmsNamed(func(in *cloudwatchapi.DeleteAlarmsInput) []string { return in.AlarmNames }))
 	b.EnableAlarmActions(s.enableAlarmActions, registry.Full{},

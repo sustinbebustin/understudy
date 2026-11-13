@@ -57,6 +57,11 @@
 //  5. A journal.Delivery event records the attempt with the source call as
 //     its parent; an HTTP attempt's event carries its exchange: the status,
 //     the class and egress's wall time.
+//  6. A delivery that carries a delivery.AlarmAction, a CloudWatch alarm's
+//     SNS notification, is reported to Options.Alarms once it has ended,
+//     after the write that removed its entry, so CloudWatch can write its
+//     Action history item (AlarmReporter; ADR 0015 amendment of
+//     2026-11-13).
 //
 // # Decisions the architecture leaves open
 //

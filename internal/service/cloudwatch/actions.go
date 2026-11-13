@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -67,6 +68,7 @@ func actionRuns(r alarmRef, a *Alarm, ch alarm.Change, transition string) []func
 				topic.DedupID = alarm.FIFODedupID(source.String(), transition)
 			}
 			req.Mechanism, req.Target = delivery.CloudWatchToSNS, topic
+			req.AlarmAction = &delivery.AlarmAction{StateUpdated: ch.New.Timestamp, Published: alarm.PublishedMessage(subject, ch)}
 			runs = append(runs, func(tx *kernel.Tx) { tx.Deliver(req) })
 		case alarm.LambdaAction:
 			req.Mechanism = delivery.CloudWatchToLambda
@@ -83,6 +85,47 @@ func actionRuns(r alarmRef, a *Alarm, ch alarm.Change, transition string) []func
 		}
 	}
 	return runs
+}
+
+// ActionEnded appends the Action history item of an alarm's SNS action
+// once the outbox has delivered or given up on it, at the attempt's
+// instant at: "Successfully executed action" with the published message,
+// or "Failed to execute action" with the error, CloudWatch's own text for
+// a topic whose policy refuses it and the topic's error text otherwise
+// (cloudwatch-alarms.md 5.3, 8.3; CWA-16, CWA-23). The error of a
+// delivery no topic answered, such as one a fault rule dropped, is the
+// outbox's reason, a form no recording shows. A Lambda action reports
+// nothing: no recording shows its item.
+//
+// It is a write of its own after the outbox removed the delivery, as the
+// StateUpdate item is after the state write: a snapshot cut between the
+// two loses the item. A failed write is logged, not returned: the
+// delivery has ended either way.
+func (s *Service) ActionEnded(ctx context.Context, c *kernel.Call, req delivery.Request, at clock.Instant, o delivery.Outcome) {
+	r, ok := parseAlarmARN(req.Source.String())
+	topic, isTopic := req.Target.(delivery.SNSTopic)
+	if !ok || !isTopic || req.AlarmAction == nil {
+		s.k.Log().LogAttrs(ctx, slog.LevelError, "the outbox reported a delivery that is no alarm's SNS action; no Action history item is written",
+			slog.String("source", req.Source.String()), slog.String("mechanism", req.Mechanism.String()))
+		return
+	}
+	var outcome alarm.ActionOutcome
+	switch o := o.(type) {
+	case delivery.Delivered:
+		outcome = alarm.ActionSucceeded{Published: req.AlarmAction.Published}
+	case delivery.Denied:
+		outcome = alarm.ActionFailed{Error: alarm.ActionDenied(topic.ARN.String())}
+	case delivery.TargetFailed:
+		outcome = alarm.ActionFailed{Error: o.Message}
+	case delivery.Undelivered:
+		outcome = alarm.ActionFailed{Error: o.Reason}
+	}
+	summary, data := alarm.ActionHistory(topic.ARN.String(), req.AlarmAction.StateUpdated, outcome)
+	item := HistoryItem{At: at, Type: cloudwatchapi.HistoryItemTypeAction, Summary: summary, Data: data}
+	if err := s.appendHistory(c, r.scope, []historyEntry{{name: r.name, item: item}}, nil); err != nil {
+		s.k.Log().LogAttrs(ctx, slog.LevelError, "the history write of an alarm action's outcome failed; the action has ended, and its Action history item is lost",
+			slog.String("alarm", r.arn().String()), slog.String("topic", topic.ARN.String()), slog.String("error", err.Message))
+	}
 }
 
 // notRunWhy says why an action kind understudy does not run is not run.

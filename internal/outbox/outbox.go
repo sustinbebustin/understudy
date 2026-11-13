@@ -1,6 +1,7 @@
 package outbox
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -37,6 +38,21 @@ type Options struct {
 	// Egress sends HTTPEndpoint deliveries; nil refuses each one, which is
 	// the default until a producer enables outbound delivery.
 	Egress *egress.Client
+	// Alarms hears how each delivery with an AlarmAction ended; nil
+	// reports nothing.
+	Alarms AlarmReporter
+}
+
+// AlarmReporter hears the Outcome of each delivery that carries a
+// delivery.AlarmAction, a CloudWatch alarm's SNS notification, so
+// CloudWatch can write its Action history item (cloudwatch-alarms.md 8.3).
+// ActionEnded is called once per delivery, from the attempt that ended it,
+// at the attempt's due instant, after the outbox has removed the entry: a
+// snapshot cut between the two loses the report, never repeats the
+// delivery. c is the attempt's call, for the reporter's own write; the
+// call must not block on the outbox.
+type AlarmReporter interface {
+	ActionEnded(ctx context.Context, c *kernel.Call, req delivery.Request, at clock.Instant, o delivery.Outcome)
 }
 
 // Outbox is the delivery engine: the kernel's DeliverSink and a Stateful
@@ -58,6 +74,7 @@ type engine struct {
 	faults   kernel.FaultStage
 	policies PolicySource
 	egress   *egress.Client
+	alarms   AlarmReporter
 	// seq is the last Entry.Seq handed out; Import raises it past every
 	// loaded entry's.
 	seq atomic.Uint64
@@ -99,6 +116,7 @@ func (o *Outbox) Bind(k *kernel.Kernel, opts Options) error {
 		faults:   opts.Faults,
 		policies: opts.Policies,
 		egress:   opts.Egress,
+		alarms:   opts.Alarms,
 		ready:    sequencer{releases: true},
 	}
 	e.attempt = k.Timers().Handle(TimerAttempt, e.onAttempt)
@@ -245,6 +263,9 @@ func checkRequest(req delivery.Request) (aws.Scope, *RequestError) {
 	if err := checkDLQ(req); err != nil {
 		return aws.Scope{}, err
 	}
+	if err := checkAlarmAction(req); err != nil {
+		return aws.Scope{}, err
+	}
 	scope, serr := scopeOf(in)
 	if serr != nil {
 		return aws.Scope{}, &RequestError{Field: field, Reason: unservedScope, Err: serr}
@@ -332,6 +353,20 @@ func checkSender(req delivery.Request) *RequestError {
 	}
 	if _, ok := req.Policy.(delivery.None); !ok {
 		return &RequestError{Field: "Policy", Reason: fmt.Sprintf("is %T, but a Lambda delivery makes one attempt, delivery.None (lambda-destinations-layers.md 4.6, 5.4)", req.Policy)}
+	}
+	return nil
+}
+
+// checkAlarmAction checks that req carries an AlarmAction exactly when it
+// is a CloudWatch alarm's SNS notification, whose outcome CloudWatch
+// records in an Action history item (cloudwatch-alarms.md 8.3).
+func checkAlarmAction(req delivery.Request) *RequestError {
+	m := req.Mechanism
+	switch {
+	case m == delivery.CloudWatchToSNS && req.AlarmAction == nil:
+		return &RequestError{Field: "AlarmAction", Reason: "is nil, but a " + m.String() + " delivery reports its outcome for the alarm's Action history item"}
+	case m != delivery.CloudWatchToSNS && req.AlarmAction != nil:
+		return &RequestError{Field: "AlarmAction", Reason: "is set, but only " + delivery.CloudWatchToSNS.String() + " reports an alarm action, and this delivery is " + m.String()}
 	}
 	return nil
 }

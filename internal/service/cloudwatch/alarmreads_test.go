@@ -26,8 +26,8 @@ func (h *harness) setState(name string, v cloudwatchapi.StateValue) {
 // DescribeAlarmHistory returns StateUpdate and ConfigurationUpdate items of
 // metric alarms, newest first by default (cwa 8.1: the API reference and
 // AWS's CLI example), filtered by alarm name, type, item type and date,
-// and nothing for item types and contributors understudy never records
-// (cwa 8.3, 12.1).
+// and nothing for Action items of alarms without actions or for
+// contributors, which understudy never records (cwa 8.3, 12.1).
 func TestDescribeAlarmHistoryFilters(t *testing.T) {
 	run(t, func(h *harness) {
 		t0 := h.now()

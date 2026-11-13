@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"encoding/xml"
 	"net/http"
 	"net/url"
 	"slices"
@@ -16,7 +17,9 @@ import (
 // advise with an access-would-deny advisory naming the principal; and
 // dropped after its one attempt under enforce
 // (cloudwatch.alarm.actions.denied dropped, cloudwatch-alarms.md 12.4 item
-// 4).
+// 4). The alarm's history then lists the Action item AWS recorded for it:
+// "Failed to execute action" with CloudWatch's authorization text under
+// enforce (CWA-23, cloudwatch-alarms.md 5.3), a success otherwise.
 func TestAlarmNotificationToATopicThatRefusesCloudWatch(t *testing.T) {
 	for _, c := range []struct {
 		name      string
@@ -67,6 +70,40 @@ func TestAlarmNotificationToATopicThatRefusesCloudWatch(t *testing.T) {
 			if named != c.advised {
 				t.Errorf("access-would-deny advisories = %q; want one naming cloudwatch.amazonaws.com and sns:Publish = %v", advisories, c.advised)
 			}
+
+			summary, actionState, failure := "Successfully executed action "+topic, `"actionState":"Succeeded"`, `"error":null`
+			if !c.delivered {
+				summary, actionState = "Failed to execute action "+topic, `"actionState":"Failed"`
+				failure = `"error":"CloudWatch Alarms is not authorized to perform: SNS:Publish on resource:` + topic + `"`
+			}
+			actions := alarmHistory(t, endpoint, "cpu", "Action")
+			if len(actions) != 1 || actions[0].Summary != summary || !strings.Contains(actions[0].Data, actionState) || !strings.Contains(actions[0].Data, failure) {
+				t.Errorf("Action items = %+v; want one %q with %s and %s", actions, summary, actionState, failure)
+			}
 		})
 	}
+}
+
+// historyItem is one item of a DescribeAlarmHistory answer.
+type historyItem struct {
+	Summary string `xml:"HistorySummary"`
+	Data    string `xml:"HistoryData"`
+}
+
+// alarmHistory is the alarm's history items of type typ, over Query.
+func alarmHistory(t *testing.T, endpoint, alarm, typ string) []historyItem {
+	t.Helper()
+	w := queryCall(t, dummy, endpoint, "monitoring", url.Values{
+		"Action": {"DescribeAlarmHistory"}, "Version": {"2010-08-01"}, "AlarmName": {alarm}, "HistoryItemType": {typ},
+	})
+	if w.status != http.StatusOK {
+		t.Fatalf("DescribeAlarmHistory = %d %s", w.status, w.body)
+	}
+	var out struct {
+		Items []historyItem `xml:"DescribeAlarmHistoryResult>AlarmHistoryItems>member"`
+	}
+	if err := xml.Unmarshal([]byte(w.body), &out); err != nil {
+		t.Fatalf("DescribeAlarmHistory = %s: %v", w.body, err)
+	}
+	return out.Items
 }

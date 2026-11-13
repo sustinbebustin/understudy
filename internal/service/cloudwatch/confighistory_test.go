@@ -10,13 +10,15 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
+	"github.com/sustinbebustin/understudy/internal/service/cloudwatch/alarm"
 )
 
 // recordedAccount and recordedRegion are the account and Region of the
 // CWA recordings (cloudwatch-alarms.md 13), replaced by the harness's own.
 const (
-	recordedAccount = "123456789012"
-	recordedRegion  = "us-east-2"
+	recordedAccount    = "123456789012"
+	recordedRegion     = "us-east-2"
+	recordedRegionName = "US East (Ohio)"
 )
 
 // recordedConfigItems are the ConfigurationUpdate items of a
@@ -25,6 +27,19 @@ const (
 // and Region replaced, and each recorded timestamp replaced by the harness
 // instant at replaces names for it.
 func recordedConfigItems(h *harness, fixture string, at map[string]time.Time) []cloudwatchapi.AlarmHistoryItem {
+	h.Helper()
+	replace := make(map[string]string, len(at))
+	for recorded, instant := range at {
+		replace[recorded] = stamp(instant)
+	}
+	return recordedItems(h, fixture, cloudwatchapi.HistoryItemTypeConfigurationUpdate, replace)
+}
+
+// recordedItems are the items of type typ of a DescribeAlarmHistory
+// recording under testdata/parity/cloudwatch, in the recorded order, their
+// summary and HistoryData normalized to the harness: the account, Region
+// and Region long name replaced, and each key of replace by its value.
+func recordedItems(h *harness, fixture string, typ cloudwatchapi.HistoryItemType, replace map[string]string) []cloudwatchapi.AlarmHistoryItem {
 	h.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "parity", "cloudwatch", filepath.FromSlash(fixture)))
 	if err != nil {
@@ -48,27 +63,28 @@ func recordedConfigItems(h *harness, fixture string, at map[string]time.Time) []
 	if err := json.Unmarshal([]byte(rec.Exchanges[0].Response.Body), &body); err != nil {
 		h.Fatalf("%s: %v", fixture, err)
 	}
-	pairs := make([]string, 0, 4+2*len(at))
-	pairs = append(pairs, recordedAccount, h.Scope.Account.String(), recordedRegion, h.Scope.Region.String())
-	for recorded, instant := range at {
-		pairs = append(pairs, recorded, stamp(instant))
+	regionName, _ := alarm.RegionName(h.Scope.Region.String())
+	pairs := make([]string, 0, 6+2*len(replace))
+	pairs = append(pairs, recordedAccount, h.Scope.Account.String(), recordedRegion, h.Scope.Region.String(), recordedRegionName, regionName)
+	for recorded, value := range replace {
+		pairs = append(pairs, recorded, value)
 	}
 	normalize := strings.NewReplacer(pairs...)
 	var out []cloudwatchapi.AlarmHistoryItem
 	for _, it := range body.AlarmHistoryItems {
-		if it.HistoryItemType != string(cloudwatchapi.HistoryItemTypeConfigurationUpdate) {
+		if it.HistoryItemType != string(typ) {
 			continue
 		}
 		out = append(out, cloudwatchapi.AlarmHistoryItem{
 			AlarmName:       new(it.AlarmName),
 			AlarmType:       new(cloudwatchapi.AlarmType(it.AlarmType)),
 			HistoryItemType: new(cloudwatchapi.HistoryItemType(it.HistoryItemType)),
-			HistorySummary:  new(it.HistorySummary),
+			HistorySummary:  new(normalize.Replace(it.HistorySummary)),
 			HistoryData:     new(normalize.Replace(it.HistoryData)),
 		})
 	}
 	if len(out) == 0 {
-		h.Fatalf("%s holds no ConfigurationUpdate item", fixture)
+		h.Fatalf("%s holds no %s item", fixture, typ)
 	}
 	return out
 }
