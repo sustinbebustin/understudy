@@ -14,7 +14,12 @@ const maxPatternLength = 1024
 type Error struct {
 	cause   Cause
 	message string
+	detail  string
 }
+
+// Detail returns what the wire message leaves out: the problem and its
+// offset for a syntax error, empty for the other causes.
+func (e *Error) Detail() string { return e.detail }
 
 // Cause returns the rule the pattern broke.
 func (e *Error) Cause() Cause { return e.cause }
@@ -75,8 +80,15 @@ func invalidTerm(offending string) *Error {
 	return &Error{cause: CauseInvalidTerm, message: "Invalid character(s) in term '" + offending + "'"}
 }
 
-// invalidPattern reports every other syntax error. AWS's texts for these are
-// unrecorded, so the message names the problem and its byte offset.
+// invalidPattern reports every other syntax error. AWS's text is recorded for
+// one case only, `{ $.n = }`, which it refuses with the bare "Invalid filter
+// pattern" (testdata/parity/logs/R10/03-filter-14.json) and no detail. The
+// same text for every other syntax error is inferred. The problem and its
+// byte offset stay in Detail for logs and tests, off the wire.
 func invalidPattern(detail string, offset int) *Error {
-	return &Error{cause: CauseSyntax, message: "Invalid filter pattern: " + detail + " at offset " + strconv.Itoa(offset) + "."}
+	return &Error{
+		cause:   CauseSyntax,
+		message: "Invalid filter pattern",
+		detail:  detail + " at offset " + strconv.Itoa(offset),
+	}
 }

@@ -3,6 +3,7 @@ package scheduler
 import (
 	"strconv"
 
+	"github.com/sustinbebustin/understudy/internal/authz"
 	"github.com/sustinbebustin/understudy/internal/delivery"
 	"github.com/sustinbebustin/understudy/internal/schedexpr"
 )
@@ -18,6 +19,11 @@ type Options struct {
 	FlexibleOffset FlexibleOffset
 	// PermanentErrors is scheduler.retry.permanent-errors.
 	PermanentErrors delivery.PermanentErrors
+	// KeyPolicies tells which KMS keys exist: a KmsKeyArn naming none is
+	// accepted at create and update with no KMS action asked, as AWS did
+	// (SCH-04 04-kms-missing); wire.go passes the KMS service. Nil holds no
+	// key.
+	KeyPolicies authz.PolicyProvider
 }
 
 // AtPastDue is what an at() schedule whose time has passed does when it is

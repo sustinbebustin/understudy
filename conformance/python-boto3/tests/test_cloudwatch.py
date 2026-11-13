@@ -79,7 +79,7 @@ def test_clock_advance_evaluates_an_alarm(cloudwatch: Any, make_alarm: Callable[
     # Evaluation never writes the configuration Terraform reads (cwa 12.6).
     assert breached["AlarmConfigurationUpdatedTimestamp"] == created["AlarmConfigurationUpdatedTimestamp"]
 
-    history = cloudwatch.describe_alarm_history(AlarmName=name)["AlarmHistoryItems"]
+    history = cloudwatch.describe_alarm_history(AlarmName=name, HistoryItemType="StateUpdate")["AlarmHistoryItems"]
     # cwa 8.2, third-party-recorded.
     assert [h["HistorySummary"] for h in history] == ["Alarm updated from INSUFFICIENT_DATA to ALARM"]
     assert history[0]["HistoryItemType"] == "StateUpdate"
@@ -92,7 +92,7 @@ def test_clock_advance_evaluates_an_alarm(cloudwatch: Any, make_alarm: Callable[
     # the default missing treatment goes to INSUFFICIENT_DATA (cwa 3.5).
     frozen_clock.advance(600)
     assert _alarm(cloudwatch, name)["StateValue"] == "INSUFFICIENT_DATA"
-    history = cloudwatch.describe_alarm_history(AlarmName=name)["AlarmHistoryItems"]
+    history = cloudwatch.describe_alarm_history(AlarmName=name, HistoryItemType="StateUpdate")["AlarmHistoryItems"]
     assert [h["HistorySummary"] for h in history] == [
         "Alarm updated from ALARM to INSUFFICIENT_DATA",
         "Alarm updated from INSUFFICIENT_DATA to ALARM",

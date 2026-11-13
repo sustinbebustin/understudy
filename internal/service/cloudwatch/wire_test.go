@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/edge"
+	"github.com/sustinbebustin/understudy/internal/protocol/awsjson"
 	"github.com/sustinbebustin/understudy/internal/protocol/awsquery"
 	"github.com/sustinbebustin/understudy/internal/protocol/cbor"
 	"github.com/sustinbebustin/understudy/internal/protocol/rpcv2cbor"
@@ -143,6 +144,34 @@ func TestTerraformAlarmSequenceOnTheWire(t *testing.T) {
 		}
 		if errResp.Status != http.StatusNotFound {
 			t.Errorf("SetAlarmState on a missing alarm over CBOR in query mode: status = %d, want 404", errResp.Status)
+		}
+	})
+}
+
+// ListTagsForResource of an alarm that was never created answers what
+// cloudwatch/R07/cw-ListTagsForResource.json records in query mode: 404,
+// x-amzn-query-error ResourceNotFoundException;Sender and a body of the
+// type alone.
+func TestListTagsForResourceOfANeverCreatedAlarmOnTheWire(t *testing.T) {
+	run(t, func(h *harness) {
+		arn := "arn:aws:cloudwatch:" + h.Scope.Region.String() + ":" + h.Scope.Account.String() + ":alarm:never"
+		_, aerr := call(h, cloudwatchapi.OpListTagsForResource, &cloudwatchapi.ListTagsForResourceInput{ResourceARN: arn})
+		if aerr == nil {
+			t.Fatal("ListTagsForResource of a never-created alarm succeeded")
+		}
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
+		req.Header.Set("X-Amz-Target", "GraniteServiceVersion20100801.ListTagsForResource")
+		req.Header.Set("X-Amzn-Query-Mode", "true")
+		resp := awsjson.Codec{Version: awsjson.V10}.EncodeError(req, cloudwatchapi.Service(), requestID, aerr)
+		if resp.Status != http.StatusNotFound {
+			t.Errorf("status = %d, want 404", resp.Status)
+		}
+		if got := resp.Header.Get("X-Amzn-Query-Error"); got != "ResourceNotFoundException;Sender" {
+			t.Errorf("x-amzn-query-error = %q, want ResourceNotFoundException;Sender", got)
+		}
+		const want = `{"__type":"com.amazonaws.cloudwatch.v2010_08_01#ResourceNotFoundException"}`
+		if string(resp.Body) != want {
+			t.Errorf("body = %s, want %s", resp.Body, want)
 		}
 	})
 }

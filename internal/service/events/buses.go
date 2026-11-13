@@ -224,10 +224,12 @@ func parseRuleARN(s string) (ruleRef, bool) {
 	return ruleRef{scope: scope, bus: bus, name: name}, true
 }
 
-// kmsNote is the KmsKeyIdentifier deviation EBB-05 recorded
-// (eventbridge-buses.md 3.1, events.bus.kms-key-check).
-const kmsNote = "KmsKeyIdentifier is neither checked nor resolved, where AWS refuses a key that does not exist or does not grant EventBridge " +
-	"and echoes a key id or alias name as its ARN (events.bus.kms-key-check)"
+// kmsNote is how a KmsKeyIdentifier is checked and echoed (checkBusKey):
+// as EBB-05 recorded, but for an alias that does not exist, which it did
+// not record (eventbridge-buses.md 3.1).
+const kmsNote = "a KmsKeyIdentifier must name a key or alias understudy's KMS holds and, under iam.enforce=enforce, a key whose policy allows " +
+	"events.amazonaws.com kms:GenerateDataKey; a key id is echoed as its key ARN and an alias name as its alias ARN; " +
+	"an alias KMS does not find is refused as a missing key is, which is inferred"
 
 // bindBuses binds the event bus operations with the coverage notes of
 // eventbridge-buses.md 10.1.
@@ -269,12 +271,18 @@ func checkCreateEventBus(in *eventbridgeapi.CreateEventBusInput) *awserr.Error {
 	return nil
 }
 
-// createEventBus creates a custom bus, storing its settings as sent and
-// applying none (events.bus.kms-key-check), and echoes each optional member
-// the request carried (eventbridge-buses.md 3.1).
-func (s *Service) createEventBus(_ context.Context, c *kernel.Call, in *eventbridgeapi.CreateEventBusInput) (*eventbridgeapi.CreateEventBusOutput, *awserr.Error) {
+// createEventBus creates a custom bus and echoes each optional member the
+// request carried (eventbridge-buses.md 3.1). It stores its settings as
+// sent and applies none, but for a KmsKeyIdentifier, which it checks and
+// stores as AWS does (checkBusKey) before it checks the name is free; that
+// order is unrecorded.
+func (s *Service) createEventBus(ctx context.Context, c *kernel.Call, in *eventbridgeapi.CreateEventBusInput) (*eventbridgeapi.CreateEventBusOutput, *awserr.Error) {
 	scope := c.Scope()
-	_, err := kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+	key, err := s.busKey(ctx, c, in.Name, in.KmsKeyIdentifier)
+	if err != nil {
+		return nil, err
+	}
+	_, err = kernel.Write(c, s.cells, scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
 		if _, ok := st.Buses[in.Name]; ok {
 			return struct{}{}, errBusExists(in.Name)
 		}
@@ -288,7 +296,7 @@ func (s *Service) createEventBus(_ context.Context, c *kernel.Call, in *eventbri
 		st.setBus(Bus{
 			Name:             in.Name,
 			Description:      nonEmpty(in.Description),
-			KMSKeyIdentifier: nonEmpty(in.KmsKeyIdentifier),
+			KMSKeyIdentifier: nonEmpty(&key),
 			DeadLetter:       deadLetterOf(in.DeadLetterConfig),
 			Log:              logOf(in.LogConfig),
 			Tags:             tags,
@@ -300,10 +308,14 @@ func (s *Service) createEventBus(_ context.Context, c *kernel.Call, in *eventbri
 	if err != nil {
 		return nil, err
 	}
+	echoedKey := copyOf(in.KmsKeyIdentifier)
+	if key != "" {
+		echoedKey = &key
+	}
 	return &eventbridgeapi.CreateEventBusOutput{
 		EventBusArn:      new(busARN(scope, in.Name).String()),
 		Description:      copyOf(in.Description),
-		KmsKeyIdentifier: copyOf(in.KmsKeyIdentifier),
+		KmsKeyIdentifier: echoedKey,
 		DeadLetterConfig: deadLetterOf(in.DeadLetterConfig).api(),
 		LogConfig:        logOf(in.LogConfig).api(),
 	}, nil
@@ -374,11 +386,17 @@ func (s *Service) listEventBuses(_ context.Context, c *kernel.Call, in *eventbri
 // it, as Terraform's update relies on (eventbridge-buses.md 3.4). An empty
 // KmsKeyIdentifier clears the key (EBB-05), and no Name updates the default
 // bus (EBB-04). No Name, or
-// default, materializes the default bus (eventbridge-buses.md 10.2.2).
-func (s *Service) updateEventBus(_ context.Context, c *kernel.Call, in *eventbridgeapi.UpdateEventBusInput) (*eventbridgeapi.UpdateEventBusOutput, *awserr.Error) {
+// default, materializes the default bus (eventbridge-buses.md 10.2.2). A
+// KmsKeyIdentifier is checked as CreateEventBus checks one (checkBusKey),
+// before the bus is looked up; that order is unrecorded.
+func (s *Service) updateEventBus(ctx context.Context, c *kernel.Call, in *eventbridgeapi.UpdateEventBusInput) (*eventbridgeapi.UpdateEventBusOutput, *awserr.Error) {
 	name := defaultBus
 	if in.Name != nil && *in.Name != "" {
 		name = *in.Name
+	}
+	key, err := s.busKey(ctx, c, name, in.KmsKeyIdentifier)
+	if err != nil {
+		return nil, err
 	}
 	bus, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, _ clock.Instant, _ *kernel.Tx) (Bus, *awserr.Error) {
 		bus, ok := st.bus(name, c.Admitted())
@@ -389,7 +407,7 @@ func (s *Service) updateEventBus(_ context.Context, c *kernel.Call, in *eventbri
 			bus.Description = nonEmpty(in.Description)
 		}
 		if in.KmsKeyIdentifier != nil {
-			bus.KMSKeyIdentifier = nonEmpty(in.KmsKeyIdentifier)
+			bus.KMSKeyIdentifier = nonEmpty(&key)
 		}
 		if in.DeadLetterConfig != nil {
 			bus.DeadLetter = deadLetterOf(in.DeadLetterConfig)
@@ -441,6 +459,16 @@ func (s *Service) deleteEventBus(_ context.Context, c *kernel.Call, in *eventbri
 		return nil, err
 	}
 	return &eventbridgeapi.DeleteEventBusOutput{}, nil
+}
+
+// busKey is the KmsKeyIdentifier key of the caller's bus as the bus stores
+// it (checkBusKey): "" for none, and for "", which UpdateEventBus reads as
+// clearing the key without asking KMS (EBB-05 05-clear).
+func (s *Service) busKey(ctx context.Context, c *kernel.Call, bus string, key *string) (string, *awserr.Error) {
+	if key == nil || *key == "" {
+		return "", nil
+	}
+	return s.checkBusKey(ctx, c, busARN(c.Scope(), bus), *key)
 }
 
 // policyText is the bus's Policy member, nil when it has no policy.
@@ -523,13 +551,6 @@ func busSwitches() []fidelity.Switch[string] {
 		// UpdateEventBus keeps a member it omits (updateEventBus).
 		sw("events.update-bus.omitted-members", "kept", evidence.AWSRecorded, "34-updateeventbus", "EBB-04", ebb("04-update-name-only"),
 			"eventbridge.UpdateEventBus"),
-		// A KmsKeyIdentifier is stored without checking that the key
-		// exists or grants EventBridge (createEventBus, updateEventBus).
-		// AWS checks both, a recorded deviation.
-		sw("events.bus.kms-key-check", "none", evidence.Inferred, "31-createeventbus", "EBB-05",
-			fidelity.NoScenario{Reason: "recorded in events/EBB (05-default-policy, 05-missing-key, 2026-11-03): AWS checks that the key exists and grants " +
-				"EventBridge, which understudy does not yet; the steps need KMS keys the replayer does not create"},
-			"eventbridge.CreateEventBus", "eventbridge.UpdateEventBus"),
 		// Removing a bus policy's last statement removes the policy, so
 		// DescribeEventBus answers no Policy (removed).
 		sw("events.bus-policy.remove-last-statement", "policy-removed", evidence.AWSRecorded, "43-removepermission", "EBB-06",
@@ -554,7 +575,7 @@ func busSwitches() []fidelity.Switch[string] {
 			"eventbridge.PutEvents"),
 		// PutTargets refuses another account's bus target without a RoleArn,
 		// by the newer user-guide rule, unless it replaces one with the same
-		// Id and Arn whose role it keeps (withCrossAccountRole).
+		// Id and Arn whose role it keeps (withBusRole).
 		sw("events.bus-target.cross-account-role", "required", evidence.AWSDoc, "63-cross-account", "EBB-09",
 			fidelity.NoScenario{Reason: "unrecorded: EBB-09 needs a second account, which the recording account lacks"},
 			"eventbridge.PutTargets"),

@@ -49,6 +49,22 @@ type Request struct {
 	// other: the outbox renders the target's payload from it before each
 	// attempt (scheduler.md 14.4.2).
 	Invocation *SchedulerInvocation
+	// AlarmAction is set for CloudWatchToSNS and nil for every other
+	// mechanism: the alarm state change the notification is of, which
+	// CloudWatch records in an Action history item once the delivery has
+	// an Outcome (cloudwatch-alarms.md 8.3).
+	AlarmAction *AlarmAction
+}
+
+// AlarmAction is the alarm state change a CloudWatchToSNS delivery
+// notifies of, as its Action history item records it.
+type AlarmAction struct {
+	// StateUpdated is the instant of the state change, the item's
+	// stateUpdateTimestamp.
+	StateUpdated time.Time
+	// Published is the message CloudWatch publishes, the item's
+	// publishedMessage when the topic accepts it.
+	Published string
 }
 
 // DeadLetterMessage is a dead letter its producer built: the SQS message
@@ -142,9 +158,8 @@ func (p *LambdaPayload) UnmarshalText(text []byte) error {
 
 // EventBridgeDeniedCode is the ERROR_CODE of an EventBridge dead letter
 // whose target refused the delivery on its policy, the value of switch
-// events.delivery.denied-code: NO_PERMISSIONS is among the codes AWS lists,
-// and which one a policy refusal produces is UNVERIFIED
-// (iam-enforcement-surfaces.md 8.4, IAM-ENF-22).
+// events.delivery.denied-code, aws-recorded for a function and a queue
+// target (iam-enforcement-surfaces.md 8.4, IAM-ENF-22).
 const EventBridgeDeniedCode = "NO_PERMISSIONS"
 
 // Target is where a delivery goes, carrying the payload for that target.

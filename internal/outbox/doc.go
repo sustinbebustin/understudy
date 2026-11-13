@@ -57,6 +57,11 @@
 //  5. A journal.Delivery event records the attempt with the source call as
 //     its parent; an HTTP attempt's event carries its exchange: the status,
 //     the class and egress's wall time.
+//  6. A delivery that carries a delivery.AlarmAction, a CloudWatch alarm's
+//     SNS notification, is reported to Options.Alarms once it has ended,
+//     after the write that removed its entry, so CloudWatch can write its
+//     Action history item (AlarmReporter; ADR 0015 amendment of
+//     2026-11-13).
 //
 // # Decisions the architecture leaves open
 //
@@ -166,8 +171,10 @@
 // an EventBus one under any other mechanism, takes no dead-letter queue:
 // its dead letter's form is not researched. An
 // EventBridge dead letter adds the String attributes RULE_ARN, TARGET_ARN,
-// ERROR_CODE, ERROR_MESSAGE, RETRY_ATTEMPTS and, when retries ran out,
-// EXHAUSTED_RETRY_CONDITION (eb-rule-dlq). A dead letter the queue refuses
+// ERROR_CODE, ERROR_MESSAGE and, unless the target refused the delivery on
+// its policy, RETRY_ATTEMPTS and, when retries ran out,
+// EXHAUSTED_RETRY_CONDITION (eb-rule-dlq; iam-enforcement-surfaces.md 8.4).
+// A dead letter the queue refuses
 // is dropped, both reasons journaled.
 //
 // The attempt's journal events (Delivery, Advisory, FaultInjected) and its

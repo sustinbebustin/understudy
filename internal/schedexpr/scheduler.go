@@ -88,7 +88,8 @@ func parseAt(inner string) (At, *Error) {
 // ParseScheduler parses an EventBridge Scheduler expression: at(...),
 // rate(value unit) with units per units and the unit in any case
 // (rate(1 MINUTE) was accepted, SCH-03, recorded 2026-11-03), or cron(...)
-// with the rules' grammar (scheduler.md 5.1-5.3). A refusal's Message is
+// with the rules' grammar except that runs of spaces and tabs separate its
+// fields (scheduler.md 5.1-5.3). A refusal's Message is
 // "Invalid Schedule Expression <expr>." with expr verbatim (scheduler.md
 // 2.4).
 func ParseScheduler(expr string, units RateUnits) (Expression, *Error) {
@@ -99,7 +100,7 @@ func ParseScheduler(expr string, units RateUnits) (Expression, *Error) {
 	if inner, ok := enclosed(expr, "rate("); ok {
 		ex, err = parseRateUnits(lowerUnit(inner), units)
 	} else if inner, ok := enclosed(expr, "cron("); ok {
-		ex, err = parseCron(inner)
+		ex, err = parseCron(inner, spaceAndTabRuns)
 	} else if inner, ok := enclosed(expr, "at("); ok {
 		ex, err = parseAt(inner)
 	} else {

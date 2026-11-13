@@ -205,21 +205,23 @@ func TestResidualCasesDependOnlyOnTheirSwitch(t *testing.T) {
 	}
 }
 
-// Rejections AWS does not document carry this package's own text, which must
-// name the problem without leaking RE2's or strconv's wording.
+// Rejections AWS does not document carry the bare text recorded for one
+// syntax error, and a Detail that names the problem without leaking RE2's or
+// strconv's wording.
 func TestUndocumentedRejectionTexts(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct{ pattern, want string }{
-		{`{ $.a = 1e+999 }`, "Invalid filter pattern: number 1e+999 is out of range at offset 8."},
-		{`%a{1001}%`, "Invalid filter pattern: invalid regular expression at offset 0."},
+		{`{ $.a = 1e+999 }`, "number 1e+999 is out of range at offset 8"},
+		{`%a{1001}%`, "invalid regular expression at offset 0"},
 	} {
 		_, err := Compile(c.pattern)
 		if err == nil {
 			t.Errorf("Compile(%q) accepted", c.pattern)
 			continue
 		}
-		if err.Cause() != CauseSyntax || err.Message() != c.want {
-			t.Errorf("Compile(%q) = %v %q, want %v %q", c.pattern, err.Cause(), err.Message(), CauseSyntax, c.want)
+		if err.Cause() != CauseSyntax || err.Message() != "Invalid filter pattern" || err.Detail() != c.want {
+			t.Errorf("Compile(%q) = %v %q detail %q, want %v %q detail %q", c.pattern,
+				err.Cause(), err.Message(), err.Detail(), CauseSyntax, "Invalid filter pattern", c.want)
 		}
 	}
 }

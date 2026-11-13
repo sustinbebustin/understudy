@@ -23,15 +23,16 @@ func (h *harness) setState(name string, v cloudwatchapi.StateValue) {
 	must(h, cloudwatchapi.OpSetAlarmState, &cloudwatchapi.SetAlarmStateInput{AlarmName: name, StateValue: v, StateReason: "set to " + string(v)})
 }
 
-// DescribeAlarmHistory returns StateUpdate items of metric alarms, newest
-// first by default (cwa 8.1: the API reference and AWS's CLI example),
-// filtered by alarm name, type, item type and date, and nothing for item
-// types and contributors understudy never records (cwa 12.1).
+// DescribeAlarmHistory returns StateUpdate and ConfigurationUpdate items of
+// metric alarms, newest first by default (cwa 8.1: the API reference and
+// AWS's CLI example), filtered by alarm name, type, item type and date,
+// and nothing for Action items of alarms without actions or for
+// contributors, which understudy never records (cwa 8.3, 12.1).
 func TestDescribeAlarmHistoryFilters(t *testing.T) {
 	run(t, func(h *harness) {
+		t0 := h.now()
 		must(h, cloudwatchapi.OpPutMetricAlarm, quietAlarm("a"))
 		must(h, cloudwatchapi.OpPutMetricAlarm, quietAlarm("b"))
-		t0 := h.now()
 		h.setState("a", cloudwatchapi.StateValueAlarm)
 		h.advance(time.Minute)
 		h.setState("b", cloudwatchapi.StateValueAlarm)
@@ -39,18 +40,27 @@ func TestDescribeAlarmHistoryFilters(t *testing.T) {
 		h.setState("a", cloudwatchapi.StateValueOk)
 
 		all := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{})
+		// Items of one instant list by alarm name, each alarm's newest
+		// written first.
 		want := []string{
 			"a: Alarm updated from ALARM to OK",
 			"b: Alarm updated from INSUFFICIENT_DATA to ALARM",
 			"a: Alarm updated from INSUFFICIENT_DATA to ALARM",
+			`a: Alarm "a" created`,
+			`b: Alarm "b" created`,
 		}
 		if got := summaries(all); !slices.Equal(got, want) {
 			h.Fatalf("history = %v\nwant %v", got, want)
 		}
+		wantTypes := []cloudwatchapi.HistoryItemType{
+			cloudwatchapi.HistoryItemTypeStateUpdate, cloudwatchapi.HistoryItemTypeStateUpdate, cloudwatchapi.HistoryItemTypeStateUpdate,
+			cloudwatchapi.HistoryItemTypeConfigurationUpdate, cloudwatchapi.HistoryItemTypeConfigurationUpdate,
+		}
+		wantAt := []time.Time{t0.Add(2 * time.Minute), t0.Add(time.Minute), t0, t0, t0}
 		for i, it := range all {
-			if *it.AlarmType != cloudwatchapi.AlarmTypeMetricAlarm || *it.HistoryItemType != cloudwatchapi.HistoryItemTypeStateUpdate ||
-				!it.Timestamp.Equal(t0.Add(time.Duration(2-i)*time.Minute)) || it.HistoryData == nil {
-				h.Errorf("item %d = %+v (cwa 8.2)", i, it)
+			if *it.AlarmType != cloudwatchapi.AlarmTypeMetricAlarm || *it.HistoryItemType != wantTypes[i] ||
+				!it.Timestamp.Equal(wantAt[i]) || it.HistoryData == nil {
+				h.Errorf("item %d = %+v (cwa 8.2, 8.3)", i, it)
 			}
 		}
 
@@ -59,12 +69,12 @@ func TestDescribeAlarmHistoryFilters(t *testing.T) {
 			in   cloudwatchapi.DescribeAlarmHistoryInput
 			want []string
 		}{
-			{"by name", cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("a")}, []string{want[0], want[2]}},
-			{"ascending", cloudwatchapi.DescribeAlarmHistoryInput{ScanBy: new(cloudwatchapi.ScanByTimestampAscending)}, []string{want[2], want[1], want[0]}},
+			{"by name", cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("a")}, []string{want[0], want[2], want[3]}},
+			{"ascending", cloudwatchapi.DescribeAlarmHistoryInput{ScanBy: new(cloudwatchapi.ScanByTimestampAscending)}, []string{want[3], want[2], want[4], want[1], want[0]}},
 			{"metric alarms", cloudwatchapi.DescribeAlarmHistoryInput{AlarmTypes: []cloudwatchapi.AlarmType{cloudwatchapi.AlarmTypeCompositeAlarm, cloudwatchapi.AlarmTypeMetricAlarm}}, want},
 			{"composite alarms", cloudwatchapi.DescribeAlarmHistoryInput{AlarmTypes: []cloudwatchapi.AlarmType{cloudwatchapi.AlarmTypeCompositeAlarm}}, nil},
-			{"state updates", cloudwatchapi.DescribeAlarmHistoryInput{HistoryItemType: new(cloudwatchapi.HistoryItemTypeStateUpdate)}, want},
-			{"configuration updates", cloudwatchapi.DescribeAlarmHistoryInput{HistoryItemType: new(cloudwatchapi.HistoryItemTypeConfigurationUpdate)}, nil},
+			{"state updates", cloudwatchapi.DescribeAlarmHistoryInput{HistoryItemType: new(cloudwatchapi.HistoryItemTypeStateUpdate)}, want[:3]},
+			{"configuration updates", cloudwatchapi.DescribeAlarmHistoryInput{HistoryItemType: new(cloudwatchapi.HistoryItemTypeConfigurationUpdate)}, want[3:]},
 			{"actions", cloudwatchapi.DescribeAlarmHistoryInput{HistoryItemType: new(cloudwatchapi.HistoryItemTypeAction)}, nil},
 			{"contributor", cloudwatchapi.DescribeAlarmHistoryInput{AlarmContributorId: new("c1")}, nil},
 			{"dates", cloudwatchapi.DescribeAlarmHistoryInput{StartDate: new(t0.Add(30 * time.Second)), EndDate: new(t0.Add(90 * time.Second))}, []string{want[1]}},
@@ -83,9 +93,10 @@ func TestDescribeAlarmHistoryFilters(t *testing.T) {
 func TestDescribeAlarmHistoryPages(t *testing.T) {
 	run(t, func(h *harness) {
 		pageSize := switchCase(h, "cloudwatch.alarm.history.page-size", map[string]int{"50": 50})
+		// The create item and pageSize transitions make pageSize + 1 items.
 		must(h, cloudwatchapi.OpPutMetricAlarm, quietAlarm("a"))
 		states := []cloudwatchapi.StateValue{cloudwatchapi.StateValueAlarm, cloudwatchapi.StateValueOk}
-		for i := range pageSize + 1 {
+		for i := range pageSize {
 			h.setState("a", states[i%2])
 		}
 		out := must(h, cloudwatchapi.OpDescribeAlarmHistory, &cloudwatchapi.DescribeAlarmHistoryInput{})
@@ -97,8 +108,8 @@ func TestDescribeAlarmHistoryPages(t *testing.T) {
 			h.Errorf("second page = %d items, NextToken %v; want 1 and none", len(next.AlarmHistoryItems), next.NextToken)
 		}
 		// Ties keep the newest written first: the first
-		// item written, an INSUFFICIENT_DATA -> ALARM, is last.
-		if got := *next.AlarmHistoryItems[0].HistorySummary; got != "Alarm updated from INSUFFICIENT_DATA to ALARM" {
+		// item written, the create, is last.
+		if got := *next.AlarmHistoryItems[0].HistorySummary; got != `Alarm "a" created` {
 			h.Errorf("last item = %q", got)
 		}
 

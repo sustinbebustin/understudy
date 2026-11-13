@@ -9,7 +9,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
@@ -24,6 +26,112 @@ func alarmSource(k *kerneltest.K) delivery.Request {
 	return delivery.Request{Source: arn("cloudwatch", "alarm:cpu"), SourceAccount: k.Scope.Account}
 }
 
+// alarmNotification is an SNS action of the alarm cpu to the topic.
+func alarmNotification(k *kerneltest.K) delivery.Request {
+	k.Helper()
+	req := alarmSource(k)
+	req.Mechanism, req.Policy = delivery.CloudWatchToSNS, delivery.None{}
+	req.Target = delivery.SNSTopic{ARN: topic(), Message: `{"AlarmName":"cpu"}`, Subject: `ALARM: "cpu" in US East (N. Virginia)`}
+	req.AlarmAction = &delivery.AlarmAction{StateUpdated: k.Clock.Now().Wire(), Published: `{"default":"{\"AlarmName\":\"cpu\"}"}`}
+	return req
+}
+
+// report is one outcome an outbox.AlarmReporter heard, with the number of
+// sections the outbox held when it heard it.
+type report struct {
+	req     delivery.Request
+	at      clock.Instant
+	outcome delivery.Outcome
+	pending int
+}
+
+// reporter records what it hears.
+type reporter struct {
+	o       *outbox.Outbox
+	reports recorder[report]
+}
+
+func (r *reporter) ActionEnded(_ context.Context, _ *kernel.Call, req delivery.Request, at clock.Instant, o delivery.Outcome) {
+	sections, err := r.o.Export()
+	if err != nil {
+		panic(err)
+	}
+	r.reports.add(report{req: req, at: at, outcome: o, pending: len(sections)})
+}
+
+// An alarm notification's outcome goes back to CloudWatch once the
+// delivery has ended, for its Action history item (cloudwatch-alarms.md
+// 8.3): delivered, refused by the topic's policy, failed with the topic's
+// error ("Topic does not exist" for a missing topic, CWA-16), or ended
+// with no answer from the topic. It is heard once, at the attempt's
+// instant, after the entry is gone, so a snapshot cut between the two
+// loses the history item, never redelivers the notification.
+func TestAnAlarmNotificationReportsHowItEnded(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		answer *awserr.Error
+		drop   bool
+		want   delivery.Outcome
+	}{
+		{name: "delivered", want: delivery.Delivered{}},
+		{name: "missing topic", answer: snsapi.ErrNotFoundException("Topic does not exist"), want: delivery.TargetFailed{Message: "Topic does not exist"}},
+		{name: "denied", answer: &awserr.Error{ID: snsapi.DenialError(), Message: "denied", Origin: awserr.Denial{}}, want: delivery.Denied{}},
+		{name: "server error", answer: snsapi.ErrInternalErrorException("try again"), want: delivery.TargetFailed{Message: "try again"}},
+		{name: "dropped by a fault rule", drop: true, want: delivery.Undelivered{}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			r := &reporter{}
+			runWith(t, outbox.Options{Alarms: r}, func(k *kerneltest.K, o *outbox.Outbox) {
+				r.o = o
+				k.Stub(snsapi.OpPublish, func(context.Context, *kernel.Call, *snsapi.PublishInput) (*snsapi.PublishOutput, *awserr.Error) {
+					if c.answer != nil {
+						return nil, c.answer
+					}
+					return &snsapi.PublishOutput{MessageId: new("m")}, nil
+				})
+				if c.drop {
+					if _, err := k.Faults.Add(fault.Rule{
+						Match: fault.Match{Mechanisms: []delivery.Mechanism{delivery.CloudWatchToSNS}}, Phase: fault.Delivery,
+						Action: fault.DropDelivery{}, Trigger: fault.NextN{N: 1},
+					}); err != nil {
+						k.Fatal(err)
+					}
+				}
+				req := alarmNotification(k)
+				at := k.Clock.Now()
+				enqueue(k, o, req, source(k))
+				settled(k)
+				advance(k, time.Hour)
+				got := r.reports.all()
+				if len(got) != 1 {
+					k.Fatalf("reports = %+v, want one", got)
+				}
+				if got[0].req.AlarmAction == nil || *got[0].req.AlarmAction != *req.AlarmAction || got[0].at != at || got[0].pending != 0 {
+					k.Errorf("report = %+v, want the request's alarm action at %v with nothing pending", got[0], at)
+				}
+				if !sameReport(got[0].outcome, c.want) {
+					k.Errorf("outcome = %#v, want %#v", got[0].outcome, c.want)
+				}
+			})
+		})
+	}
+}
+
+// sameReport compares the variant, and a TargetFailed's message.
+func sameReport(got, want delivery.Outcome) bool {
+	switch w := want.(type) {
+	case delivery.TargetFailed:
+		g, ok := got.(delivery.TargetFailed)
+		return ok && g.Message == w.Message
+	case delivery.Undelivered:
+		g, ok := got.(delivery.Undelivered)
+		return ok && g.Reason != ""
+	case delivery.Delivered, delivery.Denied:
+		return got == want
+	}
+	return false
+}
+
 // An alarm notification is a Publish with the alarm's Subject as
 // cloudwatch.amazonaws.com, the principal a topic policy grants
 // (cloudwatch-alarms.md 5.3, aws-doc); to a FIFO topic it carries the
@@ -36,10 +144,7 @@ func TestCloudWatchToSNS(t *testing.T) {
 			id := "m"
 			return &snsapi.PublishOutput{MessageId: &id}, nil
 		})
-		req := alarmSource(k)
-		req.Mechanism = delivery.CloudWatchToSNS
-		req.Policy = delivery.None{}
-		req.Target = delivery.SNSTopic{ARN: topic(), Message: `{"AlarmName":"cpu"}`, Subject: `ALARM: "cpu" in US East (N. Virginia)`}
+		req := alarmNotification(k)
 		cause := source(k)
 		enqueue(k, o, req, cause)
 		settled(k)
@@ -118,11 +223,7 @@ func TestCloudWatchToSNSRefusalIsDropped(t *testing.T) {
 					publishes.add(call[snsapi.PublishInput]{in: *in, at: c.Admitted(), principal: c.Principal(), origin: c.Origin()})
 					return nil, refusal
 				})
-				req := alarmSource(k)
-				req.Mechanism = delivery.CloudWatchToSNS
-				req.Policy = delivery.None{}
-				req.Target = delivery.SNSTopic{ARN: topic(), Message: "{}", Subject: "s"}
-				enqueue(k, o, req, source(k))
+				enqueue(k, o, alarmNotification(k), source(k))
 				settled(k)
 				advance(k, time.Hour)
 				if n := len(publishes.all()); n != 1 {

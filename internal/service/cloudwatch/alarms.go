@@ -53,7 +53,7 @@ func (s *Service) bindAlarms(b cloudwatchapi.Binder) {
 		}))
 	b.DescribeAlarmsForMetric(s.describeAlarmsForMetric, registry.Full{})
 	b.DescribeAlarmHistory(s.describeAlarmHistory,
-		registry.Partial{Note: "StateUpdate items only, kept 30 days on the emulator clock and after the alarm is deleted; ConfigurationUpdate and Action items are never recorded, and AlarmContributorId selects nothing"})
+		registry.Partial{Note: "StateUpdate, ConfigurationUpdate and SNS actions' Action items, kept 30 days on the emulator clock and after the alarm is deleted; Lambda actions write no Action item, since no recording shows one, and AlarmContributorId selects nothing; inferred: EnableAlarmActions writes an update item as DisableAlarmActions does, the item's alarm object carries alarmDescription, unit, datapointsToAlarm, evaluateLowSampleCountPercentile and thresholdMetricId only when set and leaves out Metrics, EvaluationCriteria, EvaluationWindow, EvaluationInterval and WarmUpConfiguration, and an Action item's email text shows a description, dimensions, a unit, an ExtendedStatistic and DatapointsToAlarm in unrecorded forms"})
 	b.DeleteAlarms(s.deleteAlarms, registry.Full{},
 		alarmsNamed(func(in *cloudwatchapi.DeleteAlarmsInput) []string { return in.AlarmNames }))
 	b.EnableAlarmActions(s.enableAlarmActions, registry.Full{},
@@ -116,9 +116,10 @@ func (s *Service) putMetricAlarm(ctx context.Context, c *kernel.Call, in *cloudw
 	eval, notEvaluable := alarm.ConfigOf(&cfg)
 	ref := named(c, in.AlarmName)
 	// Set in the write, as Write answers its zero result when an effect
-	// fails after the commit, and the event of a committed change is sent
-	// either way.
+	// fails after the commit, and the event and history item of a
+	// committed change are written either way.
 	var queued *serviceevent.Queued
+	var history []historyEntry
 	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		a, ok := st.Alarms[in.AlarmName]
 		var previous *Alarm
@@ -140,13 +141,15 @@ func (s *Service) putMetricAlarm(ctx context.Context, c *kernel.Call, in *cloudw
 		a.MetricID = alarm.MetricID(ref.arn().String(), now.Wire(), a.MetricID)
 		st.Alarms[in.AlarmName] = a
 		s.armEvaluation(tx, ref, &eval, notEvaluable, now)
-		event := configChangeEvent(alarm.ConfigCreate, ref, &a, nil)
+		op := alarm.ConfigCreate
 		if previous != nil {
-			event = configChangeEvent(alarm.ConfigUpdate, ref, &a, previous)
+			op = alarm.ConfigUpdate
 		}
-		queued = s.events.Push(c, clock.Instant{}, event)
+		history = []historyEntry{configUpdate(op, ref, &a, previous, now)}
+		queued = s.events.Push(c, clock.Instant{}, configChangeEvent(op, ref, &a, previous))
 		return struct{}{}, nil
 	})
+	s.appendConfigUpdates(ctx, c, history)
 	s.events.Flush(ctx, queued)
 	if err != nil {
 		return nil, err
@@ -336,17 +339,21 @@ func echoQueries(qs []cloudwatchapi.MetricDataQuery) []cloudwatchapi.MetricDataQ
 }
 
 // deleteAlarms deletes the named alarms with their tags and evaluation
-// timers; their history stays (cloudwatch-alarms.md 8.1). Names that match
-// no alarm are skipped, as AWS documents, so deleting a missing alarm
-// succeeds (wire-cbor.md 3.5).
+// timers; their history stays, and gains a ConfigurationUpdate item for
+// the delete (cloudwatch-alarms.md 8.1, 8.3). Names that match no alarm
+// are skipped, as AWS documents, so deleting a missing alarm succeeds
+// (wire-cbor.md 3.5).
 func (s *Service) deleteAlarms(ctx context.Context, c *kernel.Call, in *cloudwatchapi.DeleteAlarmsInput) (*cloudwatchapi.DeleteAlarmsOutput, *awserr.Error) {
 	var last *serviceevent.Queued
-	err := s.eachAlarm(c, in.AlarmNames, func(st *State, name string, a Alarm, _ clock.Instant, tx *kernel.Tx) {
+	var history []historyEntry
+	err := s.eachAlarm(c, in.AlarmNames, func(st *State, name string, a Alarm, now clock.Instant, tx *kernel.Tx) {
 		delete(st.Alarms, name)
 		ref := named(c, name)
 		tx.Disarm(s.evaluation, ref.arn().String())
+		history = append(history, configUpdate(alarm.ConfigDelete, ref, &a, nil, now))
 		last = s.events.Push(c, clock.Instant{}, configChangeEvent(alarm.ConfigDelete, ref, &a, nil))
 	})
+	s.appendConfigUpdates(ctx, c, history)
 	s.events.Flush(ctx, last)
 	if err != nil {
 		return nil, err
@@ -369,20 +376,25 @@ func (s *Service) disableAlarmActions(ctx context.Context, c *kernel.Call, in *c
 }
 
 // setActionsEnabled sets ActionsEnabled on the named alarms as a
-// configuration update: AlarmConfigurationUpdatedTimestamp moves and an
-// "update" configuration change event is sent, with the metric id kept
-// (CWA-14 recorded DisableAlarmActions; EnableAlarmActions is inferred to
-// match, and whether setting the value an alarm already has is an update
-// is unrecorded). Names that match no alarm are skipped, as DeleteAlarms
+// configuration update: AlarmConfigurationUpdatedTimestamp moves, an
+// "update" configuration change event is sent, with the metric id kept,
+// and an "updated" ConfigurationUpdate item is written (CWA-14 recorded
+// DisableAlarmActions; EnableAlarmActions is inferred to match, and
+// whether setting the value an alarm already has is an update is
+// unrecorded). Names that match no alarm are skipped, as DeleteAlarms
 // skips them (inferred: the documentation is silent).
 func (s *Service) setActionsEnabled(ctx context.Context, c *kernel.Call, names []string, enabled bool) *awserr.Error {
 	var last *serviceevent.Queued
+	var history []historyEntry
 	err := s.eachAlarm(c, names, func(st *State, name string, a Alarm, now clock.Instant, _ *kernel.Tx) {
 		previous := a
 		a.ActionsEnabled, a.ConfigUpdated = enabled, now
 		st.Alarms[name] = a
-		last = s.events.Push(c, clock.Instant{}, configChangeEvent(alarm.ConfigUpdate, named(c, name), &a, &previous))
+		ref := named(c, name)
+		history = append(history, configUpdate(alarm.ConfigUpdate, ref, &a, &previous, now))
+		last = s.events.Push(c, clock.Instant{}, configChangeEvent(alarm.ConfigUpdate, ref, &a, &previous))
 	})
+	s.appendConfigUpdates(ctx, c, history)
 	s.events.Flush(ctx, last)
 	return err
 }

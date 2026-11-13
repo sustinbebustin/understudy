@@ -124,9 +124,10 @@ func TestEnforceScopesCopyObjectToItsSourceAndDestination(t *testing.T) {
 
 // An EventBridge target whose queue policy does not admit events.amazonaws.com
 // is not retried; the event goes straight to the target's dead-letter queue
-// with the failure in its message attributes (iam-enforcement-surfaces.md
-// 8.4, aws-doc). Which ERROR_CODE a refusal carries is UNVERIFIED
-// (IAM-ENF-22), so it is read from switch events.delivery.denied-code.
+// with the failure in its message attributes and no retry attributes
+// (iam-enforcement-surfaces.md 8.4; aws-recorded,
+// testdata/parity/sqs/IAM-ENF/22-dlq-sa.json). Its ERROR_CODE is read from
+// switch events.delivery.denied-code.
 func TestEnforceDeadLettersAnEventBridgeDeliveryTheTargetRefuses(t *testing.T) {
 	c, endpoint, _ := enforced(t, server.IAMEnforceEnforce)
 	const ruleARN = "arn:aws:events:us-east-1:000000000000:rule/nightly"
@@ -169,7 +170,8 @@ func TestEnforceDeadLettersAnEventBridgeDeliveryTheTargetRefuses(t *testing.T) {
 	}
 	want := wiredSwitch(t, c, "events.delivery.denied-code")
 	got := out.Messages[0].MessageAttributes
-	if got["ERROR_CODE"].StringValue != want || got["RULE_ARN"].StringValue != ruleARN || got["RETRY_ATTEMPTS"].StringValue != "0" {
-		t.Errorf("dead letter attributes = %+v, want ERROR_CODE %q (events.delivery.denied-code), the rule's ARN and no retry", got, want)
+	_, retries := got["RETRY_ATTEMPTS"]
+	if got["ERROR_CODE"].StringValue != want || got["RULE_ARN"].StringValue != ruleARN || retries {
+		t.Errorf("dead letter attributes = %+v, want ERROR_CODE %q (events.delivery.denied-code), the rule's ARN and no RETRY_ATTEMPTS", got, want)
 	}
 }

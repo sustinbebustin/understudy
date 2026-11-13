@@ -58,7 +58,7 @@
         {"step": "06-too-long", "fixture": "events/EBB/06-too-long.json", "operation": "eventbridge.PutPermission", "outcome": {"kind": "match"}},
         {"step": "08-input-on-bus-target", "fixture": "events/EBB/08-input-on-bus-target.json", "operation": "eventbridge.PutTargets", "outcome": {"kind": "match"}},
         {"step": "08-missing-target-bus", "fixture": "events/EBB/08-missing-target-bus.json", "operation": "eventbridge.PutTargets", "outcome": {"kind": "match"}},
-        {"step": "08-no-role", "fixture": "events/EBB/08-no-role.json", "operation": "eventbridge.PutTargets", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/__type, body/message, body/FailedEntries, body/FailedEntryCount"}}
+        {"step": "08-no-role", "fixture": "events/EBB/08-no-role.json", "operation": "eventbridge.PutTargets", "outcome": {"kind": "match"}}
       ],
       "claims": [
         {"target": {"kind": "switch", "name": "events.delete-bus.with-rules"}, "step": "01-delete-with-rule", "field": "body/message", "result": {"kind": "settled"}},
@@ -70,6 +70,16 @@
     {
       "scenario": "events/R14",
       "steps": [
+        {"step": "01-07-put", "fixture": "events/R14/01-07-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "01-07-describe", "fixture": "events/R14/01-07-describe.json", "operation": "eventbridge.DescribeRule", "outcome": {"kind": "match"}},
+        {"step": "01-18-put", "fixture": "events/R14/01-18-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "01-18-describe", "fixture": "events/R14/01-18-describe.json", "operation": "eventbridge.DescribeRule", "outcome": {"kind": "match"}},
+        {"step": "01-19-put", "fixture": "events/R14/01-19-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "01-19-describe", "fixture": "events/R14/01-19-describe.json", "operation": "eventbridge.DescribeRule", "outcome": {"kind": "match"}},
+        {"step": "01-26-put", "fixture": "events/R14/01-26-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "01-26-describe", "fixture": "events/R14/01-26-describe.json", "operation": "eventbridge.DescribeRule", "outcome": {"kind": "match"}},
+        {"step": "01-29-put", "fixture": "events/R14/01-29-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "01-30-put", "fixture": "events/R14/01-30-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
         {"step": "04-custom-bus-schedule", "fixture": "events/R14/04-custom-bus-schedule.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
         {"step": "H1-01", "fixture": "events/R14/H1-01.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},
         {"step": "H1-02", "fixture": "events/R14/H1-02.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},

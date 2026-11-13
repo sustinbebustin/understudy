@@ -20,6 +20,14 @@ type monthDays struct{ set bitset }
 // lastDayOfMonth is L in day of month.
 type lastDayOfMonth struct{}
 
+// lastDayOffset is L-n in day of month: the month's last day minus n. It
+// never fires in a month with n days or fewer.
+type lastDayOffset struct{ n int }
+
+// maxLastDayOffset is the largest n L-n takes, Quartz's bound (inferred,
+// doc.go).
+const maxLastDayOffset = 30
+
 // lastWeekdayOfMonth is LW: the last Monday to Friday of the month.
 type lastWeekdayOfMonth struct{}
 
@@ -39,6 +47,8 @@ type nthWeekday struct{ weekday, n int }
 func (s monthDays) matches(_ int, _ time.Month, d int) bool { return s.set.has(d) }
 
 func (lastDayOfMonth) matches(y int, m time.Month, d int) bool { return d == daysIn(y, m) }
+
+func (s lastDayOffset) matches(y int, m time.Month, d int) bool { return d == daysIn(y, m)-s.n }
 
 func (lastWeekdayOfMonth) matches(y int, m time.Month, d int) bool {
 	last := daysIn(y, m)
@@ -108,13 +118,20 @@ func parseDays(dom, dow string) (daySpec, *Error) {
 	return nil, invalid("day-of-month and day-of-week cannot both be specified; one must be ?")
 }
 
-// parseDayOfMonth reads L, LW and nW, which stand alone, or a list.
+// parseDayOfMonth reads L, LW, L-n and nW, which stand alone, or a list.
 func parseDayOfMonth(s string) (daySpec, *Error) {
 	switch s {
 	case "L":
 		return lastDayOfMonth{}, nil
 	case "LW":
 		return lastWeekdayOfMonth{}, nil
+	}
+	if text, ok := strings.CutPrefix(s, "L-"); ok {
+		n, err := strconv.Atoi(text)
+		if err != nil || strings.Trim(text, "0123456789") != "" || n > maxLastDayOffset {
+			return nil, invalid("day-of-month: L- takes a number of days from 0 to " + strconv.Itoa(maxLastDayOffset))
+		}
+		return lastDayOffset{n: n}, nil
 	}
 	f := domField()
 	if n, ok := strings.CutSuffix(s, "W"); ok {

@@ -54,12 +54,20 @@ func (Rate) isSchedule() {}
 // Parse parses rate(value unit) or cron(minutes hours day-of-month month
 // day-of-week year). Whitespace is not trimmed: AWS rejects it around the
 // expression and inside the parentheses.
-func Parse(expr string) (Schedule, *Error) {
+func Parse(expr string) (Schedule, *Error) { return parse(expr, oneSpace) }
+
+// ParseStored parses a rule's expression stored by an earlier build: Parse,
+// except that runs of spaces and tabs separate cron fields, as rules took
+// them before the one-space separation was recorded (doc.go). PutRule
+// refuses such an expression; a stored rule that holds one keeps loading.
+func ParseStored(expr string) (Schedule, *Error) { return parse(expr, spaceAndTabRuns) }
+
+func parse(expr string, sep separation) (Schedule, *Error) {
 	if inner, ok := enclosed(expr, "rate("); ok {
 		return parseRate(inner)
 	}
 	if inner, ok := enclosed(expr, "cron("); ok {
-		return parseCron(inner)
+		return parseCron(inner, sep)
 	}
 	return nil, invalid("expected rate(...) or cron(...)")
 }

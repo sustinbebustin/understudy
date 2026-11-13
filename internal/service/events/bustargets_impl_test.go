@@ -22,7 +22,7 @@ func TestBusTargetForwardsTheEventTimeAndResources(t *testing.T) {
 		}
 		dest := h.createBus("dest")
 		h.patternRule("fwd", `{"source": ["shop"]}`)
-		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: dest})
+		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: dest, RoleArn: new(invokerRole)})
 		at := time.Date(2026, 10, 14, 7, 14, 15, 0, time.UTC)
 		e := entry("shop", "order", `{}`)
 		e.Time = &at
@@ -52,7 +52,7 @@ func TestBusTargetToAMissingBus(t *testing.T) {
 		}
 		missing := busPrefix + "not-yet"
 		h.patternRule("fwd", `{"source": ["shop"]}`)
-		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: missing})
+		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: missing, RoleArn: new(invokerRole)})
 		h.putEvents(entry("shop", "order", `{}`))
 		got := h.sink.take()
 		if len(got) != 1 {
@@ -110,6 +110,43 @@ func TestPutTargetsKeepsACrossAccountBusTargetsRole(t *testing.T) {
 	})
 }
 
+// An event bus target of the rule's own account without a RoleArn refuses
+// the whole PutTargets call: 400 ValidationException "RoleArn is required
+// for target <bus ARN>." (AWS-recorded, eventbridge-buses.md 6.2,
+// testdata/parity/events/EBB/08-no-role.json). A put without a role on a
+// target with the same Id and Arn keeps the stored role, as it does across
+// accounts, which is inferred from API_PutTargets's wording (6.3).
+func TestPutTargetsRequiresARoleForASameAccountBusTarget(t *testing.T) {
+	run(t, func(h *harness) {
+		dest := h.createBus("dest")
+		const west = "arn:aws:events:eu-west-1:000000000000:event-bus/orders"
+		h.patternRule("fwd", `{"source": ["shop"]}`)
+		for _, arn := range []string{dest, west} {
+			_, err := call(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "fwd", Targets: []eventbridgeapi.Target{
+				{Id: "q", Arn: queueARN},
+				{Id: "bus", Arn: arn},
+			}})
+			wantError(t, err, "ValidationException", "RoleArn is required for target "+arn+".")
+		}
+		if n := len(must(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: "fwd"}).Targets); n != 0 {
+			t.Errorf("%d targets stored after the refused calls, want none", n)
+		}
+
+		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: dest, RoleArn: new(invokerRole)})
+		retry := &eventbridgeapi.RetryPolicy{MaximumRetryAttempts: new(int32(1))}
+		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: dest, RetryPolicy: retry})
+		want := []eventbridgeapi.Target{{Id: "bus", Arn: dest, RoleArn: new(invokerRole), RetryPolicy: retry}}
+		if listed := must(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: "fwd"}).Targets; !reflect.DeepEqual(listed, want) {
+			t.Errorf("ListTargetsByRule after a put without RoleArn = %+v\nwant %+v", listed, want)
+		}
+		_, err := call(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "fwd", Targets: []eventbridgeapi.Target{{Id: "bus", Arn: west}}})
+		wantError(t, err, "ValidationException", "RoleArn is required for target "+west+".")
+		if listed := must(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: "fwd"}).Targets; !reflect.DeepEqual(listed, want) {
+			t.Errorf("ListTargetsByRule after the refused put = %+v\nwant %+v", listed, want)
+		}
+	})
+}
+
 // An event bus target ARN names a bus: event-bus/<name> in the rule's
 // partition, the name non-empty and without '/' (CreateEventBus refuses one,
 // eventbridge-buses.md 2.2). Any other EventBridge ARN is a target understudy
@@ -138,23 +175,22 @@ func TestPutTargetsRefusesEventBridgeARNsThatAreNoBus(t *testing.T) {
 }
 
 // A bus of the rule's own account in another region is a same-account
-// target: it takes no RoleArn requirement (events.bus-target.cross-account-role
-// concerns other accounts, eb-cross-account.html), and an input form on it
-// refuses the call as on a same-region bus (EBB-08, recorded 2026-11-03,
-// for a same-region bus; eventbridge-buses.md 6.2).
+// target: an input form on it refuses the call with the same-account text,
+// as on a same-region bus (EBB-08, recorded 2026-11-03, for a same-region
+// bus; eventbridge-buses.md 6.2), not the cross-account one.
 func TestSameAccountBusInAnotherRegion(t *testing.T) {
 	run(t, func(h *harness) {
 		const west = "arn:aws:events:eu-west-1:000000000000:event-bus/orders"
 		h.patternRule("fwd", `{"source": ["shop"]}`)
 		_, err := call(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "fwd", Targets: []eventbridgeapi.Target{
-			{Id: "plain", Arn: west},
-			{Id: "shaped", Arn: west, InputPath: new("$.detail")},
+			{Id: "plain", Arn: west, RoleArn: new(invokerRole)},
+			{Id: "shaped", Arn: west, RoleArn: new(invokerRole), InputPath: new("$.detail")},
 		}})
 		wantError(t, err, "ValidationException", "Modifying the input for target shaped is not supported.")
-		must(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "fwd", Targets: []eventbridgeapi.Target{{Id: "plain", Arn: west}}})
+		must(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "fwd", Targets: []eventbridgeapi.Target{{Id: "plain", Arn: west, RoleArn: new(invokerRole)}}})
 		listed := must(h, eventbridgeapi.OpListTargetsByRule, &eventbridgeapi.ListTargetsByRuleInput{Rule: "fwd"}).Targets
-		if len(listed) != 1 || listed[0].Id != "plain" || listed[0].RoleArn != nil {
-			t.Errorf("targets = %+v, want plain alone, without a RoleArn", listed)
+		if len(listed) != 1 || listed[0].Id != "plain" || deref(listed[0].RoleArn) != invokerRole {
+			t.Errorf("targets = %+v, want plain alone, with its RoleArn", listed)
 		}
 	})
 }
@@ -167,7 +203,7 @@ func TestStoredBusTargetWithAnInputIsDropped(t *testing.T) {
 	run(t, func(h *harness) {
 		dest := h.createBus("dest")
 		h.patternRule("fwd", `{"source": ["shop"]}`)
-		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: dest})
+		h.target("fwd", eventbridgeapi.Target{Id: "bus", Arn: dest, RoleArn: new(invokerRole)})
 		h.target("fwd", eventbridgeapi.Target{Id: "q", Arn: queueARN})
 		sec := exportOne(h)
 		data := replaced(h, string(sec.Data),

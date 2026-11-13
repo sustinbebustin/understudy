@@ -294,7 +294,7 @@ func TestClockAdvanceEvaluatesAndNotifiesOnce(t *testing.T) {
 			h.Errorf("journaled state changes = %v", sc)
 		}
 
-		items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu")})
+		items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu"), HistoryItemType: new(cloudwatchapi.HistoryItemTypeStateUpdate)})
 		if s := summaries(items); !slices.Equal(s, []string{
 			"cpu: Alarm updated from ALARM to INSUFFICIENT_DATA", "cpu: Alarm updated from INSUFFICIENT_DATA to ALARM",
 		}) {
@@ -377,7 +377,7 @@ func TestEvaluationThatRetainsWritesNothing(t *testing.T) {
 		if sc := h.stateChanges(h.alarmARN("quiet")); len(sc) != 0 {
 			h.Errorf("state changes = %v", sc)
 		}
-		if items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{}); len(items) != 0 {
+		if items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{HistoryItemType: new(cloudwatchapi.HistoryItemTypeStateUpdate)}); len(items) != 0 {
 			h.Errorf("history = %v", summaries(items))
 		}
 		if d := fx.sink.all(); len(d) != 0 || len(fx.bus.of("CloudWatch Alarm State Change")) != 0 {
@@ -539,7 +539,8 @@ func TestSetAlarmStateTransitions(t *testing.T) {
 		if sc := h.stateChanges(arn); !slices.Equal(sc, []string{"INSUFFICIENT_DATA->ALARM"}) {
 			h.Errorf("state changes = %v", sc)
 		}
-		items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{})
+		transitions := &cloudwatchapi.DescribeAlarmHistoryInput{HistoryItemType: new(cloudwatchapi.HistoryItemTypeStateUpdate)}
+		items := h.history(transitions)
 		// localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json:L6336-L6380
 		if len(items) != 1 || *items[0].HistoryData != `{"version":"1.0","oldState":{"stateValue":"INSUFFICIENT_DATA","stateReason":"Unchecked: Initial alarm creation"},"newState":{"stateValue":"ALARM","stateReason":"testing alarm"}}` {
 			h.Errorf("history = %v", summaries(items))
@@ -562,7 +563,7 @@ func TestSetAlarmStateTransitions(t *testing.T) {
 			!got.StateUpdatedTimestamp.Equal(set) || !got.StateTransitionedTimestamp.Equal(set) {
 			h.Errorf("after SetAlarmState to the same value: %q %v at %v %v", *got.StateReason, got.StateReasonData, *got.StateUpdatedTimestamp, *got.StateTransitionedTimestamp)
 		}
-		if n := len(h.history(&cloudwatchapi.DescribeAlarmHistoryInput{})); n != 1 || len(fx.sink.all()) != 1 || len(fx.bus.of("CloudWatch Alarm State Change")) != 1 {
+		if n := len(h.history(transitions)); n != 1 || len(fx.sink.all()) != 1 || len(fx.bus.of("CloudWatch Alarm State Change")) != 1 {
 			h.Errorf("SetAlarmState to the same value wrote history, ran an action or sent an event")
 		}
 	})
@@ -602,6 +603,10 @@ func TestSnapshotLoadRearmsEvaluation(t *testing.T) {
 		must(h, cloudwatchapi.OpPutMetricAlarm, in)
 		must(h, cloudwatchapi.OpSetAlarmState, &cloudwatchapi.SetAlarmStateInput{AlarmName: "cpu", StateValue: cloudwatchapi.StateValueOk, StateReason: "set"})
 		arn := h.alarmARN("cpu")
+		saved := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{})
+		if got, want := summaries(saved), []string{"cpu: Alarm updated from INSUFFICIENT_DATA to OK", `cpu: Alarm "cpu" created`}; !slices.Equal(got, want) {
+			h.Fatalf("history = %v, want %v", got, want)
+		}
 
 		sections, err := h.svc.Export()
 		if err != nil {
@@ -615,8 +620,9 @@ func TestSnapshotLoadRearmsEvaluation(t *testing.T) {
 		if err := h.svc.Import(sections); err != nil {
 			h.Fatal(err)
 		}
-		if items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu")}); len(items) != 1 {
-			h.Errorf("history after Import = %v, want the SetAlarmState item", summaries(items))
+		// Both item types survive, each keeping its HistoryItemType.
+		if items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{}); !reflect.DeepEqual(items, saved) {
+			h.Errorf("history after Import = %+v\nwant %+v", items, saved)
 		}
 		if due, ok := h.evaluationTimer(arn); ok {
 			h.Fatalf("Import armed a timer at %v; Rearm arms them", due)
@@ -644,12 +650,13 @@ func TestHistoryOutlivesTheAlarmForThirtyDays(t *testing.T) {
 		if due, ok := h.evaluationTimer(h.alarmARN("cpu")); ok {
 			h.Errorf("a deleted alarm's timer is armed at %v", due)
 		}
-		if items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu")}); len(items) != 1 {
-			h.Errorf("history after delete = %v, want the item kept", summaries(items))
+		kept := []string{`cpu: Alarm "cpu" deleted`, "cpu: Alarm updated from INSUFFICIENT_DATA to ALARM", `cpu: Alarm "cpu" created`}
+		if got := summaries(h.history(&cloudwatchapi.DescribeAlarmHistoryInput{AlarmName: new("cpu")})); !slices.Equal(got, kept) {
+			h.Errorf("history after delete = %v, want %v (cwa 8.3)", got, kept)
 		}
 		h.settle(29 * day)
-		if items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{}); len(items) != 1 {
-			h.Errorf("history after 29 days = %v, want the item kept", summaries(items))
+		if got := summaries(h.history(&cloudwatchapi.DescribeAlarmHistoryInput{})); !slices.Equal(got, kept) {
+			h.Errorf("history after 29 days = %v, want %v", got, kept)
 		}
 		h.settle(2 * day)
 		if items := h.history(&cloudwatchapi.DescribeAlarmHistoryInput{}); len(items) != 0 {
@@ -741,7 +748,7 @@ func TestAlarmCoverage(t *testing.T) {
 			cloudwatchapi.OpSetAlarmState.Descriptor():           registry.Partial{Note: "the state is set and its actions run when it changes; the next evaluation re-derives it, except on alarms that are never evaluated (see PutMetricAlarm)"},
 			cloudwatchapi.OpEnableAlarmActions.Descriptor():      registry.Full{},
 			cloudwatchapi.OpDisableAlarmActions.Descriptor():     registry.Full{},
-			cloudwatchapi.OpDescribeAlarmHistory.Descriptor():    registry.Partial{Note: "StateUpdate items only, kept 30 days on the emulator clock and after the alarm is deleted; ConfigurationUpdate and Action items are never recorded, and AlarmContributorId selects nothing"},
+			cloudwatchapi.OpDescribeAlarmHistory.Descriptor():    registry.Partial{Note: "StateUpdate, ConfigurationUpdate and SNS actions' Action items, kept 30 days on the emulator clock and after the alarm is deleted; Lambda actions write no Action item, since no recording shows one, and AlarmContributorId selects nothing; inferred: EnableAlarmActions writes an update item as DisableAlarmActions does, the item's alarm object carries alarmDescription, unit, datapointsToAlarm, evaluateLowSampleCountPercentile and thresholdMetricId only when set and leaves out Metrics, EvaluationCriteria, EvaluationWindow, EvaluationInterval and WarmUpConfiguration, and an Action item's email text shows a description, dimensions, a unit, an ExtendedStatistic and DatapointsToAlarm in unrecorded forms"},
 			cloudwatchapi.OpDescribeAlarmsForMetric.Descriptor(): registry.Full{},
 			cloudwatchapi.OpGetMetricStatistics.Descriptor():     registry.Partial{Note: "Statistics only: ExtendedStatistics answers 501; points are kept until reset, not aged out by resolution"},
 		} {

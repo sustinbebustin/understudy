@@ -185,19 +185,28 @@ func (s *Service) putRule(_ context.Context, c *kernel.Call, in *eventbridgeapi.
 
 // setSchedule sets r's next fire and arms or disarms its timer. A schedule
 // that, with the rule's enablement, is unchanged since prev keeps its next
-// fire; any other enabled schedule restarts at now, so a rate rule fires
-// one interval after it.
+// fire, unless it is a rate that has just gained its first target; any
+// other enabled schedule restarts at now, so a rate rule fires at once
+// (Schedule.first).
 func (s *Service) setSchedule(tx *kernel.Tx, ref ruleRef, prev, r *Rule, now clock.Instant) {
 	sched, scheduled := r.Trigger.schedule()
 	switch {
 	case !scheduled || !r.enabled():
 		r.NextFire = clock.Instant{}
-	case prev != nil && sameSchedule(prev.Trigger, sched) && !prev.NextFire.IsZero():
+	case prev != nil && sameSchedule(prev.Trigger, sched) && !prev.NextFire.IsZero() && !gainsFirstTarget(prev, r, sched):
 		r.NextFire = prev.NextFire
 	default:
-		r.NextFire = sched.next(now)
+		r.NextFire = sched.first(now)
 	}
 	s.armSchedule(tx, ref, r.NextFire)
+}
+
+// gainsFirstTarget reports whether r is a rate rule that had no target in
+// prev and has one now. Its rate restarts then, so the fire at its creation
+// reaches the targets PutTargets adds after PutRule, as AWS's fire did a
+// second later (events/R14 02); restarting at the target is inferred.
+func gainsFirstTarget(prev, r *Rule, sched Schedule) bool {
+	return sched.rate() && len(prev.Targets) == 0 && len(r.Targets) > 0
 }
 
 // sameSchedule reports whether t has a schedule with sched's expression.

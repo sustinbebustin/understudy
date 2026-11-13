@@ -86,7 +86,8 @@ func TestPutEventsSkipsDisabledAndScheduleOnlyRules(t *testing.T) {
 		h.patternRule("off", `{"source": ["s"]}`)
 		h.target("off", eventbridgeapi.Target{Id: "q", Arn: queueARN})
 		must(h, eventbridgeapi.OpDisableRule, &eventbridgeapi.DisableRuleInput{Name: "off"})
-		h.schedule("timer", "rate(1 day)")
+		// A cron, since a rate fires a scheduled event at its creation.
+		h.schedule("timer", "cron(0 2 * * ? *)")
 		h.putEvents(entry("s", "t", `{}`))
 		if got := h.sink.take(); len(got) != 0 {
 			t.Errorf("delivered %v", targetARNs(got))

@@ -56,9 +56,9 @@ func scheduledEvents(t *testing.T, rule string) []scheduledEvent {
 
 // TestEventBridgeScheduleInvokesTheImageWorker creates a rate(5 minutes)
 // rule targeting the image worker and drives it on the emulator clock: a
-// rate rule first fires one period after it is created, with one-minute
-// precision, then every period, and each delivery is the documented
-// Scheduled Event (secrets-logs-events-alarms.md 4.2, 4.3).
+// rate rule fires when it is created, then every period, and each delivery
+// is the documented Scheduled Event (secrets-logs-events-alarms.md 4.2,
+// 4.3).
 func TestEventBridgeScheduleInvokesTheImageWorker(t *testing.T) {
 	p := pipe(t)
 	rule := "e2e-heartbeat-" + env.runID
@@ -89,27 +89,37 @@ func TestEventBridgeScheduleInvokesTheImageWorker(t *testing.T) {
 		t.Fatalf("events PutTargets: %v (failed entries %+v)", err, out)
 	}
 
-	advance(t, 3*time.Minute)
-	if evs := scheduledEvents(t, rule); len(evs) != 0 {
-		t.Fatalf("the rule fired %d times within 3 minutes of creation; a rate(5 minutes) rule first fires one period after it is created: %+v", len(evs), evs)
-	}
-	advance(t, 3*time.Minute)
 	var evs []scheduledEvent
-	eventually(t, "one scheduled event 6 minutes after creation", func() (bool, string) {
+	eventually(t, "one scheduled event at creation", func() (bool, string) {
 		evs = scheduledEvents(t, rule)
 		return len(evs) == 1, fmt.Sprintf("%d events", len(evs))
 	})
-	checkScheduledEvent(t, evs[0], ruleARN, created.Add(4*time.Minute), created.Add(6*time.Minute))
+	checkScheduledEvent(t, evs[0], ruleARN, created, emuNow(t))
+
+	advance(t, 3*time.Minute)
+	if evs := scheduledEvents(t, rule); len(evs) != 1 {
+		t.Fatalf("the rule fired %d times within 3 minutes of creation; a rate(5 minutes) rule fires at creation, then one period later: %+v", len(evs), evs)
+	}
+	advance(t, 3*time.Minute)
+	eventually(t, "two scheduled events 6 minutes after creation", func() (bool, string) {
+		evs = scheduledEvents(t, rule)
+		return len(evs) == 2, fmt.Sprintf("%d events", len(evs))
+	})
+	checkScheduledEvent(t, evs[1], ruleARN, created.Add(4*time.Minute), created.Add(6*time.Minute))
 
 	advance(t, 10*time.Minute)
-	eventually(t, "three scheduled events 16 minutes after creation", func() (bool, string) {
+	eventually(t, "four scheduled events 16 minutes after creation", func() (bool, string) {
 		evs = scheduledEvents(t, rule)
-		return len(evs) == 3, fmt.Sprintf("%d events", len(evs))
+		return len(evs) == 4, fmt.Sprintf("%d events", len(evs))
 	})
-	if evs[0].ID == evs[1].ID || evs[1].ID == evs[2].ID {
-		t.Errorf("scheduled events share an id: %s, %s, %s", evs[0].ID, evs[1].ID, evs[2].ID)
+	ids := map[string]bool{}
+	for _, e := range evs {
+		ids[e.ID] = true
 	}
-	checkScheduledEvent(t, evs[2], ruleARN, created.Add(14*time.Minute), created.Add(16*time.Minute))
+	if len(ids) != len(evs) {
+		t.Errorf("scheduled events share an id: %+v", evs)
+	}
+	checkScheduledEvent(t, evs[3], ruleARN, created.Add(14*time.Minute), created.Add(16*time.Minute))
 }
 
 func checkScheduledEvent(t *testing.T, e scheduledEvent, ruleARN string, from, to time.Time) {

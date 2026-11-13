@@ -19,7 +19,7 @@ const (
 	Timer                            // a scheduler timer callback
 	Snapshot                         // snapshot export and import
 	Admin                            // the admin API
-	KMSForward                       // S3, Secrets Manager, SSM Parameter Store, DynamoDB or CloudWatch Logs calling KMS for the caller, or on its own behalf for the caller's request
+	KMSForward                       // S3, Secrets Manager, SSM Parameter Store, DynamoDB, CloudWatch Logs or EventBridge calling KMS for the caller, or on its own behalf for the caller's request
 	STSAssumeRole                    // STS reading the role AssumeRole names from IAM, for the caller
 	LambdaCode                       // Lambda reading a function's package from S3, for the caller
 	LambdaDestination                // Lambda delivering an asynchronous invocation's record or dead letter, or looking a destination up
