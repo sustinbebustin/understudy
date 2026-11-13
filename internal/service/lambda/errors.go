@@ -7,6 +7,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/docker"
+	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
 )
 
@@ -161,12 +162,13 @@ func errLayerNotFound(arn string) *awserr.Error {
 // hold may well exist on AWS (lambda-destinations-layers.md 8.4, 11.5.6).
 const layerNeverFetched = " understudy has only the layers published to it and never fetches layers from AWS; "
 
-// errForeignLayerNotFound is errLayerNotFound for a version of account,
-// another account than the caller's, then why understudy lacks it and how
-// to give it one.
-func errForeignLayerNotFound(arn, account string) *awserr.Error {
-	return user(lambdaapi.ErrInvalidParameterValueException("Layer version " + arn + " does not exist." + layerNeverFetched +
-		"publish the archive to understudy with credentials for account " + account + " and use the version that returns."))
+// errLayerVersionDenied answers caller for another account's layer version
+// arn that its owner's policy does not grant the caller's account, or that
+// does not exist: AWS does not tell the two apart, and sends no Type
+// (lambda-destinations-layers.md 7.4: LDL-15 09, 10).
+func errLayerVersionDenied(caller identity.Principal, arn string) *awserr.Error {
+	return lambdaapi.ErrAccessDeniedException("User: " + identity.Render(caller) + " is not authorized to perform: lambda:GetLayerVersion on resource: " +
+		arn + " because no resource-based policy allows the lambda:GetLayerVersion action")
 }
 
 // errManagedLayerNotFound is errLayerNotFound for an AWS-managed awslayer

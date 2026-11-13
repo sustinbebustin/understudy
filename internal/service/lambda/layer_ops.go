@@ -35,7 +35,8 @@ func (s *Service) bindLayers(b lambdaapi.Binder) {
 	}))
 	b.DeleteLayerVersion(s.deleteLayerVersion, full())
 	b.AddLayerVersionPermission(s.addLayerVersionPermission,
-		stored("statements are stored and returned by GetLayerVersionPolicy; another account's use of the layer is advised, not refused"))
+		partial("a statement for an account, for everyone or for an organization lets another account attach and read the version; "+
+			"an organization statement lets every account, since the caller's organization is unknown"))
 	b.RemoveLayerVersionPermission(s.removeLayerVersionPermission, full())
 	b.GetLayerVersionPolicy(s.getLayerVersionPolicy, full())
 }
@@ -122,12 +123,17 @@ func (s *Service) getLayerVersionByArn(_ context.Context, c *kernel.Call, in *la
 }
 
 // viewLayerVersion answers version n of the layer ref names, or the
-// recorded not-found for a layer or version that does not exist
-// (lambda-destinations-layers.md 6.4).
+// recorded not-found for a layer or version of the caller's account that
+// does not exist (lambda-destinations-layers.md 6.4). Another account's
+// version answers only when its owner's policy grants the caller's account
+// (readableLayerVersion).
 func (s *Service) viewLayerVersion(c *kernel.Call, ref layerRef, n int64) (*lambdaapi.GetLayerVersionResponse, *awserr.Error) {
 	out, err := store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.GetLayerVersionResponse, *awserr.Error) {
-		v, ok := st.layerVersion(ref, n)
-		if !ok {
+		v, ok, err := st.readableLayerVersion(c.Principal(), c.Scope(), ref, n)
+		switch {
+		case err != nil:
+			return nil, err
+		case !ok:
 			return nil, errResourceNotFound()
 		}
 		return new(v.render(c.Endpoint(), ref)), nil

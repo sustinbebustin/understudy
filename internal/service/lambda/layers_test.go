@@ -254,6 +254,36 @@ func TestLayerVersionLookupErrors(t *testing.T) {
 	})
 }
 
+// Another account's layer version reads only when its owner's policy
+// grants the caller's account: GetLayerVersionByArn on an ungranted version,
+// or one that does not exist, answers layerDenied (recorded), and
+// GetLayerVersion on the same versions answers alike (inferred: LDL-15
+// recorded only GetLayerVersionByArn). A granted version reads as one of
+// the caller's own.
+func TestAnotherAccountsUngrantedLayerVersionIsNotReadable(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		t := h.T
+		h.publishTheirLayers()
+		for _, v := range []struct {
+			name    string
+			version int64
+		}{{"private", 1}, {"nosuch", 1}, {"private", 2}} {
+			arn := theirLayers + v.name + ":" + itoa(v.version)
+			layerDenied("GetLayerVersionByArn on "+arn, arn).check(t, failByArn(h, arn))
+			layerDenied("GetLayerVersion on "+arn, arn).check(t, failGet(h, theirLayers+v.name, v.version))
+		}
+		for _, name := range []string{"granted", "public", "org"} {
+			arn := theirLayers + name + ":1"
+			if got := call(h, lambdaapi.OpGetLayerVersionByArn, &lambdaapi.GetLayerVersionByArnInput{Arn: arn}); deref(got.LayerVersionArn) != arn {
+				t.Errorf("GetLayerVersionByArn on %s, which the owner granted, = %s", arn, mustJSON(t, got))
+			}
+			if got := call(h, lambdaapi.OpGetLayerVersion, &lambdaapi.GetLayerVersionInput{LayerName: theirLayers + name, VersionNumber: 1}); deref(got.LayerVersionArn) != arn {
+				t.Errorf("GetLayerVersion on %s, which the owner granted, = %s", arn, mustJSON(t, got))
+			}
+		}
+	})
+}
+
 func failGet(h *harness, name string, version int64) *awserr.Error {
 	h.Helper()
 	return fail(h, lambdaapi.OpGetLayerVersion, &lambdaapi.GetLayerVersionInput{LayerName: name, VersionNumber: version})

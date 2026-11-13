@@ -87,7 +87,6 @@ The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-k
 
 - `AddPermission` with a foreign account principal can be refused on AWS with "The provided principal was invalid."; understudy accepts any 12-digit account (`lambda/R07/02-add-permission-account.json`).
 - A record over SNS's 256 KB limit is delivered on AWS with both payloads left out and a `deliveryError` (413 `RequestEntityTooLargeException`, "The total destination payload is too large. ..."); understudy publishes it whole and SNS refuses it (`lambda/LDL-05/`).
-- Another account's layer version that its owner's policy does not grant, or that does not exist, is refused on AWS with 403 `AccessDeniedException` ("... is not authorized to perform: lambda:GetLayerVersion on resource: ... because no resource-based policy allows the lambda:GetLayerVersion action"); understudy attaches one it holds and journals an advisory, and refuses one it does not hold with 400 (`lambda/LDL-15/09-foreign-create.json`).
 - `ListLayers` and `ListLayerVersions` items carry `"Description":null`, `"State":null` and `"NextMarker":null` on AWS; understudy leaves unset members out (`lambda/LDL-11/`).
 - Mapping filters: see [Event patterns and filter policies](#event-patterns-and-filter-policies).
 - Asynchronous invocation:
@@ -95,9 +94,8 @@ The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-k
   - Under the default `--iam-enforce off`, the execution role's permission to reach a destination is not checked and no advisory is journaled for it, nor is a destination's or dead-letter queue's resource policy consulted when it is in another account than the function. Under `advise` and `enforce` both are evaluated as the execution role's call.
   - A discarded event with neither an on-failure destination nor a dead-letter queue is only logged.
 - Layers:
-  - Only layer versions published to understudy exist. An AWS-published layer, such as Powertools or an `awslayer` ARN, is refused with AWS's "Layer version <arn> does not exist." followed by why; publish its content to understudy instead.
-  - Another account's layer attaches without a grant from its owner, where AWS refuses it; understudy journals an advisory.
-  - The layer operations accept another account's layer ARN as `LayerName` or `Arn` and act in that account with no check and no advisory: publishing, deleting and changing the permissions of its versions, and reading versions its policy does not grant. That AWS lets another account only read a version its policy grants is unverified.
+  - Only layer versions published to understudy exist. An AWS-published layer in another account, such as Powertools, is refused as another account's version that does not exist, with AWS's 403 `AccessDeniedException`, where AWS attaches a public one; an `awslayer` ARN is refused with AWS's "Layer version <arn> does not exist." followed by why. Publish its content to understudy instead.
+  - The layer operations accept another account's layer ARN as `LayerName` or `Arn` and act in that account with no check and no advisory: publishing, deleting and changing the permissions of its versions. That AWS refuses them to another account is unverified.
   - `Content.Location` is a link understudy serves the archive at, not a presigned S3 URL.
   - `S3ObjectStorageMode REFERENCE` copies the archive as `COPY` does, the account's code-storage quota is not enforced, and layers are never signed.
   - Two layers with a file and a directory at the same path fail the invoke, since what AWS does is unrecorded.

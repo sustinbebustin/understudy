@@ -370,6 +370,8 @@ func userFault(t *testing.T, err *awserr.Error) {
 // inferred for Update (iam-enforcement-surfaces.md 13.28), then the
 // dead-letter target checks, recorded for Update and inferred for Create
 // (lambda-destinations-layers.md 5.1).
+// AddLayerVersionPermission is partial since another account's ungranted
+// use of a version is refused (lambda-destinations-layers.md 7.4).
 func TestDestinationAndLayerCoverageMarks(t *testing.T) {
 	const (
 		trust       = " under iam.enforce=enforce the caller needs iam:PassRole on the execution role, asked with iam:PassedToService lambda.amazonaws.com, then the role's trust policy must let lambda.amazonaws.com assume it"
@@ -383,13 +385,16 @@ func TestDestinationAndLayerCoverageMarks(t *testing.T) {
 		delivery    = "the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried"
 	)
 	want := map[string]registry.BindCoverage{
-		"PublishLayerVersion":          registry.Partial{Note: "S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed"},
-		"GetLayerVersion":              registry.Partial{Note: location},
-		"GetLayerVersionByArn":         registry.Partial{Note: location},
-		"ListLayers":                   registry.Full{},
-		"ListLayerVersions":            registry.Full{},
-		"DeleteLayerVersion":           registry.Full{},
-		"AddLayerVersionPermission":    registry.StoredOnly{Note: "statements are stored and returned by GetLayerVersionPolicy; another account's use of the layer is advised, not refused"},
+		"PublishLayerVersion":  registry.Partial{Note: "S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed"},
+		"GetLayerVersion":      registry.Partial{Note: location},
+		"GetLayerVersionByArn": registry.Partial{Note: location},
+		"ListLayers":           registry.Full{},
+		"ListLayerVersions":    registry.Full{},
+		"DeleteLayerVersion":   registry.Full{},
+		"AddLayerVersionPermission": registry.Partial{
+			Note: "a statement for an account, for everyone or for an organization lets another account attach and read the version; " +
+				"an organization statement lets every account, since the caller's organization is unknown",
+		},
 		"RemoveLayerVersionPermission": registry.Full{},
 		"GetLayerVersionPolicy":        registry.Full{},
 		"CreateFunction": registry.Partial{
@@ -441,9 +446,9 @@ func TestInvokeCoverageNoLongerDisclaimsDestinations(t *testing.T) {
 // with the value, label and settling record of
 // lambda-destinations-layers.md 11.2, a ref into that note and no parity
 // scenario that settles it: the replayer skips Lambda's REST and Docker
-// steps. The 2026-11-03 recordings made eight of them aws-recorded;
-// LDL-05 and LDL-15 recorded behavior that sns-oversize and
-// cross-account-policy do not have, so those keep their labels and say so.
+// steps. The 2026-11-03 recordings made eight of them aws-recorded, and
+// cross-account-policy took LDL-15's refusal; LDL-05 recorded behavior
+// that sns-oversize does not have, so it keeps its label and says so.
 func TestDestinationAndLayerSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 	type sw struct {
 		value  string
@@ -461,7 +466,9 @@ func TestDestinationAndLayerSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 		"lambda.destination.eventbridge-resources-order": {"bus-then-function", evidence.AWSRecorded, "LDL-10", []string{"lambda.Invoke"}},
 		"lambda.layers.merge-conflict":                   {"later-overwrites", evidence.AWSRecorded, "LDL-12", []string{"lambda.Invoke"}},
 		"lambda.layers.compatibility":                    {"not-enforced", evidence.AWSRecorded, "LDL-13", []string{"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration"}},
-		"lambda.layers.cross-account-policy":             {"advise", evidence.Inferred, "LDL-15", []string{"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration"}},
+		"lambda.layers.cross-account-policy": {"refuse", evidence.AWSRecorded, "LDL-15", []string{
+			"lambda.CreateFunction", "lambda.UpdateFunctionConfiguration", "lambda.GetLayerVersionByArn", "lambda.GetLayerVersion",
+		}},
 	}
 	runLookups(t, func(h *harness, _ *lookups) {
 		t := h.T

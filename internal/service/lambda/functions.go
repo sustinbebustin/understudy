@@ -12,6 +12,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/clock"
+	"github.com/sustinbebustin/understudy/internal/identity"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
@@ -83,7 +84,7 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 	if err != nil {
 		return nil, err
 	}
-	att, err := s.resolveLayers(ctx, ref.scope, in.Layers)
+	att, err := s.resolveLayers(ctx, c.Principal(), ref.scope, in.Layers)
 	if err != nil {
 		return nil, err
 	}
@@ -106,9 +107,6 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 	out, err := write(s, c, ref.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (lambdaapi.FunctionConfiguration, *awserr.Error) {
 		if _, ok := st.Functions[ref.name]; ok {
 			return lambdaapi.FunctionConfiguration{}, errFunctionExists(ref.name)
-		}
-		for _, a := range att.advisories {
-			tx.Record(ref.scope, a)
 		}
 		v := Version{Number: latest, Config: cfg, Code: code, Status: s.initialStatus(code, now), Modified: now, RevisionID: st.revision(ref.scope)}
 		f := Function{
@@ -356,7 +354,7 @@ func (s *Service) updateFunctionConfiguration(ctx context.Context, c *kernel.Cal
 	if err := s.checkUpdatedDeadLetter(ctx, c, ref, in); err != nil {
 		return nil, err
 	}
-	att, err := s.layersForUpdate(ctx, ref, in.Layers)
+	att, err := s.layersForUpdate(ctx, c.Principal(), ref, in.Layers)
 	if err != nil {
 		return nil, err
 	}
@@ -384,9 +382,6 @@ func (s *Service) updateFunctionConfiguration(ctx context.Context, c *kernel.Cal
 		})
 		if err != nil {
 			return result{}, err
-		}
-		for _, a := range att.advisories {
-			tx.Record(ref.scope, a)
 		}
 		return result{out: renderConfig(ref.scope, &f, &f.Latest, ref.arn(), false), released: released}, nil
 	})
@@ -434,11 +429,11 @@ func (s *Service) checkUpdatedDeadLetter(ctx context.Context, c *kernel.Call, re
 	return s.checkDeadLetter(ctx, c, ref, role, target)
 }
 
-// layersForUpdate resolves an UpdateFunctionConfiguration's Layers for the
-// function ref names; nothing for none. An image function takes no layer,
-// which is refused before the layers are looked up; the write checks again,
-// as the function may be created anew in between.
-func (s *Service) layersForUpdate(ctx context.Context, ref functionRef, layers []string) (attachment, *awserr.Error) {
+// layersForUpdate resolves the Layers caller's UpdateFunctionConfiguration
+// gives the function ref names; nothing for none. An image function takes
+// no layer, which is refused before the layers are looked up; the write
+// checks again, as the function may be created anew in between.
+func (s *Service) layersForUpdate(ctx context.Context, caller identity.Principal, ref functionRef, layers []string) (attachment, *awserr.Error) {
 	if len(layers) == 0 {
 		return attachment{}, nil
 	}
@@ -449,7 +444,7 @@ func (s *Service) layersForUpdate(ctx context.Context, ref functionRef, layers [
 	if packageType == lambdaapi.PackageTypeImage {
 		return attachment{}, errImageTakesNoLayers()
 	}
-	return s.resolveLayers(ctx, ref.scope, layers)
+	return s.resolveLayers(ctx, caller, ref.scope, layers)
 }
 
 // packageType is the package type of the function ref names.

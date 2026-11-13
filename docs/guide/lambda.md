@@ -123,7 +123,37 @@ aws lambda invoke --function-name layered out.json && cat out.json
 
 - understudy merges a function's layers into `/opt` in the order listed, and mounts the merged tree read-only, or copies it into the container where a bind mount is not possible. A later layer's file replaces an earlier one's at the same path. AWS does not say which layer wins, so this is the fidelity switch `lambda.layers.merge-conflict`. A file in one layer where another has a directory fails the invoke with a `ServiceException` naming the path.
 - understudy sets no `PYTHONPATH`, `NODE_PATH` or `PATH`. The runtimes in AWS's base images search `/opt/python`, `/opt/python/lib/python3.x/site-packages`, `/opt/nodejs/node_modules`, `/opt/bin` and `/opt/lib` themselves, and `provided.al2023` runs a layer's `/opt/bootstrap` when the package has none.
-- Only layers published to understudy exist, because understudy never fetches a layer from AWS. An AWS-published layer such as Powertools is refused:
+- A layer version of another account attaches, and `get-layer-version` and `get-layer-version-by-arn` read it, only when its owner granted your account `lambda:GetLayerVersion` with `add-layer-version-permission`. An ungranted version, and one that does not exist, are refused alike, as AWS refuses them, in every `--iam-enforce` mode (fidelity switch `lambda.layers.cross-account-policy`):
+
+  ```sh
+  AWS_ACCESS_KEY_ID=111111111111 aws lambda publish-layer-version --layer-name shared --zip-file fileb://layer.zip \
+    --query LayerVersionArn --output text
+  aws lambda update-function-configuration --function-name layered \
+    --layers arn:aws:lambda:us-east-1:111111111111:layer:shared:1
+  ```
+
+  ```text
+  arn:aws:lambda:us-east-1:111111111111:layer:shared:1
+
+  An error occurred (AccessDeniedException) when calling the UpdateFunctionConfiguration operation: User: arn:aws:iam::000000000000:root is not authorized to perform: lambda:GetLayerVersion on resource: arn:aws:lambda:us-east-1:111111111111:layer:shared:1 because no resource-based policy allows the lambda:GetLayerVersion action
+  ```
+
+  Once the owner grants your account, the version attaches:
+
+  ```sh
+  AWS_ACCESS_KEY_ID=111111111111 aws lambda add-layer-version-permission --layer-name shared --version-number 1 \
+    --statement-id share --action lambda:GetLayerVersion --principal 000000000000
+  aws lambda update-function-configuration --function-name layered \
+    --layers arn:aws:lambda:us-east-1:111111111111:layer:shared:1 --query 'Layers[].Arn'
+  ```
+
+  ```text
+  [
+      "arn:aws:lambda:us-east-1:111111111111:layer:shared:1"
+  ]
+  ```
+
+- Only layers published to understudy exist, because understudy never fetches a layer from AWS. An AWS-published layer such as Powertools is therefore refused as another account's version that does not exist, where AWS attaches a public one:
 
   ```sh
   aws lambda update-function-configuration --function-name layered \
@@ -131,11 +161,10 @@ aws lambda invoke --function-name layered out.json && cat out.json
   ```
 
   ```text
-  An error occurred (InvalidParameterValueException) when calling the UpdateFunctionConfiguration operation: Layer version arn:aws:lambda:us-east-1:017000801446:layer:AWSLambdaPowertoolsPythonV3-python313-x86_64:7 does not exist. understudy has only the layers published to it and never fetches layers from AWS; publish the archive to understudy with credentials for account 017000801446 and use the version that returns.
+  An error occurred (AccessDeniedException) when calling the UpdateFunctionConfiguration operation: User: arn:aws:iam::000000000000:root is not authorized to perform: lambda:GetLayerVersion on resource: arn:aws:lambda:us-east-1:017000801446:layer:AWSLambdaPowertoolsPythonV3-python313-x86_64:7 because no resource-based policy allows the lambda:GetLayerVersion action
   ```
 
-  Publish the layer's content to understudy yourself, in your own account or in its owner's (`AWS_ACCESS_KEY_ID=017000801446` signs as that account), and use the version ARN that returns.
-- A layer of another account attaches whether or not its owner granted your account `lambda:GetLayerVersion` with `add-layer-version-permission`. AWS refuses an ungranted one; understudy journals an advisory (`understudy journal --kind advisory`) and attaches it (fidelity switch `lambda.layers.cross-account-policy`).
+  Publish the layer's content to understudy yourself, in your own account or in its owner's (`AWS_ACCESS_KEY_ID=017000801446` signs as that account, then `add-layer-version-permission` with `--principal '*'` shares it), and use the version ARN that returns.
 - `--compatible-runtimes` and `--compatible-architectures` filter `list-layers` and `list-layer-versions`. They are not checked when a layer is attached, because AWS's answer to a mismatch is unrecorded (fidelity switch `lambda.layers.compatibility`).
 - A deleted layer version stays on the functions that use it and keeps working, but no function can add it.
 - The function's code and its layers together may be 250 MB (262,144,000 bytes) unzipped.
