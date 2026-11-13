@@ -304,10 +304,34 @@ func TestMappingValidationRows(t *testing.T) {
 				lambdaapi.CreateEventSourceMappingInput{FunctionName: "fn", EventSourceArn: new(fifo), BatchSize: new(int32(11)), MaximumBatchingWindowInSeconds: new(int32(1))},
 			},
 			{
+				// aws-recorded, R03 C-fifo-window-5: batch size 10 and window 5 on a FIFO queue.
+				golden{"FIFO batching window", "InvalidParameterValueException", 400, "Batching window is not supported for FIFO queues", true},
+				lambdaapi.CreateEventSourceMappingInput{FunctionName: "fn", EventSourceArn: new(fifo), BatchSize: new(int32(10)), MaximumBatchingWindowInSeconds: new(int32(5))},
+			},
+			{
+				// aws-recorded, R03 C-scaling-and-provisioned: the range check answers
+				// before the mutual-exclusion check, MinimumPollers 1 with ScalingConfig set.
+				golden{"pollers range with scaling", "InvalidParameterValueException", 400, "MinimumPollers should be between [2, 200] and MaximumPollers should be between [MinimumPollers, 10000]", true},
+				lambdaapi.CreateEventSourceMappingInput{
+					FunctionName: "fn", EventSourceArn: new(queue),
+					ScalingConfig:           &lambdaapi.ScalingConfig{MaximumConcurrency: new(int32(2))},
+					ProvisionedPollerConfig: &lambdaapi.ProvisionedPollerConfig{MinimumPollers: new(int32(1)), MaximumPollers: new(int32(2))},
+				},
+			},
+			{
+				golden{"pollers range alone", "InvalidParameterValueException", 400, "MinimumPollers should be between [2, 200] and MaximumPollers should be between [MinimumPollers, 10000]", true},
+				lambdaapi.CreateEventSourceMappingInput{
+					FunctionName: "fn", EventSourceArn: new(queue),
+					ProvisionedPollerConfig: &lambdaapi.ProvisionedPollerConfig{MinimumPollers: new(int32(1)), MaximumPollers: new(int32(2))},
+				},
+			},
+			{
+				// Understudy's text: AWS's wording for this case alone is unrecorded.
 				golden{"scaling and provisioned pollers", "InvalidParameterValueException", 400, "ScalingConfig and ProvisionedPollerConfig cannot both be set on an event source mapping.", true},
 				lambdaapi.CreateEventSourceMappingInput{
 					FunctionName: "fn", EventSourceArn: new(queue),
-					ScalingConfig: &lambdaapi.ScalingConfig{MaximumConcurrency: new(int32(2))}, ProvisionedPollerConfig: &lambdaapi.ProvisionedPollerConfig{MinimumPollers: new(int32(1))},
+					ScalingConfig:           &lambdaapi.ScalingConfig{MaximumConcurrency: new(int32(2))},
+					ProvisionedPollerConfig: &lambdaapi.ProvisionedPollerConfig{MinimumPollers: new(int32(2)), MaximumPollers: new(int32(3))},
 				},
 			},
 			{
@@ -393,7 +417,8 @@ func TestMappingFiltersAreCappedAtFive(t *testing.T) {
 		}
 		return fc
 	}
-	tooMany := golden{"six filters", "InvalidParameterValueException", 400, "FilterCriteria has 6 filters, above the quota of 5 per event source mapping. Combine patterns or remove filters.", true}
+	// aws-recorded, R03 C-six-filters and H13-14-create.
+	tooMany := golden{"six filters", "InvalidParameterValueException", 400, "Too many filter patterns, maximum allowed 5 patterns, provided 6 patterns.", true}
 	run(t, lambda.Options{}, func(h *harness) {
 		h.createFunction("fn")
 		tooMany.check(t, fail(h, lambdaapi.OpCreateEventSourceMapping, &lambdaapi.CreateEventSourceMappingInput{FunctionName: "fn", EventSourceArn: new(h.queue("refused")), FilterCriteria: filters(6)}))

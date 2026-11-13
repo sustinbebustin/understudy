@@ -25,6 +25,9 @@ import (
 const (
 	defaultBatchSize  = 10
 	maxFIFOBatchSize  = 10
+	minPollers        = 2
+	maxMinPollers     = 200
+	maxPollersCap     = 10000
 	sqsBatchWindowCap = 10
 	// maxFilters is the default quota of filters per mapping; AWS raises
 	// it to 10 on request, which understudy does not model.
@@ -206,6 +209,9 @@ func (u mappingSettings) applyBatching(m *Mapping) *awserr.Error {
 	if strings.HasSuffix(m.Source, ".fifo") && m.BatchSize > maxFIFOBatchSize {
 		return errFIFOBatchSize(m.BatchSize)
 	}
+	if strings.HasSuffix(m.Source, ".fifo") && m.Window > 0 {
+		return errFIFOWindow()
+	}
 	return nil
 }
 
@@ -216,6 +222,9 @@ func (u mappingSettings) applyScaling(m *Mapping) *awserr.Error {
 	kind := esm.SQS{Scaling: esm.Unbounded{}}
 	if k, ok := m.SourceKind.(esm.SQS); ok && k.Scaling != nil {
 		kind = k
+	}
+	if u.pollers != nil && !pollersInRange(u.pollers) {
+		return errPollerRange()
 	}
 	switch {
 	case u.scaling != nil && u.pollers != nil:
@@ -229,6 +238,22 @@ func (u mappingSettings) applyScaling(m *Mapping) *awserr.Error {
 	}
 	m.SourceKind = kind
 	return nil
+}
+
+// pollersInRange reports whether a ProvisionedPollerConfig keeps
+// MinimumPollers within [minPollers, maxPollersCap] and MaximumPollers
+// within [MinimumPollers, maxPollersCap] (aws-recorded, R03
+// C-scaling-and-provisioned). A member left out is not checked.
+func pollersInRange(p *lambdaapi.ProvisionedPollerConfig) bool {
+	if p.MinimumPollers != nil && (*p.MinimumPollers < minPollers || *p.MinimumPollers > maxMinPollers) {
+		return false
+	}
+	if p.MaximumPollers != nil {
+		if *p.MaximumPollers > maxPollersCap || (p.MinimumPollers != nil && *p.MaximumPollers < *p.MinimumPollers) {
+			return false
+		}
+	}
+	return true
 }
 
 // mappingTarget is the function a mapping invokes, read before the cell

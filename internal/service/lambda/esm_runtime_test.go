@@ -682,9 +682,10 @@ func TestESMDisabledMappingDoesNotPoll(t *testing.T) {
 	})
 }
 
-// A FIFO queue's batching window is ignored: the function is invoked at
-// once, with a group's messages in the order they were sent.
-func TestESMFIFOIgnoresWindow(t *testing.T) {
+// A FIFO queue's mapping takes no batching window (AWS refuses one, R03
+// C-fifo-window-5): the function is invoked at once, with a group's
+// messages in the order they were sent.
+func TestESMFIFOInvokesAtOnce(t *testing.T) {
 	rec := &recorder{}
 	runESM(t, rec, func(h *execHarness) {
 		url, arn := h.queue("orders.fifo", map[sqsapi.QueueAttributeName]string{
@@ -694,7 +695,7 @@ func TestESMFIFOIgnoresWindow(t *testing.T) {
 		for _, body := range []string{"first", "second", "third"} {
 			call(h.harness, sqsapi.OpSendMessage, &sqsapi.SendMessageInput{QueueUrl: url, MessageBody: body, MessageGroupId: new("g")})
 		}
-		h.mapQueue(arn, lambdaapi.CreateEventSourceMappingInput{MaximumBatchingWindowInSeconds: new(int32(60))})
+		h.mapQueue(arn, lambdaapi.CreateEventSourceMappingInput{})
 		h.quiesce()
 		wantBodies(h, rec.bodies(), [][]string{{"first", "second", "third"}})
 	})

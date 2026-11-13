@@ -37,7 +37,8 @@ import (
 // Decisions the architecture leaves open:
 //
 //   - The batching window opens when the first message of a batch is
-//     received, on the emulator clock. A FIFO queue's window is ignored.
+//     received, on the emulator clock. A FIFO queue takes no window; one
+//     kept from an earlier build is ignored.
 //   - A message received past the 6 MB of a batch starts the next one.
 //   - Under a Frozen or Scaled clock, received messages are pinned
 //     invisible with HoldVisibility until their batch's invocation

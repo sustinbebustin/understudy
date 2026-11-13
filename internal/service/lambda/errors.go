@@ -526,11 +526,23 @@ func errPollerConfigs() *awserr.Error {
 	return user(lambdaapi.ErrInvalidParameterValueException("ScalingConfig and ProvisionedPollerConfig cannot both be set on an event source mapping."))
 }
 
-// errTooManyFilters is understudy's text for more filters than the default
-// quota of 5 per mapping; AWS's text is unrecorded (lambda-events.md 1.2).
+// errFIFOWindow refuses a batching window on a FIFO queue (aws-recorded,
+// R03 C-fifo-window-5).
+func errFIFOWindow() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("Batching window is not supported for FIFO queues"))
+}
+
+// errPollerRange refuses a ProvisionedPollerConfig outside AWS's bounds
+// (aws-recorded, R03 C-scaling-and-provisioned).
+func errPollerRange() *awserr.Error {
+	return user(lambdaapi.ErrInvalidParameterValueException("MinimumPollers should be between [2, 200] and MaximumPollers should be between [MinimumPollers, 10000]"))
+}
+
+// errTooManyFilters refuses more filters than the default quota of 5 per
+// mapping (aws-recorded, R03 C-six-filters).
 func errTooManyFilters(n int) *awserr.Error {
-	return user(lambdaapi.ErrInvalidParameterValueException("FilterCriteria has " + strconv.Itoa(n) + " filters, above the quota of " +
-		strconv.Itoa(maxFilters) + " per event source mapping. Combine patterns or remove filters."))
+	return user(lambdaapi.ErrInvalidParameterValueException("Too many filter patterns, maximum allowed " + strconv.Itoa(maxFilters) +
+		" patterns, provided " + strconv.Itoa(n) + " patterns."))
 }
 
 func errInvalidFilter() *awserr.Error {
