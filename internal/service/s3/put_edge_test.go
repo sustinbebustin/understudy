@@ -45,6 +45,14 @@ type objectEdge struct {
 	k      *kerneltest.K
 	front  http.Handler
 	region aws.Region
+	// tls sends requests over HTTPS, as SSE-C requires.
+	tls bool
+}
+
+// overHTTPS returns e sending requests over HTTPS.
+func (e objectEdge) overHTTPS() objectEdge {
+	e.tls = true
+	return e
 }
 
 // signedFor returns e sending requests signed for region.
@@ -84,7 +92,11 @@ func newObjectEdge(k *kerneltest.K) objectEdge {
 
 // send sends method to target with body and header, declaring length.
 func (e objectEdge) send(method, target string, body io.Reader, length int64, header http.Header) *httptest.ResponseRecorder {
-	r := httptest.NewRequestWithContext(e.k.Context(), method, "http://"+s3Host+target, body)
+	scheme := "http"
+	if e.tls {
+		scheme = "https"
+	}
+	r := httptest.NewRequestWithContext(e.k.Context(), method, scheme+"://"+s3Host+target, body)
 	r.ContentLength = length
 	maps.Copy(r.Header, header)
 	r.Header.Set("X-Amz-Content-Sha256", "UNSIGNED-PAYLOAD")

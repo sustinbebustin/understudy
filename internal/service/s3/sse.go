@@ -363,6 +363,13 @@ func encryptionHeaders(e Encryption) sseHeaders {
 // responses report (s3-ssec-object-lock.md 3.1, 3.4).
 const customerAlgorithm = "AES256"
 
+// The SSE-C response headers that Complete sends beyond its modelled
+// output.
+const (
+	customerAlgorithmHeader = "x-amz-server-side-encryption-customer-algorithm"
+	customerKeyMD5Header    = "x-amz-server-side-encryption-customer-key-MD5"
+)
+
 // customerKeyLen is an SSE-C key's length in bytes once base64-decoded
 // (s3-ssec-object-lock.md 11.5).
 const customerKeyLen = 32
@@ -721,6 +728,26 @@ func checkCustomerComplete(u *Upload, h customerHeaders, scheme string) *awserr.
 		return errInvalidRequest(ssecCompleteChecksumText)
 	}
 	return nil
+}
+
+// customerCompleteHeaders are the response headers of a Complete of an
+// SSE-C object whose request carried its key: the algorithm and the key's
+// MD5, as S3SOL-08 08-right-key recorded for an upload that declared a
+// checksum algorithm. CompleteMultipartUploadOutput does not model them
+// (ADR 0002), so they go out as success headers. A request that sent no
+// key, or another, gets none; the key of an object that is not SSE-C is
+// never echoed.
+func setCustomerCompleteHeaders(c *kernel.Call, e Encryption, h customerHeaders) {
+	enc, isC := e.(CustomerEncryption)
+	if !isC || !h.sent() {
+		return
+	}
+	k, err := parseCustomerWrite(h, nil)
+	if err != nil || !enc.matches(*k) {
+		return
+	}
+	c.SetSuccessHeader(customerAlgorithmHeader, customerAlgorithm)
+	c.SetSuccessHeader(customerKeyMD5Header, k.keyMD5)
 }
 
 // checkCustomerList judges a ListParts's SSE-C headers against its

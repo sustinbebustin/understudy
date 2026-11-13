@@ -374,7 +374,7 @@ func (s *Service) completeMultipartUpload(ctx context.Context, c *kernel.Call, i
 	case retry:
 		// A retry reports no checksum, though the first answer did
 		// (testdata/parity/s3/R12/03-complete-again.json).
-		return completeResult(c.Endpoint(), in.Bucket, in.Key, o.version.Object, o.reported), nil
+		return completeResult(c, in.Bucket, in.Key, o.version.Object, o.reported, req.customer), nil
 	case completion:
 		return s.commitCompletion(ctx, c, a, blobs, in, req, o)
 	default:
@@ -416,7 +416,7 @@ func (s *Service) commitCompletion(ctx context.Context, c *kernel.Call, a access
 	if err != nil {
 		return nil, err
 	}
-	out := completeResult(c.Endpoint(), in.Bucket, in.Key, obj, done.reported)
+	out := completeResult(c, in.Bucket, in.Key, obj, done.reported, req.customer)
 	// An SSE-KMS or SSE-C result reports no checksum, though the object
 	// keeps one that reads report (REC test_s3_multipart_upload_sse steps
 	// multi-sse-compete-multipart and get-obj; LocalStack
@@ -435,14 +435,18 @@ func (s *Service) commitCompletion(ctx context.Context, c *kernel.Call, a access
 // completeResult is what every successful Complete of obj answers, first
 // or retried (testdata/parity/s3/R12/03-complete.json,
 // 03-complete-again.json): the object's URL, bucket, key and ETag, the
-// version id reported, and the encryption headers.
-func completeResult(ep kernel.Endpoint, bucket, key string, obj *Object, reported *string) *s3api.CompleteMultipartUploadOutput {
+// version id reported, and the encryption headers. An SSE-C object whose
+// Complete carried its key also answers the customer headers
+// (S3SOL-08 08-right-key); the retried Complete does the same when it
+// resends the key (inferred, unrecorded).
+func completeResult(c *kernel.Call, bucket, key string, obj *Object, reported *string, customer customerHeaders) *s3api.CompleteMultipartUploadOutput {
 	out := &s3api.CompleteMultipartUploadOutput{
-		Location: new(objectLocation(ep, bucket, key)), Bucket: new(bucket), Key: new(key),
+		Location: new(objectLocation(c.Endpoint(), bucket, key)), Bucket: new(bucket), Key: new(key),
 		ETag: new(quote(obj.ETag)), VersionId: reported,
 	}
 	h := encryptionHeaders(obj.Encryption)
 	out.ServerSideEncryption, out.SSEKMSKeyId, out.BucketKeyEnabled = h.algorithm, h.keyID, h.bucketKey
+	setCustomerCompleteHeaders(c, obj.Encryption, customer)
 	return out
 }
 
