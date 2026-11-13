@@ -46,7 +46,8 @@ func (e *MalformedError) Error() string {
 // InferV2 turns a function's output into the HTTP response under payload
 // format 2.0 (lambda-events.md 7.4, lambda-api.md 10, apigateway-http.md
 // 5.3). A JSON object with a statusCode is a structured response:
-// statusCode, headers, cookies, a string body and isBase64Encoded. Any
+// statusCode, headers, cookies, a string or numeric body and
+// isBase64Encoded, a body that is not base64 decoded leniently. Any
 // other JSON is the body of a 200 application/json response: a JSON string
 // as the string itself, as recorded against AWS for function URLs,
 // anything else re-serialized compactly. Without a Content-Type header the
@@ -71,14 +72,20 @@ type V2Defaults struct {
 	// ScalarHeaders sends a header value that is a JSON number or boolean
 	// as its JSON text, where a function URL finds the response malformed.
 	ScalarHeaders bool
+	// StrictBody finds the response malformed when its body is a JSON
+	// number or its isBase64Encoded body is not base64, where a function
+	// URL sends the number's JSON text and decodes the body leniently
+	// (lambda/R13/02-resp-body123.json, 02-resp-badb64.json).
+	StrictBody bool
 }
 
 // HTTPAPIDefaults are an HTTP API's V2Defaults with contentType, as
 // APIGW2-09 recorded them on 2026-11-03 (apigateway-http.md 5.3): output
 // without a statusCode relayed as written, a statusCode "201" served as
-// 201, and a header value 1 sent as "1".
+// 201, and a header value 1 sent as "1". A numeric or invalid base64 body
+// is unrecorded for HTTP APIs and stays malformed.
 func HTTPAPIDefaults(contentType string) V2Defaults {
-	return V2Defaults{ContentType: contentType, Verbatim: true, StatusText: true, ScalarHeaders: true}
+	return V2Defaults{ContentType: contentType, Verbatim: true, StatusText: true, ScalarHeaders: true, StrictBody: true}
 }
 
 // InferV2With is InferV2 with the defaults d in place of a function URL's
@@ -119,8 +126,8 @@ func InferV2With(payload []byte, d V2Defaults) (Response, error) {
 }
 
 // structured reads a structured 2.0 response's members: statusCode,
-// headers, cookies, body and isBase64Encoded, under d's StatusText and
-// ScalarHeaders.
+// headers, cookies, body and isBase64Encoded, under d's StatusText,
+// ScalarHeaders and StrictBody.
 func structured(fields map[string]json.RawMessage, d V2Defaults) (Response, error) {
 	status, err := statusOf(fields)
 	if raw := fields["statusCode"]; err != nil && d.StatusText && len(raw) > 0 && raw[0] == '"' {
@@ -149,7 +156,7 @@ func structured(fields map[string]json.RawMessage, d V2Defaults) (Response, erro
 	if err := member(fields, "cookies", &r.Cookies); err != nil {
 		return Response{}, &MalformedError{Problem: "cookies is not an array of strings"}
 	}
-	if r.Body, err = bodyOf(fields); err != nil {
+	if r.Body, err = bodyOf(fields, d.StrictBody); err != nil {
 		return Response{}, err
 	}
 	return r, nil
@@ -183,11 +190,17 @@ func headerValue(name string, raw json.RawMessage, scalars bool) (string, error)
 }
 
 // bodyOf reads a response's body and isBase64Encoded: a string body, null
-// or absent being empty, decoded when isBase64Encoded is true.
-func bodyOf(fields map[string]json.RawMessage) ([]byte, error) {
+// or absent being empty, decoded when isBase64Encoded is true. Unless
+// strict, a numeric body is its JSON text as the function wrote it.
+func bodyOf(fields map[string]json.RawMessage, strict bool) ([]byte, error) {
 	var body *string
 	if err := member(fields, "body", &body); err != nil {
-		return nil, &MalformedError{Problem: "body is not a string"}
+		var n json.Number
+		if strict || json.Unmarshal(fields["body"], &n) != nil {
+			return nil, &MalformedError{Problem: "body is not a string"}
+		}
+		text := n.String()
+		body = &text
 	}
 	var encoded bool
 	if err := member(fields, "isBase64Encoded", &encoded); err != nil {
@@ -199,11 +212,36 @@ func bodyOf(fields map[string]json.RawMessage) ([]byte, error) {
 	if !encoded {
 		return []byte(*body), nil
 	}
+	if !strict {
+		return lenientBase64(*body), nil
+	}
 	decoded, err := base64.StdEncoding.DecodeString(*body)
 	if err != nil {
 		return nil, &MalformedError{Problem: "isBase64Encoded is true but body is not base64"}
 	}
 	return decoded, nil
+}
+
+// lenientBase64 decodes s as a function URL decodes a base64 body, valid
+// or not: AWS answered `not base64!!` with the six bytes of `notbase6`
+// (lambda/R13/02-resp-badb64.json). The rule beyond that sample is
+// inferred: characters outside the standard alphabet, padding included,
+// are skipped, and a last character that cannot complete a byte is
+// dropped. Valid base64 decodes as it does strictly.
+func lenientBase64(s string) []byte {
+	kept := make([]byte, 0, len(s))
+	for i := range len(s) {
+		if c := s[i]; 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '+' || c == '/' {
+			kept = append(kept, c)
+		}
+	}
+	if len(kept)%4 == 1 {
+		kept = kept[:len(kept)-1]
+	}
+	out := make([]byte, base64.RawStdEncoding.DecodedLen(len(kept)))
+	// Alphabet characters alone, never 1 modulo 4 of them, always decode.
+	n, _ := base64.RawStdEncoding.Decode(out, kept) //nolint:errcheck // cannot fail on the input built above
+	return out[:n]
 }
 
 // framing reports whether name, in any case, is a header that frames the

@@ -324,7 +324,7 @@ func InferV1(payload []byte) (Response, error) {
 	if err := member(fields, "multiValueHeaders", &multi); err != nil {
 		return Response{}, &MalformedError{Problem: "multiValueHeaders is not an object of string arrays"}
 	}
-	body, err := bodyOf(fields)
+	body, err := bodyOf(fields, true)
 	if err != nil {
 		return Response{}, err
 	}

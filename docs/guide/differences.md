@@ -111,8 +111,8 @@ The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-k
 
 ### Function URLs
 
-- The 502 body for a bad function response is `application/json` on AWS; understudy's is `text/plain`. AWS also delivers `statusCode` 200 with a numeric body and an invalid base64 body, which understudy refuses (`lambda/R13/02-resp-*.json`).
-- AWS keeps `cookie` in `headers`, sends a trace header of `Root=` only, answers HEAD with `Content-Length: 0`, and does not chunk large bodies (`logs/R13/01-logged-events.json`, `lambda/R13/01-head.json`).
+- An `isBase64Encoded` body that is not valid base64 is decoded leniently: characters outside the base64 alphabet are skipped and the rest decoded. AWS's answer to one such body is recorded (`lambda/R13/02-resp-badb64.json`); the rule beyond it is inferred.
+- AWS keeps `cookie` in `headers` and sends a trace header of `Root=` only (`logs/R13/01-logged-events.json`).
 
 ### Function URL refusals
 

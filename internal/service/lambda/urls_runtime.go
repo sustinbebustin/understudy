@@ -99,7 +99,7 @@ func (u *urlServer) serve(ctx context.Context, c *kernel.Call, r *http.Request, 
 	w.Header().Set("X-Amzn-Requestid", string(request))
 	addr, ok := furl.Resolve(r.Host, escapedPath(r))
 	if !ok {
-		furl.UnknownURL().Write(w)
+		furl.Write(w, r.Method, furl.UnknownURL())
 		return nil
 	}
 	var s served
@@ -107,10 +107,10 @@ func (u *urlServer) serve(ctx context.Context, c *kernel.Call, r *http.Request, 
 	case urlLive:
 		s = found.served
 	case urlRetired:
-		furl.Forbidden().Write(w)
+		furl.Write(w, r.Method, furl.Forbidden())
 		return nil
 	case urlUnknown:
-		furl.UnknownURL().Write(w)
+		furl.Write(w, r.Method, furl.UnknownURL())
 		return nil
 	}
 	touch(c, s.ref.qualifiedARN())
@@ -118,7 +118,7 @@ func (u *urlServer) serve(ctx context.Context, c *kernel.Call, r *http.Request, 
 	// type applies (furl/doc.go); it never runs the function.
 	if s.cors != nil {
 		if resp, ok := s.cors.Preflight(r); ok {
-			resp.Write(w)
+			furl.Write(w, r.Method, resp)
 			return nil
 		}
 	}
@@ -133,7 +133,7 @@ func (u *urlServer) serve(ctx context.Context, c *kernel.Call, r *http.Request, 
 	var caller furl.Caller
 	switch v := verdict.(type) {
 	case refused:
-		v.resp.Write(w)
+		furl.Write(w, r.Method, v.resp)
 		return nil
 	case authorized:
 		caller = v.caller
@@ -145,7 +145,7 @@ func (u *urlServer) serve(ctx context.Context, c *kernel.Call, r *http.Request, 
 	if s.cors != nil {
 		s.cors.Decorate(&resp, r.Header.Get("Origin"))
 	}
-	resp.Write(w)
+	furl.Write(w, r.Method, resp)
 	return nil
 }
 

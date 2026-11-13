@@ -1,10 +1,13 @@
 package lambda_test
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -348,6 +351,8 @@ func failing(_ context.Context, inv runtimeapi.Invocation) (runtimeapi.Outcome, 
 	return runtimeapi.Success{Payload: []byte(`{"statusCode":"teapot"}`)}, nil
 }
 
+// Each answers 502 Internal Server Error as application/json
+// (lambda/R13/02-resp-raise.json, 02-resp-timeout.json, 02-resp-sc99.json).
 func TestFunctionURLAnswersFunctionErrorsAndMalformedResponsesWith502(t *testing.T) {
 	runURLs(t, failing, func(h *urlHarness) {
 		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
@@ -355,8 +360,8 @@ func TestFunctionURLAnswersFunctionErrorsAndMalformedResponsesWith502(t *testing
 		for _, path := range []string{"/error", "/timeout", "/malformed"} {
 			rec := h.send(h.request(http.MethodGet, "http://"+host+path, ""))
 			expect(t, rec, http.StatusBadGateway, "Internal Server Error")
-			if ct := rec.Header().Get("Content-Type"); ct != "text/plain" {
-				t.Errorf("%s: Content-Type = %q, want text/plain", path, ct)
+			if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+				t.Errorf("%s: Content-Type = %q, want application/json", path, ct)
 			}
 		}
 	})
@@ -374,6 +379,119 @@ func TestFunctionURLSendsTheFunctionsStructuredResponse(t *testing.T) {
 		expect(t, rec, http.StatusTeapot, "i'm a teapot")
 		if rec.Header().Get("X-Tea") != "pot" || rec.Header().Get("Set-Cookie") != "a=1" || rec.Header().Get("Content-Type") != "application/json" {
 			t.Errorf("headers %v, want X-Tea, Set-Cookie and the default application/json", rec.Header())
+		}
+	})
+}
+
+// wireAnswer is a response as a client read it off the connection.
+type wireAnswer struct {
+	status int
+	header http.Header
+	// contentLength is -1 when the response sent none.
+	contentLength    int64
+	transferEncoding []string
+	body             []byte
+}
+
+// sendOverTheWire sends a method request to the URL host through the edge
+// behind an http.Server, so the response is framed as a client receives
+// it. The connection is an in-memory pipe: the harness runs in a synctest
+// bubble, where a loopback socket stalls.
+func (h *urlHarness) sendOverTheWire(method, host string) wireAnswer {
+	h.Helper()
+	client, serverEnd := net.Pipe()
+	l := &oneConnListener{conn: pipeConn{serverEnd}, done: make(chan struct{})}
+	srv := &http.Server{Handler: h.edge, ReadHeaderTimeout: time.Minute}
+	served := make(chan error, 1)
+	go func() { served <- srv.Serve(l) }()
+	defer func() {
+		if err := srv.Close(); err != nil {
+			h.Error(err)
+		}
+		if err := <-served; !errors.Is(err, http.ErrServerClosed) {
+			h.Errorf("Serve = %v, want http.ErrServerClosed", err)
+		}
+	}()
+	r, err := http.NewRequestWithContext(h.Context(), method, "http://"+host+"/", http.NoBody)
+	if err != nil {
+		h.Fatal(err)
+	}
+	if err := r.Write(client); err != nil {
+		h.Fatal(err)
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(client), r)
+	if err != nil {
+		h.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		h.Fatal(err)
+	}
+	return wireAnswer{status: resp.StatusCode, header: resp.Header, contentLength: resp.ContentLength, transferEncoding: resp.TransferEncoding, body: body}
+}
+
+// oneConnListener accepts conn once, then waits for Close.
+type oneConnListener struct {
+	conn             net.Conn
+	accepted, closed sync.Once
+	done             chan struct{}
+}
+
+func (l *oneConnListener) Accept() (net.Conn, error) {
+	var c net.Conn
+	l.accepted.Do(func() { c = l.conn })
+	if c != nil {
+		return c, nil
+	}
+	<-l.done
+	return nil, net.ErrClosed
+}
+
+func (l *oneConnListener) Close() error {
+	l.closed.Do(func() { close(l.done) })
+	return nil
+}
+
+func (*oneConnListener) Addr() net.Addr { return &net.UnixAddr{Name: "pipe", Net: "pipe"} }
+
+// pipeConn is a pipe end whose peer reads as a loopback client, as the
+// edge expects of a request's remote address.
+type pipeConn struct{ net.Conn }
+
+func (pipeConn) RemoteAddr() net.Addr {
+	return &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 50000}
+}
+
+// A 6 MiB + 10 byte body goes with its Content-Length, not chunked
+// (lambda/R13/02-resp-big.json).
+func TestFunctionURLSendsLargeBodiesWithAContentLength(t *testing.T) {
+	const size = 6<<20 + 10
+	answer := func(context.Context, runtimeapi.Invocation) (runtimeapi.Outcome, error) {
+		return runtimeapi.Success{Payload: []byte(`"` + strings.Repeat("x", size) + `"`)}, nil
+	}
+	runURLs(t, answer, func(h *urlHarness) {
+		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
+		h.allowPublic()
+		a := h.sendOverTheWire(http.MethodGet, host)
+		if a.status != http.StatusOK || a.contentLength != size || len(a.transferEncoding) != 0 || len(a.body) != size {
+			t.Errorf("%d, Content-Length %d, Transfer-Encoding %q, %d bytes; want 200, %d, none, %d bytes", a.status, a.contentLength, a.transferEncoding, len(a.body), size, size)
+		}
+	})
+}
+
+// HEAD runs the function and answers 200 with Content-Length 0, not the
+// length of the body it leaves out (lambda/R13/01-head.json).
+func TestFunctionURLAnswersHEADWithContentLengthZero(t *testing.T) {
+	runURLs(t, pooltest.Echo, func(h *urlHarness) {
+		host := h.createURL(lambdaapi.FunctionUrlAuthTypeNone)
+		h.allowPublic()
+		a := h.sendOverTheWire(http.MethodHead, host)
+		if a.status != http.StatusOK || a.header.Get("Content-Length") != "0" || len(a.body) != 0 {
+			t.Errorf("HEAD: %d, Content-Length %q, %d bytes; want 200, 0, no body", a.status, a.header.Get("Content-Length"), len(a.body))
+		}
+		if n := len(h.invocations()); n != 1 {
+			t.Errorf("HEAD ran the function %d times, want once", n)
 		}
 	})
 }
