@@ -45,7 +45,9 @@
 //   - Field separation differs by dialect. Rules take exactly one ASCII
 //     space between cron fields and refuse a double space or a tab
 //     (events/R14/01-29-put.json, 01-30-put.json); Scheduler takes runs of
-//     ASCII spaces and tabs (scheduler/SCH/03-e20.json, 03-e21.json). Other
-//     whitespace, such as a no-break space, is rejected by both. Rate needs
-//     exactly one space. Neither may be padded inside the parentheses.
+//     ASCII spaces and tabs (scheduler/SCH/03-e20.json, 03-e21.json). A rule
+//     stored by an earlier build, which took the runs, loads through
+//     ParseStored, which takes them too. Other whitespace, such as a
+//     no-break space, is rejected by both. Rate needs exactly one space.
+//     Neither may be padded inside the parentheses.
 package schedexpr

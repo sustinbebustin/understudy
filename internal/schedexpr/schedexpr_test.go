@@ -38,12 +38,21 @@ func TestParseAcceptsDocumentedRates(t *testing.T) {
 // Rules take exactly one space between cron fields: a double space and tabs
 // are refused (events/R14/01-29-put.json, 01-30-put.json). Scheduler takes
 // runs of spaces and tabs (scheduler/SCH/03-e20.json, 03-e21.json;
-// scheduler.md 5.3).
+// scheduler.md 5.3). ParseStored takes the runs too, so a rule stored by a
+// build that accepted them still loads, with the schedule Parse gives the
+// one-space form.
 func TestCronFieldSeparationRulesRefuseSchedulerAcceptsRuns(t *testing.T) {
 	t.Parallel()
+	want, err := Parse("cron(0 12 * * ? *)")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, expr := range []string{
 		"cron(0  12 * * ? *)", "cron(0\t12\t*\t*\t?\t*)", "cron(0\t12 * * ? *)", "cron(0 \t 12 * * ? *)",
 	} {
+		if got, err := ParseStored(expr); err != nil || got != want {
+			t.Errorf("ParseStored(%q) = %v, %v; want %v", expr, got, err, want)
+		}
 		_, err := Parse(expr)
 		if err == nil {
 			t.Errorf("Parse(%q) accepted", expr)
@@ -73,6 +82,9 @@ func TestParseRejectsRecordedExpressions(t *testing.T) {
 		}
 		if got := err.Message(); got != "Parameter ScheduleExpression is not valid." {
 			t.Errorf("Parse(%q) message = %q", expr, got)
+		}
+		if _, err := ParseStored(expr); err == nil {
+			t.Errorf("ParseStored(%q) accepted", expr)
 		}
 	}
 }

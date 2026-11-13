@@ -2,6 +2,7 @@ package events_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"regexp"
@@ -324,6 +325,68 @@ func TestUnusableStoredDeadLetterQueueIsLogged(t *testing.T) {
 			t.Errorf("no error log names the rule, target and dead-letter queue; logs = %v", h.logs.records(t))
 		}
 	})
+}
+
+// A snapshot written before rules took the recorded cron field separation
+// can hold a rule whose cron fields are separated by a run of spaces or a
+// tab, which PutRule accepted then and refuses now (events/R14/01-29-put.json,
+// 01-30-put.json). The rule loads, keeps its text and fires as it did.
+func TestImportLoadsStoredCronWithWhitespaceRuns(t *testing.T) {
+	for _, tt := range []struct{ name, expr string }{
+		{"double space", "cron(0/15  * * * ? *)"},
+		{"tab", "cron(0/15\t* * * ? *)"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			run(t, func(h *harness) {
+				_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", ScheduleExpression: new(tt.expr)})
+				wantError(t, err, "ValidationException", "Parameter ScheduleExpression is not valid.")
+
+				h.advance(7 * time.Minute)
+				start := h.Clock.Now().Wire()
+				h.schedule("r", "cron(0/15 * * * ? *)")
+				sections, exportErr := h.svc.Export()
+				if exportErr != nil {
+					h.Fatal(exportErr)
+				}
+				stored, marshalErr := json.Marshal(tt.expr)
+				if marshalErr != nil {
+					h.Fatal(marshalErr)
+				}
+				edited := slices.Clone(sections)
+				replaced := false
+				for i := range edited {
+					data := bytes.ReplaceAll(edited[i].Data, []byte(`"cron(0/15 * * * ? *)"`), stored)
+					replaced = replaced || !bytes.Equal(data, edited[i].Data)
+					edited[i].Data = data
+				}
+				if !replaced {
+					h.Fatalf("no section holds the rule's schedule: %+v", sections)
+				}
+				h.svc.Reset(kernel.ResetScope{})
+				h.Kernel.Timers().Scheduler().Clear()
+				if importErr := h.svc.Import(edited); importErr != nil {
+					h.Fatalf("Import = %v", importErr)
+				}
+				h.svc.Rearm(h.Clock.Now())
+
+				rule := must(h, eventbridgeapi.OpDescribeRule, &eventbridgeapi.DescribeRuleInput{Name: "r"})
+				if rule.ScheduleExpression == nil || *rule.ScheduleExpression != tt.expr {
+					h.Errorf("ScheduleExpression after the import = %v, want %q", rule.ScheduleExpression, tt.expr)
+				}
+				h.advance(time.Hour)
+				fired := h.sink.take()
+				got := make([]time.Time, len(fired))
+				for i, d := range fired {
+					got[i] = d.Accepted.Wire()
+				}
+				hour := start.Truncate(time.Hour)
+				want := []time.Time{hour.Add(15 * time.Minute), hour.Add(30 * time.Minute), hour.Add(45 * time.Minute), hour.Add(time.Hour)}
+				if !slices.EqualFunc(got, want, time.Time.Equal) {
+					h.Errorf("fired at %v, want %v", got, want)
+				}
+			})
+		})
+	}
 }
 
 // A snapshot holding a rule PutRule or PutTargets could not have stored

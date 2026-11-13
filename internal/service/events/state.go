@@ -302,7 +302,8 @@ func newTrigger(pattern, expr *string) (Trigger, *awserr.Error) {
 
 // Schedule is a parsed schedule expression. It is stored as the
 // expression's text and parsed again on load, so a stored schedule always
-// parses: a snapshot with one that does not fails to load.
+// parses: a snapshot with one that does not fails to load. Load takes the
+// cron field separation earlier builds stored (schedexpr.ParseStored).
 type Schedule struct {
 	text   string
 	parsed schedexpr.Schedule
@@ -322,13 +323,14 @@ func (s Schedule) String() string { return s.text }
 // MarshalText writes the expression.
 func (s Schedule) MarshalText() ([]byte, error) { return []byte(s.text), nil }
 
-// UnmarshalText parses a stored expression.
+// UnmarshalText parses a stored expression, keeping its text verbatim.
 func (s *Schedule) UnmarshalText(b []byte) error {
-	parsed, err := parseSchedule(string(b))
+	expr := string(b)
+	parsed, err := schedexpr.ParseStored(expr)
 	if err != nil {
-		return &StoredScheduleError{Expression: string(b), Detail: err.Detail()}
+		return &StoredScheduleError{Expression: expr, Detail: err.Detail()}
 	}
-	*s = parsed
+	*s = Schedule{text: expr, parsed: parsed}
 	return nil
 }
 
