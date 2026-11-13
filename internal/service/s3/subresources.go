@@ -3,6 +3,7 @@ package s3
 import (
 	"bytes"
 	"cmp"
+	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -13,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -314,15 +316,29 @@ func (s *Service) bindLifecycle(b s3api.Binder) {
 	put := func(in *s3api.PutBucketLifecycleConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
-	b.PutBucketLifecycleConfiguration(writer[s3api.PutBucketLifecycleConfigurationInput, s3api.PutBucketLifecycleConfigurationOutput](s, put, func(in *s3api.PutBucketLifecycleConfigurationInput, b *Bucket) *awserr.Error {
-		b.Lifecycle = &Lifecycle{Rules: in.LifecycleConfiguration.Rules, TransitionDefaultMinimumObjectSize: transitionDefault(in)}
-		return nil
-	}), stored("the lifecycle rules are"), touches(s, put), kernel.WithCheck(checkLifecycle))
+	b.PutBucketLifecycleConfiguration(s.putBucketLifecycle, stored("the lifecycle rules are"), touches(s, put), kernel.WithCheck(checkLifecycle))
 	del := func(in *s3api.DeleteBucketLifecycleInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketLifecycle(writer[s3api.DeleteBucketLifecycleInput, s3api.DeleteBucketLifecycleOutput](s, del, func(_ *s3api.DeleteBucketLifecycleInput, b *Bucket) *awserr.Error {
 		b.Lifecycle = nil
 		return nil
 	}), stored("the lifecycle rules are"), touches(s, del))
+}
+
+// putBucketLifecycle stores the rules and answers the stored
+// x-amz-transition-default-minimum-object-size: all_storage_classes_128K
+// for a request that sent none
+// (testdata/parity/s3/R12/12-lifecycle-transition-7-standard-ia.json), and
+// the request's value otherwise, inferred.
+func (s *Service) putBucketLifecycle(ctx context.Context, c *kernel.Call, in *s3api.PutBucketLifecycleConfigurationInput) (*s3api.PutBucketLifecycleConfigurationOutput, *awserr.Error) {
+	size := transitionDefault(in)
+	err := s.change(ctx, c, at(in.Bucket, in.ExpectedBucketOwner), func(b *Bucket, _ clock.Instant) *awserr.Error {
+		b.Lifecycle = &Lifecycle{Rules: in.LifecycleConfiguration.Rules, TransitionDefaultMinimumObjectSize: size}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &s3api.PutBucketLifecycleConfigurationOutput{TransitionDefaultMinimumObjectSize: &size}, nil
 }
 
 // transitionDefault is the x-amz-transition-default-minimum-object-size a
@@ -407,13 +423,14 @@ func checkLifecycleDays(r s3api.LifecycleRule) *awserr.Error {
 	if e := r.NoncurrentVersionExpiration; e != nil && e.NoncurrentDays != nil && *e.NoncurrentDays < 1 {
 		return errInvalidArgument(lifecycleNoncurrentExpirationDaysMessage, "NoncurrentDays", strconv.Itoa(int(*e.NoncurrentDays)))
 	}
+	filter := lifecycleFilterText(r)
 	current := make([]transitionStep, 0, len(r.Transitions))
 	for _, t := range r.Transitions {
 		if t.StorageClass != nil && t.Date == nil {
 			current = append(current, transitionStep{days: smithy.Deref(t.Days), class: *t.StorageClass})
 		}
 	}
-	if err := checkTransitionDays(transitionAction{name: "Transition", days: "Days"}, current); err != nil {
+	if err := checkTransitionDays(transitionAction{name: "Transition", days: "Days", filter: filter}, current); err != nil {
 		return err
 	}
 	noncurrent := make([]transitionStep, 0, len(r.NoncurrentVersionTransitions))
@@ -422,26 +439,41 @@ func checkLifecycleDays(r s3api.LifecycleRule) *awserr.Error {
 			noncurrent = append(noncurrent, transitionStep{days: smithy.Deref(t.NoncurrentDays), class: *t.StorageClass})
 		}
 	}
-	return checkTransitionDays(transitionAction{name: "NoncurrentVersionTransition", days: "NoncurrentDays"}, noncurrent)
+	return checkTransitionDays(transitionAction{name: "NoncurrentVersionTransition", days: "NoncurrentDays", filter: filter}, noncurrent)
+}
+
+// lifecycleFilterText is a rule's filter as S3's transition refusals name
+// it. Only the empty prefix, "(prefix=)", is recorded
+// (testdata/parity/s3/R12/12-lifecycle-glacier-ir-4-deep-archive-20.json);
+// any other prefix renders the same way, and the tags and size bounds of a
+// filter are left out: both inferred.
+func lifecycleFilterText(r s3api.LifecycleRule) string {
+	prefix := r.Prefix
+	if f := r.Filter; f != nil {
+		prefix = f.Prefix
+		if f.And != nil {
+			prefix = f.And.Prefix
+		}
+	}
+	return "(prefix=" + smithy.Deref(prefix) + ")"
 }
 
 // The lifecycle day limits. AWS documents them: Expiration Days is "a
-// non-zero positive integer" (API_LifecycleExpiration), and "you can't
-// create a single Lifecycle rule that transitions objects from one storage
-// class to another before the minimum storage duration period has passed"
-// (lifecycle-transition-general-considerations). Transition Days may be 0
-// (API_Transition), save to the Infrequent Access classes, which take 30
-// days at least. The IA text is an AWS answer quoted in a Terraform
-// write-up (zenn.dev/thaim 2024-04-s3-lifecycle-configuration-min-duration)
-// and the storage-duration text is composed, so both are UNVERIFIED
-// (lifecycleRuleLimits). The expiration texts, with the ArgumentName and
-// ArgumentValue S3 adds, are recorded
-// (testdata/parity/s3/R12/12-lifecycle-expiration-0.json,
+// non-zero positive integer" (API_LifecycleExpiration), Transition Days may
+// be 0 (API_Transition), and "you can't create a single Lifecycle rule that
+// transitions objects from one storage class to another before the minimum
+// storage duration period has passed"
+// (lifecycle-transition-general-considerations). AWS accepts a 7-day
+// transition and a 10-day noncurrent transition to STANDARD_IA, so the
+// Infrequent Access classes take no minimum of their own
+// (testdata/parity/s3/R12/12-lifecycle-transition-7-standard-ia.json,
+// testdata/parity/s3/R12/12-lifecycle-noncurrent-10-standard-ia.json). The
+// expiration texts, with the ArgumentName and ArgumentValue S3 adds, are
+// recorded (testdata/parity/s3/R12/12-lifecycle-expiration-0.json,
 // testdata/parity/s3/R12/12-lifecycle-noncurrent-expiration-0.json).
 const (
 	lifecycleExpirationDaysMessage           = "'Days' for Expiration action must be a positive integer"
 	lifecycleNoncurrentExpirationDaysMessage = "'NoncurrentDays' for NoncurrentVersionExpiration action must be a positive integer"
-	infrequentAccessMinDays                  = 30
 )
 
 // transitionStep is one Days-based transition of a rule: the days after
@@ -452,40 +484,80 @@ type transitionStep struct {
 	class s3api.TransitionStorageClass
 }
 
-// transitionAction names a transition action and its days member in a
-// refusal: Transition/Days or NoncurrentVersionTransition/NoncurrentDays.
+// transitionAction names a transition action, its days member and its
+// rule's filter in a refusal: Transition/Days or
+// NoncurrentVersionTransition/NoncurrentDays, and lifecycleFilterText.
 type transitionAction struct {
-	name string
-	days string
+	name   string
+	days   string
+	filter string
 }
 
-// checkTransitionDays refuses a transition to an Infrequent Access class
-// before 30 days, and a transition sooner after the one before it than
-// that one's class must hold an object.
+// checkTransitionDays refuses a rule whose transitions go to classes out of
+// S3's order, and then one that moves an object on sooner than the earlier
+// class must hold it. A rule out of order may break a hold as well, and S3
+// answers the order refusal
+// (testdata/parity/s3/R12/15-lifecycle-glacier-then-onezone-ia.json). Both
+// refusals carry the later transition's days as ArgumentValue. The texts
+// are recorded for Transition; NoncurrentVersionTransition takes them with
+// its own names, inferred.
 func checkTransitionDays(a transitionAction, steps []transitionStep) *awserr.Error {
-	for _, s := range steps {
-		if (s.class == s3api.TransitionStorageClassStandardIa || s.class == s3api.TransitionStorageClassOnezoneIa) && s.days < infrequentAccessMinDays {
-			return s3api.ErrInvalidArgument(fmt.Sprintf("'%s' in %s action must be greater than or equal to %d for storageClass '%s'", a.days, a.name, infrequentAccessMinDays, s.class))
+	slices.SortStableFunc(steps, func(x, y transitionStep) int {
+		return cmp.Or(cmp.Compare(transitionRank(x.class), transitionRank(y.class)), cmp.Compare(x.days, y.days))
+	})
+	for i := 1; i < len(steps); i++ {
+		lower, higher := steps[i-1], steps[i]
+		if transitionRank(lower.class) < transitionRank(higher.class) && higher.days <= lower.days {
+			return errInvalidArgument(fmt.Sprintf("'%s' in the '%s' action for StorageClass '%s' for filter '%s' must be greater than '%s' in the '%s' action for StorageClass '%s' for filter '%s'",
+				a.days, a.name, higher.class, a.filter, a.days, a.name, lower.class, a.filter), a.days, strconv.Itoa(int(lower.days)))
 		}
 	}
-	slices.SortStableFunc(steps, func(x, y transitionStep) int { return cmp.Compare(x.days, y.days) })
 	for i := 1; i < len(steps); i++ {
 		prev, next := steps[i-1], steps[i]
 		if hold := minStorageDays(prev.class); next.days-prev.days < hold {
-			return s3api.ErrInvalidArgument(fmt.Sprintf("'%s' in the '%s' action for StorageClass '%s' must be at least %d days more than '%s' in the '%s' action for StorageClass '%s'",
-				a.days, a.name, next.class, hold, a.days, a.name, prev.class))
+			return errInvalidArgument(fmt.Sprintf("'%s' in the '%s' action for StorageClass '%s' for filter '%s' must be %d days more than 'filter '%s'' in the '%s' action for StorageClass '%s'",
+				a.days, a.name, next.class, a.filter, hold, a.filter, a.name, prev.class), a.days, strconv.Itoa(int(next.days)))
 		}
 	}
 	return nil
 }
 
+// transitionRank is class c's place in S3's transition waterfall
+// (lifecycle-transition-general-considerations, "Supported transitions"):
+// a rule moves objects only to classes of higher rank. Only GLACIER before
+// ONEZONE_IA is recorded as refused
+// (testdata/parity/s3/R12/15-lifecycle-glacier-then-onezone-ia.json); the
+// other places follow the documented waterfall, inferred. The waterfall
+// also leaves out ONEZONE_IA to GLACIER_IR, which this order accepts:
+// AWS's answer to that pair is unrecorded.
+func transitionRank(c s3api.TransitionStorageClass) int {
+	switch c {
+	case s3api.TransitionStorageClassStandardIa:
+		return 1
+	case s3api.TransitionStorageClassIntelligentTiering:
+		return 2
+	case s3api.TransitionStorageClassOnezoneIa:
+		return 3
+	case s3api.TransitionStorageClassGlacierIr:
+		return 4
+	case s3api.TransitionStorageClassGlacier:
+		return 5
+	case s3api.TransitionStorageClassDeepArchive:
+		return 6
+	}
+	return 0
+}
+
 // minStorageDays is the minimum storage duration of class c (DOC
 // storage-class-intro, "Comparing the Amazon S3 storage classes"):
-// Intelligent-Tiering has none.
+// Intelligent-Tiering has none. The 30 days after STANDARD_IA and the 90
+// after GLACIER_IR are recorded
+// (testdata/parity/s3/R12/12-lifecycle-standard-ia-30-glacier-40.json,
+// testdata/parity/s3/R12/12-lifecycle-glacier-ir-4-deep-archive-20.json).
 func minStorageDays(c s3api.TransitionStorageClass) int32 {
 	switch c {
 	case s3api.TransitionStorageClassStandardIa, s3api.TransitionStorageClassOnezoneIa:
-		return infrequentAccessMinDays
+		return 30
 	case s3api.TransitionStorageClassGlacierIr, s3api.TransitionStorageClassGlacier:
 		return 90
 	case s3api.TransitionStorageClassDeepArchive:

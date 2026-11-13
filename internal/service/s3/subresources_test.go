@@ -8,6 +8,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 	"github.com/sustinbebustin/understudy/internal/service/s3"
 )
 
@@ -834,12 +835,13 @@ func TestSubresourceRulesRecordedAgainstAWS(t *testing.T) {
 }
 
 // TestLifecycleDayLimits: a lifecycle Put is refused with InvalidArgument
-// when an expiration is not a positive number of days, a transition to an
-// Infrequent Access class comes before 30 days, or a rule moves an object
-// on before the earlier class's minimum storage duration (API_Transition,
+// when an expiration is not a positive number of days, a rule's transitions
+// go to classes out of S3's order, or a rule moves an object on before the
+// earlier class's minimum storage duration (API_Transition,
 // API_LifecycleExpiration, lifecycle-transition-general-considerations).
-// A 0-day transition to another class and a chain that keeps the minimums
-// are stored.
+// A transition to any class after any number of days, and a chain that
+// keeps the order and the minimums, are stored, and the Put answers the
+// stored x-amz-transition-default-minimum-object-size.
 func TestLifecycleDayLimits(t *testing.T) {
 	transition := func(days int32, c s3api.TransitionStorageClass) s3api.Transition {
 		return s3api.Transition{Days: new(days), StorageClass: new(c)}
@@ -849,6 +851,9 @@ func TestLifecycleDayLimits(t *testing.T) {
 	}
 	for name, tc := range map[string]struct {
 		rule s3api.LifecycleRule
+		// minimumSize is the request's
+		// x-amz-transition-default-minimum-object-size, nil for none.
+		minimumSize *s3api.TransitionDefaultMinimumObjectSize
 		// refusal is the InvalidArgument message, "" when the Put succeeds.
 		refusal string
 		// fields, when set, are the refusal's ArgumentName and
@@ -860,29 +865,82 @@ func TestLifecycleDayLimits(t *testing.T) {
 			transition(150, s3api.TransitionStorageClassDeepArchive), transition(30, s3api.TransitionStorageClassStandardIa), transition(60, s3api.TransitionStorageClassGlacierIr),
 		}}},
 		"30-day noncurrent transition to One Zone-IA": {rule: s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{noncurrent(30, s3api.TransitionStorageClassOnezoneIa)}}},
-		"7-day transition to Standard-IA": {
-			rule:    s3api.LifecycleRule{Transitions: []s3api.Transition{transition(7, s3api.TransitionStorageClassStandardIa)}},
-			refusal: "'Days' in Transition action must be greater than or equal to 30 for storageClass 'STANDARD_IA'",
+		// testdata/parity/s3/R12/12-lifecycle-transition-7-standard-ia.json:
+		// accepted, answering all_storage_classes_128K for a request that
+		// sent no x-amz-transition-default-minimum-object-size.
+		"7-day transition to Standard-IA": {rule: s3api.LifecycleRule{Transitions: []s3api.Transition{transition(7, s3api.TransitionStorageClassStandardIa)}}},
+		// testdata/parity/s3/R12/12-lifecycle-noncurrent-10-standard-ia.json
+		"10-day noncurrent transition to Standard-IA": {rule: s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{noncurrent(10, s3api.TransitionStorageClassStandardIa)}}},
+		// inferred: no minimum before an Infrequent Access class, as the
+		// 7-day transition shows, so a transition without days is stored.
+		"transition to One Zone-IA without days": {rule: s3api.LifecycleRule{Transitions: []s3api.Transition{{StorageClass: new(s3api.TransitionStorageClassOnezoneIa)}}}},
+		// inferred: the stored value the Put answers is the one the request
+		// sent.
+		"Put that sends varies_by_storage_class": {
+			rule:        s3api.LifecycleRule{Transitions: []s3api.Transition{transition(7, s3api.TransitionStorageClassStandardIa)}},
+			minimumSize: new(s3api.TransitionDefaultMinimumObjectSizeVariesByStorageClass),
 		},
-		"transition to One Zone-IA without days": {
-			rule:    s3api.LifecycleRule{Transitions: []s3api.Transition{{StorageClass: new(s3api.TransitionStorageClassOnezoneIa)}}},
-			refusal: "'Days' in Transition action must be greater than or equal to 30 for storageClass 'ONEZONE_IA'",
-		},
-		"10-day noncurrent transition to Standard-IA": {
-			rule:    s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{noncurrent(10, s3api.TransitionStorageClassStandardIa)}},
-			refusal: "'NoncurrentDays' in NoncurrentVersionTransition action must be greater than or equal to 30 for storageClass 'STANDARD_IA'",
-		},
+		// testdata/parity/s3/R12/12-lifecycle-glacier-ir-4-deep-archive-20.json
 		"Deep Archive 16 days after Glacier Instant Retrieval": {
 			rule: s3api.LifecycleRule{Transitions: []s3api.Transition{
 				transition(4, s3api.TransitionStorageClassGlacierIr), transition(20, s3api.TransitionStorageClassDeepArchive),
 			}},
-			refusal: "'Days' in the 'Transition' action for StorageClass 'DEEP_ARCHIVE' must be at least 90 days more than 'Days' in the 'Transition' action for StorageClass 'GLACIER_IR'",
+			refusal: "'Days' in the 'Transition' action for StorageClass 'DEEP_ARCHIVE' for filter '(prefix=)' must be 90 days more than 'filter '(prefix=)'' in the 'Transition' action for StorageClass 'GLACIER_IR'",
+			fields:  map[string]string{"ArgumentName": "Days", "ArgumentValue": "20"},
 		},
+		// testdata/parity/s3/R12/12-lifecycle-standard-ia-30-glacier-40.json
+		"Glacier 10 days after Standard-IA": {
+			rule: s3api.LifecycleRule{Transitions: []s3api.Transition{
+				transition(30, s3api.TransitionStorageClassStandardIa), transition(40, s3api.TransitionStorageClassGlacier),
+			}},
+			refusal: "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be 30 days more than 'filter '(prefix=)'' in the 'Transition' action for StorageClass 'STANDARD_IA'",
+			fields:  map[string]string{"ArgumentName": "Days", "ArgumentValue": "40"},
+		},
+		// inferred: the recorded Transition text, with the noncurrent
+		// action's names.
 		"noncurrent Glacier 10 days after Standard-IA": {
 			rule: s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{
 				noncurrent(30, s3api.TransitionStorageClassStandardIa), noncurrent(40, s3api.TransitionStorageClassGlacier),
 			}},
-			refusal: "'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'GLACIER' must be at least 30 days more than 'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'STANDARD_IA'",
+			refusal: "'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be 30 days more than 'filter '(prefix=)'' in the 'NoncurrentVersionTransition' action for StorageClass 'STANDARD_IA'",
+			fields:  map[string]string{"ArgumentName": "NoncurrentDays", "ArgumentValue": "40"},
+		},
+		// inferred: a prefix filter renders as the empty one does.
+		"Glacier 10 days after Standard-IA under a prefix": {
+			rule: s3api.LifecycleRule{Filter: &s3api.LifecycleRuleFilter{Prefix: new("logs/")}, Transitions: []s3api.Transition{
+				transition(30, s3api.TransitionStorageClassStandardIa), transition(40, s3api.TransitionStorageClassGlacier),
+			}},
+			refusal: "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=logs/)' must be 30 days more than 'filter '(prefix=logs/)'' in the 'Transition' action for StorageClass 'STANDARD_IA'",
+			fields:  map[string]string{"ArgumentName": "Days", "ArgumentValue": "40"},
+		},
+		// testdata/parity/s3/R12/15-lifecycle-glacier-then-onezone-ia.json:
+		// the 30 days between them also break Glacier's 90-day hold, and
+		// S3 answers the order refusal.
+		"Glacier 30 then One Zone-IA 60": {
+			rule: s3api.LifecycleRule{Transitions: []s3api.Transition{
+				transition(30, s3api.TransitionStorageClassGlacier), transition(60, s3api.TransitionStorageClassOnezoneIa),
+			}},
+			refusal: "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be greater than 'Days' in the 'Transition' action for StorageClass 'ONEZONE_IA' for filter '(prefix=)'",
+			fields:  map[string]string{"ArgumentName": "Days", "ArgumentValue": "60"},
+		},
+		// inferred: the documented waterfall puts Intelligent-Tiering after
+		// Standard-IA, and the recorded order text takes the noncurrent
+		// action's names.
+		"noncurrent Intelligent-Tiering 30 then Standard-IA 60": {
+			rule: s3api.LifecycleRule{NoncurrentVersionTransitions: []s3api.NoncurrentVersionTransition{
+				noncurrent(30, s3api.TransitionStorageClassIntelligentTiering), noncurrent(60, s3api.TransitionStorageClassStandardIa),
+			}},
+			refusal: "'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'INTELLIGENT_TIERING' for filter '(prefix=)' must be greater than 'NoncurrentDays' in the 'NoncurrentVersionTransition' action for StorageClass 'STANDARD_IA' for filter '(prefix=)'",
+			fields:  map[string]string{"ArgumentName": "NoncurrentDays", "ArgumentValue": "60"},
+		},
+		// inferred: the order text asks for greater days, so two classes on
+		// the same day break the order.
+		"Glacier and Standard-IA on the same day": {
+			rule: s3api.LifecycleRule{Transitions: []s3api.Transition{
+				transition(30, s3api.TransitionStorageClassGlacier), transition(30, s3api.TransitionStorageClassStandardIa),
+			}},
+			refusal: "'Days' in the 'Transition' action for StorageClass 'GLACIER' for filter '(prefix=)' must be greater than 'Days' in the 'Transition' action for StorageClass 'STANDARD_IA' for filter '(prefix=)'",
+			fields:  map[string]string{"ArgumentName": "Days", "ArgumentValue": "30"},
 		},
 		// testdata/parity/s3/R12/12-lifecycle-expiration-0.json
 		"0-day expiration": {
@@ -901,13 +959,25 @@ func TestLifecycleDayLimits(t *testing.T) {
 			run(t, s3.Options{}, func(h *harness) {
 				h.createBucket("days")
 				rule := tc.rule
-				rule.ID, rule.Status, rule.Filter = new("r"), s3api.ExpirationStatusEnabled, &s3api.LifecycleRuleFilter{}
-				_, err := invoke(h, s3api.OpPutBucketLifecycleConfiguration, &s3api.PutBucketLifecycleConfigurationInput{
+				rule.ID, rule.Status = new("r"), s3api.ExpirationStatusEnabled
+				if rule.Filter == nil {
+					// The recorded rules' <Filter><Prefix /></Filter>.
+					rule.Filter = &s3api.LifecycleRuleFilter{Prefix: new("")}
+				}
+				out, err := invoke(h, s3api.OpPutBucketLifecycleConfiguration, &s3api.PutBucketLifecycleConfigurationInput{
 					Bucket: "days", LifecycleConfiguration: &s3api.BucketLifecycleConfiguration{Rules: []s3api.LifecycleRule{rule}},
+					TransitionDefaultMinimumObjectSize: tc.minimumSize,
 				})
 				if tc.refusal == "" {
 					if err != nil {
 						h.Fatalf("PutBucketLifecycleConfiguration = %s (%s), want success", err.ID.QueryCode, err.Message)
+					}
+					want := s3api.TransitionDefaultMinimumObjectSizeAllStorageClasses128k
+					if tc.minimumSize != nil {
+						want = *tc.minimumSize
+					}
+					if got := out.TransitionDefaultMinimumObjectSize; got == nil || *got != want {
+						h.Fatalf("x-amz-transition-default-minimum-object-size = %q (nil: %t), want %s", smithy.Deref(got), got == nil, want)
 					}
 					return
 				}

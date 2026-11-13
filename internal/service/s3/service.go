@@ -610,9 +610,13 @@ func tagLimits() fidelity.Switch[string] {
 	}
 }
 
-// lifecycleRuleLimits are the unique rule IDs, the 1,000-rule limit and the
-// day limits of a lifecycle configuration's actions: documented, with
-// error texts no recording shows (checkLifecycle, checkLifecycleDays).
+// lifecycleRuleLimits are the parts of a lifecycle configuration's checks
+// no recording shows: the unique rule IDs and the 1,000-rule limit with
+// their texts (checkLifecycle), and, of the transition refusals the
+// recordings settle for an empty-prefix Transition, the texts for
+// NoncurrentVersionTransition and other filters, and the storage-class
+// order beyond GLACIER before ONEZONE_IA (checkTransitionDays,
+// lifecycleFilterText, transitionRank).
 func lifecycleRuleLimits() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:  "s3.lifecycle.rule-limits",
@@ -621,7 +625,7 @@ func lifecycleRuleLimits() fidelity.Switch[string] {
 		Ref:   "https://docs.aws.amazon.com/AmazonS3/latest/API/API_LifecycleRule.html",
 		Ops:   []string{"s3.PutBucketLifecycleConfiguration"},
 		Settles: fidelity.NoScenario{
-			Reason: s3Unreplayed("s3/R12/12-lifecycle-transition-7-standard-ia.json, the other 12-lifecycle steps and 15-lifecycle-glacier-then-onezone-ia.json are"),
+			Reason: "unrecorded: no recording repeats a rule ID, exceeds 1,000 rules, or refuses a noncurrent transition, a transition under a non-empty filter, or a storage-class order other than GLACIER before ONEZONE_IA",
 		},
 	}
 }
