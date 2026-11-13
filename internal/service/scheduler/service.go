@@ -39,8 +39,8 @@ const createNote = "templated Lambda, SQS, SNS, EventBridge event bus and Step F
 	"a Step Functions execution's name is understudy's; " +
 	"Lambda, SQS, SNS and Step Functions targets in another Region " +
 	"answer NotImplemented once the expression, time zone, window, dates and target are validated; " +
-	"KmsKeyArn is stored and echoed, the payload is not encrypted, and under iam.enforce=enforce the caller's KMS permissions at create and update and the execution role's kms:Decrypt at invocation are evaluated against identity policies and the key's policy, which for a key understudy's KMS does not hold allows nothing, " +
-	"so under enforce a KmsKeyArn naming no key is refused at create where AWS accepted one (SCH-04); " +
+	"KmsKeyArn is stored and echoed, the payload is not encrypted, and under iam.enforce=enforce the caller's KMS permissions at create and update and the execution role's kms:Decrypt at invocation are evaluated against identity policies and the key's policy for a key understudy's KMS holds, " +
+	"and a KmsKeyArn naming no key is accepted with no KMS action asked, as AWS accepted one (SCH-04); " +
 	"the execution role's trust is checked only under iam.enforce=enforce, at create, update and invocation, so under off and advise a missing or untrusting role still delivers; " +
 	"the 10,000,000-schedule quota is not counted; " +
 	"cron() takes the rules' grammar, so years outside 1970-2199 are refused as malformed where AWS refuses them as never firing (SCH-03); " +

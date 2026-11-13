@@ -904,8 +904,9 @@ func wiredServices() []wiredService {
 		{secretsmanagerapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return secretsmanager.New(d, secretsmanager.Options{})
 		}},
-		{kmsapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
-			return kms.New(d, kms.Options{})
+		{kmsapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			c.kms = kms.New(d, kms.Options{})
+			return c.kms
 		}},
 		{ssmapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
 			return ssm.New(d, ssm.Options{})
@@ -940,9 +941,10 @@ func wiredServices() []wiredService {
 			return ses.NewV2(d, c.ses)
 		}},
 		// Scheduler reaches IAM (ResolveRole) and its targets only through
-		// kernel.Invoke and the outbox, so its row needs no service above.
-		{schedulerapi.Service(), func(d kernel.ServiceDeps, _ *construction) serveradmin.Service {
-			return scheduler.New(d, scheduler.Options{})
+		// kernel.Invoke and the outbox; it reads KMS to tell whether a
+		// KmsKeyArn names a key.
+		{schedulerapi.Service(), func(d kernel.ServiceDeps, c *construction) serveradmin.Service {
+			return scheduler.New(d, scheduler.Options{KeyPolicies: c.kms})
 		}},
 	}
 }
@@ -990,6 +992,8 @@ type construction struct {
 	sns        *sns.Service
 	lambda     *lambda.Service
 	lambdaDeps kernel.ServiceDeps
+	// kms is the key store Scheduler reads for a KmsKeyArn.
+	kms *kms.Service
 	// iam is the identity-policy source of IAM evaluation.
 	iam *iam.Service
 	// ses is the store SES v2's view shares.

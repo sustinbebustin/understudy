@@ -65,7 +65,11 @@ func groupResource(c *kernel.Call, name string) []aws.ARN {
 // iam.enforce=enforce a missing or untrusting role answers the captured
 // ValidationException; under advise the Authorizer journals the would-be
 // denial and the write goes on; under off nothing is asked.
-func authorizeWrite(ctx context.Context, c *kernel.Call, r scheduleRef, p *plan) *awserr.Error {
+//
+// A KmsKeyArn that names no key understudy's KMS holds is not asked about:
+// AWS accepted one (SCH-04 04-kms-missing); a key that exists is asked, as
+// the three permissions are documented (inferred; no recording refuses one).
+func (s *Service) authorizeWrite(ctx context.Context, c *kernel.Call, r scheduleRef, p *plan) *awserr.Error {
 	as := kernel.AsService{Name: principal, Source: groupARN(r.scope, r.group), SourceAccount: r.scope.Account}
 	trust := kernel.AuthzQuery{Pairs: []kernel.Pair{{Action: assumeRoleAction(), Resource: kernel.ResourceARN{ARN: p.role}}}}
 	if err := kernel.AuthorizeAs(ctx, c, as, trust); err != nil {
@@ -77,7 +81,7 @@ func authorizeWrite(ctx context.Context, c *kernel.Call, r scheduleRef, p *plan)
 	if err := kernel.Authorize(ctx, c, passRoleAction(), p.role, passedToScheduler()); err != nil {
 		return err
 	}
-	if p.key == nil {
+	if p.key == nil || !s.keyHeld(*p.key) {
 		return nil
 	}
 	for _, a := range keyActions() {
@@ -86,6 +90,16 @@ func authorizeWrite(ctx context.Context, c *kernel.Call, r scheduleRef, p *plan)
 		}
 	}
 	return nil
+}
+
+// keyHeld reports whether understudy's KMS holds the key arn names. A
+// Service built without Options.KeyPolicies holds none.
+func (s *Service) keyHeld(arn aws.ARN) bool {
+	if s.opts.KeyPolicies == nil {
+		return false
+	}
+	_, ok := s.opts.KeyPolicies.ResourcePolicy(arn)
+	return ok
 }
 
 // denied reports whether err is the Authorizer's denial.

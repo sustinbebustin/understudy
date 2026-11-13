@@ -373,6 +373,27 @@ func TestSchedulerKMSKey(t *testing.T) {
 	}
 }
 
+// A KmsKeyArn that names no key is accepted under enforce, with no KMS
+// action asked, and echoed as the capture shows (SCH-04 04-kms-missing,
+// 200); UpdateSchedule takes it too.
+func TestSchedulerKMSKeyMissingIsAccepted(t *testing.T) {
+	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
+	schQueues(t, endpoint)
+	schRoleTrusting(t, endpoint, schTrust)
+	putUserPolicy(t, endpoint, schedulerPassRole(principalScheduler, ""))
+	missing := "arn:aws:kms:us-east-1:000000000000:key/00000000-0000-0000-0000-000000000000"
+	keyed := schSchedule(`,"KmsKeyArn":"` + missing + `"`)
+	if w := schCall(t, u, endpoint, http.MethodPost, "/schedules/s", keyed); w.status != http.StatusOK {
+		t.Fatalf("create with a missing key = %d %s, want 200", w.status, w.body)
+	}
+	if w := schCall(t, u, endpoint, http.MethodPut, "/schedules/s", keyed); w.status != http.StatusOK {
+		t.Fatalf("update with a missing key = %d %s, want 200", w.status, w.body)
+	}
+	if w := schCall(t, dummy, endpoint, http.MethodGet, "/schedules/s", ""); w.status != http.StatusOK || !strings.Contains(w.body, missing) {
+		t.Errorf("get = %d %s, want the key ARN echoed", w.status, w.body)
+	}
+}
+
 const principalScheduler = "scheduler.amazonaws.com"
 
 // A role session needs no grant in the target's resource policy
