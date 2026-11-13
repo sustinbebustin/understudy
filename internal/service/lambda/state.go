@@ -21,12 +21,17 @@ import (
 )
 
 // stateVersion is the schema version of State in snapshot sections. Version
-// 2 added Mapping.SourceKind, version 3 the layer store, and version 4
-// moved an SQS mapping's scaling into its source kind and saves stream
-// checkpoints. A version 3 section is migrated on import
-// (migrateUnkindedScaling); a section of an earlier version is refused
-// (ADR 0009).
-const stateVersion = 4
+// 2 added Mapping.SourceKind, version 3 the layer store, version 4 moved
+// an SQS mapping's scaling into its source kind and saves stream
+// checkpoints, and version 5 added State.RetiredVersions. A version 4
+// section loads as is, with no numbers remembered for deleted functions; a
+// version 3 section is migrated on import (migrateUnkindedScaling); a
+// section of an earlier version is refused (ADR 0009).
+const stateVersion = 5
+
+// stateVersionNoRetiredVersions is the version before deleted functions'
+// version numbers were kept, which Import still reads.
+const stateVersionNoRetiredVersions = 4
 
 // stateVersionUnkindedScaling is the version whose mappings hold their
 // scaling beside their source kind, which Import still reads.
@@ -48,6 +53,12 @@ type State struct {
 	// directly or with their alias or function, which a request then finds
 	// forbidden rather than unknown, as on AWS.
 	RetiredURLs map[string]bool `json:"retiredUrls,omitempty"`
+	// RetiredVersions are the highest version numbers published under the
+	// names of deleted functions, which a function created again under a
+	// name continues from, as on AWS (lambda/R13/04-create-weighted-alias.json).
+	// A name's number lives on its function while it exists
+	// (Function.LastVersion) and here while it does not.
+	RetiredVersions map[string]int `json:"retiredVersions,omitempty"`
 	// Checkpoints are where each stream mapping's reader resumes, by
 	// mapping UUID, one per shard read so far. A mapping without one reads
 	// from its StartingPosition. Saved, so a loaded mapping resumes where
@@ -61,10 +72,12 @@ func newState(aws.Scope) State {
 
 // IsZero reports whether the scope holds nothing, which snapshots skip. A scope
 // that minted identifiers is not empty even once its functions are gone:
-// its serial and retired URL ids keep later ids from repeating them, as a
-// layer whose versions are all deleted keeps its numbering.
+// its serial, retired URL ids and retired version numbers keep later ones
+// from repeating them, as a layer whose versions are all deleted keeps its
+// numbering.
 func (s *State) IsZero() bool {
-	return len(s.Functions) == 0 && len(s.Mappings) == 0 && len(s.Layers) == 0 && s.Serial == 0 && len(s.RetiredURLs) == 0
+	return len(s.Functions) == 0 && len(s.Mappings) == 0 && len(s.Layers) == 0 && s.Serial == 0 &&
+		len(s.RetiredURLs) == 0 && len(s.RetiredVersions) == 0
 }
 
 // Partitioned finds IsZero and BlobRefs by type assertions; these keep a
@@ -100,6 +113,28 @@ func (s *State) retireURLs(urls ...URLConfig) {
 		}
 		s.RetiredURLs[u.ID] = true
 	}
+}
+
+// retireFunction removes f, keeping the highest version number published
+// under its name for a function created again under it (reclaimVersions).
+func (s *State) retireFunction(f *Function) {
+	delete(s.Functions, f.Name)
+	if f.LastVersion == 0 {
+		return
+	}
+	if s.RetiredVersions == nil {
+		s.RetiredVersions = map[string]int{}
+	}
+	s.RetiredVersions[f.Name] = f.LastVersion
+}
+
+// reclaimVersions is the LastVersion of a function created under name: the
+// highest number published under the name before, which moves from
+// RetiredVersions onto the function.
+func (s *State) reclaimVersions(name string) int {
+	n := s.RetiredVersions[name]
+	delete(s.RetiredVersions, name)
+	return n
 }
 
 // checkpoint is where mapping uuid's reader resumes shard; nil when it has
@@ -173,8 +208,9 @@ type Function struct {
 	Latest  Version       `json:"latest"`
 	// Versions are the published versions, oldest first.
 	Versions []Version `json:"versions,omitempty"`
-	// LastVersion is the highest version number ever published; numbers
-	// are never reused, even after the version is deleted.
+	// LastVersion is the highest version number ever published under the
+	// function's name; numbers are never reused, even after the version or
+	// the function is deleted (State.RetiredVersions).
 	LastVersion int              `json:"lastVersion,omitzero"`
 	Aliases     map[string]Alias `json:"aliases,omitempty"`
 	// Policies are the resource policies by qualifier; "" is the

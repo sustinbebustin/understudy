@@ -260,16 +260,20 @@ func (s *Service) Export() ([]store.Section, error) {
 }
 
 // Import loads sections written by Export of this schema version or of
-// version 3, which it migrates first (migrateUnkindedScaling).
+// version 4, which reads as is, or 3, which it migrates first
+// (migrateUnkindedScaling).
 func (s *Service) Import(ss []store.Section) error {
 	out := make([]store.Section, 0, len(ss))
 	for _, sec := range ss {
-		if sec.Version == stateVersionUnkindedScaling {
+		switch sec.Version {
+		case stateVersionUnkindedScaling:
 			data, err := migrateUnkindedScaling(sec.Data)
 			if err != nil {
 				return &store.SectionError{Path: sec.Path, Defect: store.UndecodableState, Err: err}
 			}
 			sec.Version, sec.Data = stateVersion, data
+		case stateVersionNoRetiredVersions:
+			sec.Version = stateVersion
 		}
 		out = append(out, sec)
 	}

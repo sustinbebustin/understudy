@@ -46,6 +46,45 @@ func TestMigrateUnkindedScalingRefusesMalformedData(t *testing.T) {
 	}
 }
 
+// A deleted function's highest version number is saved with the state, and
+// a function created under its name takes it over.
+func TestRetiredVersionsRoundTrip(t *testing.T) {
+	st := kindState(t)
+	st.Functions["fn"] = Function{Name: "fn", LastVersion: 3}
+	f := st.Functions["fn"]
+	st.retireFunction(&f)
+	data, err := stateCodec().Marshal(&st)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	got := newState(kindScope(t))
+	if err := stateCodec().Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal %s: %v", data, err)
+	}
+	if n := got.reclaimVersions("fn"); n != 3 {
+		t.Errorf("LastVersion of fn created after the round trip = %d, want 3", n)
+	}
+	if n := got.reclaimVersions("fn"); n != 0 {
+		t.Errorf("LastVersion of fn created a second time = %d, want 0: the first took the number over", n)
+	}
+}
+
+// A version 4 section, which kept no deleted function's number, loads with
+// none remembered; a live function keeps its own.
+func TestVersion4SectionLoadsWithNoRetiredVersions(t *testing.T) {
+	const section = `{"functions":{"live":{"name":"live","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":3,"generation":1}},"serial":7}`
+	st := newState(kindScope(t))
+	if err := stateCodec().Unmarshal([]byte(section), &st); err != nil {
+		t.Fatalf("Unmarshal %s: %v", section, err)
+	}
+	if st.RetiredVersions != nil || st.reclaimVersions("gone") != 0 {
+		t.Errorf("RetiredVersions = %v, want none", st.RetiredVersions)
+	}
+	if n := st.Functions["live"].LastVersion; n != 3 {
+		t.Errorf("live LastVersion = %d, want 3", n)
+	}
+}
+
 // Checkpoints are saved with the state and dropped with their mapping.
 func TestCheckpointsRoundTripAndGoWithTheirMapping(t *testing.T) {
 	st := kindState(t)

@@ -65,3 +65,8 @@ understudy needs a versioned, deterministic file for the whole emulator state an
 - An archive without `cutWall` resumes a Running clock as the 2026-10-13 amendment says. Frozen and Scaled clocks resume as before, and an explicit `snapshot load` keeps the archive's instant in every mode.
 - An explicit `snapshot save` never records `cutWall`, so its bytes still depend only on state and version (ARCHITECTURE.md 13). The checkpoint digest leaves it out, so an idle server still writes nothing.
 - The format stays `0` (the amendment of 2026-11-10); the field is optional, so an archive without it still reads.
+
+## Amendment 2026-11-13: Lambda keeps deleted functions' version numbers
+
+- Lambda's state version 5 adds each scope's retired version numbers: the highest version number published under the name of each deleted function, which a function created again under the name publishes after, as AWS does.
+- A third exception to "refused, not migrated": Lambda reads a version 4 section as it is, with no numbers kept for functions deleted before the save, and still migrates a version 3 section. A function in either keeps its own numbering.

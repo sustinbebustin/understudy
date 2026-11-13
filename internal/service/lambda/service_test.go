@@ -104,12 +104,87 @@ func TestSnapshotOfAnEmptiedScopeKeepsItsIdentifiersUnique(t *testing.T) {
 	})
 }
 
+// publishThree publishes versions of fn from three distinct packages, so
+// each publish adds a version.
+func publishThree(h *harness, fn string) {
+	h.Helper()
+	for _, body := range []string{"one", "two", "three"} {
+		call(h, lambdaapi.OpUpdateFunctionCode, &lambdaapi.UpdateFunctionCodeInput{FunctionName: fn, ZipFile: zipOf(h, body), Publish: true})
+	}
+}
+
+// A function deleted and created again under its name publishes from the
+// number after the highest its name ever had: AWS ran versions 4 and 5 of
+// a function recreated after versions 1 to 3 (lambda/R13/notes.md
+// "Re-recorded 2026-10-14", lambda/R13/04-create-weighted-alias.json).
+func TestVersionNumbersContinueAfterTheFunctionIsRecreated(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		t := h.T
+		h.createFunction("fn")
+		publishThree(h, "fn")
+		call(h, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: "fn"})
+		h.createFunction("fn")
+		if v := call(h, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: "fn"}); *v.Version != "4" {
+			t.Errorf("first publish of the recreated function = version %s, want 4", *v.Version)
+		}
+	})
+}
+
+// The highest number a deleted function's name had is saved: a function
+// created under the name after a snapshot round trip still publishes from
+// the next one.
+func TestRetiredVersionNumbersSurviveASnapshot(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		t := h.T
+		h.createFunction("fn")
+		publishThree(h, "fn")
+		call(h, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: "fn"})
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(sections); err != nil {
+			t.Fatal(err)
+		}
+		h.createFunction("fn")
+		if v := call(h, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: "fn"}); *v.Version != "4" {
+			t.Errorf("first publish of the function recreated after the import = version %s, want 4", *v.Version)
+		}
+	})
+}
+
+// A version 4 section, saved before deleted functions' numbers were kept,
+// still loads, and a function in it keeps its own numbering.
+func TestSnapshotLoadsAVersion4Section(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		t := h.T
+		h.createFunction("fn")
+		publishThree(h, "fn")
+		sections, err := h.svc.Export()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := range sections {
+			sections[i].Version = 4
+		}
+		h.svc.Reset(kernel.ResetScope{})
+		if err := h.svc.Import(sections); err != nil {
+			t.Fatalf("Import(a version 4 section) = %v, want it loaded", err)
+		}
+		call(h, lambdaapi.OpUpdateFunctionCode, &lambdaapi.UpdateFunctionCodeInput{FunctionName: "fn", ZipFile: zipOf(h, "four")})
+		if v := call(h, lambdaapi.OpPublishVersion, &lambdaapi.PublishVersionInput{FunctionName: "fn"}); *v.Version != "4" {
+			t.Errorf("publish after loading a version 4 section = version %s, want 4", *v.Version)
+		}
+	})
+}
+
 // State version 2 added each mapping's source kind, version 3 the layer
-// store and each function version's layers, and version 4 moved an SQS
-// mapping's scaling into its source kind. Before the first release a
-// section an older binary wrote is refused naming both versions rather
-// than migrated (ADR 0009); version 3 is migrated (the ADR's amendment of
-// 2026-10-27).
+// store and each function version's layers, version 4 moved an SQS
+// mapping's scaling into its source kind, and version 5 added deleted
+// functions' version numbers. Before 1.0 a section an older binary wrote
+// is refused naming both versions rather than migrated (ADR 0009);
+// versions 3 and 4 are migrated (the ADR's amendment of 2026-10-27).
 func TestSnapshotRefusesAnEarlierVersion(t *testing.T) {
 	for _, earlier := range []int{1, 2} {
 		run(t, lambda.Options{}, func(h *harness) {
@@ -127,8 +202,8 @@ func TestSnapshotRefusesAnEarlierVersion(t *testing.T) {
 			if !ok {
 				t.Fatalf("Import(a version %d section) = %v, want a *store.VersionMismatchError", earlier, err)
 			}
-			if vm.Section != earlier || vm.Running != 4 || h.svc.SchemaVersion() != 4 {
-				t.Errorf("mismatch %+v, schema version %d; want section %d refused by running 4", vm, h.svc.SchemaVersion(), earlier)
+			if vm.Section != earlier || vm.Running != 5 || h.svc.SchemaVersion() != 5 {
+				t.Errorf("mismatch %+v, schema version %d; want section %d refused by running 5", vm, h.svc.SchemaVersion(), earlier)
 			}
 		})
 	}

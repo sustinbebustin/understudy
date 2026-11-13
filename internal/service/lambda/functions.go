@@ -104,7 +104,10 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 			tx.Record(ref.scope, a)
 		}
 		v := Version{Number: latest, Config: cfg, Code: code, Status: s.initialStatus(code, now), Modified: now, RevisionID: st.revision(ref.scope)}
-		f := Function{Name: ref.name, Created: now, Latest: v, Tags: maps.Clone(in.Tags), Generation: 1, Incarnation: st.revision(ref.scope)}
+		f := Function{
+			Name: ref.name, Created: now, Latest: v, LastVersion: st.reclaimVersions(ref.name),
+			Tags: maps.Clone(in.Tags), Generation: 1, Incarnation: st.revision(ref.scope),
+		}
 		s.armProvisioning(tx, ref.scope, ref.name, &v, now)
 		out := renderConfig(ref.scope, &f, &v, ref.arn(), false)
 		if in.Publish {
@@ -610,7 +613,7 @@ func (s *Service) deleteFunction(ctx context.Context, c *kernel.Call, in *lambda
 				s.disarmProvisioning(tx, ref.scope, ref.name, versions[i].Number)
 			}
 			st.retireURLs(slices.Collect(maps.Values(f.URLs))...)
-			delete(st.Functions, ref.name)
+			st.retireFunction(&f)
 			return f.blobRefs(), nil
 		case !isVersionNumber(q):
 			return nil, ref.notFound()
