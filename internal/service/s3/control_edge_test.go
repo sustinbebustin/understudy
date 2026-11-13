@@ -76,7 +76,7 @@ func TestS3ControlErrorsOverHTTP(t *testing.T) {
 			t.Fatalf("CreateBucket as %s = %d %s, want 200", otherAccount, code, body)
 		}
 		for bucket, step := range map[string]string{"missing": "06-s3control-list-missing.json", "foreign": "06-s3control-list-not-owned.json"} {
-			recorded := readR06Response(t, step)
+			recorded := readRecordedResponse(t, "R06", step)
 			if !s3RequestIDForm.MatchString(recorded.requestID) {
 				t.Fatalf("%s: recorded request id %q does not have the form the test expects, %s", step, recorded.requestID, s3RequestIDForm)
 			}
@@ -112,11 +112,11 @@ type recordedResponse struct {
 	requestID, body string
 }
 
-// readR06Response reads the response of a capture under
-// testdata/parity/s3/R06.
-func readR06Response(t *testing.T, step string) recordedResponse {
+// readRecordedResponse reads the response of a capture under
+// testdata/parity/s3/<run>.
+func readRecordedResponse(t *testing.T, run, step string) recordedResponse {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "parity", "s3", "R06", step))
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "parity", "s3", run, step))
 	if err != nil {
 		t.Fatalf("read capture %s: %v", step, err)
 	}

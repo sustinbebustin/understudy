@@ -17,7 +17,7 @@ NOTE: AWS refused 01-config-full (queue ObjectCreated:* overlaps lambda ObjectCr
 - Overlapping event types (01-config-full): message matches; differs: AWS adds <ArgumentName>Event</ArgumentName><ArgumentValue>s3:ObjectCreated:*, s3:ObjectCreated:Put</ArgumentValue>; understudy none (internal/service/s3/notification.go:122-123; notify.OverlapError carries rule Ids, not events)
 - Prefix with a space, prefix and suffix, versioned bucket config: matches (200)
 - get-bucket-notification-configuration: matches (Prefix/Suffix capitalized)
-- s3:TestEvent to SQS: matches (Service, Event, Time, Bucket, RequestId, HostId); RequestId and HostId forms differ (AWS 16-char uppercase id and 76-char base64; understudy UUID and 44-char base64, internal/protocol/restxml/codec.go:257-263)
+- s3:TestEvent to SQS: matches (Service, Event, Time, Bucket, RequestId, HostId); RequestId form matches (16-char uppercase id, internal/ids/ids.go S3Form); HostId form differs (AWS 76-char base64; understudy 44-char base64, internal/protocol/restxml/codec.go HostID)
 - TestEvent at Lambda: n/a (Lambda configuration refused)
 - eventVersion: differs: AWS "2.6" for Put, Copy, CompleteMultipartUpload and DeleteMarkerCreated; understudy "2.1" (internal/service/s3/notify/record.go:177)
 - userIdentity.principalId: matches the implemented role-session shape (AWS "AWS:<AROA id>:<session>", internal/service/s3/notify/doc.go:49-55); the understudy run signed as the account, "AWS:123456789012" (root and user forms unrecorded)

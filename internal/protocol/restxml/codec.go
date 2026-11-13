@@ -81,7 +81,9 @@ const (
 	// as Route 53 and CloudFront answer (wire-rest.md 2.4).
 	SmithyWrapped ErrorForm = iota
 	// Bare is the noErrorWrapping form, S3's: an <Error> root that ends with
-	// RequestId and HostId (wire-rest.md 2.4).
+	// RequestId and HostId (wire-rest.md 2.4); an apostrophe in the error's
+	// text is written as itself
+	// (testdata/parity/s3/R12/12-lifecycle-expiration-0.json).
 	Bare
 	// HostWrapped is S3 Control's: <ErrorResponse><Error> with no Type,
 	// then RequestId and HostId; an apostrophe in the error's text is
@@ -278,6 +280,7 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 	x.Declaration()
 	switch d.Errors {
 	case Bare:
+		x.KeepApostrophes()
 		x.Start("Error")
 		errorFields(x, e, members)
 		textElement(x, "RequestId", requestID)

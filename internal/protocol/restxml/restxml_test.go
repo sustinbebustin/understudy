@@ -123,6 +123,22 @@ func TestInternalErrorGolden(t *testing.T) {
 	}
 }
 
+// S3 leaves an apostrophe in an error's text as it is, as S3 Control does
+// (testdata/parity/s3/R12/12-lifecycle-expiration-0.json).
+func TestS3ErrorKeepsApostrophes(t *testing.T) {
+	e := &awserr.Error{
+		ID:      awserr.Identity{Shape: "com.amazonaws.s3#InvalidArgument", QueryCode: "InvalidArgument", Status: http.StatusBadRequest, Fault: awserr.Sender, MessageKey: awserr.MessageUpper},
+		Message: "'Days' for Expiration action must be a positive integer",
+	}
+	resp := codec.EncodeError(newRequest(http.MethodPut, "/bucket?lifecycle", "", nil), s3(), requestID, e)
+	want := `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+		`<Error><Code>InvalidArgument</Code><Message>'Days' for Expiration action must be a positive integer</Message>` +
+		`<RequestId>4442587FB7D0A2F9</RequestId><HostId>` + restxml.HostID(requestID) + `</HostId></Error>`
+	if got := readAll(t, resp.Body); resp.Status != http.StatusBadRequest || got != want {
+		t.Errorf("%d\n%s\nwant\n%s", resp.Status, got, want)
+	}
+}
+
 // S3 Control wraps its errors in <ErrorResponse><Error> as Smithy's restXml
 // does, but writes no <Type>, follows RequestId with HostId, and leaves an
 // apostrophe in the message as it is

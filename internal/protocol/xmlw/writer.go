@@ -90,9 +90,9 @@ func New(w io.Writer) *Writer {
 	return &Writer{out: w}
 }
 
-// KeepApostrophes makes Text write ' as itself instead of &#39;, as S3
-// Control's error bodies do. Attribute values, written between double
-// quotes, still escape it.
+// KeepApostrophes makes Text write ' as itself instead of &#39;, as S3's
+// and S3 Control's error bodies do. Attribute values, written between
+// double quotes, still escape it.
 func (w *Writer) KeepApostrophes() {
 	w.keepApostrophes = true
 }

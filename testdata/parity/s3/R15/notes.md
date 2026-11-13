@@ -25,7 +25,7 @@
 - 03-list-key-policies, 03-get-key-policy (byte-identical but account), 03-describe-key-missing, 03-describe-key-no-description: matches
 - x-listkeys-garbage-marker: differs: AWS 400 body exactly {"__type":"InvalidMarkerException"}; understudy adds a "message" (errors.go:74-75)
 - 04-disabled-key, 04-default-disabled-key-put, 04-default-disabled-key-multipart (400 KMS.DisabledException "<key ARN> is disabled."): matches
-- 04-nonexistent-key (400 KMS.NotFoundException "Key '<arn>' does not exist"): matches (understudy XML-escapes the apostrophe as &#39;; decoded text equal)
+- 04-nonexistent-key (400 KMS.NotFoundException "Key '<arn>' does not exist"): matches (the apostrophe written as itself, as AWS writes it)
 - 04-nonexistent-alias (400 KMS.NotFoundException "Alias arn:aws:kms:us-east-2:123456789012:alias/<name> is not found."): matches
 - 04 pending-deletion key / other-region key: n/a (not captured)
 - x-ssec-on-non-ssec-read (400 InvalidRequest "The encryption parameters are not applicable to this object."): matches
