@@ -74,19 +74,23 @@ func (s *Service) putTargets(_ context.Context, c *kernel.Call, in *eventbridgea
 		accepted = append(accepted, parsed[i])
 	}
 	r := ruleRef{scope: scope, bus: bus, name: in.Rule}
-	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+	_, err = kernel.Write(c, s.cells, r.scope, func(st *State, now clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
 		if err := st.requireBus(r.bus); err != nil {
 			return struct{}{}, err
 		}
-		rule, ok := st.rule(r.bus, r.name)
+		prev, ok := st.rule(r.bus, r.name)
 		if !ok {
 			return struct{}{}, errRuleNotFound(r.name, r.bus)
 		}
-		targets, seq, err := merged(r.scope, rule.Targets, accepted, st.TargetSeq)
+		targets, seq, err := merged(r.scope, prev.Targets, accepted, st.TargetSeq)
 		if err != nil {
 			return struct{}{}, err
 		}
+		rule := prev
 		rule.Targets = targets
+		if len(prev.Targets) == 0 && len(rule.Targets) > 0 {
+			s.setSchedule(tx, r, &prev, &rule, now)
+		}
 		st.setRule(r.bus, rule)
 		st.TargetSeq = seq
 		st.used(c.Admitted())

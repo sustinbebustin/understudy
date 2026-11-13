@@ -355,8 +355,8 @@ func targetARNs(ds []kernel.Delivery) []string {
 	return out
 }
 
-// Advancing an hour across a rate(5 minutes) rule delivers twelve scheduled
-// events, accepted 5, 10, ... 60 minutes after the rule was created, each
+// A rate(5 minutes) rule and an hour's advance deliver thirteen scheduled
+// events, accepted 0, 5, ... 60 minutes after the rule was created, each
 // the documented scheduled event stamped with its fire instant.
 func TestRateRuleFiresOnTheEmulatorClock(t *testing.T) {
 	run(t, func(h *harness) {
@@ -364,12 +364,12 @@ func TestRateRuleFiresOnTheEmulatorClock(t *testing.T) {
 		h.schedule("every-five", "rate(5 minutes)")
 		h.advance(time.Hour)
 		got := h.sink.take()
-		if len(got) != 12 {
-			t.Fatalf("%d deliveries, want 12", len(got))
+		if len(got) != 13 {
+			t.Fatalf("%d deliveries, want 13", len(got))
 		}
 		eventIDs := map[string]bool{}
 		for i, d := range got {
-			at := created.Add(time.Duration(i+1) * 5 * time.Minute)
+			at := created.Add(time.Duration(i) * 5 * time.Minute)
 			if d.Accepted.Compare(at) != 0 {
 				t.Errorf("delivery %d accepted at %s, want %s", i, d.Accepted, at)
 			}
@@ -388,8 +388,54 @@ func TestRateRuleFiresOnTheEmulatorClock(t *testing.T) {
 				t.Errorf("delivery %d request = %+v", i, d.Request)
 			}
 		}
-		if len(eventIDs) != 12 {
-			t.Errorf("%d distinct event ids, want 12", len(eventIDs))
+		if len(eventIDs) != 13 {
+			t.Errorf("%d distinct event ids, want 13", len(eventIDs))
+		}
+	})
+}
+
+// A rate rule first fires at the instant it is created, then every
+// interval, its events' time at second precision: AWS's ran creation +
+// k*60s from k = 0 (events/R14 02-created.time, 02-arrivals.jsonl). AWS's
+// 1.7 s offset from creation is latency, which understudy does not model.
+func TestRateRuleFirstFiresAtCreation(t *testing.T) {
+	run(t, func(h *harness) {
+		h.advance(314 * time.Millisecond)
+		created := h.Clock.Now()
+		h.schedule("r", "rate(1 minute)")
+		h.advance(2*time.Minute + 30*time.Second)
+		got := h.sink.take()
+		want := []string{"2000-01-01T00:00:00Z", "2000-01-01T00:01:00Z", "2000-01-01T00:02:00Z"}
+		times := make([]string, len(got))
+		for i, d := range got {
+			times[i] = decode(t, d).Time
+			if at := created.Add(time.Duration(i) * time.Minute); d.Accepted.Compare(at) != 0 {
+				t.Errorf("delivery %d accepted at %s, want %s", i, d.Accepted, at)
+			}
+		}
+		if !slices.Equal(times, want) {
+			t.Errorf("event times %v, want %v", times, want)
+		}
+	})
+}
+
+// A rate rule's first target restarts its rate, so a PutTargets after the
+// PutRule receives the fire AWS made at creation (events/R14 02: PutTargets
+// at 07:04:33Z, first event 07:04:34Z); a further target keeps the phase.
+// Restarting at the first target is inferred.
+func TestRateRestartsAtItsFirstTarget(t *testing.T) {
+	run(t, func(h *harness) {
+		must(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", ScheduleExpression: new("rate(1 minute)")})
+		h.advance(30 * time.Second)
+		targeted := h.Clock.Now()
+		h.target("r", eventbridgeapi.Target{Id: "q", Arn: queueARN})
+		h.advance(40 * time.Second)
+		h.target("r", eventbridgeapi.Target{Id: "q2", Arn: queueARN})
+		h.advance(time.Minute)
+		got := acceptedAt(h.sink.take())
+		want := []clock.Instant{targeted, targeted.Add(time.Minute), targeted.Add(time.Minute)}
+		if !slices.EqualFunc(got, want, func(a, b clock.Instant) bool { return a.Compare(b) == 0 }) {
+			t.Errorf("accepted at %v, want %v", got, want)
 		}
 	})
 }
@@ -420,38 +466,51 @@ func TestCronRuleFiresAtItsInstants(t *testing.T) {
 	})
 }
 
-// Disabling a scheduled rule stops it; enabling it starts the rate again
-// from the enable.
+// Disabling a scheduled rule stops it; enabling it starts the rate again,
+// firing at the enable and every interval after: AWS's first event after
+// an enable at 07:11:21.433Z carried 07:11:22Z, then every minute in that
+// phase, and none arrived while it was disabled (events/R14
+// 02-enable.time, 02-arrivals-after-enable.jsonl,
+// 02-arrivals-while-disabled.jsonl).
 func TestDisabledScheduleDoesNotFire(t *testing.T) {
 	run(t, func(h *harness) {
 		h.schedule("r", "rate(1 minute)")
 		h.advance(90 * time.Second)
-		if n := len(h.sink.take()); n != 1 {
-			t.Fatalf("%d deliveries before disabling, want 1", n)
+		if n := len(h.sink.take()); n != 2 {
+			t.Fatalf("%d deliveries before disabling, want 2", n)
 		}
 		must(h, eventbridgeapi.OpDisableRule, &eventbridgeapi.DisableRuleInput{Name: "r"})
 		h.advance(10 * time.Minute)
 		if n := len(h.sink.take()); n != 0 {
 			t.Fatalf("%d deliveries while disabled", n)
 		}
+		h.advance(433 * time.Millisecond)
 		enabled := h.Clock.Now()
 		must(h, eventbridgeapi.OpEnableRule, &eventbridgeapi.EnableRuleInput{Name: "r"})
-		h.advance(time.Minute)
+		h.advance(90 * time.Second)
 		got := h.sink.take()
-		if len(got) != 1 || got[0].Accepted.Compare(enabled.Add(time.Minute)) != 0 {
-			t.Errorf("after enabling: %d deliveries, want one at %s", len(got), enabled.Add(time.Minute))
+		want := []clock.Instant{enabled, enabled.Add(time.Minute)}
+		if !slices.EqualFunc(acceptedAt(got), want, func(a, b clock.Instant) bool { return a.Compare(b) == 0 }) {
+			t.Fatalf("after enabling: accepted at %v, want %v", acceptedAt(got), want)
+		}
+		times := []string{decode(t, got[0]).Time, decode(t, got[1]).Time}
+		if wantTimes := []string{"2000-01-01T00:11:30Z", "2000-01-01T00:12:30Z"}; !slices.Equal(times, wantTimes) {
+			t.Errorf("after enabling: event times %v, want %v", times, wantTimes)
 		}
 	})
 }
 
 // PutRule with the schedule unchanged, as Terraform sends it to update a
 // rule's description, keeps the rate's phase; a changed schedule restarts
-// it from the PutRule.
+// it, firing at the PutRule (inferred, as the enable restart is recorded).
 func TestPutRuleKeepsAnUnchangedSchedulesPhase(t *testing.T) {
 	run(t, func(h *harness) {
 		created := h.Clock.Now()
 		h.schedule("r", "rate(5 minutes)")
 		h.advance(3 * time.Minute)
+		if got := h.sink.take(); len(got) != 1 || got[0].Accepted.Compare(created) != 0 {
+			t.Fatalf("creation: %d deliveries, want one at %s; got %v", len(got), created, acceptedAt(got))
+		}
 		must(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", ScheduleExpression: new("rate(5 minutes)"), Description: new("changed")})
 		h.advance(2 * time.Minute)
 		got := h.sink.take()
@@ -463,8 +522,9 @@ func TestPutRuleKeepsAnUnchangedSchedulesPhase(t *testing.T) {
 		must(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{Name: "r", ScheduleExpression: new("rate(10 minutes)")})
 		h.advance(10 * time.Minute)
 		got = h.sink.take()
-		if len(got) != 1 || got[0].Accepted.Compare(changed.Add(10*time.Minute)) != 0 {
-			t.Errorf("changed schedule: %d deliveries, want one at %s; got %v", len(got), changed.Add(10*time.Minute), acceptedAt(got))
+		want := []clock.Instant{changed, changed.Add(10 * time.Minute)}
+		if !slices.EqualFunc(acceptedAt(got), want, func(a, b clock.Instant) bool { return a.Compare(b) == 0 }) {
+			t.Errorf("changed schedule: accepted at %v, want %v", acceptedAt(got), want)
 		}
 	})
 }
@@ -502,12 +562,17 @@ func TestScheduleWithoutTargetsDrawsNoID(t *testing.T) {
 func TestDeletedScheduleDoesNotFire(t *testing.T) {
 	run(t, func(h *harness) {
 		h.schedule("r", "rate(1 minute)")
+		h.advance(30 * time.Second)
+		if n := len(h.sink.take()); n != 1 {
+			t.Fatalf("%d deliveries at the rate(1 minute) rule's creation, want 1", n)
+		}
 		must(h, eventbridgeapi.OpRemoveTargets, &eventbridgeapi.RemoveTargetsInput{Rule: "r", Ids: []string{"q"}})
 		must(h, eventbridgeapi.OpDeleteRule, &eventbridgeapi.DeleteRuleInput{Name: "r"})
+		recreated := h.Clock.Now()
 		h.schedule("r", "rate(5 minutes)")
 		h.advance(4 * time.Minute)
-		if n := len(h.sink.take()); n != 0 {
-			t.Errorf("%d deliveries from the deleted rate(1 minute) rule", n)
+		if got := h.sink.take(); len(got) != 1 || got[0].Accepted.Compare(recreated) != 0 {
+			t.Errorf("accepted at %v, want only the rate(5 minutes) rule's fire at its creation, %s", acceptedAt(got), recreated)
 		}
 	})
 }

@@ -127,7 +127,6 @@ Under `--sigv4 verify`, an `AWS_IAM` function URL refuses credentials with 403 a
 ## EventBridge
 
 - Schedule expressions: AWS accepts `cron(0 12 L-3 * ? *)`, years 1969 and 2200, and `cron(5/0 ...)`, all of which understudy refuses; double spaces and tabs are "Parameter ScheduleExpression is not valid." on AWS, which understudy accepts (`events/R14/01-*-put.json`).
-- A rate rule fires first at creation and again when enabled on AWS; understudy fires one interval after (`events/R14/02-arrivals.jsonl`).
 - Pattern matching and texts: see [Event patterns and filter policies](#event-patterns-and-filter-policies).
 
 Custom buses take rules, targets, tags and `PutEvents` as the default bus does, and an event bus target forwards an event one hop, as on AWS. Their differences:

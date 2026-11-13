@@ -436,13 +436,17 @@ func TestImportReadsNullRulesAsNone(t *testing.T) {
 func TestRearmSkipsMissedFires(t *testing.T) {
 	run(t, func(h *harness) {
 		h.schedule("timer", "rate(10 minutes)")
+		h.advance(time.Minute)
+		if n := len(h.sink.take()); n != 1 {
+			t.Fatalf("%d deliveries at creation, want 1", n)
+		}
 		sections, err := h.svc.Export()
 		if err != nil {
 			t.Fatal(err)
 		}
 		h.svc.Reset(kernel.ResetScope{})
 		h.Kernel.Timers().Scheduler().Clear()
-		h.advance(35 * time.Minute)
+		h.advance(34 * time.Minute)
 		if err := h.svc.Import(sections); err != nil {
 			t.Fatal(err)
 		}
@@ -477,6 +481,10 @@ func TestSnapshotRoundTrip(t *testing.T) {
 			{Id: "c", Arn: queueARN, InputTransformer: &eventbridgeapi.InputTransformer{InputPathsMap: map[string]string{"s": "$.source"}, InputTemplate: `"<s>"`}},
 		}
 		must(h, eventbridgeapi.OpPutTargets, &eventbridgeapi.PutTargetsInput{Rule: "p", Targets: targets})
+		h.advance(time.Minute)
+		if n := len(h.sink.take()); n != 1 {
+			t.Fatalf("%d scheduled deliveries at creation, want 1", n)
+		}
 		sections, err := h.svc.Export()
 		if err != nil {
 			t.Fatal(err)

@@ -123,18 +123,19 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	return s
 }
 
-// rateRestart is when a rate schedule's period starts: AWS documents that
-// a rate rule starts when it is created; whether a later PutRule or
-// EnableRule restarts it is unrecorded (secrets-logs-events-alarms.md 4.2).
+// rateRestart is when a rate schedule starts again, firing at once: AWS
+// fired a rate rule at its creation and at its enable (events/R14 02); a
+// PutRule that changes the schedule and a rule's first target restarting
+// it are inferred (secrets-logs-events-alarms.md 4.2).
 func rateRestart() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:  "events.schedule.restart",
-		Value: "on-schedule-change-or-enable",
+		Value: "on-schedule-change-enable-or-first-target",
 		Label: evidence.Inferred,
 		Ref:   "docs/research/secrets-logs-events-alarms.md#42-schedule-expressions-rate-and-cron",
-		Ops:   []string{"eventbridge.PutRule", "eventbridge.EnableRule"},
+		Ops:   []string{"eventbridge.PutRule", "eventbridge.EnableRule", "eventbridge.PutTargets"},
 		Settles: fidelity.NoScenario{
-			Reason: "events/R14 records the EnableRule half only, as arrival times (02-enable.time, 02-arrivals-after-enable.jsonl) a scenario does not replay; a PutRule schedule change is unrecorded",
+			Reason: "events/R14 records the EnableRule half as arrival times a scenario does not replay: enabled 07:11:21.433Z, first event 07:11:22Z (02-enable.time, 02-arrivals-after-enable.jsonl); a PutRule schedule change is unrecorded, and so is a first PutTargets long after PutRule",
 		},
 	}
 }

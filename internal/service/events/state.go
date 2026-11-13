@@ -332,6 +332,23 @@ func (s *Schedule) UnmarshalText(b []byte) error {
 	return nil
 }
 
+// first is the first fire of the schedule started at start: start itself
+// for a rate, as AWS fires a rate rule at its creation and its enable
+// (events/R14 02), and the first fire strictly after start for a cron.
+func (s Schedule) first(start clock.Instant) clock.Instant {
+	if s.rate() {
+		return start
+	}
+	return s.next(start)
+}
+
+// rate reports whether s is a rate expression, whose fires are counted
+// from when it starts rather than named by the expression.
+func (s Schedule) rate() bool {
+	_, ok := s.parsed.(schedexpr.Rate)
+	return ok
+}
+
 // next is the first fire strictly after after; zero when the schedule never
 // fires again.
 func (s Schedule) next(after clock.Instant) clock.Instant {

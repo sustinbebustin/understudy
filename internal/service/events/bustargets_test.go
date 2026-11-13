@@ -177,13 +177,15 @@ func TestScheduledRuleForwardsToABus(t *testing.T) {
 		h.target("timer", eventbridgeapi.Target{Id: "bus", Arn: dest, RoleArn: new(invokerRole)})
 		h.advance(5 * time.Minute)
 		got := h.sink.take()
-		if len(got) != 1 {
-			t.Fatalf("%d deliveries after one interval, want 1", len(got))
+		if len(got) != 2 {
+			t.Fatalf("%d deliveries at creation and one interval later, want 2", len(got))
 		}
-		bus, e := forwardedEntry(t, got[0])
-		if bus.ARN.String() != dest || e.Source != "aws.events" || e.DetailType != "Scheduled Event" || !sameJSON(t, e.Detail, `{}`) ||
-			e.Forwarded.Account != account || e.Forwarded.Region != "us-east-1" || e.Forwarded.ID == "" {
-			t.Errorf("forwarded scheduled event = %+v with %+v", e, *e.Forwarded)
+		for i := range got {
+			bus, e := forwardedEntry(t, got[i])
+			if bus.ARN.String() != dest || e.Source != "aws.events" || e.DetailType != "Scheduled Event" || !sameJSON(t, e.Detail, `{}`) ||
+				e.Forwarded.Account != account || e.Forwarded.Region != "us-east-1" || e.Forwarded.ID == "" {
+				t.Errorf("forwarded scheduled event %d = %+v with %+v", i, e, *e.Forwarded)
+			}
 		}
 	})
 }

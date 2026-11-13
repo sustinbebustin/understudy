@@ -52,7 +52,7 @@ aws sqs receive-message --queue-url http://localhost:4566/000000000000/slow
 
 The first receive returns nothing; the second returns `job-1`. Receiving it starts its one-hour visibility timeout, which `understudy clock advance 1h` ends.
 
-An EventBridge `rate(5 minutes)` rule invokes its target twelve times when the clock advances an hour, each invocation stamped with its own due time:
+An EventBridge `rate(5 minutes)` rule invokes its target once when it gets the target, as AWS fires a rate rule at its creation, then twelve more times when the clock advances an hour, each invocation stamped with its own due time; the journal lists thirteen:
 
 ```sh
 aws events put-rule --name every-5m --schedule-expression 'rate(5 minutes)'

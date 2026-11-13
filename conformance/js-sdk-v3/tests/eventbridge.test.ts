@@ -638,7 +638,8 @@ describe("EventBridge event patterns", () => {
 });
 
 describe("EventBridge scheduled rules", () => {
-  test("rate(1 minute) rules deliver a Scheduled Event, or their fixed Input, about a minute after creation", async () => {
+  // AWS fires a rate rule at its creation, then every interval (events/R14 02).
+  test("rate(1 minute) rules deliver a Scheduled Event, or their fixed Input, stamped with their creation", async () => {
     const name = ruleName();
     const queue = await makeQueue();
     const fixedName = ruleName();
@@ -652,9 +653,7 @@ describe("EventBridge scheduled rules", () => {
     expect(message).toBeDefined();
     expect(JSON.parse(fixed?.Body ?? "null")).toEqual({ job: "nightly" });
     await events.send(new DisableRuleCommand({ Name: fixedName }));
-    const elapsed = Date.now() - created;
-    expect(elapsed).toBeGreaterThan(45_000);
-    expect(elapsed).toBeLessThan(95_000);
+    expect(Date.now() - created).toBeLessThan(95_000);
     const body = JSON.parse(message?.Body ?? "null");
     expect(body).toMatchObject({
       version: "0",
@@ -666,6 +665,10 @@ describe("EventBridge scheduled rules", () => {
       detail: {},
     });
     expect(body.time).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    // The first event, not one an interval later.
+    const fired = Date.parse(body.time);
+    expect(fired).toBeGreaterThanOrEqual(Math.floor(created / 1000) * 1000);
+    expect(fired).toBeLessThan(created + 60_000);
     await events.send(new DisableRuleCommand({ Name: name }));
   }, 120_000);
 });
