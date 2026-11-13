@@ -23,8 +23,8 @@ type filtered struct {
 // interleaved by position, one page at a time (secrets-logs-events-alarms.md
 // 3.5, logs-filter-patterns.md 6). Both time bounds are inclusive, by the
 // literal documentation. The token is a cursor over positions, so a page
-// stays correct when events arrive or expire between calls; nextToken is
-// absent once no matching event remains.
+// stays correct when events arrive or expire between calls; every page with
+// events carries nextToken, and the empty page after the last one does not.
 func (s *Service) filterLogEvents(_ context.Context, c *kernel.Call, in *logsapi.FilterLogEventsInput) (*logsapi.FilterLogEventsOutput, *awserr.Error) {
 	ref, err := resolveGroup(c, in.LogGroupName, in.LogGroupIdentifier)
 	if err != nil {
@@ -148,7 +148,9 @@ func selects(in *logsapi.FilterLogEventsInput, name string) bool {
 
 // filterPage cuts one page from matches in position order: forward pages
 // run oldest first from the cursor, backward pages newest first before it.
-// The next cursor is nil when no match remains past the page.
+// Every page with events has a next cursor, the last such page included,
+// so a listing ends with an empty page; the next cursor of an empty page is
+// nil (testdata/parity/logs/R10/05-filter-page-*.json).
 func filterPage(matches []filtered, cur cursor, limit int) ([]filtered, *cursor) {
 	at := func(p position) int {
 		i, _ := slices.BinarySearchFunc(matches, p, func(m filtered, p position) int { return m.event.pos().compare(p) })
@@ -162,7 +164,7 @@ func filterPage(matches []filtered, cur cursor, limit int) ([]filtered, *cursor)
 		for ; i < len(matches) && len(page) < limit && fits(&size, &matches[i].event); i++ {
 			page = append(page, matches[i])
 		}
-		if i < len(matches) {
+		if len(page) > 0 {
 			return page, &cursor{dir: forward, at: matches[i-1].event.pos().next()}
 		}
 	case backward:
@@ -170,7 +172,7 @@ func filterPage(matches []filtered, cur cursor, limit int) ([]filtered, *cursor)
 		for ; i >= 0 && len(page) < limit && fits(&size, &matches[i].event); i-- {
 			page = append(page, matches[i])
 		}
-		if i >= 0 {
+		if len(page) > 0 {
 			return page, &cursor{dir: backward, at: matches[i+1].event.pos()}
 		}
 	}

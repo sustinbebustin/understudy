@@ -18,9 +18,10 @@
 //     and is refused as invalid by any other, as AWS refuses a token it did
 //     not issue for the call. It ends in its issue time on the emulator
 //     clock (20 digits of milliseconds) and is refused as invalid 24 hours
-//     later, as AWS documents for GetLogEvents and FilterLogEvents tokens. An
-//     empty GetLogEvents page hands back the token it was read from, issue
-//     time included.
+//     later, as AWS documents for GetLogEvents and FilterLogEvents tokens. The
+//     first empty forward GetLogEvents page gets a new forward token at the
+//     end of the newest event's millisecond; an empty page read from there
+//     hands back the token it was read from, issue time included.
 //   - DescribeLogGroups with logGroupNamePattern returns the field set AWS
 //     records for it (arn, creationTime, logGroupArn, logGroupClass,
 //     logGroupName, metricFilterCount), not the three the documentation
@@ -28,7 +29,8 @@
 //   - GetLogEvents reads [startTime, endTime) as AWS documents; FilterLogEvents
 //     reads both bounds inclusively, by the literal documentation, which no
 //     recording settles (logs-filter-patterns.md 6). FilterLogEvents returns
-//     full pages and omits nextToken once no matching event remains.
+//     full pages, each page with events carrying nextToken, and ends with an
+//     empty page without one.
 //   - The 2-hour and 14-day windows of PutLogEvents accept an event valid by
 //     the wall clock or the emulator clock (lambda-runtime-contract.md 3);
 //     retention reads the emulator clock only. PutLogEventsInternal stores the

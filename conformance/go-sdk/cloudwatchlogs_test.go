@@ -270,8 +270,16 @@ func TestLogsEvents(t *testing.T) {
 		}
 		next, err := client.GetLogEvents(ctx, &cloudwatchlogs.GetLogEventsInput{LogGroupName: aws.String(group), LogStreamName: aws.String("app"), StartFromHead: aws.Bool(true), NextToken: aws.String(fwd)})
 		ok(t, err, "GetLogEvents with the forward token")
-		if len(next.Events) != 0 || aws.ToString(next.NextForwardToken) != fwd {
-			t.Errorf("at the end of the stream = %d events, token %q; want none and the same token %q", len(next.Events), aws.ToString(next.NextForwardToken), fwd)
+		// The first empty page hands out a new forward token and the next
+		// one repeats it (testdata/parity/logs/R10/05-get-page-4.json, -5.json).
+		end := aws.ToString(next.NextForwardToken)
+		if len(next.Events) != 0 || end == "" || end == fwd {
+			t.Errorf("past the end of the stream = %d events, token %q; want none and a token other than %q", len(next.Events), end, fwd)
+		}
+		settled, err := client.GetLogEvents(ctx, &cloudwatchlogs.GetLogEventsInput{LogGroupName: aws.String(group), LogStreamName: aws.String("app"), StartFromHead: aws.Bool(true), NextToken: aws.String(end)})
+		ok(t, err, "GetLogEvents with the end token")
+		if len(settled.Events) != 0 || aws.ToString(settled.NextForwardToken) != end {
+			t.Errorf("at the end of the stream = %d events, token %q; want none and the same token %q", len(settled.Events), aws.ToString(settled.NextForwardToken), end)
 		}
 		window, err := client.GetLogEvents(ctx, &cloudwatchlogs.GetLogEventsInput{
 			LogGroupName: aws.String(group), LogStreamName: aws.String("app"), StartFromHead: aws.Bool(true),

@@ -341,10 +341,15 @@ func TestGetLogEventsTokens(t *testing.T) {
 				h.Errorf("token = %s, want f/ or b/, the 56-digit position, the 20-digit listing fingerprint and the 20-digit issue stamp", val(tok))
 			}
 		}
-		// At the end the same token comes back.
+		// Past the end a new token comes back, then that same token
+		// (testdata/parity/logs/R10/05-get-page-4.json, -5.json).
 		end := h.get(&logsapi.GetLogEventsInput{LogGroupName: new("g"), LogStreamName: "s", NextToken: tail.NextForwardToken, StartFromHead: new(true)})
-		if len(end.Events) != 0 || val(end.NextForwardToken) != val(tail.NextForwardToken) {
-			h.Errorf("past the end = %v, token %s, want none and %s", messages(end.Events), val(end.NextForwardToken), val(tail.NextForwardToken))
+		if len(end.Events) != 0 || end.NextForwardToken == nil || *end.NextForwardToken == val(tail.NextForwardToken) {
+			h.Errorf("past the end = %v, token %s, want none and a token other than %s", messages(end.Events), val(end.NextForwardToken), val(tail.NextForwardToken))
+		}
+		settled := h.get(&logsapi.GetLogEventsInput{LogGroupName: new("g"), LogStreamName: "s", NextToken: end.NextForwardToken, StartFromHead: new(true)})
+		if len(settled.Events) != 0 || val(settled.NextForwardToken) != val(end.NextForwardToken) {
+			h.Errorf("at the end = %v, token %s, want none and %s", messages(settled.Events), val(settled.NextForwardToken), val(end.NextForwardToken))
 		}
 		// endTime is exclusive, startTime inclusive.
 		mid := h.get(&logsapi.GetLogEventsInput{LogGroupName: new("g"), LogStreamName: "s", StartTime: new(now - 2), EndTime: new(now - 1), StartFromHead: new(true)})

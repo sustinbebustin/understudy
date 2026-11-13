@@ -225,7 +225,6 @@ Scheduler was recorded against AWS on 2026-11-03 (`testdata/parity/scheduler/SCH
 
 ## CloudWatch and CloudWatch Logs
 
-- `FilterLogEvents` returns `nextToken` on every page with events and ends with an empty page on AWS; understudy leaves the token off the last page with events. `GetLogEvents`' first empty page gets a new forward token on AWS (`logs/R10/05-*.json`).
 - `ListTagsForResource` on a never-created alarm is 404 `ResourceNotFoundException` with no message on AWS; dashboards are not implemented (`cloudwatch/R07/*.json`).
 - `PutMetricData` with `StrictEntityValidation` false stores the data and answers more than two `EntityMetricData` entries with `X-Amzn-Failure-Message: EntitySizeTooLarge`. That count is the only entity error understudy checks; AWS's other values (`InvalidEntity`, `InvalidKeyAttributes`, `InvalidAttributes`, `InvalidTypeValue`, `MissingRequiredFields`) are never sent.
 - understudy publishes no `AWS/*` metrics, so an alarm on one sees only missing data; put the data with `PutMetricData` instead. Data stamped with wall time can fall outside alarm windows while the clock is frozen, set or scaled; leave `Timestamp` out ([CloudWatch alarms](clock.md#cloudwatch-alarms)).
