@@ -465,6 +465,11 @@ func (x *Execution) invoke(ctx context.Context, c *kernel.Call, in *lambdaapi.In
 	if tail {
 		out.LogResult = new(base64.StdEncoding.EncodeToString(lastBytes(res.tail, maxTail)))
 	}
+	// AWS answers the payload as application/json, a function error's too
+	// (lambda/R13/04-raise, 04-payload-null). The model gives Payload no
+	// mediaType, and the REST binder's octet-stream default for a blob
+	// payload stays for the other services that rely on it.
+	c.SetSuccessHeader("Content-Type", "application/json")
 	return out, nil
 }
 
