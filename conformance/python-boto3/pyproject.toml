@@ -29,6 +29,13 @@ conflicts = [
     [{ group = "modern" }, { group = "legacy-query" }],
 ]
 
+# Lint settings for `uvx ruff@<version>`, pinned in the justfile's lint-suites
+# recipe; ruff is a tool here, not a dependency, so it stays out of uv.lock.
+[tool.ruff]
+line-length = 120
+# tests/ holds the suite's own support module, imported as first party.
+src = ["tests"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"

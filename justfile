@@ -49,6 +49,33 @@ fmt:
 lint:
     {{gate}} golangci-lint run ./...
 
+# Lint the conformance suites and the example modules, which 'lint' does not
+# reach: golangci-lint in every Go module under conformance/ and examples/,
+# each with its own .golangci.yml, ruff over the boto3 suite, and shellcheck
+# over the suites' shell scripts and any under scripts/. ruff and shellcheck
+# are pinned uvx tools. Needs no AWS and no understudy. Runs every linter,
+# then exits non-zero when any reported a finding.
+lint-suites:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    status=0
+    mapfile -t mods < <(find conformance examples -name go.mod -not -path '*/node_modules/*' -not -path '*/.terraform/*' -exec dirname {} \; | sort)
+    for mod in "${mods[@]}"; do
+        if [ ! -f "$mod/.golangci.yml" ]; then
+            echo "lint-suites: $mod has no .golangci.yml, so golangci-lint would apply the main module's rules; copy one from conformance/go-sdk/.golangci.yml." >&2
+            status=1
+            continue
+        fi
+        echo "lint-suites: golangci-lint in $mod" >&2
+        (cd "$mod" && {{gate}} golangci-lint run ./...) || status=1
+    done
+    echo "lint-suites: ruff in conformance/python-boto3" >&2
+    (cd conformance/python-boto3 && uvx ruff@0.17.2 check .) || status=1
+    mapfile -t shells < <({ find conformance -name '*.sh' -not -path '*/node_modules/*' -not -path '*/.terraform/*'; find scripts -type f -exec awk 'FNR == 1 && /^#!.*[\/ ](ba)?sh$/ { print FILENAME } { nextfile }' {} +; } | sort)
+    echo "lint-suites: shellcheck over ${#shells[@]} shell scripts" >&2
+    uvx --from shellcheck-py==0.11.0.1 shellcheck -x "${shells[@]}" || status=1
+    exit "$status"
+
 # Run the unit tests with the race detector.
 test:
     {{gate}} go test -race -exec '{{test_exec}}' ./...

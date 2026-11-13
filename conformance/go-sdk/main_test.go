@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -110,7 +111,7 @@ func localhostURL(u *url.URL) string {
 var (
 	accountOnce sync.Once
 	accountID   string
-	accountErr  error
+	errAccount  error
 )
 
 // account is the caller's account id, from STS GetCallerIdentity.
@@ -119,13 +120,13 @@ func account(t *testing.T) string {
 	accountOnce.Do(func() {
 		out, err := sts.NewFromConfig(awsCfg).GetCallerIdentity(context.Background(), &sts.GetCallerIdentityInput{})
 		if err != nil {
-			accountErr = err
+			errAccount = err
 			return
 		}
 		accountID = aws.ToString(out.Account)
 	})
-	if accountErr != nil {
-		t.Fatalf("resolving the account through sts:GetCallerIdentity: %v", accountErr)
+	if errAccount != nil {
+		t.Fatalf("resolving the account through sts:GetCallerIdentity: %v", errAccount)
 	}
 	return accountID
 }
@@ -150,6 +151,7 @@ var (
 // (conformance/iam-loop) must touch the resources the policy rendered from
 // its first run names.
 func name(tb testing.TB, prefix string) string {
+	tb.Helper()
 	seed := os.Getenv(nameSeedEnv)
 	if seed == "" {
 		b := make([]byte, 5)
@@ -270,6 +272,25 @@ func readAll(t *testing.T, body io.ReadCloser, what string) []byte {
 	return b
 }
 
+// httpReply is an HTTP response whose body has been read and closed.
+type httpReply struct {
+	status int
+	header http.Header
+	body   []byte
+}
+
+// send sends req with client and returns the reply, failing the test when
+// the request or reading its body fails.
+func send(t *testing.T, client *http.Client, req *http.Request, what string) httpReply {
+	t.Helper()
+	resp, err := client.Do(req)
+	ok(t, err, what)
+	b, err := io.ReadAll(resp.Body)
+	ok(t, err, "reading the response to "+what)
+	ok(t, resp.Body.Close(), "closing the response to "+what)
+	return httpReply{status: resp.StatusCode, header: resp.Header, body: b}
+}
+
 // eventually polls check every interval until it reports done or timeout
 // passes, then fails with the last reason check gave.
 func eventually(t *testing.T, timeout, interval time.Duration, what string, check func() (bool, string)) {
@@ -340,9 +361,9 @@ func (c *recordingClient) requests() []recorded {
 func (c *recordingClient) last(t *testing.T, method string) recorded {
 	t.Helper()
 	reqs := c.requests()
-	for i := len(reqs) - 1; i >= 0; i-- {
-		if reqs[i].Method == method {
-			return reqs[i]
+	for _, req := range slices.Backward(reqs) {
+		if req.Method == method {
+			return req
 		}
 	}
 	t.Fatalf("no %s request was recorded", method)

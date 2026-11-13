@@ -53,7 +53,7 @@ func TestSTSAssumeRole(t *testing.T) {
 	if got := aws.ToString(out.AssumedRoleUser.Arn); got != wantArn {
 		t.Errorf("AssumedRoleUser.Arn = %q, want %q", got, wantArn)
 	}
-	if got, want := aws.ToString(out.AssumedRoleUser.AssumedRoleId), aws.ToString(role.RoleId)+":"+session; got != want {
+	if got, want := aws.ToString(out.AssumedRoleUser.AssumedRoleId), aws.ToString(role.RoleID)+":"+session; got != want {
 		t.Errorf("AssumedRoleUser.AssumedRoleId = %q, want %q", got, want)
 	}
 	creds := out.Credentials
@@ -78,7 +78,7 @@ func TestSTSAssumeRole(t *testing.T) {
 		if got := aws.ToString(id.Arn); got != wantArn {
 			t.Errorf("Arn = %q, want the assumed-role ARN %q", got, wantArn)
 		}
-		if got, want := aws.ToString(id.UserId), aws.ToString(role.RoleId)+":"+session; got != want {
+		if got, want := aws.ToString(id.UserId), aws.ToString(role.RoleID)+":"+session; got != want {
 			t.Errorf("UserId = %q, want %q", got, want)
 		}
 		if got := aws.ToString(id.Account); got != acct {
@@ -163,7 +163,7 @@ func createRole(t *testing.T, roleName, trust string) *iamRole {
 			})
 			// The root calls nothing else, so the loop's check that the root
 			// made no call after setup holds; the role outlives the test.
-			for _, policyARN := range strings.Fields(string(list)) {
+			for policyARN := range strings.FieldsSeq(string(list)) {
 				_, err := root.AttachRolePolicy(t.Context(), &iam.AttachRolePolicyInput{RoleName: aws.String(roleName), PolicyArn: aws.String(policyARN)})
 				ok(t, err, "AttachRolePolicy "+policyARN+" "+roleName)
 			}
@@ -172,10 +172,10 @@ func createRole(t *testing.T, roleName, trust string) *iamRole {
 	t.Cleanup(func() {
 		_, _ = client.DeleteRole(context.Background(), &iam.DeleteRoleInput{RoleName: aws.String(roleName)})
 	})
-	return &iamRole{RoleName: out.Role.RoleName, RoleId: out.Role.RoleId, Arn: out.Role.Arn}
+	return &iamRole{RoleName: out.Role.RoleName, RoleID: out.Role.RoleId, Arn: out.Role.Arn}
 }
 
 // iamRole is what tests need of a created role.
 type iamRole struct {
-	RoleName, RoleId, Arn *string
+	RoleName, RoleID, Arn *string
 }

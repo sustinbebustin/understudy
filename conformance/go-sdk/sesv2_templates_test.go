@@ -75,8 +75,7 @@ func TestSESv2EmailTemplateLifecycle(t *testing.T) {
 	_, err = client.DeleteEmailTemplate(ctx, &sesv2.DeleteEmailTemplateInput{TemplateName: aws.String(tmpl)})
 	ok(t, err, "DeleteEmailTemplate")
 	_, err = client.GetEmailTemplate(ctx, &sesv2.GetEmailTemplateInput{TemplateName: aws.String(tmpl)})
-	var missing *types.NotFoundException
-	if !errors.As(err, &missing) {
+	if _, missing := errors.AsType[*types.NotFoundException](err); !missing {
 		t.Errorf("GetEmailTemplate after delete = %v, want NotFoundException", err)
 	}
 }

@@ -369,8 +369,10 @@ def test_create_function_refuses_bad_layer_lists(
         (
             [v1, v2],
             "InvalidParameterValueException",
-            "Two different versions of the same layer are not allowed to be referenced in the same function. "
-            f"{v1} and {v2} are versions of the same layer.",
+            (
+                "Two different versions of the same layer are not allowed to be referenced in the same function. "
+                f"{v1} and {v2} are versions of the same layer."
+            ),
         ),
         (
             [abroad],
@@ -380,9 +382,12 @@ def test_create_function_refuses_bad_layer_lists(
         (
             [unversioned],
             "ValidationException",
-            f"1 validation error detected: Value '[{unversioned}]' at 'layers' failed to satisfy constraint: Member must "
-            "satisfy constraint: [Member must have length less than or equal to 2048, Member must have length greater "
-            f"than or equal to 1, Member must satisfy regular expression pattern: {pattern}, Member must not be null]",
+            (
+                f"1 validation error detected: Value '[{unversioned}]' at 'layers' failed to satisfy constraint: "
+                "Member must satisfy constraint: [Member must have length less than or equal to 2048, Member must "
+                f"have length greater than or equal to 1, Member must satisfy regular expression pattern: {pattern}, "
+                "Member must not be null]"
+            ),
         ),
     ]
     for layers, code, message in cases:

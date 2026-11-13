@@ -34,7 +34,7 @@ const (
 	region        = "us-east-1"
 	topicName     = "e2e-orders"
 	tapQueueName  = "e2e-tap"
-	secretName    = "e2e/pipeline/api"
+	secretName    = "e2e/pipeline/api" //nolint:gosec // a secret's name, not its value
 	lockTable     = "e2e-locks"
 	bucketName    = "e2e-pipeline-artifacts"
 	traceLogGroup = "/e2e/pipeline/traces"

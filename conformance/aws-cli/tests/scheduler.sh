@@ -200,6 +200,7 @@ test_deleted_target_queue_dead_letters() {
   assert_jq '.Messages[0].Body | fromjson | tojson' "$(jq -cn --arg a "$gone_arn" \
     '($a | split(":")) as $p | {MessageBody: "Hello, world!", QueueUrl: "https://sqs.\($p[3]).amazonaws.com/\($p[4])/\($p[5])"}')"
   assert_jq '.Messages[0].MessageAttributes.ERROR_CODE.StringValue' AWS.SimpleQueueService.NonExistentQueue
+  # shellcheck disable=SC2016 # $a and $n are jq variables
   assert_jq_true '.Messages[0].MessageAttributes as $a
     | ["CONTAINS_INVALID_PAYLOAD","ERROR_CODE","ERROR_MESSAGE","EXECUTION_ID","IS_PAYLOAD_TRUNCATED","RETRY_ATTEMPTS","SCHEDULED_TIME","SCHEDULE_ARN","TARGET_ARN"]
     | all(. as $n | $a[$n].DataType == "String")'

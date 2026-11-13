@@ -6,7 +6,7 @@
 # Arbiter: docs/research/stepfunctions-api.md and
 # docs/research/stepfunctions-asl.md.
 
-# shellcheck source=../lambda-helpers.sh
+# shellcheck source-path=SCRIPTDIR source=../lambda-helpers.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lambda-helpers.sh"
 
 STATES_TRUST='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"states.amazonaws.com"},"Action":"sts:AssumeRole"}]}'

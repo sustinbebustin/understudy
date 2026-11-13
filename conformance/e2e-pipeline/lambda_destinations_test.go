@@ -3,6 +3,7 @@ package e2e_test
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"reflect"
 	"testing"
 	"time"
@@ -107,7 +108,7 @@ func TestLambdaAsyncFailureReachesOnFailureAndTheDeadLetterQueue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lambda Invoke: %v", err)
 	}
-	if inv.StatusCode != 202 {
+	if inv.StatusCode != http.StatusAccepted {
 		t.Fatalf("Event Invoke status %d, want 202", inv.StatusCode)
 	}
 
@@ -147,7 +148,7 @@ func TestLambdaAsyncFailureReachesOnFailureAndTheDeadLetterQueue(t *testing.T) {
 	if json.Unmarshal([]byte(event), &sent) != nil || json.Unmarshal(rec.RequestPayload, &embedded) != nil || !reflect.DeepEqual(sent, embedded) {
 		t.Errorf("requestPayload %s, want the event %s as a JSON value", rec.RequestPayload, event)
 	}
-	if r := rec.ResponseContext; r.StatusCode != 200 || r.ExecutedVersion != "$LATEST" || r.FunctionError != "Unhandled" {
+	if r := rec.ResponseContext; r.StatusCode != http.StatusOK || r.ExecutedVersion != "$LATEST" || r.FunctionError != "Unhandled" {
 		t.Errorf("responseContext %+v, want statusCode 200, $LATEST, functionError Unhandled", r)
 	}
 	if rec.ResponsePayload.ErrorMessage == "" || rec.ResponsePayload.ErrorType == "" {

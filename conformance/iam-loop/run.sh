@@ -105,6 +105,7 @@ while IFS= read -r line || [ -n "$line" ]; do
 	fi
 	IFS=$'\t' read -r _ _ _ re _ <<<"$line"
 	status=0
+	# shellcheck disable=SC2319 # the test's own status is wanted: 2 when $re does not compile
 	[[ "" =~ ^($re)$ ]] || status=$?
 	if [ "$status" -eq 2 ]; then
 		echo "run.sh: $expected_file:$lineno: the resource '$re' is not an extended regular expression. No group ran." >&2

@@ -42,12 +42,14 @@ def handler(event, context):
 new_fn() {
   FN=$(new_name lambda-fn)
   aws_ok sts get-caller-identity
+  # shellcheck disable=SC2034 # read by the test files that source this one
   ACCT=$(jqv '.Account')
   ROLE_ARN=$(make_role "$(new_name lambda-role)")
   local zip="$UE_TMP/$FN.zip"
   make_zip "$zip" index.py "$PY_SOURCE"
   aws_ok lambda create-function --function-name "$FN" --runtime python3.13 --handler index.handler \
     --role "$ROLE_ARN" --zip-file "fileb://$zip" "$@"
+  # shellcheck disable=SC2034 # read by the test files that source this one
   FN_ARN=$(jqv '.FunctionArn')
 }
 

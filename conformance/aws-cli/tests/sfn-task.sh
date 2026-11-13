@@ -5,7 +5,7 @@
 # docs/research/stepfunctions-asl.md 8.1, 11.3.
 
 # The helpers (states_role, new_machine, settle) and the Lambda helpers.
-# shellcheck source=sfn.sh
+# shellcheck source-path=SCRIPTDIR source=sfn.sh
 source "$(dirname "${BASH_SOURCE[0]}")/sfn.sh"
 
 # task_fixture: a function, an execution role and a role policy that lets

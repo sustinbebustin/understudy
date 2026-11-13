@@ -111,9 +111,6 @@ results="$run_dir/results.tsv"
 mkdir -p -- "$logs_dir" "$work_dir"
 : >"$results"
 
-echo "==> building understudy into $binary"
-go -C "$repo_root" build -o "$binary" ./cmd/understudy
-
 data_dir=$(mktemp -d "${TMPDIR:-/tmp}/understudy-patterns.XXXXXX")
 server_pid=""
 
@@ -138,7 +135,10 @@ stop_server() {
     fi
     wait "$server_pid" 2>/dev/null
   fi
-  if "$binary" cleanup --persist "$data_dir" --output json >"$logs_dir/cleanup.json" 2>&1; then
+  # A failed build leaves no binary and started nothing.
+  if [[ ! -x "$binary" ]]; then
+    :
+  elif "$binary" cleanup --persist "$data_dir" --output json >"$logs_dir/cleanup.json" 2>&1; then
     local owner
     owner=$(jq -r '.owner // empty' "$logs_dir/cleanup.json")
     if [[ -n "$owner" ]]; then
@@ -164,6 +164,9 @@ stop_server() {
 trap stop_server EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+echo "==> building understudy into $binary"
+go -C "$repo_root" build -o "$binary" ./cmd/understudy
 
 conformance_isolate_serve_env
 

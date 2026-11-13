@@ -119,6 +119,7 @@ A new wire protocol needs an ADR; the protocol compliance corpus already carries
 | Coverage page | `just coverage-check` | `docs/coverage.md` matches the binary |
 | Web UI | `just ui-check` | The UI's `bun test` passes, and `ui/src/labels.gen.ts` and the embedded build in `internal/server/ui/dist` are what `just ui` produces from the Go enumerations and `ui/`; after changing either, run `just ui` and commit both |
 | Conformance | `conformance/<suite>/run.sh` | Real clients against a real server; see below |
+| Suite and example lint | `just lint-suites` | Every Go module under `conformance/` and `examples/` passes golangci-lint with its own `.golangci.yml`, the boto3 suite passes ruff, and the suites' shell scripts pass `shellcheck -x`; it needs no AWS and no server |
 | Testcontainers modules | `just testcontainers` | The Go, Python and Node modules start the image from `just image`, pass their own lint, and drive it with real clients; each module's `testcontainers/<language>/run.sh` runs one |
 
 When a fix makes a protocol compliance case pass, record it with `just protocoltest-baseline`. A case understudy cannot pass yet goes in `internal/protocoltest/skips.json` with its reason; the ratchet fails if a passing case regresses or the baseline would shrink.

@@ -9,7 +9,7 @@
 # and the Python 3.13 Lambda base image; they skip when the emulator reports
 # Docker as not enabled.
 
-# shellcheck source=../lambda-helpers.sh
+# shellcheck source-path=SCRIPTDIR source=../lambda-helpers.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lambda-helpers.sh"
 
 # new_api: create an HTTP API (id in API_ID) and leave the response in AWS_OUT.

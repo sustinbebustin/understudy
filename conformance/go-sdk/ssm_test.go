@@ -130,7 +130,7 @@ func TestSSMBatchAndPathReads(t *testing.T) {
 	ctx := t.Context()
 	client := ssm.NewFromConfig(awsCfg)
 	base := "/" + name(t, "conf-ssm")
-	var want []string
+	want := make([]string, 0, 5)
 	for i := range 5 {
 		p := fmt.Sprintf("%s/l%d/p%d", base, i%2, i)
 		putParameter(t, client, &ssm.PutParameterInput{Name: aws.String(p), Value: aws.String("v"), Type: types.ParameterTypeString})

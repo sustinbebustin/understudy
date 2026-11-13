@@ -291,7 +291,7 @@ func TestLambdaFunctionLifecycle(t *testing.T) {
 
 		versions, err := client.ListVersionsByFunction(ctx, &lambda.ListVersionsByFunctionInput{FunctionName: aws.String(fnName)})
 		ok(t, err, "ListVersionsByFunction")
-		var names []string
+		names := make([]string, 0, len(versions.Versions))
 		for _, v := range versions.Versions {
 			names = append(names, aws.ToString(v.Version))
 		}
@@ -462,13 +462,13 @@ func TestLambdaPermissions(t *testing.T) {
 	ok(t, err, "GetPolicy")
 	var doc struct {
 		Version   string
-		Id        string
+		ID        string `json:"Id"`
 		Statement []map[string]any
 	}
 	if err := json.Unmarshal([]byte(aws.ToString(pol.Policy)), &doc); err != nil {
 		t.Fatalf("GetPolicy Policy is not JSON: %v", err)
 	}
-	if doc.Version != "2012-10-17" || doc.Id != "default" || len(doc.Statement) != 2 || doc.Statement[0]["Sid"] != "sns" || doc.Statement[1]["Sid"] != "account" {
+	if doc.Version != "2012-10-17" || doc.ID != "default" || len(doc.Statement) != 2 || doc.Statement[0]["Sid"] != "sns" || doc.Statement[1]["Sid"] != "account" {
 		t.Errorf("GetPolicy = %s, want version 2012-10-17, Id default and the two statements in order", aws.ToString(pol.Policy))
 	}
 	if p, _ := doc.Statement[1]["Principal"].(map[string]any); p["AWS"] != "arn:aws:iam::111111111111:root" {
@@ -521,7 +521,7 @@ func TestLambdaInvoke(t *testing.T) {
 	t.Run("RequestResponse", func(t *testing.T) {
 		out, err := client.Invoke(ctx, &lambda.InvokeInput{FunctionName: aws.String(echoName), Payload: []byte(`{"hello":"world","n":1}`), LogType: types.LogTypeTail})
 		ok(t, err, "Invoke")
-		if out.StatusCode != 200 || out.FunctionError != nil || aws.ToString(out.ExecutedVersion) != "$LATEST" {
+		if out.StatusCode != http.StatusOK || out.FunctionError != nil || aws.ToString(out.ExecutedVersion) != "$LATEST" {
 			t.Errorf("Invoke StatusCode %d, FunctionError %v, ExecutedVersion %q", out.StatusCode, out.FunctionError, aws.ToString(out.ExecutedVersion))
 		}
 		wantJSONEqual(t, "Invoke payload", string(out.Payload), `{"hello":"world","n":1}`)
@@ -539,12 +539,12 @@ func TestLambdaInvoke(t *testing.T) {
 	t.Run("Event and DryRun", func(t *testing.T) {
 		ev, err := client.Invoke(ctx, &lambda.InvokeInput{FunctionName: aws.String(echoName), InvocationType: types.InvocationTypeEvent, Payload: []byte(`{}`)})
 		ok(t, err, "Invoke Event")
-		if ev.StatusCode != 202 || len(ev.Payload) != 0 {
+		if ev.StatusCode != http.StatusAccepted || len(ev.Payload) != 0 {
 			t.Errorf("Invoke Event StatusCode %d with %d payload bytes, want 202 and none", ev.StatusCode, len(ev.Payload))
 		}
 		dry, err := client.Invoke(ctx, &lambda.InvokeInput{FunctionName: aws.String(echoName), InvocationType: types.InvocationTypeDryRun})
 		ok(t, err, "Invoke DryRun")
-		if dry.StatusCode != 204 || len(dry.Payload) != 0 {
+		if dry.StatusCode != http.StatusNoContent || len(dry.Payload) != 0 {
 			t.Errorf("Invoke DryRun StatusCode %d with %d payload bytes, want 204 and none", dry.StatusCode, len(dry.Payload))
 		}
 	})
@@ -566,7 +566,7 @@ func TestLambdaInvoke(t *testing.T) {
 		fn := deployFunction(t, name(t, "fail"), "handler.fail", nil)
 		out, err := client.Invoke(ctx, &lambda.InvokeInput{FunctionName: fn.FunctionName})
 		ok(t, err, "Invoke of a failing handler")
-		if out.StatusCode != 200 || aws.ToString(out.FunctionError) != "Unhandled" {
+		if out.StatusCode != http.StatusOK || aws.ToString(out.FunctionError) != "Unhandled" {
 			t.Errorf("failing Invoke StatusCode %d, FunctionError %q; want 200 and Unhandled", out.StatusCode, aws.ToString(out.FunctionError))
 		}
 		var payload struct {
@@ -709,27 +709,22 @@ func TestLambdaFunctionURL(t *testing.T) {
 		t.Errorf("ListFunctionUrlConfigs = %+v", list.FunctionUrlConfigs)
 	}
 
-	call := func() (*http.Response, []byte) {
+	call := func() httpReply {
 		t.Helper()
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, u+"some/path?a=1", strings.NewReader("ping"))
 		ok(t, err, "building the URL request")
 		// A text content type keeps the body as text in the event; a
 		// binary one would arrive base64-encoded.
 		req.Header.Set("Content-Type", "text/plain")
-		resp, err := http.DefaultClient.Do(req)
-		ok(t, err, "calling the function URL "+u)
-		b, err := io.ReadAll(resp.Body)
-		ok(t, err, "reading the function URL response")
-		ok(t, resp.Body.Close(), "closing the function URL response")
-		return resp, b
+		return send(t, http.DefaultClient, req, "calling the function URL "+u)
 	}
 
 	t.Run("no resource policy is forbidden", func(t *testing.T) {
-		resp, body := call()
-		if resp.StatusCode != 403 {
-			t.Errorf("a URL with AuthType NONE and no resource policy answered %d %s, want 403", resp.StatusCode, body)
+		r := call()
+		if r.status != http.StatusForbidden {
+			t.Errorf("a URL with AuthType NONE and no resource policy answered %d %s, want 403", r.status, r.body)
 		}
-		wantJSONEqual(t, "403 body", string(body), `{"Message":"Forbidden. For troubleshooting Function URL authorization issues, see: https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html"}`)
+		wantJSONEqual(t, "403 body", string(r.body), `{"Message":"Forbidden. For troubleshooting Function URL authorization issues, see: https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html"}`)
 	})
 
 	t.Run("public URL invokes the function", func(t *testing.T) {
@@ -743,11 +738,11 @@ func TestLambdaFunctionURL(t *testing.T) {
 			Action: aws.String("lambda:InvokeFunction"), Principal: aws.String("*"), InvokedViaFunctionUrl: aws.Bool(true),
 		})
 		ok(t, err, "AddPermission lambda:InvokeFunction via function URL")
-		resp, body := call()
-		if resp.StatusCode != 201 || resp.Header.Get("x-conformance") != "yes" {
-			t.Fatalf("the public URL answered %d (x-conformance %q): %s; want the function's 201", resp.StatusCode, resp.Header.Get("x-conformance"), body)
+		r := call()
+		if r.status != http.StatusCreated || r.header.Get("X-Conformance") != "yes" {
+			t.Fatalf("the public URL answered %d (x-conformance %q): %s; want the function's 201", r.status, r.header.Get("X-Conformance"), r.body)
 		}
-		wantJSONEqual(t, "the function's view of the request", string(body), `{"version":"2.0","rawPath":"/some/path","rawQueryString":"a=1","method":"POST","body":"ping"}`)
+		wantJSONEqual(t, "the function's view of the request", string(r.body), `{"version":"2.0","rawPath":"/some/path","rawQueryString":"a=1","method":"POST","body":"ping"}`)
 	})
 
 	_, err = client.DeleteFunctionUrlConfig(ctx, &lambda.DeleteFunctionUrlConfigInput{FunctionName: aws.String(fnName)})

@@ -97,7 +97,7 @@ def test_send_email_from_a_verified_address_is_recorded(sesv2: Any, admin: Admin
     [verification] = admin.ses_messages(to=sender)
     link = re.search(r"http\S*/_understudy/ses/VerificationLink\?token=[A-Za-z0-9_-]+", verification["text"]["data"])
     assert link is not None, verification
-    with urllib.request.urlopen(link.group(0), timeout=10) as resp:  # noqa: S310 -- the loopback endpoint's own link
+    with urllib.request.urlopen(link.group(0), timeout=10) as resp:  # the loopback endpoint's own link
         assert resp.status == 200
     # A verified sender may mail the mailbox simulator from the sandbox
     # (ses.md 6.1, 6.2); understudy records the message and its attachment
@@ -119,7 +119,7 @@ def test_send_email_template_content_inline_is_rendered(sesv2: Any, admin: Admin
     [verification] = admin.ses_messages(to=sender)
     link = re.search(r"http\S*/_understudy/ses/VerificationLink\?token=[A-Za-z0-9_-]+", verification["text"]["data"])
     assert link is not None, verification
-    with urllib.request.urlopen(link.group(0), timeout=10) as resp:  # noqa: S310 -- the loopback endpoint's own link
+    with urllib.request.urlopen(link.group(0), timeout=10) as resp:  # the loopback endpoint's own link
         assert resp.status == 200
     # Inline TemplateContent supports "only simple substitutions" (model,
     # ses.md 4.4); understudy renders {{name}} (ses.md 11.6 item 6).

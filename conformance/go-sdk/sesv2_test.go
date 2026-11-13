@@ -75,8 +75,7 @@ func TestSESv2DomainIdentityLifecycle(t *testing.T) {
 	_, err = client.DeleteEmailIdentity(ctx, &sesv2.DeleteEmailIdentityInput{EmailIdentity: aws.String(domain)})
 	ok(t, err, "DeleteEmailIdentity")
 	_, err = client.GetEmailIdentity(ctx, &sesv2.GetEmailIdentityInput{EmailIdentity: aws.String(domain)})
-	var missing *types.NotFoundException
-	if !errors.As(err, &missing) {
+	if _, missing := errors.AsType[*types.NotFoundException](err); !missing {
 		t.Errorf("GetEmailIdentity after delete = %v, want NotFoundException", err)
 	}
 }

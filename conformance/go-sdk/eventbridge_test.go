@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"testing"
@@ -36,9 +37,9 @@ func putRule(t *testing.T, in *eventbridge.PutRuleInput) string {
 		ctx := context.Background()
 		targets, err := client.ListTargetsByRule(ctx, &eventbridge.ListTargetsByRuleInput{Rule: in.Name})
 		if err == nil && len(targets.Targets) > 0 {
-			var ids []string
-			for _, tg := range targets.Targets {
-				ids = append(ids, aws.ToString(tg.Id))
+			ids := make([]string, 0, len(targets.Targets))
+			for i := range targets.Targets {
+				ids = append(ids, aws.ToString(targets.Targets[i].Id))
 			}
 			_, _ = client.RemoveTargets(ctx, &eventbridge.RemoveTargetsInput{Rule: in.Name, Ids: ids})
 		}
@@ -131,7 +132,7 @@ func TestEventBridgeRules(t *testing.T) {
 	t.Run("DeleteRule of a missing rule", func(t *testing.T) {
 		out, err := client.DeleteRule(ctx, &eventbridge.DeleteRuleInput{Name: aws.String(name(t, "never-created"))})
 		ok(t, err, "DeleteRule of a missing rule")
-		if raw := rawResponse(t, out.ResultMetadata); raw.StatusCode != 200 || raw.ContentLength != 0 {
+		if raw := rawResponse(t, out.ResultMetadata); raw.StatusCode != http.StatusOK || raw.ContentLength != 0 {
 			t.Errorf("DeleteRule of a missing rule = HTTP %d, Content-Length %d; want 200 and an empty body", raw.StatusCode, raw.ContentLength)
 		}
 	})
@@ -246,7 +247,7 @@ func TestEventBridgeRules(t *testing.T) {
 			apiErr(t, err, "PutTargets with "+dlq.what, "ValidationException")
 		}
 
-		var five []types.Target
+		five := make([]types.Target, 0, 4)
 		for i := range 4 {
 			five = append(five, types.Target{Id: aws.String("extra" + strconv.Itoa(i)), Arn: aws.String(qArn)})
 		}
@@ -369,7 +370,7 @@ func TestEventBridgePutEvents(t *testing.T) {
 	})
 
 	t.Run("validation", func(t *testing.T) {
-		var eleven []types.PutEventsRequestEntry
+		eleven := make([]types.PutEventsRequestEntry, 0, 11)
 		for range 11 {
 			eleven = append(eleven, types.PutEventsRequestEntry{Source: aws.String(source), DetailType: aws.String("x"), Detail: aws.String("{}")})
 		}
@@ -571,9 +572,9 @@ func putBusRule(t *testing.T, bus, rule, pattern string, targets ...types.Target
 	ok(t, err, "PutRule "+rule+" on "+bus)
 	t.Cleanup(func() {
 		ctx := context.Background()
-		var ids []string
-		for _, tg := range targets {
-			ids = append(ids, aws.ToString(tg.Id))
+		ids := make([]string, 0, len(targets))
+		for i := range targets {
+			ids = append(ids, aws.ToString(targets[i].Id))
 		}
 		if len(ids) > 0 {
 			_, _ = client.RemoveTargets(ctx, &eventbridge.RemoveTargetsInput{Rule: aws.String(rule), EventBusName: aws.String(bus), Ids: ids})

@@ -199,7 +199,7 @@ func TestLogsEvents(t *testing.T) {
 		`{"level":"info","latency":20,"user":{"id":8}}`,
 		"WARN slow request",
 	}
-	var events []types.InputLogEvent
+	events := make([]types.InputLogEvent, 0, len(appMessages))
 	for i, m := range appMessages {
 		events = append(events, types.InputLogEvent{Timestamp: aws.Int64(millis(base.Add(time.Duration(i) * time.Second))), Message: aws.String(m)})
 	}
@@ -254,7 +254,7 @@ func TestLogsEvents(t *testing.T) {
 	t.Run("GetLogEvents", func(t *testing.T) {
 		out, err := client.GetLogEvents(ctx, &cloudwatchlogs.GetLogEventsInput{LogGroupName: aws.String(group), LogStreamName: aws.String("app"), StartFromHead: aws.Bool(true)})
 		ok(t, err, "GetLogEvents")
-		var got []string
+		got := make([]string, 0, len(out.Events))
 		for _, e := range out.Events {
 			got = append(got, aws.ToString(e.Message))
 			if e.IngestionTime == nil || e.Timestamp == nil {

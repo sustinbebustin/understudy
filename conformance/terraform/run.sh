@@ -115,13 +115,6 @@ results="$run_dir/results.tsv"
 mkdir -p -- "$logs_dir" "$work_dir" "$artifacts_dir/go-worker"
 : >"$results"
 
-echo "==> building understudy into $binary"
-go -C "$repo_root" build -o "$binary" ./cmd/understudy
-
-echo "==> building the Go Lambda worker"
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
-  go -C "$suite_dir/functions/go-worker" build -trimpath -o "$artifacts_dir/go-worker/bootstrap" .
-
 data_dir=$(mktemp -d "${TMPDIR:-/tmp}/understudy-terraform.XXXXXX")
 server_pid=""
 receiver_pid=""
@@ -152,8 +145,11 @@ stop_server() {
     wait "$server_pid" 2>/dev/null
   fi
   # A clean shutdown already removed the containers; this sweeps what a
-  # killed server left, and the label check confirms nothing remains.
-  if "$binary" cleanup --persist "$data_dir" --output json >"$logs_dir/cleanup.json" 2>&1; then
+  # killed server left, and the label check confirms nothing remains. A
+  # failed build leaves no binary and started nothing.
+  if [[ ! -x "$binary" ]]; then
+    :
+  elif "$binary" cleanup --persist "$data_dir" --output json >"$logs_dir/cleanup.json" 2>&1; then
     local owner
     owner=$(jq -r '.owner // empty' "$logs_dir/cleanup.json")
     if [[ -n "$owner" ]]; then
@@ -179,6 +175,13 @@ stop_server() {
 trap stop_server EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+echo "==> building understudy into $binary"
+go -C "$repo_root" build -o "$binary" ./cmd/understudy
+
+echo "==> building the Go Lambda worker"
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+  go -C "$suite_dir/functions/go-worker" build -trimpath -o "$artifacts_dir/go-worker/bootstrap" .
 
 conformance_isolate_serve_env
 

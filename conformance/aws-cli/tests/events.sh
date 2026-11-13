@@ -6,7 +6,7 @@
 # docs/research/lambda-events.md section 5 and
 # docs/research/eventbridge-buses.md.
 
-# shellcheck source=../lambda-helpers.sh
+# shellcheck source-path=SCRIPTDIR source=../lambda-helpers.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lambda-helpers.sh"
 
 # EVENTS_TRUST lets EventBridge assume a target's role
@@ -350,6 +350,7 @@ test_event_pattern_exists() {
   assert_eq true "$(match '{"detail":{"opt":[{"exists":false}]}}' '{"other":"x"}')"
 }
 
+# shellcheck disable=SC2016 # "$or" is the event pattern operator, not a variable
 test_event_pattern_or_operator() {
   assert_eq true "$(match '{"detail":{"$or":[{"a":[1]},{"b":[2]}]}}' '{"b":2}')"
   assert_eq false "$(match '{"detail":{"$or":[{"a":[1]},{"b":[2]}]}}' '{"a":2,"b":1}')"
@@ -507,6 +508,7 @@ test_put_events_to_a_missing_bus_is_accepted() {
 
 test_put_events_lambda_target_is_invoked() {
   require_docker
+  # shellcheck disable=SC2119 # the default function; tests/lambda.sh passes create-function arguments
   new_fn
   wait_active "$FN"
   new_rule
@@ -678,6 +680,7 @@ test_bus_target_forwards_one_hop() {
   aws_ok events put-events --entries "$(jq -nc --arg s "$source" --arg b "$first" '[{Source:$s,DetailType:"order.created",Detail:"{\"n\":1}",EventBusName:$b}]')"
   assert_jq '.FailedEntryCount' '0'
   wait_message "$reached" 30
+  # shellcheck disable=SC2034 # the assert_jq calls below read AWS_OUT (lib.sh)
   AWS_OUT=$MSG_BODY
   assert_jq '.source' "$source"
   assert_jq '."detail-type"' 'order.created'

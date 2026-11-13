@@ -1,0 +1,120 @@
+version: "2"
+
+# The docker-compose example's app, a module of its own. The linters are the
+# Go Testcontainers module's (testcontainers/go/.golangci.yml) without depguard
+# and forbidigo: an import allow-list and a stdout ban do not fit an example
+# program.
+run:
+  go: "1.27"
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - ineffassign
+    - bodyclose
+    - noctx
+    - contextcheck
+    - durationcheck
+    - errorlint
+    - exhaustive
+    - gochecksumtype
+    - forcetypeassert
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - makezero
+    - reassign
+    - copyloopvar
+    - fatcontext
+    - recvcheck
+    - gosec
+    - errchkjson
+    - nosprintfhostport
+    - canonicalheader
+    - usestdlibvars
+    - gocheckcompilerdirectives
+    - bidichk
+    - errname
+    - revive
+    - gocritic
+    - unparam
+    - unconvert
+    - predeclared
+    - perfsprint
+    - prealloc
+    - intrange
+    - modernize
+    - misspell
+    - dupword
+    - godot
+    - godox
+    - nolintlint
+    - gochecknoinits
+    - gochecknoglobals
+    - iface
+    - funcorder
+    - containedctx
+    - thelper
+    - tparallel
+    - usetesting
+    - gomoddirectives
+    - gocognit
+    - nestif
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    govet:
+      enable-all: true
+      disable: [fieldalignment, shadow]
+    exhaustive: { default-signifies-exhaustive: false }
+    gochecksumtype: { default-signifies-exhaustive: false }
+    godox: { keywords: [TODO, FIXME, HACK, XXX] }
+    nolintlint: { require-explanation: true, require-specific: true }
+    godot: { scope: toplevel, capital: false }
+    gocognit: { min-complexity: 20 }
+    nestif: { min-complexity: 5 }
+    gocritic:
+      enabled-tags: [diagnostic, style, performance]
+      disabled-checks: [hugeParam, ptrToRefParam]
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+        - name: error-return
+        - name: error-naming
+        - name: error-strings
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: indent-error-flow
+        - name: unexported-return
+        - name: blank-imports
+        - name: receiver-naming
+        - name: var-naming
+        - name: unused-parameter
+        - name: useless-break
+        - name: unreachable-code
+        - name: redefines-builtin-id
+  exclusions:
+    generated: strict
+    presets: [std-error-handling, common-false-positives]
+    rules:
+      - path: _test\.go
+        linters: [gochecknoglobals, gocognit, nestif, forcetypeassert]
+
+formatters:
+  enable: [gofumpt, goimports]
+  settings:
+    gofumpt: { extra: { group-params: true } }
+    goimports: { local-prefixes: [github.com/sustinbebustin/understudy] }
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false

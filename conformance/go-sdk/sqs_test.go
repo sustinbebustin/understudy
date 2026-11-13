@@ -146,7 +146,7 @@ func md5Hex(b []byte) string {
 func sqsAttributesMD5(attrs map[string]types.MessageAttributeValue) string {
 	var buf bytes.Buffer
 	field := func(b []byte) {
-		_ = binary.Write(&buf, binary.BigEndian, uint32(len(b)))
+		_ = binary.Write(&buf, binary.BigEndian, uint32(len(b))) //nolint:gosec // an attribute's name, type or value is far below 4 GiB (sqs.md 6.3)
 		buf.Write(b)
 	}
 	for _, k := range slices.Sorted(maps.Keys(attrs)) {
@@ -593,7 +593,7 @@ func TestSQSBatches(t *testing.T) {
 	}
 
 	t.Run("request-level errors", func(t *testing.T) {
-		var eleven []types.SendMessageBatchRequestEntry
+		eleven := make([]types.SendMessageBatchRequestEntry, 0, 11)
 		for i := range 11 {
 			eleven = append(eleven, types.SendMessageBatchRequestEntry{Id: aws.String(fmt.Sprint("m", i)), MessageBody: aws.String("x")})
 		}
@@ -893,7 +893,7 @@ func TestSQSFifo(t *testing.T) {
 			MessageSystemAttributeNames: []types.MessageSystemAttributeName{types.MessageSystemAttributeNameAll},
 		})
 		ok(t, err, "ReceiveMessage")
-		var bodies []string
+		bodies := make([]string, 0, len(out.Messages))
 		for _, m := range out.Messages {
 			bodies = append(bodies, aws.ToString(m.Body))
 			if m.Attributes["MessageGroupId"] == "" || m.Attributes["SequenceNumber"] == "" || m.Attributes["MessageDeduplicationId"] == "" {

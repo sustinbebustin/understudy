@@ -58,7 +58,7 @@ func TestS3ListObjectsV2GroupsWorkerOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("s3 ListObjectsV2: %v", err)
 	}
-	var prefixes []string
+	prefixes := make([]string, 0, len(out.CommonPrefixes))
 	for _, cp := range out.CommonPrefixes {
 		prefixes = append(prefixes, aws.ToString(cp.Prefix))
 	}

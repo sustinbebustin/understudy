@@ -363,10 +363,10 @@ def test_log_type_tail_returns_the_end_of_the_log(lambda_: Any, make_function: C
     name = make_function()["FunctionName"]
     out, body = invoke_json(lambda_, name, {"tail": True}, LogType="Tail")
     tail = base64.b64decode(out["LogResult"]).decode()
-    assert re.search(rf"^START RequestId: {body['request_id']} Version: \$LATEST$", tail, re.M)
+    assert re.search(rf"^START RequestId: {body['request_id']} Version: \$LATEST$", tail, re.MULTILINE)
     assert "conformance-marker" in tail
-    assert re.search(rf"^END RequestId: {body['request_id']}$", tail, re.M)
-    assert re.search(rf"^REPORT RequestId: {body['request_id']}\tDuration: [\d.]+ ms\tBilled Duration: \d+ ms\tMemory Size: 128 MB\tMax Memory Used: \d+ MB", tail, re.M)
+    assert re.search(rf"^END RequestId: {body['request_id']}$", tail, re.MULTILINE)
+    assert re.search(rf"^REPORT RequestId: {body['request_id']}\tDuration: [\d.]+ ms\tBilled Duration: \d+ ms\tMemory Size: 128 MB\tMax Memory Used: \d+ MB", tail, re.MULTILINE)
 
 
 def test_event_invocation_is_asynchronous(lambda_: Any, logs: Any, admin: Admin, make_function: Callable[..., dict[str, Any]]) -> None:

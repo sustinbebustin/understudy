@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 from botocore.exceptions import ClientError
+
 from support import Admin, error_code, status_of, uniq
 
 
@@ -162,7 +163,7 @@ def test_send_templated_email_renders_names(ses: Any, admin: Admin, cleanup: Any
     [verification] = admin.ses_messages(to=sender)
     link = re.search(r"http\S*/_understudy/ses/VerificationLink\?token=[A-Za-z0-9_-]+", verification["text"]["data"])
     assert link is not None, verification
-    with urllib.request.urlopen(link.group(0), timeout=10) as resp:  # noqa: S310 -- the loopback endpoint's own link
+    with urllib.request.urlopen(link.group(0), timeout=10) as resp:  # the loopback endpoint's own link
         assert resp.status == 200
     name = uniq("conf-ses-tmpl")
     send = {

@@ -185,8 +185,9 @@ func TestCloudWatchMetrics(t *testing.T) {
 
 	t.Run("GetMetricData statistics", func(t *testing.T) {
 		metric := &types.Metric{Namespace: aws.String(namespace), MetricName: aws.String("Latency"), Dimensions: dims}
-		var queries []types.MetricDataQuery
-		for _, stat := range []string{"Sum", "Average", "Minimum", "Maximum", "SampleCount"} {
+		stats := []string{"Sum", "Average", "Minimum", "Maximum", "SampleCount"}
+		queries := make([]types.MetricDataQuery, 0, len(stats))
+		for _, stat := range stats {
 			// Query ids must start with a lower-case letter.
 			queries = append(queries, types.MetricDataQuery{Id: aws.String(strings.ToLower(stat)), MetricStat: &types.MetricStat{Metric: metric, Period: aws.Int32(60), Stat: aws.String(stat)}})
 		}

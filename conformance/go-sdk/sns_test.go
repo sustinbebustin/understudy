@@ -43,9 +43,9 @@ func allowTopicDelivery(t *testing.T, topicArn, service, source string) {
 // subscribeQueue subscribes a new queue to the topic, after letting SNS
 // deliver from the topic to it, and returns the queue URL and the
 // subscription ARN.
-func subscribeQueue(t *testing.T, topicArn, queueName string, queueAttrs, subAttrs map[string]string) (string, string) {
+func subscribeQueue(t *testing.T, topicArn, queueName string, queueAttrs, subAttrs map[string]string) (queueURL, subscriptionArn string) {
 	t.Helper()
-	queueURL := createQueue(t, queueName, queueAttrs)
+	queueURL = createQueue(t, queueName, queueAttrs)
 	allowQueueDelivery(t, queueURL, "sns.amazonaws.com", topicArn)
 	out, err := sns.NewFromConfig(awsCfg).Subscribe(t.Context(), &sns.SubscribeInput{
 		TopicArn: aws.String(topicArn), Protocol: aws.String("sqs"), Endpoint: aws.String(queueArn(t, queueURL)),
@@ -115,7 +115,7 @@ func TestSNSTopics(t *testing.T) {
 		}
 		var policy struct {
 			Version   string
-			Id        string
+			ID        string `json:"Id"`
 			Statement []struct {
 				Sid       string
 				Effect    string
@@ -128,7 +128,7 @@ func TestSNSTopics(t *testing.T) {
 		if err := json.Unmarshal([]byte(a["Policy"]), &policy); err != nil {
 			t.Fatalf("Policy is not the default JSON policy: %v: %s", err, a["Policy"])
 		}
-		if policy.Version != "2008-10-17" || policy.Id != "__default_policy_ID" || len(policy.Statement) != 1 {
+		if policy.Version != "2008-10-17" || policy.ID != "__default_policy_ID" || len(policy.Statement) != 1 {
 			t.Fatalf("default Policy = %s", a["Policy"])
 		}
 		s := policy.Statement[0]
@@ -616,7 +616,7 @@ func TestSNSPublishBatch(t *testing.T) {
 	}
 
 	entries := func(n int) []types.PublishBatchRequestEntry {
-		var e []types.PublishBatchRequestEntry
+		e := make([]types.PublishBatchRequestEntry, 0, n)
 		for i := range n {
 			e = append(e, types.PublishBatchRequestEntry{Id: aws.String(fmt.Sprint("e", i)), Message: aws.String("x")})
 		}

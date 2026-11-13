@@ -119,7 +119,7 @@ func runSuite(m *testing.M) int {
 func connect(ctx context.Context) (*suite, error) {
 	raw := os.Getenv("AWS_ENDPOINT_URL")
 	if raw == "" {
-		return nil, errors.New("no AWS_ENDPOINT_URL is set; run the suite through run.sh or scripts/sealed --endpoint http://127.0.0.1:<port> go test ./...")
+		return nil, errors.New("no AWS_ENDPOINT_URL is set; run the suite through run.sh, or as 'scripts/sealed --endpoint http://127.0.0.1:<port> go test ./...'")
 	}
 	ep, err := url.Parse(raw)
 	if err != nil {
@@ -212,9 +212,15 @@ func localhostClient(listener string) *http.Client {
 	return &http.Client{Transport: tr, Timeout: 2 * time.Minute}
 }
 
-// call sends req through the *.localhost-aware client and returns the
-// response with its body read and closed.
-func call(t *testing.T, req *http.Request) (*http.Response, []byte) {
+// reply is an HTTP response whose body has been read and closed.
+type reply struct {
+	status int
+	header http.Header
+	body   []byte
+}
+
+// call sends req through the *.localhost-aware client and returns its reply.
+func call(t *testing.T, req *http.Request) reply {
 	t.Helper()
 	resp, err := env.web.Do(req)
 	if err != nil {
@@ -225,11 +231,11 @@ func call(t *testing.T, req *http.Request) (*http.Response, []byte) {
 	if err != nil {
 		t.Fatalf("%s %s: reading the response body: %v", req.Method, req.URL, err)
 	}
-	return resp, body
+	return reply{status: resp.StatusCode, header: resp.Header, body: body}
 }
 
 // get is call for a GET of rawURL.
-func get(t *testing.T, rawURL string) (*http.Response, []byte) {
+func get(t *testing.T, rawURL string) reply {
 	t.Helper()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, rawURL, http.NoBody)
 	if err != nil {

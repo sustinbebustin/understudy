@@ -66,8 +66,8 @@ func find(tr admin.Trace, match func(admin.JournalEvent) bool) (admin.Trace, boo
 	if match(tr.Event) {
 		return tr, true
 	}
-	for _, c := range tr.Children {
-		if n, ok := find(c, match); ok {
+	for i := range tr.Children {
+		if n, ok := find(tr.Children[i], match); ok {
 			return n, true
 		}
 	}
@@ -85,8 +85,8 @@ func describe(tr admin.Trace, depth int) string {
 		label = strings.TrimSpace(fmt.Sprintf("%s %s.%s %s %s", tr.Event.Kind, d.Service, d.Operation, d.Function, d.Mechanism))
 	}
 	fmt.Fprintf(&b, "%s%d %s\n", strings.Repeat("  ", depth), tr.Event.ID, label)
-	for _, c := range tr.Children {
-		b.WriteString(describe(c, depth+1))
+	for i := range tr.Children {
+		b.WriteString(describe(tr.Children[i], depth+1))
 	}
 	return b.String()
 }
@@ -190,7 +190,8 @@ func eventsSince(t *testing.T, from uint64) string {
 		t.Fatalf("journal query from event %d: %v", from, err)
 	}
 	var b strings.Builder
-	for _, e := range page.Events {
+	for i := range page.Events {
+		e := &page.Events[i]
 		var d struct {
 			Service, Operation, Function, Mechanism, Principal string
 		}
@@ -211,7 +212,8 @@ func invocationThatWrote(t *testing.T, from uint64, key string) (admin.Trace, bo
 	if err != nil {
 		t.Fatalf("journal query of invocations: %v", err)
 	}
-	for _, e := range page.Events {
+	for i := range page.Events {
+		e := &page.Events[i]
 		tr, err := env.admin.Trace(t.Context(), admin.ByEvent{ID: e.ID})
 		if err != nil {
 			t.Fatalf("journal trace of invocation %d: %v", e.ID, err)
@@ -246,9 +248,10 @@ func invocationThatWrote(t *testing.T, from uint64, key string) (admin.Trace, bo
 // SendMessage is the parent of, or linked from, a py-worker invocation.
 func TestJournalLinksEveryMessageOfABatch(t *testing.T) {
 	p := pipe(t)
-	var sends []uint64
-	var ids []string
-	for range 3 {
+	const batch = 3
+	sends := make([]uint64, 0, batch)
+	ids := make([]string, 0, batch)
+	for range batch {
 		id := newID(t)
 		ids = append(ids, id)
 		pub := publish(t, message{ID: id, Priority: 5}, nil)

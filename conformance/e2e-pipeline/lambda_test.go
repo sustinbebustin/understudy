@@ -1,7 +1,7 @@
 package e2e_test
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // md5OfBody is defined as the MD5 of the body
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -200,14 +200,14 @@ func TestLambdaFunctionURLInvokesOverHTTP(t *testing.T) {
 	req.Header.Set("X-Custom-Header", "Value1")
 	req.Header.Add("Cookie", "c1=v1")
 	req.Header.Add("Cookie", "c2=v2")
-	resp, body := call(t, req)
-	if resp.StatusCode != http.StatusCreated {
-		t.Fatalf("POST %s: HTTP %d, want 201 from the function's statusCode; body %s", u, resp.StatusCode, body)
+	r := call(t, req)
+	if r.status != http.StatusCreated {
+		t.Fatalf("POST %s: HTTP %d, want 201 from the function's statusCode; body %s", u, r.status, r.body)
 	}
-	if got := resp.Header.Get("X-E2e-Worker"); got != "image-worker" {
+	if got := r.header.Get("X-E2e-Worker"); got != "image-worker" {
 		t.Errorf("X-E2e-Worker header %q, want image-worker", got)
 	}
-	if got := resp.Header.Values("Set-Cookie"); !slices.Contains(got, "seen=1; Max-Age=60") {
+	if got := r.header.Values("Set-Cookie"); !slices.Contains(got, "seen=1; Max-Age=60") {
 		t.Errorf("Set-Cookie %v, want the function's cookie seen=1; Max-Age=60", got)
 	}
 	var out struct {
@@ -233,8 +233,8 @@ func TestLambdaFunctionURLInvokesOverHTTP(t *testing.T) {
 			} `json:"requestContext"`
 		} `json:"event"`
 	}
-	if err := json.Unmarshal(body, &out); err != nil {
-		t.Fatalf("the response body is not the function's JSON: %v\n%s", err, body)
+	if err := json.Unmarshal(r.body, &out); err != nil {
+		t.Fatalf("the response body is not the function's JSON: %v\n%s", err, r.body)
 	}
 	ev := out.Event
 	if ev.Version != "2.0" || ev.RouteKey != "$default" || ev.RequestContext.Stage != "$default" {
@@ -287,9 +287,9 @@ func TestLambdaFunctionURLUnknownIDIsForbidden(t *testing.T) {
 	}
 	_, domain, _ := strings.Cut(u.Host, ".")
 	u.Host = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa." + domain
-	resp, body := get(t, u.String())
-	if resp.StatusCode != http.StatusForbidden || resp.Header.Get("X-Amzn-Errortype") != "AccessDeniedException" || strings.TrimSpace(string(body)) != `{"Message":null}` {
+	r := get(t, u.String())
+	if r.status != http.StatusForbidden || r.header.Get("X-Amzn-Errortype") != "AccessDeniedException" || strings.TrimSpace(string(r.body)) != `{"Message":null}` {
 		t.Errorf("GET %s: HTTP %d, x-amzn-ErrorType %q, body %s; want 403, AccessDeniedException, {\"Message\":null}",
-			u, resp.StatusCode, resp.Header.Get("X-Amzn-Errortype"), body)
+			u, r.status, r.header.Get("X-Amzn-Errortype"), r.body)
 	}
 }

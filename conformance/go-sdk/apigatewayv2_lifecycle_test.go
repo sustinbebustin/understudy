@@ -93,7 +93,7 @@ func TestAPIGatewayV2StageAndDeploymentLifecycle(t *testing.T) {
 	ok(t, err, "CreateStage qa")
 	stages, err := client.GetStages(ctx, &apigatewayv2.GetStagesInput{ApiId: id})
 	ok(t, err, "GetStages")
-	var names []string
+	names := make([]string, 0, len(stages.Items))
 	for _, s := range stages.Items {
 		names = append(names, aws.ToString(s.StageName))
 	}

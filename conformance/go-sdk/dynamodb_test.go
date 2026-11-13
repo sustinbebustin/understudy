@@ -229,8 +229,9 @@ func TestDynamoDBItems(t *testing.T) {
 	})
 
 	t.Run("batch, scan and query", func(t *testing.T) {
-		var writes []types.WriteRequest
-		for i := range 5 {
+		const items = 5
+		writes := make([]types.WriteRequest, 0, items)
+		for i := range items {
 			writes = append(writes, types.WriteRequest{PutRequest: &types.PutRequest{Item: map[string]types.AttributeValue{"LockID": ddbS("batch-" + strconv.Itoa(i)), "N": ddbN(int64(i))}}})
 		}
 		out, err := client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{RequestItems: map[string][]types.WriteRequest{tableName: writes}})
