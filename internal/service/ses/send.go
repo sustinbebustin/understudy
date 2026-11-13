@@ -141,7 +141,11 @@ const sendEmailCoverage = "journal-only: validates and applies identity and sand
 // sender's identity ARN.
 func (s *Service) bindSends(b sesapi.Binder) {
 	b.SendEmail(s.sendEmail, registry.Partial{Note: sendEmailCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(),
+		v1SendConditionKeys(kernel.WithConditionKeys(func(_ *kernel.Call, in *sesapi.SendEmailInput) kernel.ConditionKeys {
+			d := in.Destination
+			return addressKeys(in.Source, d.ToAddresses, d.CcAddresses, d.BccAddresses)
+		})),
 		kernel.WithResources(func(c *kernel.Call, in *sesapi.SendEmailInput) []aws.ARN {
 			a, bad := parseAddress(in.Source)
 			if bad != nil {
@@ -322,6 +326,16 @@ func onlyTagChars(s, extra string) bool {
 	return true
 }
 
+// addrSpecText is the addr-spec of an address as written: the text between
+// the last "<" and a final ">" of "Name <address>", else s whole. Unlike
+// addrSpec it keeps the quotes of a quoted local part.
+func addrSpecText(s string) string {
+	if i := strings.LastIndexByte(s, '<'); i >= 0 && strings.HasSuffix(s, ">") {
+		return s[i+1 : len(s)-1]
+	}
+	return s
+}
+
 // parseAddress validates an address as SES does, as far as is known
 // (ses.md 4.6, 11.6 item 5), and parses it. The texts answer in this
 // order: an empty address (recorded, SES-04); no "@" in the addr-spec;
@@ -333,10 +347,7 @@ func parseAddress(s string) (*mail.Address, *refusal) {
 	if s == "" {
 		return nil, invalid(EmptyAddressText)
 	}
-	spec := s
-	if i := strings.LastIndexByte(s, '<'); i >= 0 && strings.HasSuffix(s, ">") {
-		spec = s[i+1 : len(s)-1]
-	}
+	spec := addrSpecText(s)
 	at := strings.LastIndexByte(spec, '@')
 	switch {
 	case at < 0:

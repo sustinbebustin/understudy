@@ -210,6 +210,37 @@ func (cfg *bindConfig) addRefused(keys []string) { cfg.refused = append(cfg.refu
 // options add up.
 func RefuseConditionKeys(keys ...string) BindOption { return refusedKeysOption(slices.Clone(keys)) }
 
+// fixedKeysOption is the option WithFixedConditionKeys returns. It fits
+// every input type.
+type fixedKeysOption ConditionKeys
+
+// suppliesKeys is a binding configuration that can record a
+// WithConditionKeys supply.
+type suppliesKeys interface {
+	addKeys(supply func(*Call, any) ConditionKeys)
+}
+
+func (o fixedKeysOption) apply(cfg any) bool {
+	c, ok := cfg.(suppliesKeys)
+	if ok {
+		c.addKeys(func(*Call, any) ConditionKeys { return ConditionKeys(o) })
+	}
+	return ok
+}
+
+func (cfg *bindConfig) addKeys(supply func(*Call, any) ConditionKeys) {
+	cfg.erased.keys = append(cfg.erased.keys, supply)
+}
+
+// WithFixedConditionKeys supplies request condition keys whose values do
+// not depend on the input, such as the API version every operation of a
+// service carries, as WithConditionKeys does: it joins their union in
+// option order. Unlike WithConditionKeys it fits every input type, so a
+// service helper can give it to each of its bindings.
+func WithFixedConditionKeys(keys ConditionKeys) BindOption {
+	return fixedKeysOption(maps.Clone(keys))
+}
+
 // AuthorizedInHandler marks an operation whose handler resolves its
 // resource itself and asks about the operation's primary action on it
 // through Authorize, such as IAM GetRole on the role it reads. Step 8

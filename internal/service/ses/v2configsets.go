@@ -28,16 +28,16 @@ func (v *V2) bindV2ConfigurationSets(b sesv2api.Binder) {
 			}
 			return []registry.IAMAction{{Prefix: "ses", Name: "TagResource"}}
 		}),
-		refusedConditionKeys(),
+		v2ConditionKeys(),
 		configurationSetNamed(func(in *sesv2api.CreateConfigurationSetInput) string { return in.ConfigurationSetName }))
 	b.GetConfigurationSet(v.getConfigurationSet, cov,
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		configurationSetNamed(func(in *sesv2api.GetConfigurationSetInput) string { return in.ConfigurationSetName }))
 	b.DeleteConfigurationSet(v.deleteConfigurationSet, cov,
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		configurationSetNamed(func(in *sesv2api.DeleteConfigurationSetInput) string { return in.ConfigurationSetName }))
 	// The GET binding is a codegen/services additionalRoutes entry.
-	b.ListConfigurationSets(v.listConfigurationSets, cov, kernel.WithoutSecondaryActions(), refusedConditionKeys())
+	b.ListConfigurationSets(v.listConfigurationSets, cov, kernel.WithoutSecondaryActions(), v2ConditionKeys())
 }
 
 // createConfigurationSet stores a new configuration set with its options

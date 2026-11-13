@@ -1293,30 +1293,30 @@ Raw operations:
 
 | Operation | Status | Evidence | Note |
 |---|---|---|---|
-| CreateTemplate | full | inferred, 1 of 4 claims |  |
-| DeleteIdentity | full | inferred, 1 of 4 claims |  |
-| DeleteTemplate | full | inferred, 1 of 2 claims |  |
-| DeleteVerifiedEmailAddress | full | inferred, 1 of 2 claims |  |
-| GetAccountSendingEnabled | full | inferred, 1 of 2 claims |  |
-| GetIdentityVerificationAttributes | full | inferred, 1 of 8 claims |  |
-| GetTemplate | full | inferred, 1 of 3 claims |  |
-| ListIdentities | full | inferred, 1 of 6 claims |  |
-| ListTemplates | full | inferred, 1 of 2 claims |  |
-| ListVerifiedEmailAddresses | full | inferred, 1 of 2 claims |  |
-| UpdateAccountSendingEnabled | full | inferred, 1 of 2 claims |  |
-| UpdateTemplate | full | inferred, 1 of 2 claims |  |
-| CreateConfigurationSet | stored-only | inferred, 1 of 3 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
-| DeleteConfigurationSet | stored-only | inferred, 1 of 3 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
-| DescribeConfigurationSet | stored-only | inferred, 1 of 3 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
-| ListConfigurationSets | stored-only | inferred, 1 of 3 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
-| GetIdentityNotificationAttributes | partial | contradicted (ses/SES-08/03-notif-raw.json), 1 of 4 claims | every identity reports no SNS topics, ForwardingEnabled true and headers disabled; SetIdentityNotificationTopic and the other setters are not implemented |
-| GetSendQuota | partial | contradicted (ses/SES-15/02-quota.json), 1 of 3 claims | Max24HourSend and MaxSendRate from the sandbox or production setting; SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; the send rate is not enforced; production values -1 and 14 are unrecorded (SES-26) |
-| SendEmail | partial | inferred, 3 of 18 claims | journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; the sending-authorization ARNs answer NotImplemented; chosen without a recording (docs/research/ses.md 11.4): address answers other than an empty Source, recipient-count, size and daily-quota answers, refusing a 257-character tag, check order, mailbox-simulator and label matching |
-| SendRawEmail | partial | inferred, 3 of 7 claims | journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; the ARN members and the X-SES-*-ARN headers answer NotImplemented |
-| SendTemplatedEmail | partial | inferred, 3 of 6 claims | journal-only as SendEmail; the stored template and TemplateData are recorded, and rendered subject and bodies only for {{name}} and dotted-path tags; other Handlebars constructs record a render gap, and the send is still accepted, as SES accepts before rendering; so do a value TemplateData lacks, a string holding a character Handlebars escapes and any value but a string, boolean or integer, whose rendering on SES is unrecorded; TemplateArn answers NotImplemented |
-| VerifyDomainIdentity | partial | inferred, 1 of 5 claims | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
-| VerifyEmailAddress | partial | inferred, 1 of 2 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04) |
-| VerifyEmailIdentity | partial | inferred, 2 of 7 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04) |
+| CreateTemplate | full | inferred, 2 of 5 claims |  |
+| DeleteIdentity | full | inferred, 2 of 5 claims |  |
+| DeleteTemplate | full | inferred, 2 of 3 claims |  |
+| DeleteVerifiedEmailAddress | full | inferred, 2 of 3 claims |  |
+| GetAccountSendingEnabled | full | inferred, 2 of 3 claims |  |
+| GetIdentityVerificationAttributes | full | inferred, 2 of 9 claims |  |
+| GetTemplate | full | inferred, 2 of 4 claims |  |
+| ListIdentities | full | inferred, 2 of 7 claims |  |
+| ListTemplates | full | inferred, 2 of 3 claims |  |
+| ListVerifiedEmailAddresses | full | inferred, 2 of 3 claims |  |
+| UpdateAccountSendingEnabled | full | inferred, 2 of 3 claims |  |
+| UpdateTemplate | full | inferred, 2 of 3 claims |  |
+| CreateConfigurationSet | stored-only | inferred, 2 of 4 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| DeleteConfigurationSet | stored-only | inferred, 2 of 4 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| DescribeConfigurationSet | stored-only | inferred, 2 of 4 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| ListConfigurationSets | stored-only | inferred, 2 of 4 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| GetIdentityNotificationAttributes | partial | contradicted (ses/SES-08/03-notif-raw.json), 1 of 5 claims | every identity reports no SNS topics, ForwardingEnabled true and headers disabled; SetIdentityNotificationTopic and the other setters are not implemented |
+| GetSendQuota | partial | contradicted (ses/SES-15/02-quota.json), 1 of 4 claims | Max24HourSend and MaxSendRate from the sandbox or production setting; SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; the send rate is not enforced; production values -1 and 14 are unrecorded (SES-26) |
+| SendEmail | partial | inferred, 5 of 20 claims | journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; the sending-authorization ARNs answer NotImplemented; chosen without a recording (docs/research/ses.md 11.4): address answers other than an empty Source, recipient-count, size and daily-quota answers, refusing a 257-character tag, check order, mailbox-simulator and label matching |
+| SendRawEmail | partial | inferred, 4 of 8 claims | journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; the ARN members and the X-SES-*-ARN headers answer NotImplemented |
+| SendTemplatedEmail | partial | inferred, 5 of 8 claims | journal-only as SendEmail; the stored template and TemplateData are recorded, and rendered subject and bodies only for {{name}} and dotted-path tags; other Handlebars constructs record a render gap, and the send is still accepted, as SES accepts before rendering; so do a value TemplateData lacks, a string holding a character Handlebars escapes and any value but a string, boolean or integer, whose rendering on SES is unrecorded; TemplateArn answers NotImplemented |
+| VerifyDomainIdentity | partial | inferred, 2 of 6 claims | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
+| VerifyEmailAddress | partial | inferred, 2 of 3 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04) |
+| VerifyEmailIdentity | partial | inferred, 3 of 8 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04) |
 | CloneReceiptRuleSet | unbound | unassessed |  |
 | CreateConfigurationSetEventDestination | unbound | unassessed |  |
 | CreateConfigurationSetTrackingOptions | unbound | unassessed |  |
@@ -1803,7 +1803,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-233 switches: 136 aws-recorded, 1 third-party-recorded, 14 aws-doc, 82 inferred.
+235 switches: 136 aws-recorded, 1 third-party-recorded, 14 aws-doc, 84 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -2009,6 +2009,8 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `scheduler.flexible-window.offset` | `seeded-uniform` | inferred | docs/research/scheduler.md#56-precision-and-flexible-time-windows | none: SCH-09 (recorded 2026-11-03) bounds the offsets only: five draws cannot settle a distribution |
 | `secretsmanager.list-secrets.all-filter-match` | `any-word,word-prefix` | inferred | https://docs.aws.amazon.com/secretsmanager/latest/userguide/manage_search-secret.html | none: unrecorded: no recording calls ListSecrets |
 | `secretsmanager.list-secrets.filter-combination` | `and-across-filters,or-across-values` | inferred | docs/research/secrets-logs-events-alarms.md#24-operations-request-and-response-facts | none: unrecorded: no recording calls ListSecrets |
+| `ses.condition.address-form` | `a Name <address> parameter carries the address between the angle brackets, case, +label and quotes as written; ses:Recipients are To, Cc and Bcc, not ReplyTo` | inferred | docs/research/iam-enforcement-surfaces.md#125-context-keys | none: unrecorded: SES-31 steps 05, 06, 09, 10, 12 and 17 (ses.md 12.2) have not been run |
+| `ses.condition.api-version-v1` | `1` | inferred | docs/research/iam-enforcement-surfaces.md#125-context-keys | none: unrecorded: SES-31 steps 01, 02 and 04 (ses.md 12.2) have not been run |
 | `ses.denial.identity` | `v1 AccessDenied, Type Sender, 403; v2 AccessDeniedException in x-amzn-ErrorType, 403, body {"Message": "<text>"}; a send's text "User '<principal arn>' is not authorized to perform '<action>' on resource '<identity arn>'", every other action's the IAM grammar` | inferred | docs/research/iam-enforcement-surfaces.md#123-error-identities-to-emit | none: ses/SES-28 is recorded and leaves v1 SendRawEmail, v1 SendTemplatedEmail and the explicit-deny form unrecorded (ses.md 11.4); the replay signs as the account's root, which no denial reaches |
 | `ses.error.unverified.text` | `hash-order` | aws-recorded (ses/SES-03/02-both.json) | docs/research/ses.md#61-sandbox-rules-per-send | ses/SES-03#02-both |
 | `ses.message-id.format` | `timestamped` | inferred | docs/research/ses.md#47-messageid | none: unrecorded: SES-07 (ses.md 12) sends from a verified address, which the 2026-11-03 session did not have |

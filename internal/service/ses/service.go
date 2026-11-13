@@ -153,8 +153,8 @@ func (s *Service) Resources(scope aws.Scope) []kernel.Resource {
 func (s *Service) Scopes() []aws.Scope { return s.cells.Keys(store.ScopeKeys()) }
 
 // Switches lists the SES switches whose behavior is implemented, with the
-// value in effect, and the denial identity (iam-enforcement-surfaces.md
-// 12.8).
+// value in effect, the condition-key derivations and the denial identity
+// (iam-enforcement-surfaces.md 12.5, 12.8).
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		storeSwitch(s.opts.Store).Entry(),
@@ -162,6 +162,8 @@ func (s *Service) Switches() []fidelity.Entry {
 		unverifiedTextSwitch(s.opts.UnverifiedText).Entry(),
 		unknownIdentitySwitch(s.opts.UnknownIdentity).Entry(),
 		rawEnvelopeSwitch(s.opts.RawEnvelope).Entry(),
+		apiVersionV1Switch(s.bindings.AuthorizedOps(sesapi.Service())),
+		addressFormSwitch(),
 		denialSwitch(s.bindings.AuthorizedOps(sesapi.Service())),
 	}
 }

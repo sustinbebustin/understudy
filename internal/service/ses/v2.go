@@ -48,39 +48,39 @@ func (v *V2) bindV2(b sesv2api.Binder) {
 			}
 			return []registry.IAMAction{{Prefix: "ses", Name: "TagResource"}}
 		}),
-		refusedConditionKeys(),
+		v2ConditionKeys(),
 		identitiesNamed(func(in *sesv2api.CreateEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
 	b.GetEmailIdentity(v.getEmailIdentity, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		identitiesNamed(func(in *sesv2api.GetEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
 	b.PutEmailIdentityConfigurationSetAttributes(v.putEmailIdentityConfigurationSetAttributes, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		identitiesNamed(func(in *sesv2api.PutEmailIdentityConfigurationSetAttributesInput) []string {
 			return []string{in.EmailIdentity}
 		}))
 	b.PutEmailIdentityDkimSigningAttributes(v.putEmailIdentityDkimSigningAttributes, registry.StoredOnly{Note: putDkimSigningCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		identitiesNamed(func(in *sesv2api.PutEmailIdentityDkimSigningAttributesInput) []string {
 			return []string{in.EmailIdentity}
 		}))
 	b.DeleteEmailIdentity(v.deleteEmailIdentity, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		identitiesNamed(func(in *sesv2api.DeleteEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
 	// Both bindings (ses.md 3.2): the GET one is a codegen/services
 	// additionalRoutes entry.
-	b.ListEmailIdentities(v.listEmailIdentities, registry.Full{}, kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+	b.ListEmailIdentities(v.listEmailIdentities, registry.Full{}, kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		// A denial names * (iam-enforcement-surfaces.md 12.3, IAM-ENF-39).
 		kernel.WithDenialResource(func(*kernel.Call, *sesv2api.ListEmailIdentitiesInput) string { return "*" }))
 	b.TagResource(v.tagResource, registry.Partial{Note: v2TagsCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		resourceNamed(func(in *sesv2api.TagResourceInput) string { return in.ResourceArn }))
 	b.UntagResource(v.untagResource, registry.Partial{Note: v2TagsCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		resourceNamed(func(in *sesv2api.UntagResourceInput) string { return in.ResourceArn }))
 	b.ListTagsForResource(v.listTagsForResource, registry.Partial{Note: v2TagsCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		resourceNamed(func(in *sesv2api.ListTagsForResourceInput) string { return in.ResourceArn }))
-	b.GetAccount(v.getAccount, registry.Partial{Note: getAccountCoverage}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
+	b.GetAccount(v.getAccount, registry.Partial{Note: getAccountCoverage}, kernel.WithoutSecondaryActions(), v2ConditionKeys())
 }
 
 // resourceNamed names a tag operation's ResourceArn as its resource: the

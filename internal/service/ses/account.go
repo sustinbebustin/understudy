@@ -16,9 +16,9 @@ import (
 // no resource and use their primary action alone.
 func (s *Service) bindAccountSending(b sesapi.Binder) {
 	b.GetAccountSendingEnabled(s.getAccountSendingEnabled, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys())
+		kernel.WithoutSecondaryActions(), v1ConditionKeys())
 	b.UpdateAccountSendingEnabled(s.updateAccountSendingEnabled, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys())
+		kernel.WithoutSecondaryActions(), v1ConditionKeys())
 }
 
 // sendingEnabled is whether account sending is enabled in scope: it is

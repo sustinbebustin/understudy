@@ -26,18 +26,18 @@ func (v *V2) bindV2Templates(b sesv2api.Binder) {
 			}
 			return []registry.IAMAction{{Prefix: "ses", Name: "TagResource"}}
 		}),
-		refusedConditionKeys(),
+		v2ConditionKeys(),
 		templateNamed(func(in *sesv2api.CreateEmailTemplateInput) string { return in.TemplateName }))
 	b.GetEmailTemplate(v.getEmailTemplate, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		templateNamed(func(in *sesv2api.GetEmailTemplateInput) string { return in.TemplateName }))
 	b.UpdateEmailTemplate(v.updateEmailTemplate, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		templateNamed(func(in *sesv2api.UpdateEmailTemplateInput) string { return in.TemplateName }))
 	b.DeleteEmailTemplate(v.deleteEmailTemplate, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
 		templateNamed(func(in *sesv2api.DeleteEmailTemplateInput) string { return in.TemplateName }))
-	b.ListEmailTemplates(v.listEmailTemplates, registry.Full{}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
+	b.ListEmailTemplates(v.listEmailTemplates, registry.Full{}, kernel.WithoutSecondaryActions(), v2ConditionKeys())
 }
 
 // errEmailTemplateMissing answers a v2 call on a template the caller's view

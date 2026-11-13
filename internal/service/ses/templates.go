@@ -59,18 +59,18 @@ func (s *state) findTemplate(v view, name string) int {
 // resource.
 func (s *Service) bindTemplates(b sesapi.Binder) {
 	b.CreateTemplate(s.createTemplate, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		templateNamed(func(in *sesapi.CreateTemplateInput) string { return in.Template.TemplateName }))
 	b.GetTemplate(s.getTemplate, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		templateNamed(func(in *sesapi.GetTemplateInput) string { return in.TemplateName }))
 	b.UpdateTemplate(s.updateTemplate, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		templateNamed(func(in *sesapi.UpdateTemplateInput) string { return in.Template.TemplateName }))
 	b.DeleteTemplate(s.deleteTemplate, registry.Full{},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		templateNamed(func(in *sesapi.DeleteTemplateInput) string { return in.TemplateName }))
-	b.ListTemplates(s.listTemplates, registry.Full{}, kernel.WithoutSecondaryActions(), refusedConditionKeys())
+	b.ListTemplates(s.listTemplates, registry.Full{}, kernel.WithoutSecondaryActions(), v1ConditionKeys())
 }
 
 // templateNamed names the template an input addresses as the call's

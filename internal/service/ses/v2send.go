@@ -26,11 +26,24 @@ const v2SendEmailCoverage = "journal-only as the v1 sends, for Simple (with Head
 // address. Raw content is authorized as ses:SendRawEmail, which the
 // generated list does not hold, so the input chooses the primary action
 // (kernel.WithPrimaryAction): step 8 keeps asking before the handler's
-// checks, with the refused condition keys and, for a sender that does not
-// parse, on any resource, none of which a handler's kernel.Authorize does.
+// checks, with the condition keys and, for a sender that does not parse,
+// on any resource, none of which a handler's kernel.Authorize does. Simple
+// and Template content supply ses:FromAddress and ses:Recipients as the v1
+// sends do; Raw content supplies neither, so its call refuses them
+// (iam-enforcement-surfaces.md 12.5).
 func (v *V2) bindV2Send(b sesv2api.Binder) {
 	b.SendEmail(v.sendEmail, registry.Partial{Note: v2SendEmailCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v2ConditionKeys(),
+		kernel.WithConditionKeys(func(_ *kernel.Call, in *sesv2api.SendEmailInput) kernel.ConditionKeys {
+			if in.Content.Raw != nil || in.FromEmailAddress == nil {
+				return nil
+			}
+			d := in.Destination
+			if d == nil {
+				d = &sesv2api.Destination{}
+			}
+			return addressKeys(*in.FromEmailAddress, d.ToAddresses, d.CcAddresses, d.BccAddresses)
+		}),
 		kernel.WithPrimaryAction(func(_ *kernel.Call, in *sesv2api.SendEmailInput) registry.IAMAction {
 			if in.Content.Raw != nil {
 				// SES-28 step 04.

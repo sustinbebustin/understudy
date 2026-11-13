@@ -390,6 +390,36 @@ aws sesv2 get-configuration-set --configuration-set-name marketing
 
 `SendingEnabled` false still lets sends through. The option setters (`PutConfigurationSet*`, `UpdateConfigurationSet*`) and event destinations answer 501, so Terraform's `aws_ses_configuration_set` and `aws_sesv2_configuration_set` apply as long as no option changes after creation. An account and region hold up to 10,000 sets, and a name has up to 64 ASCII letters, digits, `-` and `_`.
 
+## Policies on sends
+
+Under `--iam-enforce enforce` or `advise` ([Policies](policy.md)), a send is authorized as `ses:SendEmail` (v2 Raw content as `ses:SendRawEmail`, v1 `SendTemplatedEmail` as `ses:SendTemplatedEmail`) on the sender's identity, and a denied send answers SES's own text: `User '<principal arn>' is not authorized to perform 'ses:SendEmail' on resource '<identity arn>'`.
+
+These condition keys are evaluated:
+
+| Key | Operations | Value |
+|---|---|---|
+| `ses:ApiVersion` | every operation | `"2"` on v2; `"1"` on v1 (inferred, the `ses.condition.api-version-v1` switch) |
+| `ses:FromAddress` | v1 `SendEmail`, `SendTemplatedEmail`; v2 `SendEmail` with Simple or Template content | `Source` or `FromEmailAddress` as written, `+label` and case kept |
+| `ses:Recipients` | the same | every `To`, `Cc` and `Bcc` address, multivalued |
+
+An address written as `Name <address>` gives the address alone, and `ReplyToAddresses` are not recipients (inferred, the `ses.condition.address-form` switch). `ses:Recipients` holds several values, so test it with `ForAnyValue` or `ForAllValues`; a plain `StringLike` never matches it, as on AWS. This policy refuses any send that copies an address outside `example.com`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {"Effect": "Allow", "Action": "ses:*", "Resource": "*"},
+    {"Effect": "Deny", "Action": "ses:SendEmail", "Resource": "*",
+     "Condition": {"ForAnyValue:StringNotLike": {"ses:Recipients": "*@example.com"}}}
+  ]
+}
+```
+
+A condition on one of these keys answers 501 `NotImplemented` naming the key under `enforce`, since evaluating it as absent could allow a send AWS denies; under `advise` the call is served and the journal records `condition-key-unsupplied`:
+
+- `ses:FromDisplayName` and `ses:FeedbackAddress`, on every operation.
+- `ses:FromAddress` and `ses:Recipients` on v1 `SendRawEmail`, v2 `SendEmail` with Raw content, and the operations that do not send.
+
 ## Not implemented
 
 A member or header understudy would have to fake answers `NotImplemented` and names it:

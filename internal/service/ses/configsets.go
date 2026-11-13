@@ -200,15 +200,15 @@ func configurationSetNamed[In any](nameOf func(*In) string) kernel.BindOption {
 func (s *Service) bindConfigurationSets(b sesapi.Binder) {
 	cov := registry.StoredOnly{Note: configurationSetCoverage}
 	b.CreateConfigurationSet(s.createConfigurationSet, cov,
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		configurationSetNamed(func(in *sesapi.CreateConfigurationSetInput) string { return in.ConfigurationSet.Name }))
 	b.DescribeConfigurationSet(s.describeConfigurationSet, cov,
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		configurationSetNamed(func(in *sesapi.DescribeConfigurationSetInput) string { return in.ConfigurationSetName }))
 	b.DeleteConfigurationSet(s.deleteConfigurationSet, cov,
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		configurationSetNamed(func(in *sesapi.DeleteConfigurationSetInput) string { return in.ConfigurationSetName }))
-	b.ListConfigurationSets(s.listConfigurationSets, cov, kernel.WithoutSecondaryActions(), refusedConditionKeys())
+	b.ListConfigurationSets(s.listConfigurationSets, cov, kernel.WithoutSecondaryActions(), v1ConditionKeys())
 }
 
 // createConfigurationSet stores a new configuration set (addConfigurationSet).

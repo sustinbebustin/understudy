@@ -30,7 +30,7 @@ const sendRawEmailCoverage = "journal-only as SendEmail; the raw MIME is recorde
 // identity ARN: Source, else the first From header address.
 func (s *Service) bindSendRaw(b sesapi.Binder) {
 	b.SendRawEmail(s.sendRawEmail, registry.Partial{Note: sendRawEmailCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(), v1ConditionKeys(),
 		kernel.WithResources(func(c *kernel.Call, in *sesapi.SendRawEmailInput) []aws.ARN {
 			return rawSenderARN(c.Scope(), in.Source, in.RawMessage.Data)
 		}))

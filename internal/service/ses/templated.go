@@ -23,7 +23,11 @@ const sendTemplatedEmailCoverage = "journal-only as SendEmail; the stored templa
 // sender's identity ARN.
 func (s *Service) bindSendTemplated(b sesapi.Binder) {
 	b.SendTemplatedEmail(s.sendTemplatedEmail, registry.Partial{Note: sendTemplatedEmailCoverage},
-		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		kernel.WithoutSecondaryActions(),
+		v1SendConditionKeys(kernel.WithConditionKeys(func(_ *kernel.Call, in *sesapi.SendTemplatedEmailInput) kernel.ConditionKeys {
+			d := in.Destination
+			return addressKeys(in.Source, d.ToAddresses, d.CcAddresses, d.BccAddresses)
+		})),
 		kernel.WithResources(func(c *kernel.Call, in *sesapi.SendTemplatedEmailInput) []aws.ARN {
 			a, bad := parseAddress(in.Source)
 			if bad != nil {

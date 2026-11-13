@@ -268,12 +268,14 @@ func isoTime(i clock.Instant) string {
 // Multivalued reports whether AWS defines key as multivalued: aws:TagKeys,
 // aws:CalledVia, aws:PrincipalServiceNamesList, aws:PrincipalOrgPaths,
 // aws:ResourceOrgPaths, aws:SourceOrgPaths, aws:VpceOrgPaths,
-// sts:TransitiveTagKeys and kms:EncryptionContextKeys (iam-evaluation.md
-// 6.12). Key names compare case-insensitively (6.2).
+// sts:TransitiveTagKeys, kms:EncryptionContextKeys (iam-evaluation.md
+// 6.12) and ses:Recipients, ArrayOfString in the SAR
+// (iam-enforcement-surfaces.md 9.2). Key names compare case-insensitively
+// (6.2).
 func Multivalued(key string) bool {
 	return slices.ContainsFunc([]string{
 		"aws:TagKeys", "aws:CalledVia", "aws:PrincipalServiceNamesList", "aws:PrincipalOrgPaths",
 		"aws:ResourceOrgPaths", "aws:SourceOrgPaths", "aws:VpceOrgPaths",
-		"sts:TransitiveTagKeys", "kms:EncryptionContextKeys",
+		"sts:TransitiveTagKeys", "kms:EncryptionContextKeys", "ses:Recipients",
 	}, func(k string) bool { return strings.EqualFold(k, key) })
 }
