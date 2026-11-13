@@ -88,3 +88,7 @@ understudy needs a versioned, deterministic file for the whole emulator state an
 
 - The exceptions above ran only when a service's import was called directly: the load check refused every section whose version differed from the running one, so `snapshot load` and a `--persist` restart refused them, the coordinator limit the version 6 and 8 amendments name. A service now declares the oldest section version its import reads (`snapshot.OlderReader`), and the load check accepts any version from it to the running one. DynamoDB declares 3 and Lambda 3.
 - A service that declares nothing keeps the exact-match refusal, and a newer section is refused as before. The refusal names the section's version, the running version, the readable range when one is declared, and the writing binary.
+
+## Amendment 2026-11-13: Lambda state version 9 adds directory code
+
+- Lambda's state version 9 adds directory code, the code a function created from the `hot-reload` bucket stores (ADR 0010, amendment 2026-11-13): a third variant of a version's code, holding the directory's resolved path. A version 8 section holds none, so Lambda's `Import` reads it as version 9 unchanged, as it reads versions 7 to 4 under the amendments above; a version 3 section is still migrated. Lambda's oldest readable version stays 3, so a snapshot load accepts versions 3 to 9. A binary before version 9 refuses a version 9 section by its version, rather than failing on a code variant it does not know.

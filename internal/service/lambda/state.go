@@ -27,16 +27,21 @@ import (
 // checkpoints, version 5 added State.RetiredVersions, version 6 records
 // whether a layer version ever had a policy (LayerVersion.HadPolicy) and
 // each layer statement's size as AWS measures it (Statement.MeasuredSize),
-// version 7 ImageCode.DigestKind, and version 8 whether a stream mapping
-// disabled itself because its stream closed (Mapping.StreamClosed). A
-// version 7 section, which lacks only that optional field, loads as is,
-// its mappings not closed; so does a version 6 section, its image codes'
-// kinds unrecorded too, a version 5 section, which also lacks the
-// layer-policy fields, and a version 4 section, with no numbers remembered
-// for deleted functions either; a version 3 section is migrated on import
+// version 7 ImageCode.DigestKind, version 8 whether a stream mapping
+// disabled itself because its stream closed (Mapping.StreamClosed), and
+// version 9 added directory code (DirCode). A version 8 section, which
+// holds no directory code, loads as is; so does a version 7 section, its
+// mappings not closed, a version 6 section, its image codes' kinds
+// unrecorded too, a version 5 section, which also lacks the layer-policy
+// fields, and a version 4 section, with no numbers remembered for deleted
+// functions either; a version 3 section is migrated on import
 // (migrateUnkindedScaling); a section of an earlier version is refused
 // (ADR 0009).
-const stateVersion = 8
+const stateVersion = 9
+
+// stateVersionNoDirCode is the version before directory code, which Import
+// still reads.
+const stateVersionNoDirCode = 8
 
 // stateVersionNoStreamClosed is the version before a stream mapping
 // recorded that it disabled itself, which Import still reads.
@@ -441,8 +446,19 @@ func (k *DigestKind) UnmarshalText(b []byte) error {
 	return fmt.Errorf("lambda: stored image digest kind %q is neither %q nor %q", b, DigestRepository, DigestImageID)
 }
 
+// DirCode is a host directory named through the hot-reload bucket
+// (S3Bucket "hot-reload", ADR 0010), which invocations run under a
+// hot-reload binding of the directory: a zip function whose package is
+// the directory as it is when an environment starts.
+type DirCode struct {
+	// Dir is the directory as hotreload.Bindable resolved it: absolute,
+	// every symbolic link resolved, as understudy sees it.
+	Dir string `json:"dir"`
+}
+
 func (ZipCode) isCode()   {}
 func (ImageCode) isCode() {}
+func (DirCode) isCode()   {}
 
 // Status is a version's provisioning status: State and LastUpdateStatus
 // together (lambda-api.md 5.1). Only Pending, Active and Failed are ever
@@ -710,6 +726,7 @@ func unions() (jsonx.Codec, error) {
 	code, err := jsonx.NewUnion("lambda.Code",
 		jsonx.Variant[Code, ZipCode]("zip"),
 		jsonx.Variant[Code, ImageCode]("image"),
+		jsonx.Variant[Code, DirCode]("dir"),
 	)
 	if err != nil {
 		return jsonx.Codec{}, fmt.Errorf("lambda state codec: %w", err)

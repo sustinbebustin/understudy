@@ -450,6 +450,54 @@ func TestDockerHotReloadEditColdStartsWithTheNewCode(t *testing.T) {
 	}
 }
 
+// A function created from the hot-reload bucket runs the directory its
+// S3Key names in a real container, and an edit cold-starts the next
+// invocation with the new code (ADR 0010).
+func TestDockerHotReloadBucketRunsTheDirectoryAndAnEditColdStarts(t *testing.T) {
+	s := newDockerStack(t)
+	dir := t.TempDir()
+	write := func(version int) {
+		if err := os.WriteFile(filepath.Join(dir, "bootstrap"), []byte(shellFiles(version)["bootstrap"]), 0o755); err != nil { //nolint:gosec // the container's user must execute it
+			t.Fatal(err)
+		}
+	}
+	write(1)
+	if err := os.Chmod(dir, 0o755); err != nil { //nolint:gosec // the container's user must read the mounted directory
+		t.Fatal(err)
+	}
+	mustDispatch(t, s, lambdaapi.OpCreateFunction, &lambdaapi.CreateFunctionInput{
+		FunctionName: "shell",
+		Role:         role,
+		Runtime:      new(lambdaapi.RuntimeProvidedal2023),
+		Handler:      new("bootstrap"),
+		Code:         lambdaapi.FunctionCode{S3Bucket: new("hot-reload"), S3Key: new(dir)},
+		MemorySize:   new(int32(128)),
+		Timeout:      new(int32(10)),
+		PackageType:  new(lambdaapi.PackageTypeZip),
+	})
+	if got := result(t, s.invoke(t, "shell", `{}`)); got["version"] != 1.0 {
+		t.Fatalf("payload = %v, want version 1 from the directory", got)
+	}
+	result(t, s.invoke(t, "shell", `{}`))
+	write(2)
+	// The watcher reports the edit once the directory stays unchanged for
+	// its quiet period; until then invocations keep running version 1.
+	reloaded, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	for {
+		got := result(t, s.invoke(t, "shell", `{}`))
+		if got["version"] == 2.0 {
+			if got["count"] != 1.0 {
+				t.Errorf("first invocation of the new code: payload %v, want count 1 from a cold start", got)
+			}
+			return
+		}
+		if reloaded.Err() != nil {
+			t.Fatalf("10 s after the edit invocations still run %v, want version 2", got)
+		}
+	}
+}
+
 // The deadline a function sees is wall time (lambda-runtime-contract.md 3),
 // so a frozen and advanced emulator clock leaves
 // get_remaining_time_in_millis() at the function's timeout.

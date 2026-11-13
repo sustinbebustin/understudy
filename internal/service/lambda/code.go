@@ -18,6 +18,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/docker"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/codestore"
+	"github.com/sustinbebustin/understudy/internal/service/lambda/hotreload"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/launcher"
 	"github.com/sustinbebustin/understudy/internal/store"
 )
@@ -45,13 +46,24 @@ type s3Source struct {
 // imageSource is a container image.
 type imageSource struct{ uri string }
 
+// dirSource is a host directory named in the hot-reload bucket, unchecked.
+type dirSource struct{ dir string }
+
 func (zipSource) isCodeSource()   {}
 func (s3Source) isCodeSource()    {}
 func (imageSource) isCodeSource() {}
+func (dirSource) isCodeSource()   {}
+
+// hotReloadBucket is the S3Bucket whose S3Key names a host directory to
+// run as the function's code instead of an object to fetch: LocalStack's
+// convention, understudy's extension (ADR 0010); AWS has no such bucket.
+const hotReloadBucket = "hot-reload"
 
 // sourceOf reads which code source the members name for a function of the
 // package type: exactly one of ZipFile, S3Bucket with S3Key, or ImageUri,
-// matching the type; S3ObjectVersion goes with an S3 location.
+// matching the type; S3ObjectVersion goes with an S3 location. An S3
+// location in hotReloadBucket is a directory, whose S3ObjectVersion is
+// ignored.
 func sourceOf(packageType lambdaapi.PackageType, zipFile []byte, bucket, key, version, imageURI *string) (codeSource, *awserr.Error) {
 	hasZip, hasS3, hasImage := zipFile != nil, bucket != nil || key != nil, imageURI != nil
 	switch {
@@ -65,9 +77,26 @@ func sourceOf(packageType lambdaapi.PackageType, zipFile []byte, bucket, key, ve
 	case packageType == lambdaapi.PackageTypeZip && hasZip && !hasS3 && !hasImage:
 		return zipSource{bytes: zipFile}, nil
 	case packageType == lambdaapi.PackageTypeZip && hasS3 && bucket != nil && key != nil && !hasZip && !hasImage:
+		if *bucket == hotReloadBucket {
+			return dirSource{dir: *key}, nil
+		}
 		return s3Source{bucket: *bucket, key: *key, version: version}, nil
 	}
 	return nil, errCodeSource(string(packageType))
+}
+
+// dirCode checks the directory src names as a binding made through the
+// admin API is checked (hotreload.Bindable), under the configured roots,
+// since the Lambda API may be reachable by more callers than the admin API
+// (ARCHITECTURE.md 14.4). A refusal is InvalidParameterValueException
+// naming the check.
+func (s *Service) dirCode(src dirSource) (DirCode, *awserr.Error) {
+	dir, refusal := hotreload.Bindable(src.dir, s.opts.HotReloadRoots)
+	if refusal != nil {
+		return DirCode{}, user(lambdaapi.ErrInvalidParameterValueException("The " + hotReloadBucket + " bucket's S3Key names a directory to run, but " +
+			refusal.Message + "; nothing was stored. To fix it, " + refusal.Hint + "."))
+	}
+	return DirCode{Dir: dir}, nil
 }
 
 // checkZip checks a package sent inline: at most maxZipped bytes, and an

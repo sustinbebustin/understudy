@@ -360,6 +360,27 @@ understudy lambda hot-reload: /work/private is not under a directory lambda.hotR
 
 Bindings in `lambda.hotReload` are not checked. See [Hot-reload roots](../configuration.md#hot-reload-roots).
 
+### The `hot-reload` bucket
+
+A configuration written for LocalStack works unchanged: code in the bucket `hot-reload`, with an absolute directory as its key, is that directory, run under a hot-reload binding instead of fetched from S3. AWS has no such bucket; this is understudy's extension.
+
+```sh
+aws lambda create-function --function-name hello --runtime provided.al2023 --handler bootstrap \
+  --role arn:aws:iam::000000000000:role/lambda-role --code S3Bucket=hot-reload,S3Key=$PWD/fn
+```
+
+In Terraform, `s3_bucket = "hot-reload"` and `s3_key = abspath("fn")` do the same. `UpdateFunctionCode` takes the bucket too. Edits cold-start the next invoke, as with any binding. The function reports a `CodeSha256` derived from the path rather than the contents, so it stays the same across edits and a second `plan` stays empty. `GetFunction` reports `RepositoryType` `S3` with no `Location`, since there is no package to download. The directory is saved with snapshots and bound again after a reset or load. A binding made with `understudy lambda hot-reload` or `lambda.hotReload` wins over it.
+
+The directory passes the checks `understudy lambda hot-reload` applies, `lambda.hotReloadRoots` included, since the Lambda API may be reachable by more callers than the admin API. A refused directory stores nothing:
+
+```console
+$ aws lambda create-function --function-name bad --runtime provided.al2023 --handler bootstrap \
+  --role arn:aws:iam::000000000000:role/lambda-role --code S3Bucket=hot-reload,S3Key=fn
+An error occurred (InvalidParameterValueException) when calling the CreateFunction operation: The hot-reload bucket's S3Key names a directory to run, but "fn" is not an absolute path; nothing was stored. To fix it, give the directory's absolute host path, such as $PWD/build.
+```
+
+When understudy runs in a container, the key is the path as understudy's own container sees it, as for other bindings.
+
 ## Event sources and triggers
 
 - **SQS event source mappings**: batch size, batching window (on the emulator clock), filter criteria, `ReportBatchItemFailures` and redrive to the queue's dead-letter queue after `maxReceiveCount`, as AWS does them.
@@ -413,5 +434,4 @@ On a Linux host functions reach only the AWS API and the read-only health and cl
 - `EphemeralStorage` is validated but not enforced. Reserved concurrency is enforced; the provisioned concurrency operations answer 501.
 - AWS-published layers, such as Powertools, exist only once you publish their content to understudy ([Layers](#layers)).
 - An alias's weighted routing is stored but not applied: an invoke always runs the primary version.
-- The LocalStack convention of creating a function from the `hot-reload` bucket is not supported; use `understudy lambda hot-reload` or the configuration file.
 - A fault rule scoped to a resource matches Lambda's `Invoke` only; scope rules on other Lambda operations by operation, account or region.

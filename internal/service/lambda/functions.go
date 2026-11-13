@@ -131,7 +131,17 @@ func (s *Service) createFunction(ctx context.Context, c *kernel.Call, in *lambda
 		return nil, err
 	}
 	touch(c, ref.arn())
+	s.syncCode(ref.scope)
 	return &out, nil
+}
+
+// syncCode tells the Execution, after a committed call that changed the
+// code of functions in scope, to bind the directories they store as code
+// and end the bindings no version names.
+func (s *Service) syncCode(scope aws.Scope) {
+	if s.codeChanged != nil {
+		s.codeChanged(scope)
+	}
 }
 
 // holdForPublish retains, before a write that changes $LATEST and then
@@ -172,6 +182,8 @@ func (s *Service) newCode(ctx context.Context, c *kernel.Call, src codeSource) (
 		return s.storeZip(ctx, b, unzipped)
 	case imageSource:
 		return ImageCode{URI: src.uri}, nil
+	case dirSource:
+		return s.dirCode(src)
 	}
 	return nil, errCodeSource(string(lambdaapi.PackageTypeZip))
 }
@@ -213,6 +225,11 @@ func renderCodeLocation(e kernel.Endpoint, scope aws.Scope, function string, v V
 			out.ResolvedImageUri = new(launcher.Repository(code.URI) + "@sha256:" + digest)
 		}
 		return out
+	case DirCode:
+		// No package exists to link to; LocalStack's answer for a
+		// hot-reload function is unrecorded, so the repository type is the
+		// zip functions' and Location is left out.
+		return &lambdaapi.FunctionCodeLocation{RepositoryType: new("S3")}
 	}
 	return &lambdaapi.FunctionCodeLocation{}
 }
@@ -542,6 +559,7 @@ func (s *Service) updateFunctionCode(ctx context.Context, c *kernel.Call, in *la
 	}
 	s.release(ctx, res.released...)
 	touch(c, ref.arn())
+	s.syncCode(ref.scope)
 	s.hotReloadAdvisory(ctx, c, ref)
 	return &res.out, nil
 }
@@ -612,6 +630,12 @@ func (s *Service) dryRunCode(ctx context.Context, c *kernel.Call, ref functionRe
 			return nil, err
 		}
 		code = ZipCode{Unzipped: unzipped}
+	case dirSource:
+		dir, err := s.dirCode(src)
+		if err != nil {
+			return nil, err
+		}
+		code = dir
 	case imageSource:
 	}
 	return store.View2(s.cells, ref.scope, func(st *State) (*lambdaapi.FunctionConfiguration, *awserr.Error) {
@@ -665,6 +689,7 @@ func (s *Service) deleteFunction(ctx context.Context, c *kernel.Call, in *lambda
 	}
 	s.release(ctx, released...)
 	touch(c, ref.arn())
+	s.syncCode(ref.scope)
 	return &lambdaapi.DeleteFunctionOutput{}, nil
 }
 

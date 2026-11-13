@@ -95,8 +95,9 @@ const sectionChoices = `
   lambda.hotReload           functions whose code is read from a host directory; account and
                              region may be left out
   lambda.hotReloadRoots      directories a binding made with 'understudy lambda hot-reload'
-                             must resolve under; unset allows any directory the user
-                             running understudy owns. lambda.hotReload is not checked
+                             or code in the hot-reload bucket must resolve under; unset
+                             allows any directory the user running understudy owns.
+                             lambda.hotReload is not checked
   sqs.queueDeletedRecently   ignore or enforce
   ses.verifiedIdentities     SES identities that start verified when created, in any account
                              and region: exact addresses (case-sensitive), domains, and

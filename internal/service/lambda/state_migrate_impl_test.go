@@ -4,9 +4,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/blob"
+	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/service/lambda/esm"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
+	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // unkindedSection is a version 3 section: an SQS mapping and a stream
@@ -168,6 +171,47 @@ func TestLayerPolicyFieldsRoundTripAndDefaultInAVersion5Section(t *testing.T) {
 	if n := old.reclaimVersions("gone"); n != 3 {
 		t.Errorf("LastVersion of gone created after loading a version 5 section = %d, want 3", n)
 	}
+}
+
+// Directory code is saved with the state, on $LATEST and on a published
+// version alike.
+func TestDirCodeRoundTrip(t *testing.T) {
+	st := newState(kindScope(t))
+	code := DirCode{Dir: "/srv/builds/fn"}
+	st.Functions["fn"] = Function{Name: "fn", Latest: Version{Number: latest, Code: code}, Versions: []Version{{Number: "1", Code: code}}, LastVersion: 1}
+	data, err := stateCodec().Marshal(&st)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	got := newState(kindScope(t))
+	if err := stateCodec().Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal %s: %v", data, err)
+	}
+	f := got.Functions["fn"]
+	if f.Latest.Code != code || len(f.Versions) != 1 || f.Versions[0].Code != code {
+		t.Errorf("after a round trip $LATEST code = %#v, versions %+v; want %#v on both", f.Latest.Code, f.Versions, code)
+	}
+}
+
+// A version 8 section, written before directory code existed, loads as is.
+func TestVersion8SectionLoads(t *testing.T) {
+	kerneltest.Run(t, func(k *kerneltest.K) {
+		svc := New(k.Deps(lambdaapi.Service()), Options{})
+		section := store.Section{
+			Path: "000000000000/us-east-1.json", Version: 8,
+			Data: []byte(`{"functions":{"fn":{"name":"fn","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":2,"generation":1}},"serial":3}`),
+		}
+		if err := svc.Import([]store.Section{section}); err != nil {
+			t.Fatalf("Import of a version 8 section: %v", err)
+		}
+		cell, ok := svc.cells.Lookup(kindScope(t))
+		if !ok {
+			t.Fatal("no state for the section's scope after the import")
+		}
+		if n := store.Read(cell, func(st *State) int { return st.Functions["fn"].LastVersion }); n != 2 {
+			t.Errorf("fn LastVersion after loading a version 8 section = %d, want 2", n)
+		}
+	}, kerneltest.Services(lambdaapi.Service()))
 }
 
 // An image code keeps the kind of its digest across a save and load, so

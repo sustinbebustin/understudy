@@ -165,6 +165,9 @@ type Execution struct {
 	running  *concurrency
 	groups   logGroups
 	overlays *overlays
+	// codeSync orders syncCode's calls, so one never ends a binding
+	// another's newer reading of the state wants.
+	codeSync sync.Mutex
 	async    kernel.HandledKind
 	queues   *store.Partitioned[aws.Scope, asyncQueue]
 
@@ -230,6 +233,7 @@ func NewExecution(svc *Service, d kernel.ServiceDeps, o ExecutionOptions) (*Exec
 	}
 	x.async = d.Kernel.Timers().Handle(TimerAsync, x.onAsync)
 	svc.overlayDir = x.overlays.dirOf
+	svc.codeChanged = func(scope aws.Scope) { x.syncCode(func(s aws.Scope) bool { return s == scope }) }
 	// A delivery is authorized at step 8, as every call is, so one to a
 	// deleted function is denied before the function is looked up
 	// (lambda.enforce.missing-resource.delivery deny-first;
@@ -698,6 +702,16 @@ func (x *Execution) lease(ctx context.Context, r *run, fn fnVersion) (leased, *a
 		if layers := t.version.Config.Layers; len(layers) > 0 {
 			w.trees = append(w.trees, layersKey(layers))
 		}
+	case DirCode:
+		var err error
+		//nolint:contextcheck // the binding outlives the invocation; it ends with syncCode or Close
+		if overlayDir, w.overlay, err = x.codeDir(fnKey{scope: fn.scope, name: fn.name}, code.Dir); err != nil {
+			return leased{}, errService(fmt.Sprintf("Lambda could not run %s from the hot-reload directory %s its code names: %v. "+
+				"Recreate the directory, or point the function at another with UpdateFunctionCode.", fn.arn(), code.Dir, err))
+		}
+		if layers := t.version.Config.Layers; len(layers) > 0 {
+			w.trees = append(w.trees, layersKey(layers))
+		}
 	case ImageCode:
 	}
 	s, gen, err := x.envs.lease(fn, w)
@@ -934,8 +948,8 @@ func (s *Service) hotReloadAdvisory(ctx context.Context, c *kernel.Call, fn func
 	}
 	sha, err := store.View2(s.cells, fn.scope, func(st *State) (string, *awserr.Error) {
 		if f, ok := st.Functions[fn.name]; ok {
-			if z, ok := f.Latest.Code.(ZipCode); ok {
-				return z.Sha256, nil
+			if _, image := f.Latest.Code.(ImageCode); !image {
+				return codeSha256(f.Latest.Code), nil
 			}
 		}
 		return "", nil

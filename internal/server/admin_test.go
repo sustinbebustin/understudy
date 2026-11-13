@@ -458,8 +458,8 @@ func TestAdminSnapshotLoadsTheOlderSectionVersionsServicesRead(t *testing.T) {
 			`"mappings":{"q":{"uuid":"q","source":"arn:aws:sqs:us-east-1:000000000000:orders","sourceKind":{"kind":"sqs"},"function":"f3","batchSize":10,"window":0,` +
 			`"scaling":{"kind":"maximum-concurrency","n":3},"enabled":false}}}`)}
 	// Lambda version 4 kept no deleted function's number, version 5 no
-	// layer policy history, version 6 no image digest kind, and version 7
-	// no stream mapping's self-disable.
+	// layer policy history, version 6 no image digest kind, version 7 no
+	// stream mapping's self-disable, and version 8 no directory code.
 	lambda4 := store.Section{Path: "services/lambda/000000000000/us-east-1.json", Version: 4, Data: []byte(
 		`{"functions":{"f4":{"name":"f4","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":3,"generation":1}},"serial":7}`)}
 	lambda5 := store.Section{Path: "services/lambda/000000000000/us-east-1.json", Version: 5, Data: []byte(
@@ -468,6 +468,8 @@ func TestAdminSnapshotLoadsTheOlderSectionVersionsServicesRead(t *testing.T) {
 		`{"functions":{"f6":{"name":"f6","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":1,"generation":1}},"retiredVersions":{"gone":2},"serial":7}`)}
 	lambda7 := store.Section{Path: "services/lambda/000000000000/us-east-1.json", Version: 7, Data: []byte(
 		`{"functions":{"f7":{"name":"f7","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":1,"generation":1}},"retiredVersions":{"gone":2},"serial":7}`)}
+	lambda8 := store.Section{Path: "services/lambda/000000000000/us-east-1.json", Version: 8, Data: []byte(
+		`{"functions":{"f8":{"name":"f8","created":"2000-01-01T00:00:00Z","latest":{"number":"$LATEST"},"lastVersion":1,"generation":1}},"retiredVersions":{"gone":2},"serial":7}`)}
 
 	if _, err := c.LoadSnapshot(t.Context(), withSections(t, base.Bytes(), dynamodb3, lambda3)); err != nil {
 		t.Fatalf("loading DynamoDB and Lambda version 3 sections: %v", err)
@@ -482,7 +484,7 @@ func TestAdminSnapshotLoadsTheOlderSectionVersionsServicesRead(t *testing.T) {
 	for _, sec := range []struct {
 		section  store.Section
 		function string
-	}{{lambda4, "f4"}, {lambda5, "f5"}, {lambda6, "f6"}, {lambda7, "f7"}} {
+	}{{lambda4, "f4"}, {lambda5, "f5"}, {lambda6, "f6"}, {lambda7, "f7"}, {lambda8, "f8"}} {
 		if _, err := c.LoadSnapshot(t.Context(), withSections(t, base.Bytes(), sec.section)); err != nil {
 			t.Fatalf("loading a Lambda version %d section: %v", sec.section.Version, err)
 		}
@@ -500,7 +502,7 @@ func TestAdminSnapshotLoadsTheOlderSectionVersionsServicesRead(t *testing.T) {
 			t.Errorf("refusing version %d: message %q does not name the section's version and the versions read", version, e.Message)
 		}
 	}
-	if arns := resourceARNs(t, c); !slices.Contains(arns, "arn:aws:lambda:us-east-1:000000000000:function:f7") {
+	if arns := resourceARNs(t, c); !slices.Contains(arns, "arn:aws:lambda:us-east-1:000000000000:function:f8") {
 		t.Errorf("a refused load changed the state: resources %q", arns)
 	}
 }

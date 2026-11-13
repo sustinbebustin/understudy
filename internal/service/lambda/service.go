@@ -51,6 +51,11 @@ type Service struct {
 	// overlay, false when none: the Execution's overlays, which
 	// NewExecution sets before any call is served; nil without one.
 	overlayDir func(fnKey) (string, bool)
+	// codeChanged follows a committed call that changed which code the
+	// functions of a scope store, so the Execution binds the directories
+	// stored as code and ends the bindings no version names; set by
+	// NewExecution, nil without one.
+	codeChanged func(aws.Scope)
 }
 
 // The service is the snapshot and reset view of its state.
@@ -264,14 +269,14 @@ func (s *Service) Export() ([]store.Section, error) {
 }
 
 // Import loads sections written by Export of this schema version or of
-// version 7, 6, 5 or 4, which read as this version without the optional
-// fields added since, or of version 3, which it migrates first
+// version 8, 7, 6, 5 or 4, which read as this version without what was
+// added since, or of version 3, which it migrates first
 // (migrateUnkindedScaling).
 func (s *Service) Import(ss []store.Section) error {
 	out := make([]store.Section, 0, len(ss))
 	for _, sec := range ss {
 		switch sec.Version {
-		case stateVersionNoStreamClosed, stateVersionNoDigestKinds, stateVersionUnmeasuredLayerPolicies, stateVersionNoRetiredVersions:
+		case stateVersionNoDirCode, stateVersionNoStreamClosed, stateVersionNoDigestKinds, stateVersionUnmeasuredLayerPolicies, stateVersionNoRetiredVersions:
 			sec.Version = stateVersion
 		case stateVersionUnkindedScaling:
 			data, err := migrateUnkindedScaling(sec.Data)

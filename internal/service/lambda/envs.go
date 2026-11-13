@@ -357,8 +357,9 @@ func parseRole(role aws.ARN) (identity.RoleRef, aws.AccountID, error) {
 
 // spec is the container spec of t's environments for slot s in execution
 // generation gen: the function's configuration, its runtime's pinned base
-// image or the image digest its last deployment recorded, its code (the
-// hot-reload overlay's directory when one is active), the merged tree of
+// image or the image digest its last deployment recorded, its code
+// (overlayDir, the hot-reload directory lease found, when not empty;
+// always for directory code), the merged tree of
 // its layers and the slot's credentials.
 func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, overlayDir string) (launcher.Spec, error) {
 	cfg := t.version.Config
@@ -378,14 +379,18 @@ func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, ov
 	}
 	switch code := t.version.Code.(type) {
 	case ZipCode:
-		img, ok := launcher.ImageForRuntime(cfg.Runtime)
-		if !ok {
-			return launcher.Spec{}, fmt.Errorf("understudy pins no base image for the runtime %s; the runtimes it runs are listed by `understudy images pull --help`", cfg.Runtime)
+		dir := overlayDir
+		if dir == "" {
+			if dir, err = x.trees.dir(ctx, code); err != nil {
+				return launcher.Spec{}, err
+			}
 		}
-		if spec.Image, err = x.resolveImage(ctx, arch, img.Ref()); err != nil {
+		if spec.Image, spec.Code, err = x.zipCode(ctx, dir, cfg, arch); err != nil {
 			return launcher.Spec{}, err
 		}
-		if spec.Code, err = x.zipCode(ctx, code, cfg, overlayDir); err != nil {
+	case DirCode:
+		// lease binds the directory, or names the overlay that wins over it.
+		if spec.Image, spec.Code, err = x.zipCode(ctx, overlayDir, cfg, arch); err != nil {
 			return launcher.Spec{}, err
 		}
 	case ImageCode:
@@ -401,24 +406,26 @@ func (x *Execution) spec(ctx context.Context, t *target, s *slot, gen uint64, ov
 	return spec, nil
 }
 
-// zipCode is how a zip function's code and layers reach its container:
-// the overlay's directory or the package's extracted tree at /var/task,
-// and the merged tree of cfg's layers, in order, at /opt
-// (lambda-destinations-layers.md 8.1, 11.5).
-func (x *Execution) zipCode(ctx context.Context, code ZipCode, cfg Config, overlayDir string) (launcher.ZipCode, error) {
-	out := launcher.ZipCode{Dir: overlayDir, Handler: cfg.Handler}
-	var err error
-	if out.Dir == "" {
-		if out.Dir, err = x.trees.dir(ctx, code); err != nil {
-			return launcher.ZipCode{}, err
-		}
+// zipCode is the image and code of a zip function whose code is dir: its
+// runtime's pinned base image, dir (a hot-reload directory or the
+// package's extracted tree) at /var/task, and the merged tree of cfg's
+// layers, in order, at /opt (lambda-destinations-layers.md 8.1, 11.5).
+func (x *Execution) zipCode(ctx context.Context, dir string, cfg Config, arch launcher.Architecture) (string, launcher.ZipCode, error) {
+	img, ok := launcher.ImageForRuntime(cfg.Runtime)
+	if !ok {
+		return "", launcher.ZipCode{}, fmt.Errorf("understudy pins no base image for the runtime %s; the runtimes it runs are listed by `understudy images pull --help`", cfg.Runtime)
 	}
+	image, err := x.resolveImage(ctx, arch, img.Ref())
+	if err != nil {
+		return "", launcher.ZipCode{}, err
+	}
+	out := launcher.ZipCode{Dir: dir, Handler: cfg.Handler}
 	if len(cfg.Layers) > 0 {
 		if out.Opt, err = x.trees.opt(ctx, cfg.Layers); err != nil {
-			return launcher.ZipCode{}, err
+			return "", launcher.ZipCode{}, err
 		}
 	}
-	return out, nil
+	return image, out, nil
 }
 
 // functionEnvironment is the function's Environment.Variables over the

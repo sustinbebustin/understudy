@@ -182,10 +182,13 @@ func (x *Execution) StartPollers() {
 // poller of a mapping that is gone stops, and every poller steps at once,
 // so a batching window or retry whose timer was cleared still ends. A
 // poller whose mapping was replaced gives back the batch it held, which
-// came from the state before. It also ends the hold Drain put on
+// came from the state before. It binds the hot-reload directories the
+// state's functions store as code again and ends the bindings of those no
+// version names any more (syncCode). It also ends the hold Drain put on
 // invocations, as the state is replaced by now. Call it after every
 // service's Rearm.
 func (x *Execution) RearmPollers() {
+	x.syncCode(func(aws.Scope) bool { return true })
 	x.running.resume()
 	x.k.Waiters().Wake(mappingsChanged)
 }
