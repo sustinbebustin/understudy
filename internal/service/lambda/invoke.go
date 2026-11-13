@@ -905,11 +905,6 @@ func errClientContext(problem string) *awserr.Error {
 	return user(lambdaapi.ErrInvalidRequestContentException("X-Amz-Client-Context " + problem + "; send the base64 encoding of a JSON object of at most " + strconv.Itoa(maxClientContext) + " bytes."))
 }
 
-// Drain has nothing to stop on the Service: execution environments,
-// asynchronous queues and hot-reload overlays belong to the Execution built
-// for it, which is the admin API's Drainer.
-func (*Service) Drain(context.Context, kernel.ResetScope) error { return nil }
-
 // hotReloadAdvisory runs after a committed UpdateFunctionCode of the
 // function fn names: when a hot-reload overlay runs instead of the zip
 // code just stored, the call records journal.AdvisoryShadowedCodeUpdate
