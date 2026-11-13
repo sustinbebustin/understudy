@@ -42,10 +42,13 @@ type toUnknown struct {
 
 // toRaw is a raw operation claimed by S3 Control's account host (rule 3).
 // errors renders the errors its handler returns; nil means the codec of the
-// operation's service.
+// operation's service. answeredBy is the service whose answers the
+// operation's take when it is not the operation's own, as S3 Control
+// answers S3's raw tag operations; "" means the operation's service.
 type toRaw struct {
-	op     *registry.Operation
-	errors Codec
+	op         *registry.Operation
+	errors     Codec
+	answeredBy ref.ServiceID
 }
 
 // toLink is a raw operation serving a link understudy hands out for a
@@ -506,8 +509,12 @@ func (c *claimer) s3Control() (route, bool) {
 		c.decline(3, "%s %s is S3 Control's %s, but no raw s3.%s operation is registered", c.r.Method, c.path, name, name)
 		return unclaimed{reasons: c.reasons}, true
 	}
-	return toRaw{op: op, errors: c.h.opts.S3Control}, true
+	return toRaw{op: op, errors: c.h.opts.S3Control, answeredBy: s3ControlService}, true
 }
+
+// s3ControlService is the service id of S3 Control, which answers the
+// operations rule 3 claims.
+const s3ControlService ref.ServiceID = "s3control"
 
 // smithyProtocolPath matches rpcv2Cbor's /service/<Name>/operation/<Op>,
 // after any path prefix, which the protocol allows and the codec ignores.

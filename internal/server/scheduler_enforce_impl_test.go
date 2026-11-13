@@ -394,6 +394,31 @@ func TestSchedulerKMSKeyMissingIsAccepted(t *testing.T) {
 	}
 }
 
+// The least-privilege loop for a schedule with a KmsKeyArn: under advise
+// the role session's kms:Decrypt on the key, asked before the target call
+// (scheduler.md 14.11), is access-recorded for the execution role, so the
+// policy /iam/policy writes for the role grants it beside the target's
+// sqs:SendMessage (iam-enforcement-surfaces.md 12.6), on the key pattern
+// with the minted key id wildcarded (access.MintedPattern).
+func TestSchedulerKMSKeyDecryptIsGrantedByTheRolesGeneratedPolicy(t *testing.T) {
+	const keys = "arn:aws:kms:us-east-1:000000000000:key/*"
+	c, endpoint, _ := enforced(t, server.IAMEnforceAdvise)
+	schQueues(t, endpoint)
+	schRoleTrusting(t, endpoint, schTrust)
+	key := createKey(t, endpoint)
+	if w := schCall(t, dummy, endpoint, http.MethodPost, "/schedules/s", schSchedule(`,"KmsKeyArn":"`+key+`"`)); w.status != http.StatusOK {
+		t.Fatalf("create = %d %s", w.status, w.body)
+	}
+	schAdvance(t, c)
+	if got := queueBodies(t, c, endpoint, "target"); !slices.Contains(got, "hello") {
+		t.Fatalf("the target holds %q, want the invocation under advise", got)
+	}
+	got := granted(t, c, schRole)
+	if !slices.Equal(got[keys], []string{"kms:Decrypt"}) || !slices.Equal(got[schTarget], []string{"sqs:SendMessage"}) {
+		t.Errorf("/iam/policy for %s grants %v, want kms:Decrypt on %s and sqs:SendMessage on %s", schRole, got, keys, schTarget)
+	}
+}
+
 const principalScheduler = "scheduler.amazonaws.com"
 
 // A role session needs no grant in the target's resource policy

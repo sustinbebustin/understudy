@@ -269,13 +269,13 @@ func fixReasons(m document.Map) bool {
 	if !ok {
 		return false
 	}
+	byName := func(a, b document.Entry) int { return strings.Compare(a.Key, b.Key) }
 	changed := false
 	for _, r := range reasons {
 		reason, ok := r.(document.Map)
 		if !ok {
 			continue
 		}
-		byName := func(a, b document.Entry) int { return strings.Compare(a.Key, b.Key) }
 		if !slices.IsSortedFunc(reason, byName) {
 			slices.SortStableFunc(reason, byName)
 			changed = true

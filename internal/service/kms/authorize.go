@@ -32,9 +32,6 @@ const keyIDResolvedFirst = "under iam.enforce, a key that does not exist answers
 // otherwise fully implemented.
 func keyIDPartial() registry.Partial { return registry.Partial{Note: keyIDResolvedFirst} }
 
-// withKeyID is note followed by keyIDResolvedFirst.
-func withKeyID(note string) string { return note + "; " + keyIDResolvedFirst }
-
 // mintedOnAnyResource is the coverage note of the operations whose first
 // use of an alias/aws/<service> alias creates the AWS managed key it names
 // (keyFor): the call is authorized and access-recorded before the key
@@ -49,8 +46,7 @@ const mintedOnAnyResource = "the first use of an alias/aws/<service> alias, whic
 // (iam-evaluation.md 2.1, 4): an operation that takes a key id or key ARN
 // only is asked about that key at step 8, once a key that does not exist
 // answered NotFoundException (kernel.ResolveFirst); one that also takes an
-// alias is
-// asked about the key the alias names once KMS resolved it
+// alias is asked about the key the alias names once KMS resolved it
 // (kernel.AuthorizedAfterResolve), Decrypt and ReEncrypt also about the key
 // the ciphertext names; an alias operation about the alias and its keys. It
 // runs after the bind sites, whose bindings it extends.
@@ -113,21 +109,25 @@ func (s *Service) declareAuthorization(b *kernel.Binder) {
 // and the handler answers it. A key that does not exist answers
 // NotFoundException before authorization (keyIDResolvedFirst).
 func keyNamed[In any](s *Service, id func(*In) string) kernel.BindOption {
+	// named is the key the reference names; the options share no state, so
+	// each parses it.
+	named := func(c *kernel.Call, in *In) (keyByID, bool) {
+		r, err := parseKeyID(c, id(in))
+		return r, err == nil
+	}
 	return kernel.BindOptions(
 		kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
-			r, err := parseKeyID(c, id(in))
-			if err != nil {
-				return nil
+			if r, ok := named(c, in); ok {
+				return []aws.ARN{keyARN(r.in, r.id)}
 			}
-			return []aws.ARN{keyARN(r.in, r.id)}
+			return nil
 		}),
 		kernel.ResolveFirst(func(_ context.Context, c *kernel.Call, in *In) *awserr.Error {
-			r, err := parseKeyID(c, id(in))
-			if err != nil {
-				return nil
+			if r, ok := named(c, in); ok {
+				_, err := lookup(s, r)
+				return err
 			}
-			_, err = lookup(s, r)
-			return err
+			return nil
 		}))
 }
 

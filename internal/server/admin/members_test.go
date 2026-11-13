@@ -103,9 +103,10 @@ func TestTransactionCanceledRuleThroughTheAdminAPI(t *testing.T) {
 		r := httptest.NewRequestWithContext(k.Context(), http.MethodPost, "/", http.NoBody)
 		resp := awsjson.Codec{Version: awsjson.V10}.EncodeError(r, dynamodbapi.Service(), "rid", e)
 		msg := "Transaction cancelled, please refer cancellation reasons for specific reasons [None, TransactionConflict, None]"
-		// AWS's key is Message (smithy-protocol-tests.md 12.4, PROTO-01).
-		want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","Message":"` + msg + `",` +
-			`"CancellationReasons":[{"Code":"None"},` + conflictReason + `,{"Code":"None"}]}`
+		// AWS's key is Message, after the reasons (smithy-protocol-tests.md
+		// 12.4, PROTO-01).
+		want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException",` +
+			`"CancellationReasons":[{"Code":"None"},` + conflictReason + `,{"Code":"None"}],"Message":"` + msg + `"}`
 		if resp.Status != http.StatusBadRequest || string(resp.Body) != want {
 			k.Errorf("the cancelled call answers %d %s\nwant 400 %s", resp.Status, resp.Body, want)
 		}

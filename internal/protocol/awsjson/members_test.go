@@ -58,15 +58,16 @@ func dynamoRequest() *http.Request {
 }
 
 // A TransactionCanceledException carrying its reasons answers 400 with
-// __type in DynamoDB's wire namespace, the message under the shape's key,
-// then the reasons as the output serializer writes them
-// (smithy-protocol-tests.md 11.2, 12.1, 12.4).
+// __type in DynamoDB's wire namespace, the reasons as the output
+// serializer writes them, then the message under the shape's key: AWS's
+// member order (smithy-protocol-tests.md 11.2, 12.1, 12.4,
+// testdata/parity/dynamodb/PROTO-01/01-ccf-then-put.json).
 func TestTransactionCanceledWireForm(t *testing.T) {
 	id := dynamodbapi.IdentityTransactionCanceledException()
 	e := dynamodbapi.ErrTransactionCanceledExceptionMembers(paddedMessage, dynamodbapi.TransactionCanceledException{CancellationReasons: paddedReasons()})
 	resp := awsjson.Codec{Version: awsjson.V10}.EncodeError(dynamoRequest(), dynamodbapi.Service(), requestID, e)
-	want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","` + messageKey(t, id) + `":"` + paddedMessage + `",` +
-		`"CancellationReasons":` + paddedReasonsJSON + `}`
+	want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException",` +
+		`"CancellationReasons":` + paddedReasonsJSON + `,"` + messageKey(t, id) + `":"` + paddedMessage + `"}`
 	if resp.Status != http.StatusBadRequest || string(resp.Body) != want {
 		t.Errorf("EncodeError = %d %s\nwant 400 %s", resp.Status, resp.Body, want)
 	}
@@ -81,8 +82,8 @@ func TestTransactionCanceledWireForm(t *testing.T) {
 // A structure nested in an error body has its members sorted by name, as
 // AWS writes a reason carrying Item: Code, Item, Message, where the model's
 // order is Item, Code, Message (smithy-protocol-tests.md 12.4,
-// testdata/parity/dynamodb/PROTO-04/01-ccf-all-old.json). The envelope and
-// the top-level members keep their order.
+// testdata/parity/dynamodb/PROTO-04/01-ccf-all-old.json). The top-level
+// members keep their order, before the message.
 func TestNestedErrorStructuresAreSortedByName(t *testing.T) {
 	id := dynamodbapi.IdentityTransactionCanceledException()
 	const message = "Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]"
@@ -95,22 +96,22 @@ func TestNestedErrorStructuresAreSortedByName(t *testing.T) {
 		{Code: new("None")},
 	}})
 	resp := awsjson.Codec{Version: awsjson.V10}.EncodeError(dynamoRequest(), dynamodbapi.Service(), requestID, e)
-	want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","` + messageKey(t, id) + `":"` + message + `",` +
-		`"CancellationReasons":[{"Code":"ConditionalCheckFailed","Item":{"pk":{"S":"held"}},"Message":"The conditional request failed"},{"Code":"None"}]}`
+	want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException",` +
+		`"CancellationReasons":[{"Code":"ConditionalCheckFailed","Item":{"pk":{"S":"held"}},"Message":"The conditional request failed"},{"Code":"None"}],` +
+		`"` + messageKey(t, id) + `":"` + message + `"}`
 	if string(resp.Body) != want {
 		t.Errorf("EncodeError body = %s\nwant %s", resp.Body, want)
 	}
 }
 
-// Flat Fields still go out, after the value's members (the envelope, then
-// the structure's members, smithy-protocol-tests.md 11.2).
+// Flat Fields still go out, after the value's members and the message.
 func TestFieldsFollowTheMembers(t *testing.T) {
 	id := dynamodbapi.IdentityTransactionCanceledException()
 	e := dynamodbapi.ErrTransactionCanceledExceptionMembers(paddedMessage, dynamodbapi.TransactionCanceledException{CancellationReasons: paddedReasons()})
 	e.Fields = append(e.Fields, awserr.Field{Name: "Extra", Value: "x"})
 	resp := awsjson.Codec{Version: awsjson.V10}.EncodeError(dynamoRequest(), dynamodbapi.Service(), requestID, e)
-	want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","` + messageKey(t, id) + `":"` + paddedMessage + `",` +
-		`"CancellationReasons":` + paddedReasonsJSON + `,"Extra":"x"}`
+	want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException",` +
+		`"CancellationReasons":` + paddedReasonsJSON + `,"` + messageKey(t, id) + `":"` + paddedMessage + `","Extra":"x"}`
 	if string(resp.Body) != want {
 		t.Errorf("EncodeError body = %s\nwant %s", resp.Body, want)
 	}
@@ -126,7 +127,7 @@ func TestTheValuesMessageMemberIsNeverWritten(t *testing.T) {
 	for _, c := range []struct {
 		message, want string
 	}{
-		{"error text", `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","` + key + `":"error text",` + reasons + `}`},
+		{"error text", `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException",` + reasons + `,"` + key + `":"error text"}`},
 		{"", `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException",` + reasons + `}`},
 	} {
 		v := dynamodbapi.TransactionCanceledException{

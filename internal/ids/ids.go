@@ -87,9 +87,9 @@ func (r RequestID) Version5() RequestID {
 	return r[:versionNibble] + "5" + r[versionNibble+1:]
 }
 
-// crockfordAlphabet is Crockford's base32: digits and capitals without I,
-// L, O and U.
-const crockfordAlphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+// crockford is Crockford's base32: digits and capitals without I, L, O
+// and U.
+var crockford = base32.NewEncoding("0123456789ABCDEFGHJKMNPQRSTVWXYZ") //nolint:gochecknoglobals // a constant value; Go has no struct constants.
 
 // S3Form is the request id in S3's form: 16 characters of Crockford's
 // base32, as every x-amz-request-id under testdata/parity/s3 is. They
@@ -103,7 +103,7 @@ func (r RequestID) S3Form() RequestID {
 		return r
 	}
 	// Ten bytes are 80 bits, 16 characters with no padding.
-	return RequestID(base32.NewEncoding(crockfordAlphabet).EncodeToString(slices.Concat(b[0:6], b[10:14])))
+	return RequestID(crockford.EncodeToString(slices.Concat(b[0:6], b[10:14])))
 }
 
 // ForService is the request id as the service named service answers with

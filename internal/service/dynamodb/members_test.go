@@ -92,11 +92,11 @@ func TestTransactionRulesCountTheRequestItems(t *testing.T) {
 					h.Errorf("a 1-item call = %d %s, want it forwarded to Local", got.Status, got.Body)
 				}
 				got := h.call(tx.op.ID.Name, tx.body(3))
-				// AWS's top-level message key is Message
-				// (smithy-protocol-tests.md 12.4, PROTO-01).
-				want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","Message":` +
-					`"Transaction cancelled, please refer cancellation reasons for specific reasons [None, TransactionConflict, None]",` +
-					`"CancellationReasons":[{"Code":"None"},` + conflictReason + `,{"Code":"None"}]}`
+				// AWS's top-level message key is Message, after the
+				// reasons (smithy-protocol-tests.md 12.4, PROTO-01).
+				want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException",` +
+					`"CancellationReasons":[{"Code":"None"},` + conflictReason + `,{"Code":"None"}],` +
+					`"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [None, TransactionConflict, None]"}`
 				if got.Status != http.StatusBadRequest || got.Body != want {
 					h.Errorf("a 3-item call = %d %s\nwant 400 %s", got.Status, got.Body, want)
 				}

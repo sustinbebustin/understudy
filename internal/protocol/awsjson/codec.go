@@ -246,10 +246,13 @@ func checksum(h http.Header, svc *registry.Service, body []byte) {
 // EncodeError renders e for svc as AWS's JSON front end does
 // (wire-json-query.md 5 and 6, error-matrix.md 7): status from the
 // identity; a body with __type (the identity's namespaced JSONType for
-// awsJson1_0, the bare shape name for awsJson1_1), the message under the
-// shape's own member spelling, the members of the value e carries as the
-// output serializer writes them (smithy-protocol-tests.md 11.2), and the
-// error's extra fields; and for a query-compatible service,
+// awsJson1_0, the bare shape name for awsJson1_1), the members of the
+// value e carries as the output serializer writes them
+// (smithy-protocol-tests.md 11.2), the message under the shape's own
+// member spelling, after the members as DynamoDB writes it
+// (smithy-protocol-tests.md 12.4, PROTO-01; inferred for every other
+// service), and the error's extra
+// fields; and for a query-compatible service,
 // x-amzn-query-error: <QueryCode>;<Sender or Receiver> on every error,
 // whether or not the request sent x-amzn-query-mode, except an identity
 // that sends it only in query mode (awserr.Identity.QueryErrorHeader).
@@ -267,6 +270,10 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 		body = append(body, ':')
 		body = jsonx.AppendString(body, value)
 	}
+	body, err := appendMembers(body, e)
+	if err != nil {
+		return c.EncodeError(r, svc, requestID, awserr.Internalf(err))
+	}
 	if msg := e.MessageFor(c.Protocol()); msg != "" {
 		switch e.ID.MessageKey {
 		case awserr.MessageLower:
@@ -275,10 +282,6 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 			member("Message", msg)
 		case awserr.NoMessage:
 		}
-	}
-	body, err := appendMembers(body, e)
-	if err != nil {
-		return c.EncodeError(r, svc, requestID, awserr.Internalf(err))
 	}
 	for _, f := range e.Fields {
 		member(f.Name, f.Value)

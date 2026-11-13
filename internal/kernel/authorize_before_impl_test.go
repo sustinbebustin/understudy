@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/sustinbebustin/understudy/internal/access"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -29,7 +30,9 @@ func authorizeBefore(k *kerneltest.K, g guard, mode kernel.PrincipalMode, q kern
 // AuthorizeBefore asks about the principal the target's mode resolves to,
 // as the internal call of the named operation would run, answers that
 // operation's service's denial, and neither calls the operation nor
-// touches or access-records the pair.
+// touches the pair. The execution role's question is access-recorded as
+// the role's own use, failed with the denial, so the role's rendered
+// policy grants it.
 func TestAuthorizeBeforeAsksAsTheInternalCall(t *testing.T) {
 	const message = "the role may not decrypt"
 	g := newGuard(guardDenial())
@@ -61,10 +64,47 @@ func TestAuthorizeBeforeAsksAsTheInternalCall(t *testing.T) {
 		if slices.Contains(callEvent(k, c).Resources, guardRole) {
 			k.Error("the role was touched; AuthorizeBefore touches nothing")
 		}
-		if u, ok := useOf(k, assumeRole, access.OnResource{ARN: guardRole}); ok {
-			k.Errorf("access record of sts:AssumeRole = %+v, want none", u)
+		want := access.Use{
+			Principal: access.Role{Account: mustAccount(guardRole.Account), Path: "/", Name: "runner"}, Mode: access.AsExecutionRole{},
+			Action: assumeRole, Resource: access.OnResource{ARN: guardRole}, Calls: 1, Failures: 1,
+		}
+		u, ok := useOf(k, assumeRole, access.OnResource{ARN: guardRole})
+		u.First, u.Last = time.Time{}, time.Time{}
+		if !ok || !reflect.DeepEqual(u, want) {
+			k.Errorf("access record of sts:AssumeRole = %+v (found %v), want %+v", u, ok, want)
 		}
 	})
+}
+
+// Without an Authorizer, AuthorizeBefore still records an execution
+// role's question as the role's use, succeeded, as AuthorizeAs does; a
+// service principal's question is never recorded: what it needs is a
+// trust or resource policy grant.
+func TestAuthorizeBeforeRecordsTheExecutionRolesUse(t *testing.T) {
+	g := newGuard(guardDenial())
+	for name, tc := range map[string]struct {
+		mode     kernel.PrincipalMode
+		recorded bool
+	}{
+		"execution role":    {kernel.AsExecutionRole{Role: guardRole}, true},
+		"service principal": {kernel.AsService{Name: "guard.amazonaws.com"}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			runGuard(t, g, nil, func(k *kerneltest.K) {
+				bindGuard(k, g.run, authorizeBefore(k, g, tc.mode, trustQuery))
+				if _, err := k.Invoke(k.Context(), g.run, &guardInput{}); err != nil {
+					k.Fatalf("AuthorizeBefore without an Authorizer = %s, want nil", err.Message)
+				}
+				u, ok := useOf(k, assumeRole, access.OnResource{ARN: guardRole})
+				switch {
+				case tc.recorded && (!ok || u.Mode != access.AsExecutionRole{} || u.Calls != 1 || u.Failures != 0):
+					k.Errorf("access record of sts:AssumeRole = %+v (found %v), want one succeeded execution-role use", u, ok)
+				case !tc.recorded && ok:
+					k.Errorf("access record of sts:AssumeRole = %+v, want none for a service principal", u)
+				}
+			})
+		})
+	}
 }
 
 // Without an Authorizer, about a platform principal and about no pair,

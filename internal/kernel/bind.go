@@ -129,8 +129,9 @@ func (cfg *bindConfig) resolve(c *Call, in any) []aws.ARN {
 
 // typedOption is a WithValidator, WithCheck, WithResources,
 // WithResourcesFor, WithItemCount, WithActions, WithConditionKeys or
-// WithConditionKeysFor option, erased where it is built: in is the (*In)(nil) of its input type, and add
-// adds it to a bindConfig of that type.
+// WithConditionKeysFor option, erased where it is built: in is the
+// (*In)(nil) of its input type, and add adds it to a bindConfig of that
+// type.
 type typedOption struct {
 	in  any
 	add func(cfg *bindConfig)
@@ -625,9 +626,10 @@ type binding struct {
 	// exists are the binding's ResolveFirst checks, run before step 8;
 	// nil without the option and for raw HTTP bindings.
 	exists []func(ctx context.Context, c *Call, in any) *awserr.Error
-	// refusalHeaders give the headers a refusal the kernel makes before the
-	// handler carries (WithRefusalHeaders); nil without the option and for
-	// raw HTTP bindings.
+	// refusalHeaders give, for a valid or partly bound input, the headers
+	// a refusal the kernel makes before the handler runs carries
+	// (WithRefusalHeaders); nil without the option and for raw HTTP
+	// bindings.
 	refusalHeaders []func(c *Call, in any) []awserr.Header
 }
 

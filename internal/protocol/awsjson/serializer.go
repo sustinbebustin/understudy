@@ -33,8 +33,8 @@ const (
 	// modelOrder keeps the model's order: request bodies, which SDK clients
 	// write in model order.
 	modelOrder
-	// errorOrder writes an error body's own members in model order, after
-	// the hand-written __type and message envelope, and every structure
+	// errorOrder writes an error body's own members in model order,
+	// between the hand-written __type and message, and every structure
 	// nested in them sorted by name, as nameOrder does. The nested order is
 	// aws-recorded for DynamoDB's CancellationReason, Code, Item, Message
 	// where the model has Item first (smithy-protocol-tests.md 12.4,

@@ -253,9 +253,10 @@ func (c Codec) Encode(r *http.Request, op *registry.Operation, requestID string,
 // httpHeader members and the error's headers (x-amz-bucket-region); and
 // x-amz-request-id and x-amz-id-2. A HEAD request, and a status that
 // allows no body (1xx, 204, and 304 for S3's NotModified, wire-rest.md
-// 3.6), get the status and headers only. The dialect's ErrorForm frames
-// the document: S3's bare <Error> is described here. An awserr.Internal origin
-// takes the dialect's Internal identity (S3's InternalError). A value that
+// 3.6), get the status and headers only. The <Error> above is S3's, the
+// Bare form; the dialect's ErrorForm frames the document as each of its
+// constants describes. An awserr.Internal origin takes the dialect's
+// Internal identity (S3's InternalError). A value that
 // does not serialize is answered as InternalFailure. svc may be nil for a
 // request no service claimed.
 func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID string, e *awserr.Error) Response {

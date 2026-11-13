@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/identity"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -500,29 +501,37 @@ func (k *Kernel) recordCaller(ctx context.Context, c *Call, bnd *binding, outcom
 // not recorded.
 func (k *Kernel) recordRoleAsks(ctx context.Context, c *Call, outcome access.Outcome) {
 	for _, a := range c.roleAsks() {
-		principal, ok := accessPrincipal(a.principal)
-		if !ok {
-			continue
+		k.recordRoleUse(ctx, c.op, c.id, a, outcome, c.admitted.Wire())
+	}
+}
+
+// recordRoleUse records a's pairs as the execution role's own use
+// (access.AsExecutionRole) in a call of op with request id id, admitted at
+// at. A role ARN that names no role resolves to an anonymous principal and
+// is not recorded.
+func (k *Kernel) recordRoleUse(ctx context.Context, op *registry.Operation, id ids.RequestID, a roleAsk, outcome access.Outcome, at time.Time) {
+	principal, ok := accessPrincipal(a.principal)
+	if !ok {
+		return
+	}
+	actions := make([]registry.IAMAction, 0, len(a.query.Pairs))
+	for _, p := range a.query.Pairs {
+		if !slices.Contains(actions, p.Action) {
+			actions = append(actions, p.Action)
 		}
-		actions := make([]registry.IAMAction, 0, len(a.query.Pairs))
-		for _, p := range a.query.Pairs {
-			if !slices.Contains(actions, p.Action) {
-				actions = append(actions, p.Action)
-			}
-		}
-		err := k.access.Record(access.Entry{
-			Principal: principal,
-			Mode:      access.AsExecutionRole{},
-			Service:   c.op.Service.IAMPrefix,
-			Actions:   actions,
-			Pairs:     accessPairs(a.query.Pairs, a.query.Keys),
-			Outcome:   outcome,
-			At:        c.admitted.Wire(),
-		})
-		if err != nil {
-			k.log.LogAttrs(ctx, slog.LevelWarn, "access recorder refused an execution role's use a call asked about",
-				slog.String("op", c.label), slog.String("request_id", string(c.id)), slog.String("role", principal.String()), slog.String("error", err.Error()))
-		}
+	}
+	err := k.access.Record(access.Entry{
+		Principal: principal,
+		Mode:      access.AsExecutionRole{},
+		Service:   op.Service.IAMPrefix,
+		Actions:   actions,
+		Pairs:     accessPairs(a.query.Pairs, a.query.Keys),
+		Outcome:   outcome,
+		At:        at,
+	})
+	if err != nil {
+		k.log.LogAttrs(ctx, slog.LevelWarn, "access recorder refused an execution role's use a call asked about",
+			slog.String("op", op.ID.String()), slog.String("request_id", string(id)), slog.String("role", principal.String()), slog.String("error", err.Error()))
 	}
 }
 

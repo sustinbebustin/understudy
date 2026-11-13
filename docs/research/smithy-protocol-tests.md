@@ -564,7 +564,7 @@ x-amz-crc32: <CRC32 of the body>
 ```
 
 - Message format: "Transaction cancelled, please refer cancellation reasons for specific reasons [" + the codes in request order joined by ", " + "]". Sources: third-party-recorded (12.3); aws-recorded (PROTO-01, PROTO-02, PROTO-06, recorded 2026-11-03); DynamoDB Local agrees.
-- Member order: `__type`, `CancellationReasons`, `Message` (PROTO-01). TransactWriteItems spells the request-id header `x-amzn-requestid` in lower case; ExecuteTransaction spells it `x-amzn-RequestId` (PROTO-05). Header names are case-insensitive, so neither matters to a client.
+- Member order: `__type`, `CancellationReasons`, `Message` (PROTO-01). understudy writes a fault rule's answer in this order too, the message after the members (`internal/protocol/awsjson/members_test.go` TestTransactionCanceledWireForm); Local's answer already has it. TransactWriteItems spells the request-id header `x-amzn-requestid` in lower case; ExecuteTransaction spells it `x-amzn-RequestId` (PROTO-05). Header names are case-insensitive, so neither matters to a client.
 - The top-level message key is `Message`, also when a reason carries `Item` (PROTO-01, PROTO-04, recorded 2026-11-03). understudy's default holds.
 - A `None` entry is exactly `{"Code":"None"}`, no `Message` key (PROTO-02, recorded 2026-11-03). understudy's default holds.
 - The `ConditionalCheckFailed` reason's text has no final period: `{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"}` (PROTO-03, recorded 2026-11-03), as the recorded `ConditionalCheckFailedException` text (`05-put-ccf.json`). The docs' code list (12.2) and DynamoDB Local have the period; understudy rewrites Local's text to AWS's (`internal/service/dynamodb/rewrite.go` fixReasons).

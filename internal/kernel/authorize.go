@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/sustinbebustin/understudy/internal/access"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/ref"
@@ -499,9 +500,14 @@ func AuthorizeAs(ctx context.Context, c *Call, as PrincipalMode, q AuthzQuery) *
 // with: the question is asked as the internal call of op would be, in
 // t.Scope, so a denial is op's service's denial identity, which the
 // caller may reword, and an Authorizer's journal entries continue
-// t.Resume, else the parent. Nothing is touched or access-recorded; op is
-// not called. Like AuthorizeAs it asks nothing when authorization is
-// off, about a platform principal (AsPlatform) or about no pair. A nil
+// t.Resume, else the parent. Nothing is touched; op is not called. As in
+// AuthorizeAs, a question about an execution role (AsExecutionRole) is
+// access-recorded as that role's own use, whatever the verdict and whether
+// or not an Authorizer runs, so the policy rendered for the role grants
+// it, such as kms:Decrypt on a schedule's key (scheduler.md 14.11); a
+// question about a service principal is not. Like AuthorizeAs it asks
+// nothing when authorization is off, and asks and records nothing about a
+// platform principal (AsPlatform) or about no pair. A nil
 // parent, op or t.As, a t.Scope with no account, or a parent holding a
 // cell lock is a caller bug: Internal, and the Authorizer is not asked.
 func AuthorizeBefore(ctx context.Context, k *Kernel, parent *Call, op *registry.Operation, t Target, q AuthzQuery) *awserr.Error {
@@ -525,17 +531,32 @@ func AuthorizeBefore(ctx context.Context, k *Kernel, parent *Call, op *registry.
 	case t.Scope.Account.IsZero():
 		return awserr.Internalf(&AuthorizeError{Op: id, Action: action, Reason: "Target.Scope has no account; take it from the target resource"})
 	}
-	if _, platform := t.As.(AsPlatform); k.authorizer == nil || platform || len(q.Pairs) == 0 {
+	if _, platform := t.As.(AsPlatform); platform || len(q.Pairs) == 0 {
 		return nil
 	}
-	c := k.internalCall(parent, id, t)
-	if c.op == nil {
-		return awserr.Internalf(&AuthorizeError{Op: id, Action: action, Reason: "the operation is not in the kernel's registry, so it has no denial identity"})
+	var err *awserr.Error
+	if k.authorizer != nil {
+		c := k.internalCall(parent, id, t)
+		if c.op == nil {
+			return awserr.Internalf(&AuthorizeError{Op: id, Action: action, Reason: "the operation is not in the kernel's registry, so it has no denial identity"})
+		}
+		// The call is never dispatched, so it has no event of its own: what
+		// the Authorizer journals is a child of the event it continues.
+		c.event = c.cause.Parent
+		err = verdictError(c, k.authorizer.Authorize(ctx, c, q))
 	}
-	// The call is never dispatched, so it has no event of its own: what
-	// the Authorizer journals is a child of the event it continues.
-	c.event = c.cause.Parent
-	return verdictError(c, k.authorizer.Authorize(ctx, c, q))
+	if role, ok := t.As.(AsExecutionRole); ok && k.access != nil {
+		var outcome access.Outcome = access.Succeeded{}
+		if err != nil {
+			outcome = access.Failed{Code: err.ID.Shape.Name()}
+		}
+		at := t.At
+		if at.IsZero() {
+			at = parent.admitted
+		}
+		k.recordRoleUse(ctx, op, parent.id, roleAsk{principal: executionRole(role), query: q}, outcome, at.Wire())
+	}
+	return err
 }
 
 // AuthorizedOps lists, as ref.OperationID strings in registry order, the
