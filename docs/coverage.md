@@ -130,7 +130,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | kms | 54 | 16 | 2 | 9 | 27 | 0 | 0 |
 | lambda | 88 | 30 | 2 | 18 | 38 | 0 | 2 |
 | logs | 118 | 9 | 0 | 9 | 100 | 1 | 0 |
-| s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
+| s3 | 112 | 18 | 39 | 29 | 26 | 0 | 3 |
 | scheduler | 12 | 0 | 0 | 12 | 0 | 0 | 0 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
 | ses | 71 | 10 | 0 | 8 | 53 | 0 | 1 |
@@ -1141,10 +1141,6 @@ Internal operations:
 | HeadBucket | full | inferred, 1 of 5 claims |  |
 | ListMultipartUploads | full | inferred, 1 of 5 claims |  |
 | ListParts | full | inferred, 1 of 6 claims |  |
-| PutBucketEncryption | full | inferred, 1 of 7 claims |  |
-| PutBucketTagging | full | inferred, 1 of 6 claims |  |
-| PutObjectLegalHold | full | inferred, 1 of 5 claims |  |
-| PutObjectTagging | full | inferred, 1 of 4 claims |  |
 | DeleteBucketAnalyticsConfiguration | stored-only | inferred, 1 of 4 claims | the analytics configuration is stored and echoed; not applied |
 | DeleteBucketCors | stored-only | inferred, 1 of 4 claims | the CORS configuration is stored and echoed; not applied |
 | DeleteBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 4 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
@@ -1172,18 +1168,18 @@ Internal operations:
 | ListBucketInventoryConfigurations | stored-only | inferred, 1 of 4 claims | the inventory configuration is stored and echoed; not applied |
 | ListBucketMetricsConfigurations | stored-only | inferred, 1 of 4 claims | the metrics configuration is stored and echoed; not applied |
 | PutBucketAccelerateConfiguration | stored-only | inferred, 1 of 4 claims | the transfer acceleration status is stored and echoed; not applied |
-| PutBucketAcl | stored-only | inferred, 1 of 4 claims | the access control list is stored and echoed; not applied; BlockPublicAcls is not applied under any iam.enforce mode, so an ACL granting AllUsers or AuthenticatedUsers while it is true is stored where AWS answers 403 AccessDenied, and journals a check-not-run advisory |
+| PutBucketAcl | stored-only | inferred, 1 of 4 claims | the access control list is stored and echoed; not applied; BlockPublicAcls is not applied under any iam.enforce mode, so an ACL granting AllUsers or AuthenticatedUsers while it is true is stored where AWS answers 403 AccessDenied, and journals a check-not-run advisory; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
 | PutBucketAnalyticsConfiguration | stored-only | inferred, 1 of 5 claims | the analytics configuration is stored and echoed; not applied |
-| PutBucketCors | stored-only | inferred, 1 of 4 claims | the CORS configuration is stored and echoed; not applied |
+| PutBucketCors | stored-only | inferred, 1 of 4 claims | the CORS configuration is stored and echoed; not applied; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
 | PutBucketIntelligentTieringConfiguration | stored-only | inferred, 1 of 5 claims | the Intelligent-Tiering configuration is stored and echoed; not applied |
 | PutBucketInventoryConfiguration | stored-only | inferred, 1 of 5 claims | the inventory configuration is stored and echoed; not applied |
-| PutBucketLifecycleConfiguration | stored-only | inferred, 1 of 6 claims | the lifecycle rules are stored and echoed; not applied |
-| PutBucketLogging | stored-only | inferred, 1 of 4 claims | the logging configuration is stored and echoed; not applied |
+| PutBucketLifecycleConfiguration | stored-only | inferred, 1 of 6 claims | the lifecycle rules are stored and echoed; not applied; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
+| PutBucketLogging | stored-only | inferred, 1 of 4 claims | the logging configuration is stored and echoed; not applied; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
 | PutBucketMetricsConfiguration | stored-only | inferred, 1 of 5 claims | the metrics configuration is stored and echoed; not applied |
-| PutBucketReplication | stored-only | inferred, 1 of 4 claims | the replication configuration is stored and echoed; not applied |
-| PutBucketRequestPayment | stored-only | inferred, 1 of 4 claims | the payer is stored and echoed; not applied |
-| PutBucketWebsite | stored-only | inferred, 1 of 4 claims | the website configuration is stored and echoed; not applied |
-| PutPublicAccessBlock | stored-only | inferred, 1 of 4 claims | the public access block is stored and echoed; not applied under any iam.enforce mode, where AWS refuses PutBucketPolicy with a public policy while BlockPublicPolicy is true and a public ACL while BlockPublicAcls is true; PutBucketPolicy while BlockPublicPolicy is true, and PutBucketAcl granting AllUsers or AuthenticatedUsers while BlockPublicAcls is true, journal a check-not-run advisory |
+| PutBucketReplication | stored-only | inferred, 1 of 4 claims | the replication configuration is stored and echoed; not applied; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
+| PutBucketRequestPayment | stored-only | inferred, 1 of 4 claims | the payer is stored and echoed; not applied; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
+| PutBucketWebsite | stored-only | inferred, 1 of 4 claims | the website configuration is stored and echoed; not applied; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
+| PutPublicAccessBlock | stored-only | inferred, 1 of 4 claims | the public access block is stored and echoed; not applied under any iam.enforce mode, where AWS refuses PutBucketPolicy with a public policy while BlockPublicPolicy is true and a public ACL while BlockPublicAcls is true; PutBucketPolicy while BlockPublicPolicy is true, and PutBucketAcl granting AllUsers or AuthenticatedUsers while BlockPublicAcls is true, journal a check-not-run advisory; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
 | AbortMultipartUpload | partial | inferred, 1 of 4 claims | x-amz-if-match-initiated-time, a directory bucket header, answers 501 |
 | CompleteMultipartUpload | partial | inferred, 1 of 9 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error; an identical Complete retried after success answers 200 again while the version it made is its key's current version (inferred: how long AWS honours a retry is unrecorded) |
 | CopyObject | partial | inferred, 5 of 20 claims | an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; Object Lock event-hold headers are refused with NotImplemented |
@@ -1191,7 +1187,7 @@ Internal operations:
 | DeleteBucketOwnershipControls | partial | inferred, 1 of 4 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | DeleteBucketPolicy | partial | inferred, 2 of 5 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated, and Block Public Access is not applied (PutPublicAccessBlock) |
 | DeleteObject | partial | inferred, 1 of 6 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
-| DeleteObjects | partial | inferred, 1 of 6 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention |
+| DeleteObjects | partial | inferred, 1 of 6 claims | no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
 | GetBucketOwnershipControls | partial | inferred, 1 of 5 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
 | GetBucketPolicy | partial | inferred, 2 of 6 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated, and Block Public Access is not applied (PutPublicAccessBlock) |
 | GetObject | partial | inferred, 1 of 9 claims | presigned URLs are verified and expire on the emulator clock under sigv4 verify |
@@ -1200,13 +1196,17 @@ Internal operations:
 | ListObjectVersions | partial | inferred, 1 of 5 claims | no RestoreStatus |
 | ListObjects | partial | inferred, 1 of 5 claims | no RestoreStatus |
 | ListObjectsV2 | partial | inferred, 1 of 5 claims | no RestoreStatus |
+| PutBucketEncryption | partial | inferred, 1 of 7 claims | a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
 | PutBucketNotificationConfiguration | partial | inferred, 1 of 5 claims | deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; destination validation checks existence, refuses FIFO queues and topics, and asks whether each destination's policy admits s3.amazonaws.com from the bucket: under iam.enforce=enforce a refusal fails the call, under advise it is journaled, and under off it is not asked, where AWS refuses in every case; a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied); s3:ObjectRetention:Put is stored but sends nothing |
-| PutBucketOwnershipControls | partial | inferred, 1 of 4 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build |
-| PutBucketPolicy | partial | inferred, 2 of 7 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated; BlockPublicPolicy is not checked under any iam.enforce mode, so a public policy put while it is true is stored where AWS answers 403 AccessDenied, and each put while it is true journals a check-not-run advisory |
-| PutBucketVersioning | partial | inferred, 1 of 4 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified |
+| PutBucketOwnershipControls | partial | inferred, 1 of 4 claims | BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
+| PutBucketPolicy | partial | inferred, 2 of 7 claims | the policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; access points and ACL grants are not evaluated; BlockPublicPolicy is not checked under any iam.enforce mode, so a public policy put while it is true is stored where AWS answers 403 AccessDenied, and each put while it is true journals a check-not-run advisory; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
+| PutBucketTagging | partial | inferred, 1 of 6 claims | a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
+| PutBucketVersioning | partial | inferred, 1 of 4 claims | MFA delete is stored, not enforced, and the x-amz-mfa header is not verified; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
 | PutObject | partial | inferred, 3 of 17 claims | an object ACL a bucket accepts is not stored; user metadata is stored as sent, without RFC 2047 decoding; chunk signatures are verified under sigv4 verify; Object Lock event-hold headers are refused with NotImplemented |
-| PutObjectLockConfiguration | partial | inferred, 1 of 5 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored |
-| PutObjectRetention | partial | inferred, 1 of 9 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent |
+| PutObjectLegalHold | partial | inferred, 1 of 5 claims | a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
+| PutObjectLockConfiguration | partial | inferred, 1 of 5 claims | DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
+| PutObjectRetention | partial | inferred, 1 of 9 claims | event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent; a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
+| PutObjectTagging | partial | inferred, 1 of 4 claims | a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded |
 | UploadPart | partial | inferred, 1 of 9 claims | chunk signatures are verified under sigv4 verify |
 | UploadPartCopy | partial | inferred, 2 of 11 claims | errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error |
 | CreateBucketMetadataConfiguration | unbound | unassessed |  |

@@ -41,7 +41,7 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	del := func(in *s3api.DeleteObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteObject(s.deleteObject, registry.Partial{Note: deleteNote}, touches(s, del))
 	dels := func(in *s3api.DeleteObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.DeleteObjects(s.deleteObjects, registry.Partial{Note: deleteNote}, touches(s, dels))
+	b.DeleteObjects(s.deleteObjects, checksumUnchecked(registry.Partial{Note: deleteNote}), touches(s, dels))
 	cp := func(in *s3api.CopyObjectInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.CopyObject(s.copyObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; " + eventHoldNote}, touches(s, cp))
 	lv1 := func(in *s3api.ListObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }

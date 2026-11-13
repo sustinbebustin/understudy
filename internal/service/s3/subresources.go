@@ -33,6 +33,23 @@ func stored(what string) registry.StoredOnly {
 	return registry.StoredOnly{Note: what + " stored and echoed; not applied"}
 }
 
+// checksumRequiredNote is the sentence of every bound operation whose model
+// carries requestChecksumRequired (s3-ssec-object-lock.md 8, 11.1).
+const checksumRequiredNote = "a request with neither Content-MD5 nor an x-amz-checksum-* header is accepted, and so is one with a wrong checksum; what AWS answers is unrecorded"
+
+// checksumUnchecked is c with checksumRequiredNote appended. A Full mark
+// becomes Partial, since the gap is a deviation.
+func checksumUnchecked(c registry.BindCoverage) registry.BindCoverage {
+	switch c := c.(type) {
+	case registry.Partial:
+		return registry.Partial{Note: c.Note + "; " + checksumRequiredNote}
+	case registry.StoredOnly:
+		return registry.StoredOnly{Note: c.Note + "; " + checksumRequiredNote}
+	case registry.Full:
+	}
+	return registry.Partial{Note: checksumRequiredNote}
+}
+
 // bindSubresources binds the Get, Put and Delete operations of every
 // bucket subresource except tagging and notification.
 func (s *Service) bindSubresources(b s3api.Binder) {
@@ -77,7 +94,7 @@ func (s *Service) bindVersioning(b s3api.Binder) {
 		}
 		b.Versioning = &cfg
 		return nil
-	}), registry.Partial{Note: "MFA delete is stored, not enforced, and the x-amz-mfa header is not verified"}, touches(s, put),
+	}), checksumUnchecked(registry.Partial{Note: "MFA delete is stored, not enforced, and the x-amz-mfa header is not verified"}), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketVersioningInput) *awserr.Error {
 			st := in.VersioningConfiguration.Status
 			switch {
@@ -96,7 +113,7 @@ func (s *Service) bindACL(b s3api.Binder) {
 		return &s3api.GetBucketAclOutput{Owner: &s3api.Owner{ID: new(canonicalID(b.Home.OwnerAccount))}, Grants: b.Grants}, nil
 	}), stored("the access control list is"), touches(s, get))
 	put := func(in *s3api.PutBucketAclInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
-	b.PutBucketAcl(s.putBucketACL, registry.StoredOnly{Note: publicACLNote}, touches(s, put),
+	b.PutBucketAcl(s.putBucketACL, checksumUnchecked(registry.StoredOnly{Note: publicACLNote}), touches(s, put),
 		kernel.WithCheck(checkACLRequest))
 }
 
@@ -176,7 +193,7 @@ func (s *Service) bindCORS(b s3api.Binder) {
 	b.PutBucketCors(writer[s3api.PutBucketCorsInput, s3api.PutBucketCorsOutput](s, put, func(in *s3api.PutBucketCorsInput, b *Bucket) *awserr.Error {
 		b.CORS = &in.CORSConfiguration
 		return nil
-	}), stored("the CORS configuration is"), touches(s, put),
+	}), checksumUnchecked(stored("the CORS configuration is")), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketCorsInput) *awserr.Error {
 			for _, r := range in.CORSConfiguration.CORSRules {
 				for _, m := range r.AllowedMethods {
@@ -210,7 +227,7 @@ func (s *Service) bindWebsite(b s3api.Binder) {
 	b.PutBucketWebsite(writer[s3api.PutBucketWebsiteInput, s3api.PutBucketWebsiteOutput](s, put, func(in *s3api.PutBucketWebsiteInput, b *Bucket) *awserr.Error {
 		b.Website = &in.WebsiteConfiguration
 		return nil
-	}), stored("the website configuration is"), touches(s, put))
+	}), checksumUnchecked(stored("the website configuration is")), touches(s, put))
 	del := func(in *s3api.DeleteBucketWebsiteInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketWebsite(writer[s3api.DeleteBucketWebsiteInput, s3api.DeleteBucketWebsiteOutput](s, del, func(_ *s3api.DeleteBucketWebsiteInput, b *Bucket) *awserr.Error {
 		b.Website = nil
@@ -237,7 +254,7 @@ func (s *Service) bindPolicy(b s3api.Binder) {
 		}
 		return &s3api.GetBucketPolicyOutput{Policy: new(b.Policy)}, nil
 	}), evaluated, touches(s, get))
-	b.PutBucketPolicy(s.putBucketPolicy, putNote, touches(s, put),
+	b.PutBucketPolicy(s.putBucketPolicy, checksumUnchecked(putNote), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketPolicyInput) *awserr.Error { return checkPolicy(in.Policy) }))
 	del := func(in *s3api.DeleteBucketPolicyInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketPolicy(writer[s3api.DeleteBucketPolicyInput, s3api.DeleteBucketPolicyOutput](s, del, func(_ *s3api.DeleteBucketPolicyInput, b *Bucket) *awserr.Error {
@@ -276,7 +293,7 @@ func (s *Service) bindLogging(b s3api.Binder) {
 	b.PutBucketLogging(writer[s3api.PutBucketLoggingInput, s3api.PutBucketLoggingOutput](s, put, func(in *s3api.PutBucketLoggingInput, b *Bucket) *awserr.Error {
 		b.Logging = in.BucketLoggingStatus.LoggingEnabled
 		return nil
-	}), stored("the logging configuration is"), touches(s, put), kernel.WithCheck(checkLoggingGrantees))
+	}), checksumUnchecked(stored("the logging configuration is")), touches(s, put), kernel.WithCheck(checkLoggingGrantees))
 }
 
 // checkLoggingGrantees refuses a TargetGrant whose grantee Type S3 does not
@@ -316,7 +333,7 @@ func (s *Service) bindLifecycle(b s3api.Binder) {
 	put := func(in *s3api.PutBucketLifecycleConfigurationInput) access {
 		return at(in.Bucket, in.ExpectedBucketOwner)
 	}
-	b.PutBucketLifecycleConfiguration(s.putBucketLifecycle, stored("the lifecycle rules are"), touches(s, put), kernel.WithCheck(checkLifecycle))
+	b.PutBucketLifecycleConfiguration(s.putBucketLifecycle, checksumUnchecked(stored("the lifecycle rules are")), touches(s, put), kernel.WithCheck(checkLifecycle))
 	del := func(in *s3api.DeleteBucketLifecycleInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketLifecycle(writer[s3api.DeleteBucketLifecycleInput, s3api.DeleteBucketLifecycleOutput](s, del, func(_ *s3api.DeleteBucketLifecycleInput, b *Bucket) *awserr.Error {
 		b.Lifecycle = nil
@@ -611,7 +628,7 @@ func (s *Service) bindReplication(b s3api.Binder) {
 		}
 		b.Replication = &in.ReplicationConfiguration
 		return nil
-	}), stored("the replication configuration is"), touches(s, put))
+	}), checksumUnchecked(stored("the replication configuration is")), touches(s, put))
 	del := func(in *s3api.DeleteBucketReplicationInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketReplication(writer[s3api.DeleteBucketReplicationInput, s3api.DeleteBucketReplicationOutput](s, del, func(_ *s3api.DeleteBucketReplicationInput, b *Bucket) *awserr.Error {
 		b.Replication = nil
@@ -639,7 +656,7 @@ func (s *Service) bindEncryption(b s3api.Binder) {
 		rule.BlockedEncryptionTypes = nil
 		b.Encryption = &s3api.ServerSideEncryptionConfiguration{Rules: []s3api.ServerSideEncryptionRule{rule}}
 		return nil
-	}), registry.Full{}, touches(s, put), kernel.WithCheck(checkEncryption))
+	}), checksumUnchecked(registry.Full{}), touches(s, put), kernel.WithCheck(checkEncryption))
 	del := func(in *s3api.DeleteBucketEncryptionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.DeleteBucketEncryption(writer[s3api.DeleteBucketEncryptionInput, s3api.DeleteBucketEncryptionOutput](s, del, func(_ *s3api.DeleteBucketEncryptionInput, b *Bucket) *awserr.Error {
 		// The SSE-C block goes back to a new bucket's: SSE-C blocked after
@@ -697,7 +714,7 @@ func (s *Service) bindObjectLock(b s3api.Binder) {
 		}
 		b.ObjectLock = in.ObjectLockConfiguration
 		return nil
-	}), registry.Partial{Note: "DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored"}, touches(s, put), kernel.WithCheck(checkObjectLock))
+	}), checksumUnchecked(registry.Partial{Note: "DefaultEventHold is refused with NotImplemented; x-amz-bucket-object-lock-token is accepted and ignored"}), touches(s, put), kernel.WithCheck(checkObjectLock))
 }
 
 // checkObjectLock checks an Object Lock configuration (s3.md 4.2.10;
@@ -758,7 +775,7 @@ func (s *Service) bindRequestPayment(b s3api.Binder) {
 	b.PutBucketRequestPayment(writer[s3api.PutBucketRequestPaymentInput, s3api.PutBucketRequestPaymentOutput](s, put, func(in *s3api.PutBucketRequestPaymentInput, b *Bucket) *awserr.Error {
 		b.RequestPayment = &in.RequestPaymentConfiguration
 		return nil
-	}), stored("the payer is"), touches(s, put))
+	}), checksumUnchecked(stored("the payer is")), touches(s, put))
 }
 
 func (s *Service) bindAccelerate(b s3api.Binder) {
@@ -792,7 +809,7 @@ func (s *Service) bindPublicAccessBlock(b s3api.Binder) {
 	b.PutPublicAccessBlock(writer[s3api.PutPublicAccessBlockInput, s3api.PutPublicAccessBlockOutput](s, put, func(in *s3api.PutPublicAccessBlockInput, b *Bucket) *awserr.Error {
 		b.PublicAccessBlock = publicAccessBlock(in.PublicAccessBlockConfiguration)
 		return nil
-	}), registry.StoredOnly{Note: blockPublicAccessNote}, touches(s, put),
+	}), checksumUnchecked(registry.StoredOnly{Note: blockPublicAccessNote}), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutPublicAccessBlockInput) *awserr.Error {
 			if c := in.PublicAccessBlockConfiguration; c.BlockPublicAcls == nil && c.IgnorePublicAcls == nil && c.BlockPublicPolicy == nil && c.RestrictPublicBuckets == nil {
 				return errInvalidRequest("Must specify at least one configuration.")
@@ -834,7 +851,7 @@ func (s *Service) bindOwnership(b s3api.Binder) {
 	b.PutBucketOwnershipControls(writer[s3api.PutBucketOwnershipControlsInput, s3api.PutBucketOwnershipControlsOutput](s, put, func(in *s3api.PutBucketOwnershipControlsInput, b *Bucket) *awserr.Error {
 		b.Ownership = &in.OwnershipControls
 		return nil
-	}), registry.Partial{Note: "BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build"}, touches(s, put),
+	}), checksumUnchecked(registry.Partial{Note: "BucketOwnerEnforced refuses ACL writes; object ownership is not applied to objects in this build"}), touches(s, put),
 		kernel.WithCheck(func(in *s3api.PutBucketOwnershipControlsInput) *awserr.Error {
 			rules := in.OwnershipControls.Rules
 			if len(rules) != 1 || !rules[0].ObjectOwnership.Known() {
