@@ -156,10 +156,10 @@ func firstError(errs ...*awserr.Error) *awserr.Error {
 	return nil
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence, with
-// the status of a denial (iam-enforcement-surfaces.md 12.8;
-// third-party-recorded for a denial that is not IAM's) and the operations
-// that take a SecretId, which deny a missing secret first (byName).
+// Switches lists the service's fidelity switches, with the status of a
+// denial (iam-enforcement-surfaces.md 12.8; third-party-recorded for a
+// denial that is not IAM's) and the operations that take a SecretId, which
+// deny a missing secret first (byName).
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		authz.RecordedSwitch("secretsmanager.denial.status", "AccessDeniedException 400, body key Message", "3.2", "IAM-ENF-06", authz.SessionUnreplayed,

@@ -29,16 +29,14 @@ func switchValue(t *testing.T, name string) string {
 	t.Helper()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, endpoint.String()+"/_understudy/v1/coverage", http.NoBody)
 	ok(t, err, "building the coverage request")
-	resp, err := http.DefaultClient.Do(req)
-	ok(t, err, "GET /_understudy/v1/coverage")
-	body := readAll(t, resp.Body, "the coverage report")
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("GET /_understudy/v1/coverage = %d: %s", resp.StatusCode, body)
+	r := send(t, http.DefaultClient, req, "GET /_understudy/v1/coverage")
+	if r.status != http.StatusOK {
+		t.Fatalf("GET /_understudy/v1/coverage = %d: %s", r.status, r.body)
 	}
 	var report struct {
 		Switches []struct{ Name, Value string } `json:"switches"`
 	}
-	ok(t, json.Unmarshal(body, &report), "decoding the coverage report")
+	ok(t, json.Unmarshal(r.body, &report), "decoding the coverage report")
 	for _, s := range report.Switches {
 		if s.Name == name {
 			return s.Value
@@ -167,7 +165,8 @@ func lockBucket(t *testing.T, client *s3.Client) string {
 		ctx := context.Background()
 		versions, err := client.ListObjectVersions(ctx, &s3.ListObjectVersionsInput{Bucket: aws.String(bucket)})
 		if err == nil {
-			for _, v := range versions.Versions {
+			for i := range versions.Versions {
+				v := &versions.Versions[i]
 				_, _ = client.PutObjectLegalHold(ctx, &s3.PutObjectLegalHoldInput{Bucket: aws.String(bucket), Key: v.Key, VersionId: v.VersionId, LegalHold: &types.ObjectLockLegalHold{Status: types.ObjectLockLegalHoldStatusOff}})
 				_, _ = client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: v.Key, VersionId: v.VersionId, BypassGovernanceRetention: aws.Bool(true)})
 			}

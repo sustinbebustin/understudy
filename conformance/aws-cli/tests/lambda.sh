@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016 # '$LATEST' is Lambda's version name, written literally throughout
 # Lambda: function control plane, versions, aliases, permissions, tags,
 # concurrency, function URLs, event source mappings, Invoke, function logs,
 # layers and asynchronous invocation destinations.
@@ -9,7 +10,7 @@
 # Tests that execute code need Docker and the Python 3.13 Lambda base image;
 # they skip when the emulator reports Docker as not enabled.
 
-# shellcheck source=../lambda-helpers.sh
+# shellcheck source-path=SCRIPTDIR source=../lambda-helpers.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lambda-helpers.sh"
 
 # statement: the policy statement of the last AddPermission, as JSON.
@@ -660,7 +661,7 @@ test_function_url_invocation_payload_v2() {
     --action lambda:InvokeFunction --principal '*' --invoked-via-function-url
   invoke_url "$url" '/some/path?x=1&y=two' -X POST -H 'content-type: text/plain' --data 'hello url'
   assert_eq 201 "$URL_STATUS" 'status returned by the function'
-  assert_contains 'x-conformance: yes' "$(tr -d '\r' <"$URL_HEADERS" | tr 'A-Z' 'a-z')" 'response headers (lowercased)'
+  assert_contains 'x-conformance: yes' "$(tr -d '\r' <"$URL_HEADERS" | tr '[:upper:]' '[:lower:]')" 'response headers (lowercased)'
   AWS_OUT=$(cat "$URL_BODY")
   assert_jq '.rawPath' '/some/path'
   assert_jq '.method' 'POST'
@@ -1380,6 +1381,7 @@ test_kinesis_mapping_delivers_a_record() {
   aws_ok logs filter-log-events --log-group-name "/aws/lambda/$FN" --filter-pattern '"kinesis-marker-7e43"'
   local record
   record=$(jqv '[.events[].message | select(startswith("conformance-log-line"))][0] | ltrimstr("conformance-log-line ")')
+  # shellcheck disable=SC2034 # the assert_jq calls below read AWS_OUT (lib.sh)
   AWS_OUT=$record
   # lambda-stream-sources.md 8.1 (LS-K:L33-L48; kinesis.md 8.1): the record
   # form; approximateArrivalTimestamp has ten integral digits (LS-K.py:L159-L162).

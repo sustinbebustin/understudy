@@ -10,6 +10,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -42,16 +43,21 @@ func main() {
 		log.Fatal("AWS_LAMBDA_RUNTIME_API is not set; this binary runs only inside a Lambda execution environment")
 	}
 	base := "http://" + api + "/2018-06-01/runtime/invocation/"
+	ctx := context.Background()
 	for {
-		if err := serveOne(base); err != nil {
+		if err := serveOne(ctx, base); err != nil {
 			log.Fatal(err)
 		}
 	}
 }
 
 // serveOne fetches the next invocation and posts its response or error.
-func serveOne(base string) error {
-	next, err := http.Get(base + "next")
+func serveOne(ctx context.Context, base string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"next", http.NoBody)
+	if err != nil {
+		return fmt.Errorf("fetch next invocation: %w", err)
+	}
+	next, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("fetch next invocation: %w", err)
 	}
@@ -64,12 +70,12 @@ func serveOne(base string) error {
 
 	var event sqsEvent
 	if err := json.Unmarshal(payload, &event); err != nil {
-		return post(base+requestID+"/error", map[string]string{
+		return post(ctx, base+requestID+"/error", map[string]string{
 			"errorType":    "InvalidEvent",
 			"errorMessage": "event is not an SQS batch: " + err.Error(),
 		})
 	}
-	return post(base+requestID+"/response", handle(event))
+	return post(ctx, base+requestID+"/response", handle(event))
 }
 
 // handle reports every record whose body is not a JSON object as failed.
@@ -87,12 +93,17 @@ func handle(event sqsEvent) batchResponse {
 	return resp
 }
 
-func post(url string, v any) error {
+func post(ctx context.Context, url string, v any) error {
 	b, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("encode %s: %w", url, err)
 	}
-	resp, err := http.Post(url, "application/json", bytes.NewReader(b))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
+	if err != nil {
+		return fmt.Errorf("post %s: %w", url, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("post %s: %w", url, err)
 	}

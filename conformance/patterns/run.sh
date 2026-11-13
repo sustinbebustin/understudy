@@ -3,8 +3,9 @@
 #
 # Each pattern under conformance/patterns/<pattern>/ is a copy of an
 # aws-samples/serverless-patterns pattern at commit deb84af, changed only as
-# its ADJUSTMENTS.md lists. run.sh builds understudy from this repository,
-# starts it on 127.0.0.1:45667 with a fresh temporary data directory, and runs
+# its ADJUSTMENTS.md lists. run.sh builds understudy from this repository into
+# a directory of the run's own, starts it on 127.0.0.1:45667 (or
+# CONFORMANCE_PORT) with a fresh temporary data directory, and runs
 # each pattern named (every pattern when none is) through: its documented
 # preparation, terraform init, apply, its documented check, a plan that must
 # show no changes, destroy, and a check that understudy holds nothing in the
@@ -15,6 +16,7 @@
 #   conformance/patterns/run.sh                          # every pattern
 #   conformance/patterns/run.sh lambda-layer-terraform   # only these
 #   SIGV4=verify conformance/patterns/run.sh             # serve with --sigv4 verify (default parse)
+#   CONFORMANCE_PORT=45767 conformance/patterns/run.sh   # serve on another port (default 45667)
 #   CONFORMANCE_IAM_ENFORCE=enforce conformance/patterns/run.sh
 #                                                        # serve with --iam-enforce enforce (default off)
 #                                                        # and check each pattern's denials (no-denials)
@@ -48,14 +50,10 @@ repo_root=$(cd -- "$suite_dir/../.." && pwd)
 # shellcheck source-path=SCRIPTDIR source=../common.sh
 source "$suite_dir/../common.sh"
 build_dir="$repo_root/.build/conformance/patterns"
-binary="$build_dir/understudy"
-run_dir="$build_dir/run"
-logs_dir="$run_dir/logs"
-work_dir="$run_dir/work"
-results="$run_dir/results.tsv"
 sealed="$repo_root/scripts/sealed"
 
-port="${CONFORMANCE_PORT:-45667}"
+conformance_port 45667
+port=$conformance_port_number
 endpoint="http://127.0.0.1:$port"
 phase_timeout="${CONFORMANCE_PHASE_TIMEOUT:-900}"
 enforce=false
@@ -102,12 +100,16 @@ if curl -fsS -o /dev/null "$endpoint/_understudy/v1/health" 2>/dev/null; then
   die "something already answers on $endpoint; stop it or set CONFORMANCE_PORT"
 fi
 
-rm -rf -- "$run_dir"
+# Each run has a directory of its own, so concurrent runs never share results,
+# logs, work copies or the binary. The provider cache in $build_dir is shared.
+mkdir -p -- "$build_dir"
+run_dir=$(mktemp -d "$build_dir/run.XXXXXX")
+binary="$run_dir/understudy"
+logs_dir="$run_dir/logs"
+work_dir="$run_dir/work"
+results="$run_dir/results.tsv"
 mkdir -p -- "$logs_dir" "$work_dir"
 : >"$results"
-
-echo "==> building understudy into $binary"
-go -C "$repo_root" build -o "$binary" ./cmd/understudy
 
 data_dir=$(mktemp -d "${TMPDIR:-/tmp}/understudy-patterns.XXXXXX")
 server_pid=""
@@ -133,7 +135,10 @@ stop_server() {
     fi
     wait "$server_pid" 2>/dev/null
   fi
-  if "$binary" cleanup --persist "$data_dir" --output json >"$logs_dir/cleanup.json" 2>&1; then
+  # A failed build leaves no binary and started nothing.
+  if [[ ! -x "$binary" ]]; then
+    :
+  elif "$binary" cleanup --persist "$data_dir" --output json >"$logs_dir/cleanup.json" 2>&1; then
     local owner
     owner=$(jq -r '.owner // empty' "$logs_dir/cleanup.json")
     if [[ -n "$owner" ]]; then
@@ -149,11 +154,19 @@ stop_server() {
     echo "run.sh: understudy cleanup failed; see $logs_dir/cleanup.json" >&2
   fi
   rm -rf -- "$data_dir"
+  if ((status == 0)); then
+    rm -rf -- "$run_dir"
+  else
+    echo "run.sh: failed with status $status; the run's logs, results and work copies are kept in $run_dir" >&2
+  fi
   exit "$status"
 }
 trap stop_server EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+echo "==> building understudy into $binary"
+go -C "$repo_root" build -o "$binary" ./cmd/understudy
 
 conformance_isolate_serve_env
 

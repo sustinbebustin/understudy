@@ -95,11 +95,18 @@
         {"step": "H14-01", "fixture": "events/R14/H14-01.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},
         {"step": "H14-02", "fixture": "events/R14/H14-02.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "differs", "reason": "body/Result"}},
         {"step": "H14-03", "fixture": "events/R14/H14-03.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},
-        {"step": "H14-04", "fixture": "events/R14/H14-04.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "differs", "reason": "body/Result"}}
+        {"step": "H14-04", "fixture": "events/R14/H14-04.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "differs", "reason": "body/Result"}},
+        {"step": "H10-01", "fixture": "events/R14/H10-01.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "H10-02", "fixture": "events/R14/H10-02.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "H10-03", "fixture": "events/R14/H10-03.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "H10-04", "fixture": "events/R14/H10-04.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "H10-05", "fixture": "events/R14/H10-05.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "H10-06", "fixture": "events/R14/H10-06.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}}
       ],
       "claims": [
         {"target": {"kind": "switch", "name": "events.pattern.empty-input"}, "step": "H1-01", "field": "body/Result", "result": {"kind": "settled"}},
-        {"target": {"kind": "switch", "name": "events.pattern.or-shared-values"}, "step": "H14-02", "field": "body/Result", "result": {"kind": "contradicted"}}
+        {"target": {"kind": "switch", "name": "events.pattern.or-shared-values"}, "step": "H14-02", "field": "body/Result", "result": {"kind": "contradicted"}},
+        {"target": {"kind": "switch", "name": "events.pattern.malformed-or"}, "step": "H10-03", "field": "error/message", "result": {"kind": "settled"}}
       ]
     },
     {

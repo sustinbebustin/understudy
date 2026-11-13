@@ -209,6 +209,45 @@ describe("CloudWatch metric alarms", () => {
     });
   });
 
+  // "For PromQL alarms, the alarm state is instead immediately set to OK"
+  // (cloudwatch-alarms.md 2.1).
+  test("a PromQL alarm starts in OK", async () => {
+    const name = uniq("promql");
+    await cw.send(
+      new PutMetricAlarmCommand({
+        AlarmName: name,
+        EvaluationCriteria: { PromQLCriteria: { Query: "avg(cpu_utilization_percent) > 80" } },
+        EvaluationInterval: 30,
+      }),
+    );
+    expect((await describeOne(name))?.StateValue).toBe("OK");
+  });
+
+  // In PutMetricAlarm, ReturnData is true for "the one expression result to
+  // use as the alarm" and false for all others (the MetricDataQuery
+  // documentation). The refusal's text is inferred, so only its code is
+  // asserted.
+  test("a metric math alarm whose Metrics array returns data from zero or two entries is refused", async () => {
+    const errors = { Id: "m1", MetricStat: { Metric: { Namespace: "Conformance", MetricName: "Errors" }, Period: 60, Stat: "Sum" } };
+    for (const [returned, metrics] of [
+      [0, [{ ...errors, ReturnData: false }, { Id: "e1", Expression: "m1 * 2", ReturnData: false }]],
+      [2, [{ ...errors, ReturnData: true }, { Id: "e1", Expression: "m1 * 2", ReturnData: true }]],
+    ] as const) {
+      await expectFailure(
+        cw.send(
+          new PutMetricAlarmCommand({
+            AlarmName: uniq(`math-${returned}`),
+            EvaluationPeriods: 1,
+            Threshold: 1,
+            ComparisonOperator: "GreaterThanThreshold",
+            Metrics: [...metrics],
+          }),
+        ),
+        { name: "InvalidParameterValue", status: 400 },
+      );
+    }
+  });
+
   test("a Statistic together with an ExtendedStatistic is refused", async () => {
     const failure = await awsFailure(cw.send(new PutMetricAlarmCommand(alarmInput(uniq("bad"), { ExtendedStatistic: "p99" }))));
     expect(failure.status).toBe(400);
@@ -332,6 +371,38 @@ describe("CloudWatch metrics", () => {
     );
     expect(out.MetricDataResults?.find((r) => r.Id === "count")?.Values).toEqual([4]);
     expect(out.MetricDataResults?.find((r) => r.Id === "sum")?.Values).toEqual([20]);
+  });
+
+  // AWS accepts a datum with both Values and StatisticValues (AWS-recorded:
+  // LocalStack test_cloudwatch.py test_put_metric_data_validation). Which of
+  // the two it stores is not recorded, so only the acceptance is asserted.
+  test("a datum with both Values and StatisticValues is accepted", async () => {
+    const out = await cw.send(
+      new PutMetricDataCommand({
+        Namespace: namespace(),
+        MetricData: [{ MetricName: "Both", Values: [1, 10], StatisticValues: { SampleCount: 10, Sum: 55, Minimum: 1, Maximum: 10 }, Timestamp: minutesAgo(2) }],
+      }),
+    );
+    expect(out.$metadata.httpStatusCode).toBe(200);
+  });
+
+  // "The valid characters are letters, numbers, and underscore. The first
+  // character must be a lowercase letter." (the MetricDataQuery
+  // documentation). The refusal's text is inferred, so only its code is
+  // asserted.
+  test("GetMetricData refuses a query Id that does not start with a lowercase letter or holds other characters", async () => {
+    for (const id of ["Q1", "my-query", "1q", "_q"]) {
+      await expectFailure(
+        cw.send(
+          new GetMetricDataCommand({
+            StartTime: minutesAgo(10),
+            EndTime: new Date(Date.now() + 60_000),
+            MetricDataQueries: [{ Id: id, MetricStat: { Metric: { Namespace: "X", MetricName: "Y" }, Period: 60, Stat: "Sum" } }],
+          }),
+        ),
+        { name: "InvalidParameterValue", status: 400 },
+      );
+    }
   });
 
   test("datapoints with different dimensions are separate metrics", async () => {

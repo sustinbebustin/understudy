@@ -269,19 +269,19 @@ Full OBS refresh order for the 10-resource stack in one `terraform plan`: per qu
 
 ## 7. Where documentation, models and clients disagree
 
-- **`MaximumMessageSize` default.** AWS's current CreateQueue page says default 1,048,576 (DOC: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_CreateQueue.html); the provider still defaults the argument to 262,144 and always sends it (SRC consts.go#L13). Terraform users never hit the server default. Which default a bare `aws sqs create-queue` gets today: UNVERIFIED beyond the doc statement.
+- **`MaximumMessageSize` default.** AWS's current CreateQueue page says default 1,048,576 (DOC: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_CreateQueue.html); the provider still defaults the argument to 262,144 and always sends it (SRC consts.go#L13). Terraform users never hit the server default. A bare `aws sqs create-queue` gets `MaximumMessageSize` 1048576 (recorded 2026-10-14, `testdata/parity/sqs/R05/02-get-default.json`).
 - **`GetSubscriptionAttributes` keys.** API reference omits `Endpoint`/`Protocol`; real responses and the SNS developer guide include them; the provider requires them (section 3.5). Prefer client behavior.
 - **SQS error code.** Smithy model shape `QueueDoesNotExist` vs legacy wire code `AWS.SimpleQueueService.NonExistentQueue`; the provider matches the legacy code, delivered only via `x-amzn-query-error` (section 1.3). Prefer client behavior.
-- **Default SNS topic policy.** Provider's replacement default (`__default_policy_ID`, `SNS:Receive`, `StringEquals AWS:SourceOwner`) differs from the AWS-documented live default (prefixed `Id`/`Sid`, `StringLike AWS:SourceArn`).
+- **Default SNS topic policy.** Provider's replacement default (`__default_policy_ID`, `SNS:Receive`, `StringEquals AWS:SourceOwner`) differs from the AWS-documented live default (prefixed `Id`/`Sid`, `StringLike AWS:SourceArn`). The live default AWS sent uses `__default_policy_ID`, `__default_statement_ID` and `StringEquals AWS:SourceOwner`, so the provider's text differs from it only by the added `SNS:Receive` (recorded 2026-10-14, `testdata/parity/sns/R05/05-get-topic-attrs.json`).
 - **SQS `QueueNameExists`.** Docs table shows `QueueNameExists`; the model's query code is `QueueAlreadyExists`. The provider does not branch on it.
 
 ## 8. UNVERIFIED and open items
 
-- Real AWS byte format of `RedrivePolicy`/`RedriveAllowPolicy` in `GetQueueAttributes` (compact + sorted assumed; the provider's behavior makes it the only safe choice).
+- Real AWS byte format of `RedrivePolicy`/`RedriveAllowPolicy` in `GetQueueAttributes` (compact recorded 2026-10-14, `testdata/parity/sqs/R05/01-get-a.json`, `01-get-dlq.json`; sorted keys cannot be told from a fixed order, since the recorded orders are alphabetical; the provider's behavior makes it the only safe choice).
 - Whether real SQS emits `x-amzn-query-error` only when the request carries `X-Amzn-Query-Mode: true` (the Go SDK always sends it, so understudy can send unconditionally).
 - Real `CreateTopic` behavior for an existing name with different attributes.
-- Current server-side default `MaximumMessageSize` for a CLI-created queue (docs say 1 MiB).
-- Whether `SqsManagedSseEnabled` is returned `"true"` for FIFO queues and after `KmsMasterKeyId` is set (then expected `"false"`); provider tests accept both.
+- Closed (recorded 2026-10-14): the default `MaximumMessageSize` is 1048576 (`testdata/parity/sqs/R05/02-get-default.json`).
+- Closed (recorded 2026-10-14): `SqsManagedSseEnabled` is `"true"` for a new FIFO queue and `"false"` after `KmsMasterKeyId` is set (`testdata/parity/sqs/R05/02-get-default-fifo.json`, `02-get-kms.json`).
 - Cross-account SQS-to-SNS confirmation flow against this provider.
 - `RetryWhenNotFound` poll cadence on the 20 s read windows (not measured; irrelevant for strongly consistent backends).
 - Exact meaning of `x-amzn-query-error` `Receiver` vs `Sender` for 5xx SQS errors (only `Sender` observed).
@@ -306,7 +306,7 @@ Protocol and errors
 
 Attribute fidelity (the real work for "second plan is empty")
 5. Echo-exact storage: every attribute sent on `CreateQueue`/`SetQueueAttributes` must come back byte-identical in `GetQueueAttributes(All)` (integers as decimal strings, booleans as `"true"`/`"false"`), including `SqsManagedSseEnabled` and `KmsMasterKeyId` as given.
-6. Canonicalize `RedrivePolicy` and `RedriveAllowPolicy` on store: compact JSON, sorted keys, numbers preserved. Store `Policy` verbatim (do not add `Id`, do not change `Version`/`Sid`/`Principal` shape).
+6. Canonicalize `RedrivePolicy` and `RedriveAllowPolicy` on store: compact JSON, sorted keys, numbers preserved (AWS turns a numeric-string `maxReceiveCount` into a JSON number and compacts `Policy` whitespace while keeping its key order; recorded 2026-10-14, `testdata/parity/sqs/R02/std-05-attrs-src-0s.json`, `testdata/parity/sqs/R05/01-get-a.json`). Store `Policy` verbatim (do not add `Id`, do not change `Version`/`Sid`/`Principal` shape).
 7. Clearing semantics: `SetQueueAttributes` with `Policy`/`RedrivePolicy`/`RedriveAllowPolicy` = `""` removes the attribute entirely; `GetQueueAttributes(AttributeNames=[x])` for an unset attribute returns an empty or missing `Attributes` map, never an error. `SetSubscriptionAttributes(FilterPolicy="{}")` removes `FilterPolicy` and `FilterPolicyScope`; `SetSubscriptionAttributes(RedrivePolicy)` with the value omitted removes it.
 8. Implement `RedriveAllowPolicy` attribute support from day one (moto lacks it; its absence is a 20-minute Terraform hang).
 9. Always return, for SQS: `QueueArn` and the five defaulted attributes; `FifoQueue=true` and, for FIFO, `ContentBasedDeduplication`, `DeduplicationScope=queue`, `FifoThroughputLimit=perQueue`; `SqsManagedSseEnabled=true` for new unencrypted-by-user queues. Return `KmsDataKeyReusePeriodSeconds` only when SSE-KMS is configured. Return nothing for `Policy`/`Redrive*`/`KmsMasterKeyId` unless set.

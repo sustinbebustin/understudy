@@ -544,6 +544,7 @@ test_http_subscription_confirms_by_link_and_receives() {
   aws_ok sns publish --topic-arn "$TOPIC_ARN" --message hello-http
   local message_id
   message_id=$(jqv '.MessageId')
+  # shellcheck disable=SC2034 # the assert_jq calls below read AWS_OUT (lib.sh)
   AWS_OUT=$(hook_message Notification)
   assert_jq '.Type' 'Notification'
   assert_jq '.Message' 'hello-http'

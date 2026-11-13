@@ -19,6 +19,7 @@ from botocore.exceptions import ClientError
 
 from support import Admin, error_code, eventually, md5_hex, sqs_attribute_md5, status_of, uniq
 
+
 def system_attributes_param(sqs: Any) -> str:
     """The ReceiveMessage member that selects system attributes in the installed botocore.
 

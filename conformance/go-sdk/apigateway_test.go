@@ -42,22 +42,13 @@ func createRestResource(t *testing.T, client *apigateway.Client, apiID, parent, 
 	return aws.ToString(out.Id)
 }
 
-// restAPIResponse is one data-plane answer.
-type restAPIResponse struct {
-	status int
-	header http.Header
-	body   []byte
-}
-
 // callRestAPI sends method to path of the API through the path fallback
 // /_understudy/execute-api/<api-id>/<stage>/<rest> (apigateway-rest.md 4.1).
-func callRestAPI(t *testing.T, method, apiID, path string) restAPIResponse {
+func callRestAPI(t *testing.T, method, apiID, path string) httpReply {
 	t.Helper()
-	req, err := http.NewRequestWithContext(t.Context(), method, endpoint.String()+"/_understudy/execute-api/"+apiID+path, nil)
+	req, err := http.NewRequestWithContext(t.Context(), method, endpoint.String()+"/_understudy/execute-api/"+apiID+path, http.NoBody)
 	ok(t, err, "building the request")
-	resp, err := http.DefaultClient.Do(req)
-	ok(t, err, "calling "+method+" "+path)
-	return restAPIResponse{status: resp.StatusCode, header: resp.Header, body: readAll(t, resp.Body, "the API's response")}
+	return send(t, http.DefaultClient, req, "calling "+method+" "+path)
 }
 
 // CreateRestApi answers AWS's create defaults (apigateway-rest.md 2.3:
@@ -199,9 +190,9 @@ func TestAPIGatewayRestMockAndDeployments(t *testing.T) {
 		got := callRestAPI(t, c.method, id, c.path)
 		var body map[string]string
 		if got.status != http.StatusForbidden || json.Unmarshal(got.body, &body) != nil || body["message"] != "Missing Authentication Token" ||
-			got.header.Get("x-amzn-ErrorType") != "MissingAuthenticationTokenException" {
+			got.header.Get("X-Amzn-Errortype") != "MissingAuthenticationTokenException" {
 			t.Errorf("%s %s = %d %s (x-amzn-ErrorType %q), want 403 Missing Authentication Token",
-				c.method, c.path, got.status, got.body, got.header.Get("x-amzn-ErrorType"))
+				c.method, c.path, got.status, got.body, got.header.Get("X-Amzn-Errortype"))
 		}
 	}
 
@@ -314,9 +305,9 @@ func TestAPIGatewayRestInvokesLambda(t *testing.T) {
 	ok(t, err, "CreateDeployment")
 
 	got := callRestAPI(t, http.MethodGet, id, "/live/items/42")
-	if got.status != http.StatusCreated || got.header.Get("x-conformance") != "yes" || got.header.Get("x-amzn-RequestId") == "" {
+	if got.status != http.StatusCreated || got.header.Get("X-Conformance") != "yes" || got.header.Get("X-Amzn-Requestid") == "" {
 		t.Fatalf("GET /live/items/42 = %d (x-conformance %q, x-amzn-RequestId %q): %s; want the function's 201",
-			got.status, got.header.Get("x-conformance"), got.header.Get("x-amzn-RequestId"), got.body)
+			got.status, got.header.Get("X-Conformance"), got.header.Get("X-Amzn-Requestid"), got.body)
 	}
 	var seen struct{ Resource, Path, Method, Stage, ID string }
 	ok(t, json.Unmarshal(got.body, &seen), "decoding the function's view")

@@ -19,14 +19,12 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	tmtypes "github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager/types"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Research: docs/research/s3.md, wire-rest.md,
@@ -61,7 +59,8 @@ func deleteBucketFully(client *s3.Client, bucket string) {
 	ctx := context.Background()
 	versions, err := client.ListObjectVersions(ctx, &s3.ListObjectVersionsInput{Bucket: aws.String(bucket)})
 	if err == nil {
-		for _, v := range versions.Versions {
+		for i := range versions.Versions {
+			v := &versions.Versions[i]
 			_, _ = client.DeleteObject(ctx, &s3.DeleteObjectInput{Bucket: aws.String(bucket), Key: v.Key, VersionId: v.VersionId})
 		}
 		for _, m := range versions.DeleteMarkers {
@@ -146,11 +145,7 @@ func randomBytes(t *testing.T, n int) []byte {
 // httpStatus is the HTTP status of a successful call.
 func httpStatus(t *testing.T, md middleware.Metadata) int {
 	t.Helper()
-	raw, isResp := awsmiddleware.GetRawResponse(md).(*smithyhttp.Response)
-	if !isResp {
-		t.Fatalf("no raw HTTP response in the result metadata")
-	}
-	return raw.StatusCode
+	return rawResponse(t, md).StatusCode
 }
 
 func TestS3Buckets(t *testing.T) {
@@ -667,7 +662,7 @@ func TestS3Objects(t *testing.T) {
 			{Key: aws.String("batch1")}, {Key: aws.String("batch2")}, {Key: aws.String("never-existed")},
 		}}})
 		ok(t, err, "DeleteObjects")
-		var deleted []string
+		deleted := make([]string, 0, len(multi.Deleted))
 		for _, d := range multi.Deleted {
 			deleted = append(deleted, aws.ToString(d.Key))
 		}
@@ -696,7 +691,7 @@ func TestS3Listing(t *testing.T) {
 	t.Run("ListObjectsV2 order and fields", func(t *testing.T) {
 		out, err := client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{Bucket: aws.String(bucket)})
 		ok(t, err, "ListObjectsV2")
-		var got []string
+		got := make([]string, 0, len(out.Contents))
 		for _, o := range out.Contents {
 			got = append(got, aws.ToString(o.Key))
 			if o.StorageClass != types.ObjectStorageClassStandard || aws.ToInt64(o.Size) != 1 || aws.ToString(o.ETag) != quotedMD5([]byte("x")) {
@@ -706,7 +701,7 @@ func TestS3Listing(t *testing.T) {
 		if !slices.Equal(got, keys) {
 			t.Errorf("ListObjectsV2 keys = %v, want byte order %v", got, keys)
 		}
-		if aws.ToInt32(out.KeyCount) != int32(len(keys)) || aws.ToBool(out.IsTruncated) {
+		if int(aws.ToInt32(out.KeyCount)) != len(keys) || aws.ToBool(out.IsTruncated) {
 			t.Errorf("KeyCount %d, IsTruncated %v; want %d, false", aws.ToInt32(out.KeyCount), aws.ToBool(out.IsTruncated), len(keys))
 		}
 	})
@@ -714,10 +709,11 @@ func TestS3Listing(t *testing.T) {
 	t.Run("prefix and delimiter", func(t *testing.T) {
 		out, err := client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{Bucket: aws.String(bucket), Prefix: aws.String("a/"), Delimiter: aws.String("/")})
 		ok(t, err, "ListObjectsV2 prefix a/ delimiter /")
-		var got, prefixes []string
+		got := make([]string, 0, len(out.Contents))
 		for _, o := range out.Contents {
 			got = append(got, aws.ToString(o.Key))
 		}
+		prefixes := make([]string, 0, len(out.CommonPrefixes))
 		for _, p := range out.CommonPrefixes {
 			prefixes = append(prefixes, aws.ToString(p.Prefix))
 		}
@@ -1077,20 +1073,16 @@ func TestS3PresignedURLs(t *testing.T) {
 			req.Header[k] = v
 		}
 	}
-	resp, err := http.DefaultClient.Do(req)
-	ok(t, err, "presigned PUT")
-	respBody := readAll(t, resp.Body, "the presigned PUT response")
-	if resp.StatusCode != 200 {
-		t.Fatalf("presigned PUT status %d, body %s", resp.StatusCode, respBody)
+	if r := send(t, http.DefaultClient, req, "presigned PUT"); r.status != http.StatusOK {
+		t.Fatalf("presigned PUT status %d, body %s", r.status, r.body)
 	}
 
 	get, err := presign.PresignGetObject(ctx, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String("presigned")})
 	ok(t, err, "PresignGetObject")
-	resp, err = http.Get(get.URL)
-	ok(t, err, "presigned GET")
-	b := readAll(t, resp.Body, "the presigned GET response")
-	if resp.StatusCode != 200 || string(b) != "hello" {
-		t.Errorf("presigned GET = %d %q, want 200 hello", resp.StatusCode, b)
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, get.URL, http.NoBody)
+	ok(t, err, "building the presigned GET")
+	if r := send(t, http.DefaultClient, req, "presigned GET"); r.status != http.StatusOK || string(r.body) != "hello" {
+		t.Errorf("presigned GET = %d %q, want 200 hello", r.status, r.body)
 	}
 	head, err := client.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(bucket), Key: aws.String("presigned"), ChecksumMode: types.ChecksumModeEnabled})
 	ok(t, err, "HeadObject of the presigned upload")

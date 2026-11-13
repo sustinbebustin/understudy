@@ -159,10 +159,11 @@ func (m MalformedOr) String() string {
 	return "unknown"
 }
 
-// Switch is the fidelity-ledger metadata of one behavior a profile chooses
-// without AWS-recorded evidence for its service. The owning service turns it
-// into a fidelity.Switch. The Options switches follow executed Ruler source;
-// the fixed ones follow service documentation or inference.
+// Switch is the fidelity-ledger metadata of one behavior choice point of a
+// profile. The owning service turns it into a fidelity.Switch and labels
+// it, aws-recorded where its service's recordings settle the value. The
+// Options switches follow executed Ruler source; the fixed ones follow
+// service documentation, inference or a recording.
 type Switch struct {
 	// Name is the switch name, prefixed by the profile ("sns.filter-policy.").
 	Name string
@@ -184,9 +185,9 @@ func optionSwitch(prefix, field string, value fmt.Stringer, record string) Switc
 	return Switch{Name: prefix + "." + field, Value: value.String(), Ref: switchRef, Record: record}
 }
 
-// Switches returns the metadata of every unverified choice p makes: the
-// Options fields p leaves open, as p sets them, then the fixed allow-list and
-// limit choices of p's service.
+// Switches returns the metadata of every switch p names: the Options
+// fields p leaves open, as p sets them, then the fixed allow-list and limit
+// choices of p's service.
 func Switches(p Profile) []Switch {
 	return append(p.optionSwitches(), p.fixedSwitches()...)
 }

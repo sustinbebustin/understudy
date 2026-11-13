@@ -50,6 +50,28 @@ jobs:
           group: race
           mode: save
 
+  # Lints the conformance suites and the example modules, which verify's
+  # golangci-lint does not reach (just lint-suites): golangci-lint in each Go
+  # module with its own .golangci.yml, ruff over the boto3 suite and
+  # shellcheck over the suites' shell scripts. ruff and shellcheck come
+  # through uvx at the versions the recipe pins. No AWS and no understudy.
+  lint-suites:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0
+          install-only: true
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: "1.58.0"
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: just lint-suites
+
   # Regenerates every generated package from the vendored models, corpus,
   # actions table and overlays, and fails when the result differs from what
   # is checked in (ARCHITECTURE.md 5.7).

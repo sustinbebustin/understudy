@@ -117,6 +117,30 @@
     {
       "fixture": "events/R14/H14-04.json",
       "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H10-01.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H10-02.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H10-03.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H10-04.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H10-05.json",
+      "compare": "all"
+    },
+    {
+      "fixture": "events/R14/H10-06.json",
+      "compare": "all"
     }
   ],
   "settles": [
@@ -129,6 +153,11 @@
       "switch": "events.pattern.or-shared-values",
       "step": "H14-02",
       "field": "body/Result"
+    },
+    {
+      "switch": "events.pattern.malformed-or",
+      "step": "H10-03",
+      "field": "error/message"
     }
   ]
 }

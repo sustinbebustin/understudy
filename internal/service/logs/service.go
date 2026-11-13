@@ -27,7 +27,8 @@ type Service struct {
 	cells *store.Partitioned[aws.Scope, State]
 	// retention is TimerRetention as registered with the kernel.
 	retention kernel.HandledKind
-	// filter holds the filter-pattern behaviors no recording settles.
+	// filter holds the filter-pattern engine options its fidelity switches
+	// name.
 	filter logsfilter.Options
 }
 
@@ -137,8 +138,8 @@ func deliveryRetention() fidelity.Switch[int32] {
 	}
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence: the
-// filter-pattern questions logsfilter leaves open, with the label,
+// Switches lists the service's fidelity switches: the filter-pattern
+// questions logsfilter leaves open, with the label,
 // operations and settling step filterSwitches states for each, the
 // retention rule, the DELIVERY class's fixed retention and the status of a
 // denial (iam-enforcement-surfaces.md 12.8; third-party-recorded for a
@@ -176,7 +177,10 @@ func filterSwitches() map[string]filterSwitch {
 		return fidelity.NoScenario{Reason: "logs/R10/" + step + ".json is recorded; no scenario replays logs/R10 yet"}
 	}
 	return map[string]filterSwitch{
-		"logs.filter.term-boundary":         {evidence.Inferred, ops, r10("03-filter-01")},
+		"logs.filter.term-boundary": {
+			evidence.AWSRecorded, ops,
+			fidelity.NoScenario{Reason: "logs/R10/03-filter-01.json is recorded; a replay of it lists the recorded events but differs beside them, in the searchStatistics member AWS sends outside its model, so no scenario replays it"},
+		},
 		"logs.filter.delimited-field-count": {evidence.Inferred, ops, r10("03-filter-11")},
 	}
 }

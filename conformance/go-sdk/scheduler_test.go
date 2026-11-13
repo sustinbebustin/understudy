@@ -185,7 +185,7 @@ func TestSchedulerUpdateDropsMembersToTheirDefaults(t *testing.T) {
 func TestSchedulerListByPrefixAcrossPages(t *testing.T) {
 	_, target := schedulerTarget(t)
 	prefix := name(t, "ls")
-	var want []string
+	want := make([]string, 0, 3)
 	for i := range 3 {
 		n := prefix + "-" + string(rune('0'+i))
 		want = append(want, n)

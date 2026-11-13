@@ -46,7 +46,7 @@ func (s *Service) bindSubscriptions(b snsapi.Binder) {
 		"the endpoint's policy is not checked at Subscribe (sns.subscribe.policy-check), so under iam.enforce=enforce a policy that refuses SNS refuses each delivery; " +
 		"http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, " +
 		"and otherwise stay subscribed with a readable token but receive nothing; loopback and private endpoints are accepted, where AWS refuses them; email and email-json stay subscribed with a readable token but receive nothing; " +
-		"sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced"},
+		"sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced (AWS's refusal of a topic's 201st policy reads \"Could not complete request: filter policy quota exceeded\", sns/R09/limit-201.json; understudy words its own refusal differently)"},
 		kernel.WithResourceARN(func(in *snsapi.SubscribeInput) string { return in.TopicArn }),
 		kernel.WithResources(func(_ *kernel.Call, in *snsapi.SubscribeInput) []aws.ARN {
 			return subscriptionRole(in.Attributes[attrSubscriptionRoleArn])

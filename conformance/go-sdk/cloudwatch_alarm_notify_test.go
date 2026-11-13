@@ -58,14 +58,15 @@ func TestCloudWatchAlarmNotifiesThroughSNSOnClockAdvance(t *testing.T) {
 		t.Fatalf("notifications after the ALARM transition = %q, want one", bodies(msgs))
 	}
 	var n struct {
-		AlarmName, AlarmArn, NewStateValue, OldStateValue, AWSAccountId string
-		Trigger                                                         struct{ MetricName, Namespace string }
+		AlarmName, AlarmArn, NewStateValue, OldStateValue string
+		AWSAccountID                                      string `json:"AWSAccountId"`
+		Trigger                                           struct{ MetricName, Namespace string }
 	}
 	if err := json.Unmarshal([]byte(aws.ToString(msgs[0].Body)), &n); err != nil {
 		t.Fatalf("raw notification is not the cwa 5.1 JSON: %v: %s", err, aws.ToString(msgs[0].Body))
 	}
 	if n.AlarmName != alarmName || n.AlarmArn != alarmARN || n.NewStateValue != "ALARM" || n.OldStateValue != "INSUFFICIENT_DATA" ||
-		n.AWSAccountId != acct || n.Trigger.MetricName != metric || n.Trigger.Namespace != "Conformance" {
+		n.AWSAccountID != acct || n.Trigger.MetricName != metric || n.Trigger.Namespace != "Conformance" {
 		t.Errorf("notification = %+v (cwa 5.1)", n)
 	}
 

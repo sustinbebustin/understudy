@@ -61,8 +61,7 @@ func TestSESSendTemplatedEmail(t *testing.T) {
 		TemplateData: aws.String(`{"name":"x"}`),
 	}
 	_, err = client.SendTemplatedEmail(ctx, in)
-	var missing *sestypes.TemplateDoesNotExistException
-	if !errors.As(err, &missing) {
+	if _, missing := errors.AsType[*sestypes.TemplateDoesNotExistException](err); !missing {
 		t.Errorf("SendTemplatedEmail of a missing template = %v, want TemplateDoesNotExist", err)
 	}
 

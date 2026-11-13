@@ -96,7 +96,8 @@ func newWorker(ctx context.Context) (*worker, error) {
 
 func (w *worker) handle(ctx context.Context, ev events.SQSEvent) (events.SQSEventResponse, error) {
 	var resp events.SQSEventResponse
-	for _, rec := range ev.Records {
+	for i := range ev.Records {
+		rec := &ev.Records[i]
 		p, err := parsePayload(rec)
 		if err == nil {
 			err = w.process(ctx, rec, p)
@@ -112,7 +113,7 @@ func (w *worker) handle(ctx context.Context, ev events.SQSEvent) (events.SQSEven
 var errAsked = errors.New("the payload asked for a failure")
 
 // parsePayload reads rec's body; the zero payload when it is not one.
-func parsePayload(rec events.SQSMessage) (payload, error) {
+func parsePayload(rec *events.SQSMessage) (payload, error) {
 	var p payload
 	if err := json.Unmarshal([]byte(rec.Body), &p); err != nil {
 		return payload{}, fmt.Errorf("the body is not a JSON payload: %w", err)
@@ -120,7 +121,7 @@ func parsePayload(rec events.SQSMessage) (payload, error) {
 	return p, nil
 }
 
-func (w *worker) process(ctx context.Context, rec events.SQSMessage, p payload) error {
+func (w *worker) process(ctx context.Context, rec *events.SQSMessage, p payload) error {
 	if p.Fail {
 		return errAsked
 	}
@@ -152,7 +153,7 @@ func (w *worker) process(ctx context.Context, rec events.SQSMessage, p payload) 
 	if err != nil {
 		return fmt.Errorf("taking the lock: %w", err)
 	}
-	body, err := json.Marshal(processed{Function: w.name, SecretVersionID: aws.ToString(secret.VersionId), Record: rec, Payload: p, Lock: lock})
+	body, err := json.Marshal(processed{Function: w.name, SecretVersionID: aws.ToString(secret.VersionId), Record: *rec, Payload: p, Lock: lock})
 	if err != nil {
 		return fmt.Errorf("encoding the record: %w", err)
 	}

@@ -96,6 +96,19 @@ func TestEverySwitchStatesItsOpsAndSettles(t *testing.T) {
 	}
 }
 
+// A recorded deviation, a switch whose reason opens "AWS contradicts it:",
+// is labelled by what backs understudy's own value, never aws-recorded: the
+// recording backs what AWS does instead, and an aws-recorded label would
+// make the operations it governs read as recorded where they differ
+// (ADR 0003, amendment 2026-11-13).
+func TestRecordedDeviationsAreNotLabelledRecorded(t *testing.T) {
+	for _, sw := range wiredReport(t).Switches {
+		if s, ok := sw.Settles.(fidelity.NoScenario); ok && strings.HasPrefix(s.Reason, "AWS contradicts it:") && sw.Label == evidence.AWSRecorded {
+			t.Errorf("%s: a recorded deviation labelled %s; label it by the evidence for understudy's value, usually %s", sw.Name, sw.Label, evidence.Inferred)
+		}
+	}
+}
+
 // The coverage report lists how resource policies store an account
 // principal, recorded for each service that stores one, and that no
 // service checks a named principal exists, which AWS does

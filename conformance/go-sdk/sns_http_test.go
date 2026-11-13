@@ -4,7 +4,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -62,15 +64,39 @@ func (r *hookReceiver) ofType(typ string) []hookPost {
 	defer r.mu.Unlock()
 	var out []hookPost
 	for _, p := range r.posts {
-		if p.header.Get("x-amz-sns-message-type") == typ {
+		if p.header.Get("X-Amz-Sns-Message-Type") == typ {
 			out = append(out, p)
 		}
 	}
 	return out
 }
 
+// loopbackOnly refuses any request whose host is not loopback before it is
+// sent, so a wrong link can never leave the machine, an AWS host least of
+// all (8.8). Redirects pass through it too.
+type loopbackOnly struct{ next http.RoundTripper }
+
+func (l loopbackOnly) RoundTrip(req *http.Request) (*http.Response, error) {
+	if !isLoopbackHost(req.URL.Hostname()) {
+		return nil, fmt.Errorf("link [%s] is not on loopback; not following it", req.URL)
+	}
+	return l.next.RoundTrip(req)
+}
+
+// isLoopbackHost reports whether host is localhost, a *.localhost name or a
+// loopback IP.
+func isLoopbackHost(host string) bool {
+	host = strings.ToLower(host)
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 // linkClient follows SNS links: an https link is on understudy's TLS
-// listener, whose certificate run.sh puts in AWS_CA_BUNDLE.
+// listener, whose certificate run.sh puts in AWS_CA_BUNDLE. It refuses a
+// link off loopback.
 func linkClient(t *testing.T) *http.Client {
 	t.Helper()
 	roots, err := x509.SystemCertPool()
@@ -84,7 +110,7 @@ func linkClient(t *testing.T) *http.Client {
 		}
 		roots.AppendCertsFromPEM(pem)
 	}
-	c := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}}
+	c := &http.Client{Timeout: 10 * time.Second, Transport: loopbackOnly{&http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}}}}
 	t.Cleanup(c.CloseIdleConnections)
 	return c
 }
@@ -113,16 +139,14 @@ func TestSNSHTTPSubscription(t *testing.T) {
 		return n == 1, "the receiver has no SubscriptionConfirmation"
 	})
 	confirmation := rcv.ofType("SubscriptionConfirmation")[0]
-	if confirmation.body["Type"] != "SubscriptionConfirmation" || confirmation.body["TopicArn"] != topic || confirmation.header.Get("x-amz-sns-topic-arn") != topic {
+	if confirmation.body["Type"] != "SubscriptionConfirmation" || confirmation.body["TopicArn"] != topic || confirmation.header.Get("X-Amz-Sns-Topic-Arn") != topic {
 		t.Errorf("SubscriptionConfirmation %s with headers %v", confirmation.raw, confirmation.header)
 	}
-	resp, err := linkClient(t).Get(confirmation.body["SubscribeURL"])
-	if err != nil {
-		t.Fatalf("GET SubscribeURL %s: %v", confirmation.body["SubscribeURL"], err)
-	}
-	answer := string(readAll(t, resp.Body, "the SubscribeURL answer"))
-	if resp.StatusCode != http.StatusOK || !strings.Contains(answer, "<SubscriptionArn>"+arn+"</SubscriptionArn>") {
-		t.Fatalf("GET SubscribeURL = %d %s, want 200 naming %s", resp.StatusCode, answer, arn)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, confirmation.body["SubscribeURL"], http.NoBody)
+	ok(t, err, "building the SubscribeURL request")
+	answer := send(t, linkClient(t), req, "GET SubscribeURL "+confirmation.body["SubscribeURL"])
+	if answer.status != http.StatusOK || !strings.Contains(string(answer.body), "<SubscriptionArn>"+arn+"</SubscriptionArn>") {
+		t.Fatalf("GET SubscribeURL = %d %s, want 200 naming %s", answer.status, answer.body, arn)
 	}
 	attrs, err := client.GetSubscriptionAttributes(ctx, &sns.GetSubscriptionAttributesInput{SubscriptionArn: aws.String(arn)})
 	ok(t, err, "GetSubscriptionAttributes")
@@ -136,13 +160,13 @@ func TestSNSHTTPSubscription(t *testing.T) {
 		return len(rcv.ofType("Notification")) == 1, "the receiver has no Notification"
 	})
 	n := rcv.ofType("Notification")[0]
-	if n.body["Message"] != "hello" || n.body["MessageId"] != aws.ToString(out.MessageId) || n.header.Get("x-amz-sns-subscription-arn") != arn ||
-		n.header.Get("x-amz-sns-message-id") != aws.ToString(out.MessageId) || n.header.Get("User-Agent") != "Amazon Simple Notification Service Agent" {
+	if n.body["Message"] != "hello" || n.body["MessageId"] != aws.ToString(out.MessageId) || n.header.Get("X-Amz-Sns-Subscription-Arn") != arn ||
+		n.header.Get("X-Amz-Sns-Message-Id") != aws.ToString(out.MessageId) || n.header.Get("User-Agent") != "Amazon Simple Notification Service Agent" {
 		t.Errorf("Notification %s with headers %v", n.raw, n.header)
 	}
 	for _, p := range append(rcv.ofType("SubscriptionConfirmation"), rcv.ofType("Notification")...) {
 		if m := awsHost.FindString(p.raw); m != "" {
-			t.Errorf("a %s names the AWS host %q: %s", p.header.Get("x-amz-sns-message-type"), m, p.raw)
+			t.Errorf("a %s names the AWS host %q: %s", p.header.Get("X-Amz-Sns-Message-Type"), m, p.raw)
 		}
 	}
 	_, err = client.Unsubscribe(ctx, &sns.UnsubscribeInput{SubscriptionArn: aws.String(arn)})

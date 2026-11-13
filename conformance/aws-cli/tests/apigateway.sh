@@ -8,7 +8,7 @@
 # the Python 3.13 Lambda base image, and skips when the emulator reports
 # Docker as not enabled.
 
-# shellcheck source=../lambda-helpers.sh
+# shellcheck source-path=SCRIPTDIR source=../lambda-helpers.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lambda-helpers.sh"
 
 # new_rest_api: create a REST API (id in API_ID, root resource in ROOT_ID)

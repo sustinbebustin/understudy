@@ -137,8 +137,9 @@ func (StoredOnly) isStatus() {}
 func (Partial) isStatus()    {}
 func (Unbound) isStatus()    {}
 
-// Switch is a fidelity switch: a behavior chosen without AWS-recorded
-// evidence, and what settles it.
+// Switch is a fidelity switch: a named behavior choice point, the evidence
+// label of the value understudy implements, and what settles it (ADR 0003,
+// amendment 2026-11-13).
 type Switch struct {
 	Name   string         `json:"name"`
 	Value  string         `json:"value"`

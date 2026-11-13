@@ -111,7 +111,7 @@ func TestCloudWatchAlarmEvaluatesOnClockAdvance(t *testing.T) {
 			AlarmName: aws.String(alarmName), HistoryItemType: types.HistoryItemTypeStateUpdate,
 		})
 		ok(t, err, "DescribeAlarmHistory")
-		var got []string
+		got := make([]string, 0, len(out.AlarmHistoryItems))
 		for _, it := range out.AlarmHistoryItems {
 			if it.HistoryItemType != types.HistoryItemTypeStateUpdate || it.AlarmType != types.AlarmTypeMetricAlarm {
 				t.Errorf("history item %+v, want a metric alarm StateUpdate (cwa 8.2)", it)

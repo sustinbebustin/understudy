@@ -79,7 +79,7 @@ Its tests run with `just sealed-test`.
 - `cloudwatch/CWA-19`: `GetMetricStatistics`' refusals and its 1440-datapoint count (CWA-19 and CWA-20).
 - `dynamodb/R11`: step 07, DynamoDB Streams' refused signing scope.
 - `events/EBB`: the event bus steps a request alone settles (refusal texts, missing-bus answers, `UpdateEventBus`, the bus policy and bus-target refusals).
-- `events/R14`: step 04, a schedule on a custom bus its setup creates, and the `TestEventPattern` cases H1, H8, H9 and H14.
+- `events/R14`: step 04, a schedule on a custom bus its setup creates, the `TestEventPattern` cases H1, H8, H9 and H14, and the `PutRule` refusals of a malformed `$or` (H10).
 - `iam/IAM-EVAL-35` and `iam/IAM-EVAL-36`: the CreatePolicy refusals. An accepted CreatePolicy is left out, since AWS writes the `Policy` members in an order understudy does not follow.
 - `kms/KMS-alias`, `sqs/R01` and `sts/R15`.
 - `kms/R15`: the key-state, alias, key policy and `ScheduleKeyDeletion` refusals of steps 02 and 03, and the `ListKeys` marker refusal.

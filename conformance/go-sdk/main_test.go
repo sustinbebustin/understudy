@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,10 +20,13 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/smithy-go"
+	"github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // tlsEndpointEnv names the variable run.sh sets to understudy's TLS
@@ -107,7 +111,7 @@ func localhostURL(u *url.URL) string {
 var (
 	accountOnce sync.Once
 	accountID   string
-	accountErr  error
+	errAccount  error
 )
 
 // account is the caller's account id, from STS GetCallerIdentity.
@@ -116,13 +120,13 @@ func account(t *testing.T) string {
 	accountOnce.Do(func() {
 		out, err := sts.NewFromConfig(awsCfg).GetCallerIdentity(context.Background(), &sts.GetCallerIdentityInput{})
 		if err != nil {
-			accountErr = err
+			errAccount = err
 			return
 		}
 		accountID = aws.ToString(out.Account)
 	})
-	if accountErr != nil {
-		t.Fatalf("resolving the account through sts:GetCallerIdentity: %v", accountErr)
+	if errAccount != nil {
+		t.Fatalf("resolving the account through sts:GetCallerIdentity: %v", errAccount)
 	}
 	return accountID
 }
@@ -147,6 +151,7 @@ var (
 // (conformance/iam-loop) must touch the resources the policy rendered from
 // its first run names.
 func name(tb testing.TB, prefix string) string {
+	tb.Helper()
 	seed := os.Getenv(nameSeedEnv)
 	if seed == "" {
 		b := make([]byte, 5)
@@ -245,6 +250,17 @@ func wantStatus(t *testing.T, err error, op string, want int) {
 	}
 }
 
+// rawResponse is the HTTP response behind a successful call's result
+// metadata.
+func rawResponse(t *testing.T, md middleware.Metadata) *smithyhttp.Response {
+	t.Helper()
+	raw, isResp := awsmiddleware.GetRawResponse(md).(*smithyhttp.Response)
+	if !isResp {
+		t.Fatalf("no raw HTTP response in the result metadata")
+	}
+	return raw
+}
+
 // readAll reads body to the end and closes it, failing the test on
 // either error. For the SDK's streaming outputs a read error can be a
 // failed response checksum, so it is never ignored.
@@ -254,6 +270,25 @@ func readAll(t *testing.T, body io.ReadCloser, what string) []byte {
 	ok(t, err, "reading "+what)
 	ok(t, body.Close(), "closing "+what)
 	return b
+}
+
+// httpReply is an HTTP response whose body has been read and closed.
+type httpReply struct {
+	status int
+	header http.Header
+	body   []byte
+}
+
+// send sends req with client and returns the reply, failing the test when
+// the request or reading its body fails.
+func send(t *testing.T, client *http.Client, req *http.Request, what string) httpReply {
+	t.Helper()
+	resp, err := client.Do(req)
+	ok(t, err, what)
+	b, err := io.ReadAll(resp.Body)
+	ok(t, err, "reading the response to "+what)
+	ok(t, resp.Body.Close(), "closing the response to "+what)
+	return httpReply{status: resp.StatusCode, header: resp.Header, body: b}
 }
 
 // eventually polls check every interval until it reports done or timeout
@@ -326,9 +361,9 @@ func (c *recordingClient) requests() []recorded {
 func (c *recordingClient) last(t *testing.T, method string) recorded {
 	t.Helper()
 	reqs := c.requests()
-	for i := len(reqs) - 1; i >= 0; i-- {
-		if reqs[i].Method == method {
-			return reqs[i]
+	for _, req := range slices.Backward(reqs) {
+		if req.Method == method {
+			return req
 		}
 	}
 	t.Fatalf("no %s request was recorded", method)

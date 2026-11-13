@@ -96,8 +96,17 @@ func Switches() []fidelity.Entry {
 				"(IAM-ENF-36 and IAM-ENF-38: none for Kinesis ListStreams and SES v1 ListIdentities); inferred: whether AWS matches a policy's Resource against that wildcard " +
 				"rather than \"*\" is unrecorded, so evaluation and the access record keep \"*\" (" + enforcementNote + " 12.3)"},
 		}.Entry(),
-		// The kernel's step 8.
-		researchSwitch("iam.enforce.order", "validate-first", inferred, enforcementNote, "5.3", "IAM-ENF-13"),
+		// The kernel's step 8. A recorded deviation (ADR 0003, amendment
+		// 2026-11-13): IAM-ENF-13 recorded a per-service order, and the one
+		// order understudy follows everywhere is its own choice, so the
+		// label stays inferred.
+		fidelity.Switch[string]{
+			Name: "iam.enforce.order", Value: "validate-first", Label: inferred,
+			Ref: "docs/research/" + enforcementNote + "#5.3", Record: "IAM-ENF-13",
+			Settles: fidelity.NoScenario{Reason: "AWS contradicts it: IAM-ENF-13 recorded " + recordedOn + " (testdata/parity) that SQS, CloudWatch and Logs " +
+				"authorize before validating, while every other service it covers validates first; understudy validates first in all of them " +
+				"(" + enforcementNote + " 5.3, 12.8); " + SessionUnreplayed},
+		}.Entry(),
 		recordedSwitch("iam.enforce.missing-resource", "deny-first", enforcementNote, "5.3", "IAM-ENF-14", missingResourceOrder+"; "+SessionUnreplayed),
 	}
 }

@@ -9,6 +9,8 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/evidence"
+	"github.com/sustinbebustin/understudy/internal/fidelity"
 	"github.com/sustinbebustin/understudy/internal/service/events"
 )
 
@@ -258,6 +260,36 @@ func TestWildcardRulesPerBusAreLimitedTo30(t *testing.T) {
 		wantError(h.T, put("plain", wildcard), "LimitExceededException", "The requested resource exceeds the maximum number allowed.")
 		if err := put("w-0", `{"source": [{"wildcard": "other.*"}]}`); err != nil {
 			h.Errorf("replacing a wildcard rule at the limit = %s: %s", err.ID.JSONType, err.Message)
+		}
+	})
+}
+
+// The events/R14 recordings settle two pattern switches at the values the
+// service sets, so both are aws-recorded and keep the step that settles
+// them (ADR 0003, amendment 2026-11-13): exists:false matched an event
+// whose detail is {} (events/R14/H1-01.json), and a malformed "$or" was
+// refused with the reason of "$or" read as an ordinary key
+// (events/R14/H10-03.json, "Unrecognized match type m").
+func TestRecordedPatternSwitches(t *testing.T) {
+	run(t, func(h *harness) {
+		want := map[string]struct{ value, step string }{
+			"events.pattern.empty-input":  {"matchable", "H1-01"},
+			"events.pattern.malformed-or": {"ordinary-key", "H10-03"},
+		}
+		for _, e := range h.svc.Switches() {
+			w, ok := want[e.Name]
+			if !ok {
+				continue
+			}
+			delete(want, e.Name)
+			settles := fidelity.SettledBy{Step: fidelity.StepRef{Scenario: "events/R14", Step: w.step}}
+			if e.Value != w.value || e.Label != evidence.AWSRecorded || e.Settles != settles {
+				h.Errorf("switch %s = value %q label %s settles %#v; want %q, aws-recorded, settled by events/R14 %s",
+					e.Name, e.Value, e.Label, e.Settles, w.value, w.step)
+			}
+		}
+		for name := range want {
+			h.Errorf("switch %s is not listed", name)
 		}
 	})
 }

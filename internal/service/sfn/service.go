@@ -90,7 +90,8 @@ const (
 		"lambda:invoke results carry SdkHttpMetadata with AWS's recorded header names; the X-Amzn-Trace-Id value is understudy's. " +
 		"traceHeader, or the X-Amzn-Trace-Id request header when both are sent, " +
 		"is stored and returned by DescribeExecution; no X-Ray trace is emitted. A Lambda task in flight when a snapshot was saved is invoked again after load. " +
-		"States.MathRandom never reproduces AWS's sequence for a seed"
+		"States.MathRandom never reproduces AWS's sequence for a seed. " +
+		"States.ArrayUnique keeps first-seen order, where AWS returns the unique elements in a hash set's order (ASL-06)"
 	noteListExecutions    = "mapRunArn and redriveFilter are validated; no Map Run or redrive exists, so they match nothing"
 	noteDescribeExecution = "redriveStatus is NOT_REDRIVABLE for SUCCEEDED executions and for one failed at the history event limit, " +
 		"and REDRIVABLE for other FAILED, TIMED_OUT and ABORTED ones, however long ago they closed; a RUNNING execution has none. " +

@@ -1,17 +1,22 @@
 #!/usr/bin/env bash
 # Terraform conformance suite for understudy.
 #
-# Builds understudy from this repository, starts it on 127.0.0.1:45665 with a
-# fresh temporary data directory, and runs every service configuration (or the
-# ones named) through apply, a no-change plan, an update, another no-change
-# plan, destroy, and a check that nothing is left. The server is always
-# stopped and its containers removed. Exits non-zero when any test fails.
+# Builds understudy from this repository into a directory of the run's own,
+# starts it on 127.0.0.1:45670 (or CONFORMANCE_PORT; the SNS https receiver
+# takes the next port) with a fresh temporary data directory, and runs every
+# service configuration (or the ones named) through apply, a no-change plan,
+# an update, another no-change plan, destroy, and a check that nothing is
+# left. The server is always stopped and its containers removed. Exits
+# non-zero when any test fails; the run directory is removed on success and
+# kept, with its path printed, on failure.
 #
 #   conformance/terraform/run.sh                 # every service
 #   CONFORMANCE_DYNAMODB=0 conformance/terraform/run.sh
 #                                                # skip DynamoDB, run the rest
 #   conformance/terraform/run.sh sqs sns         # only these
 #   CONFORMANCE_JOBS=1 conformance/terraform/run.sh
+#   CONFORMANCE_PORT=45770 conformance/terraform/run.sh
+#                                                # serve on 45770, receiver on 45771 (default 45670)
 #   SIGV4=verify conformance/terraform/run.sh    # serve with --sigv4 verify (default parse)
 #   CONFORMANCE_IAM_ENFORCE=enforce CONFORMANCE_ADVISORIES_OUT=advisories.json \
 #     conformance/terraform/run.sh               # serve with --iam-enforce enforce (default off)
@@ -34,20 +39,16 @@ repo_root=$(cd -- "$suite_dir/../.." && pwd)
 source "$suite_dir/../common.sh"
 conformance_ddb_mode
 build_dir="$repo_root/.build/conformance/terraform"
-binary="$build_dir/understudy"
-run_dir="$build_dir/run"
-logs_dir="$run_dir/logs"
-work_dir="$run_dir/work"
-artifacts_dir="$run_dir/artifacts"
-results="$run_dir/results.tsv"
 sealed="$repo_root/scripts/sealed"
 
-port="${CONFORMANCE_PORT:-45665}"
+conformance_port 45670 1
+port=$conformance_port_number
 endpoint="http://127.0.0.1:$port"
-# The HTTPS receiver SNS's https subscription delivers to; it confirms each
+# The HTTPS receiver SNS's https subscription delivers to, on CONFORMANCE_PORT
+# + 1 unless CONFORMANCE_SNS_RECEIVER_PORT names another; it confirms each
 # subscription through its SubscribeURL, as endpoint_auto_confirms expects
 # (tf-messaging.md 3.5, sns-http-delivery.md 8.6).
-receiver_port="${CONFORMANCE_SNS_RECEIVER_PORT:-45667}"
+receiver_port="${CONFORMANCE_SNS_RECEIVER_PORT:-$((port + 1))}"
 receiver_url="https://127.0.0.1:$receiver_port"
 max_jobs="${CONFORMANCE_JOBS:-11}"
 phase_timeout="${CONFORMANCE_PHASE_TIMEOUT:-900}"
@@ -102,17 +103,17 @@ if curl -fsS -o /dev/null "$endpoint/_understudy/v1/health" 2>/dev/null; then
   die "something already answers on $endpoint; stop it or set CONFORMANCE_PORT"
 fi
 
-# Start from an empty run directory so results never mix with an earlier run.
-rm -rf -- "$run_dir"
+# Each run has a directory of its own, so concurrent runs never share results,
+# logs, work copies or the binary. The provider cache in $build_dir is shared.
+mkdir -p -- "$build_dir"
+run_dir=$(mktemp -d "$build_dir/run.XXXXXX")
+binary="$run_dir/understudy"
+logs_dir="$run_dir/logs"
+work_dir="$run_dir/work"
+artifacts_dir="$run_dir/artifacts"
+results="$run_dir/results.tsv"
 mkdir -p -- "$logs_dir" "$work_dir" "$artifacts_dir/go-worker"
 : >"$results"
-
-echo "==> building understudy into $binary"
-go -C "$repo_root" build -o "$binary" ./cmd/understudy
-
-echo "==> building the Go Lambda worker"
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
-  go -C "$suite_dir/functions/go-worker" build -trimpath -o "$artifacts_dir/go-worker/bootstrap" .
 
 data_dir=$(mktemp -d "${TMPDIR:-/tmp}/understudy-terraform.XXXXXX")
 server_pid=""
@@ -144,8 +145,11 @@ stop_server() {
     wait "$server_pid" 2>/dev/null
   fi
   # A clean shutdown already removed the containers; this sweeps what a
-  # killed server left, and the label check confirms nothing remains.
-  if "$binary" cleanup --persist "$data_dir" --output json >"$logs_dir/cleanup.json" 2>&1; then
+  # killed server left, and the label check confirms nothing remains. A
+  # failed build leaves no binary and started nothing.
+  if [[ ! -x "$binary" ]]; then
+    :
+  elif "$binary" cleanup --persist "$data_dir" --output json >"$logs_dir/cleanup.json" 2>&1; then
     local owner
     owner=$(jq -r '.owner // empty' "$logs_dir/cleanup.json")
     if [[ -n "$owner" ]]; then
@@ -161,11 +165,23 @@ stop_server() {
     echo "run.sh: understudy cleanup failed; see $logs_dir/cleanup.json" >&2
   fi
   rm -rf -- "$data_dir"
+  if ((status == 0)); then
+    rm -rf -- "$run_dir"
+  else
+    echo "run.sh: failed with status $status; the run's logs, results and work copies are kept in $run_dir" >&2
+  fi
   exit "$status"
 }
 trap stop_server EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+
+echo "==> building understudy into $binary"
+go -C "$repo_root" build -o "$binary" ./cmd/understudy
+
+echo "==> building the Go Lambda worker"
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+  go -C "$suite_dir/functions/go-worker" build -trimpath -o "$artifacts_dir/go-worker/bootstrap" .
 
 conformance_isolate_serve_env
 
@@ -196,10 +212,24 @@ conformance_require_ddb_enabled "$endpoint/_understudy/v1" "$logs_dir/server.log
 # (sns-http-delivery.md 2.3). Its log is logs/sns-receiver.jsonl.
 echo "==> starting the SNS HTTPS receiver on $receiver_url"
 python3 -I - "$run_dir/receiver.pem" "$run_dir/receiver.key" "$receiver_port" "$logs_dir/sns-receiver.jsonl" <<'PY' >"$logs_dir/sns-receiver.log" 2>&1 &
-import http.server, json, ssl, sys, urllib.request
+import http.server, ipaddress, json, ssl, sys, urllib.parse, urllib.request
 
 cert, key, port, log = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def is_loopback(link):
+    """True when the link's host is localhost, a *.localhost name or a loopback IP."""
+    try:
+        host = (urllib.parse.urlsplit(link).hostname or "").lower()
+    except ValueError:
+        return False
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 def note(entry):
@@ -217,6 +247,11 @@ class Hook(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         if kind == "SubscriptionConfirmation":
             link = json.loads(body)["SubscribeURL"]
+            if not is_loopback(link):
+                # Never follow a link off the machine; the missing "confirmed"
+                # entry fails the test, and this log names the link.
+                note({"refused": self.path, "link": link})
+                return
             with opener.open(link, timeout=10) as r:
                 note({"confirmed": self.path, "status": r.status})
 

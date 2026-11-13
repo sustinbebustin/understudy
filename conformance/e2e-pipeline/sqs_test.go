@@ -55,7 +55,7 @@ func TestSQSReportedFailuresRedriveToTheDLQ(t *testing.T) {
 	})
 
 	failed, _ := filterLines(t, lambdaLogGroup(goWorker), eventPattern("failed", bad))
-	var counts []string
+	counts := make([]string, 0, len(failed))
 	for _, l := range failed {
 		counts = append(counts, l.ReceiveCount)
 	}

@@ -18,7 +18,7 @@ import {
 } from "@aws-sdk/client-sns";
 import MessageValidator from "sns-validator";
 import { clientConfig } from "../support/env";
-import { eventually, uniq } from "../support/helpers";
+import { assertLoopbackLink, eventually, uniq } from "../support/helpers";
 
 /** The settings run.sh passes; the file cannot run without them. */
 function setting(name: string): string {
@@ -74,8 +74,9 @@ async function received(path: string, type: string): Promise<SnsMessage> {
   return JSON.parse(post.body) as SnsMessage;
 }
 
-/** An unsigned GET of an SNS link, trusting understudy's TLS certificate. */
+/** An unsigned GET of a loopback SNS link, trusting understudy's TLS certificate. */
 async function follow(link: string): Promise<number> {
+  assertLoopbackLink(link);
   const resp = await fetch(link, { tls: { ca } });
   await resp.text();
   return resp.status;
@@ -97,6 +98,7 @@ function validate(message: SnsMessage): Promise<string | null> {
  */
 async function opensslVerify(message: SnsMessage, fields: string[]): Promise<string> {
   const certURL = message.SigningCertURL ?? "";
+  assertLoopbackLink(certURL);
   const resp = await fetch(certURL, { tls: { ca } });
   expect(resp.status).toBe(200);
   const dir = mkdtempSync(join(work, "verify-"));

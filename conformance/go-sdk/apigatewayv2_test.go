@@ -259,17 +259,15 @@ func TestAPIGatewayV2InvokesLambda(t *testing.T) {
 			})
 			ok(t, err, "AddPermission for API Gateway")
 
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String()+"/_understudy/execute-api/"+aws.ToString(id)+"/hello", nil)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String()+"/_understudy/execute-api/"+aws.ToString(id)+"/hello", http.NoBody)
 			ok(t, err, "building the request")
-			resp, err := http.DefaultClient.Do(req)
-			ok(t, err, "calling the API")
-			body := readAll(t, resp.Body, "the API's response")
-			if resp.StatusCode != http.StatusOK || resp.Header.Get("x-conformance") != "yes" || resp.Header.Get("apigw-requestid") == "" {
+			r := send(t, http.DefaultClient, req, "calling the API")
+			if r.status != http.StatusOK || r.header.Get("X-Conformance") != "yes" || r.header.Get("Apigw-Requestid") == "" {
 				t.Fatalf("GET /hello = %d (x-conformance %q, apigw-requestid %q): %s; want the function's 200",
-					resp.StatusCode, resp.Header.Get("x-conformance"), resp.Header.Get("apigw-requestid"), body)
+					r.status, r.header.Get("X-Conformance"), r.header.Get("Apigw-Requestid"), r.body)
 			}
 			var seen struct{ Version, Method, Stage string }
-			ok(t, json.Unmarshal(body, &seen), "decoding the function's view")
+			ok(t, json.Unmarshal(r.body, &seen), "decoding the function's view")
 			if seen.Version != version || seen.Method != http.MethodGet || seen.Stage != "$default" {
 				t.Errorf("the function saw version %q, method %q, stage %q; want %s, GET, $default", seen.Version, seen.Method, seen.Stage, version)
 			}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build understudy from this repository, start it on 127.0.0.1:45661 with a
-# fresh data directory, run the aws-sdk-go-v2 conformance suite against it
+# Build understudy from this repository into the run's work directory, start
+# it on 127.0.0.1:45661 (or CONFORMANCE_PORT) with a fresh data directory, run the aws-sdk-go-v2 conformance suite against it
 # through scripts/sealed, then stop it and remove its containers.
 #
 #   conformance/go-sdk/run.sh                      # everything
@@ -8,6 +8,8 @@
 #                                                  # skip DynamoDB's tests, run the rest
 #   conformance/go-sdk/run.sh -run TestSQS         # extra arguments go to go test
 #   SIGV4=verify conformance/go-sdk/run.sh         # serve with --sigv4 verify (default parse)
+#   CONFORMANCE_PORT=45761 conformance/go-sdk/run.sh
+#                                                  # serve on another port (default 45661)
 #
 # DynamoDB runs on DynamoDB Local, pulled on first use; CONFORMANCE_DYNAMODB
 # is unset or 0, and run.sh exits 2 before building on any other value. SNS
@@ -28,13 +30,14 @@ source "$here/../common.sh"
 conformance_ddb_mode
 
 build="$repo/.build/conformance/go-sdk"
-bin="$build/understudy"
-listen="127.0.0.1:45661"
+conformance_port 45661
+listen="127.0.0.1:$conformance_port_number"
 endpoint="http://$listen"
 sigv4="${SIGV4:-parse}"
 
 mkdir -p -- "$build"
 work="$(mktemp -d "$build/run.XXXXXX")"
+bin="$work/understudy"
 data="$work/data"
 log="$work/understudy.log"
 pid=""
@@ -76,8 +79,8 @@ echo "run.sh: building understudy into $bin" >&2
 
 conformance_isolate_serve_env
 
-# The TLS listener takes a free port (other suites own the ports next to
-# 45661); the ready file names it.
+# The TLS listener takes a free port, so it never collides with another run;
+# the ready file names it.
 # The suite checks AWS's provisioning states (Pending, InProgress, an event
 # source mapping's Creating) and the 60 s QueueDeletedRecently window, which
 # understudy keeps behind fidelity switches that are off by default (ADR 0006).

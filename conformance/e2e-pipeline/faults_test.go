@@ -56,11 +56,11 @@ func TestFaultsThrottleTheFunctionURL(t *testing.T) {
 		Action: admin.Throttle{}, Trigger: admin.NextN{N: 1},
 	}
 	putFault(t, rule)
-	if resp, body := get(t, p.functionURL+"throttle-probe"); resp.StatusCode != http.StatusTooManyRequests {
-		t.Errorf("the throttled function URL call answered HTTP %d (%s), want 429", resp.StatusCode, body)
+	if r := get(t, p.functionURL+"throttle-probe"); r.status != http.StatusTooManyRequests {
+		t.Errorf("the throttled function URL call answered HTTP %d (%s), want 429", r.status, r.body)
 	}
-	if resp, body := get(t, p.functionURL+"throttle-probe"); resp.StatusCode != http.StatusCreated {
-		t.Errorf("the call after the throttle answered HTTP %d (%s), want the function's 201", resp.StatusCode, body)
+	if r := get(t, p.functionURL+"throttle-probe"); r.status != http.StatusCreated {
+		t.Errorf("the call after the throttle answered HTTP %d (%s), want the function's 201", r.status, r.body)
 	}
 	if n := faultHits(t, rule.ID); n != 1 {
 		t.Errorf("the journal records %d hits of %s, want 1", n, rule.ID)

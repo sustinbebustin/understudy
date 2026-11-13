@@ -90,10 +90,10 @@ func TestLambdaLayerLifecycle(t *testing.T) {
 		}
 	}
 
-	resp, err := http.Get(aws.ToString(first.Content.Location)) //nolint:gosec,noctx // the link understudy answered, on its loopback endpoint
-	ok(t, err, "GET Content.Location")
-	if body := readAll(t, resp.Body, "the layer archive"); resp.StatusCode != http.StatusOK || !bytes.Equal(body, archive) {
-		t.Errorf("GET Content.Location = %d with %d bytes, want 200 with the archive", resp.StatusCode, len(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, aws.ToString(first.Content.Location), http.NoBody)
+	ok(t, err, "building the Content.Location request")
+	if r := send(t, http.DefaultClient, req, "GET Content.Location"); r.status != http.StatusOK || !bytes.Equal(r.body, archive) {
+		t.Errorf("GET Content.Location = %d with %d bytes, want 200 with the archive", r.status, len(r.body))
 	}
 
 	publishLayer(t, client, layerName, archive)
@@ -311,7 +311,7 @@ func TestLambdaEventInvokeDestinations(t *testing.T) {
 	} {
 		inv, err := client.Invoke(ctx, &lambda.InvokeInput{FunctionName: c.fn.FunctionName, InvocationType: types.InvocationTypeEvent, Payload: []byte(`{"n":1}`)})
 		ok(t, err, "Invoke Event")
-		if inv.StatusCode != 202 {
+		if inv.StatusCode != http.StatusAccepted {
 			t.Errorf("Invoke Event = %d, want 202", inv.StatusCode)
 		}
 		rec := receiveRecord(t, c.queueURL)

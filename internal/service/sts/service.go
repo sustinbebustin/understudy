@@ -112,7 +112,7 @@ func assumeRoleKeys(_ *kernel.Call, in *stsapi.AssumeRoleInput) kernel.Condition
 	return keys
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence.
+// Switches lists the service's fidelity switches.
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{s.roleCheck().Entry(), denialReason().Entry()}
 }

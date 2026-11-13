@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -37,7 +38,7 @@ func advance(t *testing.T, seconds int) {
 		if err == nil {
 			req.Header.Set("Content-Type", "application/json")
 			if resp, err := http.DefaultClient.Do(req); err == nil {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			}
 		}
 	})
@@ -85,9 +86,7 @@ func sameJSON(t *testing.T, got, want string) bool {
 	if json.Unmarshal([]byte(got), &g) != nil || json.Unmarshal([]byte(want), &w) != nil {
 		return false
 	}
-	gb, _ := json.Marshal(g)
-	wb, _ := json.Marshal(w)
-	return bytes.Equal(gb, wb)
+	return reflect.DeepEqual(g, w)
 }
 
 // A Choice/Wait/Pass machine end to end: create, describe with the

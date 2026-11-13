@@ -20,15 +20,13 @@ import urllib.request
 import uuid
 import zipfile
 from collections.abc import Callable, Iterator
-from typing import Any, TypeVar
+from typing import Any
 
 import pytest
 from botocore.auth import S3SigV4Auth
 from botocore.awsrequest import AWSRequest
 from botocore.credentials import Credentials
 from botocore.exceptions import ClientError
-
-T = TypeVar("T")
 
 ADMIN_PREFIX = "/_understudy/v1"
 
@@ -57,7 +55,7 @@ def status_of(err: ClientError) -> int:
     return err.response["ResponseMetadata"]["HTTPStatusCode"]
 
 
-def eventually(
+def eventually[T](
     produce: Callable[[], T],
     done: Callable[[T], bool],
     *,
@@ -161,7 +159,7 @@ def sqs_attribute_md5(attributes: dict[str, dict[str, Any]]) -> str:
     length-prefixed data type, a transport byte (1 string, 2 binary) and the
     length-prefixed value. Lengths are 4-byte big-endian.
     """
-    h = hashlib.md5()  # noqa: S324 -- the protocol mandates MD5
+    h = hashlib.md5()  # the protocol mandates MD5
 
     def part(data: bytes) -> None:
         h.update(struct.pack(">I", len(data)))
@@ -181,7 +179,7 @@ def sqs_attribute_md5(attributes: dict[str, dict[str, Any]]) -> str:
 
 
 def md5_hex(data: bytes) -> str:
-    return hashlib.md5(data).hexdigest()  # noqa: S324 -- S3 ETags are MD5
+    return hashlib.md5(data).hexdigest()  # S3 ETags are MD5
 
 
 def http_get(url: str, headers: dict[str, str] | None = None) -> tuple[int, dict[str, str], bytes]:

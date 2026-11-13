@@ -318,11 +318,11 @@ func TestHTTPCoverageNotes(t *testing.T) {
 			"the endpoint's policy is not checked at Subscribe (sns.subscribe.policy-check), so under iam.enforce=enforce a policy that refuses SNS refuses each delivery; " +
 			"http and https endpoints get a signed SubscriptionConfirmation when their host and port are in sns.httpDelivery.allow, " +
 			"and otherwise stay subscribed with a readable token but receive nothing; loopback and private endpoints are accepted, where AWS refuses them; email and email-json stay subscribed with a readable token but receive nothing; " +
-			"sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced"},
+			"sms, application and firehose answer NotImplemented; the quota of 10,000 filter policies per account is not enforced (AWS's refusal of a topic's 201st policy reads \"Could not complete request: filter policy quota exceeded\", sns/R09/limit-201.json; understudy words its own refusal differently)"},
 		"Publish":      registry.Partial{Note: publishNote},
 		"PublishBatch": registry.Partial{Note: publishNote},
 		"SetSubscriptionAttributes": registry.Partial{Note: "DeliveryPolicy healthyRetryPolicy and requestPolicy apply to http and https deliveries; " +
-			"throttlePolicy, sicklyRetryPolicy and guaranteed are stored and echoed, never applied, so deliveries are not paced (AWS's pacing above a burst of 10 is unrecorded, SNSH-20); the quota of 10,000 filter policies per account is not enforced"},
+			"throttlePolicy, sicklyRetryPolicy and guaranteed are stored and echoed, never applied, so deliveries are not paced (AWS's pacing above a burst of 10 is unrecorded, SNSH-20); the quota of 10,000 filter policies per account is not enforced (AWS's refusal of a topic's 201st policy reads \"Could not complete request: filter policy quota exceeded\", sns/R09/limit-201.json; understudy words its own refusal differently)"},
 		"SetTopicAttributes": registry.Partial{Note: "Policy is stored and echoed, evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; " +
 			"KmsMasterKeyId, TracingConfig, ArchivePolicy and the delivery-status attributes are stored and echoed, never applied; " +
 			"the http defaults in DeliveryPolicy apply to http and https subscriptions"},

@@ -43,7 +43,7 @@ test_get_caller_identity_account_matches_iam_arns() {
 test_assume_role_returns_temporary_credentials() {
   local role arn session
   role=$(new_name sts-assume)
-  session=session-one
+  session='session-one'
   arn=$(make_role "$role" "$(assumable_trust)")
   aws_ok sts get-caller-identity
   local acct

@@ -15,8 +15,8 @@ conformance/go-sdk/run.sh -run TestS3                      # extra arguments go 
 `run.sh` does the following:
 
 1. Refuses to start (exit 2) when `CONFORMANCE_DYNAMODB` is set to anything but `0`.
-2. Builds understudy from this repository into `.build/conformance/go-sdk/understudy`.
-3. Starts it on `127.0.0.1:45661`, plus a TLS listener on a free port, with a fresh data directory under `.build/conformance/go-sdk/run.*`.
+2. Builds understudy from this repository into the run's directory, `.build/conformance/go-sdk/run.*/understudy`.
+3. Starts it on `127.0.0.1:45661` (`CONFORMANCE_PORT`; a value that is not a port number exits 2), plus a TLS listener on a free port, with a fresh data directory in the same run directory.
 4. Waits for the health endpoint; unless DynamoDB is opted out, exits 1 unless it is `enabled`.
 5. Runs `go test -v` through `scripts/sealed`, which strips every inherited `AWS_*` setting, uses dummy credentials and refuses any endpoint that is not loopback. The output is kept in the run directory's `test.log`.
 6. Prints a summary on stderr: `run.sh: passed=N failed=N skipped=N`, then a `run.sh: SKIP <test>: <reason>` line per skipped test or subtest, the reason being the first line the test logged after it last started or resumed.

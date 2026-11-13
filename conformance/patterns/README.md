@@ -9,7 +9,7 @@ conformance/patterns/run.sh                          # every pattern
 conformance/patterns/run.sh lambda-layer-terraform   # only these
 ```
 
-`run.sh` builds understudy into `.build/conformance/patterns/understudy`, starts it on `127.0.0.1:45667` with a fresh temporary data directory, the settings in `understudy.json` and no `UNDERSTUDY_*` or `AWS_*` setting from your shell, and runs each pattern, in a copy of its directory under `.build/conformance/patterns/run/work/`, through:
+`run.sh` builds understudy into the run's own directory, `.build/conformance/patterns/run.XXXXXX/` (a passing run removes it, a failing run keeps it and prints its path), starts it on `127.0.0.1:45667` (`CONFORMANCE_PORT`) with a fresh temporary data directory, the settings in `understudy.json` and no `UNDERSTUDY_*` or `AWS_*` setting from your shell, and runs each pattern, in a copy of its directory under `work/` in that directory, through:
 
 1. `prepare`: the pattern's documented preparation, such as installing a layer's dependencies;
 2. `init` and `apply`;
@@ -19,14 +19,14 @@ conformance/patterns/run.sh lambda-layer-terraform   # only these
 
 Under `CONFORMANCE_IAM_ENFORCE=enforce` only, each pattern also has the step `no-denials`, listed after `check` and evaluated after `nothing-left`: the journal's `access-denied` advisories in the pattern's accounts (its own, and each 12-digit `access_key` literal in its `*.tf`) from the start of `prepare` to the start of `destroy` must all match a regex of the pattern's `pattern_expected_denials`; any other fails the step, under `unexpected before destroy`. Denials from the start of `destroy` on, such as a late call by an execution role whose policy the destroy already detached, are listed under `after destroy started` without failing it. Under any other mode the step is neither run nor listed.
 
-Each pattern runs in an account of its own. Every Terraform and AWS CLI call goes through `scripts/sealed`, so no real AWS setting or credential is used. The run prints one line per step and ends with a summary on stderr (`run.sh: passed=N failed=N skipped=N`, then a `run.sh: SKIP <pattern>/<step>: <reason>` line per skip). Logs are under `.build/conformance/patterns/run/logs/<pattern>/`.
+Each pattern runs in an account of its own. Every Terraform and AWS CLI call goes through `scripts/sealed`, so no real AWS setting or credential is used. The run prints one line per step and ends with a summary on stderr (`run.sh: passed=N failed=N skipped=N`, then a `run.sh: SKIP <pattern>/<step>: <reason>` line per skip). Logs are under `logs/<pattern>/` in the run directory.
 
 Requirements: Go (and the Go module proxy, for a Go pattern's dependencies), Terraform 1.16 or later, the AWS CLI, Docker (patterns run Lambda functions), `uv`, `jq`, `curl` and GNU `timeout`. The first run downloads the providers from the Terraform registry and the pattern's dependencies from PyPI.
 
 | Variable | Effect |
 |---|---|
 | `CONFORMANCE_PHASE_TIMEOUT` | Seconds before one Terraform command is interrupted (default 900). |
-| `CONFORMANCE_PORT` | Port understudy listens on (default 45667). |
+| `CONFORMANCE_PORT` | Port understudy listens on (default 45667); a value that is not a port number exits 2. |
 | `SIGV4` | serve's `--sigv4` mode (default `parse`). |
 | `CONFORMANCE_IAM_ENFORCE` | serve's `--iam-enforce` mode (default `off`). Every pattern acts as its account's root, so under `enforce` only resource policies, deliveries and the roles a pattern creates can deny, and the `no-denials` step checks those denials; the journal's errors are kept in `logs/journal-errors.json`. |
 | `CONFORMANCE_ADVISORIES_OUT` | A file the journal's advisories are written to as JSON, one event per line, before the server stops (default none). |

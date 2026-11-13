@@ -44,11 +44,11 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 	return s
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence: the
-// service's own, its denial status (iam-enforcement-surfaces.md 12.8) and
-// how a key policy limits a role (iam-evaluation.md 4.3), which governs the
-// operations that store a key policy, and the operations that answer a
-// missing alias before authorization (resolvedFirst).
+// Switches lists the service's fidelity switches: its own, its denial
+// status (iam-enforcement-surfaces.md 12.8) and how a key policy limits a
+// role (iam-evaluation.md 4.3), which governs the operations that store a
+// key policy, and the operations that answer a missing alias before
+// authorization (resolvedFirst).
 func (s *Service) Switches() []fidelity.Entry {
 	return append([]fidelity.Entry{
 		pendingCryptoError().Entry(), crossAccountManagementError().Entry(),

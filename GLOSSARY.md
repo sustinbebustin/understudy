@@ -49,7 +49,7 @@ A constraint AWS enforces that its Smithy model does not declare, written beside
 _Avoid_: patch, model fix
 
 **Fidelity switch**:
-A named behavior understudy chose where no recording of AWS settles it, carrying its evidence label and the recording that would settle it.
+A named behavior choice point, carrying the evidence label of the value understudy implements and the recording that settles it or would. A recording that agrees relabels it aws-recorded and the switch stays; one that disagrees makes it a recorded deviation, labelled by understudy's own evidence. It is deleted only when the choice point leaves the code (ADR 0003, amendment 2026-11-13).
 _Avoid_: flag, toggle, option
 
 **Recording**:
@@ -59,6 +59,10 @@ _Avoid_: capture, snapshot (a snapshot is an archive of emulator state), golden 
 **Replay**:
 Sending a recording's requests to understudy and comparing its answers with AWS's.
 _Avoid_: playback, parity test
+
+**Recorded deviation**:
+A behavior where a recording shows AWS doing otherwise and understudy keeps its own, on purpose or for now. It is a fidelity switch, labelled by the evidence for understudy's value and never aws-recorded, whose reason opens "AWS contradicts it:", or a coverage note citing the recording.
+_Avoid_: known bug, contradicted switch (contradicted is the coverage page's verdict on a replayed step)
 
 ### Causality
 

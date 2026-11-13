@@ -982,7 +982,7 @@ def test_virtual_hosted_addressing(endpoint: str, s3: Any, make_bucket: Callable
     assert status == 200, body
     assert s3.get_object(Bucket=bucket, Key="vh/key.txt")["Body"].read() == b"virtual hosted"
 
-    status, headers, body = signed_http("GET", url, connect_to=(host, port), region=REGION)
+    status, _, body = signed_http("GET", url, connect_to=(host, port), region=REGION)
     assert (status, body) == (200, b"virtual hosted")
 
     # botocore signs the query as the URL carries it, so the URL carries it encoded, as

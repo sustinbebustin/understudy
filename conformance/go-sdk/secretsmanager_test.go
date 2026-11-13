@@ -195,7 +195,7 @@ func TestSecretsManagerVersions(t *testing.T) {
 	t.Run("deprecated versions", func(t *testing.T) {
 		list, err := client.ListSecretVersionIds(ctx, &secretsmanager.ListSecretVersionIdsInput{SecretId: aws.String(secretName)})
 		ok(t, err, "ListSecretVersionIds")
-		var ids []string
+		ids := make([]string, 0, len(list.Versions))
 		for _, v := range list.Versions {
 			ids = append(ids, aws.ToString(v.VersionId))
 		}

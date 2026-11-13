@@ -16,7 +16,9 @@ import (
 // inference, and which ARN AWS evaluates for a missing entity is
 // unrecorded, so understudy asks about the one at missingPath.
 const byName = "under iam.enforce, a missing user, role or instance profile is denied before it answers NoSuchEntity, evaluated on its ARN at the path / and named \"<type> <name>\"; " +
-	"recorded for GetRole, inferred for the other operations and for the evaluated ARN (iam.enforce.missing-resource.by-name)"
+	"recorded for GetRole, inferred for the other operations and for the evaluated ARN (iam.enforce.missing-resource.by-name); " +
+	"every IAM denial ends at the reason, where AWS's message goes on with \". Go to https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/authorization-details/<id> " +
+	"for complete details, or call the GetRequestAuthorizationDetails API with the following authorization id: <id>\" (IAM-ENF-10)"
 
 // byNamePartial is the coverage of an operation on an entity named by
 // name that is otherwise fully implemented.

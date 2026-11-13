@@ -169,7 +169,7 @@ Options and evidence:
 3. Which timestamp AWS uses for log retention (event `timestamp` or `ingestionTime`) is UNVERIFIED (`secrets-logs-events-alarms.md` section 3.2). If it is `ingestionTime`, the retention residual in row 8 disappears.
 4. Blackhole (dropped packet) timings for each SDK were not run.
 5. Node and Java RIC behavior is from source; neither runtime image was run.
-6. The AWS-documented skew window for non-S3 services (commonly 5 minutes) and S3 (15 minutes) remains UNVERIFIED, as in `sigv4-checksums-endpoints.md` section 1.5.
+6. The skew window is 15 minutes for every service recorded, not 5 for non-S3 ones: SQS, SNS, STS and DynamoDB accepted 6 minutes and refused 16 with `Signature expired: ... (<now> - 15 min.)`, and S3 accepted 14 and refused 16 with `RequestTimeTooSkewed` (recorded 2026-10-14, `testdata/parity/sqs/R18/03-sqs-json-skew-16min.json`, `testdata/parity/dynamodb/R18/03-dynamodb-skew-6min.json`, `testdata/parity/s3/R18/02-s3-skew-14min.json`, `02-s3-skew-16min.json`; `sigv4-checksums-endpoints.md` section 1.5).
 7. The EventBridge envelope's own description of `time` could not be fetched (UNVERIFIED, section 3 row 13).
 
 ## 8. Corrections applied to other files

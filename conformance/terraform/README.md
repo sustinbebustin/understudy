@@ -22,22 +22,22 @@ conformance/terraform/run.sh sqs lambda                    # only these services
 `run.sh`:
 
 - exits 2 before building when `CONFORMANCE_DYNAMODB` is set to anything but `0`, and when `terraform version`, run through `scripts/sealed`, fails (naming the binary and its exit status);
-- builds understudy from the repository into `.build/conformance/terraform/understudy`;
-- starts it on `127.0.0.1:45665` with a fresh temporary data directory (`--persist`) and no `UNDERSTUDY_*` or `AWS_*` setting from your shell, and waits for the health endpoint; unless DynamoDB is opted out, it exits 1 unless DynamoDB reports `enabled`;
+- builds understudy from the repository into the run's own directory, `.build/conformance/terraform/run.XXXXXX/understudy`;
+- starts it on `127.0.0.1:45670` (`CONFORMANCE_PORT`) with a fresh temporary data directory (`--persist`) and no `UNDERSTUDY_*` or `AWS_*` setting from your shell, and waits for the health endpoint; unless DynamoDB is opted out, it exits 1 unless DynamoDB reports `enabled`;
 - runs each service through the lifecycle above in its own working directory, its own state and its own account, with up to 11 services in parallel;
 - always stops the server, sweeps the containers labeled with its owner, and deletes the data directory;
 - prints one line per test, then a summary on stderr (`run.sh: passed=N failed=N skipped=N` and a `run.sh: SKIP <service>/<phase>: <reason>` line per skip), and exits non-zero when any test fails.
 
 Every Terraform and AWS CLI call goes through `scripts/sealed`, so no real AWS setting or credential is used.
 
-Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scripts/sealed`), `jq`, `curl`, GNU `timeout`, `openssl` and `python3`. The SNS configuration's https subscription goes to an HTTPS receiver `run.sh` starts on `127.0.0.1:45667` (`CONFORMANCE_SNS_RECEIVER_PORT`), with a certificate `openssl` makes and understudy trusts through `--sns-http-delivery-ca-bundle`; the receiver confirms the subscription through its SubscribeURL. The first run downloads the providers from the Terraform registry and pulls the Lambda base images; later runs reuse the provider cache in `.build/conformance/terraform/plugin-cache`. The Go worker is built for `x86_64`.
+Requirements: Go, Terraform 1.16 or later, Docker (for Lambda), `uv` (for `scripts/sealed`), `jq`, `curl`, GNU `timeout`, `openssl` and `python3`. The SNS configuration's https subscription goes to an HTTPS receiver `run.sh` starts on `127.0.0.1:45671` (`CONFORMANCE_PORT` + 1, or `CONFORMANCE_SNS_RECEIVER_PORT`), with a certificate `openssl` makes and understudy trusts through `--sns-http-delivery-ca-bundle`; the receiver confirms the subscription through its SubscribeURL. The first run downloads the providers from the Terraform registry and pulls the Lambda base images; later runs reuse the provider cache in `.build/conformance/terraform/plugin-cache`. The Go worker is built for `x86_64`.
 
 | Variable | Effect |
 |---|---|
 | `CONFORMANCE_DYNAMODB=0` | Skips the `dynamodb` and `dynamodbstreams` tests with the reason `DynamoDB opted out (CONFORMANCE_DYNAMODB=0)`. Unset, they run on DynamoDB Local, pulled on first use. |
 | `CONFORMANCE_JOBS` | Services run in parallel (default 11). |
 | `CONFORMANCE_PHASE_TIMEOUT` | Seconds before one Terraform command is interrupted (default 900). |
-| `CONFORMANCE_PORT` | Port understudy listens on (default 45665). |
+| `CONFORMANCE_PORT` | Port understudy listens on (default 45670); a value that is not a port number exits 2. The SNS receiver takes the next port, 45671, unless `CONFORMANCE_SNS_RECEIVER_PORT` names another. |
 | `TF_LOG` | Turns on Terraform's debug log, written next to each phase log. |
 
 ## Layout
@@ -62,10 +62,10 @@ With `skip_credentials_validation` the provider has no account id, so `aws_apiga
 
 ## Results and evidence
 
-Everything a run produces is under `.build/conformance/terraform/run/`:
+Everything a run produces is under its own directory, `.build/conformance/terraform/run.XXXXXX/` (called `run/` below). A passing run removes it; a failing run keeps it and prints its path. Runs on different ports do not share it.
 
 - `results.tsv`: one line per test, `<service>/<phase>`, the status (`PASS`, `FAIL` or `SKIP`) and the evidence for a failure. Evidence is the Terraform error, or the changes a plan wanted to make.
 - `logs/<service>/<phase>.log`: the full output of each Terraform command. `nothing-left.log.resources.json` holds what understudy still listed after destroy.
 - `logs/server.log`: understudy's JSON log. `logs/journal-errors.json`: every failed call in understudy's journal, taken before shutdown.
 
-To work on one service, run `run.sh <service>` and read its logs. The working directory `run/work/<service>` stays in place, with its state, after the run.
+To work on one service, run `run.sh <service>` and read its logs. When the run fails, the working directory `run/work/<service>` stays in place, with its state.

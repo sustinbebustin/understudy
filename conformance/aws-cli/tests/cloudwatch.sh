@@ -116,7 +116,7 @@ test_describe_alarms_by_state_value() {
   aws_ok cloudwatch put-metric-alarm --alarm-name "${prefix}-y" --namespace Conformance --metric-name M \
     --statistic Sum --period 60 --evaluation-periods 1 --threshold 1 --comparison-operator LessThanThreshold \
     --treat-missing-data ignore
-  aws_ok cloudwatch set-alarm-state --alarm-name "${prefix}-y" --state-value OK --state-reason done
+  aws_ok cloudwatch set-alarm-state --alarm-name "${prefix}-y" --state-value OK --state-reason 'done'
   aws_ok cloudwatch describe-alarms --alarm-name-prefix "$prefix" --state-value OK
   assert_jq_true '[.MetricAlarms[].AlarmName] == ["'"$prefix"'-y"]'
 }

@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# Build understudy from this repository, serve it on 127.0.0.1:45662 with a
-# fresh data directory, run the boto3 conformance suite against it through
-# scripts/sealed, then stop it and remove the containers it started.
+# Build understudy from this repository into the run's work directory, serve
+# it on 127.0.0.1:45662 (or CONFORMANCE_PORT) with a fresh data directory,
+# run the boto3 conformance suite against it through scripts/sealed,
+# then stop it and remove the containers it started.
 #
 #   conformance/python-boto3/run.sh                    # both environments
 #   CONFORMANCE_DYNAMODB=0 conformance/python-boto3/run.sh
 #                                                      # skip DynamoDB's tests, run the rest
 #   conformance/python-boto3/run.sh -k sqs -x          # extra arguments go to pytest
+#   CONFORMANCE_PORT=45762 conformance/python-boto3/run.sh
+#                                                      # serve on another port (default 45662)
 #   SUITE_GROUPS=modern conformance/python-boto3/run.sh
 #                                                      # modern | legacy-query | "modern legacy-query"
 #
@@ -41,8 +44,8 @@ source "$here/../common.sh"
 conformance_ddb_mode
 
 build="$repo/.build/conformance/python-boto3"
-bin="$build/understudy"
-listen="127.0.0.1:45662"
+conformance_port 45662
+listen="127.0.0.1:$conformance_port_number"
 endpoint="http://$listen"
 groups="${SUITE_GROUPS:-modern legacy-query}"
 sigv4="${SIGV4:-verify}"
@@ -54,6 +57,7 @@ fi
 
 mkdir -p -- "$build"
 work="$(mktemp -d "$build/run.XXXXXX")"
+bin="$work/understudy"
 data="$work/data"
 log="$work/understudy.log"
 pid=""

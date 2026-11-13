@@ -413,10 +413,10 @@ Generator checklist derived from this research:
 
 ## UNVERIFIED and open questions
 
-- Exact `__type` strings real AWS emits per service beyond the DynamoDB documented example (SQS JSON `com.amazonaws.sqs#QueueDoesNotExist` comes from the Smithy test shape and secondary reporting; Secrets Manager/KMS short names).
-- Whether `x-amzn-query-mode: true` on the request is required for the server to emit `x-amzn-query-error`, or the header is always sent for query-compatible services.
+- Exact `__type` strings real AWS emits for services not yet recorded. Recorded 2026-10-14: SQS JSON `com.amazonaws.sqs#QueueDoesNotExist` (`testdata/parity/sqs/R11/01-getqueueurl-missing.json`), with `com.amazon.coral.service#` for unmodeled errors; Secrets Manager and KMS short names (`testdata/parity/secretsmanager/R15/`, `testdata/parity/kms/R15/`).
+- Closed for SQS (recorded 2026-10-14): `x-amzn-query-error` is sent with or without `x-amzn-query-mode: true` (`testdata/parity/sqs/R11/01-getqueueurl-missing.json`, `01-getqueueurl-missing-query-mode.json`).
 - Query-protocol XML error `Message` casing for services whose member is lowercase `message`.
-- SQS Query response `xmlns` host form.
+- Closed: the SQS Query response `xmlns` is `http://queue.amazonaws.com/doc/2012-11-05/` (recorded 2026-10-14, `testdata/parity/sqs/R11/04-deletemessage-query.json`).
 - Whether the real services enforce every modeled `pattern` (e.g. STS `arnType`, IAM `markerType`).
 - Maven Central publication of `software.amazon.api.models:*`.
 - License terms of the Service Reference JSON.

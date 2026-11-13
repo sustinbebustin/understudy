@@ -11,7 +11,8 @@ line range and its last validation date from test_ses.validation.json.
 from __future__ import annotations
 
 import json
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from support import raises, status_of, uniq
 

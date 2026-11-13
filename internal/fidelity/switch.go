@@ -7,8 +7,12 @@ import (
 	"github.com/sustinbebustin/understudy/internal/evidence"
 )
 
-// Switch is a behavior chosen without AWS-recorded evidence. The coverage
-// report lists every switch.
+// Switch is a named behavior choice point, labelled by what backs its
+// value: aws-recorded once a recording settled it, and for a recorded
+// deviation, where AWS was recorded doing otherwise, the evidence for
+// understudy's own value with a Settles reason that opens "AWS contradicts
+// it:" (ADR 0003, amendment 2026-11-13). The coverage report lists every
+// switch.
 type Switch[T comparable] struct {
 	Name   string         // "logs.filter.term-boundary"
 	Value  T              // the behavior in effect

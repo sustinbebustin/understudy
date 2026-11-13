@@ -2,6 +2,7 @@ package gosdk_test
 
 import (
 	"context"
+	"maps"
 	"os"
 	"slices"
 	"strconv"
@@ -228,8 +229,9 @@ func TestDynamoDBItems(t *testing.T) {
 	})
 
 	t.Run("batch, scan and query", func(t *testing.T) {
-		var writes []types.WriteRequest
-		for i := range 5 {
+		const items = 5
+		writes := make([]types.WriteRequest, 0, items)
+		for i := range items {
 			writes = append(writes, types.WriteRequest{PutRequest: &types.PutRequest{Item: map[string]types.AttributeValue{"LockID": ddbS("batch-" + strconv.Itoa(i)), "N": ddbN(int64(i))}}})
 		}
 		out, err := client.BatchWriteItem(ctx, &dynamodb.BatchWriteItemInput{RequestItems: map[string][]types.WriteRequest{tableName: writes}})
@@ -243,6 +245,34 @@ func TestDynamoDBItems(t *testing.T) {
 		ok(t, err, "BatchGetItem")
 		if len(get.Responses[tableName]) != 2 {
 			t.Errorf("BatchGetItem returned %d items, want 2", len(get.Responses[tableName]))
+		}
+
+		// A table named by ARN is echoed by that ARN: ConsumedCapacity's
+		// TableName ("If you had specified the Amazon Resource Name (ARN) of
+		// a table in the input, you'll see the table ARN in the response",
+		// API_ConsumedCapacity) and BatchGetItem's Responses ("A map of
+		// table name or table ARN to a list of items", API_BatchGetItem).
+		tableArn := "arn:aws:dynamodb:" + region() + ":" + account(t) + ":table/" + tableName
+		one, err := client.GetItem(ctx, &dynamodb.GetItemInput{
+			TableName: aws.String(tableArn), Key: map[string]types.AttributeValue{"LockID": ddbS("batch-0")},
+			ReturnConsumedCapacity: types.ReturnConsumedCapacityTotal,
+		})
+		ok(t, err, "GetItem by ARN")
+		if one.Item == nil || one.ConsumedCapacity == nil || aws.ToString(one.ConsumedCapacity.TableName) != tableArn {
+			t.Errorf("GetItem by ARN = Item %v, ConsumedCapacity %+v; want the item and TableName %s", one.Item, one.ConsumedCapacity, tableArn)
+		}
+		byArn, err := client.BatchGetItem(ctx, &dynamodb.BatchGetItemInput{
+			RequestItems: map[string]types.KeysAndAttributes{tableArn: {Keys: []map[string]types.AttributeValue{
+				{"LockID": ddbS("batch-0")}, {"LockID": ddbS("batch-4")},
+			}}},
+			ReturnConsumedCapacity: types.ReturnConsumedCapacityTotal,
+		})
+		ok(t, err, "BatchGetItem by ARN")
+		if len(byArn.Responses) != 1 || len(byArn.Responses[tableArn]) != 2 {
+			t.Errorf("BatchGetItem by ARN Responses keys = %v, want only %s with 2 items", slices.Collect(maps.Keys(byArn.Responses)), tableArn)
+		}
+		if len(byArn.ConsumedCapacity) != 1 || aws.ToString(byArn.ConsumedCapacity[0].TableName) != tableArn {
+			t.Errorf("BatchGetItem by ARN ConsumedCapacity = %+v, want one entry for %s", byArn.ConsumedCapacity, tableArn)
 		}
 		scan, err := client.Scan(ctx, &dynamodb.ScanInput{
 			TableName: table, FilterExpression: aws.String("begins_with(LockID, :p) AND N >= :min"),
