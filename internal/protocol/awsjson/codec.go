@@ -302,14 +302,15 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 }
 
 // appendMembers appends the members of the value e carries to body, an
-// error object still open: model names in model order, through the output
-// serializer. Without a value it returns body unchanged.
+// error object still open: model names, the value's own members in model
+// order and the structures nested in them sorted by name (errorOrder),
+// through the output serializer. Without a value it returns body unchanged.
 func appendMembers(body []byte, e *awserr.Error) ([]byte, error) {
 	v, ok := e.WireMembers()
 	if !ok {
 		return body, nil
 	}
-	s := newSerializer(modelOrder)
+	s := newSerializer(errorOrder)
 	v.Serialize(s)
 	obj, err := s.bytes()
 	if err == nil {

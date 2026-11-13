@@ -30,10 +30,16 @@ const (
 	// CWA-19 and sqs/R01/02-recv1.json under testdata/parity). Kinesis has
 	// no recording, so for it the order is inferred.
 	nameOrder structOrder = iota + 1
-	// modelOrder keeps the model's order: error bodies, whose members follow
-	// the hand-written __type and message envelope, and request bodies,
-	// which SDK clients write in model order.
+	// modelOrder keeps the model's order: request bodies, which SDK clients
+	// write in model order.
 	modelOrder
+	// errorOrder writes an error body's own members in model order, after
+	// the hand-written __type and message envelope, and every structure
+	// nested in them sorted by name, as nameOrder does. The nested order is
+	// aws-recorded for DynamoDB's CancellationReason, Code, Item, Message
+	// where the model has Item first (smithy-protocol-tests.md 12.4,
+	// PROTO-04), and inferred for every other nested error structure.
+	errorOrder
 )
 
 // serializer implements smithy.Serializer for awsJson bodies: structure
@@ -62,6 +68,12 @@ func (s *serializer) WriteStruct(m *smithy.Member, _ *smithy.Schema) {
 		s.enc.BeginSortedObject()
 	case modelOrder:
 		s.enc.BeginObject()
+	case errorOrder:
+		if len(s.open) == 0 {
+			s.enc.BeginObject()
+		} else {
+			s.enc.BeginSortedObject()
+		}
 	}
 	s.open = append(s.open, writeFrame{kind: structFrame})
 }

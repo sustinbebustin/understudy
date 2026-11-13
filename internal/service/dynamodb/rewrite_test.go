@@ -205,6 +205,16 @@ func TestLocalErrorsTakeAWSWordsAndSpelling(t *testing.T) {
 			`{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Code":"None"},{"Code":"ConditionalCheckFailed","Message":"The conditional request failed"},{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item"}],"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [None, ConditionalCheckFailed, TransactionConflict]"}`,
 		},
 		{
+			// Local writes a reason carrying its item in model order, Item
+			// first (observed against the pinned image, 2026-11-13); AWS sorts
+			// the reason's members (smithy-protocol-tests.md 12.4;
+			// testdata/parity/dynamodb/PROTO-04/01-ccf-all-old.json).
+			"a reason carrying its item is sorted", "TransactWriteItems",
+			`{"TransactItems":[{"ConditionCheck":{"TableName":"Locks","Key":{"pk":{"S":"held"}},"ConditionExpression":"attribute_not_exists(pk)","ReturnValuesOnConditionCheckFailure":"ALL_OLD"}},{"Put":{"TableName":"Locks","Item":{"pk":{"S":"free-5"}}}}]}`,
+			`{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Item":{"v":{"N":"1"},"pk":{"S":"held"}},"Code":"ConditionalCheckFailed","Message":"The conditional request failed."},{"Code":"None"}],"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]"}`,
+			`{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","CancellationReasons":[{"Code":"ConditionalCheckFailed","Item":{"v":{"N":"1"},"pk":{"S":"held"}},"Message":"The conditional request failed"},{"Code":"None"}],"Message":"Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]"}`,
+		},
+		{
 			"a __type the operation does not send stays", "ListTables", `{}`,
 			`{"__type":"com.amazonaws.dynamodb.v20120810#MissingAuthenticationToken","Message":"Request must contain either a valid (registered) AWS access key ID or X.509 certificate."}`,
 			`{"__type":"com.amazonaws.dynamodb.v20120810#MissingAuthenticationToken","Message":"Request must contain either a valid (registered) AWS access key ID or X.509 certificate."}`,

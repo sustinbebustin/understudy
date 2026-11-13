@@ -51,14 +51,17 @@
 // bytewise, as every recorded awsJson service writes them
 // (eventbridge-buses.md 3.2; inferred for Kinesis, which has no
 // recording), with map entries and document members in the order they are
-// written and an error body's members in model order, integers as plain digits,
-// timestamps as epoch seconds with at most millisecond precision and no
-// exponent (date-time and http-date strings where a timestampFormat trait
-// asks), blobs as padded standard base64, NaN and the infinities as the
-// strings NaN, Infinity and -Infinity, {} for any modeled output with no
-// member set, and an empty body for an operation whose output is
-// smithy.api#Unit (SQS DeleteMessage answers Content-Length: 0, sqs.md
-// 2.1). Errors carry __type always, x-amzn-query-error on every error of a
+// written; an error body's own members in model order after the __type and
+// message envelope, and the structures nested in them sorted by name
+// (aws-recorded for DynamoDB's CancellationReason, smithy-protocol-tests.md
+// 12.4, PROTO-04; inferred for every other nested error structure);
+// integers as plain digits, timestamps as epoch seconds with at most
+// millisecond precision and no exponent (date-time and http-date strings
+// where a timestampFormat trait asks), blobs as padded standard base64,
+// NaN and the infinities as the strings NaN, Infinity and -Infinity, {}
+// for any modeled output with no member set, and an empty body for an
+// operation whose output is smithy.api#Unit (SQS DeleteMessage answers
+// Content-Length: 0, sqs.md 2.1). Errors carry __type always, x-amzn-query-error on every error of a
 // query-compatible service unless the identity limits it to query mode,
 // and the message under the shape's own spelling
 // (wire-json-query.md 5 and 6).

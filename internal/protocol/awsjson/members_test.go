@@ -41,10 +41,9 @@ func paddedReasons() []dynamodbapi.CancellationReason {
 	}
 }
 
-// paddedReasonsJSON is paddedReasons on the wire: members in model order,
-// Item, Code then Message (com.amazonaws.dynamodb#CancellationReason,
-// smithy-protocol-tests.md 12.1), and a None entry as exactly {"Code":"None"}
-// (12.2, 12.4).
+// paddedReasonsJSON is paddedReasons on the wire: members sorted by name
+// (smithy-protocol-tests.md 12.4, PROTO-04), and a None entry as exactly
+// {"Code":"None"} (12.2, 12.4).
 const paddedReasonsJSON = `[{"Code":"None"},{"Code":"TransactionConflict","Message":"Transaction is ongoing for the item."},{"Code":"None"}]`
 
 // The message of a cancelled transaction: the codes in request order
@@ -76,6 +75,30 @@ func TestTransactionCanceledWireForm(t *testing.T) {
 	}
 	if got := resp.Header.Get("X-Amzn-Requestid"); got != requestID {
 		t.Errorf("X-Amzn-Requestid = %q, want %q", got, requestID)
+	}
+}
+
+// A structure nested in an error body has its members sorted by name, as
+// AWS writes a reason carrying Item: Code, Item, Message, where the model's
+// order is Item, Code, Message (smithy-protocol-tests.md 12.4,
+// testdata/parity/dynamodb/PROTO-04/01-ccf-all-old.json). The envelope and
+// the top-level members keep their order.
+func TestNestedErrorStructuresAreSortedByName(t *testing.T) {
+	id := dynamodbapi.IdentityTransactionCanceledException()
+	const message = "Transaction cancelled, please refer cancellation reasons for specific reasons [ConditionalCheckFailed, None]"
+	e := dynamodbapi.ErrTransactionCanceledExceptionMembers(message, dynamodbapi.TransactionCanceledException{CancellationReasons: []dynamodbapi.CancellationReason{
+		{
+			Item:    map[string]dynamodbapi.AttributeValue{"pk": dynamodbapi.AttributeValueMemberS{Value: "held"}},
+			Code:    new("ConditionalCheckFailed"),
+			Message: new("The conditional request failed"),
+		},
+		{Code: new("None")},
+	}})
+	resp := awsjson.Codec{Version: awsjson.V10}.EncodeError(dynamoRequest(), dynamodbapi.Service(), requestID, e)
+	want := `{"__type":"com.amazonaws.dynamodb.v20120810#TransactionCanceledException","` + messageKey(t, id) + `":"` + message + `",` +
+		`"CancellationReasons":[{"Code":"ConditionalCheckFailed","Item":{"pk":{"S":"held"}},"Message":"The conditional request failed"},{"Code":"None"}]}`
+	if string(resp.Body) != want {
+		t.Errorf("EncodeError body = %s\nwant %s", resp.Body, want)
 	}
 }
 
