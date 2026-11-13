@@ -123,6 +123,26 @@ func TestInternalErrorGolden(t *testing.T) {
 	}
 }
 
+// S3 Control wraps its errors in <ErrorResponse><Error> as Smithy's restXml
+// does, but writes no <Type>, follows RequestId with HostId, and leaves an
+// apostrophe in the message as it is
+// (testdata/parity/s3/R06/06-s3control-list-missing.json).
+func TestS3ControlErrorGolden(t *testing.T) {
+	control := restxml.Codec{Dialect: func(ref.ServiceID) restxml.Dialect { return restxml.S3ControlDialect(invalidArgument()) }}
+	e := &awserr.Error{
+		ID:      awserr.Identity{Shape: "com.amazonaws.s3control#NoSuchResource", QueryCode: "NoSuchResource", Status: 404, Fault: awserr.Sender, MessageKey: awserr.MessageUpper},
+		Message: "The specified resource doesn't exist.",
+		Origin:  awserr.Modeled{},
+	}
+	resp := control.EncodeError(newRequest(http.MethodGet, "/v20180820/tags/arn%3Aaws%3As3%3A%3A%3Amissing", "", nil), s3(), requestID, e)
+	want := `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+		`<ErrorResponse><Error><Code>NoSuchResource</Code><Message>The specified resource doesn't exist.</Message></Error>` +
+		`<RequestId>4442587FB7D0A2F9</RequestId><HostId>` + restxml.HostID(requestID) + `</HostId></ErrorResponse>`
+	if got := readAll(t, resp.Body); resp.Status != http.StatusNotFound || got != want {
+		t.Errorf("%d\n%s\nwant\n%s", resp.Status, got, want)
+	}
+}
+
 // Without noErrorWrapping, errors take Smithy's <ErrorResponse> form.
 func TestWrappedErrors(t *testing.T) {
 	e := &awserr.Error{ID: awserr.Identity{Shape: "aws.protocoltests.restxml#InvalidGreeting", Status: 400, Fault: awserr.Sender}, Message: "Hi"}

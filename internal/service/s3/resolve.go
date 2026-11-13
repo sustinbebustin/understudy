@@ -51,10 +51,55 @@ func (a access) namingRegion() access {
 // regionOn returns e carrying the bucket's home region h when a's
 // errorRegion puts it on an error to a request asserting src.
 func (a access) regionOn(e *awserr.Error, src aws.RegionSource, h Home) *awserr.Error {
-	if _, none := src.(aws.None); none || a.region == regionAlways {
+	if a.namesRegion(src) {
 		return inRegion(e, h)
 	}
 	return e
+}
+
+// namesRegion reports whether a's errorRegion puts x-amz-bucket-region on
+// an error to a request asserting src.
+func (a access) namesRegion(src aws.RegionSource) bool {
+	_, none := src.(aws.None)
+	return none || a.region == regionAlways
+}
+
+// regionOnRefusals gives the refusals the kernel makes before the handler
+// (kernel.WithRefusalHeaders) x-amz-bucket-region as a's errorRegion puts
+// it on the handler's errors, when the bucket exists. A codec refusal
+// that came before the bucket was bound, and one about a bucket that does
+// not exist, name no region (inferred: there is none to name).
+func regionOnRefusals[In any](s *Service, of func(*In) access) kernel.BindOption {
+	return kernel.WithRefusalHeaders(func(c *kernel.Call, in *In) []awserr.Header {
+		a := of(in)
+		if a.name == "" || !a.namesRegion(s.regionSource(c, a.name)) {
+			return nil
+		}
+		h, ok := s.home(a.name)
+		if !ok {
+			return nil
+		}
+		return []awserr.Header{{Name: regionHeader, Value: h.Region.String()}}
+	})
+}
+
+// home returns the home of the bucket name; false when it does not exist.
+func (s *Service) home(name string) (Home, bool) {
+	cell, ok := s.buckets.Lookup(name)
+	if !ok {
+		return Home{}, false
+	}
+	type found struct {
+		home Home
+		ok   bool
+	}
+	got := store.Read(cell, func(bc *BucketCell) found {
+		if bc.Bucket == nil {
+			return found{}
+		}
+		return found{home: bc.Bucket.Home, ok: true}
+	})
+	return got.home, got.ok
 }
 
 // ownerClaim is the account a request asserts owns the bucket, and the

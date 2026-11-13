@@ -27,7 +27,9 @@ type Direct struct{}
 type AsCaller struct{}
 
 // AsExecutionRole is a call AWS makes as a function's execution role: event
-// source mapping polls and Lambda log writes.
+// source mapping polls and Lambda log writes. It is also a permission a
+// service checked the role has before storing a configuration that relies
+// on it, such as a Lambda destination (kernel.AuthorizeAs).
 type AsExecutionRole struct{}
 
 // AsService is a delivery a service principal makes from Source, gated by

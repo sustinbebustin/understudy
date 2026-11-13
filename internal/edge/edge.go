@@ -481,7 +481,9 @@ func (e *InputError) Error() string {
 }
 
 // decode binds the request onto a new input of op (step 5). An unbound
-// operation is not decoded: the kernel answers it with 501.
+// operation is not decoded: the kernel answers it with 501. A codec
+// refusal hands the kernel the input as far as it was bound
+// (kernel.Rejected.Partial), for the binding's WithRefusalHeaders.
 func (h *Handler) decode(x *exchange, codec Codec, op *registry.Operation) kernel.Decoded {
 	in, ok := h.opts.Kernel.NewInput(op)
 	if !ok {
@@ -504,10 +506,10 @@ func (h *Handler) decode(x *exchange, codec Codec, op *registry.Operation) kerne
 		wire = client
 	}
 	if err := codec.DecodeHead(x.r, op, des); err != nil {
-		return kernel.Rejected{Err: err}
+		return kernel.Rejected{Err: err, Partial: in}
 	}
 	if err := codec.DecodeBody(x.r, op, &requestBody{r: x.r, limit: limit, op: op}, des); err != nil {
-		return kernel.Rejected{Err: err}
+		return kernel.Rejected{Err: err, Partial: in}
 	}
 	return kernel.Ok{In: in, Wire: wire}
 }

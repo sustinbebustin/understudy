@@ -1,9 +1,11 @@
 package ids
 
 import (
+	"encoding/base32"
 	"encoding/base64"
 	"encoding/hex"
 	"log/slog"
+	"slices"
 	"strings"
 	"uuid"
 )
@@ -11,7 +13,8 @@ import (
 // Identifier types. Each is minted by the Source method of the same name in
 // the format AWS uses, from that type's own stream.
 type (
-	// RequestID is the x-amzn-RequestId of a response: a UUID.
+	// RequestID is the x-amzn-RequestId of a response: a UUID, in the
+	// form of the answering service (ForService).
 	RequestID string
 	// MessageID is an SQS message id: a UUID.
 	MessageID string
@@ -84,13 +87,35 @@ func (r RequestID) Version5() RequestID {
 	return r[:versionNibble] + "5" + r[versionNibble+1:]
 }
 
+// crockford is Crockford's base32: digits and capitals without I, L, O
+// and U.
+var crockford = base32.NewEncoding("0123456789ABCDEFGHJKMNPQRSTVWXYZ") //nolint:gochecknoglobals // a constant value; Go has no struct constants.
+
+// S3Form is the request id in S3's form: 16 characters of Crockford's
+// base32, as every x-amz-request-id under testdata/parity/s3 is. They
+// encode ten bytes of the UUID that its version and variant bits leave
+// wholly random, bytes 0-5 and 10-13, so the draw behind it does not change
+// and a seeded run keeps its stream. A request id that is not a UUID is
+// returned as it is.
+func (r RequestID) S3Form() RequestID {
+	b, err := hex.DecodeString(strings.ReplaceAll(string(r), "-", ""))
+	if err != nil || len(b) != 16 {
+		return r
+	}
+	// Ten bytes are 80 bits, 16 characters with no padding.
+	return RequestID(crockford.EncodeToString(slices.Concat(b[0:6], b[10:14])))
+}
+
 // ForService is the request id as the service named service answers with
-// it: version 5 for SQS and SNS, version 4, as minted, for every other
-// service, as their captures show.
+// it: version 5 for SQS and SNS, S3's form for S3 Control
+// (testdata/parity/s3/R06/06-s3control-list-missing.json), version 4, as
+// minted, for every other service.
 func (r RequestID) ForService(service string) RequestID {
 	switch service {
 	case "sqs", "sns":
 		return r.Version5()
+	case "s3control":
+		return r.S3Form()
 	}
 	return r
 }

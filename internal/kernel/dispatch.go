@@ -14,6 +14,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/fault"
 	"github.com/sustinbebustin/understudy/internal/identity"
+	"github.com/sustinbebustin/understudy/internal/ids"
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
@@ -37,8 +38,15 @@ type Ok struct {
 }
 
 // Rejected is a request the edge refused before the handler: a body that
-// does not decode, an operation the service does not model.
-type Rejected struct{ Err *awserr.Error }
+// does not decode, an operation the service does not model. Partial is
+// the *In the codec was binding when it refused, holding the members it
+// bound before the one it refused, in the input's member order; nil when
+// decoding never began. Only WithRefusalHeaders reads it: it is never
+// validated or handled.
+type Rejected struct {
+	Err     *awserr.Error
+	Partial any
+}
 
 // Unauthenticated is a request the edge refused at authentication:
 // credentials that cannot be read or do not verify, or a body the
@@ -142,7 +150,7 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	var in Ok
 	switch d := d.(type) {
 	case Rejected:
-		return Failure(d), nil
+		return Failure{Err: refusal(bnd, c, d.Partial, d.Err)}, nil
 	case Unauthenticated:
 		return Failure(d), nil
 	case Ok:
@@ -157,7 +165,7 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 		return Failure{Err: NotImplemented(c.op)}, nil
 	}
 	if err := bnd.validate(in.In); err != nil {
-		return Failure{Err: err}, nil
+		return Failure{Err: refusal(bnd, c, in.In, err)}, nil
 	}
 	c.Touch(bnd.resources(c, in.In)...)
 	scoped, resolved := bnd.scoping(c, in.In)
@@ -169,10 +177,10 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	c.denialResource = bnd.denialResourceOf(c, in.In)
 	c.chosenPrimary = bnd.primaryOf(c, in.In)
 	if err := k.resolveFirst(ctx, c, bnd, in.In); err != nil {
-		return Failure{Err: err}, nil
+		return Failure{Err: refusal(bnd, c, in.In, err)}, nil
 	}
 	if err := k.authorize(ctx, c, bnd, *used, c.keys); err != nil {
-		return Failure{Err: err}, nil
+		return Failure{Err: refusal(bnd, c, in.In, err)}, nil
 	}
 	items := bnd.items(in.In)
 	if res, inj, stop := k.before(ctx, c, items); stop {
@@ -186,7 +194,7 @@ func (k *Kernel) pipeline(ctx context.Context, c *Call, d Decoded, bnd *binding,
 	// now, and a denial replaces its output.
 	if err := c.authorizeDeferred(); err != nil {
 		k.discard(ctx, c, out)
-		return Failure{Err: err}, nil
+		return Failure{Err: refusal(bnd, c, in.In, err)}, nil
 	}
 	if res, inj, hit := k.after(ctx, c, items); hit {
 		k.discard(ctx, c, out)
@@ -414,10 +422,29 @@ func (k *Kernel) journalFault(ctx context.Context, c *Call, inj fault.Injection)
 // through the handler's Authorize, never on "*". It records nothing for an
 // anonymous caller, a service acting on its own behalf (AsPlatform), which
 // no policy grants, or a call with no pair, such as an internal operation
-// that declares no action. Dispatch skips it for an injected fault and for
-// an Unauthenticated request. bnd is nil for an unbound operation.
+// that declares no action. Each execution role the handler asked about
+// through AuthorizeAs is recorded apart (recordRoleAsks), whoever the
+// caller. Dispatch skips it for an injected fault and for an
+// Unauthenticated request. bnd is nil for an unbound operation.
 func (k *Kernel) recordAccess(ctx context.Context, c *Call, bnd *binding, res Result, used secondaries) {
-	if _, platform := c.mode.(AsPlatform); k.access == nil || c.op == nil || platform {
+	if k.access == nil || c.op == nil {
+		return
+	}
+	var outcome access.Outcome = access.Succeeded{}
+	switch r := res.(type) {
+	case Failure:
+		outcome = access.Failed{Code: r.Err.ID.Shape.Name()}
+	case StatusOKFailure:
+		outcome = access.Failed{Code: r.Err.ID.Shape.Name()}
+	case Output:
+	}
+	k.recordCaller(ctx, c, bnd, outcome, used)
+	k.recordRoleAsks(ctx, c, outcome)
+}
+
+// recordCaller records the caller's entry for recordAccess.
+func (k *Kernel) recordCaller(ctx context.Context, c *Call, bnd *binding, outcome access.Outcome, used secondaries) {
+	if _, platform := c.mode.(AsPlatform); platform {
 		return
 	}
 	principal, ok := accessPrincipal(c.principal)
@@ -447,14 +474,6 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, bnd *binding, res Re
 	if len(pairs) == 0 {
 		return
 	}
-	var outcome access.Outcome = access.Succeeded{}
-	switch r := res.(type) {
-	case Failure:
-		outcome = access.Failed{Code: r.Err.ID.Shape.Name()}
-	case StatusOKFailure:
-		outcome = access.Failed{Code: r.Err.ID.Shape.Name()}
-	case Output:
-	}
 	err := k.access.Record(access.Entry{
 		Principal: principal,
 		Mode:      accessMode(c.mode),
@@ -468,6 +487,51 @@ func (k *Kernel) recordAccess(ctx context.Context, c *Call, bnd *binding, res Re
 	if err != nil {
 		k.log.LogAttrs(ctx, slog.LevelWarn, "access recorder refused a call",
 			slog.String("op", c.label), slog.String("request_id", string(c.id)), slog.String("error", err.Error()))
+	}
+}
+
+// recordRoleAsks records, for each question the handler asked through
+// AuthorizeAs about an execution role, its pairs as the role's own use
+// (access.AsExecutionRole), with the call's outcome and admission
+// instant: Lambda asks whether a function's execution role may write to
+// its SNS or SQS destination or dead-letter target before storing it
+// (iam-enforcement-surfaces.md 8.5), and the policy rendered for the role
+// must grant that for the same configuration to pass under enforce. A
+// role ARN that names no role resolves to an anonymous principal and is
+// not recorded.
+func (k *Kernel) recordRoleAsks(ctx context.Context, c *Call, outcome access.Outcome) {
+	for _, a := range c.roleAsks() {
+		k.recordRoleUse(ctx, c.op, c.id, a, outcome, c.admitted.Wire())
+	}
+}
+
+// recordRoleUse records a's pairs as the execution role's own use
+// (access.AsExecutionRole) in a call of op with request id id, admitted at
+// at. A role ARN that names no role resolves to an anonymous principal and
+// is not recorded.
+func (k *Kernel) recordRoleUse(ctx context.Context, op *registry.Operation, id ids.RequestID, a roleAsk, outcome access.Outcome, at time.Time) {
+	principal, ok := accessPrincipal(a.principal)
+	if !ok {
+		return
+	}
+	actions := make([]registry.IAMAction, 0, len(a.query.Pairs))
+	for _, p := range a.query.Pairs {
+		if !slices.Contains(actions, p.Action) {
+			actions = append(actions, p.Action)
+		}
+	}
+	err := k.access.Record(access.Entry{
+		Principal: principal,
+		Mode:      access.AsExecutionRole{},
+		Service:   op.Service.IAMPrefix,
+		Actions:   actions,
+		Pairs:     accessPairs(a.query.Pairs, a.query.Keys),
+		Outcome:   outcome,
+		At:        at,
+	})
+	if err != nil {
+		k.log.LogAttrs(ctx, slog.LevelWarn, "access recorder refused an execution role's use a call asked about",
+			slog.String("op", op.ID.String()), slog.String("request_id", string(id)), slog.String("role", principal.String()), slog.String("error", err.Error()))
 	}
 }
 

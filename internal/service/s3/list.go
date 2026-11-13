@@ -252,7 +252,8 @@ func listObjects(in *s3api.ListObjectsInput, b *Bucket) (*s3api.ListObjectsOutpu
 // listObjectsV2Access is the bucket a ListObjectsV2 reads. Every
 // ListObjectsV2 answer names the bucket's home region, whatever region the
 // request asserts: each error about the bucket through namingRegion
-// (testdata/parity/s3/IAM-ENF/13-s3.json), and each 200 through
+// (testdata/parity/s3/IAM-ENF/13-s3.json), the refusals made before the
+// handler through regionOnRefusals, and each 200 through
 // Service.listObjectsV2.
 func listObjectsV2Access(in *s3api.ListObjectsV2Input) access {
 	return at(in.Bucket, in.ExpectedBucketOwner).namingRegion()

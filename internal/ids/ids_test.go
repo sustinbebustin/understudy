@@ -315,6 +315,20 @@ func TestRequestIDVersion5KeepsTheDraw(t *testing.T) {
 	}
 }
 
+// S3 Control answers with S3's request id form, 16 characters of
+// Crockford's base32 (testdata/parity/s3/R06/06-s3control-list-missing.json),
+// derived from the drawn UUID, so one draw gives one id.
+func TestS3ControlRequestIDForm(t *testing.T) {
+	s3Form := regexp.MustCompile(`^[0-9A-HJKMNP-TV-Z]{16}$`)
+	rapid.Check(t, func(t *rapid.T) {
+		id := NewSeeded(rapid.Uint64().Draw(t, "seed")).RequestID()
+		got := id.ForService("s3control")
+		if !s3Form.MatchString(string(got)) || got != id.ForService("s3control") {
+			t.Fatalf("ForService(s3control) of %s = %q, want 16 Crockford base32 characters, the same each time", id, got)
+		}
+	})
+}
+
 func TestFormats(t *testing.T) {
 	for name, src := range map[string]*Source{"random": NewRandom(), "seeded": NewSeeded(99)} {
 		t.Run(name, func(t *testing.T) {

@@ -19,9 +19,9 @@ const policyName = "default"
 // returned as sent but for account principals (storedPolicy), and
 // evaluated under iam.enforce advise and enforce.
 func (s *Service) bindPolicies(b kmsapi.Binder) {
-	b.GetKeyPolicy(s.getKeyPolicy, registry.Full{})
-	b.PutKeyPolicy(s.putKeyPolicy, registry.Partial{Note: "the policy is parsed and stored in the layout sent, a bare account id principal written as the account's root ARN as AWS writes it, but not re-laid out as AWS does; it is evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; grants are not evaluated; the lockout safety check is not run under any iam.enforce mode, so a policy that locks out its caller is stored where AWS answers MalformedPolicyDocumentException, and each put without BypassPolicyLockoutSafetyCheck journals a check-not-run advisory"})
-	b.ListKeyPolicies(s.listKeyPolicies, registry.Full{})
+	b.GetKeyPolicy(s.getKeyPolicy, keyIDPartial())
+	b.PutKeyPolicy(s.putKeyPolicy, registry.Partial{Note: "the policy is parsed and stored in the layout sent, a bare account id principal written as the account's root ARN as AWS writes it, but not re-laid out as AWS does; it is evaluated under iam.enforce=advise, which journals each denial, and enforced under iam.enforce=enforce; grants are not evaluated; the lockout safety check is not run under any iam.enforce mode, so a policy that locks out its caller is stored where AWS answers MalformedPolicyDocumentException, and each put without BypassPolicyLockoutSafetyCheck journals a check-not-run advisory; " + keyIDResolvedFirst})
+	b.ListKeyPolicies(s.listKeyPolicies, keyIDPartial())
 }
 
 // checkPolicyName answers a policy name other than default; an absent one

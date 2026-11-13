@@ -53,7 +53,9 @@ type Writer struct {
 	// attrs holds the attributes written on the open start tag, so a repeat
 	// can be refused.
 	attrs []writtenAttr
-	err   error
+	// keepApostrophes writes ' in character data as itself.
+	keepApostrophes bool
+	err             error
 }
 
 // element is an open element.
@@ -86,6 +88,13 @@ type expandedName struct {
 // New returns a Writer that writes to w.
 func New(w io.Writer) *Writer {
 	return &Writer{out: w}
+}
+
+// KeepApostrophes makes Text write ' as itself instead of &#39;, as S3
+// Control's error bodies do. Attribute values, written between double
+// quotes, still escape it.
+func (w *Writer) KeepApostrophes() {
+	w.keepApostrophes = true
 }
 
 // Declaration writes the XML declaration and a line feed, as S3 does. It must
@@ -154,7 +163,7 @@ func (w *Writer) Text(s string) {
 		return
 	}
 	w.closeStartTag()
-	escapeInto(w, s)
+	escapeInto(w, s, w.keepApostrophes)
 }
 
 // End closes the innermost open element with an end tag, even when it has no
@@ -276,7 +285,7 @@ func (w *Writer) attr(op, prefix, name, value string) {
 	}
 	w.attrs = append(w.attrs, writtenAttr{prefix: prefix, qname: qname, expanded: expanded})
 	w.write(" " + qname + `="`)
-	escapeInto(w, value)
+	escapeInto(w, value, false)
 	w.write(`"`)
 }
 

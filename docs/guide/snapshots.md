@@ -41,7 +41,15 @@ sections      6
 
 Two saves with calls between them also differ in the manifest's counters, which are not resource state: `manifest.json /journalNext`, the id the journal assigns next, and under `serve --seed` the `manifest.json /positions/<stream>` of each identifier stream the calls drew from. `diff` adds a `note:` line explaining each.
 
-`diff --normalize` masks what differs between two runs of one workload (request ids, receipt handles, wall times, hosts, accounts, event ids, `journalNext`), so two runs of a seeded test should show no differences. It keeps the stream positions, which one seed and one workload reproduce.
+`diff --normalize` masks what differs between two runs of one workload (request ids, receipt handles, wall times, hosts, accounts, event ids, `journalNext`), so two runs of a seeded test should show no differences. It keeps the stream positions, which one seed and one workload reproduce. The wall times include `manifest.json /cutWall`, the wall time a `serve --persist` checkpoint records and `snapshot save` does not, so two checkpoints of the same state compare equal:
+
+```text
+$ understudy snapshot diff a.snapshot b.snapshot
+~ manifest.json /clock/at: "2026-11-13T20:13:56.916283974Z" -> "2026-11-13T20:14:02.15004406Z"
+~ manifest.json /cutWall: "2026-11-13T20:13:56.916360254Z" -> "2026-11-13T20:14:02.15020598Z"
+$ understudy snapshot diff --normalize a.snapshot b.snapshot
+the archives are identical
+```
 
 Loading replaces all state, stops running Lambda environments, and sets the clock to the snapshot's time, even if that is earlier. It leaves the journal as it is: the journal is history, not state (`docs/ARCHITECTURE.md` 10). DynamoDB tables are exported through DynamoDB Local when the snapshot is saved and re-created from the archive when it is loaded.
 

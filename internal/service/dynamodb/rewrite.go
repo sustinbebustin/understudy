@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
@@ -255,8 +256,10 @@ func awsReasonText(local document.String) (document.String, bool) {
 }
 
 // fixReasons translates the Message of each of a TransactionCanceledException's
-// CancellationReasons that holds one of Local's texts, reporting whether it
-// changed one.
+// CancellationReasons that holds one of Local's texts and sorts each
+// reason's members by name, as AWS writes them where Local keeps the
+// model's order, Item first (smithy-protocol-tests.md 12.4, PROTO-04),
+// reporting whether it changed a reason.
 func fixReasons(m document.Map) bool {
 	at := slices.IndexFunc(m, func(e document.Entry) bool { return e.Key == "CancellationReasons" })
 	if at < 0 {
@@ -266,11 +269,16 @@ func fixReasons(m document.Map) bool {
 	if !ok {
 		return false
 	}
+	byName := func(a, b document.Entry) int { return strings.Compare(a.Key, b.Key) }
 	changed := false
 	for _, r := range reasons {
 		reason, ok := r.(document.Map)
 		if !ok {
 			continue
+		}
+		if !slices.IsSortedFunc(reason, byName) {
+			slices.SortStableFunc(reason, byName)
+			changed = true
 		}
 		for i, e := range reason {
 			if text, ok := e.Value.(document.String); ok && e.Key == "Message" {

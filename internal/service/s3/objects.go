@@ -46,7 +46,7 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	b.CopyObject(s.copyObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; " + eventHoldNote}, touches(s, cp))
 	lv1 := func(in *s3api.ListObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjects(reader(s, lv1, listObjects), registry.Partial{Note: "no RestoreStatus"}, touches(s, lv1))
-	b.ListObjectsV2(s.listObjectsV2, registry.Partial{Note: "no RestoreStatus"}, touches(s, listObjectsV2Access))
+	b.ListObjectsV2(s.listObjectsV2, registry.Partial{Note: "no RestoreStatus"}, touches(s, listObjectsV2Access), regionOnRefusals(s, listObjectsV2Access))
 	lvv := func(in *s3api.ListObjectVersionsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjectVersions(reader(s, lvv, listObjectVersions), registry.Partial{Note: "no RestoreStatus"}, touches(s, lvv))
 	s.bindObjectTagging(b)

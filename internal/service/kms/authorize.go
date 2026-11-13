@@ -1,8 +1,11 @@
 package kms
 
 import (
+	"context"
+
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/aws"
+	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
 )
@@ -11,9 +14,23 @@ import (
 // alias: the key behind it is known only once KMS resolved it, so the call
 // is authorized then, and an alias or key that does not exist answers
 // NotFoundException before authorization, as IAM-ENF-14 recorded for
-// DescribeKey on a missing key id; an alias follows it by inference
-// (iam-enforcement-surfaces.md 5.3).
-const resolvedFirst = "under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (kms.enforce.missing-resource.by-name)"
+// DescribeKey on a missing key id; the other operations and an alias
+// follow it by inference (iam-enforcement-surfaces.md 5.3).
+const resolvedFirst = "under iam.enforce, an alias or key that does not exist answers NotFoundException before authorization (resolve-first); " +
+	"recorded for DescribeKey on a key id, inferred for the other operations and for an alias (kms.enforce.missing-resource.by-name)"
+
+// keyIDResolvedFirst is the coverage note of the operations that take a
+// key id or key ARN only (keyNamed): the key is known from the reference,
+// so a key that exists is authorized on its ARN at step 8, and one that
+// does not answers NotFoundException before authorization, following
+// DescribeKey's recording by inference (IAM-ENF-14,
+// iam-enforcement-surfaces.md 5.3).
+const keyIDResolvedFirst = "under iam.enforce, a key that does not exist answers NotFoundException before authorization (resolve-first); " +
+	"recorded for DescribeKey, inferred for this operation (kms.enforce.missing-resource.by-name)"
+
+// keyIDPartial is the coverage of a key-id-only operation that is
+// otherwise fully implemented.
+func keyIDPartial() registry.Partial { return registry.Partial{Note: keyIDResolvedFirst} }
 
 // mintedOnAnyResource is the coverage note of the operations whose first
 // use of an alias/aws/<service> alias creates the AWS managed key it names
@@ -27,8 +44,9 @@ const mintedOnAnyResource = "the first use of an alias/aws/<service> alias, whic
 
 // declareAuthorization states what each KMS operation is authorized on
 // (iam-evaluation.md 2.1, 4): an operation that takes a key id or key ARN
-// only is asked about that key at step 8; one that also takes an alias is
-// asked about the key the alias names once KMS resolved it
+// only is asked about that key at step 8, once a key that does not exist
+// answered NotFoundException (kernel.ResolveFirst); one that also takes an
+// alias is asked about the key the alias names once KMS resolved it
 // (kernel.AuthorizedAfterResolve), Decrypt and ReEncrypt also about the key
 // the ciphertext names; an alias operation about the alias and its keys. It
 // runs after the bind sites, whose bindings it extends.
@@ -54,20 +72,20 @@ func (s *Service) declareAuthorization(b *kernel.Binder) {
 	kernel.Declare(b, kmsapi.OpGenerateDataKey, keyResolved(s, func(in *kmsapi.GenerateDataKeyInput) *string { return &in.KeyId })...)
 	kernel.Declare(b, kmsapi.OpGenerateDataKeyWithoutPlaintext, keyResolved(s, func(in *kmsapi.GenerateDataKeyWithoutPlaintextInput) *string { return &in.KeyId })...)
 
-	kernel.Declare(b, kmsapi.OpUpdateKeyDescription, keyNamed(func(in *kmsapi.UpdateKeyDescriptionInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpEnableKey, keyNamed(func(in *kmsapi.EnableKeyInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpDisableKey, keyNamed(func(in *kmsapi.DisableKeyInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpScheduleKeyDeletion, keyNamed(func(in *kmsapi.ScheduleKeyDeletionInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpCancelKeyDeletion, keyNamed(func(in *kmsapi.CancelKeyDeletionInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpEnableKeyRotation, keyNamed(func(in *kmsapi.EnableKeyRotationInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpDisableKeyRotation, keyNamed(func(in *kmsapi.DisableKeyRotationInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpGetKeyRotationStatus, keyNamed(func(in *kmsapi.GetKeyRotationStatusInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpGetKeyPolicy, keyNamed(func(in *kmsapi.GetKeyPolicyInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpPutKeyPolicy, keyNamed(func(in *kmsapi.PutKeyPolicyInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpListKeyPolicies, keyNamed(func(in *kmsapi.ListKeyPoliciesInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpTagResource, keyNamed(func(in *kmsapi.TagResourceInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpUntagResource, keyNamed(func(in *kmsapi.UntagResourceInput) string { return in.KeyId }))
-	kernel.Declare(b, kmsapi.OpListResourceTags, keyNamed(func(in *kmsapi.ListResourceTagsInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpUpdateKeyDescription, keyNamed(s, func(in *kmsapi.UpdateKeyDescriptionInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpEnableKey, keyNamed(s, func(in *kmsapi.EnableKeyInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpDisableKey, keyNamed(s, func(in *kmsapi.DisableKeyInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpScheduleKeyDeletion, keyNamed(s, func(in *kmsapi.ScheduleKeyDeletionInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpCancelKeyDeletion, keyNamed(s, func(in *kmsapi.CancelKeyDeletionInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpEnableKeyRotation, keyNamed(s, func(in *kmsapi.EnableKeyRotationInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpDisableKeyRotation, keyNamed(s, func(in *kmsapi.DisableKeyRotationInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpGetKeyRotationStatus, keyNamed(s, func(in *kmsapi.GetKeyRotationStatusInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpGetKeyPolicy, keyNamed(s, func(in *kmsapi.GetKeyPolicyInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpPutKeyPolicy, keyNamed(s, func(in *kmsapi.PutKeyPolicyInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpListKeyPolicies, keyNamed(s, func(in *kmsapi.ListKeyPoliciesInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpTagResource, keyNamed(s, func(in *kmsapi.TagResourceInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpUntagResource, keyNamed(s, func(in *kmsapi.UntagResourceInput) string { return in.KeyId }))
+	kernel.Declare(b, kmsapi.OpListResourceTags, keyNamed(s, func(in *kmsapi.ListResourceTagsInput) string { return in.KeyId }))
 
 	// An alias operation needs its action on the alias and on each key it
 	// names: the target, and for UpdateAlias and DeleteAlias the key the
@@ -88,15 +106,29 @@ func (s *Service) declareAuthorization(b *kernel.Binder) {
 
 // keyNamed asks at step 8 about the key a key id or key ARN names, known
 // from the reference itself; a reference that is neither names nothing,
-// and the handler answers it.
-func keyNamed[In any](id func(*In) string) kernel.BindOption {
-	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
+// and the handler answers it. A key that does not exist answers
+// NotFoundException before authorization (keyIDResolvedFirst).
+func keyNamed[In any](s *Service, id func(*In) string) kernel.BindOption {
+	// named is the key the reference names; the options share no state, so
+	// each parses it.
+	named := func(c *kernel.Call, in *In) (keyByID, bool) {
 		r, err := parseKeyID(c, id(in))
-		if err != nil {
+		return r, err == nil
+	}
+	return kernel.BindOptions(
+		kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
+			if r, ok := named(c, in); ok {
+				return []aws.ARN{keyARN(r.in, r.id)}
+			}
 			return nil
-		}
-		return []aws.ARN{keyARN(r.in, r.id)}
-	})
+		}),
+		kernel.ResolveFirst(func(_ context.Context, c *kernel.Call, in *In) *awserr.Error {
+			if r, ok := named(c, in); ok {
+				_, err := lookup(s, r)
+				return err
+			}
+			return nil
+		}))
 }
 
 // keyResolved authorizes an operation on the key a key id, key ARN, alias

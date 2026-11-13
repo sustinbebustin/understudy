@@ -47,11 +47,11 @@ func (s *Service) bindKeys(b kmsapi.Binder) {
 		}))
 	b.DescribeKey(s.describeKey, registry.Partial{Note: resolvedFirst + "; " + mintedOnAnyResource})
 	b.ListKeys(s.listKeys, registry.Full{})
-	b.UpdateKeyDescription(s.updateKeyDescription, registry.Full{})
-	b.EnableKey(s.enableKey, registry.Full{})
-	b.DisableKey(s.disableKey, registry.Full{})
-	b.ScheduleKeyDeletion(s.scheduleKeyDeletion, registry.Full{})
-	b.CancelKeyDeletion(s.cancelKeyDeletion, registry.Full{})
+	b.UpdateKeyDescription(s.updateKeyDescription, keyIDPartial())
+	b.EnableKey(s.enableKey, keyIDPartial())
+	b.DisableKey(s.disableKey, keyIDPartial())
+	b.ScheduleKeyDeletion(s.scheduleKeyDeletion, keyIDPartial())
+	b.CancelKeyDeletion(s.cancelKeyDeletion, keyIDPartial())
 }
 
 // checkCreateKey refuses the keys understudy cannot back with real

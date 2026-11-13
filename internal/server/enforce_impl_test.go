@@ -59,14 +59,45 @@ func TestEnforceDecidesIAMWritesOnTheResolvedARN(t *testing.T) {
 	}
 }
 
-// A KMS operation that takes a key id only is decided on that key at
-// step 8, so a missing key is denied first (iam.enforce.missing-resource);
-// the key policy, which the default delegates to IAM, must allow too
-// (iam-evaluation.md 4.1).
+// A KMS operation that takes a key id only answers NotFoundException for a
+// missing key before it is authorized, with the text IAM-ENF-14 recorded
+// for DescribeKey by a principal with no permissions; the other operations
+// follow it by inference (iam-enforcement-surfaces.md 5.3,
+// kms.enforce.missing-resource.by-name). A key that exists is decided on
+// its ARN at step 8, and the key policy, which the default delegates to
+// IAM, must allow too (iam-evaluation.md 4.1).
 func TestEnforceDecidesKMSKeyOperationsOnTheirKey(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
 	kms := func(s signer, target, body string) wire {
 		return jsonCall(t, s, endpoint, "kms", "1.1", "TrentService."+target, body)
+	}
+	missing := "11111111-2222-3333-4444-555555555555"
+	missingARN := "arn:aws:kms:us-east-1:000000000000:key/" + missing
+	for _, ref := range []string{missing, missingARN} {
+		for target, extra := range map[string]string{
+			"UpdateKeyDescription": `,"Description":"d"`,
+			"EnableKey":            "",
+			"DisableKey":           "",
+			"ScheduleKeyDeletion":  "",
+			"CancelKeyDeletion":    "",
+			"EnableKeyRotation":    "",
+			"DisableKeyRotation":   "",
+			"GetKeyRotationStatus": "",
+			"GetKeyPolicy":         "",
+			"PutKeyPolicy":         `,"Policy":"{}"`,
+			"ListKeyPolicies":      "",
+			"TagResource":          `,"Tags":[{"TagKey":"k","TagValue":"v"}]`,
+			"UntagResource":        `,"TagKeys":["k"]`,
+			"ListResourceTags":     "",
+		} {
+			w := kms(u, target, `{"KeyId":"`+ref+`"`+extra+`}`)
+			var body struct{ Message string }
+			if w.status != http.StatusBadRequest || jsonType(w) != "NotFoundException" ||
+				json.Unmarshal([]byte(w.body), &body) != nil || body.Message != "Key '"+missingARN+"' does not exist" {
+				t.Errorf("%s of missing key %s by a principal with no permissions = %d %s, want 400 NotFoundException \"Key '%s' does not exist\"",
+					target, ref, w.status, w.body, missingARN)
+			}
+		}
 	}
 	var created struct {
 		KeyMetadata struct {
@@ -84,12 +115,9 @@ func TestEnforceDecidesKMSKeyOperationsOnTheirKey(t *testing.T) {
 	if w := kms(u, "DisableKey", `{"KeyId":"`+created.KeyMetadata.KeyID+`"}`); w.status != http.StatusOK {
 		t.Errorf("DisableKey of the granted key = %d %s, want 200", w.status, w.body)
 	}
-	missing := "11111111-2222-3333-4444-555555555555"
-	if w := kms(u, "GetKeyPolicy", `{"KeyId":"`+missing+`"}`); w.status != kmsapi.DenialError().Status || jsonType(w) != "AccessDeniedException" {
-		t.Errorf("GetKeyPolicy of a missing key = %d %s, want the KMS denial first", w.status, w.body)
-	}
-	if w := kms(u, "EnableKey", `{"KeyId":"`+created.KeyMetadata.KeyID+`"}`); w.status != kmsapi.DenialError().Status {
-		t.Errorf("ungranted EnableKey = %d %s, want the KMS denial", w.status, w.body)
+	if w := kms(u, "EnableKey", `{"KeyId":"`+created.KeyMetadata.KeyID+`"}`); w.status != kmsapi.DenialError().Status ||
+		jsonType(w) != "AccessDeniedException" || !strings.Contains(w.body, created.KeyMetadata.Arn) {
+		t.Errorf("ungranted EnableKey = %d %s, want the KMS denial naming %s", w.status, w.body, created.KeyMetadata.Arn)
 	}
 }
 

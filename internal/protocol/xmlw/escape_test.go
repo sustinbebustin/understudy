@@ -80,3 +80,33 @@ func TestAttrUsesSDKEscapeTable(t *testing.T) {
 		})
 	}
 }
+
+// After KeepApostrophes, character data carries ' as itself, as S3
+// Control's error bodies do (testdata/parity/s3/R06/06-s3control-list-missing.json),
+// and the rest of the table is unchanged. Attribute values, written
+// between double quotes, still escape it.
+func TestKeepApostrophes(t *testing.T) {
+	t.Parallel()
+	for _, tc := range escapeCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			want := tc.want
+			if tc.in == "it's" {
+				want = "it's"
+			}
+			var buf bytes.Buffer
+			w := xmlw.New(&buf)
+			w.KeepApostrophes()
+			w.Start("V")
+			w.Attr("a", tc.in)
+			w.Text(tc.in)
+			w.End()
+			if err := w.Close(); err != nil {
+				t.Fatalf("Close: %v", err)
+			}
+			if got, want := buf.String(), `<V a="`+tc.want+`">`+want+`</V>`; got != want {
+				t.Errorf("Attr and Text of %q wrote %q, want %q", tc.in, got, want)
+			}
+		})
+	}
+}

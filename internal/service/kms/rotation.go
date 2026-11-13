@@ -19,10 +19,10 @@ const defaultRotationDays = 365
 // key material each period) is not performed; the status, period and next
 // date are stored and reported.
 func (s *Service) bindRotation(b kmsapi.Binder) {
-	stored := registry.StoredOnly{Note: "the rotation status and period are stored and reported; key material is never rotated"}
+	stored := registry.StoredOnly{Note: "the rotation status and period are stored and reported; key material is never rotated; " + keyIDResolvedFirst}
 	b.EnableKeyRotation(s.enableKeyRotation, stored)
 	b.DisableKeyRotation(s.disableKeyRotation, stored)
-	b.GetKeyRotationStatus(s.getKeyRotationStatus, registry.Full{})
+	b.GetKeyRotationStatus(s.getKeyRotationStatus, keyIDPartial())
 }
 
 func (s *Service) enableKeyRotation(_ context.Context, c *kernel.Call, in *kmsapi.EnableKeyRotationInput) (*kmsapi.EnableKeyRotationOutput, *awserr.Error) {

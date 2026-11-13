@@ -97,6 +97,9 @@ type Call struct {
 	// in order, without repeats, each with the keys it was first asked
 	// with.
 	authorized []askedPair
+	// roleAsked are the questions the handler asked through AuthorizeAs
+	// about an execution role, in order.
+	roleAsked []roleAsk
 	// success are the response headers the handler set with
 	// SetSuccessHeader; nil until it sets one.
 	success http.Header
@@ -108,6 +111,13 @@ type Call struct {
 type askedPair struct {
 	pair Pair
 	keys ConditionKeys
+}
+
+// roleAsk is a question a handler asked through AuthorizeAs about an
+// execution role: the role session the mode resolved to and the query.
+type roleAsk struct {
+	principal identity.Principal
+	query     AuthzQuery
 }
 
 // Endpoint is the scheme and host a client addressed the emulator with, as
@@ -327,6 +337,22 @@ func (c *Call) authorizedPairs() []askedPair {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return slices.Clone(c.authorized)
+}
+
+// askedAsRole notes that the handler asked through AuthorizeAs whether the
+// execution role session p may perform q's pairs.
+func (c *Call) askedAsRole(p identity.Principal, q AuthzQuery) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.roleAsked = append(c.roleAsked, roleAsk{principal: p, query: q})
+}
+
+// roleAsks returns the questions the handler asked through AuthorizeAs
+// about an execution role, in order.
+func (c *Call) roleAsks() []roleAsk {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Clone(c.roleAsked)
 }
 
 // CallHeaders is the closed set of unmodeled request headers a Call keeps

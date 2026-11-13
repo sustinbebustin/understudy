@@ -141,15 +141,14 @@ understudy never assumes that a condition holds:
 
 Where AWS's denial text, status or behavior is not recorded, understudy follows a fidelity switch. `understudy coverage --switches` lists them, and the `iam.*` and `*.denial.*` switches cover enforcement.
 
+SQS queues, S3 buckets, S3 keys and KMS keys answer not-found first, as AWS does: a missing queue is `QueueDoesNotExist` and a missing bucket `NoSuchBucket`, whatever the caller may do. A read of a missing S3 key asks `s3:ListBucket` on the bucket before `s3:GetObject`, so a caller without it gets the `s3:ListBucket` denial and one with it `NoSuchKey` (the `sqs.enforce.missing-resource` and `s3.enforce.missing-resource` switches name the operations AWS recorded and those that follow by inference). S3 Control's tag operations still deny a missing bucket first. A missing KMS key is `NotFoundException` `Key '<arn>' does not exist`, whatever the caller may do, and a KMS key that exists is authorized on its ARN: AWS recorded it for `DescribeKey`, and every other KMS operation that names a key, `GetKeyPolicy` and `EnableKey` among them, and an alias follow by inference (`kms.enforce.missing-resource.by-name`).
+
+IAM and Secrets Manager deny first, as AWS does: a caller not allowed `iam:GetRole` gets the denial whether or not the role exists, naming it `role <name>`, and Secrets Manager names the secret as the `SecretId` gave it, existing or not. A caller allowed the action gets `NoSuchEntity` or `ResourceNotFoundException`. Which ARN AWS evaluates for a missing resource is unrecorded: understudy asks about a missing user, role or instance profile on its ARN at the path `/`, and a missing secret on the ARN its `SecretId` implies, without a suffix, so a grant on `*`, `role/*` or `secret:*` covers it (the `iam.enforce.missing-resource.by-name` and `secretsmanager.enforce.missing-resource.by-name` switches).
+
 ### What is not enforced
 
 These differences hold under every mode, and each is stated in the operation's coverage note (`understudy coverage --service <name>`):
 
-- KMS operations that take only a key id, such as `GetKeyPolicy` and `EnableKey`, deny a missing key first. AWS answered `NotFoundException` first to `DescribeKey` on a missing key id, as understudy does for the operations that also take an alias (`kms.enforce.missing-resource.by-name`).
-
-SQS queues, S3 buckets and S3 keys answer not-found first, as AWS does: a missing queue is `QueueDoesNotExist` and a missing bucket `NoSuchBucket`, whatever the caller may do. A read of a missing key asks `s3:ListBucket` on the bucket before `s3:GetObject`, so a caller without it gets the `s3:ListBucket` denial and one with it `NoSuchKey` (the `sqs.enforce.missing-resource` and `s3.enforce.missing-resource` switches name the operations AWS recorded and those that follow by inference). S3 Control's tag operations still deny a missing bucket first.
-
-IAM and Secrets Manager deny first, as AWS does: a caller not allowed `iam:GetRole` gets the denial whether or not the role exists, naming it `role <name>`, and Secrets Manager names the secret as the `SecretId` gave it, existing or not. A caller allowed the action gets `NoSuchEntity` or `ResourceNotFoundException`. Which ARN AWS evaluates for a missing resource is unrecorded: understudy asks about a missing user, role or instance profile on its ARN at the path `/`, and a missing secret on the ARN its `SecretId` implies, without a suffix, so a grant on `*`, `role/*` or `secret:*` covers it (the `iam.enforce.missing-resource.by-name` and `secretsmanager.enforce.missing-resource.by-name` switches).
 - S3 Block Public Access and Secrets Manager's `BlockPublicPolicy` are stored and not applied, and KMS's key-policy lockout check is not run. Under `enforce` a public policy or ACL, or a key policy that locks out its caller, is stored where AWS refuses it. Each call AWS would check journals `check-not-run`: `PutBucketPolicy` while `BlockPublicPolicy` is true, `PutBucketAcl` granting `AllUsers` or `AuthenticatedUsers` while `BlockPublicAcls` is true, `PutResourcePolicy` with `BlockPublicPolicy` true, and a key policy sent to `CreateKey` or `PutKeyPolicy` without `BypassPolicyLockoutSafetyCheck`.
 - A principal a policy names is not checked for existence. AWS refuses a trust policy or a queue policy that names a role or user that does not exist; understudy stores it, so policies naming roles never created in understudy keep working (the `iam.policy.principal-existence` switch).
 - A function URL with `AuthType` `AWS_IAM` checks only the signature, never a policy. An `AuthType` `NONE` URL checks its resource policy under every mode.
@@ -275,7 +274,7 @@ arn:aws:iam::000000000000:role/worker  direct  sqs:SendMessage     arn:aws:sqs:u
 
 - `direct`: the principal itself.
 - `caller`: a service, with the principal's identity, such as S3 calling KMS for an SSE-KMS object.
-- `execution-role`: understudy, as a function's role, such as creating its log group, writing its logs or polling its SQS event source.
+- `execution-role`: understudy, as a function's role, such as creating its log group, writing its logs or polling its SQS event source, or a permission of the role a configuration call or a Scheduler invocation checks, such as its write to a Lambda destination.
 
 `--service sqs` narrows to one IAM prefix. The usage lists exact ARNs, except that S3 object calls are listed per bucket as `arn:aws:s3:::<bucket>/*`, so the record grows with the buckets a run used, not its keys; `understudy journal` shows each call's exact object.
 
@@ -413,6 +412,17 @@ The output is built from what your tests exercised. Check it before it goes into
 - **`s3:ListBucket` for a missing key.** A `GetObject`, `HeadObject` or `GetObjectAttributes` of a key that does not exist records `s3:ListBucket` on the bucket: AWS answers `404 NoSuchKey` to a caller with it and `403 AccessDenied` to one without, so a test that reads a missing key needs it.
 - **S3 objects per bucket.** Object operations touch the object's ARN (`journal` shows it), and are recorded, listed by `iam usage` and granted on `arn:aws:s3:::<bucket>/*`. Narrow that to a key prefix if your code only uses one.
 - **Lambda log delivery** records `logs:CreateLogGroup`, `logs:CreateLogStream` and `logs:PutLogEvents` for the function's execution role.
+- **A role's permission a configuration call checks** is recorded for that role, in mode `execution-role`, whether or not anything is ever sent: `sns:Publish` or `sqs:SendMessage` on each SNS or SQS destination and dead-letter target a Lambda call checks ([Configuration checks](#configuration-checks)), and the log-delivery actions a Step Functions `CreateStateMachine` or `UpdateStateMachine` with logging checks for the machine's role. The role's policy then lets the same calls through under `enforce`. After `put-function-event-invoke-config` sends `worker`'s successes to the queue `worker-results`, under `advise`:
+
+  ```sh
+  understudy iam usage --principal arn:aws:iam::000000000000:role/worker-role
+  ```
+
+  ```text
+  PRINCIPAL                                   MODE            ACTION           RESOURCE                                           CALLS  FAILURES  LAST
+  arn:aws:iam::000000000000:role/worker-role  execution-role  sqs:SendMessage  arn:aws:sqs:us-east-1:000000000000:worker-results  1      0         2026-11-13T20:22:38Z
+  ```
+- **A role's permission a Scheduler invocation checks before it calls the target** is recorded for the schedule's execution role, in mode `execution-role`: `kms:Decrypt` on the schedule's `KmsKeyArn`, beside the target action the invocation then records.
 - **`*` for the first use of an AWS managed key.** The first call that uses an `alias/aws/<service>` alias creates that key, such as an SSE-KMS `PutObject` without a key id (`alias/aws/s3`) or a `CreateSecret` without `KmsKeyId` (`alias/aws/secretsmanager`). understudy authorizes the call before the key exists, so `kms:GenerateDataKey`, `kms:Encrypt`, `kms:GenerateDataKeyWithoutPlaintext`, `kms:DescribeKey` or `kms:ReEncryptTo` is recorded on `*`, and the policy grants it on `*`. Later uses are recorded on the key. Replace `*` with the key's ARN, which `aws kms describe-key --key-id alias/aws/<service>` prints.
 
 Only code paths your tests ran appear. A branch that never ran, or a request member your tests never sent, needs permissions the record cannot know.
