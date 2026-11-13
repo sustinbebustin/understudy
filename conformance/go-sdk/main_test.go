@@ -19,10 +19,13 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/smithy-go"
+	"github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // tlsEndpointEnv names the variable run.sh sets to understudy's TLS
@@ -243,6 +246,17 @@ func wantStatus(t *testing.T, err error, op string, want int) {
 	if got := re.HTTPStatusCode(); got != want {
 		t.Errorf("%s: HTTP status = %d, want %d", op, got, want)
 	}
+}
+
+// rawResponse is the HTTP response behind a successful call's result
+// metadata.
+func rawResponse(t *testing.T, md middleware.Metadata) *smithyhttp.Response {
+	t.Helper()
+	raw, isResp := awsmiddleware.GetRawResponse(md).(*smithyhttp.Response)
+	if !isResp {
+		t.Fatalf("no raw HTTP response in the result metadata")
+	}
+	return raw
 }
 
 // readAll reads body to the end and closes it, failing the test on

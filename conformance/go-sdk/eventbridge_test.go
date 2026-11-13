@@ -113,6 +113,29 @@ func TestEventBridgeRules(t *testing.T) {
 		}
 	})
 
+	// ListRules matching no rule answers an empty Rules list, not an absent
+	// one (AWS-recorded: LocalStack test_events.py
+	// TestEventRule::test_put_list_with_prefix_describe_delete_rule,
+	// list-rules-after-delete, validated 2025-01-08). The suite shares one
+	// server, so a prefix no rule has stands in for a fresh scope.
+	t.Run("ListRules matching nothing", func(t *testing.T) {
+		out, err := client.ListRules(ctx, &eventbridge.ListRulesInput{NamePrefix: aws.String(name(t, "unused"))})
+		ok(t, err, "ListRules")
+		if out.Rules == nil || len(out.Rules) != 0 {
+			t.Errorf("ListRules for an unused prefix = %#v, want an empty list", out.Rules)
+		}
+	})
+
+	// DeleteRule of a rule that does not exist answers 200 with an empty
+	// body (recorded: testdata/parity/events/R07/04-delete-rule-missing.json).
+	t.Run("DeleteRule of a missing rule", func(t *testing.T) {
+		out, err := client.DeleteRule(ctx, &eventbridge.DeleteRuleInput{Name: aws.String(name(t, "never-created"))})
+		ok(t, err, "DeleteRule of a missing rule")
+		if raw := rawResponse(t, out.ResultMetadata); raw.StatusCode != 200 || raw.ContentLength != 0 {
+			t.Errorf("DeleteRule of a missing rule = HTTP %d, Content-Length %d; want 200 and an empty body", raw.StatusCode, raw.ContentLength)
+		}
+	})
+
 	t.Run("errors", func(t *testing.T) {
 		missing := name(t, "missing")
 		_, err := client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: aws.String(missing)})
@@ -201,6 +224,27 @@ func TestEventBridgeRules(t *testing.T) {
 		}}})
 		apiErr(t, err, "PutTargets with an undefined placeholder", "ValidationException")
 		wantMessage(t, err, "PutTargets with an undefined placeholder", "InputTemplate for target tx contains invalid placeholder notdefinedkey.")
+
+		// A dead-letter queue is a standard queue in the rule's region: "You
+		// can't use a FIFO queue for a DLQ in EventBridge" and "The Amazon
+		// SQS queue you use must be in the same Region in which you create
+		// the rule" (eb-rule-dlq.html). No source records the refusal's
+		// text, so only the code is asserted: EventBridge's code for a
+		// parameter that is not valid (secrets-logs-events-alarms.md 4.2).
+		fifoDLQ := queueArn(t, createQueue(t, name(t, "eb-dlq")+".fifo", map[string]string{"FifoQueue": "true"}))
+		otherRegion := "us-west-2"
+		if region() == otherRegion {
+			otherRegion = "us-east-1"
+		}
+		for _, dlq := range []struct{ what, arn string }{
+			{"a FIFO dead-letter queue", fifoDLQ},
+			{"a dead-letter queue in another region", "arn:aws:sqs:" + otherRegion + ":" + account(t) + ":" + name(t, "eb-dlq")},
+		} {
+			_, err = client.PutTargets(ctx, &eventbridge.PutTargetsInput{Rule: aws.String(ruleName), Targets: []types.Target{{
+				Id: aws.String("dlq"), Arn: aws.String(qArn), DeadLetterConfig: &types.DeadLetterConfig{Arn: aws.String(dlq.arn)},
+			}}})
+			apiErr(t, err, "PutTargets with "+dlq.what, "ValidationException")
+		}
 
 		var five []types.Target
 		for i := range 4 {

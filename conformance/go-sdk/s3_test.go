@@ -19,14 +19,12 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	tmtypes "github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager/types"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
-	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Research: docs/research/s3.md, wire-rest.md,
@@ -146,11 +144,7 @@ func randomBytes(t *testing.T, n int) []byte {
 // httpStatus is the HTTP status of a successful call.
 func httpStatus(t *testing.T, md middleware.Metadata) int {
 	t.Helper()
-	raw, isResp := awsmiddleware.GetRawResponse(md).(*smithyhttp.Response)
-	if !isResp {
-		t.Fatalf("no raw HTTP response in the result metadata")
-	}
-	return raw.StatusCode
+	return rawResponse(t, md).StatusCode
 }
 
 func TestS3Buckets(t *testing.T) {
