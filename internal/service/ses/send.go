@@ -41,6 +41,10 @@ const (
 	// the ConfigurationSetName element (recorded, SES-17 step 02), v2
 	// NotFoundException (inferred).
 	refusalConfigurationSetMissing
+	// refusalAccountSendingPaused is a send while account sending is
+	// paused: v1 AccountSendingPausedException (model), v2
+	// SendingPausedException, the only pause error its model declares.
+	refusalAccountSendingPaused
 )
 
 // refusal is the answer of a failed send check: its class and the whole
@@ -72,6 +76,8 @@ func (r *refusal) v1() *awserr.Error {
 		return sesapi.ErrTemplateDoesNotExistExceptionMembers(r.text, sesapi.TemplateDoesNotExistException{TemplateName: new(r.template)})
 	case refusalConfigurationSetMissing:
 		return sesapi.ErrConfigurationSetDoesNotExistException(r.text)
+	case refusalAccountSendingPaused:
+		return sesapi.ErrAccountSendingPausedException(r.text)
 	case refusalInvalid:
 	}
 	return sesapi.ErrInvalidParameterValue(r.text)
@@ -89,6 +95,8 @@ func (r *refusal) v2() *awserr.Error {
 		return sesv2api.ErrTooManyRequestsException(r.text)
 	case refusalTemplateMissing, refusalConfigurationSetMissing:
 		return sesv2api.ErrNotFoundException(r.text)
+	case refusalAccountSendingPaused:
+		return sesv2api.ErrSendingPausedException(r.text)
 	case refusalInvalid:
 	}
 	return sesv2api.ErrBadRequestException(r.text)

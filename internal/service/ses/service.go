@@ -69,6 +69,7 @@ func New(d kernel.ServiceDeps, o Options) *Service {
 	s.bindSendRaw(b)
 	s.bindSendTemplated(b)
 	s.bindQuota(b)
+	s.bindAccountSending(b)
 	s.bindTemplates(b)
 	s.bindConfigurationSets(b)
 	s.bindLink(b)

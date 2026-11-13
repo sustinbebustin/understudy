@@ -77,8 +77,8 @@ func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (strin
 }
 
 // checkBeforeIdentities runs the state checks that precede the sender's:
-// CheckConfigurationSet, touching the named set's ARN when it exists, then
-// o.prepare.
+// CheckConfigurationSet, touching the named set's ARN when it exists,
+// CheckAccountSending, then o.prepare.
 func (s *Service) checkBeforeIdentities(c *kernel.Call, st *state, o outgoing) *refusal {
 	if o.configurationSet != nil {
 		arn, r := st.checkConfigurationSet(s.view(o.api), c.Scope(), *o.configurationSet)
@@ -86,6 +86,9 @@ func (s *Service) checkBeforeIdentities(c *kernel.Call, st *state, o outgoing) *
 			return r
 		}
 		c.Touch(arn)
+	}
+	if st.SendingPaused {
+		return &refusal{class: refusalAccountSendingPaused, text: AccountSendingPausedText}
 	}
 	if o.prepare != nil {
 		return o.prepare(st)

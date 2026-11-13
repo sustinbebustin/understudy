@@ -175,6 +175,14 @@ An entry with a missing or malformed account or region, or any value that is not
 
 The production quota values, -1 and 14, are not recorded from AWS. `aws sesv2 get-account` reports the same quota with `ProductionAccessEnabled`.
 
+## Pausing account sending
+
+Account sending starts enabled in every account and Region. `aws ses update-account-sending-enabled --no-enabled` pauses it for the caller's account and Region, and `--enabled` resumes it; `aws ses get-account-sending-enabled` and the v2 `GetAccount` `SendingEnabled` member read it back.
+
+While sending is paused, every v1 and v2 send fails and records nothing. v1 answers `AccountSendingPausedException`; v2 answers `SendingPausedException`, the only pause error its model declares. A send naming a missing configuration set still answers `ConfigurationSetDoesNotExist` first, and the pause is checked before the sender and the sandbox. AWS's message text and this position in the check order are not recorded, so both are inferred.
+
+The setting is part of a snapshot and is dropped by a reset of the account and Region.
+
 ## Reading messages
 
 `understudy ses messages` lists recorded messages oldest first, filtered by `--to` (any To, Cc, Bcc or envelope recipient), `--from`, `--message-id`, `--account`, `--region` and `--since` (an RFC 3339 emulator time). `--limit` caps how many print, 100 by default.

@@ -98,7 +98,10 @@ const (
 	// CheckConfigurationSet requires the configuration set a send names,
 	// by member or raw header, to exist.
 	CheckConfigurationSet
-	// CheckSender requires each sender to be verified.
+	// CheckAccountSending refuses every send while account sending is
+	// paused.
+	CheckAccountSending
+	// CheckSenderrequires each sender to be verified.
 	CheckSender
 	// CheckSandboxRecipients requires each envelope recipient to be
 	// verified or a simulator address, in the sandbox only.
@@ -110,11 +113,12 @@ const (
 // SendChecks is the order a send's checks run in, the first failing one
 // answering. Tags before the sender is recorded (ses.md 4.5, SES-16), and
 // so is a missing configuration set before the sender (SES-17 step 02);
-// the rest of the order is UNVERIFIED (ses.md 6.4, ses.send.check-order).
+// the rest of the order, account sending after the configuration set
+// included, is UNVERIFIED (ses.md 6.4, ses.send.check-order).
 func SendChecks() []SendCheck {
 	return []SendCheck{
 		CheckModelValidation, CheckNotImplemented, CheckTags, CheckAddresses,
-		CheckRecipientCount, CheckConfigurationSet, CheckSender, CheckSandboxRecipients, CheckDailyQuota,
+		CheckRecipientCount, CheckConfigurationSet, CheckAccountSending, CheckSender, CheckSandboxRecipients, CheckDailyQuota,
 	}
 }
 
@@ -282,6 +286,11 @@ const (
 	// third-party-recorded for DeleteConfigurationSet, ses.md 8; the v2
 	// text is inferred to be the same).
 	ConfigurationSetMissingText = "Configuration set <%s> does not exist."
+	// AccountSendingPausedText answers a send while account sending is
+	// paused, in v1 and v2. The model records the exception's code and
+	// status but no text; this is the exception's documented description
+	// (inferred, ses.md 2).
+	AccountSendingPausedText = "Email sending is disabled for your entire Amazon SES account."
 	// ConfigurationSetExistsText answers a duplicate configuration set,
 	// ConfigurationSetLimitText one past MaxConfigurationSets, and
 	// ConfigurationSetNameText a name that breaks the ses.md 8 rules; %s is

@@ -133,7 +133,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | scheduler | 12 | 0 | 0 | 12 | 0 | 0 | 0 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
-| ses | 71 | 10 | 4 | 8 | 49 | 0 | 1 |
+| ses | 71 | 12 | 4 | 8 | 47 | 0 | 1 |
 | sesv2 | 116 | 8 | 4 | 6 | 98 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
@@ -1297,11 +1297,13 @@ Raw operations:
 | DeleteIdentity | full | inferred, 1 of 4 claims |  |
 | DeleteTemplate | full | inferred, 1 of 2 claims |  |
 | DeleteVerifiedEmailAddress | full | inferred, 1 of 2 claims |  |
+| GetAccountSendingEnabled | full | inferred, 1 of 2 claims |  |
 | GetIdentityVerificationAttributes | full | inferred, 1 of 8 claims |  |
 | GetTemplate | full | inferred, 1 of 3 claims |  |
 | ListIdentities | full | inferred, 1 of 6 claims |  |
 | ListTemplates | full | inferred, 1 of 2 claims |  |
 | ListVerifiedEmailAddresses | full | inferred, 1 of 2 claims |  |
+| UpdateAccountSendingEnabled | full | inferred, 1 of 2 claims |  |
 | UpdateTemplate | full | inferred, 1 of 2 claims |  |
 | CreateConfigurationSet | stored-only | inferred, 1 of 3 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
 | DeleteConfigurationSet | stored-only | inferred, 1 of 3 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
@@ -1332,7 +1334,6 @@ Raw operations:
 | DescribeActiveReceiptRuleSet | unbound | unassessed |  |
 | DescribeReceiptRule | unbound | unassessed |  |
 | DescribeReceiptRuleSet | unbound | unassessed |  |
-| GetAccountSendingEnabled | unbound | unassessed |  |
 | GetCustomVerificationEmailTemplate | unbound | unassessed |  |
 | GetIdentityDkimAttributes | unbound | unassessed |  |
 | GetIdentityMailFromDomainAttributes | unbound | unassessed |  |
@@ -1356,7 +1357,6 @@ Raw operations:
 | SetIdentityNotificationTopic | unbound | unassessed |  |
 | SetReceiptRulePosition | unbound | unassessed |  |
 | TestRenderTemplate | unbound | unassessed |  |
-| UpdateAccountSendingEnabled | unbound | unassessed |  |
 | UpdateConfigurationSetEventDestination | unbound | unassessed |  |
 | UpdateConfigurationSetReputationMetricsEnabled | unbound | unassessed |  |
 | UpdateConfigurationSetSendingEnabled | unbound | unassessed |  |
@@ -1388,7 +1388,7 @@ Raw operations:
 | GetConfigurationSet | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
 | ListConfigurationSets | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
 | CreateEmailIdentity | partial | unassessed | email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented |
-| GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), which nothing changes; no VDM, pricing plan or account details |
+| GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled from the account sending setting; EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), which nothing changes; no VDM, pricing plan or account details |
 | ListTagsForResource | partial | unassessed | identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
 | SendEmail | partial | unassessed | journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content; Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members answer NotImplemented; the SDKs sign a send with EndpointId SigV4A, which understudy refuses, so it answers sesv2's unknown operation at the edge and only a SigV4-signed one reaches the NotImplemented answer |
 | TagResource | partial | unassessed | identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |

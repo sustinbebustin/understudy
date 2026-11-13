@@ -517,7 +517,7 @@ var memberFromEmailAddressNotVerifiedException_FromEmailAddress = smithy.Member{
 
 var memberFromEmailAddressNotVerifiedException_message = smithy.Member{Name: "message", Index: 1, Target: &schemaErrorMessage}
 
-var schemaGetAccountSendingEnabledOutput = smithy.Schema{ID: "com.amazonaws.ses#GetAccountSendingEnabledResponse", Type: smithy.TypeStructure}
+var schemaGetAccountSendingEnabledOutput = smithy.Schema{ID: "com.amazonaws.ses#GetAccountSendingEnabledResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetAccountSendingEnabledOutput_Enabled}}
 
 var memberGetAccountSendingEnabledOutput_Enabled = smithy.Member{Name: "Enabled", Index: 0, Target: &schemaEnabled, Default: document.Bool(false)}
 
@@ -1445,7 +1445,7 @@ var memberTrackingOptionsDoesNotExistException_ConfigurationSetName = smithy.Mem
 
 var memberTrackingOptionsDoesNotExistException_message = smithy.Member{Name: "message", Index: 1, Target: &schemaErrorMessage}
 
-var schemaUpdateAccountSendingEnabledInput = smithy.Schema{ID: "com.amazonaws.ses#UpdateAccountSendingEnabledRequest", Type: smithy.TypeStructure}
+var schemaUpdateAccountSendingEnabledInput = smithy.Schema{ID: "com.amazonaws.ses#UpdateAccountSendingEnabledRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberUpdateAccountSendingEnabledInput_Enabled}}
 
 var memberUpdateAccountSendingEnabledInput_Enabled = smithy.Member{Name: "Enabled", Index: 0, Target: &schemaEnabled, Default: document.Bool(false)}
 

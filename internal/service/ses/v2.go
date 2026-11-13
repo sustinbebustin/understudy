@@ -24,7 +24,7 @@ import (
 const (
 	createEmailIdentityCoverage = "email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; " +
 		"DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented"
-	getAccountCoverage = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; " +
+	getAccountCoverage = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled from the account sending setting; " +
 		"EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), " +
 		"which nothing changes; no VDM, pricing plan or account details"
 	v2TagsCoverage = "identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, " +
@@ -486,8 +486,8 @@ func (v *V2) listTagsForResource(_ context.Context, c *kernel.Call, in *sesv2api
 }
 
 // getAccount answers the sandbox state and the quota GetSendQuota answers
-// (ses.md 6.3). Sending cannot be paused yet, so
-// SendingEnabled is always true. Automatic dedicated-IP warm-up and the
+// (ses.md 6.3), and SendingEnabled as UpdateAccountSendingEnabled set it.
+// Automatic dedicated-IP warm-up and the
 // account suppression list for bounces and complaints are on, the defaults
 // SES-15 recorded for a sandbox account; no setter for either is bound.
 func (v *V2) getAccount(_ context.Context, c *kernel.Call, _ *sesv2api.GetAccountInput) (*sesv2api.GetAccountOutput, *awserr.Error) {
@@ -501,7 +501,7 @@ func (v *V2) getAccount(_ context.Context, c *kernel.Call, _ *sesv2api.GetAccoun
 	return &sesv2api.GetAccountOutput{
 		ProductionAccessEnabled: production,
 		SendQuota:               q,
-		SendingEnabled:          true,
+		SendingEnabled:          s.sendingEnabled(c.Scope()),
 		EnforcementStatus:       new(enforcementHealthy),
 		// The defaults SES-15 recorded.
 		DedicatedIpAutoWarmupEnabled: true,

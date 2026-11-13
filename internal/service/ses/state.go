@@ -12,8 +12,9 @@ import (
 )
 
 // stateVersion is the version of the "ses" snapshot section. Version 2
-// added configuration sets and the set a message was sent with.
-const stateVersion = 2
+// added configuration sets and the set a message was sent with; version 3
+// added the paused account sending setting.
+const stateVersion = 3
 
 // state is the SES state of one account and Region, the "ses" snapshot
 // section's data.
@@ -37,15 +38,19 @@ type state struct {
 	// hours, oldest first: SentLast24Hours and the daily quota (ses.md
 	// 6.3). Clearing messages leaves it; a reset drops it with the scope.
 	Recipients []minuteCount `json:"recipients,omitempty"`
+	// SendingPaused is set by UpdateAccountSendingEnabled false; account
+	// sending starts enabled, so the zero value is the default.
+	SendingPaused bool `json:"sendingPaused,omitempty"`
 }
 
 func newState(aws.Scope) state { return state{} }
 
 // IsZero reports a scope without identities, templates, configuration
-// sets, messages, evictions or counted recipients, which snapshots skip.
+// sets, messages, evictions, counted recipients or a paused account, which
+// snapshots skip.
 func (s *state) IsZero() bool {
 	return len(s.Identities) == 0 && len(s.Templates) == 0 && len(s.ConfigurationSets) == 0 &&
-		len(s.Messages) == 0 && s.Evicted == 0 && len(s.Recipients) == 0
+		len(s.Messages) == 0 && s.Evicted == 0 && len(s.Recipients) == 0 && !s.SendingPaused
 }
 
 // minuteCount is the recipients counted in one minute of emulator time,
