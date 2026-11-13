@@ -109,6 +109,24 @@ type Object struct {
 	// Lock is the version's retention and legal hold: zero, and not
 	// written, for a version that never had either.
 	Lock ObjectLock `json:"lock,omitzero"`
+	// CompletedBy is the CompleteMultipartUpload that made the version, nil
+	// for every other write; an identical Complete sent again answers from
+	// it (retried).
+	CompletedBy *CompletedUpload `json:"completedBy,omitempty"`
+}
+
+// CompletedUpload is what a version made by CompleteMultipartUpload keeps
+// of that request: the upload id and the part list it sent.
+type CompletedUpload struct {
+	ID    string     `json:"id"`
+	Parts []PartETag `json:"parts"`
+}
+
+// PartETag is one entry of a Complete's part list: the part number and the
+// ETag sent, unquoted.
+type PartETag struct {
+	Number int32  `json:"number"`
+	ETag   string `json:"etag"`
 }
 
 // ObjectPart is one part of a multipart object: its size and, for a

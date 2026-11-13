@@ -45,15 +45,16 @@ func TestSSECAndObjectLockCoverageMarks(t *testing.T) {
 			"s3:ObjectRetention:Put is stored but sends nothing"
 	)
 	marks := map[string]registry.BindCoverage{
-		"PutObject":                          registry.Partial{Note: putNote},
-		"GetObject":                          registry.Partial{Note: readNote},
-		"HeadObject":                         registry.Partial{Note: readNote},
-		"GetObjectAttributes":                registry.Full{},
-		"CopyObject":                         registry.Partial{Note: copyNote},
-		"CreateMultipartUpload":              registry.Partial{Note: createNote},
-		"UploadPart":                         registry.Partial{Note: partNote},
-		"UploadPartCopy":                     registry.Partial{Note: answeredNote},
-		"CompleteMultipartUpload":            registry.Partial{Note: answeredNote},
+		"PutObject":             registry.Partial{Note: putNote},
+		"GetObject":             registry.Partial{Note: readNote},
+		"HeadObject":            registry.Partial{Note: readNote},
+		"GetObjectAttributes":   registry.Full{},
+		"CopyObject":            registry.Partial{Note: copyNote},
+		"CreateMultipartUpload": registry.Partial{Note: createNote},
+		"UploadPart":            registry.Partial{Note: partNote},
+		"UploadPartCopy":        registry.Partial{Note: answeredNote},
+		"CompleteMultipartUpload": registry.Partial{Note: answeredNote + "; an identical Complete retried after success answers 200 again while the version it made is its key's current version " +
+			"(inferred: how long AWS honours a retry is unrecorded)"},
 		"DeleteObject":                       registry.Partial{Note: deleteNote},
 		"DeleteObjects":                      registry.Partial{Note: deleteNote},
 		"PutObjectRetention":                 registry.Partial{Note: "event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent"},
@@ -181,16 +182,16 @@ func TestSSECAndObjectLockSwitches(t *testing.T) {
 	})
 }
 
-// TestStateVersionTwo: the object version's lock state and SSE-C
-// fingerprint are a new state format, version 2 (s3-ssec-object-lock.md
-// 11.2), and before the first tagged release a snapshot section of another
-// version is refused, not migrated (ARCHITECTURE.md 13), leaving the state
-// as it was.
-func TestStateVersionTwo(t *testing.T) {
+// TestStateVersion: the object version's lock state and SSE-C fingerprint
+// made state format version 2 (s3-ssec-object-lock.md 11.2), and the
+// Complete a multipart version keeps made version 3; before the first
+// tagged release a snapshot section of another version is refused, not
+// migrated (ARCHITECTURE.md 13), leaving the state as it was.
+func TestStateVersion(t *testing.T) {
 	runObjects(t, func(h *harness) {
 		t := h.T
-		if v := h.svc.SchemaVersion(); v != 2 {
-			t.Errorf("SchemaVersion = %d, want 2", v)
+		if v := h.svc.SchemaVersion(); v != 3 {
+			t.Errorf("SchemaVersion = %d, want 3", v)
 		}
 		h.createBucket("kept")
 		sections, err := h.svc.Export()
@@ -199,13 +200,13 @@ func TestStateVersionTwo(t *testing.T) {
 		}
 		old := make([]store.Section, len(sections))
 		for i, s := range sections {
-			s.Version = 1
+			s.Version = 2
 			old[i] = s
 		}
 		ierr := h.svc.Import(old)
 		var mismatch *store.VersionMismatchError
-		if !errors.As(ierr, &mismatch) || mismatch.Section != 1 || mismatch.Running != 2 {
-			t.Errorf("Import of version 1 sections = %v, want a VersionMismatchError of section 1 against 2", ierr)
+		if !errors.As(ierr, &mismatch) || mismatch.Section != 2 || mismatch.Running != 3 {
+			t.Errorf("Import of version 2 sections = %v, want a VersionMismatchError of section 2 against 3", ierr)
 		}
 		if _, err := as(h, who{}, s3api.OpHeadBucket, &s3api.HeadBucketInput{Bucket: "kept"}); err != nil {
 			t.Errorf("the refused import changed the state: HeadBucket = %s", err.ID.QueryCode)
