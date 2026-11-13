@@ -427,6 +427,7 @@ func TestCommandLineMistakesNameTheFix(t *testing.T) {
 		{[]string{"clock", "advance"}, admin.ExitUsage, "takes one argument, DURATION; got none\n"},
 		{[]string{"clock", "now", "a", "b"}, admin.ExitUsage, `takes no arguments; got "a", "b"` + "\n"},
 		{[]string{"journal", "--follow=maybe"}, admin.ExitUsage, `--follow takes no value, or true or false; got "maybe"`},
+		{[]string{"ses", "messages", "--follow=maybe"}, admin.ExitUsage, `--follow takes no value, or true or false; got "maybe"`},
 		{[]string{"journal", "--since"}, admin.ExitUsage, "--since needs a value: only events from this long ago"},
 		{
 			[]string{"serve", "--listne", "127.0.0.1:0"},

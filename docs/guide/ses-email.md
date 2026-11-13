@@ -176,6 +176,19 @@ understudy ses messages --from sender@example.com
 understudy ses messages --from sender@example.com --output json
 ```
 
+`--follow` prints the matching messages, with no `--limit`, then each new one that matches the same filters as it is accepted, until interrupted (exit 0). With `--output json` it prints one message per line. In a second terminal, after one send already recorded:
+
+```sh
+understudy ses messages --to success@simulator.amazonses.com --follow
+aws ses send-email --from sender@example.com --to success@simulator.amazonses.com --subject Later --text body
+```
+
+```text
+ACCEPTED              KIND  OPERATION      MESSAGE ID                                                    FROM                TO                               SUBJECT
+2026-10-30T09:00:00Z  send  ses.SendEmail  010001a18c099280-00f1ab18-46fb-4a96-bf56-04d85ceacdf6-000000  sender@example.com  success@simulator.amazonses.com  Hi
+2026-10-30T09:00:00Z  send  ses.SendEmail  010001a18c099280-3f3e4793-3187-4fa8-8baf-4391b9d1d782-000000  sender@example.com  success@simulator.amazonses.com  Later
+```
+
 ```text
 ACCEPTED              KIND  OPERATION      MESSAGE ID                                                    FROM                TO                               SUBJECT
 2026-10-30T09:00:00Z  send  ses.SendEmail  010001a18c099280-7f90af8b-7d6c-4688-a51f-191e0eacd8d0-000000  sender@example.com  success@simulator.amazonses.com  Hi

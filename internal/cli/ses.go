@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -18,9 +19,10 @@ const sesPageMax = 1000
 func sesCmd() *command {
 	return group("ses", "Read the mail SES recorded instead of sending it",
 		leaf("messages", "List recorded SES messages, oldest first: sends and verification emails",
-			"ses messages [--to ADDR] [--from ADDR] [--message-id ID] [--account A] [--region R] [--since TIME] [--limit N]",
+			"ses messages [--to ADDR] [--from ADDR] [--message-id ID] [--account A] [--region R] [--since TIME] [--limit N] [--follow]",
 			[]string{
 				"understudy ses messages",
+				"understudy ses messages --to success@simulator.amazonses.com --follow",
 				"understudy ses messages --to success@simulator.amazonses.com --output json",
 				"understudy ses messages --from sender@example.com --since 2026-01-01T00:00:00Z",
 			},
@@ -31,13 +33,15 @@ func sesCmd() *command {
 func sesMessages(fs *flag.FlagSet) action {
 	var q admin.SESMessageQuery
 	var limit int
+	var follow bool
 	fs.StringVar(&q.To, "to", "", "messages to this address, as a To, Cc, Bcc or envelope recipient")
 	fs.StringVar(&q.From, "from", "", "messages from this address")
 	fs.StringVar(&q.MessageID, "message-id", "", "the message with this MessageId, as SendEmail returned it")
 	fs.StringVar(&q.Account, "account", "", "messages of this account (default all)")
 	fs.StringVar(&q.Region, "region", "", "messages of this region (default all)")
 	timeVar(fs, &q.Since, "since", "messages accepted at or after this emulator time")
-	intVar(fs, &limit, "limit", 100, "most messages to print, the oldest that match")
+	intVar(fs, &limit, "limit", 100, "most messages to print, the oldest that match; --follow prints them all")
+	fs.BoolVar(&follow, "follow", false, "after the matching messages, print new ones as they are recorded until interrupted")
 	return func(ctx context.Context, r *runner, args []string) error {
 		if err := wantArgs(args, 0, "no arguments"); err != nil {
 			return err
@@ -48,6 +52,9 @@ func sesMessages(fs *flag.FlagSet) action {
 		c, err := r.client()
 		if err != nil {
 			return err
+		}
+		if follow {
+			return r.followSESMessages(ctx, c, q)
 		}
 		page, more, err := collectSESMessages(ctx, c, q, limit)
 		if err != nil {
@@ -91,13 +98,137 @@ func collectSESMessages(ctx context.Context, c *admin.Client, q admin.SESMessage
 	}
 }
 
+// sesMessageKey identifies a recorded message among those followed.
+type sesMessageKey struct{ account, region, messageID string }
+
+// followSESMessages prints every message q selects, with no --limit, then
+// each one recorded later until ctx ends, which is a normal end. The
+// journal stream only wakes it: a message is read through the same listing
+// as the first ones, from the newest acceptance time seen, skipping those
+// already printed. Subscribing before the first listing loses nothing
+// recorded between the two.
+func (r *runner) followSESMessages(ctx context.Context, c *admin.Client, q admin.SESMessageQuery) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	// Every SES call, v1 or v2, is an api-call event; a message is
+	// recorded as its call is accepted.
+	s := subscribe(ctx, c, admin.JournalQuery{Kind: "api-call"})
+	if !s.ready() {
+		return followEnd(ctx, s.err)
+	}
+	// printed holds the messages accepted at or after q.Since already
+	// printed, pruned to those accepted at q.Since itself as it advances.
+	printed := map[sesMessageKey]time.Time{}
+	headerPrinted := false
+	drain := func() error {
+		var fresh []admin.SESMessage
+		err := eachSESMessage(ctx, c, q, func(m *admin.SESMessage) {
+			if _, done := printed[sesMessageKey{m.Account, m.Region, m.MessageID}]; !done {
+				fresh = append(fresh, *m)
+			}
+		})
+		if err != nil {
+			return err
+		}
+		for i := range fresh {
+			m := &fresh[i]
+			printed[sesMessageKey{m.Account, m.Region, m.MessageID}] = m.Accepted
+			if m.Accepted.After(q.Since) {
+				q.Since = m.Accepted
+			}
+		}
+		for k, accepted := range printed {
+			if accepted.Before(q.Since) {
+				delete(printed, k)
+			}
+		}
+		return r.writeFollowedSES(fresh, &headerPrinted)
+	}
+	// A read cut short by cancellation is the normal end, not a failure.
+	if err := drain(); err != nil {
+		return followEnd(ctx, err)
+	}
+	err := s.each(func(e *admin.JournalEvent) error {
+		if !wakesSESFollow(e) {
+			return nil
+		}
+		return drain()
+	})
+	if err != nil {
+		return followEnd(ctx, err)
+	}
+	return followEnd(ctx, s.err)
+}
+
+// wakesSESFollow reports whether e may have recorded a message: an SES
+// call, or a gap, which says events were missed.
+func wakesSESFollow(e *admin.JournalEvent) bool {
+	if e.Kind == "gap" {
+		return true
+	}
+	d, ok := decodeDetail[struct {
+		Service string `json:"service"`
+	}](e.Detail)
+	return ok && (d.Service == "ses" || d.Service == "sesv2")
+}
+
+// eachSESMessage calls f with every message q selects, oldest first, page
+// by page.
+func eachSESMessage(ctx context.Context, c *admin.Client, q admin.SESMessageQuery, f func(*admin.SESMessage)) error {
+	q.Limit = sesPageMax
+	for {
+		page, err := c.SESMessages(ctx, q)
+		if err != nil {
+			return err
+		}
+		for i := range page.Messages {
+			f(&page.Messages[i])
+		}
+		if page.Next == "" {
+			return nil
+		}
+		q.Cursor = page.Next
+	}
+}
+
+// writeFollowedSES prints messages as NDJSON lines, or as table rows led
+// by one header, which is printed with the first row.
+func (r *runner) writeFollowedSES(messages []admin.SESMessage, headerPrinted *bool) error {
+	if len(messages) == 0 {
+		return nil
+	}
+	if r.output != outputJSON {
+		err := writeSESRows(r.o.Stdout, messages, !*headerPrinted)
+		*headerPrinted = true
+		return err
+	}
+	for i := range messages {
+		data, err := json.Marshal(&messages[i])
+		if err != nil {
+			return fmt.Errorf("encoding message %s: %w", messages[i].MessageID, err)
+		}
+		if _, err := fmt.Fprintf(r.o.Stdout, "%s\n", data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func writeSESMessages(w io.Writer, messages []admin.SESMessage) error {
 	if len(messages) == 0 {
 		_, err := fmt.Fprintln(w, "no messages")
 		return err
 	}
+	return writeSESRows(w, messages, true)
+}
+
+// writeSESRows prints messages as table rows, led by the header when
+// header is set.
+func writeSESRows(w io.Writer, messages []admin.SESMessage, header bool) error {
 	tw := newTable(w)
-	fmt.Fprintln(tw, "ACCEPTED\tKIND\tOPERATION\tMESSAGE ID\tFROM\tTO\tSUBJECT")
+	if header {
+		fmt.Fprintln(tw, "ACCEPTED\tKIND\tOPERATION\tMESSAGE ID\tFROM\tTO\tSUBJECT")
+	}
 	for i := range messages {
 		m := &messages[i]
 		subject := "-"
