@@ -934,7 +934,7 @@ Internal operations:
 | GetFunction | partial | aws-doc, 1 of 4 claims | Code.Location is a link understudy serves the package at, not a presigned S3 URL |
 | GetLayerVersion | partial | third-party-recorded, 2 of 4 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
 | GetLayerVersionByArn | partial | third-party-recorded, 2 of 4 claims | Content.Location is a link understudy serves the archive at, not a presigned S3 URL |
-| Invoke | partial | aws-doc, 1 of 11 claims | an alias with weighted routing always runs its primary version; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
+| Invoke | partial | third-party-recorded, 2 of 11 claims | an alias with weighted routing always runs its primary version; LoggingConfig reaches the function as AWS_LAMBDA_LOG_FORMAT and AWS_LAMBDA_LOG_LEVEL, but Lambda's own INIT_START, START, END and REPORT lines stay text and SystemLogLevel filters nothing |
 | PublishLayerVersion | partial | third-party-recorded, 2 of 4 claims | S3ObjectStorageMode REFERENCE is stored and the archive is copied as with COPY; the account code-storage quota is not enforced; layers are never signed |
 | PublishVersion | partial | aws-doc, 1 of 4 claims | PublishTo LATEST_PUBLISHED is refused: understudy does not implement Lambda Managed Instances |
 | PutFunctionEventInvokeConfig | partial | third-party-recorded, 2 of 5 claims | the execution role's sns:Publish on an SNS destination and sqs:SendMessage on an SQS one are checked when the configuration is stored, under iam.enforce=enforce, which refuses it, or advise, which journals the denial; function, event bus and S3 bucket destinations are not checked there (unrecorded); the execution role's permission to reach a destination, and the resource policy of a destination in another account, are evaluated only under iam.enforce=advise, which journals each denial, or enforce, which fails the delivery; a failed delivery is journaled and not retried |
@@ -1803,7 +1803,7 @@ Internal operations:
 
 Behaviors chosen without AWS-recorded evidence, with the research they rest on and the parity scenario step that settles them, or why none does. The count and order follow the label the code states; the Label column shows the recording's verdict where a replayed step settles or contradicts the switch.
 
-235 switches: 137 aws-recorded, 1 third-party-recorded, 14 aws-doc, 83 inferred.
+235 switches: 138 aws-recorded, 1 third-party-recorded, 13 aws-doc, 83 inferred.
 
 | Switch | Value | Label | Reference | Settled by |
 |---|---|---|---|---|
@@ -1871,6 +1871,7 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `lambda.destination.eventbridge-resources-order` | `bus-then-function` | aws-recorded | docs/research/lambda-destinations-layers.md#44-eventbridge | none: recorded in testdata/parity/lambda/LDL-10; the replayer skips Lambda's REST and Docker steps |
 | `lambda.destination.lambda-invocation-type` | `Event` | aws-recorded | docs/research/lambda-destinations-layers.md#43-lambda | none: recorded in testdata/parity/lambda/LDL-06; the replayer skips Lambda's REST and Docker steps |
 | `lambda.destination.record-function-arn` | `invoked-qualifier` | aws-recorded | docs/research/lambda-destinations-layers.md#32-fields | none: recorded in testdata/parity/lambda/LDL-01; the replayer skips Lambda's REST and Docker steps |
+| `lambda.destination.sns-oversize` | `drop-payloads` | aws-recorded | docs/research/lambda-destinations-layers.md#42-sns | none: recorded in testdata/parity/lambda/LDL-05; the replayer skips Lambda's REST and Docker steps |
 | `lambda.enforce.missing-resource.delivery` | `deny-first` | aws-recorded | docs/research/iam-enforcement-surfaces.md#8.4 | none: IAM-ENF-22 recorded 2026-11-03 (testdata/parity); the recorded outcome is a delivery between services, which the replay cannot send |
 | `lambda.esm.create-denied-text` | `The function execution role does not have permissions to call ReceiveMessage on SQS; for a DynamoDB stream: The function execution role does not have permissions to call DescribeStream on DynamoDB; for a Kinesis stream: The function execution role does not have permissions to call DescribeStreamSummary on Kinesis` | aws-recorded | docs/research/iam-enforcement-surfaces.md#8.6 | none: IAM-ENF-24 recorded 2026-11-03 (testdata/parity); the recorded caller is a role session, and the replay signs only as the account's root |
 | `lambda.layers.compatibility` | `not-enforced` | aws-recorded | docs/research/lambda-destinations-layers.md#73-compatibility-is-metadata | none: recorded in testdata/parity/lambda/LDL-13; the replayer skips Lambda's REST and Docker steps |
@@ -1950,7 +1951,6 @@ Behaviors chosen without AWS-recorded evidence, with the research they rest on a
 | `cloudwatch.get-metric-data.start-rounding` | `by-age` | aws-doc | docs/research/secrets-logs-events-alarms.md#53-getmetricdata | none: unrecorded: no recording shows GetMetricData's period boundaries |
 | `events.bus-target.cross-account-role` | `required` | aws-doc | docs/research/eventbridge-buses.md#63-cross-account | none: unrecorded: EBB-09 needs a second account, which the recording account lacks |
 | `iam.assumeRole` | `strict` | aws-doc | docs/ARCHITECTURE.md#7-identity-auth-accounts-and-regions | none: the switch decides AssumeRole of a role IAM does not hold, which no recording asks; sts/R15#06-assume-denied names a role that exists, refused by its trust policy |
-| `lambda.destination.sns-oversize` | `delivery-failure` | aws-doc | docs/research/lambda-destinations-layers.md#42-sns | none: recorded in testdata/parity/lambda/LDL-05, which differs: AWS delivers the record with both payloads dropped and a deliveryError object |
 | `lambda.stateTransitions` | `final` | aws-doc | docs/ARCHITECTURE.md#9-the-clock | none: a deliberate default (ARCHITECTURE.md 9), which a recording of AWS's transient states does not change |
 | `logs.delivery.retention-days` | `2` | aws-doc | https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/CloudWatch_Logs_Log_Classes.html | none: unrecorded: no recording creates a DELIVERY-class log group |
 | `logs.retention.expiry` | `at-expiry` | aws-doc | docs/research/secrets-logs-events-alarms.md#32-retention | none: AWS deletes expired events lazily, typically within 72 hours, so no recording pins the instant |

@@ -59,11 +59,10 @@ func asyncSwitches() []fidelity.Switch[string] {
 		// Lambda makes one attempt at a destination and journals a failure
 		// (destination.To's delivery.None).
 		recorded(ldlSwitch("lambda.destination.delivery-retry", "none", evidence.AWSRecorded, "46-when-delivery-fails", "LDL-09", "lambda.Invoke")),
-		// A record over SNS's limit is published whole and SNS refuses it,
-		// rather than losing its payload (destination.To). AWS delivers it
-		// with both payloads dropped and a deliveryError instead (LDL-05).
-		differs(ldlSwitch("lambda.destination.sns-oversize", "delivery-failure", evidence.AWSDoc, "42-sns", "LDL-05", "lambda.Invoke"),
-			"AWS delivers the record with both payloads dropped and a deliveryError object"),
+		// A record over SNS's limit is published with both payloads
+		// dropped and a deliveryError after responseContext
+		// (destination.To).
+		recorded(ldlSwitch("lambda.destination.sns-oversize", "drop-payloads", evidence.AWSRecorded, "42-sns", "LDL-05", "lambda.Invoke")),
 		// A destination function is invoked asynchronously
 		// (destination.To).
 		recorded(ldlSwitch("lambda.destination.lambda-invocation-type", "Event", evidence.AWSRecorded, "43-lambda", "LDL-06", "lambda.Invoke")),

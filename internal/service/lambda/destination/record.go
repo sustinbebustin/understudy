@@ -131,6 +131,10 @@ type Built struct {
 	// ResponseOmitted is true when the response payload was not JSON and
 	// responsePayload was left out (lambda-destinations-layers.md 11.4).
 	ResponseOmitted bool
+	// Oversize is the record Lambda sends in JSON's place when JSON is over
+	// SNS's limit: both payloads left out and a deliveryError where they
+	// were. To chooses between the two.
+	Oversize []byte
 }
 
 // timestampLayout is the record's timestamp: UTC, milliseconds, Z
@@ -148,7 +152,9 @@ const timestampLayout = "2006-01-02T15:04:05.000Z"
 // Whitespace around a whole payload is unrecorded and left out, so the
 // envelope stays compact. A response payload that is not JSON is left out
 // and reported in Built.ResponseOmitted rather than guessed at (LDL-02).
-// Build refuses, with a *RecordError, a record AWS never writes.
+// Built.Oversize is the same record with both payloads left out and a
+// deliveryError after responseContext (oversize). Build refuses, with a
+// *RecordError, a record AWS never writes.
 func Build(r Record) (Built, error) {
 	if err := r.check(); err != nil {
 		return Built{}, err
@@ -162,23 +168,32 @@ func Build(r Record) (Built, error) {
 	if didRun {
 		rc.ApproximateInvokeCount = ran.Attempts
 	}
-	var b bytes.Buffer
-	b.WriteString(`{"version":"1.0","timestamp":`)
-	err := encodeCompact(&b, r.At.UTC().Format(timestampLayout))
-	b.WriteString(`,"requestContext":`)
-	err = errors.Join(err, encodeCompact(&b, rc))
-	b.WriteString(`,"requestPayload":`)
-	b.Write(trimJSONSpace(r.Payload))
-	omitted := false
+	var head bytes.Buffer
+	head.WriteString(`{"version":"1.0","timestamp":`)
+	err := encodeCompact(&head, r.At.UTC().Format(timestampLayout))
+	head.WriteString(`,"requestContext":`)
+	err = errors.Join(err, encodeCompact(&head, rc))
+	var responseContext bytes.Buffer
 	if didRun {
-		b.WriteString(`,"responseContext":`)
+		responseContext.WriteString(`,"responseContext":`)
 		// statusCode is 200 for a success and for a function error alike
 		// (lambda-destinations-layers.md 3.2).
-		err = errors.Join(err, encodeCompact(&b, wireResponseContext{
+		err = errors.Join(err, encodeCompact(&responseContext, wireResponseContext{
 			StatusCode:      200,
 			ExecutedVersion: ran.Response.ExecutedVersion,
 			FunctionError:   ran.Response.FunctionError,
 		}))
+	}
+	if err != nil {
+		return Built{}, &RecordError{Field: "Record", Reason: "could not be encoded: " + err.Error()}
+	}
+	var b bytes.Buffer
+	b.Write(head.Bytes())
+	b.WriteString(`,"requestPayload":`)
+	b.Write(trimJSONSpace(r.Payload))
+	b.Write(responseContext.Bytes())
+	omitted := false
+	if didRun {
 		if json.Valid(ran.Response.Payload) {
 			b.WriteString(`,"responsePayload":`)
 			b.Write(trimJSONSpace(ran.Response.Payload))
@@ -186,11 +201,28 @@ func Build(r Record) (Built, error) {
 			omitted = true
 		}
 	}
-	if err != nil {
-		return Built{}, &RecordError{Field: "Record", Reason: "could not be encoded: " + err.Error()}
-	}
 	b.WriteByte('}')
-	return Built{JSON: b.Bytes(), ResponseOmitted: omitted}, nil
+	return Built{JSON: b.Bytes(), ResponseOmitted: omitted, Oversize: oversize(head.Bytes(), responseContext.Bytes(), r, ran)}, nil
+}
+
+// oversize is the record of r when it is over SNS's limit: head, the
+// response context when the function ran, then a deliveryError naming the
+// payloads' sizes as the caller sent them and the function's runtime
+// returned them, whitespace included (lambda-destinations-layers.md 4.2:
+// LDL-05, a 300,026-byte event and a 26-byte response on a Success
+// record). An on-failure record taking the same form, and the response
+// size of an event that never ran being 0, are inferred.
+func oversize(head, responseContext []byte, r Record, ran Ran) []byte {
+	var b bytes.Buffer
+	b.Write(head)
+	b.Write(responseContext)
+	b.WriteString(`,"deliveryError":{"statusCode":413,"errorCode":"RequestEntityTooLargeException",` +
+		`"errorMessage":"The total destination payload is too large. RequestPayload size: `)
+	b.WriteString(strconv.Itoa(len(r.Payload)))
+	b.WriteString(` bytes, ResponsePayload size: `)
+	b.WriteString(strconv.Itoa(len(ran.Response.Payload)))
+	b.WriteString(` bytes"}}`)
+	return b.Bytes()
 }
 
 // encodeCompact appends v to b as compact JSON, never HTML-escaped.

@@ -304,6 +304,12 @@ aws sqs receive-message --queue-url http://localhost:4566/000000000000/orders-dl
   An error occurred (InvalidParameterValueException) when calling the PutFunctionEventInvokeConfig operation: The destination ARN arn:aws:sqs:us-east-1:000000000000:no-such-queue is invalid.
   ```
 
+- A record over SNS's 256 KB limit (262,144 bytes) reaches a topic with both payloads left out and a `deliveryError` after `responseContext` that gives their sizes as sent and returned, as AWS recorded for an on-success record (fidelity switch `lambda.destination.sns-oversize`). An on-failure record is handled the same way, which is inferred:
+
+  ```text
+  {"version":"1.0","timestamp":"...","requestContext":{...},"responseContext":{"statusCode":200,"executedVersion":"$LATEST"},"deliveryError":{"statusCode":413,"errorCode":"RequestEntityTooLargeException","errorMessage":"The total destination payload is too large. RequestPayload size: 300026 bytes, ResponsePayload size: 26 bytes"}}
+  ```
+
 - `UpdateFunctionEventInvokeConfig` with one side of `DestinationConfig` keeps the other side, as on AWS.
 - A FIFO queue is refused as a destination when you configure it, as on AWS. A FIFO topic is accepted but never delivered to. That failure, and any other failed delivery, is journaled as `dropped` with the metric AWS counts it in, and is not retried:
 

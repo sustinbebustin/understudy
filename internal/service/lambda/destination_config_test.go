@@ -446,9 +446,9 @@ func TestInvokeCoverageNoLongerDisclaimsDestinations(t *testing.T) {
 // with the value, label and settling record of
 // lambda-destinations-layers.md 11.2, a ref into that note and no parity
 // scenario that settles it: the replayer skips Lambda's REST and Docker
-// steps. The 2026-11-03 recordings made eight of them aws-recorded, and
-// cross-account-policy took LDL-15's refusal; LDL-05 recorded behavior
-// that sns-oversize does not have, so it keeps its label and says so.
+// steps. The 2026-11-03 recordings made eight of them aws-recorded,
+// cross-account-policy took LDL-15's refusal and sns-oversize took the
+// behavior LDL-05 recorded.
 func TestDestinationAndLayerSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 	type sw struct {
 		value  string
@@ -461,7 +461,7 @@ func TestDestinationAndLayerSwitchesNameEveryUnrecordedChoice(t *testing.T) {
 		"lambda.destination.record-function-arn":         {"invoked-qualifier", evidence.AWSRecorded, "LDL-01", []string{"lambda.Invoke"}},
 		"lambda.destination.config-existence-check":      {"queue-topic-bucket", evidence.AWSRecorded, "LDL-08", []string{"lambda.PutFunctionEventInvokeConfig", "lambda.UpdateFunctionEventInvokeConfig"}},
 		"lambda.destination.delivery-retry":              {"none", evidence.AWSRecorded, "LDL-09", []string{"lambda.Invoke"}},
-		"lambda.destination.sns-oversize":                {"delivery-failure", evidence.AWSDoc, "LDL-05", []string{"lambda.Invoke"}},
+		"lambda.destination.sns-oversize":                {"drop-payloads", evidence.AWSRecorded, "LDL-05", []string{"lambda.Invoke"}},
 		"lambda.destination.lambda-invocation-type":      {"Event", evidence.AWSRecorded, "LDL-06", []string{"lambda.Invoke"}},
 		"lambda.destination.eventbridge-resources-order": {"bus-then-function", evidence.AWSRecorded, "LDL-10", []string{"lambda.Invoke"}},
 		"lambda.layers.merge-conflict":                   {"later-overwrites", evidence.AWSRecorded, "LDL-12", []string{"lambda.Invoke"}},

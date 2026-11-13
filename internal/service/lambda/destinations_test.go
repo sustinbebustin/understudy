@@ -815,6 +815,59 @@ func TestRecordsReachEveryDestinationKind(t *testing.T) {
 	})
 }
 
+// A 300 KB event to a function with an SNS on-success destination is
+// published to the topic with both payloads left out and a deliveryError
+// after responseContext naming the payloads' sizes as sent and returned
+// (lambda-destinations-layers.md 4.2: testdata/parity/lambda/LDL-05/notes.md,
+// row "300 KB record"; testdata/parity/lambda/LDL-05/01-invoke-big.json,
+// 300026 bytes sent). A small record to the same topic keeps its payloads.
+func TestOversizeRecordReachesTheTopicWithoutItsPayloads(t *testing.T) {
+	const returned = `{"ok": true, "mode": "ok"}`
+	big := `{"mode": "ok", "pad": "` + strings.Repeat("x", 300000) + "\"}\n"
+	ok := func(_ context.Context, _ runtimeapi.Invocation) (runtimeapi.Outcome, error) {
+		return runtimeapi.Success{Payload: []byte(returned)}, nil
+	}
+	runDestinations(t, ok, func(h *destHarness) {
+		t := h.T
+		h.createFunction("fn")
+		h.configure("", 0, alertsTopic, "")
+		h.invoke(fnEvent(`{"mode": "ok"}`))
+		h.invoke(fnEvent(big))
+		h.settle()
+		got := h.sink.lambda()
+		if len(got) != 2 {
+			t.Fatalf("deliveries = %+v, want two", got)
+		}
+		for _, d := range got {
+			h.fromFn(d, delivery.DestinationRecord)
+			if topic, isTopic := d.Request.Target.(delivery.SNSTopic); d.Request.Mechanism != delivery.LambdaToSNS || !isTopic || topic.ARN.String() != alertsTopic {
+				t.Fatalf("delivery = %s %#v, want lambda-to-sns to %s", d.Request.Mechanism, d.Request.Target, alertsTopic)
+			}
+		}
+		// The two events settle in an order the test does not fix.
+		var small, oversize kernel.Delivery
+		for _, d := range got {
+			if recordOf(t, d).RequestPayload == nil {
+				oversize = d
+			} else {
+				small = d
+			}
+		}
+		if r := recordOf(t, small); string(r.RequestPayload) != `{"mode": "ok"}` || string(r.ResponsePayload) != returned {
+			t.Errorf("small record %s, want both payloads", carried(t, small))
+		}
+		r := recordOf(t, oversize)
+		want := `{"version":"1.0","timestamp":"` + timestampOf(oversize) + `","requestContext":{"requestId":"` + r.RequestContext.RequestID +
+			`","functionArn":"` + fnUnqualified + `:$LATEST","condition":"Success","approximateInvokeCount":1},` +
+			`"responseContext":{"statusCode":200,"executedVersion":"$LATEST"},` +
+			`"deliveryError":{"statusCode":413,"errorCode":"RequestEntityTooLargeException",` +
+			`"errorMessage":"The total destination payload is too large. RequestPayload size: 300026 bytes, ResponsePayload size: 26 bytes"}}`
+		if got := string(carried(t, oversize)); got != want {
+			t.Errorf("oversize record\n%.400s\nwant\n%s", got, want)
+		}
+	})
+}
+
 // A response that is not JSON leaves responsePayload out of the record,
 // which still goes out, and the journal says why: how AWS renders it is
 // unrecorded (lambda-destinations-layers.md 11.4, LDL-02).

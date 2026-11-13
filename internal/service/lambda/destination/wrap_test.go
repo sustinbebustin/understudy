@@ -7,6 +7,7 @@ import (
 	"errors"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -229,6 +230,131 @@ func TestToTopicPublishesTheRecord(t *testing.T) {
 	}
 }
 
+// ldl05Event is the LDL-05 300 KB event as sent: json.dumps of mode ok and
+// 300,000 x's, then print's newline, 300,026 bytes
+// (testdata/parity/lambda/LDL-05/01-invoke-big.json, Content-Length
+// 300026; lambda-destinations-layers.md 12.6).
+var ldl05Event = `{"mode": "ok", "pad": "` + strings.Repeat("x", 300000) + "\"}\n"
+
+// ldl05Response is what the LDL-05 function returned for it, 26 bytes
+// (testdata/parity/lambda/LDL-05/notes.md, the small record's
+// responsePayload).
+const ldl05Response = `{"ok": true, "mode": "ok"}`
+
+// tooLarge is the recorded deliveryError of a record whose payloads, as
+// sent and returned, are request and response bytes long
+// (testdata/parity/lambda/LDL-05/notes.md, row "300 KB record").
+func tooLarge(request, response int) string {
+	return `"deliveryError":{"statusCode":413,"errorCode":"RequestEntityTooLargeException","errorMessage":"The total destination payload is too large. ` +
+		`RequestPayload size: ` + strconv.Itoa(request) + ` bytes, ResponsePayload size: ` + strconv.Itoa(response) + ` bytes"}`
+}
+
+// toTopic builds r and wraps it for a topic, as the Lambda service does.
+func toTopic(t *testing.T, r destination.Record) string {
+	t.Helper()
+	built, err := destination.Build(r)
+	if err != nil {
+		t.Fatalf("Build = %v", err)
+	}
+	topic := mustARN(t, "arn:aws:sns:us-east-1:111111111111:alerts")
+	req := wrapped(t, destination.Topic{ARN: topic}, destination.Outgoing{Condition: r.Condition, Body: built.JSON, Oversize: built.Oversize})
+	got, ok := req.Target.(delivery.SNSTopic)
+	if req.Mechanism != delivery.LambdaToSNS || !ok || got.ARN != topic || got.Subject != "" || len(got.Attributes) != 0 {
+		t.Fatalf("To topic = %s %#v, want lambda-to-sns of the record alone", req.Mechanism, req.Target)
+	}
+	return got.Message
+}
+
+// A record over SNS's 256 KB limit reaches the topic with both payloads
+// left out and a deliveryError after responseContext, its sizes those of
+// the payloads as sent and returned (lambda-destinations-layers.md 4.2:
+// testdata/parity/lambda/LDL-05/notes.md, row "300 KB record", recorded on
+// OnSuccess). The same handling of an on-failure record is inferred, as is
+// the deliveryError of an event that never ran taking responseContext's
+// place with a response size of 0.
+func TestToTopicDropsThePayloadsOfARecordOverSNSsLimit(t *testing.T) {
+	const head = `{"version":"1.0","timestamp":"2026-10-26T09:05:07.123Z","requestContext":{"requestId":"0f0e0d0c-0b0a-4908-8706-050403020100",` +
+		`"functionArn":"arn:aws:lambda:us-east-1:111111111111:function:destination-fn:$LATEST",`
+	cases := []struct {
+		name string
+		r    destination.Record
+		want string
+	}{
+		{
+			"recorded on OnSuccess",
+			destination.Record{
+				At: goldenAt, RequestID: goldenRequestID, FunctionARN: goldenQualified, Condition: destination.Success,
+				Invocation: destination.Ran{Attempts: 1, Response: destination.Response{ExecutedVersion: "$LATEST", Payload: []byte(ldl05Response)}},
+				Payload:    []byte(ldl05Event),
+			},
+			head + `"condition":"Success","approximateInvokeCount":1},"responseContext":{"statusCode":200,"executedVersion":"$LATEST"},` + tooLarge(300026, 26) + `}`,
+		},
+		{
+			"inferred on OnFailure",
+			destination.Record{
+				At: goldenAt, RequestID: goldenRequestID, FunctionARN: goldenQualified, Condition: destination.RetriesExhausted,
+				Invocation: destination.Ran{Attempts: 3, Response: destination.Response{ExecutedVersion: "$LATEST", FunctionError: "Unhandled", Payload: []byte(raiseErrorResponse)}},
+				Payload:    []byte(ldl05Event),
+			},
+			head + `"condition":"RetriesExhausted","approximateInvokeCount":3},"responseContext":{"statusCode":200,"executedVersion":"$LATEST","functionError":"Unhandled"},` +
+				tooLarge(300026, len(raiseErrorResponse)) + `}`,
+		},
+		{
+			"inferred for an event that never ran",
+			destination.Record{
+				At: goldenAt, RequestID: goldenRequestID, FunctionARN: goldenQualified, Condition: destination.ZeroReservedConcurrency,
+				Invocation: destination.NeverRan{},
+				Payload:    []byte(ldl05Event),
+			},
+			head + `"condition":"ZeroReservedConcurrency","approximateInvokeCount":0},` + tooLarge(300026, 0) + `}`,
+		},
+	}
+	for _, c := range cases {
+		if got := toTopic(t, c.r); got != c.want {
+			t.Errorf("%s: To topic publishes\n%.400s\nwant\n%s", c.name, got, c.want)
+		}
+	}
+}
+
+// A record of SNS's 262,144-byte limit is published whole, and one byte
+// more drops the payloads (lambda-destinations-layers.md 4.2). Measuring
+// the record against the limit is inferred: LDL-05 recorded one record,
+// 300 KB over it.
+func TestToTopicDropsThePayloadsFromOneByteOverSNSsLimit(t *testing.T) {
+	record := func(pad int) destination.Record {
+		return destination.Record{
+			At: goldenAt, RequestID: goldenRequestID, FunctionARN: goldenQualified, Condition: destination.Success,
+			Invocation: destination.Ran{Attempts: 1, Response: destination.Response{ExecutedVersion: "$LATEST", Payload: []byte(ldl05Response)}},
+			Payload:    []byte(`{"pad": "` + strings.Repeat("x", pad) + `"}`),
+		}
+	}
+	empty, err := destination.Build(record(0))
+	if err != nil {
+		t.Fatalf("Build = %v", err)
+	}
+	atLimit := record(262144 - len(empty.JSON))
+	built, err := destination.Build(atLimit)
+	if err != nil || len(built.JSON) != 262144 {
+		t.Fatalf("Build = %d bytes, %v; want 262144", len(built.JSON), err)
+	}
+	if got := toTopic(t, atLimit); got != string(built.JSON) {
+		t.Errorf("To topic changed a record of 262144 bytes; it goes out whole")
+	}
+	over := record(262145 - len(empty.JSON))
+	if got := toTopic(t, over); !strings.HasSuffix(got, `"executedVersion":"$LATEST"},`+tooLarge(len(over.Payload), len(ldl05Response))+`}`) {
+		t.Errorf("To topic with a record of 262145 bytes publishes\n%.400s\nwant it without payloads and with a deliveryError", got)
+	}
+
+	topic := destination.Topic{ARN: mustARN(t, "arn:aws:sns:us-east-1:111111111111:alerts")}
+	big, err := destination.Build(over)
+	if err != nil {
+		t.Fatalf("Build = %v", err)
+	}
+	if _, err := destination.To(topic, sender(t), destination.Outgoing{Condition: destination.Success, Body: big.JSON}); !isWrapError(err) {
+		t.Errorf("To topic with a record over the limit and no Oversize form = %v, want a *WrapError", err)
+	}
+}
+
 // The record is the payload of an invoke of the destination function and
 // its qualifier, when the configured ARN has one
 // (lambda-destinations-layers.md 4.3). The invocation type is the switch
@@ -410,9 +536,8 @@ func switchValue(t *testing.T, switches map[string]string, name string) string {
 // (lambda-destinations-layers.md 11.2): lambda.destination.delivery-retry
 // names the retry policy of every destination's delivery,
 // lambda.destination.lambda-invocation-type how a destination function
-// is invoked, and lambda.destination.sns-oversize whether a record over
-// SNS's 256 KB limit goes out whole (and SNS refuses it) or loses its
-// payload.
+// is invoked, and lambda.destination.sns-oversize that a record over SNS's
+// 256 KB limit goes out as its Oversize form, without its payloads.
 func TestToFollowsTheLambdaSwitches(t *testing.T) {
 	switches := lambdaSwitches(t)
 	var policy delivery.RetryPolicy
@@ -448,13 +573,14 @@ func TestToFollowsTheLambdaSwitches(t *testing.T) {
 		}
 	}
 	switch v := switchValue(t, switches, "lambda.destination.sns-oversize"); v {
-	case "delivery-failure":
+	case "drop-payloads":
 		// 300 KiB, over SNS's 256 KB (lambda-destinations-layers.md 4.2).
 		big := append([]byte(`{"pad":"`), append([]byte(strings.Repeat("x", 300<<10)), `"}`...)...)
+		small := golden(t, "zero-reserved-concurrency")
 		topic := mustARN(t, "arn:aws:sns:us-east-1:111111111111:alerts")
-		req := wrapped(t, destination.Topic{ARN: topic}, destination.Outgoing{Condition: destination.RetriesExhausted, Body: big})
-		if got, ok := req.Target.(delivery.SNSTopic); !ok || got.Message != string(big) {
-			t.Errorf("To a topic with a 300 KiB record changed the message; under delivery-failure it goes out whole")
+		req := wrapped(t, destination.Topic{ARN: topic}, destination.Outgoing{Condition: destination.RetriesExhausted, Body: big, Oversize: small})
+		if got, ok := req.Target.(delivery.SNSTopic); !ok || got.Message != string(small) {
+			t.Errorf("To a topic with a 300 KiB record published %T, want its Oversize form under drop-payloads", req.Target)
 		}
 	default:
 		t.Fatalf("lambda.destination.sns-oversize = %q, a value this test does not know", v)
