@@ -21,7 +21,13 @@ import (
 // buildDir is a build output directory holding a bootstrap.
 func buildDir(tb testing.TB) string {
 	tb.Helper()
-	dir := tb.TempDir()
+	// Binding resolves symlinks (hotreload.Bindable), so the directory a
+	// function runs is compared in resolved form: macOS's TempDir is under
+	// the /var symlink to /private/var.
+	dir, err := filepath.EvalSymlinks(tb.TempDir())
+	if err != nil {
+		tb.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(dir, "bootstrap"), []byte("#!/bin/sh\n"), 0o600); err != nil {
 		tb.Fatal(err)
 	}
