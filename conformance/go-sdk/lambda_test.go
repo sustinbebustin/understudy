@@ -239,8 +239,12 @@ func TestLambdaFunctionLifecycle(t *testing.T) {
 
 		cs, err := client.GetFunctionCodeSigningConfig(ctx, &lambda.GetFunctionCodeSigningConfigInput{FunctionName: aws.String(fnName)})
 		ok(t, err, "GetFunctionCodeSigningConfig")
-		if aws.ToString(cs.FunctionName) != fnName {
-			t.Errorf("GetFunctionCodeSigningConfig FunctionName = %q", aws.ToString(cs.FunctionName))
+		// A function without a code signing config gets neither member's
+		// value (testdata/parity/lambda/R07/01-get-code-signing-config.json:
+		// {"CodeSigningConfigArn":null,"FunctionName":null}).
+		if cs.CodeSigningConfigArn != nil || cs.FunctionName != nil {
+			t.Errorf("GetFunctionCodeSigningConfig = CodeSigningConfigArn %q, FunctionName %q; want neither member set",
+				aws.ToString(cs.CodeSigningConfigArn), aws.ToString(cs.FunctionName))
 		}
 	})
 
