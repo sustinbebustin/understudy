@@ -36,6 +36,11 @@ const (
 	// scope does not hold: v1 TemplateDoesNotExist (model), v2
 	// NotFoundException (inferred, SES-18).
 	refusalTemplateMissing
+	// refusalConfigurationSetMissing is a send naming a configuration set
+	// the scope does not hold: v1 ConfigurationSetDoesNotExist, without
+	// the ConfigurationSetName element (recorded, SES-17 step 02), v2
+	// NotFoundException (inferred).
+	refusalConfigurationSetMissing
 )
 
 // refusal is the answer of a failed send check: its class and the whole
@@ -65,6 +70,8 @@ func (r *refusal) v1() *awserr.Error {
 		// With the TemplateName member the model declares: GetTemplate's
 		// recorded answer leaves it out (SES-18), a send's is unrecorded.
 		return sesapi.ErrTemplateDoesNotExistExceptionMembers(r.text, sesapi.TemplateDoesNotExistException{TemplateName: new(r.template)})
+	case refusalConfigurationSetMissing:
+		return sesapi.ErrConfigurationSetDoesNotExistException(r.text)
 	case refusalInvalid:
 	}
 	return sesapi.ErrInvalidParameterValue(r.text)
@@ -80,7 +87,7 @@ func (r *refusal) v2() *awserr.Error {
 		return sesv2api.ErrNotImplemented(r.text)
 	case refusalThrottled:
 		return sesv2api.ErrTooManyRequestsException(r.text)
-	case refusalTemplateMissing:
+	case refusalTemplateMissing, refusalConfigurationSetMissing:
 		return sesv2api.ErrNotFoundException(r.text)
 	case refusalInvalid:
 	}
@@ -118,7 +125,7 @@ func firstUnimplemented(svc, op string, ms []unimplemented) *refusal {
 // sendEmailCoverage is v1 SendEmail's coverage note (ses.md 11.1).
 const sendEmailCoverage = "journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message " +
 	"for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; " +
-	"ConfigurationSetName and the sending-authorization ARNs answer NotImplemented; " +
+	"the sending-authorization ARNs answer NotImplemented; " +
 	"chosen without a recording (docs/research/ses.md 11.4): address answers other than an empty Source, recipient-count, size " +
 	"and daily-quota answers, refusing a 257-character tag, check order, mailbox-simulator and label matching"
 
@@ -149,10 +156,11 @@ func (s *Service) sendEmail(ctx context.Context, c *kernel.Call, in *sesapi.Send
 		senders = append(senders, *in.ReturnPath)
 	}
 	id, err := s.accept(ctx, c, outgoing{
-		api:      APIv1,
-		senders:  senders,
-		envelope: slices.Concat(d.ToAddresses, d.CcAddresses, d.BccAddresses),
-		refuse:   (*refusal).v1,
+		api:              APIv1,
+		configurationSet: in.ConfigurationSetName,
+		senders:          senders,
+		envelope:         slices.Concat(d.ToAddresses, d.CcAddresses, d.BccAddresses),
+		refuse:           (*refusal).v1,
 		fill: func(r *record) {
 			r.Source = in.Source
 			r.From = []string{addrSpec(in.Source)}
@@ -192,7 +200,6 @@ func content(c *sesapi.Content) *Content {
 // recipient count (SendChecks).
 func checkSendEmail(in *sesapi.SendEmailInput) *refusal {
 	if r := firstUnimplemented("ses", "SendEmail", []unimplemented{
-		{"ConfigurationSetName", "configuration sets", in.ConfigurationSetName != nil},
 		{"SourceArn", "sending authorization", in.SourceArn != nil},
 		{"ReturnPathArn", "sending authorization", in.ReturnPathArn != nil},
 	}); r != nil {

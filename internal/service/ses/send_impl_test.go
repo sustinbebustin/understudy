@@ -68,11 +68,11 @@ func TestSendEmailChecksBeforeAddresses(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		in := email(sender, "no-at-sign")
 		in.Tags = []sesapi.MessageTag{{Name: "bad:name", Value: "v"}}
-		in.ConfigurationSetName = new("set")
+		in.SourceArn = new(h.identityARN(sender))
 		_, err := call(h, sesapi.OpSendEmail, in)
-		wantNotImplemented(h, err, "ConfigurationSetName")
+		wantNotImplemented(h, err, "SourceArn")
 
-		in.ConfigurationSetName = nil
+		in.SourceArn = nil
 		_, err = call(h, sesapi.OpSendEmail, in)
 		wantErr(h, err, sesapi.IdentityInvalidParameterValue(),
 			"Invalid tag name <bad:name>: only alphanumeric ASCII characters, '_',  '-' are allowed.")

@@ -14,10 +14,13 @@ import (
 )
 
 // outgoing is a send that passed the checks needing no state (SendChecks up
-// to CheckRecipientCount), ready for the sender, sandbox and daily-quota
-// checks.
+// to CheckRecipientCount), ready for the configuration-set, sender, sandbox
+// and daily-quota checks.
 type outgoing struct {
 	api API
+	// configurationSet is the configuration set the send names, by member
+	// or raw header, nil when none.
+	configurationSet *string
 	// senders are the addresses that must be verified, as given, in the
 	// order the unverified text lists them: Source or From, then ReturnPath
 	// (ses.md 6.1, 11.3).
@@ -34,10 +37,10 @@ type outgoing struct {
 	refuse func(r *refusal) *awserr.Error
 }
 
-// accept runs o.prepare, then the sender, sandbox-recipient and
-// daily-quota checks, in SendChecks order, on the caller's scope; a send
-// that passes them is counted and recorded, and accept returns its
-// MessageId. Nothing changes when a check fails.
+// accept runs the configuration-set check, o.prepare, then the sender,
+// sandbox-recipient and daily-quota checks, in SendChecks order, on the
+// caller's scope; a send that passes them is counted and recorded, and
+// accept returns its MessageId. Nothing changes when a check fails.
 func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (string, *awserr.Error) {
 	type accepted struct {
 		id       string
@@ -45,28 +48,14 @@ func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (strin
 	}
 	scope := c.Scope()
 	got, err := kernel.Write(c, s.cells, scope, func(st *state, now clock.Instant, _ *kernel.Tx) (accepted, *awserr.Error) {
-		if o.prepare != nil {
-			if r := o.prepare(st); r != nil {
-				return accepted{}, o.refuse(r)
-			}
+		if r := s.checkBeforeIdentities(c, st, o); r != nil {
+			return accepted{}, o.refuse(r)
 		}
 		production := s.opts.ProductionAccess.allows(scope)
 		if r := s.checkIdentities(st, scope.Region, production, o); r != nil {
 			return accepted{}, o.refuse(r)
 		}
-		counted := 0
-		var simulated map[string]Scenario
-		for _, to := range o.envelope {
-			sc, ok := simulatorScenario(addrSpec(to))
-			if !ok {
-				counted++
-				continue
-			}
-			if simulated == nil {
-				simulated = map[string]Scenario{}
-			}
-			simulated[to] = sc
-		}
+		counted, simulated := tally(o.envelope)
 		if !production && float64(st.sentLast24Hours(now)+counted) > SandboxMax24HourSend {
 			return accepted{}, o.refuse(&refusal{class: refusalThrottled, text: DailyQuotaText})
 		}
@@ -74,6 +63,9 @@ func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (strin
 		r := s.newRecord(c, o.api, KindSend, now)
 		r.Envelope = slices.Clone(o.envelope)
 		r.Simulator = simulated
+		if o.configurationSet != nil {
+			r.ConfigurationSet = *o.configurationSet
+		}
 		o.fill(&r)
 		return accepted{id: r.MessageID, released: st.record(r)}, nil
 	})
@@ -82,6 +74,41 @@ func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (strin
 	}
 	s.release(ctx, got.released...)
 	return got.id, nil
+}
+
+// checkBeforeIdentities runs the state checks that precede the sender's:
+// CheckConfigurationSet, touching the named set's ARN when it exists, then
+// o.prepare.
+func (s *Service) checkBeforeIdentities(c *kernel.Call, st *state, o outgoing) *refusal {
+	if o.configurationSet != nil {
+		arn, r := st.checkConfigurationSet(s.view(o.api), c.Scope(), *o.configurationSet)
+		if r != nil {
+			return r
+		}
+		c.Touch(arn)
+	}
+	if o.prepare != nil {
+		return o.prepare(st)
+	}
+	return nil
+}
+
+// tally is how many envelope recipients the quota counts, every one but
+// the mailbox simulator's, and the scenario of each simulator recipient,
+// nil when there is none (ses.md 6.2, 6.3).
+func tally(envelope []string) (counted int, simulated map[string]Scenario) {
+	for _, to := range envelope {
+		sc, ok := simulatorScenario(addrSpec(to))
+		if !ok {
+			counted++
+			continue
+		}
+		if simulated == nil {
+			simulated = map[string]Scenario{}
+		}
+		simulated[to] = sc
+	}
+	return counted, simulated
 }
 
 // checkIdentities runs CheckSender and, in the sandbox,

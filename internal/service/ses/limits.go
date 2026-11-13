@@ -95,6 +95,9 @@ const (
 	CheckAddresses
 	// CheckRecipientCount requires 1 to MaxRecipients envelope recipients.
 	CheckRecipientCount
+	// CheckConfigurationSet requires the configuration set a send names,
+	// by member or raw header, to exist.
+	CheckConfigurationSet
 	// CheckSender requires each sender to be verified.
 	CheckSender
 	// CheckSandboxRecipients requires each envelope recipient to be
@@ -106,17 +109,16 @@ const (
 
 // SendChecks is the order a send's checks run in, the first failing one
 // answering. Tags before the sender is recorded (ses.md 4.5, SES-16), and
-// so is a missing configuration set before the sender (SES-17), a step
-// absent here while ConfigurationSetName answers NotImplemented; the rest
-// of the order is UNVERIFIED (ses.md 6.4, ses.send.check-order).
+// so is a missing configuration set before the sender (SES-17 step 02);
+// the rest of the order is UNVERIFIED (ses.md 6.4, ses.send.check-order).
 func SendChecks() []SendCheck {
 	return []SendCheck{
 		CheckModelValidation, CheckNotImplemented, CheckTags, CheckAddresses,
-		CheckRecipientCount, CheckSender, CheckSandboxRecipients, CheckDailyQuota,
+		CheckRecipientCount, CheckConfigurationSet, CheckSender, CheckSandboxRecipients, CheckDailyQuota,
 	}
 }
 
-// Documented limits (ses.md 4.1, 4.2, 5.1, 7, 11.5).
+// Documented limits (ses.md 4.1, 4.2, 5.1, 7, 8, 11.5).
 const (
 	// MaxRecipients is the most envelope recipients one send may have.
 	MaxRecipients = 50
@@ -125,6 +127,18 @@ const (
 	MaxIdentities = 10_000
 	// MaxTemplates is the most templates per account and Region.
 	MaxTemplates = 20_000
+	// MaxConfigurationSets is the most configuration sets per account and
+	// Region (ses.md 8).
+	MaxConfigurationSets = 10_000
+	// ConfigurationSetNameMaxLength is the most characters a configuration
+	// set name may have, each an ASCII letter, digit, "-" or "_" (ses.md 8;
+	// model, com.amazonaws.sesv2#CreateConfigurationSetRequest).
+	ConfigurationSetNameMaxLength = 64
+	// ListConfigurationSetsMaxItems is the most configuration sets one
+	// v1 ListConfigurationSets returns, and its default (model,
+	// com.amazonaws.ses#ListConfigurationSets); v2's PageSize is read
+	// the same way (inferred: its model documents no bound).
+	ListConfigurationSetsMaxItems = 1000
 	// MaxRawLineLength is the most characters a raw message line may have,
 	// without its line ending.
 	MaxRawLineLength = 1000
@@ -261,6 +275,20 @@ const (
 	// inferred).
 	TemplateExistsText  = "Template %s already exists."
 	TemplateMissingText = "Template %s does not exist."
+	// ConfigurationSetMissingText answers a configuration set the account
+	// and Region do not hold, on a send and on the configuration-set
+	// operations; %s is the name as given, and the angle brackets are part
+	// of AWS's text (recorded for v1 SendEmail, SES-17 step 02;
+	// third-party-recorded for DeleteConfigurationSet, ses.md 8; the v2
+	// text is inferred to be the same).
+	ConfigurationSetMissingText = "Configuration set <%s> does not exist."
+	// ConfigurationSetExistsText answers a duplicate configuration set,
+	// ConfigurationSetLimitText one past MaxConfigurationSets, and
+	// ConfigurationSetNameText a name that breaks the ses.md 8 rules; %s is
+	// the name, %d the limit (all inferred: no recording reaches them).
+	ConfigurationSetExistsText = "Configuration set <%s> already exists."
+	ConfigurationSetLimitText  = "Maximum number of configuration sets (%d) reached."
+	ConfigurationSetNameText   = "Configuration set name <%s> is invalid: it must be 1 to 64 characters, each an ASCII letter, digit, '-' or '_'."
 	// IdentityExistsText answers v2 CreateEmailIdentity of an existing
 	// identity, "exist" as AWS spells it; GetIdentityMissingText
 	// GetEmailIdentity of a missing one, the name in angle brackets; and

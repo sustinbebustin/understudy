@@ -27,7 +27,7 @@ const (
 	getAccountCoverage = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; " +
 		"EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), " +
 		"which nothing changes; no VDM, pricing plan or account details"
-	v2TagsCoverage = "identity and template ARNs; an ARN with an empty account field names the caller's account, " +
+	v2TagsCoverage = "identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, " +
 		"as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded)"
 )
 
@@ -72,8 +72,8 @@ func (v *V2) bindV2(b sesv2api.Binder) {
 }
 
 // resourceNamed names a tag operation's ResourceArn as its resource: the
-// identity's or template's full ARN when it names one
-// of the caller's, else the ARN as given; an ARN that does not parse names
+// full ARN of the identity, template or configuration set it names of the
+// caller's, else the ARN as given; an ARN that does not parse names
 // none.
 func resourceNamed[In any](arnOf func(*In) string) kernel.BindOption {
 	return kernel.WithResources(func(c *kernel.Call, in *In) []aws.ARN {
@@ -334,9 +334,9 @@ func (id *identity) matches(filter map[sesv2api.IdentityFilterKey]string) bool {
 	return true
 }
 
-// tagged runs fn on the tags of the identity or template resourceARN names
-// in the caller's view, in a write; a missing one, or any other ARN, is
-// NotFoundException naming its resource.
+// tagged runs fn on the tags of the identity, template or configuration
+// set resourceARN names in the caller's view, in a write; a missing one,
+// or any other ARN, is NotFoundException naming its resource.
 func (v *V2) tagged(c *kernel.Call, resourceARN string, fn func(tags *[]tag, tx *kernel.Tx)) *awserr.Error {
 	s := v.svc
 	scope := c.Scope()
@@ -346,40 +346,68 @@ func (v *V2) tagged(c *kernel.Call, resourceARN string, fn func(tags *[]tag, tx 
 	}
 	vw := s.view(APIv2)
 	_, err := kernel.Write(c, s.cells, scope, func(st *state, _ clock.Instant, tx *kernel.Tx) (struct{}, *awserr.Error) {
-		if r.template {
-			i := st.findTemplate(vw, r.name)
-			if i < 0 {
-				return struct{}{}, errEmailTemplateMissing(r.name)
-			}
-			fn(&st.Templates[i].Tags, tx)
-			return struct{}{}, nil
+		tags, err := r.tags(st, vw)
+		if err != nil {
+			return struct{}{}, err
 		}
-		i := st.find(vw, r.name)
-		if i < 0 {
-			return struct{}{}, errIdentityMissing(r.name)
-		}
-		fn(&st.Identities[i].Tags, tx)
+		fn(tags, tx)
 		return struct{}{}, nil
 	})
 	return err
 }
 
+// taggableKind is the kind of resource a tag operation addresses.
+type taggableKind uint8
+
+const (
+	taggableIdentity taggableKind = iota
+	taggableTemplate
+	taggableConfigurationSet
+)
+
 // taggable is what a tag operation's ResourceArn names in the caller's
-// scope: an identity, or a template when template is set.
+// scope: the kind of resource and its name.
 type taggable struct {
-	template bool
-	name     string
+	kind taggableKind
+	name string
 }
 
 // arn is r's full ARN in scope.
 func (r taggable) arn(scope aws.Scope) aws.ARN {
-	if r.template {
+	switch r.kind {
+	case taggableTemplate:
 		return templateARN(scope, r.name)
+	case taggableConfigurationSet:
+		return configurationSetARN(scope, r.name)
+	case taggableIdentity:
 	}
 	return identityARN(scope, r.name)
 }
 
-// taggableOf reads an SES identity or template ARN in scope. An empty
+// tags is the tag list of r in st's view v, or NotFoundException when v
+// does not hold it.
+func (r taggable) tags(st *state, v view) (*[]tag, *awserr.Error) {
+	switch r.kind {
+	case taggableTemplate:
+		if i := st.findTemplate(v, r.name); i >= 0 {
+			return &st.Templates[i].Tags, nil
+		}
+		return nil, errEmailTemplateMissing(r.name)
+	case taggableConfigurationSet:
+		if i := st.findConfigurationSet(v, r.name); i >= 0 {
+			return &st.ConfigurationSets[i].Tags, nil
+		}
+		return nil, (&setRefusal{class: setMissing, name: r.name}).v2()
+	case taggableIdentity:
+	}
+	if i := st.find(v, r.name); i >= 0 {
+		return &st.Identities[i].Tags, nil
+	}
+	return nil, errIdentityMissing(r.name)
+}
+
+// taggableOf reads an SES identity, template or configuration-set ARN in
+// scope. An empty
 // account field is read as the caller's: Terraform builds an identity's
 // ARN from its own account, which is empty under
 // skip_requesting_account_id, the setting understudy's Terraform guide
@@ -391,11 +419,12 @@ func taggableOf(scope aws.Scope, resourceARN string) (taggable, bool) {
 		arn.Region != scope.Region.String() || (arn.Account != "" && arn.Account != scope.Account.String()) {
 		return taggable{}, false
 	}
-	if name, ok := strings.CutPrefix(arn.Resource, "identity/"); ok {
-		return taggable{name: name}, true
-	}
-	if name, ok := strings.CutPrefix(arn.Resource, "template/"); ok {
-		return taggable{template: true, name: name}, true
+	for prefix, kind := range map[string]taggableKind{
+		"identity/": taggableIdentity, "template/": taggableTemplate, "configuration-set/": taggableConfigurationSet,
+	} {
+		if name, ok := strings.CutPrefix(arn.Resource, prefix); ok {
+			return taggable{kind: kind, name: name}, true
+		}
 	}
 	return taggable{}, false
 }
@@ -414,7 +443,8 @@ func arnResourceName(resourceARN string) string {
 	return arn.Resource
 }
 
-// tagResource sets tags on an identity or template, a key already set
+// tagResource sets tags on an identity, template or configuration set, a
+// key already set
 // taking the new value (ses.md 5.4).
 func (v *V2) tagResource(_ context.Context, c *kernel.Call, in *sesv2api.TagResourceInput) (*sesv2api.TagResourceOutput, *awserr.Error) {
 	err := v.tagged(c, in.ResourceArn, func(tags *[]tag, _ *kernel.Tx) { *tags = mergeTags(*tags, in.Tags) })
@@ -424,8 +454,8 @@ func (v *V2) tagResource(_ context.Context, c *kernel.Call, in *sesv2api.TagReso
 	return &sesv2api.TagResourceOutput{}, nil
 }
 
-// untagResource removes the named tag keys from an identity or template; a
-// key it does not carry is ignored.
+// untagResource removes the named tag keys from an identity, template or
+// configuration set; a key it does not carry is ignored.
 func (v *V2) untagResource(_ context.Context, c *kernel.Call, in *sesv2api.UntagResourceInput) (*sesv2api.UntagResourceOutput, *awserr.Error) {
 	err := v.tagged(c, in.ResourceArn, func(tags *[]tag, tx *kernel.Tx) {
 		before := len(*tags)
@@ -440,8 +470,9 @@ func (v *V2) untagResource(_ context.Context, c *kernel.Call, in *sesv2api.Untag
 	return &sesv2api.UntagResourceOutput{}, nil
 }
 
-// listTagsForResource answers an identity's or template's tags, which
-// Terraform reads for an identity's tags (ses.md 9.3).
+// listTagsForResource answers the tags of an identity, template or
+// configuration set, which Terraform reads for an identity's and a v2
+// configuration set's tags (ses.md 9.3, 11.7).
 func (v *V2) listTagsForResource(_ context.Context, c *kernel.Call, in *sesv2api.ListTagsForResourceInput) (*sesv2api.ListTagsForResourceOutput, *awserr.Error) {
 	var tags []sesv2api.Tag
 	err := v.tagged(c, in.ResourceArn, func(stored *[]tag, tx *kernel.Tx) {

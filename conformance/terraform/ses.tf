@@ -53,6 +53,29 @@ resource "aws_ses_template" "welcome" {
   text    = local.updated ? "Hello again {{name}}" : "Hello {{name}}"
 }
 
+# Configuration sets, one per API over the same store. With no option
+# configured the provider reads back only the name, and the v2 tags through
+# ListTagsForResource on the set's ARN (docs/research/ses.md 9.5). The
+# update step renames the v1 set, which the provider replaces, and changes
+# the v2 set's tags in place; changing an option would need the unbound
+# Put/Update setters.
+resource "aws_ses_configuration_set" "v1" {
+  name = local.updated ? "${var.name_prefix}-v1-renamed" : "${var.name_prefix}-v1"
+}
+
+resource "aws_sesv2_configuration_set" "v2" {
+  configuration_set_name = "${var.name_prefix}-v2"
+  tags                   = local.updated ? { env = "prod", team = "mail" } : { env = "dev" }
+}
+
+output "ses_configuration_set_arn" {
+  value = aws_ses_configuration_set.v1.arn
+}
+
+output "sesv2_configuration_set_arn" {
+  value = aws_sesv2_configuration_set.v2.arn
+}
+
 output "sesv2_domain_arn" {
   value = aws_sesv2_email_identity.domain.arn
 }

@@ -265,7 +265,7 @@
     {
       "scenario": "ses/SES-17",
       "steps": [
-        {"step": "02-unverified", "fixture": "ses/SES-17/02-unverified.json", "operation": "ses.SendEmail", "outcome": {"kind": "differs", "reason": "status, error/code, error/message, body/ErrorResponse/Error/Type, body/ErrorResponse/Error/Code, body/ErrorResponse/Error/Message"}}
+        {"step": "02-unverified", "fixture": "ses/SES-17/02-unverified.json", "operation": "ses.SendEmail", "outcome": {"kind": "match"}}
       ]
     },
     {

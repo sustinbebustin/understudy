@@ -146,10 +146,9 @@ func TestSendTemplatedEmailChecks(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		h.createTemplate(sesapi.Template{TemplateName: "t", SubjectPart: new("s")})
 		for member, set := range map[string]func(*sesapi.SendTemplatedEmailInput){
-			"ConfigurationSetName": func(in *sesapi.SendTemplatedEmailInput) { in.ConfigurationSetName = new("set") },
-			"SourceArn":            func(in *sesapi.SendTemplatedEmailInput) { in.SourceArn = new("arn") },
-			"ReturnPathArn":        func(in *sesapi.SendTemplatedEmailInput) { in.ReturnPathArn = new("arn") },
-			"TemplateArn":          func(in *sesapi.SendTemplatedEmailInput) { in.TemplateArn = new("arn") },
+			"SourceArn":     func(in *sesapi.SendTemplatedEmailInput) { in.SourceArn = new("arn") },
+			"ReturnPathArn": func(in *sesapi.SendTemplatedEmailInput) { in.ReturnPathArn = new("arn") },
+			"TemplateArn":   func(in *sesapi.SendTemplatedEmailInput) { in.TemplateArn = new("arn") },
 		} {
 			in := templated("t", "{}", simulator)
 			set(in)

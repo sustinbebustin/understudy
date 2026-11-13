@@ -16,7 +16,7 @@ import (
 // v2SendEmailCoverage is v2 SendEmail's coverage note (ses.md 11.1).
 const v2SendEmailCoverage = "journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content; " +
 	"Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; " +
-	"FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationSetName, " +
+	"FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); " +
 	"ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members " +
 	"answer NotImplemented; the SDKs sign a send with EndpointId SigV4A, which understudy refuses, so it answers sesv2's " +
 	"unknown operation at the edge and only a SigV4-signed one reaches the NotImplemented answer"
@@ -69,15 +69,16 @@ func (v *V2) sendEmail(ctx context.Context, c *kernel.Call, in *sesv2api.SendEma
 	switch {
 	case in.Content.Raw != nil:
 		send, r = s.checkRaw(rawRequest{
-			svc:          "sesv2",
-			op:           "SendEmail",
-			source:       in.FromEmailAddress,
-			returnPath:   in.FeedbackForwardingEmailAddress,
-			replyTo:      in.ReplyToAddresses,
-			destinations: destinations(in.Destination),
-			tags:         v2Tags(in.EmailTags),
-			data:         in.Content.Raw.Data,
-			limit:        MaxV2MessageBytes,
+			svc:              "sesv2",
+			op:               "SendEmail",
+			source:           in.FromEmailAddress,
+			configurationSet: in.ConfigurationSetName,
+			returnPath:       in.FeedbackForwardingEmailAddress,
+			replyTo:          in.ReplyToAddresses,
+			destinations:     destinations(in.Destination),
+			tags:             v2Tags(in.EmailTags),
+			data:             in.Content.Raw.Data,
+			limit:            MaxV2MessageBytes,
 		})
 	case in.Content.Template != nil:
 		send, r = checkTemplateContent(in)
@@ -110,10 +111,11 @@ func (v *V2) sendEmail(ctx context.Context, c *kernel.Call, in *sesv2api.SendEma
 		}
 	}
 	o := outgoing{
-		api:      APIv2,
-		senders:  send.senders,
-		envelope: send.envelope,
-		refuse:   (*refusal).v2,
+		api:              APIv2,
+		configurationSet: send.configurationSet,
+		senders:          send.senders,
+		envelope:         send.envelope,
+		refuse:           (*refusal).v2,
 	}
 	var used *TemplateSend
 	t := in.Content.Template
@@ -158,7 +160,6 @@ func checkV2Send(in *sesv2api.SendEmailInput) *refusal {
 	}
 	return firstUnimplemented("sesv2", "SendEmail", []unimplemented{
 		{"Content.Template.TemplateArn", "template ARNs", t != nil && t.TemplateArn != nil},
-		{"ConfigurationSetName", "configuration sets", in.ConfigurationSetName != nil},
 		{"ConfigurationOverrides", "configuration sets", in.ConfigurationOverrides != nil},
 		{"EndpointId", "multi-region endpoints", in.EndpointId != nil},
 		{"TenantName", "tenants", in.TenantName != nil},
@@ -288,8 +289,9 @@ func checkAddressed(in *sesv2api.SendEmailInput, size int) (*checkedSend, *refus
 		return nil, r
 	}
 	return &checkedSend{
-		senders:  senders,
-		envelope: envelope,
+		senders:          senders,
+		envelope:         envelope,
+		configurationSet: in.ConfigurationSetName,
 		fill: func(r *record) {
 			r.Source = from
 			r.From = []string{addrSpec(from)}

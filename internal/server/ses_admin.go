@@ -104,11 +104,12 @@ func wireSESMessage(m *ses.Message) admin.SESMessage {
 		Cc:         m.Cc,
 		Bcc:        m.Bcc,
 		// Envelope is always a JSON array, empty included.
-		Envelope: append([]string{}, m.Envelope...),
-		Subject:  content(m.Subject),
-		Text:     content(m.Text),
-		HTML:     content(m.HTML),
-		Raw:      m.Raw,
+		Envelope:         append([]string{}, m.Envelope...),
+		Subject:          content(m.Subject),
+		Text:             content(m.Text),
+		HTML:             content(m.HTML),
+		Raw:              m.Raw,
+		ConfigurationSet: m.ConfigurationSet,
 	}
 	if t := m.Template; t != nil {
 		out.Template = &admin.SESTemplate{Name: t.Name, Subject: t.Subject, Text: t.Text, HTML: t.HTML, Data: t.Data}

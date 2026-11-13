@@ -133,8 +133,8 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | s3 | 112 | 22 | 39 | 25 | 26 | 0 | 3 |
 | scheduler | 12 | 0 | 0 | 12 | 0 | 0 | 0 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
-| ses | 71 | 10 | 0 | 8 | 53 | 0 | 1 |
-| sesv2 | 116 | 8 | 0 | 6 | 102 | 0 | 0 |
+| ses | 71 | 10 | 4 | 8 | 49 | 0 | 1 |
+| sesv2 | 116 | 8 | 4 | 6 | 98 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
 | sqs | 23 | 15 | 0 | 8 | 0 | 2 | 0 |
@@ -1303,23 +1303,25 @@ Raw operations:
 | ListTemplates | full | inferred, 1 of 2 claims |  |
 | ListVerifiedEmailAddresses | full | inferred, 1 of 2 claims |  |
 | UpdateTemplate | full | inferred, 1 of 2 claims |  |
+| CreateConfigurationSet | stored-only | inferred, 1 of 3 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| DeleteConfigurationSet | stored-only | inferred, 1 of 3 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| DescribeConfigurationSet | stored-only | inferred, 1 of 3 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| ListConfigurationSets | stored-only | inferred, 1 of 3 claims | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
 | GetIdentityNotificationAttributes | partial | contradicted (ses/SES-08/03-notif-raw.json), 1 of 4 claims | every identity reports no SNS topics, ForwardingEnabled true and headers disabled; SetIdentityNotificationTopic and the other setters are not implemented |
 | GetSendQuota | partial | contradicted (ses/SES-15/02-quota.json), 1 of 3 claims | Max24HourSend and MaxSendRate from the sandbox or production setting; SentLast24Hours counts accepted recipients on the emulator clock, mailbox simulator excluded; the send rate is not enforced; production values -1 and 14 are unrecorded (SES-26) |
-| SendEmail | partial | contradicted (ses/SES-17/02-unverified.json), 1 of 18 claims | journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; ConfigurationSetName and the sending-authorization ARNs answer NotImplemented; chosen without a recording (docs/research/ses.md 11.4): address answers other than an empty Source, recipient-count, size and daily-quota answers, refusing a 257-character tag, check order, mailbox-simulator and label matching |
-| SendRawEmail | partial | inferred, 3 of 7 claims | journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; ConfigurationSetName, X-SES-CONFIGURATION-SET, the ARN members and the X-SES-*-ARN headers answer NotImplemented |
+| SendEmail | partial | inferred, 3 of 18 claims | journal-only: validates and applies identity and sandbox rules, returns a MessageId and records the message for GET /_understudy/v1/ses/messages; no mail is sent, and no Send, Delivery, Bounce or Complaint event or notification is produced; the sending-authorization ARNs answer NotImplemented; chosen without a recording (docs/research/ses.md 11.4): address answers other than an empty Source, recipient-count, size and daily-quota answers, refusing a 257-character tag, check order, mailbox-simulator and label matching |
+| SendRawEmail | partial | inferred, 3 of 7 claims | journal-only as SendEmail; the raw MIME is recorded as received, without the Message-ID and Date headers SES would substitute; recipients come from Destinations, else the To, Cc and Bcc headers; X-SES-MESSAGE-TAGS is recorded; the ARN members and the X-SES-*-ARN headers answer NotImplemented |
 | SendTemplatedEmail | partial | inferred, 3 of 6 claims | journal-only as SendEmail; the stored template and TemplateData are recorded, and rendered subject and bodies only for {{name}} and dotted-path tags; other Handlebars constructs record a render gap, and the send is still accepted, as SES accepts before rendering; so do a value TemplateData lacks, a string holding a character Handlebars escapes and any value but a string, boolean or integer, whose rendering on SES is unrecorded; TemplateArn answers NotImplemented |
 | VerifyDomainIdentity | partial | inferred, 1 of 5 claims | the domain stays Pending until understudy.json lists it; DNS is never queried; Failed after 72 hours on the emulator clock |
 | VerifyEmailAddress | partial | inferred, 1 of 2 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04) |
 | VerifyEmailIdentity | partial | inferred, 2 of 7 claims | the identity stays Pending until its verification link under /_understudy/ses/VerificationLink is opened or understudy.json lists it; the verification email is recorded, never sent; Failed after 24 hours on the emulator clock; chosen without a recording (docs/research/ses.md 11.4): which addresses are invalid, beyond one without @ (SES-04) |
 | CloneReceiptRuleSet | unbound | unassessed |  |
-| CreateConfigurationSet | unbound | unassessed |  |
 | CreateConfigurationSetEventDestination | unbound | unassessed |  |
 | CreateConfigurationSetTrackingOptions | unbound | unassessed |  |
 | CreateCustomVerificationEmailTemplate | unbound | unassessed |  |
 | CreateReceiptFilter | unbound | unassessed |  |
 | CreateReceiptRule | unbound | unassessed |  |
 | CreateReceiptRuleSet | unbound | unassessed |  |
-| DeleteConfigurationSet | unbound | unassessed |  |
 | DeleteConfigurationSetEventDestination | unbound | unassessed |  |
 | DeleteConfigurationSetTrackingOptions | unbound | unassessed |  |
 | DeleteCustomVerificationEmailTemplate | unbound | unassessed |  |
@@ -1328,7 +1330,6 @@ Raw operations:
 | DeleteReceiptRule | unbound | unassessed |  |
 | DeleteReceiptRuleSet | unbound | unassessed |  |
 | DescribeActiveReceiptRuleSet | unbound | unassessed |  |
-| DescribeConfigurationSet | unbound | unassessed |  |
 | DescribeReceiptRule | unbound | unassessed |  |
 | DescribeReceiptRuleSet | unbound | unassessed |  |
 | GetAccountSendingEnabled | unbound | unassessed |  |
@@ -1337,7 +1338,6 @@ Raw operations:
 | GetIdentityMailFromDomainAttributes | unbound | unassessed |  |
 | GetIdentityPolicies | unbound | unassessed |  |
 | GetSendStatistics | unbound | unassessed |  |
-| ListConfigurationSets | unbound | unassessed |  |
 | ListCustomVerificationEmailTemplates | unbound | unassessed |  |
 | ListIdentityPolicies | unbound | unassessed |  |
 | ListReceiptFilters | unbound | unassessed |  |
@@ -1383,16 +1383,19 @@ Raw operations:
 | ListEmailIdentities | full | unassessed |  |
 | ListEmailTemplates | full | unassessed |  |
 | UpdateEmailTemplate | full | unassessed |  |
+| CreateConfigurationSet | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| DeleteConfigurationSet | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| GetConfigurationSet | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
+| ListConfigurationSets | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
 | CreateEmailIdentity | partial | unassessed | email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented |
 | GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled true, since account sending cannot be paused yet; EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), which nothing changes; no VDM, pricing plan or account details |
-| ListTagsForResource | partial | unassessed | identity and template ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
-| SendEmail | partial | unassessed | journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content; Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationSetName, ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members answer NotImplemented; the SDKs sign a send with EndpointId SigV4A, which understudy refuses, so it answers sesv2's unknown operation at the edge and only a SigV4-signed one reaches the NotImplemented answer |
-| TagResource | partial | unassessed | identity and template ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
-| UntagResource | partial | unassessed | identity and template ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
+| ListTagsForResource | partial | unassessed | identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
+| SendEmail | partial | unassessed | journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content; Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members answer NotImplemented; the SDKs sign a send with EndpointId SigV4A, which understudy refuses, so it answers sesv2's unknown operation at the edge and only a SigV4-signed one reaches the NotImplemented answer |
+| TagResource | partial | unassessed | identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
+| UntagResource | partial | unassessed | identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
 | AssociateEmailIdentityCertificate | unbound | unassessed |  |
 | BatchGetMetricData | unbound | unassessed |  |
 | CancelExportJob | unbound | unassessed |  |
-| CreateConfigurationSet | unbound | unassessed |  |
 | CreateConfigurationSetEventDestination | unbound | unassessed |  |
 | CreateContact | unbound | unassessed |  |
 | CreateContactList | unbound | unassessed |  |
@@ -1405,7 +1408,6 @@ Raw operations:
 | CreateMultiRegionEndpoint | unbound | unassessed |  |
 | CreateTenant | unbound | unassessed |  |
 | CreateTenantResourceAssociation | unbound | unassessed |  |
-| DeleteConfigurationSet | unbound | unassessed |  |
 | DeleteConfigurationSetEventDestination | unbound | unassessed |  |
 | DeleteContact | unbound | unassessed |  |
 | DeleteContactList | unbound | unassessed |  |
@@ -1418,7 +1420,6 @@ Raw operations:
 | DeleteTenantResourceAssociation | unbound | unassessed |  |
 | DisassociateEmailIdentityCertificate | unbound | unassessed |  |
 | GetBlacklistReports | unbound | unassessed |  |
-| GetConfigurationSet | unbound | unassessed |  |
 | GetConfigurationSetEventDestinations | unbound | unassessed |  |
 | GetContact | unbound | unassessed |  |
 | GetContactList | unbound | unassessed |  |
@@ -1439,7 +1440,6 @@ Raw operations:
 | GetReputationEntity | unbound | unassessed |  |
 | GetSuppressedDestination | unbound | unassessed |  |
 | GetTenant | unbound | unassessed |  |
-| ListConfigurationSets | unbound | unassessed |  |
 | ListContactLists | unbound | unassessed |  |
 | ListContacts | unbound | unassessed |  |
 | ListCustomVerificationEmailTemplates | unbound | unassessed |  |

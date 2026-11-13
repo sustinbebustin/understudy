@@ -82,6 +82,9 @@ type Message struct {
 	// Template is the template of a templated send with its data and
 	// render gaps; nil for any other message.
 	Template *TemplateSend
+	// ConfigurationSet is the configuration set the send named, by member
+	// or X-SES-CONFIGURATION-SET header, "" when none.
+	ConfigurationSet string
 
 	// Tags are the send's tags in request order, then any
 	// X-SES-MESSAGE-TAGS of a raw send.

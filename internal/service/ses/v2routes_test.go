@@ -127,14 +127,65 @@ func TestCreateEmailIdentityKeepsThePOSTBinding(t *testing.T) {
 	})
 }
 
+// setPages lists every configuration set one page at a time through next,
+// as pages does for identities.
+func (h *harness) setPages(form string, next func(token string) (int, string)) [][]string {
+	h.Helper()
+	var out [][]string
+	token := ""
+	for range 10 {
+		status, body := next(token)
+		if status != http.StatusOK {
+			h.Fatalf("%s ListConfigurationSets = %d %s", form, status, body)
+		}
+		var p struct {
+			ConfigurationSets []string
+			NextToken         *string
+		}
+		if err := json.Unmarshal([]byte(body), &p); err != nil {
+			h.Fatalf("%s ListConfigurationSets body %s: %v", form, body, err)
+		}
+		out = append(out, p.ConfigurationSets)
+		if p.NextToken == nil {
+			return out
+		}
+		token = *p.NextToken
+	}
+	h.Fatalf("%s ListConfigurationSets pages without end: %q", form, out)
+	return nil
+}
+
 // GET /v2/email/configuration-sets, the binding of ListConfigurationSets in
-// the model before 2026-09-29 (ses.md 3.2), reaches that operation, which
-// is unbound and answers 501 naming it (invariant 3).
-func TestListConfigurationSetsGETBindingIsNotImplemented(t *testing.T) {
+// the model before 2026-09-29 (ses.md 3.2), and POST
+// /v2/email/list-configuration-sets list the same sets, whichever API
+// created them (one store, switch ses.store.shared-v1-v2).
+func TestListConfigurationSetsByBothBindings(t *testing.T) {
 	run(t, func(h *harness) {
-		status, body := h.wire(http.MethodGet, "/v2/email/configuration-sets?PageSize=1", "")
-		if status != http.StatusNotImplemented || !strings.Contains(body, "ListConfigurationSets") {
-			h.Errorf("GET /v2/email/configuration-sets = %d %s, want 501 naming ListConfigurationSets", status, body)
+		h.createSet("by-v1")
+		if status, body := h.wire(http.MethodPost, "/v2/email/configuration-sets", `{"ConfigurationSetName":"by-v2"}`); status != http.StatusOK {
+			h.Fatalf("POST /v2/email/configuration-sets = %d %s", status, body)
+		}
+		get := h.setPages("GET", func(token string) (int, string) {
+			q := url.Values{"PageSize": {"1"}}
+			if token != "" {
+				q.Set("NextToken", token)
+			}
+			return h.wire(http.MethodGet, "/v2/email/configuration-sets?"+q.Encode(), "")
+		})
+		post := h.setPages("POST", func(token string) (int, string) {
+			in := map[string]any{"PageSize": 1}
+			if token != "" {
+				in["NextToken"] = token
+			}
+			body, err := json.Marshal(in)
+			if err != nil {
+				h.Fatal(err)
+			}
+			return h.wire(http.MethodPost, "/v2/email/list-configuration-sets", string(body))
+		})
+		want := [][]string{{"by-v1"}, {"by-v2"}}
+		if !slices.EqualFunc(get, want, slices.Equal[[]string]) || !slices.EqualFunc(post, want, slices.Equal[[]string]) {
+			h.Errorf("GET pages = %q, POST pages = %q; want %q from both", get, post, want)
 		}
 	})
 }

@@ -248,7 +248,6 @@ func TestV2SendEmailNotImplementedMembers(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		arn := h.identityARN(sender)
 		for member, set := range map[string]func(*sesv2api.SendEmailInput){
-			"ConfigurationSetName":   func(in *sesv2api.SendEmailInput) { in.ConfigurationSetName = new("set") },
 			"ConfigurationOverrides": func(in *sesv2api.SendEmailInput) { in.ConfigurationOverrides = &sesv2api.ConfigurationOverrides{} },
 			"EndpointId":             func(in *sesv2api.SendEmailInput) { in.EndpointId = new("abc123.xyz") },
 			"TenantName":             func(in *sesv2api.SendEmailInput) { in.TenantName = new("tenant") },

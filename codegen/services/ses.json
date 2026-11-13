@@ -8,14 +8,18 @@
     {"name": "VerificationLink", "iam": []}
   ],
   "boundOperations": [
+    "CreateConfigurationSet",
     "CreateTemplate",
+    "DeleteConfigurationSet",
     "DeleteIdentity",
     "DeleteTemplate",
     "DeleteVerifiedEmailAddress",
+    "DescribeConfigurationSet",
     "GetIdentityNotificationAttributes",
     "GetIdentityVerificationAttributes",
     "GetSendQuota",
     "GetTemplate",
+    "ListConfigurationSets",
     "ListIdentities",
     "ListTemplates",
     "ListVerifiedEmailAddresses",

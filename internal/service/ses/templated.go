@@ -48,10 +48,11 @@ func (s *Service) sendTemplatedEmail(ctx context.Context, c *kernel.Call, in *se
 	}
 	var used *TemplateSend
 	id, err := s.accept(ctx, c, outgoing{
-		api:      APIv1,
-		senders:  senders,
-		envelope: slices.Concat(d.ToAddresses, d.CcAddresses, d.BccAddresses),
-		refuse:   (*refusal).v1,
+		api:              APIv1,
+		configurationSet: in.ConfigurationSetName,
+		senders:          senders,
+		envelope:         slices.Concat(d.ToAddresses, d.CcAddresses, d.BccAddresses),
+		refuse:           (*refusal).v1,
 		prepare: func(st *state) *refusal {
 			var r *refusal
 			used, r = st.storedTemplate(s.view(APIv1), in.Template, in.TemplateData)
@@ -84,7 +85,6 @@ func (s *Service) sendTemplatedEmail(ctx context.Context, c *kernel.Call, in *se
 // checked by model validation (ses.md 4.3).
 func checkSendTemplated(in *sesapi.SendTemplatedEmailInput) *refusal {
 	if r := firstUnimplemented("ses", "SendTemplatedEmail", []unimplemented{
-		{"ConfigurationSetName", "configuration sets", in.ConfigurationSetName != nil},
 		{"SourceArn", "sending authorization", in.SourceArn != nil},
 		{"ReturnPathArn", "sending authorization", in.ReturnPathArn != nil},
 		{"TemplateArn", "template ARNs", in.TemplateArn != nil},

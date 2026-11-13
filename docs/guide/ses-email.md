@@ -2,7 +2,7 @@
 
 understudy emulates SES v1 (`aws ses`) and v2 (`aws sesv2`) over one store, so an identity created with one API is read by the other. It sends no mail. An accepted send is recorded instead, and a test reads it back through the admin API or `understudy ses messages`. No delivery, bounce or complaint event or notification is produced, because nothing was delivered.
 
-What each operation supports is on [the coverage page](../coverage.md#ses). Configuration sets, receipt rules and sending authorization answer 501.
+What each operation supports is on [the coverage page](../coverage.md#ses). Configuration sets are stored and checked by name on sends, but nothing they configure takes effect. Event destinations, receipt rules and sending authorization answer 501.
 
 The `aws` commands below run with `eval "$(understudy env)"` in effect, against `understudy serve --clock frozen@2026-10-30T09:00:00Z` with this `understudy.json`:
 
@@ -254,7 +254,7 @@ aws ses get-send-quota
 }
 ```
 
-The store keeps 10,000 messages per account and region and evicts the oldest; `evicted` counts them. `understudy reset --service ses` clears identities, templates, messages and the counter for both APIs.
+The store keeps 10,000 messages per account and region and evicts the oldest; `evicted` counts them. `understudy reset --service ses` clears identities, templates, configuration sets, messages and the counter for both APIs.
 
 ## Templated sends
 
@@ -322,11 +322,69 @@ aws sesv2 list-tags-for-resource --resource-arn arn:aws:ses:us-east-1:0000000000
 
 A v2 template operation on a template the account and region do not hold is `NotFoundException`, `DeleteEmailTemplate` included; v1 `DeleteTemplate` of one succeeds.
 
+## Configuration sets
+
+A configuration set made with either API is one store, as identities and templates are. A send names one with `ConfigurationSetName`, or a raw send with the `X-SES-CONFIGURATION-SET` header. A set the account and region do not hold is refused before the sender is checked, as on AWS, and a set that exists is recorded on the message as `configurationSet`:
+
+```sh
+aws ses create-configuration-set --configuration-set Name=orders
+aws sesv2 list-configuration-sets
+aws ses send-email --from sender@example.com --destination ToAddresses=success@simulator.amazonses.com \
+  --message 'Subject={Data=Hi},Body={Text={Data=Hello}}' --configuration-set-name orders
+aws ses send-email --from sender@example.com --destination ToAddresses=success@simulator.amazonses.com \
+  --message 'Subject={Data=Hi},Body={Text={Data=Hello}}' --configuration-set-name missing
+understudy ses messages --output json | jq '.messages[-1] | {operation, configurationSet}'
+```
+
+```text
+{
+    "ConfigurationSets": [
+        "orders"
+    ]
+}
+{
+    "MessageId": "010001a18c099280-9716e924-ab4f-46d0-9631-b7bf8834b094-000000"
+}
+
+aws: [ERROR]: An error occurred (ConfigurationSetDoesNotExist) when calling the SendEmail operation: Configuration set <missing> does not exist.
+{
+  "operation": "SendEmail",
+  "configurationSet": "orders"
+}
+```
+
+The send's journal event touches the set's ARN beside the sender's. v2 answers a missing set with `NotFoundException` and the same text; AWS's v2 answer is not recorded.
+
+Nothing a set configures takes effect: no events are published, and tracking, reputation, delivery and suppression options change nothing. v2 `create-configuration-set` stores the options it is given, and `get-configuration-set` echoes them with the set's tags:
+
+```sh
+aws sesv2 create-configuration-set --configuration-set-name marketing \
+  --sending-options SendingEnabled=false --tags Key=team,Value=mail
+aws sesv2 get-configuration-set --configuration-set-name marketing
+```
+
+```json
+{
+    "ConfigurationSetName": "marketing",
+    "SendingOptions": {
+        "SendingEnabled": false
+    },
+    "Tags": [
+        {
+            "Key": "team",
+            "Value": "mail"
+        }
+    ]
+}
+```
+
+`SendingEnabled` false still lets sends through. The option setters (`PutConfigurationSet*`, `UpdateConfigurationSet*`) and event destinations answer 501, so Terraform's `aws_ses_configuration_set` and `aws_sesv2_configuration_set` apply as long as no option changes after creation. An account and region hold up to 10,000 sets, and a name has up to 64 ASCII letters, digits, `-` and `_`.
+
 ## Not implemented
 
 A member or header understudy would have to fake answers `NotImplemented` and names it:
 
-- `ConfigurationSetName` and the `X-SES-CONFIGURATION-SET` header.
+- `ConfigurationSetName` on v2 `CreateEmailIdentity`.
 - The sending-authorization ARNs and their `X-SES-*-ARN` headers.
 - `TemplateArn` (v1) and `Template.TemplateArn` (v2).
 - v2 `ConfigurationOverrides`, `EndpointId`, `TenantName` and `ListManagementOptions`.
@@ -336,5 +394,5 @@ The SDKs and the AWS CLI sign a send with `EndpointId` (`--endpoint-id`) with Si
 Operations the [coverage page](../coverage.md#ses) lists as unbound answer 501:
 
 ```text
-An error occurred (NotImplemented) when calling the CreateConfigurationSet operation: understudy does not implement ses.CreateConfigurationSet. Run 'understudy coverage --service ses' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=ses.CreateConfigurationSet
+aws: [ERROR]: An error occurred (NotImplemented) when calling the CreateConfigurationSetEventDestination operation: understudy does not implement ses.CreateConfigurationSetEventDestination. Run 'understudy coverage --service ses' for what is supported; to ask for it, see https://github.com/sustinbebustin/understudy/issues?q=ses.CreateConfigurationSetEventDestination
 ```

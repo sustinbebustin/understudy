@@ -29,13 +29,17 @@
     }
   ],
   "boundOperations": [
+    "CreateConfigurationSet",
     "CreateEmailIdentity",
     "CreateEmailTemplate",
+    "DeleteConfigurationSet",
     "DeleteEmailIdentity",
     "DeleteEmailTemplate",
     "GetAccount",
+    "GetConfigurationSet",
     "GetEmailIdentity",
     "GetEmailTemplate",
+    "ListConfigurationSets",
     "ListEmailIdentities",
     "ListEmailTemplates",
     "ListTagsForResource",

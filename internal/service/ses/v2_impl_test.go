@@ -78,17 +78,17 @@ func TestDomainsReadAcrossAPIs(t *testing.T) {
 	})
 }
 
-// The tag operations accept only an identity or template ARN of the
-// caller's scope; a missing template, another Region's identity or another
-// resource type is NotFoundException naming the resource.
+// The tag operations accept only an identity, template or configuration-set
+// ARN of the caller's scope; a missing template, another Region's identity
+// or another resource type is NotFoundException naming the resource.
 func TestTagOperationsRefuseOtherARNs(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createIdentity("example.org")
 		template := "arn:aws:ses:" + h.Scope.Region.String() + ":" + h.Scope.Account.String() + ":template/welcome"
 		_, err := call(h, sesv2api.OpListTagsForResource, &sesv2api.ListTagsForResourceInput{ResourceArn: template})
 		wantErr(h, err, sesv2api.IdentityNotFoundException(), fmt.Sprintf(ses.TemplateMissingText, "welcome"))
-		set := "arn:aws:ses:" + h.Scope.Region.String() + ":" + h.Scope.Account.String() + ":configuration-set/main"
-		_, err = call(h, sesv2api.OpListTagsForResource, &sesv2api.ListTagsForResourceInput{ResourceArn: set})
+		pool := "arn:aws:ses:" + h.Scope.Region.String() + ":" + h.Scope.Account.String() + ":dedicated-ip-pool/main"
+		_, err = call(h, sesv2api.OpListTagsForResource, &sesv2api.ListTagsForResourceInput{ResourceArn: pool})
 		wantErr(h, err, sesv2api.IdentityNotFoundException(), fmt.Sprintf(ses.IdentityMissingText, "main"))
 		west := "arn:aws:ses:us-west-2:" + h.Scope.Account.String() + ":identity/example.org"
 		_, err = call(h, sesv2api.OpTagResource, &sesv2api.TagResourceInput{ResourceArn: west, Tags: []sesv2api.Tag{{Key: "k", Value: "v"}}})

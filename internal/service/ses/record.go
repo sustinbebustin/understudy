@@ -53,6 +53,9 @@ type record struct {
 	Raw *blob.Ref `json:"raw,omitempty"`
 	// Template is the template a templated send used, nil otherwise.
 	Template *TemplateSend `json:"template,omitempty"`
+	// ConfigurationSet is the configuration set the send named, "" when
+	// none.
+	ConfigurationSet string `json:"configurationSet,omitempty"`
 
 	Tags      []Tag               `json:"tags,omitempty"`
 	Simulator map[string]Scenario `json:"simulator,omitempty"`
@@ -96,29 +99,30 @@ func (r *record) message(scope aws.Scope) Message {
 		})
 	}
 	return Message{
-		MessageID:   r.MessageID,
-		API:         r.API,
-		Operation:   r.Operation,
-		RequestID:   r.RequestID,
-		Scope:       scope,
-		Accepted:    r.Accepted,
-		Kind:        r.Kind,
-		Source:      r.Source,
-		From:        slices.Clone(r.From),
-		ReplyTo:     slices.Clone(r.ReplyTo),
-		ReturnPath:  r.ReturnPath,
-		To:          slices.Clone(r.To),
-		Cc:          slices.Clone(r.Cc),
-		Bcc:         slices.Clone(r.Bcc),
-		Envelope:    slices.Clone(r.Envelope),
-		Subject:     clone(r.Subject),
-		Text:        clone(r.Text),
-		HTML:        clone(r.HTML),
-		Headers:     slices.Clone(r.Headers),
-		Attachments: attachments,
-		Template:    r.Template.clone(),
-		Tags:        slices.Clone(r.Tags),
-		Simulator:   maps.Clone(r.Simulator),
+		MessageID:        r.MessageID,
+		API:              r.API,
+		Operation:        r.Operation,
+		RequestID:        r.RequestID,
+		Scope:            scope,
+		Accepted:         r.Accepted,
+		Kind:             r.Kind,
+		Source:           r.Source,
+		From:             slices.Clone(r.From),
+		ReplyTo:          slices.Clone(r.ReplyTo),
+		ReturnPath:       r.ReturnPath,
+		To:               slices.Clone(r.To),
+		Cc:               slices.Clone(r.Cc),
+		Bcc:              slices.Clone(r.Bcc),
+		Envelope:         slices.Clone(r.Envelope),
+		Subject:          clone(r.Subject),
+		Text:             clone(r.Text),
+		HTML:             clone(r.HTML),
+		Headers:          slices.Clone(r.Headers),
+		Attachments:      attachments,
+		Template:         r.Template.clone(),
+		ConfigurationSet: r.ConfigurationSet,
+		Tags:             slices.Clone(r.Tags),
+		Simulator:        maps.Clone(r.Simulator),
 	}
 }
 

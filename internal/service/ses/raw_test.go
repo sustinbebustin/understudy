@@ -103,24 +103,22 @@ func TestRawMessageTagsHeaderIsValidated(t *testing.T) {
 	})
 }
 
-// The configuration-set and sending-authorization members and headers are
-// not implemented and say so, naming them (invariant 3; the headers,
-// ses.md 4.2).
+// The sending-authorization members and headers are not implemented and
+// say so, naming them (invariant 3; the headers, ses.md 4.2).
 func TestSendRawEmailNotImplemented(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
 		arn := h.identityARN(sender)
 		for member, set := range map[string]func(*sesapi.SendRawEmailInput){
-			"ConfigurationSetName": func(in *sesapi.SendRawEmailInput) { in.ConfigurationSetName = new("set") },
-			"SourceArn":            func(in *sesapi.SendRawEmailInput) { in.SourceArn = new(arn) },
-			"FromArn":              func(in *sesapi.SendRawEmailInput) { in.FromArn = new(arn) },
-			"ReturnPathArn":        func(in *sesapi.SendRawEmailInput) { in.ReturnPathArn = new(arn) },
+			"SourceArn":     func(in *sesapi.SendRawEmailInput) { in.SourceArn = new(arn) },
+			"FromArn":       func(in *sesapi.SendRawEmailInput) { in.FromArn = new(arn) },
+			"ReturnPathArn": func(in *sesapi.SendRawEmailInput) { in.ReturnPathArn = new(arn) },
 		} {
 			in := rawEmail(mime("body\r\n", "From: "+sender, "To: "+simulator))
 			set(in)
 			_, err := call(h, sesapi.OpSendRawEmail, in)
 			wantNotImplemented(h, err, member)
 		}
-		for _, header := range []string{"X-SES-CONFIGURATION-SET", "X-SES-SOURCE-ARN", "X-SES-FROM-ARN", "X-SES-RETURN-PATH-ARN"} {
+		for _, header := range []string{"X-SES-SOURCE-ARN", "X-SES-FROM-ARN", "X-SES-RETURN-PATH-ARN"} {
 			data := mime("body\r\n", "From: "+sender, "To: "+simulator, header+": "+arn)
 			_, err := call(h, sesapi.OpSendRawEmail, rawEmail(data))
 			wantNotImplemented(h, err, header)
