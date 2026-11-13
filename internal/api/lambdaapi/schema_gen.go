@@ -1519,9 +1519,9 @@ var memberGetFunctionCodeSigningConfigInput_FunctionName = smithy.Member{Name: "
 
 var schemaGetFunctionCodeSigningConfigOutput = smithy.Schema{ID: "com.amazonaws.lambda#GetFunctionCodeSigningConfigResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetFunctionCodeSigningConfigOutput_CodeSigningConfigArn, &memberGetFunctionCodeSigningConfigOutput_FunctionName}}
 
-var memberGetFunctionCodeSigningConfigOutput_CodeSigningConfigArn = smithy.Member{Name: "CodeSigningConfigArn", Index: 0, Target: &schemaCodeSigningConfigArn, Required: true}
+var memberGetFunctionCodeSigningConfigOutput_CodeSigningConfigArn = smithy.Member{Name: "CodeSigningConfigArn", Index: 0, Target: &schemaCodeSigningConfigArn}
 
-var memberGetFunctionCodeSigningConfigOutput_FunctionName = smithy.Member{Name: "FunctionName", Index: 1, Target: &schemaFunctionName, Required: true}
+var memberGetFunctionCodeSigningConfigOutput_FunctionName = smithy.Member{Name: "FunctionName", Index: 1, Target: &schemaFunctionName}
 
 var schemaGetFunctionConcurrencyInput = smithy.Schema{ID: "com.amazonaws.lambda#GetFunctionConcurrencyRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberGetFunctionConcurrencyInput_FunctionName}}
 

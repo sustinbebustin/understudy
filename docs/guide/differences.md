@@ -85,7 +85,6 @@ The only Kinesis recording is of its access-denial answer (`kinesis/IAM-ENF/36-k
 
 ## Lambda
 
-- `GetFunctionCodeSigningConfig` with none set returns null for both members on AWS; understudy fills in `FunctionName` (`lambda/R07/01-get-code-signing-config.json`).
 - `AddPermission` with a foreign account principal can be refused on AWS with "The provided principal was invalid."; understudy accepts any 12-digit account (`lambda/R07/02-add-permission-account.json`).
 - Invoke: a successful answer is `application/json` on AWS; an Event invocation over 1 MB is 413 `{"Message":"<n> byte payload is too large for the Event invocation type (limit 1048576 bytes)"}`, where understudy's text differs (`lambda/R13/04-*.json`).
 - `Timeout` 901 has no "1 validation error detected" prefix on AWS; version numbers continue across a delete and recreate of a function (`lambda/R13/05-timeout-901.json`, `lambda/R13/04-*.json`).

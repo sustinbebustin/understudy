@@ -475,6 +475,20 @@ func TestAccountSettingsReportTheCodeStorageQuota(t *testing.T) {
 	})
 }
 
+// TestCodeSigningConfigWithoutOneSetsNoMembers: GetFunctionCodeSigningConfig
+// for a function without a code signing config answers neither
+// CodeSigningConfigArn nor FunctionName; AWS writes both as null
+// (lambda/R07/01-get-code-signing-config).
+func TestCodeSigningConfigWithoutOneSetsNoMembers(t *testing.T) {
+	run(t, lambda.Options{}, func(h *harness) {
+		h.createFunction("fn")
+		out := call(h, lambdaapi.OpGetFunctionCodeSigningConfig, &lambdaapi.GetFunctionCodeSigningConfigInput{FunctionName: "fn"})
+		if out.CodeSigningConfigArn != nil || out.FunctionName != nil {
+			t.Errorf("GetFunctionCodeSigningConfig = CodeSigningConfigArn %v, FunctionName %v; want neither set", out.CodeSigningConfigArn, out.FunctionName)
+		}
+	})
+}
+
 // TestEmptyEnvironmentAtCreateIsEchoed: Environment {"Variables":{}} sent
 // to CreateFunction reads back as such, from Create and from GetFunction
 // (test_function_revisions_basic).

@@ -78,7 +78,7 @@ func TestTerraformFunctionLifecycle(t *testing.T) {
 			t.Errorf("Concurrency = %+v; reserved 0 must be reported, or Terraform reads -1", r.get.Concurrency)
 		case len(r.versions.Versions) != 1 || *r.versions.Versions[0].Version != "$LATEST" || r.versions.Versions[0].State != nil:
 			t.Errorf("ListVersionsByFunction = %+v; want only $LATEST, without State", r.versions.Versions)
-		case r.signing.FunctionName != "fn" || r.signing.CodeSigningConfigArn != "":
+		case r.signing.FunctionName != nil || r.signing.CodeSigningConfigArn != nil: // lambda/R07/01-get-code-signing-config
 			t.Errorf("GetFunctionCodeSigningConfig = %+v", r.signing)
 		}
 

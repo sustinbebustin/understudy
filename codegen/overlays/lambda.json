@@ -100,6 +100,28 @@
         }
       }
     },
+    "com.amazonaws.lambda#GetFunctionCodeSigningConfigResponse$CodeSigningConfigArn": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#optionalOutput": {},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/lambda/R07/01-get-code-signing-config.json: a function without a code signing config answers 200 {\"CodeSigningConfigArn\":null,\"FunctionName\":null}, although the model marks both members required; understudy leaves them out, which SDKs read as the same unset member",
+          "validated": "2026-10-14"
+        }
+      }
+    },
+    "com.amazonaws.lambda#GetFunctionCodeSigningConfigResponse$FunctionName": {
+      "type": "apply",
+      "traits": {
+        "dev.understudy#optionalOutput": {},
+        "dev.understudy#evidence": {
+          "label": "aws-recorded",
+          "source": "testdata/parity/lambda/R07/01-get-code-signing-config.json: a function without a code signing config answers FunctionName null, not the function's name, although the model marks the member required",
+          "validated": "2026-10-14"
+        }
+      }
+    },
     "com.amazonaws.lambda#CreateFunctionRequest$Runtime": {
       "type": "apply",
       "traits": {

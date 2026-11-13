@@ -4728,8 +4728,12 @@ func (v *GetFunctionCodeSigningConfigOutput) Serialize(s smithy.Serializer) { v.
 
 func (v *GetFunctionCodeSigningConfigOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaGetFunctionCodeSigningConfigOutput)
-	s.WriteString(&memberGetFunctionCodeSigningConfigOutput_CodeSigningConfigArn, v.CodeSigningConfigArn)
-	s.WriteString(&memberGetFunctionCodeSigningConfigOutput_FunctionName, v.FunctionName)
+	if v.CodeSigningConfigArn != nil {
+		s.WriteString(&memberGetFunctionCodeSigningConfigOutput_CodeSigningConfigArn, *v.CodeSigningConfigArn)
+	}
+	if v.FunctionName != nil {
+		s.WriteString(&memberGetFunctionCodeSigningConfigOutput_FunctionName, *v.FunctionName)
+	}
 	s.CloseStruct()
 }
 

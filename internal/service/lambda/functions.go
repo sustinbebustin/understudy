@@ -659,7 +659,8 @@ func (s *Service) getFunctionCodeSigningConfig(_ context.Context, c *kernel.Call
 		if _, err := st.function(ref); err != nil {
 			return nil, err
 		}
-		return &lambdaapi.GetFunctionCodeSigningConfigOutput{FunctionName: ref.name}, nil
+		// Without a config AWS answers neither member (lambda/R07/01-get-code-signing-config).
+		return &lambdaapi.GetFunctionCodeSigningConfigOutput{}, nil
 	})
 }
 
