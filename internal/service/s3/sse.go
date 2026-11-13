@@ -159,8 +159,7 @@ func resolveSSE(r sseRequest, b *Bucket, key string, w writeCall) (sseChoice, *a
 		// A KMS key id beside SSE-C headers is refused as one without
 		// aws:kms is; AWS's answer is UNVERIFIED.
 		if r.keyID != nil {
-			alg, _, _ := bucketDefault(b)
-			return nil, errKMSKeyWithoutKMS(alg)
+			return nil, errKMSKeyWithoutKMS(r.algorithm)
 		}
 		if err := checkCustomerWrite(b, key, w); err != nil {
 			return nil, err
@@ -177,7 +176,7 @@ func resolveSSE(r sseRequest, b *Bucket, key string, w writeCall) (sseChoice, *a
 	// otherwise be encrypted under the bucket's key, not the one named.
 	// That AWS refuses it there too is UNVERIFIED.
 	if r.keyID != nil && (r.algorithm == nil || alg == s3api.ServerSideEncryptionAes256) {
-		return nil, errKMSKeyWithoutKMS(alg)
+		return nil, errKMSKeyWithoutKMS(r.algorithm)
 	}
 	if r.bucketKey != nil {
 		bucketKey = *r.bucketKey
@@ -201,11 +200,18 @@ func resolveSSE(r sseRequest, b *Bucket, key string, w writeCall) (sseChoice, *a
 }
 
 // errKMSKeyWithoutKMS answers x-amz-server-side-encryption-aws-kms-key-id
-// on a write that does not ask for aws:kms; alg is the algorithm the write
-// would otherwise use.
-func errKMSKeyWithoutKMS(alg s3api.ServerSideEncryption) *awserr.Error {
-	return errInvalidArgument("Server Side Encryption with AWS KMS managed key requires HTTP header x-amz-server-side-encryption : aws:kms",
-		"x-amz-server-side-encryption", string(alg))
+// on a write that does not ask for aws:kms; sent is the
+// x-amz-server-side-encryption header as the request carried it. Without
+// the header AWS names the argument and no value
+// (testdata/parity/s3/R15/x-kms-key-id-without-aws-kms.json). With the
+// header sent as another algorithm AWS's answer is UNRECORDED; the value
+// is echoed as an inference.
+func errKMSKeyWithoutKMS(sent *s3api.ServerSideEncryption) *awserr.Error {
+	const message = "Server Side Encryption with AWS KMS managed key requires HTTP header x-amz-server-side-encryption : aws:kms"
+	if sent == nil {
+		return withField(s3api.ErrInvalidArgument(message), "ArgumentName", "x-amz-server-side-encryption")
+	}
+	return errInvalidArgument(message, "x-amz-server-side-encryption", string(*sent))
 }
 
 // bucketDefault is the bucket's default encryption rule: SSE-S3 without a
