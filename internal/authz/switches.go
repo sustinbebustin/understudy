@@ -97,7 +97,14 @@ func Switches() []fidelity.Entry {
 				"rather than \"*\" is unrecorded, so evaluation and the access record keep \"*\" (" + enforcementNote + " 12.3)"},
 		}.Entry(),
 		// The kernel's step 8.
-		researchSwitch("iam.enforce.order", "validate-first", inferred, enforcementNote, "5.3", "IAM-ENF-13"),
+		// IAM-ENF-13 recorded the order; the label stays inferred while
+		// how a recorded deviation is labelled is open.
+		fidelity.Switch[string]{
+			Name: "iam.enforce.order", Value: "validate-first", Label: inferred,
+			Ref: "docs/research/" + enforcementNote + "#5.3", Record: "IAM-ENF-13",
+			Settles: fidelity.NoScenario{Reason: "IAM-ENF-13 recorded " + recordedOn + " (testdata/parity): AWS validates before authorizing in every service it covers " +
+				"except SQS, CloudWatch and Logs, which authorize first; understudy validates first in all of them (" + enforcementNote + " 5.3, 12.8)"},
+		}.Entry(),
 		recordedSwitch("iam.enforce.missing-resource", "deny-first", enforcementNote, "5.3", "IAM-ENF-14", missingResourceOrder+"; "+SessionUnreplayed),
 	}
 }

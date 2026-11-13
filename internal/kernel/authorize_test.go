@@ -359,9 +359,9 @@ func TestAnAllowedCallGoesOnToTheFaultRulesAndTheHandler(t *testing.T) {
 }
 
 // Validation comes first (iam-enforcement-surfaces.md 12.1, switch
-// iam.enforce.order validate-first until IAM-ENF-13): an invalid input and
-// a rejected decode answer their own error, and the Authorizer is not
-// asked about them.
+// iam.enforce.order validate-first, as AWS does except in SQS, CloudWatch
+// and Logs, IAM-ENF-13): an invalid input and a rejected decode answer
+// their own error, and the Authorizer is not asked about them.
 func TestValidationRunsBeforeAuthorization(t *testing.T) {
 	g := newGuard(guardDenial())
 	a := &fakeAuthorizer{decide: denyAll("denied")}
