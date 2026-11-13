@@ -41,8 +41,9 @@ func TestSSECAndObjectLockCoverageMarks(t *testing.T) {
 		notifyNote   = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
 			"destination validation checks existence, refuses FIFO queues and topics, and asks whether each destination's policy admits s3.amazonaws.com from the bucket: " +
 			"under iam.enforce=enforce a refusal fails the call, under advise it is journaled, and under off it is not asked, where AWS refuses in every case; " +
-			"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied); " +
-			"s3:ObjectRetention:Put is stored but sends nothing"
+			"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied)"
+		retentionNote = "event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; " +
+			"the s3:ObjectRetention:Put record carries mode and retainUntilDate as documented, and its object fields, the date's form and whether a removed retention sends one (here: none) are unrecorded"
 	)
 	marks := map[string]registry.BindCoverage{
 		"PutObject":             registry.Partial{Note: putNote},
@@ -57,7 +58,7 @@ func TestSSECAndObjectLockCoverageMarks(t *testing.T) {
 			"(inferred: how long AWS honours a retry is unrecorded)"},
 		"DeleteObject":                       registry.Partial{Note: deleteNote},
 		"DeleteObjects":                      registry.Partial{Note: deleteNote + "; " + checksumRequiredNote},
-		"PutObjectRetention":                 registry.Partial{Note: "event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent; " + checksumRequiredNote},
+		"PutObjectRetention":                 registry.Partial{Note: retentionNote + "; " + checksumRequiredNote},
 		"GetObjectRetention":                 registry.Full{},
 		"PutObjectLegalHold":                 registry.Partial{Note: checksumRequiredNote},
 		"GetObjectLegalHold":                 registry.Full{},

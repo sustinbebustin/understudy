@@ -85,7 +85,7 @@ type ChangeError struct {
 
 func (e *ChangeError) Error() string {
 	if e.Change == nil {
-		return "s3 notify: the event carries no change, so it names no event type; set Change to a Created, Removed or Tagged value"
+		return "s3 notify: the event carries no change, so it names no event type; set Change to a Created, Removed, Tagged or Retained value"
 	}
 	return fmt.Sprintf("s3 notify: the change %q names no event S3 reports, as its action is outside the declared values; build it with a declared action", e.Change.Name())
 }

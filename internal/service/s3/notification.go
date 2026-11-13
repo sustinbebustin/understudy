@@ -44,8 +44,7 @@ func (s *Service) bindNotification(b s3api.Binder) {
 const notificationNote = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
 	"destination validation checks existence, refuses FIFO queues and topics, and asks whether each destination's policy admits s3.amazonaws.com from the bucket: " +
 	"under iam.enforce=enforce a refusal fails the call, under advise it is journaled, and under off it is not asked, where AWS refuses in every case; " +
-	"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied); " +
-	"s3:ObjectRetention:Put is stored but sends nothing"
+	"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied)"
 
 // notificationPut is a configuration that passed admission and its own
 // checks, with the home of the bucket it is for.
@@ -422,7 +421,8 @@ func notifications(b *Bucket, ev event, at time.Time, req notify.Request) ([]del
 	})
 }
 
-// sequenced is c with seq as its sequencer; a Tagged change carries none.
+// sequenced is c with seq as its sequencer; a Tagged or Retained change
+// carries none.
 func sequenced(c notify.Change, seq notify.Sequencer) notify.Change {
 	switch c := c.(type) {
 	case notify.Created:
@@ -431,7 +431,7 @@ func sequenced(c notify.Change, seq notify.Sequencer) notify.Change {
 	case notify.Removed:
 		c.Sequencer = seq
 		return c
-	case notify.Tagged:
+	case notify.Tagged, notify.Retained:
 	}
 	return c
 }

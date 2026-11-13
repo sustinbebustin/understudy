@@ -9,6 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/blob"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/registry"
+	"github.com/sustinbebustin/understudy/internal/service/s3/notify"
 )
 
 // bindObjectLockState binds the operations that read and change one object
@@ -20,7 +21,8 @@ import (
 func (s *Service) bindObjectLockState(b s3api.Binder) {
 	putRetention := func(in *s3api.PutObjectRetentionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutObjectRetention(s.putObjectRetention, checksumUnchecked(registry.Partial{Note: "event holds (EventHold, EventHoldDuration) are refused with NotImplemented; " +
-		"s3:BypassGovernanceRetention is not evaluated; no s3:ObjectRetention:Put notification is sent"}), touches(s, putRetention),
+		"s3:BypassGovernanceRetention is not evaluated; the s3:ObjectRetention:Put record carries mode and retainUntilDate as documented, " +
+		"and its object fields, the date's form and whether a removed retention sends one (here: none) are unrecorded"}), touches(s, putRetention),
 		kernel.WithCheck(func(in *s3api.PutObjectRetentionInput) *awserr.Error {
 			_, err := parseRetentionBody(in.Retention)
 			return err
@@ -39,8 +41,10 @@ func (s *Service) bindObjectLockState(b s3api.Binder) {
 
 // putObjectRetention sets, changes or removes a version's retention. The
 // date is checked against the write's commit instant, then the change
-// rules (withRetention). Nothing is notified (the coverage note;
-// s3-ssec-object-lock.md 7.4).
+// rules (withRetention). A retention placed raises s3:ObjectRetention:Put
+// (aws-doc, s3-ssec-object-lock.md 7.4). Inferred: a removal raises
+// nothing, as the record's mode and retainUntilDate, documented as always
+// present, would have no value, and the documented triggers name none.
 func (s *Service) putObjectRetention(ctx context.Context, c *kernel.Call, in *s3api.PutObjectRetentionInput) (*s3api.PutObjectRetentionOutput, *awserr.Error) {
 	next, err := parseRetentionBody(in.Retention)
 	if err != nil {
@@ -65,6 +69,12 @@ func (s *Service) putObjectRetention(ctx context.Context, c *kernel.Call, in *s3
 			return struct{}{}, nil, err
 		}
 		relock(b, in.Key, v, lock)
+		if r := lock.Retention; r != nil {
+			s.commitObject(w, b, event{key: in.Key, versionID: v.ID, change: notify.Retained{
+				Action: notify.RetentionPut, ETag: v.Object.ETag,
+				Mode: s3api.ObjectLockRetentionMode(retentionModeTexts[r.Mode]), RetainUntil: r.RetainUntil.Wire(),
+			}})
+		}
 		return struct{}{}, nil, nil
 	})
 	if err != nil {

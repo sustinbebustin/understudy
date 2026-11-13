@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/aws"
 )
 
@@ -87,6 +88,19 @@ type Tagged struct {
 	ETag   string
 }
 
+// Retained is an ObjectRetention event: a retention placed by an explicit
+// PutObjectRetention (aws-doc, s3-ssec-object-lock.md 7). Mode and
+// RetainUntil are the version's retention after the change, which the
+// record's objectRetentionEventData carries. It has no event-hold members,
+// as event holds answer 501. Inferred: like a tagging record, the record
+// carries the eTag but no size or sequencer.
+type Retained struct {
+	Action      RetentionAction
+	ETag        string
+	Mode        s3api.ObjectLockRetentionMode
+	RetainUntil time.Time
+}
+
 // Name returns "ObjectCreated:<Action>".
 func (c Created) Name() string { return "ObjectCreated:" + c.Action.String() }
 
@@ -96,9 +110,13 @@ func (c Removed) Name() string { return "ObjectRemoved:" + c.Action.String() }
 // Name returns "ObjectTagging:<Action>".
 func (c Tagged) Name() string { return "ObjectTagging:" + c.Action.String() }
 
-func (Created) change() {}
-func (Removed) change() {}
-func (Tagged) change()  {}
+// Name returns "ObjectRetention:<Action>".
+func (c Retained) Name() string { return "ObjectRetention:" + c.Action.String() }
+
+func (Created) change()  {}
+func (Removed) change()  {}
+func (Tagged) change()   {}
+func (Retained) change() {}
 
 // CreatedAction is the request that created an object.
 type CreatedAction uint8
@@ -170,6 +188,24 @@ func (a TaggingAction) String() string {
 	return fmt.Sprintf("TaggingAction(%d)", uint8(a))
 }
 
+// RetentionAction is the change to an object's retention. The model's
+// Event enum names only s3:ObjectRetention:Put.
+type RetentionAction uint8
+
+// RetentionAction values.
+const (
+	RetentionPut RetentionAction = iota + 1
+)
+
+// String is the action as the event name spells it, "Put"; a value outside
+// the declared ones reads "RetentionAction(n)".
+func (a RetentionAction) String() string {
+	if a == RetentionPut {
+		return "Put"
+	}
+	return fmt.Sprintf("RetentionAction(%d)", uint8(a))
+}
+
 // eventVersion is every record's version: R17 recorded 2.6 for Put, Copy,
 // CompleteMultipartUpload and DeleteMarkerCreated (sqs/R17/02-events-*.json),
 // and S3 has used one version for every event type since 2.4 (aws-doc,
@@ -188,6 +224,7 @@ func Record(ev Event, configID string) ([]byte, error) {
 		return nil, err
 	}
 	obj := object{Key: EncodeKey(ev.Key), VersionID: ev.VersionID}
+	var retention *objectRetentionEventData
 	switch c := ev.Change.(type) {
 	case Created:
 		obj.Size, obj.ETag, obj.Sequencer = &c.Size, c.ETag, c.Sequencer.String()
@@ -201,6 +238,11 @@ func Record(ev Event, configID string) ([]byte, error) {
 		}
 	case Tagged:
 		obj.ETag = c.ETag
+	case Retained:
+		obj.ETag = c.ETag
+		// Inferred: the documentation says only "ISO-8601"; this is
+		// GetObjectRetention's millisecond form.
+		retention = &objectRetentionEventData{Mode: string(c.Mode), RetainUntilDate: wireTime(c.RetainUntil)}
 	}
 	r := record{
 		EventVersion:      eventVersion,
@@ -217,6 +259,7 @@ func Record(ev Event, configID string) ([]byte, error) {
 			Bucket:          bucket{Name: ev.Bucket.Name, OwnerIdentity: principal{ID: ev.Bucket.Owner}, ARN: ev.Bucket.ARN.String()},
 			Object:          obj,
 		},
+		ObjectRetentionEventData: retention,
 	}
 	return encode(records{Records: []record{r}})
 }
@@ -285,6 +328,17 @@ type record struct {
 	RequestParameters requestParameters `json:"requestParameters"`
 	ResponseElements  responseElements  `json:"responseElements"`
 	S3                entity            `json:"s3"`
+	// ObjectRetentionEventData is set on an ObjectRetention record only,
+	// after s3 (aws-doc, s3-ssec-object-lock.md 7).
+	ObjectRetentionEventData *objectRetentionEventData `json:"objectRetentionEventData,omitempty"`
+}
+
+// objectRetentionEventData holds the members the documentation says are
+// always present; eventHold and eventHoldDuration belong to event-hold
+// operations, which answer 501.
+type objectRetentionEventData struct {
+	Mode            string `json:"mode"`
+	RetainUntilDate string `json:"retainUntilDate"`
 }
 
 type principal struct {

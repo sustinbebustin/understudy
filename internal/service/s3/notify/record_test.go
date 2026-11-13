@@ -177,6 +177,29 @@ func TestObjectTaggingCarriesTheETagWithoutSizeOrSequencer(t *testing.T) {
 	}
 }
 
+// A retention put's record ends with objectRetentionEventData after s3,
+// holding mode and retainUntilDate, the members the documentation says are
+// always present (aws-doc, s3-ssec-object-lock.md 7; unrecorded). The
+// event-hold members never appear: event holds answer 501. Inferred: the
+// object block is a tagging record's (key, eTag, versionId; no size or
+// sequencer), and retainUntilDate is ISO 8601 UTC with milliseconds, as
+// GetObjectRetention writes it.
+func TestObjectRetentionPutCarriesTheDocumentedBlock(t *testing.T) {
+	const golden = `{"Records":[{"eventVersion":"2.6","eventSource":"aws:s3","awsRegion":"us-west-2","eventTime":"1970-01-01T00:00:00.000Z","eventName":"ObjectRetention:Put","userIdentity":{"principalId":"AIDAJDPLRKLG7UEXAMPLE"},"requestParameters":{"sourceIPAddress":"172.16.0.1"},"responseElements":{"x-amz-request-id":"C3D13FE58DE4C810","x-amz-id-2":"FMyUVURIY8/IgAtTv8xRjskZQpcIZ9KG4V5Wp6S7S/JRWeUWerMUE5JgHvANOjpD"},"s3":{"s3SchemaVersion":"1.0","configurationId":"lock","bucket":{"name":"amzn-s3-demo-bucket","ownerIdentity":{"principalId":"A3NL1KOZZKExample"},"arn":"arn:aws:s3:::amzn-s3-demo-bucket"},"object":{"key":"HappyFace.jpg","eTag":"d41d8cd98f00b204e9800998ecf8427e","versionId":"3HL4kqtJlcpXroDTDmJ+rmSpXd3dIbrHY"}},"objectRetentionEventData":{"mode":"GOVERNANCE","retainUntilDate":"2026-11-14T00:00:00.000Z"}}]}`
+	ev := documented(notify.Retained{
+		Action: notify.RetentionPut, ETag: "d41d8cd98f00b204e9800998ecf8427e",
+		Mode: s3api.ObjectLockRetentionModeGovernance, RetainUntil: time.Date(2026, time.November, 14, 0, 0, 0, 0, time.UTC),
+	})
+	ev.VersionID = "3HL4kqtJlcpXroDTDmJ+rmSpXd3dIbrHY"
+	got, err := notify.Record(ev, "lock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != golden {
+		t.Fatalf("record =\n%s\nwant\n%s", got, golden)
+	}
+}
+
 // Every declared action names an event type of the S3 model, and a value
 // outside them names none, so it cannot pass as a real event.
 func TestActionsNameModelEvents(t *testing.T) {
@@ -189,12 +212,13 @@ func TestActionsNameModelEvents(t *testing.T) {
 		notify.Removed{Action: notify.RemovedDeleteMarkerCreated},
 		notify.Tagged{Action: notify.TaggingPut},
 		notify.Tagged{Action: notify.TaggingDelete},
+		notify.Retained{Action: notify.RetentionPut},
 	} {
 		if e := s3api.Event("s3:" + c.Name()); !e.Known() {
 			t.Errorf("%s is not an event type of the model", e)
 		}
 	}
-	for _, c := range []notify.Change{notify.Created{}, notify.Removed{}, notify.Tagged{}} {
+	for _, c := range []notify.Change{notify.Created{}, notify.Removed{}, notify.Tagged{}, notify.Retained{}} {
 		if e := s3api.Event("s3:" + c.Name()); e.Known() {
 			t.Errorf("the zero action names the model event %s", e)
 		}

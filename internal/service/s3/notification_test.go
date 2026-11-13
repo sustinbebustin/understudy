@@ -3,6 +3,7 @@ package s3_test
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"strings"
 	"sync"
 	"testing"
@@ -548,6 +549,74 @@ func TestObjectRecordEchoesTheCall(t *testing.T) {
 }
 
 type s3Call struct{ RequestID, HostID, Principal, SourceIP string }
+
+// A PutObjectRetention sends one ObjectRetention:Put record with the
+// version's retention in objectRetentionEventData to a configuration that
+// names s3:ObjectRetention:Put, and none to one that does not (aws-doc,
+// s3-ssec-object-lock.md 7; unrecorded). The model's Event enum has no
+// s3:ObjectRetention:* wildcard, so the event's own name is the only one
+// that selects it.
+func TestRetentionPutRaisesTheObjectRetentionEvent(t *testing.T) {
+	runNotifier(t, func(n *notifier) {
+		const bucket = "locked"
+		notifyMust(n, s3api.OpCreateBucket, &s3api.CreateBucketInput{Bucket: bucket, ObjectLockEnabledForBucket: new(true)})
+		configure := func(events ...s3api.Event) {
+			n.Helper()
+			notifyMust(n, s3api.OpPutBucketNotificationConfiguration, &s3api.PutBucketNotificationConfigurationInput{
+				Bucket: bucket, SkipDestinationValidation: new(true),
+				NotificationConfiguration: s3api.NotificationConfiguration{QueueConfigurations: []s3api.QueueConfiguration{{Id: new("lock"), QueueArn: notifyQueue, Events: events}}},
+			})
+		}
+		put := notifyMust(n, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: bucket, Key: "k", Body: bytesBody("abc"), ContentLength: new(int64(3)), ContentMD5: new("kAFQmDzST7DWlj99KOF/cg==")})
+		until := n.clock.Now().Wire().Add(24*time.Hour + 250*time.Millisecond)
+		retain := func() {
+			n.Helper()
+			notifyMust(n, s3api.OpPutObjectRetention, &s3api.PutObjectRetentionInput{Bucket: bucket, Key: "k", VersionId: put.VersionId, Retention: &s3api.ObjectLockRetention{
+				Mode: new(s3api.ObjectLockRetentionModeGovernance), RetainUntilDate: &until,
+			}})
+		}
+
+		configure(created()...)
+		retain()
+		if got := n.sink.take(); len(got) != 0 {
+			n.Fatalf("a retention put on a configuration naming only ObjectCreated raised %d deliveries", len(got))
+		}
+
+		configure(s3api.EventS3ObjectretentionPut)
+		retain()
+		got := n.sink.take()
+		if len(got) != 1 || got[0].Request.Mechanism != delivery.S3ToSQS {
+			n.Fatalf("a retention put raised %d deliveries, want 1 to SQS", len(got))
+		}
+		q, isQueue := got[0].Request.Target.(delivery.SQSQueue)
+		if !isQueue {
+			n.Fatalf("target %T, want an SQS queue", got[0].Request.Target)
+		}
+		var doc struct {
+			Records []struct {
+				EventName string `json:"eventName"`
+				S3        struct {
+					ConfigurationID string         `json:"configurationId"`
+					Object          map[string]any `json:"object"`
+				} `json:"s3"`
+				Retention map[string]any `json:"objectRetentionEventData"`
+			}
+		}
+		if err := json.Unmarshal([]byte(q.Body), &doc); err != nil || len(doc.Records) != 1 {
+			n.Fatalf("notification %q: %v", q.Body, err)
+		}
+		r := doc.Records[0]
+		if r.EventName != "ObjectRetention:Put" || r.S3.ConfigurationID != "lock" {
+			n.Fatalf("eventName, configurationId = %q, %q; want ObjectRetention:Put, lock", r.EventName, r.S3.ConfigurationID)
+		}
+		if want := map[string]any{"key": "k", "eTag": "900150983cd24fb0d6963f7d28e17f72", "versionId": *put.VersionId}; !maps.Equal(r.S3.Object, want) {
+			n.Fatalf("object = %v, want %v", r.S3.Object, want)
+		}
+		if want := map[string]any{"mode": "GOVERNANCE", "retainUntilDate": until.UTC().Format("2006-01-02T15:04:05.000Z")}; !maps.Equal(r.Retention, want) {
+			n.Fatalf("objectRetentionEventData = %v, want %v", r.Retention, want)
+		}
+	})
+}
 
 // The sequencers of one key's events strictly increase, compared as hex
 // left-padded to one length, though the clock stands still (frozen) or is

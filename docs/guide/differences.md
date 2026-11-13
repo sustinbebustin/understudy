@@ -44,7 +44,6 @@ SNS filter policies, EventBridge event patterns and Lambda event source mapping 
 - `GetBucketPolicyStatus` is not implemented (`s3/R06/01-get-get-bucket-policy-status.json`).
 - Object Lock event holds (variable retention) are not implemented: an `x-amz-object-lock-event-hold*` header on `PutObject`, `CopyObject` or `CreateMultipartUpload`, or `DefaultEventHold` in `PutObjectLockConfiguration`, answers 501 `NotImplemented` naming it, on every bucket, and nothing is written.
 - `x-amz-bypass-governance-retention: true` alone lifts GOVERNANCE retention on `DeleteObject`, `DeleteObjects` and `PutObjectRetention`: understudy does not evaluate `s3:BypassGovernanceRetention`, so a principal AWS would refuse the bypass still gets it. COMPLIANCE retention and legal holds are never lifted, as on AWS.
-- `PutObjectRetention` sends no `s3:ObjectRetention:Put` event notification; a notification configuration that names the event is stored.
 - Event notifications on AWS: `ownerIdentity.principalId` is a 14-character id, and a destination without a queue policy is refused (understudy refuses it only under `--iam-enforce enforce`) (`sqs/R17/02-events-*.json`, `s3/R17/01-config-without-queue-policy.json`).
 
 ### S3 auth
