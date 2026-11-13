@@ -124,7 +124,9 @@ func (s *Service) bindMappings(b lambdaapi.Binder) {
 		"a role lacking only dynamodb:ListStreams, or at TRIM_HORIZON only dynamodb:GetShardIterator or dynamodb:GetRecords, is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +
 		"a Kinesis mapping's role must be allowed kinesis:DescribeStreamSummary on the stream, and at LATEST kinesis:ListShards, kinesis:GetShardIterator and kinesis:GetRecords; " +
 		"a role lacking only those reads at TRIM_HORIZON is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +
-		"a role refused its polls or stream reads leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss)"
+		"a role refused its polls or stream reads leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss); " +
+		"an SQS mapping whose function is deleted stays Enabled and keeps receiving from its queue (sqs/R03 F-queue-attrs-90s, lambda/R03 F-get-mapping-90s); " +
+		"that each received batch then fails its invocation, returns to the queue after its visibility timeout and is redriven to the dead-letter queue after maxReceiveCount is inferred, as AWS's handling of the batch is unrecorded"
 	b.CreateEventSourceMapping(s.createMapping, partial(note), kernel.WithValidator(validateCreateMapping))
 	b.GetEventSourceMapping(s.getMapping, full())
 	b.ListEventSourceMappings(s.listMappings, full())

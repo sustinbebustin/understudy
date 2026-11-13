@@ -634,33 +634,111 @@ func TestESMUncompilableStoredFilterStopsMapping(t *testing.T) {
 	})
 }
 
-// A mapping outlives its function: with the function gone its messages
-// stay in the queue and the journal records that polling stopped; once the
-// function exists again the poller's retry processes the messages the
-// queue holds, with no new message to wake it.
+// A mapping outlives its function and keeps receiving from its queue: a
+// message sent after DeleteFunction is in flight within one poll, and the
+// mapping stays Enabled with its FunctionArn (sqs/R03/F-queue-attrs-90s.json,
+// lambda/R03/F-get-mapping-after-delete.json). Inferred, as AWS's failure is
+// unrecorded: the invoke fails because the function is missing and is
+// journaled, the message is not deleted, and once the function exists again
+// the next batch is invoked.
 func TestESMMappingOutlivesFunction(t *testing.T) {
 	rec := &recorder{}
 	runESM(t, rec, func(h *execHarness) {
-		url, arn := h.queue("orders", nil)
+		url, arn := h.queue("orders", map[sqsapi.QueueAttributeName]string{sqsapi.QueueAttributeNameVisibilityTimeout: "30"})
 		m := h.mapQueue(arn, lambdaapi.CreateEventSourceMappingInput{})
 		h.quiesce()
 		call(h.harness, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: "worker"})
 		h.send(url, "waiting")
 		h.quiesce()
 		wantBodies(h, rec.bodies(), nil)
-		if visible, _ := h.depth(url); visible != 1 {
-			h.Fatalf("queue holds %d visible messages with the function gone, want 1", visible)
+		if visible, inFlight := h.depth(url); visible != 0 || inFlight != 1 {
+			h.Fatalf("with the function gone the queue holds %d visible and %d in flight, want the message in flight", visible, inFlight)
 		}
-		if got := pollerStates(h, *m.EventSourceMappingArn); !slices.Equal(got, []string{"Polling->FunctionMissing"}) {
-			h.Fatalf("poller state changes = %v", got)
+		got := call(h.harness, lambdaapi.OpGetEventSourceMapping, &lambdaapi.GetEventSourceMappingInput{UUID: *m.UUID})
+		if *got.State != "Enabled" || *got.FunctionArn != *m.FunctionArn {
+			h.Fatalf("after DeleteFunction the mapping is %s with FunctionArn %s, want Enabled with %s", *got.State, *got.FunctionArn, *m.FunctionArn)
+		}
+		invokes := esmCalls(h, lambdaapi.OpInvoke.Descriptor().ID)
+		if len(invokes) != 1 {
+			h.Fatalf("the mapping journaled %d Invoke calls with the function gone, want 1", len(invokes))
+		}
+		if !failedWith(invokes[0], "com.amazonaws.lambda#ResourceNotFoundException") {
+			h.Fatalf("the mapping's Invoke of the deleted function is journaled as %+v, want ResourceNotFoundException", invokes[0].Detail)
+		}
+		if got := pollerStates(h, *m.EventSourceMappingArn); len(got) != 0 {
+			h.Fatalf("poller state changes = %v, want none: the poller keeps polling", got)
 		}
 		h.createFunction("worker")
-		h.advancePolled(time.Second)
-		wantBodies(h, rec.bodies(), [][]string{{"waiting"}})
-		if got := pollerStates(h, *m.EventSourceMappingArn); !slices.Equal(got, []string{"Polling->FunctionMissing", "FunctionMissing->Polling"}) {
-			h.Fatalf("poller state changes = %v", got)
+		h.send(url, "next")
+		h.quiesce()
+		wantBodies(h, rec.bodies(), [][]string{{"next"}})
+		h.advancePolled(30 * time.Second)
+		wantBodies(h, rec.bodies(), [][]string{{"next"}, {"waiting"}})
+	})
+}
+
+// With the function gone, a message's failed receives count toward its
+// queue's redrive policy: with maxReceiveCount 2 it reaches the dead-letter
+// queue after two visibility timeouts. Inferred: AWS recorded the message in
+// flight (sqs/R03/F-queue-attrs-90s.json) but not its return or redrive.
+func TestESMDeletedFunctionRedrivesToDLQ(t *testing.T) {
+	rec := &recorder{}
+	runESM(t, rec, func(h *execHarness) {
+		dlqURL, dlqARN := h.queue("orders-dlq", nil)
+		url, arn := h.queue("orders", map[sqsapi.QueueAttributeName]string{
+			sqsapi.QueueAttributeNameVisibilityTimeout: "30",
+			sqsapi.QueueAttributeNameRedrivePolicy:     `{"deadLetterTargetArn":"` + dlqARN + `","maxReceiveCount":"2"}`,
+		})
+		h.mapQueue(arn, lambdaapi.CreateEventSourceMappingInput{})
+		h.quiesce()
+		call(h.harness, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: "worker"})
+		h.send(url, "orphan")
+		h.quiesce()
+		h.advancePolled(30 * time.Second)
+		if visible, inFlight := h.depth(url); visible != 0 || inFlight != 1 {
+			h.Fatalf("after one visibility timeout the queue holds %d visible and %d in flight, want the message received again", visible, inFlight)
+		}
+		h.advancePolled(30 * time.Second)
+		if visible, inFlight := h.depth(url); visible != 0 || inFlight != 0 {
+			h.Fatalf("after two visibility timeouts the source queue holds %d visible and %d in flight, want none", visible, inFlight)
+		}
+		if visible, _ := h.depth(dlqURL); visible != 1 {
+			h.Fatalf("the dead-letter queue holds %d messages, want the orphaned one", visible)
+		}
+		wantBodies(h, rec.bodies(), nil)
+	})
+}
+
+// A mapping loaded from a snapshot without its function keeps receiving
+// too, though its poller never resolved the function's execution role
+// (sqs/R03/F-queue-attrs-90s.json).
+func TestESMLoadedMappingWithoutFunctionReceives(t *testing.T) {
+	rec := &recorder{}
+	runESMWithQueues(t, rec, func(h *execHarness, queues *sqs.Service) {
+		url, arn := h.queue("orders", nil)
+		h.mapQueue(arn, lambdaapi.CreateEventSourceMappingInput{})
+		h.quiesce()
+		call(h.harness, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: "worker"})
+		h.quiesce()
+		h.load(queues, h.snapshot(queues))
+		h.quiesce()
+		h.send(url, "after-load")
+		h.quiesce()
+		if visible, inFlight := h.depth(url); visible != 0 || inFlight != 1 {
+			h.Fatalf("after the load the queue holds %d visible and %d in flight, want the message in flight", visible, inFlight)
 		}
 	})
+}
+
+// failedWith reports whether e is a call that failed with the error shape
+// shape.
+func failedWith(e journal.Event, shape string) bool {
+	call, ok := e.Detail.(journal.APICall)
+	if !ok {
+		return false
+	}
+	f, ok := call.Outcome.(journal.Failed)
+	return ok && f.Identity.Shape == shape
 }
 
 // A disabled mapping stops polling; enabling it again picks up what the

@@ -66,6 +66,10 @@ func TestDynamoDBStreamsCoverageNotes(t *testing.T) {
 		"a Kinesis mapping's role must be allowed kinesis:DescribeStreamSummary on the stream, and at LATEST kinesis:ListShards, kinesis:GetShardIterator and kinesis:GetRecords; " +
 		"a role lacking only those reads at TRIM_HORIZON is accepted, where whether AWS refuses it is UNVERIFIED (iam-enforcement-surfaces.md 8.6); " +
 		"a role refused its polls or stream reads leaves the mapping Enabled and invoking nothing (lambda.esm.permission-loss)"
+	// The deleted-function clause: receiving is recorded, the batch's fate
+	// inferred (sqs/R03/F-queue-attrs-90s.json).
+	esm += "; an SQS mapping whose function is deleted stays Enabled and keeps receiving from its queue (sqs/R03 F-queue-attrs-90s, lambda/R03 F-get-mapping-90s); " +
+		"that each received batch then fails its invocation, returns to the queue after its visibility timeout and is redriven to the dead-letter queue after maxReceiveCount is inferred, as AWS's handling of the batch is unrecorded"
 	want["lambda.CreateEventSourceMapping"] = esm
 	want["lambda.UpdateEventSourceMapping"] = esm
 
