@@ -466,7 +466,12 @@ describe("CloudWatch Logs: FilterLogEvents", () => {
     expect(out.events?.map((e) => e.message)).toEqual(["a", "b", "c"]);
     expect(out.events?.map((e) => e.logStreamName)).toEqual(["s1", "s2", "s1"]);
     expect(out.events?.every((e) => /^\d+$/.test(e.eventId ?? ""))).toBe(true);
-    expect(out.nextToken).toBeUndefined();
+    // A page with events carries nextToken even when it holds the last one;
+    // the empty page after it carries none (testdata/parity/logs/R10/05-filter-page-3.json, -4.json).
+    expect(out.nextToken).toBeDefined();
+    const after = await logs.send(new FilterLogEventsCommand({ logGroupName: group, nextToken: out.nextToken }));
+    expect(after.events).toEqual([]);
+    expect(after.nextToken).toBeUndefined();
   });
 
   test("logStreamNames and logStreamNamePrefix restrict the streams searched", async () => {

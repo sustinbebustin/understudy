@@ -153,7 +153,7 @@ aws scheduler create-schedule --name t --schedule-expression 'rate(1 hour)' --fl
 # An error occurred (ValidationException) ... s3 is not a supported service for a target.
 ```
 
-`KmsKeyArn` is stored and echoed, and the payload is never encrypted. AWS accepted a key that does not exist at create. Under `--iam-enforce enforce`, the caller's `kms:DescribeKey`, `kms:GenerateDataKey` and `kms:Decrypt` at create and update, and the execution role's `kms:Decrypt` before each invocation, are evaluated against identity policies and the key's policy. A key understudy's KMS does not hold allows nothing, so create the key in understudy first; otherwise the write is denied, or the invocation goes to the dead-letter queue. No `AWS/Scheduler` metrics are published.
+`KmsKeyArn` is stored and echoed, and the payload is never encrypted. Under `--iam-enforce enforce`, the caller's `kms:DescribeKey`, `kms:GenerateDataKey` and `kms:Decrypt` at create and update, and the execution role's `kms:Decrypt` before each invocation, are evaluated against identity policies and the key's policy. A key understudy's KMS does not hold is accepted at create and update with nothing asked, as AWS accepted one, but it allows the role nothing at invocation, so create the key in understudy first; otherwise the invocation goes to the dead-letter queue. No `AWS/Scheduler` metrics are published.
 
 ## Restarts, snapshots and your application's clock
 

@@ -470,7 +470,9 @@ func TestEventBridgeLambdaTarget(t *testing.T) {
 }
 
 // TestEventBridgeSchedule waits for a rate(1 minute) rule to fire into a
-// queue; the first fire is one interval after the rule is created.
+// queue; AWS fires a rate rule at its creation, then every interval
+// (testdata/parity/events/R14/02-arrivals.jsonl), so the first event is
+// stamped within the first interval.
 func TestEventBridgeSchedule(t *testing.T) {
 	t.Parallel()
 	queueURL := createQueue(t, name(t, "eb-sched"), nil)
@@ -489,11 +491,11 @@ func TestEventBridgeSchedule(t *testing.T) {
 	if len(msgs) == 0 {
 		t.Fatalf("a rate(1 minute) rule did not fire within 150 s")
 	}
-	if elapsed := time.Since(created); elapsed < 55*time.Second {
-		t.Errorf("first scheduled event arrived %s after PutRule; a rate rule first fires one interval after creation", elapsed)
-	}
 	var ev ebEvent
 	ok(t, json.Unmarshal([]byte(aws.ToString(msgs[0].Body)), &ev), "decoding the scheduled event")
+	if fired, err := time.Parse(time.RFC3339, ev.Time); err != nil || fired.Before(created.Truncate(time.Second)) || !fired.Before(created.Add(time.Minute)) {
+		t.Errorf("first scheduled event time %q, PutRule at %s; want the creation fire, within the first interval", ev.Time, created.UTC().Format(time.RFC3339Nano))
+	}
 	if ev.Version != "0" || ev.DetailType != "Scheduled Event" || ev.Source != "aws.events" || ev.Region != region() ||
 		len(ev.Resources) != 1 || ev.Resources[0] != ruleArn || strings.TrimSpace(string(ev.Detail)) != "{}" {
 		t.Errorf("scheduled event = %+v (detail %s); want Scheduled Event from aws.events naming %s", ev, ev.Detail, ruleArn)

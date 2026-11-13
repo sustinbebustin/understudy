@@ -1,7 +1,10 @@
 # EventBridge: a scheduled rule on the default bus that invokes a Python
 # function with a constant input, and the permission that lets the rule invoke
-# it. The schedules are far enough apart that the rule does not fire during a
-# run. The update step changes the schedule, description and target input.
+# it. A rate rule fires at its creation (testdata/parity/events/R14/02-arrivals.jsonl),
+# which understudy delivers to the rule's first target, so the target waits for
+# the permission; after that the schedules are far enough apart that the rule
+# does not fire again during a run. The update step changes the schedule,
+# description and target input.
 #
 # Custom buses (docs/research/eventbridge-buses.md 8, 10.6): a tagged bus
 # with a pattern rule and an SQS target addressed through the bus ARN and a
@@ -84,6 +87,8 @@ resource "aws_cloudwatch_event_target" "nightly" {
     maximum_event_age_in_seconds = 3600
     maximum_retry_attempts       = local.updated ? 4 : 2
   }
+
+  depends_on = [aws_lambda_permission.events_task_from_rule]
 }
 
 resource "aws_lambda_permission" "events_task_from_rule" {

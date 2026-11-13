@@ -231,9 +231,13 @@ def test_get_log_events_from_head_pages_forward(logs: Any, five_events: tuple[st
     third = logs.get_log_events(logGroupName=group, logStreamName="s", startFromHead=True, limit=2, nextToken=second["nextForwardToken"])
     assert [e["message"] for e in third["events"]] == ["m4"]
 
-    # At the end of the stream the same token comes back.
+    # The first empty page past the end hands out a new forward token and the
+    # next one repeats it (testdata/parity/logs/R10/05-get-page-4.json, -5.json).
     end = logs.get_log_events(logGroupName=group, logStreamName="s", startFromHead=True, limit=2, nextToken=third["nextForwardToken"])
-    assert end["events"] == [] and end["nextForwardToken"] == third["nextForwardToken"]
+    assert end["events"] == [] and end["nextForwardToken"].startswith("f/")
+    assert end["nextForwardToken"] != third["nextForwardToken"]
+    settled = logs.get_log_events(logGroupName=group, logStreamName="s", startFromHead=True, limit=2, nextToken=end["nextForwardToken"])
+    assert settled["events"] == [] and settled["nextForwardToken"] == end["nextForwardToken"]
 
 
 def test_get_log_events_defaults_to_the_newest_events(logs: Any, five_events: tuple[str, int]) -> None:
@@ -386,7 +390,7 @@ def test_filter_time_range_is_inclusive_on_both_ends(logs: Any, make_group: Call
     assert filtered(logs, group, startTime=base + 1, endTime=base + 3) == ["m1", "m2", "m3"]
 
 
-def test_filter_pages_are_capped_by_limit_and_end_without_a_token(
+def test_filter_pages_are_capped_by_limit_and_end_on_an_empty_page_without_a_token(
     logs: Any, make_group: Callable[..., str], make_stream: Callable[[str, str], str]
 ) -> None:
     group = make_group()
@@ -401,7 +405,11 @@ def test_filter_pages_are_capped_by_limit_and_end_without_a_token(
     assert len(first["events"]) + len(second["events"]) == 25
     assert [e["message"] for e in first["events"] + second["events"]] == [f"m{i:02d}" for i in range(25)]
     assert len({e["eventId"] for e in first["events"] + second["events"]}) == 25
-    assert "nextToken" not in second
+    # Every page with events carries nextToken, the last included; the empty
+    # page after it carries none (testdata/parity/logs/R10/05-filter-page-3.json, -4.json).
+    assert second["nextToken"]
+    last = logs.filter_log_events(logGroupName=group, limit=20, nextToken=second["nextToken"])
+    assert last["events"] == [] and "nextToken" not in last
 
 
 def test_filter_rejects_bad_tokens_and_limits(logs: Any, mixed_group: str) -> None:
