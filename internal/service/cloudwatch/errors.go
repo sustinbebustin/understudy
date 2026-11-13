@@ -22,6 +22,13 @@ func errTagTargetNotFound(arn string) *awserr.Error {
 	return cloudwatchapi.ErrResourceNotFoundException("The resource " + arn + " does not exist.")
 }
 
+// errListTagsTargetNotFound is ListTagsForResource's answer for an alarm
+// that was never created: ResourceNotFoundException without a message
+// (AWS-recorded, cloudwatch/R07/cw-ListTagsForResource.json).
+func errListTagsTargetNotFound() *awserr.Error {
+	return cloudwatchapi.ErrResourceNotFoundException("")
+}
+
 // errTooManyTags is the 50-tag quota of a resource (inferred text).
 func errTooManyTags() *awserr.Error {
 	return cloudwatchapi.ErrInvalidParameterValueException("A resource can have no more than " + strconv.Itoa(maxTags) + " tags.")

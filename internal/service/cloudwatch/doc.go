@@ -55,9 +55,12 @@
 //     documentation; the text is inferred).
 //   - DeleteAlarms, EnableAlarmActions and DisableAlarmActions skip names
 //     that match no alarm, so deleting a missing alarm succeeds
-//     (wire-cbor.md 3.5). ListTagsForResource of an ARN that names no alarm
-//     is an empty list, as AWS records for a deleted one; TagResource and
-//     UntagResource of such an ARN are ResourceNotFoundException.
+//     (wire-cbor.md 3.5). ListTagsForResource of an ARN that names an
+//     alarm never created is ResourceNotFoundException without a message
+//     (AWS-recorded); of a deleted alarm it is an empty list for as long as
+//     its history is held (a third-party recording; the window is
+//     inferred). TagResource and UntagResource of an ARN naming no alarm
+//     are ResourceNotFoundException (inferred).
 //   - A metric series is a namespace, a name and a dimension set, whatever
 //     order a request lists the dimensions in. Its points are kept until
 //     reset at the resolution they were put at, a regular metric's

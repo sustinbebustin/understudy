@@ -223,7 +223,7 @@ Scheduler was recorded against AWS on 2026-11-03 (`testdata/parity/scheduler/SCH
 
 ## CloudWatch and CloudWatch Logs
 
-- `ListTagsForResource` on a never-created alarm is 404 `ResourceNotFoundException` with no message on AWS; dashboards are not implemented (`cloudwatch/R07/*.json`).
+- Dashboards are not implemented (`cloudwatch/R07/*.json`).
 - `PutMetricData` with `StrictEntityValidation` false stores the data and answers more than two `EntityMetricData` entries with `X-Amzn-Failure-Message: EntitySizeTooLarge`. That count is the only entity error understudy checks; AWS's other values (`InvalidEntity`, `InvalidKeyAttributes`, `InvalidAttributes`, `InvalidTypeValue`, `MissingRequiredFields`) are never sent.
 - understudy publishes no `AWS/*` metrics, so an alarm on one sees only missing data; put the data with `PutMetricData` instead. Data stamped with wall time can fall outside alarm windows while the clock is frozen, set or scaled; leave `Timestamp` out ([CloudWatch alarms](clock.md#cloudwatch-alarms)).
 - Alarms on an `ExtendedStatistic`, `Metrics`, a `ThresholdMetricId` or `EvaluationCriteria`, or with a wall-clock window, are stored and never evaluated. EC2, Auto Scaling, Systems Manager and investigation actions are journaled and never run. `DescribeAlarmHistory` records no `Action` items, where AWS records one for each action run (`cloudwatch/CWA-16/*.json`), and `GetMetricStatistics` answers `ExtendedStatistics` with 501, alone or beside `Statistics`.
