@@ -2,6 +2,8 @@ package registry
 
 import (
 	"fmt"
+	"net/http"
+	"net/url"
 	"sort"
 
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -234,6 +236,35 @@ type Operation struct {
 type AdditionalRoute struct {
 	Binding      HTTPBinding
 	QueryMembers []QueryMember
+}
+
+// MatchAdditionalRoute returns the additional route of o a request came
+// by: the most specific of o's routes that accepts it, as RouteTable.Match
+// picks the row the edge dispatched on, when it is not the http trait. An
+// additional route precedes the http trait, so it wins a tie, as in the
+// service's RouteTable. path is the escaped request path.
+func (o *Operation) MatchAdditionalRoute(method, path string, query url.Values, header http.Header) (*AdditionalRoute, bool) {
+	if len(o.AdditionalRoutes) == 0 {
+		return nil, false
+	}
+	segs := pathSegments(path)
+	var best *AdditionalRoute
+	var bestRow *Route
+	for i := range o.AdditionalRoutes {
+		row := &Route{HTTPBinding: o.AdditionalRoutes[i].Binding}
+		if row.accepts(method, segs, query, header) && (bestRow == nil || CompareSpecificity(row, bestRow) > 0) {
+			best, bestRow = &o.AdditionalRoutes[i], row
+		}
+	}
+	if best == nil {
+		return nil, false
+	}
+	if o.HTTP != nil {
+		if modeled := (&Route{HTTPBinding: *o.HTTP}); modeled.accepts(method, segs, query, header) && CompareSpecificity(modeled, bestRow) > 0 {
+			return nil, false
+		}
+	}
+	return best, true
 }
 
 // QueryMember binds the query parameter Param onto the input member Member.

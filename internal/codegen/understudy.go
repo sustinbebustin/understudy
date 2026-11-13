@@ -39,6 +39,7 @@ const (
 	utPatternValidator    = understudyNamespace + "patternValidator"
 	utAlwaysEmit          = understudyNamespace + "alwaysEmit"
 	utOptionalOutput      = understudyNamespace + "optionalOutput"
+	utMemberOrder         = understudyNamespace + "memberOrder"
 	utMaxRequestBytes     = understudyNamespace + "maxRequestBytes"
 	utThrottleError       = understudyNamespace + "throttleError"
 	utDenialError         = understudyNamespace + "denialError"
@@ -67,16 +68,17 @@ const (
 	siteStringShape
 	siteAnyShape
 	siteEnumShape
+	siteStructureShape
 )
 
 func (s site) String() string {
 	names := map[site]string{
 		siteService: "a service shape", siteOperation: "an operation shape", siteMember: "a member",
 		siteErrorShape: "an error structure", siteStringShape: "a string shape", siteAnyShape: "any shape",
-		siteEnumShape: "an enum shape",
+		siteEnumShape: "an enum shape", siteStructureShape: "a structure shape",
 	}
 	var out []string
-	for _, b := range []site{siteService, siteOperation, siteMember, siteErrorShape, siteStringShape, siteAnyShape, siteEnumShape} {
+	for _, b := range []site{siteService, siteOperation, siteMember, siteErrorShape, siteStringShape, siteAnyShape, siteEnumShape, siteStructureShape} {
 		if s&b != 0 {
 			out = append(out, names[b])
 		}
@@ -113,6 +115,7 @@ func understudyTraits() map[string]understudyTrait {
 		utPatternValidator:    {Honor, siteStringShape, func(r json.RawMessage) error { _, err := parsePatternValidator(r); return err }},
 		utAlwaysEmit:          {Honor, siteMember, parseAnnotation},
 		utOptionalOutput:      {Honor, siteMember, parseAnnotation},
+		utMemberOrder:         {Honor, siteStructureShape, func(r json.RawMessage) error { _, err := parseMemberOrder(r); return err }},
 		utMaxRequestBytes:     {Honor, siteOperation, func(r json.RawMessage) error { _, err := parseMaxRequestBytes(r); return err }},
 		utThrottleError:       {Honor, siteService, shapeRef},
 		utDenialError:         {Honor, siteService, shapeRef},
@@ -141,6 +144,20 @@ func parseEnumOrder(raw json.RawMessage) ([]string, error) {
 	}
 	if len(v) == 0 {
 		return nil, errors.New("enumOrder is empty; the model's order needs no trait")
+	}
+	return v, nil
+}
+
+// parseMemberOrder reads dev.understudy#memberOrder: a structure's member
+// names in the order AWS writes them in an answer, when it is not the
+// model's. The shape's IR checks that it names every member once.
+func parseMemberOrder(raw json.RawMessage) ([]string, error) {
+	var v []string
+	if err := decodeTrait(raw, &v); err != nil {
+		return nil, errors.New("memberOrder takes the structure's member names as a list of strings")
+	}
+	if len(v) == 0 {
+		return nil, errors.New("memberOrder is empty; the model's order needs no trait")
 	}
 	return v, nil
 }

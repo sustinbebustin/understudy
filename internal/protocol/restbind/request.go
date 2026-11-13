@@ -343,7 +343,7 @@ type head struct {
 func newHead(r *http.Request, op *registry.Operation) (head, error) {
 	h := head{labels: map[string]string{}, header: r.Header}
 	pattern := op.HTTP
-	if added, ok := additionalRoute(r, op); ok {
+	if added, ok := op.MatchAdditionalRoute(r.Method, requestPath(r), r.URL.Query(), r.Header); ok {
 		pattern = &added.Binding
 		h.queryMembers = make(map[string]string, len(added.QueryMembers))
 		for _, q := range added.QueryMembers {
@@ -363,31 +363,6 @@ func newHead(r *http.Request, op *registry.Operation) (head, error) {
 	}
 	h.query = query
 	return h, nil
-}
-
-// additionalRoute returns the additional route of op that r came by: the
-// most specific of op's routes that accepts r, as registry.RouteTable.Match
-// picks the row the edge dispatched on, when it is not the http trait.
-func additionalRoute(r *http.Request, op *registry.Operation) (*registry.AdditionalRoute, bool) {
-	if len(op.AdditionalRoutes) == 0 {
-		return nil, false
-	}
-	table := registry.RouteTable{Routes: make([]*registry.Route, 0, len(op.AdditionalRoutes)+1)}
-	for i := range op.AdditionalRoutes {
-		table.Routes = append(table.Routes, &registry.Route{HTTPBinding: op.AdditionalRoutes[i].Binding})
-	}
-	if op.HTTP != nil {
-		table.Routes = append(table.Routes, &registry.Route{HTTPBinding: *op.HTTP})
-	}
-	matched, ok := table.Match(r.Method, requestPath(r), r.URL.Query(), r.Header)
-	if !ok {
-		return nil, false
-	}
-	i := slices.Index(table.Routes, matched)
-	if i >= len(op.AdditionalRoutes) {
-		return nil, false
-	}
-	return &op.AdditionalRoutes[i], true
 }
 
 // location is where m travels in this request: its HTTP binding, or the

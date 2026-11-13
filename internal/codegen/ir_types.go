@@ -168,6 +168,10 @@ type ShapeIR struct {
 	// EnumOrder is dev.understudy#enumOrder: the values in the order an
 	// enum violation lists them, nil for the model's order.
 	EnumOrder []string
+	// MemberOrder is dev.understudy#memberOrder: the members in the order
+	// the serializer writes them, nil for the model's order. Members keeps
+	// the model's order for everything else.
+	MemberOrder []*MemberIR
 
 	TimestampFormat smithy.TimestampFormat
 	MediaType       string
@@ -194,6 +198,14 @@ type ShapeIR struct {
 	// Tracked counts the required members whose presence Deserialize
 	// records, so Validate can tell absent from zero.
 	Tracked int
+}
+
+// SerializeOrder is the order the serializer writes the members in.
+func (s *ShapeIR) SerializeOrder() []*MemberIR {
+	if s.MemberOrder != nil {
+		return s.MemberOrder
+	}
+	return s.Members
 }
 
 // IsStruct reports whether the shape is a structure or a unit.

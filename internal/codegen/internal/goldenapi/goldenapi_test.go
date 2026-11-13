@@ -425,6 +425,22 @@ func TestOptionalOutputIsWrittenWhenSet(t *testing.T) {
 	}
 }
 
+// TestMemberOrderSetsTheSerializationOrder: memberOrder writes Created
+// before Name, the reverse of the model's order.
+func TestMemberOrderSetsTheSerializationOrder(t *testing.T) {
+	var rec serdetest.Recorder
+	(&GetThingOutput{Name: new("n"), Created: new(time.Unix(0, 0).UTC())}).Serialize(&rec)
+	want := []string{
+		"WriteStruct <root> com.example.golden#GetThingResponse",
+		"WriteTimestamp Created 1970-01-01 00:00:00 +0000 UTC",
+		"WriteString Name n",
+		"CloseStruct",
+	}
+	if got := rec.Strings(); !slices.Equal(got, want) {
+		t.Fatalf("recorded %q\nwant %q", got, want)
+	}
+}
+
 // TestChoiceRoundTrips: Choice travels both ways, so every variant,
 // including the unit member, serializes and deserializes back.
 func TestChoiceRoundTrips(t *testing.T) {

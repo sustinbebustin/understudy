@@ -122,34 +122,49 @@ type setRefusal struct {
 	name  string
 }
 
+// setErrors is one API's error per setRefusalClass, built from the
+// refusal's text and the set's name.
+type setErrors [setMissing + 1]func(text, name string) *awserr.Error
+
+// text is r's message, the same in both APIs.
+func (r *setRefusal) text() string {
+	switch r.class {
+	case setInvalidName:
+		return fmt.Sprintf(ConfigurationSetNameText, r.name)
+	case setExists:
+		return fmt.Sprintf(ConfigurationSetExistsText, r.name)
+	case setLimit:
+		return fmt.Sprintf(ConfigurationSetLimitText, MaxConfigurationSets)
+	case setMissing:
+	}
+	return fmt.Sprintf(ConfigurationSetMissingText, r.name)
+}
+
+// in is r as one API's error.
+func (r *setRefusal) in(api setErrors) *awserr.Error { return api[r.class](r.text(), r.name) }
+
 // v1 is r as a v1 error. A missing set carries no ConfigurationSetName
 // element, as SES-17 recorded on a send.
 func (r *setRefusal) v1() *awserr.Error {
-	switch r.class {
-	case setInvalidName:
-		return sesapi.ErrInvalidConfigurationSetException(fmt.Sprintf(ConfigurationSetNameText, r.name))
-	case setExists:
-		return sesapi.ErrConfigurationSetAlreadyExistsExceptionMembers(fmt.Sprintf(ConfigurationSetExistsText, r.name),
-			sesapi.ConfigurationSetAlreadyExistsException{ConfigurationSetName: new(r.name)})
-	case setLimit:
-		return sesapi.ErrLimitExceededException(fmt.Sprintf(ConfigurationSetLimitText, MaxConfigurationSets))
-	case setMissing:
-	}
-	return sesapi.ErrConfigurationSetDoesNotExistException(fmt.Sprintf(ConfigurationSetMissingText, r.name))
+	return r.in(setErrors{
+		setInvalidName: func(text, _ string) *awserr.Error { return sesapi.ErrInvalidConfigurationSetException(text) },
+		setExists: func(text, name string) *awserr.Error {
+			return sesapi.ErrConfigurationSetAlreadyExistsExceptionMembers(text,
+				sesapi.ConfigurationSetAlreadyExistsException{ConfigurationSetName: new(name)})
+		},
+		setLimit:   func(text, _ string) *awserr.Error { return sesapi.ErrLimitExceededException(text) },
+		setMissing: func(text, _ string) *awserr.Error { return sesapi.ErrConfigurationSetDoesNotExistException(text) },
+	})
 }
 
 // v2 is r as a v2 error, with v1's texts (inferred).
 func (r *setRefusal) v2() *awserr.Error {
-	switch r.class {
-	case setInvalidName:
-		return sesv2api.ErrBadRequestException(fmt.Sprintf(ConfigurationSetNameText, r.name))
-	case setExists:
-		return sesv2api.ErrAlreadyExistsException(fmt.Sprintf(ConfigurationSetExistsText, r.name))
-	case setLimit:
-		return sesv2api.ErrLimitExceededException(fmt.Sprintf(ConfigurationSetLimitText, MaxConfigurationSets))
-	case setMissing:
-	}
-	return sesv2api.ErrNotFoundException(fmt.Sprintf(ConfigurationSetMissingText, r.name))
+	return r.in(setErrors{
+		setInvalidName: func(text, _ string) *awserr.Error { return sesv2api.ErrBadRequestException(text) },
+		setExists:      func(text, _ string) *awserr.Error { return sesv2api.ErrAlreadyExistsException(text) },
+		setLimit:       func(text, _ string) *awserr.Error { return sesv2api.ErrLimitExceededException(text) },
+		setMissing:     func(text, _ string) *awserr.Error { return sesv2api.ErrNotFoundException(text) },
+	})
 }
 
 // validConfigurationSetName reports whether name has 1 to

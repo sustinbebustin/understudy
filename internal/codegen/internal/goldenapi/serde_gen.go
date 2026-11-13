@@ -96,11 +96,11 @@ func (v *GetThingOutput) Serialize(s smithy.Serializer) { v.serialize(s, nil) }
 
 func (v *GetThingOutput) serialize(s smithy.Serializer, m *smithy.Member) {
 	s.WriteStruct(m, &schemaGetThingOutput)
-	if v.Name != nil {
-		s.WriteString(&memberGetThingOutput_Name, *v.Name)
-	}
 	if v.Created != nil {
 		s.WriteTimestamp(&memberGetThingOutput_Created, *v.Created)
+	}
+	if v.Name != nil {
+		s.WriteString(&memberGetThingOutput_Name, *v.Name)
 	}
 	s.CloseStruct()
 }

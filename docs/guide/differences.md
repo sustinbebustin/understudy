@@ -248,7 +248,6 @@ Scheduler was recorded against AWS on 2026-11-03 (`testdata/parity/scheduler/SCH
 
 SES was recorded against AWS on 2026-11-03 from a sandbox account with no verified sender (`testdata/parity/ses/SES-*`), so the answers to sends that pass the sender check are unrecorded and labelled per item on the [coverage page](../coverage.md#ses). Recorded differences:
 
-- `GetIdentityNotificationAttributes` lists an identity's `HeadersInBounceNotificationsEnabled`, `HeadersInDeliveryNotificationsEnabled`, `HeadersInComplaintNotificationsEnabled` and then `ForwardingEnabled`; understudy writes them in the model's order, `ForwardingEnabled` first. SDKs read both the same (`ses/SES-08/03-notif-raw.json`).
 - `GetSendQuota` spells its numbers `200.0`, `1.0` and `0.0` and lists `SentLast24Hours` first; understudy writes `200`, `1`, `0` in the model's order. SDKs read both the same (`ses/SES-15/02-quota.json`).
 - v2 answers send unset members as explicit `null` and the GET answers carry `Content-Type: application/x-amz-json-1.1`; understudy omits unset members and sends `application/json` (`ses/SES-13`, `ses/SES-15/01-account.json`). A v2 send without `FromEmailAddress` is `BadRequestException` with `{"message":null}` on AWS; understudy sends a message text (`ses/SES-23/03-no-from.json`).
 

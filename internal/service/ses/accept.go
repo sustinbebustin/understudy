@@ -51,12 +51,12 @@ func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (strin
 		if r := s.checkBeforeIdentities(c, st, o); r != nil {
 			return accepted{}, o.refuse(r)
 		}
-		production := s.opts.ProductionAccess.allows(scope)
-		if r := s.checkIdentities(st, scope.Region, production, o); r != nil {
+		access := s.opts.ProductionAccess.of(scope)
+		if r := s.checkIdentities(st, scope.Region, access, o); r != nil {
 			return accepted{}, o.refuse(r)
 		}
 		counted, simulated := tally(o.envelope)
-		if !production && float64(st.sentLast24Hours(now)+counted) > SandboxMax24HourSend {
+		if access == accessSandbox && float64(st.sentLast24Hours(now)+counted) > SandboxMax24HourSend {
 			return accepted{}, o.refuse(&refusal{class: refusalThrottled, text: DailyQuotaText})
 		}
 		st.count(now, counted)
@@ -119,22 +119,22 @@ func tally(envelope []string) (counted int, simulated map[string]Scenario) {
 
 // checkIdentities runs CheckSender and, in the sandbox,
 // CheckSandboxRecipients. Every sender must be verified (ses.md 6.1, 5.1);
-// in the sandbox (production unset) every envelope recipient must be
-// verified or a simulator address (ses.md 6.1, 6.2). Both failures answer
-// one MessageRejected listing each failing identity as given, ordered per
-// switch ses.error.unverified.text.
-func (s *Service) checkIdentities(st *state, region aws.Region, production bool, o outgoing) *refusal {
+// in the sandbox every envelope recipient must be verified or a simulator
+// address (ses.md 6.1, 6.2). Both failures answer one MessageRejected
+// listing each failing identity as given, ordered per switch
+// ses.error.unverified.text.
+func (s *Service) checkIdentities(st *state, region aws.Region, access sendingAccess, o outgoing) *refusal {
 	var senders, recipients []string
 	v := s.view(o.api)
 	for _, a := range o.senders {
-		if !st.verified(v, addrSpec(a), true) {
+		if st.matchIdentity(v, addrSpec(a), true, nil) == nil {
 			senders = append(senders, a)
 		}
 	}
-	if !production {
+	if access == accessSandbox {
 		for _, a := range o.envelope {
 			spec := addrSpec(a)
-			if _, sim := simulatorScenario(spec); !sim && !st.verified(v, spec, SandboxRecipientLabels) {
+			if _, sim := simulatorScenario(spec); !sim && st.matchIdentity(v, spec, SandboxRecipientLabels, nil) == nil {
 				recipients = append(recipients, a)
 			}
 		}
@@ -154,39 +154,43 @@ func (s *Service) checkIdentities(st *state, region aws.Region, production bool,
 	return &refusal{class: refusalRejected, text: UnverifiedTextPrefix + strings.ToUpper(region.String()) + ": " + strings.Join(failed, ", ")}
 }
 
-// verified reports whether addr-spec addr passes the identity rules
-// (ses.md 5.1) in v: with any +label removed from its local part when
-// labels is set, it equals a Success email identity, byte for byte, or its
-// domain equals or is a subdomain of a Success domain identity, regardless
-// of case.
-func (s *state) verified(v view, addr string, labels bool) bool {
+// matchIdentity is the Success identity in v that addr-spec addr passes the
+// identity rules against (ses.md 5.1), nil when there is none: with any
+// +label removed from its local part when labels is set, addr equals an
+// email identity, byte for byte, or its domain equals or is a subdomain of
+// a domain identity, regardless of case. An email identity wins over a
+// domain, and of several domains the most specific one does. Only
+// identities eligible reports true for are considered; nil considers all.
+func (s *state) matchIdentity(v view, addr string, labels bool, eligible func(*identity) bool) *identity {
 	at := strings.LastIndexByte(addr, '@')
 	if at < 0 {
-		return false
+		return nil
 	}
 	local, domain := addr[:at], strings.ToLower(addr[at+1:])
 	if labels {
 		local, _, _ = strings.Cut(local, "+")
 	}
 	exact := local + addr[at:]
+	var byDomain *identity
+	longest := -1
 	for i := range s.Identities {
 		id := &s.Identities[i]
-		if _, ok := id.Status.(statusSuccess); !ok || !v.sees(id) {
+		if _, ok := id.Status.(statusSuccess); !ok || !v.sees(id) || (eligible != nil && !eligible(id)) {
 			continue
 		}
 		switch id.Kind {
 		case sesapi.IdentityTypeEmailAddress:
 			if id.Name == exact {
-				return true
+				return id
 			}
 		case sesapi.IdentityTypeDomain:
 			d := strings.ToLower(id.Name)
-			if domain == d || strings.HasSuffix(domain, "."+d) {
-				return true
+			if (domain == d || strings.HasSuffix(domain, "."+d)) && len(d) > longest {
+				byDomain, longest = id, len(d)
 			}
 		}
 	}
-	return false
+	return byDomain
 }
 
 // defaultConfigurationSet is the configuration set a send that names none
@@ -199,33 +203,13 @@ func (s *state) defaultConfigurationSet(v view, senders []string) string {
 	if len(senders) == 0 {
 		return ""
 	}
-	addr := addrSpec(senders[0])
-	at := strings.LastIndexByte(addr, '@')
-	if at < 0 {
+	id := s.matchIdentity(v, addrSpec(senders[0]), true, func(id *identity) bool {
+		return id.ConfigurationSet != "" && s.findConfigurationSet(v, id.ConfigurationSet) >= 0
+	})
+	if id == nil {
 		return ""
 	}
-	local, _, _ := strings.Cut(addr[:at], "+")
-	exact, domain := local+addr[at:], strings.ToLower(addr[at+1:])
-	var fromDomain string
-	longest := -1
-	for i := range s.Identities {
-		id := &s.Identities[i]
-		if _, ok := id.Status.(statusSuccess); !ok || !v.sees(id) || id.ConfigurationSet == "" || s.findConfigurationSet(v, id.ConfigurationSet) < 0 {
-			continue
-		}
-		switch id.Kind {
-		case sesapi.IdentityTypeEmailAddress:
-			if id.Name == exact {
-				return id.ConfigurationSet
-			}
-		case sesapi.IdentityTypeDomain:
-			d := strings.ToLower(id.Name)
-			if (domain == d || strings.HasSuffix(domain, "."+d)) && len(d) > longest {
-				fromDomain, longest = id.ConfigurationSet, len(d)
-			}
-		}
-	}
-	return fromDomain
+	return id.ConfigurationSet
 }
 
 // simulatorScenario is the scenario of a mailbox simulator addr-spec: the

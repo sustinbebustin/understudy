@@ -49,9 +49,22 @@ type AccountRegion struct {
 	Region  aws.Region
 }
 
-// allows reports whether scope's account and Region are out of the sandbox.
-func (p ProductionAccess) allows(scope aws.Scope) bool {
-	return p.All || slices.Contains(p.Pairs, AccountRegion{Account: scope.Account, Region: scope.Region})
+// sendingAccess is where an account and Region send from: the sandbox,
+// which limits recipients and the daily quota (ses.md 6.1-6.3), or
+// production access.
+type sendingAccess uint8
+
+const (
+	accessSandbox sendingAccess = iota
+	accessProduction
+)
+
+// of is the sending access of scope's account and Region.
+func (p ProductionAccess) of(scope aws.Scope) sendingAccess {
+	if p.All || slices.Contains(p.Pairs, AccountRegion{Account: scope.Account, Region: scope.Region}) {
+		return accessProduction
+	}
+	return accessSandbox
 }
 
 // VerifiedIdentities is ses.verifiedIdentities parsed and classified by

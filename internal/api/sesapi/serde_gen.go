@@ -2637,10 +2637,10 @@ func (v *IdentityNotificationAttributes) serialize(s smithy.Serializer, m *smith
 	if v.DeliveryTopic != nil {
 		s.WriteString(&memberIdentityNotificationAttributes_DeliveryTopic, *v.DeliveryTopic)
 	}
-	s.WriteBool(&memberIdentityNotificationAttributes_ForwardingEnabled, v.ForwardingEnabled)
 	s.WriteBool(&memberIdentityNotificationAttributes_HeadersInBounceNotificationsEnabled, v.HeadersInBounceNotificationsEnabled)
-	s.WriteBool(&memberIdentityNotificationAttributes_HeadersInComplaintNotificationsEnabled, v.HeadersInComplaintNotificationsEnabled)
 	s.WriteBool(&memberIdentityNotificationAttributes_HeadersInDeliveryNotificationsEnabled, v.HeadersInDeliveryNotificationsEnabled)
+	s.WriteBool(&memberIdentityNotificationAttributes_HeadersInComplaintNotificationsEnabled, v.HeadersInComplaintNotificationsEnabled)
+	s.WriteBool(&memberIdentityNotificationAttributes_ForwardingEnabled, v.ForwardingEnabled)
 	s.CloseStruct()
 }
 

@@ -316,17 +316,25 @@ type RouteTable struct {
 // ignored except by a greedy label that ends the pattern, where it is part of
 // the value (the S3 key "dir/").
 func (t *RouteTable) Match(method, path string, query url.Values, header http.Header) (*Route, bool) {
-	segs := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	segs := pathSegments(path)
 	var best *Route
 	for _, r := range t.Routes {
-		if r.Method != method || !matchPath(r.Path, segs) || !matchQuery(r.Query, query) || !matchHeaders(r.Headers, header) {
-			continue
-		}
-		if best == nil || CompareSpecificity(r, best) > 0 {
+		if r.accepts(method, segs, query, header) && (best == nil || CompareSpecificity(r, best) > 0) {
 			best = r
 		}
 	}
 	return best, best != nil
+}
+
+// pathSegments splits an escaped request path as Match reads it.
+func pathSegments(path string) []string {
+	return strings.Split(strings.TrimPrefix(path, "/"), "/")
+}
+
+// accepts reports whether r matches a request whose path pathSegments
+// split into segs.
+func (r *Route) accepts(method string, segs []string, query url.Values, header http.Header) bool {
+	return r.Method == method && matchPath(r.Path, segs) && matchQuery(r.Query, query) && matchHeaders(r.Headers, header)
 }
 
 func matchPath(pattern []Segment, segs []string) bool {

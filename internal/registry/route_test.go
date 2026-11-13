@@ -327,3 +327,44 @@ func TestMatchPrefersMoreSegmentsThenMoreQuery(t *testing.T) {
 		}
 	})
 }
+
+// MatchAdditionalRoute returns the additional route a request came by,
+// and nothing for one the http trait serves, ranked as Match ranks rows:
+// the http trait's literal beats an additional route's label.
+func TestMatchAdditionalRoute(t *testing.T) {
+	binding := func(method, uri string) registry.HTTPBinding {
+		b, err := registry.ParseHTTPBinding(method, uri)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	modeled := binding("POST", "/v2/email/list-things")
+	op := &registry.Operation{
+		HTTP: &modeled,
+		AdditionalRoutes: []registry.AdditionalRoute{
+			{Binding: binding("GET", "/v2/email/things")},
+			{Binding: binding("GET", "/v2/email/{Name}")},
+			{Binding: binding("POST", "/v2/email/{Name}")},
+		},
+	}
+	tests := []struct {
+		method, path string
+		want         *registry.AdditionalRoute
+	}{
+		{"GET", "/v2/email/things", &op.AdditionalRoutes[0]},
+		{"GET", "/v2/email/other", &op.AdditionalRoutes[1]},
+		{"POST", "/v2/email/list-things", nil},
+		{"POST", "/v2/email/other", &op.AdditionalRoutes[2]},
+		{"DELETE", "/v2/email/things", nil},
+	}
+	for _, tt := range tests {
+		got, ok := op.MatchAdditionalRoute(tt.method, tt.path, url.Values{}, http.Header{})
+		if got != tt.want || ok != (tt.want != nil) {
+			t.Errorf("MatchAdditionalRoute(%s %s) = %v, %v; want %v", tt.method, tt.path, got, ok, tt.want)
+		}
+	}
+	if got, ok := (&registry.Operation{HTTP: &modeled}).MatchAdditionalRoute("POST", "/v2/email/list-things", url.Values{}, http.Header{}); ok {
+		t.Errorf("MatchAdditionalRoute on an operation with no additional route = %v, want none", got)
+	}
+}

@@ -24,7 +24,7 @@ func (s *Service) bindQuota(b sesapi.Binder) {
 // (UNVERIFIED, SES-26), and the recipients counted in the last 24 hours.
 func (s *Service) getSendQuota(_ context.Context, c *kernel.Call, _ *sesapi.GetSendQuotaInput) (*sesapi.GetSendQuotaOutput, *awserr.Error) {
 	out := &sesapi.GetSendQuotaOutput{Max24HourSend: SandboxMax24HourSend, MaxSendRate: SandboxMaxSendRate}
-	if s.opts.ProductionAccess.allows(c.Scope()) {
+	if s.opts.ProductionAccess.of(c.Scope()) == accessProduction {
 		out.Max24HourSend, out.MaxSendRate = ProductionMax24HourSend, ProductionMaxSendRate
 	}
 	if cell, ok := s.cells.Lookup(c.Scope()); ok {

@@ -90,6 +90,45 @@ func TestStageFailures(t *testing.T) {
 				"every overlay entry states its evidence {label, source, validated?}",
 		},
 		{
+			name: "memberOrder leaving out a member",
+			extra: overlay(`"com.example.golden#ListPartsResponse": {"type": "apply", "traits": {
+				"dev.understudy#memberOrder": ["NextToken"], ` + evidence + `}}`),
+			stage: codegen.StageIR,
+			want: "understudy-gen ir: com.example.golden#ListPartsResponse: dev.understudy#memberOrder " +
+				`["NextToken"] must name every member exactly once; the members are ["Parts" "NextToken"]`,
+		},
+		{
+			name: "memberOrder naming a member twice",
+			extra: overlay(`"com.example.golden#ListPartsResponse": {"type": "apply", "traits": {
+				"dev.understudy#memberOrder": ["NextToken", "NextToken"], ` + evidence + `}}`),
+			stage: codegen.StageIR,
+			want: "understudy-gen ir: com.example.golden#ListPartsResponse: dev.understudy#memberOrder " +
+				`["NextToken" "NextToken"] must name every member exactly once; the members are ["Parts" "NextToken"]`,
+		},
+		{
+			name: "memberOrder in the model's order",
+			extra: overlay(`"com.example.golden#ListPartsResponse": {"type": "apply", "traits": {
+				"dev.understudy#memberOrder": ["Parts", "NextToken"], ` + evidence + `}}`),
+			stage: codegen.StageIR,
+			want: "understudy-gen ir: com.example.golden#ListPartsResponse: dev.understudy#memberOrder " +
+				"is the model's order; drop the trait",
+		},
+		{
+			name: "memberOrder on an input structure",
+			extra: overlay(`"com.example.golden#ListPartsRequest": {"type": "apply", "traits": {
+				"dev.understudy#memberOrder": ["NextToken", "ThingId"], ` + evidence + `}}`),
+			stage: codegen.StageRoles,
+			want: "understudy-gen roles: com.example.golden#ListPartsRequest: dev.understudy#memberOrder sets the order " +
+				"an answer writes members in, so it belongs on a structure used as output",
+		},
+		{
+			name: "memberOrder on a shape that is not a structure",
+			extra: overlay(`"com.example.golden#String": {"type": "apply", "traits": {
+				"dev.understudy#memberOrder": ["a"], ` + evidence + `}}`),
+			stage: codegen.StageOverlay,
+			want:  "understudy-gen overlay: com.example.golden#String: dev.understudy#memberOrder belongs on a structure shape",
+		},
+		{
 			name: "notConfigured naming a shape that is not an error",
 			extra: overlay(`"com.example.golden#GetThing": {"type": "apply", "traits": {
 				"dev.understudy#notConfigured": {"error": "com.example.golden#Nested"}, ` + evidence + `}}`),
@@ -228,7 +267,7 @@ func TestStageFailures(t *testing.T) {
 			want: "understudy-gen overlay: extra.json: com.example.golden#Golden: dev.understudy#flavor is not a dev.understudy trait; " +
 				"the closed set is [dev.understudy#alwaysEmit dev.understudy#denialError dev.understudy#emptyCollection dev.understudy#enumOrder dev.understudy#errorNamespace " +
 				"dev.understudy#evidence dev.understudy#internalOperation dev.understudy#jsonType dev.understudy#malformedRequestError " +
-				"dev.understudy#maxRequestBytes dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#optionalOutput dev.understudy#patternEcho " +
+				"dev.understudy#maxRequestBytes dev.understudy#memberOrder dev.understudy#messageByProtocol dev.understudy#messageKey dev.understudy#notConfigured dev.understudy#optionalOutput dev.understudy#patternEcho " +
 				"dev.understudy#patternValidator dev.understudy#queryErrorEnvelope dev.understudy#queryErrorHeader dev.understudy#queryKeyAlias " +
 				"dev.understudy#refuseDuplicateMembers dev.understudy#responseCrc32 dev.understudy#statusOverride dev.understudy#successCode " +
 				"dev.understudy#throttleError dev.understudy#unknownOperationAnswer dev.understudy#unknownOperationError dev.understudy#validationError " +
@@ -1051,6 +1090,7 @@ func TestClassifyOverlayTraits(t *testing.T) {
 		"dev.understudy#patternValidator":       codegen.Honor,
 		"dev.understudy#alwaysEmit":             codegen.Honor,
 		"dev.understudy#optionalOutput":         codegen.Honor,
+		"dev.understudy#memberOrder":            codegen.Honor,
 		"dev.understudy#maxRequestBytes":        codegen.Honor,
 		"dev.understudy#throttleError":          codegen.Honor,
 		"dev.understudy#notConfigured":          codegen.Honor,

@@ -218,7 +218,7 @@
       "steps": [
         {"step": "01-mixed", "fixture": "ses/SES-08/01-mixed.json", "operation": "ses.GetIdentityVerificationAttributes", "outcome": {"kind": "match"}},
         {"step": "02-101", "fixture": "ses/SES-08/02-101.json", "operation": "ses.GetIdentityVerificationAttributes", "outcome": {"kind": "match"}},
-        {"step": "03-notif-raw", "fixture": "ses/SES-08/03-notif-raw.json", "operation": "ses.GetIdentityNotificationAttributes", "outcome": {"kind": "differs", "reason": "body/GetIdentityNotificationAttributesResponse/GetIdentityNotificationAttributesResult/NotificationAttributes/entry/value"}}
+        {"step": "03-notif-raw", "fixture": "ses/SES-08/03-notif-raw.json", "operation": "ses.GetIdentityNotificationAttributes", "outcome": {"kind": "match"}}
       ],
       "claims": [
         {"target": {"kind": "switch", "name": "ses.verification.unknown-identity"}, "step": "01-mixed", "field": "body/GetIdentityVerificationAttributesResponse/GetIdentityVerificationAttributesResult/VerificationAttributes", "result": {"kind": "settled"}}

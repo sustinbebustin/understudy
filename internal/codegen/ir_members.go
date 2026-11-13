@@ -30,6 +30,41 @@ func (b *builder) members() error {
 			goNames[mem.GoName] = true
 			s.Members = append(s.Members, mem)
 		}
+		if err := memberOrder(s, src); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// memberOrder reads dev.understudy#memberOrder, which must name every
+// member of the structure exactly once and differ from the model's order;
+// that the structure is output is checked once roles are known
+// (fieldKinds).
+func memberOrder(s *ShapeIR, src *Shape) error {
+	raw, ok := src.Traits[utMemberOrder]
+	if !ok {
+		return nil
+	}
+	order, err := parseMemberOrder(raw)
+	if err != nil {
+		return failf(StageIR, string(s.ID), "%s: %w", utMemberOrder, err)
+	}
+	byName := make(map[string]*MemberIR, len(s.Members))
+	names := make([]string, len(s.Members))
+	for i, m := range s.Members {
+		byName[m.Name] = m
+		names[i] = m.Name
+	}
+	if !slices.Equal(slices.Sorted(slices.Values(order)), slices.Sorted(slices.Values(names))) {
+		return failf(StageIR, string(s.ID), "%s %q must name every member exactly once; the members are %q", utMemberOrder, order, names)
+	}
+	if slices.Equal(order, names) {
+		return failf(StageIR, string(s.ID), "%s is the model's order; drop the trait", utMemberOrder)
+	}
+	s.MemberOrder = make([]*MemberIR, len(order))
+	for i, name := range order {
+		s.MemberOrder[i] = byName[name]
 	}
 	return nil
 }
