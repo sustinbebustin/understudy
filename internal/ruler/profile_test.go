@@ -234,7 +234,7 @@ func TestMalformedOr(t *testing.T) {
 }
 
 // TestSwitches: each profile names its switches, the Options fields and then
-// the allow-list and limit choices made without AWS-recorded evidence, and
+// the allow-list and limit choices it names as switches, and
 // points each one at the record-backlog item or matching-engines.md section 8
 // item that covers its service, or at none.
 func TestSwitches(t *testing.T) {

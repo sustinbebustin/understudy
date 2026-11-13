@@ -30,9 +30,8 @@ func unreplayed(steps string) fidelity.Settles {
 	return fidelity.NoScenario{Reason: "recorded in scheduler/SCH (" + steps + ", 2026-11-03); the replayer does not route Scheduler's restJson1 requests"}
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence, and
-// those SCH has since recorded, with the values s was built with
-// (scheduler.md 14.12).
+// Switches lists the service's fidelity switches, those SCH recorded
+// among them, with the values s was built with (scheduler.md 14.12).
 func (s *Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		UnitAgreement(s.opts).Entry(), InputDefault().Entry(), PastDue(s.opts).Entry(),

@@ -520,8 +520,8 @@ func (l *LogConfig) api() *eventbridgeapi.LogConfig {
 	return &eventbridgeapi.LogConfig{IncludeDetail: copyOf(l.IncludeDetail), Level: copyOf(l.Level)}
 }
 
-// busSwitches are the bus behaviors chosen without AWS-recorded evidence,
-// and those EBB has since recorded (eventbridge-buses.md 10.5). The
+// busSwitches are the bus operations' fidelity switches, those EBB
+// recorded among them (eventbridge-buses.md 10.5). The
 // handlers implement each Value; a value is a constant, not an option. A
 // switch EBB recorded is settled by its step in
 // testdata/parity/events/EBB/scenario.json when the replayer can replay

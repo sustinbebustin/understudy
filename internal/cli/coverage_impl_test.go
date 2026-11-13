@@ -12,7 +12,7 @@ import (
 // coverage --parity adds the checked-in replay baseline: with the overlays,
 // the Markdown gains the evidence column and the pending-retirement list,
 // in which the switch its matching step settles is listed
-// (internal/parity/baseline.json, events/R14#H1-01).
+// (internal/parity/baseline.json, ses/SES-03#02-both).
 func TestCoverageParityAddsTheEvidenceColumn(t *testing.T) {
 	t.Parallel()
 	md := runCLI(t.Context(), closedEndpoint(t), nil, "coverage", "--format", "markdown",
@@ -24,7 +24,7 @@ func TestCoverageParityAddsTheEvidenceColumn(t *testing.T) {
 		"Evidence is the weakest claim attributed to the operation",
 		"| Operation | Status | Evidence | Note |",
 		"### Settled by recording, pending retirement",
-		"| `events.pattern.empty-input` | inferred | events/R14/H1-01.json | body/Result |",
+		"| `ses.error.unverified.text` | inferred | ses/SES-03/02-both.json | body/ErrorResponse/Error/Message |",
 	} {
 		if !strings.Contains(md.stdout, want) {
 			t.Errorf("coverage --parity Markdown lacks %q", want)

@@ -64,23 +64,27 @@ func TestCompileFiltersRejects(t *testing.T) {
 	}
 }
 
-// TestSwitches lists the filter engine's unverified choices as inferred
-// fidelity switches with their record-backlog items, so the coverage
-// report shows them (matching-engines.md 10).
+// TestSwitches lists the filter engine's choices as fidelity switches with
+// their record-backlog items, so the coverage report shows them
+// (matching-engines.md 10). The two lambda/R03 recorded at their values
+// are aws-recorded (TestRecordedBareNumberAndMalformedOr); exists:true
+// stays inferred, since lambda/R03 H2-01-05 did not invoke for
+// {"store":0}, which no value of the switch explains, and empty input is
+// unrecorded for Lambda.
 func TestSwitches(t *testing.T) {
-	type setting struct{ value, record string }
+	type setting struct {
+		value, record string
+		label         evidence.Label
+	}
 	got := map[string]setting{}
 	for _, e := range esm.Switches() {
-		if e.Label != evidence.Inferred {
-			t.Errorf("switch %s is labelled %s, want inferred", e.Name, e.Label)
-		}
-		got[e.Name] = setting{e.Value, e.Record}
+		got[e.Name] = setting{e.Value, e.Record, e.Label}
 	}
 	for name, want := range map[string]setting{
-		"lambda.esm-filter.exists-true-empty-value": {"any-value", "matching-engines.md H2"},
-		"lambda.esm-filter.empty-input":             {"matchable", ""},
-		"lambda.esm-filter.bare-number":             {"numeric-or-text", "matching-engines.md H7"},
-		"lambda.esm-filter.malformed-or":            {"rejected", "matching-engines.md H10"},
+		"lambda.esm-filter.exists-true-empty-value": {"any-value", "matching-engines.md H2", evidence.Inferred},
+		"lambda.esm-filter.empty-input":             {"matchable", "", evidence.Inferred},
+		"lambda.esm-filter.bare-number":             {"numeric-or-text", "matching-engines.md H7", evidence.AWSRecorded},
+		"lambda.esm-filter.malformed-or":            {"rejected", "matching-engines.md H10", evidence.AWSRecorded},
 	} {
 		if have, ok := got[name]; !ok || have != want {
 			t.Errorf("switch %s = %+v (listed %v), want %+v", name, have, ok, want)
@@ -89,5 +93,41 @@ func TestSwitches(t *testing.T) {
 	// lambda/R03 H13 recorded the operators Lambda accepts beyond its table.
 	if have, ok := got["lambda.esm-filter.operator-allow-list"]; ok {
 		t.Errorf("switch lambda.esm-filter.operator-allow-list is listed (%+v); want it retired", have)
+	}
+}
+
+// TestRecordedBareNumberAndMalformedOr replays what lambda/R03 recorded for
+// two switches. A bare number compares as a number, as Ruler does and the
+// Lambda documentation says it does not: the filters of
+// lambda/R03/H7a-01-create.json and H7a-02-create.json invoked for 300,
+// 300.0 and 3.0e2 and not for "300" (logs/R03/H7a-01-01.json to
+// H7a-02-04.json, bodies in lambda/R03/H-bodies.*.tsv). Each malformed
+// "$or" of lambda/R03/H10-01-create.json to H10-06-create.json is refused
+// with Lambda's one message.
+func TestRecordedBareNumberAndMalformedOr(t *testing.T) {
+	queue := queueARN(t, "arn:aws:sqs:us-east-2:123456789012:usr-rec-20261014-fq2")
+	for _, pattern := range []string{`{"body":{"n":[300]}}`, `{"body":{"n":[{"numeric":["=",300]}]}}`} {
+		f, err := esm.CompileFilters([]string{pattern})
+		if err != nil {
+			t.Fatalf("CompileFilters(%s): %v; AWS accepted it", pattern, err)
+		}
+		for body, invoked := range map[string]bool{`{"n":300}`: true, `{"n":300.0}`: true, `{"n":3.0e2}`: true, `{"n":"300"}`: false} {
+			r := esm.NewRecord(&sqsapi.Message{MessageId: new("m"), Body: new(body)}, queue)
+			if got, err := f.Match(&r); err != nil || got != invoked {
+				t.Errorf("Match(%s) under %s = %v, %v; AWS invoked = %v", body, pattern, got, err, invoked)
+			}
+		}
+	}
+	for _, pattern := range []string{
+		`{"body":{"$or":{"m":["x"]}}}`,
+		`{"body":{"$or":["x","y"]}}`,
+		`{"body":{"$or":[{"m":["x"]}]}}`,
+		`{"body":{"s":["a"],"$or":[{"numeric":123},{"prefix":"abc"}]}}`,
+		`{"body":{"$or":[{},{"a":["1"]}]}}`,
+		`{"body":{"$or":[{"a":["1"]},"x"]}}`,
+	} {
+		if _, err := esm.CompileFilters([]string{pattern}); err == nil || err.Message() != "Invalid filter pattern definition." {
+			t.Errorf("CompileFilters(%s) = %v; AWS refused it with Invalid filter pattern definition.", pattern, err)
+		}
 	}
 }

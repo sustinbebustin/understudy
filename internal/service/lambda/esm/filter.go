@@ -6,10 +6,9 @@ import (
 	"github.com/sustinbebustin/understudy/internal/ruler"
 )
 
-// Switches lists the filter pattern behaviors chosen without AWS-recorded
-// evidence, each with the record-backlog item that settles it
-// (matching-engines.md 3, 8 and 10), and the label, operations and
-// settling step switchTable states for it.
+// Switches lists the filter pattern's fidelity switches, each with the
+// record-backlog item that settles it (matching-engines.md 3, 8 and 10),
+// and the label, operations and settling step switchTable states for it.
 func Switches() []fidelity.Entry {
 	meta := ruler.Switches(ruler.LambdaESM{})
 	table := switchTable()
@@ -50,8 +49,11 @@ func switchTable() map[string]switchMeta {
 			evidence.Inferred, ops,
 			fidelity.NoScenario{Reason: "unrecorded for Lambda: matching-engines.md H1 covers SNS and EventBridge only"},
 		},
-		"lambda.esm-filter.bare-number":  {evidence.Inferred, ops, r03("H7a-01-create, H7a-02-create")},
-		"lambda.esm-filter.malformed-or": {evidence.Inferred, ops, r03("H10-01-create to H10-06-create")},
+		"lambda.esm-filter.bare-number": {
+			evidence.AWSRecorded, ops,
+			fidelity.NoScenario{Reason: "recorded in lambda/R03 (H7a-01-create, H7a-02-create) and logs/R03 (H7a-01-01 to H7a-02-04); the replayer skips REST and Docker steps"},
+		},
+		"lambda.esm-filter.malformed-or": {evidence.AWSRecorded, ops, r03("H10-01-create to H10-06-create")},
 	}
 }
 

@@ -128,10 +128,9 @@ func attribute(v delivery.AttributeValue) ruler.Attribute {
 	return ruler.BinaryAttribute{}
 }
 
-// Switches lists the filter policy behaviors chosen without AWS-recorded
-// evidence, each with the record-backlog item that settles it
-// (matching-engines.md 3, 8 and 10), and the label, operations and
-// settling step switchTable states for it.
+// Switches lists the filter policy's fidelity switches, each with the
+// record-backlog item that settles it (matching-engines.md 3, 8 and 10),
+// and the label, operations and settling step switchTable states for it.
 func Switches() []fidelity.Entry {
 	meta := ruler.Switches(ruler.SNS{})
 	table := switchTable()
@@ -158,28 +157,38 @@ type switchMeta struct {
 // checks refuse. Subscribe and SetSubscriptionAttributes compile a policy,
 // so the switches that accept or refuse one govern them; Publish and
 // PublishBatch match it, so the switches that decide a match govern those.
+// A switch sns/R09 recorded at its value is aws-recorded and settled by no
+// scenario: R09's filter policy steps are boto3 captures, which hold no
+// status, so a replay sends them and compares nothing, and a delivery is a
+// row of sns/R09/summary.tsv rather than an exchange.
 func switchTable() map[string]switchMeta {
 	compile := []string{"sns.Subscribe", "sns.SetSubscriptionAttributes"}
 	match := []string{"sns.Publish", "sns.PublishBatch"}
-	r09 := func(steps string) fidelity.Settles {
-		return fidelity.NoScenario{Reason: "recorded in sns/R09 (" + steps + "); no scenario replays sns/R09 yet"}
+	subscribes := func(steps string) fidelity.Settles {
+		return fidelity.NoScenario{Reason: "recorded in sns/R09 (" + steps + "); its boto3 captures hold no status, so a replay compares none of them"}
+	}
+	deliveries := func(rows string) fidelity.Settles {
+		return fidelity.NoScenario{Reason: "recorded in sns/R09/summary.tsv (" + rows + "); a delivery is no exchange a replay can compare"}
 	}
 	return map[string]switchMeta{
-		"sns.filter-policy.bare-number":         {evidence.Inferred, match, r09("T01 to T03, H6")},
-		"sns.filter-policy.malformed-or":        {evidence.Inferred, compile, r09("H10-01-subscribe to H10-06-subscribe")},
-		"sns.filter-policy.anything-but-suffix": {evidence.Inferred, compile, r09("T07-subscribe, H7b-01-subscribe")},
+		"sns.filter-policy.bare-number":         {evidence.AWSRecorded, match, deliveries("T01 to T03, H6")},
+		"sns.filter-policy.malformed-or":        {evidence.AWSRecorded, compile, subscribes("H10-01-subscribe to H10-06-subscribe")},
+		"sns.filter-policy.anything-but-suffix": {evidence.AWSRecorded, compile, subscribes("T07-subscribe, H7b-01-subscribe")},
 		"sns.filter-policy.anything-but-list-forms": {
 			evidence.Inferred, compile,
 			fidelity.NoScenario{Reason: "sns/R09/H7b-06-subscribe.json records the prefix list only; the suffix and wildcard lists are unrecorded"},
 		},
-		"sns.filter-policy.wildcard-points": {evidence.Inferred, compile, r09("H11-10-single-subscribe and the other H11 subscribes")},
+		"sns.filter-policy.wildcard-points": {evidence.AWSRecorded, compile, subscribes("H11-10-single-subscribe and the other H11 subscribes")},
 		"sns.filter-policy.limit-order": {
 			evidence.Inferred, compile,
 			fidelity.NoScenario{Reason: "unrecorded: sns/R09/T13-subscribe.json breaks one limit only, so it shows no check order"},
 		},
-		"sns.filter-policy.number-attribute-type": {evidence.Inferred, match, r09("T19a, T19b")},
-		"sns.filter-policy.numeric-range":         {evidence.Inferred, slices.Concat(compile, match), r09("T15, H5")},
-		"sns.filter-policy.anything-but-arrays":   {evidence.Inferred, match, r09("T08, H4")},
-		"sns.filter-policy.array-consistency":     {evidence.Inferred, match, r09("T14")},
+		"sns.filter-policy.number-attribute-type": {evidence.AWSRecorded, match, deliveries("T19a, T19b")},
+		"sns.filter-policy.numeric-range": {
+			evidence.AWSRecorded, slices.Concat(compile, match),
+			fidelity.NoScenario{Reason: "recorded in sns/R09 (T15-subscribe, the H5 subscribes) and sns/R09/summary.tsv (T15, H5); its boto3 captures hold no status and a delivery is no exchange, so a replay compares none of them"},
+		},
+		"sns.filter-policy.anything-but-arrays": {evidence.AWSRecorded, match, deliveries("T08, H4")},
+		"sns.filter-policy.array-consistency":   {evidence.AWSRecorded, match, deliveries("T14")},
 	}
 }

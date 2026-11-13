@@ -178,7 +178,7 @@ func EngineRules() asl.Rules {
 	}
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence.
+// Switches lists the service's fidelity switches.
 func (*Service) Switches() []fidelity.Entry {
 	return []fidelity.Entry{
 		ChoiceNoMatch().Entry(), ChoiceMissingVariable().Entry(), IntrinsicFailure().Entry(),

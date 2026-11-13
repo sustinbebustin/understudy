@@ -5,6 +5,6 @@
 // (apigateway-http.md 13). REST APIs are package apigateway's; both sign
 // as apigateway on disjoint route tables (ADR 0019).
 //
-// Behaviors chosen without AWS-recorded evidence are the five switches
-// Switches lists; route selection is package route's.
+// The service's fidelity switches are the five Switches lists; route
+// selection is package route's.
 package apigatewayv2

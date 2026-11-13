@@ -406,8 +406,8 @@ func (s *Service) Scopes() []aws.Scope {
 	return out
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence, last
-// those of IAM enforcement: S3's denial text (iam-enforcement-surfaces.md
+// Switches lists the service's fidelity switches, last those of IAM
+// enforcement: S3's denial text (iam-enforcement-surfaces.md
 // 12.8), what becomes of a notification its destination refuses (8.3), the
 // SSE condition keys a bucket default supplies (9.2) and the root's bucket-policy lockout rule (6.3), which governs the bucket
 // policy operations.

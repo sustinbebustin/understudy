@@ -185,8 +185,8 @@ func policyLimits() fidelity.Switch[string] {
 	}
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence, with
-// SQS's denial identity per protocol (iam-enforcement-surfaces.md 12.8).
+// Switches lists the service's fidelity switches, with SQS's denial
+// identity per protocol (iam-enforcement-surfaces.md 12.8).
 func (s *Service) Switches() []fidelity.Entry {
 	authorized := s.k.Bindings().AuthorizedOps(sqsapi.Service())
 	return []fidelity.Entry{

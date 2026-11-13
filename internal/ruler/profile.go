@@ -15,7 +15,7 @@ type Profile interface {
 	// optionSwitches describes the Options fields the profile leaves open.
 	optionSwitches() []Switch
 	// fixedSwitches describes the allow-list and limit choices the profile
-	// makes without AWS-recorded evidence.
+	// names as fidelity switches.
 	fixedSwitches() []Switch
 	allows(op Operator) bool
 	// admit checks the raw pattern before Ruler's compiler sees it, and

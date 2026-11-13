@@ -5,5 +5,5 @@
 // will (iam-enforcement-surfaces.md 7, 12.2), and the multi-policy decision
 // of iam-evaluation.md 12.1 (Decide) with the request context it reads
 // (BuildContext), the denial messages it maps onto (Denial.Message) and the
-// switches that record its unverified choices (Switches).
+// fidelity switches that name its choices (Switches).
 package authz

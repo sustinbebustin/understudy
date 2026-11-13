@@ -127,8 +127,7 @@ func detachedRetention() fidelity.Switch[time.Duration] {
 	}
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence, http
-// delivery's, filter policy evaluation's, and SNS's denial text and
+// Switches lists the service's fidelity switches, http delivery's, filter policy evaluation's, and SNS's denial text and
 // deliveries (iam-enforcement-surfaces.md 12.8) among them.
 func (s *Service) Switches() []fidelity.Entry {
 	entries := []fidelity.Entry{

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/delivery"
+	"github.com/sustinbebustin/understudy/internal/evidence"
 	"github.com/sustinbebustin/understudy/internal/ruler"
 	"github.com/sustinbebustin/understudy/internal/service/sns/filterpolicy"
 )
@@ -240,24 +241,38 @@ func TestMatchUndecided(t *testing.T) {
 	}
 }
 
-// TestSwitches lists every unverified choice as a fidelity switch with its
-// record-backlog reference and the value in effect: the two open conflicts
-// between Ruler and the SNS documentation keep Ruler's behavior (ADR 0015,
-// matching-engines.md 3 and 10), and anything-but suffix is accepted
-// although a 2024 recording refused it (matching-engines.md H7). The
-// behaviors sns/R09 settles are fixed and listed no more.
+// TestSwitches lists every choice as a fidelity switch with its
+// record-backlog reference, the value in effect and its label: the two
+// conflicts between Ruler and the SNS documentation keep Ruler's behavior
+// (ADR 0015, matching-engines.md 3 and 10), and anything-but suffix is
+// accepted although a 2024 recording refused it (matching-engines.md H7).
+// Each of those sns/R09 recorded at its value is aws-recorded, its
+// recording replayed by TestRecordedSubscribes and TestRecordedDeliveries
+// (ADR 0003, amendment 2026-11-13); the list forms of anything-but, only
+// one of which R09 sent, and the limit order stay inferred. The behaviors
+// sns/R09 settles with no choice left are fixed and listed no more.
 func TestSwitches(t *testing.T) {
 	t.Parallel()
-	type setting struct{ value, record string }
+	type setting struct {
+		value, record string
+		label         evidence.Label
+	}
 	got := map[string]setting{}
 	for _, e := range filterpolicy.Switches() {
-		got[e.Name] = setting{e.Value, e.Record}
+		got[e.Name] = setting{e.Value, e.Record, e.Label}
 	}
+	recorded, inferred := evidence.AWSRecorded, evidence.Inferred
 	for name, want := range map[string]setting{
-		"sns.filter-policy.bare-number":         {"numeric-or-text", "R09/1 (matching-engines.md H6)"},
-		"sns.filter-policy.malformed-or":        {"rejected", "matching-engines.md H10"},
-		"sns.filter-policy.anything-but-suffix": {"accepted", "R09/7 (matching-engines.md H7)"},
-		"sns.filter-policy.anything-but-arrays": {"any-element", "R09/8 (matching-engines.md H4)"},
+		"sns.filter-policy.bare-number":             {"numeric-or-text", "R09/1 (matching-engines.md H6)", recorded},
+		"sns.filter-policy.malformed-or":            {"rejected", "matching-engines.md H10", recorded},
+		"sns.filter-policy.anything-but-suffix":     {"accepted", "R09/7 (matching-engines.md H7)", recorded},
+		"sns.filter-policy.anything-but-list-forms": {"accepted", "matching-engines.md H7", inferred},
+		"sns.filter-policy.wildcard-points":         {"3-per-star", "matching-engines.md H11", recorded},
+		"sns.filter-policy.limit-order":             {"nesting-keys-combinations-wildcards", "R09/13", inferred},
+		"sns.filter-policy.number-attribute-type":   {"json-number", "R09/19 (matching-engines.md H6)", recorded},
+		"sns.filter-policy.numeric-range":           {"binary64", "R09/15 (matching-engines.md H5)", recorded},
+		"sns.filter-policy.anything-but-arrays":     {"any-element", "R09/8 (matching-engines.md H4)", recorded},
+		"sns.filter-policy.array-consistency":       {"enforced", "R09/14", recorded},
 	} {
 		if g, ok := got[name]; !ok || g != want {
 			t.Errorf("switch %s = %+v (present %v), want %+v", name, g, ok, want)

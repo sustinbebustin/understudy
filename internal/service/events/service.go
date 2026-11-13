@@ -168,8 +168,7 @@ func detailIntegerRange() fidelity.Switch[string] {
 	}
 }
 
-// Switches lists the behaviors chosen without AWS-recorded evidence: the
-// service's own, the status of a denial and its deliveries under
+// Switches lists the service's fidelity switches: its own, the status of a denial and its deliveries under
 // enforcement (iam-enforcement-surfaces.md 12.8), and those of its Event
 // Ruler profile, with the label, operations and settling step
 // rulerSwitches states for each.
@@ -247,12 +246,12 @@ func rulerSwitches() map[string]rulerSwitch {
 			evidence.Inferred, match,
 			fidelity.NoScenario{Reason: "unrecorded for EventBridge: matching-engines.md H2 was recorded for SNS and Lambda only"},
 		},
-		"events.pattern.empty-input": {evidence.Inferred, match, r14("H1-01")},
+		"events.pattern.empty-input": {evidence.AWSRecorded, match, r14("H1-01")},
 		"events.pattern.bare-number": {
 			evidence.Inferred, match,
 			fidelity.NoScenario{Reason: "events/R14's H8 steps do not decide it: both values answer false for a string"},
 		},
-		"events.pattern.malformed-or":            {evidence.AWSRecorded, compile, unreplayed("H10-01 to H10-06")},
+		"events.pattern.malformed-or":            {evidence.AWSRecorded, compile, r14("H10-03")},
 		"events.pattern.or-shared-values":        {evidence.Inferred, match, r14("H14-02")},
 		"events.pattern.wildcard-complexity-cap": {evidence.Inferred, compile, unreplayed("H11-01 to H11-03")},
 		"events.pattern.or-combination-counting": {evidence.Inferred, compile, unreplayed("H12-01-10x10x10, H12-02-7x11x13, H12-03-nested")},
