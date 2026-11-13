@@ -71,6 +71,9 @@ func TestFutureFireCheck(t *testing.T) {
 			},
 			{"cron(0 0 1 1 ? 1999)", nil, nil, schedulerapi.ScheduleStateDisabled, "null and EndDate null"},
 			{"cron(0 0 1 1 ? 1999)", nil, nil, schedulerapi.ScheduleStateEnabled, local(h.now()) + " and EndDate null"},
+			// Years outside 1970-2199 parse and never fire (03-e17, 03-e18).
+			{"cron(0 12 * * ? 1969)", nil, nil, schedulerapi.ScheduleStateDisabled, "null and EndDate null"},
+			{"cron(0 12 * * ? 2200)", nil, nil, schedulerapi.ScheduleStateDisabled, "null and EndDate null"},
 			{
 				"cron(0 8 1 1 ? 2099)", new(time.Date(2098, 1, 1, 0, 0, 30, 250_000_000, time.UTC)), new(time.Date(2098, 6, 1, 0, 0, 0, 0, time.UTC)),
 				schedulerapi.ScheduleStateEnabled, "2098-01-01T00:00:30.250 and EndDate 2098-06-01T00:00",

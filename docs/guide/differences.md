@@ -126,7 +126,6 @@ Under `--sigv4 verify`, an `AWS_IAM` function URL refuses credentials with 403 a
 
 ## EventBridge
 
-- Schedule expressions: AWS accepts `cron(0 12 L-3 * ? *)`, years 1969 and 2200, and `cron(5/0 ...)`, all of which understudy refuses; double spaces and tabs are "Parameter ScheduleExpression is not valid." on AWS, which understudy accepts (`events/R14/01-*-put.json`).
 - Pattern matching and texts: see [Event patterns and filter policies](#event-patterns-and-filter-policies).
 
 Custom buses take rules, targets, tags and `PutEvents` as the default bus does, and an event bus target forwards an event one hop, as on AWS. Their differences:
@@ -212,7 +211,7 @@ Scheduler was recorded against AWS on 2026-11-03 (`testdata/parity/scheduler/SCH
 
 - Refusal texts are AWS's where recorded: the expression, time zone, window, date, target, input, group and role refusals, and `Schedule <name> does not exist.`. Texts that remain understudy's own include the 500-group quota, a foreign `NextToken`, a role ARN that is not a role, a target ARN that is not an ARN or names the wrong resource, and an event bus in another Region or without `EventBridgeParameters`. Compare codes, not messages, for those.
 - AWS checks a universal (`aws-sdk`) target's `Input` against the API at create ("Invalid RequestJson provided. ..."); understudy does not.
-- The cron grammar is the EventBridge rules' grammar, so most expression differences under [EventBridge](#eventbridge) apply to schedules too. AWS refuses a cron year after 2199 with the future-fire text, which understudy accepts, and accepts several spaces or a tab between fields, which understudy refuses.
+- The cron grammar is the EventBridge rules' grammar, except that several spaces or a tab may separate fields, as on AWS. A year outside 1970-2199 is refused with the future-fire text, as on AWS. What `L-n` and a step of 0 fire on is unrecorded: understudy fires `cron(0 12 L-3 * ? *)` on the month's last day minus 3 and `cron(5/0 * * * ? *)` at minute 5 alone, for rules and schedules alike.
 - `GetSchedule` leaves out the members that were not sent, where AWS sends each as JSON `null`, and AWS writes members sorted by name. `ListSchedules` lists by group and name with understudy's own `NextToken`; AWS's order is neither by name nor by creation.
 - A deleted group is gone at once; AWS keeps it `DELETING` for a few seconds, and refuses a schedule created in it then.
 - Unrecorded timing, each a choice: a FLEXIBLE window delays each invocation by a seeded whole-second offset (`scheduler.flexible-window.offset`); an update that leaves the expression, zone, dates, window and `State` unchanged keeps its next fire, and any other update restarts the plan at the write instant. AWS delivers 3 to 41 seconds after the scheduled time; understudy delivers at it.

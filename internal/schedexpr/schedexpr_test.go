@@ -35,12 +35,23 @@ func TestParseAcceptsDocumentedRates(t *testing.T) {
 	}
 }
 
-// Cron fields split on runs of ASCII spaces and tabs (doc.go).
-func TestParseAcceptsSpaceAndTabRunsBetweenCronFields(t *testing.T) {
+// Rules take exactly one space between cron fields: a double space and tabs
+// are refused (events/R14/01-29-put.json, 01-30-put.json). Scheduler takes
+// runs of spaces and tabs (scheduler/SCH/03-e20.json, 03-e21.json;
+// scheduler.md 5.3).
+func TestCronFieldSeparationRulesRefuseSchedulerAcceptsRuns(t *testing.T) {
 	t.Parallel()
-	for _, expr := range []string{"cron(0  0 * * ? *)", "cron(0\t0 * * ? *)", "cron(0 \t 0 * * ? *)"} {
-		if _, err := Parse(expr); err != nil {
-			t.Errorf("Parse(%q) rejected: %v", expr, err)
+	for _, expr := range []string{
+		"cron(0  12 * * ? *)", "cron(0\t12\t*\t*\t?\t*)", "cron(0\t12 * * ? *)", "cron(0 \t 12 * * ? *)",
+	} {
+		_, err := Parse(expr)
+		if err == nil {
+			t.Errorf("Parse(%q) accepted", expr)
+		} else if got := err.Message(); got != "Parameter ScheduleExpression is not valid." {
+			t.Errorf("Parse(%q) message = %q", expr, got)
+		}
+		if _, err := ParseScheduler(expr, AnyUnitAgreement); err != nil {
+			t.Errorf("ParseScheduler(%q) rejected: %v", expr, err)
 		}
 	}
 }
@@ -72,9 +83,9 @@ func TestParseRejectsGrammarViolations(t *testing.T) {
 	for _, expr := range []string{
 		"", "cron()", "cron(0 0 * * ?)", "cron(0 0 * * ? * *)", "cron(0 0 ? * ? *)", "cron(60 0 * * ? *)",
 		"cron(0 24 * * ? *)", "cron(0 0 0 * ? *)", "cron(0 0 32 * ? *)", "cron(0 0 * 13 ? *)", "cron(0 0 ? * 8 *)",
-		"cron(0 0 * * ? 1969)", "cron(0 0 * * ? 2200)", "cron(0 0 ? * 3#1,6#3 *)", "cron(0 0 ? * 3#6 *)",
+		"cron(0 0 ? * 3#1,6#3 *)", "cron(0 0 ? * 3#6 *)",
 		"cron(0 0 ? * 3#0 *)", "cron(0 0 L,1 * ? *)", "cron(0 0 32W * ? *)", "cron(0 0 * * L *)",
-		"cron(0/0 0 * * ? *)", "cron(0- 0 * * ? *)", "cron(,0 0 * * ? *)", "cron(0 0 * * ? 2030-2020)",
+		"cron(0- 0 * * ? *)", "cron(,0 0 * * ? *)", "cron(0 0 * * ? 2030-2020)",
 		"cron( 0 0 * * ? *)", "cron(0 0 * * ? * )", "cron(0 0 * * ? *", "rate(5  minutes)", "rate(5 minutes) ",
 		"rate(+5 minutes)", "cron(0 0 ? * MON-FOO *)", "cron(0 ? * * ? *)", "cron(0 0 * JAN#2 ? *)",
 		"cron(0 0 ? * 2/2 *)", "cron(0 0 ? * */2 *)", "cron(0 0 ? * MON-FRI/2 *)",
@@ -175,6 +186,146 @@ func TestNextReportsSchedulesThatNeverFire(t *testing.T) {
 		}
 		if got, ok := Next(s, at(t, c.after)); ok {
 			t.Errorf("Next(%s, %s) = %v, want no fire", c.expr, c.after, got)
+		}
+	}
+}
+
+// AWS accepts years 1969 and 2200 in both dialects (events/R14/01-18-put.json,
+// 01-19-put.json; Scheduler refuses them only as never firing,
+// scheduler/SCH/03-e17.json, 03-e18.json). AWS documents years 1970-2199
+// (scheduler.md 5.3), so a year outside them never fires (inferred).
+func TestCronYearsOutsideTheDocumentedRangeParseAndNeverFire(t *testing.T) {
+	t.Parallel()
+	for _, expr := range []string{
+		"cron(0 12 * * ? 1969)", "cron(0 12 * * ? 2200)", "cron(0 12 * * ? 1000)", "cron(0 12 * * ? 9999)",
+		"cron(0 12 * * ? 1900-1969)", "cron(0 12 * * ? 2200-2300/7)", "cron(0 12 * * ? 1969,2200)",
+	} {
+		s, err := Parse(expr)
+		if err != nil {
+			t.Errorf("Parse(%q) rejected: %v", expr, err)
+			continue
+		}
+		c := mustCron(t, expr)
+		for _, after := range []string{"1960-01-01T00:00:00Z", "2026-11-13T00:00:00Z", "2199-12-31T12:00:00Z"} {
+			if got, ok := Next(s, at(t, after)); ok {
+				t.Errorf("Next(%s, %s) = %v, want no fire", expr, after, got)
+			}
+			if got, ok := NextIn(c, at(t, after), time.UTC); ok {
+				t.Errorf("NextIn(%s, %s) = %v, want no fire", expr, after, got)
+			}
+		}
+	}
+}
+
+// A year list or range that reaches into 1970-2199 fires on its years
+// inside it only.
+func TestCronYearRangeCrossingTheDocumentedRangeFiresInsideIt(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ expr, after, want string }{
+		{"cron(0 12 1 1 ? 1960-1975/5)", "1960-01-01T00:00:00Z", "1970-01-01T12:00:00Z"},
+		{"cron(0 12 1 1 ? 1969,1971)", "1960-01-01T00:00:00Z", "1971-01-01T12:00:00Z"},
+		{"cron(0 12 1 1 ? 2190-2300/3)", "2196-06-01T00:00:00Z", "2199-01-01T12:00:00Z"},
+	} {
+		s, err := Parse(c.expr)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", c.expr, err)
+		}
+		if got, ok := Next(s, at(t, c.after)); !ok || !got.Equal(at(t, c.want)) {
+			t.Errorf("Next(%s, %s) = %v, %v; want %s", c.expr, c.after, got, ok, c.want)
+		}
+	}
+	s, err := Parse("cron(0 12 1 1 ? 2190-2300/3)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := Next(s, at(t, "2199-01-01T12:00:00Z")); ok {
+		t.Errorf("Next after 2199 = %v, want no fire: 2202 is outside 1970-2199", got)
+	}
+}
+
+// Years beyond four digits and below 1000 are refused (the accepted range is
+// inferred, doc.go).
+func TestCronYearOutsideTheAcceptedRangeIsRefused(t *testing.T) {
+	t.Parallel()
+	for _, expr := range []string{"cron(0 12 * * ? 999)", "cron(0 12 * * ? 10000)", "cron(0 12 * * ? 0)"} {
+		if _, err := Parse(expr); err == nil {
+			t.Errorf("Parse(%q) accepted", expr)
+		}
+	}
+}
+
+// AWS accepts a day-of-month L-n and a step of 0 in both dialects
+// (events/R14/01-07-put.json, 01-26-put.json; scheduler/SCH/03-e16.json,
+// 03-e19.json). What they fire on is inferred (doc.go): L-n is the month's
+// last day minus n, v/0 is the single value v.
+func TestCronLastDayOffsetAndStepZero(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ expr, after, want string }{
+		{"cron(0 12 L-3 * ? *)", "2026-10-01T00:00:00Z", "2026-10-28T12:00:00Z"}, // 31 days
+		{"cron(0 12 L-3 * ? *)", "2026-02-01T00:00:00Z", "2026-02-25T12:00:00Z"}, // 28 days
+		{"cron(0 12 L-3 * ? *)", "2028-02-01T00:00:00Z", "2028-02-26T12:00:00Z"}, // leap year
+		{"cron(0 12 L-3 * ? *)", "2026-10-28T12:00:00Z", "2026-11-27T12:00:00Z"},
+		{"cron(0 12 L-0 * ? *)", "2026-02-01T00:00:00Z", "2026-02-28T12:00:00Z"},
+		{"cron(0 12 L-30 * ? *)", "2026-02-01T00:00:00Z", "2026-03-01T12:00:00Z"}, // February has no day -2
+		{"cron(0 12 L-30 * ? *)", "2026-03-02T00:00:00Z", "2026-05-01T12:00:00Z"}, // April has no day 0
+		{"cron(5/0 * * * ? *)", "2026-10-08T10:05:00Z", "2026-10-08T11:05:00Z"},
+		{"cron(5/0 * * * ? *)", "2026-10-08T10:04:00Z", "2026-10-08T10:05:00Z"},
+		{"cron(0 7/0 * * ? *)", "2026-10-08T07:00:00Z", "2026-10-09T07:00:00Z"},
+		{"cron(0 0 10-20/0 * ? *)", "2026-10-10T00:00:00Z", "2026-11-10T00:00:00Z"},
+		{"cron(0 0 1 */0 ? *)", "2026-02-01T00:00:00Z", "2027-01-01T00:00:00Z"},
+		{"cron(0 0 1 1 ? 2030/0)", "2026-02-01T00:00:00Z", "2030-01-01T00:00:00Z"},
+	} {
+		for _, dialect := range []struct {
+			name  string
+			parse func(string) (Cron, bool)
+		}{
+			{"Parse", func(e string) (Cron, bool) {
+				s, err := Parse(e)
+				c, ok := s.(Cron)
+				return c, err == nil && ok
+			}},
+			{"ParseScheduler", func(e string) (Cron, bool) {
+				s, err := ParseScheduler(e, AnyUnitAgreement)
+				c, ok := s.(Cron)
+				return c, err == nil && ok
+			}},
+		} {
+			cron, ok := dialect.parse(c.expr)
+			if !ok {
+				t.Errorf("%s(%q) rejected", dialect.name, c.expr)
+				continue
+			}
+			if got, ok := Next(cron, at(t, c.after)); !ok || !got.Equal(at(t, c.want)) {
+				t.Errorf("Next(%s, %s) = %v, %v; want %s", c.expr, c.after, got, ok, c.want)
+			}
+		}
+	}
+	// 5/0 never fires at another minute.
+	s, err := Parse("cron(5/0 * * * ? *)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prev := at(t, "2026-10-08T00:00:00Z")
+	for range 30 {
+		next, ok := Next(s, prev)
+		if !ok || next.Minute() != 5 || next.Sub(prev) > time.Hour {
+			t.Fatalf("Next(5/0, %v) = %v, %v; want minute 5 of the next hour", prev, next, ok)
+		}
+		prev = next
+	}
+}
+
+// L-n takes n from 0 to 30 and stands alone in its field, as L and LW do;
+// day of week still takes no / increment (doc.go).
+func TestCronLastDayOffsetAndStepZeroRefusals(t *testing.T) {
+	t.Parallel()
+	for _, expr := range []string{
+		"cron(0 12 L-31 * ? *)", "cron(0 12 L- * ? *)", "cron(0 12 L-x * ? *)", "cron(0 12 L--1 * ? *)",
+		"cron(0 12 L-+1 * ? *)", "cron(0 12 L-3,5 * ? *)", "cron(0 12 5,L-3 * ? *)", "cron(0 12 L-3W * ? *)",
+		"cron(0 12 ? * L-3 *)", "cron(0 12 ? * 2/0 *)", "cron(0/-0 12 * * ? *)", "cron(0/ 12 * * ? *)",
+	} {
+		if _, err := Parse(expr); err == nil {
+			t.Errorf("Parse(%q) accepted", expr)
 		}
 	}
 }

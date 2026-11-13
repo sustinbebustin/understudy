@@ -59,7 +59,7 @@ func Parse(expr string) (Schedule, *Error) {
 		return parseRate(inner)
 	}
 	if inner, ok := enclosed(expr, "cron("); ok {
-		return parseCron(inner)
+		return parseCron(inner, oneSpace)
 	}
 	return nil, invalid("expected rate(...) or cron(...)")
 }

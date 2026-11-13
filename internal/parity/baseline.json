@@ -70,6 +70,16 @@
     {
       "scenario": "events/R14",
       "steps": [
+        {"step": "01-07-put", "fixture": "events/R14/01-07-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "01-07-describe", "fixture": "events/R14/01-07-describe.json", "operation": "eventbridge.DescribeRule", "outcome": {"kind": "match"}},
+        {"step": "01-18-put", "fixture": "events/R14/01-18-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "01-18-describe", "fixture": "events/R14/01-18-describe.json", "operation": "eventbridge.DescribeRule", "outcome": {"kind": "match"}},
+        {"step": "01-19-put", "fixture": "events/R14/01-19-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "01-19-describe", "fixture": "events/R14/01-19-describe.json", "operation": "eventbridge.DescribeRule", "outcome": {"kind": "match"}},
+        {"step": "01-26-put", "fixture": "events/R14/01-26-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "01-26-describe", "fixture": "events/R14/01-26-describe.json", "operation": "eventbridge.DescribeRule", "outcome": {"kind": "match"}},
+        {"step": "01-29-put", "fixture": "events/R14/01-29-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
+        {"step": "01-30-put", "fixture": "events/R14/01-30-put.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
         {"step": "04-custom-bus-schedule", "fixture": "events/R14/04-custom-bus-schedule.json", "operation": "eventbridge.PutRule", "outcome": {"kind": "match"}},
         {"step": "H1-01", "fixture": "events/R14/H1-01.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},
         {"step": "H1-02", "fixture": "events/R14/H1-02.json", "operation": "eventbridge.TestEventPattern", "outcome": {"kind": "match"}},

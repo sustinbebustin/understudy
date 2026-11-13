@@ -43,7 +43,6 @@ const createNote = "templated Lambda, SQS, SNS, EventBridge event bus and Step F
 	"and a KmsKeyArn naming no key is accepted with no KMS action asked, as AWS accepted one (SCH-04); " +
 	"the execution role's trust is checked only under iam.enforce=enforce, at create, update and invocation, so under off and advise a missing or untrusting role still delivers; " +
 	"the 10,000,000-schedule quota is not counted; " +
-	"cron() takes the rules' grammar, so years outside 1970-2199 are refused as malformed where AWS refuses them as never firing (SCH-03); " +
 	"unrecorded, understudy's choice: a FLEXIBLE window delays each invocation by a seeded whole-second offset inside it, " +
 	"one execution id covers an invocation's retries, the Scheduled Event payload's id is the execution id and a Step Functions target without Input receives it too, " +
 	"a dead letter of a Lambda, SNS, Step Functions or event bus target carries the payload as its body, " +
