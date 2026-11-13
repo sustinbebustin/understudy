@@ -45,6 +45,7 @@ func TestTheServerReportsWhichOrderAMissingResourceFollows(t *testing.T) {
 		{"secretsmanager.enforce.missing-resource.by-name", "deny-first", "secretsmanager.GetSecretValue"},
 		{"secretsmanager.enforce.missing-resource.by-name", "deny-first", "secretsmanager.DescribeSecret"},
 		{"kms.enforce.missing-resource.by-name", "resolve-first", "kms.Encrypt"},
+		{"kms.enforce.missing-resource.by-name", "resolve-first", "kms.GetKeyPolicy"},
 		{"sqs.enforce.missing-resource", "resolve-first", "sqs.GetQueueAttributes"},
 		{"sqs.enforce.missing-resource", "resolve-first", "sqs.SendMessage"},
 		{"s3.enforce.missing-resource", "resolve-first", "s3.ListObjectsV2"},

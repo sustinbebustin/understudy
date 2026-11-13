@@ -142,7 +142,7 @@ Counts are from [docs/coverage.md](docs/coverage.md), which lists every operatio
 | Lambda | 88 | 30 | 1 | 19 | 38 |
 | CloudWatch Logs | 118 | 9 | 0 | 9 | 100 |
 | Secrets Manager | 23 | 1 | 0 | 14 | 8 |
-| KMS | 54 | 16 | 2 | 9 | 27 |
+| KMS | 54 | 5 | 2 | 20 | 27 |
 | IAM | 180 | 10 | 1 | 53 | 116 |
 | STS | 11 | 1 | 0 | 3 | 7 |
 | EventBridge | 57 | 6 | 1 | 15 | 35 |

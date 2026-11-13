@@ -47,15 +47,16 @@ func New(d kernel.ServiceDeps, _ Options) *Service {
 // Switches lists the service's fidelity switches: its own, its denial
 // status (iam-enforcement-surfaces.md 12.8) and how a key policy limits a
 // role (iam-evaluation.md 4.3), which governs the operations that store a
-// key policy, and the operations that answer a missing alias before
-// authorization (resolvedFirst).
+// key policy, and the operations that answer a missing key or alias before
+// authorization (resolvedFirst, keyIDResolvedFirst).
 func (s *Service) Switches() []fidelity.Entry {
 	return append([]fidelity.Entry{
 		pendingCryptoError().Entry(), crossAccountManagementError().Entry(),
 		authz.RecordedSwitch("kms.denial.status", "400", "3.2", "IAM-ENF-05", authz.SessionUnreplayed, s.k.Bindings().AuthorizedOps(kmsapi.Service())),
 		authz.AccountIDPrincipalSwitch("kms", "IAM-EVAL-27", []string{"kms.CreateKey", "kms.PutKeyPolicy"}),
-		// The key-id-only operations (keyNamed) are asked at step 8 and
-		// stay deny-first under iam.enforce.missing-resource.
+		// Every operation that names a key resolves first: the
+		// key-id-only operations (keyNamed) through a ResolveFirst check
+		// before step 8, the others once the handler resolved the key.
 		authz.RecordedResolveFirstSwitch("kms.enforce.missing-resource.by-name",
 			"DescribeKey on a missing key id answered NotFoundException",
 			"the other operations it governs, and every one of them addressed by alias",

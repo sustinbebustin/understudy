@@ -10,7 +10,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 // maxTags is the tag quota of one key.
@@ -18,10 +17,10 @@ const maxTags = 50
 
 // bindTags binds the key tag operations.
 func (s *Service) bindTags(b kmsapi.Binder) {
-	b.TagResource(s.tagResource, registry.Full{},
+	b.TagResource(s.tagResource, keyIDPartial(),
 		kernel.WithCheck(func(in *kmsapi.TagResourceInput) *awserr.Error { return checkTags(in.Tags) }))
-	b.UntagResource(s.untagResource, registry.Full{})
-	b.ListResourceTags(s.listResourceTags, registry.Full{})
+	b.UntagResource(s.untagResource, keyIDPartial())
+	b.ListResourceTags(s.listResourceTags, keyIDPartial())
 }
 
 // checkTags answers the recorded TagException texts for one request's tags:
