@@ -1,10 +1,13 @@
 package s3_test
 
 import (
-	"encoding/xml"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -60,32 +63,83 @@ func TestS3ControlTagsOverHTTP(t *testing.T) {
 // noErrorWrapping, so its errors are <ErrorResponse><Error>, which the
 // SDKs' s3control deserializers read as Error>Code; S3's bare <Error>
 // would reach them as UnknownError. ListTagsForResource of a missing
-// bucket and of another account's bucket each answer 404 NoSuchResource
-// with no context element (testdata/parity/s3/R06/06-s3control-list-missing.json,
+// bucket and of another account's bucket each answer 404 with the body AWS
+// sent, byte for byte once the request id and host id values are masked,
+// and a request id of the recorded form, the same in the x-amz-request-id
+// header and the body (testdata/parity/s3/R06/06-s3control-list-missing.json,
 // 06-s3control-list-not-owned.json).
 func TestS3ControlErrorsOverHTTP(t *testing.T) {
 	kerneltest.Run(t, func(k *kerneltest.K) {
 		t := k.T
-		sendAs := edgeClientAs(k)
-		if code, body := sendAs(otherAccount, http.MethodPut, s3Host, "/foreign", ""); code != http.StatusOK {
+		sendAs := edgeExchangeAs(k)
+		if code, _, body := sendAs(otherAccount, http.MethodPut, s3Host, "/foreign", ""); code != http.StatusOK {
 			t.Fatalf("CreateBucket as %s = %d %s, want 200", otherAccount, code, body)
 		}
-		for _, bucket := range []string{"missing", "foreign"} {
-			code, body := sendAs(aws.DefaultAccount().String(), http.MethodGet, controlHost, tagsPath(bucket), "")
-			var doc struct {
-				XMLName xml.Name `xml:"ErrorResponse"`
-				Error   struct {
-					Code       string  `xml:"Code"`
-					Message    string  `xml:"Message"`
-					BucketName *string `xml:"BucketName"`
-				} `xml:"Error"`
+		for bucket, step := range map[string]string{"missing": "06-s3control-list-missing.json", "foreign": "06-s3control-list-not-owned.json"} {
+			recorded := readR06Response(t, step)
+			if !s3RequestIDForm.MatchString(recorded.requestID) {
+				t.Fatalf("%s: recorded request id %q does not have the form the test expects, %s", step, recorded.requestID, s3RequestIDForm)
 			}
-			err := xml.Unmarshal([]byte(body), &doc)
-			if err != nil || code != http.StatusNotFound || doc.Error.Code != "NoSuchResource" || doc.Error.Message != noSuchResourceMessage || doc.Error.BucketName != nil {
-				t.Errorf("ListTagsForResource of %s = %d %s, want 404 <ErrorResponse><Error><Code>NoSuchResource</Code><Message>%s</Message>", bucket, code, body, noSuchResourceMessage)
+			code, header, body := sendAs(aws.DefaultAccount().String(), http.MethodGet, controlHost, tagsPath(bucket), "")
+			if code != recorded.status || maskIDs(body) != maskIDs(recorded.body) {
+				t.Errorf("ListTagsForResource of %s = %d\n%s\nwant %d (%s)\n%s", bucket, code, body, recorded.status, step, recorded.body)
+			}
+			id := header.Get("X-Amz-Request-Id")
+			if !s3RequestIDForm.MatchString(id) || !strings.Contains(body, "<RequestId>"+id+"</RequestId>") {
+				t.Errorf("ListTagsForResource of %s: x-amz-request-id %q with body %s, want a request id of the recorded form %s, as in %s, in both", bucket, id, body, s3RequestIDForm, step)
 			}
 		}
 	}, kerneltest.Services(s3api.Service()))
+}
+
+// s3RequestIDForm is the form of S3's and S3 Control's request ids: 16
+// characters of Crockford's base32 alphabet, digits and capitals without
+// I, L, O and U, as every x-amz-request-id under testdata/parity/s3 is.
+var s3RequestIDForm = regexp.MustCompile(`^[0-9A-HJKMNP-TV-Z]{16}$`)
+
+// idElements are the elements of a restXml error that hold the request id
+// and host id, whose values differ from call to call.
+var idElements = regexp.MustCompile(`<(RequestId|HostId)>[^<]*</(RequestId|HostId)>`)
+
+// maskIDs replaces the values of an error body's RequestId and HostId.
+func maskIDs(body string) string {
+	return idElements.ReplaceAllString(body, "<$1>masked</$2>")
+}
+
+// recordedResponse is the response of a one-exchange capture.
+type recordedResponse struct {
+	status          int
+	requestID, body string
+}
+
+// readR06Response reads the response of a capture under
+// testdata/parity/s3/R06.
+func readR06Response(t *testing.T, step string) recordedResponse {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "parity", "s3", "R06", step))
+	if err != nil {
+		t.Fatalf("read capture %s: %v", step, err)
+	}
+	var c struct {
+		Exchanges []struct {
+			Response struct {
+				Status  int         `json:"status"`
+				Headers [][2]string `json:"headers"`
+				Body    string      `json:"body"`
+			} `json:"response"`
+		} `json:"exchanges"`
+	}
+	if err := json.Unmarshal(raw, &c); err != nil || len(c.Exchanges) != 1 {
+		t.Fatalf("capture %s does not hold one exchange (%v)", step, err)
+	}
+	resp := c.Exchanges[0].Response
+	r := recordedResponse{status: resp.Status, body: resp.Body}
+	for _, h := range resp.Headers {
+		if strings.EqualFold(h[0], "x-amz-request-id") {
+			r.requestID = h[1]
+		}
+	}
+	return r
 }
 
 // The hosts the edge tests send to: S3's, and the S3 Control account host
@@ -106,11 +160,21 @@ func edgeClient(k *kerneltest.K) func(method, host, target, body string) (int, s
 	}
 }
 
-// edgeClientAs returns a sender of requests signed by an account's root
+// edgeClientAs is edgeExchangeAs answering the status and body.
+func edgeClientAs(k *kerneltest.K) func(account, method, host, target, body string) (int, string) {
+	send := edgeExchangeAs(k)
+	return func(account, method, host, target, body string) (int, string) {
+		k.Helper()
+		code, _, got := send(account, method, host, target, body)
+		return code, got
+	}
+}
+
+// edgeExchangeAs returns a sender of requests signed by an account's root
 // through an edge in front of a new S3 service; a request to the default
 // account's S3 Control host carries x-amz-account-id as the SDKs send it.
-// It answers the status and body.
-func edgeClientAs(k *kerneltest.K) func(account, method, host, target, body string) (int, string) {
+// It answers the status, headers and body.
+func edgeExchangeAs(k *kerneltest.K) func(account, method, host, target, body string) (int, http.Header, string) {
 	t := k.T
 	svc := s3.New(k.Deps(s3api.Service()), s3.Options{})
 	front, err := edge.New(edge.Options{
@@ -126,7 +190,7 @@ func edgeClientAs(k *kerneltest.K) func(account, method, host, target, body stri
 		t.Fatal(err)
 	}
 	hostAccount := aws.DefaultAccount().String()
-	return func(account, method, host, target, body string) (int, string) {
+	return func(account, method, host, target, body string) (int, http.Header, string) {
 		t.Helper()
 		r := httptest.NewRequestWithContext(k.Context(), method, "http://"+host+target, strings.NewReader(body))
 		if strings.HasPrefix(host, hostAccount+".") {
@@ -139,7 +203,7 @@ func edgeClientAs(k *kerneltest.K) func(account, method, host, target, body stri
 		if rerr != nil {
 			t.Fatal(rerr)
 		}
-		return rec.Code, string(got)
+		return rec.Code, rec.Result().Header, string(got)
 	}
 }
 

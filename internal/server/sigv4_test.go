@@ -468,7 +468,9 @@ func TestSigV4VerifyCoversRawRoutesAndLinks(t *testing.T) {
 	// An unknown function URL is 403 {"Message":null}, AWS's answer for a
 	// URL that names no function: the request passed verification.
 	wantAnswer(t, "a function URL with test/test", functionURL(dummy), 403, `{"Message":null}`)
-	wantAnswer(t, "S3 Control ListTagsForResource with a wrong secret", listTags(wrong), 403, "<ErrorResponse><Error><Type>Sender</Type><Code>SignatureDoesNotMatch</Code>")
+	// S3 Control's error frame has no <Type>
+	// (testdata/parity/s3/R06/06-s3control-list-missing.json).
+	wantAnswer(t, "S3 Control ListTagsForResource with a wrong secret", listTags(wrong), 403, "<ErrorResponse><Error><Code>SignatureDoesNotMatch</Code>")
 	// A function URL refuses credentials 403, as its front end refuses
 	// everything (lambda.FunctionURLAuth), where the Lambda API answers 400.
 	wantAnswer(t, "a function URL with a wrong secret", functionURL(wrong), 403, "The request signature we calculated does not match")

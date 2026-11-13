@@ -25,10 +25,8 @@ import (
 // timestamps without forced milliseconds, and the service's
 // malformedRequestError for every value that does not parse.
 type Dialect struct {
-	// NoErrorWrapping is the restXml noErrorWrapping setting: errors are a
-	// bare <Error> root with RequestId and HostId (S3), not
-	// <ErrorResponse><Error>...</Error><RequestId/></ErrorResponse>.
-	NoErrorWrapping bool
+	// Errors is how the service frames an error document.
+	Errors ErrorForm
 	// MillisecondTimestamps writes date-time values as S3 does: with
 	// milliseconds always in bodies, 2009-10-12T17:50:30.000Z, and in
 	// response headers only when they are not zero,
@@ -73,6 +71,25 @@ type Dialect struct {
 	InertStreams bool
 }
 
+// ErrorForm is the frame of a restXml error document. Each form writes Code,
+// Message and the error's other fields inside <Error>.
+type ErrorForm uint8
+
+const (
+	// SmithyWrapped is Smithy's restXml form:
+	// <ErrorResponse><Error><Type>Sender</Type>...</Error><RequestId/></ErrorResponse>,
+	// as Route 53 and CloudFront answer (wire-rest.md 2.4).
+	SmithyWrapped ErrorForm = iota
+	// Bare is the noErrorWrapping form, S3's: an <Error> root that ends with
+	// RequestId and HostId (wire-rest.md 2.4).
+	Bare
+	// HostWrapped is S3 Control's: <ErrorResponse><Error> with no Type,
+	// then RequestId and HostId; an apostrophe in the error's text is
+	// written as itself
+	// (testdata/parity/s3/R06/06-s3control-list-missing.json).
+	HostWrapped
+)
+
 // internalMessage is S3's InternalError text (wire-rest.md 3.7).
 const internalMessage = "We encountered an internal error. Please try again."
 
@@ -82,7 +99,7 @@ const internalMessage = "We encountered an internal error. Please try again."
 // composition root sets Internal to S3's InternalError identity.
 func S3Dialect(invalidArgument awserr.Identity) Dialect {
 	return Dialect{
-		NoErrorWrapping: true, MillisecondTimestamps: true, InvalidArgument: invalidArgument, OmitEmptyDocumentType: true, PartialContent: true, InertStreams: true,
+		Errors: Bare, MillisecondTimestamps: true, InvalidArgument: invalidArgument, OmitEmptyDocumentType: true, PartialContent: true, InertStreams: true,
 		ArgumentTexts: map[string]string{
 			// s3-ssec-object-lock.md 6.2: S3SOL-18 18-bad-date, recorded 2026-11-03.
 			"x-amz-object-lock-retain-until-date": "The retain until date must be provided in ISO 8601 format",
@@ -93,12 +110,13 @@ func S3Dialect(invalidArgument awserr.Identity) Dialect {
 	}
 }
 
-// S3ControlDialect is S3 Control's: S3's, but with Smithy's wrapped
-// <ErrorResponse><Error> errors, since the S3 Control model does not set
-// noErrorWrapping and the SDKs' s3control clients read Error>Code there.
+// S3ControlDialect is S3 Control's: S3's, but with errors wrapped in
+// <ErrorResponse><Error> (HostWrapped), since the S3 Control model does not
+// set noErrorWrapping and the SDKs' s3control clients read Error>Code
+// there.
 func S3ControlDialect(invalidArgument awserr.Identity) Dialect {
 	d := S3Dialect(invalidArgument)
-	d.NoErrorWrapping = false
+	d.Errors = HostWrapped
 	return d
 }
 
@@ -235,8 +253,8 @@ func (c Codec) Encode(r *http.Request, op *registry.Operation, requestID string,
 // httpHeader members and the error's headers (x-amz-bucket-region); and
 // x-amz-request-id and x-amz-id-2. A HEAD request, and a status that
 // allows no body (1xx, 204, and 304 for S3's NotModified, wire-rest.md
-// 3.6), get the status and headers only. Without NoErrorWrapping the
-// document is Smithy's <ErrorResponse> form. An awserr.Internal origin
+// 3.6), get the status and headers only. The dialect's ErrorForm frames
+// the document: S3's bare <Error> is described here. An awserr.Internal origin
 // takes the dialect's Internal identity (S3's InternalError). A value that
 // does not serialize is answered as InternalFailure. svc may be nil for a
 // request no service claimed.
@@ -257,13 +275,23 @@ func (c Codec) EncodeError(r *http.Request, svc *registry.Service, requestID str
 	var buf bytes.Buffer
 	x := xmlw.New(&buf)
 	x.Declaration()
-	if d.NoErrorWrapping {
+	switch d.Errors {
+	case Bare:
 		x.Start("Error")
 		errorFields(x, e, members)
 		textElement(x, "RequestId", requestID)
 		textElement(x, "HostId", HostID(requestID))
 		x.End()
-	} else {
+	case HostWrapped:
+		x.KeepApostrophes()
+		x.Start("ErrorResponse")
+		x.Start("Error")
+		errorFields(x, e, members)
+		x.End()
+		textElement(x, "RequestId", requestID)
+		textElement(x, "HostId", HostID(requestID))
+		x.End()
+	case SmithyWrapped:
 		x.Start("ErrorResponse")
 		x.Start("Error")
 		textElement(x, "Type", e.ID.Fault.String())

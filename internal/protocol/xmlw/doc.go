@@ -11,7 +11,8 @@
 // SDKs use (smithy-go encoding/xml/escape.go): & < > as entities, quotes as
 // &#34; and &#39;, tab, LF and CR as numeric references (so CR and attribute
 // whitespace survive parsing), and NEL U+0085 and LINE SEPARATOR U+2028 as
-// numeric references. Where the SDK replaces characters outside the XML 1.0
+// numeric references. KeepApostrophes leaves ' as itself in character data,
+// as S3 Control's error bodies do. Where the SDK replaces characters outside the XML 1.0
 // Char production with U+FFFD, this writer emits a numeric reference for every
 // control character, and does the same for U+FFFE and U+FFFF, so the code
 // point is not lost silently. In a listing without encoding-type=url, S3

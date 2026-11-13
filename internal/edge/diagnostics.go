@@ -117,7 +117,9 @@ func routed(rt route) string {
 
 // routedService is the service a route sends a request to, "" for a route
 // that names none. Its request ids take the form that service's answers
-// show (ids.RequestID.ForService).
+// show (ids.RequestID.ForService). The S3 Control tag operations rule 3
+// claims are S3's raw operations, but S3 Control answers them, so they are
+// s3control.
 func routedService(rt route) ref.ServiceID {
 	switch rt := rt.(type) {
 	case toOperation:
@@ -125,7 +127,7 @@ func routedService(rt route) ref.ServiceID {
 	case toUnknown:
 		return rt.svc.ID
 	case toRaw:
-		return rt.op.ID.Service
+		return "s3control"
 	case toLink:
 		return rt.op.ID.Service
 	case toService:

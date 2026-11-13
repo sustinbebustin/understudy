@@ -27,7 +27,9 @@
 //
 //   - The descriptors do not carry restXml's noErrorWrapping, S3's
 //     millisecond timestamps or S3's InvalidArgument identity, so a
-//     per-service Dialect supplies them; S3Dialect is S3's. The zero
+//     per-service Dialect supplies them; S3Dialect is S3's and
+//     S3ControlDialect S3 Control's, whose error frame (HostWrapped) is
+//     neither Smithy's nor S3's. The zero
 //     Dialect is Smithy's restXml, which the synthetic corpus services
 //     speak: <ErrorResponse> wrapping, plain date-time, and Content-Type
 //     application/xml on an output whose members all bind outside the

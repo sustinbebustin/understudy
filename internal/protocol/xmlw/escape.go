@@ -11,11 +11,16 @@ import (
 const replacement = string(utf8.RuneError)
 
 // escapeInto writes s to w with the escape table described in the package
-// documentation, for character data and attribute values alike.
-func escapeInto(w *Writer, s string) {
+// documentation, for character data and attribute values alike, except
+// that keepApostrophe writes ' as itself.
+func escapeInto(w *Writer, s string, keepApostrophe bool) {
 	last := 0
 	for i := 0; i < len(s); {
 		r, width := utf8.DecodeRuneInString(s[i:])
+		if r == '\'' && keepApostrophe {
+			i += width
+			continue
+		}
 		if esc, ok := escapeRune(r, width); ok {
 			w.write(s[last:i])
 			w.write(esc)
