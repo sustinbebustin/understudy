@@ -2369,7 +2369,7 @@ var memberPutDeliverabilityDashboardOptionInput_SubscribedDomains = smithy.Membe
 
 var schemaPutDeliverabilityDashboardOptionOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutDeliverabilityDashboardOptionResponse", Type: smithy.TypeStructure}
 
-var schemaPutEmailIdentityConfigurationSetAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityConfigurationSetAttributesRequest", Type: smithy.TypeStructure}
+var schemaPutEmailIdentityConfigurationSetAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityConfigurationSetAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutEmailIdentityConfigurationSetAttributesInput_EmailIdentity, &memberPutEmailIdentityConfigurationSetAttributesInput_ConfigurationSetName}}
 
 var memberPutEmailIdentityConfigurationSetAttributesInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2385,7 +2385,7 @@ var memberPutEmailIdentityDkimAttributesInput_SigningEnabled = smithy.Member{Nam
 
 var schemaPutEmailIdentityDkimAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimAttributesResponse", Type: smithy.TypeStructure}
 
-var schemaPutEmailIdentityDkimSigningAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimSigningAttributesRequest", Type: smithy.TypeStructure}
+var schemaPutEmailIdentityDkimSigningAttributesInput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimSigningAttributesRequest", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutEmailIdentityDkimSigningAttributesInput_EmailIdentity, &memberPutEmailIdentityDkimSigningAttributesInput_SigningAttributesOrigin, &memberPutEmailIdentityDkimSigningAttributesInput_SigningAttributes}}
 
 var memberPutEmailIdentityDkimSigningAttributesInput_EmailIdentity = smithy.Member{Name: "EmailIdentity", Index: 0, Target: &schemaIdentity, Required: true, HTTP: smithy.HTTPLabel{}}
 
@@ -2393,7 +2393,7 @@ var memberPutEmailIdentityDkimSigningAttributesInput_SigningAttributesOrigin = s
 
 var memberPutEmailIdentityDkimSigningAttributesInput_SigningAttributes = smithy.Member{Name: "SigningAttributes", Index: 2, Target: &schemaDkimSigningAttributes}
 
-var schemaPutEmailIdentityDkimSigningAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimSigningAttributesResponse", Type: smithy.TypeStructure}
+var schemaPutEmailIdentityDkimSigningAttributesOutput = smithy.Schema{ID: "com.amazonaws.sesv2#PutEmailIdentityDkimSigningAttributesResponse", Type: smithy.TypeStructure, Members: []*smithy.Member{&memberPutEmailIdentityDkimSigningAttributesOutput_DkimStatus, &memberPutEmailIdentityDkimSigningAttributesOutput_DkimTokens, &memberPutEmailIdentityDkimSigningAttributesOutput_SigningHostedZone}}
 
 var memberPutEmailIdentityDkimSigningAttributesOutput_DkimStatus = smithy.Member{Name: "DkimStatus", Index: 0, Target: &schemaDkimStatus}
 

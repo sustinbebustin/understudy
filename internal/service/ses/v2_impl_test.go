@@ -23,17 +23,6 @@ func TestCreateEmailIdentityRefusesAnExistingIdentity(t *testing.T) {
 	})
 }
 
-// ConfigurationSetName answers NotImplemented naming it, and creates
-// nothing (invariant 3).
-func TestCreateEmailIdentityConfigurationSetIsNotImplemented(t *testing.T) {
-	run(t, func(h *harness) {
-		_, err := call(h, sesv2api.OpCreateEmailIdentity, &sesv2api.CreateEmailIdentityInput{EmailIdentity: "example.org", ConfigurationSetName: new("set")})
-		wantNotImplemented(h, err, "ConfigurationSetName")
-		_, err = call(h, sesv2api.OpGetEmailIdentity, &sesv2api.GetEmailIdentityInput{EmailIdentity: "example.org"})
-		wantCode(h, err, sesv2api.IdentityNotFoundException())
-	})
-}
-
 // DkimSigningAttributes are for domains only (model, ses.md 5.4); on a
 // domain a BYODKIM selector is stored and reported as an EXTERNAL origin,
 // the tokens unchanged.

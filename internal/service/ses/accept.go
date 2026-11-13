@@ -65,6 +65,9 @@ func (s *Service) accept(ctx context.Context, c *kernel.Call, o outgoing) (strin
 		r.Simulator = simulated
 		if o.configurationSet != nil {
 			r.ConfigurationSet = *o.configurationSet
+		} else if name := st.defaultConfigurationSet(s.view(o.api), o.senders); name != "" {
+			r.ConfigurationSet = name
+			c.Touch(configurationSetARN(scope, name))
 		}
 		o.fill(&r)
 		return accepted{id: r.MessageID, released: st.record(r)}, nil
@@ -184,6 +187,45 @@ func (s *state) verified(v view, addr string, labels bool) bool {
 		}
 	}
 	return false
+}
+
+// defaultConfigurationSet is the configuration set a send that names none
+// records: the default of the verified identity matching its first sender,
+// "" when there is none. An address identity's default overrides its
+// domain's; of several domains the most specific one counts. An
+// unverified identity, and a default naming a set that no longer exists,
+// apply nothing (ses.md 8).
+func (s *state) defaultConfigurationSet(v view, senders []string) string {
+	if len(senders) == 0 {
+		return ""
+	}
+	addr := addrSpec(senders[0])
+	at := strings.LastIndexByte(addr, '@')
+	if at < 0 {
+		return ""
+	}
+	local, _, _ := strings.Cut(addr[:at], "+")
+	exact, domain := local+addr[at:], strings.ToLower(addr[at+1:])
+	var fromDomain string
+	longest := -1
+	for i := range s.Identities {
+		id := &s.Identities[i]
+		if _, ok := id.Status.(statusSuccess); !ok || !v.sees(id) || id.ConfigurationSet == "" || s.findConfigurationSet(v, id.ConfigurationSet) < 0 {
+			continue
+		}
+		switch id.Kind {
+		case sesapi.IdentityTypeEmailAddress:
+			if id.Name == exact {
+				return id.ConfigurationSet
+			}
+		case sesapi.IdentityTypeDomain:
+			d := strings.ToLower(id.Name)
+			if (domain == d || strings.HasSuffix(domain, "."+d)) && len(d) > longest {
+				fromDomain, longest = id.ConfigurationSet, len(d)
+			}
+		}
+	}
+	return fromDomain
 }
 
 // simulatorScenario is the scenario of a mailbox simulator addr-spec: the

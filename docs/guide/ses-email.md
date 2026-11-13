@@ -332,6 +332,8 @@ A v2 template operation on a template the account and region do not hold is `Not
 
 ## Configuration sets
 
+An identity can carry a default set: `CreateEmailIdentity` takes `ConfigurationSetName` (the set must exist), `PutEmailIdentityConfigurationSetAttributes` sets or clears it, and `GetEmailIdentity` returns it. A send that names no set records the default of its sender, but only when that identity is verified; an address's default overrides its domain's, and a set named in the request or in `X-SES-CONFIGURATION-SET` always wins. A default naming a set that was deleted since applies nothing (inferred). `PutEmailIdentityDkimSigningAttributes` stores a BYODKIM selector and never changes a DKIM status.
+
 A configuration set made with either API is one store, as identities and templates are. A send names one with `ConfigurationSetName`, or a raw send with the `X-SES-CONFIGURATION-SET` header. A set the account and region do not hold is refused before the sender is checked, as on AWS, and a set that exists is recorded on the message as `configurationSet`:
 
 ```sh

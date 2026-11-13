@@ -134,7 +134,7 @@ Evidence is the weakest claim attributed to the operation, and how many of its c
 | scheduler | 12 | 0 | 0 | 12 | 0 | 0 | 0 |
 | secretsmanager | 23 | 1 | 0 | 14 | 8 | 0 | 0 |
 | ses | 71 | 12 | 4 | 8 | 47 | 0 | 1 |
-| sesv2 | 116 | 8 | 4 | 6 | 98 | 0 | 0 |
+| sesv2 | 116 | 9 | 5 | 6 | 96 | 0 | 0 |
 | sfn | 37 | 7 | 0 | 9 | 21 | 0 | 0 |
 | sns | 42 | 12 | 0 | 7 | 23 | 0 | 3 |
 | sqs | 23 | 15 | 0 | 8 | 0 | 2 | 0 |
@@ -1382,12 +1382,14 @@ Raw operations:
 | GetEmailTemplate | full | unassessed |  |
 | ListEmailIdentities | full | unassessed |  |
 | ListEmailTemplates | full | unassessed |  |
+| PutEmailIdentityConfigurationSetAttributes | full | unassessed |  |
 | UpdateEmailTemplate | full | unassessed |  |
 | CreateConfigurationSet | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
 | DeleteConfigurationSet | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
 | GetConfigurationSet | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
 | ListConfigurationSets | stored-only | unassessed | stored and checked by name on sends; no event destinations, tracking, reputation, delivery or suppression options take effect |
-| CreateEmailIdentity | partial | unassessed | email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented |
+| PutEmailIdentityDkimSigningAttributes | stored-only | unassessed | stored; DKIM status never changes on its own |
+| CreateEmailIdentity | partial | unassessed | email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName must name an existing set and is the identity's default |
 | GetAccount | partial | unassessed | ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled from the account sending setting; EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), which nothing changes; no VDM, pricing plan or account details |
 | ListTagsForResource | partial | unassessed | identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, as Terraform sends an identity's under skip_requesting_account_id (what AWS answers is unrecorded) |
 | SendEmail | partial | unassessed | journal-only as the v1 sends, for Simple (with Headers and Attachments), Raw and Template content; Template content, stored by TemplateName or inline, renders and records as SendTemplatedEmail does; FeedbackForwardingEmailAddress must be verified, as ReturnPath (inferred); ConfigurationOverrides, EndpointId, TenantName, ListManagementOptions, Template.TemplateArn and the identity ARN members answer NotImplemented; the SDKs sign a send with EndpointId SigV4A, which understudy refuses, so it answers sesv2's unknown operation at the edge and only a SigV4-signed one reaches the NotImplemented answer |
@@ -1473,9 +1475,7 @@ Raw operations:
 | PutDedicatedIpPoolScalingAttributes | unbound | unassessed |  |
 | PutDedicatedIpWarmupAttributes | unbound | unassessed |  |
 | PutDeliverabilityDashboardOption | unbound | unassessed |  |
-| PutEmailIdentityConfigurationSetAttributes | unbound | unassessed |  |
 | PutEmailIdentityDkimAttributes | unbound | unassessed |  |
-| PutEmailIdentityDkimSigningAttributes | unbound | unassessed |  |
 | PutEmailIdentityFeedbackAttributes | unbound | unassessed |  |
 | PutEmailIdentityMailFromAttributes | unbound | unassessed |  |
 | PutSuppressedDestination | unbound | unassessed |  |

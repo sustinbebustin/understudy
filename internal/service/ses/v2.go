@@ -23,8 +23,10 @@ import (
 // The v2 coverage notes (ses.md 11.1).
 const (
 	createEmailIdentityCoverage = "email identities start PENDING with DKIM NOT_STARTED; domains get three random Easy DKIM tokens and stay PENDING; " +
-		"DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName answers NotImplemented"
-	getAccountCoverage = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled from the account sending setting; " +
+		"DkimSigningAttributes are stored, never used; verification as VerifyEmailIdentity; ConfigurationSetName must name an existing set and is the identity's default"
+	putIdentityConfigurationSetCoverage = "sets or clears the identity's default configuration set, which a send naming none records when the identity is verified"
+	putDkimSigningCoverage              = "stored; DKIM status never changes on its own"
+	getAccountCoverage                  = "ProductionAccessEnabled and SendQuota from understudy state; SendingEnabled from the account sending setting; " +
 		"EnforcementStatus HEALTHY; DedicatedIpAutoWarmupEnabled true and SuppressedReasons BOUNCE and COMPLAINT, the recorded defaults (SES-15), " +
 		"which nothing changes; no VDM, pricing plan or account details"
 	v2TagsCoverage = "identity, template and configuration-set ARNs; an ARN with an empty account field names the caller's account, " +
@@ -51,6 +53,16 @@ func (v *V2) bindV2(b sesv2api.Binder) {
 	b.GetEmailIdentity(v.getEmailIdentity, registry.Full{},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesv2api.GetEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
+	b.PutEmailIdentityConfigurationSetAttributes(v.putEmailIdentityConfigurationSetAttributes, registry.Full{},
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		identitiesNamed(func(in *sesv2api.PutEmailIdentityConfigurationSetAttributesInput) []string {
+			return []string{in.EmailIdentity}
+		}))
+	b.PutEmailIdentityDkimSigningAttributes(v.putEmailIdentityDkimSigningAttributes, registry.StoredOnly{Note: putDkimSigningCoverage},
+		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
+		identitiesNamed(func(in *sesv2api.PutEmailIdentityDkimSigningAttributesInput) []string {
+			return []string{in.EmailIdentity}
+		}))
 	b.DeleteEmailIdentity(v.deleteEmailIdentity, registry.Full{},
 		kernel.WithoutSecondaryActions(), refusedConditionKeys(),
 		identitiesNamed(func(in *sesv2api.DeleteEmailIdentityInput) []string { return []string{in.EmailIdentity} }))
@@ -95,11 +107,6 @@ func errIdentityMissing(name string) *awserr.Error {
 	return sesv2api.ErrNotFoundException(fmt.Sprintf(IdentityMissingText, name))
 }
 
-// createConfigurationSetText refuses CreateEmailIdentity's
-// ConfigurationSetName (invariant 3).
-const createConfigurationSetText = "CreateEmailIdentity with ConfigurationSetName uses configuration sets, which understudy does not implement; " +
-	"no identity was created. Leave ConfigurationSetName out. Run 'understudy coverage --service sesv2' for what is supported."
-
 // createEmailIdentity creates an email address or domain identity through
 // v2 (ses.md 5.4). An address starts as VerifyEmailIdentity
 // starts one, its verification email recorded under sesv2; a domain gets
@@ -122,6 +129,9 @@ func (v *V2) createEmailIdentity(ctx context.Context, c *kernel.Call, in *sesv2a
 		if st.find(vw, in.EmailIdentity) >= 0 {
 			return created{}, sesv2api.ErrAlreadyExistsException(fmt.Sprintf(IdentityExistsText, in.EmailIdentity))
 		}
+		if in.ConfigurationSetName != nil && st.findConfigurationSet(vw, *in.ConfigurationSetName) < 0 {
+			return created{}, (&setRefusal{class: setMissing, name: *in.ConfigurationSetName}).v2()
+		}
 		var released []blob.Ref
 		if address {
 			r, err := s.createEmail(c, st, vw, in.EmailIdentity, now, tx)
@@ -134,6 +144,9 @@ func (v *V2) createEmailIdentity(ctx context.Context, c *kernel.Call, in *sesv2a
 		}
 		id := &st.Identities[len(st.Identities)-1]
 		id.Tags = mergeTags(nil, in.Tags)
+		if in.ConfigurationSetName != nil {
+			id.ConfigurationSet = *in.ConfigurationSetName
+		}
 		return created{
 			out: &sesv2api.CreateEmailIdentityOutput{
 				IdentityType:             new(id.v2Type()),
@@ -151,14 +164,10 @@ func (v *V2) createEmailIdentity(ctx context.Context, c *kernel.Call, in *sesv2a
 }
 
 // checkCreateEmailIdentity refuses what CreateEmailIdentity checks before
-// state: ConfigurationSetName (NotImplemented), an address net/mail
-// refuses, as VerifyEmailIdentity refuses it (ses.md 4.6, SES-04), and
-// DkimSigningAttributes on an address, which the model documents as
-// domains only (ses.md 5.4).
+// state: an address net/mail refuses, as VerifyEmailIdentity refuses it
+// (ses.md 4.6, SES-04), and DkimSigningAttributes on an address, which the
+// model documents as domains only (ses.md 5.4).
 func checkCreateEmailIdentity(in *sesv2api.CreateEmailIdentityInput) *awserr.Error {
-	if in.ConfigurationSetName != nil {
-		return sesv2api.ErrNotImplemented(createConfigurationSetText)
-	}
 	if !strings.Contains(in.EmailIdentity, "@") {
 		return nil
 	}
@@ -204,8 +213,8 @@ func (s *Service) dkimTokens() []string {
 
 // getEmailIdentity answers an identity per the ses.md 5.4 table. Members
 // whose raw form is unrecorded (MailFromAttributes, Policies,
-// VerificationInfo, SES-13) are absent; no configuration set is ever
-// attached.
+// VerificationInfo, SES-13) are absent; ConfigurationSetName is the
+// identity's default set, absent when it has none.
 func (v *V2) getEmailIdentity(_ context.Context, c *kernel.Call, in *sesv2api.GetEmailIdentityInput) (*sesv2api.GetEmailIdentityOutput, *awserr.Error) {
 	var out *sesv2api.GetEmailIdentityOutput
 	v.read(c.Scope(), func(st *state) {
@@ -222,6 +231,9 @@ func (v *V2) getEmailIdentity(_ context.Context, c *kernel.Call, in *sesv2api.Ge
 			Tags:                     tagList(id.Tags),
 			VerificationStatus:       new(id.Status.v2()),
 		}
+		if id.ConfigurationSet != "" {
+			out.ConfigurationSetName = new(id.ConfigurationSet)
+		}
 	})
 	if out == nil {
 		return nil, sesv2api.ErrNotFoundException(fmt.Sprintf(GetIdentityMissingText, in.EmailIdentity))
@@ -234,6 +246,60 @@ func (v *V2) read(scope aws.Scope, fn func(st *state)) {
 	if cell, ok := v.svc.cells.Lookup(scope); ok {
 		store.Read(cell, func(st *state) struct{} { fn(st); return struct{}{} })
 	}
+}
+
+// putEmailIdentityConfigurationSetAttributes sets the identity's default
+// configuration set, or clears it when ConfigurationSetName is absent
+// (ses.md 8). The set must exist; a missing set or identity changes
+// nothing.
+func (v *V2) putEmailIdentityConfigurationSetAttributes(_ context.Context, c *kernel.Call, in *sesv2api.PutEmailIdentityConfigurationSetAttributesInput) (*sesv2api.PutEmailIdentityConfigurationSetAttributesOutput, *awserr.Error) {
+	s := v.svc
+	vw := s.view(APIv2)
+	_, err := kernel.Write(c, s.cells, c.Scope(), func(st *state, _ clock.Instant, _ *kernel.Tx) (struct{}, *awserr.Error) {
+		i := st.find(vw, in.EmailIdentity)
+		if i < 0 {
+			return struct{}{}, errIdentityMissing(in.EmailIdentity)
+		}
+		set := ""
+		if in.ConfigurationSetName != nil {
+			set = *in.ConfigurationSetName
+			if st.findConfigurationSet(vw, set) < 0 {
+				return struct{}{}, (&setRefusal{class: setMissing, name: set}).v2()
+			}
+		}
+		st.Identities[i].ConfigurationSet = set
+		return struct{}{}, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &sesv2api.PutEmailIdentityConfigurationSetAttributesOutput{}, nil
+}
+
+// putEmailIdentityDkimSigningAttributes stores the signing attributes as
+// CreateEmailIdentity does: a BYODKIM selector makes the origin EXTERNAL,
+// origin AWS_SES drops it. Nothing signs, and the DKIM status and tokens
+// answer as they were. DKIM on an address is refused, as CreateEmailIdentity
+// refuses it.
+func (v *V2) putEmailIdentityDkimSigningAttributes(_ context.Context, c *kernel.Call, in *sesv2api.PutEmailIdentityDkimSigningAttributesInput) (*sesv2api.PutEmailIdentityDkimSigningAttributesOutput, *awserr.Error) {
+	s := v.svc
+	vw := s.view(APIv2)
+	return kernel.Write(c, s.cells, c.Scope(), func(st *state, _ clock.Instant, _ *kernel.Tx) (*sesv2api.PutEmailIdentityDkimSigningAttributesOutput, *awserr.Error) {
+		i := st.find(vw, in.EmailIdentity)
+		if i < 0 {
+			return nil, errIdentityMissing(in.EmailIdentity)
+		}
+		id := &st.Identities[i]
+		if id.Kind != sesapi.IdentityTypeDomain {
+			return nil, sesv2api.ErrBadRequestException(DkimOnAddressText)
+		}
+		id.DkimSigningAttributes = nil
+		if a := in.SigningAttributes; in.SigningAttributesOrigin == sesv2api.DkimSigningAttributesOriginExternal && a != nil && a.DomainSigningSelector != nil {
+			id.DkimSigningAttributes = &dkimSigning{Selector: *a.DomainSigningSelector}
+		}
+		d := id.dkim()
+		return &sesv2api.PutEmailIdentityDkimSigningAttributesOutput{DkimStatus: d.Status, DkimTokens: d.Tokens}, nil
+	})
 }
 
 // deleteEmailIdentity removes an identity and its expiry timer; a missing

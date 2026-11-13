@@ -13,8 +13,9 @@ import (
 
 // stateVersion is the version of the "ses" snapshot section. Version 2
 // added configuration sets and the set a message was sent with; version 3
-// added the paused account sending setting.
-const stateVersion = 3
+// added the paused account sending setting; version 4 added an identity's
+// default configuration set.
+const stateVersion = 4
 
 // state is the SES state of one account and Region, the "ses" snapshot
 // section's data.
@@ -169,6 +170,9 @@ type identity struct {
 	// DkimSigningAttributes is what CreateEmailIdentity stored of its
 	// DkimSigningAttributes; it signs nothing (StoredOnly, ses.md 11.1).
 	DkimSigningAttributes *dkimSigning `json:"dkimSigningAttributes,omitempty"`
+	// ConfigurationSet is the identity's default configuration set, "" when
+	// it has none (ses.md 8).
+	ConfigurationSet string `json:"configurationSet,omitempty"`
 	// Tags are the identity's tags in the order they were first set
 	// (ses.md 5.4).
 	Tags    []tag         `json:"tags,omitempty"`

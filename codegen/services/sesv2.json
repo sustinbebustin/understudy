@@ -43,6 +43,8 @@
     "ListEmailIdentities",
     "ListEmailTemplates",
     "ListTagsForResource",
+    "PutEmailIdentityConfigurationSetAttributes",
+    "PutEmailIdentityDkimSigningAttributes",
     "SendEmail",
     "TagResource",
     "UntagResource",

@@ -68,6 +68,14 @@ resource "aws_sesv2_configuration_set" "v2" {
   tags                   = local.updated ? { env = "prod", team = "mail" } : { env = "dev" }
 }
 
+# A v2 identity with a default configuration set: the provider sends it on
+# CreateEmailIdentity and reads it back from GetEmailIdentity
+# (docs/research/ses.md 9.3, 11.7).
+resource "aws_sesv2_email_identity" "with_default_set" {
+  email_identity         = "${var.name_prefix}-v2-default.example.org"
+  configuration_set_name = aws_sesv2_configuration_set.v2.configuration_set_name
+}
+
 output "ses_configuration_set_arn" {
   value = aws_ses_configuration_set.v1.arn
 }
