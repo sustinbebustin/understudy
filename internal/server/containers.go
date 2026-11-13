@@ -258,7 +258,7 @@ func (h *containerHost) serving(port uint16, open func(netip.AddrPort) error) {
 // instead.
 func (h *containerHost) missing() string {
 	if h.client == nil {
-		return "Docker is disabled by configuration (--docker disabled, or a DOCKER_HOST understudy cannot use), so Lambda functions cannot run and DynamoDB Local cannot start; " +
+		return "Docker is disabled by configuration (--docker disabled, or a DOCKER_HOST or Docker context understudy cannot use), so Lambda functions cannot run and DynamoDB Local cannot start; " +
 			"set --docker (UNDERSTUDY_DOCKER) to a Docker socket such as unix:///var/run/docker.sock, or a tcp:// address, to run them"
 	}
 	if socket, ok := h.endpoint.(docker.Unix); ok {

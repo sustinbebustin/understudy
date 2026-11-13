@@ -28,6 +28,8 @@ type Config struct {
 	// Regions are region names accepted beyond AWS's own.
 	Regions []aws.Region
 	Docker  Docker
+	// DockerOrigin is where Docker came from.
+	DockerOrigin DockerOrigin
 	// DockerLabels are added to every container understudy creates, function
 	// environments and DynamoDB Local (dockerLabels, testcontainers.md 9.3);
 	// serve creates no network. No key starts with understudy.dev/. Nil when
@@ -69,16 +71,20 @@ type Warning struct {
 // Host is the part of the configuration about this machine rather than the
 // listener: what doctor and cleanup read.
 type Host struct {
-	Persistence Persistence
-	Docker      Docker
-	HotReload   []HotReload
-	DynamoDB    DynamoDBMode
-	Warnings    []Warning
+	Persistence  Persistence
+	Docker       Docker
+	DockerOrigin DockerOrigin
+	HotReload    []HotReload
+	DynamoDB     DynamoDBMode
+	Warnings     []Warning
 }
 
 // Host returns the machine settings of c.
 func (c Config) Host() Host {
-	return Host{Persistence: c.Persistence, Docker: c.Docker, HotReload: c.Lambda.HotReload, DynamoDB: c.DynamoDB.Mode, Warnings: c.Warnings}
+	return Host{
+		Persistence: c.Persistence, Docker: c.Docker, DockerOrigin: c.DockerOrigin,
+		HotReload: c.Lambda.HotReload, DynamoDB: c.DynamoDB.Mode, Warnings: c.Warnings,
+	}
 }
 
 // Listen is the main listener: on loopback, or beyond it with what makes
@@ -255,6 +261,40 @@ func (DockerSocket) isDocker()   {}
 func (DockerTCP) isDocker()      {}
 func (DockerTLS) isDocker()      {}
 func (DockerDisabled) isDocker() {}
+
+// DockerOrigin is where the Docker setting came from, which doctor names.
+//
+//sumtype:decl
+type DockerOrigin interface {
+	// String names the origin as a phrase, such as Docker context "colima".
+	String() string
+	isDockerOrigin()
+}
+
+// DockerFromSetting is understudy's own docker setting; Where spells it as
+// its source does, such as --docker or UNDERSTUDY_DOCKER.
+type DockerFromSetting struct{ Where string }
+
+// DockerFromHost is DOCKER_HOST.
+type DockerFromHost struct{}
+
+// DockerFromContext is the Docker context Name, named by DOCKER_CONTEXT or
+// by currentContext in the Docker CLI's config.json.
+type DockerFromContext struct{ Name string }
+
+// DockerFromDefault is the default socket: nothing names an Engine, or
+// the context named is default.
+type DockerFromDefault struct{}
+
+func (o DockerFromSetting) String() string { return o.Where }
+func (DockerFromHost) String() string      { return DockerHostEnv }
+func (o DockerFromContext) String() string { return "Docker context " + quote(o.Name) }
+func (DockerFromDefault) String() string   { return "the default" }
+
+func (DockerFromSetting) isDockerOrigin() {}
+func (DockerFromHost) isDockerOrigin()    {}
+func (DockerFromContext) isDockerOrigin() {}
+func (DockerFromDefault) isDockerOrigin() {}
 
 // S3 holds the S3 settings.
 type S3 struct {

@@ -37,6 +37,7 @@ type draft struct {
 	every       *time.Duration
 	everyAt     string
 	docker      Docker
+	dockerAt    string
 	dynamoOff   bool
 	// frozen is an explicit --clock frozen setting, which no scale may
 	// join.
@@ -278,7 +279,7 @@ func (d *draft) setDocker(v value) *Error {
 	if err != "" {
 		return bad(v, err, "write unix:///var/run/docker.sock, tcp://<host>:<port>, or disabled to run no container")
 	}
-	d.docker = docker
+	d.docker, d.dockerAt = docker, v.where
 	return nil
 }
 
@@ -487,15 +488,19 @@ func (d *draft) resolvePersistence() *Error {
 }
 
 // resolveDocker uses an explicit docker setting, else DOCKER_HOST, else the
-// default socket. DOCKER_HOST is Docker's setting, not understudy's: one
-// understudy cannot use, such as ssh://, turns containers off with a
-// warning rather than refusing to serve, as an unreachable Docker does.
+// Docker context, else the default socket. DOCKER_HOST and the context are
+// Docker's settings, not understudy's: one understudy cannot use, such as
+// ssh://, turns containers off with a warning rather than refusing to
+// serve, as an unreachable Docker does.
 func (d *draft) resolveDocker() {
 	host := d.dockerEnv.host
 	switch {
 	case d.docker != nil:
-		d.cfg.Docker = d.docker
-	case host != "":
+		d.cfg.Docker, d.cfg.DockerOrigin = d.docker, DockerFromSetting{Where: d.dockerAt}
+	case host == "":
+		d.resolveDockerContext()
+	default:
+		d.cfg.DockerOrigin = DockerFromHost{}
 		docker, reason := parseDocker(host, d.dockerEnv)
 		if _, off := docker.(DockerDisabled); off {
 			reason = "turns Docker off, which only UNDERSTUDY_DOCKER can"
@@ -511,4 +516,28 @@ func (d *draft) resolveDocker() {
 		}
 		d.cfg.Docker = docker
 	}
+}
+
+// resolveDockerContext uses the Docker context the Docker CLI would,
+// keeping the default socket for the default context.
+func (d *draft) resolveDockerContext() {
+	name, setting, warn := d.dockerEnv.contextName(d.readFile)
+	if warn != nil {
+		d.cfg.Warnings = append(d.cfg.Warnings, *warn)
+	}
+	if name == "" || name == defaultContext {
+		return
+	}
+	d.cfg.DockerOrigin = DockerFromContext{Name: name}
+	docker, unusable := d.dockerEnv.contextDocker(name, d.readFile)
+	if unusable != nil {
+		d.cfg.Docker = DockerDisabled{}
+		d.cfg.Warnings = append(d.cfg.Warnings, Warning{
+			Setting: setting,
+			Message: "Docker context " + quote(name) + ", named by " + setting + ", " + unusable.reason + ", so Lambda execution and DynamoDB are off",
+			Fix:     unusable.fix,
+		})
+		return
+	}
+	d.cfg.Docker = docker
 }

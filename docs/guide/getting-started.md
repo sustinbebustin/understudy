@@ -8,7 +8,7 @@ brew install --cask sustinbebustin/tap/understudy
 
 The [README](../../README.md#install) also covers the release binaries, `go install` and the image `ghcr.io/sustinbebustin/understudy`.
 
-Lambda functions and DynamoDB need a Docker Engine (`DOCKER_HOST`, a unix socket or a `tcp://` daemon, else `/var/run/docker.sock`). Everything else runs without one.
+Lambda functions and DynamoDB need a Docker Engine: `DOCKER_HOST`, a unix socket or a `tcp://` daemon, else the current Docker context's (`docker context use`), else `/var/run/docker.sock`. Everything else runs without one.
 
 ## Start it
 

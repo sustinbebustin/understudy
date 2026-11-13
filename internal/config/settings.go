@@ -25,9 +25,10 @@ func (s Setting) Switch() bool { return s.Value == "" }
 
 // Names of the settings outside the table: the config file's flag and
 // variable, the CLI's endpoint variable, and the Docker CLI's variables:
-// DOCKER_HOST is the default Docker setting, and the TLS ones say how to
-// reach a tcp:// daemon. ListenEnv is the listen setting's variable, which
-// the CLI also reads to find a server beside it.
+// DOCKER_HOST, else DOCKER_CONTEXT's context, is the default Docker
+// setting, and the TLS ones say how to reach a tcp:// daemon. ListenEnv is
+// the listen setting's variable, which the CLI also reads to find a server
+// beside it.
 const (
 	ConfigFlag         = "config"
 	ConfigEnv          = "UNDERSTUDY_CONFIG"
@@ -35,6 +36,7 @@ const (
 	EndpointEnv        = "UNDERSTUDY_ENDPOINT"
 	ListenEnv          = "UNDERSTUDY_LISTEN"
 	DockerHostEnv      = "DOCKER_HOST"
+	DockerContextEnv   = "DOCKER_CONTEXT"
 	DockerTLSVerifyEnv = "DOCKER_TLS_VERIFY"
 	DockerCertPathEnv  = "DOCKER_CERT_PATH"
 	DockerConfigEnv    = "DOCKER_CONFIG"
@@ -99,7 +101,7 @@ func Settings() []Setting {
 			Key: keySNSCABundle, Flag: "sns-http-delivery-ca-bundle", Env: "UNDERSTUDY_SNS_HTTP_DELIVERY_CA_BUNDLE", Value: "FILE",
 			Usage: "PEM file of CA certificates an https subscription endpoint may chain to, beside the system roots (default none)",
 		},
-		{Key: keyDocker, Flag: "docker", Env: "UNDERSTUDY_DOCKER", Value: "URL", Usage: "Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else unix:///var/run/docker.sock)"},
+		{Key: keyDocker, Flag: "docker", Env: "UNDERSTUDY_DOCKER", Value: "URL", Usage: "Docker Engine for Lambda and DynamoDB Local: unix://<socket>, tcp://<host>:<port> (TLS when DOCKER_TLS_VERIFY is set, with ca.pem, cert.pem and key.pem from DOCKER_CERT_PATH), or disabled (default DOCKER_HOST, else the current Docker context's endpoint, else unix:///var/run/docker.sock)"},
 		{Key: keyDockerLabels, Flag: "docker-labels", Env: "UNDERSTUDY_DOCKER_LABELS", Value: "JSON", Usage: `labels added to every container understudy creates, function environments and DynamoDB Local, as a JSON object of string values, such as {"org.testcontainers.session-id":"<id>"} so a Testcontainers reaper also removes them; keys under understudy.dev/ are understudy's own and refused (default none)`},
 		{Key: keyReadyFile, Flag: "ready-file", Env: "UNDERSTUDY_READY_FILE", Value: "FILE", Usage: "file to write {\"endpoint\", \"pid\"} to once listening"},
 		{Key: keyLogFormat, Flag: "log-format", Env: "UNDERSTUDY_LOG_FORMAT", Value: "FORMAT", Usage: "log format: text or json (default text)"},

@@ -12,6 +12,8 @@ import (
 type dockerEnv struct {
 	// host is DOCKER_HOST.
 	host string
+	// context is DOCKER_CONTEXT, which names a Docker context.
+	context string
 	// tlsVerify is DOCKER_TLS_VERIFY; any non-empty value, "0" included,
 	// turns TLS on, as in the Docker CLI.
 	tlsVerify string
@@ -27,6 +29,8 @@ func (e *dockerEnv) read(name, text string) bool {
 	switch name {
 	case DockerHostEnv:
 		e.host = text
+	case DockerContextEnv:
+		e.context = text
 	case DockerTLSVerifyEnv:
 		e.tlsVerify = text
 	case DockerCertPathEnv:
@@ -45,9 +49,16 @@ func (e *dockerEnv) read(name, text string) bool {
 // DOCKER_CERT_PATH, else DOCKER_CONFIG, else ~/.docker. Empty when none of
 // them is set.
 func (e *dockerEnv) certDir() string {
-	switch {
-	case e.certPath != "":
+	if e.certPath != "" {
 		return e.certPath
+	}
+	return e.cliConfigDir()
+}
+
+// cliConfigDir is the Docker CLI's configuration directory: DOCKER_CONFIG,
+// else ~/.docker. Empty when neither DOCKER_CONFIG nor HOME is set.
+func (e *dockerEnv) cliConfigDir() string {
+	switch {
 	case e.configDir != "":
 		return e.configDir
 	case e.home != "":

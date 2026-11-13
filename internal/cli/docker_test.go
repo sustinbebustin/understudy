@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -208,6 +210,46 @@ func TestDoctorReportsTheDockerTransport(t *testing.T) {
 	noCerts := []string{"DOCKER_HOST=" + secure.String(), "DOCKER_TLS_VERIFY=1", "DOCKER_CERT_PATH=" + t.TempDir()}
 	if c := doctorChecks(t, noCerts)["docker"]; c.Status != "fail" || !strings.Contains(c.Detail, "DOCKER_CERT_PATH") {
 		t.Errorf("doctor without certificates: docker check %+v, want a failure naming DOCKER_CERT_PATH", c)
+	}
+}
+
+// doctor names where the Docker endpoint came from: the docker setting,
+// DOCKER_HOST, the current Docker context, or the default. The context is
+// read from a DOCKER_CONFIG directory laid out as the Docker CLI lays it
+// out (containers.md 2.1).
+func TestDoctorNamesTheDockerOrigin(t *testing.T) {
+	d := dockertest.New(t, dockertest.Options{})
+	cfgDir := t.TempDir()
+	// The lowercase hex SHA-256 of "fake", from sha256sum.
+	metaDir := filepath.Join(cfgDir, "contexts", "meta", "b5d54c39e66671c9731b9f471e585d8262cd4f54963f0c93082d8dcf334d4c78")
+	if err := os.MkdirAll(metaDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	meta := `{"Name":"fake","Metadata":{},"Endpoints":{"docker":{"Host":"unix://` + d.Socket() + `","SkipTLSVerify":false}}}`
+	if err := os.WriteFile(filepath.Join(metaDir, "meta.json"), []byte(meta), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfgDir, "config.json"), []byte(`{"currentContext":"fake"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		env  []string
+		want string
+	}{
+		{env: []string{"DOCKER_CONFIG=" + cfgDir}, want: `Docker context "fake"`},
+		{env: []string{"UNDERSTUDY_DOCKER=unix://" + d.Socket(), "DOCKER_CONFIG=" + cfgDir}, want: "UNDERSTUDY_DOCKER"},
+		{env: []string{"DOCKER_HOST=unix://" + d.Socket(), "DOCKER_CONFIG=" + cfgDir}, want: "DOCKER_HOST"},
+	} {
+		if c := doctorChecks(t, tc.env)["docker"]; c.Status != "ok" || !strings.Contains(c.Detail, d.Socket()) || !strings.Contains(c.Detail, "from "+tc.want) {
+			t.Errorf("doctor with %q: docker check %+v, want ok naming the socket and %q", tc.env, c, tc.want)
+		}
+	}
+	missing := filepath.Join(t.TempDir(), "none.sock")
+	if c := doctorChecks(t, []string{"UNDERSTUDY_DOCKER=unix://" + missing})["docker"]; c.Status != "fail" || !strings.Contains(c.Detail, "from UNDERSTUDY_DOCKER") {
+		t.Errorf("doctor without a socket: docker check %+v, want a failure naming UNDERSTUDY_DOCKER", c)
+	}
+	if c := doctorChecks(t, []string{"UNDERSTUDY_DOCKER=disabled"})["docker"]; c.Status != "skip" || !strings.Contains(c.Detail, "UNDERSTUDY_DOCKER") {
+		t.Errorf("doctor with Docker disabled: docker check %+v, want a skip naming UNDERSTUDY_DOCKER", c)
 	}
 }
 

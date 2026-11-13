@@ -96,7 +96,7 @@ func (r *runner) doctor(ctx context.Context, configArgs []string) doctorReport {
 	for _, w := range host.Warnings {
 		add(check{Name: "configuration", Status: checkWarn, Detail: w.Message, Fix: w.Fix})
 	}
-	client, dockerCheck := dockerReachable(ctx, host.Docker)
+	client, dockerCheck := dockerReachable(ctx, host.Docker, host.DockerOrigin)
 	if client != nil {
 		defer client.Close()
 	}
@@ -141,16 +141,17 @@ func serverCheck(h *admin.Health, endpoint string) check {
 	}
 }
 
-// dockerReachable pings the configured Docker Engine; the client is nil
-// unless it answered.
-func dockerReachable(ctx context.Context, d config.Docker) (*docker.Client, check) {
+// dockerReachable pings the configured Docker Engine, naming where its
+// endpoint came from; the client is nil unless it answered.
+func dockerReachable(ctx context.Context, d config.Docker, origin config.DockerOrigin) (*docker.Client, check) {
 	endpoint, ok := dockerEndpoint(d)
 	if !ok {
-		return nil, check{Name: "docker", Status: checkSkip, Detail: "disabled by configuration; Lambda execution and DynamoDB are off"}
+		return nil, check{Name: "docker", Status: checkSkip, Detail: "disabled by " + origin.String() + "; Lambda execution and DynamoDB are off"}
 	}
+	from := "; the endpoint is from " + origin.String()
 	c, err := docker.New(docker.Options{Endpoint: endpoint})
 	if err != nil {
-		return nil, check{Name: "docker", Status: checkFail, Detail: err.Error(), Fix: "set UNDERSTUDY_DOCKER to unix://<socket> or tcp://<host>:<port>"}
+		return nil, check{Name: "docker", Status: checkFail, Detail: err.Error() + from, Fix: "set UNDERSTUDY_DOCKER to unix://<socket> or tcp://<host>:<port>"}
 	}
 	quick, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
@@ -160,15 +161,15 @@ func dockerReachable(ctx context.Context, d config.Docker) (*docker.Client, chec
 		if _, unix := endpoint.(docker.Unix); !unix {
 			fix = "act on the error above, or set UNDERSTUDY_DOCKER=disabled to run without Lambda execution and DynamoDB"
 		}
-		return nil, check{Name: "docker", Status: checkFail, Detail: err.Error(), Fix: fix}
+		return nil, check{Name: "docker", Status: checkFail, Detail: err.Error() + from, Fix: fix}
 	}
 	info, err := c.Info(quick)
 	if err != nil {
 		c.Close()
-		return nil, check{Name: "docker", Status: checkFail, Detail: err.Error(), Fix: "check the daemon's logs"}
+		return nil, check{Name: "docker", Status: checkFail, Detail: err.Error() + from, Fix: "check the daemon's logs"}
 	}
-	return c, check{Name: "docker", Status: checkOK, Detail: fmt.Sprintf("Docker %s (%s) at %s over %s; access to the daemon is root-equivalent on its host",
-		info.ServerVersion, info.OperatingSystem, endpoint, endpoint.Transport())}
+	return c, check{Name: "docker", Status: checkOK, Detail: fmt.Sprintf("Docker %s (%s) at %s over %s, from %s; access to the daemon is root-equivalent on its host",
+		info.ServerVersion, info.OperatingSystem, endpoint, endpoint.Transport(), origin)}
 }
 
 func detectTopology(ctx context.Context, c *docker.Client) (topology.Topology, check) {

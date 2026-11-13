@@ -334,6 +334,7 @@ understudy detects how containers reach it the first time a function runs, and `
 | Docker Desktop (macOS) | `host.docker.internal`, forwarded to understudy on the host's loopback; functions are handed Desktop's documented address, `192.168.65.254`. Supported, not CI-tested: a manual run on Docker Desktop 4.98.0 (2026-11-06) ran functions from the host and from the image |
 | In a container (the image) | understudy's own container network; functions join it |
 | Rootless Docker, rootless Podman | Not supported; understudy says so when a function would start |
+| Colima (macOS) | Not supported, and never run. understudy finds Colima's Docker context, but takes its daemon for a Linux bridge network whose gateway it cannot bind on the Mac host |
 
 On a Linux host functions reach only the AWS API and the read-only health and clock endpoints. On Docker Desktop and in a container they call the main listener, so function code can reach the whole admin API; [SECURITY.md](../../SECURITY.md) says when an admin token closes that.
 
