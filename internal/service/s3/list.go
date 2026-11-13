@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"context"
 	"encoding/base64"
 	"maps"
 	"math"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
 	"github.com/sustinbebustin/understudy/internal/awserr"
+	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/protocol/smithy"
 )
 
@@ -245,6 +247,29 @@ func listObjects(in *s3api.ListObjectsInput, b *Bucket) (*s3api.ListObjectsOutpu
 		out.NextMarker = new(last(entries))
 	}
 	return out, nil
+}
+
+// listObjectsV2Access is the bucket a ListObjectsV2 reads. Every
+// ListObjectsV2 answer names the bucket's home region, whatever region the
+// request asserts: each error about the bucket through namingRegion
+// (testdata/parity/s3/IAM-ENF/13-s3.json), and each 200 through
+// Service.listObjectsV2.
+func listObjectsV2Access(in *s3api.ListObjectsV2Input) access {
+	return at(in.Bucket, in.ExpectedBucketOwner).namingRegion()
+}
+
+// listObjectsV2 answers ListObjectsV2 with the listing function
+// listObjectsV2 and names the bucket's home region on each 200, in a
+// header the output does not model
+// (testdata/parity/s3/R06/07-list-objects-v2.json).
+func (s *Service) listObjectsV2(ctx context.Context, c *kernel.Call, in *s3api.ListObjectsV2Input) (*s3api.ListObjectsV2Output, *awserr.Error) {
+	return read(ctx, s, c, listObjectsV2Access(in), func(b *Bucket) (*s3api.ListObjectsV2Output, *awserr.Error) {
+		out, err := listObjectsV2(in, b)
+		if err == nil {
+			c.SetSuccessHeader(regionHeader, b.Home.Region.String())
+		}
+		return out, err
+	})
 }
 
 // listObjectsV2 is ListObjectsV2: the continuation token wins over

@@ -616,7 +616,7 @@ func tagLimits() fidelity.Switch[string] {
 // recordings settle for an empty-prefix Transition, the texts for
 // NoncurrentVersionTransition and other filters, and the storage-class
 // order beyond GLACIER before ONEZONE_IA (checkTransitionDays,
-// lifecycleFilterText, transitionRank).
+// lifecycleFilterText, transitionWaterfall).
 func lifecycleRuleLimits() fidelity.Switch[string] {
 	return fidelity.Switch[string]{
 		Name:  "s3.lifecycle.rule-limits",

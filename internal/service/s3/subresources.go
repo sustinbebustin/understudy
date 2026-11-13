@@ -495,7 +495,9 @@ const (
 
 // transitionStep is one Days-based transition of a rule: the days after
 // creation (or after becoming noncurrent) and the class it moves to. A
-// transition with neither Days nor Date is a 0-day one, as AWS reads it.
+// transition with neither Days nor Date is a 0-day one, to an Infrequent
+// Access class too: inferred, as AWS takes no minimum of its own for those
+// classes (see the day limits above); no such request is recorded.
 type transitionStep struct {
 	days  int32
 	class s3api.TransitionStorageClass
@@ -539,46 +541,53 @@ func checkTransitionDays(a transitionAction, steps []transitionStep) *awserr.Err
 	return nil
 }
 
-// transitionRank is class c's place in S3's transition waterfall
+// transitionWaterfall is S3's transition waterfall, lowest class first
 // (lifecycle-transition-general-considerations, "Supported transitions"):
-// a rule moves objects only to classes of higher rank. Only GLACIER before
+// a rule moves objects only to classes later in it. Only GLACIER before
 // ONEZONE_IA is recorded as refused
 // (testdata/parity/s3/R12/15-lifecycle-glacier-then-onezone-ia.json); the
-// other places follow the documented waterfall, inferred. The waterfall
-// also leaves out ONEZONE_IA to GLACIER_IR, which this order accepts:
-// AWS's answer to that pair is unrecorded.
-func transitionRank(c s3api.TransitionStorageClass) int {
-	switch c {
-	case s3api.TransitionStorageClassStandardIa:
-		return 1
-	case s3api.TransitionStorageClassIntelligentTiering:
-		return 2
-	case s3api.TransitionStorageClassOnezoneIa:
-		return 3
-	case s3api.TransitionStorageClassGlacierIr:
-		return 4
-	case s3api.TransitionStorageClassGlacier:
-		return 5
-	case s3api.TransitionStorageClassDeepArchive:
-		return 6
-	}
-	return 0
+// other places follow the documented waterfall, inferred. A linear order
+// cannot express one gap in the documented list: it omits ONEZONE_IA to
+// GLACIER_IR, so AWS documents that pair as unsupported, but this order
+// accepts it, and AWS's refusal is unrecorded (docs/guide/differences.md,
+// "S3").
+var transitionWaterfall = [...]s3api.TransitionStorageClass{ //nolint:gochecknoglobals // a constant table; Go has no constant arrays.
+	s3api.TransitionStorageClassStandardIa,
+	s3api.TransitionStorageClassIntelligentTiering,
+	s3api.TransitionStorageClassOnezoneIa,
+	s3api.TransitionStorageClassGlacierIr,
+	s3api.TransitionStorageClassGlacier,
+	s3api.TransitionStorageClassDeepArchive,
 }
 
-// minStorageDays is the minimum storage duration of class c (DOC
+// transitionRank is class c's place in transitionWaterfall, or -1 for a
+// class outside it, which sorts before every class in it.
+func transitionRank(c s3api.TransitionStorageClass) int {
+	return slices.Index(transitionWaterfall[:], c)
+}
+
+// The minimum storage durations, in days, of the transition classes (DOC
 // storage-class-intro, "Comparing the Amazon S3 storage classes"):
 // Intelligent-Tiering has none. The 30 days after STANDARD_IA and the 90
 // after GLACIER_IR are recorded
 // (testdata/parity/s3/R12/12-lifecycle-standard-ia-30-glacier-40.json,
 // testdata/parity/s3/R12/12-lifecycle-glacier-ir-4-deep-archive-20.json).
+const (
+	infrequentAccessMinDays int32 = 30
+	glacierMinDays          int32 = 90
+	deepArchiveMinDays      int32 = 180
+)
+
+// minStorageDays is the minimum storage duration of class c: how long a
+// rule must hold an object in c before its next transition.
 func minStorageDays(c s3api.TransitionStorageClass) int32 {
 	switch c {
 	case s3api.TransitionStorageClassStandardIa, s3api.TransitionStorageClassOnezoneIa:
-		return 30
+		return infrequentAccessMinDays
 	case s3api.TransitionStorageClassGlacierIr, s3api.TransitionStorageClassGlacier:
-		return 90
+		return glacierMinDays
 	case s3api.TransitionStorageClassDeepArchive:
-		return 180
+		return deepArchiveMinDays
 	case s3api.TransitionStorageClassIntelligentTiering:
 	}
 	return 0

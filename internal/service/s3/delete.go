@@ -21,10 +21,9 @@ const (
 	versionIDChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._"
 )
 
-// deleteNote is the coverage note of DeleteObject and DeleteObjects: the
-// governanceBypass seam evaluates no IAM action (s3-ssec-object-lock.md
-// 11.1).
-const deleteNote = "no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention"
+// deleteNote is the coverage note of DeleteObject and DeleteObjects
+// (s3-ssec-object-lock.md 11.1).
+const deleteNote = "no MFA delete; " + bypassNote
 
 // deletion is what one key's delete asks for.
 type deletion struct {

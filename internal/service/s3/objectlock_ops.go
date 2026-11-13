@@ -21,7 +21,7 @@ import (
 func (s *Service) bindObjectLockState(b s3api.Binder) {
 	putRetention := func(in *s3api.PutObjectRetentionInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.PutObjectRetention(s.putObjectRetention, checksumUnchecked(registry.Partial{Note: "event holds (EventHold, EventHoldDuration) are refused with NotImplemented; " +
-		"s3:BypassGovernanceRetention is not evaluated; the s3:ObjectRetention:Put record carries mode and retainUntilDate as documented, " +
+		bypassNote + "; the s3:ObjectRetention:Put record carries mode and retainUntilDate as documented, " +
 		"and its object fields, the date's form and whether a removed retention sends one (here: none) are unrecorded"}), touches(s, putRetention),
 		kernel.WithCheck(func(in *s3api.PutObjectRetentionInput) *awserr.Error {
 			_, err := parseRetentionBody(in.Retention)

@@ -37,12 +37,15 @@ func TestSSECAndObjectLockCoverageMarks(t *testing.T) {
 		createNote   = "an object ACL a bucket accepts is not stored; no lifecycle abort date; Object Lock event-hold headers are refused with NotImplemented"
 		partNote     = "chunk signatures are verified under sigv4 verify; a part without a checksum is refused on an upload that declared XXHASH3, XXHASH128, SHA512 or MD5 by inference from the recorded refusal for XXHASH64"
 		answeredNote = "errors are answered before the response starts, so only a StatusOKError fault rule sends 200-with-error"
-		deleteNote   = "no MFA delete; s3:BypassGovernanceRetention is not evaluated, so x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention"
-		notifyNote   = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
+		bypassText   = "once the call is admitted, x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention; " +
+			"under iam.enforce=enforce a principal denied s3:BypassGovernanceRetention is refused the whole call, " +
+			"and whether AWS refuses the call or only withholds the bypass is unrecorded"
+		deleteNote = "no MFA delete; " + bypassText
+		notifyNote = "deliveries to SQS, SNS and Lambda; an EventBridge configuration is stored but sends nothing; " +
 			"destination validation checks existence, refuses FIFO queues and topics, and asks whether each destination's policy admits s3.amazonaws.com from the bucket: " +
 			"under iam.enforce=enforce a refusal fails the call, under advise it is journaled, and under off it is not asked, where AWS refuses in every case; " +
 			"a destination whose policy refuses S3 later refuses each notification under enforce, which is dropped (s3.notification.delivery-denied)"
-		retentionNote = "event holds (EventHold, EventHoldDuration) are refused with NotImplemented; s3:BypassGovernanceRetention is not evaluated; " +
+		retentionNote = "event holds (EventHold, EventHoldDuration) are refused with NotImplemented; " + bypassText + "; " +
 			"the s3:ObjectRetention:Put record carries mode and retainUntilDate as documented, and its object fields, the date's form and whether a removed retention sends one (here: none) are unrecorded"
 	)
 	marks := map[string]registry.BindCoverage{

@@ -46,22 +46,7 @@ func (s *Service) bindObjects(b s3api.Binder) {
 	b.CopyObject(s.copyObject, registry.Partial{Note: "an object ACL a bucket accepts is not stored; errors after the copy starts are not sent as 200-with-error; " + eventHoldNote}, touches(s, cp))
 	lv1 := func(in *s3api.ListObjectsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjects(reader(s, lv1, listObjects), registry.Partial{Note: "no RestoreStatus"}, touches(s, lv1))
-	// Every ListObjectsV2 answer names the bucket's home region, whatever
-	// region the request asserts: each 200, with a header the output does
-	// not model (testdata/parity/s3/R06/07-list-objects-v2.json), and each
-	// error about the bucket (testdata/parity/s3/IAM-ENF/13-s3.json).
-	lv2 := func(in *s3api.ListObjectsV2Input) access {
-		return at(in.Bucket, in.ExpectedBucketOwner).namingRegion()
-	}
-	b.ListObjectsV2(func(ctx context.Context, c *kernel.Call, in *s3api.ListObjectsV2Input) (*s3api.ListObjectsV2Output, *awserr.Error) {
-		return read(ctx, s, c, lv2(in), func(b *Bucket) (*s3api.ListObjectsV2Output, *awserr.Error) {
-			out, err := listObjectsV2(in, b)
-			if err == nil {
-				c.SetSuccessHeader(regionHeader, b.Home.Region.String())
-			}
-			return out, err
-		})
-	}, registry.Partial{Note: "no RestoreStatus"}, touches(s, lv2))
+	b.ListObjectsV2(s.listObjectsV2, registry.Partial{Note: "no RestoreStatus"}, touches(s, listObjectsV2Access))
 	lvv := func(in *s3api.ListObjectVersionsInput) access { return at(in.Bucket, in.ExpectedBucketOwner) }
 	b.ListObjectVersions(reader(s, lvv, listObjectVersions), registry.Partial{Note: "no RestoreStatus"}, touches(s, lvv))
 	s.bindObjectTagging(b)

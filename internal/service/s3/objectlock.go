@@ -492,3 +492,10 @@ func checkBypassHeader(b *Bucket, header *bool) *awserr.Error {
 func (*Service) governanceBypass(_ *kernel.Call, header *bool, _ aws.ARN) bool {
 	return header != nil && *header
 }
+
+// bypassNote is the part of the DeleteObject, DeleteObjects and
+// PutObjectRetention coverage notes that states governanceBypass
+// (s3-ssec-object-lock.md 11.1).
+const bypassNote = "once the call is admitted, x-amz-bypass-governance-retention alone bypasses GOVERNANCE retention; " +
+	"under iam.enforce=enforce a principal denied s3:BypassGovernanceRetention is refused the whole call, " +
+	"and whether AWS refuses the call or only withholds the bypass is unrecorded"

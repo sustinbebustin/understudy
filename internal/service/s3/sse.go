@@ -730,7 +730,7 @@ func checkCustomerComplete(u *Upload, h customerHeaders, scheme string) *awserr.
 	return nil
 }
 
-// customerCompleteHeaders are the response headers of a Complete of an
+// setCustomerCompleteHeaders sets the response headers of a Complete of an
 // SSE-C object whose request carried its key: the algorithm and the key's
 // MD5, as S3SOL-08 08-right-key recorded for an upload that declared a
 // checksum algorithm. CompleteMultipartUploadOutput does not model them
@@ -743,7 +743,15 @@ func setCustomerCompleteHeaders(c *kernel.Call, e Encryption, h customerHeaders)
 		return
 	}
 	k, err := parseCustomerWrite(h, nil)
-	if err != nil || !enc.matches(*k) {
+	if err != nil {
+		// Only a retry gets here: a first Complete with an unreadable key
+		// is refused by checkCustomerComplete, which a retry skips
+		// (retried). The retry keeps its 200 and echoes nothing, as there
+		// is no key to echo (inferred: no retry with a bad key is
+		// recorded).
+		return
+	}
+	if !enc.matches(*k) {
 		return
 	}
 	c.SetSuccessHeader(customerAlgorithmHeader, customerAlgorithm)
