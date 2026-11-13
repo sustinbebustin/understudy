@@ -818,7 +818,7 @@ rec SES-29/template-over aws ses create-template --cli-input-json "file://$REC/t
 ```
 The `--max-items` of the CLI is client-side paging, so the raw calls are the evidence for `MaxItems`. Whether 500 KB means 512,000 or 500,000 bytes is part of what this settles; if the 512,001-byte template is accepted, rerun with 500,001 bytes and record both. Cost 0 if all are rejected, else USD 0.0001 per accepted send, 10 min. Teardown: `aws ses delete-template --template-name "$P-big"` if it was created, and the shared teardown.
 
-**SES-30: SendRawEmail condition keys when the raw headers and the parameters disagree.** Settles where AWS takes `ses:FromAddress`, `ses:Recipients`, `ses:FeedbackAddress` and `ses:FromDisplayName` from for `SendRawEmail` (4.2): the `From`, `To` and `Return-Path` headers of the raw message, or the `Source` and `Destinations` parameters. understudy cannot derive them today, so every SES binding refuses them under `enforce` (`internal/service/ses/iam.go`, 501 `NotImplemented` naming the key). No other section of this note covers SES condition keys yet; a section on them should point here. Each step sends one raw message whose headers name one set of addresses and whose parameters name another, as a session of the role `$P-ses-ck` whose session policy allows `ses:SendRawEmail` and denies it under one condition. A denial (the SES-28 form) means the condition matched; `MessageRejected` (the addresses are unverified) means it did not, and nothing is sent.
+**SES-30: SendRawEmail condition keys when the raw headers and the parameters disagree.** Settles where AWS takes `ses:FromAddress`, `ses:Recipients`, `ses:FeedbackAddress` and `ses:FromDisplayName` from for `SendRawEmail` (4.2): the `From`, `To` and `Return-Path` headers of the raw message, or the `Source` and `Destinations` parameters. understudy cannot derive them today, so every SES binding refuses them under `enforce` (`internal/service/ses/iam.go`, 501 `NotImplemented` naming the key). [iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.5 gives each SES key's derivation and points here for the raw forms. Each step sends one raw message whose headers name one set of addresses and whose parameters name another, as a session of the role `$P-ses-ck` whose session policy allows `ses:SendRawEmail` and denies it under one condition. A denial (the SES-28 form) means the condition matched; `MessageRejected` (the addresses are unverified) means it did not, and nothing is sent.
 
 ```sh
 mkdir -p "$REC/_work/SES-30"
@@ -859,12 +859,75 @@ ck 15-display-source     '{"StringLike":{"ses:FromDisplayName":"*Source Name*"}}
 ck 16-display-header-alone '{"StringLike":{"ses:FromDisplayName":"*Header Name*"}}' --destinations "$RD"
 ```
 
-The `*...*` patterns match the key whatever form it takes (bare address, with display name, quoted). Read per key: the `-any` step must be denied, or AWS does not supply the key for `SendRawEmail` at all and the key's other steps say nothing (note it). Then the header step and the parameter step: exactly one denied tells which input AWS uses when both are given; both denied means it uses both (for `ses:Recipients`, the union); neither, with the `-any` step denied, means a form the patterns missed. The `-alone` step shows whether the header is used when the parameter is absent. The answers give understudy the derivation that would let those keys be supplied instead of refused; record them in 4.2 with the fixture paths, or in the SES condition-key section once it exists. Cost 0 (every send is denied or rejected), 15 min. Teardown:
+The `*...*` patterns match the key whatever form it takes (bare address, with display name, quoted). Read per key: the `-any` step must be denied, or AWS does not supply the key for `SendRawEmail` at all and the key's other steps say nothing (note it). Then the header step and the parameter step: exactly one denied tells which input AWS uses when both are given; both denied means it uses both (for `ses:Recipients`, the union); neither, with the `-any` step denied, means a form the patterns missed. The `-alone` step shows whether the header is used when the parameter is absent. The answers give understudy the derivation that would let those keys be supplied instead of refused; record them in 4.2 with the fixture paths and in the raw row of [iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.5. Cost 0 (every send is denied or rejected), 15 min. Teardown:
 
 ```sh
 aws iam delete-role-policy --role-name "$P-ses-ck" --policy-name send
 aws iam delete-role --role-name "$P-ses-ck"
 rm -f "$REC/_work/SES-30/ck.eml"
+```
+
+**SES-31: condition keys of Simple and Template sends, `ses:ApiVersion`, and v2 Raw.** Settles the inferred and UNVERIFIED rows of [iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.5 that SES-30 does not: the v1 value of `ses:ApiVersion` and whether non-send actions carry it (switch `ses.condition.api-version-v1`); the form of `ses:FromAddress` and `ses:Recipients` when a parameter carries a display name, a `+label` or upper case, and whether `ReplyToAddresses` count as recipients (switch `ses.condition.address-form`); `ses:FeedbackAddress` without `ReturnPath`; `ses:FromDisplayName` for a quoted, an encoded-word and a missing name; whether v1 `SendTemplatedEmail` carries the address keys (the access-control page says they apply only to `SendEmail` and `SendRawEmail`); the action v2 Template content is authorized as; and, for v2 Raw content, whether the address keys come from the raw headers or from `FromEmailAddress` and `Destination`. Each step makes one call as a session of the role `$P-ses-ck31` whose session policy allows `ses:*` and denies `ses:*` under one condition. A denial (the SES-28 form, naming the action checked) means the condition matched; any other answer (`MessageRejected` for the unverified sender, success for step 04's list) means it did not, and nothing is sent.
+
+```sh
+mkdir -p "$REC/_work/SES-31"
+aws iam create-role --role-name "$P-ses-ck31" --assume-role-policy-document \
+  "$(jq -nc --arg a "arn:aws:iam::$A:root" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Principal:{AWS:$a},Action:"sts:AssumeRole"}]}')" >/dev/null
+aws iam put-role-policy --role-name "$P-ses-ck31" --policy-name ses --policy-document \
+  '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"ses:*","Resource":"*"}]}'
+aws ses create-template --template "{\"TemplateName\":\"$P-ck-t\",\"SubjectPart\":\"s\",\"TextPart\":\"b\"}"
+sleep 15
+S="$P-src@example.com" RT="$P-Rcpt+lab@Example.com" RC="$P-cc@example.com" RB="$P-bcc@example.com" RR="$P-reply@example.com"
+FB="$P-fb@example.com" H="$P-hdr@example.com" RH="$P-rcpt-hdr@example.com"
+DEST="{\"ToAddresses\":[\"Rcpt Name <$RT>\"],\"CcAddresses\":[\"$RC\"],\"BccAddresses\":[\"$RB\"]}"
+V1=(ses send-email --from "Source Name <$S>" --destination "$DEST" --message "$MSG")
+V2=(sesv2 send-email --from-email-address "Source Name <$S>" --destination "$DEST" --content '{"Simple":{"Subject":{"Data":"s"},"Body":{"Text":{"Data":"b"}}}}')
+printf 'From: "Header Name" <%s>\r\nTo: %s\r\nSubject: ck\r\n\r\nb\r\n' "$H" "$RH" >"$REC/_work/SES-31/ck.eml"
+V2R=(sesv2 send-email --from-email-address "$S" --destination "{\"ToAddresses\":[\"$RT\"]}" --content "{\"Raw\":{\"Data\":\"$(b64 "$REC/_work/SES-31/ck.eml")\"}}")
+ck31() {  # ck31 <step> <condition JSON> <aws args...>: make the call as a session denied every ses action under the condition
+  local pol k s t
+  pol=$(jq -nc --argjson c "$2" '{Version:"2012-10-17",Statement:[{Effect:"Allow",Action:"ses:*",Resource:"*"},
+    {Effect:"Deny",Action:"ses:*",Resource:"*",Condition:$c}]}')
+  read -r k s t <<<"$(aws sts assume-role --role-arn "arn:aws:iam::$A:role/$P-ses-ck31" --role-session-name ck31 --policy "$pol" \
+    --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' --output text)"
+  [ -n "$t" ] || { echo "ck31: assume-role failed for $1; nothing was sent, run the step again" >&2; return 1; }
+  rec "SES-31/$1" env -u AWS_PROFILE AWS_ACCESS_KEY_ID="$k" AWS_SECRET_ACCESS_KEY="$s" AWS_SESSION_TOKEN="$t" aws "${@:3}"
+}
+ck31 01-api-v1             '{"StringEquals":{"ses:ApiVersion":"1"}}' "${V1[@]}"
+ck31 02-api-v1-present     '{"Null":{"ses:ApiVersion":"false"}}' "${V1[@]}"
+ck31 03-api-v2             '{"StringEquals":{"ses:ApiVersion":"2"}}' "${V2[@]}"
+ck31 04-api-v1-nonsend     '{"StringEquals":{"ses:ApiVersion":"1"}}' ses list-identities --max-items 1
+ck31 05-from-bare          "{\"StringEquals\":{\"ses:FromAddress\":\"$S\"}}" "${V1[@]}"
+ck31 06-from-with-name     '{"StringLike":{"ses:FromAddress":"*Source Name*"}}' "${V1[@]}"
+ck31 07-display            '{"StringEquals":{"ses:FromDisplayName":"Source Name"}}' "${V1[@]}"
+ck31 08-display-no-name    '{"Null":{"ses:FromDisplayName":"false"}}' ses send-email --from "$S" --destination "$DEST" --message "$MSG"
+ck31 09-rcpt-as-written    "{\"ForAnyValue:StringEquals\":{\"ses:Recipients\":\"$RT\"}}" "${V1[@]}"
+ck31 10-rcpt-lowered       "{\"ForAnyValue:StringEquals\":{\"ses:Recipients\":\"$(printf %s "$RT" | tr A-Z a-z)\"}}" "${V1[@]}"
+ck31 11-rcpt-bcc           "{\"ForAnyValue:StringEquals\":{\"ses:Recipients\":\"$RB\"}}" "${V1[@]}"
+ck31 12-rcpt-reply-to      "{\"ForAnyValue:StringEquals\":{\"ses:Recipients\":\"$RR\"}}" "${V1[@]}" --reply-to-addresses "$RR"
+ck31 13-fb-return-path     "{\"StringEquals\":{\"ses:FeedbackAddress\":\"$FB\"}}" "${V1[@]}" --return-path "$FB"
+ck31 14-fb-default         '{"Null":{"ses:FeedbackAddress":"false"}}' "${V1[@]}"
+ck31 15-fb-default-source  "{\"StringEquals\":{\"ses:FeedbackAddress\":\"$S\"}}" "${V1[@]}"
+ck31 16-templated-from     "{\"StringEquals\":{\"ses:FromAddress\":\"$S\"}}" ses send-templated-email --source "Source Name <$S>" --destination "$DEST" --template "$P-ck-t" --template-data '{}'
+ck31 17-v2-from            "{\"StringEquals\":{\"ses:FromAddress\":\"$S\"}}" "${V2[@]}"
+ck31 18-v2-fb              "{\"StringEquals\":{\"ses:FeedbackAddress\":\"$FB\"}}" "${V2[@]}" --feedback-forwarding-email-address "$FB"
+ck31 19-v2-template        "{\"StringEquals\":{\"ses:FromAddress\":\"$S\"}}" sesv2 send-email --from-email-address "Source Name <$S>" --destination "$DEST" \
+  --content "{\"Template\":{\"TemplateName\":\"$P-ck-t\",\"TemplateData\":\"{}\"}}"
+ck31 20-v2raw-from-header  "{\"StringLike\":{\"ses:FromAddress\":\"*$H*\"}}" "${V2R[@]}"
+ck31 21-v2raw-from-param   "{\"StringLike\":{\"ses:FromAddress\":\"*$S*\"}}" "${V2R[@]}"
+ck31 22-v2raw-rcpt-header  "{\"ForAnyValue:StringLike\":{\"ses:Recipients\":\"*$RH*\"}}" "${V2R[@]}"
+ck31 23-v2raw-rcpt-param   "{\"ForAnyValue:StringLike\":{\"ses:Recipients\":\"*$RT*\"}}" "${V2R[@]}"
+ck31 24-display-quoted     '{"StringEquals":{"ses:FromDisplayName":"Source Name"}}' ses send-email --from "\"Source Name\" <$S>" --destination "$DEST" --message "$MSG"
+ck31 25-display-encoded    '{"StringEquals":{"ses:FromDisplayName":"Source Name"}}' ses send-email --from "=?UTF-8?B?U291cmNlIE5hbWU=?= <$S>" --destination "$DEST" --message "$MSG"
+```
+
+Read per key. `ses:ApiVersion`: 03 denied confirms the documented `"2"`; 01 denied means v1 sends `"1"`; 01 not denied with 02 denied means another value, then rerun 01 with `"2010-12-01"`; 02 not denied means v1 sends no value; 04 tells the same for a non-send action. `ses:FromAddress`: 05 denied is the bare address, 06 denied the whole parameter with its name; 16 denied means `SendTemplatedEmail` carries the key despite the access-control table; 17 is the same for v2; 19's denial text names the action v2 Template content is authorized as. `ses:FromDisplayName`: 07 confirms the documented name; 08 denied means the key is present with no name (then rerun it with `StringEquals` `""` to tell an empty value); 24 denied means the quotes are stripped, 25 denied that an encoded-word is decoded. `ses:Recipients`: 09 denied is the address as written (label and case kept), 10 denied a lower-cased one; 11 confirms Bcc; 12 denied means Reply-To counts. `ses:FeedbackAddress`: 13 and 18 confirm the documented parameter; 14 denied means the key is present without `ReturnPath`, and 15 denied that it is then `Source`. v2 Raw: 20 against 21 and 22 against 23 read as SES-30's header and parameter steps. Record the answers in the rows of [iam-enforcement-surfaces.md](iam-enforcement-surfaces.md) 12.5 with the fixture paths. Cost 0 (every send is denied or rejected for its unverified sender), 15 min. Teardown:
+
+```sh
+aws ses delete-template --template-name "$P-ck-t"
+aws iam delete-role-policy --role-name "$P-ses-ck31" --policy-name ses
+aws iam delete-role --role-name "$P-ses-ck31"
+rm -f "$REC/_work/SES-31/ck.eml"
 ```
 
 ### 12.3 Results of 2026-11-03
