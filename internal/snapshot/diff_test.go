@@ -336,6 +336,23 @@ func TestDiffNormalizeKeepsAFrozenClock(t *testing.T) {
 		`~ manifest.json /clock/at: "2026-10-09T12:00:00Z" -> "2026-10-09T12:00:05Z"`)
 }
 
+// A --persist checkpoint records the wall instant of its cut (ADR 0009
+// amendment 2026-11-11), so two checkpoints of one state written at
+// different wall instants differ only by it, and normalizing masks it
+// whatever the clock's mode (ADR 0018 amendment 2026-11-13).
+func TestDiffNormalizeMasksACheckpointCutWall(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []clock.Mode{clock.Running{}, clock.Frozen{}} {
+		a, b := archive(t, t0, 1, nil), archive(t, t0, 1, nil)
+		a.Manifest.Clock.Mode, b.Manifest.Clock.Mode = mode, mode
+		wa, wb := instant(t, "2026-11-13T09:00:00Z"), instant(t, "2026-11-13T09:00:30Z")
+		a.Manifest.CutWall, b.Manifest.CutWall = &wa, &wb
+		assertDiff(t, diff(t, a, b, false),
+			`~ manifest.json /cutWall: "2026-11-13T09:00:00Z" -> "2026-11-13T09:00:30Z"`)
+		assertDiff(t, diff(t, a, b, true))
+	}
+}
+
 func TestDiffComparesSectionVersionsBlobsAndNDJSON(t *testing.T) {
 	t.Parallel()
 	const items = "services/dynamodb/000000000000/us-east-1/locks.ndjson"

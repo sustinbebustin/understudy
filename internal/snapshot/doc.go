@@ -24,8 +24,9 @@
 //     (STS credential expiry; identity's export writes Expiry),
 //     CreationDateTime, LastUpdateToPayPerRequestDateTime,
 //     ApproximateCreationDateTime, LatestStreamLabel and StreamLabel
-//     (DynamoDB Local), the durations of a Lambda REPORT line, and a Running
-//     or Scaled clock's time in the manifest;
+//     (DynamoDB Local), the durations of a Lambda REPORT line, a Running
+//     or Scaled clock's time in the manifest, and the manifest's cutWall
+//     in every mode (a --persist checkpoint's wall instant, ADR 0009);
 //   - hosts: the host and port of every http and https URL;
 //   - account ids: the account field of every ARN, an account that starts a
 //     URL path (SQS queue URLs), the account of a whole store.ScopeKeys

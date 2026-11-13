@@ -191,8 +191,9 @@ func dedupe(ms []member) []member {
 }
 
 // manifestTree is the manifest without its section list. Under
-// normalization a Running or Scaled clock's time is masked: it follows the
-// wall clock.
+// normalization a Running or Scaled clock's time is masked, since it follows
+// the wall clock, and so is a checkpoint's cutWall in every mode, since it is
+// a wall reading.
 func manifestTree(m Manifest, norm bool) (tree, error) {
 	m.Sections = nil
 	raw, err := encodeManifest(m)
@@ -200,11 +201,15 @@ func manifestTree(m Manifest, norm bool) (tree, error) {
 		return tree{}, err
 	}
 	t := docTree(manifestName, raw)
-	if _, frozen := m.Clock.Mode.(clock.Frozen); norm && !frozen {
-		for i, c := range t.members {
-			if c.name != "clock" {
-				continue
-			}
+	if !norm {
+		return t, nil
+	}
+	_, frozen := m.Clock.Mode.(clock.Frozen)
+	for i, c := range t.members {
+		switch {
+		case c.name == "cutWall":
+			t.members[i].val = str(normalizer.WallTime.Mask())
+		case c.name == "clock" && !frozen:
 			for j, f := range c.val.members {
 				if f.name == "at" {
 					t.members[i].val.members[j].val = str(normalizer.WallTime.Mask())
