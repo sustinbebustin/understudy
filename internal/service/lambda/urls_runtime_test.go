@@ -150,8 +150,8 @@ const forbidden = `{"Message":"Forbidden. For troubleshooting Function URL autho
 // TestFunctionURLRequestEventGolden sends the Lambda guide's example
 // request (lambda-events.md 7.3) through the edge to a function that
 // echoes its event, which the URL answers as the JSON body. The request
-// carries no trace, so x-amzn-trace-id is the trace the function ran
-// under.
+// carries no trace, so x-amzn-trace-id is the Root of the trace the
+// function ran under (R13 01-logged-events).
 func TestFunctionURLRequestEventGolden(t *testing.T) {
 	var mu sync.Mutex
 	var trace string
@@ -188,7 +188,8 @@ func TestFunctionURLRequestEventGolden(t *testing.T) {
 		if ran == "" {
 			t.Fatal("the function ran without a trace id")
 		}
-		want := strings.NewReplacer("{{URL_ID}}", id, "{{REQUEST_ID}}", requestID, "{{TRACE_ID}}", ran).Replace(string(raw))
+		eventTrace, _, _ := strings.Cut(ran, ";")
+		want := strings.NewReplacer("{{URL_ID}}", id, "{{REQUEST_ID}}", requestID, "{{TRACE_ID}}", eventTrace).Replace(string(raw))
 		var compact bytes.Buffer
 		if err := json.Compact(&compact, []byte(want)); err != nil {
 			t.Fatal(err)
@@ -202,8 +203,8 @@ func TestFunctionURLRequestEventGolden(t *testing.T) {
 	})
 }
 
-// A client's X-Amzn-Trace-Id is the trace the event reports and the one
-// the function runs under, as on AWS.
+// A client's X-Amzn-Trace-Id is the trace the function runs under; the
+// event reports its Root alone, as on AWS (R13 01-logged-events).
 func TestFunctionURLRunsUnderTheClientsTrace(t *testing.T) {
 	const clientTrace = "Root=1-67891233-abcdef012345678912345678;Parent=463ac35c9f6413ad;Sampled=1"
 	var mu sync.Mutex
@@ -228,8 +229,9 @@ func TestFunctionURLRunsUnderTheClientsTrace(t *testing.T) {
 		}
 		mu.Lock()
 		defer mu.Unlock()
-		if ev.Headers["x-amzn-trace-id"] != clientTrace || ran != clientTrace {
-			t.Errorf("event x-amzn-trace-id %q, function trace %q; want both %q", ev.Headers["x-amzn-trace-id"], ran, clientTrace)
+		const wantRoot = "Root=1-67891233-abcdef012345678912345678"
+		if ev.Headers["x-amzn-trace-id"] != wantRoot || ran != clientTrace {
+			t.Errorf("event x-amzn-trace-id %q, function trace %q; want %q and %q", ev.Headers["x-amzn-trace-id"], ran, wantRoot, clientTrace)
 		}
 	})
 }

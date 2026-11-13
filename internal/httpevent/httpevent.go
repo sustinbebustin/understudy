@@ -192,8 +192,17 @@ func EventV2(r Request, c Context) ([]byte, error) {
 //sumtype:decl
 type V2Front interface{ isV2Front() }
 
-// FunctionURL is a Lambda function URL (lambda-events.md 7.3).
-type FunctionURL struct{}
+// FunctionURL is a Lambda function URL (lambda-events.md 7.3). The zero
+// value is the front EventV2 has always built; the fields turn on what AWS
+// recorded for a real function URL (R13 01-logged-events).
+type FunctionURL struct {
+	// CookieHeader keeps the cookie header in headers, the values of
+	// repeated Cookie headers joined by "; " (inferred: R13 sent one),
+	// beside the cookies split from it.
+	CookieHeader bool
+	// RootOnlyTrace reports x-amzn-trace-id as its Root= part alone.
+	RootOnlyTrace bool
+}
 
 func (FunctionURL) isV2Front() {}
 func (HTTPAPI) isV2Front()     {}
@@ -204,12 +213,23 @@ func (HTTPAPI) isV2Front()     {}
 // EventV2's front. A nil f is FunctionURL.
 func EventV2For(r Request, c Context, f V2Front) ([]byte, error) {
 	front := frontHeaders(r, c.TraceID)
-	switch f.(type) {
+	keepCookie := false
+	switch f := f.(type) {
 	case HTTPAPI:
 		front = httpAPIFrontHeaders(r, c.TraceID)
-	case FunctionURL, nil:
+	case FunctionURL:
+		keepCookie = f.CookieHeader
+		if f.RootOnlyTrace && c.TraceID != "" {
+			front["x-amzn-trace-id"], _, _ = strings.Cut(c.TraceID, ";")
+		}
+	case nil:
 	}
 	headers, cookies := eventHeaders(r, front)
+	if keepCookie {
+		if values := lowerHeaders(r.Header)["cookie"]; len(values) > 0 {
+			headers["cookie"] = strings.Join(values, "; ")
+		}
+	}
 	ev := event{
 		Version:               "2.0",
 		RouteKey:              c.RouteKey,

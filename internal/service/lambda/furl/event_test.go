@@ -151,7 +151,7 @@ func TestEventReportsAnIAMCallerUnderAuthorizer(t *testing.T) {
 		AccessKey: "AKIAEXAMPLE", AccountID: "111122223333", ID: "AIDAEXAMPLE",
 		UserARN: "arn:aws:iam::111122223333:user/example-user",
 	}
-	c.TraceID = "Root=1-5e5fe6fe-0123456789abcdef01234567"
+	c.TraceID = "Root=1-5e5fe6fe-0123456789abcdef01234567;Parent=53995c3f42cd8ad8;Sampled=0"
 	raw, err := furl.Event(guideRequest(), c)
 	if err != nil {
 		t.Fatal(err)
@@ -170,14 +170,40 @@ func TestEventReportsAnIAMCallerUnderAuthorizer(t *testing.T) {
 	if string(ev.RequestContext.Authorizer) != want || ev.RequestContext.AccountID != "111122223333" {
 		t.Errorf("accountId %s, authorizer %s; want the caller's account and\n%s", ev.RequestContext.AccountID, ev.RequestContext.Authorizer, want)
 	}
-	if ev.Headers["x-amzn-trace-id"] != c.TraceID {
-		t.Errorf("x-amzn-trace-id = %q, want %q", ev.Headers["x-amzn-trace-id"], c.TraceID)
+	// R13 01-logged-events: the event's x-amzn-trace-id is the Root part
+	// only, while the function's own trace context keeps Parent and Sampled.
+	if want := "Root=1-5e5fe6fe-0123456789abcdef01234567"; ev.Headers["x-amzn-trace-id"] != want {
+		t.Errorf("x-amzn-trace-id = %q, want %q", ev.Headers["x-amzn-trace-id"], want)
+	}
+}
+
+// R13 01-logged-events (01-get-cookie): the event keeps `cookie` in
+// headers, joined as received, and still splits it into cookies.
+func TestEventKeepsTheCookieHeader(t *testing.T) {
+	r := guideRequest()
+	r.Header.Set("Cookie", "x=1; y=2")
+	raw, err := furl.Event(r, guideContext())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ev struct {
+		Cookies []string          `json:"cookies"`
+		Headers map[string]string `json:"headers"`
+	}
+	if err := json.Unmarshal(raw, &ev); err != nil {
+		t.Fatal(err)
+	}
+	if ev.Headers["cookie"] != "x=1; y=2" {
+		t.Errorf("headers.cookie = %q, want %q", ev.Headers["cookie"], "x=1; y=2")
+	}
+	if got := strings.Join(ev.Cookies, "|"); got != "x=1|y=2" {
+		t.Errorf("cookies = %q, want x=1|y=2", ev.Cookies)
 	}
 }
 
 // Whatever the client sends, header names reach the function lowercase,
-// cookies never sit among the headers, and the body decodes to the bytes
-// sent.
+// the cookie header is kept beside the cookies split from it, and the body
+// decodes to the bytes sent.
 func TestEventHeadersAndBodyProperties(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		r := guideRequest()
@@ -206,7 +232,7 @@ func TestEventHeadersAndBodyProperties(t *testing.T) {
 			t.Fatal(err)
 		}
 		for name := range ev.Headers {
-			if name != strings.ToLower(name) || name == "cookie" {
+			if name != strings.ToLower(name) {
 				t.Fatalf("header %q reached the function", name)
 			}
 		}
