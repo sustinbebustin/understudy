@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.52.4
 	github.com/moby/moby/api v1.55.0
 	github.com/moby/moby/client v0.5.0
-	github.com/sustinbebustin/understudy v0.1.2
+	github.com/sustinbebustin/understudy v0.2.0
 	github.com/testcontainers/testcontainers-go v0.44.0
 )
 
