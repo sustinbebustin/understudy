@@ -51,6 +51,13 @@ jobs:
           notes=$(awk -v h="## [$VERSION]" 'index($0, h) == 1 { on = 1; next } on && /^## \[/ { exit } on' CHANGELOG.md)
           pins=$(cat "$RUNNER_TEMP/pins.md")
           # shellcheck disable=SC2016 # the backticks are Markdown
-          body=$(printf 'Moves every version pin to %s and cuts CHANGELOG.md (scripts/bump-version). After merging, push the tag from the merge commit:\n\n```sh\ngit switch main && git pull --ff-only\ngit tag -a v%s -m "understudy v%s" && git push origin v%s\n```\n\n## Runtime image pins\n\n%s\n\n## Release notes\n\n%s\n' "$VERSION" "$VERSION" "$VERSION" "$VERSION" "$pins" "$notes")
+          intro=$(printf 'Moves every version pin to %s and cuts CHANGELOG.md (scripts/bump-version). After merging, push the tag from the merge commit:\n\n```sh\ngit switch main && git pull --ff-only\ngit tag -a v%s -m "understudy v%s" && git push origin v%s\n```\n\n## Runtime image pins\n\n%s' "$VERSION" "$VERSION" "$VERSION" "$VERSION" "$pins")
+          body=$(printf '%s\n\n## Release notes\n\n%s\n' "$intro" "$notes")
+          # GitHub refuses a pull request body over 65536 characters, after
+          # the branch is pushed. Notes that long stay in CHANGELOG.md.
+          if [ "${#body}" -gt 60000 ]; then
+            # shellcheck disable=SC2016 # the backticks are Markdown
+            body=$(printf '%s\n\n## Release notes\n\nToo long for a pull request body. They are the `[%s]` section of CHANGELOG.md on this branch.\n' "$intro" "$VERSION")
+          fi
           gh pr create --base main --head "$branch" --title "build: release $VERSION" --body "$body"
           gh workflow run ci.yml --ref "$branch"
