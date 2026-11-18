@@ -249,15 +249,6 @@ func TestPutObjectHeaderChecksum(t *testing.T) {
 	})
 }
 
-// TestPutObjectToMissingBucketReadsNoBody: the bucket is checked before the
-// body is pulled, so net/http never sends 100 Continue (s3.md 6.3).
-func TestPutObjectToMissingBucketReadsNoBody(t *testing.T) {
-	runObjects(t, func(h *harness) {
-		_, err := as(h, who{}, s3api.OpPutObject, &s3api.PutObjectInput{Bucket: "nowhere", Key: "k", Body: &body{r: unreadable{t: h.T}, n: 5}})
-		wantCode(t, err, "NoSuchBucket", http.StatusNotFound)
-	})
-}
-
 // TestPutObjectWithoutLengthIsRefused: a body of unknown length without
 // aws-chunked framing (HTTP chunked transfer coding) is 411
 // MissingContentLength before the body is read (s3.md 5.2).

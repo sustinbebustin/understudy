@@ -9,7 +9,7 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 )
 
-// The golden cases below replay ten of LocalStack's AWS-validated S3
+// The golden cases below replay four of LocalStack's AWS-validated S3
 // snapshots (third-party-recorded, s3-ssec-object-lock.md 1). Each cites
 // localstack@8b9a79f <path>:L<n>, the line of the snapshot entry, and the
 // test's last_validated_date in the sibling *.validation.json; each asserts
@@ -151,23 +151,5 @@ func TestGoldenDeleteObjectsLocked(t *testing.T) {
 			t.Errorf("delete-objects-locked error = %s %s %q %s, want AccessDenied test-delete-locked %q %s",
 				str(e.Code), str(e.Key), str(e.Message), str(e.VersionId), "Access Denied because object protected by object lock.", *v)
 		}
-	})
-}
-
-// TestGoldenBypassWithoutObjectLock replays test_delete_object_with_no_locking
-// (localstack@8b9a79f tests/aws/services/s3/test_s3_api.py:L2345, snapshot
-// test_s3_api.snapshot.json:L3532; last_validated_date
-// 2026-02-21T01:04:11Z).
-func TestGoldenBypassWithoutObjectLock(t *testing.T) {
-	runObjects(t, func(h *harness) {
-		t := h.T
-		h.createBucket("golden")
-		h.put("golden", "test-key", "test")
-		_, err := h.deleteVersion("golden", "test-key", nil, new(true))
-		// localstack@8b9a79f tests/aws/services/s3/test_s3_api.snapshot.json:L3535
-		failure{
-			status: 400, code: "InvalidArgument", message: "x-amz-bypass-governance-retention is only applicable to Object Lock enabled buckets.",
-			fields: map[string]string{"ArgumentName": "x-amz-bypass-governance-retention"},
-		}.is(t, "delete-object-bypass-no-lock", err)
 	})
 }

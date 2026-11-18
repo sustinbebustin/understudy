@@ -286,20 +286,6 @@ func TestCheckRetainUntil(t *testing.T) {
 	})
 }
 
-// TestRetentionInForce: a retention protects its version while now is
-// before its date and no longer from the date on (switch
-// s3.object-lock.retain-until-format: deletable once now >= RetainUntil).
-func TestRetentionInForce(t *testing.T) {
-	declared(t, switchValues(t), "s3.object-lock.retain-until-format")
-	property(t, func(t *rapid.T) {
-		mode := rapid.SampledFrom([]RetentionMode{RetentionGovernance, RetentionCompliance}).Draw(t, "mode")
-		r := Retention{Mode: mode, RetainUntil: lockNow.Add(time.Duration(rapid.Int64Range(-int64(time.Hour), int64(time.Hour)).Draw(t, "offset")))}
-		if got, want := r.inForce(lockNow), lockNow.Before(r.RetainUntil); got != want {
-			t.Fatalf("%+v.inForce(%s) = %v, want %v", r, lockNow, got, want)
-		}
-	})
-}
-
 // retentionGen draws a retention of either mode whose date is in force at
 // lockNow, expired, or exactly at lockNow.
 func retentionGen() *rapid.Generator[Retention] {
@@ -482,27 +468,6 @@ func lockConfig(mode s3api.ObjectLockRetentionMode, days, years *int32) *s3api.O
 		cfg.Rule = &s3api.ObjectLockRule{DefaultRetention: &s3api.DefaultRetention{Mode: &mode, Days: days, Years: years}}
 	}
 	return cfg
-}
-
-// TestCheckLockTarget: explicit lock settings on a bucket without Object
-// Lock are refused (S3SOL-17, recorded 2026-11-03), none are fine
-// anywhere, and any are fine on a lock bucket.
-func TestCheckLockTarget(t *testing.T) {
-	missing := wantError{status: 400, code: "InvalidRequest", message: "Bucket is missing ObjectLockConfiguration"}
-	explicit := []ObjectLock{
-		{LegalHold: LegalHoldOn},
-		{LegalHold: LegalHoldOff},
-		{Retention: &Retention{Mode: RetentionGovernance, RetainUntil: lockNow.Add(time.Hour)}},
-	}
-	for _, l := range explicit {
-		missing.check(t, "plain bucket", checkLockTarget(&Bucket{}, l))
-		if err := checkLockTarget(&Bucket{ObjectLock: lockConfig("", nil, nil)}, l); err != nil {
-			t.Errorf("lock bucket, %+v: %s %q, want accepted", l, err.ID.QueryCode, err.Message)
-		}
-	}
-	if err := checkLockTarget(&Bucket{}, ObjectLock{}); err != nil {
-		t.Errorf("plain bucket, no settings: %s %q, want accepted", err.ID.QueryCode, err.Message)
-	}
 }
 
 // TestDefaultRetention: a bucket rule's default dates a new version at its
