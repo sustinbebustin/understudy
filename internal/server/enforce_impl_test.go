@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sustinbebustin/understudy/internal/api/dynamodbapi"
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
 	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
@@ -176,14 +175,14 @@ func TestEnforceDecidesPutEventsOnItsBus(t *testing.T) {
 	}
 }
 
-// DynamoDB answers its declared denial identity before forwarding to
-// DynamoDB Local (iam-enforcement-surfaces.md 12.1, 12.3).
+// DynamoDB answers its recorded denial, 400 AccessDeniedException, before
+// forwarding to DynamoDB Local (iam-enforcement-surfaces.md 12.1, 12.3;
+// recorded 2026-11-03, testdata/parity/dynamodb/IAM-ENF/14-ddb.json).
 func TestEnforceAnswersDynamoDBsDenialIdentity(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
 	w := jsonCall(t, u, endpoint, "dynamodb", "1.0", "DynamoDB_20120810.ListTables", "{}")
-	want := dynamodbapi.DenialError()
-	if w.status != want.Status || !strings.Contains(string(want.Shape), jsonType(w)) {
-		t.Errorf("ListTables denial = %d %s; want %d %s", w.status, w.body, want.Status, want.Shape)
+	if w.status != http.StatusBadRequest || jsonType(w) != "AccessDeniedException" {
+		t.Errorf("ListTables denial = %d %s; want 400 AccessDeniedException", w.status, w.body)
 	}
 }
 

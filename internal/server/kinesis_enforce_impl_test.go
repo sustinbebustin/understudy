@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/sustinbebustin/understudy/admin"
-	"github.com/sustinbebustin/understudy/internal/api/kinesisapi"
 	"github.com/sustinbebustin/understudy/internal/server"
 )
 
@@ -27,15 +26,6 @@ func kinesisCall(t *testing.T, s signer, endpoint, op, body string) wire {
 // model's AccessDeniedException at 400 (KIN-27, IAM-ENF-36).
 func isKinesisDenial(w wire) bool {
 	return w.status == http.StatusBadRequest && jsonType(w) == "AccessDeniedException"
-}
-
-// The Kinesis denial identity the registry declares is the one
-// isKinesisDenial looks for.
-func TestKinesisDenialIdentityIsTheModels(t *testing.T) {
-	id := kinesisapi.DenialError()
-	if id.Status != http.StatusBadRequest || !strings.HasSuffix(string(id.Shape), "#AccessDeniedException") {
-		t.Errorf("Kinesis denial identity = %s %d, want AccessDeniedException 400", id.Shape, id.Status)
-	}
 }
 
 // A session of a role with no policy is refused ListStreams with the body

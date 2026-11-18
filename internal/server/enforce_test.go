@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"cmp"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -14,16 +13,8 @@ import (
 	"time"
 
 	"github.com/sustinbebustin/understudy/admin"
-	"github.com/sustinbebustin/understudy/internal/api/cloudwatchapi"
-	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
-	"github.com/sustinbebustin/understudy/internal/api/iamapi"
-	"github.com/sustinbebustin/understudy/internal/api/kmsapi"
-	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
-	"github.com/sustinbebustin/understudy/internal/api/logsapi"
 	"github.com/sustinbebustin/understudy/internal/api/s3api"
-	"github.com/sustinbebustin/understudy/internal/api/secretsmanagerapi"
 	"github.com/sustinbebustin/understudy/internal/api/snsapi"
-	"github.com/sustinbebustin/understudy/internal/api/sqsapi"
 	"github.com/sustinbebustin/understudy/internal/auth"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/server"
@@ -199,69 +190,66 @@ func TestEnforceAnswersTheDocumentedS3Denial(t *testing.T) {
 	}
 }
 
-// Every other service answers its declared denial identity: SNS's
-// AuthorizationError 403 (the model's, aws-doc); the others' code and
-// status as their switches set them (iam-enforcement-surfaces.md 12.3,
-// 12.8: sqs.denial.json-identity, sqs.denial.query-text,
-// iam.denial.identity, kms.denial.status, secretsmanager.denial.status,
-// logs.denial.status, events.denial.status, cloudwatch.denial.identity,
-// lambda.denial.body). TestEnforceDenialsMatchTheRecordings compares the
-// messages with the recordings.
+// A list operation is denied too, with the status and code each service's
+// recorded denial carries (iam-enforcement-surfaces.md 12.3; recorded
+// 2026-11-03, testdata/parity/<service>/IAM-ENF, the file named per row).
+// TestEnforceDenialsMatchTheRecordings compares the messages of the
+// resource operations with the recordings.
 func TestEnforceAnswersEachServicesDenialIdentity(t *testing.T) {
 	_, endpoint, u := enforced(t, server.IAMEnforceEnforce)
+	xmlCode := func(w wire) string { return parseXMLError(t, w).Code }
 	probes := []struct {
 		service string
-		want    awserr.Identity
 		send    func() wire
 		code    func(wire) string
+		status  int
+		want    string
 	}{
-		{"sns", snsapi.DenialError(), func() wire {
+		// sns/IAM-ENF/14-sns.json
+		{"sns", func() wire {
 			return queryCall(t, u, endpoint, "sns", url.Values{"Action": {"ListTopics"}, "Version": {"2010-03-31"}})
-		}, func(w wire) string { return parseXMLError(t, w).Code }},
-		{"sqs json", sqsapi.DenialError(), func() wire {
+		}, xmlCode, http.StatusForbidden, "AuthorizationError"},
+		// sqs/IAM-ENF/01-raw.json
+		{"sqs json", func() wire {
 			return jsonCall(t, u, endpoint, "sqs", "1.0", "AmazonSQS.ListQueues", "{}")
-		}, jsonType},
-		{"sqs query", sqsapi.DenialError(), func() wire {
+		}, jsonType, http.StatusForbidden, "AccessDeniedException"},
+		// sqs/IAM-ENF/02-query.json
+		{"sqs query", func() wire {
 			return queryCall(t, u, endpoint, "sqs", url.Values{"Action": {"ListQueues"}, "Version": {"2012-11-05"}})
-		}, func(w wire) string { return parseXMLError(t, w).Code }},
-		{"iam", iamapi.DenialError(), func() wire {
+		}, xmlCode, http.StatusForbidden, "AccessDenied"},
+		// iam/IAM-ENF/14-iam.json
+		{"iam", func() wire {
 			return queryCall(t, u, endpoint, "iam", url.Values{"Action": {"ListUsers"}, "Version": {"2010-05-08"}})
-		}, func(w wire) string { return parseXMLError(t, w).Code }},
-		{"kms", kmsapi.DenialError(), func() wire {
+		}, xmlCode, http.StatusForbidden, "AccessDenied"},
+		// kms/IAM-ENF/05-describe.json
+		{"kms", func() wire {
 			return jsonCall(t, u, endpoint, "kms", "1.1", "TrentService.ListKeys", "{}")
-		}, jsonType},
-		{"secretsmanager", secretsmanagerapi.DenialError(), func() wire {
+		}, jsonType, http.StatusBadRequest, "AccessDeniedException"},
+		// secretsmanager/IAM-ENF/06-raw.json
+		{"secretsmanager", func() wire {
 			return jsonCall(t, u, endpoint, "secretsmanager", "1.1", "secretsmanager.ListSecrets", "{}")
-		}, jsonType},
-		{"logs", logsapi.DenialError(), func() wire {
+		}, jsonType, http.StatusBadRequest, "AccessDeniedException"},
+		// logs/IAM-ENF/14-logs.json
+		{"logs", func() wire {
 			return jsonCall(t, u, endpoint, "logs", "1.1", "Logs_20140328.DescribeLogGroups", "{}")
-		}, jsonType},
-		{"events", eventbridgeapi.DenialError(), func() wire {
+		}, jsonType, http.StatusBadRequest, "AccessDeniedException"},
+		// events/IAM-ENF/14-events.json
+		{"events", func() wire {
 			return jsonCall(t, u, endpoint, "events", "1.1", "AWSEvents.ListRules", "{}")
-		}, jsonType},
-		{"cloudwatch", cloudwatchapi.DenialError(), func() wire {
+		}, jsonType, http.StatusBadRequest, "AccessDeniedException"},
+		// cloudwatch/IAM-ENF/09-query.json
+		{"cloudwatch", func() wire {
 			return queryCall(t, u, endpoint, "monitoring", url.Values{"Action": {"ListMetrics"}, "Version": {"2010-08-01"}})
-		}, func(w wire) string { return parseXMLError(t, w).Code }},
-		{"lambda", lambdaapi.DenialError(), func() wire {
+		}, xmlCode, http.StatusForbidden, "AccessDenied"},
+		// lambda/IAM-ENF/14-lambda.json
+		{"lambda", func() wire {
 			return restGet(t, u, "lambda", endpoint+"/2015-03-31/functions/")
-		}, jsonType},
+		}, jsonType, http.StatusForbidden, "AccessDeniedException"},
 	}
 	for _, p := range probes {
 		w := p.send()
-		code := p.code(w)
-		// A JSON answer carries the identity's __type and status, a Query or
-		// XML one its code and awsQueryError's status (CloudWatch's 403 where
-		// JSON without query mode answers 400, iam-enforcement-surfaces.md
-		// 12.3).
-		want, status := p.want.QueryCode, cmp.Or(p.want.QueryModeStatus, p.want.Status)
-		if isJSON := strings.HasPrefix(w.header.Get("Content-Type"), "application/x-amz-json") || strings.HasPrefix(w.header.Get("Content-Type"), "application/json"); isJSON {
-			want, status = shortName(p.want), p.want.Status
-			if j := p.want.JSONType; j != "" {
-				want = j[strings.LastIndex(j, "#")+1:]
-			}
-		}
-		if w.status != status || code != want {
-			t.Errorf("%s denial = %d %q (%s); want %d %q", p.service, w.status, code, w.body, status, want)
+		if code := p.code(w); w.status != p.status || code != p.want {
+			t.Errorf("%s denial = %d %q (%s); want %d %q", p.service, w.status, code, w.body, p.status, p.want)
 		}
 	}
 	if got := snsapi.DenialError(); got.QueryCode != "AuthorizationError" || got.Status != http.StatusForbidden {
