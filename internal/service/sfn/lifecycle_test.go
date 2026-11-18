@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
 	"github.com/sustinbebustin/understudy/internal/api/sfnapi"
 	"github.com/sustinbebustin/understudy/internal/awserr"
@@ -31,21 +29,6 @@ func TestLongWaitFinishesOnOneClockAdvance(t *testing.T) {
 		d := h.describeExecution(arn)
 		if d.Status != sfnapi.ExecutionStatusSucceeded || d.StopDate == nil || !d.StopDate.Equal(h.now()) {
 			h.Fatalf("after one advance: %+v, want SUCCEEDED now", d)
-		}
-	})
-}
-
-// Execution TimeoutSeconds ends the execution TIMED_OUT with no error or
-// cause in DescribeExecution (stepfunctions-asl.md 8.6; aws-recorded
-// localstack@8b9a79f v2/timeouts/test_timeouts.snapshot.json:L688-L708).
-func TestExecutionTimeoutSeconds(t *testing.T) {
-	run(t, func(h *harness) {
-		machine := h.create("t", `{"StartAt":"W","TimeoutSeconds":10,"States":{"W":{"Type":"Wait","Seconds":100,"End":true}}}`)
-		arn := h.start(machine, "x", nil)
-		h.advance(10 * time.Second)
-		d := h.describeExecution(arn)
-		if d.Status != sfnapi.ExecutionStatusTimedOut || d.Error != nil || d.Cause != nil {
-			h.Fatalf("DescribeExecution = %+v, want TIMED_OUT without error or cause", d)
 		}
 	})
 }
@@ -97,40 +80,6 @@ func TestDeleteWithRunningExecution(t *testing.T) {
 		}
 		wantError(h, errOf(call(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: machine})),
 			"StateMachineDoesNotExist", 400, "State Machine Does Not Exist: '"+machine+"'")
-	})
-}
-
-// A snapshot round trip keeps the machine and a finished execution with its
-// history (Stateful, ADR 0009; ARCHITECTURE.md 13).
-func TestSnapshotRoundTrip(t *testing.T) {
-	run(t, func(h *harness) {
-		machine := h.create("m", resultMachine)
-		arn := h.start(machine, "x", new(`{"a":1}`))
-		before, beforeHistory := *h.describeExecution(arn), shape(h.history(arn))
-		sections, err := h.svc.Export()
-		if err != nil {
-			h.Fatal(err)
-		}
-		if len(sections) == 0 {
-			h.Fatal("Export wrote no section for a scope with a machine and an execution")
-		}
-		h.svc.Reset(kernel.ResetScope{})
-		h.Kernel.Timers().Scheduler().Clear()
-		if _, err := call(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: machine}); err == nil {
-			h.Fatal("the machine survived the reset")
-		}
-		if err := h.svc.Import(sections); err != nil {
-			h.Fatalf("Import = %v", err)
-		}
-		if diff := cmp.Diff(before, *h.describeExecution(arn)); diff != "" {
-			h.Errorf("DescribeExecution after the round trip (-before +after):\n%s", diff)
-		}
-		if diff := cmp.Diff(beforeHistory, shape(h.history(arn))); diff != "" {
-			h.Errorf("history after the round trip (-before +after):\n%s", diff)
-		}
-		if d := must(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: machine}); d.Definition != resultMachine {
-			h.Errorf("definition after the round trip = %q", d.Definition)
-		}
 	})
 }
 

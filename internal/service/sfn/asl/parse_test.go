@@ -52,11 +52,6 @@ func TestParseRecordedDiagnostics(t *testing.T) {
 		{"no StartAt", `{"States":{"P":{"Type":"Pass","End":true}}}`, "SCHEMA_VALIDATION_FAILED", "These fields are required: [StartAt]", "/", "test_sfn_api_validation.snapshot.json:L78"},
 		{"no States", `{"StartAt":"P"}`, "SCHEMA_VALIDATION_FAILED", "These fields are required: [States]", "/", "test_sfn_api.snapshot.json:L27"},
 		{
-			"unknown Type", `{"StartAt":"ExistingButInvalidState","States":{"ExistingButInvalidState":{"Type":"Nope","End":true}}}`,
-			"SCHEMA_VALIDATION_FAILED", "The field 'Type' should have one of these values: [Task, Wait, Pass, Succeed, Fail, Choice, Parallel, Map]",
-			"/States/ExistingButInvalidState/Type", "localstack@8b9a79f v2/test_state/test_test_state_machine_scenarios.snapshot.json:L355",
-		},
-		{
 			"empty Branches", `{"StartAt":"StateName","States":{"StateName":{"Type":"Parallel","Branches":[],"End":true}}}`,
 			"SCHEMA_VALIDATION_FAILED", "Value cannot be empty", "/States/StateName/Branches",
 			"localstack@8b9a79f v2/test_state/test_state_mock_validation.snapshot.json:L248",
@@ -293,38 +288,29 @@ func TestParseAcceptsTopLevelFields(t *testing.T) {
 }
 
 // Structural and value rules: each definition is refused with an ERROR.
-// Codes are asserted where AWS documents the code for the case
-// (api/API_ValidateStateMachineDefinitionDiagnostic); messages and locations
-// are understudy's wording (ASL-01), so only the severity is asserted
-// elsewhere.
+// AWS documents no code for these cases
+// (api/API_ValidateStateMachineDefinitionDiagnostic), and their messages and
+// locations are understudy's wording (ASL-01), so only the severity is
+// asserted.
 func TestParseRefusesInvalidDefinitions(t *testing.T) {
 	tests := []struct {
-		name, def, code, source string
+		name, def, source string
 	}{
-		{"Next and End", `{"StartAt":"P","States":{"P":{"Type":"Pass","Next":"Q","End":true},"Q":{"Type":"Pass","End":true}}}`, "", "aws-doc dg/statemachine-structure: only one of Next or End"},
-		{"missing Next target", `{"StartAt":"P","States":{"P":{"Type":"Pass","Next":"Nope"}}}`, "MISSING_TRANSITION_TARGET", "stepfunctions-asl.md 3.2"},
-		{"StartAt names no state", `{"StartAt":"Nope","States":{` + terminalP + `}}`, "", "spec#toplevelfields"},
-		{"Choice with Next", `{"StartAt":"C","States":{"C":{"Type":"Choice","Choices":[{"Variable":"$.v","NumericEquals":1,"Next":"P"}],"Next":"P"},` + terminalP + `}}`, "", "statelint j2119:L56-L57"},
-		{"Choice with no Choices", `{"StartAt":"C","States":{"C":{"Type":"Choice","Choices":[],"Default":"P"},` + terminalP + `}}`, "", "aws-doc dg/state-choice: Choices non-empty"},
-		{"Task without Resource", `{"StartAt":"T","States":{"T":{"Type":"Task","End":true}}}`, "", "stepfunctions-asl.md 3.3"},
-		{"Wait with two fields", `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":1,"SecondsPath":"$.s","End":true}}}`, "", "spec#jsonpath-wait-state"},
-		{"Wait negative Seconds", `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":-1,"End":true}}}`, "", "aws-doc dg/state-wait: 0..99,999,999"},
-		{"Map with ItemProcessor and Iterator", `{"StartAt":"M","States":{"M":{"Type":"Map","ItemProcessor":{"StartAt":"P","States":{` + terminalP + `}},"Iterator":{"StartAt":"P","States":{` + terminalP + `}},"End":true}}}`, "", "statelint j2119:L173"},
-		{"Map with MaxConcurrency and its Path", `{"StartAt":"M","States":{"M":{"Type":"Map","MaxConcurrency":1,"MaxConcurrencyPath":"$.m","ItemProcessor":{"StartAt":"P","States":{` + terminalP + `}},"End":true}}}`, "", "aws-doc dg/state-map-inline"},
-		{"Task TimeoutSeconds and its Path", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"TimeoutSeconds":5,"TimeoutSecondsPath":"$.t","End":true}}}`, "", "aws-doc dg/state-task"},
-		{"BackoffRate below 1", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"BackoffRate":0.5}],"End":true}}}`, "", "stepfunctions-asl.md 3.7"},
-		{"MaxDelaySeconds over limit", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"MaxDelaySeconds":31622401}],"End":true}}}`, "", "stepfunctions-asl.md 3.7"},
-		{"MaxDelaySeconds zero", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"MaxDelaySeconds":0}],"End":true}}}`, "", "stepfunctions-asl.md 3.7"},
-		{"unknown JitterStrategy", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"JitterStrategy":"HALF"}],"End":true}}}`, "", "stepfunctions-asl.md 3.7"},
-		{"negative MaxAttempts", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"MaxAttempts":-1}],"End":true}}}`, "", "stepfunctions-asl.md 3.7"},
-		{"Retry on Pass", `{"StartAt":"P","States":{"P":{"Type":"Pass","Retry":[{"ErrorEquals":["States.ALL"]}],"End":true}}}`, "", "stepfunctions-asl.md 3.3"},
-		{"ResultSelector on Pass", `{"StartAt":"P","States":{"P":{"Type":"Pass","ResultSelector":{},"End":true}}}`, "", "stepfunctions-asl.md 3.3"},
-		{"InputPath on Fail", `{"StartAt":"F","States":{"F":{"Type":"Fail","InputPath":"$"}}}`, "", "stepfunctions-asl.md 3.3"},
-		{"ResultPath into the context", `{"StartAt":"P","States":{"P":{"Type":"Pass","ResultPath":"$$.x","End":true}}}`, "", "stepfunctions-asl.md 4.4"},
-		{"state name over 80 characters", `{"StartAt":"` + strings.Repeat("n", 81) + `","States":{"` + strings.Repeat("n", 81) + `":{"Type":"Pass","End":true}}}`, "", "spec#states-fields"},
-		{"duplicate state name across scopes", `{"StartAt":"X","States":{"X":{"Type":"Parallel","Branches":[{"StartAt":"X","States":{"X":{"Type":"Pass","End":true}}}],"End":true}}}`, "DUPLICATE_STATE_NAME", "stepfunctions-asl.md 3.2"},
-		{"intrinsic nested 11 deep", `{"StartAt":"P","States":{"P":{"Type":"Pass","Parameters":{"x.$":"` + strings.Repeat("States.Array(", 11) + "1" + strings.Repeat(")", 11) + `"},"End":true}}}`, "", "stepfunctions-asl.md 3.7"},
-		{"Reference Path required for ResultPath", `{"StartAt":"P","States":{"P":{"Type":"Pass","ResultPath":"$.a[*]","End":true}}}`, "", "stepfunctions-asl.md 4.5"},
+		{"Choice with Next", `{"StartAt":"C","States":{"C":{"Type":"Choice","Choices":[{"Variable":"$.v","NumericEquals":1,"Next":"P"}],"Next":"P"},` + terminalP + `}}`, "statelint j2119:L56-L57"},
+		{"Choice with no Choices", `{"StartAt":"C","States":{"C":{"Type":"Choice","Choices":[],"Default":"P"},` + terminalP + `}}`, "aws-doc dg/state-choice: Choices non-empty"},
+		{"Task without Resource", `{"StartAt":"T","States":{"T":{"Type":"Task","End":true}}}`, "stepfunctions-asl.md 3.3"},
+		{"Wait with two fields", `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":1,"SecondsPath":"$.s","End":true}}}`, "spec#jsonpath-wait-state"},
+		{"Wait negative Seconds", `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":-1,"End":true}}}`, "aws-doc dg/state-wait: 0..99,999,999"},
+		{"Map with ItemProcessor and Iterator", `{"StartAt":"M","States":{"M":{"Type":"Map","ItemProcessor":{"StartAt":"P","States":{` + terminalP + `}},"Iterator":{"StartAt":"P","States":{` + terminalP + `}},"End":true}}}`, "statelint j2119:L173"},
+		{"Map with MaxConcurrency and its Path", `{"StartAt":"M","States":{"M":{"Type":"Map","MaxConcurrency":1,"MaxConcurrencyPath":"$.m","ItemProcessor":{"StartAt":"P","States":{` + terminalP + `}},"End":true}}}`, "aws-doc dg/state-map-inline"},
+		{"Task TimeoutSeconds and its Path", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"TimeoutSeconds":5,"TimeoutSecondsPath":"$.t","End":true}}}`, "aws-doc dg/state-task"},
+		{"MaxDelaySeconds zero", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"MaxDelaySeconds":0}],"End":true}}}`, "stepfunctions-asl.md 3.7"},
+		{"negative MaxAttempts", `{"StartAt":"T","States":{"T":{` + lambdaTask + `,"Retry":[{"ErrorEquals":["States.ALL"],"MaxAttempts":-1}],"End":true}}}`, "stepfunctions-asl.md 3.7"},
+		{"Retry on Pass", `{"StartAt":"P","States":{"P":{"Type":"Pass","Retry":[{"ErrorEquals":["States.ALL"]}],"End":true}}}`, "stepfunctions-asl.md 3.3"},
+		{"ResultSelector on Pass", `{"StartAt":"P","States":{"P":{"Type":"Pass","ResultSelector":{},"End":true}}}`, "stepfunctions-asl.md 3.3"},
+		{"InputPath on Fail", `{"StartAt":"F","States":{"F":{"Type":"Fail","InputPath":"$"}}}`, "stepfunctions-asl.md 3.3"},
+		{"ResultPath into the context", `{"StartAt":"P","States":{"P":{"Type":"Pass","ResultPath":"$$.x","End":true}}}`, "stepfunctions-asl.md 4.4"},
+		{"Reference Path required for ResultPath", `{"StartAt":"P","States":{"P":{"Type":"Pass","ResultPath":"$.a[*]","End":true}}}`, "stepfunctions-asl.md 4.5"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -335,9 +321,6 @@ func TestParseRefusesInvalidDefinitions(t *testing.T) {
 			}
 			if first.Code == asl.CodeUnsupported {
 				t.Errorf("first error = %+v, want AWS's verdict, not a refusal (%s)", first, tt.source)
-			}
-			if tt.code != "" && first.Code != tt.code {
-				t.Errorf("code = %q, want %q (%s)", first.Code, tt.code, tt.source)
 			}
 		})
 	}

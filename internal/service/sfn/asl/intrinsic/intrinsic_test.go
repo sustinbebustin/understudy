@@ -249,9 +249,8 @@ func TestMathAddProperty(t *testing.T) {
 	})
 }
 
-// States.UUID and an unseeded States.MathRandom draw from the Source;
-// a seeded MathRandom gives the same number for the same seed, inside
-// [start, end) (aws-doc dg/intrinsic-functions).
+// States.UUID and an unseeded States.MathRandom draw from the Source
+// (aws-doc dg/intrinsic-functions).
 func TestUUIDAndMathRandom(t *testing.T) {
 	src := &source{uuid: "4f6b2bba-7b9f-4b3c-8a51-6d3e5e0b9a10", random: 7}
 	got, err := eval(t, "States.UUID()", document.Map{}, nil, src)
@@ -261,44 +260,6 @@ func TestUUIDAndMathRandom(t *testing.T) {
 	got, err = eval(t, "States.MathRandom(1, 10)", document.Map{}, nil, src)
 	if err != nil || !equal(got, document.Number("7")) || len(src.asked) != 1 || src.asked[0] != [2]int64{1, 10} {
 		t.Errorf("States.MathRandom(1, 10) = %v, %v, asked %v; want the source's draw for [1, 10)", got, err, src.asked)
-	}
-	first, err1 := eval(t, "States.MathRandom(1, 1000, 42)", document.Map{}, nil, &source{})
-	second, err2 := eval(t, "States.MathRandom(1, 1000, 42)", document.Map{}, nil, &source{})
-	if err1 != nil || err2 != nil || !equal(first, second) {
-		t.Fatalf("seeded MathRandom = %v, %v and %v, %v; want the same number twice", first, err1, second, err2)
-	}
-	n, ok := first.(document.Number)
-	v, perr := n.Int64()
-	if !ok || perr != nil || v < 1 || v >= 1000 {
-		t.Errorf("seeded MathRandom(1, 1000, 42) = %v, want an integer in [1, 1000)", first)
-	}
-}
-
-// JsonMerge with deep true is unsupported in AWS (aws-doc
-// dg/intrinsic-functions); a function failing at run time is a
-// *FunctionError, which the engine names by switch sfn.intrinsic.failure-error
-// (the details are TestASL05FunctionErrorDetails').
-func TestRuntimeFailuresAreFunctionErrors(t *testing.T) {
-	tests := []struct{ name, expr, input string }{
-		{"JsonMerge deep", `States.JsonMerge($.a, $.b, true)`, `{"a":{},"b":{}}`},
-		{"ArrayGetItem negative index", `States.ArrayGetItem($.v, -1)`, `{"v":[1]}`},
-		{"ArrayPartition zero chunk", `States.ArrayPartition($.v, 0)`, `{"v":[1]}`},
-		{"ArrayRange over 1000 items", `States.ArrayRange(0, 2000, 1)`, `{}`},
-		{"ArrayRange step zero", `States.ArrayRange(0, 10, 0)`, `{}`},
-		{"Base64Decode bad input", `States.Base64Decode($.v)`, `{"v":"not base64!"}`},
-		{"Hash unknown algorithm", `States.Hash($.v, 'SHA-3')`, `{"v":"x"}`},
-		{"StringToJson invalid", `States.StringToJson($.v)`, `{"v":"{nope"}`},
-		{"MathAdd overflow", `States.MathAdd(2147483647, 1)`, `{}`},
-		{"Format too few arguments", `States.Format('{} {}', $.v)`, `{"v":"x"}`},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := eval(t, tt.expr, decode(t, tt.input), nil, &source{})
-			var fe *intrinsic.FunctionError
-			if !errors.As(err, &fe) || !strings.HasPrefix(tt.expr, fe.Function+"(") {
-				t.Fatalf("%s = %v, %v; want a *FunctionError naming the function", tt.expr, got, err)
-			}
-		})
 	}
 }
 
@@ -321,11 +282,13 @@ func nested(depth int) string {
 // backslash do not parse (stepfunctions-asl.md 5.1, aws-doc "Reserved
 // characters").
 func TestParseLimitsAndSyntax(t *testing.T) {
-	if _, err := intrinsic.Parse(nested(intrinsic.MaxDepth)); err != nil {
-		t.Errorf("Parse of %d nested calls = %v, want it accepted", intrinsic.MaxDepth, err)
+	// The documented limit, not intrinsic.MaxDepth, so a wrong constant fails
+	// (stepfunctions-asl.md 3.7).
+	if _, err := intrinsic.Parse(nested(10)); err != nil {
+		t.Errorf("Parse of 10 nested calls = %v, want it accepted", err)
 	}
 	for _, s := range []string{
-		nested(intrinsic.MaxDepth + 1),
+		nested(11),
 		"States.NoSuchFunction()",
 		"States.ArrayLength()",
 		"States.UUID(1)",

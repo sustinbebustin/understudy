@@ -4,6 +4,7 @@ import (
 	"errors"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 
 	"pgregory.net/rapid"
@@ -45,6 +46,14 @@ func TestASL05FunctionErrorDetails(t *testing.T) {
 				t.Fatalf("%s = %v, want a *FunctionError with detail %q", tt.expr, err, tt.detail)
 			}
 		})
+	}
+	// Inferred: ASL-05 recorded only the prefix; the text after "caused by: "
+	// is Jackson's, which understudy does not reproduce (stepfunctions-asl.md
+	// 5.4).
+	const prefix = "Cannot convert String to Json in States.StringToJson, caused by: "
+	_, err := eval(t, `States.StringToJson($.v)`, decode(t, `{"v":"{nope"}`), nil, &source{})
+	if fe, ok := errors.AsType[*intrinsic.FunctionError](err); !ok || !strings.HasPrefix(fe.Detail, prefix) {
+		t.Fatalf("States.StringToJson of invalid JSON = %v, want a *FunctionError with detail prefixed %q", err, prefix)
 	}
 }
 
