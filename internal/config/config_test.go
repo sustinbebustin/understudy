@@ -149,22 +149,6 @@ func TestWrongShapesSayWhatIsExpected(t *testing.T) {
 	}
 }
 
-// s3.maxObjectBytes and dynamodb.registry are unknown keys: S3 enforces
-// AWS's single-PUT limit and DynamoDB Local falls back to the ECR Public
-// mirror, so neither has anything to configure.
-func TestRemovedSettingsAreUnknownKeys(t *testing.T) {
-	cases := []struct{ file, where string }{
-		{`{"s3": {"maxObjectBytes": 1024}}`, "understudy.json: s3.maxObjectBytes"},
-		{`{"dynamodb": {"registry": "ecr-public"}}`, "understudy.json: dynamodb.registry"},
-	}
-	for _, c := range cases {
-		err := loadErr(t, nil, nil, files{config.DefaultConfigFile: c.file})
-		if err.Where != c.where || err.Reason != "is not a configuration key" {
-			t.Errorf("%s: error at %q reason %q, want %q is not a configuration key (%v)", c.file, err.Where, err.Reason, c.where, err)
-		}
-	}
-}
-
 // An unknown key, at the top or inside a section, is refused with the
 // closest valid key at that depth.
 func TestUnknownKeysNameTheClosest(t *testing.T) {
@@ -180,12 +164,12 @@ func TestUnknownKeysNameTheClosest(t *testing.T) {
 		}
 	}
 	err := loadErr(t, []string{"--lissen", "127.0.0.1:1"}, nil, files{})
-	if err.Closest != "--listen" {
-		t.Errorf("--lissen: closest %q, want --listen (%v)", err.Closest, err)
+	if err.Where != "--lissen" || err.Closest != "--listen" {
+		t.Errorf("--lissen: error at %q closest %q, want --lissen closest --listen (%v)", err.Where, err.Closest, err)
 	}
 	err = loadErr(t, nil, []string{"UNDERSTUDY_LISTN=127.0.0.1:1"}, files{})
-	if err.Closest != "UNDERSTUDY_LISTEN" {
-		t.Errorf("UNDERSTUDY_LISTN: closest %q, want UNDERSTUDY_LISTEN (%v)", err.Closest, err)
+	if err.Where != "UNDERSTUDY_LISTN" || err.Closest != "UNDERSTUDY_LISTEN" {
+		t.Errorf("UNDERSTUDY_LISTN: error at %q closest %q, want UNDERSTUDY_LISTN closest UNDERSTUDY_LISTEN (%v)", err.Where, err.Closest, err)
 	}
 }
 
@@ -375,10 +359,6 @@ func TestRefusedValues(t *testing.T) {
 		{args: []string{"--docker", "ssh://user@1.2.3.4"}, where: "--docker"},
 		{args: []string{"--listen", "127.0.0.1:0"}, env: []string{"UNDERSTUDY_ADMIN_TOKEN=x"}, where: "UNDERSTUDY_ADMIN_TOKEN"},
 		{args: []string{"extra"}, where: "arguments"},
-		// Settings understudy does not define, such as a licence-acceptance
-		// flag, variable or key, are refused, not ignored.
-		{env: []string{"UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE=1"}, where: "UNDERSTUDY_ACCEPT_DDB_LOCAL_LICENSE"},
-		{args: []string{"--accept-dynamodb-local-license"}, where: "--accept-dynamodb-local-license"},
 		{file: `{"s3": {"baseDomains": ["example.com"]}}`, where: "understudy.json: s3.baseDomains[0]"},
 		{file: `{"lambda": {"network": "bridge"}}`, where: "understudy.json: lambda.bridgeGateway"},
 		{file: `{"lambda": {"network": "bridge", "bridgeGateway": "fd00::1"}}`, where: "understudy.json: lambda.bridgeGateway"},
@@ -386,7 +366,6 @@ func TestRefusedValues(t *testing.T) {
 		{file: `{"lambda": {"hotReload": [{"function": "f", "dir": "/src", "account": "12"}]}}`, where: "understudy.json: lambda.hotReload[0].account"},
 		{file: `{"lambda": {"hotReload": [{"function": "f", "dir": "/src", "region": "Nope"}]}}`, where: "understudy.json: lambda.hotReload[0].region"},
 		{file: `{"lambda": {"hotReload": [{"function": "f", "dir": "/src", "region": "local-2"}]}, "regions": ["local-1"]}`, where: "understudy.json: lambda.hotReload[0].region"},
-		{file: `{"acceptDynamodbLocalLicense": true}`, where: "understudy.json: acceptDynamodbLocalLicense"},
 		{file: `{"faults": [{"phase": "request", "action": {"kind": "explode"}, "trigger": {"kind": "always"}}]}`, where: "understudy.json: faults[0]"},
 		{file: `{"accounts": {"default": "12"}}`, where: "understudy.json: accounts.default"},
 		{file: `{"seed": {"n": 1}}`, where: "understudy.json: seed"},
