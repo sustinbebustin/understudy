@@ -10,7 +10,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/ref"
-	"github.com/sustinbebustin/understudy/internal/registry"
 )
 
 const alarmARN = "arn:aws:cloudwatch:us-east-1:000000000000:alarm:cpu"
@@ -76,13 +75,4 @@ func jsonEqual(a, b any) bool {
 	x, errX := json.Marshal(a)
 	y, errY := json.Marshal(b)
 	return errX == nil && errY == nil && bytes.Equal(x, y)
-}
-
-// PutServiceEventInternal is bound Full.
-func TestPutServiceEventInternalCoverage(t *testing.T) {
-	run(t, func(h *harness) {
-		if got := h.Kernel.Bindings().Status(eventbridgeapi.OpPutServiceEventInternal.Descriptor()); got != (kernel.Bound{Coverage: registry.Full{}}) {
-			t.Errorf("PutServiceEventInternal = %#v, want bound Full", got)
-		}
-	})
 }

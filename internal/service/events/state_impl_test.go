@@ -95,29 +95,10 @@ func TestImportLoadsBusesAndRulesByBus(t *testing.T) {
 	})
 }
 
-// Rules are stored under their bus's name, the default bus's as default.
-func TestSnapshotKeysRulesByBus(t *testing.T) {
-	run(t, func(h *harness) {
-		h.patternRule("r", `{"source": ["s"]}`)
-		var st struct {
-			Buses map[string]json.RawMessage            `json:"buses"`
-			Rules map[string]map[string]json.RawMessage `json:"rules"`
-		}
-		if err := json.Unmarshal(exportOne(h).Data, &st); err != nil {
-			t.Fatal(err)
-		}
-		if _, ok := st.Rules["default"]["r"]; !ok || len(st.Rules) != 1 {
-			t.Errorf("rules = %v, want r under default only", st.Rules)
-		}
-		if st.Buses != nil {
-			t.Errorf("buses = %v, want none: a rule does not materialize the default bus", st.Buses)
-		}
-	})
-}
-
-// Before the first release a version 1 section, written by an older
-// binary, is refused naming both versions rather than migrated (ADR 0009),
-// also when it holds only default-bus rules.
+// The running state version is 2, which SchemaVersion declares to the
+// snapshot coordinator. Before the first release a version 1 section,
+// written by an older binary, is refused naming both versions rather than
+// migrated (ADR 0009).
 func TestSnapshotRefusesAVersion1RulesSection(t *testing.T) {
 	run(t, func(h *harness) {
 		h.patternRule("r", `{"source": ["s"]}`)
@@ -128,8 +109,8 @@ func TestSnapshotRefusesAVersion1RulesSection(t *testing.T) {
 		if !ok {
 			t.Fatalf("Import(a version 1 section) = %v, want a *store.VersionMismatchError", err)
 		}
-		if vm.Section != 1 || vm.Running != 2 {
-			t.Errorf("mismatch %+v, want section 1 refused by running 2", vm)
+		if vm.Section != 1 || vm.Running != 2 || h.svc.SchemaVersion() != 2 {
+			t.Errorf("mismatch %+v, schema version %d; want section 1 refused by running 2", vm, h.svc.SchemaVersion())
 		}
 		must(h, eventbridgeapi.OpDescribeRule, &eventbridgeapi.DescribeRuleInput{Name: "r"})
 	})

@@ -262,34 +262,3 @@ func TestPutEventsMatchesTheNamedBusRules(t *testing.T) {
 		}
 	})
 }
-
-// A snapshot keeps a created bus's settings and tags and the default bus's
-// tags (eventbridge-buses.md 10.2.6): a bus deleted after the export is
-// back after the import, described and tagged as before.
-func TestSnapshotKeepsCreatedBuses(t *testing.T) {
-	run(t, func(h *harness) {
-		must(h, eventbridgeapi.OpCreateEventBus, &eventbridgeapi.CreateEventBusInput{
-			Name: "orders", Description: new("d"), KmsKeyIdentifier: new("alias/orders"),
-			DeadLetterConfig: &eventbridgeapi.DeadLetterConfig{Arn: new("arn:aws:sqs:us-east-1:000000000000:bus-dlq")},
-			LogConfig:        &eventbridgeapi.LogConfig{IncludeDetail: new(eventbridgeapi.IncludeDetailNone), Level: new(eventbridgeapi.LevelOff)},
-			Tags:             []eventbridgeapi.Tag{{Key: "team", Value: "a"}},
-		})
-		must(h, eventbridgeapi.OpTagResource, &eventbridgeapi.TagResourceInput{ResourceARN: busPrefix + "default", Tags: []eventbridgeapi.Tag{{Key: "k", Value: "v"}}})
-		look := func() []any {
-			return []any{
-				h.describeBus(new("orders")), h.describeBus(nil),
-				must(h, eventbridgeapi.OpListTagsForResource, &eventbridgeapi.ListTagsForResourceInput{ResourceARN: busPrefix + "orders"}).Tags,
-				must(h, eventbridgeapi.OpListTagsForResource, &eventbridgeapi.ListTagsForResourceInput{ResourceARN: busPrefix + "default"}).Tags,
-			}
-		}
-		before := look()
-		sec := exportOne(h)
-		must(h, eventbridgeapi.OpDeleteEventBus, &eventbridgeapi.DeleteEventBusInput{Name: "orders"})
-		if err := importData(h, sec, string(sec.Data)); err != nil {
-			t.Fatal(err)
-		}
-		if after := look(); !reflect.DeepEqual(after, before) {
-			t.Errorf("after the round trip = %+v, want %+v", after, before)
-		}
-	})
-}

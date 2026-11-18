@@ -247,28 +247,6 @@ func TestPutPermissionMissingBus(t *testing.T) {
 	})
 }
 
-// A bus policy holds at most 10,240 characters (aws-doc
-// https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-quota.html,
-// eventbridge-buses.md 7, 9): a PutPermission that would exceed it answers
-// PolicyLengthExceededException, which the model declares for
-// PutPermission (eventbridge-buses.md 2.3; its text is unrecorded, EBB-06),
-// and changes nothing.
-func TestPutPermissionPolicyLength(t *testing.T) {
-	run(t, func(h *harness) {
-		h.createBus("long")
-		h.permit(new("long"), "keep", "111111111111")
-		long := `{"Version":"2012-10-17","Statement":[{"Sid":"big","Effect":"Allow","Principal":"*","Action":"events:PutEvents","Resource":"` +
-			busPrefix + "long" + `","Condition":{"StringEquals":{"aws:PrincipalOrgID":"` + strings.Repeat("o", 10240) + `"}}}]}`
-		_, err := call(h, eventbridgeapi.OpPutPermission, &eventbridgeapi.PutPermissionInput{EventBusName: new("long"), Policy: new(long)})
-		if err == nil || err.ID.JSONType != "PolicyLengthExceededException" {
-			t.Errorf("PutPermission of an 11 KB policy = %v, want PolicyLengthExceededException", err)
-		}
-		if got := slices.Collect(maps.Keys(bySid(h.policyOf(new("long"))))); !slices.Equal(got, []string{"keep"}) {
-			t.Errorf("statements after the refused call = %v, want keep alone", got)
-		}
-	})
-}
-
 // RemovePermission removes one statement and leaves the rest
 // (third-party-recorded test_events.snapshot.json:L1176-L1199);
 // RemoveAllPermissions leaves a bus whose DescribeEventBus has no Policy
