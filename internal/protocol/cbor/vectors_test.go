@@ -211,18 +211,6 @@ func TestReencodedRequestVectorsDecodeAlike(t *testing.T) {
 	}
 }
 
-func TestReadTimestampOfGoClientVector(t *testing.T) {
-	// G09's Timestamp member: 1(1.767323045123e+09_3).
-	r := cbor.NewReader(unhex(t, "c1fb41da55cd6947df3b"))
-	got, err := r.ReadTimestamp()
-	if err != nil {
-		t.Fatalf("ReadTimestamp: %v", err)
-	}
-	if want := time.UnixMilli(1767323045123).UTC(); !got.Equal(want) {
-		t.Errorf("ReadTimestamp = %v, want %v", got, want)
-	}
-}
-
 func TestReadTimestampForms(t *testing.T) {
 	tests := []struct {
 		name, hex string
@@ -233,6 +221,10 @@ func TestReadTimestampForms(t *testing.T) {
 		{"single float", "c1fa3fc00000", time.UnixMilli(1500).UTC()},
 		{"half float", "c1f93e00", time.UnixMilli(1500).UTC()},
 		{"S11 fractional seconds", "c1fb41cc37db380fbe77", time.UnixMilli(946845296123).UTC()},
+		// G09's double is 1767323045.1229999..., just below the millisecond
+		// where S11's sits above it, so only this row catches a reader that
+		// truncates the fraction instead of rounding to the nearest millisecond.
+		{"G09 fractional seconds below the millisecond", "c1fb41da55cd6947df3b", time.UnixMilli(1767323045123).UTC()},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

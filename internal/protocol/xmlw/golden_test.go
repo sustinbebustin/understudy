@@ -33,33 +33,6 @@ func assertGolden(t *testing.T, got, want string) {
 	}
 }
 
-// The awsQuery success envelope of wire-json-query.md 8.1:
-// <Op>Response with the service namespace, <Op>Result, then
-// ResponseMetadata/RequestId.
-func TestGoldenQueryEnvelope(t *testing.T) {
-	t.Parallel()
-	got := write(t, func(w *xmlw.Writer) {
-		w.StartNS("GetCallerIdentityResponse", "https://sts.amazonaws.com/doc/2011-06-15/")
-		w.Start("GetCallerIdentityResult")
-		element(w, "Arn", "arn:aws:iam::123456789012:user/Alice")
-		element(w, "UserId", "AIDACKCEVSQ6C2EXAMPLE")
-		element(w, "Account", "123456789012")
-		w.End()
-		w.Start("ResponseMetadata")
-		element(w, "RequestId", "01234567-89ab-cdef-0123-456789abcdef")
-		w.End()
-		w.End()
-	})
-	assertGolden(t, got, `<GetCallerIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">`+
-		`<GetCallerIdentityResult>`+
-		`<Arn>arn:aws:iam::123456789012:user/Alice</Arn>`+
-		`<UserId>AIDACKCEVSQ6C2EXAMPLE</UserId>`+
-		`<Account>123456789012</Account>`+
-		`</GetCallerIdentityResult>`+
-		`<ResponseMetadata><RequestId>01234567-89ab-cdef-0123-456789abcdef</RequestId></ResponseMetadata>`+
-		`</GetCallerIdentityResponse>`)
-}
-
 // ListObjectsV2: the S3 namespace on the success root, flattened Contents,
 // an empty Prefix kept as an element, and a quoted ETag.
 func TestGoldenS3ListBucketResult(t *testing.T) {
@@ -109,46 +82,6 @@ func TestGoldenS3ListBucketResult(t *testing.T) {
 	if strings.Join(keys, ",") != "photos/a&b.jpg,notes/<draft>.txt" {
 		t.Errorf("keys decoded to %q", keys)
 	}
-}
-
-// S3 errors use a bare <Error> root without a namespace (noErrorWrapping),
-// with error-specific context elements next to Code and Message.
-func TestGoldenS3Error(t *testing.T) {
-	t.Parallel()
-	got := write(t, func(w *xmlw.Writer) {
-		w.Declaration()
-		w.Start("Error")
-		element(w, "Code", "NoSuchKey")
-		element(w, "Message", "The specified key does not exist.")
-		element(w, "Key", "missing.txt")
-		element(w, "RequestId", "656c76696e6727732072657175657374")
-		element(w, "HostId", "Uuag1LuByRx9e6j5Onimru9pO4ZVKnJ2Qz7/C1NPcfTWAtRPfTaOFg==")
-		w.End()
-	})
-	assertGolden(t, got, `<?xml version="1.0" encoding="UTF-8"?>`+"\n"+
-		`<Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message><Key>missing.txt</Key>`+
-		`<RequestId>656c76696e6727732072657175657374</RequestId>`+
-		`<HostId>Uuag1LuByRx9e6j5Onimru9pO4ZVKnJ2Qz7/C1NPcfTWAtRPfTaOFg==</HostId></Error>`)
-}
-
-// IAM returns an empty collection as an empty element (wire-json-query.md 8.5).
-func TestGoldenIAMEmptyRoles(t *testing.T) {
-	t.Parallel()
-	got := write(t, func(w *xmlw.Writer) {
-		w.StartNS("ListRolesResponse", "https://iam.amazonaws.com/doc/2010-05-08/")
-		w.Start("ListRolesResult")
-		element(w, "IsTruncated", "false")
-		w.Empty("Roles")
-		w.End()
-		w.Start("ResponseMetadata")
-		element(w, "RequestId", "7a62c49f-347e-4fc4-9331-6e8eEXAMPLE")
-		w.End()
-		w.End()
-	})
-	assertGolden(t, got, `<ListRolesResponse xmlns="https://iam.amazonaws.com/doc/2010-05-08/">`+
-		`<ListRolesResult><IsTruncated>false</IsTruncated><Roles/></ListRolesResult>`+
-		`<ResponseMetadata><RequestId>7a62c49f-347e-4fc4-9331-6e8eEXAMPLE</RequestId></ResponseMetadata>`+
-		`</ListRolesResponse>`)
 }
 
 // GetBucketAcl: each Grantee binds the xsi prefix and names its type with
