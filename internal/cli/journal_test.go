@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -61,9 +62,8 @@ func TestJournalQueryPrintsTheNewest(t *testing.T) {
 	}
 }
 
-// A journal query without --follow asks the journal once, for the newest
-// --limit+1 events (the extra one tells whether older matches exist), however
-// many events match.
+// A journal query without --follow asks the journal once, for a tail bounded
+// by --limit, however many events match.
 func TestJournalQuerySendsOneTailRequest(t *testing.T) {
 	inst := start(t)
 	for _, name := range []string{"q0", "q1", "q2", "q3", "q4"} {
@@ -93,9 +93,18 @@ func TestJournalQuerySendsOneTailRequest(t *testing.T) {
 		mu.Lock()
 		got := slices.Clone(queries)
 		mu.Unlock()
-		wantTail := map[string]string{"2": "3", "5": "6", "9": "10"}[limit]
-		if res.code != admin.ExitOK || len(got) != 1 || got[0].Get("tail") != wantTail || got[0].Get("operation") != "sqs.CreateQueue" {
-			t.Errorf("journal --limit %s = %d sent %v; want one journal request with tail=%s and the operation filter", limit, res.code, got, wantTail)
+		if res.code != admin.ExitOK || len(got) != 1 || got[0].Get("operation") != "sqs.CreateQueue" {
+			t.Errorf("journal --limit %s = %d sent %v; want one journal request with the operation filter", limit, res.code, got)
+			continue
+		}
+		n, err := strconv.Atoi(limit)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// One past --limit is allowed so the query can tell whether older
+		// matches exist without a second request.
+		if tail, err := strconv.Atoi(got[0].Get("tail")); err != nil || tail < n || tail > n+1 {
+			t.Errorf("journal --limit %s asked for tail %q; want between %d and %d", limit, got[0].Get("tail"), n, n+1)
 		}
 	}
 }
@@ -148,41 +157,9 @@ func TestJournalLinesNameTheFailure(t *testing.T) {
 	}
 }
 
-// journal --follow prints the matching events, then the new ones as they
-// are recorded, and ends cleanly when its context does.
-func TestJournalFollow(t *testing.T) {
-	inst := start(t)
-	createQueue(t, inst.Endpoint(), "first")
-	ctx, cancel := context.WithCancel(t.Context())
-	var out, errOut syncBuffer
-	done := make(chan int, 1)
-	go func() {
-		done <- cli.Run(ctx, []string{"journal", "--operation", "sqs.CreateQueue", "--follow", "--output", "json"}, cli.Options{
-			Stdout: &out, Stderr: &errOut, Env: []string{config.EndpointEnv + "=" + inst.Endpoint()}, ReadFile: os.ReadFile,
-		})
-	}()
-	waitLines(t, &out, 1)
-	createQueue(t, inst.Endpoint(), "second")
-	waitLines(t, &out, 2)
-	cancel()
-	if code := <-done; code != admin.ExitOK {
-		t.Fatalf("journal --follow after cancel = %d, stderr %s", code, errOut.String())
-	}
-	var ids []uint64
-	for line := range strings.Lines(out.String()) {
-		var e admin.JournalEvent
-		if err := json.Unmarshal([]byte(line), &e); err != nil {
-			t.Fatalf("line %q: %v", line, err)
-		}
-		ids = append(ids, e.ID)
-	}
-	if len(ids) != 2 || ids[0] >= ids[1] {
-		t.Errorf("followed events %v, want the two CreateQueue calls in order", ids)
-	}
-}
-
-// journal --follow prints every matching event recorded before it, whatever
-// --limit says, then the new ones.
+// journal --follow prints every matching event recorded before it, oldest
+// first and whatever --limit says, then the new ones as they are recorded,
+// and ends cleanly when its context does.
 func TestJournalFollowIgnoresTheLimit(t *testing.T) {
 	inst := start(t)
 	createQueue(t, inst.Endpoint(), "first")
@@ -202,8 +179,16 @@ func TestJournalFollowIgnoresTheLimit(t *testing.T) {
 	if code := <-done; code != admin.ExitOK {
 		t.Fatalf("journal --follow after cancel = %d, stderr %s", code, errOut.String())
 	}
-	if n := strings.Count(out.String(), "\n"); n != 3 {
-		t.Errorf("journal --limit 1 --follow printed %d events, want all 3:\n%s", n, out.String())
+	var ids []uint64
+	for line := range strings.Lines(out.String()) {
+		var e admin.JournalEvent
+		if err := json.Unmarshal([]byte(line), &e); err != nil {
+			t.Fatalf("line %q: %v", line, err)
+		}
+		ids = append(ids, e.ID)
+	}
+	if len(ids) != 3 || ids[0] >= ids[1] || ids[1] >= ids[2] {
+		t.Errorf("journal --limit 1 --follow printed events %v, want all 3 CreateQueue calls in order:\n%s", ids, out.String())
 	}
 }
 

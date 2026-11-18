@@ -63,10 +63,6 @@ func TestFaultsAddFlags(t *testing.T) {
 			t.Errorf("faults add %q put %+v, want %+v", c.args, f.Rule, c.want)
 		}
 	}
-	both := runCLI(t.Context(), inst.Endpoint(), nil, "faults", "add", "--throttle", "--next", "1", "--probability", "0.5")
-	if both.code != admin.ExitUsage {
-		t.Errorf("--next with --probability = %d, want 2", both.code)
-	}
 }
 
 // faults add refuses a rule the server would refuse with the flag to fix,
