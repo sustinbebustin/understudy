@@ -100,24 +100,6 @@ func TestSendMessageViolationsFollowMemberOrder(t *testing.T) {
 	}
 }
 
-// TestUnmodeledValidationErrorsCarryCoralTypes: SQS's unmodeled validation
-// errors answer Coral's __type over JSON and SQS's own code over Query
-// (testdata/parity/sqs/R11/02-receive-max-0.json,
-// testdata/parity/sqs/R11/02-send-empty-body.json).
-func TestUnmodeledValidationErrorsCarryCoralTypes(t *testing.T) {
-	for _, tt := range []struct {
-		id                  awserr.Identity
-		jsonType, queryCode string
-	}{
-		{IdentityInvalidParameterValue(), "com.amazon.coral.service#InvalidParameterValueException", "InvalidParameterValue"},
-		{IdentityMissingParameter(), "com.amazon.coral.service#MissingRequiredParameterException", "MissingParameter"},
-	} {
-		if tt.id.JSONType != tt.jsonType || tt.id.QueryCode != tt.queryCode {
-			t.Errorf("%s: JSONType %q, QueryCode %q; want %q, %q", tt.id.Shape, tt.id.JSONType, tt.id.QueryCode, tt.jsonType, tt.queryCode)
-		}
-	}
-}
-
 // TestRecordedSQSParameterTexts are the AWS-recorded rows of sqs.md 2.4.
 func TestRecordedSQSParameterTexts(t *testing.T) {
 	tests := []struct {

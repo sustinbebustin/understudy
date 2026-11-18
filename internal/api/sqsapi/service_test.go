@@ -73,6 +73,11 @@ func TestIdentities(t *testing.T) {
 			Shape: "com.amazonaws.sqs#MissingParameter", JSONType: "com.amazon.coral.service#MissingRequiredParameterException",
 			QueryCode: "MissingParameter", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower,
 		}},
+		// testdata/parity/sqs/R11/02-receive-max-0.json; the Shape is the SQS model's.
+		{"InvalidParameterValue", IdentityInvalidParameterValue(), awserr.Identity{
+			Shape: "com.amazonaws.sqs#InvalidParameterValue", JSONType: "com.amazon.coral.service#InvalidParameterValueException",
+			QueryCode: "InvalidParameterValue", Status: 400, Fault: awserr.Sender, MessageKey: awserr.MessageLower,
+		}},
 		{"RequestThrottled is the throttle identity, so retryable", IdentityRequestThrottled(), awserr.Identity{
 			Shape: "com.amazonaws.sqs#RequestThrottled", JSONType: "com.amazonaws.sqs#RequestThrottled",
 			QueryCode: "RequestThrottled", Status: 403, Fault: awserr.Sender, MessageKey: awserr.MessageLower, Retryable: true,
