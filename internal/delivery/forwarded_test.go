@@ -90,23 +90,6 @@ func TestEnvelopeIsTheForwardedEvent(t *testing.T) {
 	}
 }
 
-// An entry with no Forwarded is a new event, which has no id yet, and a
-// Detail that is not a JSON object is not an event (MalformedDetail,
-// secrets-logs-events-alarms.md 4.7): neither has an envelope.
-func TestEnvelopeRefusesAnEntryThatIsNoForwardedEvent(t *testing.T) {
-	forwarded := &delivery.Forwarded{ID: "e-1", Account: "111111111111", Region: "us-east-1", Time: time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC)}
-	for name, e := range map[string]delivery.EventEntry{
-		"no Forwarded":       {Source: "s", DetailType: "t", Detail: `{}`},
-		"an array Detail":    {Source: "s", DetailType: "t", Detail: `["a"]`, Forwarded: forwarded},
-		"a string Detail":    {Source: "s", DetailType: "t", Detail: `"a"`, Forwarded: forwarded},
-		"a truncated Detail": {Source: "s", DetailType: "t", Detail: `{"a":`, Forwarded: forwarded},
-	} {
-		if got, err := e.Envelope(); err == nil {
-			t.Errorf("%s: Envelope = %s, want an error", name, got)
-		}
-	}
-}
-
 // Every envelope is one compact JSON object in the recorded member order
 // whose members carry the entry and its Forwarded unchanged, the detail
 // compacted, whatever the entry holds.

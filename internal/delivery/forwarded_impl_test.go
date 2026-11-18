@@ -10,8 +10,9 @@ import (
 
 // Envelope's refusals are typed, so the outbox can name the member at
 // fault: ErrNotForwarded for a new event, and a *DetailError for a Detail
-// that is not one JSON object, carrying the syntax error when the text is
-// not JSON at all.
+// that is not one JSON object (MalformedDetail,
+// secrets-logs-events-alarms.md 4.7), carrying the syntax error when the
+// text is not JSON at all.
 func TestEnvelopeRefusalsAreTyped(t *testing.T) {
 	forwarded := &delivery.Forwarded{ID: "e-1", Account: "111111111111", Region: "us-east-1", Time: time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC)}
 	if _, err := (delivery.EventEntry{Source: "s", DetailType: "t", Detail: `{}`}).Envelope(); !errors.Is(err, delivery.ErrNotForwarded) {

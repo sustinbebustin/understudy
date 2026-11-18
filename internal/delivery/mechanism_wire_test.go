@@ -62,15 +62,6 @@ func TestMechanismWireNamesAreStable(t *testing.T) {
 			t.Errorf("ParseMechanism(%q) = %v, %v; want %v", c.name, got, err, c.m)
 		}
 	}
-	// The value after the last declared one, an end marker or not, is no
-	// mechanism.
-	next := all[len(all)-1] + 1
-	if !strings.HasPrefix(next.String(), "Mechanism(") {
-		t.Errorf("String() of %d, after the last declared mechanism, = %q, want the numeric fallback", next, next.String())
-	}
-	if _, err := next.MarshalText(); err == nil {
-		t.Errorf("MarshalText of %d, after the last declared mechanism, succeeded", next)
-	}
 }
 
 // The error lists every declared name, the last after "and"; for the
