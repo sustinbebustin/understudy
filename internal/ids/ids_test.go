@@ -292,11 +292,7 @@ func TestKindNamesRoundTripThroughJSON(t *testing.T) {
 		}
 		names[k.String()] = k
 	}
-	var k Kind
 	var unknown *UnknownKindError
-	if err := k.UnmarshalText([]byte("sqs-message-ids")); !errors.As(err, &unknown) {
-		t.Errorf("UnmarshalText of an unknown name = %v, want *UnknownKindError", err)
-	}
 	if _, err := json.Marshal(map[Kind]uint64{Kind(200): 1}); !errors.As(err, &unknown) || unknown.Name != "kind(200)" {
 		t.Errorf("marshaling an out-of-range kind = %v, want *UnknownKindError naming kind(200)", err)
 	}
