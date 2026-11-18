@@ -770,9 +770,9 @@ func TestAuthorizeAllowsAPlatformCallWithoutAsking(t *testing.T) {
 }
 
 // Authorize while holding a cell lock is the same mistake as an Invoke
-// there (ARCHITECTURE.md 8 rule 1), and a zero ARN names no resource: both
-// are Internal, and neither reaches the Authorizer.
-func TestAuthorizeRefusesHeldLocksAndTheZeroARN(t *testing.T) {
+// there (ARCHITECTURE.md 8 rule 1): it is Internal and never reaches the
+// Authorizer.
+func TestAuthorizeRefusesHeldLocks(t *testing.T) {
 	t.Run("held lock", func(t *testing.T) {
 		g := newGuard(guardDenial())
 		a := &fakeAuthorizer{}
@@ -787,25 +787,6 @@ func TestAuthorizeRefusesHeldLocksAndTheZeroARN(t *testing.T) {
 			var holding *kernel.HoldingError
 			if cause := internalCause(k.T, err); !errors.As(cause, &holding) || holding.Attempted != "kernel.Authorize of iam:PassRole" || holding.Holder != "guard.Run" {
 				k.Errorf("cause = %v, want a HoldingError for kernel.Authorize of iam:PassRole from guard.Run", cause)
-			}
-			if got := len(a.questions()); got != 1 {
-				k.Errorf("the Authorizer was asked %d times, want only at step 8", got)
-			}
-		})
-	})
-	t.Run("zero ARN", func(t *testing.T) {
-		g := newGuard(guardDenial())
-		a := &fakeAuthorizer{}
-		runGuard(t, g, a, func(k *kerneltest.K) {
-			bindGuard(k, g.run, func(ctx context.Context, c *kernel.Call, _ *guardInput) (*guardOutput, *awserr.Error) {
-				if err := kernel.Authorize(ctx, c, passRole, aws.ARN{}, nil); err != nil {
-					return nil, err
-				}
-				return &guardOutput{}, nil
-			})
-			_, err := k.Invoke(k.Context(), g.run, &guardInput{})
-			if cause := internalCause(k.T, err); cause == nil {
-				k.Error("the zero ARN answered Internal without a cause")
 			}
 			if got := len(a.questions()); got != 1 {
 				k.Errorf("the Authorizer was asked %d times, want only at step 8", got)

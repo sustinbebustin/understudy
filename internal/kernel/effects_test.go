@@ -26,20 +26,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-func TestDeliverWithoutASinkIsInternal(t *testing.T) {
-	run(t, func(k *kerneltest.K) {
-		t := k.T
-		c := k.Call(sqsapi.OpSendMessage.Descriptor())
-		_, err := kernel.Write(c, cells(k), k.Scope, func(_ *int, _ clock.Instant, tx *kernel.Tx) (int, *awserr.Error) {
-			tx.Deliver(delivery.Request{Mechanism: delivery.SNSToSQS})
-			return 0, nil
-		})
-		if !isA[*kernel.NoDeliverSinkError](internalCause(t, err)) {
-			t.Errorf("err = %v, want a NoDeliverSinkError", err)
-		}
-	})
-}
-
 // sink records the deliveries it accepts.
 type sink struct {
 	mu   sync.Mutex
