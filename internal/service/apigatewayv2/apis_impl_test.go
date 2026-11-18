@@ -20,7 +20,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/awserr"
 	"github.com/sustinbebustin/understudy/internal/kernel"
-	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/service/apigatewayv2"
 )
 
@@ -238,8 +237,8 @@ func TestGetApisPagingProperty(t *testing.T) {
 				ids = append(ids, h.apiID("p"+strconv.Itoa(i)))
 			}
 			all := idsOf(h.listAPIs(""))
-			if !slices.IsSorted(all) {
-				rt.Fatalf("GetApis = %v, want id order", all)
+			if want := slices.Sorted(slices.Values(ids)); !slices.Equal(all, want) {
+				rt.Fatalf("GetApis = %v, want every API created once, in id order, %v", all, want)
 			}
 			if paged := idsOf(h.listAPIs(strconv.Itoa(size))); !slices.Equal(paged, all) {
 				rt.Fatalf("GetApis in pages of %d = %v, want %v", size, paged, all)
@@ -481,38 +480,4 @@ func TestTagsOnTheWire(t *testing.T) {
 			t.Errorf("GetTags = %d %s, want 200 with tags env=dev", code, body)
 		}
 	})
-}
-
-// Step 8 asks about each Api and tag operation as apigateway:<its HTTP
-// method> on the resource the 8.1 table gives it: /apis for CreateApi and
-// GetApis, /apis/<api-id> for the API's own calls, /apis/<api-id>/cors for
-// DeleteCorsConfiguration, and the tagged API itself for the tag calls,
-// GET to read and PATCH to change (apigateway-http.md 8.1; APIGW2-15,
-// recorded 2026-11-03).
-func TestStep8AsksAboutTheApiAndTagPairs(t *testing.T) {
-	g := newGate()
-	run(t, func(h *harness) {
-		id := h.apiID("t")
-		api := apiARN(id)
-		must(h, apigatewayv2api.OpGetApis, &apigatewayv2api.GetApisInput{})
-		must(h, apigatewayv2api.OpGetApi, &apigatewayv2api.GetApiInput{ApiId: id})
-		must(h, apigatewayv2api.OpUpdateApi, &apigatewayv2api.UpdateApiInput{ApiId: id, Description: new("d")})
-		must(h, apigatewayv2api.OpDeleteCorsConfiguration, &apigatewayv2api.DeleteCorsConfigurationInput{ApiId: id})
-		must(h, apigatewayv2api.OpTagResource, &apigatewayv2api.TagResourceInput{ResourceArn: api, Tags: map[string]string{"a": "b"}})
-		must(h, apigatewayv2api.OpGetTags, &apigatewayv2api.GetTagsInput{ResourceArn: api})
-		must(h, apigatewayv2api.OpUntagResource, &apigatewayv2api.UntagResourceInput{ResourceArn: api, TagKeys: []string{"a"}})
-		must(h, apigatewayv2api.OpDeleteApi, &apigatewayv2api.DeleteApiInput{ApiId: id})
-
-		prefix := "arn:aws:apigateway:" + region + "::"
-		for op, w := range map[string][2]string{
-			"CreateApi": {"apigateway:POST", prefix + "/apis"}, "GetApis": {"apigateway:GET", prefix + "/apis"},
-			"GetApi": {"apigateway:GET", api}, "UpdateApi": {"apigateway:PATCH", api}, "DeleteApi": {"apigateway:DELETE", api},
-			"DeleteCorsConfiguration": {"apigateway:DELETE", api + "/cors"},
-			"TagResource":             {"apigateway:PATCH", api}, "GetTags": {"apigateway:GET", api}, "UntagResource": {"apigateway:PATCH", api},
-		} {
-			if got := g.pairs(op); len(got) != 1 || got[0] != w {
-				t.Errorf("%s asked about %v, want exactly %v", op, got, w)
-			}
-		}
-	}, kerneltest.Authorizer(g))
 }

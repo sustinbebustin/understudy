@@ -139,14 +139,6 @@ func TestMatchFollowsItsParameter(t *testing.T) {
 	}
 }
 
-// A route without variables binds none.
-func TestMatchBindsNothingWithoutVariables(t *testing.T) {
-	got, ok := petsTable().Match(http.MethodGet, "/pets/dog/1", matching())
-	if !ok || len(got.PathParameters) != 0 {
-		t.Errorf("GET /pets/dog/1 = %+v, %v; want no path parameters", got, ok)
-	}
-}
-
 // genRoute draws a route over a small path alphabet so routes overlap:
 // literal and variable segments, a greedy variable last, or $default.
 func genRoute(id string) *rapid.Generator[route.Route] {

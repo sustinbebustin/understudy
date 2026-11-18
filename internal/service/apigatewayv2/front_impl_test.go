@@ -19,8 +19,8 @@ func hostURL(host, path string) string { return "http://" + host + ":4566" + pat
 // An API in another region is served on its own region's host and on the
 // regionless host, never on a host naming another region (the
 // front.answers switch's UnknownAPI, APIGW2-06); the event's domainName is
-// the host the request named and the source ARN carries the API's region
-// (apigateway-http.md 2.5, 5.5).
+// the host the request named, domainPrefix its first label, and the source
+// ARN carries the API's region (apigateway-http.md 2.5, 5.1, 5.5).
 func TestHostFormServesTheAPIsRegion(t *testing.T) {
 	run(t, func(h *harness) {
 		west, err := aws.KnownRegions().Parse("us-west-2")
@@ -30,12 +30,18 @@ func TestHostFormServesTheAPIsRegion(t *testing.T) {
 		h.Scope.Region = west
 		id, _ := h.lambdaAPI("2.0", "GET /hello")
 		own := id + ".execute-api.us-west-2.localhost"
-		if rec := h.send(h.request(http.MethodGet, hostURL(own, "/hello"), "")); rec.Code != http.StatusOK {
+		rec := h.send(h.request(http.MethodGet, hostURL(own, "/hello"), ""))
+		if rec.Code != http.StatusOK {
 			t.Fatalf("GET %s = %d %s, want the function's 200", hostURL(own, "/hello"), rec.Code, rec.Body)
 		}
+		// The path fallback's sandbox stays off the host form (ADR 0020).
+		if got := rec.Header().Values("Content-Security-Policy"); len(got) != 0 {
+			t.Errorf("Content-Security-Policy = %q, want none on the host form", got)
+		}
 		call := h.only()
-		if got := obj(h, call.event(h), "requestContext")["domainName"]; got != own {
-			t.Errorf("domainName = %v, want %s", got, own)
+		rc := obj(h, call.event(h), "requestContext")
+		if rc["domainName"] != own || rc["domainPrefix"] != id {
+			t.Errorf("domainName %v, domainPrefix %v; want %s and %s", rc["domainName"], rc["domainPrefix"], own, id)
 		}
 		as, ok := call.mode.(kernel.AsService)
 		if !ok || !strings.HasPrefix(as.Source.String(), "arn:aws:execute-api:us-west-2:"+account+":"+id+"/") {

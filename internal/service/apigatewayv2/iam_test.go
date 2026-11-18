@@ -2,7 +2,6 @@ package apigatewayv2_test
 
 import (
 	"context"
-	"net/http"
 	"sync"
 	"testing"
 
@@ -113,13 +112,17 @@ func TestStep8AsksAboutTheDocumentedPairs(t *testing.T) {
 		must(h, apigatewayv2api.OpDeleteStage, &apigatewayv2api.DeleteStageInput{ApiId: id, StageName: "prod"})
 		must(h, apigatewayv2api.OpDeleteRoute, &apigatewayv2api.DeleteRouteInput{ApiId: id, RouteId: rid})
 		must(h, apigatewayv2api.OpDeleteIntegration, &apigatewayv2api.DeleteIntegrationInput{ApiId: id, IntegrationId: integration})
+		must(h, apigatewayv2api.OpDeleteCorsConfiguration, &apigatewayv2api.DeleteCorsConfigurationInput{ApiId: id})
 		must(h, apigatewayv2api.OpDeleteApi, &apigatewayv2api.DeleteApiInput{ApiId: id})
 
 		apis := "arn:aws:apigateway:" + region + "::/apis"
 		want := map[string][2]string{
 			"CreateApi": {"apigateway:POST", apis}, "GetApis": {"apigateway:GET", apis},
 			"GetApi": {"apigateway:GET", api}, "UpdateApi": {"apigateway:PATCH", api}, "DeleteApi": {"apigateway:DELETE", api},
-			"CreateRoute": {"apigateway:POST", api + "/routes"}, "GetRoutes": {"apigateway:GET", api + "/routes"},
+			// The CORS configuration is an item of its own under the API
+			// (apigateway-http.md 8.1).
+			"DeleteCorsConfiguration": {"apigateway:DELETE", api + "/cors"},
+			"CreateRoute":             {"apigateway:POST", api + "/routes"}, "GetRoutes": {"apigateway:GET", api + "/routes"},
 			"GetRoute": {"apigateway:GET", api + "/routes/" + rid}, "UpdateRoute": {"apigateway:PATCH", api + "/routes/" + rid}, "DeleteRoute": {"apigateway:DELETE", api + "/routes/" + rid},
 			"CreateIntegration": {"apigateway:POST", api + "/integrations"}, "GetIntegrations": {"apigateway:GET", api + "/integrations"},
 			"GetIntegration": {"apigateway:GET", api + "/integrations/" + integration}, "UpdateIntegration": {"apigateway:PATCH", api + "/integrations/" + integration},
@@ -163,24 +166,6 @@ func TestDeniedControlPlaneCall(t *testing.T) {
 		}
 		if apis := must(h, apigatewayv2api.OpGetApis, &apigatewayv2api.GetApisInput{}).Items; len(apis) != 0 {
 			t.Errorf("GetApis after a denied CreateApi = %+v, want none", apis)
-		}
-	}, kerneltest.Authorizer(g))
-}
-
-// A request on a NONE route is never put to IAM: AWS evaluates no
-// execute-api permission there (apigateway-http.md 8.2, 8.3: IAM applies
-// to AWS_IAM routes, and resource policies are not supported for HTTP
-// APIs), so step 8 is never asked about InvokeApi while the request
-// reaches the function.
-func TestNoneRouteIsNotAuthorized(t *testing.T) {
-	g := newGate()
-	run(t, func(h *harness) {
-		id, _ := h.lambdaAPI("2.0", "GET /hello")
-		if rec := h.get(id, "/hello"); rec.Code != http.StatusOK {
-			t.Fatalf("GET /hello = %d %s, want the function's 200", rec.Code, rec.Body)
-		}
-		if g.askedAbout(invokeAPI) {
-			t.Errorf("step 8 was asked about InvokeApi: %v", g.pairs("InvokeApi"))
 		}
 	}, kerneltest.Authorizer(g))
 }

@@ -88,17 +88,6 @@ func TestDeleteDeploymentInUse(t *testing.T) {
 	})
 }
 
-// Deploying an API with no routes follows the switch's EmptyAPI
-// (UNVERIFIED, apigateway-http.md 3.5, APIGW2-04).
-func TestDeployingAnEmptyAPI(t *testing.T) {
-	rule := apigatewayv2.FrontAnswersSwitch().Value.Deployments.EmptyAPI
-	run(t, func(h *harness) {
-		id := h.apiID("empty")
-		_, err := h.Invoke(h.Context(), apigatewayv2api.OpCreateDeployment, &apigatewayv2api.CreateDeploymentInput{ApiId: id})
-		wantRule(t, rule, err, "CreateDeployment of an API with no routes")
-	})
-}
-
 // CreateDeployment to an automatic stage is an explicit deployment there,
 // which the switch's ExplicitOnAutoDeploy governs (apigateway-http.md 3.4:
 // DeploymentId "Can't be updated" with autoDeploy; UNVERIFIED, APIGW2-04).

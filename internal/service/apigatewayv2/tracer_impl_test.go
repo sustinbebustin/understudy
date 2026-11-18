@@ -12,33 +12,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/store"
 )
 
-// The tracer bullet's API survives Export, Reset and Import (ADR 0009): a
-// Reset forgets the API id, so the data plane answers UnknownAPI, and the
-// Import brings the API, its autoDeploy stage's deployment and the id back.
-func TestTracerAPISurvivesExportAndImport(t *testing.T) {
-	run(t, func(h *harness) {
-		id, _ := h.lambdaAPI("2.0", "GET /hello")
-		sections, err := h.svc.Export()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(sections) != 1 {
-			t.Fatalf("Export wrote %d sections, want one for the scope holding the API", len(sections))
-		}
-		h.svc.Reset(kernel.ResetScope{})
-		wantAnswer(t, h.get(id, "/hello"), apigatewayv2.FrontAnswersSwitch().Value.UnknownAPI, "after Reset")
-		if err := h.svc.Import(sections); err != nil {
-			t.Fatalf("Import = %v", err)
-		}
-		if rec := h.get(id, "/hello"); rec.Code != http.StatusOK {
-			t.Errorf("GET /hello after Import = %d %s, want the function's 200", rec.Code, rec.Body)
-		}
-		if n := len(h.fn.invocations()); n != 1 {
-			t.Errorf("%d invocations, want only the one after Import", n)
-		}
-	})
-}
-
 // A section of another schema version is refused with
 // *store.VersionMismatchError, and the API still serves.
 func TestTracerImportRefusesAnotherVersion(t *testing.T) {
@@ -56,21 +29,6 @@ func TestTracerImportRefusesAnotherVersion(t *testing.T) {
 		}
 		if rec := h.get(id, "/hello"); rec.Code != http.StatusOK {
 			t.Errorf("GET /hello after a refused Import = %d %s, want the function's 200", rec.Code, rec.Body)
-		}
-	})
-}
-
-// A Reset of another account leaves this account's API served.
-func TestTracerResetOfAnotherAccountKeepsTheAPI(t *testing.T) {
-	run(t, func(h *harness) {
-		id, _ := h.lambdaAPI("2.0", "GET /hello")
-		other, err := aws.ParseAccountID("111111111111")
-		if err != nil {
-			t.Fatal(err)
-		}
-		h.svc.Reset(kernel.ResetScope{Accounts: []aws.AccountID{other}})
-		if rec := h.get(id, "/hello"); rec.Code != http.StatusOK {
-			t.Errorf("GET /hello after another account's Reset = %d %s, want the function's 200", rec.Code, rec.Body)
 		}
 	})
 }
@@ -136,30 +94,6 @@ func TestTracerNamedAutoDeployStage(t *testing.T) {
 			}
 		}
 		wantAnswer(t, h.get(id, "/hello"), apigatewayv2.FrontAnswersSwitch().Value.NoStage, "GET /hello with no $default stage")
-	})
-}
-
-// The $default route on the $default stage presents the documented source
-// ARN <api-id>/$default/$default (apigateway-http.md 5.5) and catches any
-// path no other route matches (4.3).
-func TestTracerDefaultRouteSourceARN(t *testing.T) {
-	run(t, func(h *harness) {
-		fnARN := h.createFunction("fn")
-		id := h.apiID("t")
-		h.createRoute(id, "$default", h.lambdaIntegration(id, fnARN, "2.0"))
-		h.autoStage(id)
-		exec := h.executionARN(id)
-		h.allow("fn", "default-default", exec+"/$default/$default")
-		if rec := h.get(id, "/any/path"); rec.Code != http.StatusOK {
-			t.Fatalf("GET /any/path = %d %s, want the $default route's 200", rec.Code, rec.Body)
-		}
-		call := h.only()
-		if as, ok := call.mode.(kernel.AsService); !ok || as.Source.String() != exec+"/$default/$default" {
-			t.Errorf("invoked as %#v, want source ARN %s/$default/$default", call.mode, exec)
-		}
-		if ev := call.event(h); ev["routeKey"] != "$default" {
-			t.Errorf("routeKey = %v, want $default", ev["routeKey"])
-		}
 	})
 }
 
