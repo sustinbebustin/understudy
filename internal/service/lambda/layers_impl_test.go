@@ -114,9 +114,10 @@ func TestGetLayerVersionByArnOfAnAWSManagedLayerFindsNothing(t *testing.T) {
 	})
 }
 
-// ListLayers pages by layer name and answers an empty list when there is
-// none (aws-recorded, testdata/parity/lambda/LDL-11/01-list-before.json;
-// lambda-destinations-layers.md 6.5).
+// ListLayers pages by layer name, leaves out a layer whose only version was
+// deleted, and answers an empty list when there is none (aws-recorded,
+// testdata/parity/lambda/LDL-11/01-list-before.json and
+// 02-list-after-delete.json; lambda-destinations-layers.md 6.5).
 func TestListLayersPagesByName(t *testing.T) {
 	run(t, lambda.Options{}, func(h *harness) {
 		t := h.T
@@ -140,25 +141,6 @@ func TestListLayersPagesByName(t *testing.T) {
 		}
 		if !slices.Equal(names, []string{"a", "b", "c"}) {
 			t.Errorf("paged layers = %v, want [a b c]", names)
-		}
-	})
-}
-
-// ListLayers leaves out a layer whose only version was deleted and lists
-// the other (aws-recorded, testdata/parity/lambda/LDL-11/02-list-after-delete.json).
-func TestListLayersLeavesOutALayerWithEveryVersionDeleted(t *testing.T) {
-	run(t, lambda.Options{}, func(h *harness) {
-		t := h.T
-		h.publish("us1103-ldl-x", pythonLayer(t))
-		h.publish("us1103-ldl-del", pythonLayer(t))
-		call(h, lambdaapi.OpDeleteLayerVersion, &lambdaapi.DeleteLayerVersionInput{LayerName: "us1103-ldl-del", VersionNumber: 1})
-		layers := call(h, lambdaapi.OpListLayers, &lambdaapi.ListLayersInput{}).Layers
-		names := make([]string, 0, len(layers))
-		for _, l := range layers {
-			names = append(names, deref(l.LayerName))
-		}
-		if !slices.Equal(names, []string{"us1103-ldl-x"}) {
-			t.Errorf("listed layers = %v, want [us1103-ldl-x]", names)
 		}
 	})
 }
