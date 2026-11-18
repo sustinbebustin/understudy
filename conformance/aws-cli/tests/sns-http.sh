@@ -135,6 +135,7 @@ test_http_subscription_confirmed_by_token_receives() {
   assert_eq "$sub_arn" "$(header x-amz-sns-subscription-arn)" x-amz-sns-subscription-arn
   assert_eq 'text/plain; charset=UTF-8' "$(header content-type)" Content-Type
   assert_eq 'gzip,deflate' "$(header accept-encoding)" Accept-Encoding
+  assert_eq 'Amazon Simple Notification Service Agent' "$(header user-agent)" User-Agent
   assert_eq '' "$(header x-amz-sns-rawdelivery)" x-amz-sns-rawdelivery
   no_aws_host
   aws_ok sns unsubscribe --subscription-arn "$sub_arn"

@@ -207,15 +207,10 @@ acquire() {
     --condition-expression "$LOCK_CONDITION" --expression-attribute-values "{\":now\":{\"N\":\"$3\"}}"
 }
 
-test_lock_acquire_on_free_key() {
-  new_table
-  acquire job-1 worker-a 1000 2000
-  [ "$AWS_RC" -eq 0 ] || fail "acquiring a free lock must succeed"
-}
-
 test_lock_held_and_unexpired_is_rejected() {
   new_table
   acquire job-1 worker-a 1000 2000
+  [ "$AWS_RC" -eq 0 ] || fail "acquiring a free lock must succeed"
   aws_error ConditionalCheckFailedException 400 dynamodb put-item --table-name "$TABLE" \
     --item '{"LockID":{"S":"job-1"},"Owner":{"S":"worker-b"},"ExpiresAt":{"N":"3000"}}' \
     --condition-expression "$LOCK_CONDITION" --expression-attribute-values '{":now":{"N":"1500"}}'

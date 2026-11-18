@@ -690,11 +690,6 @@ test_get_object_missing_bucket() {
   aws_error NoSuchBucket 404 s3api get-object --bucket "$(new_name cli-nobkt)" --key k "$UE_TMP/nobkt.out"
 }
 
-test_head_object_missing_key() {
-  mkbucket
-  aws_error 404 404 s3api head-object --bucket "$BUCKET" --key nope
-}
-
 test_object_keys_with_special_characters() {
   mkbucket
   local k

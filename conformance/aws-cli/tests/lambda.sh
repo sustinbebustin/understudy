@@ -743,18 +743,9 @@ test_invoke_log_type_tail() {
   assert_contains 'conformance-log-line' "$log" 'log tail'
   assert_contains 'tail-marker-77' "$log" 'log tail'
   assert_match 'END RequestId: [0-9a-f-]{36}' "$log" 'log tail'
-  assert_match 'REPORT RequestId: [0-9a-f-]{36}	Duration: [0-9.]+ ms	Billed Duration: [0-9]+ ms	Memory Size: 128 MB' "$log" 'log tail'
-  [ "$(printf '%s' "$log" | wc -c)" -le 4096 ] || fail "LogResult is longer than 4 KB"
-}
-
-test_invoke_report_line_has_max_memory_used() {
   # lambda-api.md 9.7: every REPORT line carries Max Memory Used.
-  require_docker
-  new_fn
-  wait_active "$FN"
-  invoke_ok "$FN" '{}' --log-type Tail
-  assert_match 'REPORT RequestId: [0-9a-f-]{36}	Duration: [0-9.]+ ms	Billed Duration: [0-9]+ ms	Memory Size: 128 MB	Max Memory Used: [0-9]+ MB' \
-    "$(jqv '.LogResult' | base64 -d)" 'REPORT line'
+  assert_match 'REPORT RequestId: [0-9a-f-]{36}	Duration: [0-9.]+ ms	Billed Duration: [0-9]+ ms	Memory Size: 128 MB	Max Memory Used: [0-9]+ MB' "$log" 'log tail'
+  [ "$(printf '%s' "$log" | wc -c)" -le 4096 ] || fail "LogResult is longer than 4 KB"
 }
 
 test_invoke_environment_and_context() {
