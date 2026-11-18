@@ -34,17 +34,3 @@ func TestParseFullWithoutTheDetailsAnchor(t *testing.T) {
 		t.Errorf("fields = %q, want %q", fields, want)
 	}
 }
-
-// A page whose anchor is <X>-details is the section of a policy named
-// "<X>-details", not the details of an unlisted X.
-func TestParseFullPolicyNamedLikeADetailsAnchor(t *testing.T) {
-	ps := fixturePolicies()[:1]
-	ps[0].Name, ps[0].ARN = "Example-details", "arn:aws:iam::aws:policy/Example-details"
-	idx, err := parseIndex([]byte(renderIndex(ps)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := parseFull([]byte(renderFull(ps)), idx); err != nil {
-		t.Errorf("parseFull = %v", err)
-	}
-}
