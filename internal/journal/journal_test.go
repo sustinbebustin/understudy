@@ -106,18 +106,6 @@ func TestEndRefusesWhatItCannotApply(t *testing.T) {
 	}
 }
 
-func TestBeginRefusesANonCall(t *testing.T) {
-	// A kernel that Begins a delivery learns at once, not at End.
-	j := newTestJournal(t, Options{})
-	var recErr *RecordError
-	if id, err := j.Begin(timerEvent()); !errors.As(err, &recErr) || recErr.Reason != NotACall || recErr.Kind != KindTimerFired || id != 0 {
-		t.Fatalf("Begin(timer) = %d, %v; want a NotACall *RecordError for a timer-fired event", id, err)
-	}
-	if next := j.NextID(); next != 1 {
-		t.Errorf("NextID after the refusal = %d, want 1", next)
-	}
-}
-
 func TestLargeCallInputIsTruncatedSoOlderEventsStay(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "journal.ndjson")
 	j := newTestJournal(t, Options{MaxBytes: 10_000, File: &FileOptions{Path: path}})
@@ -490,51 +478,52 @@ func TestRecordingRefusesEventsNoConsumerCouldRead(t *testing.T) {
 		name   string
 		record func() (ref.EventID, error)
 		reason RecordReason
+		kind   Kind // the refused event's own kind; 0 for a nil Detail
 	}{
-		{"Append of a call", func() (ref.EventID, error) { return j.Append(call) }, CallNeedsBegin},
-		{"Append of a gap", func() (ref.EventID, error) { return j.Append(Event{Detail: Gap{Missed: 1}}) }, GapNotRecordable},
-		{"Begin of a gap", func() (ref.EventID, error) { return j.Begin(Event{Detail: Gap{Missed: 1}}) }, NotACall},
-		{"Begin of a timer", func() (ref.EventID, error) { return j.Begin(timerEvent()) }, NotACall},
-		{"nil detail", func() (ref.EventID, error) { return j.Append(Event{}) }, NoWireForm},
-		{"delivery without outcome", func() (ref.EventID, error) { return j.Append(Event{Detail: Delivery{Attempt: 1}}) }, NoWireForm},
-		{"invocation without outcome", func() (ref.EventID, error) { return j.Append(Event{Detail: Invocation{}}) }, NoWireForm},
-		{"clock change without modes", func() (ref.EventID, error) { return j.Append(Event{Detail: ClockChanged{}}) }, NoWireForm},
+		{"Append of a call", func() (ref.EventID, error) { return j.Append(call) }, CallNeedsBegin, KindAPICall},
+		{"Append of a gap", func() (ref.EventID, error) { return j.Append(Event{Detail: Gap{Missed: 1}}) }, GapNotRecordable, KindGap},
+		{"Begin of a gap", func() (ref.EventID, error) { return j.Begin(Event{Detail: Gap{Missed: 1}}) }, NotACall, KindGap},
+		{"Begin of a timer", func() (ref.EventID, error) { return j.Begin(timerEvent()) }, NotACall, KindTimerFired},
+		{"nil detail", func() (ref.EventID, error) { return j.Append(Event{}) }, NoWireForm, 0},
+		{"delivery without outcome", func() (ref.EventID, error) { return j.Append(Event{Detail: Delivery{Attempt: 1}}) }, NoWireForm, KindDelivery},
+		{"invocation without outcome", func() (ref.EventID, error) { return j.Append(Event{Detail: Invocation{}}) }, NoWireForm, KindInvocation},
+		{"clock change without modes", func() (ref.EventID, error) { return j.Append(Event{Detail: ClockChanged{}}) }, NoWireForm, KindClockChanged},
 		{"delivery without mechanism", func() (ref.EventID, error) {
 			return j.Append(Event{Detail: Delivery{Attempt: 1, Outcome: Delivered{}}})
-		}, NoWireForm},
-		{"advisory without kind", func() (ref.EventID, error) { return j.Append(Event{Detail: Advisory{}}) }, NoWireForm},
+		}, NoWireForm, KindDelivery},
+		{"advisory without kind", func() (ref.EventID, error) { return j.Append(Event{Detail: Advisory{}}) }, NoWireForm, KindAdvisory},
 		{"scaled clock with NaN factor", func() (ref.EventID, error) {
 			return j.Append(Event{Detail: ClockChanged{From: clock.Running{}, To: clock.Scaled{Factor: math.NaN()}}})
-		}, NoWireForm},
-		{"call without origin", func() (ref.EventID, error) { return j.Begin(Event{Detail: APICall{}}) }, NoWireForm},
+		}, NoWireForm, KindClockChanged},
+		{"call without origin", func() (ref.EventID, error) { return j.Begin(Event{Detail: APICall{}}) }, NoWireForm, KindAPICall},
 		{"ARN without partition", func() (ref.EventID, error) {
 			return j.Append(Event{Detail: StateChange{Resource: noPartition, From: "Pending", To: "Active"}})
-		}, NoWireForm},
+		}, NoWireForm, KindStateChange},
 		{"ARN with a colon in the account", func() (ref.EventID, error) {
 			return j.Append(Event{Detail: Advisory{Kind: AdvisoryPolicyWouldDeny, Resource: colonAccount}})
-		}, NoWireForm},
-		{"call touching a malformed ARN", func() (ref.EventID, error) { return j.Begin(touchingBadARN) }, NoWireForm},
-		{"instant past year 9999", func() (ref.EventID, error) { return j.Append(farFuture) }, NoWireForm},
+		}, NoWireForm, KindAdvisory},
+		{"call touching a malformed ARN", func() (ref.EventID, error) { return j.Begin(touchingBadARN) }, NoWireForm, KindAPICall},
+		{"instant past year 9999", func() (ref.EventID, error) { return j.Append(farFuture) }, NoWireForm, KindTimerFired},
 		{"retry past year 9999", func() (ref.EventID, error) {
 			return j.Append(Event{Detail: Delivery{From: fn, To: fn, Mechanism: delivery.SNSToLambda, Attempt: 2, Outcome: Retrying{Next: pastRFC3339}}})
-		}, NoWireForm},
+		}, NoWireForm, KindDelivery},
 		{"frozen clock past year 9999", func() (ref.EventID, error) {
 			return j.Append(Event{Detail: ClockChanged{From: clock.Running{}, To: clock.Frozen{At: pastRFC3339}}})
-		}, NoWireForm},
+		}, NoWireForm, KindClockChanged},
 		{"scaled clock anchored past year 9999", func() (ref.EventID, error) {
 			return j.Append(Event{Detail: ClockChanged{From: clock.Running{}, To: clock.Scaled{Factor: 2, AnchorWall: wall0, AnchorEmu: pastRFC3339}}})
-		}, NoWireForm},
-		{"unissued parent", func() (ref.EventID, error) { return j.Append(unissued) }, UnissuedID},
-		{"unissued trace", func() (ref.EventID, error) { return j.Append(foreignTrace) }, UnissuedID},
-		{"call with unissued parent", func() (ref.EventID, error) { return j.Begin(callEvent(7)) }, UnissuedID},
-		{"link to an unissued id", func() (ref.EventID, error) { return j.Append(futureLink) }, UnissuedID},
-		{"link to event 0", func() (ref.EventID, error) { return j.Append(zeroLink) }, UnissuedID},
-		{"link to itself", func() (ref.EventID, error) { return j.Append(selfLink) }, UnissuedID},
+		}, NoWireForm, KindClockChanged},
+		{"unissued parent", func() (ref.EventID, error) { return j.Append(unissued) }, UnissuedID, KindTimerFired},
+		{"unissued trace", func() (ref.EventID, error) { return j.Append(foreignTrace) }, UnissuedID, KindTimerFired},
+		{"call with unissued parent", func() (ref.EventID, error) { return j.Begin(callEvent(7)) }, UnissuedID, KindAPICall},
+		{"link to an unissued id", func() (ref.EventID, error) { return j.Append(futureLink) }, UnissuedID, KindTimerFired},
+		{"link to event 0", func() (ref.EventID, error) { return j.Append(zeroLink) }, UnissuedID, KindTimerFired},
+		{"link to itself", func() (ref.EventID, error) { return j.Append(selfLink) }, UnissuedID, KindTimerFired},
 	}
 	for _, c := range cases {
 		var recErr *RecordError
-		if id, err := c.record(); !errors.As(err, &recErr) || recErr.Reason != c.reason || id != 0 {
-			t.Errorf("%s = %d, %v; want a *RecordError with reason %d", c.name, id, err, c.reason)
+		if id, err := c.record(); !errors.As(err, &recErr) || recErr.Reason != c.reason || recErr.Kind != c.kind || id != 0 {
+			t.Errorf("%s = %d, %v; want a *RecordError with reason %d for a %s event", c.name, id, err, c.reason, c.kind)
 		}
 	}
 	if next := j.NextID(); next != 1 {
