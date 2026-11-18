@@ -104,8 +104,8 @@ func checkCases(t *testing.T, check checker) {
 		{
 			name: "condition key names match case-insensitively (iam-evaluation.md 6.2)",
 			doc:  serviceGrant,
-			req:  authz.ResourceRequest{Caller: sns, Action: sendMessage, Resource: queue, Keys: map[string]string{"AWS:SourceArn": other}},
-			want: "ImplicitDeny",
+			req:  authz.ResourceRequest{Caller: sns, Action: sendMessage, Resource: queue, Keys: map[string]string{"AWS:SourceArn": topic}},
+			want: "Allowed",
 		},
 		{
 			name: "another service principal is not named",
