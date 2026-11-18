@@ -759,8 +759,8 @@ func TestSendVerifiesTLS(t *testing.T) {
 				if err != nil || res.Status != http.StatusOK {
 					t.Fatalf("Send = %+v, %v; want 200", res, err)
 				}
-				if len(got) != 1 || got[0].sni != "hooks.example.test" {
-					t.Errorf("the receiver got %d requests with SNI %v, want one naming hooks.example.test", len(got), got)
+				if len(got) != 1 || got[0].sni != "hooks.example.test" || string(got[0].body) != "hello" {
+					t.Errorf("the receiver got %+v, want one request with body hello naming hooks.example.test in SNI", got)
 				}
 			})
 		})

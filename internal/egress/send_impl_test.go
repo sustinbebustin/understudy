@@ -3,7 +3,6 @@ package egress_test
 import (
 	"bufio"
 	"context"
-	"crypto/tls"
 	"errors"
 	"io"
 	"net"
@@ -18,54 +17,6 @@ import (
 
 	"github.com/sustinbebustin/understudy/internal/egress"
 )
-
-// steadyPipe is a receiver's pipe end whose deadlines cannot be set. The
-// receiver queues its writes (sendBuffer), and tls.Conn.Close sets the
-// write deadline to now once its close_notify is queued (crypto/tls
-// closeNotify), which would fail the queued answer itself.
-type steadyPipe struct{ net.Conn }
-
-func (steadyPipe) SetDeadline(time.Time) error      { return nil }
-func (steadyPipe) SetWriteDeadline(time.Time) error { return nil }
-
-// tlsNetwork serves one receiver over TLS at one address.
-type tlsNetwork struct {
-	addr netip.AddrPort
-	r    *receiver
-	cfg  *tls.Config
-}
-
-func (n *tlsNetwork) Dial(ctx context.Context, addr netip.AddrPort) (net.Conn, error) {
-	if addr != n.addr {
-		return nil, &net.OpError{Op: "dial", Net: "tcp", Addr: net.TCPAddrFromAddrPort(addr), Err: syscall.ECONNREFUSED}
-	}
-	client, server := net.Pipe()
-	go n.r.serve(ctx, steadyPipe{server}, n.cfg)
-	return client, nil
-}
-
-// https reaches a receiver whose certificate the roots trust, naming the
-// URL's host in SNI (sns-http-delivery.md 3.1, 7.4).
-func TestSendSpeaksVerifiedTLS(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		cert, pool := selfSigned(t)
-		r := answering(http.StatusOK)
-		n := &tlsNetwork{
-			addr: netip.MustParseAddrPort("203.0.113.10:8443"), r: r,
-			cfg: &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12},
-		}
-		dns := resolver{"hooks.example.test": to("hooks.example.test", "203.0.113.10")}
-		cl := newClient(t, egress.Options{Dialer: n, Resolver: dns, RootCAs: pool}, "hooks.example.test:8443")
-		res, err := send(t, cl, "https://hooks.example.test:8443/hook", nil, "hello")
-		if err != nil || res.Status != http.StatusOK {
-			t.Fatalf("Send = %+v, %v; want 200", res, err)
-		}
-		got := r.requests()
-		if len(got) != 1 || got[0].sni != "hooks.example.test" || string(got[0].body) != "hello" {
-			t.Errorf("the receiver got %+v, want one request naming hooks.example.test in SNI", got)
-		}
-	})
-}
 
 // The URL's userinfo is never sent: not in the request line, the Host
 // header or an Authorization header. A producer that authenticates to
