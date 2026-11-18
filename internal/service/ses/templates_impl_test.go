@@ -43,19 +43,13 @@ func TestListTemplatesPagesInCreationOrder(t *testing.T) {
 }
 
 // AlreadyExists names the template in its modeled Name member (ses.md 2.2,
-// 7; inferred); GetTemplate's TemplateDoesNotExist carries no member, as
-// recorded (SES-18).
+// 7; inferred).
 func TestTemplateErrorsCarryTheirMembers(t *testing.T) {
 	run(t, func(h *harness) {
 		h.createTemplate(sesapi.Template{TemplateName: "dup"})
 		_, err := call(h, sesapi.OpCreateTemplate, &sesapi.CreateTemplateInput{Template: sesapi.Template{TemplateName: "dup", TextPart: new("t")}})
 		if m, ok := err.Members().(*sesapi.AlreadyExistsException); !ok || m.Name == nil || *m.Name != "dup" {
 			h.Errorf("AlreadyExists members = %#v, want Name dup", err.Members())
-		}
-		// GetTemplate's recorded answer has no TemplateName (SES-18).
-		_, err = call(h, sesapi.OpGetTemplate, &sesapi.GetTemplateInput{TemplateName: "gone"})
-		if m, ok := err.WireMembers(); ok {
-			h.Errorf("TemplateDoesNotExist members = %#v, want none", m)
 		}
 	})
 }

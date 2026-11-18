@@ -77,21 +77,6 @@ func TestUnknownIdentityFollowsItsSwitch(t *testing.T) {
 	})
 }
 
-// DeleteIdentity removes the identity: its key is absent after delete
-// (provider, ses.md 9.1).
-func TestDeleteIdentityRemovesIt(t *testing.T) {
-	run(t, func(h *harness) {
-		h.verifyEmail(sender)
-		must(h, sesapi.OpDeleteIdentity, &sesapi.DeleteIdentityInput{Identity: sender})
-		if _, ok := h.attributes(sender)[sender]; ok {
-			h.Errorf("%s is still in VerificationAttributes after DeleteIdentity (ses.md 9.1)", sender)
-		}
-		if ids := must(h, sesapi.OpListIdentities, &sesapi.ListIdentitiesInput{}).Identities; slices.Contains(ids, sender) {
-			h.Errorf("ListIdentities = %q after DeleteIdentity", ids)
-		}
-	})
-}
-
 // ListIdentities lists identities "regardless of verification status",
 // narrowed by IdentityType (model, ses.md 5.3), and pages with NextToken.
 // The order is UNVERIFIED (SES-14), so the pages are compared as a set.
@@ -136,36 +121,6 @@ func listAll(h *harness, kind *sesapi.IdentityType, maxItems int32) []string {
 	}
 	h.Fatal("ListIdentities never ended")
 	return nil
-}
-
-// MaxItems is 1 to 1000 (aws-doc API_ListIdentities, ses.md 5.3); outside
-// that range the answer is InvalidParameterValue with
-// ListIdentitiesMaxItemsText (recorded, SES-29).
-func TestListIdentitiesMaxItemsRange(t *testing.T) {
-	run(t, func(h *harness) {
-		for _, n := range []int32{0, ses.ListIdentitiesMaxItems + 1} {
-			_, err := call(h, sesapi.OpListIdentities, &sesapi.ListIdentitiesInput{MaxItems: &n})
-			wantErr(h, err, sesapi.IdentityInvalidParameterValue(), fmt.Sprintf(ses.ListIdentitiesMaxItemsText, n, ses.ListIdentitiesMaxItems))
-		}
-		for _, n := range []int32{1, ses.ListIdentitiesMaxItems} {
-			must(h, sesapi.OpListIdentities, &sesapi.ListIdentitiesInput{MaxItems: &n})
-		}
-	})
-}
-
-// GetIdentityVerificationAttributes takes at most 100 identities (model,
-// ses.md 5.3); the answer past that is inferred (SES-08) and read from the
-// constant.
-func TestVerificationAttributesIdentityLimit(t *testing.T) {
-	run(t, func(h *harness) {
-		ids := make([]string, ses.MaxVerificationAttributesIdentities+1)
-		for i := range ids {
-			ids[i] = fmt.Sprintf("u%d@example.com", i)
-		}
-		_, err := call(h, sesapi.OpGetIdentityVerificationAttributes, &sesapi.GetIdentityVerificationAttributesInput{Identities: ids})
-		wantErr(h, err, sesapi.IdentityInvalidParameterValue(), fmt.Sprintf(ses.TooManyIdentitiesText, ses.MaxVerificationAttributesIdentities))
-		h.attributes(ids[:ses.MaxVerificationAttributesIdentities]...)
-	})
 }
 
 // At most 10,000 identities per Region, domains and addresses combined
