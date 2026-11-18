@@ -215,7 +215,8 @@ func TestEvaluateListsApplyingStatementsInOrder(t *testing.T) {
 // account are all listed: of the six lists IAM-EVAL-18 recorded, only that
 // one let the session through (switch iam.not-principal.match
 // "every-level", aws-recorded). A user needs its ARN and its account
-// (5.4, inferred: the recording names no user).
+// (5.4, inferred: the recording names no user). A root is exempt by its
+// account and a service by its name (5.4); "*" exempts everyone (2.8).
 func TestEvaluateNotPrincipalExemptsEveryLevel(t *testing.T) {
 	if allows, _ := matchesOf(t, queuePolicy("Allow", `"NotPrincipal":{"AWS":"arn:aws:iam::444455556666:root"}`, ""), exUser, nil, false); allows != nil {
 		t.Errorf("an Allow with NotPrincipal applies with %#v, want never", allows)
@@ -230,29 +231,35 @@ func TestEvaluateNotPrincipalExemptsEveryLevel(t *testing.T) {
 		}
 		return []policydoc.Match{policydoc.MatchNotPrincipal{}}
 	}
+	aws := func(list string) string { return `{"AWS":` + list + `}` }
 	cases := []struct {
 		name      string
 		listed    string
 		requester policydoc.Requester
 		want      []policydoc.Match
 	}{
-		{"a user listed with its account", `["` + exUserARN + `","` + acctRootARN + `"]`, exUser, notDenied(true)},
-		{"a user listed without its account", `["` + exUserARN + `"]`, exUser, notDenied(false)},
+		{"a user listed with its account", aws(`["` + exUserARN + `","` + acctRootARN + `"]`), exUser, notDenied(true)},
+		{"a user listed without its account", aws(`["` + exUserARN + `"]`), exUser, notDenied(false)},
 		// testdata/parity/iam/IAM-EVAL-18: a-role, b-role-account,
 		// d-account, e-session and f-session-account denied,
 		// c-session-role-account allowed.
-		{"a-role", `["` + exRoleARN + `"]`, exSession, notDenied(false)},
-		{"b-role-account", `["` + exRoleARN + `","` + acctRootARN + `"]`, exSession, notDenied(false)},
-		{"c-session-role-account", `["` + sessionARN + `","` + exRoleARN + `","` + acctRootARN + `"]`, exSession, notDenied(true)},
-		{"d-account", `["` + acctRootARN + `"]`, exSession, notDenied(false)},
-		{"e-session", `["` + sessionARN + `"]`, exSession, notDenied(false)},
-		{"f-session-account", `["` + sessionARN + `","` + acctRootARN + `"]`, exSession, notDenied(false)},
-		{"a user not listed", `["arn:aws:iam::111122223333:user/other","` + acctRootARN + `"]`, exUser, []policydoc.Match{policydoc.MatchNotPrincipal{}}},
-		{"an anonymous caller", `["` + exUserARN + `","` + acctRootARN + `"]`, policydoc.AnonymousRequester{}, []policydoc.Match{policydoc.MatchNotPrincipal{}}},
+		{"a-role", aws(`["` + exRoleARN + `"]`), exSession, notDenied(false)},
+		{"b-role-account", aws(`["` + exRoleARN + `","` + acctRootARN + `"]`), exSession, notDenied(false)},
+		{"c-session-role-account", aws(`["` + sessionARN + `","` + exRoleARN + `","` + acctRootARN + `"]`), exSession, notDenied(true)},
+		{"d-account", aws(`["` + acctRootARN + `"]`), exSession, notDenied(false)},
+		{"e-session", aws(`["` + sessionARN + `"]`), exSession, notDenied(false)},
+		{"f-session-account", aws(`["` + sessionARN + `","` + acctRootARN + `"]`), exSession, notDenied(false)},
+		{"a user not listed", aws(`["arn:aws:iam::111122223333:user/other","` + acctRootARN + `"]`), exUser, []policydoc.Match{policydoc.MatchNotPrincipal{}}},
+		{"an anonymous caller", aws(`["` + exUserARN + `","` + acctRootARN + `"]`), policydoc.AnonymousRequester{}, []policydoc.Match{policydoc.MatchNotPrincipal{}}},
+		{"root by its account", aws(`"` + acct + `"`), exRoot, notDenied(true)},
+		{"root of another account", aws(`"444455556666"`), exRoot, notDenied(false)},
+		{"service by name", `{"Service":"sns.amazonaws.com"}`, snsSvc, notDenied(true)},
+		{"another service", `{"Service":"events.amazonaws.com"}`, snsSvc, notDenied(false)},
+		{"everyone", `"*"`, exUser, notDenied(true)},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, denies := matchesOf(t, queuePolicy("Deny", `"NotPrincipal":{"AWS":`+c.listed+`}`, ""), c.requester, nil, false)
+			_, denies := matchesOf(t, queuePolicy("Deny", `"NotPrincipal":`+c.listed, ""), c.requester, nil, false)
 			if !reflect.DeepEqual(denies, c.want) {
 				t.Errorf("iam.not-principal.match %s: Deny Matches = %#v, want %#v", mode, denies, c.want)
 			}
@@ -263,13 +270,17 @@ func TestEvaluateNotPrincipalExemptsEveryLevel(t *testing.T) {
 // "The NotPrincipal element with a Deny effect will always deny any IAM
 // principal that has a permissions boundary policy attached, regardless of
 // the values specified in the NotPrincipal element" (iam-evaluation.md 2.8,
-// vector S13).
+// vector S13), "*" included.
 func TestEvaluateNotPrincipalNeverExemptsABoundedPrincipal(t *testing.T) {
-	listed := `"NotPrincipal":{"AWS":["` + exUserARN + `","` + exRoleARN + `","` + sessionARN + `","` + acctRootARN + `"]}`
-	for _, requester := range []policydoc.Requester{exUser, exSession} {
-		_, denies := matchesOf(t, queuePolicy("Deny", listed, ""), requester, nil, true)
-		if want := []policydoc.Match{policydoc.MatchNotPrincipal{}}; !reflect.DeepEqual(denies, want) {
-			t.Errorf("%#v with a boundary: Deny Matches = %#v, want %#v", requester, denies, want)
+	for _, listed := range []string{
+		`"NotPrincipal":{"AWS":["` + exUserARN + `","` + exRoleARN + `","` + sessionARN + `","` + acctRootARN + `"]}`,
+		`"NotPrincipal":"*"`,
+	} {
+		for _, requester := range []policydoc.Requester{exUser, exSession} {
+			_, denies := matchesOf(t, queuePolicy("Deny", listed, ""), requester, nil, true)
+			if want := []policydoc.Match{policydoc.MatchNotPrincipal{}}; !reflect.DeepEqual(denies, want) {
+				t.Errorf("%s, %#v with a boundary: Deny Matches = %#v, want %#v", listed, requester, denies, want)
+			}
 		}
 	}
 }
