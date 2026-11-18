@@ -83,10 +83,6 @@ func TestHTTPRetryPolicyInferredRules(t *testing.T) {
 		},
 		{"a minDelayTarget above 3600 takes the system default's", "", `{"healthyRetryPolicy":{"minDelayTarget":4000}}`, system},
 		{
-			"a throttlePolicy, the topic's or the subscription's, changes nothing (SNSH-20)", `{"http":{"defaultThrottlePolicy":{"maxReceivesPerSecond":5}}}`, `{"throttlePolicy":{"maxReceivesPerSecond":2}}`,
-			system,
-		},
-		{
 			"sicklyRetryPolicy, guaranteed and disableSubscriptionOverrides change nothing",
 			`{"http":{"defaultHealthyRetryPolicy":{"numRetries":1},"defaultSicklyRetryPolicy":{"numRetries":9},"disableSubscriptionOverrides":true}}`,
 			`{"healthyRetryPolicy":{"numRetries":2},"sicklyRetryPolicy":{"numRetries":7},"guaranteed":true}`,

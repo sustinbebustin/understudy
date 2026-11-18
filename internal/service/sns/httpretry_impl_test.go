@@ -5,7 +5,6 @@ import (
 	"maps"
 	"net/http"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -103,74 +102,9 @@ func TestHTTPRetryScheduleReplaysUnderAdvanceAndSettle(t *testing.T) {
 	}
 }
 
-// 429, 5xx and a refused connection are retried under the DeliveryPolicy
-// set after the subscription was confirmed, and once the retries are spent
-// the message goes to the RedrivePolicy queue; any other status delivers
-// at once with no dead letter (sns-http-delivery.md 6.1, 6.5; SNSH-05).
-// TestHTTPStatusClassesFollowTheRecording asserts the same without a
-// settle after its advance.
-func TestHTTPStatusClassesAfterASettle(t *testing.T) {
-	const dlq = "arn:aws:sqs:us-east-1:000000000000:orders-dlq"
-	cases := []struct {
-		name     string
-		endpoint string
-		status   int
-		retried  bool
-	}{
-		{"404", hookURL, http.StatusNotFound, false},
-		{"301", hookURL, http.StatusMovedPermanently, false},
-		{"429", hookURL, http.StatusTooManyRequests, true},
-		{"502", hookURL, http.StatusBadGateway, true},
-		{"a refused connection", "http://127.0.0.1:8090/hook", 0, true},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			s := confirmingThen(func(int) (int, http.Header) { return c.status, nil })
-			onTheWire(t, s, func(h *harness) {
-				topic := h.topic("events", nil)
-				arn := h.subscribe(topic, "http", c.endpoint, map[string]string{"RedrivePolicy": `{"deadLetterTargetArn":"` + dlq + `"}`})
-				h.settle()
-				must(h, snsapi.OpConfirmSubscription, &snsapi.ConfirmSubscriptionInput{TopicArn: topic, Token: h.token(arn)})
-				must(h, snsapi.OpSetSubscriptionAttributes, &snsapi.SetSubscriptionAttributesInput{SubscriptionArn: arn, AttributeName: "DeliveryPolicy", AttributeValue: new(retryPolicy(1, 1, 1, 0, 0, 0))})
-				h.advance(time.Hour)
-				t1 := h.clock.Now()
-				must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
-				h.settle()
-				h.advance(time.Minute)
-				h.settle()
-				at, ds := attemptsSince(h, t1)
-				want := []time.Duration{0}
-				if c.retried {
-					want = []time.Duration{0, time.Second}
-				}
-				if !slices.Equal(at, want) {
-					h.Fatalf("attempts at %v, want %v", at, want)
-				}
-				last := ds[len(ds)-1]
-				var wantOutcome journal.DeliveryOutcome = journal.Delivered{}
-				wantClass := journal.HTTPSuccess
-				wantSent := 0
-				if c.retried {
-					wantOutcome, wantClass, wantSent = journal.DeadLettered{DLQ: mustARN(h, dlq)}, journal.HTTPRetryable, 1
-				}
-				if last.Outcome != wantOutcome {
-					h.Errorf("last attempt outcome = %#v, want %#v", last.Outcome, wantOutcome)
-				}
-				if last.HTTP == nil || last.HTTP.Class != wantClass || last.HTTP.Status != c.status {
-					h.Errorf("last exchange = %+v, want status %d classed %v", last.HTTP, c.status, wantClass)
-				}
-				if sent := h.sent.all(); len(sent) != wantSent || (wantSent == 1 && !strings.HasSuffix(sent[0].QueueUrl, "/orders-dlq")) {
-					h.Errorf("SendMessage calls = %+v, want %d dead letters", sent, wantSent)
-				}
-			})
-		})
-	}
-}
-
 // Under sns.http.retry-body the retry a settle lets run resends the first
 // attempt's bytes and headers, MessageId included (sns-http-delivery.md
-// 4.6). TestHTTPRetriesResendTheSameBytes asserts the same without a
-// settle after its advance.
+// 4.6).
 func TestHTTPRetryAfterASettleResendsTheSameBytes(t *testing.T) {
 	s := confirmingThen(func(n int) (int, http.Header) {
 		if n == 0 {

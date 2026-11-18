@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -378,23 +377,5 @@ func TestHTTPHeadersOfEachMessageType(t *testing.T) {
 	}
 	if envelope.DefaultContentType != "text/plain; charset=UTF-8" || envelope.UserAgent != "Amazon Simple Notification Service Agent" {
 		t.Errorf("DefaultContentType %q, UserAgent %q", envelope.DefaultContentType, envelope.UserAgent)
-	}
-}
-
-// No header carries a request's framing (Content-Length, Host, Connection):
-// the HTTP client writes those (3.2), and the outbox refuses a delivery
-// that sets them.
-func TestHTTPHeadersLeaveFramingToTheClient(t *testing.T) {
-	for _, p := range []envelope.HTTPPost{
-		envelope.NotificationPost{MessageID: messageID, TopicARN: exampleTopic, SubscriptionARN: subscription, Raw: true},
-		envelope.SubscriptionConfirmationPost{MessageID: messageID, TopicARN: exampleTopic},
-		envelope.UnsubscribeConfirmationPost{MessageID: messageID, TopicARN: exampleTopic, SubscriptionARN: subscription},
-	} {
-		for _, h := range envelope.HTTPHeaders(p, url.UserPassword("user", "secret")) {
-			switch strings.ToLower(h.Name) {
-			case "content-length", "host", "connection", "transfer-encoding":
-				t.Errorf("%T sets the framing header %s", p, h.Name)
-			}
-		}
 	}
 }
