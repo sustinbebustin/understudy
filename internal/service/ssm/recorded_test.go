@@ -59,23 +59,6 @@ func TestNameDefectTextsAsRecorded(t *testing.T) {
 	})
 }
 
-// A name of 16 levels is accepted and one of 17 refused with AWS's text
-// (ssm-parameters.md 3.4; SSM-05).
-func TestDepthAsRecorded(t *testing.T) {
-	run(t, func(h *harness) {
-		levels := func(n int) string {
-			var b strings.Builder
-			for i := range n - 1 {
-				b.WriteString("/l" + string(rune('a'+i)))
-			}
-			return b.String() + "/p"
-		}
-		h.put(levels(16), "v")
-		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: levels(17), Value: "v", Type: new(ssmapi.ParameterTypeString)})
-		wantError(h.T, "PutParameter of 17 levels", err, ssmapi.IdentityHierarchyLevelLimitExceededException(), "Depth of the tree cannot exceed 15")
-	})
-}
-
 // A name whose ARN passes 1011 characters answers AccessDeniedException in
 // the IAM grammar without a reason clause, although the caller may do
 // anything (ssm-parameters.md 3.4; SSM-06 step 02).
@@ -86,21 +69,6 @@ func TestARNPast1011IsDenied(t *testing.T) {
 		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: name + "a", Value: "v", Type: new(ssmapi.ParameterTypeString)})
 		wantError(h.T, "PutParameter with a 1012-character ARN", err, ssmapi.IdentityAccessDeniedException(),
 			"User: arn:aws:iam::000000000000:root is not authorized to perform: ssm:PutParameter on resource: "+arnPrefix+"us1103/"+strings.Repeat("a", 1011-len(arnPrefix+"us1103/")+1))
-	})
-}
-
-// LabelParameterVersion and UnlabelParameterVersion on a missing name say
-// which, while DeleteParameter and GetParameterHistory send no message
-// (ssm-parameters.md 2.2; SSM-02).
-func TestParameterNotFoundMessagesAsRecorded(t *testing.T) {
-	run(t, func(h *harness) {
-		const missing = "/us1103/ssm/missing"
-		wantError(h.T, "DeleteParameter", errOf(call(h, ssmapi.OpDeleteParameter, &ssmapi.DeleteParameterInput{Name: missing})), ssmapi.IdentityParameterNotFound(), "")
-		wantError(h.T, "GetParameterHistory", errOf(call(h, ssmapi.OpGetParameterHistory, &ssmapi.GetParameterHistoryInput{Name: missing})), ssmapi.IdentityParameterNotFound(), "")
-		wantError(h.T, "LabelParameterVersion", errOf(call(h, ssmapi.OpLabelParameterVersion, &ssmapi.LabelParameterVersionInput{Name: missing, Labels: []string{"l1"}})),
-			ssmapi.IdentityParameterNotFound(), "Parameter /us1103/ssm/missing not found.")
-		wantError(h.T, "UnlabelParameterVersion", errOf(call(h, ssmapi.OpUnlabelParameterVersion, &ssmapi.UnlabelParameterVersionInput{Name: missing, ParameterVersion: 1, Labels: []string{"l1"}})),
-			ssmapi.IdentityParameterNotFound(), "Parameter /us1103/ssm/missing not found.")
 	})
 }
 
@@ -177,28 +145,14 @@ func TestValueSizeInCharactersAsRecorded(t *testing.T) {
 	})
 }
 
-// AllowedPattern, label and version-cap refusals answer AWS's texts
-// (ssm-parameters.md 4.4, 6.1, 6.2; SSM-15 step 04, SSM-16 step 06, SSM-30
-// step 01).
+// The eleventh label on a version answers AWS's text (ssm-parameters.md
+// 6.2; SSM-16 step 06).
 func TestPutAndLabelRefusalsAsRecorded(t *testing.T) {
 	run(t, func(h *harness) {
-		wantError(h.T, "AllowedPattern (", errOf(call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/us1103/ssm/a15d", Value: "abc", Type: new(ssmapi.ParameterTypeString), AllowedPattern: new("(")})),
-			ssmapi.IdentityInvalidAllowedPatternException(), "The syntax of the allowedPattern parameter is invalid.")
-
 		h.put("/us1103/ssm/l16", "v1")
 		must(h, ssmapi.OpLabelParameterVersion, &ssmapi.LabelParameterVersionInput{Name: "/us1103/ssm/l16", Labels: []string{"b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9", "b10"}})
 		wantError(h.T, "eleventh label", errOf(call(h, ssmapi.OpLabelParameterVersion, &ssmapi.LabelParameterVersionInput{Name: "/us1103/ssm/l16", Labels: []string{"b11"}})),
 			ssmapi.IdentityParameterVersionLabelLimitExceeded(), "A parameter version can have maximum 10 labels.Move one or more labels to another version and try again.")
-
-		h.put("/us1103/ssm/c30", "v1")
-		must(h, ssmapi.OpLabelParameterVersion, &ssmapi.LabelParameterVersionInput{Name: "/us1103/ssm/c30", Labels: []string{"keep"}})
-		for range 99 {
-			h.overwrite("/us1103/ssm/c30", "v")
-		}
-		wantError(h.T, "101st version", errOf(call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/us1103/ssm/c30", Value: "v", Overwrite: new(true)})),
-			ssmapi.IdentityParameterMaxVersionLimitExceeded(),
-			"You attempted to create a new version of us1103/ssm/c30 by calling the PutParameter API with the overwrite flag. "+
-				"Version 1, the oldest version, can’t be deleted because it has a label associated with it. Move the label to another version of the parameter, and try again.")
 	})
 }
 

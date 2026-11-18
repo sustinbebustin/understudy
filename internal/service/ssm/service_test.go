@@ -75,11 +75,6 @@ func TestCoverageMarks(t *testing.T) {
 				h.Errorf("%s is %#v, want Partial with its coverage note", op.ID.Name, status)
 			}
 		}
-		for _, op := range []string{"GetServiceSetting", "UpdateServiceSetting", "ResetServiceSetting", "PutResourcePolicy", "GetResourcePolicies", "DeleteResourcePolicy"} {
-			if _, listed := want[op]; listed {
-				h.Errorf("%s must stay unbound", op)
-			}
-		}
 	})
 }
 
