@@ -117,8 +117,8 @@ func TestSNSPolicySizeText(t *testing.T) {
 	want := subscribeReason(t, "T16-subscribe", c.Exchanges[0].Response.Body)
 	policy := `{"k":["` + strings.Repeat("v", snsMaxBytes) + `"]}`
 	_, err := Compile([]byte(policy), SNS{Scope: MessageAttributes})
-	if err == nil || err.Message() != want {
-		t.Fatalf("Compile of a %d-byte policy = %v, want %q", len(policy), err, want)
+	if err == nil || err.Cause != (LimitExceeded{Limit: LimitSize}) || err.Message() != want {
+		t.Fatalf("Compile of a %d-byte policy = %#v, want the size limit with %q", len(policy), err, want)
 	}
 }
 

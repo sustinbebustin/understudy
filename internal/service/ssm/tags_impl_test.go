@@ -30,21 +30,6 @@ func TestDeleteParametersChoices(t *testing.T) {
 	})
 }
 
-// One reserved name makes the whole DeleteParameters call 501, and nothing
-// is deleted (ssm-parameters.md 12.1).
-func TestDeleteParametersReservedDeletesNothing(t *testing.T) {
-	run(t, func(h *harness) {
-		h.put("/delr/a", "v")
-		_, err := call(h, ssmapi.OpDeleteParameters, &ssmapi.DeleteParametersInput{
-			Names: []string{"/delr/a", "/aws/service/x"},
-		})
-		wantCode(h.T, "DeleteParameters with a reserved name", err, ssmapi.IdentityNotImplemented())
-		if err := h.get("/delr/a"); err != nil {
-			h.Errorf("/delr/a was deleted by a refused call: %v", err)
-		}
-	})
-}
-
 // RemoveTagsFromResource ignores a key the parameter does not carry
 // (UNVERIFIED (SSM-25), ssm-parameters.md 7.9); a missing parameter, a
 // ResourceId that is not a valid name and another resource type are

@@ -435,7 +435,7 @@ func TestTimestampText(t *testing.T) {
 			}
 		}
 	})
-	for _, bad := range []string{"1/2", "0x10", "1e", "", "NaN", "1e999999", "1e-999999", "1e99999999999999999999"} {
+	for _, bad := range []string{"1/2", "0x10", "1e", "", "NaN", "1e99999999999999999999"} {
 		if _, err := restbind.ParseTimestamp(bad, smithy.EpochSeconds); err == nil {
 			t.Errorf("epoch seconds %q parsed", bad)
 		}

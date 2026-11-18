@@ -136,7 +136,8 @@ def test_create_function_configuration(lambda_: Any, make_function: Callable[...
     assert created["Description"] == "conformance function"
     assert created["Environment"]["Variables"] == {"FOO": "bar"}
     assert created["CodeSize"] > 0
-    assert created["CodeSha256"] == base64.b64encode(hashlib.sha256(code).digest()).decode() or created["CodeSize"] > 0
+    # Terraform compares CodeSha256 with filebase64sha256() of the zip (lambda-api.md 4.5, 11).
+    assert created["CodeSha256"] == base64.b64encode(hashlib.sha256(code).digest()).decode()
     assert re.fullmatch(r"[0-9a-f-]{36}", created["RevisionId"])
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+0000", created["LastModified"])
 

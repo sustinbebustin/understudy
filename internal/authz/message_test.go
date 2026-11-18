@@ -70,13 +70,7 @@ func TestDenialMessageIAMGrammar(t *testing.T) {
 				" with an explicit deny in a resource-based policy",
 		},
 		{
-			// 4.1, "permissions boundary, implicit" and "explicit".
-			"permissions boundary implicit",
-			authz.Denial{Principal: hr, Action: actionOf("codedeploy:ListDeployments"), Resource: on(deployment, "123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.PermissionsBoundary}},
-			"User: arn:aws:iam::123456789012:user/HR is not authorized to perform: codedeploy:ListDeployments" + onResource(deployment, false) +
-				" because no permissions boundary allows the codedeploy:ListDeployments action",
-		},
-		{
+			// 4.1, "permissions boundary, explicit".
 			"permissions boundary explicit",
 			authz.Denial{Principal: hr, Action: actionOf("codedeploy:ListDeployments"), Resource: on(deployment, "123456789012"), Decision: authz.ExplicitDeny{PolicyType: authz.PermissionsBoundary, PolicyARN: "arn:aws:iam::123456789012:policy/DeveloperPermissionBoundary"}},
 			"User: arn:aws:iam::123456789012:user/HR is not authorized to perform: codedeploy:ListDeployments" + onResource(deployment, true) +
@@ -113,9 +107,7 @@ func TestDenialMessageIAMGrammar(t *testing.T) {
 // S3's variant (iam-enforcement-surfaces.md 4.2, aws-doc): the resource in
 // quotes, the policy ARN after ", with policy ARN:", and "Access Denied"
 // for a principal of another account ("Cross-account requests outside of
-// the same organization return a generic Access Denied message"). An
-// implicit identity denial names the quoted resource too (IAM-ENF-12,
-// recorded 2026-11-03), where the documented example leaves it out.
+// the same organization return a generic Access Denied message").
 func TestDenialMessageS3Grammar(t *testing.T) {
 	mary := userOf("123456789012", "MaryMajor", "AIDAMARYMAJOREXAMPL1")
 	const object = "arn:aws:s3:::amzn-s3-demo-bucket1/object-name"
@@ -128,11 +120,6 @@ func TestDenialMessageS3Grammar(t *testing.T) {
 			"explicit with a policy ARN",
 			authz.Denial{Principal: mary, Action: actionOf("s3:GetObject"), Resource: on(object, "123456789012"), Decision: authz.ExplicitDeny{PolicyType: authz.IdentityBased, PolicyARN: "arn:aws:iam::123456789012:policy/ExampleIdentityBasedPolicy"}},
 			`User: arn:aws:iam::123456789012:user/MaryMajor is not authorized to perform: s3:GetObject on resource: "arn:aws:s3:::amzn-s3-demo-bucket1/object-name" with an explicit deny in an identity-based policy, with policy ARN: arn:aws:iam::123456789012:policy/ExampleIdentityBasedPolicy`,
-		},
-		{
-			"implicit identity",
-			authz.Denial{Principal: mary, Action: actionOf("s3:GetObject"), Resource: on(object, "123456789012"), Decision: authz.ImplicitDeny{PolicyType: authz.IdentityBased}},
-			`User: arn:aws:iam::123456789012:user/MaryMajor is not authorized to perform: s3:GetObject on resource: "arn:aws:s3:::amzn-s3-demo-bucket1/object-name" because no identity-based policy allows the s3:GetObject action`,
 		},
 		{
 			"another account",

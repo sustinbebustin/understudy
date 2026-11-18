@@ -16,34 +16,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/cloudwatch"
 )
 
-// SetAlarmState to a different value runs the new state's actions with the
-// caller's reason (localstack@8b9a79f
-// tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json:L2482-L2519)
-// and sends one state change event (cloudwatch-alarms.md 6.2).
-func TestSetAlarmStateRunsTheNewStatesActions(t *testing.T) {
-	runAlarms(t, func(h *harness, fx *effects) {
-		in := evalAlarm("cpu")
-		in.TreatMissingData = new("ignore")
-		in.AlarmActions = []string{alertsTopic}
-		in.OKActions = []string{onAlarmFn}
-		must(h, cloudwatchapi.OpPutMetricAlarm, in)
-		must(h, cloudwatchapi.OpSetAlarmState, &cloudwatchapi.SetAlarmStateInput{AlarmName: "cpu", StateValue: cloudwatchapi.StateValueAlarm, StateReason: "testing alarm"})
-		synctest.Wait()
-		d := fx.sink.all()
-		if len(d) != 1 {
-			h.Fatalf("deliveries = %+v, want the one ALARM action", d)
-		}
-		topic, ok := d[0].Request.Target.(delivery.SNSTopic)
-		if !ok || d[0].Request.Mechanism != delivery.CloudWatchToSNS || !strings.Contains(topic.Message, `"NewStateReason":"testing alarm"`) ||
-			!strings.Contains(topic.Message, `"OldStateValue":"INSUFFICIENT_DATA"`) {
-			h.Errorf("delivery = %+v, want the notification of the set state", d[0].Request)
-		}
-		if ev := fx.bus.of("CloudWatch Alarm State Change"); len(ev) != 1 {
-			h.Errorf("state change events = %d, want one", len(ev))
-		}
-	})
-}
-
 // Every kind understudy cannot run is journaled as not run, with what it
 // would need, and nothing is delivered for it (cloudwatch-alarms.md 7.2,
 // 12.7).

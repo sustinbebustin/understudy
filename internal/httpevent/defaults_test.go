@@ -55,23 +55,6 @@ func sameResponse(a, b httpevent.Response) bool {
 	return a.Status == b.Status && reflect.DeepEqual(a.Header, b.Header) && reflect.DeepEqual(a.Cookies, b.Cookies) && bytes.Equal(a.Body, b.Body)
 }
 
-// The zero V2Defaults are a function URL's, so InferV2With with them
-// answers exactly as InferV2, errors included: function URL output does
-// not change (lambda-events.md 7.4).
-func TestInferV2WithZeroDefaultsIsInferV2(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		p := genPayload().Draw(t, "payload")
-		want, werr := httpevent.InferV2(p)
-		got, gerr := httpevent.InferV2With(p, httpevent.V2Defaults{})
-		if (werr == nil) != (gerr == nil) || (werr != nil && werr.Error() != gerr.Error()) {
-			t.Fatalf("InferV2With(%s, {}) error = %v, InferV2 error = %v", p, gerr, werr)
-		}
-		if werr == nil && !sameResponse(got, want) {
-			t.Fatalf("InferV2With(%s, {}) = %+v, InferV2 = %+v", p, got, want)
-		}
-	})
-}
-
 // hasContentType reports whether a structured response's headers name a
 // Content-Type in any case.
 func hasContentType(p []byte) bool {

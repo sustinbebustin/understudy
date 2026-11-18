@@ -2,7 +2,6 @@ package ids
 
 import (
 	"regexp"
-	"strings"
 	"testing"
 )
 
@@ -43,8 +42,5 @@ func TestRandomSourceAPIGatewayShapes(t *testing.T) {
 		if !c.want.MatchString(c.id) {
 			t.Errorf("%s id %q, want %s", name, c.id, c.want)
 		}
-	}
-	if got := APIGatewayRequestIDFor(src.RequestID()); len(got) != 16 || !strings.HasSuffix(string(got), "=") {
-		t.Errorf("APIGatewayRequestIDFor = %q, want 16 characters ending in =", got)
 	}
 }

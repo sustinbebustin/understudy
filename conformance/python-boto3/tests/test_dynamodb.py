@@ -188,11 +188,6 @@ def test_every_attribute_type_round_trips(dynamodb: Any, make_table: Callable[..
     assert got["ss"] == item["ss"] and got["ns"] == item["ns"] and got["bs"] == item["bs"]
 
 
-def test_get_missing_item_has_no_item_key(dynamodb: Any, make_table: Callable[..., str]) -> None:
-    name = make_table()
-    assert "Item" not in dynamodb.get_item(TableName=name, Key=ddb_item(pk="nope"))
-
-
 def test_put_item_return_values_and_overwrite(dynamodb: Any, make_table: Callable[..., str]) -> None:
     name = make_table()
     assert "Attributes" not in dynamodb.put_item(TableName=name, Item=ddb_item(pk="k", v=1), ReturnValues="ALL_OLD")

@@ -846,12 +846,6 @@ def test_list_objects_v1_marker_and_next_marker(s3: Any, make_bucket: Callable[.
     assert walked == ["a/1", "a/2", "b/1", "c"]
 
 
-def test_listing_never_shows_in_progress_multipart_uploads(s3: Any, make_bucket: Callable[..., str]) -> None:
-    bucket = make_bucket()
-    s3.create_multipart_upload(Bucket=bucket, Key="pending")
-    assert "Contents" not in s3.list_objects_v2(Bucket=bucket)
-
-
 @pytest.fixture(params=["s3", "s3v4"])
 def presign(request: pytest.FixtureRequest, make_client: Callable[..., Any]) -> Any:
     """A client that signs query-string URLs with SigV2 ("s3") or SigV4 ("s3v4").

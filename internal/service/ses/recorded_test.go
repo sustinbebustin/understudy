@@ -35,6 +35,7 @@ func TestRecordedVerificationAttributesLimitText(t *testing.T) {
 		}
 		_, err := call(h, sesapi.OpGetIdentityVerificationAttributes, &sesapi.GetIdentityVerificationAttributesInput{Identities: ids})
 		wantErr(h, err, sesapi.IdentityInvalidParameterValue(), "Can only get verification attributes for up to 100 identities at a time.")
+		h.attributes(ids[:100]...) // the model's upper bound is accepted (ses.md 5.3)
 	})
 }
 

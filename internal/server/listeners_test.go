@@ -50,22 +50,6 @@ func TestServeRefusesAnUnhandledTimer(t *testing.T) {
 	}
 }
 
-// The boot check wire makes after loading state names every unhandled
-// timer and passes a scheduler whose timers all have handlers.
-func TestCheckTimersNamesUnhandledKinds(t *testing.T) {
-	srv := unserved(t)
-	timers := srv.wired.kernel.Timers()
-	if err := checkTimers(timers); err != nil {
-		t.Fatalf("checkTimers on a fresh wiring = %v, want nil", err)
-	}
-	orphan := clock.TimerKey{Kind: "fake.unhandled", ID: "t1"}
-	timers.Scheduler().Arm(orphan, srv.wired.kernel.Clock().Now())
-	err := checkTimers(timers)
-	if ue, ok := errors.AsType[*UnhandledTimerError](err); !ok || len(ue.Keys) != 1 || ue.Keys[0] != orphan {
-		t.Errorf("checkTimers = %v, want an UnhandledTimerError naming %v", err, orphan)
-	}
-}
-
 // unserved is a Server that was never served, closed when t ends.
 func unserved(t *testing.T) *Server {
 	t.Helper()

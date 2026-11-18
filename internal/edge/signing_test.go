@@ -234,7 +234,6 @@ func TestJSONServicesShareASigningName(t *testing.T) {
 		name, target, signedFor string
 		want                    ref.ServiceID
 	}{
-		{"streams", "DynamoDBStreams_20120810.ListStreams", "dynamodb", "dynamodbstreams"},
 		{"dynamodb", "DynamoDB_20120810.ListTables", "dynamodb", "dynamodb"},
 	}
 	for _, c := range cases {

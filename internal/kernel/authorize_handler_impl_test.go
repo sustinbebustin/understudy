@@ -79,10 +79,12 @@ func TestAuthorizeNilVerdictIsInternal(t *testing.T) {
 }
 
 // The zero ARN is refused with an AuthorizeError naming the action and the
-// operation that asked, and nothing is touched.
+// operation that asked, nothing is touched, and the zero ARN never reaches
+// the Authorizer.
 func TestAuthorizeOfTheZeroARNNamesTheActionAndOperation(t *testing.T) {
 	g := newGuard(guardDenial())
-	runGuard(t, g, &fakeAuthorizer{}, func(k *kerneltest.K) {
+	a := &fakeAuthorizer{}
+	runGuard(t, g, a, func(k *kerneltest.K) {
 		bindGuard(k, g.run, func(ctx context.Context, c *kernel.Call, _ *guardInput) (*guardOutput, *awserr.Error) {
 			return nil, kernel.Authorize(ctx, c, passRole, aws.ARN{}, nil)
 		})
@@ -93,6 +95,9 @@ func TestAuthorizeOfTheZeroARNNamesTheActionAndOperation(t *testing.T) {
 		}
 		if got := c.Touched(); len(got) != 0 {
 			k.Errorf("touched %v, want nothing", got)
+		}
+		if got := len(a.questions()); got != 1 {
+			k.Errorf("the Authorizer was asked %d times, want only at step 8", got)
 		}
 	})
 }

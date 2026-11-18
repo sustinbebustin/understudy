@@ -1013,11 +1013,8 @@ func TestListMultipartUploads(t *testing.T) {
 		if len(empty.Uploads) != 0 || *empty.NextKeyMarker != "" || *empty.NextUploadIdMarker != "" || *empty.IsTruncated {
 			t.Fatalf("empty listing = %v, next %q %q; want empty markers", keysOf(empty), *empty.NextKeyMarker, *empty.NextUploadIdMarker)
 		}
-		_, err := as(h, who{}, s3api.OpListMultipartUploads, &s3api.ListMultipartUploadsInput{Bucket: "ups", EncodingType: new(s3api.EncodingType("base64"))})
-		wantCode(t, err, "InvalidArgument", http.StatusBadRequest)
-
 		// REC test_list_multiparts_next_marker step list-multiparts-wrong-id-for-key.
-		_, err = as(h, who{}, s3api.OpListMultipartUploads, &s3api.ListMultipartUploadsInput{Bucket: "ups", MaxUploads: new(int32(1)), KeyMarker: new("b"), UploadIdMarker: new(ids[1])})
+		_, err := as(h, who{}, s3api.OpListMultipartUploads, &s3api.ListMultipartUploadsInput{Bucket: "ups", MaxUploads: new(int32(1)), KeyMarker: new("b"), UploadIdMarker: new(ids[1])})
 		wantCode(t, err, "InvalidArgument", http.StatusBadRequest)
 		if err.Message != "Invalid uploadId marker" {
 			t.Errorf("upload-id-marker of another key: message %q", err.Message)

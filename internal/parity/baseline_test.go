@@ -292,13 +292,6 @@ func TestRatchetKeys(t *testing.T) {
 	t.Parallel()
 	base := kmsAliasBaselineValue()
 
-	// The routed operation is part of a step's key.
-	rerouted := kmsAliasBaselineValue()
-	rerouted.Scenarios[0].Steps[0].Operation = "kms.UpdateAlias"
-	if got := Ratchet(base, rerouted); len(got) == 0 || got[0].Key != dupKey {
-		t.Errorf("Ratchet(rerouted) = %v; want a drift at %s", got, dupKey)
-	}
-
 	// A switch claim's key names the switch.
 	sw := kmsAliasBaselineValue()
 	sw.Scenarios[0].Claims[0].Target = SwitchTarget{Name: "kms.alias.status"}

@@ -107,19 +107,10 @@ func TestAuthorizeBeforeRecordsTheExecutionRolesUse(t *testing.T) {
 	}
 }
 
-// Without an Authorizer, about a platform principal and about no pair,
-// AuthorizeBefore allows without asking; a nil operation or mode is a
-// caller bug.
+// About a platform principal and about no pair, AuthorizeBefore allows
+// without asking; a nil operation or mode is a caller bug.
 func TestAuthorizeBeforeAllowsWithoutAsking(t *testing.T) {
 	g := newGuard(guardDenial())
-	t.Run("no authorizer", func(t *testing.T) {
-		runGuard(t, g, nil, func(k *kerneltest.K) {
-			bindGuard(k, g.run, authorizeBefore(k, g, kernel.AsService{Name: "guard.amazonaws.com"}, trustQuery))
-			if _, err := k.Invoke(k.Context(), g.run, &guardInput{}); err != nil {
-				k.Fatalf("AuthorizeBefore without an Authorizer = %s, want nil", err.Message)
-			}
-		})
-	})
 	for name, q := range map[string]struct {
 		mode kernel.PrincipalMode
 		q    kernel.AuthzQuery

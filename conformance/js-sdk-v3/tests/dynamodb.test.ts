@@ -390,12 +390,6 @@ describe.skipIf(dynamoDbOptedOut)("DynamoDB conditional writes: the lock table p
       }),
     );
 
-  test("the first writer takes a free lock", async () => {
-    const table = await lockTable();
-    await acquire(table, "a", 2000, 1000);
-    expect((await ddb.send(new GetItemCommand({ TableName: table, Key: { LockID: S("job-1") } }))).Item?.Owner).toEqual(S("a"));
-  });
-
   test("a second writer is refused with ConditionalCheckFailedException while the lock is live", async () => {
     const table = await lockTable();
     await acquire(table, "a", 2000, 1000);

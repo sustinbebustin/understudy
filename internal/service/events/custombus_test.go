@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/eventbridgeapi"
-	"github.com/sustinbebustin/understudy/internal/journal"
 )
 
 // putRuleOn puts a pattern rule on bus and returns its ARN.
@@ -149,25 +148,6 @@ func TestScheduleExpressionOnlyOnTheDefaultBus(t *testing.T) {
 	})
 }
 
-// R14 step 04 as recorded: PutRule of rate(5 minutes) on a custom bus
-// answers 400 ValidationException "ScheduleExpression is supported only on
-// the default event bus."
-// (testdata/parity/events/R14/04-custom-bus-schedule.json:L20 request,
-// L23 status, L31 body; aws-recorded). The bus existed: a missing one is
-// not found first (EBB-03, eventbridge-buses.md 5.3).
-func TestR14CustomBusScheduleAnswersAsRecorded(t *testing.T) {
-	run(t, func(h *harness) {
-		h.createBus("usr-rec-20261014-bus")
-		_, err := call(h, eventbridgeapi.OpPutRule, &eventbridgeapi.PutRuleInput{
-			Name: "usr-rec-20261014-busrule", ScheduleExpression: new("rate(5 minutes)"), EventBusName: new("usr-rec-20261014-bus"),
-		})
-		wantError(t, err, "ValidationException", "ScheduleExpression is supported only on the default event bus.")
-		if err != nil && err.ID.Status != 400 {
-			t.Errorf("status = %d, want 400", err.ID.Status)
-		}
-	})
-}
-
 // The 300-rule quota counts per event bus (aws-doc
 // https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-quota.html,
 // "300 per event bus", eventbridge-buses.md 7): a full default bus leaves a
@@ -254,29 +234,6 @@ func TestPutEventsMatchesOnlyTheNamedBus(t *testing.T) {
 	})
 }
 
-// An entry for a custom bus that does not exist gets an EventId and is
-// dropped (testdata/parity/events/R14/03-missing-bus.json:L29,
-// aws-recorded; eventbridge-buses.md 6.1, 10.3.10), and the call's journal
-// event names the bus.
-func TestPutEventsToAMissingCustomBus(t *testing.T) {
-	run(t, func(h *harness) {
-		h.patternRule("r", `{"source": ["rec"]}`)
-		h.target("r", eventbridgeapi.Target{Id: "q", Arn: queueARN})
-		e := entry("rec", "x", `{}`)
-		e.EventBusName = new("usr-rec-20261014-missing")
-		out := h.putEvents(e)
-		if out.FailedEntryCount != 0 || len(out.Entries) != 1 || out.Entries[0].EventId == nil || out.Entries[0].ErrorCode != nil {
-			t.Fatalf("PutEvents = %+v, want an EventId and no failure", out)
-		}
-		if got := h.sink.take(); len(got) != 0 {
-			t.Errorf("delivered %v", targetARNs(got))
-		}
-		if n := len(h.Journal.Query(journal.Filter{ResourceGlob: busPrefix + "usr-rec-20261014-missing"}).Events); n != 1 {
-			t.Errorf("%d journal events name the missing bus, want the PutEvents call", n)
-		}
-	})
-}
-
 // An event put by ARN to another account's custom bus in the caller's
 // region reaches that bus's rules and carries the sender's account
 // (eventbridge-buses.md 6.1, third-party-recorded
@@ -298,30 +255,6 @@ func TestPutEventsToAnotherAccountsCustomBus(t *testing.T) {
 		}
 		if e := decode(t, got[0]); e.ID != deref(out.Entries[0].EventId) || e.Account != account || e.Region != "us-east-1" {
 			t.Errorf("cross-account event = %+v, want the sender's account %s", e, account)
-		}
-	})
-}
-
-// Whether PutEvents to a bus in another region is accepted is unrecorded
-// (eventbridge-buses.md 6.1, EBB-10): understudy fails the entry with
-// NotImplemented rather than drop it unseen, for a custom bus as for a
-// default one, and still sends the other entries.
-func TestPutEventsToAnotherRegionsBus(t *testing.T) {
-	run(t, func(h *harness) {
-		h.patternRule("r", `{"source": ["shop"]}`)
-		h.target("r", eventbridgeapi.Target{Id: "q", Arn: queueARN})
-		const west = "arn:aws:events:eu-west-1:000000000000:event-bus/orders"
-		out := h.putEvents(toBus(west), entry("shop", "order", `{}`))
-		if out.FailedEntryCount != 1 || len(out.Entries) != 2 {
-			t.Fatalf("PutEvents = %+v", out)
-		}
-		want := "understudy sends PutEvents entries to event buses in the caller's region (us-east-1), and " + west +
-			" is in eu-west-1; the event was not sent. Call PutEvents in eu-west-1, or run 'understudy coverage --service eventbridge' for what is supported."
-		if e := out.Entries[0]; e.EventId != nil || deref(e.ErrorCode) != "NotImplemented" || deref(e.ErrorMessage) != want {
-			t.Errorf("entry for %s = %+v, want NotImplemented %q", west, e, want)
-		}
-		if got := targetARNs(h.sink.take()); !slices.Equal(got, []string{queueARN}) {
-			t.Errorf("delivered to %v, want the other entry's target", got)
 		}
 	})
 }

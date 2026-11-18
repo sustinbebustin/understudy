@@ -198,8 +198,8 @@ func TestOmittedFieldsOnOverwrite(t *testing.T) {
 			h.Errorf("after a value-only overwrite = Description %q KeyId %q DataType %q Type %q AllowedPattern %q, want everything kept",
 				val(d.Description), val(d.KeyId), val(d.DataType), val(d.Type), val(d.AllowedPattern))
 		}
-		if got := h.mustGet("/keep/secret", true); val(got.Value) != "5678" {
-			h.Errorf("decrypted value = %q, want 5678", val(got.Value))
+		if got := h.mustGet("/keep/secret", true); val(got.Value) != "5678" || got.Version != 2 {
+			h.Errorf("after the overwrite = %q version %d, want 5678 version 2", val(got.Value), got.Version)
 		}
 		_, err := call(h, ssmapi.OpPutParameter, &ssmapi.PutParameterInput{Name: "/keep/secret", Value: "10,000", Overwrite: new(true)})
 		wantError(h.T, "the kept pattern", err, ssmapi.IdentityParameterPatternMismatchException(), `Parameter value, cannot be validated against allowedPattern: \d{1,4}`)

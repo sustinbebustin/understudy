@@ -68,7 +68,7 @@ func TestObjectTags(t *testing.T) {
 
 // TestListObjectsOverHandlers: v2 pages with an opaque token, groups at
 // the delimiter, reports KeyCount, echoes encoding-type=url with the keys
-// raw (the codec encodes them, TestListingKeysEncodedOnceOverHTTP), and
+// raw (the codec encodes them, TestListingEncodingRoundTripsEveryKey), and
 // refuses a token it did not mint; v1 sends NextMarker only with a
 // delimiter; max-keys=0 is an empty page that is not truncated and names
 // no next page (s3.md 9.1).

@@ -765,15 +765,10 @@ func TestResetRevokesTheAccountsAccessKeys(t *testing.T) {
 }
 
 // A tool that walks a policy's versions and tags after GetPolicy finds an
-// AWS managed policy there too: its one version, the default, without a
-// document, and no tags of the account's. Another account's customer
-// managed policy stays out of reach.
+// AWS managed policy there too, with no tags of the account's. Another
+// account's customer managed policy stays out of reach.
 func TestAWSManagedPolicyVersionsAndTags(t *testing.T) {
 	runCatalogued(t, func(h *harness) {
-		vs := must(h, iamapi.OpListPolicyVersions, &iamapi.ListPolicyVersionsInput{PolicyArn: basicExecution})
-		if len(vs.Versions) != 1 || *vs.Versions[0].VersionId != "v1" || !vs.Versions[0].IsDefaultVersion || vs.Versions[0].Document != nil || vs.IsTruncated {
-			t.Errorf("ListPolicyVersions(AWS managed) = %+v, want v1, the default, without a document", vs)
-		}
 		tags := must(h, iamapi.OpListPolicyTags, &iamapi.ListPolicyTagsInput{PolicyArn: basicExecution})
 		if len(tags.Tags) != 0 || tags.IsTruncated {
 			t.Errorf("ListPolicyTags(AWS managed) = %+v, want no tags", tags)

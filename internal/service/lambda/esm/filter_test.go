@@ -90,10 +90,6 @@ func TestSwitches(t *testing.T) {
 			t.Errorf("switch %s = %+v (listed %v), want %+v", name, have, ok, want)
 		}
 	}
-	// lambda/R03 H13 recorded the operators Lambda accepts beyond its table.
-	if have, ok := got["lambda.esm-filter.operator-allow-list"]; ok {
-		t.Errorf("switch lambda.esm-filter.operator-allow-list is listed (%+v); want it retired", have)
-	}
 }
 
 // TestRecordedBareNumberAndMalformedOr replays what lambda/R03 recorded for

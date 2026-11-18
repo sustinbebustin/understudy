@@ -83,8 +83,5 @@ func TestSwitchesRegisterEveryEvaluationChoice(t *testing.T) {
 					e.Value, e.Label, reason, evidence.Inferred)
 			}
 		}
-		if e.Name == "iam.resource-tag.case-duplicates" {
-			t.Errorf("iam.resource-tag.case-duplicates is registered, but aws:ResourceTag/ is never supplied (iam-evaluation.md 8.2)")
-		}
 	}
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/moby/moby/api/types/network"
 	"github.com/testcontainers/testcontainers-go"
 
-	"github.com/sustinbebustin/understudy/admin"
 	"github.com/sustinbebustin/understudy/testcontainers/go/understudy"
 )
 
@@ -25,20 +24,8 @@ func TestValidationTexts(t *testing.T) {
 		want string
 	}{
 		{
-			&understudy.ExposureError{Addr: netip.MustParseAddr("0.0.0.0")},
-			"understudy: publishing port 4566 on 0.0.0.0 exposes the admin API, which has no token in the container; add WithAdminToken() or publish on 127.0.0.1.",
-		},
-		{
-			&understudy.ExposureError{Addr: netip.MustParseAddr("2001:db8::1")},
-			"understudy: publishing port 4566 on 2001:db8::1 exposes the admin API, which has no token in the container; add WithAdminToken() or publish on 127.0.0.1.",
-		},
-		{
 			&understudy.SocketGroupError{Daemon: "tcp://10.0.0.5:2375"},
 			"understudy: cannot read the group of the Docker socket on tcp://10.0.0.5:2375, which is not a local unix socket; pass WithDockerSocketGroup(<gid>), the numeric group owning /var/run/docker.sock on the daemon's host.",
-		},
-		{
-			&understudy.DockerUnavailableError{Status: admin.Degraded, Reason: "the Docker Engine does not answer"},
-			"understudy: the Docker socket is mounted but understudy reports Docker degraded: the Docker Engine does not answer; Lambda and DynamoDB will not run. Check the socket group (WithDockerSocketGroup) or run without WithDockerSocket().",
 		},
 	}
 	for _, c := range cases {

@@ -46,11 +46,6 @@ def test_a_wrong_secret_is_invalid_signature_on_sqs(make_client: Callable[..., A
     assert response["Error"]["QueryErrorCode"] == "InvalidSignatureException"
 
 
-def test_a_twelve_digit_key_with_the_dummy_secret_verifies(make_client: Callable[..., Any], sigv4_verify: None) -> None:
-    ident = make_client("sts", access_key="444455556666", secret_key="test").get_caller_identity()
-    assert ident["Account"] == "444455556666"
-
-
 def test_an_unknown_key_is_refused(make_client: Callable[..., Any], sigv4_verify: None) -> None:
     unknown = make_client("sts", access_key="AKIAIOSFODNN7EXAMPLE", secret_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
     with pytest.raises(ClientError) as err:

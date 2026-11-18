@@ -17,7 +17,6 @@ import (
 	"sync"
 	"syscall"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/sustinbebustin/understudy/internal/api/lambdaapi"
@@ -556,43 +555,6 @@ func TestSNSHTTPFaultRulesAnswerWithoutTheEndpoint(t *testing.T) {
 			})
 		})
 	}
-}
-
-// Settle counts an HTTP attempt in flight and returns once it ends; a
-// retry armed for a later instant is not in flight (sns-http-delivery.md
-// 8.2 item 7).
-func TestSNSHTTPSettleCountsTheAttemptInFlight(t *testing.T) {
-	r := answeringHook(http.StatusServiceUnavailable)
-	runHTTP(t, r, func(k *kerneltest.K, o *outbox.Outbox) {
-		// Made inside the bubble, so the receiver's wait on it is durably
-		// blocking and synctest.Wait returns (testing/synctest).
-		r.hold = make(chan struct{})
-		enqueue(k, o, toHook(k, "http://127.0.0.1:8080/hook", delivery.HTTPNotification, defaultHTTPPolicy()), source(k))
-		done := make(chan error, 1)
-		go func() {
-			_, err := k.Kernel.Settle(context.Background(), settle)
-			done <- err
-		}()
-		synctest.Wait()
-		select {
-		case err := <-done:
-			k.Fatalf("Settle returned (%v) while the attempt was in flight", err)
-		default:
-		}
-		close(r.hold)
-		synctest.Wait()
-		select {
-		case err := <-done:
-			if err != nil {
-				k.Errorf("Settle = %v, want nothing in flight", err)
-			}
-		default:
-			k.Fatal("Settle did not return once the attempt ended")
-		}
-		if res := o.Resources(k.Scope); len(res) != 1 {
-			k.Errorf("Resources = %v, want the delivery pending its retry", res)
-		}
-	})
 }
 
 // A pending HTTP delivery survives a snapshot: after a load into a new

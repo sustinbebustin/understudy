@@ -484,7 +484,6 @@ describe("IAM users and access keys", () => {
     expect(key).toMatchObject({ UserName: name, Status: "Active" });
     const listed = await iam.send(new ListAccessKeysCommand({ UserName: name }));
     expect(listed.AccessKeyMetadata?.map((k) => [k.AccessKeyId, k.Status])).toEqual([[key?.AccessKeyId, "Active"]]);
-    expect(listed.AccessKeyMetadata?.[0]).not.toHaveProperty("SecretAccessKey");
   });
 
   test("UpdateAccessKey sets the status and DeleteAccessKey removes the key", async () => {

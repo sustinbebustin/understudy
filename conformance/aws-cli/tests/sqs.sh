@@ -147,7 +147,7 @@ test_send_receive_delete_message() {
 test_receive_message_empty_queue_has_no_messages_key() {
   mkq "$(new_name q-empty)"
   aws_ok sqs receive-message --queue-url "$QUEUE_URL"
-  assert_jq '.Messages // [] | length' '0'
+  assert_jq 'has("Messages")' 'false' 'empty ReceiveMessage is {} (sqs.md 2.1, 7.1)'
 }
 
 test_received_message_is_invisible_for_visibility_timeout() {

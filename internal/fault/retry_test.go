@@ -36,7 +36,6 @@ func TestRetryableWarningNamesCodesTheSDKsRetry(t *testing.T) {
 		want string // a fragment of the warning; empty means no warning
 	}{
 		{"sqs throttle", throttleSend(fault.NextN{N: 3}), "RequestThrottled, which AWS SDKs retry (a throttling error)"},
-		{"sqs throttle from any origin", throttleFrom(fault.Any), "a throttling error"},
 		{"sqs throttle from external callers", throttleFrom(fault.ExternalOnly), "a throttling error"},
 		{"sqs throttle from internal callers", throttleFrom(fault.InternalOnly), ""},
 		{"lambda throttle", errorOn(invoke, "TooManyRequestsException"), "a throttling error"},

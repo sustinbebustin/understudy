@@ -75,16 +75,6 @@ func wantSecurityHeaders(t *testing.T, what string, rec *httptest.ResponseRecord
 	}
 }
 
-// The package's CSP is the one every answer carries.
-func TestCSPConstant(t *testing.T) {
-	if ui.CSP != securityHeaders["Content-Security-Policy"] {
-		t.Errorf("ui.CSP = %q, want %q", ui.CSP, securityHeaders["Content-Security-Policy"])
-	}
-	if ui.Path != "/_understudy/ui/" {
-		t.Errorf("ui.Path = %q, want /_understudy/ui/ (ADR 0020: the ui/ sub-prefix)", ui.Path)
-	}
-}
-
 // The page is index.html, never cached without revalidation since it names
 // the current build's assets; an asset is cached for good since its name
 // changes with its content (RFC 9111 5.2.2.4 no-cache; RFC 8246

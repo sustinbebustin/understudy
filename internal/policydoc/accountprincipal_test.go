@@ -1,6 +1,7 @@
 package policydoc_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/aws"
@@ -26,8 +27,11 @@ func TestRootAccountPrincipals(t *testing.T) {
 			want: "{ \"Statement\" : {\n  \"Principal\" : { \"AWS\" : [ \"arn:aws:iam::111111111111:root\", \"arn:aws:iam::222222222222:role/r\" , \"arn:aws:iam::333333333333:root\" ] },\n  \"Effect\":\"Allow\" }, \"Version\" : \"2012-10-17\" }",
 		},
 		{
+			// Each digit written as the JSON escape for "1" names the
+			// same account, and the whole quoted span, escapes
+			// included, is replaced (iam-evaluation.md 5.4).
 			name: "an escaped account id",
-			in:   `{"Statement":[{"Effect":"Allow","Principal":{"AWS":"111111111111"}}]}`,
+			in:   `{"Statement":[{"Effect":"Allow","Principal":{"AWS":"` + strings.Repeat(`\`+`u0031`, 12) + `"}}]}`,
 			want: `{"Statement":[{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::111111111111:root"}}]}`,
 		},
 	}

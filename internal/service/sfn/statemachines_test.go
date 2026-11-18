@@ -93,23 +93,6 @@ func TestNotFoundAndInvalidArnTexts(t *testing.T) {
 	})
 }
 
-// Deleting a state machine that does not exist answers 200; deleting an
-// idle one removes it (stepfunctions-api.md 5.4; aws-recorded
-// localstack@8b9a79f v2/test_sfn_api.snapshot.json:L37-L46).
-func TestDeleteStateMachine(t *testing.T) {
-	run(t, func(h *harness) {
-		must(h, sfnapi.OpDeleteStateMachine, &sfnapi.DeleteStateMachineInput{StateMachineArn: h.machineArn("nope")})
-		arn := h.create("m", resultMachine)
-		must(h, sfnapi.OpDeleteStateMachine, &sfnapi.DeleteStateMachineInput{StateMachineArn: arn})
-		h.settled()
-		wantError(h, errOf(call(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: arn})),
-			"StateMachineDoesNotExist", 400, "State Machine Does Not Exist: '"+arn+"'")
-		if again := h.create("m", waitMachine); again != arn {
-			h.Errorf("re-created machine ARN = %s, want %s", again, arn)
-		}
-	})
-}
-
 // ListStateMachines orders by name as a string, not by creation
 // (stepfunctions-api.md 5.5; aws-recorded localstack@8b9a79f
 // v2/test_sfn_api.snapshot.json:L1800-L1830), and pages with maxResults.

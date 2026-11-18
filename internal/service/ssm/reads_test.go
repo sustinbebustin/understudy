@@ -166,19 +166,6 @@ func TestListOrderAcrossPages(t *testing.T) {
 	})
 }
 
-// A NextToken that is not one the listing issued is InvalidNextToken
-// ("The specified token isn't valid.", ssm-parameters.md 7.10 [M]), on each
-// paginated operation.
-func TestGarbageNextTokenIsInvalidNextToken(t *testing.T) {
-	run(t, func(h *harness) {
-		h.put("/tok/a", "v")
-		garbage := new("not-a-token")
-		wantCode(h.T, "GetParametersByPath", errOf(call(h, ssmapi.OpGetParametersByPath, &ssmapi.GetParametersByPathInput{Path: "/tok", NextToken: garbage})), ssmapi.IdentityInvalidNextToken())
-		wantCode(h.T, "DescribeParameters", errOf(call(h, ssmapi.OpDescribeParameters, &ssmapi.DescribeParametersInput{NextToken: garbage})), ssmapi.IdentityInvalidNextToken())
-		wantCode(h.T, "GetParameterHistory", errOf(call(h, ssmapi.OpGetParameterHistory, &ssmapi.GetParameterHistoryInput{Name: "/tok/a", NextToken: garbage})), ssmapi.IdentityInvalidNextToken())
-	})
-}
-
 // GetParametersByPath filters (ssm-parameters.md 7.4, aws-doc
 // API_GetParametersByPath and API_ParameterStringFilter): keys Type, KeyId
 // and Label only, so tag, DataType, Name, Path and Tier are

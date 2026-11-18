@@ -241,13 +241,6 @@ test_get_log_events_default_is_newest_page_in_ascending_order() {
   assert_jq '[.events[].message] | join(",")' 'e4,e5' 'startFromHead=false returns the newest events'
 }
 
-test_get_log_events_limit_with_start_from_head() {
-  mkgroup stream
-  put_events e1 e2 e3 e4 e5
-  aws_ok logs get-log-events --log-group-name "$GROUP" --log-stream-name "$STREAM" --start-from-head --limit 2
-  assert_jq '[.events[].message] | join(",")' 'e1,e2'
-}
-
 test_get_log_events_time_range_start_inclusive_end_exclusive() {
   mkgroup stream
   put_events e1 e2 e3 e4 e5

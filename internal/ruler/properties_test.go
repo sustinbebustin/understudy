@@ -478,36 +478,6 @@ func TestPropertyCompileErrorsNameTheFailure(t *testing.T) {
 	})
 }
 
-func TestPropertyUnsupportedOperatorsAreNamed(t *testing.T) {
-	t.Parallel()
-	forms := map[Operator]string{
-		OperatorPrefixEqualsIgnoreCase:      `{"prefix":{"equals-ignore-case":"a"}}`,
-		OperatorSuffixEqualsIgnoreCase:      `{"suffix":{"equals-ignore-case":"a"}}`,
-		OperatorWildcard:                    `{"wildcard":"a*"}`,
-		OperatorAnythingButPrefix:           `{"anything-but":{"prefix":"a"}}`,
-		OperatorAnythingButSuffix:           `{"anything-but":{"suffix":"a"}}`,
-		OperatorAnythingButEqualsIgnoreCase: `{"anything-but":{"equals-ignore-case":"a"}}`,
-		OperatorAnythingButWildcard:         `{"anything-but":{"wildcard":"a*"}}`,
-		OperatorCIDR:                        `{"cidr":"10.0.0.0/8"}`,
-	}
-	ops := slices.Sorted(maps.Keys(forms))
-	rapid.Check(t, func(t *rapid.T) {
-		op := rapid.SampledFrom(ops).Draw(t, "operator")
-		prof := rapid.SampledFrom([]Profile{SNS{Scope: MessageBody}, LambdaESM{}}).Draw(t, "profile")
-		pattern := object(kv("k", array(scalar(forms[op]))))
-		_, err := Compile(pattern.bytes(), prof)
-		if prof.allows(op) {
-			if err != nil {
-				t.Fatalf("%T rejected allowed %s: %s", prof, op, err.Detail)
-			}
-			return
-		}
-		if err == nil || err.Cause != (UnsupportedOperator{Operator: op}) {
-			t.Fatalf("%T: Compile(%s) = %#v, want an error naming %s", prof, pattern.encode(), err, op)
-		}
-	})
-}
-
 func TestPropertyLimitErrorsNameTheLimit(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {

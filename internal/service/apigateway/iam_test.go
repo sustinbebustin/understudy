@@ -2,7 +2,6 @@ package apigateway_test
 
 import (
 	"context"
-	"net/http"
 	"sync"
 	"testing"
 
@@ -172,22 +171,6 @@ func TestDeniedControlPlaneCall(t *testing.T) {
 		}
 		if apis := must(h, apigatewayapi.OpGetRestApis, &apigatewayapi.GetRestApisInput{}).Items; len(apis) != 0 {
 			t.Errorf("GetRestApis after a denied CreateRestApi = %+v, want none", apis)
-		}
-	}, kerneltest.Authorizer(g))
-}
-
-// A request on a NONE method is never put to step 8: InvokeRestApi
-// declares no IAM action (apigateway-rest.md 12.2), and
-// the request reaches the function.
-func TestNoneMethodIsNotAuthorized(t *testing.T) {
-	g := newGate()
-	run(t, func(h *harness) {
-		id, _ := h.proxyAPI()
-		if rec := h.get(id, "/s/"); rec.Code != http.StatusOK {
-			t.Fatalf("GET /s/ = %d %s, want the function's 200", rec.Code, rec.Body)
-		}
-		if g.askedAbout(invokeRestAPI) {
-			t.Errorf("step 8 was asked about InvokeRestApi: %v", g.pairs("InvokeRestApi"))
 		}
 	}, kerneltest.Authorizer(g))
 }

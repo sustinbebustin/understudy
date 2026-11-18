@@ -125,7 +125,7 @@ type fn struct {
 
 // fail is the function failing with AWS's detail text.
 func (f fn) fail(detail string) error {
-	return &FunctionError{Function: f.name, Detail: detail}
+	return &FunctionError{Detail: detail}
 }
 
 // invalid is the function failing with AWS's generic detail, "Invalid

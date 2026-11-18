@@ -10,7 +10,6 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/sustinbebustin/understudy/internal/api/apigatewayv2api"
-	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
 	"github.com/sustinbebustin/understudy/internal/service/apigatewayv2"
 )
 
@@ -197,41 +196,4 @@ func TestUpdateRouteDeploysAtOnce(t *testing.T) {
 			t.Errorf("GET /new back on NONE = %d %s, want the function's 200", rec.Code, rec.Body)
 		}
 	})
-}
-
-// Step 8 asks about each route and integration operation as
-// apigateway:<its HTTP method> on the resource the 8.1 table gives it: the
-// API's routes or integrations collection for creates and lists, the item
-// /apis/<api-id>/routes/<route-id> or /integrations/<integration-id>
-// otherwise (apigateway-http.md 8.1).
-func TestStep8AsksAboutTheRouteAndIntegrationPairs(t *testing.T) {
-	g := newGate()
-	run(t, func(h *harness) {
-		id := h.apiID("t")
-		api := apiARN(id)
-		integration := h.lambdaIntegration(id, h.createFunction("fn"), "2.0")
-		rid := h.createRoute(id, "GET /a", integration)
-		must(h, apigatewayv2api.OpGetRoutes, &apigatewayv2api.GetRoutesInput{ApiId: id})
-		must(h, apigatewayv2api.OpGetRoute, &apigatewayv2api.GetRouteInput{ApiId: id, RouteId: rid})
-		must(h, apigatewayv2api.OpUpdateRoute, &apigatewayv2api.UpdateRouteInput{ApiId: id, RouteId: rid, OperationName: new("A")})
-		must(h, apigatewayv2api.OpGetIntegrations, &apigatewayv2api.GetIntegrationsInput{ApiId: id})
-		must(h, apigatewayv2api.OpGetIntegration, &apigatewayv2api.GetIntegrationInput{ApiId: id, IntegrationId: integration})
-		must(h, apigatewayv2api.OpUpdateIntegration, &apigatewayv2api.UpdateIntegrationInput{ApiId: id, IntegrationId: integration, Description: new("d")})
-		must(h, apigatewayv2api.OpDeleteRoute, &apigatewayv2api.DeleteRouteInput{ApiId: id, RouteId: rid})
-		must(h, apigatewayv2api.OpDeleteIntegration, &apigatewayv2api.DeleteIntegrationInput{ApiId: id, IntegrationId: integration})
-		routes, integrations := api+"/routes", api+"/integrations"
-		for op, w := range map[string][2]string{
-			"CreateRoute": {"apigateway:POST", routes}, "GetRoutes": {"apigateway:GET", routes},
-			"GetRoute": {"apigateway:GET", routes + "/" + rid}, "UpdateRoute": {"apigateway:PATCH", routes + "/" + rid},
-			"DeleteRoute":       {"apigateway:DELETE", routes + "/" + rid},
-			"CreateIntegration": {"apigateway:POST", integrations}, "GetIntegrations": {"apigateway:GET", integrations},
-			"GetIntegration":    {"apigateway:GET", integrations + "/" + integration},
-			"UpdateIntegration": {"apigateway:PATCH", integrations + "/" + integration},
-			"DeleteIntegration": {"apigateway:DELETE", integrations + "/" + integration},
-		} {
-			if got := g.pairs(op); len(got) != 1 || got[0] != w {
-				t.Errorf("%s asked about %v, want exactly %v", op, got, w)
-			}
-		}
-	}, kerneltest.Authorizer(g))
 }

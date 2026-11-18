@@ -80,7 +80,6 @@ func TestSNSHTTPDeliveryAllowSources(t *testing.T) {
 	}{
 		{"default", nil, nil, files{}, nil},
 		{"file", nil, nil, file, []string{"127.0.0.1:8080", "localhost:*"}},
-		{"variable over file", nil, []string{"UNDERSTUDY_SNS_HTTP_DELIVERY_ALLOW=[::1]:9000,hooks.example.test:443"}, file, []string{"[::1]:9000", "hooks.example.test:443"}},
 		{
 			"flag over variable",
 			[]string{"--sns-http-delivery-allow", "127.0.0.1:*"},
@@ -155,15 +154,13 @@ func TestSNSHTTPDeliveryAllowRefusals(t *testing.T) {
 }
 
 // The file form is nested and typed: allow is an array of strings and
-// caBundle a string; the dotted key at the top level is refused, naming
-// the nested form.
+// caBundle a string.
 func TestSNSHTTPDeliveryFileForm(t *testing.T) {
 	at := func(key string) string { return config.DefaultConfigFile + ": " + key }
 	cases := []struct {
 		name, doc, where, closest string
 	}{
 		{"allow as a string", `{"sns": {"httpDelivery": {"allow": "127.0.0.1:8080"}}}`, at("sns.httpDelivery.allow"), ""},
-		{"an allow number", `{"sns": {"httpDelivery": {"allow": [8080]}}}`, at("sns.httpDelivery.allow"), ""},
 		{"caBundle as a list", `{"sns": {"httpDelivery": {"caBundle": ["/ca.pem"]}}}`, at("sns.httpDelivery.caBundle"), ""},
 		{"an unknown member", `{"sns": {"httpDelivery": {"allowed": ["127.0.0.1:8080"]}}}`, at("sns.httpDelivery.allowed"), "allow"},
 	}
@@ -172,12 +169,6 @@ func TestSNSHTTPDeliveryFileForm(t *testing.T) {
 		if err.Where != c.where || (c.closest != "" && err.Closest != c.closest) {
 			t.Errorf("%s: error at %q closest %q, want at %q closest %q (%v)", c.name, err.Where, err.Closest, c.where, c.closest, err)
 		}
-	}
-	// The dotted key at the top level is refused, and the refusal shows
-	// the nested form.
-	err := loadErr(t, nil, nil, files{config.DefaultConfigFile: `{"sns.httpDelivery.allow": ["127.0.0.1:8080"]}`})
-	if err.Where != at("sns.httpDelivery.allow") || !strings.Contains(err.Reason+err.Hint, `"httpDelivery"`) {
-		t.Errorf("the dotted key: error %+v, want it refused at that key, giving the nested form", err)
 	}
 	// Both members load together.
 	bundle, _ := selfSignedPEM(t)

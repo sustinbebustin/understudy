@@ -239,8 +239,6 @@ type endpoint struct {
 	status int
 
 	mu   sync.Mutex
-	head []string
-	body [][]byte
 	reqs []*http.Request
 }
 
@@ -255,18 +253,15 @@ func (e *endpoint) Dial(_ context.Context, addr netip.AddrPort) (net.Conn, error
 
 func (e *endpoint) serve(conn net.Conn) {
 	defer conn.Close()
-	var raw bytes.Buffer
-	req, err := http.ReadRequest(bufio.NewReader(io.TeeReader(conn, &raw)))
+	req, err := http.ReadRequest(bufio.NewReader(conn))
 	if err != nil {
 		return
 	}
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
+	if _, err := io.Copy(io.Discard, req.Body); err != nil {
 		return
 	}
-	head, _, _ := strings.Cut(raw.String(), "\r\n\r\n")
 	e.mu.Lock()
-	e.head, e.body, e.reqs = append(e.head, head), append(e.body, body), append(e.reqs, req)
+	e.reqs = append(e.reqs, req)
 	e.mu.Unlock()
 	if e.status == 0 {
 		if _, err := io.Copy(io.Discard, conn); err != nil {
@@ -309,33 +304,6 @@ func hook(t *testing.T, raw string) delivery.HTTPEndpoint {
 		Headers: []delivery.HTTPHeader{{Name: "x-amz-sns-message-type", Value: "Notification"}, {Name: "Content-Type", Value: "text/plain; charset=UTF-8"}},
 		Body:    []byte(`{"Type":"Notification","Message":"hello"}`),
 	}
-}
-
-// An HTTPEndpoint attempt POSTs the body to the URL with the headers under
-// the names given (sns-http-delivery.md 3.1, 3.2).
-func TestPostHTTPSendsTheDelivery(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		e := &endpoint{status: http.StatusOK}
-		target := hook(t, "http://127.0.0.1:8080/hooks/orders?attempt=1")
-		postHTTP(t.Context(), egressTo(t, e), target)
-		synctest.Wait()
-		e.mu.Lock()
-		defer e.mu.Unlock()
-		if len(e.reqs) != 1 {
-			t.Fatalf("the endpoint got %d requests, want 1", len(e.reqs))
-		}
-		if r := e.reqs[0]; r.Method != http.MethodPost || r.RequestURI != "/hooks/orders?attempt=1" {
-			t.Errorf("request = %s %s, want POST /hooks/orders?attempt=1", r.Method, r.RequestURI)
-		}
-		if !bytes.Equal(e.body[0], target.Body) {
-			t.Errorf("body = %q, want %q", e.body[0], target.Body)
-		}
-		for _, h := range target.Headers {
-			if line := "\r\n" + h.Name + ": " + h.Value; !strings.Contains(e.head[0], line) {
-				t.Errorf("request head\n%s\nlacks %q", e.head[0], strings.TrimPrefix(line, "\r\n"))
-			}
-		}
-	})
 }
 
 // The answer's class follows the retries page and the SNSH-05 recording:

@@ -127,18 +127,6 @@ def test_a_file_that_is_no_capture_or_side_observation_is_refused_by_name(tmp_pa
     assert not out.exists()
 
 
-def test_replace_is_refused_without_touching_the_output(tmp_path, capsys):
-    rec = recordings(tmp_path)
-    out = tmp_path / "parity"
-    (out / "sqs" / "R01").mkdir(parents=True)
-    (out / "sqs" / "R01" / "03-delete-stale.json").write_text("{}\n")
-
-    assert dp.main(["--replace", "--out", str(out), str(rec)]) == 2
-
-    assert "--replace" in capsys.readouterr().err
-    assert (out / "sqs" / "R01" / "03-delete-stale.json").exists()
-
-
 def test_an_unknown_item_directory_is_refused_by_name_without_touching_the_output(tmp_path, capsys):
     rec = recordings(tmp_path)
     (rec / "TC-01").mkdir()

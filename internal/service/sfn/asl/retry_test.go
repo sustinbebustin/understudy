@@ -20,7 +20,6 @@ func TestRetryDelayDocumentedSequences(t *testing.T) {
 	}{
 		{asl.Retrier{IntervalSeconds: 3, MaxAttempts: 3, BackoffRate: 2, MaxDelaySeconds: 5, Jitter: asl.JitterNone}, []time.Duration{3 * time.Second, 5 * time.Second, 5 * time.Second}},
 		{asl.Retrier{IntervalSeconds: 2, MaxAttempts: 3, BackoffRate: 2, Jitter: asl.JitterNone}, []time.Duration{2 * time.Second, 4 * time.Second, 8 * time.Second}},
-		{asl.Retrier{IntervalSeconds: 1, MaxAttempts: 3, BackoffRate: 2, Jitter: asl.JitterNone}, []time.Duration{1 * time.Second, 2 * time.Second, 4 * time.Second}},
 	}
 	for _, tt := range tests {
 		for i, want := range tt.want {

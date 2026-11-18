@@ -57,12 +57,11 @@ func TestInvalidTagsSendEmailGoldens(t *testing.T) {
 // The two feedback-id tag names pass tag validation and the call fails on
 // the unverified sender (third-party-recorded 2024-07-30, ses.md 4.5;
 // localstack@8b9a79f tests/aws/services/ses/test_ses.py:L925-L953, validated
-// 2024-07-30). Which other "ses:" names pass is UNVERIFIED (SES-16): the
-// names come from FeedbackIDTagNames, and another ses: name fails tag
-// validation.
+// 2024-07-30). Which other "ses:" names pass is UNVERIFIED (SES-16), and
+// another ses: name fails tag validation.
 func TestSpecialTagsSendEmail(t *testing.T) {
 	run(t, func(h *harness) {
-		for _, name := range ses.FeedbackIDTagNames() {
+		for _, name := range []string{"ses:feedback-id-a", "ses:feedback-id-b"} { // ses.md 4.5
 			in := email("user-unverified@example.com", "success@example.com")
 			in.Tags = []sesapi.MessageTag{{Name: name, Value: "value"}}
 			_, err := call(h, sesapi.OpSendEmail, in)
@@ -177,8 +176,8 @@ func TestSenderIdentityRules(t *testing.T) {
 // recipient check but not the sender's (ses.md 6.1).
 func TestSandboxRecipients(t *testing.T) {
 	runVerified(t, ses.Options{}, func(h *harness) {
-		for _, scenario := range ses.Scenarios() {
-			for _, to := range []string{string(scenario) + "@" + ses.SimulatorDomain, string(scenario) + "+label1@" + ses.SimulatorDomain} {
+		for _, local := range []string{"success", "bounce", "ooto", "complaint", "suppressionlist"} { // ses.md 6.2
+			for _, to := range []string{local + "@" + ses.SimulatorDomain, local + "+label1@" + ses.SimulatorDomain} {
 				if _, err := call(h, sesapi.OpSendEmail, email(sender, to)); err != nil {
 					h.Errorf("simulator recipient %s: %s %q, want accepted (ses.md 6.2)", to, err.ID.QueryCode, err.Message)
 				}
@@ -458,8 +457,11 @@ func TestDailyQuotaCountsRecipients(t *testing.T) {
 		wantErr(h, err, sesapi.IdentityThrottling(), ses.DailyQuotaText)
 		must(h, sesapi.OpSendEmail, email(sender, simulator))
 
-		if _, err := h.svc.ClearMessages(ses.MessageQuery{}); err != nil {
-			h.Fatal(err)
+		if n, err := h.svc.ClearMessages(ses.MessageQuery{}); err != nil || n == 0 {
+			h.Fatalf("ClearMessages = %d, %v", n, err)
+		}
+		if got := h.sends(); len(got) != 0 {
+			h.Errorf("sends after an unfiltered ClearMessages = %d, want none", len(got))
 		}
 		if got := h.quota().SentLast24Hours; got != ses.SandboxMax24HourSend {
 			h.Errorf("SentLast24Hours = %v after ClearMessages, want it unchanged", got)

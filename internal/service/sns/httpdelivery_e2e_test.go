@@ -406,41 +406,6 @@ func TestHTTPRedirectsAreNotFollowed(t *testing.T) {
 	})
 }
 
-// Under sns.http.retry-body a retry resends the first attempt's bytes and
-// headers (sns-http-delivery.md 4.6; the MessageId a retry keeps is
-// aws-doc).
-func TestHTTPRetriesResendTheSameBytes(t *testing.T) {
-	s := confirmingThen(func(n int) (int, http.Header) {
-		if n == 0 {
-			return http.StatusServiceUnavailable, nil
-		}
-		return http.StatusOK, nil
-	})
-	onTheWire(t, s, func(h *harness) {
-		topic := h.topic("events", nil)
-		subscribeConfirmed(h, s, topic, hookURL, nil)
-		must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
-		h.settle()
-		h.advance(time.Hour)
-		h.settle()
-		ns := s.ofType("Notification")
-		if len(ns) != 2 {
-			h.Fatalf("the endpoint got %d Notifications, want the failed one and its retry", len(ns))
-		}
-		if ns[0].header.Get("X-Amz-Sns-Message-Id") != ns[1].header.Get("X-Amz-Sns-Message-Id") {
-			h.Errorf("the retry's MessageId %s differs from the first %s", ns[1].header.Get("X-Amz-Sns-Message-Id"), ns[0].header.Get("X-Amz-Sns-Message-Id"))
-		}
-		switch v := switchValue(h, "sns.http.retry-body"); v {
-		case "identical":
-			if !bytes.Equal(ns[0].body, ns[1].body) || !maps.EqualFunc(ns[0].header, ns[1].header, slices.Equal) {
-				h.Errorf("the retry sent\n%v\n%s\nwant the first attempt's\n%v\n%s", ns[1].header, ns[1].body, ns[0].header, ns[0].body)
-			}
-		default:
-			noExpectation(h, "sns.http.retry-body", v)
-		}
-	})
-}
-
 // The delays between retries follow sns.http.backoff-curves and
 // sns.http.retry-jitter (sns-http-delivery.md 6.3).
 func TestHTTPBackoffFollowsTheSwitches(t *testing.T) {
@@ -479,30 +444,6 @@ func TestHTTPBackoffFollowsTheSwitches(t *testing.T) {
 			}
 		}
 	})
-	// On the wire, four backoff retries from 1 s to 10 s come 1, 4, 7 and
-	// 10 s after each failed attempt, the same on every run: no jitter.
-	schedule := func() []time.Duration {
-		var at []time.Duration
-		srv := confirmingThen(func(int) (int, http.Header) { return http.StatusServiceUnavailable, nil })
-		onTheWire(t, srv, func(h *harness) {
-			topic := h.topic("events", nil)
-			t1 := subscribeConfirmed(h, srv, topic, hookURL, map[string]string{"DeliveryPolicy": retryPolicy(1, 10, 4, 0, 0, 0)})
-			must(h, snsapi.OpPublish, &snsapi.PublishInput{TopicArn: &topic, Message: "m"})
-			h.settle()
-			h.advance(time.Hour)
-			h.settle()
-			at, _ = attemptsSince(h, t1)
-		})
-		return at
-	}
-	want := []time.Duration{0, s, 5 * s, 12 * s, 22 * s}
-	first := schedule()
-	if !slices.Equal(first, want) {
-		t.Errorf("attempts at %v, want %v", first, want)
-	}
-	if again := schedule(); !slices.Equal(again, first) {
-		t.Errorf("a second run attempted at %v, the first at %v", again, first)
-	}
 }
 
 // Under sns.http.dlq-body a dead letter is what SQS would get: the

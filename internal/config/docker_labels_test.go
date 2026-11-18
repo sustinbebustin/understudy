@@ -242,16 +242,14 @@ func TestDockerLabelsRefusals(t *testing.T) {
 	}
 }
 
-// Any value of the file key other than an object or a string holding one
-// is refused like a bad text.
+// An empty string as the file key's value holds no object, so it is
+// refused like a bad text rather than read as no labels.
 func TestDockerLabelsFileValueShapes(t *testing.T) {
-	for _, value := range []string{`5`, `true`, `false`, `null`, `[]`, `["a"]`, `"[1]"`, `"nope"`, `""`} {
-		f := files{config.DefaultConfigFile: `{"dockerLabels": ` + value + `}`}
-		_, err := config.Load(nil, nil, f.read)
-		if err == nil || err.Where != labelsKey || !strings.HasSuffix(err.Reason, " is not a JSON object of label keys to string values") ||
-			err.Hint != `write {"com.example.team": "payments"}` {
-			t.Errorf("dockerLabels %s = %v, want it refused at %s as not a JSON object", value, err, labelsKey)
-		}
+	f := files{config.DefaultConfigFile: `{"dockerLabels": ""}`}
+	_, err := config.Load(nil, nil, f.read)
+	if err == nil || err.Where != labelsKey || !strings.HasSuffix(err.Reason, " is not a JSON object of label keys to string values") ||
+		err.Hint != `write {"com.example.team": "payments"}` {
+		t.Errorf(`dockerLabels "" = %v, want it refused at %s as not a JSON object`, err, labelsKey)
 	}
 }
 

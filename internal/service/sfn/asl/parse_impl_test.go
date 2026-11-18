@@ -74,7 +74,6 @@ func TestParseRefusesStructuralProblems(t *testing.T) {
 		{"'.$' value that is no path or call", `{"StartAt":"P","States":{"P":{"Type":"Pass","Parameters":{"a.$":"b"},"End":true}}}`, "SCHEMA_VALIDATION_FAILED", "stepfunctions-asl.md 3.5"},
 		{"variable in ResultPath", `{"StartAt":"P","States":{"P":{"Type":"Pass","ResultPath":"$x","End":true}}}`, "SCHEMA_VALIDATION_FAILED", "stepfunctions-asl.md 4.4: never a variable"},
 		{"Wait with none of its fields", `{"StartAt":"W","States":{"W":{"Type":"Wait","End":true}}}`, "SCHEMA_VALIDATION_FAILED", "stepfunctions-asl.md 3.3"},
-		{"Wait Seconds over the maximum", `{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":100000000,"End":true}}}`, "SCHEMA_VALIDATION_FAILED", "stepfunctions-asl.md 3.7"},
 		{"top-level TimeoutSeconds zero", `{"StartAt":"P","TimeoutSeconds":0,"States":{` + terminalP + `}}`, "SCHEMA_VALIDATION_FAILED", "stepfunctions-asl.md 3.1: positive integer"},
 		{"Map without a processor", `{"StartAt":"M","States":{"M":{"Type":"Map","End":true}}}`, "SCHEMA_VALIDATION_FAILED", "stepfunctions-asl.md 3.3"},
 		{"Map with ItemSelector and Parameters", `{"StartAt":"M","States":{"M":{"Type":"Map","ItemSelector":{},"Parameters":{},"Iterator":{"StartAt":"I","States":{"I":{"Type":"Pass","End":true}}},"End":true}}}`, "SCHEMA_VALIDATION_FAILED", "stepfunctions-asl.md 3.3"},

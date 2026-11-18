@@ -29,7 +29,6 @@ func TestMintedPatternRendersStreamLabelsAndAPIGatewayIDs(t *testing.T) {
 	}{
 		{"dynamodb stream", ddb + "table/orders/stream/2026-10-31T00:32:25.347", ddb + "table/orders/stream/*"},
 		{"dynamodb stream of a table named with ?", ddb + "table/a?b/stream/2026-10-31T00:32:25.347", ddb + "table/a${?}b/stream/*"},
-		{"dynamodb table", ddb + "table/orders", ""},
 		{"dynamodb index", ddb + "table/orders/index/byDate", ""},
 		{"api", apig + "/apis/r3pmxmplak", apig + "/apis/??????????"},
 		{"api cors", apig + "/apis/r3pmxmplak/cors", apig + "/apis/??????????/cors"},

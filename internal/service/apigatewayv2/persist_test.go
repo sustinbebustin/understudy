@@ -46,6 +46,10 @@ func TestExportImportRoundTrip(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		// One section per scope (ADR 0009), and one scope holds the API.
+		if len(sections) != 1 {
+			t.Fatalf("Export wrote %d sections, want one for the scope holding the API", len(sections))
+		}
 		h.svc.Reset(kernel.ResetScope{})
 		wantAnswer(t, h.get(id, "/a"), apigatewayv2.FrontAnswersSwitch().Value.UnknownAPI, "after Reset")
 		if err := h.svc.Import(sections); err != nil {
@@ -57,7 +61,13 @@ func TestExportImportRoundTrip(t *testing.T) {
 		if rec := h.get(id, "/s/a"); rec.Code != http.StatusOK {
 			t.Errorf("GET /s/a after Import = %d %s, want the function's 200", rec.Code, rec.Body)
 		}
+		if rec := h.get(id, "/a"); rec.Code != http.StatusOK {
+			t.Errorf("GET /a on the autoDeploy $default stage after Import = %d %s, want the function's 200", rec.Code, rec.Body)
+		}
 		wantAnswer(t, h.get(id, "/s/later"), apigatewayv2.FrontAnswersSwitch().Value.NoRoute, "a route the stage's deployment does not hold, after Import")
+		if n := len(h.fn.invocations()); n != 2 {
+			t.Errorf("%d invocations, want 2, one each for /s/a and /a after Import", n)
+		}
 	})
 }
 

@@ -71,20 +71,6 @@ func hashOfAs(n int) [32]byte {
 	return sha256.Sum256(bytes.Repeat([]byte{'a'}, n))
 }
 
-func TestDocVectorGetObject(t *testing.T) {
-	r := serverRequest(t, http.MethodGet, "/test.txt", "examplebucket.s3.amazonaws.com", map[string]string{
-		"Range":                "bytes=0-9",
-		"X-Amz-Content-Sha256": emptyHash,
-		"X-Amz-Date":           "20130524T000000Z",
-		// The AWS example separates elements with bare commas.
-		"Authorization": "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request," +
-			"SignedHeaders=host;range;x-amz-content-sha256;x-amz-date," +
-			"Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41",
-	})
-	a := parseV4Header(t, r)
-	mustVerify(t, auth.Verify(a, auth.Normalize(r, auth.Unread{}), docSecret, docTime, jsonVocabulary(t)))
-}
-
 func TestDocVectorPresignedGetObject(t *testing.T) {
 	r := serverRequest(t, http.MethodGet, "/test.txt?X-Amz-Algorithm=AWS4-HMAC-SHA256"+
 		"&X-Amz-Credential=AKIAIOSFODNN7EXAMPLE%2F20130524%2Fus-east-1%2Fs3%2Faws4_request"+

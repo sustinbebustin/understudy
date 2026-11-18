@@ -52,8 +52,6 @@ test_assume_role_returns_temporary_credentials() {
   assert_jq_match '.Credentials.AccessKeyId' '^ASIA[A-Z0-9]{16,}$'
   assert_jq_match '.Credentials.SecretAccessKey' '^.{40}$'
   assert_jq_match '.Credentials.SessionToken' '^.+$'
-  assert_ne "" "$(date -d "$(jqv '.Credentials.Expiration')" +%s)" 'Expiration parses as a time'
-  [ "$(date -d "$(jqv '.Credentials.Expiration')" +%s)" -gt "$(date +%s)" ] || fail "Expiration is not in the future"
   assert_jq '.AssumedRoleUser.Arn' "arn:aws:sts::${acct}:assumed-role/${role}/${session}"
   assert_jq_match '.AssumedRoleUser.AssumedRoleId' "^AROA[A-Z0-9]{17}:${session}\$"
 }

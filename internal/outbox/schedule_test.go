@@ -12,7 +12,10 @@ import (
 
 // SNS's AWS-managed policy for SQS and Lambda endpoints (sns.md 7.2): 3
 // retries with no delay, 2 one second apart, 10 backing off exponentially
-// from 1 s to 20 s, then 100,000 twenty seconds apart.
+// from 1 s to 20 s, then 100,000 twenty seconds apart. The backoff phase
+// is 1 s * 20^(k/9) for k = 0..9, truncated to the millisecond: the
+// exponential from 1 s to 20 s in ten steps. AWS does not publish the
+// series; this one meets both documented ends.
 func TestSNSManagedSchedule(t *testing.T) {
 	ms := time.Millisecond
 	want := map[int]time.Duration{
@@ -30,19 +33,6 @@ func TestSNSManagedSchedule(t *testing.T) {
 	}
 	if d, ok := retryDelay(delivery.SNSManaged{}, 100_016, 0); ok {
 		t.Errorf("retry 100,016 is allowed with delay %v; the policy has 100,015 retries", d)
-	}
-}
-
-// The backoff phase is 1 s * 20^(k/9) for k = 0..9, truncated to the
-// millisecond: the exponential from 1 s to 20 s in ten steps. AWS does not
-// publish the series; this one meets both documented ends.
-func TestSNSManagedBackoffIsExponential(t *testing.T) {
-	for k := range 9 {
-		lo, _ := retryDelay(delivery.SNSManaged{}, 6+k, 0)
-		hi, _ := retryDelay(delivery.SNSManaged{}, 7+k, 0)
-		if ratio := float64(hi) / float64(lo); ratio < 1.393 || ratio > 1.397 {
-			t.Errorf("step %d: %v -> %v has ratio %.4f, want 20^(1/9) = 1.3950", k, lo, hi, ratio)
-		}
 	}
 }
 

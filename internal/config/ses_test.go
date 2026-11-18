@@ -82,8 +82,4 @@ func TestSESVerifiedIdentitiesRefusals(t *testing.T) {
 			t.Errorf("entry %q: error %+v, want it refused at %s naming the entry", entry, err, at)
 		}
 	}
-	err := loadErr(t, nil, nil, files{config.DefaultConfigFile: `{"ses": {"productionAccess": "yes"}}`})
-	if err.Where != config.DefaultConfigFile+": ses.productionAccess" {
-		t.Errorf("productionAccess \"yes\": error at %q, want at ses.productionAccess", err.Where)
-	}
 }

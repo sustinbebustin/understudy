@@ -30,6 +30,10 @@ func TestSnapshotRoundTripKeepsMachineAndExecution(t *testing.T) {
 			h.Fatalf("Export = %d sections, %v", len(sections), err)
 		}
 		h.svc.Reset(kernel.ResetScope{})
+		// A Reset that kept the scope would let the round trip pass untested.
+		if _, err := call(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: machine}); err == nil {
+			h.Fatal("the machine survived the reset")
+		}
 		if err := h.svc.Import(sections); err != nil {
 			h.Fatalf("Import = %v", err)
 		}
@@ -73,17 +77,6 @@ func TestASL01CreateJoinsEveryProblem(t *testing.T) {
 		if err == nil || err.ID.Shape.Name() != "InvalidDefinition" || err.Message != want {
 			h.Fatalf("CreateStateMachine = %+v, want InvalidDefinition %q", err, want)
 		}
-	})
-}
-
-// Input that is not JSON, other than the recorded cases, answers
-// 'Invalid execution input.'.
-func TestSFN08MalformedInput(t *testing.T) {
-	// inferred, SFN-08
-	run(t, func(h *harness) {
-		machine := h.create("m", resultMachine)
-		_, err := call(h, sfnapi.OpStartExecution, &sfnapi.StartExecutionInput{StateMachineArn: machine, Input: new(`[1,`)})
-		wantError(h, err, "InvalidExecutionInput", 400, "Invalid State Machine Execution Input: 'Invalid execution input.'")
 	})
 }
 

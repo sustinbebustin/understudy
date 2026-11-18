@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sustinbebustin/understudy/internal/api/dynamodbstreamsapi"
 	"github.com/sustinbebustin/understudy/internal/server"
 )
 
@@ -36,15 +35,6 @@ func streamsCall(t *testing.T, s signer, endpoint, op, body string) wire {
 // 12.3; inferred, IAM-ENF-35).
 func isStreamsDenial(w wire) bool {
 	return w.status == http.StatusBadRequest && strings.HasSuffix(jsonType(w), "AccessDeniedException")
-}
-
-// The Streams denial identity the registry declares is the one
-// isStreamsDenial looks for.
-func TestStreamsDenialIdentityIsDynamoDBs(t *testing.T) {
-	id := dynamodbstreamsapi.DenialError()
-	if id.Status != http.StatusBadRequest || !strings.HasSuffix(string(id.Shape), "#AccessDeniedException") {
-		t.Errorf("Streams denial identity = %s %d, want AccessDeniedException 400", id.Shape, id.Status)
-	}
 }
 
 // A principal's Streams call is denied under

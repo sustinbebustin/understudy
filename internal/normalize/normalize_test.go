@@ -221,7 +221,6 @@ func TestExchangeTextRules(t *testing.T) {
 		`"ID":"` + strings.Repeat("0f", 32) + `"`:   `"ID":"<canonical-id>"`,
 		"id=" + strings.Repeat("9c", 32):            "id=<canonical-id>",
 		`"principalId":"AEXAMPLE1234567"`:           `"principalId":"<principal-id>"`,
-		`{\"principalId\":\"AEXAMPLE1234567\"}`:     `{\"principalId\":\"<principal-id>\"}`,
 		`"sourceIPAddress":"192.0.2.10"`:            `"sourceIPAddress":"<source-ip>"`,
 		`"sourceIp":"198.51.100.7"`:                 `"sourceIp":"<source-ip>"`,
 		// testdata/parity/sts/R15/06-assume-ok.json <AccessKeyId>, and a

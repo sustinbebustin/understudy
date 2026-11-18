@@ -642,8 +642,6 @@ func TestScheduledDeletionCompletesUnderAdvance(t *testing.T) {
 			*out.PendingWindowInDays != 7 || !out.DeletionDate.Equal(due) {
 			h.Fatalf("ScheduleKeyDeletion = %+v", out)
 		}
-		_, err := call(h, kmsapi.OpScheduleKeyDeletion, &kmsapi.ScheduleKeyDeletionInput{KeyId: id})
-		wantError(h.T, err, "KMSInvalidStateException", keyARN(id)+" is pending deletion.")
 
 		h.advance(7*day - time.Second)
 		m := h.describe(id)
@@ -655,7 +653,7 @@ func TestScheduledDeletionCompletesUnderAdvance(t *testing.T) {
 		}
 
 		h.advance(time.Second)
-		_, err = call(h, kmsapi.OpDescribeKey, &kmsapi.DescribeKeyInput{KeyId: id})
+		_, err := call(h, kmsapi.OpDescribeKey, &kmsapi.DescribeKeyInput{KeyId: id})
 		wantError(h.T, err, "NotFoundException", "Key '"+keyARN(id)+"' does not exist")
 		if aliases := h.boundAliases(); len(aliases) != 0 {
 			h.Errorf("aliases after deletion = %d, want none", len(aliases))

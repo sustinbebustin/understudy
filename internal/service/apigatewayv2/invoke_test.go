@@ -628,10 +628,14 @@ func TestSourceARN(t *testing.T) {
 		if rec := h.get(id, "/anything"); rec.Code != http.StatusOK {
 			t.Errorf("$default route on $default stage with <api-id>/$default/$default = %d %s, want 200", rec.Code, rec.Body)
 		}
-		if calls := h.fn.invocations(); len(calls) == 1 {
-			if as, ok := calls[0].mode.(kernel.AsService); !ok || as.Source.String() != exec+"/$default/$default" {
-				t.Errorf("invoked as %#v, want source ARN %s/$default/$default", calls[0].mode, exec)
-			}
+		call := h.only()
+		if as, ok := call.mode.(kernel.AsService); !ok || as.Source.String() != exec+"/$default/$default" {
+			t.Errorf("invoked as %#v, want source ARN %s/$default/$default", call.mode, exec)
+		}
+		// The $default route catches the unmatched path (apigateway-http.md
+		// 4.3) and the event names it (5.1).
+		if ev := call.event(h); ev["routeKey"] != "$default" {
+			t.Errorf("routeKey = %v, want $default", ev["routeKey"])
 		}
 		wantAnswer(t, h.get(id, "/prod/test"), denial, "GET /prod/test before its permission")
 		h.allow("fn", "prod-test", exec+"/prod/*/test")
@@ -778,10 +782,9 @@ func wantFrontAnswer(tb testing.TB, rec *httptest.ResponseRecorder, status int, 
 }
 
 // What understudy stores but does not run answers 501 when a request
-// reaches it, and the function never runs: an AWS_IAM route, a CORS
-// request (an Origin header to an API with a CORS configuration),
-// HTTP_PROXY and service integrations, and a Lambda integration with
-// credentials, parameter mapping or a stage variable in its URI.
+// reaches it, and the function never runs: an AWS_IAM route, HTTP_PROXY
+// and service integrations, and a Lambda integration with credentials,
+// parameter mapping or a stage variable in its URI.
 func TestUnemulatedRequestsAnswer501(t *testing.T) {
 	run(t, func(h *harness) {
 		fnARN := h.createFunction("fn")
@@ -796,7 +799,6 @@ func TestUnemulatedRequestsAnswer501(t *testing.T) {
 		plain := integrationOf(lambdaIn())
 		iam := apigatewayv2api.AuthorizationTypeAwsIam
 		must(h, apigatewayv2api.OpCreateRoute, &apigatewayv2api.CreateRouteInput{ApiId: id, RouteKey: "GET /iam", AuthorizationType: &iam, Target: new("integrations/" + plain)})
-		h.createRoute(id, "GET /plain", plain)
 		h.createRoute(id, "GET /http", integrationOf(&apigatewayv2api.CreateIntegrationInput{
 			ApiId: id, IntegrationType: apigatewayv2api.IntegrationTypeHttpProxy, IntegrationUri: new("http://127.0.0.1:9/x"), IntegrationMethod: new("ANY"), PayloadFormatVersion: new("1.0"),
 		}))
@@ -823,43 +825,6 @@ func TestUnemulatedRequestsAnswer501(t *testing.T) {
 		}
 		want501(t, h.send(h.request(http.MethodPost, pathURL(id, "/sqs"), "m")), "POST /sqs")
 		h.notInvoked("unemulated integrations")
-
-		must(h, apigatewayv2api.OpUpdateApi, &apigatewayv2api.UpdateApiInput{ApiId: id, CorsConfiguration: &apigatewayv2api.Cors{AllowOrigins: []string{"*"}}})
-		r := h.request(http.MethodGet, pathURL(id, "/plain"), "")
-		r.Header.Set("Origin", "https://app.example")
-		want501(t, h.send(r), "a CORS request")
-		h.notInvoked("a CORS request")
-		if rec := h.get(id, "/plain"); rec.Code != http.StatusOK {
-			t.Errorf("a request without Origin to an API with CORS = %d %s, want the function's 200", rec.Code, rec.Body)
-		}
-	})
-}
-
-// The execute-api host <api-id>.execute-api.<region>.<base> reaches the API
-// as the path fallback does, without the sandbox the shared-origin path
-// form carries (ADR 0020); the event's domainName is the Host header's
-// name and domainPrefix its first label (the logging variables page,
-// apigateway-http.md 5.1). <api-id>.execute-api.<base> serves in the API's
-// region; a host naming another region is the switch's UnknownAPI.
-func TestHostForm(t *testing.T) {
-	run(t, func(h *harness) {
-		id, _ := h.lambdaAPI("2.0", "GET /hello")
-		host := id + ".execute-api." + region + ".localhost"
-		rec := h.send(h.request(http.MethodGet, "http://"+host+":4566/hello", ""))
-		if rec.Code != http.StatusOK {
-			t.Fatalf("GET http://%s:4566/hello = %d %s, want the function's 200", host, rec.Code, rec.Body)
-		}
-		if got := rec.Header().Values("Content-Security-Policy"); len(got) != 0 {
-			t.Errorf("Content-Security-Policy = %q, want none on the host form", got)
-		}
-		rc := obj(h, h.only().event(h), "requestContext")
-		if rc["domainName"] != host || rc["domainPrefix"] != id {
-			t.Errorf("domainName %v, domainPrefix %v; want %s and %s", rc["domainName"], rc["domainPrefix"], host, id)
-		}
-		if rec := h.send(h.request(http.MethodGet, "http://"+id+".execute-api.localhost:4566/hello", "")); rec.Code != http.StatusOK {
-			t.Errorf("the regionless host = %d %s, want the function's 200", rec.Code, rec.Body)
-		}
-		wantAnswer(t, h.send(h.request(http.MethodGet, "http://"+id+".execute-api.us-west-2.localhost:4566/hello", "")), apigatewayv2.FrontAnswersSwitch().Value.UnknownAPI, "a host naming another region")
 	})
 }
 

@@ -37,10 +37,13 @@ func TestSnapshotRoundTrip(t *testing.T) {
 		id := must(h, sesapi.OpSendEmail, in).MessageId
 
 		sections, err := h.svc.Export()
-		if err != nil || len(sections) == 0 {
-			h.Fatalf("Export = %d sections, %v", len(sections), err)
+		if err != nil || len(sections) != 1 {
+			h.Fatalf("Export = %d sections, %v; want one for the scope", len(sections), err)
 		}
 		h.svc.Reset(kernel.ResetScope{})
+		if got := h.svc.Scopes(); len(got) != 0 {
+			h.Fatalf("Scopes after Reset = %v, want none", got)
+		}
 		if got := h.attributes(sender, "pending@example.com"); len(got) != 0 {
 			h.Fatalf("after Reset the identities remain: %v", got)
 		}

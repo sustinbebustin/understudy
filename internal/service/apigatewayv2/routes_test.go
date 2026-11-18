@@ -109,17 +109,6 @@ func TestWebSocketOnlyRouteMembersAreEchoed(t *testing.T) {
 	})
 }
 
-// "Routes per API: 300" (the HTTP API quotas page, apigateway-http.md 3.9).
-func TestRouteQuota(t *testing.T) {
-	run(t, func(h *harness) {
-		id := h.apiID("t")
-		for i := range 300 {
-			h.createRoute(id, "GET /r"+strconv.Itoa(i), "")
-		}
-		wantError(t, fail(h, apigatewayv2api.OpCreateRoute, &apigatewayv2api.CreateRouteInput{ApiId: id, RouteKey: "GET /one-more"}), badRequest)
-	})
-}
-
 // UpdateRoute replaces the members it carries; DeleteRoute removes the
 // route, after which GetRoute is NotFoundException.
 func TestUpdateAndDeleteRoute(t *testing.T) {

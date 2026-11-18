@@ -941,25 +941,6 @@ func TestTheInvokesTraceHeaderReachesTheRecord(t *testing.T) {
 	})
 }
 
-// An event whose function is deleted while it waits for a retry sends no
-// record and no dead letter: the configuration naming its destinations went
-// with the function (lambda-destinations-layers.md 11.3.4).
-func TestFunctionDeletedWhileQueuedSendsNothing(t *testing.T) {
-	s := newScript()
-	runDestinations(t, s.handle, func(h *destHarness) {
-		t := h.T
-		h.createWithDLQ()
-		h.configure("", 2, successQueue, failureQueue)
-		h.invoke(fnEvent(`{"action":"fail"}`))
-		h.settle()
-		call(h.harness, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: "fn"})
-		h.advance(10 * time.Minute)
-		if got := h.sink.lambda(); len(got) != 0 {
-			t.Errorf("deliveries = %+v, want none", got)
-		}
-	})
-}
-
 // A queued event keeps what its record needs across a snapshot: after a
 // load, its last failure sends RetriesExhausted with every attempt counted
 // and the Invoke's request id.

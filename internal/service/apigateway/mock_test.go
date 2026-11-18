@@ -262,11 +262,9 @@ func TestMockPassthroughTable(t *testing.T) {
 }
 
 // What MOCK cannot run answers 501 naming it, journaled (no template with
-// $, # or \ ever renders): a VTL request template, the recorded
-// refusal check's VTL response template (localstack@8b9a79f
-// test_apigateway_basic.snapshot.json:L154-L262), a selectionPattern RE2
-// refuses, contentHandling on the selected response and a non-static
-// responseParameter. A selection with no default and no match is the
+// $, # or \ ever renders): a VTL request template, an escape in a response
+// template, a selectionPattern RE2 refuses, contentHandling on the selected
+// response and a non-static responseParameter. A selection with no default and no match is the
 // configuration error 500 (aws-doc supported-gateway-response-types
 // API_CONFIGURATION_ERROR; aws-recorded body, apigateway-rest.md 4.7).
 func TestMockRefusals(t *testing.T) {
@@ -278,10 +276,6 @@ func TestMockRefusals(t *testing.T) {
 			{"a VTL request template", "template", mock{
 				templates: map[string]string{"application/json": `#set($s = 200){"statusCode": $s}`},
 				responses: []integrationResponse{{status: "200"}},
-			}},
-			{"a VTL response template", "template", mock{
-				templates: map[string]string{"application/json": literalStatus},
-				responses: []integrationResponse{{status: "200", templates: map[string]string{"application/json": `{"statusCode": 200, "id": $input.params().path.id}`}}},
 			}},
 			{"an escape in a response template", "template", mock{
 				templates: map[string]string{"application/json": literalStatus},

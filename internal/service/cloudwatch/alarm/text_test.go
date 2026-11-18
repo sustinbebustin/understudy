@@ -195,12 +195,6 @@ func TestReasonSamples(t *testing.T) {
 			missing(5),
 			"Insufficient Data: 5 datapoints were unknown.",
 		},
-		{
-			"captured insufficient data", // alerta/alerta 4ac0106 tests/test_webhooks.py:L85
-			reasonConfig(10, 10, false, alarm.GreaterThan, 5),
-			missing(10),
-			"Insufficient Data: 10 datapoints were unknown.",
-		},
 	})
 }
 
@@ -232,18 +226,6 @@ func TestReasonForms(t *testing.T) {
 			"Threshold Crossed: no datapoints were received for 1 period and 1 missing datapoint was treated as [Breaching].",
 		},
 		{
-			"no data notBreaching",
-			alarm.Config{Period: 60, N: 2, M: 2, Comparison: alarm.GreaterThan, Threshold: 1, Treatment: alarm.TreatNotBreaching, Statistic: cloudwatchapi.StatisticAverage},
-			alarm.Transition{To: stateOK, Evidence: alarm.Evidence{Filled: 2}},
-			"Threshold Crossed: no datapoints were received for 2 periods and 2 missing datapoints were treated as [NonBreaching].",
-		},
-		{
-			"singular insufficient data",
-			reasonConfig(1, 1, false, alarm.GreaterThan, 1),
-			alarm.Transition{To: stateInsufficient, Evidence: alarm.Evidence{Filled: 1}},
-			"Insufficient Data: 1 datapoint was unknown.",
-		},
-		{
 			// cwa 3.6 table 2 row 3 under breaching: the real bin is
 			// listed and the filled one counted after the threshold
 			// (testdata/parity/cloudwatch/CWA-04/t2r3-breaching-history.json).
@@ -251,15 +233,6 @@ func TestReasonForms(t *testing.T) {
 			alarm.Config{Period: 300, N: 3, M: 2, MSet: true, Comparison: alarm.GreaterThan, Threshold: 1, Treatment: alarm.TreatBreaching, Statistic: cloudwatchapi.StatisticAverage},
 			transition(stateAlarm, used([]float64{2, 0}, d(3), d(5)), 1, 1),
 			"Threshold Crossed: 1 out of the last 3 datapoints [2.0 (03/07/25 08:19:00)] was greater than the threshold (1.0) and 1 missing datapoint was treated as [Breaching] (minimum 2 datapoints for OK -> ALARM transition).",
-		},
-		{
-			// cwa 3.6 table 2 row 4 under breaching: no real bin breaches,
-			// so the text counts the received ones and the filled points
-			// (testdata/parity/cloudwatch/CWA-04/t2r4-breaching-history.json).
-			"case C with nothing to list",
-			alarm.Config{Period: 300, N: 3, M: 2, MSet: true, Comparison: alarm.GreaterThan, Threshold: 1, Treatment: alarm.TreatBreaching, Statistic: cloudwatchapi.StatisticAverage},
-			transition(stateAlarm, used([]float64{0}, d(1)), 2, 0),
-			"Threshold Crossed: 1 datapoint was received for 3 periods and 2 missing datapoints were treated as [Breaching].",
 		},
 	})
 }

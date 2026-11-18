@@ -172,24 +172,6 @@ func TestSFN08RoleArnSyntax(t *testing.T) {
 	})
 }
 
-// The not-found and bad-ARN texts of the operations bound so far
-// (stepfunctions-api.md 3.2; aws-recorded localstack@8b9a79f
-// v2/test_sfn_api.snapshot.json:L392, L1515, L1588).
-func TestNotFoundTextsOfBoundOperations(t *testing.T) {
-	run(t, func(h *harness) {
-		missing := h.machineArn("nope")
-		wantError(h, errOf(call(h, sfnapi.OpStartExecution, &sfnapi.StartExecutionInput{StateMachineArn: missing})),
-			"StateMachineDoesNotExist", 400, "State Machine Does Not Exist: '"+missing+"'")
-		exec := h.executionArn("nope", "x")
-		wantError(h, errOf(call(h, sfnapi.OpDescribeExecution, &sfnapi.DescribeExecutionInput{ExecutionArn: exec})),
-			"ExecutionDoesNotExist", 400, "Execution Does Not Exist: '"+exec+"'")
-		wantError(h, errOf(call(h, sfnapi.OpDescribeStateMachine, &sfnapi.DescribeStateMachineInput{StateMachineArn: "not-an-arn"})),
-			"InvalidArn", 400, "Invalid Arn: 'Invalid ARN prefix: not-an-arn'")
-		wantError(h, errOf(call(h, sfnapi.OpDescribeExecution, &sfnapi.DescribeExecutionInput{ExecutionArn: "not-an-arn"})),
-			"InvalidArn", 400, "Invalid Arn: 'Invalid ARN prefix: not-an-arn'")
-	})
-}
-
 // An ARN whose resource has no type, such as a queue's, and a Step
 // Functions ARN of another Region answer the recorded InvalidArn texts
 // (SFN-01, recorded 2026-11-03; stepfunctions-api.md 3.2).

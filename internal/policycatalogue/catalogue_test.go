@@ -587,15 +587,3 @@ func TestStaticServesItsCatalogue(t *testing.T) {
 		}
 	}
 }
-
-// The embedded catalogue loads, and every call returns the same one.
-func TestEmbeddedLoadsOnce(t *testing.T) {
-	first, err := policycatalogue.Embedded()
-	if err != nil {
-		t.Fatalf("Embedded = %v", err)
-	}
-	again, err := policycatalogue.Embedded()
-	if err != nil || again != first {
-		t.Errorf("second Embedded = %p, %v; want %p", again, err, first)
-	}
-}

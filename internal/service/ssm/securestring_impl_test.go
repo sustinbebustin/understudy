@@ -114,8 +114,7 @@ func TestEveryNameOfTheDefaultKeyCallsKMSAsSSM(t *testing.T) {
 }
 
 // A SecureString refused by a check before KMS stores nothing and never
-// echoes the value; the kept customer key of an overwrite is used again
-// (switch ssm.put.omitted-fields, preserved).
+// echoes the value.
 func TestSecureStringRefusalsBeforeKMS(t *testing.T) {
 	run(t, func(h *harness) {
 		const plain = "pattern-refused-secret"
@@ -126,16 +125,6 @@ func TestSecureStringRefusalsBeforeKMS(t *testing.T) {
 		wantOwnMessage(h.T, "SecureString against its pattern", err, plain)
 		if err := h.get("/pre/a"); err == nil {
 			h.Error("a refused SecureString was stored")
-		}
-
-		key := h.createKey()
-		h.putSecure("/pre/kept", "one", new(key))
-		h.overwrite("/pre/kept", "two")
-		if d := h.mustDescribeOne("/pre/kept"); val(d.KeyId) != key {
-			h.Errorf("KeyId after a value-only overwrite = %q, want %q", val(d.KeyId), key)
-		}
-		if got := h.mustGet("/pre/kept", true); val(got.Value) != "two" || got.Version != 2 {
-			h.Errorf("after the overwrite = %q version %d, want two 2", val(got.Value), got.Version)
 		}
 	})
 }

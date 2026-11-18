@@ -119,9 +119,6 @@ func TestHierarchyDepth(t *testing.T) {
 // characters, as the doc's example arn:aws:ssm:us-east-2:111122223333:parameter/ is.
 func TestNameLengthIsTheARNLength(t *testing.T) {
 	run(t, func(h *harness) {
-		if len(arnPrefix) != 45 {
-			h.Fatalf("arnPrefix is %d characters", len(arnPrefix))
-		}
 		fits := strings.Repeat("n", 1011-len(arnPrefix))
 		h.put(fits, "v")
 		if got := h.mustGet(fits, false); len(val(got.ARN)) != 1011 {

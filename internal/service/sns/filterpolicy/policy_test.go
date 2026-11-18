@@ -249,8 +249,7 @@ func TestMatchUndecided(t *testing.T) {
 // Each of those sns/R09 recorded at its value is aws-recorded, its
 // recording replayed by TestRecordedSubscribes and TestRecordedDeliveries
 // (ADR 0003, amendment 2026-11-13); the list forms of anything-but, only
-// one of which R09 sent, and the limit order stay inferred. The behaviors
-// sns/R09 settles with no choice left are fixed and listed no more.
+// one of which R09 sent, and the limit order stay inferred.
 func TestSwitches(t *testing.T) {
 	t.Parallel()
 	type setting struct {
@@ -276,14 +275,6 @@ func TestSwitches(t *testing.T) {
 	} {
 		if g, ok := got[name]; !ok || g != want {
 			t.Errorf("switch %s = %+v (present %v), want %+v", name, g, ok, want)
-		}
-	}
-	for _, name := range []string{
-		"sns.filter-policy.empty-input", "sns.filter-policy.exists-true-empty-value",
-		"sns.filter-policy.ignore-case-forms", "sns.filter-policy.key-counting",
-	} {
-		if g, ok := got[name]; ok {
-			t.Errorf("switch %s = %+v is listed; sns/R09 settles it", name, g)
 		}
 	}
 }

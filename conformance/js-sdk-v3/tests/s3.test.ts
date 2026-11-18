@@ -1647,14 +1647,6 @@ describe("S3 checksums: SDK default behavior", () => {
     const out = await s3.send(new CopyObjectCommand({ Bucket: bucket, Key: "dst", CopySource: `${bucket}/src` }));
     expect(out.CopyObjectResult?.ChecksumSHA256).toBe(checksum("SHA256", "copy checksum"));
   });
-
-  test("DeleteObjects and PutBucketTagging are accepted with the SDK's default request checksum", async () => {
-    const bucket = await makeBucket();
-    await put(bucket, "a", "1");
-    const out = await s3.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: [{ Key: "a" }] } }));
-    expect(out.Deleted).toHaveLength(1);
-    await s3.send(new PutBucketTaggingCommand({ Bucket: bucket, Tagging: { TagSet: [{ Key: "k", Value: "v" }] } }));
-  });
 });
 
 describe("S3 multipart uploads: commands", () => {

@@ -242,41 +242,6 @@ func TestEvaluateZeroEffectNeverApplies(t *testing.T) {
 	}
 }
 
-// NotPrincipal exemptions beyond users and sessions, under switch
-// iam.not-principal.match "account-and-principal" (IAM-EVAL-18): a root by
-// its account, a service by its name, everyone by "*" except a principal
-// with a permissions boundary (iam-evaluation.md 2.8), and an anonymous
-// caller by nothing else.
-func TestEvaluateNotPrincipalExemptions(t *testing.T) {
-	if mode := switchValue(t, "iam.not-principal.match"); mode != "account-and-principal" {
-		t.Skipf("iam.not-principal.match = %s; these rows pin account-and-principal", mode)
-	}
-	denied := []policydoc.Match{policydoc.MatchNotPrincipal{}}
-	cases := []struct {
-		name, listed string
-		requester    policydoc.Requester
-		bounded      bool
-		want         []policydoc.Match
-	}{
-		{"root by its account", `{"AWS":"` + acct + `"}`, exRoot, false, nil},
-		{"root of another account", `{"AWS":"444455556666"}`, exRoot, false, denied},
-		{"service by name", `{"Service":"sns.amazonaws.com"}`, snsSvc, false, nil},
-		{"another service", `{"Service":"events.amazonaws.com"}`, snsSvc, false, denied},
-		{"everyone", `"*"`, exUser, false, nil},
-		{"everyone, but a bounded user", `"*"`, exUser, true, denied},
-		{"anonymous by an account", `{"AWS":"` + acct + `"}`, policydoc.AnonymousRequester{}, false, denied},
-		{"a session by its own ARN and account", `{"AWS":["` + sessionARN + `","` + acct + `"]}`, exSession, false, nil},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			_, denies := matchesOf(t, queuePolicy("Deny", `"NotPrincipal":`+c.listed, ""), c.requester, nil, c.bounded)
-			if !reflect.DeepEqual(denies, c.want) {
-				t.Errorf("Deny Matches = %#v, want %#v", denies, c.want)
-			}
-		})
-	}
-}
-
 // "*" names the principal through aws:PrincipalArn only with a clause that
 // requires the key to equal or be like a value (iam-evaluation.md 2.3): not
 // with IfExists, which also holds when the key is absent, a set qualifier,

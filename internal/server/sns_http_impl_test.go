@@ -14,14 +14,20 @@ import (
 	"github.com/sustinbebustin/understudy/internal/server"
 )
 
-// refusalReasons returns each journaled sns-to-http refusal's reason.
-func refusalReasons(t *testing.T, c *admin.Client) []string {
+// refusal is a journaled sns-to-http refusal's reason and HTTP class, the
+// class empty when the event carries none.
+type refusal struct {
+	reason, class string
+}
+
+// refusals returns each journaled sns-to-http refusal.
+func refusals(t *testing.T, c *admin.Client) []refusal {
 	t.Helper()
 	page, err := c.JournalEvents(t.Context(), admin.JournalQuery{Kind: "delivery"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var reasons []string
+	var out []refusal
 	for i := range page.Events {
 		var d struct {
 			Mechanism string `json:"mechanism"`
@@ -29,15 +35,22 @@ func refusalReasons(t *testing.T, c *admin.Client) []string {
 				Kind   string `json:"kind"`
 				Reason string `json:"reason"`
 			} `json:"outcome"`
+			HTTP *struct {
+				Class string `json:"class"`
+			} `json:"http"`
 		}
 		if err := json.Unmarshal(page.Events[i].Detail, &d); err != nil {
 			t.Fatalf("delivery event %s: %v", page.Events[i].Detail, err)
 		}
 		if d.Mechanism == "sns-to-http" && d.Outcome.Kind == "refused" {
-			reasons = append(reasons, d.Outcome.Reason)
+			r := refusal{reason: d.Outcome.Reason}
+			if d.HTTP != nil {
+				r.class = d.HTTP.Class
+			}
+			out = append(out, r)
 		}
 	}
-	return reasons
+	return out
 }
 
 // A client that addresses understudy by an AWS name, here under an S3 base
@@ -123,9 +136,10 @@ func TestSNSHTTPLinksNeverNameTheClientsAWSHost(t *testing.T) {
 	}
 }
 
-// The default list refuses a receiver as not allowed and names the setting
-// that lifts it; understudy's own listeners are refused as its own, which
-// no setting lifts (sns-http-delivery.md 7.2, 7.3).
+// The default list allows nothing: it refuses a receiver as not allowed,
+// before any request reaches it, journaled with the refused HTTP class, and
+// names the setting that lifts it; understudy's own listeners are refused
+// as its own, which no setting lifts (sns-http-delivery.md 7.2, 7.3, 8.2).
 func TestSNSHTTPDeliveryRefusalsNameTheirCause(t *testing.T) {
 	rcv := newReceiver(t, false)
 	t.Run("the default list", func(t *testing.T) {
@@ -133,9 +147,12 @@ func TestSNSHTTPDeliveryRefusalsNameTheirCause(t *testing.T) {
 		topic := element(t, mustSNS(t, endpoint, url.Values{"Action": {"CreateTopic"}, "Name": {"hooks"}}), "TopicArn")
 		mustSNS(t, endpoint, url.Values{"Action": {"Subscribe"}, "TopicArn": {topic}, "Protocol": {"http"}, "Endpoint": {rcv.srv.URL + "/hook"}})
 		settleServer(t, c)
-		reasons := refusalReasons(t, c)
-		if len(reasons) != 1 || !strings.Contains(reasons[0], "(not-allowed)") || !strings.Contains(reasons[0], `to sns.httpDelivery.allow`) {
-			t.Errorf("refusals %q, want one not-allowed naming sns.httpDelivery.allow", reasons)
+		if n := len(rcv.ofType("SubscriptionConfirmation")); n != 0 {
+			t.Errorf("an unlisted receiver got %d confirmations", n)
+		}
+		rs := refusals(t, c)
+		if len(rs) != 1 || !strings.Contains(rs[0].reason, "(not-allowed)") || !strings.Contains(rs[0].reason, `to sns.httpDelivery.allow`) || rs[0].class != "refused" {
+			t.Errorf("refusals %+v, want one not-allowed naming sns.httpDelivery.allow, classed refused", rs)
 		}
 	})
 	t.Run("understudy's own listeners", func(t *testing.T) {
@@ -145,13 +162,13 @@ func TestSNSHTTPDeliveryRefusalsNameTheirCause(t *testing.T) {
 			mustSNS(t, endpoint, url.Values{"Action": {"Subscribe"}, "TopicArn": {topic}, "Protocol": {protocol}, "Endpoint": {own}})
 		}
 		settleServer(t, c)
-		reasons := refusalReasons(t, c)
-		if len(reasons) != 2 {
-			t.Fatalf("refusals %q, want two", reasons)
+		rs := refusals(t, c)
+		if len(rs) != 2 {
+			t.Fatalf("refusals %+v, want two", rs)
 		}
-		for _, r := range reasons {
-			if !strings.Contains(r, "(own-listener)") {
-				t.Errorf("refusal %q, want own-listener", r)
+		for _, r := range rs {
+			if !strings.Contains(r.reason, "(own-listener)") {
+				t.Errorf("refusal %q, want own-listener", r.reason)
 			}
 		}
 	})

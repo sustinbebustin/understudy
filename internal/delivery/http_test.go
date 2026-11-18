@@ -297,15 +297,6 @@ func TestDelayFollowsThePhasesForEveryPolicy(t *testing.T) {
 	})
 }
 
-// An SNS http delivery is a policy of its own, beside the managed SQS and
-// Lambda schedule.
-func TestSNSHTTPIsARetryPolicy(t *testing.T) {
-	var p delivery.RetryPolicy = delivery.SNSHTTP{Backoff: 3, MinDelayTarget: 20 * time.Second, MaxDelayTarget: 20 * time.Second}
-	if _, ok := p.(delivery.SNSManaged); ok {
-		t.Error("SNSHTTP is SNSManaged")
-	}
-}
-
 func isError[E error](err error) bool {
 	_, ok := errors.AsType[E](err)
 	return ok

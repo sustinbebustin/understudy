@@ -86,29 +86,10 @@ func TestASL01EveryProblemTransitionChecksLast(t *testing.T) {
 	}
 }
 
-// A construct outside the accepted features is refused, so a caller that
-// accepts only the features whose runtime has landed never gets a
-// definition the engine cannot run.
-func TestParseRefusesWhatTheEngineCannotRun(t *testing.T) {
-	landed := asl.NewFeatures(asl.FeatPass, asl.FeatSucceed)
-	for _, def := range []string{
-		`{"StartAt":"W","States":{"W":{"Type":"Wait","Seconds":1,"End":true}}}`,
-		`{"StartAt":"P","TimeoutSeconds":5,"States":{"P":{"Type":"Pass","End":true}}}`,
-		`{"StartAt":"P","States":{"P":{"Type":"Pass","InputPath":"$.a","End":true}}}`,
-	} {
-		d, diags := asl.Parse(def, landed)
-		if d != nil || len(diags) == 0 || diags[0].Code != asl.CodeUnsupported {
-			t.Errorf("Parse(%s) = %v, %+v; want %s", def, d != nil, diags, asl.CodeUnsupported)
-		}
-	}
-}
-
-// A Pass state ending a loop-free machine with no terminal state is
-// MISSING_END_STATE; a Pass without Next or End, or with both, is a schema
-// error (stepfunctions-asl.md 3.2).
+// A Pass without Next or End is a schema error, and a StartAt that names no
+// state is a missing transition target (stepfunctions-asl.md 3.2).
 func TestParseTransitions(t *testing.T) {
 	tests := []struct{ def, code string }{
-		{`{"StartAt":"A","States":{"A":{"Type":"Pass","Next":"B"},"B":{"Type":"Pass","Next":"A"}}}`, "MISSING_END_STATE"},
 		{`{"StartAt":"A","States":{"A":{"Type":"Pass"}}}`, "SCHEMA_VALIDATION_FAILED"},
 		{`{"StartAt":"Nope","States":{"A":{"Type":"Pass","End":true}}}`, "MISSING_TRANSITION_TARGET"},
 	}

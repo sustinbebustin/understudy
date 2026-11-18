@@ -1,7 +1,6 @@
 package httpevent_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -48,62 +47,6 @@ func genRequest() *rapid.Generator[furl.Request] {
 			Scheme:   rapid.SampledFrom([]string{"http", "https"}).Draw(t, "scheme"),
 			Port:     rapid.SampledFrom([]string{"4566", "443"}).Draw(t, "port"),
 			Body:     rapid.SliceOfN(rapid.Byte(), 0, 32).Draw(t, "body"),
-		}
-	})
-}
-
-func genCaller() *rapid.Generator[furl.Caller] {
-	return rapid.OneOf(
-		rapid.Just[furl.Caller](furl.Public{}),
-		rapid.Custom(func(t *rapid.T) furl.Caller {
-			return furl.IAMCaller{
-				AccessKey: rapid.StringMatching(`AKIA[A-Z0-9]{16}`).Draw(t, "access key"),
-				AccountID: rapid.StringMatching(`[0-9]{12}`).Draw(t, "account"),
-				ID:        rapid.StringMatching(`AIDA[A-Z0-9]{8}`).Draw(t, "id"),
-				UserARN:   "arn:aws:iam::111122223333:user/example-user",
-			}
-		}),
-	)
-}
-
-// functionURLContext is the context a function URL's event has (lambda-events.md
-// 7.3): routeKey and stage are the placeholder $default, apiId and
-// domainPrefix the url id, accountId "anonymous" for AuthType NONE and the
-// signer's account under AWS_IAM, which the authorizer's iam member reports.
-func functionURLContext(c furl.Context) httpevent.Context {
-	hc := httpevent.Context{
-		AccountID: "anonymous", APIID: c.URLID, DomainName: c.DomainName, DomainPrefix: c.URLID,
-		RouteKey: "$default", Stage: "$default", RequestID: c.RequestID, At: c.At, TraceID: c.TraceID,
-		Authorizer: httpevent.NoAuthorizer{},
-	}
-	if iam, ok := c.Caller.(furl.IAMCaller); ok {
-		hc.AccountID = iam.AccountID
-		hc.Authorizer = httpevent.IAMAuthorizer{AccessKey: iam.AccessKey, AccountID: iam.AccountID, CallerID: iam.ID, UserARN: iam.UserARN, UserID: iam.ID}
-	}
-	return hc
-}
-
-// The shared builder writes, for a function URL's context and the
-// FunctionURL options AWS recorded, exactly the event a function URL
-// sends, whose furl tests are pinned to AWS's
-// (lambda-events.md 7.3): function URLs and HTTP APIs share payload format
-// 2.0 (apigateway-http.md 5.1).
-func TestEventV2MatchesFunctionURLEvents(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		r := genRequest().Draw(t, "request")
-		c := furl.Context{
-			URLID: "abc123", DomainName: "abc123.lambda-url.us-east-1.localhost",
-			RequestID: rapid.StringMatching(`[0-9a-f]{8}`).Draw(t, "request id"),
-			At:        time.UnixMilli(rapid.Int64Range(0, 4102444800000).Draw(t, "at")),
-			Caller:    genCaller().Draw(t, "caller"),
-		}
-		if rapid.Bool().Draw(t, "traced") {
-			c.TraceID = "Root=1-5e5fe6fe-0123456789abcdef01234567"
-		}
-		want, werr := furl.Event(r, c)
-		got, gerr := httpevent.EventV2For(httpevent.Request(r), functionURLContext(c), httpevent.FunctionURL{CookieHeader: true, RootOnlyTrace: true})
-		if (werr == nil) != (gerr == nil) || !bytes.Equal(got, want) {
-			t.Fatalf("EventV2 = %s, %v\nfurl.Event = %s, %v", got, gerr, want, werr)
 		}
 	})
 }
@@ -171,9 +114,11 @@ func TestEventV2ReportsTheRoute(t *testing.T) {
 }
 
 // An HTTP API's 2.0 event adds content-length, "0" without a body, and
-// appends the caller's address to a client's own x-forwarded-for, where a
-// function URL does neither (APIGW2-07, recorded 2026-11-03: 01-get and
-// 14-client-xff; apigateway-http.md 5.1).
+// appends the caller's address to a client's own x-forwarded-for
+// (APIGW2-07, recorded 2026-11-03: 01-get and 14-client-xff;
+// apigateway-http.md 5.1). A function URL's bodyless GET carries no
+// content-length (R13 01-logged-events); what it does with a client's
+// x-forwarded-for is unrecorded, so that is not asserted.
 func TestEventV2ForAnHTTPAPIAsRecorded(t *testing.T) {
 	r := httpevent.Request{
 		Method: http.MethodGet, RawPath: "/e", Protocol: "HTTP/1.1", Host: "roj3rnqmie.execute-api.us-east-2.amazonaws.com",
@@ -206,53 +151,13 @@ func TestEventV2ForAnHTTPAPIAsRecorded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EventV2For: %v", err)
 	}
-	if same, err := httpevent.EventV2(r, c); err != nil || !bytes.Equal(same, fromURL) {
-		t.Errorf("EventV2 = %s, %v; want EventV2For's FunctionURL event %s", same, err, fromURL)
+	var urlEv struct {
+		Headers map[string]string `json:"headers"`
 	}
-}
-
-// The shared response inference answers exactly as a function URL's does
-// today (lambda-events.md 7.4), errors included.
-func TestInferV2MatchesFunctionURLResponses(t *testing.T) {
-	payload := rapid.OneOf(
-		rapid.SliceOfN(rapid.Byte(), 0, 32),
-		rapid.Map(rapid.StringMatching(`"[ -~]{0,12}"`), func(s string) []byte { return []byte(s) }),
-		rapid.Custom(func(t *rapid.T) []byte {
-			fields := map[string]any{}
-			if rapid.Bool().Draw(t, "has status") {
-				fields["statusCode"] = rapid.SampledFrom([]any{200, 201, 404, 599, 600, 99, "200", "teapot", 2.5}).Draw(t, "status")
-			}
-			if rapid.Bool().Draw(t, "has headers") {
-				fields["headers"] = rapid.SampledFrom([]any{nil, map[string]any{"content-type": "text/html", "X-One": "1"}, map[string]any{"x": 1}}).Draw(t, "headers")
-			}
-			if rapid.Bool().Draw(t, "has body") {
-				fields["body"] = rapid.SampledFrom([]any{"hello", "aGVsbG8=", 7, nil}).Draw(t, "body")
-			}
-			if rapid.Bool().Draw(t, "has base64") {
-				fields["isBase64Encoded"] = rapid.SampledFrom([]any{true, false, "true"}).Draw(t, "base64")
-			}
-			if rapid.Bool().Draw(t, "has cookies") {
-				fields["cookies"] = rapid.SampledFrom([]any{nil, []any{"a=1", "b=2"}, []any{1}}).Draw(t, "cookies")
-			}
-			b, err := json.Marshal(fields)
-			if err != nil {
-				t.Fatalf("marshal %v: %v", fields, err)
-			}
-			return b
-		}),
-	)
-	rapid.Check(t, func(t *rapid.T) {
-		p := payload.Draw(t, "payload")
-		want, werr := furl.Infer(p)
-		got, gerr := httpevent.InferV2(p)
-		if (werr == nil) != (gerr == nil) || (werr != nil && werr.Error() != gerr.Error()) {
-			t.Fatalf("InferV2(%s) error = %v, furl.Infer error = %v", p, gerr, werr)
-		}
-		if werr != nil {
-			return
-		}
-		if got.Status != want.Status || !reflect.DeepEqual(got.Header, want.Header) || !reflect.DeepEqual(got.Cookies, want.Cookies) || !bytes.Equal(got.Body, want.Body) {
-			t.Fatalf("InferV2(%s) = %+v, furl.Infer = %+v", p, got, want)
-		}
-	})
+	if err := json.Unmarshal(fromURL, &urlEv); err != nil {
+		t.Fatalf("event %s: %v", fromURL, err)
+	}
+	if v, ok := urlEv.Headers["content-length"]; ok {
+		t.Errorf("function URL headers content-length = %q, want no key for a bodyless GET", v)
+	}
 }

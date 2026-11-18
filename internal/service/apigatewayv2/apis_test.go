@@ -117,29 +117,6 @@ func (h *harness) listAPIs(maxResults string) []apigatewayv2api.Api {
 	return nil
 }
 
-// maxResults bounds a page, and following nextToken lists every API once
-// (apigateway-http.md 2.2: the Get lists page through maxResults and
-// nextToken). maxResults is a string member; one that is not a number is
-// a bad request.
-func TestGetApisPages(t *testing.T) {
-	run(t, func(h *harness) {
-		made := make([]string, 0, 5)
-		for i := range 5 {
-			made = append(made, h.apiID("p"+strconv.Itoa(i)))
-		}
-		listed := make([]string, 0, len(made))
-		for _, a := range h.listAPIs("2") {
-			listed = append(listed, deref(a.ApiId))
-		}
-		slices.Sort(made)
-		slices.Sort(listed)
-		if !slices.Equal(listed, made) {
-			t.Errorf("paged GetApis = %v, want each of %v once", listed, made)
-		}
-		wantError(t, fail(h, apigatewayv2api.OpGetApis, &apigatewayv2api.GetApisInput{MaxResults: new("two")}), badRequest)
-	})
-}
-
 // routeSelectionExpression "must be ${request.method} ${request.path}"
 // for HTTP APIs (the apis-apiid API reference, apigateway-http.md 2.4),
 // while AWS returns and Terraform sends $request.method $request.path

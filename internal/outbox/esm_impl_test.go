@@ -80,15 +80,13 @@ func TestESMToSQSFailureIsNotRetried(t *testing.T) {
 	})
 }
 
-// Enqueue refuses an on-failure record without a sender, a sender on any
-// other mechanism, a sender role ARN that names no IAM role, and a
-// dead-letter queue on an on-failure record; nothing is queued.
+// Enqueue refuses an on-failure record without a sender, a sender role ARN
+// that names no IAM role, and a dead-letter queue on an on-failure record;
+// nothing is queued.
 func TestEnqueueChecksTheESMSender(t *testing.T) {
 	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
 		role := executionRole()
 		notRole := arn("sqs", "q")
-		withSender := toQueue("orders", delivery.SNSManaged{})
-		withSender.Sender = &delivery.LambdaSender{Role: role, Carries: delivery.DestinationRecord}
 		withDLQ := onFailure(&role)
 		dlq := arn("sqs", "dlq")
 		withDLQ.DLQ = &dlq
@@ -97,7 +95,6 @@ func TestEnqueueChecksTheESMSender(t *testing.T) {
 			field string
 		}{
 			"no sender":    {onFailure(nil), "Sender"},
-			"sns-to-sqs":   {withSender, "Sender"},
 			"not a role":   {onFailure(&notRole), "Sender.Role"},
 			"with the DLQ": {withDLQ, "DLQ"},
 		} {

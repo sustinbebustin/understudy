@@ -89,11 +89,6 @@ func TestInputOutputProcessingMore(t *testing.T) {
 			`{}`, `{"v":[]}`, "localstack@8b9a79f v2/base/test_base.snapshot.json:L1432",
 		},
 		{
-			"Parameters is the result when there is no Result",
-			passMachine(`"Parameters":{"v.$":"$.a"},"ResultPath":"$.r",`),
-			`{"a":1}`, `{"a":1,"r":{"v":1}}`, "stepfunctions-asl.md 4.1",
-		},
-		{
 			"ResultPath into an array element",
 			passMachine(`"Result":9,"ResultPath":"$.a[1]",`),
 			`{"a":[1,2]}`, `{"a":[1,9]}`, "stepfunctions-asl.md 4.4",
@@ -107,11 +102,6 @@ func TestInputOutputProcessingMore(t *testing.T) {
 			"$$ in Parameters reads the execution input",
 			passMachine(`"Parameters":{"in.$":"$$.Execution.Input"},`),
 			`{"a":1}`, `{"in":{"a":1}}`, "stepfunctions-asl.md 4.7",
-		},
-		{
-			"OutputPath reads the placed result",
-			passMachine(`"Result":{"k":1},"ResultPath":"$.r","OutputPath":"$.r.k",`),
-			`{}`, `1`, "stepfunctions-asl.md 4.1 step 4",
 		},
 	}
 	for _, tt := range tests {

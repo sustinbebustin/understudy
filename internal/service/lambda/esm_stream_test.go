@@ -992,7 +992,8 @@ func TestStreamReportBatchItemFailuresMatrix(t *testing.T) {
 // lambda.esm-stream.partial-resend-budget (inferred, ESMS-08) decides the
 // sixth record's deliveries: restart gives the resend its own four (five in
 // all, as the recording's logs show), shared continues the batch's count
-// (four in all).
+// (four in all). Either way the reader then moves on ("Lambda discards the
+// records and continues", aws-doc, lambda-stream-sources.md 5.1).
 func TestStreamPartialFailureResendBudgetSwitch(t *testing.T) {
 	for _, budget := range []esm.ResendBudget{esm.ResendRestart, esm.ResendShared} {
 		t.Run(budget.String(), func(t *testing.T) {
@@ -1040,6 +1041,11 @@ func TestStreamPartialFailureResendBudgetSwitch(t *testing.T) {
 				if f.Info.BatchSize != 1 || f.Info.Start != sixth || f.Info.End != sixth || f.RequestContext.ApproximateInvokeCount != 4 ||
 					f.ResponseContext == nil || f.ResponseContext.FunctionError != nil {
 					h.Errorf("on-failure record %+v", f)
+				}
+				h.stream.add(h.Clock.Now(), "7")
+				h.quiesce()
+				if ids := h.rec.ids(); !slices.Equal(ids[len(ids)-1], []string{"7"}) {
+					h.Errorf("after the discard the reader read %v, want [7]", ids[len(ids)-1])
 				}
 			})
 		})

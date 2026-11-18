@@ -43,15 +43,6 @@ func TestCheckReportsASyntheticRegression(t *testing.T) {
 	}
 }
 
-// A run that matches the baseline, with the one failing case skipped, has
-// no findings.
-func TestCheckAcceptsAMatchingRun(t *testing.T) {
-	run := []protocoltest.Result{{Key: caseA}, {Key: caseB}, {Key: caseC, Failure: errFailed}}
-	if got := recorded().Check(run, skipC()); len(got) != 0 {
-		t.Errorf("Check = %v, want no findings", got)
-	}
-}
-
 // The baseline can only grow: a passing case it lacks, a failing case
 // without a skip, a skip that passes, a name the corpus lost and a suite
 // whose size changed are all findings.

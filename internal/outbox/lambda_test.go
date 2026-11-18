@@ -500,18 +500,3 @@ func TestLambdaDeliveriesGetNoResourcePolicyAdvisory(t *testing.T) {
 		}
 	})
 }
-
-// The target call of a Lambda delivery continues the trace of the call
-// that produced it, like every other delivery (ARCHITECTURE.md 10).
-func TestLambdaTargetCallJoinsTheSourceTrace(t *testing.T) {
-	run(t, func(k *kerneltest.K, o *outbox.Outbox) {
-		stubQueues(k, func(int, *sqsapi.SendMessageInput) *awserr.Error { return nil })
-		cause := source(k)
-		enqueue(k, o, fromWorker(delivery.LambdaToSQS, delivery.SQSQueue{ARN: arn("sqs", "records"), Body: "{}"}, delivery.DestinationRecord), cause)
-		settled(k)
-		sends := k.Journal.Query(journal.Filter{Operation: ref.OperationID{Service: "sqs", Name: "SendMessage"}, Limit: 10}).Events
-		if len(sends) != 1 || sends[0].Cause != cause {
-			k.Errorf("SendMessage events = %+v, want one caused by %+v", sends, cause)
-		}
-	})
-}

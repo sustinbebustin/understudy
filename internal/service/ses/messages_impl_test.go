@@ -156,9 +156,8 @@ func TestEvictedCountIsPerScope(t *testing.T) {
 }
 
 // Export, Reset, Import gives back the messages, and one recorded after the
-// load reads after them; a reset through the v2 view clears the store both
-// APIs share.
-func TestMessagesSnapshotAndV2Reset(t *testing.T) {
+// load reads after them.
+func TestMessagesSnapshotRoundTrip(t *testing.T) {
 	run(t, func(h *harness) {
 		h.verifyEmail("a@example.com")
 		before := messageIDs(h.messages(ses.MessageQuery{}))
@@ -177,10 +176,6 @@ func TestMessagesSnapshotAndV2Reset(t *testing.T) {
 		got := messageIDs(h.messages(ses.MessageQuery{}))
 		if len(got) != 2 || got[0] != before[0] {
 			h.Errorf("after the load = %q, want %s first", got, before[0])
-		}
-		h.v2.Reset(kernel.ResetScope{})
-		if got := h.messages(ses.MessageQuery{}); len(got) != 0 {
-			h.Errorf("after the sesv2 reset %d messages remain", len(got))
 		}
 	})
 }

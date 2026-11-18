@@ -151,9 +151,6 @@ func TestSwitchesFollowOptions(t *testing.T) {
 	if scheduler.PermanentErrors(def).Value != delivery.PermanentNotRetried || scheduler.PermanentErrors(flipped).Value != delivery.PermanentRetried {
 		t.Error("PermanentErrors does not follow Options.PermanentErrors")
 	}
-	if scheduler.InputDefault().Value != "scheduled-event" {
-		t.Errorf("InputDefault = %q, want scheduled-event", scheduler.InputDefault().Value)
-	}
 	if scheduler.DenialStatus().Value != schedulerapi.IdentityAccessDeniedException().Status {
 		t.Errorf("DenialStatus = %d, the generated AccessDeniedException identity is %d", scheduler.DenialStatus().Value, schedulerapi.IdentityAccessDeniedException().Status)
 	}

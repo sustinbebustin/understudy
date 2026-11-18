@@ -96,8 +96,9 @@ func TestFailedEventWithoutDestinationsDeliversNothing(t *testing.T) {
 }
 
 // An event whose function is deleted while it waits for a retry is dropped
-// with no record and a journal entry naming its request id
-// (lambda-destinations-layers.md 11.3.4).
+// with no record and no dead letter, since the configuration naming its
+// destinations went with the function, and a journal entry naming its
+// request id (lambda-destinations-layers.md 11.3.4).
 func TestFunctionDeletedWhileQueuedIsJournaled(t *testing.T) {
 	s := newScript()
 	runDestinations(t, s.handle, func(h *destHarness) {
@@ -109,6 +110,9 @@ func TestFunctionDeletedWhileQueuedIsJournaled(t *testing.T) {
 		request := string(s.invoked()[0].RequestID)
 		call(h.harness, lambdaapi.OpDeleteFunction, &lambdaapi.DeleteFunctionInput{FunctionName: "fn"})
 		h.advance(10 * time.Minute)
+		if got := h.sink.lambda(); len(got) != 0 {
+			t.Errorf("deliveries = %+v, want none: the configuration naming its destinations went with the function", got)
+		}
 		var found []journal.Advisory
 		var causes []ref.Cause
 		for _, e := range h.Journal.Query(journal.Filter{Kind: journal.KindAdvisory, Limit: 10}).Events {

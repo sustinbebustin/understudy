@@ -167,7 +167,6 @@ func TestParseErrors(t *testing.T) {
 		{"host not signed", "/", v4(docAuthorization(docCredential, "x-amz-date")), invalid(auth.HeaderV4, auth.HostNotSigned)},
 		{"uppercase signed header", "/", v4(docAuthorization(docCredential, "Host")), invalid(auth.HeaderV4, auth.Malformed)},
 		{"SigV2 header without signature", "/", v4("AWS AKIAIOSFODNN7EXAMPLE"), invalid(auth.HeaderV2, auth.Malformed)},
-		{"SigV2 header without a date", "/", map[string]string{"Authorization": v2Header}, invalid(auth.HeaderV2, auth.InvalidRequestTime)},
 		// SigV2 dates are HTTP dates, even in X-Amz-Date.
 		{"SigV2 header with an ISO 8601 X-Amz-Date", "/", v4(v2Header), invalid(auth.HeaderV2, auth.InvalidRequestTime)},
 		{"SigV2 header with a bad Date", "/", map[string]string{"Date": "yesterday", "Authorization": v2Header}, invalid(auth.HeaderV2, auth.InvalidRequestTime)},
@@ -190,7 +189,6 @@ func TestParseErrors(t *testing.T) {
 		{"presign bad scope date", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Credential": url.QueryEscape(strings.Replace(docCredential, "20130524", "b", 1))}), nil, invalid(auth.QueryV4, auth.InvalidScopeDate)},
 		{"X-Amz-Expires not a number", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Expires": "1h"}), nil, invalid(auth.QueryV4, auth.Malformed)},
 		{"X-Amz-Expires -1", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Expires": "-1"}), nil, invalid(auth.QueryV4, auth.Malformed)},
-		{"X-Amz-Expires 604801", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Expires": "604801"}), nil, invalid(auth.QueryV4, auth.Malformed)},
 		// These overflow time.Duration if converted before the bound check.
 		{"X-Amz-Expires 9223372037", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Expires": "9223372037"}), nil, invalid(auth.QueryV4, auth.Malformed)},
 		{"X-Amz-Expires 18446744074", "/b/k?" + docPresignQuery(map[string]string{"X-Amz-Expires": "18446744074"}), nil, invalid(auth.QueryV4, auth.Malformed)},

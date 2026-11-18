@@ -13,7 +13,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/aws"
 	"github.com/sustinbebustin/understudy/internal/clock"
 	"github.com/sustinbebustin/understudy/internal/shardlog"
-	"github.com/sustinbebustin/understudy/internal/store"
 )
 
 // iteratorTTL is a DynamoDB Streams iterator's lifetime: "A shard iterator
@@ -159,14 +158,16 @@ func TestCodecErrorTexts(t *testing.T) {
 	}
 }
 
-// WaitKey is one key per stream, shared by the writers and the poller
-// ("shardlog:" + the stream ARN).
+// WaitKey is one key per stream: the writers and the poller each derive it
+// from the stream ARN, so equal ARNs must give the same key and distinct
+// streams distinct keys.
 func TestWaitKey(t *testing.T) {
 	t.Parallel()
-	a := mustARN(t, "arn:aws:dynamodb:us-east-1:111111111111:table/t/stream/2026-10-25T21:13:37.075")
+	const s = "arn:aws:dynamodb:us-east-1:111111111111:table/t/stream/2026-10-25T21:13:37.075"
+	a := mustARN(t, s)
 	b := mustARN(t, "arn:aws:dynamodb:us-east-1:111111111111:table/u/stream/2026-10-25T21:13:37.075")
-	if got, want := shardlog.WaitKey(a), store.WaitKey("shardlog:"+a.String()); got != want {
-		t.Errorf("WaitKey = %q, want %q", got, want)
+	if shardlog.WaitKey(a) != shardlog.WaitKey(mustARN(t, s)) {
+		t.Error("equal stream ARNs give different wait keys")
 	}
 	if shardlog.WaitKey(a) == shardlog.WaitKey(b) {
 		t.Error("two streams share a wait key")

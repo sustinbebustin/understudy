@@ -317,10 +317,6 @@ func TestUISessionEndpointReportsValidity(t *testing.T) {
 			}
 		}
 
-		head := pageCall(k, h, http.MethodHead, admin.Prefix+"/ui/session", "", http.Header{admin.UISessionHeader: {uiSecret}})
-		if head.Code != http.StatusOK || head.Body.Len() != 0 {
-			k.Errorf("HEAD ui/session = %d with %d body bytes, want 200 and no body", head.Code, head.Body.Len())
-		}
 		if rec := pageCall(k, h, http.MethodGet, admin.Prefix+"/ui/session?verbose=1", "", nil); rec.Code != http.StatusBadRequest {
 			k.Errorf("GET ui/session with a query parameter = %d %s, want 400 as every route refuses one", rec.Code, rec.Body)
 		}

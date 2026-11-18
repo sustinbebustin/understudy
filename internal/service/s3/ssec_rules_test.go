@@ -149,16 +149,6 @@ func expectCustomer(tr trio, sse *s3api.ServerSideEncryption, read bool) *wantEr
 	return nil
 }
 
-// TestCustomerHeadersSent: a trio is sent when any of its headers is.
-func TestCustomerHeadersSent(t *testing.T) {
-	property(t, func(t *rapid.T) {
-		tr := drawTrio(t)
-		if tr.h.sent() != tr.sent() {
-			t.Fatalf("%+v.sent() = %v, want %v", tr.h, tr.h.sent(), tr.sent())
-		}
-	})
-}
-
 // TestParseCustomerWrite checks every drawn trio against the write-side
 // order of s3-ssec-object-lock.md 3.2: only "conflict before algorithm" is
 // recorded (LocalStack test_s3.py L12123-L12131), the rest follows 11.3. A

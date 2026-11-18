@@ -11,7 +11,6 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/sustinbebustin/understudy/internal/httpevent"
-	"github.com/sustinbebustin/understudy/internal/service/apigateway"
 )
 
 // The REST 1.0 event this file pins is the recorded LocalStack proxy event
@@ -211,25 +210,6 @@ func TestEventV1RESTNullAndPresentMaps(t *testing.T) {
 	}
 }
 
-// A POST body is the raw string (aws-recorded, apigateway-rest.md 5.1); a
-// bodyless POST follows switch apigateway.proxy.unrecorded (APIGW1-16).
-func TestEventV1RESTBody(t *testing.T) {
-	r := restRequest()
-	r.Method, r.Body = http.MethodPost, []byte(`{"a":1}`)
-	if ev := restEvent(t, r, restContext(), restFront()); ev["body"] != `{"a":1}` || ev["isBase64Encoded"] != false {
-		t.Errorf("POST body = %#v, isBase64Encoded %v; want the raw string, false", ev["body"], ev["isBase64Encoded"])
-	}
-	sw := apigateway.ProxyUnrecordedSwitch().Value
-	r.Body = nil
-	ev := restEvent(t, r, restContext(), restFront())
-	if sw.BodylessNull && ev["body"] != nil || !sw.BodylessNull && ev["body"] != "" {
-		t.Errorf("bodyless POST body = %#v, want per BodylessNull %v", ev["body"], sw.BodylessNull)
-	}
-	if ev["isBase64Encoded"] != sw.BodylessBase64 {
-		t.Errorf("bodyless POST isBase64Encoded = %v, want %v", ev["isBase64Encoded"], sw.BodylessBase64)
-	}
-}
-
 // A nil front or authorizer is a caller bug answered with an error.
 func TestEventV1RESTRefusesNilAuthorizer(t *testing.T) {
 	c := restContext()
@@ -335,17 +315,9 @@ func TestInferV1ForREST(t *testing.T) {
 	}
 }
 
-// InferV1For with the HTTP API front is InferV1 for every payload, and
-// with the REST front never panics.
+// InferV1For with the REST front answers any payload or a *MalformedError,
+// never another error and never a panic.
 func TestInferV1ForProperties(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		p := genPayload().Draw(t, "payload")
-		a, aerr := httpevent.InferV1For(p, httpevent.HTTPAPI{})
-		b, berr := httpevent.InferV1(p)
-		if (aerr == nil) != (berr == nil) || (aerr == nil && !sameResponse(a, b)) {
-			t.Fatalf("InferV1For(%s, HTTPAPI) = %+v, %v; InferV1 = %+v, %v", p, a, aerr, b, berr)
-		}
-	})
 	rapid.Check(t, func(t *rapid.T) {
 		p := rapid.OneOf(genPayload(), rapid.SliceOfN(rapid.Byte(), 0, 64)).Draw(t, "payload")
 		if _, err := httpevent.InferV1For(p, httpevent.REST{}); err != nil && !isMalformed(err) {

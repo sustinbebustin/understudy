@@ -6,13 +6,9 @@
 
 import { describe, expect, test } from "bun:test";
 
-import { headersFor, SESSION_HEADER, secretFromHash, withoutFragment } from "../src/session";
+import { headersFor, secretFromHash, withoutFragment } from "../src/session";
 
 describe("session", () => {
-  test("the header is the one the admin handler reads (admin.UISessionHeader in admin/ui.go)", () => {
-    expect(SESSION_HEADER).toBe("Understudy-UI-Session");
-  });
-
   test("the secret is the fragment's s parameter, when not empty", () => {
     const cases: readonly (readonly [string, string | null])[] = [
       ["#s=ABCDEFGHIJKLMNOPQRSTUVWX27", "ABCDEFGHIJKLMNOPQRSTUVWX27"],

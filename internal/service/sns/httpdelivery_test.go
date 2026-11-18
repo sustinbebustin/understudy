@@ -280,11 +280,6 @@ func TestHTTPSwitchesAreListed(t *testing.T) {
 		for _, e := range h.svc.Switches() {
 			listed[e.Name] = e
 		}
-		// SNSH-12 settled the repeated Subscribe of a pending endpoint as
-		// AWS does it (2.2), so it is no longer a switch.
-		if _, ok := listed["sns.http.resubscribe-pending"]; ok {
-			h.Error("switch sns.http.resubscribe-pending is listed, want it gone")
-		}
 		for _, w := range want {
 			e, ok := listed[w.name]
 			if !ok {

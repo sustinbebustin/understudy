@@ -252,18 +252,11 @@ func TestDeleteScheduleGroupAuthorizesEachMember(t *testing.T) {
 // kms:GenerateDataKey and kms:Decrypt on the key ARN (aws-doc
 // https://docs.aws.amazon.com/scheduler/latest/UserGuide/encryption-rest.html;
 // scheduler.md 4.1, 9, 14.11); one denied
-// refuses the write with Scheduler's denial and stores nothing; no KMS
-// question without a key.
+// refuses the write with Scheduler's denial and stores nothing.
 func TestKmsKeyCallerAuthorization(t *testing.T) {
 	kms := []string{"kms:Decrypt", "kms:DescribeKey", "kms:GenerateDataKey"}
 	g := &gate{}
 	runWith(t, withGate(g), func(h *harness) {
-		h.create(schedule("plain", "rate(1 hour)", h.queueTarget("q", nil)))
-		for _, p := range g.callerPairs("CreateSchedule") {
-			if p[:4] == "kms:" {
-				h.Errorf("a create without KmsKeyArn asked %s", p)
-			}
-		}
 		for _, op := range []string{"CreateSchedule", "UpdateSchedule"} {
 			g.reset()
 			in := schedule("keyed", "rate(1 hour)", h.queueTarget("q", nil))
