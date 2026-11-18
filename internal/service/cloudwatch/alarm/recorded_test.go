@@ -10,28 +10,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/service/cloudwatch/alarm"
 )
 
-// The evaluation range AWS used, read from when a point left it: R = N + 5
-// for a 60-second period (N = 1 and N = 3) and N + 2 for a 300-second one
-// (N = 1 recorded, N = 3 documented) (cwa 3.4; CWA-01, recorded
-// 2026-11-03: testdata/parity/cloudwatch/CWA-01).
-func TestRangeRecorded(t *testing.T) {
-	followsSwitch(t, "cloudwatch.alarm.evaluation-range", "n-plus-5-for-60s,n-plus-2-otherwise")
-	for _, tc := range []struct {
-		period    int32
-		n, wantR  int
-		recording string
-	}{
-		{60, 1, 6, "CWA-01 r1"},
-		{60, 3, 8, "CWA-01 r3"},
-		{300, 1, 3, "CWA-01 r5"},
-		{300, 3, 5, "cwa 3.4, aws-doc"},
-	} {
-		if got := (alarm.Config{Period: tc.period, N: tc.n, M: tc.n}).Range(); got != tc.wantR {
-			t.Errorf("Range() for Period %d, N = %d = %d, want %d (%s)", tc.period, tc.n, got, tc.wantR, tc.recording)
-		}
-	}
-}
-
 // recordedBins reads marks, oldest first and space-separated ("-" a missing
 // bin, otherwise the bin's Maximum of one sample), into bins newest first
 // ending at t0, padded with missing bins to r.

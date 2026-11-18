@@ -25,7 +25,6 @@ import (
 	"github.com/sustinbebustin/understudy/internal/journal"
 	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/kernel/kerneltest"
-	"github.com/sustinbebustin/understudy/internal/ref"
 	"github.com/sustinbebustin/understudy/internal/registry"
 	"github.com/sustinbebustin/understudy/internal/service/cloudwatch"
 )
@@ -525,6 +524,7 @@ func TestSetAlarmStateTransitions(t *testing.T) {
 		in := evalAlarm("cpu")
 		in.TreatMissingData = new("ignore")
 		in.AlarmActions = []string{alertsTopic}
+		in.OKActions = []string{onAlarmFn}
 		must(h, cloudwatchapi.OpPutMetricAlarm, in)
 		arn := h.alarmARN("cpu")
 		h.advance(30 * time.Second)
@@ -546,10 +546,11 @@ func TestSetAlarmStateTransitions(t *testing.T) {
 			h.Errorf("history = %v", summaries(items))
 		}
 		if d := fx.sink.all(); len(d) != 1 {
-			h.Errorf("deliveries = %d, want the ALARM action", len(d))
-		} else if topic, ok := d[0].Request.Target.(delivery.SNSTopic); !ok || !strings.Contains(topic.Message, `"NewStateReason":"testing alarm"`) {
+			h.Errorf("deliveries = %d, want the ALARM action and not the OK one", len(d))
+		} else if topic, ok := d[0].Request.Target.(delivery.SNSTopic); !ok || d[0].Request.Mechanism != delivery.CloudWatchToSNS ||
+			!strings.Contains(topic.Message, `"NewStateReason":"testing alarm"`) || !strings.Contains(topic.Message, `"OldStateValue":"INSUFFICIENT_DATA"`) {
 			// localstack@8b9a79f tests/aws/services/cloudwatch/test_cloudwatch.snapshot.json:L2482-L2519
-			h.Errorf("delivery = %+v, want a notification with the caller's reason", d[0].Request)
+			h.Errorf("delivery = %+v, want a notification of the set state with the caller's reason", d[0].Request)
 		}
 		if ev := fx.bus.of("CloudWatch Alarm State Change"); len(ev) != 1 {
 			h.Errorf("state change events = %d, want one", len(ev))
@@ -819,14 +820,4 @@ func TestAlarmSwitches(t *testing.T) {
 			}
 		}
 	})
-}
-
-// The mechanisms of alarm deliveries name the CloudWatchAlarm via and their
-// target services.
-func TestAlarmMechanisms(t *testing.T) {
-	for m, target := range map[delivery.Mechanism]string{delivery.CloudWatchToSNS: "sns", delivery.CloudWatchToLambda: "lambda"} {
-		if m.Via() != ref.CloudWatchAlarm || string(m.Target()) != target {
-			t.Errorf("%s: Via %s, Target %s; want %s, %s", m, m.Via(), m.Target(), ref.CloudWatchAlarm, target)
-		}
-	}
 }

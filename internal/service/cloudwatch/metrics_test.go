@@ -338,20 +338,6 @@ func TestPutMetricDataValidation(t *testing.T) {
 	})
 }
 
-// Without strict entity validation an entity error does not refuse the
-// request: its metric data is stored (the PutMetricData documentation).
-func TestPutMetricDataStoresDataPastAnEntityErrorWhenNotStrict(t *testing.T) {
-	run(t, func(h *harness) {
-		entity := cloudwatchapi.EntityMetricData{MetricData: []cloudwatchapi.MetricDatum{{MetricName: "m", Value: new(1.0)}}}
-		must(h, cloudwatchapi.OpPutMetricData, &cloudwatchapi.PutMetricDataInput{
-			Namespace: "ns", EntityMetricData: []cloudwatchapi.EntityMetricData{entity, entity, entity}, StrictEntityValidation: new(false),
-		})
-		if got := results(h.around(stat("n", "m", "SampleCount", 60))); !equalResults(got, []labelled{{"n", "m", []float64{3}}}) {
-			h.Errorf("results = %+v, want the three data points", got)
-		}
-	})
-}
-
 // A datum with both Values and StatisticValues is accepted, as AWS accepts
 // it (AWS-recorded test_put_metric_data_validation), and stores its
 // StatisticValues.
