@@ -34,8 +34,11 @@ func TestDefaultAndDuplicateGroupRefusals(t *testing.T) {
 	})
 }
 
-// The quota counts default: 499 created groups fill it, and a delete
-// makes room. UNVERIFIED (SCH-06), scheduler.md 10, 14.7.5.
+// The account holds at most 500 schedule groups (aws-doc
+// https://docs.aws.amazon.com/scheduler/latest/UserGuide/scheduler-quotas.html),
+// refused past it with ServiceQuotaExceededException at 402 (model;
+// scheduler.md 2.4). The quota counts default: 499 created groups fill
+// it, and a delete makes room. UNVERIFIED (SCH-06), scheduler.md 10, 14.7.5.
 func TestGroupQuotaCountsDefault(t *testing.T) {
 	run(t, func(h *harness) {
 		for i := range 499 {

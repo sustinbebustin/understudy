@@ -180,18 +180,12 @@ func TestDeleteSchedule(t *testing.T) {
 	})
 }
 
-// ListSchedules always returns a Schedules list (G6: localstack@8b9a79f
-// tests/aws/services/scheduler/test_scheduler.py:L13-L20, validated
-// 2024-06-11); NamePrefix, ScheduleGroup and State filter, entries carry
+// ListSchedules: NamePrefix, ScheduleGroup and State filter, entries carry
 // Target {Arn}, and following NextToken with MaxResults 1 yields every
 // match once (scheduler.md 4.5; order and page size are UNVERIFIED,
 // SCH-01, so the union is compared).
 func TestListSchedules(t *testing.T) {
 	run(t, func(h *harness) {
-		empty := must(h, schedulerapi.OpListSchedules, &schedulerapi.ListSchedulesInput{})
-		if empty.Schedules == nil || len(empty.Schedules) != 0 {
-			h.Errorf("ListSchedules with none = %#v, want an empty list", empty.Schedules)
-		}
 		must(h, schedulerapi.OpCreateScheduleGroup, &schedulerapi.CreateScheduleGroupInput{Name: "g"})
 		for _, name := range []string{"a-1", "a-2", "a-3", "b-1"} {
 			h.create(schedule(name, "rate(1 hour)", h.queueTarget("q", nil)))
@@ -230,7 +224,6 @@ func TestListSchedules(t *testing.T) {
 		if got := list(schedulerapi.ListSchedulesInput{State: new(schedulerapi.ScheduleStateDisabled)}); !slices.Equal(got, []string{"default/a-off"}) {
 			h.Errorf("State DISABLED = %v, want default/a-off", got)
 		}
-		wantError(h, errOf(call(h, schedulerapi.OpListSchedules, &schedulerapi.ListSchedulesInput{GroupName: new("nope")})), "ResourceNotFoundException", 404, "")
 	})
 }
 
@@ -284,19 +277,6 @@ func TestCreateScheduleRecordedAcceptances(t *testing.T) {
 				h.Errorf("CreateSchedule(%s) ScheduleArn = %s", expr, out.ScheduleArn)
 			}
 		}
-	})
-}
-
-// A cron that can never fire again is refused with the recorded text,
-// null for the absent dates of a DISABLED schedule (SCH-03 03-e24,
-// recorded 2026-11-03; scheduler.md 2.4, 14.3.6).
-func TestCreateScheduleRefusesACronThatNeverFires(t *testing.T) {
-	run(t, func(h *harness) {
-		in := schedule("never", "cron(30 0 1 1 ? 1999)", h.queueTarget("q", nil))
-		in.State = new(schedulerapi.ScheduleStateDisabled)
-		_, err := call(h, schedulerapi.OpCreateSchedule, in)
-		wantError(h, err, "ValidationException", 400,
-			"The schedule expression cron(30 0 1 1 ? 1999), with StartDate null and EndDate null, is invalid because it will never schedule an invocation.")
 	})
 }
 

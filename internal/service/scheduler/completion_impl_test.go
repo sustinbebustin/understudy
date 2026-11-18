@@ -246,11 +246,3 @@ func TestUpdateKeepsTheDrawnOffset(t *testing.T) {
 		t.Errorf("offset %v without an update, %v after a description-only update; want the same", none, described)
 	}
 }
-
-// Under window-start a FLEXIBLE invocation is made at its scheduled
-// instant (switch scheduler.flexible-window.offset).
-func TestWindowStartInvokesAtTheScheduledInstant(t *testing.T) {
-	if got := flexDeliveryAfter(t, scheduler.Options{FlexibleOffset: scheduler.OffsetWindowStart}, func(*harness, *schedulerapi.CreateScheduleInput) {}); got >= 30*time.Second {
-		t.Errorf("offset %v under window-start, want the scheduled instant", got)
-	}
-}

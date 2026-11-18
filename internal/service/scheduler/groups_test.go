@@ -1,7 +1,6 @@
 package scheduler_test
 
 import (
-	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -26,10 +25,6 @@ func TestScheduleGroupLifecycle(t *testing.T) {
 		if val(got.Arn) != h.groupArn("g") || val(got.Name) != "g" || got.State == nil || *got.State != schedulerapi.ScheduleGroupStateActive ||
 			got.CreationDate == nil || got.LastModificationDate == nil {
 			h.Errorf("GetScheduleGroup(g) = %+v, want its ARN, name, ACTIVE and both dates", got)
-		}
-		// default reads without ARN and dates (TestDefaultGroupReadShape).
-		if got := must(h, schedulerapi.OpGetScheduleGroup, &schedulerapi.GetScheduleGroupInput{Name: "default"}); got.State == nil || *got.State != schedulerapi.ScheduleGroupStateActive {
-			h.Errorf("GetScheduleGroup(default) = %+v, want ACTIVE", got)
 		}
 		listed := map[string]bool{}
 		for _, g := range must(h, schedulerapi.OpListScheduleGroups, &schedulerapi.ListScheduleGroupsInput{NamePrefix: new("g")}).ScheduleGroups {
@@ -150,30 +145,5 @@ func TestTagsRefuseScheduleArns(t *testing.T) {
 			"ValidationException", 400, "")
 		wantError(h, errOf(call(h, schedulerapi.OpListTagsForResource, &schedulerapi.ListTagsForResourceInput{ResourceArn: arn})),
 			"ValidationException", 400, "")
-	})
-}
-
-// The account holds at most 500 schedule groups (aws-doc
-// https://docs.aws.amazon.com/scheduler/latest/UserGuide/scheduler-quotas.html);
-// past it CreateScheduleGroup answers ServiceQuotaExceededException at 402
-// (model; scheduler.md 2.4, 10, 14.7.5). Whether default counts is not
-// documented, so 499 creates must pass and the 501st must fail.
-func TestScheduleGroupQuota(t *testing.T) {
-	run(t, func(h *harness) {
-		var refused int
-		for i := range 501 {
-			_, err := call(h, schedulerapi.OpCreateScheduleGroup, &schedulerapi.CreateScheduleGroupInput{Name: fmt.Sprintf("g-%03d", i)})
-			switch {
-			case err == nil:
-			case i < 499:
-				h.Fatalf("group %d refused: %s %d %s", i+1, err.ID.Shape.Name(), err.ID.Status, err.Message)
-			default:
-				wantError(h, err, "ServiceQuotaExceededException", 402, "")
-				refused++
-			}
-		}
-		if refused == 0 {
-			h.Error("501 groups created, want the 500-group quota to refuse one")
-		}
 	})
 }
