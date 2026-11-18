@@ -658,8 +658,8 @@ func TestNothingOlderThanRetentionProperty(t *testing.T) {
 
 // ---- Snapshot and reset ----.
 
-// Export then Reset drops the streams; Import restores them with their
-// records, tags and settings, and an iterator issued before the save still
+// Export then Reset drops the streams and leaves no scope; Import restores
+// them with their shards, records, tags and settings, and an iterator issued before the save still
 // reads until it expires (kinesis.md 13.5 items 3 and 7).
 // Import refuses another version.
 func TestSnapshotRoundTrip(t *testing.T) {
@@ -671,12 +671,16 @@ func TestSnapshotRoundTrip(t *testing.T) {
 		shard := h.shardOf(2, "k")
 		it := h.iterator("s", shard, kinesisapi.ShardIteratorTypeTrimHorizon, "")
 		before := h.summary("s")
+		beforeShards := h.describe("s").Shards
 
 		sections, err := h.svc.Export()
 		if err != nil || len(sections) == 0 {
 			h.Fatalf("Export = %d sections, %v", len(sections), err)
 		}
 		h.svc.Reset(kernel.ResetScope{})
+		if got := h.svc.Scopes(); len(got) != 0 {
+			h.Errorf("Scopes after Reset = %v, want none", got)
+		}
 		wantErr(h, "after reset", fail(h, kinesisapi.OpDescribeStreamSummary, &kinesisapi.DescribeStreamSummaryInput{StreamName: new("s")}), "ResourceNotFoundException", 400, notFound("s", account))
 		if err := h.svc.Import(sections); err != nil {
 			h.Fatalf("Import: %v", err)
@@ -685,11 +689,21 @@ func TestSnapshotRoundTrip(t *testing.T) {
 		if after.RetentionPeriodHours != 48 || after.OpenShardCount != 2 || !after.StreamCreationTimestamp.Equal(before.StreamCreationTimestamp) {
 			h.Errorf("restored summary = %+v, want %+v", after, before)
 		}
+		afterShards := h.describe("s").Shards
+		if !slices.Equal(shardIDs(afterShards), shardIDs(beforeShards)) {
+			h.Errorf("restored shards = %v, want %v", shardIDs(afterShards), shardIDs(beforeShards))
+		} else {
+			for i := range afterShards {
+				if afterShards[i].HashKeyRange != beforeShards[i].HashKeyRange {
+					h.Errorf("restored %s hash range = %+v, want %+v", afterShards[i].ShardId, afterShards[i].HashKeyRange, beforeShards[i].HashKeyRange)
+				}
+			}
+		}
 		if got := h.readAll(it); len(got) != 1 || string(got[0].Data) != "payload" {
 			h.Errorf("a pre-save iterator reads %d records after load", len(got))
 		}
-		if tags := call(h, kinesisapi.OpListTagsForStream, &kinesisapi.ListTagsForStreamInput{StreamName: new("s")}); len(tags.Tags) != 1 {
-			h.Errorf("restored tags = %v", tagPairs(tags.Tags))
+		if got := tagPairs(call(h, kinesisapi.OpListTagsForStream, &kinesisapi.ListTagsForStreamInput{StreamName: new("s")}).Tags); !slices.Equal(got, []string{"a=b"}) {
+			h.Errorf("restored tags = %v, want [a=b]", got)
 		}
 		bad := slices.Clone(sections)
 		bad[0] = store.Section{Path: bad[0].Path, Version: 99, Data: bad[0].Data}

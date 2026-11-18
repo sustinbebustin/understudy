@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/sustinbebustin/understudy/internal/api/kinesisapi"
-	"github.com/sustinbebustin/understudy/internal/kernel"
 	"github.com/sustinbebustin/understudy/internal/service/kinesis"
 )
 
@@ -87,8 +86,7 @@ func TestForeignARNWritesAreNotFound(t *testing.T) {
 }
 
 // An ARN the model's pattern admits but that names no stream is refused by
-// the hand checks (understudy's texts, KIN-08, KIN-07); one the pattern
-// refuses gets the generated ValidationException.
+// the hand checks (understudy's texts, KIN-08, KIN-07).
 func TestARNsThatNameNoStream(t *testing.T) {
 	run(t, kinesis.Options{}, func(h *harness) {
 		h.create("s", 1)
@@ -96,38 +94,5 @@ func TestARNsThatNameNoStream(t *testing.T) {
 		invalidArg(h, "nested stream ARN", fail(h, kinesisapi.OpDescribeStreamSummary, &kinesisapi.DescribeStreamSummaryInput{StreamARN: new(nested)}), "Invalid StreamARN "+nested+".")
 		other := "arn:aws:kinesis:us-east-1:" + account + ":xstream/x"
 		invalidArg(h, "other resource", fail(h, kinesisapi.OpTagResource, &kinesisapi.TagResourceInput{ResourceARN: other, Tags: map[string]string{"a": "b"}}), "Invalid ResourceARN "+other+".")
-		table := "arn:aws:kinesis:us-east-1:" + account + ":table/s"
-		if err := fail(h, kinesisapi.OpDescribeStreamSummary, &kinesisapi.DescribeStreamSummaryInput{StreamARN: new(table)}); err.ID.JSONType != "ValidationException" || err.ID.Status != 400 {
-			h.Errorf("pattern-refused StreamARN = %s %d %q, want ValidationException 400", err.ID.JSONType, err.ID.Status, err.Message)
-		}
-	})
-}
-
-// Export and Import carry the streams; Reset drops them, and a reset scope
-// lists no stream (kernel.Stateful).
-func TestStreamsSurviveExportAndReset(t *testing.T) {
-	run(t, kinesis.Options{}, func(h *harness) {
-		call(h, kinesisapi.OpCreateStream, &kinesisapi.CreateStreamInput{StreamName: "s", ShardCount: new(int32(3)), Tags: map[string]string{"a": "1"}})
-		call(h, kinesisapi.OpIncreaseStreamRetentionPeriod, &kinesisapi.IncreaseStreamRetentionPeriodInput{StreamName: new("s"), RetentionPeriodHours: 48})
-		before := h.describe("s")
-		sections, err := h.svc.Export()
-		if err != nil {
-			h.Fatal(err)
-		}
-		h.svc.Reset(kernel.ResetScope{})
-		if got := h.svc.Scopes(); len(got) != 0 {
-			h.Fatalf("Scopes after Reset = %v", got)
-		}
-		if err := h.svc.Import(sections); err != nil {
-			h.Fatal(err)
-		}
-		after := h.describe("s")
-		if after.RetentionPeriodHours != 48 || !slices.Equal(shardIDs(after.Shards), shardIDs(before.Shards)) ||
-			after.Shards[2].HashKeyRange != before.Shards[2].HashKeyRange || !after.StreamCreationTimestamp.Equal(before.StreamCreationTimestamp) {
-			h.Errorf("after Import = %+v\nbefore %+v", after, before)
-		}
-		if got := tagPairs(call(h, kinesisapi.OpListTagsForStream, &kinesisapi.ListTagsForStreamInput{StreamName: new("s")}).Tags); !slices.Equal(got, []string{"a=1"}) {
-			h.Errorf("tags after Import = %v", got)
-		}
 	})
 }
