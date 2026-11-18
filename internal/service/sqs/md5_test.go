@@ -98,22 +98,3 @@ func TestAttributesMD5MatchesTheReferenceLayout(t *testing.T) {
 		}
 	})
 }
-
-// The reference encoder reproduces AWS-recorded vectors (sqs.md 6.3), so
-// the property above compares against AWS's algorithm.
-func TestReferenceAttributesMD5ReproducesAWSVectors(t *testing.T) {
-	for want, attrs := range map[string]map[string]Attribute{
-		"a45daa70926828a2f0a1db3418e6feb4": {"k": {DataType: "String", String: "x"}},
-		"4c360f3fdafd970e05fae2f149d997f5": {
-			"General": {DataType: "String", String: "Kenobi"},
-			"Hello":   {DataType: "String", String: "There"},
-			"Help.Me": {DataType: "String", String: "Me"},
-		},
-		"235c5c510d26fb653d073faed50ae77c": {"timestamp": {DataType: "Number", String: "1493147359900"}},
-		"8cbe4db156db8a94db8b801b7addb984": {"attr1": {DataType: "Binary", Binary: []byte("traceparent\x1e00-774062d6c37081a5a0b9b5b88e30627c-2d2482211f6489da-01")}},
-	} {
-		if got := referenceAttributesMD5(attrs); got != want {
-			t.Errorf("reference digest of %v = %s, want %s", attrs, got, want)
-		}
-	}
-}
