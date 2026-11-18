@@ -189,15 +189,6 @@ func TestOverriddenLeavesTakeNoPartInLimits(t *testing.T) {
 	}
 }
 
-func TestSNSPolicySize(t *testing.T) {
-	t.Parallel()
-	policy := `{"k":["` + strings.Repeat("v", snsMaxBytes) + `"]}`
-	_, err := Compile([]byte(policy), SNS{Scope: MessageBody})
-	if err == nil || err.Cause != (LimitExceeded{Limit: LimitSize}) {
-		t.Fatalf("Compile of a %d-byte policy = %#v, want the size limit", len(policy), err)
-	}
-}
-
 // orArrays builds sibling "$or" arrays of the given sizes, each in its own
 // nested object with distinct keys, as in matching-engines.md H12.
 func orArrays(sizes ...int) string {

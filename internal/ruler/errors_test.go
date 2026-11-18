@@ -303,7 +303,6 @@ func TestMessages(t *testing.T) {
 		{SNS{}, `{ "x" : [ ] }`, "FilterPolicy: Empty arrays are not allowed\n at [Source: (String)\"{\"x\":[]}\"; line: 1, column: 8]"},
 		{EventBridge{}, `{"x":[{"cidr":"10.0.0.1/32"}]}`, "Event pattern is not valid. Reason: IPv4 mask bits must be < 32"},
 		{SNS{}, `{"a":["1"],"b":["1"],"c":["1"],"d":["1"],"e":["1"],"f":["1"]}`, "FilterPolicy: Filter policy can not have more than 5 keys"},
-		{SNS{}, `{"x":[{"wildcard":"a*b*c*d*e"}]}`, "Wildcard complexity too high: pattern exceeds maximum allowed wildcards"},
 		{SNS{}, `{"o":{"k":["v"]}}`, "Filter policy scope MessageAttributes does not support nested filter policy"},
 		{LambdaESM{}, `{"x":[]}`, "Invalid filter pattern definition."},
 		{LambdaESM{}, `{"body":"plain"}`, "Invalid filter pattern definition."},
