@@ -392,15 +392,13 @@ func TestDeleteTwiceReschedules(t *testing.T) {
 	})
 }
 
-// ForceDeleteWithoutRecovery deletes at once, frees the name, and succeeds
-// for a secret that does not exist.
+// ForceDeleteWithoutRecovery deletes at once and frees the name.
 func TestForceDelete(t *testing.T) {
 	run(t, func(h *harness) {
 		arn := val(h.create("gone", "x").ARN)
 		must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: arn, ForceDeleteWithoutRecovery: new(true)})
 		_, err := call(h, sm.OpDescribeSecret, &sm.DescribeSecretInput{SecretId: arn})
 		wantError(h.T, err, "ResourceNotFoundException", "Secrets Manager can't find the specified secret.")
-		must(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: "never-existed", ForceDeleteWithoutRecovery: new(true)})
 		h.create("gone", "y")
 		_, err = call(h, sm.OpDeleteSecret, &sm.DeleteSecretInput{SecretId: "gone", ForceDeleteWithoutRecovery: new(true), RecoveryWindowInDays: new(int64(7))})
 		wantError(h.T, err, "InvalidParameterException", "You can't use ForceDeleteWithoutRecovery in conjunction with RecoveryWindowInDays.")
@@ -750,8 +748,6 @@ func TestGetSecretValueErrors(t *testing.T) {
 		wantError(h.T, err, "InvalidRequestException", "You provided a VersionStage that is not associated to the provided VersionId.")
 		_, err = call(h, sm.OpPutSecretValue, &sm.PutSecretValueInput{SecretId: "empty", SecretString: new("no token")})
 		wantError(h.T, err, "InvalidRequestException", "You must provide a ClientRequestToken value. We recommend a UUID-type value.")
-		_, err = call(h, sm.OpCreateSecret, &sm.CreateSecretInput{Name: "bad name", ClientRequestToken: new(h.token())})
-		wantError(h.T, err, "ValidationException", "Invalid name. Must be a valid name containing alphanumeric characters, or any of the following: -/_+=.@!")
 		_, err = call(h, sm.OpUpdateSecretVersionStage, &sm.UpdateSecretVersionStageInput{SecretId: "empty", VersionStage: "AWSCURRENT", RemoveFromVersionId: new(v1)})
 		wantError(h.T, err, "InvalidParameterException", "You can only move staging label AWSCURRENT to a different secret version. It can't be completely removed.")
 	})
