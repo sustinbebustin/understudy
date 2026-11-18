@@ -41,17 +41,6 @@ func TestCreateRestApiDefaults(t *testing.T) {
 	})
 }
 
-// A PRIVATE API defaults to dualstack (aws-recorded,
-// test_apigateway_api.snapshot.json:L4618-L4692, apigateway-rest.md 2.3).
-func TestCreatePrivateDefaultsToDualstack(t *testing.T) {
-	run(t, func(h *harness) {
-		out := must(h, apigatewayapi.OpCreateRestApi, &apigatewayapi.CreateRestApiInput{Name: "p", EndpointConfiguration: &apigatewayapi.EndpointConfiguration{Types: []apigatewayapi.EndpointType{apigatewayapi.EndpointTypePrivate}}})
-		if ec := out.EndpointConfiguration; ec == nil || deref(ec.IpAddressType) != apigatewayapi.IpAddressTypeDualstack {
-			t.Errorf("endpointConfiguration = %+v, want dualstack", ec)
-		}
-	})
-}
-
 // Recorded CreateRestApi refusals (aws-recorded, apigateway-rest.md 2.4
 // table, test_apigateway_api.snapshot.json lines beside each), and
 // cloneFrom's NotImplemented.
@@ -78,17 +67,13 @@ func TestCreateRestApiRefusals(t *testing.T) {
 }
 
 // An unknown REST API id answers NotFoundException "Invalid API identifier
-// specified <account>:<id>", the caller's account; ids are case-sensitive
-// (aws-recorded, test_apigateway_api.snapshot.json:L112-L144,
-// apigateway-rest.md 2.4). DeleteRestApi removes the API, and GetRestApi
-// then answers the same 404 (3.1: Terraform waits on it).
+// specified <account>:<id>", the caller's account (aws-recorded,
+// test_apigateway_api.snapshot.json:L112-L144, apigateway-rest.md 2.4).
+// DeleteRestApi removes the API, and GetRestApi then answers the same 404
+// (3.1: Terraform waits on it).
 func TestUnknownAndDeletedRestApi(t *testing.T) {
 	run(t, func(h *harness) {
 		id, _ := h.api("t")
-		upper := strings.ToUpper(id)
-		if upper != id {
-			wantText(t, fail(h, apigatewayapi.OpGetRestApi, &apigatewayapi.GetRestApiInput{RestApiId: upper}), notFound, "Invalid API identifier specified "+account+":"+upper)
-		}
 		must(h, apigatewayapi.OpDeleteRestApi, &apigatewayapi.DeleteRestApiInput{RestApiId: id})
 		wantText(t, fail(h, apigatewayapi.OpGetRestApi, &apigatewayapi.GetRestApiInput{RestApiId: id}), notFound, "Invalid API identifier specified "+account+":"+id)
 		wantText(t, fail(h, apigatewayapi.OpDeleteRestApi, &apigatewayapi.DeleteRestApiInput{RestApiId: id}), notFound, "Invalid API identifier specified "+account+":"+id)

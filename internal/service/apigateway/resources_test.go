@@ -74,24 +74,6 @@ func TestCreateResourceRefusals(t *testing.T) {
 	})
 }
 
-// DeleteResource deletes the subtree: after deleting /pets only / remains
-// although /pets/subpets existed, and deleting the child then answers
-// "Invalid Resource identifier specified" (aws-recorded,
-// test_apigateway_api.snapshot.json:L555-L670 and L813-L846,
-// apigateway-rest.md 3.2).
-func TestDeleteResourceDeletesTheSubtree(t *testing.T) {
-	run(t, func(h *harness) {
-		id, root := h.api("t")
-		pets := h.resource(id, root, "pets")
-		sub := h.resource(id, pets, "subpets")
-		must(h, apigatewayapi.OpDeleteResource, &apigatewayapi.DeleteResourceInput{RestApiId: id, ResourceId: pets})
-		if got := h.paths(id); !maps.Equal(got, map[string]string{"/": root}) {
-			t.Errorf("GetResources after deleting /pets = %v, want only /", got)
-		}
-		wantText(t, fail(h, apigatewayapi.OpDeleteResource, &apigatewayapi.DeleteResourceInput{RestApiId: id, ResourceId: sub}), notFound, "Invalid Resource identifier specified")
-	})
-}
-
 // UpdateResource takes replace on /pathPart and /parentId; a move changes
 // the path of the whole subtree (aws-doc patch-operations,
 // apigateway-rest.md 3.2). Recorded refusals (aws-recorded,

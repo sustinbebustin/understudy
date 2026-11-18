@@ -365,6 +365,9 @@ func TestGoldenDeleteResourceSubtree(t *testing.T) {
 		pets := h.resource(id, root, "pets")
 		sub := h.resource(id, pets, "subpets")
 		output(r, "delete-resource", apigatewayapi.OpDeleteResource, must(h, apigatewayapi.OpDeleteResource, &apigatewayapi.DeleteResourceInput{RestApiId: id, ResourceId: pets}), `{"_status":202}`)
+		// The "/" left standing is the API's own root, whose id CreateRestApi
+		// answered as rootResourceId (apigateway-rest.md 3.1, 3.2).
+		r.binds["<id:1>"] = root
 		output(r, "get-resources", apigatewayapi.OpGetResources, must(h, apigatewayapi.OpGetResources, &apigatewayapi.GetResourcesInput{RestApiId: id}), `{"items":[{"id":"<id:1>","path":"/"}],"_status":200}`)
 		r.failure("delete-subresource", fail(h, apigatewayapi.OpDeleteResource, &apigatewayapi.DeleteResourceInput{RestApiId: id, ResourceId: sub}),
 			`{"Error":{"Code":"NotFoundException","Message":"Invalid Resource identifier specified"},"message":"Invalid Resource identifier specified","_status":404}`)

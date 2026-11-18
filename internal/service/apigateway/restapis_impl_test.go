@@ -1,7 +1,6 @@
 package apigateway_test
 
 import (
-	"net/http"
 	"slices"
 	"testing"
 
@@ -42,26 +41,6 @@ func TestUpdateRestApiTable(t *testing.T) {
 		if deref(got.Name) != "t" || !slices.Equal(got.BinaryMediaTypes, []string{"image/png"}) {
 			t.Errorf("after refused updates = %+v, want name t and [image/png]", got)
 		}
-	})
-}
-
-// binaryMediaTypes added by UpdateRestApi reach the data plane only through
-// a new deployment, which then answers 501 naming them, journaled, without
-// running the function (the binaryMediaTypes half of
-// TestSnapshotAndLiveSettings).
-func TestBinaryMediaTypesFollowTheDeployment(t *testing.T) {
-	run(t, func(h *harness) {
-		id := h.proxyRoot(&apigatewayapi.CreateRestApiInput{Name: "t"}, nil)
-		h.deploy(id)
-		must(h, apigatewayapi.OpUpdateRestApi, &apigatewayapi.UpdateRestApiInput{RestApiId: id, PatchOperations: []apigatewayapi.PatchOperation{
-			op(apigatewayapi.OpAdd, "/binaryMediaTypes/image~1png"),
-		}})
-		if rec := h.get(id, "/s/"); rec.Code != http.StatusOK {
-			t.Fatalf("before redeploying: GET = %d %s, want the old snapshot served", rec.Code, rec.Body)
-		}
-		h.deploy(id)
-		want501(t, h.get(id, "/s/"), "binaryMediaTypes", "after redeploying")
-		h.wantJournaled501("binaryMediaTypes")
 	})
 }
 
