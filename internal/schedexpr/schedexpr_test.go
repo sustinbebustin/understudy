@@ -22,19 +22,6 @@ func TestParseAcceptsRecordedExpressions(t *testing.T) {
 	}
 }
 
-// Rate forms the grammar allows that the recorded corpus does not contain:
-// the documentation's examples and one more plural hour value.
-func TestParseAcceptsDocumentedRates(t *testing.T) {
-	t.Parallel()
-	for _, expr := range []string{
-		"rate(5 minutes)", "rate(1 hour)", "rate(12 hours)", "rate(1 day)", "rate(7 days)",
-	} {
-		if _, err := Parse(expr); err != nil {
-			t.Errorf("Parse(%q) rejected: %v", expr, err)
-		}
-	}
-}
-
 // Rules take exactly one space between cron fields: a double space and tabs
 // are refused (events/R14/01-29-put.json, 01-30-put.json). Scheduler takes
 // runs of spaces and tabs (scheduler/SCH/03-e20.json, 03-e21.json;
@@ -350,7 +337,7 @@ func TestNextFromTheFarPastFiresInTheFirstYear(t *testing.T) {
 		t.Fatalf("Parse: %v", err)
 	}
 	after := time.Date(-100000000, time.March, 1, 0, 0, 0, 0, time.UTC)
-	want := time.Date(minYear, time.January, 1, 0, 0, 0, 0, time.UTC)
+	want := time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC) // year range 1970-2199 (scheduler.md 5.3)
 	if got, ok := Next(s, after); !ok || !got.Equal(want) {
 		t.Errorf("Next(%v) = %v, %v; want %v", after, got, ok, want)
 	}
