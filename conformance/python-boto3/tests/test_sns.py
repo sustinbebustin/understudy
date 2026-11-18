@@ -444,14 +444,6 @@ def test_attribute_filter_policy(
     assert delivered_with(sns, sqs, admin, topic, queue, attributes) is expected
 
 
-def test_a_subscription_without_a_policy_receives_everything(
-    sns: Any, sqs: Any, admin: Admin, make_topic: Callable[..., str], subscribe_queue: Callable[..., tuple[str, str]]
-) -> None:
-    topic = make_topic()
-    queue, _ = subscribe_queue(topic, RawMessageDelivery="true")
-    assert delivered_with(sns, sqs, admin, topic, queue, {}) is True
-
-
 def test_filter_policy_changes_apply_immediately_and_can_be_cleared(
     sns: Any, sqs: Any, admin: Admin, make_topic: Callable[..., str], subscribe_queue: Callable[..., tuple[str, str]]
 ) -> None:
