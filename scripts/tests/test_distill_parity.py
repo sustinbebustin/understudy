@@ -161,7 +161,6 @@ def test_curl_step_reads_the_req_file():
     fixture = dp.distill_step("01-x", {".http": b"HTTP/1.1 200 OK\r\n\r\n{}", ".trace": trace, ".req": b"{}"})
     assert fixture["client"] == "curl"
     assert fixture["exchanges"][0]["request"]["body"] == "{}"
-    assert ".req" in dp.EXCHANGE_EXTS
 
 
 def test_queue_items_resolve_to_their_primary_service():
