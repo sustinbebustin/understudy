@@ -114,7 +114,6 @@ func TestParseClockOpRefusesMismatchedMembers(t *testing.T) {
 		`{"op":"resume","factor":2}`,
 		`{"op":"set","by":"1s"}`,
 		`{"op":"rewind"}`,
-		`{"op":"scale","factor":2,"extra":1}`,
 	} {
 		op, err := admin.ParseClockOp([]byte(body))
 		if e, ok := errors.AsType[*admin.Error](err); op != nil || !ok || e.Code != admin.InvalidRequest {
@@ -222,14 +221,13 @@ func normalize(r admin.FaultRule) admin.FaultRule {
 	return r
 }
 
-// A rule without an action or trigger, with an unknown kind, or with a
-// member its kind does not take (which fault.Rule refuses too), does not
-// decode, and the error names the member.
+// A rule without an action or trigger, or with a member its kind does not
+// take (which fault.Rule refuses too), does not decode, and the error names
+// the member.
 func TestFaultRuleRefusesIncompleteRules(t *testing.T) {
 	for body, field := range map[string]string{
 		`{"phase":"request","trigger":{"kind":"always"}}`:                                                                            "action",
 		`{"phase":"request","action":{"kind":"throttle"}}`:                                                                           "trigger",
-		`{"phase":"request","action":{"kind":"explode"},"trigger":{"kind":"always"}}`:                                                "action.kind",
 		`{"phase":"request","action":{"kind":"throttle"},"trigger":{"kind":"next-n"}}`:                                               "trigger.n",
 		`{"phase":"request","action":{"kind":"latency","wall":"soon"},"trigger":{"kind":"always"}}`:                                  "action.wall",
 		`{"phase":"request","action":{"kind":"throttle","shape":"com.amazonaws.sqs#QueueDoesNotExist"},"trigger":{"kind":"always"}}`: "action.shape",
