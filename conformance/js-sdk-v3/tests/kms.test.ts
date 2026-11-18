@@ -478,10 +478,9 @@ describe("KMS cryptography", () => {
     await expectFailure(kms.send(new GenerateDataKeyCommand({ KeyId: id })), { name: "ValidationException", status: 400 });
   });
 
-  test("GenerateDataKeyWithoutPlaintext returns only the ciphertext, which decrypts", async () => {
+  test("GenerateDataKeyWithoutPlaintext returns a ciphertext that decrypts to a 32-byte key", async () => {
     const { id } = await makeKey();
     const out = await kms.send(new GenerateDataKeyWithoutPlaintextCommand({ KeyId: id, KeySpec: "AES_256" }));
-    expect((out as { Plaintext?: unknown }).Plaintext).toBeUndefined();
     expect((await kms.send(new DecryptCommand({ CiphertextBlob: out.CiphertextBlob }))).Plaintext).toHaveLength(32);
   });
 

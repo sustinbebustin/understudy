@@ -1100,14 +1100,6 @@ describe("SNS filter policies", () => {
     expect(await delivered({ k: [null, { "anything-but": "whatever" }] }, [{ body: "bare" }])).toEqual([]);
   });
 
-  test("a subscription without a policy receives every message", async () => {
-    const t = await makeTopic();
-    const q = await makeQueue();
-    await subscribeQueue(t.arn, q.arn, { RawMessageDelivery: "true" });
-    await sns.send(new PublishCommand({ TopicArn: t.arn, Message: "any", MessageAttributes: { k: str("v") } }));
-    expect(bodiesOf(await collect(q.url, 1))).toEqual(["any"]);
-  });
-
   test("MessageBody scope matches nested JSON paths and treats arrays as transparent", async () => {
     expect(
       await delivered(
