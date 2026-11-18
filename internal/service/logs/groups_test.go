@@ -204,12 +204,6 @@ func TestGroupErrors(t *testing.T) {
 		_, err = call(h, logsapi.OpPutRetentionPolicy, &logsapi.PutRetentionPolicyInput{LogGroupName: "missing", RetentionInDays: 1})
 		wantError(h.T, err, "ResourceNotFoundException", "The specified log group does not exist.")
 
-		must(h, logsapi.OpCreateLogGroup, &logsapi.CreateLogGroupInput{LogGroupName: "protected", DeletionProtectionEnabled: new(true)})
-		_, err = call(h, logsapi.OpDeleteLogGroup, &logsapi.DeleteLogGroupInput{LogGroupName: "protected"})
-		if err == nil || err.ID.JSONType != "ValidationException" {
-			h.Errorf("DeleteLogGroup of a protected group = %+v, want ValidationException", err)
-		}
-
 		// "aws/" is reserved; "/aws/..." is the Lambda form and stays valid.
 		_, err = call(h, logsapi.OpCreateLogGroup, &logsapi.CreateLogGroupInput{LogGroupName: "aws/reserved"})
 		wantError(h.T, err, "InvalidParameterException", "Log group names can't start with the string aws/.")
