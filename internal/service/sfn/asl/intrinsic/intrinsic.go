@@ -54,7 +54,6 @@ func (e *SyntaxError) Unwrap() error { return e.Err }
 // size 0, an unknown hash algorithm, ...); the engine names it with the
 // sfn.intrinsic.failure-error switch.
 type FunctionError struct {
-	Function string // "States.ArrayGetItem"
 	// Detail is AWS's text after the expression in the cause, such as
 	// "Invalid arguments in States.ArrayGetItem" (stepfunctions-asl.md 5.4).
 	Detail string
