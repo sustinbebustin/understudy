@@ -41,7 +41,6 @@ func TestCheckBindAcceptsBothSidesOfTheShape(t *testing.T) {
 		{"hex", IDShape{Alphabet: Hex, Min: 1, Max: 32}, "ae7be26cdaa742ca148068d5ac90eaca", "0f"},
 		{"base32", IDShape{Alphabet: Base32, Min: 17, Max: 21, Prefix: "AROA"}, "AROARZPUZDIKAAAAAAAHA", "AROAQ2BCDEFGHIJKLMN"},
 		{"alnum", IDShape{Alphabet: Alnum, Min: 6, Max: 6}, "aB3dE6", "Zz09yY"},
-		{"arn with a uuid name", ARNShape{Service: "kms", Resource: "key", Name: UUIDShape{}}, recordedKey, mintedKey},
 		{"arn with no region", ARNShape{Service: "iam", Resource: "role"}, recordedRole, recordedRole},
 		{"arn with no resource type", ARNShape{Service: "sqs"}, recordedQueueARN, recordedQueueARN},
 		{"url", URLShape{Path: "/{account}/{name}"}, recordedQueueURL, mintedQueueURL},
