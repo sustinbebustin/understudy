@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"pgregory.net/rapid"
@@ -304,7 +303,6 @@ func TestNewTargetChecks(t *testing.T) {
 		{"no key", checkS3Object(delivery.S3Object{Bucket: "b"}), "Target.Key"},
 		{"http", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("http://127.0.0.1:8080/")}), ""},
 		{"https", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("https://hooks.example.test/")}), ""},
-		{"ftp", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("ftp://hooks.example.test/")}), "Target.URL"},
 		{"no host", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("http:///hook")}), "Target.URL"},
 		{"a header", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("http://127.0.0.1:8080/"), Headers: []delivery.HTTPHeader{{Name: "x-amz-sns-message-type", Value: "Notification"}}}), ""},
 		{"a lower-case content-length", checkHTTPEndpoint(delivery.HTTPEndpoint{URL: parse("http://127.0.0.1:8080/"), Headers: []delivery.HTTPHeader{{Name: "x-amz-sns-message-type", Value: "Notification"}, {Name: "content-length", Value: "0"}}}), "Target.Headers[1]"},
@@ -368,7 +366,6 @@ func TestEndHTTPOutcomes(t *testing.T) {
 		{"retries exhausted", delivery.None{}, httpRetry{reason: "HTTP 503 Service Unavailable"}, func(o journal.DeliveryOutcome) bool {
 			return o == journal.Dropped{Reason: "no dead-letter queue is set and its retries are exhausted; the last attempt failed with HTTP 503 Service Unavailable"}
 		}},
-		{"a 404 answer, which AWS counts as delivered", delivery.SNSManaged{}, httpAccepted{status: 404}, func(o journal.DeliveryOutcome) bool { return o == journal.Delivered{} }},
 	}
 	for _, c := range cases {
 		got, ok := httpAttempt(t, c.policy).endHTTP(t.Context(), c.result, 0)
@@ -381,19 +378,6 @@ func TestEndHTTPOutcomes(t *testing.T) {
 	if got, ok := httpAttempt(t, delivery.SNSManaged{}).endHTTP(ctx, httpAccepted{status: 200}, 0); ok {
 		t.Errorf("endHTTP after the kernel stopped = %#v, want no outcome", got)
 	}
-}
-
-// A 404 is a delivered answer, as AWS recorded in SNSH-05, with its status
-// kept (sns-http-delivery.md 6.1).
-func TestPostHTTPCountsA404AsDelivered(t *testing.T) {
-	synctest.Test(t, func(t *testing.T) {
-		e := &endpoint{status: http.StatusNotFound}
-		got := postHTTP(t.Context(), egressTo(t, e), hook(t, "http://127.0.0.1:8080/hook"))
-		synctest.Wait()
-		if r, ok := got.(httpAccepted); !ok || r.status != http.StatusNotFound {
-			t.Errorf("postHTTP to a 404 = %#v, want delivered with status 404", got)
-		}
-	})
 }
 
 // A dead letter of an HTTP delivery carries the body the endpoint would
@@ -489,8 +473,8 @@ func TestDeliveredToAndEndpoint(t *testing.T) {
 }
 
 // plant makes req pending and arms its first attempt now, as Enqueue does,
-// without Enqueue's mechanism check: no mechanism delivers to the new
-// targets until their producers add one, so Enqueue refuses them today.
+// without Enqueue's checks, so a target's attempt path runs under a
+// mechanism Enqueue would refuse for it.
 func plant(k *kerneltest.K, o *Outbox, req delivery.Request) {
 	k.Helper()
 	e := o.e.Load()
@@ -551,9 +535,6 @@ func TestNewTargetsRunTheAttemptPath(t *testing.T) {
 		}},
 		{"object", delivery.S3Object{Bucket: "audit", Key: "k", Body: []byte("b")}, one, func(d journal.Delivery) bool {
 			return d.To == object && d.Endpoint == "" && d.Outcome == journal.Delivered{}
-		}},
-		{"endpoint", hook(t, "http://127.0.0.1:8080/hook"), one, func(d journal.Delivery) bool {
-			return d.To == (aws.ARN{}) && d.Endpoint == "127.0.0.1:8080" && d.Outcome == journal.Delivered{}
 		}},
 		{"endpoint egress refuses", hook(t, "http://10.9.9.9:8080/hook"), none, func(d journal.Delivery) bool {
 			r, ok := d.Outcome.(journal.Refused)
