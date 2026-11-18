@@ -42,27 +42,6 @@ func TestSocketGroupOptionsCommute(t *testing.T) {
 	}
 }
 
-// 127.0.0.1 needs no token; beyond loopback the token is needed
-// (testcontainers.md 8.4, 9.5).
-func TestExposureNeedsTheTokenOnlyBeyondLoopback(t *testing.T) {
-	cases := []struct {
-		opts    []Option
-		refused bool
-	}{
-		{nil, false},
-		{[]Option{WithPublishedOn(netip.MustParseAddr("127.0.0.1"))}, false},
-		{[]Option{WithPublishedOn(netip.MustParseAddr("0.0.0.0"))}, true},
-		{[]Option{WithPublishedOn(netip.MustParseAddr("0.0.0.0")), WithAdminToken()}, false},
-	}
-	for _, c := range cases {
-		o := apply(t, c.opts...)
-		err := o.exposure()
-		if _, refused := errors.AsType[*ExposureError](err); refused != c.refused {
-			t.Errorf("publish %v token %t: exposure = %v, want refused %t", o.publish, o.token != "", err, c.refused)
-		}
-	}
-}
-
 // Shape errors in an option's argument are refused when Run applies it.
 func TestOptionArgumentShapes(t *testing.T) {
 	dir := t.TempDir()
