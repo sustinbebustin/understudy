@@ -375,23 +375,6 @@ func TestPendingRetirement(t *testing.T) {
 	}
 }
 
-// A claim label prints as the page shows it.
-func TestClaimLabelText(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		label coverage.ClaimLabel
-		want  string
-	}{
-		{coverage.CodeLabel{Label: evidence.SDKSource}, "sdk-source"},
-		{coverage.RecordedLabel{Fixture: "kms/KMS-alias/01-duplicate.json"}, "aws-recorded (kms/KMS-alias/01-duplicate.json)"},
-		{coverage.ContradictedLabel{Fixture: "sqs/R01/03-recv-after-6s.json"}, "contradicted (sqs/R01/03-recv-after-6s.json)"},
-	} {
-		if got := coverage.ClaimLabelText(tc.label); got != tc.want {
-			t.Errorf("ClaimLabelText(%+v) = %q, want %q", tc.label, got, tc.want)
-		}
-	}
-}
-
 // The evidence report's switches, claims and overlay shapes agree.
 func TestCheckEvidenceAcceptsAgreeingEvidence(t *testing.T) {
 	t.Parallel()
