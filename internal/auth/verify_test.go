@@ -20,13 +20,15 @@ import (
 	"github.com/sustinbebustin/understudy/internal/clock"
 )
 
-// docGetObject is the documentation GET vector of TestDocVectorGetObject.
+// docGetObject is the published GET Object vector
+// (sigv4-checksums-endpoints.md 1.2).
 func docGetObject(t *testing.T) (auth.SigV4Header, auth.Normalized) {
 	t.Helper()
 	r := serverRequest(t, http.MethodGet, "/test.txt", "examplebucket.s3.amazonaws.com", map[string]string{
 		"Range":                "bytes=0-9",
 		"X-Amz-Content-Sha256": emptyHash,
 		"X-Amz-Date":           "20130524T000000Z",
+		// The AWS example separates elements with bare commas.
 		"Authorization": "AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request," +
 			"SignedHeaders=host;range;x-amz-content-sha256;x-amz-date," +
 			"Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41",
