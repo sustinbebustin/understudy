@@ -76,6 +76,18 @@ func TestPendingImagePullIsTrackedAsImagePull(t *testing.T) {
 		ended, end := context.WithCancel(h.Context())
 		end()
 		pending, err := h.Kernel.Settle(ended, time.Second)
+		// The image timer that started the pull counts as timer-due until
+		// its handler returns, which can be after the pull has entered
+		// (GLOSSARY "Settle"; kernel/doc.go). Once the pull is tracked, wait
+		// that handler out; a pull run inside the handler is never tracked,
+		// so it fails below instead of waiting here.
+		timers := h.Kernel.Timers().Scheduler()
+		for pending[kernel.ImagePull] == 1 && pending[kernel.TimerDue] > 0 {
+			if n, dropped := timers.DueOrFiring(h.Clock.Now()); n > 0 {
+				<-dropped
+			}
+			pending, err = h.Kernel.Settle(ended, time.Second)
+		}
 		if err == nil || pending[kernel.ImagePull] != 1 || len(pending) != 1 || pending.String() != "image-pull=1" {
 			t.Errorf("Settle during the pull = %v, %v; want a SettleError with image-pull=1", pending, err)
 		}

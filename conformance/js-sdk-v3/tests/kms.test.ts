@@ -254,11 +254,14 @@ describe("KMS key state and deletion", () => {
   test("cryptographic operations on a disabled key fail DisabledException naming the key ARN", async () => {
     const { id, arn } = await makeKey();
     await kms.send(new DisableKeyCommand({ KeyId: id }));
+    // Each call starts only when it is awaited: a started call that rejects
+    // while the loop awaits an earlier one has no handler yet, and bun test
+    // fails the test on that unhandled rejection.
     for (const call of [
-      kms.send(new EncryptCommand({ KeyId: id, Plaintext: utf8.encode("x") })),
-      kms.send(new GenerateDataKeyCommand({ KeyId: id, KeySpec: "AES_256" })),
+      () => kms.send(new EncryptCommand({ KeyId: id, Plaintext: utf8.encode("x") })),
+      () => kms.send(new GenerateDataKeyCommand({ KeyId: id, KeySpec: "AES_256" })),
     ]) {
-      await expectFailure(call, { name: "DisabledException", status: 400, messageIncludes: `${arn} is disabled.` });
+      await expectFailure(call(), { name: "DisabledException", status: 400, messageIncludes: `${arn} is disabled.` });
     }
   });
 
