@@ -82,7 +82,10 @@ test("a failed start settles in a process with nothing else pending", () => {
       encoding: "utf8",
       timeout: 90_000,
     });
-    assert.match(out, /^rejected: .*UNDERSTUDY_CLOCK_SCALE: scales the clock while UNDERSTUDY_CLOCK freezes it/m, out);
+    // Whichever sees the exit first rejects: tc-node's wait strategy puts the
+    // log on the line of its message, the exit watch on the lines after its
+    // own (testcontainers.md 9.5), so the log may follow a line break.
+    assert.match(out, /^rejected: .*UNDERSTUDY_CLOCK_SCALE: scales the clock while UNDERSTUDY_CLOCK freezes it/ms, out);
   }
 });
 
